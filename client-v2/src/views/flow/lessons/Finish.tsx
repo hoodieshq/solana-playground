@@ -15,6 +15,7 @@ import Button from "../../../components/Button";
 import PlaygroundMarkNext from "../../../components/PlaygroundMarkNext";
 import { PgTutorial } from "../../../utils";
 
+/** What each step taught, in the path's order */
 const LEARNED = [
   "Declaring a program and its instructions",
   "Deploying through Kora with 0 SOL",
@@ -57,6 +58,9 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
   const proved = state.progress.completedStepIds.length;
   const skipped = state.progress.skippedStepIds?.length ?? 0;
   const named = tx?.name ? tx : null;
+  // Step 4 is proved by its build; until the new build is deployed, devnet
+  // still runs the program without the name
+  const behind = PgKora.behind;
 
   const call = async (e: FormEvent) => {
     e.preventDefault();
@@ -78,7 +82,11 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
           <PlaygroundMarkNext />
         </Mark>
         <Title>Tutorial complete</Title>
-        <Lead>Hello Anchor is live on devnet.</Lead>
+        <Lead>
+          {behind
+            ? "Hello Anchor is built with a name. Call hello and it goes to devnet first."
+            : "Hello Anchor is live on devnet."}
+        </Lead>
 
         <Stats>
           <Stat>
@@ -120,20 +128,34 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
               {calling ? "Calling..." : "Call hello"}
             </BrandPill>
           </Form>
-          {named && <Receipt tx={named} />}
+          {named && <Receipt key={named.signature} tx={named} />}
         </Card>
 
         <Section aria-labelledby="finish-learned">
           <SectionTitle id="finish-learned">What you learned</SectionTitle>
           <List>
-            {LEARNED.map((l) => (
-              <Item key={l}>
-                <Tick aria-hidden viewBox="0 0 16 16">
-                  <path d="M3.5 8.5l3 3 6-7" />
-                </Tick>
-                {l}
-              </Item>
-            ))}
+            {/* A skipped step taught nothing yet: it stays on the list,
+                unticked, as the one to come back to */}
+            {LEARNED.map((l, i) => {
+              const id = state.path?.steps[i]?.id;
+              const skippedHere =
+                !!id &&
+                !state.progress.completedStepIds.includes(id) &&
+                !!state.progress.skippedStepIds?.includes(id);
+              return (
+                <Item key={l} $muted={skippedHere}>
+                  {skippedHere ? (
+                    <Open aria-hidden />
+                  ) : (
+                    <Tick aria-hidden viewBox="0 0 16 16">
+                      <path d="M3.5 8.5l3 3 6-7" />
+                    </Tick>
+                  )}
+                  {l}
+                  {skippedHere && <SkippedNote>skipped</SkippedNote>}
+                </Item>
+              );
+            })}
           </List>
         </Section>
 
@@ -374,13 +396,34 @@ const List = styled.ul`
   gap: 0.375rem;
 `;
 
-const Item = styled.li`
-  ${({ theme }) => css`
+const Item = styled.li<{ $muted?: boolean }>`
+  ${({ theme, $muted }) => css`
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
-    color: ${theme.colors.default.textPrimary};
+    color: ${$muted
+      ? theme.colors.default.textSecondary
+      : theme.colors.default.textPrimary};
+  `}
+`;
+
+const Open = styled.span`
+  ${({ theme }) => css`
+    flex-shrink: 0;
+    width: 0.75rem;
+    height: 0.75rem;
+    margin: 0 0.0625rem;
+    border: 1.5px solid ${theme.colors.default.textSecondary};
+    border-radius: 999px;
+    box-sizing: border-box;
+  `}
+`;
+
+const SkippedNote = styled.span`
+  ${({ theme }) => css`
+    font-size: 0.75rem;
+    color: ${theme.colors.default.textSecondary};
   `}
 `;
 

@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 
 import type { LessonStep } from "./types";
 import Markdown from "../../../components/Markdown";
+import { PHONE } from "../phone";
 import { SpinnerWithBg } from "../../../components/Loading";
 import { useAsyncEffect, useKeybind } from "../../../hooks";
 
@@ -148,6 +149,17 @@ const Body = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 1.5rem;
+
+  /* A phone reads the code whole: long lines wrap instead of running off
+     the edge behind a sideways scroll nobody finds */
+  ${PHONE} {
+    & pre,
+    & pre code {
+      white-space: pre-wrap !important;
+      overflow-wrap: anywhere;
+      overflow-x: visible !important;
+    }
+  }
 `;
 
 const Failure = styled.p`

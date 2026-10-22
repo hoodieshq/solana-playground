@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import styled, { css } from "styled-components";
+import styled, { css, keyframes } from "styled-components";
 
 import { BASE_FEE_LAMPORTS, COMPUTE_LIMIT } from "./kora";
 import type { KoraTx } from "./kora";
@@ -113,8 +113,20 @@ const Receipt: FC<{ tx: KoraTx }> = ({ tx }) => {
 
 export default Receipt;
 
+/* The Styleguide's Rise: small pieces coming in */
+const rise = keyframes`
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to   { opacity: 1; transform: none; }
+`;
+
 const Wrapper = styled.section`
   ${({ theme }) => css`
+    animation: ${rise} 620ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+
     margin-top: 0.875rem;
     border: 1px solid ${theme.colors.default.border};
     border-radius: ${theme.default.borderRadius};

@@ -16,6 +16,29 @@ import { PHONE, PHONE_TYPE, phoneActions, usePhone } from "../phone";
 import type { FlowState } from "../state/stage";
 import { PgCommand, PgExplorer, PgFramework, PgSettings } from "../../../utils";
 
+/**
+ * Open the file a diagnostic points at, on its line and column, in the
+ * editor. rustc names the file from the build's own folder (`../src/lib.rs`
+ * or `src/lib.rs`), which opened a second tab for the same file and left
+ * the cursor where it was.
+ */
+const openAt = async (d: BuildDiagnostic) => {
+  if (!d.file) return;
+  const path = d.file.replace(/^(?:\.{1,2}\/|\/)+/, "");
+  PgFlow.setStage("write");
+  PgExplorer.openFile(path);
+  const monaco = await import("monaco-editor");
+  // The editor swaps its model a frame after the tab changes
+  window.setTimeout(() => {
+    const editor = monaco.editor.getEditors()[0];
+    if (!editor || d.line === null) return;
+    const position = { lineNumber: d.line, column: d.col ?? 1 };
+    editor.setPosition(position);
+    editor.revealPositionInCenter(position);
+    editor.focus();
+  }, 150);
+};
+
 /** `flow.buildMs` as a ` - 3.2s` suffix, or nothing while it is unknown */
 const msSuffix = (ms: number | null) =>
   ms === null ? "" : ` - ${(ms / 1000).toFixed(1)}s`;
@@ -317,11 +340,7 @@ const Build = () => {
                     <Button onClick={fix}>Fix with assistant</Button>
                   )}
                   {d.file && (
-                    <Button
-                      onClick={() => PgExplorer.openFile(d.file as string)}
-                    >
-                      Open in editor
-                    </Button>
+                    <Button onClick={() => openAt(d)}>Open in editor</Button>
                   )}
                 </CardActionsLeft>
                 {compilerToggle}

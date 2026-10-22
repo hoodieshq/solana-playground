@@ -18,8 +18,10 @@ export const describeStep = (state: LessonState) => {
     }`,
     objective: step.objective,
     verifiedBy:
-      step.verify.kind === "read"
-        ? `Not machine-checked -- continue when ${step.verifiedBy}.`
+      // A reading step is not checked, unless its press proves it: Hello
+      // Anchor's step 3 is passed by running the client
+      step.verify.kind === "read" && step.target !== "interact"
+        ? `Not machine-checked. Continue when ${step.verifiedBy}.`
         : `Verified when ${step.verifiedBy}.`,
   };
 };

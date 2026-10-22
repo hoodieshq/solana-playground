@@ -85,7 +85,7 @@ describe("describeStep", () => {
       number: "Step 1 of 1",
       objective: "Read the intro",
       verifiedBy:
-        "Not machine-checked -- continue when you have marked this page as read.",
+        "Not machine-checked. Continue when you have marked this page as read.",
     });
   });
 });

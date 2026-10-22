@@ -24,8 +24,8 @@ export interface FlowState {
 export type FlowEvent =
   | { type: "build-start"; at: number }
   | { type: "build-finish"; failed: boolean; errorCount: number; ms: number }
-  | { type: "deploy-start" }
-  | { type: "deploy-finish"; ok: boolean }
+  | { type: "deploy-start"; stay?: boolean }
+  | { type: "deploy-finish"; ok: boolean; stay?: boolean }
   | { type: "set-stage"; stage: Stage }
   | { type: "source-change" }
   | { type: "workspace-change" }
@@ -81,11 +81,12 @@ export class PgFlow {
    * mocked by `PgKora` on a stand where Kora isn't live. The loop moves on
    * exactly as after a real one.
    */
-  static recordDeploy(phase: "start" | "done") {
+  static recordDeploy(phase: "start" | "done", opts?: { stay?: boolean }) {
+    const stay = opts?.stay;
     PgFlow._dispatch(
       phase === "start"
-        ? { type: "deploy-start" }
-        : { type: "deploy-finish", ok: true }
+        ? { type: "deploy-start", stay }
+        : { type: "deploy-finish", ok: true, stay }
     );
   }
 
@@ -133,12 +134,20 @@ export class PgFlow {
               buildErrorCount: 0,
               buildMs: ev.ms,
             };
+      // `stay`: a deploy run for a screen that shows its own result (a call
+      // on the finish that upgrades first) leaves the learner where they are
       case "deploy-start":
-        return { ...state, stage: "deploy", deploy: "running" };
-      case "deploy-finish":
+        return {
+          ...state,
+          stage: ev.stay ? state.stage : "deploy",
+          deploy: "running",
+        };
+      case "deploy-finish": {
+        const stage = ev.stay ? state.stage : "deploy";
         return ev.ok
-          ? { ...state, stage: "deploy", deploy: "done", interact: "active" }
-          : { ...state, stage: "deploy", deploy: "failed" };
+          ? { ...state, stage, deploy: "done", interact: "active" }
+          : { ...state, stage, deploy: "failed" };
+      }
       case "set-stage":
         return { ...state, stage: ev.stage };
       // The code moved on from what was built. A passed build stops counting,

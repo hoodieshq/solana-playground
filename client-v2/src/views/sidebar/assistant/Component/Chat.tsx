@@ -94,7 +94,7 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
   const turn = useRef<AbortController | null>(null);
   // Bridges `onDidRequestPrompt`, which must subscribe unconditionally, to
   // `send`, which is redefined every render
-  const sendRef = useRef<(text: string) => void>(() => {});
+  const sendRef = useRef<(text: string, shown?: string) => void>(() => {});
   /** A message typed before anything was connected, sent once something is */
   const waiting = useRef<string | null>(null);
   /** Items older than this were restored, not said while the pane was open */
@@ -105,21 +105,21 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
   // place that turns the request into an actual send
   useEffect(() => {
     return PgAssistant.onDidRequestPrompt(
-      ({ text, send }) => {
+      ({ text, send, shown }) => {
         // A prompt the user did not type gets one look before it costs a
         // turn — and with nothing connected, sending is where the model is
         // asked for anyway
         if (!send || !PgAssistant.isConnected) {
           // The tutorial's own assistant answers what it can for free, so
           // there is nothing to look over first
-          if (!PgAssistant.isConnected) sendRef.current(text);
+          if (!PgAssistant.isConnected) sendRef.current(text, shown);
           else {
             setInput(text);
             inputRef.current?.focus();
           }
           return;
         }
-        sendRef.current(text);
+        sendRef.current(text, shown);
       },
       { sends: true }
     ).dispose;
@@ -317,13 +317,28 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
   // patch comes after it, so "Write it for me" would only ask it again
   const check =
     !busy && lastItem?.kind === "assistant" ? PgLessonGuide.openCheck : null;
+  // The reply the moves sit under: the last one, past anything that only
+  // notes what the panel did (a notice, a patch taken back)
+  const replyItem = (() => {
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      if (item.kind === "notice") continue;
+      if (item.kind === "approval" && item.undone) continue;
+      return item.kind === "assistant" ? item : null;
+    }
+    return null;
+  })();
+  // In a lesson with no model, "Write it for me" is only worth offering
+  // where the tutorial has a patch to give; elsewhere it would open Connect
+  // a model
+  const canWrite = !lesson || PgAssistant.isConnected || PgLessonGuide.canWrite;
   const changeableId =
     !busy &&
     !check &&
-    lastItem?.kind === "assistant" &&
-    lastItem.text &&
+    canWrite &&
+    replyItem?.text &&
     !wroteThisTurn
-      ? lastItem.id
+      ? replyItem.id
       : null;
 
   // 1, 2 and 3 answer the check, as on the prototype's, whenever the learner

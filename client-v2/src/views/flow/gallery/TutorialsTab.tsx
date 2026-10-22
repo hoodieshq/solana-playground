@@ -2,7 +2,6 @@ import { FC, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Button from "../../../components/Button";
-import Img from "../../../components/Img";
 import { PgTheme, PgTutorial, PgView } from "../../../utils";
 import { ICONS } from "../nav/icons";
 import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
@@ -94,7 +93,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query, limit }) => {
 const LessonStatus: FC<{ name: string }> = ({ name }) => {
   const summary = PgLessonSummary.read(name);
   if (!summary) return null;
-  const done = summary.passed.filter(Boolean).length;
+  const done = PgLessonSummary.proved(summary);
   if (summary.finished) {
     return (
       <Status $done title="Completed" aria-label="Completed">

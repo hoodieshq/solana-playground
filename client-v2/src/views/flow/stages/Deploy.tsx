@@ -235,9 +235,9 @@ const Deploy = () => {
               <Time>{new Date(r.at).toLocaleString()}</Time>
               <Link
                 href={explorer.getAddressUrl(r.programId)}
-                aria-label={`View deployment (${r.programId}) on Explorer`}
+                aria-label={`Open in Explorer: the deployment ${r.programId}`}
               >
-                Explorer
+                Open in Explorer
               </Link>
             </HistoryRow>
           ))}

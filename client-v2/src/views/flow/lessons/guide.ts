@@ -25,6 +25,11 @@ export interface GuidePatch {
   say: string;
   /** Said once it is applied: the move that proves it */
   done: string;
+  /**
+   * A second file the same change needs, proposed as its own card once this
+   * one is applied; its `done` is said instead of this one's
+   */
+  then?: GuidePatch;
 }
 
 /** What the tutorial's assistant knows about one step, without a model */
@@ -71,9 +76,21 @@ const GUIDES: Record<string, LessonGuide> = {
 
 const HINT = /^Hint (\d) of \d/;
 
-/** Said after a patch is turned down: the way on is still both ways */
-const LEFT_AS_IT_WAS =
-  "Left it as it was. Write it yourself and press Build, or ask me again.";
+/** What proves each kind of step, as its button in the band says it */
+const PRESS: Record<string, string> = {
+  build: "Build",
+  deploy: "Deploy to devnet",
+  interact: "Run the client",
+};
+
+/**
+ * Said after a patch is turned down: the way on is still both ways, and the
+ * press named is the one this step's band offers
+ */
+const leftAsItWas = (step: LessonStep | null) =>
+  `Left it as it was. Write it yourself and press ${
+    PRESS[step?.target ?? "build"] ?? "Build"
+  }, or ask me again.`;
 
 /** What the skip under a quick check says, as the learner's own message */
 export const SKIP_CHECK = "Skip and show the code";
@@ -131,7 +148,7 @@ export class PgLessonGuide {
     // since nothing can answer it now, and the turn has to end the way a
     // Reject ends it, with the way on, or the step is left at a dead end
     if (last?.kind === "approval" && last.status === "denied") {
-      PgLessonGuide._say(LEFT_AS_IT_WAS);
+      PgLessonGuide._say(leftAsItWas(PgLessonGuide.current()?.step ?? null));
     }
   }
 
@@ -280,6 +297,20 @@ export class PgLessonGuide {
     }
   }
 
+  /**
+   * Whether "Write it for me" has a patch behind it on this step: the step's
+   * own, or the fix once its build failed. Without one the press would only
+   * open Connect a model.
+   */
+  static get canWrite() {
+    const at = PgLessonGuide.current();
+    if (!at) return false;
+    return !!(
+      at.guide.patch ||
+      (PgBuildOutput.latest?.failed && at.guide.fix)
+    );
+  }
+
   /** Say something the tutorial did, such as the client's run, in the chat */
   static tell(text: string) {
     PgLessonGuide._say(text);
@@ -377,7 +408,7 @@ export class PgLessonGuide {
     });
     const approvalId = PgAssistant.lastApprovalId;
     if (!allowed) {
-      PgLessonGuide._say(LEFT_AS_IT_WAS);
+      PgLessonGuide._say(leftAsItWas(PgLessonGuide.current()?.step ?? null));
       return;
     }
     await realBridge.applyPatch({ path: patch.path, content: after });
@@ -385,6 +416,7 @@ export class PgLessonGuide {
       PgAssistant.setApprovalOutcome(approvalId, `wrote ${patch.path}`);
     }
     PgPatchUndo.wrote(approvalId);
-    PgLessonGuide._say(patch.done);
+    if (patch.then) await PgLessonGuide._propose(patch.then);
+    else PgLessonGuide._say(patch.done);
   }
 }

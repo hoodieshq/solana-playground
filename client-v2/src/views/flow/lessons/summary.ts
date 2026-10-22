@@ -5,6 +5,12 @@ import type { Disposable } from "../../../utils";
 export interface LessonSummary {
   /** Per step, in order: whether it is behind the learner */
   passed: boolean[];
+  /**
+   * Per step, in order: whether it was skipped rather than proved. Kept
+   * apart so the gallery never ticks or counts a skip as done. Missing in a
+   * summary written before it existed.
+   */
+  skipped?: boolean[];
   /** The step to do next, or `null` once every one is behind */
   next: string | null;
   finished: boolean;
@@ -34,10 +40,16 @@ export class PgLessonSummary {
       ...(state.progress.skippedStepIds ?? []),
     ];
     const passed = path.steps.map((s) => behind.includes(s.id));
+    const skipped = path.steps.map(
+      (s) =>
+        !state.progress.completedStepIds.includes(s.id) &&
+        !!state.progress.skippedStepIds?.includes(s.id)
+    );
     const next = path.steps.find((s) => !behind.includes(s.id));
     const all = PgLessonSummary._all();
     all[path.tutorial] = {
       passed,
+      skipped,
       next: next?.objective ?? null,
       finished: !next,
     };
@@ -47,6 +59,11 @@ export class PgLessonSummary {
       // Storage off: the gallery just shows no status
     }
     for (const cb of PgLessonSummary._listeners) cb();
+  }
+
+  /** How many steps were proved, skips left out */
+  static proved(summary: LessonSummary) {
+    return summary.passed.filter((p, i) => p && !summary.skipped?.[i]).length;
   }
 
   static onDidChange(cb: () => void): Disposable {

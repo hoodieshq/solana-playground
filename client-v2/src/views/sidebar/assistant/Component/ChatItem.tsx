@@ -669,6 +669,14 @@ const Code = styled.span`
   ${({ theme }) => css`
     color: ${theme.colors.default.textPrimary};
     white-space: pre;
+
+    /* On a phone a changed line wraps, so the change is read, not scrolled to */
+    ${PHONE} {
+      flex: 1;
+      min-width: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
   `}
 `;
 

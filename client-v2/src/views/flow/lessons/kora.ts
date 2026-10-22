@@ -124,9 +124,9 @@ export class PgKora {
     );
   }
 
-  private static async _deploy() {
+  private static async _deploy(opts?: { stay?: boolean }) {
     if (PgFlow.state.deploy === "running") return;
-    PgFlow.recordDeploy("start");
+    PgFlow.recordDeploy("start", opts);
     const programId = PgProgramInfo.getPkStr() ?? "";
     const upgrade = PgKora.record.deployedAt !== null;
     await print(
@@ -151,7 +151,7 @@ export class PgKora {
         signature: null,
       });
     }
-    PgFlow.recordDeploy("done");
+    PgFlow.recordDeploy("done", opts);
   }
 
   /**
@@ -165,7 +165,9 @@ export class PgKora {
 
   private static async _runClient(): Promise<KoraTx | null> {
     const client = realBridge.readFile("client/client.ts") ?? "";
-    if (!/\.hello\(\s*\)/.test(client)) {
+    // `hello()` on step 3, `hello("…")` once step 4 gave it a name
+    const call = client.match(/\.hello\(\s*(?:"((?:[^"\\]|\\.)*)")?\s*\)/);
+    if (!call) {
       // A call written in another file, most often a `client.ts` made in
       // `src/` because that folder was selected: say where it has to go
       const elsewhere = realBridge
@@ -174,7 +176,7 @@ export class PgKora {
           (path) =>
             path !== "client/client.ts" &&
             /\.ts$/.test(path) &&
-            /\.hello\(\s*\)/.test(realBridge.readFile(path) ?? "")
+            /\.hello\(/.test(realBridge.readFile(path) ?? "")
         );
       await print(
         "$ run client/client.ts",
@@ -201,7 +203,7 @@ export class PgKora {
       "Running client..."
     );
     await pause(800);
-    return PgKora._call(null);
+    return PgKora._call(call[1] ?? null);
   }
 
   /**
@@ -215,11 +217,14 @@ export class PgKora {
    * receipt itself
    */
   static callHello(name: string | null, opts?: { quiet?: boolean }) {
-    return run(() => PgKora._callHello(name), opts);
+    return run(() => PgKora._callHello(name, opts?.quiet), opts);
   }
 
-  private static async _callHello(name: string | null): Promise<KoraTx> {
-    if (PgKora.behind) await PgKora._deploy();
+  private static async _callHello(
+    name: string | null,
+    quiet?: boolean
+  ): Promise<KoraTx> {
+    if (PgKora.behind) await PgKora._deploy({ stay: quiet });
     await print(
       PgTerminal.info(DEMO),
       `$ pg.program.methods.hello(${

@@ -55,7 +55,7 @@ const StartHere: FC = () => {
   const steps = getLessonPath(TUTORIAL)?.steps ?? [];
   const finished = !!summary?.finished;
   const started = !!summary && !finished && summary.passed.some(Boolean);
-  const done = summary?.passed.filter(Boolean).length ?? 0;
+  const done = summary ? PgLessonSummary.proved(summary) : 0;
 
   const label = finished
     ? "Completed"
@@ -138,6 +138,7 @@ const StartHere: FC = () => {
             <StepsArt
               steps={steps.map((s) => SHORT[s.id] ?? s.objective)}
               passed={summary?.passed ?? []}
+              skipped={summary?.skipped ?? []}
               finished={finished}
             />
           </Picture>
@@ -158,8 +159,9 @@ let swept = false;
 const StepsArt: FC<{
   steps: string[];
   passed: boolean[];
+  skipped: boolean[];
   finished: boolean;
-}> = ({ steps, passed, finished }) => {
+}> = ({ steps, passed, skipped, finished }) => {
   const rows = useRef<(HTMLSpanElement | null)[]>([]);
   useEffect(() => {
     if (swept) return;
@@ -195,7 +197,8 @@ const StepsArt: FC<{
       </WindowHead>
       <Rows>
         {steps.map((name, i) => {
-          const isPassed = finished || !!passed[i];
+          const isSkipped = !!skipped[i];
+          const isPassed = (finished || !!passed[i]) && !isSkipped;
           const current = i === at;
           return (
             <Row key={name} $current={current} $passed={isPassed}>
@@ -203,7 +206,11 @@ const StepsArt: FC<{
               <Dot $current={current} $passed={isPassed}>
                 {isPassed ? "✓" : i + 1}
               </Dot>
-              <RowName>{name}</RowName>
+              <RowName>
+                {name}
+                {/* Behind the learner but not proved: said, not ticked */}
+                {isSkipped && <Skipped> · skipped</Skipped>}
+              </RowName>
             </Row>
           );
         })}
@@ -489,6 +496,12 @@ const Rows = styled.ol`
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
+`;
+
+const Skipped = styled.span`
+  ${({ theme }) => css`
+    color: ${theme.colors.default.textSecondary};
+  `}
 `;
 
 const Row = styled.li<{ $current: boolean; $passed: boolean }>`

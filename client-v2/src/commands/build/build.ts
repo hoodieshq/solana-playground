@@ -47,12 +47,30 @@ export const build = createCmd({
  * @returns the build response
  */
 const buildProgram = async () => {
+  await flushEditors();
   const buildFiles = getBuildFiles();
   const pythonFiles = buildFiles.filter(
     ([path]) => PgLanguage.getFromPath(path)?.name === "Python"
   );
   if (pythonFiles.length > 0) return await buildPython(pythonFiles);
   return await buildRust(buildFiles);
+};
+
+/**
+ * Put what the editors hold into the explorer's state before reading it.
+ *
+ * The editor saves 500 ms after the last keystroke, so a fix typed and
+ * built at once used to send the code from before the fix, and fail again.
+ */
+const flushEditors = async () => {
+  const monaco = await import("monaco-editor");
+  for (const model of monaco.editor.getModels()) {
+    const path = model.uri.path;
+    const file = PgExplorer.getFile(path);
+    if (file && file.content !== model.getValue()) {
+      PgExplorer.saveFileToState(path, model.getValue());
+    }
+  }
 };
 
 /**

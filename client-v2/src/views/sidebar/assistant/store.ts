@@ -107,7 +107,9 @@ export const turnAppliedApproval = (items: readonly ChatItem[]) => {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
     if (opensTurn(item)) return false;
-    if (item.kind === "approval" && item.status === "allowed") return true;
+    // A patch taken back with Undo is no longer written
+    if (item.kind === "approval" && item.status === "allowed" && !item.undone)
+      return true;
   }
   return false;
 };
@@ -126,6 +128,11 @@ export interface PromptRequest {
   text: string;
   /** `false` puts it in the composer instead, for the user to edit and send */
   send: boolean;
+  /**
+   * What the transcript shows for it, when the prompt is written for the
+   * model rather than for the learner to read (a hint rung's instructions)
+   */
+  shown?: string;
 }
 
 /** What the panel is doing right now */
@@ -411,8 +418,11 @@ export class PgAssistant {
    * @param opts `send: false` leaves it in the composer for the user to edit,
    * which is what a prompt they did not type themselves wants
    */
-  static requestPrompt(text: string, opts?: { send?: boolean }) {
-    const request = { text, send: opts?.send !== false };
+  static requestPrompt(
+    text: string,
+    opts?: { send?: boolean; shown?: string }
+  ) {
+    const request = { text, send: opts?.send !== false, shown: opts?.shown };
     PgAssistant._pendingPrompt = PgAssistant._promptSenders.size
       ? null
       : request;

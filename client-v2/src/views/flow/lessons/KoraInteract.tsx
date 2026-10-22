@@ -119,7 +119,7 @@ const InstructionForm: FC<{
           </BrandPill>
         </Submit>
       </Form>
-      {playable && tx && <Receipt tx={tx} />}
+      {playable && tx && <Receipt key={tx.signature} tx={tx} />}
     </Card>
   );
 };

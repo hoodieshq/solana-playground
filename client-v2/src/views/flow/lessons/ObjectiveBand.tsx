@@ -78,7 +78,13 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
 
   const askForHelp = () => {
     const prompt = PgLessonHints.nextPrompt(step, state.attempted);
-    if (prompt) PgAssistant.requestPrompt(prompt);
+    // The rung's instructions are for the assistant; the learner's bubble
+    // says what they pressed
+    if (prompt) {
+      PgAssistant.requestPrompt(prompt, {
+        shown: `I'm stuck, hint ${PgLessonHints.rung(step.id)} of 3`,
+      });
+    }
   };
 
   const back = (
@@ -124,7 +130,9 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
   // learner who is one unlabelled click from finishing is not stuck, they
   // need the click (see "Point the learner at the interface element" in
   // docs/lesson-paths-todo.md)
-  const help = !isRead && (
+  // A reading step gets help too: writing the client is the step 3 learners
+  // get stuck on most
+  const help = (
     <Quiet type="button" onClick={askForHelp}>
       {assistantLabel(rung, state.attempted)}
     </Quiet>

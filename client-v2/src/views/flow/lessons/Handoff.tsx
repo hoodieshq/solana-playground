@@ -122,8 +122,8 @@ export const HandoffSheet: FC = () => {
         <Title id="handoff-title">Write it yourself on a computer</Title>
         <Line>
           Typing code is easier with a keyboard. Open this link on your
-          computer to write step {number}, {step.objective.toLowerCase()},
-          yourself. Your progress comes with you.
+          computer to write step {number} yourself: {step.objective}. Sign in
+          with GitHub on both and your progress comes with you.
         </Line>
         {/* The whole link, wrapped after a slash, never cut */}
         <Link>

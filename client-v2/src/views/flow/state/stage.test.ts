@@ -29,6 +29,20 @@ import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
 const BUILD_OUTPUT_PATH = "../../sidebar/assistant/bridge/build-output";
 
 describe("PgFlow.reduce", () => {
+  it("a deploy that stays leaves the learner on their stage", () => {
+    const at = { ...INITIAL_FLOW_STATE, stage: "interact" as const };
+    const started = PgFlow.reduce(at, { type: "deploy-start", stay: true });
+    expect(started.stage).toBe("interact");
+    expect(started.deploy).toBe("running");
+    const done = PgFlow.reduce(started, {
+      type: "deploy-finish",
+      ok: true,
+      stay: true,
+    });
+    expect(done.stage).toBe("interact");
+    expect(done.deploy).toBe("done");
+  });
+
   it("restore shows what a reopened project kept", () => {
     const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
       type: "restore",

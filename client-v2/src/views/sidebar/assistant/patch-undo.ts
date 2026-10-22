@@ -80,5 +80,15 @@ export class PgPatchUndo {
     // Setting the editor's text is not an edit it hears, so tell the loop:
     // what was built is the patched code, not this
     PgFlow.sourceChanged();
+    // With no model connected the tutorial's own assistant is the one
+    // talking, and it says where that leaves the step, so the way on is
+    // offered again under its reply
+    if (!PgAssistant.isConnected) {
+      const id = PgAssistant.startAssistantMessage();
+      PgAssistant.appendToAssistantMessage(
+        id,
+        `Undone, ${request.path} is back as it was. Write it yourself, or ask me again.`
+      );
+    }
   }
 }

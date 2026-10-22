@@ -152,6 +152,17 @@ export const helloAnchorGuide: LessonGuide = {
       content: withName,
       say: "I'll add a `name: String` argument to `hello` and put it in the log line.",
       done: "Applied. Press **Build**, then call `hello` with your name.",
+      // The client calls `hello` too, and would go on calling it with no name
+      then: {
+        path: "client/client.ts",
+        content: (now) =>
+          (now ?? CLIENT_CALL).replace(
+            /\.hello\(\s*\)/,
+            '.hello("Solana")'
+          ),
+        say: "The client calls `hello` as well, so it has to pass a name now. I'll give it one.",
+        done: "Both applied. Press **Build**, then call `hello` with your own name.",
+      },
     },
   },
 };
