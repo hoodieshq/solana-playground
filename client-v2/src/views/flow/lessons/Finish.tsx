@@ -79,18 +79,18 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
 
         <Stats>
           <Stat>
+            <StatLabel>steps proved</StatLabel>
             <StatValue>
               {proved}/{steps}
             </StatValue>
-            <StatLabel>steps proved</StatLabel>
           </Stat>
           <Stat>
-            <StatValue>{skipped}</StatValue>
             <StatLabel>skipped</StatLabel>
+            <StatValue>{skipped}</StatValue>
           </Stat>
-          <Stat>
+          <Stat title="Kora covered the rent and the fees">
+            <StatLabel>you paid</StatLabel>
             <StatValue>0 SOL</StatValue>
-            <StatLabel>paid, Kora covered it</StatLabel>
           </Stat>
         </Stats>
 
@@ -195,6 +195,10 @@ const Column = styled.div`
   flex-direction: column;
   align-items: center;
   text-align: center;
+  /* The wrapper scrolls; nothing in the column may shrink to fit it instead */
+  & > * {
+    flex-shrink: 0;
+  }
   animation: finish-rise 220ms cubic-bezier(0.2, 0, 0, 1) both;
 
   @keyframes finish-rise {
@@ -264,6 +268,7 @@ const Stat = styled.div`
   ${({ theme }) => css`
     padding: 0.875rem 0.5rem;
     display: flex;
+    /* A term comes before its value in a list; the value reads first */
     flex-direction: column-reverse;
     gap: 0.125rem;
 

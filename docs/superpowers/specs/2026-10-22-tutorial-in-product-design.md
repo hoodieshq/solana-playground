@@ -66,6 +66,21 @@ and the deploy decide a step, not a click.
 10. **Studio on the stand.** The ribbon with Viewport, Components,
     Annotate (Agentation) and Narrate, as on solana-playground-ds.
 
+## Decided on the way (2026-10-22)
+
+- Kora is mocked inside a tutorial (Almaz): the real deploy needs a wallet,
+  a GitHub sign-in and a faucet, which a static stand cannot offer. The
+  build stays real (Foundation build server through the stand's
+  `/build-server/` proxy); deploy, the client run and the call with a name
+  print what they would, marked as a demo in the terminal (`lessons/kora.ts`).
+- Gallery banner: the `steps` picture (a small Playground window with the
+  four steps ticked as they pass) on the dither pattern.
+- Stack and motion as in Nikita's branch: styled-components, his easing.
+- Tic-tac-toe Seahorse: only the shown title changes (`gallery/title.ts`),
+  the name stays the key upstream opens it by.
+- The branch has Vercel git deployments off (`client-v2/vercel.json`): the
+  team project's previews failed on it and built on every push.
+
 ## Bugs from the Slack review that must not come back
 
 Esc leaves the editor; Enter after a click on a compiler line never edits
