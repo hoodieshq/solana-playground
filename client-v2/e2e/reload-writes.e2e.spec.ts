@@ -5,8 +5,10 @@ import { expect, LONG, startProject, test } from "./fixtures";
 // lightning-fs writes a file's content at once and saves its folder tree (the
 // superblock) 500 ms after the last write. A page load inside that window
 // comes back to the tree as it was last saved: a file created in the window
-// is gone, a rename or a delete is undone. Each case below leaves the page
-// straight after one such write and checks the tree the store kept.
+// is gone, a rename is undone, and a deleted file is listed again with no
+// content. Each case below leaves the page right after one such change (or,
+// for a file the app writes on its own, right after its content is stored)
+// and checks the tree the store kept.
 
 /** Same origin as the app, so the store is readable, without booting it */
 const PROBE = "/__reload-writes-probe";
@@ -95,11 +97,29 @@ const item = (page: Page, name: string): Locator =>
 
 const PROJECT = "reload-writes";
 
-/** A project whose own creation has long been saved */
+/** Creates a file in `src` through the explorer's menu */
+const createFile = async (page: Page, name: string) => {
+  await item(page, "src").click({ button: "right" });
+  await page.getByRole("menuitem", { name: /New File/ }).click();
+  const input = tree(page).getByRole("textbox");
+  await expect(input).toBeFocused();
+  await input.fill(name);
+  await page.keyboard.press("Enter");
+  await expect(item(page, name)).toBeVisible();
+};
+
+/**
+ * A project whose own creation has long been saved, and whose metadata has
+ * been written once since: every explorer change ends in `saveMeta`, whose
+ * first write after a project is created saves the whole tree too. Without
+ * this, that save would keep a case's change whether or not the change saves
+ * the tree itself.
+ */
 const settledProject = async (page: Page) => {
   await page.goto("/");
   await startProject(page, PROJECT, LONG);
   await expect(item(page, "lib.rs")).toBeVisible(LONG);
+  await createFile(page, "warm.rs");
   // Past the store's own 500 ms save, so only what the case writes is at stake
   await page.waitForTimeout(1000);
 };
@@ -109,13 +129,7 @@ const path = (...names: string[]) => ["", PROJECT, ...names].join("/");
 test("a file created just before a reload is still there", async ({ page }) => {
   await settledProject(page);
 
-  await item(page, "src").click({ button: "right" });
-  await page.getByRole("menuitem", { name: /New File/ }).click();
-  const input = tree(page).getByRole("textbox");
-  await expect(input).toBeFocused();
-  await input.fill("fresh.rs");
-  await page.keyboard.press("Enter");
-  await expect(item(page, "fresh.rs")).toBeVisible();
+  await createFile(page, "fresh.rs");
 
   expect(await leaveAndRead(page, [path("src", "fresh.rs")])).toEqual([true]);
 });
@@ -145,7 +159,10 @@ test("a file deleted just before a reload stays deleted", async ({ page }) => {
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(item(page, "lib.rs")).toHaveCount(0);
 
-  expect(await leaveAndRead(page, [path("src", "lib.rs")])).toEqual([false]);
+  // `warm.rs` is the control: a tree that cannot be read reaches nothing
+  expect(
+    await leaveAndRead(page, [path("src", "lib.rs"), path("src", "warm.rs")])
+  ).toEqual([false, true]);
 });
 
 test("a new project's open tabs survive a reload right after it is made", async ({
