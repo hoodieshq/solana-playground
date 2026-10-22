@@ -139,16 +139,25 @@ export const HandoffSheet: FC = () => {
           ))}
         </Link>
         <Row>
-          <Action type="button" onClick={copy} $done={copied}>
+          <Action
+            type="button"
+            data-shot="handoff-copy"
+            onClick={copy}
+            $done={copied}
+          >
             <span aria-live="polite">{copied ? "Copied" : "Copy link"}</span>
           </Action>
           {canShare && (
-            <Action type="button" onClick={share}>
+            <Action type="button" data-shot="handoff-share" onClick={share}>
               Share
             </Action>
           )}
         </Row>
-        <Stay type="button" onClick={() => PgHandoff.close()}>
+        <Stay
+          type="button"
+          data-shot="handoff-stay"
+          onClick={() => PgHandoff.close()}
+        >
           Stay on the phone
         </Stay>
       </Sheet>

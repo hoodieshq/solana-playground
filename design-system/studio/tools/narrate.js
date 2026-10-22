@@ -239,7 +239,10 @@
      that whatever it produces matches exactly one element. */
   var NAMED = ['data-go', 'data-swap-to', 'data-target', 'data-provider',
                'data-q', 'data-stage', 'data-wiz-to', 'data-mode', 'data-tab',
-               'data-dev', 'data-ground', 'data-state', 'data-group', 'data-copy'];
+               'data-dev', 'data-ground', 'data-state', 'data-group', 'data-copy',
+               /* the product names its controls for shots and walkthroughs:
+                  the tutorial's band, the chat's moves, the patch card */
+               'data-shot'];
 
   function unique(sel, el) {
     try {

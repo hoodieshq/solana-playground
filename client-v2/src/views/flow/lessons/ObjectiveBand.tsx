@@ -90,6 +90,7 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
   const back = (
     <Nav
       type="button"
+      data-shot="step-back"
       disabled={!canGoBack}
       aria-label="Previous step"
       title={
@@ -107,6 +108,7 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
   const forward = (
     <Nav
       type="button"
+      data-shot="step-forward"
       disabled={!canGoForward}
       aria-label="Next step"
       title={
@@ -122,7 +124,7 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
     </Nav>
   );
   const read = step.readPage && (
-    <Quiet type="button" onClick={onRead}>
+    <Quiet type="button" data-shot="read-page" onClick={onRead}>
       Read the page
     </Quiet>
   );
@@ -133,7 +135,7 @@ const useLessonControls = (state: LessonState, onRead: () => void) => {
   // A reading step gets help too: writing the client is the step 3 learners
   // get stuck on most
   const help = (
-    <Quiet type="button" onClick={askForHelp}>
+    <Quiet type="button" data-shot="im-stuck" onClick={askForHelp}>
       {assistantLabel(rung, state.attempted)}
     </Quiet>
   );
@@ -166,13 +168,18 @@ const ReadAction: FC = () => {
   const [running, setRunning] = useState(false);
   if (!PgKora.active || PgKora.lastTx) {
     return (
-      <Primary type="button" onClick={() => PgLesson.continueRead()}>
+      <Primary
+        type="button"
+        data-shot="step-action"
+        onClick={() => PgLesson.continueRead()}
+      >
         Continue
       </Primary>
     );
   }
   return (
     <Primary
+      data-shot="step-action"
       type="button"
       disabled={running}
       onClick={async () => {
@@ -214,6 +221,7 @@ const TargetAction: FC<{
     const running = flow.deploy === "running";
     return (
       <Primary
+        data-shot="step-action"
         type="button"
         disabled={running}
         onClick={() => {
@@ -230,6 +238,7 @@ const TargetAction: FC<{
   const running = flow.build === "running";
   return (
     <Primary
+      data-shot="step-action"
       type="button"
       disabled={running}
       title={

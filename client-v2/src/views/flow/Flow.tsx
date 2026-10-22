@@ -38,6 +38,7 @@ import { PgStepFiles } from "./lessons/step-files";
 import { watchSources } from "./state/source-watch";
 import { initScrollFades } from "./components/scroll-fades";
 import { HandoffSheet } from "./lessons/Handoff";
+import Announcer from "./components/Announcer";
 import { restoreFlow } from "./state/restore";
 import { currentStep } from "./lessons/progress";
 // The barrel registers every lesson path as a side effect, so importing
@@ -713,6 +714,7 @@ const Flow = () => {
     <ThemeProvider theme={theme}>
       <Wrapper>
         <PhoneTouch />
+        <Announcer />
         {phone && <HandoffSheet />}
         {/* One ground for the whole window, so the grid is continuous wherever
           a pane lets it through, instead of each pane drawing its own and two
@@ -746,6 +748,7 @@ const Flow = () => {
                       <PaneSwitch role="group" aria-label="Show">
                         <PaneOption
                           type="button"
+                          data-shot="pane-chat"
                           aria-pressed={pane === "chat"}
                           onClick={() => setPane("chat")}
                         >
@@ -753,6 +756,7 @@ const Flow = () => {
                         </PaneOption>
                         <PaneOption
                           type="button"
+                          data-shot="pane-code"
                           aria-pressed={pane === "code"}
                           onClick={() => setPane("code")}
                         >
@@ -785,7 +789,7 @@ const Flow = () => {
                             type="button"
                             onClick={() => setFilesSheet(true)}
                             aria-expanded={filesSheet}
-                            aria-controls="flow-files"
+                            aria-controls="flow-files-sheet"
                             aria-label={
                               openName ? `Files, ${openName} open` : "Files"
                             }
@@ -829,7 +833,7 @@ const Flow = () => {
 
                 {inProject && (
                   <FilesSheet
-                    id="flow-files"
+                    id="flow-files-sheet"
                     $open={filesSheet}
                     role="dialog"
                     aria-modal="true"

@@ -87,6 +87,7 @@ const ChatItem: FC<{
                 {onVerifyStep && (
                   <Move
                     type="button"
+                    data-shot="chat-step-action"
                     $primary
                     title={verifyStepTitle || undefined}
                     onClick={onVerifyStep}
@@ -98,6 +99,7 @@ const ChatItem: FC<{
                 {onMakeChange && (
                   <Move
                     type="button"
+                    data-shot="write-it-for-me"
                     $primary={!onVerifyStep && !makeChangeIsLastResort}
                     title={
                       makeChangeIsLastResort
@@ -115,6 +117,7 @@ const ChatItem: FC<{
                 {onHandoff && (
                   <Move
                     type="button"
+                    data-shot="on-a-computer"
                     title="Open this step on a computer and type the code yourself"
                     onClick={onHandoff}
                   >
@@ -125,6 +128,7 @@ const ChatItem: FC<{
                 {onSkipStep && (
                   <Move
                     type="button"
+                    data-shot="skip-step"
                     title={skipStepTitle || undefined}
                     onClick={onSkipStep}
                   >
@@ -246,10 +250,21 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
 
       {pending ? (
         <Actions>
-          <GradientButton kind="primary" size="small" fullWidth onClick={allow}>
+          <GradientButton
+            kind="primary"
+            size="small"
+            fullWidth
+            data-shot="patch-apply"
+            onClick={allow}
+          >
             {request.type === "patch" ? "Apply" : "Allow"}
           </GradientButton>
-          <Button kind="outline" size="small" onClick={deny}>
+          <Button
+            kind="outline"
+            size="small"
+            data-shot="patch-reject"
+            onClick={deny}
+          >
             {request.type === "patch" ? "Reject" : "Deny"}
           </Button>
         </Actions>
@@ -262,6 +277,7 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
             <Button
               kind="outline"
               size="small"
+              data-shot="patch-undo"
               onClick={() => PgPatchUndo.undo(item)}
             >
               Undo patch

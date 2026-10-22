@@ -109,6 +109,7 @@ const InstructionForm: FC<{
           <BrandPill
             kind="primary"
             type="submit"
+            data-shot={`interact-${name}`}
             disabled={!playable || !ready || calling}
             rightIcon={calling ? undefined : <PlayIcon />}
             title={

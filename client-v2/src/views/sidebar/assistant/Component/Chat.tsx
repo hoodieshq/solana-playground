@@ -566,13 +566,18 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
               <Answer
                 key={option}
                 type="button"
+                data-shot={`check-answer-${i + 1}`}
                 onClick={() => PgLessonGuide.choose(i)}
               >
                 <AnswerKey aria-hidden>{i + 1}</AnswerKey>
                 <span>{withCode(option)}</span>
               </Answer>
             ))}
-            <SkipCheck type="button" onClick={() => PgLessonGuide.choose(null)}>
+            <SkipCheck
+              type="button"
+              data-shot="check-skip"
+              onClick={() => PgLessonGuide.choose(null)}
+            >
               {SKIP_CHECK}
             </SkipCheck>
           </QuickCheck>

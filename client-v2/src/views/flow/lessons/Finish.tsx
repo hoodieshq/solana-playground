@@ -117,11 +117,13 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
               maxLength={NAME_MAX}
               placeholder="Your name"
               aria-label="Your name"
+              data-shot="hello-name"
               onChange={(e) => setName(e.target.value)}
             />
             <BrandPill
               kind="primary"
               type="submit"
+              data-shot="call-hello"
               disabled={!name.trim() || calling}
               rightIcon={calling ? undefined : <PlayIcon />}
             >
