@@ -26,7 +26,7 @@ import { PgSession } from "@/features/auth";
 import { useTurn } from "@/widgets/assistant";
 import type { DefaultBackend } from "@/widgets/assistant";
 import { ModalFrame, ModalHost } from "@/widgets/overlays";
-import { PgAssistant } from "../store";
+import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { openConnectDialog } from "./ConnectDialog";
 
 // The form's footer link reaches the utils barrel, which needs the build's
@@ -44,7 +44,7 @@ vi.mock("@/widgets/assistant/model/default-backend", () => ({
   probeDefaultBackend: () => Promise.resolve(backend),
 }));
 // A turn is never run here; the real providers stream from the network
-vi.mock("../model", () => ({
+vi.mock("@/views/sidebar/assistant/model", () => ({
   createProvider: vi.fn(),
 }));
 // The widget's public API, narrowed to what the dialog and the turn use: the

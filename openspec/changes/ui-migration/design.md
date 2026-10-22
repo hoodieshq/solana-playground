@@ -1012,12 +1012,14 @@ widgets/assistant
   `Connect` form stay in `views/sidebar/assistant/` and are imported from
   there; they move with the thread or later. 5.18 adds the thread to the
   same slice.
-- **Connect a model's frame sits outside the widget**, as New project's does
-  (5.13): a widget may not import `widgets/overlays`, which holds
-  `ModalFrame`. `ConnectDialog` and `openConnectDialog` live beside the
-  `Connect` form in `views/sidebar/assistant/Component/`, and `Flow` hands
-  the opener to `Assistant` as `openConnect`, which passes it to `useTurn`.
-  The widget's tests stand in for the dialog (Sergey's review of #35, 2026-10-22).
+- **Connect a model's frame sits outside the widget**, in the app layer: a
+  widget may not import `widgets/overlays`, which holds `ModalFrame`, and the
+  app layer may import both widgets. `ConnectDialog` and `openConnectDialog`
+  live in `src/app/ConnectDialog/`, and `Flow` hands the opener to
+  `Assistant` as `openConnect`, which passes it to `useTurn`. Not
+  `views/`, as New project's frame (5.13) is: a legacy root takes no new UI
+  and the boundary check does not read it. The widget's tests stand in for
+  the dialog (Sergey's review of #35, 2026-10-22).
 - **The head.** The project's name, then More, Widen and Hide. Hide is the
   shell's "Collapse assistant", label kept. Widen sizes the assistant panel
   to its maximum (560 px) and back; it is not saved in the layout, and it is

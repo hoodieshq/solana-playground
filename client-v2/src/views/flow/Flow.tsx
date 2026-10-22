@@ -31,7 +31,7 @@ import {
   type SettingsRequest,
 } from "@/shared/lib/settings-request";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
-import { openConnectDialog } from "@/views/sidebar/assistant/Component/ConnectDialog";
+import { openConnectDialog } from "@/app/ConnectDialog";
 import Wallet from "@/components/Wallet";
 import { useKeybind } from "@/hooks";
 import { closeOpenLayers } from "@/shared/lib/close-open-layers";

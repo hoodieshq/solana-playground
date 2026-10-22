@@ -5,9 +5,9 @@ import { PgView } from "@/utils/view";
 import { assistantTelemetry, useDefaultBackend } from "@/widgets/assistant";
 import type { ConnectOpener, ConnectPreset } from "@/widgets/assistant";
 import { ModalFrame, useModalId } from "@/widgets/overlays";
-import { PgAssistant } from "../store";
-import type { Connection } from "../store";
-import Connect from "./Connect";
+import Connect from "@/views/sidebar/assistant/Component/Connect";
+import { PgAssistant } from "@/views/sidebar/assistant/store";
+import type { Connection } from "@/views/sidebar/assistant/store";
 
 const log = createLogger("assistant:connect");
 
