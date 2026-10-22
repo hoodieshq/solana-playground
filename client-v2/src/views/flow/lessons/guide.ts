@@ -5,6 +5,7 @@ import { helloAnchorGuide } from "./paths/hello-anchor.guide";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { realBridge } from "../../sidebar/assistant/bridge/playground-bridge";
 import { PgAssistant } from "../../sidebar/assistant/store";
+import { PgPatchUndo } from "../../sidebar/assistant/patch-undo";
 
 /** A change the tutorial's own assistant proposes, as a whole new file */
 export interface GuidePatch {
@@ -253,6 +254,7 @@ export class PgLessonGuide {
     if (approvalId) {
       PgAssistant.setApprovalOutcome(approvalId, `wrote ${patch.path}`);
     }
+    PgPatchUndo.wrote(approvalId);
     PgLessonGuide._say(patch.done);
   }
 }

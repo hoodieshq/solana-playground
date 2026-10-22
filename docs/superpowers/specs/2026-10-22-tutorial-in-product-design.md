@@ -80,6 +80,29 @@ and the deploy decide a step, not a click.
   the name stays the key upstream opens it by.
 - The branch has Vercel git deployments off (`client-v2/vercel.json`): the
   team project's previews failed on it and built on every push.
+- We work as product designers: where live data or a service is missing, it
+  is mocked or filled with dummy data, so the concept can be approved before
+  developers wire the real thing (Almaz).
+- Undo patch on an applied card, in this session only: a stored card keeps
+  just the region it shows. It goes once the file changes after the patch
+  (a build writing `declare_id!` does not count).
+- Interact inside a tutorial is a form per instruction from the IDL, called
+  through the Kora mock, with a receipt under it (instruction, program, fee
+  0 SOL paid by Kora, compute units, slot, signature, logs; dummy figures in
+  devnet's shape, marked demo). The finish screen shows the same receipt.
+  A call after step 4's build upgrades the program first.
+- On a phone: "On a computer" beside the assistant's patch and "Write it on a
+  computer" in the band's fold open a sheet with a link to the step (dummy
+  `beta.solpg.io/t/...`), Copy link and Share.
+- Tutorial covers in the brand (`gallery/TutorialCover.tsx`): a ground from
+  the Styleguide by framework (Anchor deep, Native explore, Seahorse violet),
+  the pattern, and the mark cropped by the name, like the Styleguide's row of
+  brand tiles. Figma (TsxR005AkQUotiFangKiAj) was read only partly: a View
+  seat runs out of MCP calls.
+- Accessibility: copy is a text button ("Copy", "Copied"), Explorer links say
+  "Open in Explorer" everywhere, the modal close, the settings checkboxes and
+  the effort control have names. Still open: the chat's chapter rail cannot
+  be reached by keyboard.
 
 ## Bugs from the Slack review that must not come back
 

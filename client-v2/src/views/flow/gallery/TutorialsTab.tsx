@@ -9,6 +9,7 @@ import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
 import { PgLessonSummary } from "../lessons/summary";
 import { BRAND } from "../tokens";
 import { tutorialTitle } from "./title";
+import TutorialCover from "./TutorialCover";
 
 interface TutorialsTabProps {
   /** Lowercased search query from the modal's search box */
@@ -48,7 +49,7 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query, limit }) => {
     <Grid>
       {items.map((t) => (
         <Card key={t.name}>
-          <Thumb src={t.thumbnail} alt="" />
+          <Thumb name={t.name} framework={t.framework} />
           <Body>
             <Eyebrow>
               {t.level}
@@ -291,12 +292,8 @@ export const Empty = styled.p`
   `}
 `;
 
-const Thumb = styled(Img)`
-  ${({ theme }) => css`
-    width: 3.5rem;
-    height: 2.625rem;
-    object-fit: cover;
-    border-radius: 8px;
-    background: ${theme.colors.default.bgPrimary};
-  `}
+const Thumb = styled(TutorialCover)`
+  width: 3.5rem;
+  height: 2.625rem;
+  border-radius: 8px;
 `;

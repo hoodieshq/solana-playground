@@ -127,11 +127,24 @@ export class PgPatchPreview {
       node.style.fontFamily = font.fontFamily;
       node.style.fontSize = `${font.fontSize}px`;
       node.style.lineHeight = `${font.lineHeight}px`;
-      for (const line of added) {
+      // In the editor's own colors, line by line from the patched file, so
+      // the new lines read like the code around them and a string or a
+      // comment that spans lines stays one
+      const colored = monaco.editor.createModel(
+        patch.after,
+        model.getLanguageId()
+      );
+      for (let i = start; i < addedEnd; i++) {
         const row = document.createElement("div");
-        row.textContent = line || " ";
+        try {
+          row.innerHTML = monaco.editor.colorizeModelLine(colored, i + 1);
+        } catch {
+          row.textContent = after[i];
+        }
+        if (!after[i]) row.textContent = " ";
         node.appendChild(row);
       }
+      colored.dispose();
       editor.changeViewZones((zones) => {
         zone = zones.addZone({
           // Under the last line taken out, or where the new lines go in

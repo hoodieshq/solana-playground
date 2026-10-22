@@ -70,7 +70,7 @@ const SingleModal: FC<SingleModalProps> = ({
         {title && <Title>{title === true ? PROJECT_NAME : title}</Title>}
         {closeButton && (
           <CloseButtonWrapper hasTitle={!!title}>
-            <Button kind="icon" onClick={PgView.closeModal}>
+            <Button kind="icon" onClick={PgView.closeModal} aria-label="Close">
               <Close />
             </Button>
           </CloseButtonWrapper>

@@ -10,6 +10,8 @@ import { PgDeployHistory } from "../state/deploy-history";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
 import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../phone";
+import { PgKora } from "../lessons/kora";
+import KoraInteract from "../lessons/KoraInteract";
 
 /** Point `PgProgramInfo`'s target at the given deployment. Selecting the
  * record that matches the project's own keypair clears the override so the
@@ -140,6 +142,9 @@ const Interact = () => {
               </BrandPill>
             }
           />
+        ) : PgKora.active ? (
+          // In a tutorial the deploy went through Kora, so the calls do too
+          <KoraInteract />
         ) : (
           <Test />
         )}

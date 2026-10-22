@@ -411,6 +411,7 @@ const SettingRow: FC<SettingType> = (setting) => {
           <Checkbox
             onChange={(ev) => setting.setValue(ev.target.checked)}
             checked={setting.getValue()}
+            aria-label={setting.name}
           />
         )}
       </SettingControl>

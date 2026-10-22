@@ -39,7 +39,7 @@ interface Field {
 /* Sampled from the Figma renders on a seven-by-five grid and placed where each
    colour peaks. Seven roles, in this order everywhere: top-right, bottom-left,
    the centre, top-left, right, bottom, top. */
-const FIELDS: Record<Exclude<Ground, "paper" | "ink">, Field[]> = {
+export const FIELDS: Record<Exclude<Ground, "paper" | "ink">, Field[]> = {
   /* The first colour after white — pale lilac, teal in two corners */
   haze: [
     { c: "#2DCEA9", x: 104, y: -6, s: 0.62 },
@@ -85,7 +85,7 @@ const FIELDS: Record<Exclude<Ground, "paper" | "ink">, Field[]> = {
 
 /* The colour a field sits on, so a gap between two of them is still the right
    family rather than a hole */
-const BEDS: Record<Ground, string> = {
+export const BEDS: Record<Ground, string> = {
   paper: PAPER,
   haze: "#B8A6F5",
   deep: "#6858D2",

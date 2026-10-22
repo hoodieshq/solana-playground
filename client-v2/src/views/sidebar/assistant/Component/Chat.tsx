@@ -9,7 +9,13 @@ import { openConnectDialog } from "./ConnectDialog";
 import Composer from "../../../flow/components/Composer";
 import type { MenuRow } from "../../../flow/components/Menu";
 import PlayRing from "../../../../components/PlayRing";
-import { PHONE, PHONE_SIZE, PHONE_TYPE } from "../../../flow/phone";
+import {
+  PHONE,
+  PHONE_SIZE,
+  PHONE_TYPE,
+  usePhone,
+} from "../../../flow/phone";
+import { PgHandoff } from "../../../flow/lessons/Handoff";
 import {
   PgAssistant,
   turnAppliedApproval,
@@ -164,6 +170,7 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
   }, [connection]);
 
   const lesson = describeLesson(lessonState);
+  const phone = usePhone();
 
   // The tutorial's assistant opens each step with what it is about, so the
   // pane is never a blank prompt at the start of one. A cleared
@@ -314,13 +321,21 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
       : null;
 
   // 1, 2 and 3 answer the check, as on the prototype's, whenever the learner
-  // is not typing somewhere
+  // is not typing somewhere. The chat's own field counts as free while it is
+  // empty: pressing a chip leaves the focus there, and a lone digit is an
+  // answer to the question on screen, not a message
   useEffect(() => {
     if (!check) return;
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
-      if (el?.closest("input, textarea, [contenteditable], .monaco-editor"))
-        return;
+      const field = el?.closest<HTMLElement>(
+        "input, textarea, [contenteditable], .monaco-editor"
+      );
+      const emptyComposer =
+        field instanceof HTMLTextAreaElement &&
+        field.matches("[data-composer]") &&
+        field.value === "";
+      if (field && !emptyComposer) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const i = ["1", "2", "3"].indexOf(e.key);
       if (i !== -1) {
@@ -490,6 +505,13 @@ const Chat: FC<ChatProps> = ({ title, onOpenSources }) => {
                 // Inside a lesson the same click skips the hint ladder, so it
                 // is offered as a way out rather than as the obvious next step
                 makeChangeIsLastResort={!!lesson}
+                // A phone is for reading and pressing; typing goes to a
+                // computer, offered beside the patch the assistant writes
+                onHandoff={
+                  phone && lesson && item.id === changeableId
+                    ? () => PgHandoff.open()
+                    : undefined
+                }
                 onVerifyStep={
                   item.id === verifiableId
                     ? () =>

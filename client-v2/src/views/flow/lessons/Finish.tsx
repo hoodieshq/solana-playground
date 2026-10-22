@@ -3,6 +3,8 @@ import type { FC, FormEvent } from "react";
 import styled, { css } from "styled-components";
 
 import { PgKora } from "./kora";
+import Receipt from "./Receipt";
+import TutorialCover from "../gallery/TutorialCover";
 import type { KoraTx } from "./kora";
 import type { LessonState } from "./store";
 import { BrandPill, PlayIcon } from "../stages/EmptyStage";
@@ -23,14 +25,11 @@ const LEARNED = [
 const NEXT = {
   name: "Counter PDA Tutorial",
   meta: "Beginner · Anchor",
-  thumbnail: "/tutorials/counter-pda-tutorial/thumbnail.jpg",
+  framework: "Anchor",
 };
 
 /** Longest name the call takes: any name, and one line of log */
 const NAME_MAX = 32;
-
-/** A key or signature cut in the middle, as explorers show them */
-const short = (key: string) => `${key.slice(0, 6)}…${key.slice(-6)}`;
 
 interface FinishProps {
   state: LessonState;
@@ -48,6 +47,9 @@ interface FinishProps {
 const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
   const [tx, setTx] = useState<KoraTx | null>(() => PgKora.lastTx);
   useEffect(() => PgKora.onDidChange(() => setTx(PgKora.lastTx)).dispose, []);
+  // The finish is the result; the terminal left open by the last step would
+  // cover it
+  useEffect(() => PgKora.askRoom(), []);
   const [name, setName] = useState("");
   const [calling, setCalling] = useState(false);
 
@@ -62,7 +64,8 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
     if (!said || calling) return;
     setCalling(true);
     try {
-      await PgKora.callHello(said);
+      // The receipt below shows the call; the terminal stays where it was
+      await PgKora.callHello(said, { quiet: true });
     } finally {
       setCalling(false);
     }
@@ -117,16 +120,7 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
               {calling ? "Calling..." : "Call hello"}
             </BrandPill>
           </Form>
-          {named && (
-            <Log aria-live="polite">
-              <LogLine>
-                Program log: <Said>{named.said}</Said>
-              </LogLine>
-              <LogMeta>
-                Transaction {short(named.signature)} · devnet · demo
-              </LogMeta>
-            </Log>
-          )}
+          {named && <Receipt tx={named} />}
         </Card>
 
         <Section aria-labelledby="finish-learned">
@@ -150,7 +144,7 @@ const Finish: FC<FinishProps> = ({ state, onTutorials, onOpenProject }) => {
             onClick={() => PgTutorial.open(NEXT.name)}
             aria-label={`Start ${NEXT.name}`}
           >
-            <Thumb src={NEXT.thumbnail} alt="" />
+            <Thumb name={NEXT.name} framework={NEXT.framework} />
             <NextText>
               <NextName>{NEXT.name}</NextName>
               <NextMeta>{NEXT.meta}</NextMeta>
@@ -352,35 +346,9 @@ const Field = styled.input`
   `}
 `;
 
-const Log = styled.div`
-  ${({ theme }) => css`
-    margin-top: 0.875rem;
-    padding-top: 0.75rem;
-    border-top: 1px dashed ${theme.colors.default.border};
-    font-family: ${theme.font.code.family};
-    font-size: 0.8125rem;
-    overflow-wrap: anywhere;
-  `}
-`;
 
-const LogLine = styled.p`
-  ${({ theme }) => css`
-    margin: 0;
-    color: ${theme.colors.default.textSecondary};
-  `}
-`;
 
-const Said = styled.span`
-  color: ${BRAND.green};
-`;
 
-const LogMeta = styled.p`
-  ${({ theme }) => css`
-    margin: 0.25rem 0 0;
-    font-size: 0.75rem;
-    color: ${theme.colors.default.textSecondary};
-  `}
-`;
 
 const Section = styled.section`
   width: 100%;
@@ -452,11 +420,10 @@ const Next = styled.button`
   `}
 `;
 
-const Thumb = styled.img`
+const Thumb = styled(TutorialCover)`
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 0.5rem;
-  object-fit: cover;
 `;
 
 const NextText = styled.span`

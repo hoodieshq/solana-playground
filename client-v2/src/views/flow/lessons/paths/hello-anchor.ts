@@ -45,7 +45,7 @@ export const helloAnchorPath: LessonPath = {
     {
       id: "call-client",
       objective: "Call the instruction from the TypeScript client",
-      verifiedBy: "you have marked this page as read",
+      verifiedBy: "the client called hello and the log came back",
       verify: { kind: "read" },
       target: "interact",
       readPage: () => require("../../../../tutorials/hello-anchor/pages/3.md"),

@@ -114,6 +114,7 @@ const Composer: FC<ComposerProps> = ({
       {live ? (
         <TextArea
           ref={textRef}
+          data-composer=""
           rows={1}
           value={value}
           placeholder={placeholder}
@@ -133,11 +134,7 @@ const Composer: FC<ComposerProps> = ({
           }}
         />
       ) : (
-        <Launcher
-          type="button"
-          onClick={onActivate}
-          aria-label="Ask the assistant"
-        >
+        <Launcher type="button" onClick={onActivate}>
           {placeholder}
         </Launcher>
       )}

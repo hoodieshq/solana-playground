@@ -24,6 +24,7 @@ import { brandAction, GRADIENT_FLAT } from "../components/gradient";
 import { HEAD_INSET } from "../tokens";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
 import { PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
+import { PgHandoff } from "./Handoff";
 
 interface ObjectiveBandProps {
   state: LessonState;
@@ -290,6 +291,9 @@ const ObjectiveBand: FC<ObjectiveBandProps> = ({ state, onRead }) => {
         {open && (
           <More id="flow-lesson-more">
             <MoreCheck>{described.verifiedBy}</MoreCheck>
+            <MoreLink type="button" onClick={() => PgHandoff.open()}>
+              Write it on a computer
+            </MoreLink>
           </More>
         )}
       </Wrapper>
@@ -706,6 +710,22 @@ const MoreCheck = styled.p`
     padding-right: 0.75rem;
     ${PHONE_TYPE.secondary}
     color: ${theme.colors.default.textSecondary};
+  `}
+`;
+
+/* A way on, not the step's ask: read as a link, sized as a target */
+const MoreLink = styled.button`
+  ${({ theme }) => css`
+    align-self: flex-start;
+    min-height: ${PHONE_SIZE.target};
+    padding: 0;
+    border: 0;
+    background: none;
+    color: ${theme.colors.default.primary};
+    font: inherit;
+    ${PHONE_TYPE.control}
+    text-align: left;
+    cursor: pointer;
   `}
 `;
 

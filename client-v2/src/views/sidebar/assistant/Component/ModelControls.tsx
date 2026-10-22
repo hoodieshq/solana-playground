@@ -139,6 +139,7 @@ const ModelControls: FC<{ dense?: boolean }> = ({ dense = false }) => {
             type="button"
             aria-haspopup="menu"
             aria-expanded={efforts.open}
+            aria-label={`Effort: ${effortLabel(effort)}`}
             title={`Effort: ${effortLabel(effort)}`}
             onClick={efforts.toggle}
           >

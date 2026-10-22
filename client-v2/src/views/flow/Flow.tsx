@@ -36,6 +36,7 @@ import Finish from "./lessons/Finish";
 import { PgPatchPreview } from "./lessons/patch-preview";
 import { watchSources } from "./state/source-watch";
 import { initScrollFades } from "./components/scroll-fades";
+import { HandoffSheet } from "./lessons/Handoff";
 import { currentStep } from "./lessons/progress";
 // The barrel registers every lesson path as a side effect, so importing
 // it here is also what populates the registry for the whole app.
@@ -651,6 +652,7 @@ const Flow = () => {
     <ThemeProvider theme={theme}>
       <Wrapper>
         <PhoneTouch />
+        {phone && <HandoffSheet />}
         {/* One ground for the whole window, so the grid is continuous wherever
           a pane lets it through, instead of each pane drawing its own and two
           grids meeting out of step at a border. It rises from the bottom edge

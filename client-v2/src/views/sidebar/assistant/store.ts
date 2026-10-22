@@ -71,6 +71,8 @@ export type ChatItem =
       status: ApprovalStatus;
       /** Set once the tool has actually run */
       outcome?: string;
+      /** An applied patch taken back from its card */
+      undone?: boolean;
     })
   | (ChatItemBase & { kind: "error"; text: string })
   /** Something the panel did, not the model — e.g. the user stopped the turn */
@@ -548,6 +550,16 @@ export class PgAssistant {
   static setApprovalOutcome(id: string, outcome: string) {
     const item = PgAssistant._items.find((i) => i.id === id);
     if (item?.kind === "approval") {
+      item.outcome = outcome;
+      PgAssistant._emit();
+    }
+  }
+
+  /** Record that an applied patch was taken back, and what that did */
+  static markUndone(id: string, outcome: string) {
+    const item = PgAssistant._items.find((i) => i.id === id);
+    if (item?.kind === "approval") {
+      item.undone = true;
       item.outcome = outcome;
       PgAssistant._emit();
     }

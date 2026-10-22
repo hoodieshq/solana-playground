@@ -2,6 +2,7 @@ import { PgLesson } from "./store";
 import { PgDeployHistory } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
 import { realBridge } from "../../sidebar/assistant/bridge/playground-bridge";
+import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import {
   PgCommand,
   PgExplorer,
@@ -18,7 +19,19 @@ export interface KoraTx {
   /** The name it was called with, for step 4's call */
   name: string | null;
   at: number;
+  /* What a receipt shows. Dummy figures in the shape devnet returns them;
+     a call kept from before they were recorded has none */
+  programId?: string;
+  slot?: number;
+  computeUnits?: number;
+  /** The network fee, which Kora pays */
+  feeLamports?: number;
 }
+
+/** What a transaction costs on Solana's base fee, paid by Kora here */
+export const BASE_FEE_LAMPORTS = 5000;
+/** The compute budget a single instruction gets by default */
+export const COMPUTE_LIMIT = 200_000;
 
 interface KoraRecord {
   deployedAt: number | null;
@@ -36,6 +49,29 @@ const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Lines printed as one block: the terminal prompts after every print */
 const print = (...lines: string[]) => PgTerminal.println(lines.join("\n"));
+
+/* One run, one prompt: the terminal holds its prompt while a process runs,
+   so a deploy that pauses between its lines still ends with a single `$`.
+   Counted, because a call can run a deploy inside itself. */
+let depth = 0;
+const run = async <T>(
+  cb: () => Promise<T>,
+  opts?: { quiet?: boolean }
+): Promise<T> => {
+  if (depth) return cb();
+  depth++;
+  // The terminal opens first and settles: opening it resizes it, which draws
+  // a prompt of its own in the middle of whatever is printing
+  if (!opts?.quiet) {
+    PgKora.open();
+    await pause(250);
+  }
+  try {
+    return await PgTerminal.process(cb);
+  } finally {
+    depth--;
+  }
+};
 
 /** Said once per run, so nobody takes the stand's devnet for the real one */
 const DEMO =
@@ -76,13 +112,21 @@ export class PgKora {
   /** Deploy for a tutorial, or the real command anywhere else */
   static deploy() {
     if (!PgKora.active) return PgCommand.deploy.execute();
-    return PgKora._deploy();
+    return run(() => PgKora._deploy());
+  }
+
+  /** Whether the program on devnet is older than the last good build */
+  static get behind() {
+    const { deployedAt } = PgKora.record;
+    const build = PgBuildOutput.latest;
+    return (
+      deployedAt !== null && !!build && !build.failed && build.at > deployedAt
+    );
   }
 
   private static async _deploy() {
     if (PgFlow.state.deploy === "running") return;
     PgFlow.recordDeploy("start");
-    PgKora._start();
     const programId = PgProgramInfo.getPkStr() ?? "";
     const upgrade = PgKora.record.deployedAt !== null;
     await print(
@@ -115,9 +159,12 @@ export class PgKora {
    *
    * @returns the transaction, or `null` when there was nothing to run
    */
-  static async runClient(): Promise<KoraTx | null> {
+  static runClient(): Promise<KoraTx | null> {
+    return run(() => PgKora._runClient());
+  }
+
+  private static async _runClient(): Promise<KoraTx | null> {
     const client = realBridge.readFile("client/client.ts") ?? "";
-    PgKora._start();
     if (!/\.hello\(\s*\)/.test(client)) {
       await print(
         "$ run client/client.ts",
@@ -145,12 +192,27 @@ export class PgKora {
     return PgKora._call(null);
   }
 
-  /** Call `hello` with a name, as Interact's form would */
-  static async callHello(name: string): Promise<KoraTx> {
-    PgKora._start();
+  /**
+   * Call `hello` with a name, as Interact's form would.
+   *
+   * Step 4 changes the program, so the copy on devnet is the old one until
+   * it is deployed again. A call made before that upgrades it first, as the
+   * learner would have to, instead of answering from code that isn't there.
+   *
+   * @param quiet leave the terminal shut, for a caller that shows the
+   * receipt itself
+   */
+  static callHello(name: string | null, opts?: { quiet?: boolean }) {
+    return run(() => PgKora._callHello(name), opts);
+  }
+
+  private static async _callHello(name: string | null): Promise<KoraTx> {
+    if (PgKora.behind) await PgKora._deploy();
     await print(
       PgTerminal.info(DEMO),
-      `$ pg.program.methods.hello(${JSON.stringify(name)}).rpc()`
+      `$ pg.program.methods.hello(${
+        name === null ? "" : JSON.stringify(name)
+      }).rpc()`
     );
     await pause(800);
     return PgKora._call(name);
@@ -160,6 +222,19 @@ export class PgKora {
   static onDidStart(cb: () => void): Disposable {
     PgKora._starts.add(cb);
     return { dispose: () => PgKora._starts.delete(cb) };
+  }
+
+  /**
+   * Shut the terminal, for a screen that shows the result itself: the finish
+   * holds the receipt, and the terminal would sit over it
+   */
+  static askRoom() {
+    for (const cb of PgKora._room) cb();
+  }
+
+  static onDidAskRoom(cb: () => void): Disposable {
+    PgKora._room.add(cb);
+    return { dispose: () => PgKora._room.delete(cb) };
   }
 
   static onDidChange(cb: () => void): Disposable {
@@ -176,7 +251,17 @@ export class PgKora {
       `Program log: ${said}`,
       PgTerminal.success("Transaction confirmed.")
     );
-    const tx: KoraTx = { signature: sig, said, name, at: Date.now() };
+    const computeUnits = 1180 + Math.floor(Math.random() * 400);
+    const tx: KoraTx = {
+      signature: sig,
+      said,
+      name,
+      at: Date.now(),
+      programId: PgProgramInfo.getPkStr() ?? undefined,
+      slot: 389_000_000 + Math.floor(Math.random() * 900_000),
+      computeUnits,
+      feeLamports: BASE_FEE_LAMPORTS,
+    };
     const record = PgKora.record;
     PgKora._save({ ...record, txs: [tx, ...record.txs].slice(0, 10) });
     return tx;
@@ -203,10 +288,12 @@ export class PgKora {
     for (const cb of PgKora._listeners) cb();
   }
 
-  private static _start() {
+  /** Open the terminal, which a deploy or a call prints to */
+  static open() {
     for (const cb of PgKora._starts) cb();
   }
 
   private static readonly _listeners = new Set<() => void>();
   private static readonly _starts = new Set<() => void>();
+  private static readonly _room = new Set<() => void>();
 }

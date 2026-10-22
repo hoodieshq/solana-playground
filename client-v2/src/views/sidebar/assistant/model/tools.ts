@@ -1,6 +1,7 @@
 import { createMcpTools } from "./mcp-tools";
 import { createSkillTools } from "./skill-tools";
 import { PgAssistant } from "../store";
+import { PgPatchUndo } from "../patch-undo";
 import { realBridge, type PlaygroundBridge } from "../bridge/playground-bridge";
 import type { ToolDefinition, ToolInput } from "./types";
 
@@ -143,6 +144,7 @@ export const createTools = (
         if (approvalId) {
           PgAssistant.setApprovalOutcome(approvalId, `wrote ${path}`);
         }
+        PgPatchUndo.wrote(approvalId);
         return `Wrote ${path}.`;
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);

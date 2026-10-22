@@ -9,6 +9,7 @@ import GradientButton from "./GradientButton";
 import Markdown from "../../../../components/Markdown";
 import { diffLines, summarizeDiff } from "../diff";
 import { PgAssistant, type ChatItem as Item } from "../store";
+import { PgPatchUndo } from "../patch-undo";
 
 const ChatItem: FC<{
   item: Item;
@@ -40,6 +41,8 @@ const ChatItem: FC<{
    */
   onSkipStep?: () => void;
   skipStepTitle?: string | false | null;
+  /** On a phone: go on with the step on a computer, to type it yourself */
+  onHandoff?: () => void;
 }> = ({
   item,
   fresh = false,
@@ -50,6 +53,7 @@ const ChatItem: FC<{
   verifyStepTitle,
   onSkipStep,
   skipStepTitle,
+  onHandoff,
 }) => {
   switch (item.kind) {
     case "user":
@@ -76,7 +80,7 @@ const ChatItem: FC<{
                 {item.text}
               </Markdown>
             </Prose>
-            {(onMakeChange || onVerifyStep || onSkipStep) && (
+            {(onMakeChange || onVerifyStep || onSkipStep || onHandoff) && (
               /* The reply's next moves, as buttons you can see from across
                  the room — one filled, the rest outlined, never a bare link */
               <NextMoves>
@@ -106,6 +110,16 @@ const ChatItem: FC<{
                     {makeChangeIsLastResort
                       ? "Write it for me"
                       : "Make this change"}
+                  </Move>
+                )}
+                {onHandoff && (
+                  <Move
+                    type="button"
+                    title="Open this step on a computer and type the code yourself"
+                    onClick={onHandoff}
+                  >
+                    {ICONS.computer}
+                    On a computer
                   </Move>
                 )}
                 {onSkipStep && (
@@ -172,6 +186,12 @@ const ICONS = {
       <path d="m14.5 7.5 3 3" />
     </>
   ),
+  computer: moveIcon(
+    <>
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8M12 16v4" />
+    </>
+  ),
   skip: moveIcon(
     <>
       <path d="m5 5 7 7-7 7" />
@@ -193,8 +213,16 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
   const deny = () =>
     setTimeout(() => PgAssistant.resolveApproval(item.id, false), 0);
 
-  const label =
-    status === "allowed" ? "Applied" : status === "denied" ? "Declined" : null;
+  const label = item.undone
+    ? "Undone"
+    : status === "allowed"
+    ? "Applied"
+    : status === "denied"
+    ? "Declined"
+    : null;
+  // Read on every render: the card re-renders with the chat, and an edit to
+  // the file after the patch is what takes Undo away
+  const undoable = PgPatchUndo.can(item);
 
   return (
     <Card $pending={pending}>
@@ -226,8 +254,19 @@ const Approval: FC<{ item: Extract<Item, { kind: "approval" }> }> = ({
           </Button>
         </Actions>
       ) : (
-        <Outcome $allowed={status === "allowed"}>
-          {item.outcome ?? (status === "allowed" ? "done" : "not applied")}
+        <Outcome $allowed={status === "allowed" && !item.undone}>
+          <span>
+            {item.outcome ?? (status === "allowed" ? "done" : "not applied")}
+          </span>
+          {undoable && (
+            <Button
+              kind="outline"
+              size="small"
+              onClick={() => PgPatchUndo.undo(item)}
+            >
+              Undo patch
+            </Button>
+          )}
         </Outcome>
       )}
     </Card>
@@ -664,7 +703,13 @@ const Actions = styled.div`
 
 const Outcome = styled.div<{ $allowed: boolean }>`
   ${({ theme, $allowed }) => css`
-    padding: 0.625rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    box-sizing: border-box;
+    padding: 0.375rem 0.375rem 0.375rem 0.625rem;
     border-top: 1px solid ${theme.colors.default.border};
     color: ${$allowed
       ? theme.colors.state.success.color

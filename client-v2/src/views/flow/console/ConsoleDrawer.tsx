@@ -114,6 +114,8 @@ const ConsoleDrawer: FC = () => {
     const a = PgCommand.deploy.onDidStart(() => setOpen(true));
     // A tutorial's deploy and calls print here too, mocked until Kora is live
     const d = PgKora.onDidStart(() => setOpen(true));
+    // ...and gets out of the way of a screen that shows the result itself
+    const e = PgKora.onDidAskRoom(() => setOpen(false));
     const b = PgFlow.onDidChange((flow) => {
       const prev = prevDeploy.current;
       prevDeploy.current = flow.deploy;
@@ -133,6 +135,7 @@ const ConsoleDrawer: FC = () => {
       b.dispose();
       c.dispose();
       d.dispose();
+      e.dispose();
     };
   }, []);
 

@@ -21,7 +21,12 @@ const CopyButton: FC<CopyButtonProps> = ({ copyText }) => {
         </TooltipElement>
       }
     >
-      <StyledButton onClick={setCopied} kind="icon" copied={copied}>
+      <StyledButton
+        onClick={setCopied}
+        kind="icon"
+        copied={copied}
+        aria-label={copied ? "Copied" : "Copy"}
+      >
         <Copy />
       </StyledButton>
     </Tooltip>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import CopyText from "../components/CopyText";
 import EmptyStage, { BrandPill, PlayIcon } from "./EmptyStage";
 import IdlActions from "./IdlActions";
 import Button from "../../../components/Button";
@@ -11,7 +12,6 @@ import {
   useRenderOnChange,
 } from "../../../hooks";
 import {
-  PgCommand,
   PgConnection,
   PgExplorer,
   PgGlobal,
@@ -164,12 +164,12 @@ const Deploy = () => {
         <Row>
           <Key>Program id</Key>
           <Mono title={latest.programId}>{latest.programId}</Mono>
-          <Button.Copy copyText={latest.programId} />
+          <CopyText text={latest.programId} label="program id" />
           <Link
             href={explorer.getAddressUrl(latest.programId)}
-            aria-label={`View latest deployment (${latest.programId}) on Explorer`}
+            aria-label={`Open in Explorer: the latest deployment, ${latest.programId}`}
           >
-            Explorer
+            Open in Explorer
           </Link>
         </Row>
         <Row>
@@ -183,11 +183,11 @@ const Deploy = () => {
             <Link
               href={explorer.getTxUrl(latest.signature)}
               aria-label={
-                `View latest deployment transaction ` +
-                `(${latest.signature}) on Explorer`
+                `Open in Explorer: the latest deployment's transaction, ` +
+                latest.signature
               }
             >
-              Explorer
+              Open in Explorer
             </Link>
           </Row>
         )}
