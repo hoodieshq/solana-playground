@@ -347,15 +347,19 @@ export const LessonBar: FC<ObjectiveBandProps> = ({ state, onRead }) => {
   const phone = usePhone();
   if (!phone || !controls) return null;
 
+  // The press that proves the step gets a row of its own, the thumb's whole
+  // width: beside the page and the help it no longer fits a phone's 375px
   return (
     <Bar aria-label="This step">
-      {controls.back}
-      {controls.forward}
-      <BarEnd>
-        {controls.read}
-        {controls.help}
-        {controls.primary}
-      </BarEnd>
+      <BarAction>{controls.primary}</BarAction>
+      <BarRow>
+        {controls.back}
+        {controls.forward}
+        <BarEnd>
+          {controls.read}
+          {controls.help}
+        </BarEnd>
+      </BarRow>
     </Bar>
   );
 };
@@ -710,12 +714,30 @@ const Bar = styled.div`
   ${({ theme }) => css`
     flex-shrink: 0;
     display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    min-height: calc(${PHONE_SIZE.bar} + env(safe-area-inset-bottom, 0px));
-    padding: 0 0.5rem env(safe-area-inset-bottom, 0px) 0.375rem;
+    flex-direction: column;
+    padding: 0.5rem 0.5rem env(safe-area-inset-bottom, 0px) 0.375rem;
     border-top: 1px solid ${theme.colors.default.border};
     ${frosted}
+  `}
+`;
+
+const BarAction = styled.div`
+  padding-left: 0.125rem;
+
+  & > ${Primary} {
+    width: 100%;
+    height: ${PHONE_SIZE.target};
+    margin: 0;
+    ${PHONE_TYPE.control}
+  }
+`;
+
+const BarRow = styled.div`
+  ${() => css`
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: ${PHONE_SIZE.bar};
 
     & > ${Nav} {
       width: ${PHONE_SIZE.target};

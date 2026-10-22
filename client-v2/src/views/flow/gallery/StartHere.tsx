@@ -229,7 +229,7 @@ const LIGHT = {
   // Behind the picture on the right; faded to nothing before the words
   wide: { cx: 0.86, cy: 0.5, r: 0.7, x1: 0.4, x2: 0.6 },
   // A phone's top right corner, gone before the words under it
-  corner: { cx: 1, cy: 0, r: 1, x1: 0.55, x2: 0.9 },
+  corner: { cx: 1, cy: 0, r: 0.75, x1: 0.62, x2: 0.97 },
 };
 
 /**
