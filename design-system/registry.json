@@ -40,7 +40,7 @@
       "name": "logo",
       "type": "registry:ui",
       "title": "Logo",
-      "description": "The Playground mark beside its name. The mark takes the colour of its text.",
+      "description": "The Playground lockup and its mark, a triangle beside a circle. Both take the colour of their text.",
       "registryDependencies": [
         "https://solana-playground-ds.vercel.app/r/playground-tokens.json"
       ],
