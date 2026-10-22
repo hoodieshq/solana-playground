@@ -7,7 +7,10 @@ const file = process.argv[2]
 const DS = "https://solana-playground-ds.vercel.app"
 let config = readFileSync(file, "utf8")
 
-const views = `home: '/#app',
+// Every page here is the product. Left to guess, the ribbon takes a page it
+// does not list (a tutorial's step, say) for a landing and offers the Builder
+const views = `kind: 'app',
+  home: '/#app',
   homeLabel: 'Playground',
 
   views: [

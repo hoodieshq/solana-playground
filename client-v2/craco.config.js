@@ -14,9 +14,67 @@ if (!fs.existsSync(path.join(__dirname, "public", "index.html"))) {
   );
 }
 
+/* The Studio ribbon (Viewport, Components, Annotate, Narrate) over the
+   product while it is worked on, as the stand and solana-playground-ds have
+   it. Development only: the scripts are served from the design system's
+   copy and added to the page here, so no production build carries them. */
+const STUDIO_TOOLS = path.join(
+  __dirname,
+  "..",
+  "design-system",
+  "studio",
+  "tools"
+);
+const STUDIO_TAGS = [
+  "studio.config.js",
+  "annotate.js",
+  "components.js",
+  "narrate.js",
+  "studio.js",
+]
+  .map((file) => `<script src="/studio/${file}"></script>`)
+  .join("");
+const hasStudio = fs.existsSync(path.join(STUDIO_TOOLS, "studio.js"));
+
+/** Adds the ribbon's scripts last in the page's body */
+class StudioRibbonPlugin {
+  apply(compiler) {
+    compiler.hooks.compilation.tap("StudioRibbon", (compilation) => {
+      const HtmlWebpackPlugin = require("html-webpack-plugin");
+      HtmlWebpackPlugin.getHooks(compilation).beforeEmit.tap(
+        "StudioRibbon",
+        (data) => {
+          const i = data.html.lastIndexOf("</body>");
+          if (i !== -1) {
+            data.html =
+              data.html.slice(0, i) + STUDIO_TAGS + data.html.slice(i);
+          }
+          return data;
+        }
+      );
+    });
+  }
+}
+
+/** The config as the stand makes it: pointed at this product's pages */
+const studioConfig = () => {
+  const tmp = path.join(require("os").tmpdir(), "pg-studio.config.js");
+  fs.copyFileSync(path.join(STUDIO_TOOLS, "studio.config.js"), tmp);
+  execSync(
+    `node ${JSON.stringify(
+      path.join(__dirname, "..", "stand", "studio-config.mjs")
+    )} ${JSON.stringify(tmp)}`
+  );
+  return fs.readFileSync(tmp, "utf8");
+};
+
 module.exports = {
   webpack: {
-    configure: (webpackConfig) => {
+    configure: (webpackConfig, { env }) => {
+      if (env === "development" && hasStudio) {
+        webpackConfig.plugins.push(new StudioRibbonPlugin());
+      }
+
       // Resolve WASM and CommonJS
       webpackConfig.resolve.extensions.push(".wasm");
       webpackConfig.experiments = {
@@ -306,6 +364,15 @@ module.exports = {
     devServerConfig.onBeforeSetupMiddleware = (devServer) => {
       onBefore?.(devServer);
       devServer.app.use("/api", serveApiRoute);
+      if (hasStudio) {
+        devServer.app.get("/studio/studio.config.js", (_req, res) => {
+          res.type("application/javascript").send(studioConfig());
+        });
+        devServer.app.use(
+          "/studio",
+          require("express").static(STUDIO_TOOLS, { fallthrough: false })
+        );
+      }
     };
 
     return devServerConfig;
