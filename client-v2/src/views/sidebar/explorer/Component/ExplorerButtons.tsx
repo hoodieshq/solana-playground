@@ -104,7 +104,7 @@ const GoBackButton = () => (
     <Img
       src={getExplorerIconsPath("back.png")}
       alt="Go back to your project"
-      style={{ height: "0.875rem", width: "0.875rem" }}
+      className="size-4"
     />
   </AsyncButton>
 );

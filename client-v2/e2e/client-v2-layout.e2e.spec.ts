@@ -1443,11 +1443,22 @@ test("client-v2-layout: A cluster that is down", async ({
   await expect(network.getByRole("radio", { checked: true })).toBeFocused();
 });
 
-/** Every request to the cluster fails the way a stopped validator does */
-const refuseCluster = (page: Page) =>
-  page.route("https://api.devnet.solana.com/**", (route) =>
-    route.abort("connectionrefused")
-  );
+/** Every HTTP request to the cluster fails the way a stopped validator does */
+const refuseCluster = (page: Page, url = "https://api.devnet.solana.com") =>
+  page.route(`${url}/**`, (route) => route.abort("connectionrefused"));
+
+/** Reloads on the endpoint picked in Settings, by its option name */
+const reloadOn = async (page: Page, option: string) => {
+  await page.evaluate((picked) => {
+    const settings = JSON.parse(localStorage.getItem("settings") ?? "{}");
+    settings.connection.endpoint = { option: picked };
+    localStorage.setItem("settings", JSON.stringify(settings));
+  }, option);
+  await page.reload();
+};
+
+const clusterRow = (page: Page) =>
+  nav(page).getByRole("button", { name: /^Change cluster/ });
 
 const connectWallet = async (page: Page) => {
   await account(page).click();
@@ -1456,8 +1467,9 @@ const connectWallet = async (page: Page) => {
   await expect(account(page)).toContainText(/\w{4}…\w{4}/);
 };
 
-// An unreachable cluster leaves `isClusterDown` at `null`, not `true`: the
-// dot reads whether the cluster answers at all, not only whether it moves
+// An unreachable cluster leaves `PgConnection.isClusterDown` at `null`, not
+// `true`: the dot reads whether the cluster answers at all, not only whether
+// its slot moves
 test("a cluster that does not answer is down", async ({ seededPage: page }) => {
   await refuseCluster(page);
   await page.reload();
@@ -1484,6 +1496,40 @@ test("the wallet names the endpoint that does not answer", async ({
   ).toBeVisible({ timeout: 15_000 });
 });
 
+test("the wallet asks about the validator when localnet does not answer", async ({
+  seededPage: page,
+}) => {
+  await refuseCluster(page, "http://localhost:8899");
+  await reloadOn(page, "localnet");
+  // Localnet that does not answer opens its how-to-connect dialog
+  await page.keyboard.press("Escape");
+  await connectWallet(page);
+  await page.keyboard.press("Escape");
+
+  await page.locator("#tabs").getByRole("button", { name: "Wallet" }).click();
+  await expect(
+    page.getByText(
+      "Can't reach the RPC endpoint at http://localhost:8899. Is the local validator running?",
+      { exact: true }
+    )
+  ).toBeVisible({ timeout: 15_000 });
+});
+
+// Playnet answers only once it has started in the page; a check made before
+// that must be made again then, not 10 s later
+test("playnet is not down while it starts", async ({ seededPage: page }) => {
+  await reloadOn(page, "playnet");
+  await expect(clusterRow(page)).toBeVisible({ timeout: 15_000 });
+  // Read without retrying: a label that is down for a while and then
+  // recovers must fail here, not be waited out
+  for (let i = 0; i < 12; i++) {
+    expect(await clusterRow(page).getAttribute("aria-label")).toBe(
+      "Change cluster, currently playnet"
+    );
+    await page.waitForTimeout(500);
+  }
+});
+
 // The tab row's Wallet button carries a 400 px picture; the design system's
 // Button sizes only an `svg`, so the picture is sized where it is used
 test("the tab row keeps its height with a wallet connected", async ({
@@ -1495,6 +1541,7 @@ test("the tab row keeps its height with a wallet connected", async ({
   const icon = row.getByRole("button", { name: "Wallet" }).locator("img");
   await expect(icon).toBeVisible();
   expect((await icon.boundingBox())?.height).toBeLessThanOrEqual(16);
+  // The row is 40 px tall (`h-10`), plus its bottom border's rounding
   expect((await row.boundingBox())?.height).toBeLessThanOrEqual(41);
   await expect(row.getByRole("tab").first()).toBeInViewport({ ratio: 1 });
 });
