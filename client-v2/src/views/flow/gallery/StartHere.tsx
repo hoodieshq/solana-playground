@@ -2,19 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import type { FC } from "react";
 import styled, { css } from "styled-components";
 
-import { BrandPill, PlayIcon } from "../stages/EmptyStage";
+import { BrandPill } from "../stages/EmptyStage";
 import { getLessonPath } from "../lessons";
 import { PgLessonSummary } from "../lessons/summary";
 import type { LessonSummary } from "../lessons/summary";
 import { BRAND } from "../tokens";
 import { startOnOpen } from "./autostart";
+import { tutorialTitle } from "./title";
 import { usePhone } from "../phone";
 import { HEADLINE_FONT } from "../../../themes/solana-v3/theme";
-import Button from "../../../components/Button";
-import PlaygroundMarkNext from "../../../components/PlaygroundMarkNext";
+import PlaygroundMarkNext, {
+  MARK_PATH,
+} from "../../../components/PlaygroundMarkNext";
 import { PgTutorial, PgView } from "../../../utils";
 
 const TUTORIAL = "Hello Anchor";
+/** Where the banner points once Hello Anchor is done */
+const NEXT = "Counter PDA Tutorial";
 
 /* An id of the component's own for as long as it lives. React 17 has no
    useId, and two banners on a page must not share their SVG filter ids */
@@ -51,6 +55,26 @@ const StartHere: FC = () => {
       ).dispose,
     []
   );
+
+  // A finished tutorial has nothing more to offer from the top of the list,
+  // so the banner moves on to the next one: Start, or Continue on the page
+  // it was left at
+  const [nextAt, setNextAt] = useState<{ page: number } | null>(null);
+  useEffect(() => {
+    if (!summary?.finished) return;
+    let live = true;
+    try {
+      if (!PgTutorial.isStarted(NEXT)) return;
+    } catch {
+      return;
+    }
+    PgTutorial.getMetadata(NEXT)
+      .then((m) => live && !m.completed && setNextAt({ page: m.pageNumber }))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [summary?.finished]);
 
   const steps = getLessonPath(TUTORIAL)?.steps ?? [];
   const finished = !!summary?.finished;
@@ -90,6 +114,53 @@ const StartHere: FC = () => {
     PgView.setModal(null);
   };
 
+  const next = finished ? PgTutorial.all.find((t) => t.name === NEXT) : null;
+  if (next) {
+    const pages = next.pageCount;
+    return (
+      <Wrapper ref={box} aria-labelledby={titleId}>
+        <Field layout={phone ? "corner" : "wide"} />
+        <Inner $wide={false}>
+          <Words>
+            <Label $fresh={!nextAt}>
+              {nextAt ? "Pick up where you left off" : "Up next"}
+            </Label>
+            <Title id={titleId}>{tutorialTitle(next.name)}</Title>
+            <Line>{next.description}</Line>
+            {nextAt && pages ? (
+              <Progress>
+                <Meter aria-hidden>
+                  <MeterFill
+                    style={{ width: `${(nextAt.page / pages) * 100}%` }}
+                  />
+                </Meter>
+                <Meta>
+                  Page {nextAt.page} of {pages}
+                </Meta>
+              </Progress>
+            ) : (
+              <Meta>
+                {[
+                  pages && `${pages} pages`,
+                  next.level,
+                  next.framework,
+                  next.authors[0] && `by ${next.authors[0].name}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </Meta>
+            )}
+            <Actions>
+              <Go kind="primary" onClick={() => PgTutorial.open(next.name)}>
+                {nextAt ? "Continue" : "Start"}
+              </Go>
+            </Actions>
+          </Words>
+        </Inner>
+      </Wrapper>
+    );
+  }
+
   return (
     <Wrapper ref={box} aria-labelledby={titleId}>
       <Field layout={phone ? "corner" : "wide"} />
@@ -120,20 +191,14 @@ const StartHere: FC = () => {
             )
           )}
           <Actions>
-            <BrandPill kind="primary" onClick={open} rightIcon={<PlayIcon />}>
+            <Go kind="primary" onClick={open}>
               {finished ? "Open again" : started ? "Continue" : "Start"}
-            </BrandPill>
-            {finished && (
-              <Button
-                kind="outline"
-                onClick={() => PgTutorial.open("Counter PDA Tutorial")}
-              >
-                Start Counter PDA Tutorial
-              </Button>
-            )}
+            </Go>
           </Actions>
         </Words>
-        {!phone && wide && (
+        {/* Finished, every row is a tick and the words already say so: the
+            field alone carries the banner then */}
+        {!phone && wide && !finished && (
           <Picture aria-hidden>
             <StepsArt
               steps={steps.map((s) => SHORT[s.id] ?? s.objective)}
@@ -191,9 +256,13 @@ const StepsArt: FC<{
 
   return (
     <Window>
+      {/* The tutorial's name is already the banner's title; the head says
+          what the title does not, how far the steps have come */}
       <WindowHead>
         <PlaygroundMarkNext />
-        {TUTORIAL}
+        {finished || passed.some(Boolean)
+          ? `${passed.filter(Boolean).length} of ${steps.length} steps`
+          : `${steps.length} steps`}
       </WindowHead>
       <Rows>
         {steps.map((name, i) => {
@@ -236,10 +305,12 @@ const TILE = `data:image/svg+xml,${encodeURIComponent(
 // One pixel of the dither in CSS pixels: reads as a pixel on a 1x screen too
 const CELL = 3;
 const LIGHT = {
-  // Behind the picture on the right; faded to nothing before the words
-  wide: { cx: 0.86, cy: 0.5, r: 0.7, x1: 0.4, x2: 0.6 },
+  // The right side, edge to edge from the top to the bottom: the light grows
+  // across, not out from a point, so no rim of dark is left above or below.
+  // Faded to nothing before the words
+  wide: { cx: 0, cy: 0, r: 0, x1: 0.3, x2: 0.42, mark: true },
   // A phone's top right corner, gone before the words under it
-  corner: { cx: 1, cy: 0, r: 0.75, x1: 0.62, x2: 0.97 },
+  corner: { cx: 1, cy: 0, r: 0.75, x1: 0.62, x2: 0.97, mark: false },
 };
 
 /**
@@ -258,6 +329,11 @@ const Field: FC<{ layout: keyof typeof LIGHT }> = ({ layout }) => {
           <stop offset="0.5" stopColor="rgb(110,0,0)" />
           <stop offset="1" stopColor="rgb(0,0,0)" />
         </radialGradient>
+        {/* The mark's edge softened, so the dither breaks it into dots the
+            way light falls off, instead of cutting it out */}
+        <filter id={`${id}soft`} x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="9" />
+        </filter>
         <linearGradient id={`${id}ink`} x1="0.4" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={BRAND.purple} />
           <stop offset="0.6" stopColor={BRAND.violet} />
@@ -307,7 +383,30 @@ const Field: FC<{ layout: keyof typeof LIGHT }> = ({ layout }) => {
           height="100%"
         >
           <g filter={url("dither")}>
-            <rect width="100%" height="100%" fill={url("field")} />
+            {f.mark ? (
+              <>
+                <rect width="100%" height="100%" fill="rgb(0,0,0)" />
+                {/* The ▷O itself, drawn in light: taller than the banner, the
+                    ring's far side running off the right edge, so it is the
+                    brand seen up close rather than a logo set in a box. The
+                    ring stays in view: the triangle alone reads as a cross */}
+                <g filter={url("soft")}>
+                  <svg
+                    x="43%"
+                    y="-12.5%"
+                    width="80%"
+                    height="125%"
+                    viewBox="0 0 970 574"
+                    preserveAspectRatio="xMinYMid meet"
+                    overflow="visible"
+                  >
+                    <path d={MARK_PATH} fill="rgb(200,0,0)" />
+                  </svg>
+                </g>
+              </>
+            ) : (
+              <rect width="100%" height="100%" fill={url("field")} />
+            )}
             <rect width="100%" height="100%" fill={url("fade")} />
           </g>
         </mask>
@@ -404,16 +503,23 @@ const Line = styled.p`
     max-width: 44ch;
     font-size: 0.9375rem;
     line-height: 1.35;
-    color: ${theme.colors.default.textPrimary}b3;
+    /* No word left alone on the last line */
+    text-wrap: balance;
+    /* The lead, a step under the title and well over the caption below */
+    color: ${theme.colors.default.textPrimary}c7;
   `}
 `;
 
+/* The caption: the cards' quieter grey (4.9:1), set apart from the lead by
+   space as well as by size and colour */
 const Meta = styled.p`
   ${({ theme }) => css`
-    margin: 0.5rem 0 0;
+    margin: 0.75rem 0 0;
     font-size: 0.75rem;
+    font-weight: 380;
+    line-height: 1rem;
     font-variant-numeric: tabular-nums;
-    color: ${theme.colors.default.textSecondary};
+    color: ${theme.colors.default.textSecondary}cc;
   `}
 `;
 
@@ -446,11 +552,22 @@ const MeterFill = styled.span`
   transition: width 400ms cubic-bezier(0.2, 0, 0, 1);
 `;
 
+/* One row, one height: the outline button is drawn to the pill's height
+   beside it, so the pair reads as a choice rather than two sizes of thing */
 const Actions = styled.div`
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
   display: flex;
   flex-wrap: wrap;
+  align-items: stretch;
   gap: 0.5rem;
+`;
+
+/* The brand's pill with its word alone: the even padding the icon's side
+   used to make up for */
+const Go = styled(BrandPill)`
+  && {
+    padding: 0 1.25rem;
+  }
 `;
 
 const Picture = styled.div`

@@ -5,7 +5,7 @@ import {
   Body,
   Card,
   Empty,
-  Eyebrow,
+  Meta,
   ErrorText,
   Go,
   Grid,
@@ -77,12 +77,12 @@ const ProgramsTab: FC<ProgramsTabProps> = ({ query, programs }) => {
         <Card key={p.repo}>
           <Icon src={p.icon} alt="" />
           <Body>
-            <Eyebrow>
-              {p.framework}
-              {p.categories[0] ? ` \u00b7 ${p.categories[0]}` : ""}
-            </Eyebrow>
             <Title>{p.name}</Title>
             <Sub>{p.description}</Sub>
+            <Meta>
+              {p.framework}
+              {p.categories[0] ? ` \u00b7 ${p.categories[0]}` : ""}
+            </Meta>
             {error?.repo === p.repo && <ErrorText>{error.message}</ErrorText>}
             {progress?.repo === p.repo && (
               <ProgressText>{getProgressText(progress)}</ProgressText>

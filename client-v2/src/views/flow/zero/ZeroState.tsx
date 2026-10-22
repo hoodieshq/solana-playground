@@ -6,7 +6,9 @@ import BrandIcon from "../../../components/BrandIcon";
 import ProgramsTab from "../gallery/ProgramsTab";
 import type { ProgramListing } from "../gallery/ProgramsTab";
 import StartFromScratch from "../gallery/StartFromScratch";
-import TutorialsTab from "../gallery/TutorialsTab";
+import TutorialsTab, { filterTutorials } from "../gallery/TutorialsTab";
+import type { FrameworkFilter as FrameworkFilterValue } from "../gallery/TutorialsTab";
+import Menu, { useMenu } from "../components/Menu";
 import StartHere from "../gallery/StartHere";
 import Composer from "../components/Composer";
 import PhoneHome, { GalleryRow } from "./PhoneHome";
@@ -73,8 +75,13 @@ const ZeroState: FC<ZeroStateProps> = ({
     };
   }, []);
 
+  const [framework, setFramework] = useState<FrameworkFilterValue>("all");
+
   // Each list keeps its own empty search rather than the last one's text
-  useEffect(() => setQuery(""), [section]);
+  useEffect(() => {
+    setQuery("");
+    setFramework("all");
+  }, [section]);
 
   const onStart = section === "home";
   /* On a phone the composer is the page's foot, under the thumb, as in the
@@ -83,6 +90,10 @@ const ZeroState: FC<ZeroStateProps> = ({
      row to the gallery; the lists keep their page. */
   const phone = usePhone();
   const phoneStart = phone && onStart;
+  /* Tutorials is for picking one: its own search sits right under where a
+     composer would, and a question there had nowhere better to go than the
+     chat Home already offers (Almaz, 2026-10-22) */
+  const asks = section !== "tutorials";
   const composer = (
     <Composer
       compact={!onStart}
@@ -111,12 +122,12 @@ const ZeroState: FC<ZeroStateProps> = ({
             />
           </PhoneStage>
         ) : (
-          <Stage>
+          <Stage $start={onStart}>
             <Lead $shown={onStart}>
               <Title>Where should we begin?</Title>
             </Lead>
 
-            {!phone && <ComposerSlot>{composer}</ComposerSlot>}
+            {!phone && asks && <ComposerSlot>{composer}</ComposerSlot>}
 
             {onStart && (
               <Cards>
@@ -173,7 +184,6 @@ const ZeroState: FC<ZeroStateProps> = ({
                   <TutorialsTab query="" limit={4} />
                 </>
               )}
-              {section === "tutorials" && !query && <StartHere />}
               {!onStart && (
                 <ListHead>
                   <SearchWrap>
@@ -185,17 +195,43 @@ const ZeroState: FC<ZeroStateProps> = ({
                       value={query}
                       autoFocus
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder={`Search ${SECTION_TITLE[
-                        section
-                      ].toLowerCase()}`}
+                      placeholder={
+                        section === "tutorials"
+                          ? framework === "all"
+                            ? `Search ${PgTutorial.all.length} tutorials`
+                            : `Search ${framework} tutorials`
+                          : `Search ${SECTION_TITLE[section].toLowerCase()}`
+                      }
                       aria-label={`Search ${SECTION_TITLE[
                         section
                       ].toLowerCase()}`}
                     />
                   </SearchWrap>
+                  {section === "tutorials" && (
+                    <FrameworkFilter
+                      value={framework}
+                      onChange={setFramework}
+                    />
+                  )}
                 </ListHead>
               )}
-              {section === "tutorials" && <TutorialsTab query={query} />}
+              {/* The banner is for browsing: narrowed to a search or a
+                  framework, the list comes first */}
+              {section === "tutorials" && !query && framework === "all" && (
+                <StartHere />
+              )}
+              {section === "tutorials" && (query || framework !== "all") && (
+                <Results role="status">
+                  {resultsLine(
+                    filterTutorials(query, framework).length,
+                    query,
+                    framework
+                  )}
+                </Results>
+              )}
+              {section === "tutorials" && (
+                <TutorialsTab query={query} framework={framework} byLevel />
+              )}
               {section === "programs" && (
                 <ProgramsTab query={query} programs={programs} />
               )}
@@ -203,12 +239,85 @@ const ZeroState: FC<ZeroStateProps> = ({
           </Stage>
         )}
       </Body>
-      {phone && <PhoneComposer>{composer}</PhoneComposer>}
+      {phone && asks && <PhoneComposer>{composer}</PhoneComposer>}
     </Shell>
   );
 };
 
 export default ZeroState;
+
+const FRAMEWORKS: FrameworkFilterValue[] = [
+  "all",
+  "Anchor",
+  "Seahorse",
+  "Native",
+];
+
+/** "3 results", or "No Seahorse tutorials match “vault”" */
+const resultsLine = (
+  count: number,
+  query: string,
+  framework: FrameworkFilterValue
+) => {
+  const kind = framework === "all" ? "tutorials" : `${framework} tutorials`;
+  const q = query.trim();
+  if (!count) return q ? `No ${kind} match “${q}”` : `No ${kind} yet`;
+  return `${count} ${count === 1 ? "result" : "results"}`;
+};
+
+/**
+ * The framework filter behind one square beside the search. A dot on it says
+ * a filter is on, so a short list never looks like the whole catalogue
+ */
+const FrameworkFilter: FC<{
+  value: FrameworkFilterValue;
+  onChange: (value: FrameworkFilterValue) => void;
+}> = ({ value, onChange }) => {
+  const menu = useMenu();
+  const on = value !== "all";
+  return (
+    <>
+      <FilterButton
+        ref={menu.anchorRef}
+        type="button"
+        $on={on}
+        aria-label={on ? `Framework: ${value}` : "Filter by framework"}
+        aria-haspopup="menu"
+        aria-expanded={menu.open}
+        onClick={menu.toggle}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+          <circle cx="16" cy="7" r="2" />
+          <circle cx="10" cy="17" r="2" />
+        </svg>
+        {on && <FilterDot aria-hidden />}
+      </FilterButton>
+      {menu.open && (
+        <Menu
+          title="Framework"
+          anchorRef={menu.anchorRef}
+          onClose={menu.close}
+          placement="bottom-end"
+          minWidth="11rem"
+          rows={FRAMEWORKS.map((f) => ({
+            id: f,
+            label: f === "all" ? "All" : f,
+            checked: f === value,
+            onSelect: () => onChange(f),
+          }))}
+        />
+      )}
+    </>
+  );
+};
 
 /* ── layout ────────────────────────────────────────────────────────────── */
 
@@ -223,6 +332,8 @@ const rise = keyframes`
    the start screen stacks its own bar over its own body. */
 const Shell = styled.div`
   grid-area: body;
+  /* Beside the assistant's column it takes the rest of the row */
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -299,7 +410,72 @@ const searchShape = css`
 const ListHead = styled.div`
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   margin-bottom: 1rem;
+`;
+
+/* The search's height and corners, square */
+const FilterButton = styled.button<{ $on: boolean }>`
+  ${({ theme, $on }) => css`
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.875rem;
+    height: 1.875rem;
+    padding: 0;
+    border: 1px solid
+      ${$on
+        ? theme.colors.default.textSecondary
+        : `${theme.colors.default.textSecondary}44`};
+    border-radius: 8px;
+    background: ${theme.colors.default.bgSecondary};
+    color: ${$on
+      ? theme.colors.default.textPrimary
+      : theme.colors.default.textSecondary};
+    cursor: pointer;
+
+    & > svg {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    &:hover {
+      color: ${theme.colors.default.textPrimary};
+    }
+
+    &:focus-visible {
+      outline: 2px solid ${theme.colors.default.primary};
+      outline-offset: 1px;
+    }
+
+    ${PHONE} {
+      width: ${PHONE_SIZE.target};
+      height: ${PHONE_SIZE.target};
+      border-radius: 12px;
+    }
+  `}
+`;
+
+const FilterDot = styled.span`
+  ${({ theme }) => css`
+    position: absolute;
+    top: 0.3125rem;
+    right: 0.3125rem;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 999px;
+    background: ${theme.colors.default.primary};
+  `}
+`;
+
+const Results = styled.p`
+  ${({ theme }) => css`
+    margin: 0;
+    font-size: 0.8125rem;
+    color: ${theme.colors.default.textSecondary};
+  `}
 `;
 
 const BarTitle = styled.h1`
@@ -316,6 +492,13 @@ const SearchWrap = styled.div`
   ${({ theme }) => css`
     border-color: ${theme.colors.default.textSecondary}44;
   `}
+
+  /* The rest of the row, beside the filter, not the whole of it */
+  ${PHONE} {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
 `;
 
 const SearchInput = styled.input`
@@ -345,7 +528,7 @@ const Body = styled.div`
   overflow-x: hidden;
 `;
 
-const Stage = styled.div`
+const Stage = styled.div<{ $start: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -356,11 +539,14 @@ const Stage = styled.div`
      different left edges. */
   width: min(50rem, 100%);
   margin: 0 auto;
-  padding: 5rem 2rem 4rem;
+  /* Home's air is for its question. A list already has the bar naming it,
+     so its first row sits a step under that bar rather than 80px down */
+  padding: ${({ $start }) => ($start ? "5rem" : "2rem")} 2rem 4rem;
 
   ${PHONE} {
     gap: 1rem;
-    padding: 2.5rem 1.25rem calc(2rem + env(safe-area-inset-bottom, 0px));
+    padding: ${({ $start }) => ($start ? "2.5rem" : "1rem")} 1.25rem
+      calc(2rem + env(safe-area-inset-bottom, 0px));
   }
 `;
 
