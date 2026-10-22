@@ -7,6 +7,7 @@ import ProgramsTab from "../gallery/ProgramsTab";
 import type { ProgramListing } from "../gallery/ProgramsTab";
 import StartFromScratch from "../gallery/StartFromScratch";
 import TutorialsTab from "../gallery/TutorialsTab";
+import StartHere from "../gallery/StartHere";
 import Composer from "../components/Composer";
 import PhoneHome, { GalleryRow } from "./PhoneHome";
 import { HEAD_HEIGHT, HEAD_INSET } from "../tokens";
@@ -172,6 +173,7 @@ const ZeroState: FC<ZeroStateProps> = ({
                   <TutorialsTab query="" limit={4} />
                 </>
               )}
+              {section === "tutorials" && !query && <StartHere />}
               {!onStart && (
                 <ListHead>
                   <SearchWrap>

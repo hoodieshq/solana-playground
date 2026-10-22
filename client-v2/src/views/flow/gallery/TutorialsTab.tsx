@@ -6,6 +6,8 @@ import Img from "../../../components/Img";
 import { PgTheme, PgTutorial, PgView } from "../../../utils";
 import { ICONS } from "../nav/icons";
 import { PHONE, PHONE_SIZE, PHONE_TYPE, usePhone } from "../phone";
+import { PgLessonSummary } from "../lessons/summary";
+import { BRAND } from "../tokens";
 
 interface TutorialsTabProps {
   /** Lowercased search query from the modal's search box */
@@ -50,7 +52,10 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query, limit }) => {
               {t.level}
               {t.framework ? ` \u00b7 ${t.framework}` : ""}
             </Eyebrow>
-            <Title>{t.name}</Title>
+            <Title>
+              {t.name}
+              <LessonStatus name={t.name} />
+            </Title>
             <Sub>{t.description}</Sub>
             {error?.name === t.name && <ErrorText>{error.message}</ErrorText>}
           </Body>
@@ -79,7 +84,53 @@ const TutorialsTab: FC<TutorialsTabProps> = ({ query, limit }) => {
   );
 };
 
+/**
+ * Where a lesson stands, beside its name: a tick once it is finished, how
+ * many steps are behind the learner while it is under way, nothing before
+ */
+const LessonStatus: FC<{ name: string }> = ({ name }) => {
+  const summary = PgLessonSummary.read(name);
+  if (!summary) return null;
+  const done = summary.passed.filter(Boolean).length;
+  if (summary.finished) {
+    return (
+      <Status $done title="Completed" aria-label="Completed">
+        ✓
+      </Status>
+    );
+  }
+  if (!done) return null;
+  return (
+    <Status>
+      {done} of {summary.passed.length}
+    </Status>
+  );
+};
+
 export default TutorialsTab;
+
+const Status = styled.span<{ $done?: boolean }>`
+  ${({ theme, $done }) => css`
+    margin-left: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    font-size: 0.75rem;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    color: ${theme.colors.default.textSecondary};
+    ${$done &&
+    css`
+      width: 1.125rem;
+      height: 1.125rem;
+      border-radius: 999px;
+      background: ${BRAND.green}26;
+      color: ${BRAND.green};
+      font-size: 0.6875rem;
+    `}
+  `}
+`;
 
 /* Shared with ProgramsTab so both lists read as one family. */
 export const Grid = styled.div`

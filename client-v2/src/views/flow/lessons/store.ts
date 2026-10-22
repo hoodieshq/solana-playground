@@ -12,6 +12,7 @@ import {
 } from "./progress";
 import type { LessonProgress } from "./progress";
 import { getLessonPath } from "./registry";
+import { PgLessonSummary } from "./summary";
 import type { LessonPath } from "./types";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
@@ -298,6 +299,8 @@ export class PgLesson {
         next.loadFailed
       );
     }
+    // The gallery's copy, so it can show where a lesson stands unopened
+    if (next.path && !next.loadFailed) PgLessonSummary.write(next);
     for (const cb of PgLesson._listeners) cb(next);
   }
 
