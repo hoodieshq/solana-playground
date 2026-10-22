@@ -90,6 +90,9 @@ const AssistantToggle = ({
     <BarButton
       label={label}
       hint={assistantKey === null ? label : `${label} (${assistantKey})`}
+      // Filled while the assistant shows, as the files toggle is, so a
+      // hidden one reads as one click away (the prototype's pressed state)
+      expanded={assistant.open}
       onClick={assistant.onToggle}
     >
       <MessageSquare aria-hidden="true" />

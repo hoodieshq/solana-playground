@@ -68,6 +68,8 @@ it("names the assistant toggle by what it does", async () => {
   // The label says what a click does; a pressed state on top would read as
   // "Hide the assistant, pressed"
   expect(hide.hasAttribute("aria-pressed")).toBe(false);
+  // Expanded, as the files toggle is: the shown pane draws the button filled
+  expect(hide.getAttribute("aria-expanded")).toBe("true");
   await userEvent.click(hide);
   expect(onToggle).toHaveBeenCalledTimes(1);
 
@@ -80,7 +82,11 @@ it("names the assistant toggle by what it does", async () => {
       />
     </TooltipProvider>
   );
-  expect(screen.getByRole("button", { name: "Expand assistant" })).toBeTruthy();
+  expect(
+    screen
+      .getByRole("button", { name: "Expand assistant" })
+      .getAttribute("aria-expanded")
+  ).toBe("false");
 });
 
 it("draws no files toggle where it is not handed, and always the documentation", () => {
