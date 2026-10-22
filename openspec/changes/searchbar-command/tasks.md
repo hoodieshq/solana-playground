@@ -21,6 +21,6 @@
       `e2e/client-v2-stages.e2e.spec.ts`, titled
       `client-v2-search-field: <scenario>`. Verify: `yarn test-e2e
       e2e/client-v2-stages.e2e.spec.ts` passes (after 1.3).
-- [ ] 1.5 Verify: `yarn run check`; screenshots before and after at 1280, 834
+- [x] 1.5 Verify: `yarn run check`; screenshots before and after at 1280, 834
       and 390 px; the field and list compared with the design system's Input
       group and Command blocks, differences kept listed in the PR (after 1.4).

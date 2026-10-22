@@ -25,11 +25,14 @@ import {
   InputGroupInput,
 } from "@/shared/ui/input-group";
 import { Popover, PopoverAnchor, PopoverContent } from "@/shared/ui/popover";
+import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { Spinner } from "@/shared/ui/spinner";
 import type { InputProps } from "../Input";
 import { useKeybind, useOnClickOutside } from "../../hooks";
 import { Arrayable, Getable, PgCommon } from "../../utils";
+
+const log = createLogger("components:search-bar");
 
 export interface SearchBarProps extends InputProps {
   items?: Item[] | null;
@@ -134,9 +137,12 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
   const isValid = (value: string) => {
     try {
       return validator?.(value);
-    } catch {
+    } catch (e) {
       // A throw is the validator's way of saying "invalid, and here is why";
       // the why is shown by `onChange`, the list only needs the answer
+      log.debug("The validator rejected a value by throwing", {
+        context: { message: e instanceof Error ? e.message : String(e) },
+      });
       return false;
     }
   };
