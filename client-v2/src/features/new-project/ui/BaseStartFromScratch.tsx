@@ -91,7 +91,7 @@ const BaseStartFromScratch = ({
       <Segmented
         variant="gradient"
         aria-label="Framework"
-        className="max-md:w-full"
+        className="max-md:w-full max-md:gap-1"
         value={framework}
         onValueChange={(f) => {
           // A press on the chosen item clears the group; keep the choice
@@ -102,7 +102,7 @@ const BaseStartFromScratch = ({
           <SegmentedItem
             key={f.name}
             value={f.name}
-            className="max-md:h-12 max-md:flex-1 max-md:text-control"
+            className="max-md:h-12 max-md:flex-1 max-md:px-2 max-md:text-control"
           >
             <img
               src={f.icon}
