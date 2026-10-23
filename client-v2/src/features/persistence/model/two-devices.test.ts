@@ -493,6 +493,9 @@ describe("work that never reached the server", () => {
     expect(await PgProjectSync.resolve(HELLO.id, "take-server")).toBe(true);
 
     expect(buffers!.get(`/${HELLO.name}/src/lib.rs`)).toBe("the other device");
+    expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
+      "the other device"
+    );
   });
 });
 
@@ -918,6 +921,9 @@ describe("both devices changed it", () => {
         [`/${HELLO.name}/src/lib.rs`]: "a\nb\nc\nd\nE\n",
       });
     });
+    const toMemory = vi
+      .spyOn(PgExplorer, "saveFileToState")
+      .mockImplementation(() => {});
 
     expect((await reconcile()).replaced).toEqual([HELLO.name]);
 
@@ -925,8 +931,100 @@ describe("both devices changed it", () => {
     expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
       "A\nb\nc\nd\nE\n"
     );
+    // ...and memory, which the re-open has read already: a build reads it
+    expect(toMemory).toHaveBeenCalledWith(
+      `/${HELLO.name}/src/lib.rs`,
+      "A\nb\nc\nd\nE\n"
+    );
     // On this device alone, so the project still owes it to the account
     expect((await PgSyncMark.read(HELLO.id))?.dirty).toBe(true);
+  });
+
+  it("leaves alone what was typed during the re-open into a buffer it had already caught up", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    vi.spyOn(PgExplorer, "replaceWorkspaceFiles").mockImplementation(
+      async (name: string, files: Record<string, string>) =>
+        writeStored(name, files)
+    );
+    const buffers = editorHolds({ [`/${HELLO.name}/src/lib.rs`]: base });
+    // Typed beside the line sync changed, once the buffer had the account's
+    // copy: ordinary typing for autosave, not something to merge again
+    vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
+      buffers.set(`/${HELLO.name}/src/lib.rs`, "A\nB\nc\nd\ne\n");
+    });
+
+    expect((await reconcile()).replaced).toEqual([HELLO.name]);
+
+    expect(buffers.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nB\nc\nd\ne\n");
+    expect(getFailures()).toEqual([]);
+  });
+
+  it("brings up a model the re-open built from the replaced text in an editor already mounted", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    vi.spyOn(PgExplorer, "replaceWorkspaceFiles").mockImplementation(
+      async (name: string, files: Record<string, string>) =>
+        writeStored(name, files)
+    );
+    // Mounted, with no model for the file until the re-open opened it
+    const buffers = editorHolds({});
+    vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
+      buffers.set(`/${HELLO.name}/src/lib.rs`, base);
+    });
+
+    expect((await reconcile()).replaced).toEqual([HELLO.name]);
+
+    expect(buffers.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\ne\n");
+  });
+
+  it("writes nothing for a model the re-open built from the copy it took", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    vi.spyOn(PgExplorer, "replaceWorkspaceFiles").mockImplementation(
+      async (name: string, files: Record<string, string>) =>
+        writeStored(name, files)
+    );
+    const buffers = editorHolds({});
+    vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
+      buffers.set(`/${HELLO.name}/src/lib.rs`, "A\nb\nc\nd\ne\n");
+    });
+    const write = vi.spyOn(PgFs, "writeFile");
+
+    expect((await reconcile()).replaced).toEqual([HELLO.name]);
+
+    // A write announces a change to the other tabs, which reload for it
+    expect(
+      write.mock.calls.filter(([path]) => path === `/${HELLO.name}/src/lib.rs`)
+    ).toEqual([]);
+  });
+
+  it("drops the model of a file the other device removed from an editor that mounted while its copy was taken", async () => {
+    await startFrom(
+      { "src/lib.rs": base, "tests/t.rs": "test" },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    vi.spyOn(PgExplorer, "replaceWorkspaceFiles").mockImplementation(
+      async (name: string, files: Record<string, string>) =>
+        writeStored(name, files)
+    );
+    let buffers: Map<string, string> | null = null;
+    vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
+      buffers = editorHolds({ [`/${HELLO.name}/tests/t.rs`]: "test" });
+    });
+
+    expect((await reconcile()).replaced).toEqual([HELLO.name]);
+
+    // Left in place, autosave would write the file back and the next push
+    // would undo the other device's delete
+    expect(buffers!.has(`/${HELLO.name}/tests/t.rs`)).toBe(false);
+    expect(storedFiles().has(`/${HELLO.name}/tests/t.rs`)).toBe(false);
   });
 
   it("does not take the other device's copy over what was typed and saved while it was being fetched", async () => {
