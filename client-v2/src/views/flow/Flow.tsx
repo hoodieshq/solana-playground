@@ -85,6 +85,30 @@ const canTakeFocus = (el: HTMLElement) =>
   el.closest("[inert]") === null;
 
 /**
+ * Focuses `el` once it shows. The shell comes back from `invisible`, and a
+ * control with `transition-all` (the design system's buttons) animates the
+ * visibility it inherits, so for a frame or more it is still hidden and
+ * `focus()` does nothing. A frame that is slow to come, as under the
+ * window's pattern on a loaded machine, made that a lost focus. Bounded: a
+ * control that never shows is left alone. Returns a cancel.
+ */
+const focusWhenShown = (el: HTMLElement, frames = 30): (() => void) => {
+  if (getComputedStyle(el).visibility === "visible") {
+    el.focus();
+    return () => {};
+  }
+  if (frames === 0) return () => {};
+  let cancel = () => {};
+  const id = requestAnimationFrame(() => {
+    cancel = focusWhenShown(el, frames - 1);
+  });
+  return () => {
+    cancelAnimationFrame(id);
+    cancel();
+  };
+};
+
+/**
  * Where focus goes back when the control that opened the settings is gone or
  * out of reach: a checklist step that the pick ticked, a footer the rail
  * swapped out, a cluster row on the phone's menu page once Work shows. The
@@ -134,10 +158,12 @@ const FlowFrame = () => {
     const closed = wasOpen.current && !settings.open;
     wasOpen.current = settings.open;
     if (!closed) return;
-    if (refocus.current && canTakeFocus(refocus.current)) {
-      refocus.current.focus();
-    } else fallbackFocus()?.focus();
+    const target =
+      refocus.current && canTakeFocus(refocus.current)
+        ? refocus.current
+        : fallbackFocus();
     refocus.current = null;
+    if (target) return focusWhenShown(target);
   }, [settings.open]);
   const closeSettings = (via: SettingsExit) => {
     if (!settings.open) return;
