@@ -60,6 +60,27 @@ it("shows four of the tutorials and links to all of them", () => {
   expect(p.onAllTutorials).toHaveBeenCalledTimes(1);
 });
 
+it("writes a tutorial's level and framework as one plain line", () => {
+  const home = draw(props());
+  const card = home
+    .getByRole("button", { name: "Hello Anchor" })
+    .closest<HTMLElement>("[data-slot=action-card]");
+  const eyebrow = card?.querySelector("[data-slot=action-card-eyebrow]");
+  expect(eyebrow?.textContent).toBe("Beginner · Anchor");
+  expect(eyebrow?.querySelector("[data-slot=tag]")).toBeNull();
+});
+
+it("draws the tiles' icons bare, with no tile behind them", () => {
+  const home = draw(props());
+  for (const name of ["New project", "Follow a tutorial", "Open a program"]) {
+    const media = home
+      .getByRole("button", { name })
+      .closest<HTMLElement>("[data-slot=action-card]")
+      ?.querySelector("[data-slot=action-card-media]");
+    expect(media?.getAttribute("data-variant")).toBe("glyph");
+  }
+});
+
 it("unfolds and folds the scratch options under New project", () => {
   const p = props();
   const home = draw(p);
