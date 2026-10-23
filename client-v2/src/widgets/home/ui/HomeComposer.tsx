@@ -30,7 +30,9 @@ const HomeComposer = ({ onAsk, banner }: HomeComposerProps) => (
       Ask anything…
     </button>
     <ComposerToolbar>
-      <ComposerSend disabled>
+      {/* At full strength, as the prototype's: there is nothing to type
+          here, so it opens the assistant like the rest of the box */}
+      <ComposerSend type="button" disabled={false} onClick={onAsk}>
         <LogoPlay />
       </ComposerSend>
     </ComposerToolbar>

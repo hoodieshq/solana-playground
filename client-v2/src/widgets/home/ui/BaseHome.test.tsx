@@ -114,3 +114,10 @@ it("lays out the prototype's 736 px column, 20 px apart, with its send", () => {
   expect(home.className).toMatch(/\bgap-5\b/);
   expect(home.querySelector('[data-slot="logo-play"]')).not.toBeNull();
 });
+
+it("lets its send open the assistant too", () => {
+  const p = props();
+  const home = draw(p);
+  fireEvent.click(home.getByRole("button", { name: "Send" }));
+  expect(p.onAsk).toHaveBeenCalledTimes(1);
+});
