@@ -594,6 +594,11 @@ test.describe("on a phone", () => {
       await expect(page.getByRole("region", { name: "Work" })).toBeInViewport({
         ratio: 1,
       });
+      // No tab row: the code's head names the open file
+      await expect(page.locator("#tabs")).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: /^Files, .+ open$/ })
+      ).toBeVisible();
     }
   });
 
@@ -635,6 +640,14 @@ test.describe("on a phone", () => {
         )
       )
       .toContain("via: button");
+    // Build, Deploy and Interact in full; Write is the code's own page
+    const preview = page.getByRole("region", { name: "Preview" });
+    await expect(preview.getByRole("tab")).toHaveCount(3);
+    await expect(preview.locator("#flow-stage-tab-write")).toHaveCount(0);
+    await expect(preview.getByRole("tablist")).toHaveAttribute(
+      "data-compact",
+      "false"
+    );
   });
 });
 
