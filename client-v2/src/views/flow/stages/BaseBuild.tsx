@@ -125,7 +125,11 @@ const ContinueButton = ({ p }: { p: BaseBuildProps }) => (
   <BrandButton onClick={p.onContinue}>Continue to Deploy</BrandButton>
 );
 
-/** The first build: the prototype's brand pill with the play mark */
+/**
+ * The first build: the prototype's brand pill with the play mark. A
+ * `BrandButton` rather than `AsyncButton`, which is a `Button` and has no
+ * brand look, so the busy state and the failure report are kept here.
+ */
 const FirstBuildButton = ({ p }: { p: BaseBuildProps }) => (
   <BrandButton
     disabled={p.building}
