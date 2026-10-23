@@ -52,7 +52,7 @@ const props = (state: {
   txUrl: (sig) => `https://explorer.test/tx/${sig}`,
   onDeploy: vi.fn(),
   onInteract: vi.fn(),
-  idlDrop: null,
+  idlUpload: <button>Upload IDL</button>,
 });
 
 /** The app gives every screen a tooltip provider; the copy button needs one */
@@ -220,13 +220,31 @@ describe("BaseDeploy", () => {
     ).toHaveLength(2);
   });
 
-  it("says when nothing was deployed", () => {
-    render(
+  /** The prototype's first deploy: the pill, and Upload IDL under it */
+  it("before the first deploy it has no history, only Upload IDL", () => {
+    const { container } = render(
       <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
     );
 
+    expect(screen.queryByRole("region", { name: "History" })).toBeNull();
+    const actions = container.querySelector<HTMLElement>(
+      '[data-slot="stage-empty-actions"]'
+    )!;
+    const labels = [...actions.querySelectorAll("button")].map(
+      (b) => b.textContent
+    );
+    expect(labels).toEqual(["Deploy to devnet", "Upload IDL"]);
+  });
+
+  it("writes a dash, not two hyphens", () => {
+    render(
+      <BaseDeploy {...props({ built: false, deploy: "idle", history: [] })} />
+    );
+
     expect(
-      screen.getByText("No deployments yet for this project.")
+      screen.getByText(
+        "Build the program first \u2014 the stepper unlocks Deploy once it compiles cleanly."
+      )
     ).toBeTruthy();
   });
 
