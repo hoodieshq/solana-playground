@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import { cn } from "@/shared/lib/utils";
 import type { ReactNode } from "react";
 import {
   ArrowUpRight,
@@ -20,6 +19,7 @@ import {
   DropdownMenuShortcut,
 } from "@/shared/ui/dropdown-menu";
 import { SETTINGS_TRIGGER_ATTR } from "@/shared/lib/settings-request";
+import { cn } from "@/shared/lib/utils";
 import {
   DOCS_URL,
   formatBalance,
@@ -52,6 +52,16 @@ export interface BaseAccountMenuProps {
 const MOVES_FOCUS: ReadonlySet<AccountItem> = new Set([
   "settings",
   "cluster-down",
+]);
+
+/**
+ * Picks that, from a phone's page, leave it for the wallet window over the
+ * work: they wait for the menu to close too, so its focus goes where the pick
+ * sends it, not back to a trigger the menu page took with it
+ */
+const LEAVES_PAGE: ReadonlySet<AccountItem> = new Set([
+  "wallet",
+  "connect-wallet",
 ]);
 
 /** Marks the items that open the settings, as tests find them */
@@ -172,6 +182,13 @@ const SignInFoot = ({ onPick }: Pick<BaseAccountMenuProps, "onPick">) => {
           stray.current = !pressed.current;
           pressed.current = false;
         }}
+        // A press that slid off or was taken by a scroll ended elsewhere
+        onPointerLeave={() => {
+          pressed.current = false;
+        }}
+        onPointerCancel={() => {
+          pressed.current = false;
+        }}
         onSelect={(ev) => {
           const wasStray = stray.current;
           stray.current = false;
@@ -213,7 +230,8 @@ const BaseAccountMenu = ({
   // they open, and as it closes it puts focus back on its trigger
   const deferred = useRef<AccountItem | null>(null);
   const pick = (item: AccountItem) => {
-    if (MOVES_FOCUS.has(item)) deferred.current = item;
+    if (MOVES_FOCUS.has(item) || (page && LEAVES_PAGE.has(item)))
+      deferred.current = item;
     else onPick(item);
   };
   const items = (
@@ -231,8 +249,11 @@ const BaseAccountMenu = ({
         </>
       )}
       <SessionItems account={account} onPick={pick} page={page} />
-      {/* Signed out, a page's session group is its foot: nothing to rule off */}
-      {!(page && signsIn(account)) && <DropdownMenuSeparator />}
+      {/* Signed out, a page's sign-in is its foot: nothing to rule off,
+          unless a failure is said above */}
+      {!(page && account.session.status === "idle") && (
+        <DropdownMenuSeparator />
+      )}
       <DropdownMenuItem {...settingsTrigger} onSelect={() => pick("settings")}>
         <Settings /> Settings
         <DropdownMenuShortcut>{settingsShortcut}</DropdownMenuShortcut>
@@ -287,7 +308,11 @@ const BaseAccountMenu = ({
         onCloseAutoFocus={closeAfterPick}
       >
         <div className="flex h-phone-bar shrink-0 items-center justify-between gap-2 border-b border-border pr-2 pl-5">
-          <h2 className="truncate text-title font-act text-foreground">
+          {/* The menu is named by its trigger; this is the page's title */}
+          <h2
+            aria-hidden="true"
+            className="truncate text-title font-act text-foreground"
+          >
             Account
           </h2>
           <DropdownMenuItem

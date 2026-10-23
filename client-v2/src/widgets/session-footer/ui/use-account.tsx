@@ -38,7 +38,9 @@ interface UseAccountOptions {
   page?: boolean;
   /**
    * Makes way for the wallet window: on a phone's menu page it brings the
-   * work, where the window opens, into view; elsewhere it does nothing
+   * work, where the window opens, into view. Flow passes the shell's
+   * `closeSheet`, which does nothing from `LAYOUT_BREAKPOINTS.phone` up.
+   * Disconnecting opens no window, so it does not call it
    */
   closeSheet?: () => void;
 }

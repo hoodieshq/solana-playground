@@ -229,7 +229,8 @@ const openPage = async (account: AccountView, onPick = vi.fn()) => {
 
 it("as a phone's page, is titled Account and closes from its bar", async () => {
   await openPage(view({}));
-  expect(screen.getByRole("heading", { name: "Account" })).toBeTruthy();
+  expect(screen.getByRole("menu")).toBeTruthy();
+  expect(screen.getByText("Account", { selector: "h2" })).toBeTruthy();
   await userEvent.click(screen.getByRole("menuitem", { name: "Close" }));
   expect(screen.queryByRole("menu")).toBeNull();
 });
