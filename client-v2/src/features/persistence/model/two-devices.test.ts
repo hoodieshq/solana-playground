@@ -914,7 +914,9 @@ describe("both devices changed it", () => {
     // before the re-open was done
     let buffers: Map<string, string> | null = null;
     vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
-      buffers = editorHolds({ [`/${HELLO.name}/src/lib.rs`]: "a\nb\nc\nd\nE\n" });
+      buffers = editorHolds({
+        [`/${HELLO.name}/src/lib.rs`]: "a\nb\nc\nd\nE\n",
+      });
     });
 
     expect((await reconcile()).replaced).toEqual([HELLO.name]);
