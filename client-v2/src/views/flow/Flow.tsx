@@ -37,6 +37,7 @@ import { useKeybind } from "@/hooks";
 import { closeOpenLayers } from "@/shared/lib/close-open-layers";
 import { createLogger } from "@/shared/lib/logger";
 import { LogoLockup } from "@/shared/ui/logo";
+import { Pattern } from "@/shared/ui/pattern";
 import { PgExplorer, PgView } from "@/utils";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
@@ -231,6 +232,16 @@ const FlowFrame = () => {
 
   return (
     <Wrapper>
+      {/* One ground for the whole window, as the prototype lays it, so the
+          grid runs on unbroken wherever a pane lets it through: faint, a
+          quarter of the landing's strength, rising from the bottom edge, and
+          lit where the pointer is. The nav and the files cover it. */}
+      <Pattern
+        rest={0.025}
+        lit={0.07}
+        fade={1}
+        className="will-change-transform"
+      />
       {/* The app stays mounted under the settings page, invisible and inert
           (design.md, "Settings as a full page (5.20)"): `Write` must never
           unmount, and with `display: contents` and `visibility` the shell
@@ -428,7 +439,9 @@ const Wrapper = styled.div.attrs({
 `;
 
 // Empty while there is no conflict, and then takes no room at all
+// Positioned, so it paints over the window's pattern
 const BannerSlot = styled.div`
+  position: relative;
   padding: 0 ${GAP} ${GAP};
 
   &:empty {
@@ -437,17 +450,16 @@ const BannerSlot = styled.div`
 `;
 
 // The stage's column. The frame is flush (design.md, "Frame chrome (5.25)"):
-// no card edges, the page's background; the shell draws the dividers.
+// no card edges and no fill of its own, so a stage with nothing in it yet
+// shows the window's pattern, as the prototype's does; the editor paints its
+// own ground over it. The shell draws the dividers.
 const Center = styled.div`
-  ${({ theme }) => css`
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-    min-height: 0;
-    background: ${theme.colors.default.bgPrimary};
-    overflow: hidden;
-  `}
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 `;
 
 // display: flex here matters: Primary's own wrapper sizes itself with
@@ -465,14 +477,13 @@ const Stage = styled.div`
   position: relative;
 `;
 
+// The assistant's column: no fill, so the conversation sits on the window's
+// pattern, as the prototype's does
 const Right = styled.aside`
-  ${({ theme }) => css`
-    position: relative;
-    width: 100%;
-    height: 100%;
-    background: ${theme.colors.default.bgPrimary};
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  `}
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 `;
