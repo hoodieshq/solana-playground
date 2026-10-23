@@ -66,9 +66,9 @@ export const useProgramList = (
           title: p.name,
           description: p.description,
           media: p.icon,
-          // The framework and the first category, as the prototype's
-          // cards: every category wrapped the line in two. Search still
-          // reads them all (`matchesProgram`)
+          // Only the first category shows, as on the prototype's cards, so
+          // the line stays one line. Search still matches every category
+          // (`matchesProgram`)
           tags: [
             { label: p.framework },
             ...p.categories.slice(0, 1).map((label) => ({ label })),

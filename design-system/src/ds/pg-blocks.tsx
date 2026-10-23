@@ -776,7 +776,7 @@ function PlaygroundComponents() {
         ))}
       </Block>
 
-      <Block id="action-card" title="Action card" source="playground" registry="action-card" note="A card you open: a tutorial, a sample, a program. Its link covers the whole card, so the card is one target and its text stays selectable. frame is the older card's lift and ring. A vertical card's glyph media is the icon alone, as Home's tiles draw it." className="grid gap-3 md:grid-cols-2">
+      <Block id="action-card" title="Action card" source="playground" registry="action-card" note="A card you open: a tutorial, a sample, a program. Its link covers the whole card, so the card is one target and its text stays selectable. frame is the older card's lift and ring. The glyph media variant is the icon alone, with no tile behind it, for a vertical card." className="grid gap-3 md:grid-cols-2">
         <ActionCard>
           <ActionCardMedia><Coins /></ActionCardMedia>
           <ActionCardContent>

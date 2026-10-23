@@ -70,6 +70,25 @@ it("writes a tutorial's level and framework as one plain line", () => {
   expect(eyebrow?.querySelector("[data-slot=tag]")).toBeNull();
 });
 
+it("writes the level alone for a tutorial with no framework", () => {
+  const p = props();
+  p.tutorials = [
+    {
+      name: "Bare",
+      description: "Bare description",
+      level: "Beginner",
+      framework: undefined,
+      thumbnail: "/t.png",
+    },
+  ];
+  const home = draw(p);
+  const eyebrow = home
+    .getByRole("button", { name: "Bare" })
+    .closest<HTMLElement>("[data-slot=action-card]")
+    ?.querySelector("[data-slot=action-card-eyebrow]");
+  expect(eyebrow?.textContent).toBe("Beginner");
+});
+
 it("draws the tiles' icons bare, with no tile behind them", () => {
   const home = draw(props());
   for (const name of ["New project", "Follow a tutorial", "Open a program"]) {

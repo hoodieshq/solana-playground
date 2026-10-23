@@ -51,8 +51,8 @@ function ActionCardMedia({
   variant = "icon",
   ...props
 }: React.ComponentProps<"div"> & { variant?: "icon" | "image" | "glyph" }) {
-  /* glyph is the icon alone, with no tile behind it: the start screen's
-     tiles draw it so, above the title */
+  /* glyph is the icon alone, with no tile or clip behind it, so it sits in
+     the text's column; its bottom margin assumes a vertical card */
   return (
     <div
       data-slot="action-card-media"

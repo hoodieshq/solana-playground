@@ -104,6 +104,18 @@ describe("Connect", () => {
     expect(screen.queryByText(/^(BACKEND|MODEL|EFFORT|API KEY)$/)).toBeNull();
   });
 
+  it("labels an endpoint's base URL and optional key in sentence case", () => {
+    renderConnect({
+      defaultBackend: "present",
+      preset: { provider: "openai" },
+    });
+
+    expect(screen.getByText("Base URL", { exact: true })).toBeTruthy();
+    expect(
+      screen.getByText("API key (optional)", { exact: true })
+    ).toBeTruthy();
+  });
+
   it("offers a signed-in user the default with Start", () => {
     renderConnect({ defaultBackend: "present" });
 

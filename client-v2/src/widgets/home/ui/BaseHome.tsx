@@ -76,8 +76,9 @@ const BaseHome = ({
 
       <div className="grid grid-cols-3 gap-3">
         <ActionCard orientation="vertical">
-          {/* The icon alone above the title, as the prototype's tiles draw
-              it, and the nav's own icon for the same destination */}
+          {/* Each tile: the icon alone above the title, as the prototype's
+              tiles draw it, and the BrandIcon the nav draws for the same
+              destination */}
           <ActionCardMedia variant="glyph">
             <BrandIcon name="new" />
           </ActionCardMedia>
