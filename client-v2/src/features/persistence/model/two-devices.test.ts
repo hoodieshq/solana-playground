@@ -1086,6 +1086,32 @@ describe("both devices changed it", () => {
     expect((await PgSyncMark.read(HELLO.id))?.dirty).toBe(true);
   });
 
+  it("still keeps the base of folded typing, and says so, when the re-open fails", async () => {
+    await startFrom(
+      { "src/lib.rs": base },
+      { "src/lib.rs": "A\nb\nc\nd\ne\n" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    captureWrites();
+    vi.spyOn(PgExplorer, "switchWorkspace").mockRejectedValue(
+      new Error("re-open failed")
+    );
+    editorHolds({ [`/${HELLO.name}/src/lib.rs`]: "a\nb\nC\nd\nE\n" });
+
+    await PgProjectSync.pushCurrent();
+
+    expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
+      "A\nb\nC\nd\nE\n"
+    );
+    // Without the base, the next exchange asks about the whole file; without
+    // the mark, reconcile's cheap path skips the typing until the next edit
+    expect(await PgSyncBase.read(HELLO.id)).toHaveProperty("src/lib.rs");
+    expect((await PgSyncMark.read(HELLO.id))?.dirty).toBe(true);
+    expect(getFailures().map((f) => f.what)).toEqual([
+      expect.stringContaining("re-open"),
+    ]);
+  });
+
   it("merges an edit no push has sent yet, when a reconcile gets there first", async () => {
     // Autosaved and flagged, with the debounce still pending, when a
     // reconcile finds the other device has moved. Only a push kept a base,

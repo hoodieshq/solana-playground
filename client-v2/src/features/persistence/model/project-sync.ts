@@ -1016,7 +1016,15 @@ export class PgProjectSync {
     // takes a hold of its own, and skips this project while a merge of it is
     // still running.
     if (localName === PgExplorer.currentWorkspaceName) {
-      await PgExplorer.switchWorkspace(localName);
+      // A failed re-open is reported, not thrown: the folds above are in the
+      // store already, and a caller that never gets `folded` keeps no base
+      // for them and leaves the mark clean, so the next exchange asked about
+      // the whole file, or never sent the typing at all
+      try {
+        await PgExplorer.switchWorkspace(localName);
+      } catch (e) {
+        report(`catch up ${localName}: re-open`, e);
+      }
       // Again, for buffers the pass above could not reach. The editor
       // registers its buffers only once its lazy chunk has loaded and
       // `initLanguages` has resolved, which on a slow machine is after any
