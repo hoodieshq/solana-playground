@@ -145,12 +145,14 @@ const Empty = ({
 /**
  * The Interact stage drawn from props: the toolbar, then the form or why
  * there is none. The toolbar is the prototype's: the title row, then the
- * deployment picker and the upload on a row of their own under it.
+ * deployment picker and the upload on a row of their own under it. On a
+ * phone the tab above already says Interact, so the head is that one row,
+ * the picker at the start and the upload at the end.
  */
 const BaseInteract = (p: BaseInteractProps) => (
   <div className="flex h-full flex-col">
-    <div className="flex flex-col items-start gap-4 border-b border-border px-6 py-3">
-      <div className="flex flex-wrap items-baseline gap-2.5">
+    <div className="flex flex-col items-start gap-4 border-b border-border px-6 py-3 max-md:min-h-15 max-md:justify-center max-md:py-2 max-md:pr-2 max-md:pl-5">
+      <div className="flex flex-wrap items-baseline gap-2.5 max-md:hidden">
         <h2 className="m-0 text-[1.75rem] leading-tight font-medium tracking-tight">
           Interact
         </h2>
@@ -158,7 +160,7 @@ const BaseInteract = (p: BaseInteractProps) => (
           {p.meta}
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4 max-md:w-full max-md:flex-nowrap max-md:justify-between max-md:gap-2">
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           Deployment
           <NativeSelect

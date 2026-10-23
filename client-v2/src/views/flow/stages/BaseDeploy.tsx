@@ -262,7 +262,9 @@ const BaseDeploy = (p: BaseDeployProps) => {
             {deployLabel(p, latest !== null)}
             {!running && <BrandButtonIcon />}
           </BrandButton>
-          {p.idlUpload}
+          {/* Centred under the pill on a desk and above it on a phone, where
+              the row stretches the pill to the screen's width */}
+          <div className="flex justify-center">{p.idlUpload}</div>
         </StageEmptyActions>
       </StageEmpty>
     </div>
