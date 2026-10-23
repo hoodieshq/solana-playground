@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { ArrowUp } from "lucide-react";
 
 import {
   Composer,
@@ -7,6 +6,7 @@ import {
   ComposerSend,
   ComposerToolbar,
 } from "@/shared/ui/composer";
+import { LogoPlay } from "@/shared/ui/logo";
 
 interface HomeComposerProps {
   onAsk: () => void;
@@ -25,13 +25,13 @@ const HomeComposer = ({ onAsk, banner }: HomeComposerProps) => (
       type="button"
       aria-label="Ask the assistant"
       onClick={onAsk}
-      className="min-h-12 w-full px-4 pt-3.5 text-left text-muted-foreground outline-none"
+      className="min-h-16 w-full px-[1.125rem] pt-[1.125rem] text-left text-[0.9375rem] text-subtle outline-none"
     >
       Ask anything…
     </button>
     <ComposerToolbar>
       <ComposerSend disabled>
-        <ArrowUp />
+        <LogoPlay />
       </ComposerSend>
     </ComposerToolbar>
   </Composer>
