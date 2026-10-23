@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { Outlet } from "@/shared/lib/outlet";
+import { Button } from "@/shared/ui/button";
 import { BOTTOM_BAR_PX } from "@/views/flow/tokens";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import { Sheet, SheetContent, SheetTitle } from "@/shared/ui/sheet";
@@ -97,9 +98,8 @@ const PhoneBar = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-/** A square the size of a fingertip, as the prototype's bar buttons are */
-const BAR_BUTTON =
-  "flex size-12 shrink-0 items-center justify-center rounded-xl text-muted-foreground outline-none active:bg-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary [&>svg]:size-6 [&>svg]:shrink-0";
+/** The DS ghost button at a fingertip's size, as the prototype's bar buttons are */
+const BAR_BUTTON = "size-12 rounded-xl [&_svg:not([class*='size-'])]:size-6";
 
 const BarButton = ({
   label,
@@ -111,20 +111,21 @@ const BarButton = ({
   onClick: () => void;
   children: ReactNode;
 } & Record<`data-${string}`, string>) => (
-  <button
-    type="button"
+  <Button
+    variant="ghost"
+    size="icon"
     aria-label={label}
     onClick={onClick}
     className={BAR_BUTTON}
     {...attrs}
   >
     {children}
-  </button>
+  </Button>
 );
 
-/** A control in the code's head, a fingertip tall */
+/** A control in the code's head: the DS ghost button, a fingertip tall */
 const HEAD_BUTTON =
-  "flex h-12 min-w-12 shrink-0 items-center justify-center gap-1.5 rounded-xl text-control font-act text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&>svg]:size-5 [&>svg]:shrink-0";
+  "h-12 min-w-12 rounded-xl text-control font-act [&_svg:not([class*='size-'])]:size-5";
 
 /**
  * Names the open file and opens Files: its folder quiet and cut short, its
@@ -137,8 +138,8 @@ const FilePicker = ({
   file: BasePhonePagerProps["file"];
   onOpen: () => void;
 }) => (
-  <button
-    type="button"
+  <Button
+    variant="ghost"
     aria-label={file ? `Files, ${file.name} open` : "Files"}
     onClick={onOpen}
     className={cn(
@@ -160,7 +161,7 @@ const FilePicker = ({
       <span className="shrink-0 whitespace-nowrap">Files</span>
     )}
     {PHONE_ICONS.down}
-  </button>
+  </Button>
 );
 
 /**
@@ -381,15 +382,21 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
                   file={props.file}
                   onOpen={() => props.onFilesOpenChange(true)}
                 />
-                <a
-                  href="https://solana.com/docs"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Documentation"
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="icon"
                   className={HEAD_BUTTON}
                 >
-                  {PHONE_ICONS.help}
-                </a>
+                  <a
+                    href="https://solana.com/docs"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Documentation"
+                  >
+                    {PHONE_ICONS.help}
+                  </a>
+                </Button>
               </CodeHead>
               {props.stageOn === "work" && (
                 <Outlet

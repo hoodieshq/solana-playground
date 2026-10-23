@@ -67,17 +67,18 @@ const BaseAppNav = ({
       // the size of a fingertip at the right
       <SidebarHeader className="h-phone-bar shrink-0 flex-row items-center justify-between gap-2 border-b border-sidebar-border py-0 pr-2 pl-5">
         {logo}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon"
           aria-label="Close the menu"
           // Where focus goes when the control it left is gone (Flow's
           // `fallbackFocus`), as the work page's Menu is while this shows
           data-sidebar="trigger"
           onClick={onToggle}
-          className="flex size-12 shrink-0 items-center justify-center rounded-xl text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="size-12 rounded-xl"
         >
           <X className="size-6" strokeWidth={1.6} aria-hidden />
-        </button>
+        </Button>
       </SidebarHeader>
     ) : (
       <SidebarHeader>
