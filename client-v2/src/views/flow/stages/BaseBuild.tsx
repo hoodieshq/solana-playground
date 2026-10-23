@@ -131,7 +131,8 @@ const FirstBuildButton = ({ p }: { p: BaseBuildProps }) => (
     disabled={p.building}
     aria-busy={p.building || undefined}
     onClick={() => {
-      Promise.resolve(p.onBuild()).catch(reportButtonFailure("build"));
+      // Through `then`, so a synchronous throw is caught as well
+      Promise.resolve().then(p.onBuild).catch(reportButtonFailure("build"));
     }}
   >
     {p.building ? "Building..." : "Build"}

@@ -112,7 +112,10 @@ describe("IdlActions", () => {
 
     pick(container, jsonFile(COUNTER_IDL));
 
-    await vi.waitFor(() => expect(mocks.update).toHaveBeenCalled());
+    // `ImportButton` reports it, through `reportButtonFailure`'s logger
+    await vi.waitFor(() =>
+      expect(mocks.error).toHaveBeenCalledWith(expect.any(Error))
+    );
     expect(screen.queryByText("Not an Anchor IDL JSON file")).toBeNull();
     expect(mocks.warn).not.toHaveBeenCalled();
   });

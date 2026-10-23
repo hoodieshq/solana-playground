@@ -236,6 +236,27 @@ describe("BaseDeploy", () => {
     expect(labels).toEqual(["Deploy to devnet", "Upload IDL"]);
   });
 
+  /** After a deploy the stage reports: the history, and Upload IDL beside the pill */
+  it("after a deploy it shows the history and keeps Upload IDL", () => {
+    const { container } = render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          history: [record("a", null)],
+        })}
+      />
+    );
+
+    expect(screen.getByRole("region", { name: "History" })).toBeTruthy();
+    const actions = container.querySelector<HTMLElement>(
+      '[data-slot="stage-empty-actions"]'
+    )!;
+    expect(
+      within(actions).getByRole("button", { name: "Upload IDL" })
+    ).toBeTruthy();
+  });
+
   it("writes a dash, not two hyphens", () => {
     render(
       <BaseDeploy {...props({ built: false, deploy: "idle", history: [] })} />

@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/utils";
    EmptyStage sets it. It sits on the stage's own ground, so the pattern shows
    through. On a phone the actions pin to the foot, the first action last,
    under the thumb, and as wide as the screen. A stage that shows results
-   rather than an empty state passes `items-start text-left`. */
+   rather than an empty state passes `my-0 items-start text-left`. */
 
 function StageEmpty({ className, ...props }: React.ComponentProps<"div">) {
   return (

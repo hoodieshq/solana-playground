@@ -21,9 +21,9 @@ export type IdlActionsMode = "download" | "upload";
 
 type Note = { kind: "used"; text: string } | { kind: "refused" };
 
-/** Parses an Anchor IDL file; throws when it is not one */
-const parseIdl = async (file: File) => {
-  const parsed = JSON.parse(await file.text());
+/** Parses an Anchor IDL file's text; throws when it is not one */
+const parseIdl = (text: string) => {
+  const parsed = JSON.parse(text);
   // The one field every consumer walks; a JSON file without it would land in
   // Interact as "corrupted IDL" -- refuse it at the door instead
   if (!Array.isArray(parsed?.instructions)) {
@@ -58,9 +58,14 @@ const UploadIdl = () => {
   /** Refuses a file that is not an IDL; a throw after that is ours */
   const load = async (file: File | undefined) => {
     if (!file) return;
+    // A note from an earlier file must not outlive a failure on this one
+    setNote(null);
+    // Read outside the try: a file that cannot be read is not the user's
+    // malformed IDL, and `ImportButton` reports it
+    const text = await file.text();
     let idl;
     try {
-      idl = await parseIdl(file);
+      idl = parseIdl(text);
     } catch (e) {
       // The user's own file, not a fault of ours: say so and log it quietly
       log.warn("Refused an IDL file", {

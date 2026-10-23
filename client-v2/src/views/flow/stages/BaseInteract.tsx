@@ -60,7 +60,7 @@ const COPY: Record<EmptySurface, EmptyCopy> = {
   "no-idl": {
     title: "No IDL yet",
     description: () =>
-      "This program's Anchor IDL was not found. Load the IDL file to call its instructions.",
+      "This program's Anchor IDL was not found. Upload the IDL file to call its instructions.",
   },
   "no-program-id": {
     title: "No program id",
