@@ -480,7 +480,7 @@ test.describe("on a phone", () => {
     await page.getByRole("button", { name: "Menu", exact: true }).click();
     const menu = page.getByRole("region", { name: "Navigation" });
     await expect(menu).toBeInViewport();
-    await page.getByRole("button", { name: "Collapse navigation" }).click();
+    await page.getByRole("button", { name: "Close the menu" }).click();
     await expect(page.getByRole("region", { name: "Work" })).toBeInViewport();
     await page.getByRole("radio", { name: "Chat" }).click();
     // The composer is there and takes typing with nothing connected

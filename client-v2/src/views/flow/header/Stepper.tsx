@@ -50,9 +50,9 @@ interface StepperProps {
    */
   fill?: boolean;
   /**
-   * The phone's preview bar: Build, Deploy and Interact across it in full,
-   * 48 tall at the control type. Write is the code's own page there, so it
-   * has no tab, as in the prototype's `PreviewRail`
+   * The phone's preview bar, the prototype's `PreviewRail`: Write is the
+   * code's own page there, so it has no tab, and the other three fit in full,
+   * so the labels never fold
    */
   phone?: boolean;
 }

@@ -70,6 +70,9 @@ const BaseAppNav = ({
         <button
           type="button"
           aria-label="Close the menu"
+          // Where focus goes when the control it left is gone (Flow's
+          // `fallbackFocus`), as the work page's Menu is while this shows
+          data-sidebar="trigger"
           onClick={onToggle}
           className="flex size-12 shrink-0 items-center justify-center rounded-xl text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >

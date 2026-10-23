@@ -32,8 +32,8 @@ export interface LayoutShellProps {
    * over it (settings, from the session footer): on a phone, where the
    * navigation is a page, it brings Work into view; from
    * `LAYOUT_BREAKPOINTS.phone` up, where the navigation is a column, it does
-   * nothing. `phone` is the pager's menu page, where the navigation draws
-   * the page's head and `toggle` closes it.
+   * nothing. `phone` is the pager's menu page (the stock `isMobile`), where
+   * the navigation draws the page's head and `toggle` closes it.
    */
   nav: (panel: {
     collapsed: boolean;

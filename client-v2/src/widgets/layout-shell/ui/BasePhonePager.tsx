@@ -37,6 +37,7 @@ export interface PhonePagerState {
 
 /** The content and the outlets' nodes the pager lays out */
 export interface PhonePagerSlots {
+  /** The navigation, which draws its own head and close on the menu page */
   menu: ReactNode;
   assistant: ReactNode;
   files: ReactNode;
@@ -62,7 +63,7 @@ export interface PhonePagerSlots {
 
 export type BasePhonePagerProps = PhonePagerState & PhonePagerSlots;
 
-/** A Chat or Code option: 48 tall, 15/440, filled when it shows */
+/** A Chat or Code option, the prototype's `PaneOption`: filled when it shows */
 const PANE_OPTION =
   "h-12 rounded-xl px-3 text-control font-act data-[state=on]:bg-surface-hover";
 
@@ -83,7 +84,7 @@ const jumpTo = (el: HTMLElement, index: number) => {
   el.style.removeProperty("scroll-behavior");
 };
 
-/** The bar across the top of a page: 60 tall, the prototype's `PhoneBar` */
+/** The bar across the top of a page, the prototype's `PhoneBar` */
 const PhoneBar = ({ children }: { children: ReactNode }) => (
   <div
     data-testid="phone-bar"
@@ -96,7 +97,7 @@ const PhoneBar = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-/** A square the size of a fingertip, its glyph at 24 */
+/** A square the size of a fingertip, as the prototype's bar buttons are */
 const BAR_BUTTON =
   "flex size-12 shrink-0 items-center justify-center rounded-xl text-muted-foreground outline-none active:bg-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary [&>svg]:size-6 [&>svg]:shrink-0";
 
@@ -121,11 +122,14 @@ const BarButton = ({
   </button>
 );
 
-/** The code's head, 52 tall: which file is open, and the docs */
+/** A control in the code's head, a fingertip tall */
 const HEAD_BUTTON =
   "flex h-12 min-w-12 shrink-0 items-center justify-center gap-1.5 rounded-xl text-control font-act text-muted-foreground outline-none hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&>svg]:size-5 [&>svg]:shrink-0";
 
-/** "src/ lib.rs": names the open file and opens Files */
+/**
+ * Names the open file and opens Files: its folder quiet and cut short, its
+ * name whole
+ */
 const FilePicker = ({
   file,
   onOpen,
@@ -139,7 +143,7 @@ const FilePicker = ({
     onClick={onOpen}
     className={cn(
       HEAD_BUTTON,
-      "mr-auto min-w-0 flex-[0_1_auto] pr-2.5 pl-3 text-foreground [&>svg:first-child]:mr-0.5 [&>svg:first-child]:text-muted-foreground [&>svg:last-child]:ml-0.5 [&>svg:last-child]:size-4.5 [&>svg:last-child]:text-muted-foreground"
+      "mr-auto min-w-0 shrink pr-2.5 pl-3 text-foreground [&>svg:first-child]:mr-0.5 [&>svg:first-child]:text-muted-foreground [&>svg:last-child]:ml-0.5 [&>svg:last-child]:size-4.5 [&>svg:last-child]:text-muted-foreground"
     )}
   >
     {PHONE_ICONS.files}
@@ -159,6 +163,10 @@ const FilePicker = ({
   </button>
 );
 
+/**
+ * The code's head: which file is open, and the docs. A phone has no tab row
+ * (`Tabs`), so this is where the open file is named
+ */
 const CodeHead = ({ children }: { children: ReactNode }) => (
   <div
     className={cn(

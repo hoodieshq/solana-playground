@@ -42,7 +42,8 @@ export const Tabs = () => {
   );
 
   // A phone has no tab row: the code's head names the open file and opens
-  // the others (`BasePhonePager`'s file picker), as the prototype draws it
+  // the others (`BasePhonePager`'s file picker), as the prototype draws it.
+  // The row's wallet toggle goes with it; the account menu opens the wallet
   const phone = useViewport() === "phone";
   if (phone || !explorer.tabs.length) return null;
 

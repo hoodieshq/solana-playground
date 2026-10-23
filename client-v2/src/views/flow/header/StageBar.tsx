@@ -19,8 +19,8 @@ import { useViewport } from "@/shared/lib/hooks/use-viewport";
 /**
  * The dev-loop stepper: in the frame, a full-width row of stage tabs under the
  * stage bar, across the files column and the stage (`LayoutShell`'s
- * `stageTabs`, design.md "Frame chrome (5.25)"); on a phone, in the preview
- * page's bar, where it keeps its own width. It owns the Ctrl+1..4 stage keys and
+ * `stageTabs`, design.md "Frame chrome (5.25)"); on a phone, across the
+ * preview page's bar, without Write, which is the code's own page there. It owns the Ctrl+1..4 stage keys and
  * points the stepper at the stage the current lesson step is graded on. The
  * project list and the session footer live in the navigation (`AppNav`),
  * not here.
