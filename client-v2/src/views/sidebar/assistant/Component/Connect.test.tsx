@@ -92,6 +92,18 @@ describe("Connect", () => {
     vi.restoreAllMocks();
   });
 
+  it("labels its fields in sentence case, as the prototype writes them", () => {
+    renderConnect({
+      defaultBackend: "present",
+      preset: { provider: "anthropic" },
+    });
+
+    for (const label of ["Backend", "Model", "Effort", "API key"]) {
+      expect(screen.getByText(label, { exact: true })).toBeTruthy();
+    }
+    expect(screen.queryByText(/^(BACKEND|MODEL|EFFORT|API KEY)$/)).toBeNull();
+  });
+
   it("offers a signed-in user the default with Start", () => {
     renderConnect({ defaultBackend: "present" });
 
