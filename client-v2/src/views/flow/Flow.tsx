@@ -235,12 +235,16 @@ const FlowFrame = () => {
       {/* One ground for the whole window, as the prototype lays it, so the
           grid runs on unbroken wherever a pane lets it through: faint, a
           quarter of the landing's strength, rising from the bottom edge, and
-          lit where the pointer is. The nav and the files cover it. */}
+          lit where the pointer is. The nav and the files cover it. It sits
+          below everything in the window's own stacking context (`isolation`
+          on the Wrapper), on a compositing layer of its own: the light
+          repaints it on every frame it moves, and nothing above it should
+          repaint with it. */}
       <Pattern
         rest={0.025}
         lit={0.07}
         fade={1}
-        className="will-change-transform"
+        className="-z-10 will-change-transform"
       />
       {/* The app stays mounted under the settings page, invisible and inert
           (design.md, "Settings as a full page (5.20)"): `Write` must never
@@ -434,14 +438,14 @@ const Wrapper = styled.div.attrs({
     flex-direction: column;
     position: relative;
     overflow: hidden;
+    /* The window's stacking context, so the pattern can sit under it all */
+    isolation: isolate;
     background: ${theme.colors.default.bgPrimary};
   `}
 `;
 
 // Empty while there is no conflict, and then takes no room at all
-// Positioned, so it paints over the window's pattern
 const BannerSlot = styled.div`
-  position: relative;
   padding: 0 ${GAP} ${GAP};
 
   &:empty {

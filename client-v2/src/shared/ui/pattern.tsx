@@ -2,10 +2,11 @@ import * as React from "react";
 import { cn } from "@/shared/lib/utils";
 
 /* The brand pattern, the ground of the whole window, lit where the pointer
-   is. Two copies of one image: the first at rest, falling away towards the
-   top (`fade`); the second a little brighter, seen only through a soft circle
-   that trails the pointer, with a faint halo, so moving the mouse reads as a
-   light passing over the grid. It sits under everything: transparent panes
+   is. Four layers of one image: the pattern at rest, as two layers (one
+   masked to fall away towards the top, one even, balanced by `fade`); a
+   faint halo; and the pattern a little brighter, seen only through a soft
+   circle that trails the pointer, so moving the mouse reads as a light
+   passing over the grid. It sits under everything: transparent panes
    (the conversation, a stage with nothing in it yet) show it, opaque ones
    cover it. Everything moves through three custom properties set from one
    animation frame loop that stops once the light has caught up, so nothing
@@ -124,7 +125,7 @@ function Pattern({
       data-slot="pattern"
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute inset-0 overflow-hidden [--lon:0] [--lr:clamp(14rem,26vmax,26rem)] [--lx:-999px] [--ly:-999px] [--pp:max(24px,round(calc(min(100vw,1920px)/32),1px))]",
+        "pointer-events-none absolute inset-0 overflow-hidden [--lon:0] [--lr:clamp(14rem,26vmax,26rem)] [--lx:-999px] [--ly:-999px] [--pp:max(24px,calc(min(100vw,1920px)/32))] supports-[width:round(1.5px,1px)]:[--pp:max(24px,round(calc(min(100vw,1920px)/32),1px))]",
         className
       )}
       style={style}
