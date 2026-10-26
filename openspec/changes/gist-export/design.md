@@ -71,15 +71,21 @@ repo-import convention) so hand-made gists open too.
 
 ### Slice layout
 
-`features/gist`: `lib/format.ts` (pure: `toGistFiles`, `fromGistFiles`,
-`isExportablePath`, `GistFormatError`, limits), `model/export.ts`
-(`exportProject`: read files, flatten, check limits, POST, map answers to a
-result union), `model/telemetry.ts`, `ui/BaseShareGistDialog.tsx` +
-`ui/ShareGistDialog.tsx`, `server.mjs` (the GitHub call, used by the route).
-The feature cannot import `auth`, so the dialog takes `session` state and a
-`signIn(scopes?)` callback as props; `widgets/app-nav` passes `PgSession`'s.
-Reading the files goes through the existing `readWorkspaceFiles`, moved behind
-a prop as well, so the feature does not reach into the widget.
+`features/gist`: `config.mjs` (the limits, manifest name and route reasons
+both halves share), `lib/format.ts` (pure: `toGistFiles`, `fromGistFiles`,
+`isExportablePath`, `GistFormatError`), `model/export.ts` (`exportProject`:
+flatten, check limits, POST, map answers to a result union),
+`model/create-gist.mjs` behind `server.mjs` (the GitHub call, used by the
+route), `model/telemetry.ts`, and `ui/BaseShareGist.tsx` + `ui/ShareGist.tsx`
+(the dialog's body, no frame).
+
+The feature may import neither `auth` nor `widgets/overlays`, and a widget may
+not import the overlays either, so the dialog is assembled in the app layer:
+`app/ShareGistDialog` puts `ShareGist` in a `ModalFrame` and hands it
+`PgSession`'s state (kept current, since the dialog can open before the first
+session read answers) and `signIn`. `ProjectList` takes the opener as a prop
+from `views/flow/Flow.tsx`, with a reader of the project's files
+(`readProjectFiles`, beside the existing `readWorkspaceFiles`).
 
 ### Result as a union
 
