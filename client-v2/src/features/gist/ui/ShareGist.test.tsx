@@ -1,6 +1,7 @@
 // The share dialog's body end to end against a stubbed `/api/gists`: sign-in
 // first when signed out, gist access asked for only when the token lacks it,
 // and every ending counted once.
+import { StrictMode } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
@@ -47,16 +48,19 @@ const renderShare = ({
   signedIn?: boolean;
   signIn?: Mock<ShareGistProps["signIn"]>;
 } = {}) => {
-  // The app's root provides it; Copy's tooltip needs it
+  // The app's root provides the tooltips Copy needs, and runs under
+  // StrictMode in development, which mounts every effect twice
   render(
-    <TooltipProvider>
-      <ShareGist
-        name="counter"
-        readFiles={async () => FILES}
-        isSignedIn={() => signedIn}
-        signIn={signIn}
-      />
-    </TooltipProvider>
+    <StrictMode>
+      <TooltipProvider>
+        <ShareGist
+          name="counter"
+          readFiles={async () => FILES}
+          signedIn={signedIn}
+          signIn={signIn}
+        />
+      </TooltipProvider>
+    </StrictMode>
   );
   return { signIn };
 };
@@ -121,6 +125,29 @@ it("keeps the dialog on sign-in when the user cancels it", async () => {
   expect(sent.events).toEqual([
     { name: "gist_export_failed", params: { reason: "sign-in-failed" } },
   ]);
+});
+
+it("moves on to create once the session reads as signed in", () => {
+  const share = (signedIn: boolean) => (
+    <TooltipProvider>
+      <ShareGist
+        name="counter"
+        readFiles={async () => FILES}
+        signedIn={signedIn}
+        signIn={vi.fn()}
+      />
+    </TooltipProvider>
+  );
+  const { rerender } = render(share(false));
+  expect(
+    screen.getByRole("button", { name: "Sign in with GitHub to share" })
+  ).toBeTruthy();
+
+  rerender(share(true));
+
+  expect(
+    screen.getByRole("button", { name: "Create public gist" })
+  ).toBeTruthy();
 });
 
 it("says so when the browser blocks the sign-in popup", async () => {
@@ -199,6 +226,7 @@ it("goes back to sign-in when the session ended meanwhile", async () => {
 
   await press(/Create public gist/);
 
+  expect(screen.getByText(/Your session ended/)).toBeTruthy();
   expect(
     screen.getByRole("button", { name: "Sign in with GitHub to share" })
   ).toBeTruthy();

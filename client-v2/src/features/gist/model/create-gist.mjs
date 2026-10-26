@@ -71,11 +71,11 @@ export const createGist = async ({
   token,
   description,
   files,
-  fetch = globalThis.fetch,
+  fetch: send = fetch,
 }) => {
   let response;
   try {
-    response = await fetch(GISTS_URL, {
+    response = await send(GISTS_URL, {
       method: "POST",
       headers: {
         accept: "application/vnd.github+json",

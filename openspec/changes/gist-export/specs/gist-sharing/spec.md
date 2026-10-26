@@ -14,13 +14,13 @@ in its actions menu, with the key hint `G`, and choosing it (by click or by
 the key while the menu is open) SHALL open the share dialog for that project,
 named `share-gist`, whose title names the project.
 
-#### Scenario: Opening the share dialog from the menu (manual)
+#### Scenario: Opening the share dialog from the menu
 
 - **WHEN** the user opens the actions menu of a project named "counter" and
   picks Share as gist
 - **THEN** a dialog titled "Share counter as a gist" opens
 
-#### Scenario: Opening the share dialog by its key (manual)
+#### Scenario: Opening the share dialog by its key
 
 - **WHEN** the actions menu of a project is open and the user presses `G`
 - **THEN** the share dialog for that project opens

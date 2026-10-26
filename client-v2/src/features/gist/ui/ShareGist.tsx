@@ -12,8 +12,11 @@ export interface ShareGistProps {
   name: string;
   /** The project's files, keyed by path relative to its root */
   readFiles: () => Promise<Record<string, string>>;
-  /** Whether someone is signed in now */
-  isSignedIn: () => boolean;
+  /**
+   * Whether someone is signed in. A value the caller keeps current: the
+   * dialog can open before the page's first session read has answered.
+   */
+  signedIn: boolean;
   /**
    * Sign in with GitHub, asking for `scopes` on top of sign-in's own. Passed
    * in because this feature may not import `auth`. Rejects when the user
@@ -29,18 +32,18 @@ const messageOf = (error: unknown) =>
  * The share dialog's body, connected: signs in when it must, asks for gist
  * access when the token lacks it, and counts how each share ends.
  */
-const ShareGist = ({ name, readFiles, isSignedIn, signIn }: ShareGistProps) => {
-  const [state, setState] = useState<ShareStep>(() =>
-    isSignedIn() ? { step: "ready" } : { step: "sign-in" }
-  );
-  // A dialog closed mid-share must not be set state on
+const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
+  const [state, setState] = useState<ShareStep>({ step: "ready" });
+  // A dialog closed mid-share must not be set state on. Set in the effect,
+  // not only at first render: StrictMode runs the cleanup and the effect
+  // again on mount, and a ref left `false` drops every answer
   const mounted = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
       mounted.current = false;
-    },
-    []
-  );
+    };
+  }, []);
   const show = (next: ShareStep) => {
     if (mounted.current) setState(next);
   };
@@ -57,7 +60,12 @@ const ShareGist = ({ name, readFiles, isSignedIn, signIn }: ShareGistProps) => {
         return;
       case "needs-sign-in":
         gistTelemetry.track("gist_export_failed", { reason: "signed-out" });
-        show({ step: "sign-in" });
+        // With its reason, so the step holds while this page still thinks
+        // the session it lost is there
+        show({
+          step: "sign-in",
+          error: "Your session ended. Sign in again to share.",
+        });
         return;
       case "needs-gist-scope":
         if (afterGrant) {
@@ -92,10 +100,17 @@ const ShareGist = ({ name, readFiles, isSignedIn, signIn }: ShareGistProps) => {
     await share({ afterGrant: !!scopes });
   };
 
+  // Until a step has its own answer, the session decides what is offered: a
+  // sign-in elsewhere, or the first session read, moves the dialog along
+  let shown = state;
+  const undecided =
+    state.step === "ready" || (state.step === "sign-in" && !state.error);
+  if (undecided) shown = signedIn ? { step: "ready" } : { step: "sign-in" };
+
   return (
     <BaseShareGist
       name={name}
-      state={state}
+      state={shown}
       onCreate={() => share({ afterGrant: false })}
       onSignIn={() =>
         signInThen(undefined, (error) => ({ step: "sign-in", error }))
