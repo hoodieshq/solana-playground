@@ -373,7 +373,7 @@ describe("Connect", () => {
 
     for (const radio of screen.getAllByRole("radio")) {
       expect(radio.classList.contains("opacity-0")).toBe(true);
-      expect(radio.classList.contains("size-0")).toBe(true);
+      expect(radio.classList.contains("size-full")).toBe(true);
     }
   });
 

@@ -301,8 +301,10 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
       <RadioGroupItem
         value={p.id}
         disabled={isUnavailable(p)}
-        // Not `sr-only`: the item's own `relative` and `size-4` outrank it
-        className="absolute size-0 overflow-hidden border-0 opacity-0"
+        // Unseen, over the whole card: a press anywhere on it is a press on
+        // the radio itself (`sr-only` would lose to the item's own `relative`
+        // and `size-4`)
+        className="absolute inset-0 size-full rounded-xl border-0 opacity-0"
       />
       <span className="flex min-w-0 flex-col">
         <span
