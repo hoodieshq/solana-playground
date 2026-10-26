@@ -11,8 +11,10 @@ external wallet changes in the Playground.
 ### Requirement: Wallets are found through ConnectorKit
 The client SHALL discover installed Wallet Standard wallets through
 ConnectorKit (`@solana/connector`) and SHALL NOT depend on
-`@solana/wallet-adapter-react` or `@solana/wallet-adapter-base`. A wallet that
-registers after the page has loaded SHALL be offered without a reload.
+`@solana/wallet-adapter-react` or `@solana/wallet-adapter-base`. It SHALL offer
+only wallets that support a Solana chain, report account changes and sign
+transactions, as wallet-adapter did. A wallet that registers after the page has
+loaded SHALL be offered without a reload.
 
 #### Scenario: An installed wallet is offered
 - **WHEN** a Wallet Standard wallet that supports Solana is installed and the app loads
@@ -25,6 +27,10 @@ registers after the page has loaded SHALL be offered without a reload.
 #### Scenario: A wallet without Solana support
 - **WHEN** a registered Wallet Standard wallet supports no Solana chain
 - **THEN** it is not offered
+
+#### Scenario: A wallet that cannot sign transactions (manual)
+- **WHEN** a registered wallet offers only `solana:signAndSendTransaction`, or no `standard:events`
+- **THEN** it is not offered, so no signing path receives a wallet that cannot sign
 
 ### Requirement: The existing wallet commands keep their behaviour
 Connecting, disconnecting and switching to an external wallet through the

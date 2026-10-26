@@ -17,6 +17,18 @@ Playwright.
 **Spec:** `../specs/client-v2-external-wallet/spec.md`, `../design.md`
 (Decisions 1–4).
 
+## As built (2026-10-27)
+
+Where the code differs from the tasks below, the code and design.md win:
+
+- No `ConnectorClient` and no `model/client.ts`: the bridge reads ConnectorKit's registry (`getWalletsRegistry`, `ready`).
+- The app's type kept the name `StandardWalletAdapter` (not `…Like`); `BridgedWallet` implements it.
+- The fake wallet lives in `src/test-utils/fake-wallet.ts` and registers itself by dispatching `wallet-standard:register-wallet`; the e2e copy is `e2e/fake-wallet.ts`.
+- One bridged object per wallet object (a `WeakMap`), not per connector id.
+- Signing tests sit in `model/bridge.signing.test.ts` (node environment); the slice exports `watchExternalWallets` and two types.
+- Listed wallets need `standard:events` and `solana:signTransaction` too (review C1); signer errors are unwrapped to the wallet's own.
+- Review Focus 2 is covered only as "two `connect()` calls share one request"; there is no separate restore in the bridge.
+
 ## Global Constraints
 
 - Pin `@solana/connector` at exactly `0.3.0`; import only from `"@solana/connector"`.

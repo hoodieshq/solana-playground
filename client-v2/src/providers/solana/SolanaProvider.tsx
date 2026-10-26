@@ -28,7 +28,7 @@ export const SolanaProvider: FC<React.PropsWithChildren<unknown>> = ({
 }) => {
   const wallet = useWallet();
 
-  // Set the standard wallets, found and connected through ConnectorKit
+  // Set the standard wallets, found through ConnectorKit's registry
   useEffect(
     () =>
       watchExternalWallets(
@@ -53,11 +53,14 @@ export const SolanaProvider: FC<React.PropsWithChildren<unknown>> = ({
     };
 
     // There is no specific event for account changes; the bridge fires
-    // `connect` after an account switch, as wallet-adapter did
+    // `connect` after an account switch, as wallet-adapter did, and
+    // `disconnect` when the user revokes the site inside the extension
     wallet.on("connect", handleStandardAccountChange);
+    wallet.on("disconnect", handleStandardAccountChange);
 
     return () => {
       wallet.off("connect", handleStandardAccountChange);
+      wallet.off("disconnect", handleStandardAccountChange);
     };
   }, [wallet]);
 

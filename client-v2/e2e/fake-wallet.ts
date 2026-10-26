@@ -7,8 +7,9 @@ import type { Page } from "@playwright/test";
  * and again when the app announces itself with `wallet-standard:app-ready`.
  * It approves every connection, as a wallet that already trusts the site.
  *
- * It signs transactions only when `sign` is set: the keypair's secret key is
- * handed to the page through `exposeFunction`, so signing happens in node.
+ * It signs transactions only when `sign` is set, through a function exposed
+ * with `exposeFunction` that signs in node: the secret key never enters the
+ * page.
  * The unit tests' wallet is `src/test-utils/fake-wallet.ts`.
  */
 export interface PageWallet {
@@ -71,7 +72,7 @@ export const installFakeWallet = async (
       address,
       publicKey: Uint8Array.from(publicKey),
       chains,
-      features: sign ? ["solana:signTransaction"] : [],
+      features: ["solana:signTransaction"],
     };
     let accounts: Account[] = [];
     const listeners = new Set<(p: { accounts: Account[] }) => void>();
@@ -117,24 +118,23 @@ export const installFakeWallet = async (
             return () => listeners.delete(fn);
           },
         },
-        ...(sign
-          ? {
-              "solana:signTransaction": {
-                version: "1.0.0",
-                supportedTransactionVersions: ["legacy", 0],
-                signTransaction: async (
-                  ...inputs: { transaction: Uint8Array }[]
-                ) =>
-                  Promise.all(
-                    inputs.map(async ({ transaction }) => ({
-                      signedTransaction: Uint8Array.from(
-                        await signer(Array.from(transaction))
-                      ),
-                    }))
-                  ),
-              },
-            }
-          : {}),
+        // Declared always, as every listed wallet must; without `sign` there
+        // is no signer in node, and a signature fails
+        "solana:signTransaction": {
+          version: "1.0.0",
+          supportedTransactionVersions: ["legacy", 0],
+          signTransaction: async (...inputs: { transaction: Uint8Array }[]) => {
+            if (!sign)
+              throw new Error("This fake wallet was set up without signing");
+            return Promise.all(
+              inputs.map(async ({ transaction }) => ({
+                signedTransaction: Uint8Array.from(
+                  await signer(Array.from(transaction))
+                ),
+              }))
+            );
+          },
+        },
       },
     };
 

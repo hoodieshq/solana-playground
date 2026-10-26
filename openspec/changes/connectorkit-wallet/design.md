@@ -18,7 +18,8 @@ See proposal.md for why. What exists today:
   view (`widgets/session-footer/ui/use-account.tsx`), and `deploy`.
 - The members actually used are `name`, `icon`, `readyState`, `connected`,
   `connecting`, `publicKey`, `connect`, `disconnect`, `signTransaction`,
-  `signAllTransactions`, `signMessage`, and `on`/`off` for `connect`.
+  `signAllTransactions`, `signMessage`, and `on`/`off` for `connect` (the
+  bridge adds `disconnect`).
 - Constraints: TypeScript 5.0.4 with `moduleResolution: node`, so a package's
   `exports` subpaths do not resolve; `@solana/connector`'s root entry exports
   everything needed (checked with a type-checked probe). `localStorage` is
@@ -51,8 +52,9 @@ sees wallets that registered before and after the app loaded, and its signer
 one session, while `PgWallet` lets several extensions be connected at once
 (`pg.wallets`, `getConnectedStandardWallets`), and the Fund dialog must
 connect a payer without dropping an extension that is the current wallet. So
-the bridge keeps the wallets that speak Solana (a `solana:` chain and
-`standard:connect`), connects each through its own
+the bridge keeps the wallets wallet-adapter kept (a `solana:` chain,
+`standard:connect`, `standard:events` and `solana:signTransaction`, so every
+listed wallet can report changes and sign what `PgTx` builds), connects each through its own
 `standard:connect`/`standard:disconnect`, as wallet-adapter's
 `StandardWalletAdapter` did, and keeps per-wallet state (`connected`,
 `connecting`, the selected account). It publishes the list to
@@ -82,23 +84,26 @@ signer for the wallet and its selected account, which accepts
 `@solana/web3.js` transactions, the type `PgTx` builds. The signer's `cluster`
 is the Playground's (`PgConnection.cluster`: `mainnet-beta`, `devnet`,
 `testnet` map to ConnectorKit's clusters; `localnet` and `playnet` pass none,
-so the wallet signs without a chain hint, as wallet-adapter did). A wallet
-without `solana:signTransaction` gets no signer methods, so `PgTx` fails with
-its usual "cannot sign" error. `signMessage` uses the wallet's
+so the wallet signs without a chain hint, as wallet-adapter did). The signer
+rethrows every failure as "Failed to sign transaction"; the bridge rethrows
+the wallet's own error from it, so a rejection still reads as one. `signMessage` uses the wallet's
 `solana:signMessage` feature when it has one, else is absent, as before.
 
 **4. Account changes are a `connect` event.** The old provider re-derived
 `PgWallet.current` on wallet-adapter's `connect` event, which fires after an
 account switch. The bridge listens to the wallet's own `standard:events`
 `change` event, takes the new first Solana account, and emits `connect` the
-same way, so `SolanaProvider`'s handler keeps working. `readyState` is always
+same way, so `SolanaProvider`'s handler keeps working; when no Solana
+account is left (the user revoked the site) it emits `disconnect`, which the
+provider now handles too, and an unchanged address emits nothing. `readyState` is always
 `"Installed"` (a registered wallet is installed), and `name` is the Wallet
 Standard name, the same string wallet-adapter used, so a stored
 `standardName` still finds its wallet.
 
 **5. Funding is its own feature, `features/fund-wallet`.** It reads
-`entities/external-wallet` for the connector list and the paying wallet,
-connects through the client without touching `PgWallet.state`, and sends with
+the wallet list from `PgWallet.standardWallets` (bridged by
+`entities/external-wallet`), connects the payer through its own `connect()`
+without touching `PgWallet.state`, and sends with
 `PgTx.send(transferIx, { wallet: payer })` so blockhash, fee payer, priority
 fee and RPC are the Playground's own. The receiver is `PgWallet.current` when
 it is a Playground wallet, else `PgWallet.accounts[0]`, the account `deploy`

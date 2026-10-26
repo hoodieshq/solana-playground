@@ -1,16 +1,18 @@
 import {
   createTransactionSigner,
   getWalletsRegistry,
+  isTransactionError,
   ready,
   type WalletStandardAccount,
   type WalletStandardWallet,
 } from "@solana/connector";
+import { PublicKey } from "@solana/web3.js";
 
 import { createLogger } from "@/shared/lib/logger";
-import { PublicKey } from "@solana/web3.js";
 import type {
   AnyTransaction,
   StandardWallet,
+  StandardWalletAdapter,
   StandardWalletEvents,
 } from "../../../utils/wallet/types";
 
@@ -42,12 +44,46 @@ const feature = <T>(
 
 const isSolanaChain = (chain: string) => chain.startsWith("solana:");
 
-/** A wallet the app can use: it speaks Solana and can connect */
-const isSolanaWallet = (wallet: WalletStandardWallet) =>
-  wallet.chains.some(isSolanaChain) && !!wallet.features["standard:connect"];
+/**
+ * The features a wallet needs before the app lists it, as wallet-adapter's
+ * `isWalletAdapterCompatibleStandardWallet` required: `PgWallet` hands a
+ * connected wallet to every signing path, and a wallet without `standard:events`
+ * would never report a revoke or an account switch
+ */
+const REQUIRED_FEATURES = [
+  "standard:connect",
+  "standard:events",
+  "solana:signTransaction",
+] as const;
+
+/** A wallet the app can use: it speaks Solana, connects, reports and signs */
+const isUsableWallet = (wallet: WalletStandardWallet) =>
+  wallet.chains.some(isSolanaChain) &&
+  REQUIRED_FEATURES.every((name) => !!wallet.features[name]);
+
+/** Like `isUsableWallet`, but a malformed wallet is skipped, not thrown on */
+const isListed = (wallet: WalletStandardWallet) => {
+  try {
+    return isUsableWallet(wallet);
+  } catch (error: unknown) {
+    log.warn("skipped a malformed wallet", {
+      context: { name: String(wallet?.name), error: String(error) },
+    });
+    return false;
+  }
+};
 
 const firstSolanaAccount = (accounts: readonly WalletStandardAccount[]) =>
   accounts.find((account) => account.chains.some(isSolanaChain)) ?? null;
+
+/**
+ * The wallet's own error, not ConnectorKit's wrapper: the signer rethrows every
+ * failure as "Failed to sign transaction", which would hide a user's rejection
+ */
+const unwrap = (error: unknown) =>
+  isTransactionError(error) && error.originalError
+    ? error.originalError
+    : error;
 
 /** The chain hint a wallet signs with; `undefined` signs without one */
 export interface SigningCluster {
@@ -63,18 +99,16 @@ export interface WatchOptions {
 
 /**
  * One Wallet Standard wallet in the shape `PgWallet` reads. It connects through
- * the wallet's own `standard:connect`, not through a ConnectorKit session,
- * because the app lets several wallets be connected at once (design.md,
- * Decision 1).
+ * the wallet's own `standard:connect`, not through a ConnectorKit session: a
+ * session holds one wallet, and the app lets several be connected at once, so
+ * that connecting a payer never drops the current wallet.
  */
-class BridgedWallet {
+class BridgedWallet implements StandardWalletAdapter {
   readonly readyState = "Installed" as const;
-  connecting = false;
-  signTransaction?: <T extends AnyTransaction>(tx: T) => Promise<T>;
-  signAllTransactions?: <T extends AnyTransaction>(txs: T[]) => Promise<T[]>;
-  signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
+  readonly signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
 
   private account: WalletStandardAccount | null = null;
+  /** The connection request in flight; set exactly while connecting */
   private pending: Promise<void> | null = null;
   private listeners: {
     [E in keyof StandardWalletEvents]: Set<StandardWalletEvents[E]>;
@@ -84,16 +118,10 @@ class BridgedWallet {
     private readonly wallet: WalletStandardWallet,
     private readonly opts: WatchOptions
   ) {
+    // Never unsubscribed: one bridged object lives as long as its wallet
     feature<EventsFeature>(wallet, "standard:events")?.on("change", (props) =>
       this.onChange(props.accounts)
     );
-
-    if (wallet.features["solana:signTransaction"]) {
-      this.signTransaction = async (tx) =>
-        (await this.signer().signTransaction(tx)) as typeof tx;
-      this.signAllTransactions = async (txs) =>
-        (await this.signer().signAllTransactions(txs)) as typeof txs;
-    }
 
     const signMessage = feature<SignMessageFeature>(
       wallet,
@@ -101,11 +129,12 @@ class BridgedWallet {
     );
     if (signMessage) {
       this.signMessage = async (message) => {
-        const [{ signature }] = await signMessage.signMessage({
+        const [signed] = await signMessage.signMessage({
           account: this.connectedAccount(),
           message,
         });
-        return signature;
+        if (!signed) throw new Error(`${this.name} returned no signature`);
+        return signed.signature;
       };
     }
   }
@@ -122,6 +151,10 @@ class BridgedWallet {
     return !!this.account;
   }
 
+  get connecting() {
+    return !!this.pending;
+  }
+
   get publicKey() {
     return this.account ? new PublicKey(this.account.publicKey) : null;
   }
@@ -131,17 +164,36 @@ class BridgedWallet {
     if (this.account) return Promise.resolve();
     this.pending ??= this.requestConnect().finally(() => {
       this.pending = null;
-      this.connecting = false;
     });
     return this.pending;
   }
 
+  /** Local state clears even when the wallet fails to disconnect, as wallet-adapter's did */
   async disconnect() {
-    await feature<DisconnectFeature>(
-      this.wallet,
-      "standard:disconnect"
-    )?.disconnect();
-    this.setAccount(null);
+    try {
+      await feature<DisconnectFeature>(
+        this.wallet,
+        "standard:disconnect"
+      )?.disconnect();
+    } finally {
+      this.setAccount(null);
+    }
+  }
+
+  async signTransaction<T extends AnyTransaction>(tx: T) {
+    try {
+      return (await this.signer().signTransaction(tx)) as T;
+    } catch (error: unknown) {
+      throw unwrap(error);
+    }
+  }
+
+  async signAllTransactions<T extends AnyTransaction>(txs: T[]) {
+    try {
+      return (await this.signer().signAllTransactions(txs)) as T[];
+    } catch (error: unknown) {
+      throw unwrap(error);
+    }
   }
 
   on<E extends keyof StandardWalletEvents>(
@@ -159,7 +211,6 @@ class BridgedWallet {
   }
 
   private async requestConnect() {
-    this.connecting = true;
     const connect = feature<ConnectFeature>(this.wallet, "standard:connect");
     if (!connect) throw new Error(`${this.name} cannot connect`);
     const { accounts } = await connect.connect();
@@ -181,8 +232,22 @@ class BridgedWallet {
   private setAccount(account: WalletStandardAccount | null) {
     const was = this.account;
     this.account = account;
-    if (account) this.listeners.connect.forEach((fn) => fn());
-    else if (was) this.listeners.disconnect.forEach((fn) => fn());
+    if (account) this.emit("connect");
+    else if (was) this.emit("disconnect");
+  }
+
+  /** Each listener on its own, so one that throws does not silence the rest */
+  private emit(event: keyof StandardWalletEvents) {
+    this.listeners[event].forEach((fn) => {
+      try {
+        fn();
+      } catch (error: unknown) {
+        log.error(error, {
+          report: true,
+          context: { event, wallet: this.name },
+        });
+      }
+    });
   }
 
   private connectedAccount() {
@@ -201,20 +266,27 @@ class BridgedWallet {
   }
 }
 
-/** One bridged object per wallet, so listeners on it survive a new list */
+/**
+ * One bridged object per wallet, so listeners on it survive a new list. The
+ * options of the first `watchExternalWallets` call that met a wallet stay with
+ * it; the app has one caller (`SolanaProvider`).
+ */
 const bridged = new WeakMap<WalletStandardWallet, BridgedWallet>();
 
-const bridge = (wallet: WalletStandardWallet, opts: WatchOptions) => {
+const bridge = (
+  wallet: WalletStandardWallet,
+  opts: WatchOptions
+): StandardWallet => {
   let found = bridged.get(wallet);
   if (!found) {
     found = new BridgedWallet(wallet, opts);
     bridged.set(wallet, found);
   }
-  return found as unknown as StandardWallet;
+  return found;
 };
 
 /**
- * Call `onChange` with every installed Solana wallet now, once ConnectorKit's
+ * Call `onChange` with every usable Solana wallet now, once ConnectorKit's
  * registry is ready, and whenever a wallet registers or unregisters.
  *
  * @returns a function that stops watching
@@ -230,13 +302,13 @@ export const watchExternalWallets = (
     onChange(
       registry
         .get()
-        .filter(isSolanaWallet)
+        .filter(isListed)
         .map((w) => bridge(w, opts))
     );
   };
 
   publish();
-  ready.then(publish).catch((error: unknown) => {
+  ready.then(publish, (error: unknown) => {
     log.error(error, { report: true, context: { step: "registry ready" } });
   });
   const offRegister = registry.on("register", publish);
@@ -456,16 +528,85 @@ if (import.meta.vitest) {
       expect(named(seen, "Phantom")).toBe(before);
     });
 
-    it("offers no transaction signing when the wallet cannot sign", async () => {
+    it("does not list a wallet that cannot sign transactions", async () => {
       fake({
-        name: "WatchOnly",
+        name: "SendOnly",
         accounts: [Keypair.generate()],
         withoutSigning: true,
       });
       const seen = watch();
       await settle();
 
-      expect(named(seen, "WatchOnly").signTransaction).toBeUndefined();
+      expect(seen.latest.map((w) => w.name)).not.toContain("SendOnly");
+    });
+
+    it("does not list a wallet that cannot report changes", async () => {
+      fake({
+        name: "Silent",
+        accounts: [Keypair.generate()],
+        withoutEvents: true,
+      });
+      const seen = watch();
+      await settle();
+
+      expect(seen.latest.map((w) => w.name)).not.toContain("Silent");
+    });
+
+    it("skips a malformed wallet and lists the rest", async () => {
+      fake({ name: "Phantom", accounts: [Keypair.generate()] });
+      let unregister: () => void = () => undefined;
+      window.dispatchEvent(
+        new CustomEvent("wallet-standard:register-wallet", {
+          detail: ({ register }: { register: (w: unknown) => () => void }) => {
+            unregister = register({ name: "Broken", features: {} });
+          },
+        })
+      );
+      disposers.push(() => unregister());
+      const seen = watch();
+      await settle();
+
+      expect(seen.latest.map((w) => w.name)).toEqual(["Phantom"]);
+    });
+
+    it("connects again after a declined connect", async () => {
+      fake({
+        name: "Phantom",
+        accounts: [Keypair.generate()],
+        reject: "connect-once",
+      });
+      const seen = watch();
+      await settle();
+      const phantom = named(seen, "Phantom");
+      await expect(phantom.connect()).rejects.toThrow(FAKE_REJECTION);
+
+      await phantom.connect();
+
+      expect(phantom.connected).toBe(true);
+    });
+
+    it("ignores accounts a wallet reports before the app connected", async () => {
+      const f = fake({ name: "Phantom", accounts: [Keypair.generate()] });
+      const seen = watch();
+      await settle();
+      const phantom = named(seen, "Phantom");
+      let connectEvents = 0;
+      phantom.on("connect", () => connectEvents++);
+
+      f.announceUnasked();
+
+      expect(phantom.connected).toBe(false);
+      expect(connectEvents).toBe(0);
+    });
+
+    it("publishes nothing once stopped", async () => {
+      const seen = watch();
+      await settle();
+      disposers.splice(0).forEach((d) => d());
+
+      fake({ name: "AfterStop", accounts: [Keypair.generate()] });
+
+      expect(seen.latest.map((w) => w.name)).not.toContain("AfterStop");
     });
   });
 }

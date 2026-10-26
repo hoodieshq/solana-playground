@@ -14,9 +14,11 @@ Plan: [plans/1-wallets-through-connectorkit.md](plans/1-wallets-through-connecto
       (HOO-1616)
 - [x] 1.2 `entities/external-wallet`: the bridge from ConnectorKit's wallet
       registry to `StandardWallet` (connect, disconnect, sign, `connect` on
-      account change, one connect in flight shared by `connect()`); verify with in-source tests over a fake Wallet Standard
-      wallet: listing, late registration, a wallet without Solana, connect,
-      decline, account change, sign (HOO-1616; after 1.1)
+      account change, one connect in flight shared by `connect()`); verify
+      with in-source tests and `bridge.signing.test.ts` (node) over a fake
+      Wallet Standard wallet: listing, late registration, a wallet without
+      Solana or signing, connect, decline, account change, sign (HOO-1616;
+      after 1.1)
 - [x] 1.3 `SolanaProvider` publishes the bridge's list to
       `PgWallet.standardWallets`; verify `components/Wallet/Settings.test.tsx`
       and the `connect` command's tests pass unchanged, and an e2e spec with a
