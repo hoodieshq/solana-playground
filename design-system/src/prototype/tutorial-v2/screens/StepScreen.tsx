@@ -16,6 +16,7 @@ import { CodeView } from "../ui/CodeView"
 import { Conversation, type Jump } from "../ui/Conversation"
 import { NAV_ICONS } from "../ui/navIcons"
 import { StartOverDialog } from "../ui/StartOverDialog"
+import { StepTrack } from "../ui/StepBar"
 import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA } from "../ui/type"
 
 type Space = "chat" | "code"
@@ -34,27 +35,6 @@ function scrollsSideways(from: EventTarget | null, root: HTMLElement) {
     if ((x === "auto" || x === "scroll") && el.scrollWidth > el.clientWidth + 1) return true
   }
   return false
-}
-
-/** The tutorial's progress, drawn once, as the header's bottom edge: four segments, the live one filling
- * by its beats. It stands in for the header's rule, so nothing else repeats it */
-function Track({ s, done }: { s: State; done: boolean }) {
-  // The step you're on is lit whole as you enter it: a segment filling by beats read as nothing happening
-  const share = done ? STEPS.length : s.step + 1
-  // Before Start nothing is under way, and four empty segments read as a broken rule: one hairline instead
-  if (!s.started) return <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-border" />
-  return (
-    <span aria-hidden="true" className="absolute inset-x-0 bottom-0 flex gap-[3px]">
-      {STEPS.map((step, i) => (
-        <span key={step.id} className="relative block h-0.5 flex-1 overflow-hidden bg-border">
-          <span
-            style={{ width: `${Math.max(0, Math.min(1, share - i)) * 100}%` }}
-            className="block h-full bg-foreground/60 transition-[width] duration-(--duration-slow) ease-out motion-reduce:transition-none"
-          />
-        </span>
-      ))}
-    </span>
-  )
 }
 
 /** The phone's tutorial: the same conversation as the desktop, the same cards in the same order, in two
@@ -192,7 +172,9 @@ export function StepScreen() {
           {onCode ? "Chat" : "Code"}
           {dot && <span aria-hidden="true" className="absolute top-1.5 right-1.5 size-1.5 animate-pulse-dot rounded-full bg-brand-purple [animation-iteration-count:2]" />}
         </Button>
-        <Track s={s} done={finished} />
+        {/* The tutorial's progress, drawn once as the header's bottom edge, in the desktop bar's colours.
+            It stands in for the header's rule, so nothing else repeats it */}
+        <StepTrack done={finished} />
       </header>
 
       <div ref={area} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} className="relative flex min-h-0 flex-1 overflow-clip">

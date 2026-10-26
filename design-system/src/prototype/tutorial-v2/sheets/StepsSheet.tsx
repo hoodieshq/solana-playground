@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { useStore } from "../store"
-import { StepGlyph } from "../ui/StepBar"
+import { StepGlyph } from "../ui/StepGlyph"
 import { SHEET, SHEET_HEAD, SHEET_TITLE } from "./sheet"
 
 /** The phone's step bar: the four steps the header stands for, as rows with the desktop bar's glyphs.

@@ -1,104 +1,129 @@
-import { Fragment, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, type CSSProperties } from "react"
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
-import { liveAsk, useStore } from "../store"
+import { useStore } from "../store"
 import { NAV_ICONS } from "./navIcons"
+import { FOCUS } from "./type"
 
-/** How far through the tutorial: the passed steps, and the live step's share by its beats done */
-export function progress(s: ReturnType<typeof useStore>["s"]) {
-  const done = s.passed.filter(Boolean).length
-  if (!s.started || done === STEPS.length) return done / STEPS.length
-  const step = STEPS[s.step]
-  const total = step.beats.length + (s.cursor[s.step].fail ? (step.onFail?.length ?? 0) : 0) + 1
-  const at = Math.max(0, s.cursor[s.step].at - (liveAsk(s) ? 1 : 0)) + (s.cursor[s.step].fail ? step.beats.length : 0)
-  return (done + Math.min(0.9, at / total)) / STEPS.length
-}
+/** The brand's progress fill, the one the gallery banner draws: it starts purple and lands on green */
+const PROGRESS_GRADIENT = "linear-gradient(90deg, #9945ff, #14f195)"
 
-/** A step's mark, all in greys: its number on a grey disc, a lighter disc while current, a check
- * once done. No mark for a deploy that's behind lib.rs: the chat says so where Build and deploy is.
- * The bar and the phone's steps drawer share it. `className` lets the drawer lift a disc off its grey panel */
-export function StepGlyph({ i, done, current, looking = false, className }: { i: number; done: boolean; current: boolean; looking?: boolean; className?: string }) {
+/** One gradient laid across all four segments: each shows its own quarter, so the gaps break a single
+ * bar instead of four colours. Percent positions move the image by (box minus image) times p, which
+ * for an image four boxes wide is one box per third */
+const quarter = (i: number): CSSProperties => ({
+  backgroundImage: PROGRESS_GRADIENT,
+  backgroundSize: `${STEPS.length * 100}% 100%`,
+  backgroundPosition: `${(i / (STEPS.length - 1)) * 100}% 0`,
+})
+
+/** The newly lit segments sweep in one after another, after the check has popped */
+const SWEEP_AFTER = 140
+const SWEEP_STAGGER = 180
+
+/** A segment's fill, revealed left to right by its clip, so the gradient stays put while it shows.
+ * `delay` holds it while the check pops */
+function Segment({ i, lit, delay }: { i: number; lit: boolean; delay: number }) {
   return (
-    <span
-      className={cn(
-        // A filled disc with room round the figure, as Vercel numbers its steps: no ring, only tone
-        "relative grid size-5 shrink-0 place-items-center rounded-full text-[0.6875rem] font-act lining-nums tabular-nums leading-none",
-        done ? "bg-surface-hover text-muted-foreground" : current ? "bg-foreground/20 text-foreground" : "bg-surface-hover text-subtle",
-        // The step being read back: a thin ring round the disc itself, round on round, never a box under it
-        looking && "text-foreground ring-1 ring-foreground/45 ring-offset-2 ring-offset-background",
-        className
-      )}
-    >
-      {done ? <span className="flex size-3 [&>svg]:size-full">{NAV_ICONS.check}</span> : i + 1}
+    <span aria-hidden="true" className="relative block h-0.5 overflow-hidden bg-foreground/[0.1]">
+      <span
+        style={{ ...quarter(i), clipPath: lit ? "inset(0 0 0 0)" : "inset(0 100% 0 0)", transitionDelay: lit ? `${delay}ms` : "0ms" }}
+        className="absolute inset-0 transition-[clip-path] duration-(--duration-slow) ease-out motion-reduce:transition-none"
+      />
     </span>
   )
 }
 
-/** The tutorial's four steps across the top of the chat, and the anchors into it: a done or current
- * step scrolls the conversation back to its divider, nothing resets. The step you're reading, when
- * it isn't the live one, has its disc ringed. No lines round the bar: the feed's fade parts it from the text */
+/** Remembers how many segments were lit last time, so only the ones lit since sweep, in order */
+function useSweep(lit: number) {
+  const before = useRef(lit)
+  const from = before.current
+  useEffect(() => {
+    before.current = lit
+  }, [lit])
+  return (i: number) => (i >= from ? SWEEP_AFTER + (i - from) * SWEEP_STAGGER : 0)
+}
+
+/** True once the first paint is behind us: checks that arrive later pop, the ones a reload finds don't */
+function useMounted() {
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+  }, [])
+  return mounted.current
+}
+
+/** How many segments are lit: a step is lit whole as you enter it, a segment filling by beats read as
+ * nothing happening */
+const litCount = (started: boolean, step: number, finished: boolean) => (!started ? 0 : finished ? STEPS.length : step + 1)
+
+/** The tutorial's four steps across the top of the chat, the desktop twin of the phone header's track:
+ * a label over each segment, the fill the gallery's purple to green, the words grey. A done or current
+ * step scrolls the conversation back to its divider, nothing resets; the step you're reading back,
+ * when it isn't the live one, gets a quiet pill while the live step keeps its fill */
 export function StepBar({ viewing, onPick }: { viewing: number | null; onPick: (step: number) => void }) {
   const { s } = useStore()
-  const bar = useRef<HTMLElement>(null)
-  // Under 380px of chat the labels go, and each segment names itself in a tip
-  const [narrow, setNarrow] = useState(false)
-  useEffect(() => {
-    const el = bar.current
-    if (!el) return
-    // The bar's whole width, padding in, so it reads as the chat's width: 400 at 1280 keeps them
-    const ro = new ResizeObserver(() => setNarrow(el.offsetWidth < 380))
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+  const finished = s.passed.every(Boolean)
+  const lit = litCount(s.started, s.step, finished)
+  const delayFor = useSweep(lit)
+  const mounted = useMounted()
 
   return (
-    <nav ref={bar} aria-label="Tutorial steps" className="relative flex h-10 shrink-0 items-center px-3">
+    <nav aria-label="Tutorial steps" className="grid h-12 shrink-0 grid-cols-4 items-end gap-[3px] px-5">
       {STEPS.map((step, i) => {
         const done = s.passed[i]
-        const current = s.started && i === s.step && !done
+        const current = s.started && !finished && i === s.step && !done
         const reached = s.started && (done || i <= s.step)
-        const looking = viewing !== null && viewing === i && viewing !== s.step && s.started
-        const segment = (
+        const looking = s.started && viewing === i && (finished || viewing !== s.step)
+        return (
           <button
+            key={step.id}
             type="button"
             disabled={!reached}
             onClick={() => onPick(i)}
             aria-current={looking ? "location" : current ? "step" : undefined}
-            aria-label={`Step ${i + 1}, ${step.title}${done ? ", done" : ""}`}
-            className={cn(
-              "relative flex h-7 shrink-0 items-center gap-1.5 rounded-[6px] px-2 text-[0.8125rem] font-label transition-colors duration-100 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-strong disabled:cursor-default motion-reduce:transition-none",
-              done ? "text-muted-foreground hover:text-foreground" : current || looking ? "text-foreground" : "text-subtle"
-            )}
+            aria-label={`Step ${i + 1} of ${STEPS.length}, ${step.title}${done ? ", done" : current ? ", current" : ""}`}
+            className={cn("group flex h-11 min-w-0 flex-col justify-end gap-[7px] pb-1.5 text-left disabled:cursor-default", FOCUS)}
           >
-            <StepGlyph i={i} done={done} current={current} looking={looking} />
-            {!narrow && <span>{step.short}</span>}
+            <span
+              className={cn(
+                "-mx-1 flex h-6 max-w-[calc(100%+0.5rem)] items-center gap-1.5 self-start rounded-md px-1 text-[0.8125rem] leading-none font-label transition-colors duration-200 motion-reduce:transition-none",
+                looking && "bg-surface-hover",
+                looking || current ? "text-foreground" : done ? "text-muted-foreground group-hover:text-foreground" : "text-muted-foreground/75",
+                current && "font-medium"
+              )}
+            >
+              {done ? (
+                <span key="check" className={cn("flex size-3 shrink-0 [&>svg]:size-full", mounted && "animate-pop motion-reduce:animate-none")}>
+                  {NAV_ICONS.check}
+                </span>
+              ) : (
+                <span className={cn("shrink-0 font-act tabular-nums lining-nums", current || looking ? "text-muted-foreground" : "text-subtle")}>{i + 1}</span>
+              )}
+              <span className="truncate">{step.short}</span>
+            </span>
+            <Segment i={i} lit={i < lit} delay={delayFor(i)} />
           </button>
-        )
-        return (
-          <Fragment key={step.id}>
-            {/* Without labels the four marks span the chat, edge to edge with the text: only the lines between them stretch */}
-            {i > 0 && (
-              <span
-                aria-hidden="true"
-                className={cn("h-px min-w-2 flex-1 transition-colors duration-200", !narrow && "max-w-6", s.passed[i - 1] ? "bg-border-strong" : "bg-border")}
-              />
-            )}
-            {narrow ? (
-              <Tooltip>
-                <TooltipTrigger asChild>{segment}</TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Step {i + 1} · {step.title}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              segment
-            )}
-          </Fragment>
         )
       })}
     </nav>
+  )
+}
+
+/** The phone header's bottom edge: the same four segments in the same purple to green. Before Start
+ * nothing is under way, and four empty segments read as a broken rule: one hairline instead */
+export function StepTrack({ done }: { done: boolean }) {
+  const { s } = useStore()
+  const lit = litCount(s.started, s.step, done)
+  const delayFor = useSweep(lit)
+  if (!s.started) return <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-border" />
+  return (
+    <span aria-hidden="true" className="absolute inset-x-0 bottom-0 grid grid-cols-4 gap-[3px]">
+      {STEPS.map((step, i) => (
+        <Segment key={step.id} i={i} lit={i < lit} delay={delayFor(i)} />
+      ))}
+    </span>
   )
 }
