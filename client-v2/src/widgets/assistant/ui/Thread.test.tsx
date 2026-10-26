@@ -209,7 +209,8 @@ describe("Thread, sending", () => {
 
   it("offers the lesson's questions while a lesson is open", () => {
     lesson.open = true;
-    render(<Thread turn={stubTurn(false)} project="Hello Anchor" />);
+    const send = vi.fn().mockResolvedValue(undefined);
+    render(<Thread turn={stubTurn(false, send)} project="Hello Anchor" />);
     for (const name of [
       "Explain this step",
       "Give me a hint",
@@ -220,6 +221,10 @@ describe("Thread, sending", () => {
     expect(
       screen.queryByRole("button", { name: "What does this program do?" })
     ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Give me a hint" }));
+    expect(send).toHaveBeenCalledWith("Give me a hint");
+    expect(tracked()).toEqual([["assistant_suggestion_picked", {}]]);
   });
 
   it("make this change asks for a patch and is reported", () => {
