@@ -2,6 +2,16 @@
 
 Newest first. One line per decision or requirement change; a superseded line gains `superseded by <link>`, nothing is deleted.
 
+- 2026-10-23 — Second round with Cat (Jonas optional) on Tue 27 Oct, 16:00 Berlin, Almaz brings a conversation-style desktop attempt (Almaz, Grigory). [entry](2026-10-23-zoom-customer-demo-retro.md)
+- 2026-10-23 — Almaz stays on Playground through Tuesday; longer depends on Cat's answer (Almaz, Grigory). [entry](2026-10-23-zoom-customer-demo-retro.md)
+- 2026-10-23 — Internal sync on Mon 26 Oct (Sergey, Grigory). [entry](2026-10-23-zoom-customer-demo-retro.md)
+- 2026-10-23 — Slava sends Cat a digest of the demo with the design PR to approve and Almaz's deck link (Sergey, Slava). [entry](2026-10-23-zoom-customer-demo-retro.md)
+- 2026-10-23 — Next week: improve the assistant ("ARL" in the transcript, unconfirmed) and polish the design; Sergey's SDK migration PR first (Sergey, Grigory). [entry](2026-10-23-zoom-customer-demo-retro.md)
+- 2026-10-23 — Future demos are prepared as hooks one, two, three with comments at hand (Grigory, Slava). [entry](2026-10-23-zoom-customer-demo-retro.md)
+- 2026-10-23 — Tutorial design direction after customer feedback: conversation-style, assistant-driven, file tree reachable; not final scope (Cat, Jonas, Almaz). [entry](2026-10-23-zoom-customer-demo-retro.md)
+- 2026-10-23 — Pitch order: Linear walk and update, Slava shows production state, Cat gets the deployed version, Almaz presents the redesign as research/V2 (Grigory, Sergey, Almaz). [entry](2026-10-23-zoom-pre-pitch-sync.md)
+- 2026-10-23 — Production is not touched; changes stay in branches until after the demo; no sharp moves before Breakpoint (Sergey, Almaz, Grigory). [entry](2026-10-23-zoom-pre-pitch-sync.md)
+- 2026-10-23 — Tutorial screen proposed as two 604 px areas, three levels, no hand-written code on mobile; proposed, not agreed. [entry](2026-10-23-zoom-pre-pitch-sync.md)
 - 2026-10-22 — Work not meant to merge into the repo's code is filed as an issue, not a PR; open ones are converted, starting with PR #70 (Slava, confirming Sergey's 21 Oct rule). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
 - 2026-10-21 — Almaz's tutorial prototype is a reference in branch `almaz/tutorial-prototype` off `master-2.0`, never merged (Almaz, Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
 - 2026-10-21 — A branch not meant to merge gets an issue naming it, not a PR (Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
