@@ -27,6 +27,18 @@ describe("TutorialCover", () => {
     expect(tile(container).style.backgroundColor).toBe("rgb(184, 166, 245)");
   });
 
+  it("paints its fields on the tile, so nothing inside runs past its edge", () => {
+    const { container } = render(
+      <TutorialCover name="Hello Anchor" framework="Anchor" />
+    );
+    // A phone's layout check reads every element's scroll width: a field
+    // drawn as a child past the edge counts there even when clipped
+    expect(Array.from(tile(container).children).map((c) => c.tagName)).toEqual([
+      "svg",
+    ]);
+    expect(tile(container).style.backgroundImage).toContain("radial-gradient");
+  });
+
   it("places the mark the same way for one name every time", () => {
     const viewBox = () =>
       render(<TutorialCover name="Hello Anchor" framework="Anchor" />)

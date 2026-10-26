@@ -39,9 +39,9 @@ export type CardOpen =
   | { state: "failed"; message: string };
 
 /** The list behind the cards: still loading, read, or not readable */
-export type CatalogList =
+export type CatalogList<C = CatalogCard> =
   | { state: "loading" }
-  | { state: "ready"; cards: CatalogCard[] }
+  | { state: "ready"; cards: C[] }
   | { state: "failed"; message: string; onRetry: () => void };
 
 export interface BaseCatalogGridProps {

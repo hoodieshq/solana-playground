@@ -97,6 +97,7 @@ const BaseTutorialCard = ({
           className="static shrink-0 self-start max-md:self-center"
         >
           <span
+            data-card-corner
             className={cn(
               "grid size-8 place-items-center rounded-lg",
               completed
