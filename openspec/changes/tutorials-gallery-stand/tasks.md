@@ -17,9 +17,9 @@ page, child of HOO-2237). Task 1 runs alongside 2 and 3; 3 needs 2.
 - [ ] 2.1 Tutorials' progress read from `PgTutorial` (new, started page N
       of M, completed), and `BaseTutorialCard` + its connected card: brand
       cover, caption, corner ↗ / tick, "N of M", phone chevron, failure on
-      the card
+      the card ([plan](plans/2-tutorial-card.md))
 - [ ] 2.2 New project's Tutorials list draws `BaseTutorialCard`; Programs
-      keeps its card
+      keeps its card ([plan](plans/2-tutorial-card.md))
 
 ## 3. The Tutorials page (after 2)
 
