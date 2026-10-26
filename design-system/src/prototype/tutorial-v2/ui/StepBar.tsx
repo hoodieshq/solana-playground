@@ -1,10 +1,12 @@
 import { useEffect, useRef, type CSSProperties } from "react"
 
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { useStore } from "../store"
 import { NAV_ICONS } from "./navIcons"
+import { StepGlyph } from "./StepGlyph"
 import { FOCUS } from "./type"
 
 /** The brand's progress fill, the one the gallery banner draws: it starts purple and lands on green */
@@ -59,11 +61,24 @@ function useMounted() {
  * nothing happening */
 const litCount = (started: boolean, step: number, finished: boolean) => (!started ? 0 : finished ? STEPS.length : step + 1)
 
-/** The tutorial's four steps across the top of the chat, the desktop twin of the phone header's track:
- * a label over each segment, the fill the gallery's purple to green, the words grey. A done or current
+type BarProps = { viewing: number | null; onPick: (step: number) => void }
+
+/** The tutorial's four steps across the top of the chat, the desktop twin of the phone header's track.
+ * A chat column narrower than 24rem can't hold four labels with their checks, so it says where you are
+ * in one line over the same track and keeps the four steps in a menu. The column's own width decides */
+export function StepBar(props: BarProps) {
+  return (
+    <div className="@container shrink-0">
+      <FullBar {...props} />
+      <CompactBar {...props} />
+    </div>
+  )
+}
+
+/** A label over each segment, the fill the gallery's purple to green, the words grey. A done or current
  * step scrolls the conversation back to its divider, nothing resets; the step you're reading back,
  * when it isn't the live one, gets a quiet pill while the live step keeps its fill */
-export function StepBar({ viewing, onPick }: { viewing: number | null; onPick: (step: number) => void }) {
+function FullBar({ viewing, onPick }: BarProps) {
   const { s } = useStore()
   const finished = s.passed.every(Boolean)
   const lit = litCount(s.started, s.step, finished)
@@ -71,7 +86,7 @@ export function StepBar({ viewing, onPick }: { viewing: number | null; onPick: (
   const mounted = useMounted()
 
   return (
-    <nav aria-label="Tutorial steps" className="grid h-12 shrink-0 grid-cols-4 items-end gap-[3px] px-5">
+    <nav aria-label="Tutorial steps" className="grid h-12 grid-cols-4 items-end gap-[3px] px-5 @max-[24rem]:hidden">
       {STEPS.map((step, i) => {
         const done = s.passed[i]
         const current = s.started && !finished && i === s.step && !done
@@ -108,6 +123,76 @@ export function StepBar({ viewing, onPick }: { viewing: number | null; onPick: (
           </button>
         )
       })}
+    </nav>
+  )
+}
+
+/** The narrow column's bar: "Step 2 of 4 · Deploy" over the same track, the line opening the four
+ * steps as the phone's drawer lists them. It stands as tall as the full bar, its segments on the same
+ * line, so the chat doesn't move when the column crosses 24rem */
+function CompactBar({ viewing, onPick }: BarProps) {
+  const { s } = useStore()
+  const finished = s.passed.every(Boolean)
+  const lit = litCount(s.started, s.step, finished)
+  const delayFor = useSweep(lit)
+  const where = !s.started ? `${STEPS.length} steps` : finished ? `Done · ${STEPS.length} of ${STEPS.length}` : `Step ${s.step + 1} of ${STEPS.length}`
+  const name = s.started && !finished ? STEPS[s.step].short : null
+
+  return (
+    <nav aria-label="Tutorial steps" className="hidden h-12 px-5 pt-0.5 pb-1.5 @max-[24rem]:block">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          disabled={!s.started}
+          className={cn(
+            "group -mx-1.5 flex h-8 items-center gap-1.5 rounded-md px-1.5 text-[0.8125rem] font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
+            FOCUS
+          )}
+        >
+          <span className="text-muted-foreground tabular-nums">{where}</span>
+          {name && (
+            <>
+              <span aria-hidden="true" className="text-subtle">
+                ·
+              </span>
+              <span className="font-medium text-foreground">{name}</span>
+            </>
+          )}
+          {s.started && (
+            <span
+              aria-hidden="true"
+              className="flex size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180 motion-reduce:transition-none [&>svg]:size-full"
+            >
+              {NAV_ICONS.caret}
+            </span>
+          )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-64">
+          {STEPS.map((step, i) => {
+            const done = s.passed[i]
+            const current = !finished && i === s.step && !done
+            const reached = done || i <= s.step
+            const looking = viewing === i && (finished || viewing !== s.step)
+            return (
+              <DropdownMenuItem
+                key={step.id}
+                disabled={!reached}
+                onSelect={() => onPick(i)}
+                aria-current={looking ? "location" : current ? "step" : undefined}
+                className={cn("min-h-10 gap-3", (current || looking) && "bg-foreground/[0.06]")}
+              >
+                <StepGlyph i={i} done={done} current={current} className={current ? undefined : "bg-foreground/10"} />
+                <span className="min-w-0 flex-1 truncate">{step.title}</span>
+                {(done || current) && <span className="shrink-0 text-caption text-muted-foreground">{done ? "Done" : "Now"}</span>}
+              </DropdownMenuItem>
+            )
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <span aria-hidden="true" className="mt-1.5 grid grid-cols-4 gap-[3px]">
+        {STEPS.map((step, i) => (
+          <Segment key={step.id} i={i} lit={i < lit} delay={delayFor(i)} />
+        ))}
+      </span>
     </nav>
   )
 }

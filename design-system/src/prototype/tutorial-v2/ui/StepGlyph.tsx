@@ -14,7 +14,8 @@ export function StepGlyph({ i, done, current, className }: { i: number; done: bo
         className
       )}
     >
-      {done ? <span className="flex size-3 [&>svg]:size-full">{NAV_ICONS.check}</span> : i + 1}
+      {/* Held at the box's size: a menu item sizes every bare icon to 16px, which pushed the check off centre */}
+      {done ? <span className="flex size-3 [&>svg]:size-full!">{NAV_ICONS.check}</span> : i + 1}
     </span>
   )
 }
