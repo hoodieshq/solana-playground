@@ -48,9 +48,10 @@ project.
   `raw_url` on `gist.githubusercontent.com`, which is outside the API's
   hourly limit. A gist whose file list is itself `truncated` (over 300
   files) is refused rather than imported partly.
-- **Errors reuse repository import's wording and cases** (403/429 with no
-  requests remaining, 404, other status), so the two imports read alike; the
-  messages name a gist instead of a repository.
+- **Errors are modelled on repository import's** (403/429 with no requests
+  remaining, 404, other status), so the two imports read alike. A missing
+  gist "may have been deleted" rather than "may be private": a secret gist is
+  readable by anyone with its URL.
 - **Layout comes from `fromGistFiles`, then the framework check.** A
   manifest gives exact Playground paths; the loose rules give `src/`,
   `tests/` and `client/`. Both are already Playground's layout, so the
@@ -58,9 +59,14 @@ project.
   framework's layout and drops a bare `lib.rs`). A gist no framework
   recognises (`PgFramework.getFromFiles`) is refused as "no program" until
   HOO-2147 lifts that for repositories and gists alike.
-- **The route is a new folder, `routes/gist`,** holding `/gist/{id}` and the
+- **The route is a new folder, `routes/gist`,** holding `/gist/{ref}`
+  (`<id>` or `<id>/<revision>`) and the
   path-prefix form validated by the URL parser, mirroring `routes/github`.
   `/gist/<id>` is the short form a share message can carry.
+- **A link's view can be saved through the dialog.** The explorer's
+  temporary view drops its project list; `createWorkspace` now reads it back
+  from the store first, and `PgExplorer.getAllWorkspaceNames` gives both
+  imports the names to check for a copy imported before.
 - **Project name `gist-<owner>/<id>`,** like `github-<owner>/<repo>/<path>`,
   so importing the same gist twice opens the first copy. A revision in the
   URL is part of the name (`gist-<owner>/<id>@<revision>`), so a pinned
@@ -70,12 +76,10 @@ project.
 
 ## Risks / Trade-offs
 
-- [The format lands in HOO-1760's branch] → this change stacks on its
-  `format.ts` commit; until then the import model is written against the
-  agreed signatures and its tests stub nothing of the format.
+- [The format is HOO-1760's] → this change stacks on its PR; the import's
+  tests stand the format in with `vi.mock` and the e2e runs the real one.
 - [Re-import opens a stale copy after the owner re-exports (HOO-1762)] →
-  same as repositories today; recorded as a question for Slava, not solved
-  here.
+  same as repositories today; see Open Questions.
 - [60 requests an hour, shared with repository import] → one request per
   import plus one per truncated file; the limit message says when to retry.
 

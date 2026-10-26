@@ -1,7 +1,11 @@
 // `@types/mocha` also declares a global `it`, without `each`
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resetLogger } from "../../../shared/lib/logger";
+import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "../../../shared/lib/logger";
 import {
   initTelemetry,
   memoryProvider,
@@ -11,7 +15,7 @@ import { getGistFiles, GistImportError, importGist } from "./import";
 
 const utils = vi.hoisted(() => ({
   PgExplorer: {
-    allWorkspaceNames: [] as string[],
+    getAllWorkspaceNames: vi.fn(),
     createWorkspace: vi.fn(),
     switchWorkspace: vi.fn(),
   },
@@ -75,7 +79,7 @@ let sent: ReturnType<typeof memoryProvider>;
 beforeEach(() => {
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
-  utils.PgExplorer.allWorkspaceNames = [];
+  utils.PgExplorer.getAllWorkspaceNames.mockReset().mockResolvedValue([]);
   utils.PgExplorer.createWorkspace.mockReset();
   utils.PgExplorer.switchWorkspace.mockReset();
   utils.PgFramework.getFromFiles.mockReset().mockResolvedValue({});
@@ -142,7 +146,9 @@ describe("importGist", () => {
 
   it("opens the project of a gist already imported, without a request", async () => {
     const fetch = answers({});
-    utils.PgExplorer.allWorkspaceNames = [`gist-alice/${ID}`];
+    utils.PgExplorer.getAllWorkspaceNames.mockResolvedValue([
+      `gist-alice/${ID}`,
+    ]);
 
     await importGist(`https://gist.github.com/alice/${ID}`, "dialog");
 
@@ -155,7 +161,9 @@ describe("importGist", () => {
 
   it("opens an existing project once the API names the owner", async () => {
     answers({ [API]: ok(gist({ "lib.rs": { content: LIB } })) });
-    utils.PgExplorer.allWorkspaceNames = [`gist-alice/${ID}`];
+    utils.PgExplorer.getAllWorkspaceNames.mockResolvedValue([
+      `gist-alice/${ID}`,
+    ]);
 
     await importGist(`https://gist.github.com/${ID}`, "dialog");
 
@@ -163,6 +171,21 @@ describe("importGist", () => {
       `gist-alice/${ID}`
     );
     expect(utils.PgExplorer.createWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("opens a pinned revision imported before, without a request", async () => {
+    const fetch = answers({});
+    utils.PgExplorer.getAllWorkspaceNames.mockResolvedValue([
+      `gist-alice/${ID}`,
+      `gist-alice/${ID}@9f8e7d`,
+    ]);
+
+    await importGist(`https://gist.github.com/alice/${ID}/9f8e7d`, "dialog");
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(utils.PgExplorer.switchWorkspace).toHaveBeenCalledWith(
+      `gist-alice/${ID}@9f8e7d`
+    );
   });
 
   it("reads a pinned revision and names the project after it", async () => {
@@ -235,7 +258,31 @@ describe("getGistFiles", () => {
       title: "a refusal with requests left",
       answer: status(403, { "x-ratelimit-remaining": "12" }),
       reason: "request-failed",
+      message: /refused.*status 403/,
+    },
+    {
+      title: "a refusal with no limit header",
+      answer: status(403),
+      reason: "request-failed",
       message: /refused/,
+    },
+    {
+      title: "GitHub's limit answered as 429",
+      answer: status(429, { "x-ratelimit-remaining": "0" }),
+      reason: "rate-limited",
+      message: /try again later/,
+    },
+    {
+      title: "an answer that is not JSON",
+      answer: ok("<html>captive portal</html>"),
+      reason: "request-failed",
+      message: /not a gist/,
+    },
+    {
+      title: "an answer with no files",
+      answer: ok({ message: "moved" }),
+      reason: "request-failed",
+      message: /not a gist/,
     },
     {
       title: "a server error",
@@ -263,6 +310,49 @@ describe("getGistFiles", () => {
     ]);
   });
 
+  it("downloads a file the API gave no content for", async () => {
+    answers({
+      [API]: ok(gist({ "lib.rs": {} })),
+      "https://gist.githubusercontent.com/raw/lib.rs": ok(LIB),
+    });
+
+    await getGistFiles({ id: ID }, "link");
+
+    expect(format.fromGistFiles).toHaveBeenCalledWith({
+      "lib.rs": { content: LIB },
+    });
+  });
+
+  it("skips a file the API answers as null", async () => {
+    const answer = gist({ "lib.rs": { content: LIB } });
+    answers({
+      [API]: ok({
+        truncated: answer.truncated,
+        owner: answer.owner,
+        files: { "lib.rs": answer.files["lib.rs"], "gone.rs": null },
+      }),
+    });
+
+    await getGistFiles({ id: ID }, "link");
+
+    expect(format.fromGistFiles).toHaveBeenCalledWith({
+      "lib.rs": { content: LIB },
+    });
+  });
+
+  it("names the file whose whole download failed", async () => {
+    answers({
+      [API]: ok(gist({ "lib.rs": { content: "use anc", truncated: true } })),
+      "https://gist.githubusercontent.com/raw/lib.rs": status(404),
+    });
+
+    const error = await failure(getGistFiles({ id: ID }, "link"));
+
+    expect(error.reason).toBe("not-found");
+    expect(error.message).toMatch(/"lib\.rs" was not found/);
+    expect(format.fromGistFiles).not.toHaveBeenCalled();
+  });
+
   it("refuses a gist GitHub lists only part of", async () => {
     answers({ [API]: ok(gist({}, { truncated: true })) });
 
@@ -287,6 +377,45 @@ describe("getGistFiles", () => {
     expect(error.message).toMatch(/manifest is invalid: Refusing to write/);
   });
 
+  it("says a gist from a newer Playground is newer, not broken", async () => {
+    answers({ [API]: ok(gist({ ".playground.json": { content: "{}" } })) });
+    format.fromGistFiles.mockImplementation(() => {
+      throw new format.GistFormatError(
+        "unsupported-version",
+        "This gist was made by a newer Playground (format 2)."
+      );
+    });
+
+    const error = await failure(getGistFiles({ id: ID }, "dialog"));
+
+    expect(error.reason).toBe("invalid");
+    expect(error.message).toBe(
+      "This gist was made by a newer Playground (format 2)."
+    );
+  });
+
+  it("counts a fault of ours as a failed request and reports it", async () => {
+    const logs = logMemory();
+    initLogger({ providers: [logs] });
+    answers({ [API]: ok(gist({ "lib.rs": { content: LIB } })) });
+    format.fromGistFiles.mockImplementation(() => {
+      throw new TypeError("boom");
+    });
+
+    const error = await failure(getGistFiles({ id: ID }, "dialog"));
+
+    expect(error.reason).toBe("request-failed");
+    expect(error.message).toBe(`Could not import gist "${ID}".`);
+    expect(error.cause).toBeInstanceOf(TypeError);
+    expect(
+      logs.entries.map(({ level, report }) => ({ level, report }))
+    ).toEqual([{ level: "error", report: true }]);
+    expect(events().at(-1)).toEqual({
+      name: "gist_import_failed",
+      params: { from: "dialog", reason: "request-failed" },
+    });
+  });
+
   it("refuses a gist with no usable file", async () => {
     answers({ [API]: ok(gist({ "notes.txt": { content: "hi" } })) });
     format.fromGistFiles.mockImplementation(() => {
@@ -299,6 +428,7 @@ describe("getGistFiles", () => {
     const error = await failure(getGistFiles({ id: ID }, "dialog"));
 
     expect(error.reason).toBe("no-program");
+    expect(utils.PgFramework.getFromFiles).not.toHaveBeenCalled();
   });
 
   it("refuses a gist no framework recognises", async () => {

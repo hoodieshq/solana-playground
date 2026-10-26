@@ -43,14 +43,18 @@ type GistEvents = {
   /** An import from the dialog, or a gist link, started reading a gist. */
   gist_import_started: { from: GistImportSource };
   /**
-   * The gist's files are laid out; `layout` says whether Playground's
-   * manifest placed them or their kind did.
+   * The gist's files are read and laid out, before a project is created or a
+   * view opened; `layout` says whether Playground's manifest placed them or
+   * their kind did.
    */
   gist_import_succeeded: {
     from: GistImportSource;
     layout: "manifest" | "loose";
   };
-  /** The import stopped; the user saw the message for `reason`. */
+  /**
+   * The import stopped; the user saw the message for `reason`.
+   * `request-failed` also counts a fault of ours, which is reported as well.
+   */
   gist_import_failed: { from: GistImportSource; reason: GistImportFailure };
 };
 

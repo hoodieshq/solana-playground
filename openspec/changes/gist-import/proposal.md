@@ -9,8 +9,7 @@ signed out. Playground opens a repository URL today, but not a gist.
 
 ## What Changes
 
-- A gist URL opens as a project, signed in or not. It is accepted wherever a
-  GitHub repository URL is accepted today:
+- A gist URL opens as a project, signed in or not, in two places:
   - the import dialog ("From GitHub" in Settings and in the explorer), which
     imports it as a saved project;
   - a link, `/gist/<id>` or the playground URL followed by the gist URL
@@ -25,6 +24,10 @@ signed out. Playground opens a repository URL today, but not a gist.
   framework recognises is refused as having no program.
 - An imported gist becomes a project named `gist-<owner>/<id>`; importing the
   same gist again opens that project, as importing a repository twice does.
+- Importing from a link's unsaved view works: before, creating a project
+  from a repository link's view failed with "Workspace not found", because
+  the view keeps no project list in memory. Repository import gets the fix
+  too.
 - The gist code lives in one `features/gist` slice shared with HOO-1760:
   this change adds its URL parsing and the import; the format module, the
   slice and its `gist` prefix are HOO-1760's.

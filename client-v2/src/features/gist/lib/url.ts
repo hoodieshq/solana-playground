@@ -41,8 +41,9 @@ const fromPageSegments = (segments: string[]): GistRef | null => {
 };
 
 /**
- * Read a raw file's path: `<owner>/<id>/raw[/<revision>]/<file>`. A segment
- * after `raw` that is not hex is the file's name, not a revision.
+ * Read a raw file's path: `<owner>/<id>/raw[/<revision>]/<file>`. The segment
+ * after `raw` is a revision only when it is hex and a file name follows it;
+ * otherwise it is the file's name.
  *
  * @param segments the path's non-empty segments
  * @returns the gist, or `null` when the path names none
@@ -59,9 +60,11 @@ const fromRawSegments = (segments: string[]): GistRef | null => {
 };
 
 /**
- * Get the gist a URL names, in any form GitHub hands out: the gist's page
- * (with or without its owner, a revision, an anchor to one of its files) or
- * one of its raw files.
+ * Get the gist a URL names, in any form GitHub hands out: the gist's page,
+ * `<owner>/<id>` or `<id>`, with an anchor to one of its files, or
+ * `<owner>/<id>/<revision>`; or one of its raw files. A revision is read only
+ * after an owner: GitHub never links `<id>/<revision>`, and two hex segments
+ * read as owner and id.
  *
  * @param input URL, with or without `https://`
  * @returns the gist, or `null` when the input is not a gist URL
@@ -141,6 +144,11 @@ if (import.meta.vitest) {
         { owner: "alice", id: "0123abcd" },
       ],
       [" https://gist.github.com/0123abcd ", { id: "0123abcd" }],
+      ["http://gist.github.com/0123ABCD", { id: "0123ABCD" }],
+      [
+        "https://gist.githubusercontent.com/alice/0123abcd/raw/beef",
+        { owner: "alice", id: "0123abcd" },
+      ],
     ])("parseGistUrl(%s)", (input, expected) => {
       expect(parseGistUrl(input)).toEqual(expected);
       expect(isGistUrl(input)).toBe(true);
@@ -156,6 +164,11 @@ if (import.meta.vitest) {
       "https://evil.com/gist.github.com/alice/0123abcd",
       "https://gist.github.com.evil.com/alice/0123abcd",
       "ftp://gist.github.com/alice/0123abcd",
+      "https://gist.github.com/alice/0123abcd/9f8e7d/extra",
+      "https://gist.github.com/alice/0123abcd/revisions",
+      "https://gist.github.com/-alice/0123abcd",
+      "https://gist.githubusercontent.com/alice/0123abcd/lib.rs",
+      "https://gist.githubusercontent.com/-x/0123abcd/raw/lib.rs",
     ])("parseGistUrl(%s) is null", (input) => {
       expect(parseGistUrl(input)).toBeNull();
       expect(isGistUrl(input)).toBe(false);
@@ -170,7 +183,7 @@ if (import.meta.vitest) {
       expect(parseGistRef("0123abcd/")).toEqual({ id: "0123abcd" });
     });
 
-    it.each(["x y", "", "0123abcd/9f8e7d/more", "../0123"])(
+    it.each(["x y", "", "0123abcd/9f8e7d/more", "../0123", "0123abcd//9f8e7d"])(
       "parseGistRef(%s) is null",
       (path) => {
         expect(parseGistRef(path)).toBeNull();

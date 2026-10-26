@@ -185,3 +185,17 @@ it("still imports a repository URL as a repository", async () => {
   );
   expect(gist.importGist).not.toHaveBeenCalled();
 });
+
+it("shows why a gist could not be imported and stays open", async () => {
+  gist.importGist.mockRejectedValue(
+    new Error('Gist "0123abcd" was not found on GitHub.')
+  );
+  draw();
+
+  submitUrl("https://gist.github.com/alice/0123abcd");
+
+  expect(
+    await screen.findByText('Gist "0123abcd" was not found on GitHub.')
+  ).toBeTruthy();
+  expect(utils.PgView.closeModal).not.toHaveBeenCalled();
+});
