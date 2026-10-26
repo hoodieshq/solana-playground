@@ -15,10 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-// By module, not through the slice's entry: the entry reaches the utils
-// barrel, whose generated globals this legacy form must not need
-import { displayModelName } from "@/widgets/assistant/model/model-name";
-import { EFFORT_LABELS } from "@/widgets/assistant/ui/BaseEffortMenu";
 import Link from "../../../../components/Link";
 import { isSignInFailure, PgSession } from "../../../../features/auth";
 import { useRenderOnChange } from "../../../../hooks/useRenderOnChange";
@@ -30,6 +26,7 @@ import {
   type ProviderId,
   type ProviderInfo,
 } from "../model/types";
+import { displayModelName, EFFORT_LABELS } from "../model/labels";
 
 /** Model and effort a backend starts on, when it offers the choice */
 const defaultSettings = (provider: ProviderInfo) =>

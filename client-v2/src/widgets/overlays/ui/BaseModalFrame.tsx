@@ -104,7 +104,7 @@ const OWNS_ENTER =
  * content, and the root the overlay). Enter anywhere in the dialog submits,
  * except on a control that owns Enter (`OWNS_ENTER`); so does the footer's
  * `type="submit"` button, which has the focus on open when the body has no
- * field.
+ * field. With `openFocus` set to `dialog`, the dialog itself has it instead.
  */
 export const BaseModalFrame = ({
   title,
