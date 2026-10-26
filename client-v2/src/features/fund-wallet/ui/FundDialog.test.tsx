@@ -1,5 +1,6 @@
 // The connected Fund dialog: who receives, connecting a payer without changing
 // the current wallet, sending, and what each outcome reports.
+import type { ReactElement } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -161,7 +162,7 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     expect(transfer.sendFunds).toHaveBeenCalledWith(
       expect.objectContaining({ to: RECEIVER_ADDRESS, lamports: 1e9 })
     );
-    const toast = utils.PgView.setToast.mock.calls[0][0] as () => JSX.Element;
+    const toast = utils.PgView.setToast.mock.calls[0][0] as () => ReactElement;
     render(toast());
     expect(screen.getByText("Sent 1 SOL to Wallet 1.")).toBeTruthy();
     expect(onOpenChange).toHaveBeenCalledWith(false);

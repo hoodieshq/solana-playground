@@ -43,10 +43,13 @@ const currentReceiver = () => {
   });
 };
 
-/** A wallet already connected (the current extension, or one connected before) pays first */
-const connectedWallet = (wallets: StandardWallet[], name: string | null) =>
-  wallets.find((w) => w.connected && (name === null || w.name === name)) ??
-  null;
+/**
+ * The wallet the user picked in this dialog, once connected. Never one picked
+ * for them: an extension that is the current wallet is offered like the rest,
+ * so the user can pay from another one beside it
+ */
+const pickedWallet = (wallets: StandardWallet[], name: string | null) =>
+  wallets.find((w) => w.connected && w.name === name) ?? null;
 
 const failureOf = (
   stage: "connect" | "send",
@@ -87,7 +90,7 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
   openRef.current = open;
 
   const wallets = PgWallet.standardWallets;
-  const payer = connectedWallet(wallets, payerName);
+  const payer = pickedWallet(wallets, payerName);
   const receiver = currentReceiver();
 
   useEffect(() => {
@@ -95,6 +98,7 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
     fundTelemetry.track("fund_dialog_opened", { from: "account-menu" });
     setFailure(null);
     setAmount(DEFAULT_AMOUNT);
+    setPayerName(null);
   }, [open]);
 
   // The payer's balance, read when it changes and after each failure

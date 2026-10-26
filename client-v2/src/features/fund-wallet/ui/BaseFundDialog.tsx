@@ -77,7 +77,7 @@ const amountNote = (
   if (check.ok) {
     return {
       error: false,
-      text: `From ${payer.name}, on the Playground's cluster.`,
+      text: "Sent on the cluster the Playground is connected to.",
     };
   }
   const notes: Record<Exclude<SendCheck, { ok: true }>["problem"], string> = {
