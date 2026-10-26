@@ -7,11 +7,6 @@ export type TutorialProgress =
   | { state: "completed" };
 
 /**
- * A tutorial's progress from whether its workspace exists and what it saved.
- * A started tutorial whose saved progress cannot be read (`meta` null) is
- * on page 1, where `PgTutorial.open` takes it too.
- */
-/**
  * A saved page as a page of the tutorial: the file is read unchecked, and a
  * tutorial can lose pages after the save, so anything else is page 1 or the
  * last page
@@ -19,6 +14,11 @@ export type TutorialProgress =
 const pageWithin = (page: unknown, pages: number) =>
   Number.isInteger(page) ? Math.min(Math.max(page as number, 1), pages) : 1;
 
+/**
+ * A tutorial's progress from whether its workspace exists and what it saved.
+ * A started tutorial whose saved progress cannot be read (`meta` null) is
+ * on page 1, where `PgTutorial.open` takes it too.
+ */
 export const progressOf = (
   started: boolean,
   meta: TutorialMetadata | null,

@@ -56,6 +56,8 @@ describe("BaseTutorialCard", () => {
       screen.getByRole("button", { name: "Hello Anchor completed. Open it" })
     ).toBeTruthy();
     expect(container.querySelector("[data-card-tick]")).not.toBeNull();
+    // On a phone too: the tick stays where other cards draw a chevron
+    expect(container.querySelector("[data-card-chevron]")).toBeNull();
     expect(screen.queryByText(/\d+ of \d+/)).toBeNull();
   });
 
