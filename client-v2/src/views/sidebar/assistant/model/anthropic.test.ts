@@ -86,7 +86,7 @@ describe("the Anthropic provider", () => {
 
     expect(sdk.params).toMatchObject({
       model: "claude-opus-5-5",
-      output_config: { effort: "medium" },
+      output_config: { effort: "high" },
       thinking: {
         type: "adaptive",
         display: "updates",

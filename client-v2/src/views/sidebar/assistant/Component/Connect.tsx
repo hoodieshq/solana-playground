@@ -15,6 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+// By module, not through the slice's entry: the entry reaches the utils
+// barrel, whose generated globals this legacy form must not need
+import { displayModelName } from "@/widgets/assistant/model/model-name";
+import { EFFORT_LABELS } from "@/widgets/assistant/ui/BaseEffortMenu";
 import Link from "../../../../components/Link";
 import { isSignInFailure, PgSession } from "../../../../features/auth";
 import { useRenderOnChange } from "../../../../hooks/useRenderOnChange";
@@ -292,13 +296,16 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
       key={p.id}
       onPointerDown={() => (pointerPick.current = true)}
       className={cn(
-        "flex cursor-pointer items-start gap-2 rounded-md border border-border px-2.5 py-2 transition-colors hover:bg-accent has-data-checked:border-primary has-data-disabled:cursor-not-allowed has-data-disabled:opacity-45 has-data-disabled:hover:bg-transparent"
+        "relative flex cursor-pointer items-start gap-2 rounded-xl border border-border has-focus-visible:ring-2 has-focus-visible:ring-ring px-2.5 py-2 transition-colors hover:bg-accent has-data-checked:border-primary has-data-disabled:cursor-not-allowed has-data-disabled:opacity-45 has-data-disabled:hover:bg-transparent"
       )}
     >
+      {/* The card is the choice, as the prototype draws it; the circle
+          stays for the keyboard and the screen reader */}
       <RadioGroupItem
         value={p.id}
         disabled={isUnavailable(p)}
-        className="mt-0.5"
+        // Not `sr-only`: the item's own `relative` and `size-4` outrank it
+        className="absolute size-0 overflow-hidden border-0 opacity-0"
       />
       <span className="flex min-w-0 flex-col">
         <span
@@ -324,22 +331,27 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
 
   const form = (
     <Wrapper>
-      {!current && (
-        <Intro>
+      <Intro>
+        <Title>
+          {current
+            ? "Switch backend"
+            : "An assistant that can see your project"}
+        </Title>
+        {!current && (
           <Lead>
             It reads the tab you are looking at and the last build error,
             explains what went wrong against your actual code, and proposes
             patches you apply yourself.
           </Lead>
-          {defaultBackend === "present" && (
-            <Lead>
-              Out of the box it runs on this deployment's own backend, with the
-              capabilities listed below. Bring your own key to run it on
-              something else.
-            </Lead>
-          )}
-        </Intro>
-      )}
+        )}
+        {!current && defaultBackend === "present" && (
+          <Lead>
+            Out of the box it runs on this deployment's own backend, with the
+            capabilities listed below. Bring your own key to run it on something
+            else.
+          </Lead>
+        )}
+      </Intro>
 
       <Label as="div">Backend</Label>
       <Providers>
@@ -450,14 +462,14 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
               <SelectTrigger
                 id="assistant-model-select"
                 aria-label="Model"
-                className="w-full font-mono"
+                className="w-full"
               >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
                 {provider.modelSettings.models.map((m) => (
-                  <SelectItem key={m} value={m} className="font-mono">
-                    {m}
+                  <SelectItem key={m} value={m}>
+                    {displayModelName(m)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -480,14 +492,14 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
               <SelectTrigger
                 id="assistant-effort-select"
                 aria-label="Effort"
-                className="w-full font-mono"
+                className="w-full"
               >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
                 {provider.modelSettings.efforts.map((e) => (
-                  <SelectItem key={e} value={e} className="font-mono">
-                    {e}
+                  <SelectItem key={e} value={e}>
+                    {EFFORT_LABELS[e]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -568,6 +580,16 @@ const Intro = styled.div`
   flex-direction: column;
   gap: 0.625rem;
   padding-bottom: 1.25rem;
+`;
+
+const Title = styled.h3`
+  ${({ theme }) => css`
+    margin: 0;
+    color: ${theme.colors.default.textPrimary};
+    font-size: ${theme.font.code.size.medium};
+    font-weight: 500;
+    line-height: 1.5;
+  `}
 `;
 
 const Lead = styled.div`

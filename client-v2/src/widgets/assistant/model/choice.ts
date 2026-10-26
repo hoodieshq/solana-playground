@@ -221,7 +221,7 @@ if (import.meta.vitest) {
           model: "claude-opus-5-5",
           label: "Opus 5.5",
           effort: {
-            value: "medium",
+            value: "high",
             ladder: ["low", "medium", "high", "xhigh", "max"],
           },
         });

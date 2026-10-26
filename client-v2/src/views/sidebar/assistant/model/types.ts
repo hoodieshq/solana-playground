@@ -128,7 +128,7 @@ export const PROVIDERS: ProviderInfo[] = [
       models: ["claude-opus-5-5", "claude-sonnet-5-5"],
       efforts: ["low", "medium", "high", "xhigh", "max"],
       // Both 5.5 models match their predecessor's `high` at `medium`
-      defaults: { model: "claude-opus-5-5", effort: "medium" },
+      defaults: { model: "claude-opus-5-5", effort: "high" },
     },
   },
   {
