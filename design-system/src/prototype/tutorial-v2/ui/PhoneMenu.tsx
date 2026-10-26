@@ -1,28 +1,33 @@
 import { useState, type ReactNode } from "react"
-import { Menu } from "lucide-react"
+import { Menu, X } from "lucide-react"
+import { Dialog } from "radix-ui"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
 import { useStore } from "../store"
 import { BrandIcon, type BrandIconName } from "./brandGlyphs"
 import { NAV_ICONS } from "./navIcons"
+import { TopBar } from "./TopBar"
 
 const soon = () => toast("Only the tutorial flow is in this prototype")
 
-function Row({ glyph, label, current = false, onClick }: { glyph: ReactNode; label: string; current?: boolean; onClick: () => void }) {
+// Each group drops in 8px behind the one above it. Reduced motion keeps only the layer's fade
+const ENTER = "animate-in fade-in-0 slide-in-from-top-2 duration-200 ease-out fill-mode-both motion-reduce:animate-none"
+
+function Row({ glyph, label, current = false, big = false, onClick }: { glyph: ReactNode; label: string; current?: boolean; big?: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-current={current ? "page" : undefined}
       className={cn(
-        // The sheet is the hover grey itself, so the current row and a press take fills of their own,
-        // as the Files sheet's open file does
-        "flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-[0.9375rem] transition-colors outline-none active:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple [&>span:first-child]:size-5",
-        current ? "bg-foreground/[0.07] text-foreground active:bg-foreground/[0.07]" : "text-muted-foreground"
+        // The desktop sidebar's row at a thumb's size: glyph and label, the current one on a filled pill.
+        // The 8px inset puts every glyph on the page's 16px edge
+        "flex w-full items-center gap-3 rounded-lg px-2 text-left transition-colors outline-none active:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-brand-purple [&>span:first-child]:size-5",
+        big ? "h-12 text-[1.0625rem]" : "h-11 text-[0.9375rem]",
+        current ? "bg-surface-hover font-medium text-foreground active:bg-surface-hover" : "text-muted-foreground"
       )}
     >
       <span aria-hidden="true" className="flex shrink-0 items-center justify-center [&>svg]:size-full">
@@ -33,8 +38,9 @@ function Row({ glyph, label, current = false, onClick }: { glyph: ReactNode; lab
   )
 }
 
-/** The product's navigation on a phone: the menu button at the top bar's start opens the desktop
- * sidebar's rows in a sheet from the left, so the phone reaches the same places */
+/** The product's navigation on a phone: the menu button opens the desktop sidebar's rows over the whole
+ * screen, and its X takes the menu button's own spot, so the same tap closes it. Nothing of the page
+ * shows behind, so the layer runs under the status bar too and needs no scrim */
 export function PhoneMenu() {
   const { s, dispatch } = useStore()
   const [open, setOpen] = useState(false)
@@ -52,43 +58,76 @@ export function PhoneMenu() {
   const projects = ["Counter", "Token Faucet", "Voting", "Tip Jar", ...(s.startedAt !== null ? ["Hello Anchor"] : [])]
 
   return (
-    <>
-      <Button variant="ghost" size="icon" className="size-11" aria-label="Menu" onClick={() => setOpen(true)}>
-        <Menu strokeWidth={1.75} className="size-6" />
-      </Button>
-      <Sheet open={open} onOpenChange={setOpen}>
-        {/* No first row taken on open: a tap had Home ringed as if it were the page. The sheet itself
-            holds the focus, so Tab still starts at the top. A soft shadow parts it from the page, no rule */}
-        <SheetContent
-          side="left"
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger asChild>
+        <Button variant="ghost" size="icon" className="size-11" aria-label="Menu">
+          <Menu strokeWidth={1.75} className="size-6" />
+        </Button>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        {/* No first row taken on open: a tap had Home ringed as if it were the page. The layer itself
+            holds the focus, so Tab still starts at the top */}
+        <Dialog.Content
+          aria-describedby={undefined}
           onOpenAutoFocus={(e) => {
             e.preventDefault()
             ;(e.currentTarget as HTMLElement).focus()
           }}
-          className="w-[18rem]! gap-0 border-r-0 bg-surface-panel p-0 pt-[env(safe-area-inset-top)] shadow-[12px_0_40px_rgb(0_0_0/0.45)] outline-none"
+          className="fixed inset-0 z-50 bg-surface-base pt-[env(safe-area-inset-top)] text-foreground outline-none data-open:animate-in data-open:fade-in-0 data-open:duration-200 data-open:ease-out data-closed:animate-out data-closed:fade-out-0 data-closed:duration-150 data-closed:ease-in motion-reduce:duration-100!"
         >
-          <SheetTitle className="flex h-phone-head items-center px-5 font-heading text-title font-normal">Solana Playground</SheetTitle>
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-2">
-            {destinations.map((d) => (
-              <Row key={d.label} glyph={<BrandIcon name={d.icon} />} label={d.label} current={d.current} onClick={d.onClick} />
-            ))}
-            <p className="mt-5 mb-1 px-3 text-caption text-muted-foreground">Projects</p>
-            {projects.map((name) => (
-              <Row
-                key={name}
-                glyph={NAV_ICONS.folder}
-                label={name}
-                current={name === "Hello Anchor" && inProject}
-                onClick={go(name === "Hello Anchor" ? () => dispatch({ type: "open", screen: "step" }) : soon)}
-              />
-            ))}
+          <Dialog.Title className="sr-only">Menu</Dialog.Title>
+          {/* The page's own column, so the X sits exactly on the menu button */}
+          <div className="mx-auto flex h-full w-full max-w-[30rem] flex-col">
+            <TopBar
+              left={
+                <Dialog.Close asChild>
+                  <Button variant="ghost" size="icon" className="size-11" aria-label="Close menu">
+                    <X strokeWidth={1.75} className="size-6 animate-in spin-in-[-90deg] fade-in-0 duration-[160ms] ease-out motion-reduce:animate-none" />
+                  </Button>
+                </Dialog.Close>
+              }
+            />
+            <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-2 pt-1 pb-4">
+              <div className={ENTER}>
+                {destinations.map((d) => (
+                  <Row key={d.label} big glyph={<BrandIcon name={d.icon} />} label={d.label} current={d.current} onClick={d.onClick} />
+                ))}
+              </div>
+              <div className={cn(ENTER, "delay-40")}>
+                <p className="mt-6 mb-1 px-2 text-caption text-muted-foreground">Projects</p>
+                {projects.map((name) => (
+                  <Row
+                    key={name}
+                    glyph={NAV_ICONS.folder}
+                    label={name}
+                    current={name === "Hello Anchor" && inProject}
+                    onClick={go(name === "Hello Anchor" ? () => dispatch({ type: "open", screen: "step" }) : soon)}
+                  />
+                ))}
+              </div>
+            </nav>
+            {/* The network and the account share one row under a rule, clear of the home indicator */}
+            <div className={cn(ENTER, "delay-80 flex h-[calc(56px+var(--safe-bottom))] shrink-0 items-start justify-between border-t border-border px-2 pt-1.5")}>
+              <button
+                type="button"
+                onClick={go(soon)}
+                className="flex h-11 items-center gap-2.5 rounded-lg px-2 text-[0.9375rem] text-muted-foreground outline-none active:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-brand-purple"
+              >
+                <span aria-hidden="true" className="size-2 rounded-full bg-success" />
+                Devnet
+              </button>
+              <button
+                type="button"
+                onClick={go(soon)}
+                className="flex h-11 items-center gap-2.5 rounded-lg px-2 text-[0.9375rem] text-muted-foreground outline-none active:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-brand-purple [&>svg]:size-5"
+              >
+                <BrandIcon name="profile" />
+                Sign in
+              </button>
+            </div>
           </div>
-          <div className="flex flex-col gap-px border-t border-border px-2 pt-1.5 pb-[max(var(--safe-bottom),12px)]">
-            <Row glyph={<span className="mx-auto block size-2 rounded-full bg-success" />} label="Devnet" onClick={go(soon)} />
-            <Row glyph={<BrandIcon name="profile" />} label="Sign in" onClick={go(soon)} />
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
