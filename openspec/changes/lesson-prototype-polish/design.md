@@ -43,7 +43,7 @@ proposal.
   12/1.5 line under the row. `ObjectiveActions` keeps `ml-auto` and gap 4 px
   (`gap-1`) and loses `max-md:hidden`, since the phone no longer renders it.
 - `BaseObjectiveBand` lays the row out as the prototype's `Row`/`Main`:
-  `flex-wrap`, `Main` at `flex: 1 1 18rem`, actions at the end. This gives one
+  `flex-wrap`, `Main` at `flex: 1 1 14rem` (the prototype has 18rem, which wraps at 834), actions at the end. This gives one
   row at 834 as at 1440 (Slava, 2026-10-26) and wraps the actions as one group
   only in a column too narrow for both.
 - The count reads `Step 1 of 4` in sentence case (`tabular-nums`, no
