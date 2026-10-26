@@ -207,6 +207,21 @@ describe("Thread, sending", () => {
     expect(tracked()).toEqual([["assistant_suggestion_picked", {}]]);
   });
 
+  it("offers the lesson's questions while a lesson is open", () => {
+    lesson.open = true;
+    render(<Thread turn={stubTurn(false)} project="Hello Anchor" />);
+    for (const name of [
+      "Explain this step",
+      "Give me a hint",
+      "Why did my build fail?",
+    ]) {
+      expect(screen.getByRole("button", { name })).toBeTruthy();
+    }
+    expect(
+      screen.queryByRole("button", { name: "What does this program do?" })
+    ).toBeNull();
+  });
+
   it("make this change asks for a patch and is reported", () => {
     act(() => finishedReply("Add a field to the account."));
     const send = vi.fn().mockResolvedValue(undefined);

@@ -32,5 +32,5 @@
 
 ## 3. The assistant (PR 3, stacked on PR 2)
 
-- [ ] 3.1 The lesson's three suggestions in a wrapped row; chips ordered
+- [x] 3.1 The lesson's three suggestions in a wrapped row; chips ordered
       step, file, files (HOO-2262)
