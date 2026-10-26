@@ -34,8 +34,9 @@ page, the assistant names the tutorial and the files column is empty".
   initialised: `PgTutorial.isStarted` throws then; the hook must read `null`
   until `allWorkspaceNames` exists, not crash the assistant.
 - A user with other projects opens an unstarted tutorial's About page: the
-  head reads the tutorial, not the open project, and the files column is
-  empty (the stand's picture).
+  files column is empty (the stand's picture) and the head keeps the open
+  project's name, whose thread and tools are still in play (review,
+  2026-10-26).
 - Pressing Start: the head and files follow the new workspace without a
   reload (the hook listens to `PgExplorer.onDidSwitchWorkspace`).
 - Leaving the tutorial route: `PgTutorial.current` turns null and the head
@@ -78,7 +79,7 @@ page, the assistant names the tutorial and the files column is empty".
 
 **Files:**
 - Create: `client-v2/src/entities/tutorial/model/use-tutorial-before-start.ts` (+ export from `index.ts`)
-- Create: `client-v2/src/entities/tutorial/model/use-tutorial-before-start.test.tsx` (mocks `../../../utils`)
+- Create: `client-v2/src/entities/tutorial/model/use-tutorial-before-start.test.tsx` (mocks `utils/tutorial/tutorial` and `utils/explorer/explorer`, never the barrel)
 - Modify: `client-v2/src/widgets/assistant/ui/Assistant.tsx` (`useProjectName` → title)
 - Modify: `client-v2/src/widgets/assistant/ui/Assistant.test.tsx`
 - Modify: `client-v2/src/views/sidebar/explorer/Component/Explorer.tsx`
@@ -89,7 +90,9 @@ page, the assistant names the tutorial and the files column is empty".
   Reads `PgTutorial.current?.name`; `null` while
   `PgExplorer.allWorkspaceNames` is unset or includes the name. Re-reads on
   `PgTutorial.onDidChangeCurrent`, `PgExplorer.onDidInit`,
-  `PgExplorer.onDidSwitchWorkspace`, `PgExplorer.onDidChangeWorkspaceList`.
+  `PgExplorer.onDidSwitchWorkspace`, `PgExplorer.onDidCreateWorkspace`
+  (sync's `importWorkspace` switches nothing), `PgExplorer.onDidDeleteWorkspace`,
+  `PgExplorer.onDidChangeWorkspaceList`.
 
 - [ ] **Step 1: Failing hook tests** (`renderHook`): on a tutorial route with
   no workspaces → `"Hello Anchor"`; with the workspace present → `null`; off
@@ -99,18 +102,21 @@ page, the assistant names the tutorial and the files column is empty".
 - [ ] **Step 3:** implement the hook (the `useProjectName` shape: a `read`,
   `useState(read)`, subscriptions in one effect).
 - [ ] **Step 4:** run → PASS.
-- [ ] **Step 5: Failing assistant test**: with the hook mocked to
-  `"Hello Anchor"` and the workspace `"Counter"`, the head reads
-  `Hello Anchor` and `Thread` gets `project="Hello Anchor"`.
-- [ ] **Step 6:** `Assistant`: `const project = useTutorialBeforeStart() ?? useProjectName()`
+- [ ] **Step 5: Failing assistant tests**: with the hook mocked to
+  `"Hello Anchor"`, no workspace → the head reads `Hello Anchor` and
+  `Thread` gets `project="Hello Anchor"`; workspace `"Counter"` → both read
+  `Counter`.
+- [ ] **Step 6:** `Assistant`: `const project = useProjectName() ?? useTutorialBeforeStart()`
   (both hooks always called). Run → PASS.
 - [ ] **Step 7:** `Explorer`: `if (useTutorialBeforeStart()) return null;`
   before the `NoWorkspace` branch (hook called before any return).
-- [ ] **Step 8:** Playwright e2e `client-v2-tutorials: The assistant beside
-  Hello Anchor` in `e2e/tutorials.e2e.spec.ts`: fresh storage, open
-  `/tutorials/hello-anchor`, expect the head `Hello Anchor`, the heading
-  `Ask about Hello Anchor`, no button `Create a new project`; press Start,
-  expect the head still `Hello Anchor`. Run it alone.
+- [ ] **Step 8:** Playwright e2e in `e2e/tutorials.e2e.spec.ts`, one per
+  scenario: "The assistant beside Hello Anchor" (fresh storage: head and
+  `Ask about Hello Anchor`, no `Create a new project`); "Starting from the
+  About page" (Hello Seahorse, which has no lesson chrome: Start lands on
+  `/1` and `#root-dir` shows); "The details read as text" (`useInnerText`);
+  "Beside another project" (`seededPage`: head `e2e-project`, no
+  `#root-dir`). Run the file alone.
 - [ ] **Step 9:** Commit `fix(client-v2): name the tutorial beside its About page and empty the files column (HOO-2254)`.
 
 ### Task 3: Verify and PR
