@@ -139,12 +139,12 @@ function CompactBar({ viewing, onPick }: BarProps) {
   const name = s.started && !finished ? STEPS[s.step].short : null
 
   return (
-    <nav aria-label="Tutorial steps" className="hidden h-12 px-5 pt-0.5 pb-1.5 @max-[24rem]:block">
+    <nav aria-label="Tutorial steps" className="hidden h-12 px-5 pt-1.5 pb-1.5 @max-[24rem]:block">
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={!s.started}
           className={cn(
-            "group -mx-1.5 flex h-8 items-center gap-1.5 rounded-md px-1.5 text-[0.8125rem] font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
+            "group -mx-1.5 flex h-7 items-center gap-1.5 rounded-md px-1.5 text-[0.8125rem] font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
             FOCUS
           )}
         >
