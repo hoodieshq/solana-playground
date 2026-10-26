@@ -13,3 +13,13 @@ export {
 export type { GistFiles, GistFormatReason } from "./lib/format";
 export { gistTelemetry } from "./model/telemetry";
 export type { GistExportFailure } from "./model/telemetry";
+export { exportProject } from "./model/export";
+export type { ExportFailure, ExportResult } from "./model/export";
+export { default as ShareGist } from "./ui/ShareGist";
+export type { ShareGistProps } from "./ui/ShareGist";
+export { default as BaseShareGist } from "./ui/BaseShareGist";
+export type {
+  BaseShareGistProps,
+  ShareFailure,
+  ShareStep,
+} from "./ui/BaseShareGist";
