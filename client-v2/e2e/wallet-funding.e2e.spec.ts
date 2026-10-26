@@ -57,13 +57,17 @@ interface Cluster {
 }
 
 /**
- * Devnet, answered locally: balances per address (the payer starts with 5
- * SOL, everyone else with 0), a blockhash, and a confirmed status for every
+ * Devnet, answered locally: balances per address (the payer starts with
+ * `payerLamports`, 5 SOL unless set; everyone else with 0), a blockhash, and a confirmed status for every
  * transaction sent, which also moves the lamports it transfers. Anything else
  * goes to the real devnet, as in the rest of the suite.
  */
-const stubDevnet = async (page: Page, payer: string): Promise<Cluster> => {
-  const balances = new Map<string, number>([[payer, 5 * SOL]]);
+const stubDevnet = async (
+  page: Page,
+  payer: string,
+  payerLamports = 5 * SOL
+): Promise<Cluster> => {
+  const balances = new Map<string, number>([[payer, payerLamports]]);
   const cluster: Cluster = { sent: [] };
   const answer = (method: string, params: unknown[]): unknown => {
     switch (method) {
@@ -203,6 +207,83 @@ test("client-v2-wallet-funding: Successful funding", async ({
   );
   expect(transfer.fromPubkey.toBase58()).toBe(phantom.address);
   expect(Number(transfer.lamports)).toBe(SOL);
+});
+
+/** Set up the Playground wallet and open the Fund dialog */
+const openFund = async (page: Page) => {
+  await setUpPlaygroundWallet(page);
+  await account(page).click();
+  await fundItem(page).click();
+  await expect(dialog(page)).toBeVisible();
+};
+
+test("client-v2-wallet-funding: No wallet installed", async ({
+  seededPage: page,
+}) => {
+  await openFund(page);
+
+  await expect(dialog(page)).toContainText("No wallet found");
+  await expect(dialog(page).getByLabel("Amount (SOL)")).toHaveCount(0);
+});
+
+test("client-v2-wallet-funding: The user declines the connection", async ({
+  page,
+  seededPage,
+}) => {
+  void seededPage;
+  await installFakeWallet(page, { name: "Phantom", reject: "connect" });
+  await page.reload();
+  await openFund(page);
+
+  await dialog(page).getByRole("button", { name: "Connect Phantom" }).click();
+
+  await expect(dialog(page).getByRole("alert")).toContainText(
+    "The connection was declined in the wallet."
+  );
+  await expect(
+    dialog(page).getByRole("button", { name: "Connect Phantom" })
+  ).toBeVisible();
+});
+
+test("client-v2-wallet-funding: Amount above the balance", async ({
+  page,
+  seededPage,
+}) => {
+  void seededPage;
+  const phantom = await installFakeWallet(page, { name: "Phantom" });
+  await stubDevnet(page, phantom.address, SOL / 2);
+  await page.reload();
+  await openFund(page);
+  await dialog(page).getByRole("button", { name: "Connect Phantom" }).click();
+
+  await expect(dialog(page)).toContainText("Phantom holds 0.5 SOL.");
+  await expect(
+    dialog(page).getByRole("button", { name: "Send 1 SOL" })
+  ).toBeDisabled();
+});
+
+test("client-v2-wallet-funding: The user declines the transfer", async ({
+  page,
+  seededPage,
+}) => {
+  void seededPage;
+  const phantom = await installFakeWallet(page, {
+    name: "Phantom",
+    reject: "sign",
+  });
+  const cluster = await stubDevnet(page, phantom.address);
+  await page.reload();
+  await openFund(page);
+  await dialog(page).getByRole("button", { name: "Connect Phantom" }).click();
+  await dialog(page).getByLabel("Amount (SOL)").fill("0.5");
+
+  await dialog(page).getByRole("button", { name: "Send 0.5 SOL" }).click();
+
+  await expect(dialog(page).getByRole("alert")).toContainText(
+    "The transfer was declined in the wallet."
+  );
+  await expect(dialog(page).getByLabel("Amount (SOL)")).toHaveValue("0.5");
+  expect(cluster.sent).toHaveLength(0);
 });
 
 test("client-v2-external-wallet: A payer beside the current extension", async ({
