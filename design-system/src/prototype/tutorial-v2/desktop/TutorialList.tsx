@@ -41,10 +41,11 @@ export function FilterButton({ value, onChange, className }: { value: FrameworkF
         {on && <span aria-hidden="true" className="absolute top-2 right-2 size-1.5 rounded-full bg-brand-purple" />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44!">
-        <DropdownMenuLabel className="text-caption! text-muted-foreground">Framework</DropdownMenuLabel>
+        {/* The group's name a step under its choices in size, weight and tone, so it never reads as one more choice */}
+        <DropdownMenuLabel className="pt-1.5 pb-1 text-[0.75rem]! font-normal text-muted-foreground/85">Framework</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as FrameworkFilter)}>
           {FRAMEWORKS.map((f) => (
-            <DropdownMenuRadioItem key={f.value} value={f.value} className="min-h-8 text-[0.8125rem]!">
+            <DropdownMenuRadioItem key={f.value} value={f.value} className="min-h-8 text-[0.8125rem]! text-foreground">
               {f.label}
             </DropdownMenuRadioItem>
           ))}
