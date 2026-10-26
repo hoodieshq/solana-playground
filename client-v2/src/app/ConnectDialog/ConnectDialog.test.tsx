@@ -463,6 +463,8 @@ describe("ConnectDialog", () => {
     expect(screen.getByRole("combobox", { name: "Model" }).textContent).toBe(
       "Opus 5.5"
     );
+    // One column, 27rem on a desk
+    expect(screen.getByRole("dialog").getAttribute("data-size")).toBe("narrow");
     // The dialog's title is the frame's; the form heads only its lead
     expect(screen.queryByText("Back to chat")).toBeNull();
     expect(

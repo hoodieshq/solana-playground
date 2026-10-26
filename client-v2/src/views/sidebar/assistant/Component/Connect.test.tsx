@@ -340,7 +340,7 @@ describe("Connect", () => {
     expect(action?.text).toBe("Switch");
   });
 
-  it("brings no title or way back of its own: the dialog has them", () => {
+  it("does not repeat the dialog's title or bring a way back", () => {
     renderConnect({ defaultBackend: "present" });
 
     expect(

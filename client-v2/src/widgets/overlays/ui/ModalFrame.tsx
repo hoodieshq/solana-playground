@@ -41,7 +41,7 @@ export type ModalFrameProps = {
   title?: string | true;
   buttonProps?: ModalSubmit;
   size?: ModalSize;
-  /** Where the focus lands on open; the body's first field when left out */
+  /** Where the focus lands on open; the body's first field (or the submit) when left out */
   openFocus?: OpenFocus;
   children?: ReactNode;
 };

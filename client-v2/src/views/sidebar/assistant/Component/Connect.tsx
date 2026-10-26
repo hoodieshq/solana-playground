@@ -135,9 +135,9 @@ const startSettings = (provider: ProviderInfo, model?: string) => {
 };
 
 /**
- * The form of Connect a model. It lives in `ConnectDialog`, which gives it its
- * title and closes it once a backend is connected; reconnecting on load is
- * `useTurn`'s.
+ * The form of Connect a model. It lives in `ConnectDialog`, which gives the
+ * dialog its title and closes it once a backend is connected; the form heads
+ * only its own lead. Reconnecting on load is `useTurn`'s.
  */
 const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
   // Reopened over a live connection: seed the fields with it so changing just

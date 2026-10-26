@@ -1,5 +1,10 @@
 import { useRef } from "react";
-import type { KeyboardEvent, ReactNode, SyntheticEvent } from "react";
+import type {
+  ComponentProps,
+  KeyboardEvent,
+  ReactNode,
+  SyntheticEvent,
+} from "react";
 import { cn } from "@/shared/lib/utils";
 
 import { BrandButton } from "@/shared/ui/brand-button";
@@ -15,14 +20,16 @@ import { Spinner } from "@/shared/ui/spinner";
 import { isInsideToast } from "@/shared/lib/toast-layer";
 
 /**
- * `narrow` is for a form of one column (Connect a model), `wide` for dialogs
- * with a code or a table in the body
+ * The design system's sizes: `narrow` is for a form of one column (Connect a
+ * model), `wide` for dialogs with a code or a table in the body
  */
-export type ModalSize = "default" | "narrow" | "wide";
+export type ModalSize = NonNullable<
+  ComponentProps<typeof ModalContent>["size"]
+>;
 
 /**
  * What has the focus when the dialog opens: the body's first field (or the
- * submit), or the dialog itself, for one that should open with no field
+ * submit, when there is none), or the dialog itself, for one that should open with no field
  * ringed, as the prototype's New project does
  */
 export type OpenFocus = "field" | "dialog";
@@ -153,8 +160,11 @@ export const BaseModalFrame = ({
   // or the dialog itself when asked
   const handleOpenAutoFocus = (ev: Event) => {
     if (openFocus === "dialog") {
+      // Radix dispatches this on the content, which takes focus at -1; on
+      // anything else its own default focus stays
+      if (!(ev.currentTarget instanceof HTMLElement)) return;
       ev.preventDefault();
-      (ev.currentTarget as HTMLElement | null)?.focus();
+      ev.currentTarget.focus();
       return;
     }
     const target =
@@ -180,8 +190,8 @@ export const BaseModalFrame = ({
         className="flex min-h-0 flex-1 flex-col"
         onSubmit={handleSubmit}
       >
-        {/* A hidden title leaves no hairline under nothing; a phone's bar
-            keeps its edge */}
+        {/* A hidden title draws no hairline on a desk; a phone's bar keeps
+            its edge */}
         <ModalHeader className={cn(title.hidden && "md:border-b-0")}>
           <ModalTitle className={cn(title.hidden && "sr-only")}>
             {title.text}

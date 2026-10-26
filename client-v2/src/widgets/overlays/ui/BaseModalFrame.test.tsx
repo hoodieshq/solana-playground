@@ -245,6 +245,18 @@ it("should focus the body's first input on open", () => {
   );
 });
 
+it("should draw the hairline under a shown title only", () => {
+  const { unmount } = renderFrame({ title: { text: "Rename", hidden: false } });
+  const header = () =>
+    document.querySelector('[data-slot="modal-header"]')!.classList;
+  expect(header().contains("border-b")).toBe(true);
+  expect(header().contains("md:border-b-0")).toBe(false);
+  unmount();
+
+  renderFrame({ title: { text: "Solana Playground", hidden: true } });
+  expect(header().contains("md:border-b-0")).toBe(true);
+});
+
 it("should focus the dialog itself on open when asked, so no field shows a ring", () => {
   renderFrame({
     openFocus: "dialog",
