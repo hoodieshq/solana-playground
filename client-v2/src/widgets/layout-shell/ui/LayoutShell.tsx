@@ -55,13 +55,8 @@ export interface LayoutShellProps {
     toggle: () => void;
     phone: boolean;
   }) => ReactNode;
-  /**
-   * The stage. `openFiles` opens the phone's Files sheet, for a control in the
-   * stage that points at the files column (the lesson band's "Show the steps"),
-   * below `LAYOUT_BREAKPOINTS.phone`, and is a no-op otherwise: its only
-   * caller, the compact band, shows only below that breakpoint.
-   */
-  stage: (panel: { openFiles: () => void }) => ReactNode;
+  /** The stage */
+  stage: () => ReactNode;
   console: (panel: { open: boolean; toggle: () => void }) => ReactNode;
   /**
    * The assistant, in its panel or, below `LAYOUT_BREAKPOINTS.compact`, its
@@ -550,7 +545,8 @@ const LayoutShell = ({
         });
       }}
       // The product's text face, as the desktop's column has it: the code
-      // face leaked into every button of a Sheet, which inherit their font
+      // face leaked into every button of a Sheet, which inherit their font.
+      // The size stays the one the legacy file tree is laid out at.
       sheetFont={{
         fontFamily: theme.font.other.family,
         fontSize: theme.font.code.size.medium,
@@ -595,11 +591,7 @@ const LayoutShell = ({
         />
       }
       stageTabs={stageTabs}
-      stage={stage({
-        openFiles: () => {
-          if (phone) setPhoneFiles(true, "button");
-        },
-      })}
+      stage={stage()}
       console={console({
         open: phone ? phoneConsole : state.open.console,
         toggle: () => {

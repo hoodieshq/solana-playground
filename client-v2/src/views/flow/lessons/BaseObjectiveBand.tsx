@@ -56,37 +56,39 @@ export type BaseObjectiveBandProps = StepBandProps | FinishedBandProps;
  */
 export const BandControls: FC<{
   band: BaseObjectiveBandProps;
-  size: "default" | "phone";
   /** Wraps the page and the action, so the bar can push them to its end */
   End: FC<{ children: React.ReactNode }>;
-}> = ({ band, size, End }) => (
-  <>
-    <ObjectiveNav
-      size={size}
-      onBack={band.back.onClick}
-      onNext={band.next.onClick}
-      canBack={band.back.enabled}
-      canNext={band.next.enabled}
-    />
-    <End>
-      {band.kind === "step" && band.read && (
-        <ObjectiveQuiet size={size} onClick={band.read.onClick}>
-          {band.read.label}
-        </ObjectiveQuiet>
-      )}
-      {band.kind === "step" && (
-        <ObjectivePrimary size={size} onClick={band.primary.onClick}>
-          {band.primary.label}
-        </ObjectivePrimary>
-      )}
-      {band.kind === "finished" && (
-        <ObjectiveQuiet size={size} onClick={band.gallery.onClick}>
-          {band.gallery.label}
-        </ObjectiveQuiet>
-      )}
-    </End>
-  </>
-);
+}> = ({ band, End }) => {
+  const size = band.phone ? "phone" : "default";
+  return (
+    <>
+      <ObjectiveNav
+        size={size}
+        onBack={band.back.onClick}
+        onNext={band.next.onClick}
+        canBack={band.back.enabled}
+        canNext={band.next.enabled}
+      />
+      <End>
+        {band.kind === "step" && band.read && (
+          <ObjectiveQuiet size={size} onClick={band.read.onClick}>
+            {band.read.label}
+          </ObjectiveQuiet>
+        )}
+        {band.kind === "step" && (
+          <ObjectivePrimary size={size} onClick={band.primary.onClick}>
+            {band.primary.label}
+          </ObjectivePrimary>
+        )}
+        {band.kind === "finished" && (
+          <ObjectiveQuiet size={size} onClick={band.gallery.onClick}>
+            {band.gallery.label}
+          </ObjectiveQuiet>
+        )}
+      </End>
+    </>
+  );
+};
 
 const Inline: FC<{ children: React.ReactNode }> = ({ children }) => (
   <>{children}</>
@@ -129,7 +131,7 @@ export const BaseObjectiveBand: FC<BaseObjectiveBandProps> = (props) => {
           )}
         </ObjectiveMain>
         <ObjectiveActions>
-          <BandControls band={props} size="default" End={Inline} />
+          <BandControls band={props} End={Inline} />
         </ObjectiveActions>
       </ObjectiveRow>
       {/* At the path's end the line is the summary, so it always shows */}

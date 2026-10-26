@@ -216,16 +216,7 @@ const shellTree = (
             Files column control
           </button>
         )}
-        stage={({ openFiles }) =>
-          work.stage ?? (
-            <main>
-              stage
-              <button type="button" onClick={openFiles}>
-                Show the steps
-              </button>
-            </main>
-          )
-        }
+        stage={() => work.stage ?? <main>stage</main>}
         console={({ open, toggle }) => (
           <button
             type="button"
@@ -1099,16 +1090,6 @@ describe("on a phone", () => {
       { panel: "files", open: true, via: "button" },
       { panel: "files", open: false, via: "key" },
     ]);
-  });
-
-  it("opens the Files sheet from the stage, reported as a button", () => {
-    phoneShell();
-    tap(screen.getByRole("button", { name: "Show the steps" }));
-    expect(
-      document.querySelector('[data-slot="sheet-content"]')
-    ).not.toBeNull();
-    expect(screen.getByRole("dialog", { name: "Files" })).toBeTruthy();
-    expect(toggled()).toEqual([{ panel: "files", open: true, via: "button" }]);
   });
 
   it("reports a tap on the Files sheet's overlay as a button", async () => {

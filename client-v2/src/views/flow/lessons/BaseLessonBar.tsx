@@ -15,6 +15,6 @@ const End: FC<{ children: React.ReactNode }> = ({ children }) => (
  */
 export const BaseLessonBar: FC<BaseObjectiveBandProps> = (props) => (
   <ObjectiveBar>
-    <BandControls band={props} size="phone" End={End} />
+    <BandControls band={props} End={End} />
   </ObjectiveBar>
 );

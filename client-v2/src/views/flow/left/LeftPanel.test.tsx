@@ -134,6 +134,17 @@ describe("LeftPanel in a lesson", () => {
     expect(tab("files").getAttribute("data-state")).toBe("on");
   });
 
+  it("keeps no tab from a column told where to open", () => {
+    const told = render(
+      <ThemeProvider theme={anyTheme}>
+        <LeftPanel collapsed={false} startOn="files" />
+      </ThemeProvider>
+    );
+    told.unmount();
+    draw(false);
+    expect(tab("steps").getAttribute("data-state")).toBe("on");
+  });
+
   it("switches to the explorer when Files is pressed", () => {
     draw(false);
     expect(screen.queryByTestId("step-rail")).not.toBeNull();

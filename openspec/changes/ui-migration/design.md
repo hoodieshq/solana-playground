@@ -865,8 +865,8 @@ Kept: `flow-stage-panel-*`, `flow-stage-tab-*` and the texts the e2e reads.
 ## Lessons (5.19)
 
 Decided with Slava on 2026-10-16 (HOO-2076). Only placement and look change:
-master-2.0's lesson logic (the ledger, the entry, verify, readiness) stays as
-it is.
+master-2.0's lesson logic (the ledger, verify) stays as it is; the entry's
+page and the readiness line went with lesson-prototype-polish.
 
 **Objective band** (`objective-band`, installed). Compact, over the editor in
 the stage. Its look follows the original prototype (change
