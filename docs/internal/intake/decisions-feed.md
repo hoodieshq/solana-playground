@@ -12,6 +12,8 @@ Newest first. One line per decision or requirement change; a superseded line gai
 - 2026-10-23 — Pitch order: Linear walk and update, Slava shows production state, Cat gets the deployed version, Almaz presents the redesign as research/V2 (Grigory, Sergey, Almaz). [entry](2026-10-23-zoom-pre-pitch-sync.md)
 - 2026-10-23 — Production is not touched; changes stay in branches until after the demo; no sharp moves before Breakpoint (Sergey, Almaz, Grigory). [entry](2026-10-23-zoom-pre-pitch-sync.md)
 - 2026-10-23 — Tutorial screen proposed as two 604 px areas, three levels, no hand-written code on mobile; proposed, not agreed. [entry](2026-10-23-zoom-pre-pitch-sync.md)
+- 2026-10-22 — Product specs for every flow are the reference for checking design; each has a QA section (Nikita). [entry](2026-10-22-slack-nikita-product-specs.md)
+- 2026-10-22 — Design task owner before Breakpoint: Nikita → Almaz; Grigory is tagged on each and owns dates and client sign-off (Nikita). [entry](2026-10-22-slack-nikita-product-specs.md)
 - 2026-10-22 — Work not meant to merge into the repo's code is filed as an issue, not a PR; open ones are converted, starting with PR #70 (Slava, confirming Sergey's 21 Oct rule). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
 - 2026-10-21 — Almaz's tutorial prototype is a reference in branch `almaz/tutorial-prototype` off `master-2.0`, never merged (Almaz, Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
 - 2026-10-21 — A branch not meant to merge gets an issue naming it, not a PR (Sergey). [entry](2026-10-21-slack-almaz-tutorial-prototype.md)
