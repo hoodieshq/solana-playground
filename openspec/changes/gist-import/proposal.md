@@ -20,16 +20,14 @@ signed out. Playground opens a repository URL today, but not a gist.
   the API cuts short is downloaded whole; a gist too large for the API to list
   fully is refused with a message saying so. A missing or private gist and
   GitHub's hourly limit each get their own message.
-- A gist exported by Playground carries a manifest (`.playground.json`,
-  format defined by HOO-1760); its files land at the paths it names. A gist
-  made by hand has no manifest; its files are placed by kind: Rust under
-  `src/`, test files under `tests/`, other TypeScript and JavaScript under
-  `client/`, anything else left out.
+- Files land as `gist-sharing`'s format says (HOO-1760): at the paths a
+  Playground manifest names, or by kind for a gist made by hand. A gist no
+  framework recognises is refused as having no program.
 - An imported gist becomes a project named `gist-<owner>/<id>`; importing the
   same gist again opens that project, as importing a repository twice does.
 - The gist code lives in one `features/gist` slice shared with HOO-1760:
-  this change adds its URL parsing and the import; the format module is
-  HOO-1760's.
+  this change adds its URL parsing and the import; the format module, the
+  slice and its `gist` prefix are HOO-1760's.
 - Events added (`features/gist`, prefix `gist`): `gist_import_started`,
   `gist_import_succeeded`, `gist_import_failed`.
 
@@ -37,20 +35,24 @@ signed out. Playground opens a repository URL today, but not a gist.
 
 ### New Capabilities
 
-- `client-v2-gist-import`: opening a project from a gist URL, in the import
-  dialog and from a link, with its error messages and telemetry.
+None.
 
 ### Modified Capabilities
 
-None.
+- `gist-sharing` (introduced by the change `gist-export`, HOO-1760): adds
+  opening a project from a gist URL, in the import dialog and from a link,
+  with its error messages and telemetry. The format, the manifest checks and
+  the placement of a hand-made gist's files are that change's requirements
+  and are not repeated here.
 
 ## Impact
 
-- Code: new `client-v2/src/features/gist/` (`lib/url.ts`, `model/import.ts`,
-  `model/telemetry.ts`, `index.ts`), a new route folder
+- Code: in `client-v2/src/features/gist/` (HOO-1760's slice), new
+  `lib/url.ts` and `model/import.ts` and lines added to `model/telemetry.ts`
+  and `index.ts`; a new route folder
   `client-v2/src/routes/gist/`, the import dialog
   `views/sidebar/explorer/Component/Modals/ImportGithub.tsx` (label,
-  placeholder, validator), `shared/lib/telemetry/prefixes.ts`.
+  placeholder, validator).
 - External: `api.github.com/gists` (unauthenticated, 60 requests an hour per
   browser, shared with repository import) and `gist.githubusercontent.com`
   for files the API truncates. No server change.

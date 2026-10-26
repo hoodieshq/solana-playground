@@ -27,7 +27,7 @@ const stubGist = (page: Page) =>
 
 const editorText = (page: Page) => page.locator(".monaco-editor .view-lines");
 
-test("client-v2-gist-import: Importing a gist from the dialog", async ({
+test("gist-sharing: Importing a gist from the dialog", async ({
   seededPage: page,
 }) => {
   await stubGist(page);
@@ -50,7 +50,7 @@ test("client-v2-gist-import: Importing a gist from the dialog", async ({
   );
 });
 
-test("client-v2-gist-import: Opening a gist link signed out", async ({
+test("gist-sharing: Opening a gist link signed out", async ({
   page,
 }) => {
   await stubGist(page);

@@ -1,10 +1,5 @@
 # Spec Delta
 
-## Purpose
-
-Lets anyone, signed in or not, open a project that was shared as a GitHub
-gist, from the import dialog or from a link.
-
 ## ADDED Requirements
 
 ### Requirement: A gist URL is recognised in every form GitHub hands out
@@ -49,32 +44,11 @@ opens a repository.
 - **WHEN** a signed-out user opens `/gist/<id>` for a public gist
 - **THEN** the gist's files show in the explorer as an unsaved view and no project is created
 
-### Requirement: A gist's files land where its manifest or their kind says
-
-When the gist carries Playground's manifest, each file SHALL land at the
-path the manifest names, and a manifest that names a path outside the
-project, a hidden workspace file, or a file the gist lacks SHALL fail the
-import. Without a manifest, Rust files SHALL land under `src/`, test files
-under `tests/`, other TypeScript and JavaScript under `client/`, and other
-files SHALL be left out.
-
-#### Scenario: A gist exported by Playground
-- **WHEN** the gist's manifest maps `src-lib.rs` to `src/lib.rs` and `client-client.ts` to `client/client.ts`
-- **THEN** the project holds `src/lib.rs` and `client/client.ts`
-
-#### Scenario: A gist made by hand
-- **WHEN** the gist holds `lib.rs`, `anchor.test.ts`, `client.ts` and `notes.txt` and no manifest
-- **THEN** the project holds `src/lib.rs`, `tests/anchor.test.ts` and `client/client.ts`, and not `notes.txt`
-
-#### Scenario: A manifest that escapes the project
-- **WHEN** the manifest maps a file to `../x.rs` or to `.workspace/program-info.json`
-- **THEN** the import fails with a message that the gist's manifest is invalid, and no project is created
-
 ### Requirement: A gist that cannot be opened says why
 
 The import SHALL show one message per cause: a gist that is missing or
 was deleted, GitHub's hourly request limit, a gist with more files than
-GitHub lists, an invalid manifest, a gist with no program, and any other
+GitHub lists, a manifest the format refuses, a gist with no program, and any other
 failed request with its status. A file GitHub's gist API cuts short SHALL be
 downloaded whole rather than imported cut.
 
@@ -97,9 +71,9 @@ The `features/gist` slice SHALL send, under the prefix `gist`:
 `gist_import_succeeded` when its files are in place; `gist_import_failed`
 when it stops. Each carries `from`: `dialog` or `link`. `gist_import_succeeded`
 carries `layout`: `manifest` or `loose`. `gist_import_failed` carries
-`reason`: `not_found`, `rate_limited`, `too_large`, `invalid`, `no_program`
-or `request_failed`.
+`reason`: `not-found`, `rate-limited`, `too-large`, `invalid`, `no-program`
+or `request-failed`.
 
 #### Scenario: A failed import is counted with its reason
 - **WHEN** an import from the dialog fails because the gist does not exist
-- **THEN** `gist_import_failed` is sent with `from: dialog` and `reason: not_found`
+- **THEN** `gist_import_failed` is sent with `from: dialog` and `reason: not-found`
