@@ -127,11 +127,12 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
       : { ...held, ...(body.changed ?? {}) };
     for (const path of body.removed ?? []) delete files[path];
 
+    // No files reads back as no snapshot, as `getProject` reads no rows
     const stored: StoredProject = {
       id: body.id,
       name: body.name,
       kind: body.kind,
-      snapshot: { files },
+      snapshot: Object.keys(files).length ? { files } : null,
       updatedAt: tick(),
     };
     server.set(stored.id, stored);
@@ -1290,6 +1291,181 @@ describe("two rewrites of one project at once", () => {
     expect(await merging).toBe("merged");
     expect(await adopting).toBeNull();
     expect(replace).toHaveBeenLastCalledWith(HELLO.name, both);
+  });
+});
+
+describe("a workspace whose files are gone from the store", () => {
+  beforeEach(setUp);
+  afterEach(() => vi.restoreAllMocks());
+
+  const puts = () =>
+    (global.fetch as Mock).mock.calls.filter(
+      ([, init]) => (init as RequestInit | undefined)?.method === "PUT"
+    );
+
+  /**
+   * In sync with the account, and then the store holds nothing under the
+   * workspace -- an import or a replace interrupted half way -- while the
+   * workspace is still registered and its mark flagged.
+   */
+  const emptiedAfterSync = async () => {
+    asDevice([HELLO]);
+    await signedIn();
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+    writeStored(HELLO.name, {});
+    await PgSyncMark.markDirty(HELLO.id);
+    return server.get(HELLO.id)!.snapshot;
+  };
+
+  it("is not uploaded by reconcile while the account is where it was", async () => {
+    const held = await emptiedAfterSync();
+    (global.fetch as Mock).mockClear();
+
+    await reconcile();
+
+    expect(puts()).toEqual([]);
+    expect(server.get(HELLO.id)!.snapshot).toEqual(held);
+  });
+
+  it("is not uploaded over a row that holds no code", async () => {
+    // The row moved and holds no files, so reconcile has nothing to merge
+    // with and would push this device's copy -- an empty one
+    await emptiedAfterSync();
+    server.set(HELLO.id, {
+      id: HELLO.id,
+      name: HELLO.name,
+      kind: "tutorial",
+      snapshot: null,
+      updatedAt: tick(),
+    });
+    (global.fetch as Mock).mockClear();
+
+    await reconcile();
+
+    expect(puts()).toEqual([]);
+  });
+
+  it("is not uploaded when the user answers a question with retry", async () => {
+    const held = await emptiedAfterSync();
+    PgProjectSync.raise({ projectId: HELLO.id, kind: "divergent" });
+    (global.fetch as Mock).mockClear();
+
+    expect(await PgProjectSync.resolve(HELLO.id, "retry")).toBe(false);
+
+    expect(puts()).toEqual([]);
+    expect(server.get(HELLO.id)!.snapshot).toEqual(held);
+    // and the question is still up, rather than silently dropped
+    expect(PgProjectSync.conflictFor(HELLO.id)).not.toBeNull();
+  });
+});
+
+describe("a project last synced by the client before per-file marks", () => {
+  beforeEach(() => {
+    setUp();
+    clearFailures();
+  });
+  afterEach(() => {
+    clearFailures();
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * The account holds `files` at one timestamp, and this browser's mark is
+   * the one the client before per-file hashes wrote when it uploaded them:
+   * one hash of the whole snapshot, none per file.
+   */
+  const syncedBeforeTheUpgrade = async (files: Record<string, string>) => {
+    asDevice([HELLO]);
+    await signedIn();
+    const updatedAt = tick();
+    server.set(HELLO.id, {
+      id: HELLO.id,
+      name: HELLO.name,
+      kind: "tutorial",
+      snapshot: { files },
+      updatedAt,
+    });
+    storedFiles().set(
+      `/.config/sync/u1/${encodeURIComponent(HELLO.id)}.json`,
+      JSON.stringify({
+        hash: "whole-snapshot-hash",
+        contentHash: "user-files-hash",
+        name: HELLO.name,
+        updatedAt,
+        dirty: true,
+      })
+    );
+    return updatedAt;
+  };
+
+  it("uploads an edit and a delete made before the upgrade, asking nothing", async () => {
+    await syncedBeforeTheUpgrade({
+      "src/lib.rs": "as uploaded",
+      "src/old.rs": "deleted here since",
+    });
+    // Never uploaded: an edit to one file, and the other file deleted
+    localFilesAre(HELLO.name, { "src/lib.rs": "edited here since" });
+    const replace = captureWrites();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "edited here since" },
+    });
+    expect(result.pushed).toEqual([HELLO.name]);
+  });
+
+  it("merges by line when the other device writes before the upload lands", async () => {
+    await syncedBeforeTheUpgrade({ "src/lib.rs": "a\nb\nc\nd\ne\n" });
+    localFilesAre(HELLO.name, { "src/lib.rs": "A\nb\nc\nd\ne\n" });
+    captureWrites();
+    // Offline for the upload: the agreement is rebuilt, the push fails
+    global.fetch = vi.fn((url: string, init?: RequestInit) =>
+      init?.method === "PUT"
+        ? Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
+        : fakeFetch(url, init)
+    ) as unknown as typeof fetch;
+    expect((await reconcile()).pushed).toEqual([]);
+
+    global.fetch = vi.fn(fakeFetch) as unknown as typeof fetch;
+    otherDeviceWroteFiles(HELLO.id, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
+    });
+  });
+
+  it("still asks, rather than guess, when the account moved past the mark", async () => {
+    await syncedBeforeTheUpgrade({ "src/lib.rs": "as uploaded" });
+    otherDeviceWroteFiles(HELLO.id, { "src/lib.rs": "the other device" });
+    localFilesAre(HELLO.name, { "src/lib.rs": "edited here since" });
+    const replace = captureWrites();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([divergentOn(HELLO.id, ["src/lib.rs"])]);
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("leaves the account alone when nothing changed here", async () => {
+    const before = await syncedBeforeTheUpgrade({
+      "src/lib.rs": "as uploaded",
+    });
+    localFilesAre(HELLO.name, { "src/lib.rs": "as uploaded" });
+    const replace = captureWrites();
+
+    const result = await reconcile();
+
+    expect(result.conflicts).toEqual([]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(server.get(HELLO.id)!.updatedAt).toBe(before);
+    // and the next exchange is an ordinary one, against a per-file mark
+    expect((await PgSyncMark.read(HELLO.id))?.updatedAt).toBe(before);
   });
 });
 

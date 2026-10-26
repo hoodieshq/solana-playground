@@ -47,6 +47,24 @@ const projectIdOf = (fileName: string) =>
 /** Who the marks belong to, or `null` when nobody is signed in */
 const currentUserId = () => PgSession.get()?.id ?? null;
 
+/**
+ * Whether a parsed mark file is one the client before per-file hashes wrote:
+ * a whole-snapshot `hash` and the row's `updatedAt`, and no `files`.
+ * Browsers that synced before the upgrade still hold these.
+ */
+const isPreUpgrade = (
+  parsed: unknown
+): parsed is { hash: string; updatedAt: string } => {
+  const mark = parsed as Record<string, unknown> | null;
+  return (
+    !!mark &&
+    typeof mark === "object" &&
+    mark.files === undefined &&
+    typeof mark.hash === "string" &&
+    typeof mark.updatedAt === "string"
+  );
+};
+
 /** What this device and the server last agreed on, for one project */
 export interface SyncMark {
   /**
@@ -129,7 +147,11 @@ export class PgSyncMark {
         typeof parsed?.name !== "string" ||
         typeof parsed?.updatedAt !== "string"
       ) {
-        report(`sync mark ${projectId}: malformed`, null);
+        // Not a fault: every browser the pre-upgrade client synced holds
+        // these, and reconcile reads them through `readPreUpgrade`
+        if (!isPreUpgrade(parsed)) {
+          report(`sync mark ${projectId}: malformed`, null);
+        }
         return null;
       }
       return {
@@ -141,6 +163,34 @@ export class PgSyncMark {
         updatedAt: parsed.updatedAt,
         dirty: parsed.dirty === true,
       };
+    } catch (e) {
+      if (!isMissing(e)) report(`read sync mark ${projectId}`, e);
+      return null;
+    }
+  }
+
+  /**
+   * The one thing a mark the pre-upgrade client wrote can still say: the
+   * row's `updated_at` when this device last agreed with it.
+   *
+   * It holds one hash of the whole snapshot and none per file, so it is no
+   * merge base, and `read` returns `null` for it. Reconcile asks this only to
+   * tell a device that is ahead of an unmoved row from one that is not.
+   *
+   * @returns the timestamp, or `null` when the mark is absent or any other
+   * shape
+   */
+  static async readPreUpgrade(
+    projectId: string
+  ): Promise<{ updatedAt: string } | null> {
+    const userId = currentUserId();
+    if (!userId) return null;
+
+    try {
+      const parsed = JSON.parse(
+        await PgFs.readToString(pathOf(userId, projectId))
+      );
+      return isPreUpgrade(parsed) ? { updatedAt: parsed.updatedAt } : null;
     } catch (e) {
       if (!isMissing(e)) report(`read sync mark ${projectId}`, e);
       return null;
@@ -308,7 +358,8 @@ export class PgSyncMark {
 }
 
 if (import.meta.vitest) {
-  const { describe, it, expect, vi, beforeEach } = import.meta.vitest;
+  const { describe, it, expect, vi, beforeAll, beforeEach } = import.meta
+    .vitest;
 
   describe("features/persistence/model/sync-mark", () => {
     const storedFiles = () =>
@@ -361,6 +412,49 @@ if (import.meta.vitest) {
           })
         );
         expect(await PgSyncMark.read("p1")).toBeNull();
+      });
+
+      describe("a mark the client before per-file hashes wrote", () => {
+        let getFailures: typeof import("./diagnostics").getFailures;
+        let clearFailures: typeof import("./diagnostics").clearFailures;
+        beforeAll(async () => {
+          ({ getFailures, clearFailures } = await import("./diagnostics"));
+        });
+        beforeEach(() => clearFailures());
+
+        const preUpgrade = JSON.stringify({
+          hash: "whole-snapshot",
+          contentHash: "user-files",
+          name: "one",
+          updatedAt: "t1",
+          dirty: true,
+        });
+
+        it("tells reconcile when it last agreed, and nothing else", async () => {
+          storedFiles().set("/.config/sync/u1/p1.json", preUpgrade);
+          expect(await PgSyncMark.readPreUpgrade("p1")).toEqual({
+            updatedAt: "t1",
+          });
+          expect(await PgSyncMark.read("p1")).toBeNull();
+        });
+
+        it("is not reported as malformed", async () => {
+          storedFiles().set("/.config/sync/u1/p1.json", preUpgrade);
+          await PgSyncMark.read("p1");
+          expect(getFailures()).toEqual([]);
+        });
+
+        it("is not mistaken for a mark of today's shape, or for none", async () => {
+          await PgSyncMark.write("p1", {
+            files: { a: "h1" },
+            name: "one",
+            updatedAt: "t1",
+            dirty: false,
+          });
+          expect(await PgSyncMark.readPreUpgrade("p1")).toBeNull();
+          expect(await PgSyncMark.readPreUpgrade("p2")).toBeNull();
+          expect(getFailures()).toEqual([]);
+        });
       });
 
       describe("one project's writes, one at a time", () => {

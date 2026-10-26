@@ -5,7 +5,7 @@ import {
   isUsableSnapshot,
   PgProjectSync,
 } from "./project-sync";
-import { hashFiles, snapshotOf } from "./snapshot";
+import { diffFiles, hashFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
@@ -14,6 +14,7 @@ import { PgThreadIndex } from "./thread-index";
 import { PgWorkspaceRegistry } from "./workspace-registry";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict, ServerProject } from "./project-sync";
+import type { SyncMark } from "./sync-mark";
 
 /** What one reconcile pass did */
 export interface SyncResult {
@@ -244,7 +245,9 @@ const passUnlocked = async (): Promise<SyncResult> => {
 
       result.latest ??= local;
 
-      const mark = await PgSyncMark.read(project.id);
+      const mark =
+        (await PgSyncMark.read(project.id)) ??
+        (await rebasePreUpgradeMark(project, local));
 
       // The cheap path, and the overwhelmingly common one: this device has
       // nothing pending and the row is exactly where it was left. Neither side
@@ -302,6 +305,62 @@ const passUnlocked = async (): Promise<SyncResult> => {
   await pushNeverSynced(serverIds, result);
 
   return result;
+};
+
+/**
+ * Turn a mark the pre-upgrade client wrote into a per-file one, where the row
+ * has not moved since.
+ *
+ * That mark holds no hash per file, so `read` returns `null` for it and the
+ * project would merge against an empty base: every file this device edited
+ * since asked as "both devices changed this", and every file it deleted
+ * brought back from the server, because a merge with no base takes the side
+ * that has the file. But a row still at the mark's timestamp holds exactly
+ * what this device last agreed on, so its files are the base the mark lacks.
+ * Hashed into a mark of today's shape, the project goes down reconcile's
+ * ordinary path: a device that is ahead pushes the difference.
+ *
+ * The files this device changed keep their agreed content as a base, as a
+ * push would have kept them, so a write that overtakes the upload still
+ * merges by line.
+ *
+ * Where the row has moved, nothing here can say what was agreed, and the old
+ * mark is left to the merge against an empty base.
+ *
+ * @returns the new mark, or `null` when there is no pre-upgrade mark or the
+ * row has moved past it
+ */
+const rebasePreUpgradeMark = async (
+  project: ServerProject,
+  local: string
+): Promise<SyncMark | null> => {
+  const old = await PgSyncMark.readPreUpgrade(project.id);
+  if (!old || old.updatedAt !== project.updatedAt) return null;
+
+  // Re-checked on the copy actually read: the row may move after the list
+  const full = await PgProjectSync.fetch(project.id);
+  if (
+    !full ||
+    full.updatedAt !== old.updatedAt ||
+    !isUsableSnapshot(full.snapshot)
+  ) {
+    return null;
+  }
+
+  const agreed = await hashFiles(full.snapshot);
+  const here = (await snapshotOf(local)).files;
+  const mark: SyncMark = {
+    files: agreed,
+    name: full.name,
+    updatedAt: full.updatedAt,
+    dirty: false,
+  };
+  mark.dirty = !(await isCleanAgainst(mark, local, here));
+
+  const { changed } = diffFiles(agreed, await hashFiles({ files: here }));
+  await PgSyncBase.capture(project.id, changed, agreed, full.snapshot.files);
+  await PgSyncMark.write(project.id, mark);
+  return mark;
 };
 
 /**
