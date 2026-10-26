@@ -5,12 +5,9 @@
  */
 import { PgLanguage } from "../../../utils/language";
 
-/** The manifest every exported gist carries; a gist without it is hand-made */
-export const MANIFEST_NAME = ".playground.json";
-/** Below Vercel's 4.5 MB request body limit, with room for the JSON around it */
-export const MAX_GIST_BYTES = 4 * 1024 * 1024;
-/** GitHub's API lists at most 300 files of a gist; more would not open again */
-export const MAX_GIST_FILES = 300;
+import { MANIFEST_NAME, MAX_GIST_BYTES, MAX_GIST_FILES } from "../config.mjs";
+
+export { MANIFEST_NAME, MAX_GIST_BYTES, MAX_GIST_FILES };
 
 const MANIFEST_VERSION = 1;
 
