@@ -148,6 +148,32 @@ it("draws each tutorial as the tutorial card, with its level and framework", () 
   expect(within(card).getAllByRole("button")).toEqual([open]);
 });
 
+it("shows a failed tutorial Open on its own card and frees the others", async () => {
+  utils.PgTutorial.all.push({
+    name: "Hello Solana",
+    description: "Hello world without a framework",
+    thumbnail: "/solana.png",
+    level: "Beginner",
+    framework: "Native",
+    authors: [{ name: "acheron" }],
+    pageCount: 4,
+  });
+  utils.PgTutorial.open.mockRejectedValueOnce(new Error("gone"));
+  render(<NewProject />);
+
+  const anchor = screen.getByRole("button", { name: "Open Hello Anchor" });
+  await act(async () => fireEvent.click(anchor));
+
+  const card = (b: HTMLElement) =>
+    b.closest<HTMLElement>('[data-slot="action-card"]')!;
+  expect(within(card(anchor)).getByRole("alert").textContent).toBe("gone");
+  const solana = screen.getByRole("button", { name: "Open Hello Solana" });
+  expect(within(card(solana)).queryByRole("alert")).toBeNull();
+  expect(solana).toHaveProperty("disabled", false);
+  expect(close).not.toHaveBeenCalled();
+  utils.PgTutorial.all.pop();
+});
+
 it("continues a started tutorial from the page it is on", () => {
   progress.set("Hello Anchor", { state: "started", page: 2, pages: 6 });
   render(<NewProject />);

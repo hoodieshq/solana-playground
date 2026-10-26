@@ -10,12 +10,21 @@ const state = vi.hoisted(() => ({
   ],
   workspaces: undefined as string[] | undefined,
   metadata: new Map<string, { pageNumber: number; completed: boolean }>(),
-  init: new Set<() => void>(),
+  // What reading a started tutorial's metadata throws when none is set
+  unreadable: new Error("ENOENT: no such file") as Error,
+  listeners: new Map<string, Set<() => void>>(),
 }));
 const warn = vi.hoisted(() => vi.fn());
+const error = vi.hoisted(() => vi.fn());
+const on = vi.hoisted(() => (event: string) => (cb: () => void) => {
+  const set = state.listeners.get(event) ?? new Set();
+  set.add(cb);
+  state.listeners.set(event, set);
+  return { dispose: () => set.delete(cb) };
+});
 
 vi.mock("@/shared/lib/logger", () => ({
-  createLogger: () => ({ warn, error: vi.fn(), info: vi.fn() }),
+  createLogger: () => ({ warn, error, info: vi.fn() }),
 }));
 vi.mock("../../../utils/tutorial/tutorial", () => ({
   PgTutorial: {
@@ -28,7 +37,7 @@ vi.mock("../../../utils/tutorial/tutorial", () => ({
     },
     getMetadata: async (name: string) => {
       const meta = state.metadata.get(name);
-      if (!meta) throw new Error("no metadata");
+      if (!meta) throw state.unreadable;
       return meta;
     },
   },
@@ -38,21 +47,26 @@ vi.mock("../../../utils/explorer/explorer", () => ({
     get allWorkspaceNames() {
       return state.workspaces;
     },
-    onDidInit: (cb: () => void) => {
-      state.init.add(cb);
-      return { dispose: () => state.init.delete(cb) };
-    },
+    onDidInit: on("init"),
+    onDidCreateWorkspace: on("create"),
+    onDidDeleteWorkspace: on("delete"),
+    onDidChangeWorkspaceList: on("list"),
   },
 }));
 
 import { useTutorialProgress } from "./use-tutorial-progress";
 
+const fire = (event: string) =>
+  act(() => state.listeners.get(event)?.forEach((cb) => cb()));
+
 describe("useTutorialProgress", () => {
   beforeEach(() => {
     state.workspaces = undefined;
     state.metadata.clear();
-    state.init.clear();
+    state.listeners.clear();
+    state.unreadable = new Error("ENOENT: no such file");
     warn.mockClear();
+    error.mockClear();
   });
 
   it("reads every tutorial as new before the explorer knows its workspaces, then reads again once it does", async () => {
@@ -61,7 +75,7 @@ describe("useTutorialProgress", () => {
 
     state.workspaces = ["Hello Anchor"];
     state.metadata.set("Hello Anchor", { pageNumber: 2, completed: false });
-    act(() => state.init.forEach((cb) => cb()));
+    fire("init");
 
     await waitFor(() =>
       expect(result.current("Hello Anchor")).toEqual({
@@ -79,7 +93,42 @@ describe("useTutorialProgress", () => {
     expect(result.current("Nowhere")).toEqual({ state: "new" });
   });
 
-  it("shows a started tutorial on page 1 when its progress cannot be read, and logs it", async () => {
+  it("reads again when a workspace arrives without a switch, as sync imports one", async () => {
+    state.workspaces = [];
+    const { result } = renderHook(() => useTutorialProgress());
+    await waitFor(() => expect(state.listeners.get("list")?.size).toBe(1));
+
+    state.workspaces = ["Hello Anchor"];
+    state.metadata.set("Hello Anchor", { pageNumber: 3, completed: false });
+    fire("list");
+
+    await waitFor(() =>
+      expect(result.current("Hello Anchor")).toEqual({
+        state: "started",
+        page: 3,
+        pages: 6,
+      })
+    );
+  });
+
+  it("reports a saved progress it cannot parse, and still shows the tutorial started", async () => {
+    state.workspaces = ["Hello Anchor"];
+    state.unreadable = new SyntaxError("Unexpected token");
+    const { result } = renderHook(() => useTutorialProgress());
+
+    await waitFor(() =>
+      expect(result.current("Hello Anchor")).toEqual({
+        state: "started",
+        page: 1,
+        pages: 6,
+      })
+    );
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error.mock.calls[0][1]).toMatchObject({ report: true });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("shows a started tutorial on page 1 when its progress file is missing, and logs it", async () => {
     state.workspaces = ["Hello Anchor"];
     const { result } = renderHook(() => useTutorialProgress());
 
@@ -91,5 +140,6 @@ describe("useTutorialProgress", () => {
       })
     );
     expect(warn).toHaveBeenCalledTimes(1);
+    expect(error).not.toHaveBeenCalled();
   });
 });

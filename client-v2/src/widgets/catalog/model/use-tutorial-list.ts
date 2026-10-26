@@ -8,7 +8,7 @@ import type { CardList, CardOpenOf } from "./lists";
 
 /** One tutorial as its card draws it */
 export interface TutorialItem {
-  /** What `onOpen` gets back: the tutorial's name */
+  /** What `onOpen` is called with: the tutorial's name */
   id: string;
   title: string;
   description: string;
@@ -28,7 +28,7 @@ export const useTutorialList = (
   query: string,
   cardOpen: CardOpenOf
 ): CardList<TutorialItem> => {
-  const progressOf = useTutorialProgress();
+  const progressFor = useTutorialProgress();
   return {
     list: {
       state: "ready",
@@ -41,7 +41,7 @@ export const useTutorialList = (
           framework: t.framework,
           level: t.level,
           authors: t.authors,
-          progress: progressOf(t.name),
+          progress: progressFor(t.name),
           open: cardOpen(t.name),
         })),
     },

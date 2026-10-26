@@ -63,12 +63,11 @@ Stand: `client-v2/src/views/flow/gallery/TutorialsTab.tsx` (card),
 ### Task 1: Progress and the card (2.1)
 
 **Files:**
-- Create: `client-v2/src/entities/tutorial/model/progress.ts` (+ export from `entities/tutorial/index.ts`)
-- Create: `client-v2/src/entities/tutorial/model/progress.test.ts`
+- Create: `client-v2/src/entities/tutorial/model/progress.ts` (+ export from `entities/tutorial/index.ts`), its tests in the module's in-source block (AGENTS.md)
 - Create: `client-v2/src/entities/tutorial/model/use-tutorial-progress.ts`, `use-tutorial-progress.test.tsx` (mock `utils/tutorial/tutorial` and `utils/explorer/explorer`, never the barrel)
 - Create: `client-v2/src/widgets/catalog/ui/art/TutorialCover.tsx`, `TutorialCover.test.tsx`
 - Create: `client-v2/src/widgets/catalog/ui/BaseTutorialCard.tsx`, `BaseTutorialCard.test.tsx`
-- Create: `client-v2/src/widgets/catalog/lib/tutorial-caption.ts`, `tutorial-caption.test.ts`
+- Create: `client-v2/src/widgets/catalog/lib/tutorial-caption.ts`, its tests in-source
 
 **Interfaces:**
 - Produces (`entities/tutorial`):
@@ -102,8 +101,9 @@ Stand: `client-v2/src/views/flow/gallery/TutorialsTab.tsx` (card),
   once; `[data-card-chevron]` present.
 - [ ] **Step 2:** `yarn test-unit src/entities/tutorial src/widgets/catalog` → the new files FAIL.
 - [ ] **Step 3:** `progress.ts` and the hook (state a `Map`, `read` an async
-  over `PgTutorial.all`: `isStarted` in a try (uninitialised → all new),
-  `getMetadata` only for started ones, each in its own catch).
+  over `PgTutorial.all`: no explorer workspaces yet (`allWorkspaceNames`
+  unset) → all new, `getMetadata` only for started ones, each in its own
+  catch).
 - [ ] **Step 4:** `TutorialCover`: the stand's `GROUND_BY_FRAMEWORK`,
   `BEDS`/`FIELDS` for the four grounds, `PLACES`, `PLAY_WIDTH`, `hash` and
   `MARK_PATH` as module constants; Tailwind for the tile
@@ -139,7 +139,7 @@ Stand: `client-v2/src/views/flow/gallery/TutorialsTab.tsx` (card),
 - Produces:
   - `interface TutorialItem { id: string; title: string; description: string; framework?: string; level: TutorialLevel; authors: Author[]; progress: TutorialProgress; open?: CardOpen }`
   - `useTutorialList(query, cardOpen): CardList<TutorialItem>` (task 3 adds the framework)
-  - `BaseTutorialGrid({ items: CatalogList<TutorialItem>; query; busy; grouped?: false; onOpen: (id) => Promise<void> })` — same failed/loading/empty branches as `BaseCatalogGrid`, grid `grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3` (the stand's).
+  - `BaseTutorialGrid({ items: CatalogList<TutorialItem>; query; busy; onOpen: (id) => Promise<void> })` (task 3 adds the grouping) — same failed/loading/empty branches as `BaseCatalogGrid`, grid `grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3` (the stand's).
   - `BaseNewProjectProps.tutorials: Omit<BaseTutorialGridProps, "query">`, drawn when `tab === "tutorials"`; `grid` becomes Programs' only.
 
 - [ ] **Step 1: Failing tests.** `NewProject.test.tsx`: the Tutorials tab

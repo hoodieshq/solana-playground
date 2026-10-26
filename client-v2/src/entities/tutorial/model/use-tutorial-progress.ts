@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { isMissing } from "@/shared/lib/is-missing";
 import { createLogger } from "@/shared/lib/logger";
 // By module, not the utils barrel, which reads the build's globals on import
 import { PgExplorer } from "../../../utils/explorer/explorer";
@@ -12,11 +13,12 @@ const log = createLogger("tutorial:progress");
 const NEW: TutorialProgress = { state: "new" };
 
 /**
- * Every registered tutorial's progress, by name. Before the explorer knows
- * its workspaces every tutorial reads as new, and
- * the hook reads again once the explorer initialises. A started tutorial
- * whose saved progress cannot be read shows as started on page 1 and the
- * failure is logged, never thrown into the render.
+ * Every registered tutorial's progress, by name, read on mount and again
+ * whenever the explorer initialises or its workspace list changes (a start,
+ * a delete, a sync import). Before the explorer knows its workspaces every
+ * tutorial reads as new. A started tutorial whose saved progress cannot be
+ * read shows as started on page 1: a missing file is logged as a warning, any
+ * other failure is reported, and none is thrown into the render.
  */
 export const useTutorialProgress = (): ((name: string) => TutorialProgress) => {
   const [progress, setProgress] = useState<Map<string, TutorialProgress>>(
@@ -30,15 +32,25 @@ export const useTutorialProgress = (): ((name: string) => TutorialProgress) => {
     let latest = 0;
     const update = () => {
       const n = ++latest;
-      read().then((next) => {
-        if (live && n === latest) setProgress(next);
-      });
+      read()
+        .then((next) => {
+          if (live && n === latest) setProgress(next);
+        })
+        // The cards keep what they showed
+        .catch((e: unknown) => log.error(e, { report: true }));
     };
-    const sub = PgExplorer.onDidInit(update);
+    // A start creates the workspace; sync imports one without a switch;
+    // another tab's list arrives as a list change
+    const subs = [
+      PgExplorer.onDidInit(update),
+      PgExplorer.onDidCreateWorkspace(update),
+      PgExplorer.onDidDeleteWorkspace(update),
+      PgExplorer.onDidChangeWorkspaceList(update),
+    ];
     update();
     return () => {
       live = false;
-      sub.dispose();
+      subs.forEach((sub) => sub.dispose());
     };
   }, []);
 
@@ -57,9 +69,11 @@ const read = async (): Promise<Map<string, TutorialProgress>> => {
       try {
         meta = await PgTutorial.getMetadata(t.name);
       } catch (e) {
-        log.warn(`no saved progress for ${t.name}`, {
-          context: { error: e instanceof Error ? e.message : String(e) },
-        });
+        if (isMissing(e)) {
+          log.warn(`no saved progress for ${t.name}`);
+        } else {
+          log.error(e, { report: true, context: { tutorial: t.name } });
+        }
       }
       return [t.name, progressOf(true, meta, t.pageCount)] as const;
     })

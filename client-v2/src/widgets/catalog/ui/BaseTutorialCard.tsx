@@ -20,7 +20,7 @@ export interface BaseTutorialCardProps {
   /** The line under the description: `tutorialCaption` */
   caption: string;
   /** Picks the cover's ground */
-  framework?: string;
+  framework?: FrameworkName;
   progress: TutorialProgress;
   /** This card's Open, while it runs or once it failed; none otherwise */
   open?: CardOpen;

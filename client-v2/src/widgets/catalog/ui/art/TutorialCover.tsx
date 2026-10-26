@@ -1,9 +1,9 @@
 import { cn } from "@/shared/lib/utils";
 
-/* The stand's art, kept here rather than as design-system tokens: these are
-   the brand deck's grounds (`views/deck/Atmosphere.tsx` on the stand, BEDS
-   and FIELDS) and the mark's outline (`PlaygroundMarkNext`'s MARK_PATH),
-   drawn only on a tutorial's cover */
+/* Brand art, kept here rather than as design-system tokens: the brand
+   deck's four colour grounds with their fields, and the Playground mark's
+   outline, copied from the design stand. Only a tutorial's cover draws them,
+   the same on every theme */
 
 type Ground = "haze" | "deep" | "explore" | "violet";
 
@@ -101,7 +101,7 @@ const MARK_PATH =
 
 /* One ground per framework: what a tutorial is built with reads before its
    title does */
-const GROUND_BY_FRAMEWORK: Record<string, Ground> = {
+const GROUND_BY_FRAMEWORK: Record<FrameworkName, Ground> = {
   Anchor: "deep",
   Native: "explore",
   Seahorse: "violet",
@@ -118,13 +118,13 @@ const PLACES: { box: string; play: boolean }[] = [
 /** Where the triangle ends and the O begins, in the mark's box */
 const PLAY_WIDTH = 418;
 
-/** A small stable number from the name, so a cover never changes on reload */
+/** A stable number from the name, so a cover never changes on reload */
 const hash = (s: string) =>
   [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 
 export interface TutorialCoverProps {
   name: string;
-  framework?: string;
+  framework?: FrameworkName;
   className?: string;
 }
 
@@ -136,7 +136,7 @@ export interface TutorialCoverProps {
  * card's own text names the tutorial.
  */
 const TutorialCover = ({ name, framework, className }: TutorialCoverProps) => {
-  const ground = GROUND_BY_FRAMEWORK[framework ?? ""] ?? "haze";
+  const ground = framework ? GROUND_BY_FRAMEWORK[framework] : "haze";
   const place = PLACES[hash(name) % PLACES.length];
   return (
     <span
