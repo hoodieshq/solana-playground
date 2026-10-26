@@ -179,9 +179,23 @@ export class PgSession {
   } = {}): Promise<void> {
     // One popup and one nonce at a time: a second click while the first flow
     // waits joins it instead of racing it for the session cookie, and keeps
-    // the first one's origin and scopes
-    PgSession._pending ??= PgSession._signIn(from, scopes).finally(() => {
+    // the first one's origin. A flow that lacks scopes this caller needs
+    // cannot answer it, so the caller waits for it to settle and asks again.
+    const pending = PgSession._pending;
+    if (pending) {
+      const covered = (scopes ?? []).every((scope) =>
+        PgSession._pendingScopes.includes(scope)
+      );
+      if (covered) return pending;
+      return pending.then(
+        () => PgSession.signIn({ from, scopes }),
+        () => PgSession.signIn({ from, scopes })
+      );
+    }
+    PgSession._pendingScopes = scopes ?? [];
+    PgSession._pending = PgSession._signIn(from, scopes).finally(() => {
       PgSession._pending = undefined;
+      PgSession._pendingScopes = [];
     });
     return PgSession._pending;
   }
@@ -431,6 +445,7 @@ export class PgSession {
     PgSession._signingOut = undefined;
     PgSession._ending = false;
     PgSession._pending = undefined;
+    PgSession._pendingScopes = [];
     PgSession._signInState = IDLE;
     PgSession._hasRead = false;
     PgSession._reading = undefined;
@@ -444,6 +459,8 @@ export class PgSession {
   private static readonly _listeners = new Set<() => void>();
 
   private static _pending: Promise<void> | undefined;
+  /** The scopes `_pending` asked GitHub for, on top of sign-in's own */
+  private static _pendingScopes: string[] = [];
   /** A session read has answered, so `get()` is what the server said */
   private static _hasRead = false;
   private static _reading: Promise<void> | undefined;
@@ -954,6 +971,33 @@ if (import.meta.vitest) {
 
         expect(popup.open).toHaveBeenCalledTimes(1);
         expect(global.fetch).toHaveBeenCalledTimes(1);
+      });
+
+      it("asks for scopes after a pending sign-in that lacked them, not inside it", async () => {
+        const popup = heldPopup();
+        const bodies: Array<Record<string, unknown>> = [];
+        (global.fetch as Mock).mockImplementation(
+          async (url: string, init?: RequestInit) => {
+            if (url === "/api/auth/sign-in/social") {
+              bodies.push(JSON.parse(init!.body as string));
+            }
+            return { ok: true, json: async () => ({ url: "https://x/" }) };
+          }
+        );
+
+        const plain = PgSession.signIn();
+        const scoped = PgSession.signIn({ scopes: ["gist"] });
+        await vi.waitFor(() => expect(popup.open).toHaveBeenCalledTimes(1));
+        popup.cancel();
+        await expect(plain).rejects.toThrow(/cancelled/i);
+        await vi.waitFor(() => expect(popup.open).toHaveBeenCalledTimes(2));
+        popup.cancel();
+        await expect(scoped).rejects.toThrow(/cancelled/i);
+
+        expect(bodies.map((body) => body.scopes)).toEqual([
+          undefined,
+          ["gist"],
+        ]);
       });
 
       it("clears a failed sign-in when the next one starts, and settles idle on success", async () => {

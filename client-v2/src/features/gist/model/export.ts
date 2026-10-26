@@ -1,5 +1,9 @@
 import { createLogger } from "../../../shared/lib/logger";
-import { GITHUB_UNAUTHORIZED, NEEDS_GIST_SCOPE } from "../config.mjs";
+import {
+  GITHUB_UNAUTHORIZED,
+  MAX_DESCRIPTION,
+  NEEDS_GIST_SCOPE,
+} from "../config.mjs";
 import {
   MAX_GIST_BYTES,
   MAX_GIST_FILES,
@@ -72,7 +76,10 @@ export const exportProject = async (project: {
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ description: project.name, files: gist }),
+      body: JSON.stringify({
+        description: project.name.slice(0, MAX_DESCRIPTION),
+        files: gist,
+      }),
     });
   } catch (e) {
     // Offline or blocked: the user's to retry, not the team's to hear of
@@ -87,7 +94,9 @@ export const exportProject = async (project: {
     try {
       ({ url } = await response.json());
     } catch (e) {
+      // The gist may exist, but its address never arrived
       log.error(e, { report: true, context: { step: "read-created" } });
+      return { status: "failed", reason: "request-failed" };
     }
     if (typeof url !== "string") {
       log.error(new Error("gists answered 201 without a url"), {
@@ -243,6 +252,28 @@ if (import.meta.vitest) {
 
       expect(await exportProject(PROJECT)).toEqual(expected);
       expect(names()).toEqual(["gist_export_started"]);
+    });
+
+    it("fails a 201 that names no gist", async () => {
+      answer(201, { id: "b" });
+
+      expect(await exportProject(PROJECT)).toEqual({
+        status: "failed",
+        reason: "request-failed",
+      });
+      expect(names()).toEqual(["gist_export_started"]);
+    });
+
+    it("cuts a long project name to the description's limit", async () => {
+      const fetch = answer(201, { url: "https://gist.github.com/a/b" });
+
+      await exportProject({ name: "n".repeat(300), files: PROJECT.files });
+
+      const body = JSON.parse(fetch.mock.calls[0][1]!.body as string);
+      expect(body.description).toBe("n".repeat(200));
+      expect(JSON.parse(body.files[".playground.json"].content).name).toBe(
+        "n".repeat(300)
+      );
     });
 
     it("says a request that never completed failed", async () => {

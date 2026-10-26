@@ -22,12 +22,10 @@ import {
 import {
   createGist,
   GITHUB_UNAUTHORIZED,
+  MAX_DESCRIPTION,
   MAX_GIST_BYTES,
   MAX_GIST_FILES,
 } from "../src/features/gist/server.mjs";
-
-/** A description is the project's name; anything longer is not one */
-const MAX_DESCRIPTION = 200;
 
 const sendJson = (res, status, body) => {
   res.statusCode = status;
@@ -71,19 +69,41 @@ const parseGist = (body) => {
   return { description, files };
 };
 
+/** Thrown when the user has no GitHub grant we can use: signing in again mends it */
+export class NoGithubGrant extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "NoGithubGrant";
+  }
+}
+
+/** Better Auth's codes for "this user has no usable GitHub token" */
+const NO_GRANT_CODES = new Set([
+  "ACCOUNT_NOT_FOUND",
+  "FAILED_TO_GET_ACCESS_TOKEN",
+]);
+
 /**
  * The user's GitHub access token, refreshed by Better Auth if it must be.
  *
  * @param {string} userId
- * @returns {Promise<string>} throws when the user has no usable GitHub account
+ * @returns {Promise<string>} throws {@link NoGithubGrant} when the user has
+ * no usable GitHub account; anything else it throws is ours (the database,
+ * the configuration), not the user's to mend by signing in
  */
 const getAccessToken = async (userId) => {
   const auth = getAuth();
   if (!auth) throw new Error("Sign-in is not configured");
-  const { accessToken } = await auth.api.getAccessToken({
-    body: { providerId: "github", userId },
-  });
-  if (!accessToken) throw new Error("No GitHub access token stored");
+  let accessToken;
+  try {
+    ({ accessToken } = await auth.api.getAccessToken({
+      body: { providerId: "github", userId },
+    }));
+  } catch (e) {
+    if (NO_GRANT_CODES.has(e?.body?.code)) throw new NoGithubGrant(e.body.code);
+    throw e;
+  }
+  if (!accessToken) throw new NoGithubGrant("No GitHub access token stored");
   return accessToken;
 };
 
@@ -136,13 +156,21 @@ export const createHandler =
     try {
       token = await deps.getAccessToken(session.user.id);
     } catch (e) {
-      // Signed in to us, but GitHub's grant is gone or unreadable: signing in
-      // again stores a fresh token
-      console.warn("gists: no usable GitHub token", { message: e?.message });
-      return sendJson(res, 401, {
-        error: "GitHub authorization is missing",
-        reason: GITHUB_UNAUTHORIZED,
+      if (e instanceof NoGithubGrant) {
+        // Signed in to us, but GitHub's grant is gone: signing in again
+        // stores a fresh token
+        console.warn("gists: no usable GitHub token", { message: e.message });
+        return sendJson(res, 401, {
+          error: "GitHub authorization is missing",
+          reason: GITHUB_UNAUTHORIZED,
+        });
+      }
+      // The database or the configuration: a new sign-in would not help
+      console.error("gists: could not read the GitHub token", {
+        message: e?.message,
+        stack: e?.stack,
       });
+      return sendJson(res, 503, { error: "Sign-in is unavailable" });
     }
 
     const { status, body: answer } = await deps.createGist({

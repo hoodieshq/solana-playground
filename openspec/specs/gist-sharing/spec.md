@@ -165,9 +165,10 @@ exported paths and contents.
 ### Requirement: Treat a gist's manifest as untrusted
 
 Reading a gist SHALL fail, writing nothing, with a named reason when its
-manifest is not valid JSON of the version-1 shape, maps a name to a path that
-is absolute, contains `..` or an empty segment, or is one the export never
-writes, or names a gist file that is not in the gist.
+manifest is not valid JSON of the version-1 shape or lists one path twice,
+maps a name to a path that is absolute, contains `.`, `..` or an empty
+segment, or is one the export never writes, or names a gist file that is not
+in the gist.
 
 #### Scenario: A path that climbs out
 
@@ -182,8 +183,8 @@ writes, or names a gist file that is not in the gist.
 ### Requirement: Place a hand-made gist's files by kind
 
 A gist with no manifest SHALL be read file by file: Rust and Python files go
-under `src/`, test files (`*.test.ts`, `*.test.js`, `*.spec.ts`, `*.spec.js`)
-under `tests/`, other TypeScript and JavaScript files under `client/`, other
+under `src/`, test files (`*.test.*` and `*.spec.*` of `ts`, `tsx`, `js`,
+`jsx`) under `tests/`, other TypeScript and JavaScript files under `client/`, other
 files of a supported language at the root, and files of a language the
 Playground does not support are dropped. The result SHALL say which way the
 files were placed (`manifest` or `loose`). A gist with no file left SHALL fail
@@ -206,8 +207,8 @@ and create a public gist. It SHALL never return the token. It SHALL answer
 lacks the `gist` scope; `401 {reason: "github-unauthorized"}` when GitHub
 rejects the token; `429` when GitHub rate-limits; `413` over the size limit;
 `400` for a malformed body; `422` when GitHub rejects the gist; `502` for any
-other GitHub failure; and `503` when sign-in is not configured or the session
-lookup fails.
+other GitHub failure; and `503` when sign-in is not configured, or the session
+or the stored token cannot be read for a reason other than a missing grant.
 
 #### Scenario: Creating a gist
 

@@ -19,8 +19,8 @@ const fail = (status, reason) => ({ status, body: { reason } });
  *
  * A primary limit says so in `x-ratelimit-remaining: 0`; a secondary one only
  * in its message (and sometimes `retry-after`), both on a 403. Checked before
- * the scope, because the 403 of a rate limit also lacks the scope when the
- * token does.
+ * the scope, because a rate-limited 403 carries `x-oauth-scopes` too and,
+ * for a token without `gist`, would be misread as the missing scope.
  */
 const isRateLimited = (response, message) =>
   response.status === 429 ||
@@ -33,6 +33,8 @@ const isRateLimited = (response, message) =>
  * Whether the token's scopes, as GitHub lists them on every answer, lack
  * `gist`. GitHub answers a token without it with a 404 on `POST /gists`, which
  * also means other things, so the header decides; no header, no verdict.
+ * Sign-in is an OAuth app, whose tokens always carry the header; a GitHub App
+ * or fine-grained token would not, and would land on `request-failed`.
  */
 const lacksGistScope = (response) => {
   const scopes = response.headers.get("x-oauth-scopes");

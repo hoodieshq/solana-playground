@@ -86,20 +86,19 @@ export const toGistFiles = (project: {
   name: string;
   files: Record<string, string>;
 }): GistFiles => {
-  const gist: GistFiles = {};
-  const manifest: Manifest = {
-    version: MANIFEST_VERSION,
-    name: project.name,
-    files: {},
-    empty: [],
-  };
+  // Maps, turned into objects at the end: `Object.fromEntries` makes own
+  // keys, where an assignment to `__proto__` would set the prototype and
+  // lose a file of that name
+  const gist = new Map<string, { content: string }>();
+  const named = new Map<string, string>();
+  const empty: string[] = [];
   const taken = new Set([MANIFEST_NAME]);
 
   const paths = Object.keys(project.files).filter(isExportablePath).sort();
   for (const path of paths) {
     const content = project.files[path];
     if (content === "") {
-      manifest.empty.push(path);
+      empty.push(path);
       continue;
     }
 
@@ -108,12 +107,18 @@ export const toGistFiles = (project: {
     for (let n = 2; taken.has(name); n++) name = withCounter(flat, n);
     taken.add(name);
 
-    gist[name] = { content };
-    manifest.files[name] = path;
+    gist.set(name, { content });
+    named.set(name, path);
   }
 
-  gist[MANIFEST_NAME] = { content: JSON.stringify(manifest, null, 2) };
-  return gist;
+  const manifest: Manifest = {
+    version: MANIFEST_VERSION,
+    name: project.name,
+    files: Object.fromEntries(named),
+    empty,
+  };
+  gist.set(MANIFEST_NAME, { content: JSON.stringify(manifest, null, 2) });
+  return Object.fromEntries(gist);
 };
 
 const isStringRecord = (value: unknown): value is Record<string, string> =>
@@ -198,42 +203,52 @@ export const fromGistFiles = (
   if (!manifestFile) {
     const isSupported =
       options.isSupported ?? ((path) => !!PgLanguage.getFromPath(path));
-    const placed: Record<string, string> = {};
+    const placed = new Map<string, string>();
     for (const [name, { content }] of Object.entries(files)) {
       const target = looseTarget(name, isSupported);
-      if (target) placed[target] = content;
+      if (target) placed.set(target, content);
     }
-    if (!Object.keys(placed).length) {
+    if (!placed.size) {
       throw new GistFormatError(
         "no-supported-files",
         "This gist holds no file the Playground can open."
       );
     }
-    return { name: null, files: placed, layout: "loose" };
+    return { name: null, files: Object.fromEntries(placed), layout: "loose" };
   }
 
   const manifest = parseManifest(manifestFile.content);
-  const placed: Record<string, string> = {};
-  for (const [name, path] of Object.entries(manifest.files)) {
+  const placed = new Map<string, string>();
+  const place = (path: string, content: string) => {
     if (!isSafePath(path)) {
       throw new GistFormatError("unsafe-path", `Refusing to write ${path}.`);
     }
-    const file = files[name];
-    if (!file) {
+    // A second entry for one path would overwrite the first, silently
+    if (placed.has(path)) {
+      throw new GistFormatError(
+        "invalid-manifest",
+        `${MANIFEST_NAME} lists ${path} twice.`
+      );
+    }
+    placed.set(path, content);
+  };
+  for (const [name, path] of Object.entries(manifest.files)) {
+    // Own files only: `files.toString` is not a file of the gist
+    const file = Object.hasOwn(files, name) ? files[name] : undefined;
+    if (typeof file?.content !== "string") {
       throw new GistFormatError(
         "missing-file",
         `The gist has no file ${name}, which its manifest lists.`
       );
     }
-    placed[path] = file.content;
+    place(path, file.content);
   }
-  for (const path of manifest.empty) {
-    if (!isSafePath(path)) {
-      throw new GistFormatError("unsafe-path", `Refusing to write ${path}.`);
-    }
-    placed[path] = "";
-  }
-  return { name: manifest.name, files: placed, layout: "manifest" };
+  for (const path of manifest.empty) place(path, "");
+  return {
+    name: manifest.name,
+    files: Object.fromEntries(placed),
+    layout: "manifest",
+  };
 };
 
 /**
@@ -431,6 +446,57 @@ if (import.meta.vitest) {
       });
 
       expect(reasonOf(() => fromGistFiles(gist))).toBe("missing-file");
+    });
+
+    it("rejects a manifest that writes one path twice", () => {
+      const twice = withManifest(
+        {
+          version: 1,
+          name: "p",
+          files: { "a.rs": "src/lib.rs", "b.rs": "src/lib.rs" },
+          empty: [],
+        },
+        { "a.rs": { content: "a" }, "b.rs": { content: "b" } }
+      );
+      const emptied = withManifest(
+        {
+          version: 1,
+          name: "p",
+          files: { "a.rs": "src/lib.rs" },
+          empty: ["src/lib.rs"],
+        },
+        { "a.rs": { content: "a" } }
+      );
+
+      expect(reasonOf(() => fromGistFiles(twice))).toBe("invalid-manifest");
+      expect(reasonOf(() => fromGistFiles(emptied))).toBe("invalid-manifest");
+    });
+
+    it("reads only the gist's own files, never an inherited one", () => {
+      const gist = withManifest({
+        version: 1,
+        name: "p",
+        files: { __proto__: "src/x.rs", toString: "src/y.rs" },
+        empty: [],
+      });
+      // `JSON.stringify` drops a `__proto__` set by a literal; write it raw
+      gist[MANIFEST_NAME] = {
+        content:
+          '{"version":1,"name":"p","files":{"__proto__":"src/x.rs","toString":"src/y.rs"},"empty":[]}',
+      };
+
+      expect(reasonOf(() => fromGistFiles(gist))).toBe("missing-file");
+    });
+
+    it("round-trips a file named __proto__", () => {
+      // An own key, as a store read would make it; a literal sets the prototype
+      const files: Record<string, string> = JSON.parse(
+        '{"__proto__":"a","src/lib.rs":"b"}'
+      );
+
+      const back = fromGistFiles(toGistFiles({ name: "p", files }));
+
+      expect(Object.entries(back.files)).toEqual(Object.entries(files));
     });
 
     it("places a hand-made gist's files by kind", () => {

@@ -34,7 +34,7 @@ const messageOf = (error: unknown) =>
  */
 const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
   const [state, setState] = useState<ShareStep>({ step: "ready" });
-  // A dialog closed mid-share must not be set state on. Set in the effect,
+  // A dialog closed mid-share must not have state set on it. Set in the effect,
   // not only at first render: StrictMode runs the cleanup and the effect
   // again on mount, and a ref left `false` drops every answer
   const mounted = useRef(true);
@@ -92,7 +92,8 @@ const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
     try {
       await signIn(scopes ? { scopes } : undefined);
     } catch (e) {
-      // `signIn` has logged and counted its own failure; this is the share's
+      // `signIn` counted its own failure (`auth_sign_in_failed`); this one is
+      // the share's
       gistTelemetry.track("gist_export_failed", { reason: "sign-in-failed" });
       show(retry(messageOf(e)));
       return;

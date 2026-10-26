@@ -12,6 +12,12 @@ export const MAX_GIST_BYTES = 4 * 1024 * 1024;
 /** GitHub's API lists at most 300 files of a gist; more would not open again */
 export const MAX_GIST_FILES = 300;
 
+/**
+ * A gist's description is the project's name, cut to this. Workspace names
+ * have no length limit, so the browser cuts and the route refuses longer.
+ */
+export const MAX_DESCRIPTION = 200;
+
 /** `reason` on the route's 403 when the user's token cannot create gists */
 export const NEEDS_GIST_SCOPE = "needs-gist-scope";
 

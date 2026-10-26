@@ -5,6 +5,7 @@
 export { createGist } from "./model/create-gist.mjs";
 export {
   GITHUB_UNAUTHORIZED,
+  MAX_DESCRIPTION,
   MAX_GIST_BYTES,
   MAX_GIST_FILES,
   NEEDS_GIST_SCOPE,

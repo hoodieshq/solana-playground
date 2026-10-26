@@ -89,10 +89,10 @@ from `views/flow/Flow.tsx`, with a reader of the project's files
 
 ### Result as a union
 
-`exportProject` returns `{status: "created", url} | {status: "needs-sign-in"}
-| {status: "needs-gist-scope"} | {status: "failed", reason}`; the dialog's
-state is a union of `idle | working | needs-sign-in | needs-scope | created |
-failed`, never flags.
+`exportProject` returns `{status: "created", url, files} | {status:
+"needs-sign-in"} | {status: "needs-gist-scope"} | {status: "failed", reason}`;
+the dialog's state is a union of `ready | sign-in | grant | created | failed`
+(the button's own spinner covers the wait), never flags.
 
 ## Risks / Trade-offs
 

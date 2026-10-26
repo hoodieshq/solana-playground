@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createHandler } from "./gists.mjs";
+import { createHandler, NoGithubGrant } from "./gists.mjs";
 
 const TOKEN = "gho_secret";
 const FILES = { "src__lib.rs": { content: "x" } };
@@ -149,10 +149,10 @@ describe("/api/gists", () => {
     assert.equal(calls.createGist.length, 0);
   });
 
-  it("401s github-unauthorized when no token can be read", async () => {
+  it("401s github-unauthorized when the user has no GitHub grant", async () => {
     const { deps: d, calls } = deps({
       getAccessToken: async () => {
-        throw new Error("FAILED_TO_GET_ACCESS_TOKEN");
+        throw new NoGithubGrant("ACCOUNT_NOT_FOUND");
       },
     });
 
@@ -161,6 +161,56 @@ describe("/api/gists", () => {
     assert.equal(status, 401);
     assert.equal(body.reason, "github-unauthorized");
     assert.equal(calls.createGist.length, 0);
+  });
+
+  it("503s when the token cannot be read for a reason of ours", async () => {
+    const { deps: d, calls } = deps({
+      getAccessToken: async () => {
+        throw new Error("connection refused");
+      },
+    });
+
+    const { status, body } = await call(makeReq(), d);
+
+    assert.equal(status, 503);
+    assert.equal(body.reason, undefined);
+    assert.equal(calls.createGist.length, 0);
+  });
+
+  it("takes a gist at the limits: 300 files plus the manifest, 4 MB of multibyte text", async () => {
+    const { deps: d, calls } = deps();
+    const many = { ".playground.json": { content: "{}" } };
+    for (let i = 0; i < 300; i++) many[`f${i}.rs`] = { content: "x" };
+    // 2 bytes each: 2 MB of characters is the whole 4 MB
+    const wide = {
+      "a.rs": { content: "é".repeat((4 * 1024 * 1024) / 2) },
+    };
+
+    for (const files of [many, wide]) {
+      const { status } = await call(
+        makeReq({ body: { description: "p", files } }),
+        d
+      );
+      assert.equal(status, 201);
+    }
+    const over = {
+      "a.rs": { content: "é".repeat((4 * 1024 * 1024) / 2) + "x" },
+    };
+    const { status } = await call(
+      makeReq({ body: { description: "p", files: over } }),
+      d
+    );
+    assert.equal(status, 413);
+    assert.equal(calls.createGist.length, 2);
+  });
+
+  it("400s a description over 200 characters", async () => {
+    const { deps: d } = deps();
+    const { status } = await call(
+      makeReq({ body: { description: "x".repeat(201), files: FILES } }),
+      d
+    );
+    assert.equal(status, 400);
   });
 
   it("passes GitHub's verdict through as createGist mapped it", async () => {

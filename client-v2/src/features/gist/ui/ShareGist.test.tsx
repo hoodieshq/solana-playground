@@ -12,6 +12,7 @@ import {
   resetTelemetry,
 } from "@/shared/lib/telemetry";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+import { PgView } from "@/utils/view";
 import ShareGist from "./ShareGist";
 import type { ShareGistProps } from "./ShareGist";
 
@@ -148,6 +149,33 @@ it("moves on to create once the session reads as signed in", () => {
   expect(
     screen.getByRole("button", { name: "Create public gist" })
   ).toBeTruthy();
+});
+
+it("stays on create when the project cannot be read, and tells the user", async () => {
+  const fetch = vi.spyOn(globalThis, "fetch");
+  const toast = vi.fn();
+  vi.spyOn(PgView, "setToast").mockImplementation(toast);
+  render(
+    <StrictMode>
+      <TooltipProvider>
+        <ShareGist
+          name="counter"
+          readFiles={() => Promise.reject(new Error("store unreadable"))}
+          signedIn
+          signIn={vi.fn()}
+        />
+      </TooltipProvider>
+    </StrictMode>
+  );
+
+  await press(/Create public gist/);
+
+  expect(fetch).not.toHaveBeenCalled();
+  expect(toast).toHaveBeenCalledTimes(1);
+  expect(
+    screen.getByRole("button", { name: "Create public gist" })
+  ).toBeTruthy();
+  expect(sent.events).toEqual([]);
 });
 
 it("says so when the browser blocks the sign-in popup", async () => {
