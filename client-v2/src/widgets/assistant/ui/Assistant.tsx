@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
+import { useTutorialBeforeStart } from "@/entities/tutorial";
 import { Button } from "@/shared/ui/button";
 import Grounding from "../../../views/sidebar/assistant/Component/Grounding";
 import { PROVIDERS } from "../../../views/sidebar/assistant/model/types";
@@ -83,7 +84,10 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
   // Here, above both views, so a turn and a prompt waiting in the composer
   // outlive a visit to Sources; the thread and the composer share this one
   const turn = useTurn({ open: openConnect });
-  const project = useProjectName();
+  // A tutorial before its Start has no project yet; the panel names it
+  const tutorial = useTutorialBeforeStart();
+  const workspace = useProjectName();
+  const project = tutorial ?? workspace;
 
   // What a pick from More opened takes focus once the menu has closed
   // (`BaseAssistantHead`'s `focusPicked`): Back in Sources; Connect a model
