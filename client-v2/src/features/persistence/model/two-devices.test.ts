@@ -1441,14 +1441,15 @@ describe("a project last synced by the client before per-file marks", () => {
     localFilesAre(HELLO.name, { "src/lib.rs": "A\nb\nc\nd\ne\n" });
     captureWrites();
     // Offline for the upload: the agreement is rebuilt, the push fails
-    global.fetch = vi.fn((url: string, init?: RequestInit) =>
-      init?.method === "PUT"
-        ? Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
-        : fakeFetch(url, init)
-    ) as unknown as typeof fetch;
+    (global.fetch as Mock).mockImplementation(
+      (url: string, init?: RequestInit) =>
+        init?.method === "PUT"
+          ? Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
+          : fakeFetch(url, init)
+    );
     expect((await reconcile()).pushed).toEqual([]);
 
-    global.fetch = vi.fn(fakeFetch) as unknown as typeof fetch;
+    (global.fetch as Mock).mockImplementation(fakeFetch);
     otherDeviceWroteFiles(HELLO.id, { "src/lib.rs": "a\nb\nc\nd\nE\n" });
     const result = await reconcile();
 
@@ -1466,11 +1467,12 @@ describe("a project last synced by the client before per-file marks", () => {
     localFilesAre(HELLO.name, { "src/lib.rs": "edited here since" });
     const replace = captureWrites();
     // The list answers, the project itself does not
-    global.fetch = vi.fn((url: string, init?: RequestInit) =>
-      url.startsWith("/api/projects?id=")
-        ? Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
-        : fakeFetch(url, init)
-    ) as unknown as typeof fetch;
+    (global.fetch as Mock).mockImplementation(
+      (url: string, init?: RequestInit) =>
+        url.startsWith("/api/projects?id=")
+          ? Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
+          : fakeFetch(url, init)
+    );
 
     const first = await reconcile();
 
@@ -1482,7 +1484,7 @@ describe("a project last synced by the client before per-file marks", () => {
       `rebase pre-upgrade mark ${HELLO.id}: row unreadable`
     );
 
-    global.fetch = vi.fn(fakeFetch) as unknown as typeof fetch;
+    (global.fetch as Mock).mockImplementation(fakeFetch);
     const second = await reconcile();
 
     expect(second.conflicts).toEqual([]);
