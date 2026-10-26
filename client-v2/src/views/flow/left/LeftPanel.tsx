@@ -184,14 +184,16 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
         {showSteps && frontierStep && (
           // The prototype's `SkipFooter`: a full-width row under the rail,
           // underlined from the phone width up, plain and thumb-sized below
-          <button
+          <Button
             type="button"
-            className="flex h-7 w-full shrink-0 items-center justify-center border-t border-border px-3.5 text-[0.8125rem] text-muted-foreground underline outline-none hover:bg-surface-hover hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring max-md:h-auto max-md:min-h-[calc(3.25rem+env(safe-area-inset-bottom,0px))] max-md:px-5 max-md:pb-[env(safe-area-inset-bottom,0px)] max-md:text-control max-md:font-act max-md:no-underline"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-full shrink-0 rounded-none border-t border-border px-3.5 text-[0.8125rem] font-normal text-muted-foreground underline max-md:h-auto max-md:min-h-[calc(3.25rem+env(safe-area-inset-bottom,0px))] max-md:px-5 max-md:pb-[env(safe-area-inset-bottom,0px)] max-md:text-control max-md:font-act max-md:no-underline"
             title={`Nothing has proved this step yet — ${frontierStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
             onClick={() => PgLesson.pass()}
           >
             Skip this step
-          </button>
+          </Button>
         )}
         {!showSteps && (
           <Footer type="button" onClick={createItem}>

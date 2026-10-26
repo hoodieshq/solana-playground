@@ -8,10 +8,10 @@ export interface ProjectEntry {
 
 /**
  * The navigation's one list, as the prototype draws it: a started lesson is
- * a row among the projects. It is still marked, because it behaves
- * differently: opening a lesson has to go through `PgTutorial.open`, which
- * restores its route and page, and a lesson cannot be renamed, since it is
- * recognised by its workspace name. Pinned entries lead; otherwise the
+ * a row among the projects, drawn like one. `isLesson` changes only how it
+ * opens and what its menu offers: opening a lesson has to go through
+ * `PgTutorial.open`, which restores its route and page, and a lesson cannot
+ * be renamed, since it is recognised by its workspace name. Pinned entries lead; otherwise the
  * explorer's order stands.
  */
 export const listProjects = (

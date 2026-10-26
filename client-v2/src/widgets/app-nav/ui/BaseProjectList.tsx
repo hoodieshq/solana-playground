@@ -80,8 +80,8 @@ const pinAction = (entry: ProjectEntry): ProjectAction =>
 /**
  * The navigation's projects, lessons among them, as the prototype draws
  * them: a row per workspace with the folder glyph, the open one marked,
- * pinned ones with a pin, and a menu of its actions whose letters work
- * while it is open. Draws only what it is
+ * pinned ones with a pin, and a menu of its actions whose letters work while
+ * it is open. A lesson differs only in its menu. Draws only what it is
  * given; `ProjectList` connects it.
  */
 const BaseProjectList = (props: BaseProjectListProps) => (

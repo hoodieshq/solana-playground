@@ -1211,14 +1211,15 @@ AppNav
   entries (each with its `pinned` flag), the current name, the rename state
   and the callbacks, and is built from the installed `Sidebar*` parts,
   `DropdownMenu` with `DropdownMenuShortcut` and `Input`; `ProjectList`
-  connects `PgExplorer`, `PgTutorial`, `PgLesson` and the pins.
+  connects `PgExplorer`, `PgTutorial` and the pins.
   `BaseAppNav`'s `switcher` slot becomes `projects`, not rendered on the
   rail, which shows no projects in the prototype. `ProjectSwitcher.tsx` is
   deleted; `groupWorkspaces` becomes `listProjects` in
   `model/project-entries.ts`, which also orders pinned entries first.
 - **It follows the explorer.** The list re-renders on `PgExplorer`'s
-  create, rename, delete and switch events, `PgLesson.onDidChange` (the open
-  lesson's progress), and a new `onDidChangeWorkspaceList`: the switcher
+  create, rename, delete and switch events and a new
+  `onDidChangeWorkspaceList` (no lesson progress since
+  lesson-prototype-polish): the switcher
   re-read the list each time it opened, while the list stays mounted, and two
   changes reach the list with no other event, another tab's list taken by
   `refreshWorkspaces` and a rename sync makes unannounced. So a project
