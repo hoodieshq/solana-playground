@@ -156,16 +156,26 @@ the page below.
 - **THEN** Level shows "BEGINNER" and Framework and Languages read
   "Anchor", "Rust" and "TypeScript" (manual: green tag, title-case boxes)
 
-### Requirement: Beside the About page, the assistant names the tutorial and the files column is empty
+### Requirement: Beside a tutorial not yet started, the files column is empty and the assistant names it when no project is open
 
-While a tutorial that is not started is on screen, the assistant's head SHALL read the tutorial's name and its empty conversation SHALL be
-titled "Ask about <tutorial>"; the files column SHALL hold nothing (no
-callout, no "Create a new project"). Once the tutorial starts, both follow
-the tutorial's project as for any project.
+While a tutorial that is not started is on screen, the files column SHALL
+hold nothing (no callout, no "Create a new project", no other project's
+files). While, in addition, no project is open, the assistant's head SHALL
+read the tutorial's name and its empty conversation SHALL be titled "Ask
+about <tutorial>"; an open project keeps the assistant under its own name,
+since the conversation and the tools still act on it. Once the tutorial
+starts, both follow the tutorial's project as for any project.
 
 #### Scenario: The assistant beside Hello Anchor
 
-- **WHEN** a user who has not started Hello Anchor opens its About page
+- **WHEN** a user with no project opens Hello Anchor's About page
 - **THEN** the assistant's head reads "Hello Anchor", its empty state reads
   "Ask about Hello Anchor", and the files column shows no "Create a new
   project"
+
+#### Scenario: Beside another project
+
+- **WHEN** a user whose project e2e-project is open opens Hello Anchor's
+  About page
+- **THEN** the assistant's head reads "e2e-project" and the files column
+  shows neither e2e-project's files nor "Create a new project"

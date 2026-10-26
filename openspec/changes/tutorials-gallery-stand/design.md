@@ -73,10 +73,11 @@ in `widgets/assistant/ui/Assistant.tsx`); the files column shows
   `entities/tutorial` gains `useTutorialBeforeStart()`: the name of the
   tutorial whose route is showing while it is not started (its workspace
   does not exist), else `null`, re-read on `PgTutorial.onDidChangeCurrent`
-  and the explorer's init, switch and workspace-list events. The assistant's
-  head and empty state take that name before the project's; the files column
+  and the explorer's init, switch and workspace-list events. The files column
   renders nothing while it is set, even when other projects exist, as the
-  stand draws it. Once Start creates the workspace, both follow the project.
+  stand draws it; the assistant's head and empty state take that name only
+  while no project is open, since an open project's thread and tools are
+  still the ones in play (review, 2026-10-26). Once Start creates the workspace, both follow the project.
 - **Telemetry**: `catalog_filtered { page, framework }` and
   `catalog_banner_opened { state }` join `catalogTelemetry`; my call,
   offered to Slava to confirm or trim.

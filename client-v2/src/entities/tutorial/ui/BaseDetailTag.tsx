@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/utils";
 type BaseDetailTagProps = {
   /**
    * `level` is a tag coloured by the label; every other kind is its icon and
-   * name in a soft box, title case, as the stand draws it
+   * name in a soft box, in the label's own case, as the stand draws it
    */
   kind: "level" | "framework" | "languages" | (string & {});
   label: string;

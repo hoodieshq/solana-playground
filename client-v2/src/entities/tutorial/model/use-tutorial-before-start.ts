@@ -6,21 +6,25 @@ import { PgTutorial } from "../../../utils/tutorial/tutorial";
 
 /**
  * The tutorial on screen while it is not started, or `null`: off a tutorial's
- * route, once Start has made its workspace, and before the explorer knows its
+ * route, once its workspace exists, and before the explorer knows its
  * workspaces. Until Start there is no project of the tutorial's to show, so
- * the assistant names the tutorial and the files column stays empty, even
- * when other projects exist.
+ * the files column stays empty, even when other projects exist, and with no
+ * project open the assistant names the tutorial.
  */
 export const useTutorialBeforeStart = () => {
   const [name, setName] = useState(read);
   useEffect(() => {
     const update = () => setName(read());
-    // Start makes the workspace and switches to it; the route sets the
-    // tutorial; the explorer initialises after the panels on a cold start
+    // Start makes the workspace and switches to it; sync imports one
+    // without a switch (`importWorkspace`); another tab's list arrives as a
+    // list change; the route sets the tutorial; the explorer initialises
+    // after the panels on a cold start
     const subs = [
       PgTutorial.onDidChangeCurrent(update),
       PgExplorer.onDidInit(update),
       PgExplorer.onDidSwitchWorkspace(update),
+      PgExplorer.onDidCreateWorkspace(update),
+      PgExplorer.onDidDeleteWorkspace(update),
       PgExplorer.onDidChangeWorkspaceList(update),
     ];
     update();

@@ -84,10 +84,10 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
   // Here, above both views, so a turn and a prompt waiting in the composer
   // outlive a visit to Sources; the thread and the composer share this one
   const turn = useTurn({ open: openConnect });
-  // A tutorial before its Start has no project yet; the panel names it
+  // With no project open, a tutorial before its Start names the panel. An
+  // open project keeps its name: the thread and the tools still act on it.
   const tutorial = useTutorialBeforeStart();
-  const workspace = useProjectName();
-  const project = tutorial ?? workspace;
+  const project = useProjectName() ?? tutorial;
 
   // What a pick from More opened takes focus once the menu has closed
   // (`BaseAssistantHead`'s `focusPicked`): Back in Sources; Connect a model
