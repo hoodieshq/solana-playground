@@ -14,8 +14,18 @@ import {
 import { Spinner } from "@/shared/ui/spinner";
 import { isInsideToast } from "@/shared/lib/toast-layer";
 
-/** `wide` is for dialogs with a code or a table in the body */
-export type ModalSize = "default" | "wide";
+/**
+ * `narrow` is for a form of one column (Connect a model), `wide` for dialogs
+ * with a code or a table in the body
+ */
+export type ModalSize = "default" | "narrow" | "wide";
+
+/**
+ * What has the focus when the dialog opens: the body's first field (or the
+ * submit), or the dialog itself, for one that should open with no field
+ * ringed, as the prototype's New project does
+ */
+export type OpenFocus = "field" | "dialog";
 
 /**
  * How the submit is drawn: the stock `Button`'s `default` or `destructive`,
@@ -48,6 +58,8 @@ export type BaseModalFrameProps = {
     onCancel?: () => void;
   };
   size: ModalSize;
+  /** Where the focus lands on open; `field` when left out */
+  openFocus?: OpenFocus;
   /**
    * Runs once the dialog's content unmounts; Radix would send focus to the
    * dialog's `Trigger`, and `preventDefault()` stops it
@@ -93,6 +105,7 @@ export const BaseModalFrame = ({
   phone = false,
   submit,
   size,
+  openFocus = "field",
   onCloseAutoFocus,
   children,
 }: BaseModalFrameProps) => {
@@ -136,8 +149,14 @@ export const BaseModalFrame = ({
   };
 
   // Radix focuses the header's Close first, where Enter would close the
-  // dialog; Enter must submit, so focus the body's first field or the submit
+  // dialog; Enter must submit, so focus the body's first field or the submit,
+  // or the dialog itself when asked
   const handleOpenAutoFocus = (ev: Event) => {
+    if (openFocus === "dialog") {
+      ev.preventDefault();
+      (ev.currentTarget as HTMLElement | null)?.focus();
+      return;
+    }
     const target =
       formRef.current?.querySelector<HTMLElement>(FIRST_FIELD) ??
       submitRef.current;
@@ -161,7 +180,9 @@ export const BaseModalFrame = ({
         className="flex min-h-0 flex-1 flex-col"
         onSubmit={handleSubmit}
       >
-        <ModalHeader>
+        {/* A hidden title leaves no hairline under nothing; a phone's bar
+            keeps its edge */}
+        <ModalHeader className={cn(title.hidden && "md:border-b-0")}>
           <ModalTitle className={cn(title.hidden && "sr-only")}>
             {title.text}
           </ModalTitle>
