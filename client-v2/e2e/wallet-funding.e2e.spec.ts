@@ -27,6 +27,19 @@ const fundItem = (page: Page) =>
 const dialog = (page: Page) =>
   page.getByRole("dialog", { name: "Fund the Playground wallet" });
 
+/**
+ * Reloads and waits for the editor to take the focus it takes when it mounts
+ * (`createMountOpen` in `Monaco.tsx`), as `seededPage` does: landing later,
+ * it would steal the focus from whatever a test clicked meanwhile, and it
+ * never comes back to the editor after a menu or a dialog has held it.
+ */
+const reloadSettled = async (page: Page) => {
+  await page.reload();
+  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused(
+    LONG
+  );
+};
+
 const setUpPlaygroundWallet = async (page: Page) => {
   await account(page).click();
   await page.getByRole("menuitem", { name: "Connect wallet" }).click();
@@ -188,7 +201,7 @@ test("client-v2-wallet-funding: Successful funding", async ({
     sign: true,
   });
   const cluster = await stubDevnet(page, phantom.address);
-  await page.reload();
+  await reloadSettled(page);
   await setUpPlaygroundWallet(page);
   await account(page).click();
   await fundItem(page).click();
@@ -232,7 +245,7 @@ test("client-v2-wallet-funding: The user declines the connection", async ({
 }) => {
   void seededPage;
   await installFakeWallet(page, { name: "Phantom", reject: "connect" });
-  await page.reload();
+  await reloadSettled(page);
   await openFund(page);
 
   await dialog(page).getByRole("button", { name: "Connect Phantom" }).click();
@@ -252,7 +265,7 @@ test("client-v2-wallet-funding: Amount above the balance", async ({
   void seededPage;
   const phantom = await installFakeWallet(page, { name: "Phantom" });
   await stubDevnet(page, phantom.address, SOL / 2);
-  await page.reload();
+  await reloadSettled(page);
   await openFund(page);
   await dialog(page).getByRole("button", { name: "Connect Phantom" }).click();
 
@@ -272,7 +285,7 @@ test("client-v2-wallet-funding: The user declines the transfer", async ({
     reject: "sign",
   });
   const cluster = await stubDevnet(page, phantom.address);
-  await page.reload();
+  await reloadSettled(page);
   await openFund(page);
   await dialog(page).getByRole("button", { name: "Connect Phantom" }).click();
   await dialog(page).getByLabel("Amount (SOL)").fill("0.5");
@@ -294,11 +307,8 @@ test("client-v2-external-wallet: A payer beside the current extension", async ({
   const phantom = await installFakeWallet(page, { name: "Phantom" });
   const solflare = await installFakeWallet(page, { name: "Solflare" });
   await stubDevnet(page, solflare.address);
-  await page.reload();
+  await reloadSettled(page);
   await setUpPlaygroundWallet(page);
-  await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused(
-    LONG
-  );
   const drawer = page.getByRole("button", { name: "Terminal", exact: true });
   if ((await drawer.getAttribute("aria-expanded")) !== "true")
     await drawer.click();
