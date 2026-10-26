@@ -7,33 +7,35 @@ follows it. Tick a task in the PR that lands it.
 
 Plan: [plans/1-wallets-through-connectorkit.md](plans/1-wallets-through-connectorkit.md)
 
-- [ ] 1.1 Add `@solana/connector` 0.3.0 (exact), remove
+- [x] 1.1 Add `@solana/connector` 0.3.0 (exact), remove
       `@solana/wallet-adapter-react` and `@solana/wallet-adapter-base`, and
       declare the app's own `StandardWallet` type in `utils/wallet/types.ts`;
       verify `yarn test-types` reports no error the base branch lacks
       (HOO-1616)
-- [ ] 1.2 `entities/external-wallet`: the bridge from ConnectorKit's wallet
+- [x] 1.2 `entities/external-wallet`: the bridge from ConnectorKit's wallet
       registry to `StandardWallet` (connect, disconnect, sign, `connect` on
       account change, one connect in flight shared by `connect()`); verify with in-source tests over a fake Wallet Standard
       wallet: listing, late registration, a wallet without Solana, connect,
       decline, account change, sign (HOO-1616; after 1.1)
-- [ ] 1.3 `SolanaProvider` publishes the bridge's list to
+- [x] 1.3 `SolanaProvider` publishes the bridge's list to
       `PgWallet.standardWallets`; verify `components/Wallet/Settings.test.tsx`
       and the `connect` command's tests pass unchanged, and an e2e spec with a
       fake wallet registered in the page covers the spec's scenarios
       "An installed wallet is offered", "Connect from the terminal" and
       "Reload after connecting" (HOO-1616; after 1.2)
-- [ ] 1.4 Measure the production bundle before and after and put both sizes
+- [x] 1.4 Measure the production bundle before and after and put both sizes
       in the PR (HOO-1616; after 1.3)
 
 ## 2. Spike
 
-- [ ] 2.1 The spike's answer is design.md, "Deploy path and the external
+- [x] 2.1 The spike's answer is design.md, "Deploy path and the external
       wallet": trace, three directions, recommendation, risks, follow-ups;
       verify it covers every point of HOO-1617's acceptance criteria and the
       follow-ups are asked of Slava (HOO-1617)
 
 ## 3. Fund the Playground wallet
+
+Plan: [plans/3-fund-the-playground-wallet.md](plans/3-fund-the-playground-wallet.md)
 
 - [ ] 3.1 `features/fund-wallet` model: receiver choice, amount parsing and
       the balance check, the transfer through `PgTx.send` with the paying
