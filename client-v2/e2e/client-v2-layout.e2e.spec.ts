@@ -41,7 +41,7 @@ const startTutorial = async (page: Page) => {
     .getByRole("button", { name: "Open Hello Anchor" })
     .click();
   // `exact`: the assistant has a "Start" button of its own
-  await page.getByRole("button", { name: "START", exact: true }).click();
+  await page.getByRole("button", { name: "Start", exact: true }).click();
   await expect(page.getByRole("radio", { name: "Steps" })).toBeVisible();
 };
 

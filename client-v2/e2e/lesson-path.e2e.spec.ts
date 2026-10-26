@@ -76,8 +76,8 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
   // flips `LessonRoute` over to the lesson chrome. `exact` matters here:
   // the assistant panel's own "Start" (demo mode) button is always on the
   // page too, and Playwright's default name match is a case-insensitive
-  // substring, so "START" would otherwise match both.
-  await page.getByRole("button", { name: "START", exact: true }).click();
+  // substring, so "Start" would otherwise match both.
+  await page.getByRole("button", { name: "Start", exact: true }).click();
 
   // The rail switches to the lesson's steps, and the band names step 1.
   // `hello-anchor.ts` has four steps, so this is also a count check.
