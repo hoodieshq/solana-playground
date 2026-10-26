@@ -36,11 +36,11 @@ wallets in `pg.wallets` under the same camelCase names.
 - **WHEN** the user runs `connect phantom` with Phantom installed
 - **THEN** Phantom asks for approval, and on approval the terminal prints `Connected to Phantom.` and Phantom becomes the current wallet, as before
 
-#### Scenario: A connected wallet in a script
+#### Scenario: A connected wallet in a script (manual)
 - **WHEN** Phantom is connected and a client script reads `pg.wallets.phantom.publicKey`
 - **THEN** it gets Phantom's selected account
 
-#### Scenario: The user changes account in the extension
+#### Scenario: The user changes account in the extension (manual)
 - **WHEN** the user switches the selected account inside a connected wallet
 - **THEN** the app's current wallet address follows it without a reload
 
@@ -49,7 +49,7 @@ Connecting an external wallet SHALL NOT change which wallet signs a deploy or
 an upgrade, or which key becomes the program's upgrade authority, compared with
 the behaviour before this change.
 
-#### Scenario: Deploy with the Playground wallet current
+#### Scenario: Deploy with the Playground wallet current (manual)
 - **WHEN** an external wallet is connected only for funding and the Playground wallet is the current wallet
 - **THEN** a deploy is paid and signed by the Playground wallet alone, and the Playground wallet is the upgrade authority
 

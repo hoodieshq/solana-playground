@@ -6,8 +6,8 @@
 headless client, handed to `PgWallet` in the shape it already reads; nothing
 that reads external wallets changes.
 
-**Architecture:** `entities/external-wallet` owns a lazy `ConnectorClient`
-and a bridge that maps each connector to the app's `StandardWallet`.
+**Architecture:** `entities/external-wallet` bridges ConnectorKit's Wallet
+Standard registry to the app's `StandardWallet`; no `ConnectorClient` (design.md, Decision 1).
 `SolanaProvider` subscribes the bridge to `PgWallet.standardWallets`.
 
 **Tech Stack:** `@solana/connector` 0.3.0 (root entry only: TS 5.0.4,
@@ -21,7 +21,7 @@ Playwright.
 
 - Pin `@solana/connector` at exactly `0.3.0`; import only from `"@solana/connector"`.
 - No `@solana/wallet-adapter-*` import remains in `client-v2/`.
-- `getDefaultConfig({ appName: "Solana Playground", autoConnect: true, enableMobile: false })`.
+- No `ConnectorClient`; ConnectorKit adds no storage. `@walletconnect/universal-provider` resolves to an empty module in `craco.config.js`.
 - A `catch` is never empty; logs go through `createLogger("external-wallet:<module>")`.
 - Ids from `shared/lib/ids`; no nested ternaries; tests follow `AGENTS.md` (in-source unless the rule lists an exception; no spread to build fixtures).
 
@@ -68,16 +68,14 @@ export interface StandardWalletAdapterLike {
 
 ### Task 2: `entities/external-wallet` — client and bridge (tasks.md 1.2)
 
-**Files:** Create `client-v2/src/entities/external-wallet/index.ts`, `model/client.ts`, `model/bridge.ts`, `model/fake-wallet.ts` (test helper, imported only by tests).
+**Files:** Create `client-v2/src/entities/external-wallet/index.ts`, `model/bridge.ts`, `model/bridge.signing.test.ts` (node environment: web3.js byte checks fail under jsdom), `client-v2/src/test-utils/fake-wallet.ts`.
 
 **Interfaces — Produces:**
 
-- `getConnectorClient(): ConnectorClient` — created on first call.
-- `watchExternalWallets(onChange: (wallets: StandardWallet[]) => void): () => void` — calls back with the bridged list on every client snapshot change (and once immediately); returns unsubscribe.
-- `connectorIdOf(wallet: StandardWallet): string | null`.
+- `watchExternalWallets(onChange: (wallets: StandardWallet[]) => void, opts: { signingCluster: () => SigningCluster | undefined }): () => void` — calls back with the bridged list now, when the registry is ready, and on every (un)registration; returns unsubscribe.
 - `registerFakeWallet(opts: { name: string; chains?: string[]; accounts: PgWeb3.Keypair[]; reject?: "connect" | "sign" }): { wallet; switchAccount(i: number): void; unregister(): void }` — a Wallet Standard wallet registered through `@wallet-standard/app`'s `registerWallet`, implementing `standard:connect`, `standard:disconnect`, `standard:events`, `solana:signTransaction`, `solana:signMessage`. Shared by unit tests and (in page form) the e2e spec.
 
-**Bridge rules (design.md Decisions 1, 3, 4):** the client (`autoConnect: false`) is a registry only — never `connectWallet`. One bridged object per connector id, reused across snapshots (so `on`/`off` listeners survive). Per-wallet state lives in the bridged object: `connect()` calls the wallet's `standard:connect` feature (returns the in-flight promise if one is pending), takes the first account whose `chains` include a `solana:` chain, sets `publicKey`, emits `connect`; `disconnect()` calls `standard:disconnect` when present, clears state, emits `disconnect`; `standard:events` `change` with `accounts` → new first Solana account, emit `connect` (or `disconnect` when none remain). `signTransaction`/`signAllTransactions` exist only when the wallet has `solana:signTransaction`, and go through `createTransactionSigner({ wallet, account, cluster })`, `cluster` from `PgConnection.cluster` (`mainnet-beta`/`devnet`/`testnet` → ConnectorKit's cluster; `localnet`/`playnet` → omitted). `readyState` is always `"Installed"`.
+**Bridge rules (design.md Decisions 1, 3, 4):** registry only, no client. One bridged object per connector id, reused across snapshots (so `on`/`off` listeners survive). Per-wallet state lives in the bridged object: `connect()` calls the wallet's `standard:connect` feature (returns the in-flight promise if one is pending), takes the first account whose `chains` include a `solana:` chain, sets `publicKey`, emits `connect`; `disconnect()` calls `standard:disconnect` when present, clears state, emits `disconnect`; `standard:events` `change` with `accounts` → new first Solana account, emit `connect` (or `disconnect` when none remain). `signTransaction`/`signAllTransactions` exist only when the wallet has `solana:signTransaction`, and go through `createTransactionSigner({ wallet, account, cluster })`, `cluster` from `PgConnection.cluster` (`mainnet-beta`/`devnet`/`testnet` → ConnectorKit's cluster; `localnet`/`playnet` → omitted). `readyState` is always `"Installed"`.
 
 Add to Step 1's tests: `connecting a second wallet leaves the first connected`.
 

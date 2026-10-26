@@ -15,8 +15,8 @@ Solana Foundation is replacing with ConnectorKit (`@solana/connector`).
 
 ## What Changes
 
-- Wallet Standard discovery and connection move from
-  `@solana/wallet-adapter-react` to ConnectorKit's headless client. The
+- Wallet Standard discovery moves from `@solana/wallet-adapter-react` to
+  ConnectorKit's wallet registry, and signing to its transaction signer. The
   wallets it finds are handed to `PgWallet` in the shape it already reads, so
   the `connect <wallet>` command, the wallet window's list, `pg.wallets` in
   scripts and the editor's wallet types keep working unchanged.

@@ -44,28 +44,32 @@ See proposal.md for why. What exists today:
 ## Decisions
 
 **1. ConnectorKit as the registry and the signer; each wallet connects on
-its own.** `entities/external-wallet` owns one headless `ConnectorClient`
-(`getDefaultConfig({ appName: "Solana Playground", autoConnect: false,
-enableMobile: false })`) and uses it for what it does well: discovering Wallet
-Standard wallets that support Solana, late registrations included, and
-building signers (`createTransactionSigner`). It never calls the client's
-`connectWallet`: the client holds one session, while `PgWallet` lets several
-extensions be connected at once (`pg.wallets`, `getConnectedStandardWallets`),
-and the Fund dialog must connect a payer without dropping an extension that is
-the current wallet. So the bridge connects each wallet through its own
-`standard:connect`/`standard:disconnect` features, as wallet-adapter's
+its own.** `entities/external-wallet` takes from ConnectorKit what it does
+well: its Wallet Standard registry (`getWalletsRegistry`, `ready`), which
+sees wallets that registered before and after the app loaded, and its signer
+(`createTransactionSigner`). It creates no `ConnectorClient`: a client holds
+one session, while `PgWallet` lets several extensions be connected at once
+(`pg.wallets`, `getConnectedStandardWallets`), and the Fund dialog must
+connect a payer without dropping an extension that is the current wallet. So
+the bridge keeps the wallets that speak Solana (a `solana:` chain and
+`standard:connect`), connects each through its own
+`standard:connect`/`standard:disconnect`, as wallet-adapter's
 `StandardWalletAdapter` did, and keeps per-wallet state (`connected`,
-`connecting`, the selected account). The bridge publishes the list to
-`PgWallet.standardWallets` on every registry change; the React provider
-shrinks to mounting that subscription.
+`connecting`, the selected account). It publishes the list to
+`PgWallet.standardWallets` on every registration; the React provider shrinks
+to mounting that subscription.
 Alternatives: ConnectorKit's `AppProvider` + hooks, rejected because it puts
 wallet state in React while the terminal commands and the JS runtime read it
-through `PgWallet`; the client's single session, rejected because connecting
+through `PgWallet`; a `ConnectorClient` session, rejected because connecting
 a payer would disconnect the current extension and `PgWallet` would then
-re-run an interactive `connect()` on it. Reconnecting after a reload stays
-`PgWallet`'s job (`sol` + `standardName`, calling `connect()`, which a wallet
-that trusts the site answers without a prompt), so ConnectorKit writes no
-storage of its own.
+re-run an interactive `connect()` on it (checked with a probe on 2026-10-27:
+the client's connector list also stays empty until its own async start, where
+the registry answers at once). Reconnecting after a reload stays `PgWallet`'s
+(`sol` + `standardName`, calling `connect()`, which a wallet that trusts the
+site answers without a prompt), so ConnectorKit writes no storage.
+The signing cluster is passed in by the caller (`watchExternalWallets(...,
+{ signingCluster })`), so the entity does not import the Playground's
+connection.
 
 **2. Our own `StandardWallet` type.** `utils/wallet/types.ts` declares the
 members the app uses instead of extending wallet-adapter's
@@ -178,9 +182,8 @@ changing it changes deploy behaviour. C is not worth its risk.
 
 ## Risks / Trade-offs
 
-- [Bundle grows with `@solana/kit` 8] → the client is created lazily on the
-  first wallet listing; size before and after is measured in task 1 and put
-  in the PR.
+- [Bundle grows with `@solana/kit` 8] → only the registry and signer are
+  imported; size before and after is measured (task 1.4) and put in the PR.
 - [Two callers connect the same wallet at once (`PgWallet`'s `sol` derive on
   load and a click)] → the bridge's `connect()` returns the connect already
   in flight for that wallet instead of starting a second prompt.
@@ -191,11 +194,14 @@ changing it changes deploy behaviour. C is not worth its risk.
   disconnected by `connect <wallet>`] → accepted; it matches the command's
   existing toggle, and the dialog shows the state either way.
 - [ConnectorKit is 0.x] → pinned exactly (`0.3.0`); the bridge is the only
-  module that imports it besides the fund feature's types.
+  module that imports it.
+- [ConnectorKit imports WalletConnect lazily, an optional peer we do not
+  install] → webpack resolves `@walletconnect/universal-provider` to an empty
+  module (`craco.config.js`); the import runs only when WalletConnect is
+  configured, which the app never does.
 
 ## Migration Plan
 
 No stored state changes: `PgWallet`'s `wallet` key keeps its shape, and the
 `sol` state with `standardName` still names the extension by its name.
-ConnectorKit is configured not to persist (no `autoConnect`, no session), so
-it adds no `localStorage` keys. Rollback is reverting the PR.
+ConnectorKit holds no session and adds no `localStorage` keys. Rollback is reverting the PR.
