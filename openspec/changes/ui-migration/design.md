@@ -1202,8 +1202,8 @@ AppNav
 ├─ SidebarHeader   logo, fold button (5.2)
 ├─ SidebarContent  Home, New project, Tutorials, Programs (5.2)
 │                  projects slot → ProjectList (hidden on the rail)
-│                  ├─ "Projects": pinned first, then the rest
-│                  └─ "Lessons":  pinned first, progress on the right
+│                  └─ "Projects": pinned first, then the rest; a started
+│                     lesson is a row among them (lesson-prototype-polish)
 └─ SidebarFooter   HOO-2070
 ```
 
