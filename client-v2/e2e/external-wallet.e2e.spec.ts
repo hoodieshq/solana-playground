@@ -15,14 +15,20 @@ const account = (page: Page) =>
 const terminal = (page: Page) => page.locator(".xterm-rows").first();
 
 /**
- * Runs `command` in the console's terminal, opening the drawer first. After a
- * reload the editor focuses itself when it opens its file, so the click waits
- * for that, or the editor would take the typed command away.
+ * Reloads and waits for the editor to take the focus it takes when it mounts
+ * (`createMountOpen` in `Monaco.tsx`), as `seededPage` does: landing later,
+ * it would steal the focus from whatever a test clicked meanwhile, and it
+ * never comes back to the editor after a menu or a dialog has held it.
  */
-const run = async (page: Page, command: string) => {
+const reloadSettled = async (page: Page) => {
+  await page.reload();
   await expect(page.locator(".monaco-editor textarea.inputarea")).toBeFocused(
     LONG
   );
+};
+
+/** Runs `command` in the console's terminal, opening the drawer first */
+const run = async (page: Page, command: string) => {
   const drawer = page.getByRole("button", { name: "Terminal", exact: true });
   if ((await drawer.getAttribute("aria-expanded")) !== "true") {
     await drawer.click();
@@ -44,7 +50,7 @@ test("client-v2-external-wallet: An installed wallet is offered", async ({
 }) => {
   void seededPage;
   await installFakeWallet(page, { name: "Phantom" });
-  await page.reload();
+  await reloadSettled(page);
   await setUpPlaygroundWallet(page);
 
   await openWalletMenu(page);
@@ -89,7 +95,7 @@ test("client-v2-external-wallet: A wallet without Solana support", async ({
   void seededPage;
   await installFakeWallet(page, { name: "EvmOnly", chains: ["eip155:1"] });
   await installFakeWallet(page, { name: "Phantom" });
-  await page.reload();
+  await reloadSettled(page);
   await setUpPlaygroundWallet(page);
 
   await openWalletMenu(page);
@@ -108,7 +114,7 @@ test("client-v2-external-wallet: Connect from the terminal", async ({
 }) => {
   void seededPage;
   const phantom = await installFakeWallet(page, { name: "Phantom" });
-  await page.reload();
+  await reloadSettled(page);
   await setUpPlaygroundWallet(page);
 
   await run(page, "connect phantom");
@@ -123,12 +129,12 @@ test("client-v2-external-wallet: Reload after connecting", async ({
 }) => {
   void seededPage;
   const phantom = await installFakeWallet(page, { name: "Phantom" });
-  await page.reload();
+  await reloadSettled(page);
   await setUpPlaygroundWallet(page);
   await run(page, "connect phantom");
   await expect(account(page)).toContainText(phantom.short, LONG);
 
-  await page.reload();
+  await reloadSettled(page);
 
   await expect(account(page)).toContainText(phantom.short, LONG);
   await account(page).click();
@@ -143,7 +149,7 @@ test("client-v2-external-wallet: Reload after disconnecting", async ({
 }) => {
   void seededPage;
   const phantom = await installFakeWallet(page, { name: "Phantom" });
-  await page.reload();
+  await reloadSettled(page);
   await setUpPlaygroundWallet(page);
   await run(page, "connect phantom");
   await expect(account(page)).toContainText(phantom.short, LONG);
@@ -151,7 +157,7 @@ test("client-v2-external-wallet: Reload after disconnecting", async ({
   await page.getByRole("menuitem", { name: "Disconnect Phantom" }).click();
   await expect(account(page)).not.toContainText(phantom.short, LONG);
 
-  await page.reload();
+  await reloadSettled(page);
 
   await expect(account(page)).toContainText("SOL", LONG);
   await expect(account(page)).not.toContainText(phantom.short);
