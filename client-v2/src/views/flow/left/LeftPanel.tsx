@@ -91,6 +91,7 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   useLayoutEffect(() => {
     // The one object `onScroll` and the tab effect write to
     const memory = kept.current;
+    const keeps = !told.current;
     const body = bodyRef.current;
     const restored = keptColumn(PgExplorer.currentWorkspaceId);
     if (body && restored) {
@@ -101,7 +102,7 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
       // Read now, not at mount: a lesson mounts the column before the
       // explorer has opened its project
       const workspace = PgExplorer.currentWorkspaceId;
-      if (!workspace || told.current) return;
+      if (!workspace || !keeps) return;
       // Read from the body while it is still in the document: `scroll`
       // arrives a frame late, so ⌘E right after a scroll would otherwise
       // keep the scroll before it
