@@ -205,6 +205,84 @@ test.describe("client-v2-lessons", () => {
     await expect(reader).toHaveCount(0);
   });
 
+  test("client-v2-lessons: Starting a tutorial lands on the code", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await startHelloAnchor(page);
+    await landsOnCode(page);
+    await expect(page.locator(".monaco-editor")).toBeVisible();
+    await expect(
+      band(page).getByRole("button", { name: "Read the page" })
+    ).toBeVisible();
+  });
+
+  test("client-v2-lessons: The page has no footer", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await startHelloAnchor(page);
+    await band(page).getByRole("button", { name: "Read the page" }).click();
+    const reader = page.getByRole("dialog", { name: /hello instruction/i });
+    await expect(reader).toBeVisible();
+    await expect(
+      reader.getByRole("button", { name: "Close the page" })
+    ).toBeVisible();
+    await expect(
+      reader.getByRole("button", { name: "Back to the code" })
+    ).toHaveCount(0);
+    await expect(
+      reader.getByRole("button", { name: "Mark as read" })
+    ).toHaveCount(0);
+  });
+
+  for (const [width, height] of [
+    [1440, 900],
+    [834, 1194],
+  ] as const) {
+    test(`client-v2-lessons: One row at ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await startHelloAnchor(page);
+      const b = band(page);
+      const middle = (box: { y: number; height: number }) =>
+        box.y + box.height / 2;
+      const objective = await boxOf(b.getByText(FIRST));
+      for (const name of ["Read the page", "I'm stuck"]) {
+        const box = await boxOf(b.getByRole("button", { name }));
+        expect(Math.abs(middle(box) - middle(objective))).toBeLessThanOrEqual(
+          2
+        );
+      }
+      await expect(page.getByText("Before you can deploy:")).toHaveCount(0);
+      await expect(
+        b.getByRole("button", { name: /to prove this/ })
+      ).toHaveCount(0);
+    });
+  }
+
+  test("client-v2-lessons: How the step is checked", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await startHelloAnchor(page);
+    const check = band(page).getByRole("button", {
+      name: "How this step is checked",
+    });
+    await expect(check).toHaveAttribute("aria-expanded", "false");
+    await check.click();
+    await expect(check).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      band(page).getByText(
+        "Verified when the built interface shows a hello instruction."
+      )
+    ).toBeVisible();
+  });
+
+  test("client-v2-lessons: Statuses on entry", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await startHelloAnchor(page);
+    await expect(rows(page).nth(0)).toContainText("aiming at build");
+    for (const i of [1, 2, 3]) {
+      await expect(rows(page).nth(i)).toContainText("locked");
+    }
+  });
+
   test("client-v2-lessons: The band and the bar on a phone", async ({
     page,
   }) => {

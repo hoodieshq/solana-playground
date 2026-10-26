@@ -33,8 +33,9 @@ On a screen from the phone width up, the objective band SHALL be one row: the
 position as "Step n of m", the progress meter, the objective, and a "How this
 step is checked" toggle, then "Previous step", "Next step", "Read the page"
 (when the step has a page) and the step's primary action at the row's end.
-The primary action SHALL be "Continue" on a step proved by reading and the
-assistant's label ("I'm stuck" and its later rungs) on any other. When they
+The primary action SHALL be "Continue" on a step proved by reading that is
+still to be marked, and the assistant's label ("I'm stuck" and its later
+rungs) on any other. When they
 do not fit, the actions SHALL wrap under the objective as one group. The
 toggle SHALL show how the step is checked on a line under the row. The band
 SHALL offer no proving action and show no readiness line.

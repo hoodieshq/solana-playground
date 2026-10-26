@@ -115,10 +115,13 @@ proposal.
   48 px high, 15/440. "Show the steps" goes from the band.
 - The files row opens the Files sheet on Files (Spec 11 l.161 agrees); the
   sheet's tab memory (`kept-column.ts`) is still honoured inside the sheet.
-- The sheet's mono text: the portal lands outside every `data-slot`
-  ancestor, so it inherits upstream's global font. `client-v2/src/index.css`
-  sets `font-family: var(--font-text)` on `body` in the base layer; the
-  editor and terminal set their own fonts and are unaffected.
+- The sheet's mono text: `LayoutShell` set every Sheet's content in the
+  code face (`sheetFont`), and the design system's buttons inherit their
+  font, so "Skip this step" and the close rendered in JetBrains Mono. The
+  shell's Sheets now take the text face (`theme.font.other.family`), as the
+  wide column has it; the size stays the one the legacy file tree is laid
+  out at. `body` keeps its font: nothing else portals outside a `data-slot`
+  in the lesson.
 
 ### Specs
 

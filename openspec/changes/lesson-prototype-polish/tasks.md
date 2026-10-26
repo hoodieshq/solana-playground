@@ -13,8 +13,8 @@
 - [x] 1.3 The page: no opening on entry, "Read the page" only, the
       objective as head, round close, no footer, headings at 500 (HOO-2262)
 - [x] 1.4 The phone: the fold, `BaseLessonBar`/`LessonBar` at the foot,
-      no "Show the steps", the files row opens the sheet on Files, `body`
-      in the product font (HOO-2262; after 1.2)
+      no "Show the steps", the files row opens the sheet on Files, the
+      shell's Sheets in the product font (HOO-2262; after 1.2)
 - [x] 1.5 Specs: edit ui-migration's "The band folds to one row on a
       phone" and the "Lessons (5.19)" paragraph in place; update the e2e
       specs this PR breaks (HOO-2262; with 1.2–1.4)

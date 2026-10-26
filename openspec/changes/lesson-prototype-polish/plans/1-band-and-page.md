@@ -77,7 +77,7 @@
 ### Task 4: the phone (1.4)
 
 **Files:**
-- Modify: `BaseObjectiveBand.tsx` (phone branch), `ObjectiveBand.tsx`, `Flow.tsx` (render `LessonBar` under `<Stage>` on a phone; drop `keepTab` call), `left/LeftPanel.tsx` (`startOn?: Tab` prop overriding the kept tab), `left/kept-column.ts` (drop `keepTab` if unused), `client-v2/src/index.css` (body font)
+- Modify: `BaseObjectiveBand.tsx` (phone branch), `ObjectiveBand.tsx`, `Flow.tsx` (render `LessonBar` under `<Stage>` on a phone; drop `keepTab` call), `left/LeftPanel.tsx` (`startOn?: Tab` prop overriding the kept tab), `left/kept-column.ts` (drop `keepTab` if unused), `widgets/layout-shell/ui/LayoutShell.tsx` (`sheetFont` in the text face)
 - Create: `lessons/BaseLessonBar.tsx`, `lessons/LessonBar.tsx`
 - Test: `BaseObjectiveBand.test.tsx`, `BaseLessonBar.test.tsx`
 
