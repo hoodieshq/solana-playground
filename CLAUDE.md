@@ -146,8 +146,8 @@ changes. Asked to build something in the client, look there first.
   them, and asks the user only about lines both changed. Per account because
   a tutorial's id is derived from its name and so is identical across
   accounts.
-- **There is one in-browser migration: from the pre-sync layout to the
-  current one.** `PgWorkspace.migrate` (workspace ids) and
+- **In-browser migration covers the pre-sync layout, plus one read of the
+  first sync client's mark.** `PgWorkspace.migrate` (workspace ids) and
   `PgThreadIndex._migrate` (thread files to `<threadId>.json` + index). A
   sync mark `read` cannot parse is `null` ("never agreed", merged against an
   empty base), yet still keeps its project out of `pushNeverSynced`
@@ -226,9 +226,10 @@ changes. Asked to build something in the client, look there first.
   Nothing inside a pass may await `reconcile`. The effect's `refreshing` flag
   stays too: it drops a switch from its own pass's re-open, so adopt ->
   re-open -> reconcile cannot bounce.
-- **`push` refuses an empty snapshot, whoever calls it.** The explorer
-  clears its file map before re-reading a workspace, and an interrupted
-  import or replace can leave a registered workspace with no files in the
+- **`push` refuses an empty snapshot, whoever calls it.**
+  `replaceWorkspaceFiles` removes the directory before writing the taken copy
+  back, another tab can rename or delete it away, and an interrupted import
+  or replace can leave a registered workspace with no files in the
   store; a push from that state (the editor's, reconcile's, or a banner's
   `retry`) would upload nothing over whatever the server holds.
 - **`replaceWorkspaceFiles` preserves `.workspace/metadata.json`.** Which tabs

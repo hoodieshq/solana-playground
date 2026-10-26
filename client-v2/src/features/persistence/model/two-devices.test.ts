@@ -1345,6 +1345,24 @@ describe("a workspace whose files are gone from the store", () => {
     expect(puts()).toEqual([]);
   });
 
+  it("is not merged into a row the other device moved on", async () => {
+    // Merged against the account's files, an empty copy reads as this
+    // device deleting every one of them
+    await emptiedAfterSync();
+    otherDeviceWroteFiles(HELLO.id, { "src/lib.rs": "the other device" });
+    const replace = captureWrites();
+    (global.fetch as Mock).mockClear();
+
+    const result = await reconcile();
+
+    expect(puts()).toEqual([]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "the other device" },
+    });
+    expect(result.pushed).toEqual([]);
+  });
+
   it("is not uploaded when the user answers a question with retry", async () => {
     const held = await emptiedAfterSync();
     PgProjectSync.raise({ projectId: HELLO.id, kind: "divergent" });
@@ -1437,6 +1455,39 @@ describe("a project last synced by the client before per-file marks", () => {
     expect(result.conflicts).toEqual([]);
     expect(server.get(HELLO.id)!.snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
+    });
+  });
+
+  it("waits for the next pass when the account's copy cannot be read", async () => {
+    await syncedBeforeTheUpgrade({
+      "src/lib.rs": "as uploaded",
+      "src/old.rs": "deleted here since",
+    });
+    localFilesAre(HELLO.name, { "src/lib.rs": "edited here since" });
+    const replace = captureWrites();
+    // The list answers, the project itself does not
+    global.fetch = vi.fn((url: string, init?: RequestInit) =>
+      url.startsWith("/api/projects?id=")
+        ? Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
+        : fakeFetch(url, init)
+    ) as unknown as typeof fetch;
+
+    const first = await reconcile();
+
+    // Not merged against nothing, which would raise the edit and bring the
+    // deleted file back
+    expect(first.conflicts).toEqual([]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(getFailures().map((f) => f.what)).toContain(
+      `rebase pre-upgrade mark ${HELLO.id}: row unreadable`
+    );
+
+    global.fetch = vi.fn(fakeFetch) as unknown as typeof fetch;
+    const second = await reconcile();
+
+    expect(second.conflicts).toEqual([]);
+    expect(server.get(HELLO.id)!.snapshot).toEqual({
+      files: { "src/lib.rs": "edited here since" },
     });
   });
 

@@ -248,6 +248,8 @@ const passUnlocked = async (): Promise<SyncResult> => {
       const mark =
         (await PgSyncMark.read(project.id)) ??
         (await rebasePreUpgradeMark(project, local));
+      // Left for the next pass, which can read the row
+      if (mark === "retry") continue;
 
       // The cheap path, and the overwhelmingly common one: this device has
       // nothing pending and the row is exactly where it was left. Neither side
@@ -314,8 +316,8 @@ const passUnlocked = async (): Promise<SyncResult> => {
  * That mark holds no hash per file, so `read` returns `null` for it and the
  * project would merge against an empty base: every file this device edited
  * since asked as "both devices changed this", and every file it deleted
- * brought back from the server, because a merge with no base takes the side
- * that has the file. But a row still at the mark's timestamp holds exactly
+ * brought back from the server, because with no base a file missing here
+ * reads as unchanged here, so the server's copy wins. But a row still at the mark's timestamp holds exactly
  * what this device last agreed on, so its files are the base the mark lacks.
  * Hashed into a mark of today's shape, the project goes down reconcile's
  * ordinary path: a device that is ahead pushes the difference.
@@ -325,37 +327,48 @@ const passUnlocked = async (): Promise<SyncResult> => {
  * merges by line.
  *
  * Where the row has moved, nothing here can say what was agreed, and the old
- * mark is left to the merge against an empty base.
+ * mark is left to the merge against an empty base. Where the row could not
+ * be read, the project waits for the next pass: falling through to that
+ * merge on a dropped request is the very loss this exists to prevent.
  *
- * @returns the new mark, or `null` when there is no pre-upgrade mark or the
- * row has moved past it
+ * @returns the new mark; `null` when there is no pre-upgrade mark, the row
+ * has moved past it, or it holds no usable files to rebase on; `"retry"`
+ * when the row could not be read
  */
 const rebasePreUpgradeMark = async (
   project: ServerProject,
   local: string
-): Promise<SyncMark | null> => {
+): Promise<SyncMark | "retry" | null> => {
   const old = await PgSyncMark.readPreUpgrade(project.id);
   if (!old || old.updatedAt !== project.updatedAt) return null;
 
-  // Re-checked on the copy actually read: the row may move after the list
   const full = await PgProjectSync.fetch(project.id);
-  if (
-    !full ||
-    full.updatedAt !== old.updatedAt ||
-    !isUsableSnapshot(full.snapshot)
-  ) {
+  if (!full) {
+    report(`rebase pre-upgrade mark ${project.id}: row unreadable`, null);
+    return "retry";
+  }
+  // Re-checked on the copy actually read: the row may move after the list
+  if (full.updatedAt !== old.updatedAt) return null;
+  if (!isUsableSnapshot(full.snapshot)) {
+    // No files to agree on: reconcile pushes this copy over the row, as it
+    // does for any row that holds no code
+    if (full.snapshot) {
+      report(`rebase pre-upgrade mark ${project.id}: unusable snapshot`, null);
+    }
     return null;
   }
 
   const agreed = await hashFiles(full.snapshot);
   const here = (await snapshotOf(local)).files;
+  // Flagged whatever the copy holds now: `markDirty` does nothing while the
+  // old mark is on disk, so an edit saved after `here` was read has nothing
+  // else to say it is owed. The pass re-hashes it below either way.
   const mark: SyncMark = {
     files: agreed,
     name: full.name,
     updatedAt: full.updatedAt,
-    dirty: false,
+    dirty: true,
   };
-  mark.dirty = !(await isCleanAgainst(mark, local, here));
 
   const { changed } = diffFiles(agreed, await hashFiles({ files: here }));
   await PgSyncBase.capture(project.id, changed, agreed, full.snapshot.files);

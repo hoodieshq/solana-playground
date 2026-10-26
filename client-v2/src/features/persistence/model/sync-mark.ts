@@ -174,8 +174,8 @@ export class PgSyncMark {
    * row's `updated_at` when this device last agreed with it.
    *
    * It holds one hash of the whole snapshot and none per file, so it is no
-   * merge base, and `read` returns `null` for it. Reconcile asks this only to
-   * tell a device that is ahead of an unmoved row from one that is not.
+   * merge base, and `read` returns `null` for it. Reconcile uses it only to
+   * tell whether the row has moved since this device last agreed.
    *
    * @returns the timestamp, or `null` when the mark is absent or any other
    * shape
@@ -192,7 +192,7 @@ export class PgSyncMark {
       );
       return isPreUpgrade(parsed) ? { updatedAt: parsed.updatedAt } : null;
     } catch (e) {
-      if (!isMissing(e)) report(`read sync mark ${projectId}`, e);
+      if (!isMissing(e)) report(`read pre-upgrade sync mark ${projectId}`, e);
       return null;
     }
   }
