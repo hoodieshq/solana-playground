@@ -1,0 +1,469 @@
+/* The bottom safe area. A real phone reports it. Inside the desktop frame the
+   iframe reports zero, so the frame stands in for a phone's home indicator */
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+html.framed {
+  --safe-bottom: 34px;
+}
+
+/* The same for the tablet: an iPad keeps 20px clear above its home indicator. Only the desktop
+   screens read it, and inside a frame those are the tablet's */
+:root {
+  --tablet-safe-bottom: 0px;
+}
+html.framed {
+  --tablet-safe-bottom: 20px;
+}
+
+/* The page itself never bounces or pulls to refresh: on a tablet a drag past the end of the code
+   would otherwise move the whole app. Scrollers that end keep the drag to themselves too */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* A phone's scroll indicator, and macOS's with its default setting, float over the content and take
+   no width. A browser scrollbar that takes its own lane is heavy and pushes the content sideways, so
+   in the phone frame and on the desktop screen it's hidden and scrollIndicator.ts draws the overlay:
+   the wheel and the trackpad still scroll. The phone's own browser keeps its native indicator */
+html.framed,
+html.framed *,
+html.desktop,
+html.desktop * {
+  scrollbar-width: none;
+}
+html.framed ::-webkit-scrollbar,
+html.desktop ::-webkit-scrollbar {
+  display: none;
+}
+
+/* What stands in for it: iPhone's own indicator, drawn by scrollIndicator.ts. Light on the dark
+   theme, as iOS draws it, quick to appear and slow to fade */
+.pg-scroll-indicator {
+  position: fixed;
+  z-index: 100;
+  border-radius: 9999px;
+  background-color: rgb(255 255 255 / 0.42);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+.pg-scroll-indicator[data-visible] {
+  opacity: 1;
+  transition-duration: 80ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-scroll-indicator {
+    transition: none;
+  }
+}
+
+/* Native controls and any scrollbar the browser still draws follow the dark theme */
+html {
+  color-scheme: dark;
+}
+
+/* The step has to stay readable above every sheet: the task above the patch,
+   the red line above Not yet. So the overlay only dims, it doesn't blur */
+[data-slot="drawer-overlay"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background-color: rgb(0 0 0 / 0.3);
+}
+
+/* The gallery's tabs are a pill, so the sliding thumb is one too */
+[data-slot="segmented"].pill [data-slot="segmented-thumb"] {
+  border-radius: 9999px;
+}
+
+/* The design system's Button sets its label at 500 (shadcn's font-medium) and BrandButton at 400
+   (font-act picks the face, not the weight). Side by side, Ask next to Explain, the two read as
+   different type, so every button here takes the action weight, 440. To raise in DES-129 */
+[data-slot="button"],
+[data-slot="brand-button"] {
+  font-weight: var(--font-weight-act);
+}
+
+/* Tailwind 4 leaves buttons with the arrow. On a desktop the hand is what says a thing can be
+   pressed: diff lines with notes, the steps in the progress bar, cards, chips. To raise in DES-129 */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href] {
+  cursor: pointer;
+}
+
+/* The design system's tooltip is inverted, near white, and CopyButton writes "Copied" on it in the
+   success green: 1.34:1, next to unreadable. Here it keeps the tooltip's own dark text; the button's
+   check, on the dark ground, still says it in green. To raise in DES-129 */
+[data-slot="tooltip-content"] .text-success {
+  color: inherit;
+}
+
+/* A tap shouldn't leave a ring behind. The keyboard still gets one */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Sheets keep to the same phone width as the screens */
+[data-slot="drawer-content"] {
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
+/* Sheets here read as messages, so their text starts on the left */
+[data-slot="drawer-header"] {
+  text-align: left;
+}
+
+/* A receipt prints: its rows come out one by one, 60ms apart, each easing down into place from just
+   above, as paper leaves a printer. Only as its transaction arrives (see Receipt.tsx). With reduced
+   motion the receipt is simply there */
+.pg-print [data-print] {
+  animation: pg-print 200ms var(--ease-out-value) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes pg-print {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -0.25rem, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-print [data-print] {
+    animation: none;
+  }
+}
+
+/* The printed receipt's foot, torn along small even teeth: a strip of downward triangles under the
+   card, cut with a mask so the ground shows between them */
+.pg-receipt {
+  --tooth: 12px;
+  padding-bottom: calc(var(--tooth) / 2 + 0.5rem);
+  -webkit-mask:
+    conic-gradient(from -45deg at bottom, #000 90deg, #0000 0) bottom / var(--tooth) calc(var(--tooth) / 2) repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--tooth) / 2) no-repeat;
+  mask:
+    conic-gradient(from -45deg at bottom, #000 90deg, #0000 0) bottom / var(--tooth) calc(var(--tooth) / 2) repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--tooth) / 2) no-repeat;
+}
+
+/* A failed build's squiggle draws in under the token, left to right, so it reads as the build
+   pointing there rather than a mark that was always on the code. The clip reaches a little below
+   the line, where the wave runs */
+.pg-squiggle {
+  animation: pg-squiggle 240ms var(--ease-standard-value) both;
+}
+@keyframes pg-squiggle {
+  from {
+    clip-path: inset(0 100% -0.375rem 0);
+  }
+  to {
+    clip-path: inset(0 0 -0.375rem 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-squiggle {
+    animation: none;
+  }
+}
+
+/* A step passes: the status's ring draws closed, then its tick, about a third of a second in all.
+   With reduced motion the mark is whole at once */
+.pg-pass-ring,
+.pg-pass-tick {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pg-draw 220ms var(--ease-standard-value) forwards;
+}
+.pg-pass-tick {
+  animation-duration: 140ms;
+  animation-delay: 180ms;
+  animation-timing-function: var(--ease-out-value);
+}
+@keyframes pg-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-pass-ring,
+  .pg-pass-tick {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ...and its segment of the progress bar takes a short sweep of light as the fill reaches it, so the
+   bar says which step just went in. Gone with reduced motion: the fill alone says it */
+.pg-sweep {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  transform: translateX(-100%);
+  animation: pg-sweep 260ms var(--ease-standard-value) 160ms forwards;
+}
+@keyframes pg-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-sweep {
+    display: none;
+  }
+}
+
+/* A shortcut pressed: its hint lights to full strength and back, about a quarter of a second, so the
+   learner sees the key worked and which button it pressed. On a button the press turned busy the hint
+   fades out instead. With reduced motion the hint only brightens, nothing grows */
+.pg-key-flash {
+  animation: pg-key-flash 260ms var(--ease-standard-value);
+}
+.pg-key-leave {
+  animation: pg-key-leave 320ms var(--ease-standard-value) forwards;
+}
+@keyframes pg-key-flash {
+  35% {
+    opacity: 1;
+    transform: translateY(1px) scale(1.15);
+  }
+}
+@keyframes pg-key-leave {
+  35% {
+    opacity: 1;
+    transform: translateY(1px) scale(1.15);
+  }
+  to {
+    opacity: 0;
+  }
+}
+/* The terminal's hint is a key cap: it lights up rather than brightening its text */
+.pg-kbd-flash {
+  animation: pg-kbd-flash 260ms var(--ease-standard-value);
+}
+@keyframes pg-kbd-flash {
+  35% {
+    color: var(--foreground);
+    background-color: var(--border-strong);
+    transform: scale(1.1);
+  }
+}
+/* The nav's toggle after ⌘B: a press of its own ground, as if it had been clicked */
+[data-flash="a"] {
+  animation: pg-press-a 260ms var(--ease-standard-value);
+}
+[data-flash="b"] {
+  animation: pg-press-b 260ms var(--ease-standard-value);
+}
+@keyframes pg-press-a {
+  35% {
+    background-color: var(--surface-raised);
+    color: var(--foreground);
+  }
+}
+@keyframes pg-press-b {
+  35% {
+    background-color: var(--surface-raised);
+    color: var(--foreground);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-key-flash,
+  .pg-key-leave,
+  .pg-kbd-flash {
+    animation-name: pg-key-bright;
+  }
+}
+@keyframes pg-key-bright {
+  35% {
+    opacity: 1;
+    color: var(--foreground);
+  }
+}
+
+/* Code the assistant just wrote arrives bright, line after line, and settles to the resting green, so
+   the eye finds it once and isn't pulled back to it after. --i is the line's place in the block */
+.pg-arrive {
+  animation: pg-arrive var(--duration-ground) var(--ease-out-value) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+@keyframes pg-arrive {
+  from {
+    background-color: rgb(20 241 149 / 0.18);
+  }
+}
+
+/* A step's divider, reached from the step bar, lights once so the eye lands on it */
+.pg-anchor-flash {
+  animation: pg-anchor-flash var(--duration-slow) var(--ease-out-value);
+}
+@keyframes pg-anchor-flash {
+  from {
+    background-color: rgb(153 69 255 / 0.12);
+  }
+}
+
+/* A wrong pick shakes once, small, so it reads as "not that one" rather than as an error */
+.pg-shake {
+  animation: pg-shake 260ms var(--ease-standard-value);
+}
+@keyframes pg-shake {
+  20% {
+    transform: translateX(-3px);
+  }
+  45% {
+    transform: translateX(3px);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+}
+
+/* The phone's search grows out of the glass it was folded into, leftward over the heading, and folds
+   back into it on Cancel. Clipped, not resized, so nothing under it reflows while it moves */
+.pg-search-grow {
+  animation: pg-search-grow 220ms var(--ease-out-value) both;
+}
+.pg-search-grow.pg-search-fold {
+  animation: pg-search-fold 160ms var(--ease-standard-value) forwards;
+}
+.pg-search-fold-out {
+  animation: pg-fade-out 160ms var(--ease-standard-value) forwards;
+}
+@keyframes pg-search-grow {
+  from {
+    clip-path: inset(0 0 0 calc(100% - 2.75rem) round 10px);
+  }
+  to {
+    clip-path: inset(0 round 10px);
+  }
+}
+@keyframes pg-search-fold {
+  from {
+    clip-path: inset(0 round 10px);
+  }
+  to {
+    clip-path: inset(0 0 0 calc(100% - 2.75rem) round 10px);
+    opacity: 0;
+  }
+}
+@keyframes pg-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-arrive,
+  .pg-anchor-flash,
+  .pg-shake,
+  .pg-search-grow,
+  .pg-search-grow.pg-search-fold,
+  .pg-search-fold-out {
+    animation: none;
+  }
+}
+
+/* The ground under the code, a step off the chrome around it (as iA Writer sets its editor apart):
+   chat, tabs, terminal and the Call panel stay on the base, only the place you type the code is tinted */
+:root {
+  --code-ground: var(--surface-panel);
+}
+
+/* Calm, after Claude Code's dark app: no brand colour in the interface. The main action is a light
+   button, focus and the small markers are grey, and colour is left to code, errors and a done check */
+html.dark {
+  /* Text and glyphs in Claude's warm greys, a little under the old cool ones: the main text near
+     #cbc9c0, labels and icons near #9a988f. On the lighter ground below that's about 9.5:1 and 5:1,
+     softer than 12:1 on near black, and still past AA for both */
+  --foreground: #cbc9c0;
+  --card-foreground: #cbc9c0;
+  --popover-foreground: #cbc9c0;
+  --text-primary: #cbc9c0;
+  --accent-foreground: #cbc9c0;
+  --muted-foreground: #9a988f;
+  --text-secondary: #9a988f;
+  /* The main action as Claude Code draws it: an off-white fill with near-black text, the one bright
+     thing in a card, so the next move is never in doubt. Its neighbour is a grey fill (ACTION_SOFT) */
+  --primary: #f5f4ee;
+  /* Grounds from Claude's own dark scale, read from the app (--bg-300 #141413, --bg-200 #1f1e1d,
+     --bg-100 #262624): near black with a breath of warmth, as Claude Code's window. Borders are the
+     app's warm grey at low alpha, so a hairline reads as an edge, not a drawn line */
+  --background: #141413;
+  --surface-base: #141413;
+  --sidebar: #141413;
+  --surface-panel: #1f1e1d;
+  --card: #1f1e1d;
+  --popover: #1f1e1d;
+  --surface: #232220;
+  --surface-raised: #262624;
+  --secondary: #262624;
+  --muted: #262624;
+  --sidebar-accent: #262624;
+  /* Hover a tone over the ground, as Claude's rows: --bg-200, about ten levels up */
+  --surface-hover: #1f1e1d;
+  --accent: #1f1e1d;
+  --surface-well: #0d0d0c;
+  --border: rgb(222 220 209 / 0.1);
+  --sidebar-border: rgb(222 220 209 / 0.1);
+  --border-strong: rgb(222 220 209 / 0.15);
+  --input: rgb(222 220 209 / 0.15);
+  --text-tertiary: #75736c;
+  /* Cards in the chat sit a shade under the column, as Claude's do: set in, not raised */
+  --card-ground: #0f0f0e;
+  --primary-foreground: #141413;
+  --accent-fill-hover: #e2e0d8;
+  --ring: #85837b;
+  --brand-purple: #9a988f;
+}
+
+/* The feed fades at an edge only while there's more under it, so text never ends on a hard cut */
+[data-feed-scroller] {
+  --fade-top: 0px;
+  --fade-bottom: 0px;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+}
+[data-feed-scroller][data-more-above] {
+  --fade-top: 32px;
+}
+[data-feed-scroller][data-more-below] {
+  --fade-bottom: 32px;
+}
+
+/* Tooltips dark, as Claude Code draws them: a raised grey with a hairline, no arrow. The kit's tip is
+   inverted (light on dark), which shouted over everything around it */
+[data-slot="tooltip-content"] {
+  background-color: var(--surface-raised);
+  color: var(--foreground);
+  box-shadow:
+    0 0 0 1px var(--border-strong),
+    0 6px 20px rgb(0 0 0 / 0.35);
+}
+/* Radix sets the arrow's display inline, so only !important takes it away */
+[data-radix-popper-content-wrapper] svg[class*="rotate-45"] {
+  display: none !important;
+}
+[data-slot="tooltip-content"] kbd {
+  background-color: var(--surface-hover);
+  color: var(--muted-foreground);
+}
+
+/* The phone's type floor. The chat's cards are shared with the desktop, where 12px meta and the
+   tertiary grey read fine beside a mouse; on a phone held at arm's length 12px is too small and
+   #75736c on the page is 3.9:1, under AA. html.phone is set only where the phone app renders
+   (main.tsx), so the desktop keeps every pixel. Drawers portal to the body, which is why this
+   hangs off html and not off the app's root */
+html.phone {
+  --phone-head: 56px;
+}
+html.phone .text-\[0\.6875rem\],
+html.phone .text-\[0\.75rem\],
+html.phone .text-\[0\.8rem\] {
+  font-size: 0.8125rem;
+}
+/* Code in a side note keeps the note's size: at 0.875em of 13px it fell to 11.4px */
+html.phone .text-caption .text-\[0\.875em\] {
+  font-size: 1em;
+}
+html.phone .text-subtle {
+  color: var(--muted-foreground);
+}

@@ -1,0 +1,27 @@
+import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
+
+import { Gallery } from "./screens/Gallery"
+import { StepScreen } from "./screens/StepScreen"
+import { useStore } from "./store"
+
+const TOAST_TOP = "calc(env(safe-area-inset-top, 0px) + var(--phone-head) + 8px)"
+
+export function App() {
+  const { s } = useStore()
+  return (
+    // A phone's width at most: opened wide without the frame, the screens stay phone-shaped in the middle.
+    // Tooltips for the step segments, shared with desktop
+    <TooltipProvider delayDuration={400}>
+      <div className="h-dvh bg-surface-well">
+        <div className="mx-auto flex h-full w-full max-w-[30rem] flex-col overflow-hidden bg-surface-base pt-[env(safe-area-inset-top)] text-foreground">
+          {s.screen === "gallery" && <Gallery />}
+          {/* A finish is the last turn of the step screen's chat; the old screen of its own is gone */}
+          {(s.screen === "step" || s.screen === "finish") && <StepScreen />}
+        </div>
+        {/* Under the screen's top bar, never over its back and close buttons */}
+        <Toaster theme="dark" position="top-center" offset={{ top: TOAST_TOP }} mobileOffset={{ top: TOAST_TOP }} />
+      </div>
+    </TooltipProvider>
+  )
+}
