@@ -8,9 +8,9 @@ page, child of HOO-2237). Task 1 runs alongside 2 and 3; 3 needs 2.
 - [ ] 1.1 About page: "Start" / "Continue" / "Completed" in title case
       beside the heading and pinned at a phone's foot (R55); Level as the
       green tag, Framework and Languages as icon and title-case text (R74);
-      the e2e specs that find `START` follow to `Start`
+      the e2e specs that find `START` follow to `Start` ([plan](plans/1-about-page.md))
 - [ ] 1.2 Beside the About page with no project: the assistant's head and
-      empty state name the tutorial (R53), the files column is empty (R54)
+      empty state name the tutorial (R53), the files column is empty (R54) ([plan](plans/1-about-page.md))
 
 ## 2. The tutorial card (after nothing; before 3)
 

@@ -140,7 +140,7 @@ A tutorial's About page SHALL show "Go back to tutorials", the tutorial's
 name as its heading, "by" and its authors, its description, and its details:
 Level as a coloured tag ("BEGINNER" in green for Beginner), Framework and
 Languages each as an icon and its name in title case ("Anchor", "Rust",
-"TypeScript") with no chip around it. Its action SHALL read "Start",
+"TypeScript") in a soft box, not the upper-case tag the level uses. Its action SHALL read "Start",
 "Continue" once started, or "Completed" with a tick once completed, in that
 case, beside the heading from 768 px and pinned full width at the foot of
 the page below.
@@ -154,19 +154,18 @@ the page below.
 
 - **WHEN** a user opens Hello Anchor's About page
 - **THEN** Level shows "BEGINNER" and Framework and Languages read
-  "Anchor", "Rust" and "TypeScript" (manual: green tag, no chips)
+  "Anchor", "Rust" and "TypeScript" (manual: green tag, title-case boxes)
 
 ### Requirement: Beside the About page, the assistant names the tutorial and the files column is empty
 
-While a tutorial's About page shows and no project is open, the assistant's
-head SHALL read the tutorial's name and its empty conversation SHALL be
+While a tutorial that is not started is on screen, the assistant's head SHALL read the tutorial's name and its empty conversation SHALL be
 titled "Ask about <tutorial>"; the files column SHALL hold nothing (no
 callout, no "Create a new project"). Once the tutorial starts, both follow
 the tutorial's project as for any project.
 
 #### Scenario: The assistant beside Hello Anchor
 
-- **WHEN** a user with no project opens Hello Anchor's About page
+- **WHEN** a user who has not started Hello Anchor opens its About page
 - **THEN** the assistant's head reads "Hello Anchor", its empty state reads
   "Ask about Hello Anchor", and the files column shows no "Create a new
   project"

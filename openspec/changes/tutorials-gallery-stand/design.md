@@ -67,13 +67,16 @@ in `widgets/assistant/ui/Assistant.tsx`); the files column shows
   draws it. No new DS component.
 - **The About page's details become text.** `DetailTag` keeps the level as
   `Tag` with `levelVariant`; framework and languages render as an icon and
-  the title-case name with no `Tag`. `BaseStartButton`'s labels move to
+  the title-case name in a soft box (the stand's `Boxed`), not a `Tag`. `BaseStartButton`'s labels move to
   "Start" / "Continue" / "Completed", and the e2e specs move with them.
-- **The assistant falls back to the open tutorial.** `useProjectName` reads
-  the project name, and while there is none, `PgTutorial.current?.name`,
-  listening to `PgTutorial.onDidChangeCurrent` too. The files column renders
-  nothing instead of `NoWorkspace` while a tutorial route shows with no
-  project.
+- **The assistant and the files column follow a tutorial not yet started.**
+  `entities/tutorial` gains `useTutorialBeforeStart()`: the name of the
+  tutorial whose route is showing while it is not started (its workspace
+  does not exist), else `null`, re-read on `PgTutorial.onDidChangeCurrent`
+  and the explorer's init, switch and workspace-list events. The assistant's
+  head and empty state take that name before the project's; the files column
+  renders nothing while it is set, even when other projects exist, as the
+  stand draws it. Once Start creates the workspace, both follow the project.
 - **Telemetry**: `catalog_filtered { page, framework }` and
   `catalog_banner_opened { state }` join `catalogTelemetry`; my call,
   offered to Slava to confirm or trim.
