@@ -25,6 +25,7 @@ const renderDialog = (props: Partial<BaseFundDialogProps>) =>
       receiver={props.receiver ?? RECEIVER}
       wallets={props.wallets ?? [PHANTOM]}
       payer={props.payer === undefined ? null : props.payer}
+      cluster={props.cluster === undefined ? "devnet" : props.cluster}
       amount={props.amount ?? "1"}
       onAmountChange={props.onAmountChange ?? vi.fn()}
       onConnect={props.onConnect ?? vi.fn().mockResolvedValue(undefined)}
@@ -66,7 +67,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     renderDialog({ payer: PAYER });
 
     expect(screen.getByText("7Hq5…Xk2P")).toBeTruthy();
-    expect(screen.getByText(/2 SOL/)).toBeTruthy();
+    expect(screen.getByText(/· 2 SOL$/)).toBeTruthy();
     expect(screen.getByLabelText("Amount (SOL)").id).toBe("fund-amount");
     expect(sendButton().textContent).toContain("Send 1 SOL");
     expect(sendButton().hasAttribute("disabled")).toBe(false);
@@ -93,7 +94,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
 
   it("waits for the balance before allowing a send", () => {
     renderDialog({
-      payer: { name: "Phantom", address: PAYER.address, balance: null },
+      payer: { name: "Phantom", address: PAYER.address, balance: "loading" },
     });
 
     expect(sendButton().hasAttribute("disabled")).toBe(true);
@@ -139,5 +140,43 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
       "Blockhash not found"
     );
     expect(sendButton().hasAttribute("disabled")).toBe(false);
+  });
+
+  it("names the cluster the SOL goes to", () => {
+    renderDialog({ payer: PAYER, cluster: "mainnet-beta" });
+
+    expect(screen.getByText("Sent on mainnet-beta.")).toBeTruthy();
+  });
+
+  it("says when the balance cannot be read, and allows no send", () => {
+    renderDialog({
+      payer: {
+        name: "Phantom",
+        address: PAYER.address,
+        balance: "unavailable",
+      },
+    });
+
+    expect(screen.getByText(/Couldn't read Phantom's balance/)).toBeTruthy();
+    expect(sendButton().hasAttribute("disabled")).toBe(true);
+  });
+
+  it("allows no second send while a sent transfer is unconfirmed", () => {
+    renderDialog({
+      payer: PAYER,
+      failure: { kind: "send-unconfirmed", signature: "5igNaTuRe" },
+    });
+
+    expect(screen.getByRole("alert").textContent).toContain(
+      "The SOL was sent, but not confirmed yet."
+    );
+    expect(screen.getByRole("alert").textContent).toContain("5igNaTuRe");
+    expect(sendButton().hasAttribute("disabled")).toBe(true);
+  });
+
+  it("asks for at most 9 decimals", () => {
+    renderDialog({ payer: PAYER, amount: "0.0000000001" });
+
+    expect(screen.getByText("Use at most 9 decimals.")).toBeTruthy();
   });
 });

@@ -57,7 +57,9 @@ become the current wallet.
 The amount field (label "Amount (SOL)", id `fund-amount`) SHALL start at 1 and
 accept a positive number of SOL with at most 9 decimals. The send button,
 labelled `Send <amount> SOL`, SHALL be disabled while the amount is not valid
-or exceeds the paying wallet's balance less 0.001 SOL for fees.
+or exceeds the paying wallet's balance less 0.001 SOL for fees, and while that
+balance is unknown. The field SHALL name the Playground's cluster the SOL goes
+to, and the balance SHALL be read again when that cluster changes.
 
 #### Scenario: Amount above the balance
 - **WHEN** the paying wallet holds 0.5 SOL and the user enters 1
@@ -84,8 +86,12 @@ updates on its own.
 - **THEN** nothing is sent, the dialog stays open with the amount kept, and it says the transfer was declined
 
 #### Scenario: The transfer fails on the network
-- **WHEN** the cluster rejects the transaction or it is not confirmed
+- **WHEN** the transaction never reaches the cluster, or the cluster runs it and it fails
 - **THEN** the dialog stays open, shows "Couldn't send the SOL." with the reason, and the send button can be pressed again
+
+#### Scenario: The transfer is sent but not confirmed
+- **WHEN** the transaction was sent and its confirmation times out or fails
+- **THEN** the dialog shows "The SOL was sent, but not confirmed yet." with the signature, and the send button stays disabled so the SOL cannot be sent twice
 
 ### Requirement: Funding is measured
 The `features/fund-wallet` slice SHALL emit, with prefix `fund`:
@@ -95,7 +101,7 @@ connects in the dialog; `fund_sent` `{ cluster: "mainnet-beta" | "devnet" |
 "testnet" | "localnet" | "playnet" }` (the Playground's cluster) when a
 transfer is confirmed; and
 `fund_failed` `{ stage: "connect" | "send", reason: "rejected" | "network" |
-"unknown" }` when connecting or sending fails. `session_account_item_picked`
+"unconfirmed" | "unknown" }` when connecting or sending fails. `session_account_item_picked`
 SHALL carry `item: "fund-wallet"` when the menu item is picked. No event
 carries an address or an amount.
 

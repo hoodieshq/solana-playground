@@ -7,13 +7,14 @@ import type { StandardWallet } from "@/utils/wallet/types";
 import {
   classify,
   DEFAULT_AMOUNT,
+  formatSol,
   parseAmount,
   receiverOf,
 } from "../model/fund";
 import type { FailureReason } from "../model/fund";
 import { fundTelemetry } from "../model/telemetry";
 import type { FundCluster } from "../model/telemetry";
-import { sendFunds } from "../model/transfer";
+import { sendFunds, TransferNotConfirmedError } from "../model/transfer";
 import BaseFundDialog from "./BaseFundDialog";
 import type { FundFailure, FundPayer } from "./BaseFundDialog";
 
@@ -29,11 +30,15 @@ const currentReceiver = () => {
   const current = PgWallet.current;
   const first = PgWallet.accounts[0];
   return receiverOf({
-    current: current && {
-      isPg: current.isPg,
-      name: current.name,
-      address: current.publicKey.toBase58(),
-    },
+    // Only a Playground wallet can receive; an extension's key is null while
+    // it disconnects, before `PgWallet` hands back to the Playground wallet
+    current: current?.isPg
+      ? {
+          isPg: true,
+          name: current.name,
+          address: current.publicKey.toBase58(),
+        }
+      : null,
     firstAccount: first
       ? {
           name: first.name,
@@ -51,26 +56,39 @@ const currentReceiver = () => {
 const pickedWallet = (wallets: StandardWallet[], name: string | null) =>
   wallets.find((w) => w.connected && w.name === name) ?? null;
 
+const describe = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  const message = (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" ? message : String(error);
+};
+
 const failureOf = (
   stage: "connect" | "send",
   reason: FailureReason,
   error: unknown
 ): FundFailure => {
-  const detail = error instanceof Error ? error.message : String(error);
+  if (error instanceof TransferNotConfirmedError) {
+    return { kind: "send-unconfirmed", signature: error.signature };
+  }
   if (stage === "connect") {
     return reason === "rejected"
       ? { kind: "connect-declined" }
-      : { kind: "connect-failed", detail };
+      : { kind: "connect-failed", detail: describe(error) };
   }
   return reason === "rejected"
     ? { kind: "send-declined" }
-    : { kind: "send-failed", detail };
+    : { kind: "send-failed", detail: describe(error) };
 };
 
-const sentToast = (sol: number, receiver: string) =>
-  PgView.setToast(() => <span>{`Sent ${sol} SOL to ${receiver}.`}</span>, {
-    options: { name: "fund-sent" },
-  });
+/** A user's "no" is their choice, not a fault: logged, never reported */
+const logFailure = (
+  stage: "connect" | "send",
+  reason: FailureReason,
+  error: unknown
+) => {
+  if (reason === "rejected") log.info(`${stage} declined`);
+  else log.error(error, { report: true, context: { stage, reason } });
+};
 
 /**
  * The Fund dialog, connected: wallets from `PgWallet.standardWallets` (found
@@ -81,19 +99,23 @@ const sentToast = (sol: number, receiver: string) =>
 const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
   useRenderOnChange(PgWallet.onDidChangeStandardWallets);
   useRenderOnChange(PgWallet.onDidChangeCurrent);
+  // The balance, the check and the note follow a cluster change
+  useRenderOnChange(PgConnection.onDidChangeCluster);
   const [payerName, setPayerName] = useState<string | null>(null);
-  const [balance, setBalance] = useState<number | null>(null);
+  const [balance, setBalance] = useState<FundPayer["balance"]>("loading");
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [failure, setFailure] = useState<FundFailure | null>(null);
-  // A send can settle after the dialog closed; nothing is shown then
-  const openRef = useRef(open);
-  openRef.current = open;
+  // Each opening is one attempt; a send that settles after the dialog closed
+  // or reopened must not close or mark the dialog the user sees now
+  const attempt = useRef(0);
 
   const wallets = PgWallet.standardWallets;
   const payer = pickedWallet(wallets, payerName);
   const receiver = currentReceiver();
+  const cluster = PgConnection.cluster ?? null;
 
   useEffect(() => {
+    attempt.current++;
     if (!open) return;
     fundTelemetry.track("fund_dialog_opened", { from: "account-menu" });
     setFailure(null);
@@ -101,10 +123,10 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
     setPayerName(null);
   }, [open]);
 
-  // The payer's balance, read when it changes and after each failure
+  // The payer's balance on the current cluster; reread when either changes
   const payerAddress = payer?.publicKey?.toBase58() ?? null;
   useEffect(() => {
-    setBalance(null);
+    setBalance("loading");
     if (!open || !payerAddress) return;
     let current = true;
     PgConnection.current
@@ -113,28 +135,37 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
         if (current) setBalance(PgWeb3.lamportsToSol(lamports));
       })
       .catch((error: unknown) => {
-        log.error(error, { context: { step: "payer balance" } });
+        log.error(error, { report: true, context: { step: "payer balance" } });
+        if (current) setBalance("unavailable");
       });
     return () => {
       current = false;
     };
-  }, [open, payerAddress, failure]);
+  }, [open, payerAddress, cluster]);
 
-  if (!receiver) return null;
+  if (!receiver) {
+    // The menu offers funding only once an account exists (`canFund`)
+    if (open) log.warn("fund dialog opened with no Playground account");
+    return null;
+  }
 
   const connect = async (name: string) => {
     const wallet = wallets.find((w) => w.name === name);
-    if (!wallet) return;
+    if (!wallet) {
+      log.warn("picked a wallet that is no longer listed", {
+        context: { name },
+      });
+      setFailure({ kind: "connect-failed", detail: `${name} is gone.` });
+      return;
+    }
     setFailure(null);
     try {
       await wallet.connect();
+      if (!wallet.connected) throw new Error(`${name} did not connect.`);
     } catch (error: unknown) {
       const reason = classify(error);
       fundTelemetry.track("fund_failed", { stage: "connect", reason });
-      if (reason === "rejected")
-        log.info("connection declined", { context: { name } });
-      else
-        log.error(error, { report: true, context: { step: "connect", name } });
+      logFailure("connect", reason, error);
       setFailure(failureOf("connect", reason, error));
       return;
     }
@@ -144,7 +175,15 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
 
   const send = async () => {
     const parsed = parseAmount(amount);
-    if (!payer?.connected || !parsed.ok) return;
+    if (!parsed.ok) return;
+    if (!payer?.connected) {
+      setFailure({ kind: "send-failed", detail: "The wallet disconnected." });
+      setPayerName(null);
+      return;
+    }
+    const mine = attempt.current;
+    // Read once, so the toast and the event name the cluster the send used
+    const sentOn = PgConnection.cluster;
     setFailure(null);
     try {
       await sendFunds({
@@ -155,16 +194,19 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
     } catch (error: unknown) {
       const reason = classify(error);
       fundTelemetry.track("fund_failed", { stage: "send", reason });
-      if (reason === "rejected") log.info("transfer declined");
-      else log.error(error, { report: true, context: { step: "send" } });
-      if (openRef.current) setFailure(failureOf("send", reason, error));
+      logFailure("send", reason, error);
+      if (attempt.current === mine)
+        setFailure(failureOf("send", reason, error));
       return;
     }
-    // A confirmed transfer went through a cluster the connection named
-    const cluster: FundCluster | null | undefined = PgConnection.cluster;
-    if (cluster) fundTelemetry.track("fund_sent", { cluster });
-    sentToast(parsed.sol, receiver.name);
-    onOpenChange(false);
+    // `PgConnection.cluster` is null only before the first endpoint is read
+    if (sentOn)
+      fundTelemetry.track("fund_sent", { cluster: sentOn as FundCluster });
+    PgView.setToast(
+      () => <span>{`Sent ${formatSol(parsed.sol)} to ${receiver.name}.`}</span>,
+      { options: { name: "fund-sent" } }
+    );
+    if (attempt.current === mine) onOpenChange(false);
   };
 
   const payerView: FundPayer | null = payer?.publicKey
@@ -178,6 +220,7 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
       receiver={receiver}
       wallets={wallets.map((w) => ({ name: w.name, icon: w.icon }))}
       payer={payerView}
+      cluster={cluster}
       amount={amount}
       onAmountChange={setAmount}
       onConnect={connect}

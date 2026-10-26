@@ -18,7 +18,7 @@ import {
   FieldLabel,
 } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
-import { canSend, parseAmount } from "../model/fund";
+import { canSend, formatSol, parseAmount } from "../model/fund";
 import type { Receiver, SendCheck } from "../model/fund";
 
 /** The amount field's id, which the spec and the tests find it by */
@@ -36,8 +36,8 @@ export interface FundPayer {
   name: string;
   /** Base58 */
   address: string;
-  /** In SOL; `null` while it loads */
-  balance: number | null;
+  /** In SOL, or where reading it stands */
+  balance: number | "loading" | "unavailable";
 }
 
 /** What went wrong last, shown above the footer until the next attempt */
@@ -45,7 +45,9 @@ export type FundFailure =
   | { kind: "connect-declined" }
   | { kind: "connect-failed"; detail: string }
   | { kind: "send-declined" }
-  | { kind: "send-failed"; detail: string };
+  | { kind: "send-failed"; detail: string }
+  /** Sent, possibly landed: sending again could pay twice, so Send stays off */
+  | { kind: "send-unconfirmed"; signature: string };
 
 export interface BaseFundDialogProps {
   open: boolean;
@@ -53,8 +55,13 @@ export interface BaseFundDialogProps {
   receiver: Receiver;
   /** Every detected wallet; empty when none is installed */
   wallets: FundWalletOption[];
-  /** `null` until a wallet is connected here, or one already was */
+  /**
+   * `null` until the user connects a wallet in this dialog; a wallet connected
+   * earlier is listed again and must be picked
+   */
   payer: FundPayer | null;
+  /** The Playground's cluster, named beside the amount; `null` while unknown */
+  cluster: string | null;
   amount: string;
   onAmountChange: (amount: string) => void;
   /** Connects the named wallet; the dialog's button waits on it */
@@ -64,20 +71,33 @@ export interface BaseFundDialogProps {
   failure: FundFailure | null;
 }
 
-export const shortAddress = (address: string) =>
+const shortAddress = (address: string) =>
   `${address.slice(0, 4)}…${address.slice(-4)}`;
 
-const formatSol = (sol: number) => `${Number(sol.toFixed(9))} SOL`;
-
-/** The line under the amount field: a problem, or what will be sent */
+/** The line under the amount field: a problem, or where the SOL goes */
 const amountNote = (
-  check: SendCheck,
-  payer: FundPayer
-): { error: boolean; text: string } => {
+  amount: string,
+  payer: FundPayer,
+  cluster: string | null
+): { ok: boolean; error: boolean; text: string } => {
+  if (payer.balance === "unavailable") {
+    return {
+      ok: false,
+      error: true,
+      text: `Couldn't read ${payer.name}'s balance. Close and open this again to retry.`,
+    };
+  }
+  const check = canSend(
+    amount,
+    payer.balance === "loading" ? null : payer.balance
+  );
   if (check.ok) {
     return {
+      ok: true,
       error: false,
-      text: "Sent on the cluster the Playground is connected to.",
+      text: cluster
+        ? `Sent on ${cluster}.`
+        : "Sent on the Playground's cluster.",
     };
   }
   const notes: Record<Exclude<SendCheck, { ok: true }>["problem"], string> = {
@@ -85,9 +105,15 @@ const amountNote = (
     "not-positive": "Enter an amount above 0.",
     "too-precise": "Use at most 9 decimals.",
     checking: "Checking the balance…",
-    "above-balance": `${payer.name} holds ${formatSol(payer.balance ?? 0)}.`,
+    "above-balance": `${payer.name} holds ${formatSol(
+      typeof payer.balance === "number" ? payer.balance : 0
+    )}.`,
   };
-  return { error: check.problem !== "checking", text: notes[check.problem] };
+  return {
+    ok: false,
+    error: check.problem !== "checking",
+    text: notes[check.problem],
+  };
 };
 
 const failureText = (failure: FundFailure) => {
@@ -106,6 +132,11 @@ const failureText = (failure: FundFailure) => {
       };
     case "send-failed":
       return { title: "Couldn't send the SOL.", detail: failure.detail };
+    case "send-unconfirmed":
+      return {
+        title: "The SOL was sent, but not confirmed yet.",
+        detail: `Look up ${failure.signature} in an explorer before sending again.`,
+      };
   }
 };
 
@@ -116,9 +147,9 @@ const sendLabel = (amount: string) => {
 
 /**
  * Moves SOL from the user's own wallet into the Playground account that
- * deploys. Built from design-system parts: no design for funding exists yet
- * (asked of Design alignment, 2026-10-27), so where it opens from is the
- * widget's choice and can move without touching this.
+ * deploys. Built from design-system parts: no funding design exists yet, so
+ * the layout is provisional, and where it opens from is the widget's choice
+ * and can move without touching this.
  */
 const BaseFundDialog = ({
   open,
@@ -126,14 +157,15 @@ const BaseFundDialog = ({
   receiver,
   wallets,
   payer,
+  cluster,
   amount,
   onAmountChange,
   onConnect,
   onSend,
   failure,
 }: BaseFundDialogProps) => {
-  const check = payer ? canSend(amount, payer.balance) : null;
-  const note = payer && check ? amountNote(check, payer) : null;
+  const note = payer ? amountNote(amount, payer, cluster) : null;
+  const unconfirmed = failure?.kind === "send-unconfirmed";
   const shown = failure ? failureText(failure) : null;
 
   return (
@@ -180,7 +212,9 @@ const BaseFundDialog = ({
               From <strong>{payer.name}</strong>{" "}
               <span className="font-mono">{shortAddress(payer.address)}</span>
               {" · "}
-              {payer.balance === null ? "…" : formatSol(payer.balance)}
+              {typeof payer.balance === "number"
+                ? formatSol(payer.balance)
+                : "…"}
             </p>
             <Field data-invalid={note.error || undefined}>
               <FieldLabel htmlFor={AMOUNT_ID}>Amount (SOL)</FieldLabel>
@@ -216,7 +250,7 @@ const BaseFundDialog = ({
           </DialogClose>
           {payer && (
             <AsyncButton
-              disabled={!check?.ok}
+              disabled={!note?.ok || unconfirmed}
               onClick={onSend}
               onError={reportButtonFailure("send the SOL")}
             >

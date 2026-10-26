@@ -39,7 +39,8 @@ const utils = vi.hoisted(() => ({
     onDidChangeCurrent: () => ({ dispose: () => undefined }),
   },
   PgConnection: {
-    cluster: "devnet",
+    cluster: "devnet" as string | null,
+    onDidChangeCluster: () => ({ dispose: () => undefined }),
     current: { getBalance: vi.fn() },
   },
   PgView: { setToast: vi.fn() },
@@ -54,7 +55,15 @@ vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => undefined }));
 
 const transfer = vi.hoisted(() => ({ sendFunds: vi.fn() }));
-vi.mock("../model/transfer", () => transfer);
+vi.mock("../model/transfer", async () => {
+  const real = await vi.importActual<typeof import("../model/transfer")>(
+    "../model/transfer"
+  );
+  return {
+    sendFunds: transfer.sendFunds,
+    TransferNotConfirmedError: real.TransferNotConfirmedError,
+  };
+});
 
 import FundDialog from "./FundDialog";
 
@@ -69,6 +78,7 @@ beforeEach(() => {
     publicKey: { toBase58: () => RECEIVER_ADDRESS },
   };
   utils.PgWallet.state = "pg";
+  utils.PgConnection.cluster = "devnet";
   utils.PgConnection.current.getBalance.mockReset().mockResolvedValue(2e9);
   utils.PgView.setToast.mockReset();
   transfer.sendFunds.mockReset().mockResolvedValue("sig");
@@ -220,5 +230,76 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     expect(events("fund_failed")).toEqual([
       expect.objectContaining({ params: { stage: "send", reason: "network" } }),
     ]);
+  });
+
+  it("allows no second send when the transfer was sent but not confirmed", async () => {
+    const { TransferNotConfirmedError } = await vi.importActual<
+      typeof import("../model/transfer")
+    >("../model/transfer");
+    transfer.sendFunds.mockRejectedValueOnce(
+      new TransferNotConfirmedError("5igNaTuRe", new Error("timed out"))
+    );
+    await renderOpen();
+    await connectPhantom();
+
+    await act(async () => {
+      fireEvent.click(sendButton());
+    });
+
+    expect(screen.getByRole("alert").textContent).toContain("5igNaTuRe");
+    expect(sendButton().hasAttribute("disabled")).toBe(true);
+    expect(events("fund_failed")).toEqual([
+      expect.objectContaining({
+        params: { stage: "send", reason: "unconfirmed" },
+      }),
+    ]);
+  });
+
+  it("says when a wallet answers without connecting", async () => {
+    phantom.connect.mockImplementationOnce(async () => undefined);
+    await renderOpen();
+
+    await connectPhantom();
+
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Couldn't connect the wallet."
+    );
+    expect(events("fund_wallet_connected")).toEqual([]);
+  });
+
+  it("says when the balance cannot be read", async () => {
+    utils.PgConnection.current.getBalance.mockRejectedValueOnce(
+      new Error("429")
+    );
+    await renderOpen();
+
+    await connectPhantom();
+
+    expect(screen.getByText(/Couldn't read Phantom's balance/)).toBeTruthy();
+  });
+
+  it("toasts a small amount without an exponent", async () => {
+    await renderOpen();
+    await connectPhantom();
+    fireEvent.change(screen.getByLabelText("Amount (SOL)"), {
+      target: { value: "0.0000001" },
+    });
+
+    await act(async () => {
+      fireEvent.click(sendButton());
+    });
+
+    const toast = utils.PgView.setToast.mock.calls[0][0] as () => ReactElement;
+    const { container } = render(toast());
+    expect(container.textContent).toBe("Sent 0.0000001 SOL to Wallet 1.");
+  });
+
+  it("renders while the current extension is mid-disconnect, with no key", async () => {
+    utils.PgWallet.current = { isPg: false, name: "Phantom", publicKey: null };
+
+    render(<FundDialog open={false} onOpenChange={vi.fn()} />);
+    await renderOpen();
+
+    expect(screen.getByText("Wallet 1")).toBeTruthy();
   });
 });

@@ -22,8 +22,11 @@ export type SendCheck =
   | { ok: true; lamports: number }
   | { ok: false; problem: AmountProblem | "checking" | "above-balance" };
 
-/** Why connecting or sending failed, for the user and for telemetry */
-export type FailureReason = "rejected" | "network" | "unknown";
+/**
+ * Why connecting or sending failed, for the user and for telemetry;
+ * `unconfirmed` is a transfer that was sent and may have landed
+ */
+export type FailureReason = "rejected" | "network" | "unconfirmed" | "unknown";
 
 export const LAMPORTS_PER_SOL = 1_000_000_000;
 
@@ -82,17 +85,34 @@ const USER_REJECTED_CODE = 4001;
 
 const NETWORK = /failed to (fetch|send)|network|timed? ?out|blockhash/i;
 
+/** Errors from the cluster, never from the user: read before any wording */
+const NETWORK_NAMES = new Set(["SendTransactionError", "TransferFailedError"]);
+
+/** Name, code and message of whatever was thrown: wallets also throw plain objects */
+const fieldsOf = (error: unknown) => {
+  if (typeof error !== "object" || error === null) {
+    return { name: "", code: undefined, message: "" };
+  }
+  const { name, code, message } = error as Record<string, unknown>;
+  return {
+    name: typeof name === "string" ? name : "",
+    code,
+    message: typeof message === "string" ? message : "",
+  };
+};
+
 export const classify = (error: unknown): FailureReason => {
-  if (!(error instanceof Error)) return "unknown";
-  const code = (error as { code?: unknown }).code;
-  if (code === USER_REJECTED_CODE || REJECTION.test(error.message)) {
-    return "rejected";
-  }
-  if (error.name === "SendTransactionError" || NETWORK.test(error.message)) {
-    return "network";
-  }
+  const { name, code, message } = fieldsOf(error);
+  if (name === "TransferNotConfirmedError") return "unconfirmed";
+  if (NETWORK_NAMES.has(name)) return "network";
+  if (code === USER_REJECTED_CODE || REJECTION.test(message)) return "rejected";
+  if (NETWORK.test(message)) return "network";
   return "unknown";
 };
+
+/** SOL as the dialog and its toast write it: no exponent, no trailing zeros */
+export const formatSol = (sol: number) =>
+  `${sol.toFixed(9).replace(/\.?0+$/, "")} SOL`;
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
@@ -185,6 +205,40 @@ if (import.meta.vitest) {
       });
       expect(classify(send)).toBe("network");
       expect(classify(new TypeError("Failed to fetch"))).toBe("network");
+    });
+
+    it("classify reads an RPC failure as network even when it says denied", () => {
+      const rpc = Object.assign(new Error("access denied by the RPC"), {
+        name: "SendTransactionError",
+      });
+      expect(classify(rpc)).toBe("network");
+    });
+
+    it("classify reads a failed transfer as network", () => {
+      const failed = Object.assign(new Error("custom program error: 0x1"), {
+        name: "TransferFailedError",
+      });
+      expect(classify(failed)).toBe("network");
+    });
+
+    it("classify reads a plain object a wallet throws", () => {
+      expect(classify({ code: 4001, message: "Nope" })).toBe("rejected");
+      expect(classify({ message: "User rejected" })).toBe("rejected");
+    });
+
+    it("classify reads a transfer sent but not confirmed as unconfirmed", () => {
+      const unconfirmed = Object.assign(new Error("timed out"), {
+        name: "TransferNotConfirmedError",
+      });
+      expect(classify(unconfirmed)).toBe("unconfirmed");
+    });
+
+    it.each([
+      [1, "1 SOL"],
+      [0.0000001, "0.0000001 SOL"],
+      [2.5, "2.5 SOL"],
+    ])("formatSol(%j) is %j", (sol, text) => {
+      expect(formatSol(sol)).toBe(text);
     });
 
     it("classify reads anything else as unknown", () => {
