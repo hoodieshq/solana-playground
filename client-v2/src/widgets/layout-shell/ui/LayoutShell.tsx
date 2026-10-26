@@ -549,8 +549,10 @@ const LayoutShell = ({
           phone: false,
         });
       }}
+      // The product's text face, as the desktop's column has it: the code
+      // face leaked into every button of a Sheet, which inherit their font
       sheetFont={{
-        fontFamily: theme.font.code.family,
+        fontFamily: theme.font.other.family,
         fontSize: theme.font.code.size.medium,
       }}
       phone={{

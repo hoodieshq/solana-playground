@@ -29,6 +29,12 @@ interface LeftPanelProps {
    * phone's Files sheet has its own close).
    */
   onHide?: () => void;
+  /**
+   * The tab to open on, over the kept one. The phone's Files sheet opens
+   * from the files row, so in a lesson it lands on Files, with Steps one
+   * tap away, as the prototype's sheet does.
+   */
+  startOn?: Tab;
 }
 
 /** The head's way to hide the column */
@@ -55,6 +61,7 @@ const HideButton = ({ onHide }: { onHide: () => void }) => (
 const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   collapsed,
   onHide,
+  startOn,
 }) => {
   // From the first commit, not from the subscription's first call: a commit
   // without the lesson draws the tree, and the scroll put back below would
@@ -63,7 +70,7 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
 
   const [tab, setTab] = useState<Tab>(
-    () => keptColumn(PgExplorer.currentWorkspaceId)?.tab ?? "steps"
+    () => startOn ?? keptColumn(PgExplorer.currentWorkspaceId)?.tab ?? "steps"
   );
 
   // Hidden, the column unmounts (design.md, "Frame chrome (5.25)"), so its
