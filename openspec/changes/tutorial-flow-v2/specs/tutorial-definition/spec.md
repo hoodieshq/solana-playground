@@ -1,0 +1,151 @@
+# Spec Delta
+
+## Purpose
+
+How a conversation tutorial is written down: one JSON definition per tutorial,
+the schema that checks it, the loader that lists it in the catalog, and the
+instruction an agent follows to write a new one.
+
+## ADDED Requirements
+
+### Requirement: A conversation tutorial is one JSON definition
+
+A tutorial on the conversation flow SHALL be defined by one JSON file,
+`client-v2/src/tutorials/<slug>/tutorial.json`, next to the tutorial's
+starting files and thumbnail. The definition SHALL hold:
+
+- the catalog metadata: name, description, authors, level (Beginner,
+  Intermediate or Advanced), framework, languages, categories, thumbnail,
+  minutes;
+- the intro: the lead text and the finished program shown before Start;
+- the steps, from one to six. Each step has:
+  - its title and its short label for the step bar;
+  - its objective and what it teaches;
+  - its main file;
+  - the files' content at the step's start and at its target;
+  - its beats in order;
+  - its goal;
+  - its win;
+  - its "Explain this step" answer;
+  - its chips;
+- the finish: headline, line, what was learned, and the next tutorial's slug.
+
+A beat SHALL be one of:
+
+- `say`: text, with an optional quote of a file line, lit or marked as an
+  error;
+- `write`: text and the block it writes into a file, or the file it creates;
+- `ask`: a question with exactly three options, the index of the right one,
+  one reason per wrong option, a hint, the block a right pick or a Skip writes,
+  and whether the options are code or prose;
+- `act`: build, deploy, build and deploy, run a client file, or call an
+  instruction with arguments, with its title, context line and button label.
+
+A step MAY carry the beats that follow a planned build failure (the
+explanation, a fixing question and the second build) and the assistant's line
+inside the failed card. Text fields SHALL accept the inline Markdown the
+conversation renders: inline code, emphasis and links.
+
+#### Scenario: Hello Anchor as the proof
+
+- **WHEN** `client-v2/src/tutorials/hello-anchor/tutorial.json` is loaded
+- **THEN** it validates against the schema
+- **AND** it describes four steps (Program, Deploy, Client, Name) with four
+  questions and the planned E0412 failure in step 1, with the copy of
+  Almaz's `SPEC.md` section 7 except where `tutorial-runs` replaces the Kora
+  copy
+
+### Requirement: The schema names every error by its path
+
+The definition SHALL be checked against a JSON Schema at
+`client-v2/src/tutorials/tutorial.schema.json`. The repository SHALL offer one
+command, `yarn tutorial:check [<slug>]`, that validates one or every
+definition. It SHALL print each error as its JSON path, what was expected and
+what was found, and exit non-zero on any error. Beyond the schema, the check
+SHALL reject:
+
+- an `ask` whose right index is outside 0 to 2;
+- a wrong option with no reason;
+- a step whose goal names an instruction that no step's target defines;
+- a `write` or `ask` block that does not appear in its step's target;
+- a `next` slug that names no tutorial;
+- two beats sharing an id.
+
+`yarn run check` SHALL run it.
+
+#### Scenario: A missing reason
+
+- **WHEN** a definition's second step has a question whose option 2 is wrong
+  and has no reason
+- **THEN** `yarn tutorial:check` prints
+  `steps[1].beats[3].why[2]: a wrong option needs a reason, found null`
+- **AND** it exits with code 1
+
+#### Scenario: A block the target does not hold
+
+- **WHEN** a question's block is not part of its step's target file
+- **THEN** the check names the beat's path and the file, and exits with code 1
+
+### Requirement: The loader lists a definition beside the other tutorials
+
+The catalog SHALL list each valid definition beside upstream's tutorials, with
+its level, framework, thumbnail and minutes. The card's progress SHALL read
+"Step n of m" while it is started and "Completed" once the finish card has
+shown. Opening a tutorial with a definition SHALL open the conversation. A
+tutorial without one SHALL open upstream's pages, unchanged. A definition that
+fails validation in a running app SHALL not be listed. It SHALL be reported
+once through the logger with its slug and its first error, and SHALL emit
+`tutorial_definition_rejected`.
+
+#### Scenario: Hello Anchor half done
+
+- **WHEN** the learner has passed two of Hello Anchor's four steps
+- **THEN** its card reads "Step 3 of 4"
+- **AND** the Start here banner offers "Continue · Step 3 of 4"
+
+#### Scenario: A broken definition in a build
+
+- **WHEN** a definition fails validation at load
+- **THEN** the catalog lists the other tutorials and not that one
+- **AND** `tutorial_definition_rejected` fires with `tutorial` set to its slug
+  and `errors` set to the count of errors
+
+### Requirement: An agent can write a tutorial from the authoring instruction
+
+The repository SHALL hold one authoring instruction,
+`client-v2/src/tutorials/AUTHORING.md`, that an agent follows to turn a
+conversation with a product person into a definition. It SHALL cover:
+
+- the questions to settle first: audience, level, the program, the four to
+  six steps and what each teaches;
+- the beat types with one example each, taken from Hello Anchor;
+- the voice rules of the script: two to four sentences a message, one rich
+  block at most, three options with a reason for each wrong one, a win per
+  step;
+- how to write the start and target files so every block lands;
+- how to run `yarn tutorial:check` and read its errors;
+- how to try the tutorial locally before a PR.
+
+A definition written by following it, and passing the check, SHALL open and
+run in the conversation with no code change.
+
+#### Scenario: A new definition needs no code
+
+- **WHEN** an agent adds `client-v2/src/tutorials/<slug>/tutorial.json` and
+  its files by the instruction, and the check passes
+- **THEN** `yarn dev` lists the tutorial under its level
+- **AND** it runs from the intro to the finish card
+
+### Requirement: Definition rejections are measured
+
+The tutorial slice SHALL emit `tutorial_definition_rejected` when the loader
+drops a definition. Its parameters:
+
+- `tutorial`: the slug;
+- `errors`: the number of errors, an integer from 1.
+
+#### Scenario: Counting a rejection
+
+- **WHEN** a definition with two schema errors is loaded
+- **THEN** one `tutorial_definition_rejected` reaches the memory provider
+  with `errors: 2`
