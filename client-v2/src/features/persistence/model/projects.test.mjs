@@ -385,6 +385,108 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     assert.ok(await getThread(otherUser, theirs));
   });
 
+  describe("erasing a deleted project's history", () => {
+    // The tombstone hides a thread from every read; the content under it
+    // must go too, or a deleted project's chat outlives the delete in the
+    // account. Read straight from the tables: no API returns a tombstoned
+    // thread, so only the rows can show what is left.
+    const otherUser = "test-user-projects-2";
+
+    /** What the database still holds of one thread */
+    const left = async (threadId) => {
+      const { rows } = await query(
+        `select c.title, c.deleted_at is not null as deleted,
+                (select count(*)::int from messages m
+                  where m.conversation_id = c.id) as messages
+           from conversations c where c.id = $1`,
+        [threadId]
+      );
+      return rows[0];
+    };
+
+    const say = (userOf, threadId, projectId, n) =>
+      appendMessages(userOf, { threadId, projectId, title: `chat ${n}` }, [
+        {
+          id: `22222222-0000-4000-8000-0000000002${n}`,
+          kind: "user",
+          createdAt: new Date(1000).toISOString(),
+          text: "hi",
+        },
+      ]);
+
+    before(async () => {
+      await query(
+        `insert into "user" (id, name, email, "emailVerified", "createdAt", "updatedAt")
+         values ($1, 'Test', 'projects-2@example.com', false, now(), now())
+         on conflict (id) do nothing`,
+        [otherUser]
+      );
+    });
+
+    beforeEach(async () => {
+      await query("delete from conversations where user_id = $1", [otherUser]);
+      await query("delete from projects where user_id = $1", [otherUser]);
+    });
+
+    it("deletes its messages and title, keeping the tombstone", async () => {
+      const mine = "22222222-0000-4000-8000-000000000021";
+      await say(userId, mine, "p1", 21);
+
+      await deleteProject(userId, "p1");
+
+      assert.deepEqual(await left(mine), {
+        title: null,
+        deleted: true,
+        messages: 0,
+      });
+    });
+
+    it("leaves another project's history whole", async () => {
+      const neighbour = "22222222-0000-4000-8000-000000000022";
+      await say(userId, "22222222-0000-4000-8000-000000000023", "p1", 23);
+      await say(userId, neighbour, "p2", 22);
+
+      await deleteProject(userId, "p1");
+
+      assert.deepEqual(await left(neighbour), {
+        title: "chat 22",
+        deleted: false,
+        messages: 1,
+      });
+    });
+
+    it("leaves another account's history under the same id whole", async () => {
+      // A tutorial's id is the same string in every account that started it
+      const theirs = "22222222-0000-4000-8000-000000000024";
+      await say(userId, "22222222-0000-4000-8000-000000000025", "tut:x", 25);
+      await say(otherUser, theirs, "tut:x", 24);
+
+      await deleteProject(userId, "tut:x");
+
+      assert.deepEqual(await left(theirs), {
+        title: "chat 24",
+        deleted: false,
+        messages: 1,
+      });
+    });
+
+    it("also erases a thread tombstoned before this delete", async () => {
+      // A tutorial restarted after a delete leaves the old run's thread
+      // tombstoned under a live project id; the next delete takes it too
+      const earlier = "22222222-0000-4000-8000-000000000026";
+      await say(userId, earlier, "p1", 26);
+      await query(
+        "update conversations set deleted_at = now() where id = $1",
+        [earlier]
+      );
+
+      await deleteProject(userId, "p1");
+
+      assert.equal((await left(earlier)).messages, 0);
+      assert.equal((await left(earlier)).title, null);
+    });
+  });
+
   it("tombstones rather than deleting, and drops the files", async () => {
     await put({ files });
     await deleteProject(userId, "p1");

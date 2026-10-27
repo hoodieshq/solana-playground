@@ -311,6 +311,12 @@ export const writeProject = async (q, userId, input) => {
  * conversation left live here was handed to the new run as the previous
  * run's chat. Scoped by user as well as project: a tutorial's id is the same
  * string in every account that started it.
+ *
+ * What the conversations said goes too: their messages are deleted and their
+ * titles cleared, for every conversation under the project, including one a
+ * previous run of a tutorial left tombstoned. The conversation rows stay,
+ * holding only ids and timestamps: a push to one is answered `ThreadDeleted`
+ * because of them, which is how a device that missed the delete learns of it.
  */
 export const deleteProject = async (userId, id) => {
   await transaction(async (q) => {
@@ -326,6 +332,17 @@ export const deleteProject = async (userId, id) => {
     await q(
       `update conversations set deleted_at = now()
         where user_id = $1 and project_id = $2 and deleted_at is null`,
+      [userId, id]
+    );
+    await q(
+      `delete from messages m using conversations c
+        where m.conversation_id = c.id
+          and c.user_id = $1 and c.project_id = $2`,
+      [userId, id]
+    );
+    await q(
+      `update conversations set title = null
+        where user_id = $1 and project_id = $2 and title is not null`,
       [userId, id]
     );
   });
