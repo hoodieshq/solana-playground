@@ -247,7 +247,7 @@ const passUnlocked = async (): Promise<SyncResult> => {
 
       const mark =
         (await PgSyncMark.read(project.id)) ??
-        (await rebasePreUpgradeMark(project, local));
+        (await rebaseWholeSnapshotMark(project, local));
       // Left for the next pass, which can read the row
       if (mark === "retry") continue;
 
@@ -310,7 +310,7 @@ const passUnlocked = async (): Promise<SyncResult> => {
 };
 
 /**
- * Turn a mark the pre-upgrade client wrote into a per-file one, where the row
+ * Turn a whole-snapshot mark into a per-file one, where the row
  * has not moved since.
  *
  * That mark holds no hash per file, so `read` returns `null` for it and the
@@ -319,7 +319,7 @@ const passUnlocked = async (): Promise<SyncResult> => {
  * brought back from the server, because with no base a file missing here
  * reads as unchanged here, so the server's copy wins. But a row still at the mark's timestamp holds exactly
  * what this device last agreed on, so its files are the base the mark lacks.
- * Hashed into a mark of today's shape, the project goes down reconcile's
+ * Hashed into a per-file mark, the project goes down reconcile's
  * ordinary path: a device that is ahead pushes the difference.
  *
  * The files this device changed keep their agreed content as a base, as a
@@ -331,20 +331,20 @@ const passUnlocked = async (): Promise<SyncResult> => {
  * be read, the project waits for the next pass: falling through to that
  * merge on a dropped request is the very loss this exists to prevent.
  *
- * @returns the new mark; `null` when there is no pre-upgrade mark, the row
+ * @returns the new mark; `null` when there is no whole-snapshot mark, the row
  * has moved past it, or it holds no usable files to rebase on; `"retry"`
  * when the row could not be read
  */
-const rebasePreUpgradeMark = async (
+const rebaseWholeSnapshotMark = async (
   project: ServerProject,
   local: string
 ): Promise<SyncMark | "retry" | null> => {
-  const old = await PgSyncMark.readPreUpgrade(project.id);
+  const old = await PgSyncMark.readWholeSnapshotMark(project.id);
   if (!old || old.updatedAt !== project.updatedAt) return null;
 
   const full = await PgProjectSync.fetch(project.id);
   if (!full) {
-    report(`rebase pre-upgrade mark ${project.id}: row unreadable`, null);
+    report(`rebase whole-snapshot mark ${project.id}: row unreadable`, null);
     return "retry";
   }
   // Re-checked on the copy actually read: the row may move after the list
@@ -353,7 +353,10 @@ const rebasePreUpgradeMark = async (
     // No files to agree on: reconcile pushes this copy over the row, as it
     // does for any row that holds no code
     if (full.snapshot) {
-      report(`rebase pre-upgrade mark ${project.id}: unusable snapshot`, null);
+      report(
+        `rebase whole-snapshot mark ${project.id}: unusable snapshot`,
+        null
+      );
     }
     return null;
   }

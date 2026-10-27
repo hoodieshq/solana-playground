@@ -154,7 +154,7 @@ changes. Asked to build something in the client, look there first.
   (`PgSyncMark.exists`). One older shape is still read on purpose: the
   whole-snapshot mark the first sync client wrote, which production browsers
   hold. Where the row still stands at its `updatedAt`, reconcile rebuilds it
-  per file from the server's copy (`rebasePreUpgradeMark` in
+  per file from the server's copy (`rebaseWholeSnapshotMark` in
   `project-restore.ts`), so unpushed edits push and unpushed deletes stay
   deleted instead of merging against nothing. A future format change that
   ships to users adds its own step; it does not chain through dropped ones.

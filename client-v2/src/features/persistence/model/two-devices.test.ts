@@ -1377,7 +1377,7 @@ describe("a workspace whose files are gone from the store", () => {
   });
 });
 
-describe("a project last synced by the client before per-file marks", () => {
+describe("a project whose mark is one hash of the whole snapshot", () => {
   beforeEach(() => {
     setUp();
     clearFailures();
@@ -1389,10 +1389,12 @@ describe("a project last synced by the client before per-file marks", () => {
 
   /**
    * The account holds `files` at one timestamp, and this browser's mark is
-   * the one the client before per-file hashes wrote when it uploaded them:
+   * the whole-snapshot mark the first sync client wrote when it uploaded them:
    * one hash of the whole snapshot, none per file.
    */
-  const syncedBeforeTheUpgrade = async (files: Record<string, string>) => {
+  const syncedUnderAWholeSnapshotMark = async (
+    files: Record<string, string>
+  ) => {
     asDevice([HELLO]);
     await signedIn();
     const updatedAt = tick();
@@ -1416,8 +1418,8 @@ describe("a project last synced by the client before per-file marks", () => {
     return updatedAt;
   };
 
-  it("uploads an edit and a delete made before the upgrade, asking nothing", async () => {
-    await syncedBeforeTheUpgrade({
+  it("uploads an edit and a delete made under a whole-snapshot mark, asking nothing", async () => {
+    await syncedUnderAWholeSnapshotMark({
       "src/lib.rs": "as uploaded",
       "src/old.rs": "deleted here since",
     });
@@ -1437,7 +1439,7 @@ describe("a project last synced by the client before per-file marks", () => {
   });
 
   it("merges by line when the other device writes before the upload lands", async () => {
-    await syncedBeforeTheUpgrade({ "src/lib.rs": "a\nb\nc\nd\ne\n" });
+    await syncedUnderAWholeSnapshotMark({ "src/lib.rs": "a\nb\nc\nd\ne\n" });
     localFilesAre(HELLO.name, { "src/lib.rs": "A\nb\nc\nd\ne\n" });
     captureWrites();
     // Offline for the upload: the agreement is rebuilt, the push fails
@@ -1460,7 +1462,7 @@ describe("a project last synced by the client before per-file marks", () => {
   });
 
   it("waits for the next pass when the account's copy cannot be read", async () => {
-    await syncedBeforeTheUpgrade({
+    await syncedUnderAWholeSnapshotMark({
       "src/lib.rs": "as uploaded",
       "src/old.rs": "deleted here since",
     });
@@ -1481,7 +1483,7 @@ describe("a project last synced by the client before per-file marks", () => {
     expect(first.conflicts).toEqual([]);
     expect(replace).not.toHaveBeenCalled();
     expect(getFailures().map((f) => f.what)).toContain(
-      `rebase pre-upgrade mark ${HELLO.id}: row unreadable`
+      `rebase whole-snapshot mark ${HELLO.id}: row unreadable`
     );
 
     (global.fetch as Mock).mockImplementation(fakeFetch);
@@ -1494,7 +1496,7 @@ describe("a project last synced by the client before per-file marks", () => {
   });
 
   it("still asks, rather than guess, when the account moved past the mark", async () => {
-    await syncedBeforeTheUpgrade({ "src/lib.rs": "as uploaded" });
+    await syncedUnderAWholeSnapshotMark({ "src/lib.rs": "as uploaded" });
     otherDeviceWroteFiles(HELLO.id, { "src/lib.rs": "the other device" });
     localFilesAre(HELLO.name, { "src/lib.rs": "edited here since" });
     const replace = captureWrites();
@@ -1506,7 +1508,7 @@ describe("a project last synced by the client before per-file marks", () => {
   });
 
   it("leaves the account alone when nothing changed here", async () => {
-    const before = await syncedBeforeTheUpgrade({
+    const before = await syncedUnderAWholeSnapshotMark({
       "src/lib.rs": "as uploaded",
     });
     localFilesAre(HELLO.name, { "src/lib.rs": "as uploaded" });

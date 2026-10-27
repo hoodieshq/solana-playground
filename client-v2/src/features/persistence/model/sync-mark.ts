@@ -48,13 +48,19 @@ const projectIdOf = (fileName: string) =>
 const currentUserId = () => PgSession.get()?.id ?? null;
 
 /**
- * Whether a parsed mark file is one the client before per-file hashes wrote:
- * a whole-snapshot `hash` and the row's `updatedAt`, and no `files`.
- * Browsers that synced before the upgrade still hold these.
+ * The first sync client's mark: one hash of the whole snapshot, none per file.
+ *
+ * `hash` is `hashSnapshot` of everything the server accepted, the generated
+ * workspace files included, so no single file can be compared against it.
+ * Production browsers still hold these; the stored field names stay.
  */
-const isPreUpgrade = (
-  parsed: unknown
-): parsed is { hash: string; updatedAt: string } => {
+interface WholeSnapshotMark {
+  hash: string;
+  updatedAt: string;
+}
+
+/** Whether a parsed mark file is a {@link WholeSnapshotMark} (it has no `files`) */
+const isWholeSnapshotMark = (parsed: unknown): parsed is WholeSnapshotMark => {
   const mark = parsed as Record<string, unknown> | null;
   return (
     !!mark &&
@@ -147,9 +153,9 @@ export class PgSyncMark {
         typeof parsed?.name !== "string" ||
         typeof parsed?.updatedAt !== "string"
       ) {
-        // Not a fault: every browser the pre-upgrade client synced holds
-        // these, and reconcile reads them through `readPreUpgrade`
-        if (!isPreUpgrade(parsed)) {
+        // Not a fault: every browser the first sync client synced holds
+        // these, and reconcile reads them through `readWholeSnapshotMark`
+        if (!isWholeSnapshotMark(parsed)) {
           report(`sync mark ${projectId}: malformed`, null);
         }
         return null;
@@ -170,7 +176,7 @@ export class PgSyncMark {
   }
 
   /**
-   * The one thing a mark the pre-upgrade client wrote can still say: the
+   * The one thing a whole-snapshot mark can still say: the
    * row's `updated_at` when this device last agreed with it.
    *
    * It holds one hash of the whole snapshot and none per file, so it is no
@@ -180,7 +186,7 @@ export class PgSyncMark {
    * @returns the timestamp, or `null` when the mark is absent or any other
    * shape
    */
-  static async readPreUpgrade(
+  static async readWholeSnapshotMark(
     projectId: string
   ): Promise<{ updatedAt: string } | null> {
     const userId = currentUserId();
@@ -190,9 +196,12 @@ export class PgSyncMark {
       const parsed = JSON.parse(
         await PgFs.readToString(pathOf(userId, projectId))
       );
-      return isPreUpgrade(parsed) ? { updatedAt: parsed.updatedAt } : null;
+      return isWholeSnapshotMark(parsed)
+        ? { updatedAt: parsed.updatedAt }
+        : null;
     } catch (e) {
-      if (!isMissing(e)) report(`read pre-upgrade sync mark ${projectId}`, e);
+      if (!isMissing(e))
+        report(`read whole-snapshot sync mark ${projectId}`, e);
       return null;
     }
   }
@@ -414,7 +423,7 @@ if (import.meta.vitest) {
         expect(await PgSyncMark.read("p1")).toBeNull();
       });
 
-      describe("a mark the client before per-file hashes wrote", () => {
+      describe("a whole-snapshot mark", () => {
         let getFailures: typeof import("./diagnostics").getFailures;
         let clearFailures: typeof import("./diagnostics").clearFailures;
         beforeAll(async () => {
@@ -422,7 +431,7 @@ if (import.meta.vitest) {
         });
         beforeEach(() => clearFailures());
 
-        const preUpgrade = JSON.stringify({
+        const wholeSnapshot = JSON.stringify({
           hash: "whole-snapshot",
           contentHash: "user-files",
           name: "one",
@@ -431,28 +440,28 @@ if (import.meta.vitest) {
         });
 
         it("tells reconcile when it last agreed, and nothing else", async () => {
-          storedFiles().set("/.config/sync/u1/p1.json", preUpgrade);
-          expect(await PgSyncMark.readPreUpgrade("p1")).toEqual({
+          storedFiles().set("/.config/sync/u1/p1.json", wholeSnapshot);
+          expect(await PgSyncMark.readWholeSnapshotMark("p1")).toEqual({
             updatedAt: "t1",
           });
           expect(await PgSyncMark.read("p1")).toBeNull();
         });
 
         it("is not reported as malformed", async () => {
-          storedFiles().set("/.config/sync/u1/p1.json", preUpgrade);
+          storedFiles().set("/.config/sync/u1/p1.json", wholeSnapshot);
           await PgSyncMark.read("p1");
           expect(getFailures()).toEqual([]);
         });
 
-        it("is not mistaken for a mark of today's shape, or for none", async () => {
+        it("is not mistaken for a per-file mark, or for none", async () => {
           await PgSyncMark.write("p1", {
             files: { a: "h1" },
             name: "one",
             updatedAt: "t1",
             dirty: false,
           });
-          expect(await PgSyncMark.readPreUpgrade("p1")).toBeNull();
-          expect(await PgSyncMark.readPreUpgrade("p2")).toBeNull();
+          expect(await PgSyncMark.readWholeSnapshotMark("p1")).toBeNull();
+          expect(await PgSyncMark.readWholeSnapshotMark("p2")).toBeNull();
           expect(getFailures()).toEqual([]);
         });
       });
