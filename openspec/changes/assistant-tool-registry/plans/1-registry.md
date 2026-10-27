@@ -18,10 +18,10 @@ Inline execution, TDD per step. Paths relative to `client-v2/src/`.
    each description/schema equals its declaration; each `approval` tool, with
    a fake bridge and approval declined, requested approval and touched nothing;
    each unmarked tool neither asks nor changes anything.
-4. **Panel binds runners** — `tools.ts`: `runners: Record<name, run>` and
-   `BUILTIN_TOOLS.map(decl => ({...decl, run: runners[decl.name]}))`, throwing
-   on a declared name without a runner; MCP tools stay between skill and
-   project groups. `skill-tools.ts` the same for its three.
+4. **Panel binds runners** — `bindTool(name, run)` in `entities/agent-tools`
+   copies the declaration and throws on an undeclared name; `tools.ts` and
+   `skill-tools.ts` replace each inline declaration with it, runners unchanged;
+   MCP tools stay between the skill and project groups.
 5. **Skills** — `grounding/registry.ts` maps `SKILL_CATALOGUE` adding bundled
    content by id; test for missing content.
 6. `yarn run check`, then the sx gate.

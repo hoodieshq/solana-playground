@@ -48,7 +48,7 @@ None.
 - Code: new `client-v2/src/entities/agent-tools/`; `test-api` also runs
   `src/entities/**/model/**/*.test.mjs`; edits to
   `views/sidebar/assistant/model/tools.ts`, `model/skill-tools.ts`,
-  `grounding/registry.ts`, `grounding/types.ts` and their tests.
+  `grounding/registry.ts` and their tests.
 - Builds on `@/shared/lib/ai` (`ToolDefinition`, `ToolSchema`, `toSdkTools`)
   from the ai SDK transport (#47, HOO-1754); no change to it.
 - Out of scope:

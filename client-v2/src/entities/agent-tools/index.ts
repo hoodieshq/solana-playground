@@ -40,9 +40,22 @@ export const bindTool = (
 };
 
 if (import.meta.vitest) {
-  const { describe, it, expect } = import.meta.vitest;
+  const { describe, it, expect, beforeAll } = import.meta.vitest;
 
   describe("entities/agent-tools/index", () => {
+    let browser: typeof import("./index");
+    let server: typeof import("./server.mjs");
+    beforeAll(async () => {
+      browser = await import("./index");
+      server = await import("./server.mjs");
+    });
+
+    it("gives server code the same registry as the browser", () => {
+      expect(server.BUILTIN_TOOLS).toBe(browser.BUILTIN_TOOLS);
+      expect(server.SKILL_CATALOGUE).toBe(browser.SKILL_CATALOGUE);
+      expect(server.DEFAULT_MCP_SERVERS).toBe(browser.DEFAULT_MCP_SERVERS);
+    });
+
     it("bindTool takes the description and schema from the registry", () => {
       const run = () => "ran";
       const tool = bindTool("read_file", run);

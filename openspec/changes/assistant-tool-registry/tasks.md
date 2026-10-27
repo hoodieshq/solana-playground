@@ -2,7 +2,7 @@
 
 ## 1. Registry slice
 
-- [x] 1.1 ([plan](plans/1-registry.md)) Create `client-v2/src/entities/agent-tools/` with `model/registry.mjs` (nine tool declarations, skill catalogue without content, `DEFAULT_MCP_SERVERS`), `index.ts` and `server.mjs`; verify with unit tests for the declarations, the approval marks, the MCP defaults, and a Node-environment test that `server.mjs` exports equal `index.ts`'s (HOO-1749)
+- [x] 1.1 ([plan](plans/1-registry.md)) Create `client-v2/src/entities/agent-tools/` with `model/registry.mjs` (nine tool declarations, skill catalogue without content, `DEFAULT_MCP_SERVERS`), `index.ts` and `server.mjs`; verify with unit tests for the declarations, the approval marks, the MCP defaults, a `node --test` case that loads them through `server.mjs`, and a test that `server.mjs` exports the same values as `index.ts` (HOO-1749)
 
 ## 2. Panel reads the registry
 

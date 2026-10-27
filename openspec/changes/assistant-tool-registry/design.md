@@ -36,8 +36,9 @@ a `server.mjs`. Precedent for a value shared by both: `features/auth/config.mjs`
 
 ### A new entity slice `entities/agent-tools`, plain ESM at its core
 
-`model/registry.mjs` holds the data with JSDoc types; `index.ts` re-exports it
-for the browser (through `allowJs`) and adds `bindTool(name, run)`, which
+`model/registry.mjs` holds the data with JSDoc typedefs; `index.ts` re-exports
+it and those typedefs for the browser (through `allowJs`) and adds
+`bindTool(name, run)`, which
 builds a `ToolDefinition` from a declaration and throws on an undeclared name;
 `server.mjs` re-exports the same bindings for `api/`. The core imports nothing
 (no `@/`, no `ai`, no `zod`), so it cannot pull a browser module into Node. A
@@ -55,10 +56,12 @@ gains the `src/entities/**/model/**/*.test.mjs` glob for it.
 
 ### Declarations carry data only; runners stay in the panel
 
-A declaration is `{ name, description, schema, approval }`. The panel keeps a
-`runners` map `name -> run` (each closing over the bridge and `PgAssistant`
-as today) and builds `ToolDefinition`s by spreading the declaration and adding
-`run`. The `approval` flag is metadata for the server rail and for the test
+A declaration is `{ name, description, schema, approval }`. Each panel tool is
+written as `bindTool("<name>", run)`, its runner closing over the bridge and
+`PgAssistant` as today; `bindTool` copies name, description and schema from the
+declaration and throws on an undeclared name. A declaration with no runner
+shows up in the parity test, which compares the panel's tools with the
+registry's in order. The `approval` flag is metadata for the server rail and for the test
 that every gated tool asks; the gating itself stays inside each `run`, as the
 `ai` transport spec requires.
 
@@ -101,8 +104,10 @@ gateway.
   The PR names the switch; a server-side follow-up imports the export. Until
   then both say the same thing, checked by eye in review.
 - [A JSDoc-typed `.mjs` loses some type precision at the browser door] →
-  `index.ts` re-exports with explicit TypeScript types (`ToolSchema` from
-  `@/shared/lib/ai`), and the parity test compares the runtime values.
+  tool names widen to `string`, so an undeclared name fails in `bindTool` at
+  load and in the parity test rather than in tsc; the schema typedef is checked
+  structurally against `ToolSchema` where `bindTool` returns a
+  `ToolDefinition`.
 - [The server rail ignores the export] → The registry is still the panel's
   single source, so parity holds for every tool the browser sends to
   `/api/agent`, which today is every tool.
