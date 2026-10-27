@@ -214,22 +214,25 @@ describe("/api/projects", () => {
 
     it("refuses an empty name, blank included", async () => {
       const mod = await load();
-      assert.ok(
-        mod.describeProject({ id: UUID, name: "", kind: "project" }).error
+      assert.deepEqual(
+        mod.describeProject({ id: UUID, name: "", kind: "project" }),
+        { error: "name must not be empty" }
       );
-      assert.ok(
-        mod.describeProject({ id: UUID, name: "  ", kind: "project" }).error
+      assert.deepEqual(
+        mod.describeProject({ id: UUID, name: "  ", kind: "project" }),
+        { error: "name must not be empty" }
       );
     });
 
     it("refuses a kind its id contradicts", async () => {
       const mod = await load();
-      assert.ok(
-        mod.describeProject({ id: "tut:hello", name: "x", kind: "project" })
-          .error
+      assert.deepEqual(
+        mod.describeProject({ id: "tut:hello", name: "x", kind: "project" }),
+        { error: "kind must be tutorial for this id" }
       );
-      assert.ok(
-        mod.describeProject({ id: UUID, name: "x", kind: "tutorial" }).error
+      assert.deepEqual(
+        mod.describeProject({ id: UUID, name: "x", kind: "tutorial" }),
+        { error: "kind must be project for this id" }
       );
     });
 

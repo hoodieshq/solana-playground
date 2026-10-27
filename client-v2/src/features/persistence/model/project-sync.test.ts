@@ -788,8 +788,8 @@ describe("resolving a conflict", () => {
 
   it("refuses to empty a workspace over an empty file map", async () => {
     // `{files: {}}` is a well-formed file map, and taking it is the same
-    // deletion as a malformed one: the server refuses to store it now, but a
-    // row written before it did can still hold one.
+    // deletion as a malformed one: the server refuses a full write of one,
+    // but an older row, or a patch that removed every file, can hold one.
     global.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       return Promise.resolve({
@@ -1550,7 +1550,46 @@ describe("a refusal the user has to clear", () => {
     );
     expect(PgProjectSync.conflictFor("p1")?.kind).toBe("too-large");
     expect(putCalls()).toHaveLength(0);
+    // Not recorded: a mark here would make the project read as uploaded
+    expect(await PgSyncMark.read("p1")).toBeNull();
   });
+
+  it("measures the limit in bytes, not characters", async () => {
+    // The platform counts bytes. Two-byte characters under the limit in
+    // characters are over it in bytes, and sent they meet the platform's 413.
+    refusing({
+      ok: true,
+      status: 200,
+      json: async () => ({ updatedAt: "t2" }),
+    });
+    await signedIn();
+
+    const accented = "é".repeat(MAX_PROJECT_BODY_BYTES / 2 + 1);
+    expect(await PgProjectSync.push("p1", { files: { a: accented } })).toBe(
+      "conflict"
+    );
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("too-large");
+    expect(putCalls()).toHaveLength(0);
+  });
+
+  // A loop rather than `it.each`: the global `it` here is typed by
+  // `@types/mocha`, which has no `each`
+  for (const [id, kind] of [
+    ["tut:hello-anchor", "tutorial"],
+    ["4f1c9a52-5d0e-4c55-9a3b-2d6f0b8e7c11", "project"],
+  ]) {
+    it(`sends ${id} as a ${kind}, the kind the server checks`, async () => {
+      refusing({
+        ok: true,
+        status: 200,
+        json: async () => ({ updatedAt: "t2" }),
+      });
+      await signedIn();
+
+      expect(await PgProjectSync.push(id, { files: { a: "1" } })).toBe("ok");
+      expect(lastBody().kind).toBe(kind);
+    });
+  }
 
   it("stops pushing a refused project, exactly like a divergence", async () => {
     refusing({

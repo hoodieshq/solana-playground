@@ -297,7 +297,7 @@ before this existed.
 (`MAX_PROJECT_BODY_BYTES` in `src/features/persistence/model/project-write.mjs`).
 Vercel refuses a Function request body over 4.5 MB with its own `413`
 ([Functions limits](https://vercel.com/docs/functions/limitations)) on every
-plan, before the handler runs. The browser refuses a larger project before
+plan, before the handler runs. The browser refuses a larger body before
 sending it and `PUT /api/projects` refuses it again, both as `too-large`, so the
 user reads the banner's "over the 4 MB sync limit" and never the platform's
 error.

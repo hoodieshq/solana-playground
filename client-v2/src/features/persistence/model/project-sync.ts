@@ -67,7 +67,8 @@ const trimmedName = <T extends ServerProject>(project: T): T =>
  *
  * - `name-taken`: another live project in this account already holds this
  *   name, which the unique index on `(user_id, name)` will not have twice.
- * - `too-large`: the snapshot is over the size this endpoint accepts.
+ * - `too-large`: the request body is over `MAX_PROJECT_BODY_BYTES`. `push`
+ *   refuses one before sending it; the endpoint refuses one it receives.
  *
  * They share the conflict machinery because they need exactly what it gives:
  * pushes for the project stop (there is no point re-uploading every three
@@ -590,7 +591,9 @@ export class PgProjectSync {
     // handler never runs, and the platform's 413 is all the user would get.
     // The same refusal the handler gives, so the banner cannot tell them
     // apart -- and, like it, nothing is recorded.
-    if (new TextEncoder().encode(body).length > MAX_PROJECT_BODY_BYTES) {
+    const bytes = new TextEncoder().encode(body).length;
+    if (bytes > MAX_PROJECT_BODY_BYTES) {
+      report(`push project ${projectId}: ${bytes} bytes, over the limit`, null);
       PgProjectSync._raise({ projectId, kind: "too-large" });
       return "conflict";
     }
@@ -637,7 +640,18 @@ export class PgProjectSync {
         return "conflict";
       }
       if (!response.ok) {
-        report(`push project ${projectId}: HTTP ${response.status}`, null);
+        // The server's own words, when it sent any: a 400 names the check
+        // the body failed, which "HTTP 400" alone leaves to guesswork
+        const said = await response.json().then(
+          (refusal) => refusal?.error,
+          // No readable body; the status is reported below all the same
+          () => undefined
+        );
+        report(
+          `push project ${projectId}: HTTP ${response.status}` +
+            (typeof said === "string" ? ` (${said})` : ""),
+          null
+        );
         return "skipped";
       }
 
@@ -1130,7 +1144,14 @@ export class PgProjectSync {
           PgProjectSync._raise({ projectId, kind: "deleted-elsewhere" });
           return "conflict";
         }
-        if (!full || !isUsableSnapshot(full.snapshot)) return "failed";
+        if (!full || !isUsableSnapshot(full.snapshot)) {
+          // Unreadable is reported where the read failed; a row holding
+          // nothing a merge can start from is reported here
+          if (full?.snapshot) {
+            report(`merge project ${projectId}: unusable snapshot`, null);
+          }
+          return "failed";
+        }
 
         const server = full.snapshot.files;
         const local = carried ?? (await snapshotOf(localName)).files;
@@ -1851,8 +1872,9 @@ export const isCleanAgainst = async (
  * Whether a stored snapshot can be written to a workspace.
  *
  * An empty file map is not: written, it is the workspace emptied, exactly as
- * a malformed one would be. The server refuses to store one, but a row
- * written before it did can still hold it.
+ * a malformed one would be. The server refuses a full write of one, but a row
+ * written before it did can hold one, and so can a patch that removes every
+ * file, which the server does not check.
  *
  * Exported because reconcile checks it before the same destructive call, and
  * both halves have to agree on what "usable" means.

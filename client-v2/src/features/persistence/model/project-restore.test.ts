@@ -82,8 +82,8 @@ const serverHas = (
     if (!found) return "gone";
     return {
       ...found,
-      // Never `{files: {}}`: the server refuses to store one, and reconcile
-      // treats one it meets as unusable
+      // Not `{files: {}}`, which reconcile treats as unusable: the cases
+      // that mean an empty row say so
       snapshot:
         id in snapshots ? snapshots[id] : { files: { "src/lib.rs": "" } },
     };
@@ -539,6 +539,19 @@ describe("reconcile", () => {
     await reconcile();
 
     expect(switchSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not import a project whose row holds no files", async () => {
+    // Imported, it would be a workspace with nothing in it -- and, once
+    // marked, one whose next push uploads that nothing over the row
+    withLocal({});
+    const created = stubCreation();
+    serverHas([project("empty", "alpha")], { empty: { files: {} } });
+
+    const result = await reconcile();
+
+    expect(result.imported).toEqual([]);
+    expect(created).toEqual([]);
   });
 
   it("adopts the server's id, so the two devices converge", async () => {
