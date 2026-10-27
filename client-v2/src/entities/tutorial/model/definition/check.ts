@@ -35,15 +35,39 @@ const validator = () => {
  * they read its shape.
  *
  * @param known every tutorial slug `finish.next` may name
+ * @param slug the folder the definition sits in, which its name must give:
+ * routes and saved workspaces are named from the name
  */
 export const checkDefinition = (
   json: unknown,
-  known: ReadonlySet<string>
+  known: ReadonlySet<string>,
+  slug?: string
 ): DefinitionError[] => {
   const validate = validator();
   if (!validate(json)) return schemaErrors(validate.errors ?? []);
-  return ruleErrors(json as TutorialDefinition, known);
+  const d = json as TutorialDefinition;
+  const errors = ruleErrors(d, known);
+  if (slug !== undefined && slugOf(d.name) !== slug) {
+    errors.unshift({
+      path: "name",
+      message: `a name whose slug is the folder's, ${JSON.stringify(
+        slug
+      )}, found ${JSON.stringify(d.name)}`,
+    });
+  }
+  return errors;
 };
+
+/** A tutorial's slug from its name, as `PgCommon.toKebabFromTitle` makes it */
+export const slugOf = (name: string) =>
+  name
+    .split(" ")
+    .map((w) => w.toLowerCase())
+    .join("-")
+    .replace(/[^\w-]/g, "")
+    .replaceAll("--", "-")
+    .replace(/^-/, "")
+    .replace(/-$/, "");
 
 /** One error as the check prints it */
 export const formatError = (e: DefinitionError) => `${e.path}: ${e.message}`;
@@ -623,6 +647,15 @@ if (import.meta.vitest) {
         button: "Call",
       };
       expect(lines(d)).toEqual(['steps[0].beats[1]: needs "call", found none']);
+    });
+
+    it("needs the name to give the folder's slug", () => {
+      expect(checkDefinition(minimal(), KNOWN, "minimal")).toEqual([]);
+      expect(
+        checkDefinition(minimal(), KNOWN, "other").map(formatError)
+      ).toEqual([
+        'name: a name whose slug is the folder\'s, "other", found "Minimal"',
+      ]);
     });
 
     it("counts each schema error", () => {
