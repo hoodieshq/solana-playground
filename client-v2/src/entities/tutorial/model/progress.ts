@@ -31,12 +31,23 @@ export const progressOf = (
 };
 
 /**
- * A conversation tutorial's progress from what it saved under `conversation`
- * in `.workspace/tutorial-storage.json`: `{ version: 1, passed: [<step id>],
- * finishedAt: <ms> | null }`, the fields the conversation engine writes for
- * the card. `page` is then the number of steps passed, so the card reads
- * "2 of 4". Null when nothing valid is saved, for a tutorial still on its old
- * lesson pages.
+ * What a conversation tutorial keeps under `conversation` in
+ * `.workspace/tutorial-storage.json` for its card to read. This reader defines
+ * the shape; the conversation engine (tutorial-flow-v2 task 3.1) writes it,
+ * and may add fields of its own beside these.
+ */
+export interface ConversationSave {
+  version: 1;
+  /** Ids of the steps passed, in any order */
+  passed: string[];
+  /** When the finish card showed, in ms, or null before it has */
+  finishedAt: number | null;
+}
+
+/**
+ * A conversation tutorial's progress from its `ConversationSave`. `page` is
+ * then the number of steps passed, 0 to m, so the card reads "2 of 4". Null
+ * when `saved` is not one, for a tutorial still on its old lesson pages.
  */
 export const conversationProgressOf = (
   saved: unknown,

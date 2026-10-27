@@ -20,7 +20,9 @@
     "finish"
   ],
   "properties": {
-    "$schema": { "type": "string" },
+    "$schema": {
+      "type": "string"
+    },
     "version": {
       "description": "The format's version. Only 1 exists.",
       "const": 1
@@ -43,18 +45,30 @@
         "additionalProperties": false,
         "required": ["name"],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
-          "link": { "type": "string", "pattern": "^https?://" }
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "link": {
+            "type": "string",
+            "pattern": "^https?://"
+          }
         }
       }
     },
-    "level": { "enum": ["Beginner", "Intermediate", "Advanced"] },
-    "framework": { "enum": ["Anchor", "Native", "Seahorse"] },
+    "level": {
+      "enum": ["Beginner", "Intermediate", "Advanced"]
+    },
+    "framework": {
+      "enum": ["Anchor", "Native", "Seahorse"]
+    },
     "languages": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["JavaScript", "Python", "Rust", "TypeScript"] }
+      "items": {
+        "enum": ["JavaScript", "Python", "Rust", "TypeScript"]
+      }
     },
     "categories": {
       "type": "array",
@@ -113,24 +127,35 @@
       "type": "array",
       "minItems": 1,
       "maxItems": 6,
-      "items": { "$ref": "#/definitions/step" }
+      "items": {
+        "$ref": "#/definitions/step"
+      }
     },
     "finish": {
       "type": "object",
       "additionalProperties": false,
       "required": ["headline", "line", "learned", "chips", "next"],
       "properties": {
-        "headline": { "$ref": "#/definitions/text" },
-        "line": { "$ref": "#/definitions/text" },
+        "headline": {
+          "$ref": "#/definitions/text"
+        },
+        "line": {
+          "$ref": "#/definitions/text"
+        },
         "learned": {
           "description": "What was learned, one item a step.",
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "chips": {
           "type": "array",
-          "items": { "$ref": "#/definitions/chip" }
+          "items": {
+            "$ref": "#/definitions/chip"
+          }
         },
         "next": {
           "description": "The slug of the tutorial the finish suggests next, or null.",
@@ -144,14 +169,23 @@
     "text": {
       "description": "Text in the conversation's inline Markdown (inline code, emphasis, links), or that text with a shorter phone variant.",
       "anyOf": [
-        { "type": "string", "minLength": 1 },
+        {
+          "type": "string",
+          "minLength": 1
+        },
         {
           "type": "object",
           "additionalProperties": false,
           "required": ["text", "phone"],
           "properties": {
-            "text": { "type": "string", "minLength": 1 },
-            "phone": { "type": "string", "minLength": 1 }
+            "text": {
+              "type": "string",
+              "minLength": 1
+            },
+            "phone": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       ]
@@ -164,13 +198,17 @@
     "path": {
       "description": "A workspace file path, relative: `src/lib.rs`, `client/client.ts`.",
       "type": "string",
-      "pattern": "^[^/].*[^/]$"
+      "pattern": "^[^/](.*[^/])?$"
     },
     "files": {
       "description": "Whole file contents by path.",
       "type": "object",
-      "propertyNames": { "$ref": "#/definitions/path" },
-      "additionalProperties": { "type": "string" }
+      "propertyNames": {
+        "$ref": "#/definitions/path"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "pattern": {
       "description": "A JavaScript regular expression, matched case-insensitively.",
@@ -186,9 +224,16 @@
       "additionalProperties": false,
       "required": ["label", "answer"],
       "properties": {
-        "label": { "type": "string", "minLength": 1 },
-        "answer": { "$ref": "#/definitions/text" },
-        "follow": { "$ref": "#/definitions/follow" },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "answer": {
+          "$ref": "#/definitions/text"
+        },
+        "follow": {
+          "$ref": "#/definitions/follow"
+        },
         "pattern": {
           "description": "The subject the chip answers when it is typed in other words.",
           "$ref": "#/definitions/pattern"
@@ -201,9 +246,15 @@
       "additionalProperties": false,
       "required": ["pattern", "answer"],
       "properties": {
-        "pattern": { "$ref": "#/definitions/pattern" },
-        "answer": { "$ref": "#/definitions/text" },
-        "follow": { "$ref": "#/definitions/follow" },
+        "pattern": {
+          "$ref": "#/definitions/pattern"
+        },
+        "answer": {
+          "$ref": "#/definitions/text"
+        },
+        "follow": {
+          "$ref": "#/definitions/follow"
+        },
         "local": {
           "description": "Answers only on its own step.",
           "type": "boolean"
@@ -216,8 +267,13 @@
       "additionalProperties": false,
       "required": ["file", "block"],
       "properties": {
-        "file": { "$ref": "#/definitions/path" },
-        "block": { "type": "string", "minLength": 1 }
+        "file": {
+          "$ref": "#/definitions/path"
+        },
+        "block": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "quote": {
@@ -225,14 +281,21 @@
       "additionalProperties": false,
       "required": ["file", "line", "tone"],
       "properties": {
-        "file": { "$ref": "#/definitions/path" },
-        "line": { "type": "integer", "minimum": 1 },
+        "file": {
+          "$ref": "#/definitions/path"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
         "mark": {
           "description": "The token on the line to underline.",
           "type": "string",
           "minLength": 1
         },
-        "tone": { "enum": ["lit", "error"] }
+        "tone": {
+          "enum": ["lit", "error"]
+        }
       }
     },
     "say": {
@@ -240,10 +303,18 @@
       "additionalProperties": false,
       "required": ["kind", "id", "text"],
       "properties": {
-        "kind": { "const": "say" },
-        "id": { "$ref": "#/definitions/id" },
-        "text": { "$ref": "#/definitions/text" },
-        "quote": { "$ref": "#/definitions/quote" }
+        "kind": {
+          "const": "say"
+        },
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "text": {
+          "$ref": "#/definitions/text"
+        },
+        "quote": {
+          "$ref": "#/definitions/quote"
+        }
       }
     },
     "write": {
@@ -251,17 +322,29 @@
       "additionalProperties": false,
       "required": ["kind", "id", "text", "writes"],
       "properties": {
-        "kind": { "const": "write" },
-        "id": { "$ref": "#/definitions/id" },
-        "text": { "$ref": "#/definitions/text" },
+        "kind": {
+          "const": "write"
+        },
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "text": {
+          "$ref": "#/definitions/text"
+        },
         "writes": {
           "anyOf": [
-            { "$ref": "#/definitions/block" },
+            {
+              "$ref": "#/definitions/block"
+            },
             {
               "type": "object",
               "additionalProperties": false,
               "required": ["create"],
-              "properties": { "create": { "$ref": "#/definitions/path" } }
+              "properties": {
+                "create": {
+                  "$ref": "#/definitions/path"
+                }
+              }
             }
           ]
         }
@@ -283,18 +366,27 @@
         "hint"
       ],
       "properties": {
-        "kind": { "const": "ask" },
-        "id": { "$ref": "#/definitions/id" },
+        "kind": {
+          "const": "ask"
+        },
+        "id": {
+          "$ref": "#/definitions/id"
+        },
         "kicker": {
           "description": "`Fix it` for the question that repairs a planned failure.",
           "enum": ["Question", "Fix it"]
         },
-        "question": { "$ref": "#/definitions/text" },
+        "question": {
+          "$ref": "#/definitions/text"
+        },
         "options": {
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "code": {
           "description": "The options are code, shown highlighted, rather than prose.",
@@ -309,13 +401,17 @@
           "$ref": "#/definitions/text"
         },
         "why": {
-          "description": "Why each option is wrong, by index; null for the right one.",
+          "description": "Why each option is wrong, by index; null at the right one.",
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
-          "items": { "type": ["string", "null"] }
+          "items": {
+            "type": ["string", "null"]
+          }
         },
-        "hint": { "$ref": "#/definitions/text" },
+        "hint": {
+          "$ref": "#/definitions/text"
+        },
         "writes": {
           "description": "The code a right pick or a Skip writes. A prediction question has none.",
           "$ref": "#/definitions/block"
@@ -340,60 +436,112 @@
       "additionalProperties": false,
       "required": ["kind", "id", "act", "title", "context", "button"],
       "properties": {
-        "kind": { "const": "act" },
-        "id": { "$ref": "#/definitions/id" },
-        "act": { "enum": ["build", "deploy", "buildDeploy", "run", "call"] },
+        "kind": {
+          "const": "act"
+        },
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "act": {
+          "enum": ["build", "deploy", "buildDeploy", "run", "call"]
+        },
         "say": {
           "description": "The line posted above the act card.",
           "$ref": "#/definitions/text"
         },
-        "title": { "type": "string", "minLength": 1 },
-        "context": { "type": "string", "minLength": 1 },
-        "button": { "type": "string", "minLength": 1 },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context": {
+          "type": "string",
+          "minLength": 1
+        },
+        "button": {
+          "type": "string",
+          "minLength": 1
+        },
         "call": {
-          "description": "For a `call` act: the instruction and the arguments the learner fills.",
+          "description": "For a `call` act only: the instruction and the arguments the learner fills.",
           "type": "object",
           "additionalProperties": false,
           "required": ["instruction"],
           "properties": {
-            "instruction": { "type": "string", "minLength": 1 },
+            "instruction": {
+              "type": "string",
+              "minLength": 1
+            },
             "args": {
               "type": "array",
-              "items": { "type": "string", "minLength": 1 }
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
             }
           }
         }
       },
-      "if": { "properties": { "act": { "const": "call" } } },
-      "then": { "required": ["call"] }
+      "if": {
+        "properties": {
+          "act": {
+            "const": "call"
+          }
+        }
+      },
+      "then": {
+        "required": ["call"]
+      },
+      "else": {
+        "not": {
+          "required": ["call"]
+        }
+      }
     },
     "beat": {
       "type": "object",
       "required": ["kind"],
-      "discriminator": { "propertyName": "kind" },
+      "discriminator": {
+        "propertyName": "kind"
+      },
       "oneOf": [
-        { "$ref": "#/definitions/say" },
-        { "$ref": "#/definitions/write" },
-        { "$ref": "#/definitions/ask" },
-        { "$ref": "#/definitions/act" }
+        {
+          "$ref": "#/definitions/say"
+        },
+        {
+          "$ref": "#/definitions/write"
+        },
+        {
+          "$ref": "#/definitions/ask"
+        },
+        {
+          "$ref": "#/definitions/act"
+        }
       ]
     },
     "goal": {
       "description": "What passes the step, checked on the real result.",
       "type": "object",
       "required": ["kind"],
-      "discriminator": { "propertyName": "kind" },
+      "discriminator": {
+        "propertyName": "kind"
+      },
       "oneOf": [
         {
           "type": "object",
           "additionalProperties": false,
           "required": ["kind"],
           "properties": {
-            "kind": { "const": "build" },
+            "kind": {
+              "const": "build"
+            },
             "instructions": {
               "description": "Instructions the built IDL must hold.",
               "type": "array",
-              "items": { "type": "string", "minLength": 1 }
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           }
         },
@@ -401,19 +549,32 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["kind"],
-          "properties": { "kind": { "const": "deploy" } }
+          "properties": {
+            "kind": {
+              "const": "deploy"
+            }
+          }
         },
         {
           "type": "object",
           "additionalProperties": false,
           "required": ["kind", "instruction"],
           "properties": {
-            "kind": { "const": "call" },
-            "instruction": { "type": "string", "minLength": 1 },
+            "kind": {
+              "const": "call"
+            },
+            "instruction": {
+              "type": "string",
+              "minLength": 1
+            },
             "args": {
-              "description": "Arguments the call must carry, not empty.",
+              "description": "Names of the arguments the call must carry, each with a value.",
               "type": "array",
-              "items": { "type": "string", "minLength": 1 }
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
             },
             "log": {
               "description": "A pattern the call's program log must match.",
@@ -451,9 +612,15 @@
       "additionalProperties": false,
       "required": ["id", "headline", "line", "stats"],
       "properties": {
-        "id": { "$ref": "#/definitions/id" },
-        "headline": { "$ref": "#/definitions/text" },
-        "line": { "$ref": "#/definitions/text" },
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "headline": {
+          "$ref": "#/definitions/text"
+        },
+        "line": {
+          "$ref": "#/definitions/text"
+        },
         "callPanelLine": {
           "description": "The line instead of `line` when the step passed from the Call panel.",
           "$ref": "#/definitions/text"
@@ -461,9 +628,13 @@
         "stats": {
           "type": "array",
           "maxItems": 3,
-          "items": { "$ref": "#/definitions/stat" }
+          "items": {
+            "$ref": "#/definitions/stat"
+          }
         },
-        "extra": { "const": "openTest" }
+        "extra": {
+          "const": "openTest"
+        }
       }
     },
     "step": {
@@ -485,14 +656,22 @@
         "chips"
       ],
       "properties": {
-        "id": { "$ref": "#/definitions/id" },
-        "title": { "type": "string", "minLength": 1 },
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
         "short": {
           "description": "The step bar's label.",
           "type": "string",
           "minLength": 1
         },
-        "objective": { "type": "string", "minLength": 1 },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
         "learned": {
           "description": "What the step teaches.",
           "type": "string",
@@ -513,7 +692,9 @@
         "beats": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/definitions/beat" }
+          "items": {
+            "$ref": "#/definitions/beat"
+          }
         },
         "planned": {
           "description": "The assistant's line inside a planned build failure's card.",
@@ -523,26 +704,38 @@
           "description": "The beats after the planned build failure: the explanation, the fixing question and the second build.",
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/definitions/beat" }
+          "items": {
+            "$ref": "#/definitions/beat"
+          }
         },
-        "goal": { "$ref": "#/definitions/goal" },
-        "win": { "$ref": "#/definitions/win" },
+        "goal": {
+          "$ref": "#/definitions/goal"
+        },
+        "win": {
+          "$ref": "#/definitions/win"
+        },
         "explain": {
           "description": "The answer to \"Explain this step\".",
           "$ref": "#/definitions/text"
         },
         "chips": {
           "type": "array",
-          "items": { "$ref": "#/definitions/chip" }
+          "items": {
+            "$ref": "#/definitions/chip"
+          }
         },
         "errorChips": {
           "description": "The chips under a failed build.",
           "type": "array",
-          "items": { "$ref": "#/definitions/chip" }
+          "items": {
+            "$ref": "#/definitions/chip"
+          }
         },
         "matches": {
           "type": "array",
-          "items": { "$ref": "#/definitions/match" }
+          "items": {
+            "$ref": "#/definitions/match"
+          }
         }
       },
       "dependencies": {

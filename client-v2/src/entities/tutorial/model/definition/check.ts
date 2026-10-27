@@ -14,7 +14,7 @@ import type {
 
 let compiled: ValidateFunction | undefined;
 
-/** The schema's validator, compiled on first use: compiling costs a few ms */
+/** The schema's validator, compiled on first use rather than on import */
 const validator = () => {
   compiled ??= new Ajv({
     allErrors: true,
@@ -27,12 +27,13 @@ const validator = () => {
 };
 
 /**
- * Every problem in a parsed `tutorial.json`, in document order; empty when it
- * is a definition. The schema runs first; the rules a schema cannot express
- * (a right index in range, a reason per wrong option, blocks found in their
- * target, instructions a target defines, a `next` in `known`, ids used once,
- * patterns that compile) run only on a definition the schema accepts, since
- * they read its shape.
+ * Every problem in a parsed `tutorial.json`; empty when it is a definition.
+ * The schema runs first; the rules a schema cannot express (a right index in
+ * range, a reason per wrong option and none for the right one, blocks found
+ * in their target, instructions some step's target defines, a `next` in
+ * `known`, ids used once, patterns that compile) run only on a definition the
+ * schema accepts, since they read its shape. The folder-name error leads,
+ * then the rules' errors in step order.
  *
  * @param known every tutorial slug `finish.next` may name
  * @param slug the folder the definition sits in, which its name must give:
@@ -44,7 +45,19 @@ export const checkDefinition = (
   slug?: string
 ): DefinitionError[] => {
   const validate = validator();
-  if (!validate(json)) return schemaErrors(validate.errors ?? []);
+  if (!validate(json)) {
+    const errors = schemaErrors(validate.errors ?? []);
+    // Never pass a definition the schema refused because every one of its
+    // errors was folded away as a branch of another
+    return errors.length > 0
+      ? errors
+      : [
+          {
+            path: ROOT,
+            message: "a definition the schema accepts, found one it refuses",
+          },
+        ];
+  }
   const d = json as TutorialDefinition;
   const errors = ruleErrors(d, known);
   if (slug !== undefined && slugOf(d.name) !== slug) {
@@ -144,12 +157,21 @@ const schemaErrors = (raw: ErrorObject[]): DefinitionError[] => {
       (u) =>
         u !== e &&
         e.schemaPath.startsWith(u.schemaPath.replace(/anyOf$/, "")) &&
-        e.instancePath.startsWith(u.instancePath)
+        (e.instancePath === u.instancePath ||
+          e.instancePath.startsWith(`${u.instancePath}/`))
     );
   const errors: DefinitionError[] = [];
   for (const e of raw) {
     // `if` only says its `then` failed, which has its own error
     if (e.keyword === "if" || inUnion(e)) continue;
+    // The act's `else`: a `call` on an act that does not call
+    if (e.keyword === "not" && e.schemaPath.endsWith("/else/not")) {
+      errors.push({
+        path: pathOf(e.instancePath, "call"),
+        message: "no call on an act other than `call`, found one",
+      });
+      continue;
+    }
     // A property name's own error is reported by `propertyNames`
     if (e.propertyName !== undefined) continue;
     const p = e.params as Record<string, unknown>;
@@ -341,6 +363,11 @@ const ruleErrors = (
                 path: `${at}.why[${k}]`,
                 message: `a wrong option needs a reason, found ${found(why)}`,
               });
+            } else if (k === beat.answer && why !== null) {
+              errors.push({
+                path: `${at}.why[${k}]`,
+                message: `null at the right option, found ${found(why)}`,
+              });
             }
           });
         }
@@ -396,6 +423,7 @@ if (import.meta.vitest) {
   type TutorialDefinition = import("./types").TutorialDefinition;
   type Ask = import("./types").Ask;
   type WriteBeat = import("./types").WriteBeat;
+  type Beat = import("./types").Beat;
 
   describe("entities/tutorial/model/definition/check", () => {
     const LIB =
@@ -645,7 +673,7 @@ if (import.meta.vitest) {
         title: "Call",
         context: "Sends hello",
         button: "Call",
-      };
+      } as unknown as Beat;
       expect(lines(d)).toEqual(['steps[0].beats[1]: needs "call", found none']);
     });
 
@@ -655,6 +683,109 @@ if (import.meta.vitest) {
         checkDefinition(minimal(), KNOWN, "other").map(formatError)
       ).toEqual([
         'name: a name whose slug is the folder\'s, "other", found "Minimal"',
+      ]);
+    });
+
+    it("rejects a call on an act that does not call", () => {
+      const d = minimal();
+      Object.assign(d.steps[0].beats[1], { call: { instruction: "hello" } });
+      expect(lines(d)).toEqual([
+        "steps[0].beats[1].call: no call on an act other than `call`, found one",
+      ]);
+    });
+
+    it("rejects a reason at the right option", () => {
+      const d = minimal();
+      askAt(d, 1, 3).why[0] = "Right, but why?";
+      expect(lines(d)).toEqual([
+        'steps[1].beats[3].why[0]: null at the right option, found "Right, but why?"',
+      ]);
+    });
+
+    /** Step 1 with a planned failure whose beats are given */
+    const withPlannedFailure = (d: TutorialDefinition, onFail: Beat[]) => {
+      Object.assign(d.steps[0], { planned: "On purpose.", onFail });
+      return d;
+    };
+
+    it("checks the planned failure's beats like the step's own", () => {
+      const fix = ask("f1.fix");
+      fix.why[1] = null;
+      const d = withPlannedFailure(minimal(), [fix]);
+      expect(lines(d)).toEqual([
+        "steps[0].onFail[0].why[1]: a wrong option needs a reason, found null",
+      ]);
+    });
+
+    it("counts an id used in the planned failure and a step's beats", () => {
+      const d = withPlannedFailure(minimal(), [ask("s2.q")]);
+      expect(lines(d)).toEqual([
+        'steps[1].beats[3].id: an id no other beat has, found "s2.q", also at steps[0].onFail[0].id',
+      ]);
+    });
+
+    it("needs a planned failure's line with its beats", () => {
+      const d = minimal();
+      Object.assign(d.steps[0], { onFail: [ask("f1.fix")] });
+      expect(lines(d)).toEqual(['steps[0]: needs "planned", found none']);
+    });
+
+    it("rejects a build goal naming an instruction no target defines", () => {
+      const d = minimal();
+      d.steps[0].goal = { kind: "build", instructions: ["hello", "goodbye"] };
+      expect(lines(d)).toEqual([
+        'steps[0].goal.instructions[1]: an instruction a step\'s target defines, found "goodbye"',
+      ]);
+    });
+
+    it("finds an instruction by its whole name", () => {
+      const d = minimal();
+      d.steps[1].goal = { kind: "call", instruction: "hell" };
+      expect(lines(d)).toEqual([
+        'steps[1].goal.instruction: an instruction a step\'s target defines, found "hell"',
+      ]);
+    });
+
+    it("checks the pattern of every chip and match", () => {
+      const d = minimal();
+      d.steps[0].chips = [{ label: "A", answer: "a", pattern: "(" }];
+      d.steps[0].errorChips = [{ label: "B", answer: "b", pattern: "[" }];
+      d.steps[1].matches = [{ pattern: "*", answer: "c" }];
+      d.finish.chips = [{ label: "D", answer: "d", pattern: "(?<" }];
+      expect(lines(d)).toEqual([
+        'steps[0].chips[0].pattern: a regular expression, found "("',
+        'steps[0].errorChips[0].pattern: a regular expression, found "["',
+        'steps[1].matches[0].pattern: a regular expression, found "*"',
+        'finish.chips[0].pattern: a regular expression, found "(?<"',
+      ]);
+    });
+
+    it("names both places of a step id used twice", () => {
+      const d = minimal();
+      d.steps[1].id = "program";
+      expect(lines(d)).toEqual([
+        'steps[1].id: an id no other step has, found "program", also at steps[0].id',
+      ]);
+    });
+
+    it("names a created file the target lacks", () => {
+      const d = minimal();
+      (d.steps[0].beats[0] as WriteBeat).writes = {
+        create: "client/client.ts",
+      };
+      expect(lines(d)).toEqual([
+        'steps[0].beats[0].writes.create: a file in the step\'s target, found "client/client.ts"',
+      ]);
+    });
+
+    it("needs a block's lines in a row", () => {
+      const d = minimal();
+      askAt(d, 1, 3).writes = {
+        file: "src/lib.rs",
+        block: "use anchor_lang::prelude::*;\nmsg!(name);",
+      };
+      expect(lines(d)).toEqual([
+        'steps[1].beats[3].writes.block: a block in the step\'s target src/lib.rs, found "use anchor_lang::prelude::*;"',
       ]);
     });
 

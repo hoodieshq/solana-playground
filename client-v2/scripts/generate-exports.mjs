@@ -28,17 +28,26 @@ for (const name of await fs.readdir(srcPath)) {
     "__tests__",
   ];
   const hasDir = items.some((item) => !item.ext);
-  // A folder with no index has nothing to export: a tutorial that is only a
-  // `tutorial.json`, or a folder of generated files
-  const hasIndex = async (item) => {
+  /**
+   * Whether a folder is exported: one with an index is; a tutorial that is
+   * only a `tutorial.json`, or a `_` folder of generated files, has nothing
+   * to export; any other folder without an index is a mistake, and stops the
+   * build as `export * from` it would
+   */
+  const exportsFolder = async (item) => {
     const dir = pathModule.join(itemPath, item.base);
     if (!(await fs.stat(dir)).isDirectory()) return false;
-    return (await fs.readdir(dir)).some((name) => name.startsWith("index."));
+    const names = await fs.readdir(dir);
+    if (names.some((name) => name.startsWith("index."))) return true;
+    if (item.base.startsWith("_") || names.includes("tutorial.json")) {
+      return false;
+    }
+    throw new Error(`${dir}: a folder with no index to export`);
   };
   const exportable = [];
   for (const item of items) {
     if (namesToSkip.includes(item.name)) continue;
-    if (hasDir ? item.ext || !(await hasIndex(item)) : false) continue;
+    if (hasDir && (item.ext || !(await exportsFolder(item)))) continue;
     exportable.push(item);
   }
   const exports = exportable
