@@ -6,7 +6,7 @@ Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
 
 ## 1. Definition
 
-- [ ] 1.1 Definition v1: `tutorial.schema.json`, `yarn tutorial:check` with
+- [x] 1.1 Definition v1: `tutorial.schema.json`, `yarn tutorial:check` with
       the semantic rules, the loader into the catalog (with "Step n of m"
       progress), Hello Anchor's prototype script as `tutorial.json`,
       `tutorial_definition_rejected`. Verify: the check passes on Hello Anchor
