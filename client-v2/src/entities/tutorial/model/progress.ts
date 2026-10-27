@@ -3,6 +3,7 @@ import type { TutorialMetadata } from "../../../utils/tutorial/types";
 /** How far the user is through a tutorial, as its card shows it */
 export type TutorialProgress =
   | { state: "new" }
+  /** `page` is the page open, or a conversation tutorial's steps passed */
   | { state: "started"; page: number; pages: number }
   | { state: "completed" };
 
@@ -27,6 +28,26 @@ export const progressOf = (
   if (!started) return { state: "new" };
   if (meta?.completed) return { state: "completed" };
   return { state: "started", page: pageWithin(meta?.pageNumber, pages), pages };
+};
+
+/**
+ * A conversation tutorial's progress from what it saved under `conversation`
+ * in `.workspace/tutorial-storage.json`: `{ version: 1, passed: [<step id>],
+ * finishedAt: <ms> | null }`, the fields the conversation engine writes for
+ * the card. `page` is then the number of steps passed, so the card reads
+ * "2 of 4". Null when nothing valid is saved, for a tutorial still on its old
+ * lesson pages.
+ */
+export const conversationProgressOf = (
+  saved: unknown,
+  stepIds: readonly string[]
+): TutorialProgress | null => {
+  if (typeof saved !== "object" || saved === null) return null;
+  const { version, passed, finishedAt } = saved as Record<string, unknown>;
+  if (version !== 1 || !Array.isArray(passed)) return null;
+  if (typeof finishedAt === "number") return { state: "completed" };
+  const done = new Set(passed.filter((id) => stepIds.includes(id as string)));
+  return { state: "started", page: done.size, pages: stepIds.length };
 };
 
 if (import.meta.vitest) {
@@ -62,6 +83,41 @@ if (import.meta.vitest) {
       expect(at(0)).toEqual({ state: "started", page: 1, pages: 5 });
       expect(at("2")).toEqual({ state: "started", page: 1, pages: 5 });
       expect(at(null)).toEqual({ state: "started", page: 1, pages: 5 });
+    });
+
+    describe("conversationProgressOf", () => {
+      const STEPS = ["program", "deploy", "client", "name"];
+      const saved = (passed: unknown, finishedAt: unknown = null) => ({
+        version: 1,
+        passed,
+        finishedAt,
+      });
+
+      it("counts the passed steps of the definition's steps", () => {
+        expect(
+          conversationProgressOf(saved(["program", "deploy"]), STEPS)
+        ).toEqual({ state: "started", page: 2, pages: 4 });
+      });
+
+      it("is completed once the finish card has shown", () => {
+        expect(
+          conversationProgressOf(saved(STEPS, 1730000000000), STEPS)
+        ).toEqual({ state: "completed" });
+      });
+
+      it("counts only steps the definition still has, each once", () => {
+        expect(
+          conversationProgressOf(saved(["program", "program", "gone"]), STEPS)
+        ).toEqual({ state: "started", page: 1, pages: 4 });
+      });
+
+      it("is nothing to go on without a saved conversation", () => {
+        expect(conversationProgressOf(undefined, STEPS)).toBeNull();
+        expect(
+          conversationProgressOf({ version: 2, passed: [] }, STEPS)
+        ).toBeNull();
+        expect(conversationProgressOf(saved("program"), STEPS)).toBeNull();
+      });
     });
 
     it("is started on page 1 when the saved progress cannot be read", () => {
