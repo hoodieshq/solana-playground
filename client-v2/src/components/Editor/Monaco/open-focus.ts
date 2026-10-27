@@ -15,8 +15,8 @@ const isOutOfWindow = (el: Element) => {
 };
 
 /**
- * Whether opening a file leaves focus in the field the user is typing in,
- * rather than the editor taking it.
+ * Whether opening a file leaves focus where it is, rather than the editor
+ * taking it.
  *
  * An open the user started from a field in the explorer's tree (naming a new
  * file) ends in the editor, so a later open takes focus from that field. Any
@@ -166,6 +166,42 @@ if (import.meta.vitest) {
           ).toBe(true);
         }
       );
+
+      it("leaves focus where it is when the editor is swiped out past the right edge", () => {
+        const { editor, tree } = page();
+        placeAt(editor, window.innerWidth);
+        expect(
+          leavesFocusElsewhere({
+            open: "mount",
+            editor,
+            tree,
+            active: document.body,
+          })
+        ).toBe(true);
+      });
+
+      it("leaves focus where it is on the tree's own open when the editor is out of the window", () => {
+        const { editor, tree, name } = page();
+        placeAt(editor, -window.innerWidth);
+        expect(
+          leavesFocusElsewhere({ open: "later", editor, tree, active: name })
+        ).toBe(true);
+      });
+
+      it("takes focus when the editor has no box, as a hidden view's", () => {
+        const { editor, tree } = page();
+        vi.spyOn(editor, "getBoundingClientRect").mockReturnValue(
+          new DOMRect(-window.innerWidth, 0, 0, 0)
+        );
+        expect(
+          leavesFocusElsewhere({
+            open: "mount",
+            editor,
+            tree,
+            active: document.body,
+          })
+        ).toBe(false);
+      });
 
       it("takes focus when the editor is in the window", () => {
         const { editor, tree } = page();

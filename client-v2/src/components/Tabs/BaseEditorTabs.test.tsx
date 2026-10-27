@@ -135,15 +135,20 @@ describe("BaseEditorTabs", () => {
 });
 
 /**
- * Lays the row out `width` px wide at the window's left edge, and each tab
- * named in `tabs` at its `[left, right]`; jsdom lays nothing out
+ * Lays the row out `width` px wide from `rowLeft`, and each tab named in
+ * `tabs` at its `[left, right]`; every other element is 0x0, as jsdom lays
+ * nothing out
  */
-const placeTabs = (width: number, tabs: Record<string, [number, number]>) =>
+const placeTabs = (
+  width: number,
+  tabs: Record<string, [number, number]>,
+  rowLeft = 0
+) =>
   vi
     .spyOn(Element.prototype, "getBoundingClientRect")
     .mockImplementation(function (this: Element) {
       if (this.getAttribute("role") === "tablist") {
-        return new DOMRect(0, 0, width, 40);
+        return new DOMRect(rowLeft, 0, width, 40);
       }
       const name = this.querySelector('[role="tab"]')?.textContent ?? "";
       const [left, right] = tabs[name] ?? [0, 0];
@@ -168,6 +173,24 @@ describe("BaseEditorTabs scrolling", () => {
     view.rerender(row("c.rs", vi.fn()));
 
     expect(list.scrollLeft).toBe(220);
+  });
+
+  // On a phone the row sits on a pager page, a window's width or more along
+  it("measures the tab against the row wherever the row is", () => {
+    placeTabs(200, { "b.rs": [643, 723] }, 393);
+    setup();
+    expect(screen.getByRole("tablist").scrollLeft).toBe(130);
+  });
+
+  it("brings a tab wider than the row in by its start", () => {
+    const { view } = setup();
+    const list = screen.getByRole("tablist");
+    list.scrollLeft = 300;
+    placeTabs(200, { "c.rs": [-50, 250] });
+
+    view.rerender(row("c.rs", vi.fn()));
+
+    expect(list.scrollLeft).toBe(250);
   });
 
   it("leaves the row alone when the current tab is whole in it", () => {

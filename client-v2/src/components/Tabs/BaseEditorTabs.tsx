@@ -50,10 +50,10 @@ const moveFocus = (ev: KeyboardEvent<HTMLDivElement>) => {
   triggers[move(from, triggers.length)].focus();
 };
 
-/** Scrolls `row` sideways by the least that shows `tab` whole. The row
- * only: `scrollIntoView` scrolls every container around it too, and on a
- * phone one of them is the pager, which it pulled back to the work page
- * under a swipe (HOO-2290). */
+/** Scrolls `row` sideways by the least that brings `tab` into it, its start
+ * edge first when it is wider than the row. Not `scrollIntoView`: that
+ * scrolls every container around the row too, and on a phone one of them is
+ * the pager, which a swipe would then lose (HOO-2290). */
 const showInRow = (row: HTMLElement, tab: HTMLElement) => {
   const bounds = row.getBoundingClientRect();
   const { left, right } = tab.getBoundingClientRect();
