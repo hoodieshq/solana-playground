@@ -134,23 +134,54 @@ describe("BaseEditorTabs", () => {
   });
 });
 
+/**
+ * Lays the row out `width` px wide at the window's left edge, and each tab
+ * named in `tabs` at its `[left, right]`; jsdom lays nothing out
+ */
+const placeTabs = (width: number, tabs: Record<string, [number, number]>) =>
+  vi
+    .spyOn(Element.prototype, "getBoundingClientRect")
+    .mockImplementation(function (this: Element) {
+      if (this.getAttribute("role") === "tablist") {
+        return new DOMRect(0, 0, width, 40);
+      }
+      const name = this.querySelector('[role="tab"]')?.textContent ?? "";
+      const [left, right] = tabs[name] ?? [0, 0];
+      return new DOMRect(left, 0, right - left, 40);
+    });
+
 describe("BaseEditorTabs scrolling", () => {
-  it("scrolls the current tab, close included, into view on mount", () => {
-    const { tab } = setup();
-    expect(scrolled.mock.calls).toEqual([
-      [frameOf(tab("b.rs")), { block: "nearest", inline: "nearest" }],
-    ]);
+  afterEach(() => vi.restoreAllMocks());
+
+  it("scrolls the row by the least that shows the current tab, close included, on mount", () => {
+    placeTabs(200, { "b.rs": [250, 330] });
+    setup();
+    expect(screen.getByRole("tablist").scrollLeft).toBe(130);
   });
 
-  it("scrolls the new current tab into view when it changes", () => {
-    const { tab, view } = setup();
-    scrolled.mockReset();
+  it("scrolls the row back to a current tab before its start", () => {
+    const { view } = setup();
+    const list = screen.getByRole("tablist");
+    list.scrollLeft = 300;
+    placeTabs(200, { "c.rs": [-80, -10] });
 
     view.rerender(row("c.rs", vi.fn()));
 
-    expect(scrolled.mock.calls).toEqual([
-      [frameOf(tab("c.rs")), { block: "nearest", inline: "nearest" }],
-    ]);
+    expect(list.scrollLeft).toBe(220);
+  });
+
+  it("leaves the row alone when the current tab is whole in it", () => {
+    placeTabs(200, { "b.rs": [60, 140] });
+    setup();
+    expect(screen.getByRole("tablist").scrollLeft).toBe(0);
+  });
+
+  // On a phone the row sits in the pager: scrolling the containers around
+  // it would move the pager back to the work page under a swipe (HOO-2290)
+  it("scrolls nothing around the row", () => {
+    placeTabs(200, { "b.rs": [250, 330] });
+    setup();
+    expect(scrolled).not.toHaveBeenCalled();
   });
 
   it("turns a vertical wheel into a sideways scroll when the row overflows", () => {

@@ -571,6 +571,44 @@ test.describe("on a phone", () => {
     ).toBeFocused();
   });
 
+  // A swipe made while the editor loads stays: the editor opening its file
+  // takes no focus out of the window, and its tab row scrolls only itself,
+  // either of which would scroll the pager back to it. The finger stays down
+  // until the editor is in, so the pager reads no settle before it.
+  test("a swipe made while the editor loads stays on the preview", async ({
+    page,
+  }) => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    // The editor's chunk, held so it mounts under the swipe; a name that
+    // stopped matching would hold nothing and pass for the wrong reason
+    let heldChunk = false;
+    await page.route(/src_components_Editor_Monaco_index_ts/, async (route) => {
+      heldChunk = true;
+      await held;
+      await route.continue();
+    });
+    await seedThenNarrow(page);
+    const pager = page.getByTestId("phone-pager");
+    await expect(page.getByRole("region", { name: "Work" })).toBeInViewport();
+    await pager.evaluate((el) => {
+      el.dispatchEvent(new TouchEvent("touchstart"));
+      el.scrollTo({ left: el.clientWidth * 2, behavior: "instant" });
+    });
+
+    expect(heldChunk).toBe(true);
+    release();
+    await expect(page.locator(".monaco-editor .view-lines")).toContainText(
+      "use anchor_lang"
+    );
+    await pager.evaluate((el) => el.dispatchEvent(new TouchEvent("touchend")));
+
+    await expect(page.locator("#flow-stage-panel-build")).toBeInViewport();
+    await expect(page.getByRole("region", { name: "Preview" })).toBeInViewport({
+      ratio: 1,
+    });
+  });
+
   // The gallery is a dialog over the menu page; the project it starts opens
   // on Work, not behind the menu that started it
   test("client-v2-layout: A project started from the phone's menu", async ({
