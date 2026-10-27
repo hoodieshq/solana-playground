@@ -52,9 +52,11 @@ const isFileMap = (value) =>
 export const describeProject = (body) => {
   const { id, name, kind } = body;
   if (typeof id !== "string" || !id || typeof name !== "string") {
-    return { error: "id, name and kind required" };
+    return { error: "id and name required" };
   }
-  if (!KINDS.includes(kind)) return { error: "id, name and kind required" };
+  if (!KINDS.includes(kind)) {
+    return { error: `kind must be one of ${KINDS.join(", ")}` };
+  }
   if (!name.trim()) return { error: "name must not be empty" };
   if (kind !== projectKindOf(id)) {
     return { error: `kind must be ${projectKindOf(id)} for this id` };

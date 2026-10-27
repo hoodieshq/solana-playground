@@ -241,8 +241,9 @@ describe("/api/projects", () => {
       assert.ok(mod.describeProject({ name: "x", kind: "project" }).error);
       assert.ok(mod.describeProject({ id: UUID, kind: "project" }).error);
       assert.ok(mod.describeProject({ id: UUID, name: "x" }).error);
-      assert.ok(
-        mod.describeProject({ id: UUID, name: "x", kind: "program" }).error
+      assert.deepEqual(
+        mod.describeProject({ id: UUID, name: "x", kind: "program" }),
+        { error: "kind must be one of project, tutorial" }
       );
     });
   });

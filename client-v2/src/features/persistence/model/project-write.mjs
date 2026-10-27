@@ -17,8 +17,10 @@
  */
 export const MAX_PROJECT_BODY_BYTES = 4_000_000;
 
-/** `MAX_PROJECT_BODY_BYTES` as the banner says it */
-export const MAX_PROJECT_BODY_LABEL = "4 MB";
+/** `MAX_PROJECT_BODY_BYTES` as the banner says it, derived so the two agree */
+export const MAX_PROJECT_BODY_LABEL = `${
+  MAX_PROJECT_BODY_BYTES / 1_000_000
+} MB`;
 
 /** Ids of tutorial projects carry this prefix; every other id is a uuid */
 export const TUTORIAL_ID_PREFIX = "tut:";
