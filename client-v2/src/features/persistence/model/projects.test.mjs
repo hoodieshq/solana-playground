@@ -475,10 +475,9 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       // tombstoned under a live project id; the next delete takes it too
       const earlier = "22222222-0000-4000-8000-000000000026";
       await say(userId, earlier, "p1", 26);
-      await query(
-        "update conversations set deleted_at = now() where id = $1",
-        [earlier]
-      );
+      await query("update conversations set deleted_at = now() where id = $1", [
+        earlier,
+      ]);
 
       await deleteProject(userId, "p1");
 
