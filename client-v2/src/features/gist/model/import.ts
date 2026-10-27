@@ -211,11 +211,16 @@ const layOut = async (files: Record<string, { content: string }>) => {
     }
   }
 
+  // A gist with no program still opens when it has a client or tests to run
   const tupleFiles: TupleFiles = Object.entries(laidOut.files);
-  if (!tupleFiles.length || !(await PgFramework.getFromFiles(tupleFiles))) {
+  const opens =
+    !!tupleFiles.length &&
+    (!!(await PgFramework.getFromFiles(tupleFiles)) ||
+      PgFramework.hasRunnableTypeScript(tupleFiles.map(([path]) => path)));
+  if (!opens) {
     throw new GistImportError(
       "no-program",
-      "No Solana program was found in this gist."
+      "This gist holds no Solana program and no TypeScript or JavaScript to open."
     );
   }
 

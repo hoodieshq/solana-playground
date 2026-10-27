@@ -10,7 +10,7 @@ Plan: [plans/1-plain-typescript-import.md](plans/1-plain-typescript-import.md).
   for every placement scenario of `project-without-program` and for a
   repository with a program staying unchanged. Verify: `yarn test-unit
   src/utils/framework.ts`.
-- [ ] 1.2 Gist import accepts a gist with TS/JS under `client/` or `tests/`
+- [x] 1.2 Gist import accepts a gist with TS/JS under `client/` or `tests/`
   and keeps `no-program` for one with neither, with its new message
   (`features/gist/model/import.ts`); depends on 1.1. Verify: the
   `import.test.ts` cases for both scenarios, events asserted through the
