@@ -16,7 +16,8 @@ export class PgJsRuntimePackage {
    */
   static async import(name: OrString<JsRuntimePackageName>) {
     // Always the bundled packages: the server's `packages` route is gone,
-    // and its replacement (`/bundle`) is not ported (D38)
+    // and its replacement (`/bundle`) is not ported: letting a user name
+    // the dependencies the server installs would let them run code on it
     switch (name) {<IMPORTS>
     }
 

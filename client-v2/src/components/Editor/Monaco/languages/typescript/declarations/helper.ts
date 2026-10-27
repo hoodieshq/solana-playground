@@ -114,7 +114,8 @@ export const declarePackage = async (
  * Get type declarations from the static files `generate-packages` writes.
  *
  * Always these: the server's `types` route is gone, and its replacement
- * (`/bundle`) is not ported (D38).
+ * (`/bundle`) is not ported: letting a user name the dependencies the
+ * server installs would let them run code on it.
  */
 const getTypes = async (
   packageName: JsRuntimePackageName

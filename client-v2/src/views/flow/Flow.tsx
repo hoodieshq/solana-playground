@@ -215,7 +215,8 @@ const FlowFrame = () => {
     setReading(false);
   }, [described?.step.id]);
 
-  // Entering the lesson lands on the page -- once (D34). Declared after
+  // Entering the lesson lands on the page -- once, so the learner reads
+  // the step before the code. Declared after
   // the effect above so that, on the commit where both fire (a load
   // moves the cursor too), open wins. The record learns `opened` from
   // the Reader once the page content actually loads, which moves the
