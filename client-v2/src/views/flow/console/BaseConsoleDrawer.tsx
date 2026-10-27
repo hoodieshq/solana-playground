@@ -82,8 +82,8 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
           size stretches it, whatever element it is, so xterm's fit sees a
           real size and counts the right rows. The column is `minmax(0,1fr)`
           too: an `auto` one is never narrower than the terminal's own width,
-          so a narrowing stage shrank it one scrollbar per fit, refitting it
-          for seconds. */}
+          so the terminal outgrows a narrowing stage and fit, which takes the
+          scrollbar off that width, gets there one scrollbar per pass. */}
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)]">
         {children}
       </div>

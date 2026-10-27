@@ -281,22 +281,25 @@ test("client-v2-layout: Folding the console", async ({ seededPage: page }) => {
 
 // The terminal was a grid item as wide as its own content, so when the stage
 // narrowed after it mounted (as it does while the layout settles on load) it
-// shrank by one scrollbar per fit, refitting every 200 ms for seconds; a
-// command sent meanwhile printed into a terminal still being resized, and on
-// the runner its output once scrolled out of view (HOO-2370)
+// overhung the console and shrank one scrollbar per throttled fit, 15 fits on
+// a load here. On the runner a `help` sent in that window once printed with
+// the view left at the top of the buffer (HOO-2370); that xterm step is not
+// reproduced, so this guards the overhang, the condition it ran in
 test("a command sent as the console opens prints into a terminal that fits it", async ({
   page,
 }) => {
   // How far the terminal reaches past the console, every frame from the load
   await page.addInitScript(() => {
-    const w = window as unknown as { overhang: number };
+    const w = window as unknown as { overhang: number; samples: number };
     w.overhang = 0;
+    w.samples = 0;
     const sample = () => {
       const terminal = document.querySelector(".xterm");
       const well = document.querySelector(
         '[data-slot="console-drawer-content"]'
       );
       if (terminal && well) {
+        w.samples++;
         w.overhang = Math.max(
           w.overhang,
           terminal.getBoundingClientRect().width -
@@ -316,9 +319,12 @@ test("a command sent as the console opens prints into a terminal that fits it", 
   await page.keyboard.press("Enter");
   await expect(page.locator(".xterm-rows")).toContainText(HELP_TAIL);
 
-  const overhang = await page.evaluate(
-    () => (window as unknown as { overhang: number }).overhang
-  );
+  const { overhang, samples } = await page.evaluate(() => {
+    const w = window as unknown as { overhang: number; samples: number };
+    return { overhang: w.overhang, samples: w.samples };
+  });
+  // A renamed selector would measure nothing and pass
+  expect(samples).toBeGreaterThan(0);
   expect(overhang).toBeLessThanOrEqual(0);
 });
 
