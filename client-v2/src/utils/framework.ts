@@ -93,33 +93,58 @@ const UNKNOWN_FRAMEWORK = "Could not identify framework";
 /** What Build compiles: a Rust or Python file anywhere under `src/` */
 const PROGRAM_FILE_REGEX = /^src\/.+\.(rs|py)$/;
 
+/** Program source in any layout: a no-program import never drops one */
+const PROGRAM_SOURCE_REGEX = /\.(rs|py)$/;
+
 /** TypeScript and JavaScript, the only files a project with no program runs */
 const SCRIPT_FILE_REGEX = /\.[jt]sx?$/;
 
 /** A test file, named as the gist format's loose placement names one */
 const TEST_FILE_REGEX = /\.(test|spec)\.[jt]sx?$/;
 
-/** A leading folder a no-program layout replaces, and where its files go */
+/**
+ * A leading folder `toNoProgramLayout` drops, since it puts the file back
+ * under `client/` or `tests/` itself
+ */
 const NO_PROGRAM_FOLDER_REGEX = /^(client|tests|test)\//;
 
 /**
  * Lay out a repository with no program: tests under `tests/`, every other
  * TypeScript or JavaScript file under `client/`, each keeping its path below
- * the folder that placed it. Anything else has no place in such a project.
+ * the folder that placed it. Files of any other kind are left out. A file
+ * whose place another file already took keeps its whole path instead, so
+ * nothing is overwritten.
  *
- * @param files repository files, paths relative to the imported folder
+ * @param files repository files
+ * @param root the imported folder, dropped from the front of every path
  * @returns the files in the playground layout, empty when none is a script
  */
-const toNoProgramLayout = (files: TupleFiles): TupleFiles =>
-  files
+const toNoProgramLayout = (files: TupleFiles, root: string): TupleFiles => {
+  const prefix = root.replace(/^\/+|\/+$/g, "");
+  const taken = new Set<string>();
+  return files
+    .map(([path, content]): [string, string] => {
+      const relative = path.replace(/^\.?\/+/, "");
+      return [
+        prefix && relative.startsWith(prefix + "/")
+          ? relative.slice(prefix.length + 1)
+          : relative,
+        content,
+      ];
+    })
     .filter(([path]) => SCRIPT_FILE_REGEX.test(path))
     .map(([path, content]) => {
       const folder = NO_PROGRAM_FOLDER_REGEX.exec(path)?.[1];
       const rest = folder ? path.slice(folder.length + 1) : path;
       const isTest = folder === "tests" || folder === "test";
       const target = isTest || TEST_FILE_REGEX.test(rest) ? "tests" : "client";
-      return [`${target}/${rest}`, content];
+      const placed = taken.has(`${target}/${rest}`)
+        ? `${target}/${path}`
+        : `${target}/${rest}`;
+      taken.add(placed);
+      return [placed, content];
     });
+};
 
 export class PgFramework {
   /**
@@ -186,16 +211,25 @@ export class PgFramework {
   /**
    * Convert files with the framework layout to the playground layout. Files
    * no framework recognises are laid out as a project with no program when
-   * they hold TypeScript or JavaScript.
+   * they hold TypeScript or JavaScript and no Rust or Python: a program in a
+   * layout no framework knows is refused, never imported without its source.
+   * Other files of such a project are left out.
    *
    * @param files framework files
+   * @param root the imported folder, which a project with no program drops
+   * from its paths; frameworks find their own layout wherever it sits
    * @returns the playground layout converted files
-   * @throws when no framework recognises the files and none is a script
+   * @throws `UNKNOWN_FRAMEWORK` when no framework recognises the files and
+   * they hold program source or no script; "Could not convert files" when a
+   * framework's conversion returns nothing
    */
-  static async convertToPlaygroundLayout(files: TupleFiles) {
+  static async convertToPlaygroundLayout(files: TupleFiles, root = "") {
     const framework = await this.getFromFiles(files);
     if (!framework) {
-      const noProgramFiles = toNoProgramLayout(files);
+      if (files.some(([path]) => PROGRAM_SOURCE_REGEX.test(path))) {
+        throw new Error(UNKNOWN_FRAMEWORK);
+      }
+      const noProgramFiles = toNoProgramLayout(files, root);
       if (!noProgramFiles.length) throw new Error(UNKNOWN_FRAMEWORK);
       return noProgramFiles;
     }
@@ -370,7 +404,7 @@ if (import.meta.vitest) {
       });
     });
 
-    /** A repository with no program used to fail as of no known framework */
+    /** A repository no framework recognises: scripts are laid out, anything else refused */
     describe("PgFramework.convertToPlaygroundLayout", () => {
       // The real frameworks import the settings, which need the app's
       // globals; one that claims `programs/` stands in for Anchor.
@@ -430,6 +464,45 @@ if (import.meta.vitest) {
       it("puts a spec file outside tests under tests", async () => {
         expect(await pathsOf([["lib/math.spec.ts", "a"]])).toEqual([
           "tests/lib/math.spec.ts",
+        ]);
+      });
+
+      it("refuses a program no framework recognises rather than drop it", async () => {
+        await expect(
+          pathsOf([
+            ["onchain/src/lib.rs", "fn main() {}"],
+            ["client.ts", "a"],
+          ])
+        ).rejects.toThrow(UNKNOWN_FRAMEWORK);
+        await expect(
+          pathsOf([
+            ["prog/main.py", "x"],
+            ["client.ts", "a"],
+          ])
+        ).rejects.toThrow(UNKNOWN_FRAMEWORK);
+      });
+
+      it("drops the imported folder from every path", async () => {
+        const files: TupleFiles = [
+          ["token/client/index.ts", "a"],
+          ["token/client/tests/a.ts", "b"],
+        ];
+        const paths = (
+          await PgFramework.convertToPlaygroundLayout(files, "token/client")
+        )
+          .map(([path]) => path)
+          .sort();
+        expect(paths).toEqual(["client/index.ts", "tests/a.ts"]);
+      });
+
+      it("keeps both files when two land on one path", async () => {
+        const files = await PgFramework.convertToPlaygroundLayout([
+          ["a.ts", "root"],
+          ["client/a.ts", "nested"],
+        ]);
+        expect(files).toEqual([
+          ["client/a.ts", "root"],
+          ["client/client/a.ts", "nested"],
         ]);
       });
 

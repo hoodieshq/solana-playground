@@ -152,8 +152,11 @@ export class PgGithub {
    * @returns explorer files
    */
   static async getFiles(url: string, onProgress?: OnProgress) {
-    const { files } = await this._getRepository(url, onProgress);
-    const convertedFiles = await PgFramework.convertToPlaygroundLayout(files);
+    const { files, path } = await this._getRepository(url, onProgress);
+    const convertedFiles = await PgFramework.convertToPlaygroundLayout(
+      files,
+      path
+    );
     return convertedFiles;
   }
 

@@ -31,7 +31,8 @@ A gist in which no supported framework finds a program but whose files,
 once placed, include a TypeScript or JavaScript file under `client/` or
 `tests/` SHALL open as a project with no program, in the dialog and
 behind a link alike. A gist with neither SHALL be refused with reason
-`no-program` and a message that it holds nothing the Playground can open.
+`no-program` and the message "This gist holds no Solana program and no
+TypeScript or JavaScript to open."
 
 #### Scenario: A hand-made gist of TypeScript
 - **WHEN** the user imports a gist without `.playground.json` that holds
@@ -39,6 +40,10 @@ behind a link alike. A gist with neither SHALL be refused with reason
 - **THEN** a project is created holding `client/client.ts` and
   `tests/client.test.ts`, and `gist_import_succeeded` is sent with
   `layout: loose`
+
+#### Scenario: A hand-made gist of TypeScript behind a link
+- **WHEN** the user opens `/gist/<id>` for a gist that holds only `client.ts`
+- **THEN** the view shows `client.ts` and the stepper offers only Write
 
 #### Scenario: A gist with nothing to open
 - **WHEN** the user imports a gist that holds only `notes.md`

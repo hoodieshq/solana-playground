@@ -36,7 +36,7 @@ const stubRepository = async (page: Page, files: Record<string, string>) => {
 };
 
 /** Opens Settings, then its "From GitHub" import, and imports the repository */
-const importRepository = async (page: Page) => {
+const importRepository = async (page: Page, folder = "") => {
   await page.locator("[data-settings-trigger]").first().click();
   await page
     .getByRole("region", { name: "Settings" })
@@ -45,7 +45,10 @@ const importRepository = async (page: Page) => {
   const dialog = page.getByRole("dialog");
   await dialog
     .getByPlaceholder("https://github.com/... or https://gist.github.com/...")
-    .fill(`https://github.com/${OWNER}/${REPO}`);
+    .fill(
+      `https://github.com/${OWNER}/${REPO}` +
+        (folder ? `/tree/main/${folder}` : "")
+    );
   await dialog.locator('button[type="submit"]').click();
 };
 
@@ -114,6 +117,38 @@ test("project-without-program: A test file outside a tests folder", async ({
 
   await expect(item(page, "tests/lib/math.spec.ts")).toHaveCount(1, LONG);
   await expect(item(page, "client/")).toHaveCount(0);
+});
+
+test("project-without-program: A program no framework recognises", async ({
+  seededPage: page,
+}) => {
+  await stubRepository(page, {
+    "onchain/src/lib.rs": "fn main() {}",
+    "client.ts": "export {};",
+  });
+  await importRepository(page);
+
+  await expect(
+    page.getByRole("dialog").getByText("Could not identify framework")
+  ).toBeVisible(LONG);
+});
+
+test("project-without-program: A folder of a repository", async ({
+  seededPage: page,
+}) => {
+  await stubRepository(page, {
+    "token/client/index.ts": "export {};",
+    "token/client/tests/a.ts": "export {};",
+  });
+  await importRepository(page, "token/client");
+
+  const project = `/github-${OWNER}/${REPO}/token/client/`;
+  await expect(
+    page.locator(`[data-path="${project}client/index.ts"]`)
+  ).toHaveCount(1, LONG);
+  await expect(page.locator(`[data-path="${project}tests/a.ts"]`)).toHaveCount(
+    1
+  );
 });
 
 test("project-without-program: A repository with neither", async ({

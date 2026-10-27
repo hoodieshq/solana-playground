@@ -49,6 +49,7 @@ import {
   stagesOf,
 } from "./stage";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
+import type { FlowEvent } from "./stage";
 
 /** The mocked build-output module, in the shape the factory above gives it:
  * `latest` is a plain field here, where the real class has a getter. */
@@ -618,42 +619,125 @@ describe("a project with no program", () => {
     expect(stagesOf(s)).toEqual(STAGES);
   });
 
-  it("reads the open project's files after a workspace switch", async () => {
-    const { PgExplorer, PgFramework, PgProgramInfo } = (await import(
-      "../../../utils"
-    )) as unknown as {
-      PgExplorer: {
-        files: Record<string, { content?: string }>;
-        onDidSwitchWorkspace: typeof import("../../../utils").PgExplorer.onDidSwitchWorkspace;
-      };
+  it("keeps a hidden stage hidden when a build or a deploy finishes", () => {
+    const finishes: FlowEvent[] = [
+      { type: "build-finish", failed: true, errorCount: 1, ms: 1 },
+      { type: "deploy-finish", ok: true },
+      { type: "deploy-finish", ok: false },
+    ];
+    for (const ev of finishes) {
+      expect(PgFlow.reduce(noProgram(), ev).stage).toBe("write");
+    }
+  });
+
+  it("hands back the same state when the answer did not change", () => {
+    const s = noProgram();
+    expect(PgFlow.reduce(s, { type: "program", has: false })).toBe(s);
+  });
+});
+
+describe("PgFlow.init, reading whether the project has a program", () => {
+  type Explorer = {
+    files: Record<string, { content?: string }>;
+    isInitialized: boolean;
+    getRelativePath: (path: string) => string;
+  } & Pick<
+    typeof import("../../../utils").PgExplorer,
+    | "onDidSwitchWorkspace"
+    | "onDidInit"
+    | "onDidCreateItem"
+    | "onDidDeleteItem"
+    | "onDidRenameItem"
+  >;
+  let explorer: Explorer;
+  let hasProgram: ReturnType<typeof vi.fn>;
+  let sub: { dispose: () => void };
+  const fired: Record<string, () => unknown> = {};
+  const EVENTS = [
+    "onDidSwitchWorkspace",
+    "onDidInit",
+    "onDidCreateItem",
+    "onDidDeleteItem",
+    "onDidRenameItem",
+  ] as const;
+
+  beforeEach(async () => {
+    const utils = (await import("../../../utils")) as unknown as {
+      PgExplorer: Explorer;
       PgFramework: { hasProgram: ReturnType<typeof vi.fn> };
       PgProgramInfo: typeof import("../../../utils").PgProgramInfo;
     };
-    vi.mocked(PgProgramInfo.onDidChangeOnChain).mockReturnValue({
+    explorer = utils.PgExplorer;
+    hasProgram = utils.PgFramework.hasProgram;
+    vi.mocked(utils.PgProgramInfo.onDidChangeOnChain).mockReturnValue({
       dispose: vi.fn(),
     });
-    let switched: (() => unknown) | undefined;
-    vi.mocked(PgExplorer.onDidSwitchWorkspace).mockImplementation((cb) => {
-      switched = cb;
-      return { dispose: vi.fn() };
+    EVENTS.forEach((name) => {
+      vi.mocked(explorer[name]).mockImplementation(((cb: () => unknown) => {
+        fired[name] = cb;
+        return { dispose: vi.fn() };
+      }) as never);
     });
-    PgExplorer.files = {
+    explorer.files = {
       "/ws/client/": {},
       "/ws/client/a.ts": { content: "" },
     };
-    PgFramework.hasProgram.mockReturnValue(false);
+    hasProgram.mockReturnValue(false);
+    sub = PgFlow.init();
+  });
 
-    const sub = PgFlow.init();
-    switched!();
-
-    expect(PgFramework.hasProgram).toHaveBeenLastCalledWith([
-      "client/",
-      "client/a.ts",
-    ]);
-    expect(PgFlow.state.hasProgram).toBe(false);
-
-    PgFramework.hasProgram.mockReturnValue(true);
-    PgExplorer.files = {};
+  afterEach(() => {
+    // Leave the shared store as the next test expects it
+    explorer.isInitialized = true;
+    explorer.getRelativePath = (path) => path.replace(/^\/ws\//, "");
+    hasProgram.mockReturnValue(true);
+    fired.onDidSwitchWorkspace();
+    explorer.files = {};
     sub.dispose();
+  });
+
+  it("reads the open project's files after a workspace switch", () => {
+    fired.onDidSwitchWorkspace();
+
+    expect(hasProgram).toHaveBeenLastCalledWith(["client/", "client/a.ts"]);
+    expect(PgFlow.state.hasProgram).toBe(false);
+  });
+
+  // `@types/mocha` declares the global `it` without `each`
+  [
+    "onDidInit",
+    "onDidCreateItem",
+    "onDidDeleteItem",
+    "onDidRenameItem",
+  ].forEach((name) => {
+    it(`reads them again on ${name}, both ways`, () => {
+      fired[name]();
+      expect(PgFlow.state.hasProgram).toBe(false);
+
+      hasProgram.mockReturnValue(true);
+      fired[name]();
+      expect(PgFlow.state.hasProgram).toBe(true);
+    });
+  });
+
+  it("waits for the explorer before reading", () => {
+    hasProgram.mockClear();
+    explorer.isInitialized = false;
+
+    fired.onDidInit();
+
+    expect(hasProgram).not.toHaveBeenCalled();
+    expect(PgFlow.state.hasProgram).toBe(true);
+  });
+
+  it("keeps its answer when the files cannot be read", () => {
+    fired.onDidInit();
+    explorer.getRelativePath = () => {
+      throw new Error("Current workspace not found");
+    };
+    hasProgram.mockReturnValue(true);
+
+    expect(() => fired.onDidDeleteItem()).not.toThrow();
+    expect(PgFlow.state.hasProgram).toBe(false);
   });
 });

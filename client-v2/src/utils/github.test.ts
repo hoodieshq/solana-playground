@@ -1,11 +1,14 @@
 import { filterRepoFiles, ImportCancelledError, PgGithub } from "./github";
 import type { ImportProgress } from "./github";
+import { PgFramework } from "./framework";
 
 // `./explorer` boots lightning-fs on import, which needs a real IndexedDB.
 vi.mock("./explorer", () => ({ PgExplorer: {} }));
 
 vi.mock("./framework", () => ({
-  PgFramework: { convertToPlaygroundLayout: (files: unknown) => files },
+  PgFramework: {
+    convertToPlaygroundLayout: vi.fn((files: unknown) => files),
+  },
 }));
 
 const mockSetModal = vi.fn();
@@ -129,6 +132,23 @@ describe("PgGithub.getFiles", () => {
     expect(fetchMock.mock.calls[0][0]).toBe(
       "https://api.github.com/repos/solana-labs/example/git/trees/master" +
         "?recursive=1"
+    );
+  });
+
+  it("hands the imported folder to the layout", async () => {
+    mockFetch((url) =>
+      url.startsWith("https://api.github.com/")
+        ? treeResponse(["program/client.ts"])
+        : { body: "x" }
+    );
+
+    await PgGithub.getFiles(
+      "https://github.com/solana-labs/example/tree/master/program"
+    );
+
+    expect(PgFramework.convertToPlaygroundLayout).toHaveBeenLastCalledWith(
+      [["program/client.ts", "x"]],
+      "program"
     );
   });
 

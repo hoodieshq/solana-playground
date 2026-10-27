@@ -11,7 +11,7 @@ import {
   targetStage,
 } from "../lessons";
 import type { LessonState } from "../lessons";
-import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
+import { INITIAL_FLOW_STATE, PgFlow, STAGES, stagesOf } from "../state/stage";
 import type { FlowState } from "../state/stage";
 import { useKeybind } from "../../../hooks";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
@@ -21,7 +21,8 @@ import { useViewport } from "@/shared/lib/hooks/use-viewport";
  * stage bar, across the files column and the stage (`LayoutShell`'s
  * `stageTabs`, design.md "Frame chrome (5.25)"); on a phone, in the preview
  * page's bar, where it keeps its own width. It owns the Ctrl+1..4 stage keys and
- * points the stepper at the stage the current lesson step is graded on. The
+ * points the stepper at the stage the current lesson step is graded on. A
+ * project with no program offers only Write, so the other keys do nothing. The
  * project list and the session footer live in the navigation (`AppNav`),
  * not here.
  */
@@ -43,6 +44,8 @@ const StageBar: FC = () => {
     STAGES.map((stage, i) => ({
       keybind: `Ctrl+${i + 1}`,
       handle: () => {
+        // A stage the open project does not offer has no tab to go to
+        if (!stagesOf(PgFlow.state).includes(stage)) return;
         PgFlow.setStage(stage);
         // Focus follows the shortcut, so the keyboard user lands on the tab
         // they just selected rather than being left wherever they were

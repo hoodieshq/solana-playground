@@ -192,7 +192,7 @@ const layOut = async (files: Record<string, { content: string }>) => {
   } catch (error) {
     if (!(error instanceof GistFormatError)) throw error;
     switch (error.reason) {
-      // A gist of nothing the Playground opens holds no program either
+      // No file of a supported language at all: nothing to open
       case "no-supported-files":
         throw new GistImportError("no-program", error.message, {
           cause: error,
@@ -211,7 +211,8 @@ const layOut = async (files: Record<string, { content: string }>) => {
     }
   }
 
-  // A gist with no program still opens when it has a client or tests to run
+  // Opens when a framework recognises it, or with no program when it has a
+  // client or tests to run; otherwise there is nothing to open
   const tupleFiles: TupleFiles = Object.entries(laidOut.files);
   const opens =
     !!tupleFiles.length &&

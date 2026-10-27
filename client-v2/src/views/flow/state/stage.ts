@@ -10,6 +10,9 @@ import {
   PgProgramInfo,
 } from "../../../utils";
 import type { Disposable } from "../../../utils";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("flow:stage");
 
 export type Stage = "write" | "build" | "deploy" | "interact";
 export type StageStatus = "upcoming" | "active" | "done" | "failed" | "running";
@@ -64,6 +67,7 @@ export const INITIAL_FLOW_STATE: FlowState = {
   hasProgram: true,
 };
 
+/** Every stage; `stagesOf` gives the ones the open project offers */
 export const STAGES: readonly Stage[] = [
   "write",
   "build",
@@ -72,16 +76,21 @@ export const STAGES: readonly Stage[] = [
 ];
 
 /** The stages the given state offers: only Write for a project with no program */
+const WRITE_ONLY: readonly Stage[] = ["write"];
+
 export const stagesOf = (state: FlowState): readonly Stage[] =>
-  state.hasProgram ? STAGES : ["write"];
+  state.hasProgram ? STAGES : WRITE_ONLY;
 
 /**
- * Keep a project with no program on Write, so the router never shows a
- * panel whose tab is hidden -- a build started from the terminal still
- * runs, only the route stays.
+ * Hold a project with no program on Write, whatever the event asked for, so
+ * the router never shows a panel whose tab is hidden. The one place this is
+ * enforced: `reduce` passes every result through it. A build started from
+ * the terminal still runs; only the route stays.
  */
-const visibleStage = (state: FlowState, stage: Stage): Stage =>
-  stagesOf(state).includes(stage) ? stage : state.stage;
+const onVisibleStage = (state: FlowState): FlowState =>
+  state.hasProgram || state.stage === "write"
+    ? state
+    : { ...state, stage: "write" };
 
 const ERROR_HEADER = /^error(?:\[E\d+\])?: (.+)$/;
 // rustc's own summary lines are not a diagnostic of their own - matches
@@ -118,11 +127,16 @@ export class PgFlow {
   }
 
   static reduce(state: FlowState, ev: FlowEvent): FlowState {
+    return onVisibleStage(PgFlow._step(state, ev));
+  }
+
+  /** The reducer before `onVisibleStage` holds a no-program project on Write */
+  private static _step(state: FlowState, ev: FlowEvent): FlowState {
     switch (ev.type) {
       case "build-start":
         return {
           ...state,
-          stage: visibleStage(state, "build"),
+          stage: "build",
           build: "running",
           buildStartedAt: ev.at,
         };
@@ -130,7 +144,7 @@ export class PgFlow {
         return ev.failed
           ? {
               ...state,
-              stage: visibleStage(state, "build"),
+              stage: "build",
               build: "failed",
               buildSettled: "failed",
               buildErrorCount: ev.errorCount,
@@ -150,30 +164,29 @@ export class PgFlow {
       case "deploy-start":
         return {
           ...state,
-          stage: visibleStage(state, "deploy"),
+          stage: "deploy",
           deploy: "running",
         };
       case "deploy-finish":
         return ev.ok
           ? {
               ...state,
-              stage: visibleStage(state, "deploy"),
+              stage: "deploy",
               deploy: "done",
               interact: "active",
             }
           : {
               ...state,
-              stage: visibleStage(state, "deploy"),
+              stage: "deploy",
               deploy: "failed",
             };
       case "set-stage":
-        return { ...state, stage: visibleStage(state, ev.stage) };
+        return { ...state, stage: ev.stage };
       case "program":
-        return {
-          ...state,
-          hasProgram: ev.has,
-          stage: ev.has ? state.stage : "write",
-        };
+        // Unchanged on every other file event: listeners are not woken
+        return state.hasProgram === ev.has
+          ? state
+          : { ...state, hasProgram: ev.has };
       case "workspace-change":
         return INITIAL_FLOW_STATE;
       case "restore": {
@@ -288,14 +301,26 @@ export class PgFlow {
   /** Tell the reducer whether the open project's `src/` holds a program */
   private static _readProgram() {
     if (!PgExplorer.isInitialized) return;
-    const paths = Object.keys(PgExplorer.files).map((path) =>
-      PgExplorer.getRelativePath(path)
-    );
+    let paths: string[];
+    try {
+      paths = Object.keys(PgExplorer.files).map((path) =>
+        PgExplorer.getRelativePath(path)
+      );
+    } catch (error) {
+      // A workspace being deleted or switched has no current path for a
+      // moment; the switch that follows reads the files again
+      log.warn("could not read the project's files for its stages", {
+        context: { reason: error instanceof Error ? error.message : "unknown" },
+      });
+      return;
+    }
     PgFlow._dispatch({ type: "program", has: PgFramework.hasProgram(paths) });
   }
 
   private static _dispatch(ev: FlowEvent) {
-    PgFlow._state = PgFlow.reduce(PgFlow._state, ev);
+    const next = PgFlow.reduce(PgFlow._state, ev);
+    if (next === PgFlow._state) return;
+    PgFlow._state = next;
     for (const cb of PgFlow._listeners) cb(PgFlow._state);
   }
 

@@ -248,7 +248,12 @@ test("gist-sharing: A hand-made gist of TypeScript", async ({
   await importFromDialog(page, `https://gist.github.com/alice/${ID}`);
 
   await expect(currentProject(page)).toHaveText(`gist-alice/${ID}`, LONG);
-  await expect(page.locator("#root-dir")).toContainText("client.test.ts");
+  for (const path of ["client/client.ts", "tests/client.test.ts"]) {
+    await expect(
+      page.locator(`[data-path="/gist-alice/${ID}/${path}"]`)
+    ).toHaveCount(1);
+  }
+  await expect(page.locator("#flow-stage-tab-build")).toHaveCount(0);
   await expect
     .poll(() => lineOf(lines, "gist_import_succeeded"), LONG)
     .toMatch(/loose/);
@@ -267,4 +272,18 @@ test("gist-sharing: A gist with nothing to open", async ({
   await expect
     .poll(() => lineOf(lines, "gist_import_failed"), LONG)
     .toMatch(/dialog[\s\S]*no-program/);
+});
+
+test("gist-sharing: A hand-made gist of TypeScript behind a link", async ({
+  page,
+}) => {
+  await page.route(`https://api.github.com/gists/${ID}`, (r) =>
+    json(r, handMade({ "client.ts": "console.log('client');" }))
+  );
+
+  await page.goto(`/gist/${ID}`);
+
+  await expect(page.locator("#root-dir")).toContainText("client.ts", LONG);
+  await expect(page.locator("#flow-stage-tab-write")).toBeVisible();
+  await expect(page.locator("#flow-stage-tab-build")).toHaveCount(0);
 });

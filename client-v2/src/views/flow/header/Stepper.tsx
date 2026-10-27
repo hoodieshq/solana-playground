@@ -61,7 +61,8 @@ const DS_STATUS: Record<StageStatus, StepperStatus> = {
 };
 
 /**
- * The write -> build -> deploy -> interact loop, drawn with the design
+ * The stages `stagesOf(state)` offers -- the write -> build -> deploy ->
+ * interact loop, or Write alone for a project with no program -- drawn with the design
  * system's stepper. Each stage's status is carried by glyph shape as well as
  * color, so the sequence reads correctly without color vision.
  */
