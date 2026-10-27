@@ -82,7 +82,10 @@ const serverHas = (
     if (!found) return "gone";
     return {
       ...found,
-      snapshot: id in snapshots ? snapshots[id] : { files: {} },
+      // Never `{files: {}}`: the server refuses to store one, and reconcile
+      // treats one it meets as unusable
+      snapshot:
+        id in snapshots ? snapshots[id] : { files: { "src/lib.rs": "" } },
     };
   });
 };
@@ -556,7 +559,9 @@ describe("reconcile", () => {
       project("b", "beta"),
     ]);
     vi.spyOn(PgProjectSync, "fetch").mockImplementation(async (id: string) =>
-      id === "b" ? { ...project("b", "beta"), snapshot: { files: {} } } : null
+      id === "b"
+        ? { ...project("b", "beta"), snapshot: { files: { "src/lib.rs": "" } } }
+        : null
     );
 
     const result = await reconcile();

@@ -9,6 +9,7 @@ import {
   settleConflicts,
   withLocalKeypair,
 } from "./merge";
+import { MAX_PROJECT_BODY_BYTES, projectKindOf } from "./project-write.mjs";
 import { diffFiles, hashFiles, sameUserFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
@@ -570,25 +571,36 @@ export class PgProjectSync {
       return "skipped";
     }
 
+    const body = JSON.stringify({
+      id: projectId,
+      name: storedName,
+      kind: projectKindOf(projectId),
+      ...(patch
+        ? {
+            changed: Object.fromEntries(
+              patch.changed.map((path) => [path, snapshot.files[path]])
+            ),
+            removed: patch.removed,
+          }
+        : { files: snapshot.files }),
+      baseUpdatedAt: mark?.updatedAt,
+    });
+
+    // Refused here, not sent to be refused: past the platform's own cap the
+    // handler never runs, and the platform's 413 is all the user would get.
+    // The same refusal the handler gives, so the banner cannot tell them
+    // apart -- and, like it, nothing is recorded.
+    if (new TextEncoder().encode(body).length > MAX_PROJECT_BODY_BYTES) {
+      PgProjectSync._raise({ projectId, kind: "too-large" });
+      return "conflict";
+    }
+
     try {
       const response = await fetch("/api/projects", {
         method: "PUT",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          id: projectId,
-          name: storedName,
-          kind: projectId.startsWith("tut:") ? "tutorial" : "project",
-          ...(patch
-            ? {
-                changed: Object.fromEntries(
-                  patch.changed.map((path) => [path, snapshot.files[path]])
-                ),
-                removed: patch.removed,
-              }
-            : { files: snapshot.files }),
-          baseUpdatedAt: mark?.updatedAt,
-        }),
+        body,
         signal: timeoutSignal(LOCKED_REQUEST_MS),
       });
 
@@ -629,12 +641,12 @@ export class PgProjectSync {
         return "skipped";
       }
 
-      const body = await response.json();
+      const accepted = await response.json();
       await PgSyncMark.write(projectId, {
         files: hashes,
         name: storedName,
         ...(pinned ? { localName } : {}),
-        updatedAt: body.updatedAt,
+        updatedAt: accepted.updatedAt,
         dirty: false,
       });
       await PgSyncBase.accepted(
@@ -1838,6 +1850,10 @@ export const isCleanAgainst = async (
 /**
  * Whether a stored snapshot can be written to a workspace.
  *
+ * An empty file map is not: written, it is the workspace emptied, exactly as
+ * a malformed one would be. The server refuses to store one, but a row
+ * written before it did can still hold it.
+ *
  * Exported because reconcile checks it before the same destructive call, and
  * both halves have to agree on what "usable" means.
  */
@@ -1846,5 +1862,9 @@ export const isUsableSnapshot = (
 ): snapshot is Snapshot => {
   const files = (snapshot as Snapshot | undefined)?.files;
   if (!files || typeof files !== "object" || Array.isArray(files)) return false;
-  return Object.values(files).every((content) => typeof content === "string");
+  const contents = Object.values(files);
+  return (
+    contents.length > 0 &&
+    contents.every((content) => typeof content === "string")
+  );
 };

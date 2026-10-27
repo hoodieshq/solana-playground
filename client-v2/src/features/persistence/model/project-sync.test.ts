@@ -1,6 +1,7 @@
 import type { Mock } from "vitest";
 import { PgProjectSync } from "./project-sync";
 import { PgEditorModels } from "./editor-models";
+import { MAX_PROJECT_BODY_BYTES } from "./project-write.mjs";
 import { hashFiles } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
@@ -774,6 +775,41 @@ describe("resolving a conflict", () => {
     }) as unknown as typeof fetch;
     await signedIn();
     asWorkspace("p1", "mine");
+    // Clean against an agreement, so the snapshot is the only thing that can
+    // stop the adoption
+    await agreedOn("p1", "mine", { "src/lib.rs": "mine" });
+    const replace = vi
+      .spyOn(PgExplorer, "replaceWorkspaceFiles")
+      .mockResolvedValue(undefined);
+
+    expect(await PgProjectSync.adopt("p1")).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("refuses to empty a workspace over an empty file map", async () => {
+    // `{files: {}}` is a well-formed file map, and taking it is the same
+    // deletion as a malformed one: the server refuses to store it now, but a
+    // row written before it did can still hold one.
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/sync") return Promise.resolve(okProbe);
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          project: {
+            id: "p1",
+            name: "mine",
+            kind: "project",
+            snapshot: { files: {} },
+            updatedAt: "t9",
+          },
+        }),
+      });
+    }) as unknown as typeof fetch;
+    await signedIn();
+    asWorkspace("p1", "mine");
+    // Clean against an agreement, so the snapshot is the only thing that can
+    // stop the adoption
+    await agreedOn("p1", "mine", { "src/lib.rs": "mine" });
     const replace = vi
       .spyOn(PgExplorer, "replaceWorkspaceFiles")
       .mockResolvedValue(undefined);
@@ -1495,6 +1531,25 @@ describe("a refusal the user has to clear", () => {
       "conflict"
     );
     expect(PgProjectSync.conflictFor("p1")?.kind).toBe("too-large");
+  });
+
+  it("refuses a workspace over the limit itself, before sending it", async () => {
+    // The platform refuses a body over its own cap before our handler runs,
+    // so the only way the user sees our refusal rather than the platform's is
+    // to not send it. The banner is the same either way.
+    refusing({
+      ok: true,
+      status: 200,
+      json: async () => ({ updatedAt: "t2" }),
+    });
+    await signedIn();
+
+    const big = "x".repeat(MAX_PROJECT_BODY_BYTES);
+    expect(await PgProjectSync.push("p1", { files: { a: big } })).toBe(
+      "conflict"
+    );
+    expect(PgProjectSync.conflictFor("p1")?.kind).toBe("too-large");
+    expect(putCalls()).toHaveLength(0);
   });
 
   it("stops pushing a refused project, exactly like a divergence", async () => {
