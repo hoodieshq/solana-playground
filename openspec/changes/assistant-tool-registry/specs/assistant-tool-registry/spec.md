@@ -68,7 +68,8 @@ are not built-in and are not checked against the registry.
 
 A panel tool whose declaration needs approval SHALL request the user's
 approval before it changes anything, and SHALL change nothing when the user
-declines.
+declines. A tool not marked as needing approval SHALL neither ask nor change
+the project, so the mark always says what the tool does.
 
 #### Scenario: Declining a gated tool
 
@@ -76,6 +77,11 @@ declines.
   approval request is answered with a decline
 - **THEN** each one requested approval and none wrote a file, built or
   deployed
+
+#### Scenario: A tool not marked as needing approval
+
+- **WHEN** a unit test runs each built-in tool not marked as needing approval
+- **THEN** none of them shows an approval card or writes, builds or deploys
 
 ### Requirement: Skills come from the registry's catalogue
 

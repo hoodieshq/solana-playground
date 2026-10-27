@@ -17,7 +17,7 @@ export type {
 /**
  * A declared tool with the browser's runner attached. Name, description and
  * schema come from the registry, so the panel cannot describe a tool
- * differently from what the server rail declares.
+ * differently from its declaration, which `server.mjs` exposes to server code.
  *
  * @param name a name in {@link BUILTIN_TOOLS}
  * @param run what the tool does in this tab
@@ -32,7 +32,7 @@ export const bindTool = (
   if (!declared) {
     throw new Error(
       `"${name}" is not declared in entities/agent-tools; declare it there ` +
-        "so both backends offer it."
+        "so the browser and server code agree on it."
     );
   }
   const { description, schema } = declared;

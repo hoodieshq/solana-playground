@@ -24,8 +24,8 @@ const str = (input: ToolInput, key: string) => {
  * every backend gets ecosystem grounding without touching its adapter.
  *
  * What each tool is called, what the model reads about it and its arguments
- * come from `entities/agent-tools`, which the server rail imports too; this
- * file only says what each one does in the tab.
+ * come from `entities/agent-tools`, which server code can import through its
+ * `server.mjs`; this file only says what each one does in the tab.
  *
  * @param bridge the playground to act on
  * @returns vendor-neutral tool definitions

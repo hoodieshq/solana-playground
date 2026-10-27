@@ -1,10 +1,11 @@
-// What the assistant offers, declared once for both backends: the panel
-// imports it through `index.ts`, server code under `api/` through
-// `server.mjs`. Plain ESM with no imports, so Node loads it without a build
+// What the assistant offers, declared once: browser code imports it through
+// `index.ts`, server code under `api/` through `server.mjs`. Plain ESM with no imports, so Node loads it without a build
 // step (see features/auth/config.mjs for the same arrangement).
 //
-// Data only. The panel binds a runner to each tool name and a test fails when
-// the two sets differ, so a tool cannot reach one backend and not the other.
+// Data only. The panel binds a runner to each tool name, and a test fails when
+// the panel's tools differ from these declarations. Every backend gets the
+// panel's tools (the default one through `api/agent.mjs`, which forwards
+// them), so the declarations here are what each of them offers.
 
 /** @type {{ type: "object", properties: {}, additionalProperties: false }} */
 const NO_ARGUMENTS = {
@@ -23,8 +24,9 @@ const NO_ARGUMENTS = {
  *   required?: string[],
  *   additionalProperties: false,
  * }} schema JSON Schema for the tool's arguments
- * @property {boolean} approval whether the tool changes state, and so waits
- *   for the user before it acts
+ * @property {boolean} approval whether the tool changes state. The runner
+ *   enforces it by asking the user; `tools-registry.test.ts` checks that a
+ *   marked tool asks and an unmarked one neither asks nor changes anything
  */
 
 /**
@@ -222,7 +224,10 @@ export const SKILL_CATALOGUE = [
 /**
  * The MCP servers every deployment offers without configuration. One that
  * needs a deployment secret (Explorer) is not a default: the gateway adds it
- * from the environment.
+ * from the environment, for signed-in callers only.
+ *
+ * `api/mcp.mjs` still writes the Solana entry itself; switching it to this
+ * export through `server.mjs` is the server rail's change.
  *
  * @type {readonly McpUpstream[]}
  */

@@ -5,7 +5,7 @@ import type { SkillDeclaration } from "@/entities/agent-tools";
 
 /**
  * The text of each bundled skill, by id. The catalogue lives in
- * `entities/agent-tools` so the server rail can read it, but Node cannot
+ * `entities/agent-tools` so server code can read it as well, but Node cannot
  * import markdown, so the bundle binds the content here.
  */
 const BUNDLED_CONTENT: Record<string, string> = {
@@ -64,12 +64,14 @@ if (import.meta.vitest) {
       );
     });
 
-    it("binds content to every bundled skill", () => {
-      for (const skill of SKILLS) {
+    it("binds content to every bundled skill and passes remote sources through", () => {
+      SKILLS.forEach((skill, index) => {
         if (skill.source.type === "bundled") {
           expect(skill.source.content.trim()).not.toBe("");
+        } else {
+          expect(skill.source).toBe(SKILL_CATALOGUE[index].source);
         }
-      }
+      });
     });
 
     it("refuses a bundled skill with no content", () => {

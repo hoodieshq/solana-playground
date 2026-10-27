@@ -11,4 +11,4 @@
 
 ## 3. Integration
 
-- [ ] 3.1 `yarn run check` passes in `client-v2/`, and the PR names the `server.mjs` exports the server rail and the gateway can import (HOO-1749; depends on 2.1, 2.2)
+- [x] 3.1 `yarn run check` passes in `client-v2/`, and the PR names the `server.mjs` exports the server rail and the gateway can import (HOO-1749; depends on 2.1, 2.2)
