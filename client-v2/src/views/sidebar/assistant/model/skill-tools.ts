@@ -3,7 +3,7 @@ import {
   describeCatalog,
   loadReference,
   loadSkill,
-  requireSkill,
+  requireEnabledSkill,
 } from "../grounding";
 import type { ToolDefinition, ToolInput } from "@/shared/lib/ai";
 
@@ -44,8 +44,8 @@ export const createSkillTools = (): ToolDefinition[] => [
     description:
       "Read a skill's main document. The document names its own reference " +
       "files; read those with read_skill_reference rather than guessing at " +
-      "their contents. Returns an error string if the id is unknown or the " +
-      "fetch fails.",
+      "their contents. Returns an error string if the id is unknown, the " +
+      "skill is disabled or the fetch fails.",
     schema: {
       type: "object",
       properties: {
@@ -60,8 +60,8 @@ export const createSkillTools = (): ToolDefinition[] => [
     run: async (input) => {
       const id = str(input, "id");
       try {
-        const skill = requireSkill(id);
-        PgAssistant.addToolCall(`loaded the ${skill.name} skill`);
+        const skill = requireEnabledSkill(id, PgAssistant.enabledSkillIds);
+        PgAssistant.addToolCall(`loaded ${skill.name}`);
         return await loadSkill(skill);
       } catch (e) {
         return `Could not load ${id}: ${explain(e)}`;
@@ -94,7 +94,7 @@ export const createSkillTools = (): ToolDefinition[] => [
       const id = str(input, "id");
       const path = str(input, "path");
       try {
-        const skill = requireSkill(id);
+        const skill = requireEnabledSkill(id, PgAssistant.enabledSkillIds);
         PgAssistant.addToolCall(`read ${skill.id}/${path}`);
         return await loadReference(skill, path);
       } catch (e) {
@@ -103,3 +103,59 @@ export const createSkillTools = (): ToolDefinition[] => [
     },
   },
 ];
+
+if (import.meta.vitest) {
+  const { describe, it, expect, vi, afterEach } = import.meta.vitest;
+  describe("views/sidebar/assistant/model/skill-tools", () => {
+    const tool = (name: string) => {
+      const found = createSkillTools().find((t) => t.name === name);
+      if (!found) throw new Error(`no tool ${name}`);
+      return found;
+    };
+
+    afterEach(() => {
+      PgAssistant.setSkillEnabled("solana-dev", true);
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    it("refuses to load a skill the user unticked, without fetching it", async () => {
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      PgAssistant.setSkillEnabled("solana-dev", false);
+
+      const result = await tool("load_skill").run({ id: "solana-dev" });
+
+      expect(result).toMatch(/solana-dev is disabled/);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it("refuses to read a reference of a skill the user unticked", async () => {
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      PgAssistant.setSkillEnabled("solana-dev", false);
+
+      const result = await tool("read_skill_reference").run({
+        id: "solana-dev",
+        path: "references/security.md",
+      });
+
+      expect(result).toMatch(/solana-dev is disabled/);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it("names a loaded skill once in the tool-call line", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response("# skill", { status: 200 }))
+      );
+      const addToolCall = vi.spyOn(PgAssistant, "addToolCall");
+
+      await tool("load_skill").run({ id: "solana-dev" });
+
+      expect(addToolCall).toHaveBeenCalledWith(
+        "loaded Official Solana developer skill"
+      );
+    });
+  });
+}

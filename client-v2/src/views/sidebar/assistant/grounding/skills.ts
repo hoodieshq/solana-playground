@@ -110,3 +110,22 @@ export const requireSkill = (id: string) => {
   }
   return skill;
 };
+
+/**
+ * Look a skill up by the id the model supplied, refusing one the user turned
+ * off: the model can name an unticked skill even though the catalogue omits it.
+ *
+ * @throws if the id is unknown or not among `enabledIds`
+ */
+export const requireEnabledSkill = (
+  id: string,
+  enabledIds: readonly string[]
+) => {
+  const skill = requireSkill(id);
+  if (!enabledIds.includes(skill.id)) {
+    throw new Error(
+      `${skill.id} is disabled: the user turned it off in Sources and tools.`
+    );
+  }
+  return skill;
+};
