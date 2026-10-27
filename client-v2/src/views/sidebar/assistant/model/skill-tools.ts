@@ -1,6 +1,8 @@
 import { PgAssistant } from "../store";
 import {
+  DEFAULT_SKILL_IDS,
   describeCatalog,
+  findSkill,
   loadReference,
   loadSkill,
   requireEnabledSkill,
@@ -76,7 +78,8 @@ export const createSkillTools = (): ToolDefinition[] => [
       "skill's own document gave you. Paths are relative to the skill " +
       "folder, e.g. references/common-errors.md; a path outside that " +
       "folder is rejected. Bundled skills such as playground-env have no " +
-      "reference files. Very large files come back truncated with a marker.",
+      "reference files. Very large files come back truncated with a marker. " +
+      "Returns an error string if the skill is disabled or the read fails.",
     schema: {
       type: "object",
       properties: {
@@ -113,49 +116,82 @@ if (import.meta.vitest) {
       return found;
     };
 
+    /** Untick `id` and watch for anything that would read or log it */
+    const untick = (id: string) => {
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      const addToolCall = vi.spyOn(PgAssistant, "addToolCall");
+      PgAssistant.setSkillEnabled(id, false);
+      return { fetch, addToolCall };
+    };
+
     afterEach(() => {
-      PgAssistant.setSkillEnabled("solana-dev", true);
+      for (const id of DEFAULT_SKILL_IDS) PgAssistant.setSkillEnabled(id, true);
       vi.restoreAllMocks();
       vi.unstubAllGlobals();
     });
 
     it("refuses to load a skill the user unticked, without fetching it", async () => {
-      const fetch = vi.fn();
-      vi.stubGlobal("fetch", fetch);
-      PgAssistant.setSkillEnabled("solana-dev", false);
+      const { fetch, addToolCall } = untick("solana-dev");
 
       const result = await tool("load_skill").run({ id: "solana-dev" });
 
-      expect(result).toMatch(/solana-dev is disabled/);
+      expect(result).toMatch(
+        /^Could not load solana-dev: the skill is disabled/
+      );
       expect(fetch).not.toHaveBeenCalled();
+      expect(addToolCall).not.toHaveBeenCalled();
+    });
+
+    it("refuses to load an unticked bundled skill", async () => {
+      const { addToolCall } = untick("playground-env");
+
+      const result = await tool("load_skill").run({ id: "playground-env" });
+
+      expect(result).toMatch(
+        /^Could not load playground-env: the skill is disabled/
+      );
+      expect(addToolCall).not.toHaveBeenCalled();
     });
 
     it("refuses to read a reference of a skill the user unticked", async () => {
-      const fetch = vi.fn();
-      vi.stubGlobal("fetch", fetch);
-      PgAssistant.setSkillEnabled("solana-dev", false);
+      const { fetch, addToolCall } = untick("solana-dev");
 
       const result = await tool("read_skill_reference").run({
         id: "solana-dev",
         path: "references/security.md",
       });
 
-      expect(result).toMatch(/solana-dev is disabled/);
+      expect(result).toMatch(
+        /^Could not read references\/security.md from solana-dev: the skill is disabled/
+      );
       expect(fetch).not.toHaveBeenCalled();
+      expect(addToolCall).not.toHaveBeenCalled();
     });
 
-    it("names a loaded skill once in the tool-call line", async () => {
+    it("still tells an unknown id apart from a disabled one", async () => {
+      const result = await tool("load_skill").run({ id: "no-such-skill" });
+
+      expect(result).toMatch(/There is no skill with id "no-such-skill"/);
+    });
+
+    it("loads a skill ticked again, naming it once in the tool-call line", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(async () => new Response("# skill", { status: 200 }))
       );
       const addToolCall = vi.spyOn(PgAssistant, "addToolCall");
+      PgAssistant.setSkillEnabled("solana-dev", false);
+      PgAssistant.setSkillEnabled("solana-dev", true);
 
-      await tool("load_skill").run({ id: "solana-dev" });
+      const result = await tool("load_skill").run({ id: "solana-dev" });
 
+      expect(result).toBe("# skill");
+      // The registry name already ends in "skill"
       expect(addToolCall).toHaveBeenCalledWith(
-        "loaded Official Solana developer skill"
+        `loaded ${findSkill("solana-dev")?.name}`
       );
+      expect(addToolCall.mock.calls[0][0]).not.toMatch(/skill skill/);
     });
   });
 }
