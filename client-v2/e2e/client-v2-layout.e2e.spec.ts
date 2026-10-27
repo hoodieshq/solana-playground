@@ -279,6 +279,49 @@ test("client-v2-layout: Folding the console", async ({ seededPage: page }) => {
   await expect(page.locator(".xterm-rows")).toContainText("echo-marker");
 });
 
+// The terminal was a grid item as wide as its own content, so when the stage
+// narrowed after it mounted (as it does while the layout settles on load) it
+// shrank by one scrollbar per fit, refitting every 200 ms for seconds; a
+// command sent meanwhile printed into a terminal still being resized, and on
+// the runner its output once scrolled out of view (HOO-2370)
+test("a command sent as the console opens prints into a terminal that fits it", async ({
+  page,
+}) => {
+  // How far the terminal reaches past the console, every frame from the load
+  await page.addInitScript(() => {
+    const w = window as unknown as { overhang: number };
+    w.overhang = 0;
+    const sample = () => {
+      const terminal = document.querySelector(".xterm");
+      const well = document.querySelector(
+        '[data-slot="console-drawer-content"]'
+      );
+      if (terminal && well) {
+        w.overhang = Math.max(
+          w.overhang,
+          terminal.getBoundingClientRect().width -
+            well.getBoundingClientRect().width
+        );
+      }
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+  await seedWorkspace(page);
+
+  // Typed and sent while the drawer is still opening: no wait for it
+  await consoleHandle(page).click();
+  await page.getByLabel("Terminal input").first().focus();
+  await page.keyboard.type("help");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".xterm-rows")).toContainText(HELP_TAIL);
+
+  const overhang = await page.evaluate(
+    () => (window as unknown as { overhang: number }).overhang
+  );
+  expect(overhang).toBeLessThanOrEqual(0);
+});
+
 // React's StrictMode runs an effect twice in dev; opening the terminal on
 // both runs printed the welcome twice and left `$ $` as the prompt
 test("client-v2-layout: The terminal greets once", async ({
