@@ -164,7 +164,8 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
   // A call made before the upgrade answered another signature: next to the new name row it reads as stale
   const fresh = result?.tx && args.length > 0 === (result.tx.instruction === "hello(name)") ? result : undefined
   // What the button does, in the client's own words, so the panel teaches the line step 3 asks you to write
-  const same = `In client.ts: \`pg.program.methods.hello(${args.length > 0 ? "name" : ""}).rpc()\``
+  // "In code", not "In client.ts": the file may still hold the older call, until step 4 passes a name there
+  const same = `In code: \`pg.program.methods.hello(${args.length > 0 ? "name" : ""}).rpc()\``
   const callButton = (
     <Button disabled={busy || empty} onClick={send} className={cn(ACTION, ACTION_FILL, phone ? "h-12 w-full pointer-coarse:h-12" : "self-start")}>
       {sending ? <Spinner /> : <Play className="size-3 fill-current" />}
@@ -237,7 +238,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
                   // Two lines on purpose on a narrow sheet: a label, then the line itself in the code face. As one
                   // sentence the chip broke off onto its own line anyway, in a third style
                   <div className="flex flex-col gap-0.5">
-                    <p className={NOTE}>In client.ts</p>
+                    <p className={NOTE}>In code</p>
                     <code className="font-mono text-code break-all text-muted-foreground">{`pg.program.methods.hello(${args.length > 0 ? "name" : ""}).rpc()`}</code>
                   </div>
                 ) : (
@@ -265,6 +266,11 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
                     readOnly={sending}
                     maxLength={NAME_MAX}
                     placeholder="Your name"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    data-bwignore
+                    data-form-type="other"
                     aria-label={`${a.name}, ${a.type}`}
                     className={cn("min-w-0", phone ? "h-12 w-full text-base" : "h-10 w-full max-w-[360px]")}
                   />

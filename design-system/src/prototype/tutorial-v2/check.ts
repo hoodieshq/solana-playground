@@ -5,9 +5,18 @@ import type { Fail } from "./data"
  * the two slips newcomers make most */
 export type OwnCheck = { ok: true } | (Fail & { explain: string })
 
-const squash = (code: string) => code.replace(/\s+/g, "")
+const DECLARE = /(declare_id!\(\s*")[^"]*("\s*\))/g
 
-/** Whether two versions of a file differ only in whitespace, which no build would notice */
+/** The file with its program id in `declare_id!`, as Playground writes it in once the program has an
+ * address */
+export const withId = (code: string, id: string) => code.replace(DECLARE, (_, open: string, close: string) => `${open}${id}${close}`)
+
+/** Whitespace goes, and so does the program id: which address `declare_id!` holds is Playground's to
+ * fill, never a difference the lesson checks */
+const squash = (code: string) => withId(code, "").replace(/\s+/g, "")
+
+/** Whether two versions of a file differ only in whitespace or the program id, which no build would
+ * notice */
 export const sameCode = (a: string, b: string) => squash(a) === squash(b)
 
 // A string first, so a // inside one isn't taken for a comment, then either kind of comment
@@ -131,11 +140,56 @@ export function checkOwn(written: string, target: string, file: string, start?: 
     }
   }
 
+  // The struct is there but not marked: Context<Hello> needs Hello to list accounts
+  if (target.includes("#[derive(Accounts)]") && /struct\s+Hello\b/.test(bare) && !/#\[\s*derive\s*\(\s*Accounts\s*\)\s*\]/.test(bare) && bare.includes("Context<Hello>")) {
+    const line = lineOf(code, "Context<Hello>")
+    const column = bare.split("\n")[line - 1].indexOf("Context<Hello>") + 1
+    return {
+      ok: false,
+      line,
+      column,
+      span: "Context<Hello>".length,
+      log: [...head, "error[E0277]: the trait bound `Hello: Accounts<'_>` is not satisfied", ` --> ${file}:${line}:${column}`, "Build failed"],
+      reason: `${failed}: \`Hello\` on line ${lineOf(code, "struct Hello")} isn't marked \`#[derive(Accounts)]\`.`,
+      explain:
+        "`Context<Hello>` needs `Hello` to be a list of accounts, and `#[derive(Accounts)]` is what makes a struct one. Your `struct Hello` is there without it, so put `#[derive(Accounts)]` on the line above it.",
+    }
+  }
+
+  // A `msg!` with more or fewer values than its text has `{}`: rustc's own format check
+  for (const [i, row] of bare.split("\n").entries()) {
+    const m = row.match(/msg!\(\s*"((?:[^"\\]|\\.)*)"\s*((?:,[^)]*)?)\)/)
+    if (!m) continue
+    const holes = m[1].split("{}").length - 1
+    const given = m[2].trim() ? m[2].split(",").length - 1 : 0
+    if (holes === given) continue
+    const line = i + 1
+    const column = row.indexOf("msg!") + 1
+    const error =
+      holes > given
+        ? `${holes} positional argument${holes === 1 ? "" : "s"} in format string, but ${given === 0 ? "no arguments were" : `${given} ${given === 1 ? "argument was" : "arguments were"}`} given`
+        : `${given === 1 ? "argument never used" : "multiple unused formatting arguments"}`
+    return {
+      ok: false,
+      line,
+      column,
+      span: row.trimEnd().length - column + 1,
+      log: [...head, `error: ${error}`, ` --> ${file}:${line}:${column}`, "Build failed"],
+      reason: `${failed}: the \`msg!\` on line ${line} has ${holes} \`{}\` and ${given} value${given === 1 ? "" : "s"} to fill ${holes === 1 ? "it" : "them"}.`,
+      explain:
+        holes > given
+          ? `Each \`{}\` in a \`msg!\` text takes the next value after the text. Line ${line} has ${holes} and ${given === 0 ? "no values" : given}, so the compiler has nothing to put in. Add \`, name\` after the text, or take the \`{}\` out.`
+          : `Line ${line} passes a value to \`msg!\`, but its text has no \`{}\` to put it in. Add \`{}\` where it should go, or drop the value.`,
+    }
+  }
+
   // The rest share one shape: a line to point at, said in the log the way a compiler would
-  const fail = (line: number, error: string, reason: string, explain: string): OwnCheck => ({
+  const fail = (line: number, error: string, reason: string, explain: string, column?: number, span?: number): OwnCheck => ({
     ok: false,
     line,
-    log: [...head, `${rust ? "error" : "Error"}: ${error}`, ` --> ${file}:${line}`, rust ? "Build failed" : "Run failed"],
+    column,
+    span,
+    log: [...head, `${rust ? "error" : "Error"}: ${error}`, ` --> ${file}:${line}${column ? `:${column}` : ""}`, rust ? "Build failed" : "Run failed"],
     reason,
     explain,
   })
@@ -166,11 +220,50 @@ export function checkOwn(written: string, target: string, file: string, start?: 
   const extra = mine.findIndex((l) => l !== "" && !known.has(l))
   if (extra !== -1) {
     const line = extra + 1
+    const row = bare.split("\n")[extra]
+    // A word on a line of its own, BROKEN say, is what the compiler can name exactly: where it stands
+    // decides the error, an item's place or a statement's inside a function
+    const word = row
+      .trim()
+      .match(/^[A-Za-z_]\w*;?$/)?.[0]
+      .replace(/;$/, "")
+    if (word && !["pub", "fn", "mod", "use", "struct", "let", "const"].includes(word)) {
+      const column = row.indexOf(word) + 1
+      const depth = bare
+        .split("\n")
+        .slice(0, extra)
+        .join("\n")
+        .split("")
+        .reduce((d, c) => d + (c === "{" ? 1 : c === "}" ? -1 : 0), 0)
+      const inside = rust ? depth >= 2 : true
+      const error = !rust ? `TS2304: Cannot find name '${word}'.` : inside ? `cannot find value \`${word}\` in this scope` : `expected item, found \`${word}\``
+      return {
+        ok: false,
+        line,
+        column,
+        span: word.length,
+        log: [
+          ...head,
+          rust && inside ? `error[E0425]: ${error}` : rust ? `error: ${error}` : `error ${error}`,
+          ` --> ${file}:${line}:${column}`,
+          rust ? "Build failed" : "Run failed",
+        ],
+        reason: `${failed}: \`${word}\` on line ${line} isn't ${rust && !inside ? "a declaration" : "declared anywhere"}.`,
+        explain:
+          rust && !inside
+            ? `Outside a function the compiler only expects declarations: \`use\`, \`fn\`, \`struct\`, \`mod\`. \`${word}\` on line ${line} is none of them, so it stops there. If it's a slip, delete it.`
+            : `\`${word}\` on line ${line} isn't declared anywhere in ${file.split("/").pop()}, so the compiler can't tell what it is. If it's a slip, delete it. If you meant something by it, compare the line with the lesson.`,
+      }
+    }
+    // Anything else is a line the lesson's check doesn't know. The prototype has no compiler to say
+    // more, so it says it's the lesson speaking, not rustc
     return fail(
       line,
-      `line ${line} isn't part of this step`,
-      `${failed}: line ${line} isn't part of this step${quote(code.split("\n")[extra])}.`,
-      `Line ${line} isn't in the code this step ${rust ? "builds" : "runs"}. Compare it with the lesson, or review the fix to see the exact lines this step needs.`
+      `lesson check: line ${line} isn't in the code this step ${rust ? "builds" : "runs"}`,
+      `${failed}: line ${line} isn't in the code this step ${rust ? "builds" : "runs"}${quote(code.split("\n")[extra])}.`,
+      `This one comes from the lesson's check, not the compiler: line ${line} isn't in the code this step ${rust ? "builds" : "runs"}. Compare it with the lesson, or review the fix to see the exact lines.`,
+      row.search(/\S/) + 1,
+      row.trim().length
     )
   }
 
@@ -252,4 +345,31 @@ export function insertBlock(file: string, block: string, reference: string | und
   })
   while (out[out.length - 1] === "") out.pop()
   return { code: out.join("\n"), lines: taken }
+}
+
+/** The fix for a file: the code the step needs, with what the learner wrote kept wherever it already
+ * matches. A line they have is kept as they typed it, its comment and its `msg!` text included, and a
+ * comment of theirs goes in above the line it sat over. Only lines the step doesn't have are left out */
+export function fixOf(file: string, target: string): string {
+  const mine = file.split("\n")
+  const mineNorm = lines(straightQuotes(file))
+  const want = target.split("\n")
+  const wantNorm = lines(target)
+  const out: string[] = []
+  let notes: string[] = []
+  let next = 0
+  mine.forEach((row, i) => {
+    if (mineNorm[i] === "") {
+      // A line of comment alone waits for the code under it; a blank one is the target's to place
+      if (row.trim() !== "") notes.push(row)
+      return
+    }
+    const at = wantNorm.findIndex((l, k) => k >= next && l === mineNorm[i])
+    if (at === -1) return
+    out.push(...want.slice(next, at), ...notes, row)
+    notes = []
+    next = at + 1
+  })
+  out.push(...want.slice(next), ...notes)
+  return out.join("\n")
 }

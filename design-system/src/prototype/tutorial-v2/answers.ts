@@ -39,6 +39,15 @@ export const NEXT_CHIP = "What should I build next?"
 
 export type Answer = { text: string; follow?: Follow }
 
+/** A question as a chip's label is compared with it: case, punctuation and "what's" aside */
+const plain = (t: string) =>
+  t
+    .toLowerCase()
+    .replace(/\bwhat'?s\b/g, "what is")
+    .replace(/[^a-z0-9! ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+
 // The phone has no rail, no editor pane and no keyboard shortcuts: the same places are its Code space and sheets
 const WHERE = /where.*(menu|nav|files?|terminal|everything)|^(the\s+)?(menu|files?|terminal)\??$/i
 const WHERE_DESKTOP: Answer = {
@@ -58,9 +67,12 @@ const GLOBAL: { match: RegExp; answer: Answer }[] = [
   },
 ]
 
-export const FALLBACK = "I can only answer a few things in this prototype. Ask about this step, or use Hint on the question."
+// The prototype has no model behind the composer, so a question past the canned answers is said to
+// be the prototype's limit, not the assistant's
+export const FALLBACK =
+  "That one's past this prototype: in the product, the model behind the assistant answers it. Here, ask about this step, pick a suggestion, or use Hint on the question."
 /** The same, with no question open to give a hint */
-export const FALLBACK_NO_ASK = "I can only answer a few things in this prototype. Ask about this step, or keep going with it."
+export const FALLBACK_NO_ASK = "That one's past this prototype: in the product, the model behind the assistant answers it. Here, ask about this step or pick a suggestion."
 
 export const NEXT_ANSWER: Answer = {
   text: "Counter PDA Tutorial is a good next one: it stores a number on chain and changes it, so you meet accounts for real.",
@@ -88,7 +100,8 @@ export function answerFor(c: Context, text: string): Answer {
   if (t === STUCK) return stuckAnswer(c)
   if (t === EXPLAIN_STEP) return { text: step.explainStep }
   if (t === NEXT_CHIP) return NEXT_ANSWER
-  const chip = [...c.chips, ...STEPS.flatMap((s) => [...s.chips, ...(s.errorChips ?? [])])].find((x) => x.label.toLowerCase() === t.toLowerCase())
+  const chips = [...c.chips, ...STEPS.flatMap((s) => [...s.chips, ...(s.errorChips ?? [])])]
+  const chip = chips.find((x) => plain(x.label) === plain(t))
   if (chip) return fit({ text: chip.answer, follow: chip.follow })
   const own = step.answers?.find((a) => a.match.test(t))
   if (own) return fit({ text: own.answer, follow: own.follow })
@@ -97,5 +110,8 @@ export function answerFor(c: Context, text: string): Answer {
   if (WHERE.test(t)) return c.phone ? WHERE_PHONE : WHERE_DESKTOP
   const global = GLOBAL.find((g) => g.match.test(t))
   if (global) return global.answer
+  // A question in other words still finds its answer by its subject, this step's first, then the lesson's
+  const named = chips.find((x) => x.match?.test(t)) ?? STEPS.flatMap((s) => (s.answers ?? []).filter((a) => !a.local)).find((a) => a.match.test(t))
+  if (named) return fit({ text: named.answer, follow: named.follow })
   return { text: c.hint ? FALLBACK : FALLBACK_NO_ASK }
 }

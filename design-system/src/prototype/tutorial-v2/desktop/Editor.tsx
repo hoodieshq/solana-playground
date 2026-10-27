@@ -62,7 +62,10 @@ export function Editor({
       const all = el.value.split("\n")
       const line = Math.min(jump.line, all.length)
       const start = all.slice(0, line - 1).reduce((n, row) => n + row.length + 1, 0)
-      const at = jump.line > all.length ? el.value.length : start + (all[line - 1]?.match(/^\s*/)?.[0].length ?? 0)
+      // On the line the compiler named, the caret goes where it pointed; elsewhere, to the first letter
+      const lead = all[line - 1]?.match(/^\s*/)?.[0].length ?? 0
+      const col = error && error.line === line && error.column ? Math.min(error.column - 1, all[line - 1]?.length ?? 0) : lead
+      const at = jump.line > all.length ? el.value.length : start + col
       el.focus({ preventScroll: true })
       el.setSelectionRange(at, at)
     }
@@ -107,20 +110,31 @@ export function Editor({
     area.current?.focus()
   }
 
-  // Tab writes four spaces, as Rust is indented here. Esc, then Tab leaves the editor, as in
-  // CodeMirror, so the keyboard can still reach the buttons
-  const escaped = useRef(false)
+  // Tab writes four spaces, as Rust is indented here. Enter keeps the line's indent, and one more
+  // after an opening brace. Esc leaves the editor for its frame, so Tab goes on to the buttons and
+  // plain Enter is the page's again (Start, Next)
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    const leaving = escaped.current
-    escaped.current = e.key === "Escape"
-    if (e.key !== "Tab" || e.shiftKey || locked || leaving) return
-    e.preventDefault()
+    if (e.key === "Escape") {
+      e.preventDefault()
+      box.current?.focus({ preventScroll: true })
+      return
+    }
+    if (locked || e.altKey || e.metaKey || e.ctrlKey || e.nativeEvent.isComposing) return
     const el = e.currentTarget
     const at = el.selectionStart
-    onChange?.(code.slice(0, at) + "    " + code.slice(el.selectionEnd))
-    requestAnimationFrame(() => {
-      el.selectionStart = el.selectionEnd = at + 4
-    })
+    const insert = (text: string) => {
+      e.preventDefault()
+      onChange?.(code.slice(0, at) + text + code.slice(el.selectionEnd))
+      requestAnimationFrame(() => {
+        el.selectionStart = el.selectionEnd = at + text.length
+      })
+    }
+    if (e.key === "Tab" && !e.shiftKey) insert("    ")
+    else if (e.key === "Enter" && !e.shiftKey) {
+      const before = code.slice(code.lastIndexOf("\n", at - 1) + 1, at)
+      const indent = before.match(/^\s*/)?.[0] ?? ""
+      insert("\n" + indent + (/\{\s*$/.test(before) ? "    " : ""))
+    }
   }
 
   const order = (n: number) => written.indexOf(n)
@@ -136,11 +150,12 @@ export function Editor({
       )}
       <div
         ref={box}
+        tabIndex={-1}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseLeave={() => point(null)}
         className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain py-2 font-mono text-code leading-[1.6] transition-opacity duration-150 has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-ring/50 has-[textarea:focus-visible]:ring-inset",
+          "flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain py-2 font-mono outline-none focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-inset text-code leading-[1.6] transition-opacity duration-150 has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-ring/50 has-[textarea:focus-visible]:ring-inset",
           busy && "opacity-60"
         )}
       >

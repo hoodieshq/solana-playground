@@ -3,6 +3,7 @@ import { Check } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
+import { sameCode } from "../check"
 import { CLIENT, LIB } from "../data"
 import { useStore, type State, type Turn } from "../store"
 import { BuildLog } from "../ui/BuildLog"
@@ -22,36 +23,41 @@ function command(s: State) {
   return "$ anchor build"
 }
 
-/** How the last run went, in one line beside a dot: ready, running a stage, passed or failed */
+/** How the last run went, in one line beside a dot: ready, running a stage, passed or failed. Once
+ * the file it ran has changed, the last outcome no longer speaks for the code: it says so instead */
 export function TerminalStatus() {
   const { s } = useStore()
   const r = lastResult(s)
   const busy = s.phase !== "idle"
-  const failed = !busy && r && !r.ok
-  const text = busy
-    ? s.run && s.run.stages.length > 1
-      ? ["Building", "Deploying"].includes(s.run.stages[s.run.stage])
-        ? s.run.stages[s.run.stage]
-        : `Deploying · ${s.run.stages[s.run.stage]}`
-      : (s.run?.stages[0] ?? "Running")
-    : !r
-      ? "Ready"
-      : !r.ok
-        ? `${r.act === "run" ? "Run" : "Build"} failed · line ${r.fail?.line ?? 1}`
-        : r.act === "build"
-          ? `Build successful · IDL: 1 instruction · hello${r.args && r.args !== "()" ? r.args : ""}`
-          : r.act === "deploy" || r.act === "buildDeploy"
-            ? r.upgrade
-              ? `Upgraded · IDL: hello${r.args}`
-              : "Deployed · 0 SOL, paid by Kora"
-            : `Confirmed · Program log: ${r.tx?.said ?? ""}`
+  const file = r?.act === "run" ? CLIENT : LIB
+  const edited = !busy && r?.src !== undefined && !sameCode(r.src, s.files[file] ?? "")
+  const failed = !busy && !edited && r && !r.ok
+  const text = edited
+    ? `${file === CLIENT ? "client.ts" : "lib.rs"} changed since the last ${!r.ok ? (r.act === "run" ? "failed run" : "failed build") : r.act === "run" ? "run" : r.act === "build" ? "build" : "deploy"}`
+    : busy
+      ? s.run && s.run.stages.length > 1
+        ? ["Building", "Deploying"].includes(s.run.stages[s.run.stage])
+          ? s.run.stages[s.run.stage]
+          : `Deploying · ${s.run.stages[s.run.stage]}`
+        : (s.run?.stages[0] ?? "Running")
+      : !r
+        ? "Ready"
+        : !r.ok
+          ? `${r.act === "run" ? "Run" : "Build"} failed · line ${r.fail?.line ?? 1}`
+          : r.act === "build"
+            ? `Build successful · IDL: 1 instruction · hello${r.args && r.args !== "()" ? r.args : ""}`
+            : r.act === "deploy" || r.act === "buildDeploy"
+              ? r.upgrade
+                ? `Upgraded · IDL: hello${r.args}`
+                : "Deployed · 0 SOL, paid by Kora"
+              : `Confirmed · Program log: ${r.tx?.said ?? ""}`
   return (
     <>
       <span
         aria-hidden="true"
         className={cn(
           "size-1.5 shrink-0 rounded-full",
-          busy ? "animate-pulse-dot bg-brand-purple motion-reduce:animate-none" : failed ? "bg-error" : r ? "bg-success" : "bg-muted-foreground/40"
+          busy ? "animate-pulse-dot bg-brand-purple motion-reduce:animate-none" : edited ? "bg-warning" : failed ? "bg-error" : r ? "bg-success" : "bg-muted-foreground/40"
         )}
       />
       <span className="truncate">{text}</span>

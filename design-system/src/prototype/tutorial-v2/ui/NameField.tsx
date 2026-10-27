@@ -42,6 +42,11 @@ export function NameField({
       // While the call runs the name it carries stays on show, unchanged
       readOnly={calling}
       autoComplete="off"
+      // A name to greet, not an account's: password managers keep their unlock prompt off it
+      data-1p-ignore
+      data-lpignore="true"
+      data-bwignore
+      data-form-type="other"
       autoCorrect="off"
       spellCheck={false}
       enterKeyHint="go"

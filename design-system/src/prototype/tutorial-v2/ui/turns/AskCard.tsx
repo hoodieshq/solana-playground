@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
-import { Check, ChevronRight, Lightbulb, PenLine, X } from "lucide-react"
+import { Check, ChevronRight, Lightbulb, PenLine, SkipForward, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -102,7 +102,12 @@ function AskRecord({ ask, t, phone }: { ask: Ask; t: AskTurn; phone: boolean }) 
       >
         {/* Four records down the thread each say which question they answer */}
         <span className="shrink-0 font-label text-[0.75rem] text-subtle tabular-nums">{ask.n ? `Q${ask.n}` : "Fix"}</span>
-        <Check strokeWidth={2.5} className="size-3.5 shrink-0 text-success" aria-hidden="true" />
+        {/* Green only for an answer the learner gave: a skipped question was passed by, not got right */}
+        {t.done === "right" || t.done === "typed" ? (
+          <Check strokeWidth={2.5} className="size-3.5 shrink-0 text-success" aria-hidden="true" />
+        ) : (
+          <SkipForward strokeWidth={2} className="size-3.5 shrink-0 text-subtle" aria-hidden="true" />
+        )}
         <span className="min-w-0 truncate">
           <OptionText ask={ask} i={ask.answer} line />
         </span>

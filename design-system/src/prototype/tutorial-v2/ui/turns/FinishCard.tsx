@@ -86,7 +86,8 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
         >
           <span className="shrink-0 text-foreground">Transaction details</span>
           <span className="min-w-0 truncate text-subtle">
-            · <span className="font-mono">{shortKey(tx.signature)}</span> · 0 SOL
+            {/* Who paid, not "0 SOL": the fee was real, Kora paid it, as step 3's receipt says */}
+            · <span className="font-mono">{shortKey(tx.signature, 4)}</span> · paid by Kora
           </span>
           <ChevronRight
             aria-hidden="true"

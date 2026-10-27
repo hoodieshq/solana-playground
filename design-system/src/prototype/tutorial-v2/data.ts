@@ -4,7 +4,8 @@ export type Pass = { ok: true; log: string[]; note: string }
 export type Fail = { ok: false; log: string[]; line: number; reason: string; column?: number; span?: number }
 export type BuildResult = Pass | Fail
 
-export type Chip = { label: string; answer: string; follow?: Follow }
+/** `match` is the subject the chip answers, for a question typed in other words: "what is an IDL?" */
+export type Chip = { label: string; answer: string; follow?: Follow; match?: RegExp }
 
 /** A quiet button that may follow an answer. It only opens or shows something, never runs a build */
 export type Follow = "openTest" | "showMenu" | "showFix" | "writeClient" | "nextTutorial"
@@ -181,7 +182,8 @@ export const NAME_MAX = 32
 
 export type Act = "build" | "deploy" | "buildDeploy" | "run" | "call"
 export type Write = { file: string; block: string }
-export type Quote = { file: string; line: number; mark?: string; tone: "lit" | "error" }
+/** `code` is the quoted line as it was when quoted, kept for an error so the history shows what was wrong */
+export type Quote = { file: string; line: number; mark?: string; tone: "lit" | "error"; code?: string }
 
 /** A question with three options. A right pick writes `writes` into the file, if it has one; a
  * wrong one gets its own reason and the question stays open. The right one sits at a different
@@ -255,7 +257,8 @@ export type Step = {
   explainStep: string
   chips: Chip[]
   errorChips?: Chip[]
-  answers?: { match: RegExp; answer: string; follow?: Follow }[]
+  /** `local` answers only on its own step: it's about that step's moment */
+  answers?: { match: RegExp; answer: string; follow?: Follow; local?: boolean }[]
   /** The win's line when the step passed through the Call panel */
   testWin?: string
 }
@@ -362,11 +365,13 @@ export const STEPS: Step[] = [
     chips: [
       {
         label: "What is a Context?",
+        match: /\bcontext\b/i,
         answer:
           "`Context<T>` is what Anchor hands an instruction when it's called: the accounts listed in the struct `T`, already checked, and the program id. `hello` reads no accounts, so its struct can stay empty.",
       },
       {
         label: "What does msg! do?",
+        match: /\bmsg\b/i,
         answer:
           "`msg!` writes a line to the program log, the way `println!` prints in plain Rust. The line shows up in the transaction's logs, which you'll read after the client calls `hello`.",
       },
@@ -374,11 +379,13 @@ export const STEPS: Step[] = [
     errorChips: [
       {
         label: "Why does hello need a struct?",
+        match: /\b(derive|struct)\b/i,
         answer:
           "Without `#[derive(Accounts)]` Anchor can't tell which accounts an instruction expects, so it can't generate the code that checks them. An instruction that reads no accounts still needs the struct. It's just empty.",
       },
       {
         label: "Where is this in the docs?",
+        match: /\b(docs?|documentation)\b/i,
         answer:
           "The Anchor docs cover it in [Program Structure](https://www.anchor-lang.com/docs/basics/program-structure#deriveaccounts-macro), in the section on `#[derive(Accounts)]`.",
       },
@@ -388,7 +395,7 @@ export const STEPS: Step[] = [
         match: /declare_id/i,
         answer: "`declare_id!` sets the address the program checks every call against. Playground puts in the real one when you deploy.",
       },
-      { match: /why.*(fail|error)/i, answer: EXPLAIN_ERROR },
+      { match: /why.*(fail|error)/i, answer: EXPLAIN_ERROR, local: true },
     ],
   },
   {
@@ -453,15 +460,18 @@ export const STEPS: Step[] = [
     chips: [
       {
         label: "What is devnet?",
+        match: /\bdevnet\b/i,
         answer: "Devnet is Solana's public network for testing. It behaves like mainnet, but its SOL has no value.",
       },
       {
         label: "Why 7 days?",
+        match: /\b(7|seven) days?\b/i,
         answer:
           "Kora pays the rent for programs on devnet. To keep that free for everyone, a program nobody calls for 7 days is closed. Deploy again and you get it back.",
       },
       {
         label: "What is Kora?",
+        match: /\bkora\b/i,
         answer:
           "Kora is a service that pays transaction fees for you. In Playground it also covers the deploy on devnet, so you start with 0 SOL and no wallet.",
       },
@@ -535,16 +545,19 @@ export const STEPS: Step[] = [
     chips: [
       {
         label: "What is pg?",
+        match: /\bpg\b/i,
         answer: "`pg` is Playground's global with your program, wallet and connection already set up. `pg.program` knows `hello` from the IDL the build produced.",
       },
       {
         label: "What's an IDL?",
+        match: /\bidls?\b/i,
         answer:
           "The IDL is your program's interface, written by the build: its instructions, their arguments and accounts. Clients read it to know how to call you, and the Call panel is built from it.",
         follow: "openTest",
       },
       {
         label: "Can I call it without code?",
+        match: /without code|\bcall panel\b/i,
         answer: "Yes. After the deploy, the Call panel has a form for each instruction. Fill the arguments and press Call hello.",
         follow: "openTest",
       },
@@ -624,10 +637,12 @@ export const STEPS: Step[] = [
     chips: [
       {
         label: "Which types work?",
+        match: /\btypes?\b/i,
         answer: "Any type Anchor can serialize: numbers, `bool`, `String`, `Pubkey`, `Vec` and your own structs with `AnchorSerialize`.",
       },
       {
         label: "Can I call it with someone else's name?",
+        match: /someone else|another name|other name/i,
         answer: "Sure. Type any name here or in the Call panel. The program logs whatever it gets, up to 32 characters here.",
       },
     ],

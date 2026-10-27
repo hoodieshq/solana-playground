@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from "react"
 
 import { CHANGE_CHIP, CHANGE_TEXT, STUCK, actionWord, answerFor, stuckAnswer, wordFits, type Context } from "./answers"
-import { checkOwn, holds, insertBlock, msgLine, sameCode, straightQuotes, typedKey, uncomment, withOwnText, type OwnCheck } from "./check"
+import { checkOwn, fixOf, holds, insertBlock, msgLine, sameCode, straightQuotes, typedKey, uncomment, withId, withOwnText, type OwnCheck } from "./check"
 import {
   BEATS,
   BUILD_OK,
@@ -12,6 +12,7 @@ import {
   LIB,
   LIB_FIXED,
   LIB_NAMED,
+  PROGRAM_ID,
   STEPS,
   UPGRADE_LOG,
   callLog,
@@ -61,9 +62,12 @@ export type Turn = TurnBase &
         upgrade?: boolean
         args?: string
         took?: number
+        /** The file the run read, as it was then: the status line tells when it has changed since */
+        src?: string
       }
     | { kind: "win"; beat: string; done: boolean; took: number; via?: "test" }
-    | { kind: "apply"; file: string; before: string; after: string; line: number; done: null | "applied" | "kept" }
+    // `fix` is Show me the fix's proposal, with `source` the answer that offered it
+    | { kind: "apply"; file: string; before: string; after: string; line: number; done: null | "applied" | "kept"; fix?: boolean; source?: number }
     | { kind: "finish" }
   )
 
@@ -78,6 +82,8 @@ type Pending =
   | { kind: "create"; step: number; file: string }
   // The rest of a question's block, around the line the learner typed themselves
   | { kind: "fill"; step: number; beat: string }
+  // A change to lines already there, worked out when it was queued
+  | { kind: "file"; step: number; file: string; code: string; from: string }
 
 /** A run going: which act, its stages and the one running, and the card it belongs to */
 export type Run = { act: Act | "test"; stages: string[]; stage: number; turn: number | null; at: number }
@@ -350,11 +356,16 @@ const patch = (s: State, id: number, change: Partial<Turn>): State => ({
 
 /** A turn posted at once, not through the queue: a run's result, which lands when it lands */
 function now(s: State, turn: Body): State {
+  // An error quote keeps the line as it was when it was quoted: a fix later doesn't rewrite the history
+  if (turn.kind === "say" && turn.quote?.tone === "error" && turn.quote.code === undefined)
+    turn = { ...turn, quote: { ...turn.quote, code: (s.files[turn.quote.file] ?? "").split("\n")[turn.quote.line - 1] ?? "" } }
   return { ...s, thread: [...s.thread, { ...turn, id: s.nextId, at: Date.now() } as Turn], nextId: s.nextId + 1 }
 }
 
 /** A file written, with the editor's tint and the +N on its tab */
 function write(s: State, file: string, code: string, from?: string): { s: State; lines: number[]; preview: string[] } {
+  // Once deployed, lib.rs carries the program's address: no lesson block written later takes it back
+  if (file === LIB && s.deployedLib !== null) code = withId(code, PROGRAM_ID)
   const lines = litLines(s.files[file] ?? "", code)
   const rows = code.split("\n")
   return {
@@ -395,6 +406,10 @@ function tick(s: State): State {
     return now(next, { kind: "wrote", step: head.step, file: head.file, lines: [], added: 0, created: true })
   }
   if (head.kind === "fill") return fill(next, head.step, BEATS[head.beat] as Ask)
+  if (head.kind === "file") {
+    const w = write(next, head.file, head.code, head.from)
+    return now(w.s, { kind: "wrote", step: head.step, file: head.file, lines: w.lines, added: w.lines.length, preview: w.preview, from: head.from })
+  }
   const step = STEPS[head.step]
   const before = next.files[head.file] ?? ""
   const placed = insertBlock(before, head.block, step.target, step.start)
@@ -496,7 +511,7 @@ function fail(s: State, act: Act, c: Extract<OwnCheck, { ok: false }>, file: str
   const planned = s.step === 0 && !s.cursor[0].fail && !s.passed[0] && c.reason.includes("`Hello` struct")
   let next: State = run?.turn ? patch(s, run.turn, { state: "done", took, failed: true } as Partial<Turn>) : s
   const code = s.files[file].split("\n")[c.line - 1]?.trim() ?? ""
-  next = now(next, { kind: "result", step: s.step, act, ok: false, log: c.log, fail: { line: c.line, column: c.column, span: c.span, reason: c.reason, explain: c.explain, code }, open: true, planned, took })
+  next = now(next, { kind: "result", step: s.step, act, ok: false, log: c.log, fail: { line: c.line, column: c.column, span: c.span, reason: c.reason, explain: c.explain, code }, open: true, planned, took, src: s.files[file] })
   return {
     ...next,
     phase: "idle",
@@ -540,7 +555,7 @@ function stage(s: State): State {
     if (!c.ok) return fail(s, "build", c, LIB, took)
     const log = buildLog(s.files[LIB])
     let next = idle(closeAct({ ...s, builtLib: s.files[LIB], log, error: null }))
-    next = now(next, { kind: "result", step: s.step, act: "build", ok: true, log, took, args: signature(deployedArgs(s.files[LIB])) })
+    next = now(next, { kind: "result", step: s.step, act: "build", ok: true, log, took, args: signature(deployedArgs(s.files[LIB])), src: s.files[LIB] })
     // A build that passes on its own resolves every open question of the step, typed by hand
     if (s.step === 0 && !s.passed[0]) {
       next = { ...next, thread: next.thread.map((t) => (t.kind === "ask" && t.step === 0 && t.done === null ? { ...t, done: "typed" } : t)), cursor: setAt(next.cursor, 0, { at: 99, fail: next.cursor[0].fail }) }
@@ -550,14 +565,22 @@ function stage(s: State): State {
   }
 
   if (run.act === "deploy" || run.act === "buildDeploy") {
-    const lib = s.builtLib ?? s.files[LIB]
+    // The deploy gives the program its address, and Playground writes it into declare_id!, as the
+    // real one does: the 1s placeholder was only ever a stand in
+    const lib = withId(s.builtLib ?? s.files[LIB], PROGRAM_ID)
     const first = s.deployedLib === null
+    const own = withId(s.files[LIB], PROGRAM_ID)
+    const idLine = own.split("\n").findIndex((l) => l.includes(PROGRAM_ID)) + 1
     const argsBefore = signature(deployedArgs(s.deployedLib))
     const argsAfter = signature(deployedArgs(lib))
     const changed = first || argsBefore !== argsAfter
     const log = first ? DEPLOY_LOG : UPGRADE_LOG
     let next = idle(closeAct({
       ...s,
+      files: { ...s.files, [LIB]: own },
+      builtLib: s.builtLib === null ? null : withId(s.builtLib, PROGRAM_ID),
+      // The id lit where it landed, the first time, so the change to line 3 doesn't go unseen
+      wrote: first && idLine > 0 ? { file: LIB, lines: [idLine], at: Date.now(), from: "deploy" } : s.wrote,
       deployedLib: lib,
       log,
       tabs: s.tabs.includes("test") ? s.tabs : [...s.tabs, "test"],
@@ -565,7 +588,7 @@ function stage(s: State): State {
       idlNew: !first && changed ? true : s.idlNew,
       idlAt: changed ? Date.now() : s.idlAt,
     }))
-    next = now(next, { kind: "result", step: s.step, act: run.act, ok: true, log, upgrade: !first, took, args: argsAfter })
+    next = now(next, { kind: "result", step: s.step, act: run.act, ok: true, log, upgrade: !first, took, args: argsAfter, src: own })
     return afterAct(next, run.act, nudge)
   }
 
@@ -575,7 +598,7 @@ function stage(s: State): State {
     const tx = clientTx(s)
     const log = clientLog(tx)
     let next = idle(closeAct({ ...s, log, txAt: Date.now() }))
-    next = now(next, { kind: "result", step: s.step, act: "run", ok: true, log, tx, from: "client", took })
+    next = now(next, { kind: "result", step: s.step, act: "run", ok: true, log, tx, from: "client", took, src: s.files[CLIENT] })
     return afterAct(next, "run", nudge)
   }
 
@@ -585,6 +608,7 @@ function stage(s: State): State {
     const log = callLog(tx, name)
     let next = idle(closeAct({ ...s, log, txAt: Date.now() }))
     next = now(next, { kind: "result", step: s.step, act: "call", ok: true, log, tx, from: "chat", took })
+    if (!nudge && !next.passed[next.step] && STEPS[next.step].goal === "call") next = nameClient(next, name)
     return afterAct(next, "call", nudge)
   }
 
@@ -599,6 +623,7 @@ function stage(s: State): State {
   const i = next.step
   const passes = !next.passed[i] && ((i === 2 && next.deployedLib !== null) || (i === 3 && named && !!name))
   if (!passes) return next
+  if (i === 3 && name) next = nameClient(next, name)
   // The act the panel's call stood in for is done, without its button ever pressed, and a question still
   // open in the step folds into its record, so nothing above the win can still be picked
   next = {
@@ -612,6 +637,21 @@ function stage(s: State): State {
     ),
   }
   return pass(next, i, "test")
+}
+
+/** Step 4 called hello with a name: client.ts still calls it without one, which the new hello
+ * refuses, so its call takes the same name. Only the call's own parentheses change; the rest of the
+ * file stays as the learner left it */
+function nameClient(s: State, name: string): State {
+  const before = s.files[CLIENT] ?? ""
+  const after = before.replace(/(\.methods\s*\.\s*hello\()[^)]*(\))/, (_, open: string, close: string) => `${open}${JSON.stringify(name)}${close}`)
+  if (!before.trim() || after === before) return s
+  const next = post(s, {
+    kind: "say",
+    step: s.step,
+    text: "`client.ts` still called `hello` without a name, and the new `hello` needs one. I've passed yours there too, so it runs as it is.",
+  })
+  return { ...next, queue: [...next.queue, { kind: "file", step: s.step, file: CLIENT, code: after, from: "name" }] }
 }
 
 /** The context the canned answers read */
@@ -766,14 +806,16 @@ function reducer(s: State, a: Action): State {
       const t = s.thread.find((x) => x.id === a.turn)
       if (!t || t.kind !== "say" || t.followDone) return s
       if (t.follow !== "showFix") return s
-      // The step's target lines, written in and lit
+      // The step's target lines, proposed as a change to review: what the learner wrote is kept where it
+      // fits, and nothing lands in the file until Apply
       const file = s.error?.file === CLIENT || (s.step === 2 && !s.passed[2]) ? CLIENT : LIB
       const target = file === CLIENT ? CLIENT_CALL : s.step === 0 ? LIB_FIXED : libTarget(s)
-      let next = patch(s, t.id, { followDone: true } as Partial<Turn>)
-      const w = write(next, file, target, "fix")
-      next = now({ ...w.s, error: null }, { kind: "wrote", step: s.step, file, lines: w.lines, added: w.lines.length, preview: w.preview, from: "fix" })
-      // A question whose code the fix just wrote has nothing left to ask
-      return { ...next, thread: next.thread.map((x) => (x.kind === "ask" && x.done === null && (BEATS[x.beat] as Ask).writes && holds(target, (BEATS[x.beat] as Ask).writes!.block) ? { ...x, done: "skipped" } : x)) }
+      const before = s.files[file] ?? ""
+      const fixed = fixOf(before, file === LIB && s.deployedLib !== null ? withId(target, PROGRAM_ID) : target)
+      const next = patch(s, t.id, { followDone: true } as Partial<Turn>)
+      if (fixed === before) return post(next, { kind: "say", step: s.step, text: `${file === CLIENT ? "client.ts" : "lib.rs"} already has the lines this step needs. Run it again.` })
+      const line = before.split("\n").findIndex((l, i) => l !== fixed.split("\n")[i]) + 1 || 1
+      return post(next, { kind: "apply", step: s.step, file, before, after: fixed, line, done: null, fix: true, source: t.id })
     }
     case "ask": {
       const text = a.text.trim()
@@ -811,6 +853,20 @@ function reducer(s: State, a: Action): State {
       const t = s.thread.find((x) => x.id === a.turn)
       if (!t || t.kind !== "apply" || t.done !== null) return s
       let next = patch(s, t.id, { done: "applied" } as Partial<Turn>)
+      if (t.fix) {
+        // Typed into since the proposal: the fix goes in around what's there now, not over it
+        const after = s.files[t.file] === t.before ? t.after : fixOf(s.files[t.file] ?? "", t.after)
+        const w = write(next, t.file, after, "fix")
+        next = now({ ...w.s, error: null }, { kind: "wrote", step: next.step, file: t.file, lines: w.lines, added: w.lines.length, preview: w.preview, from: "fix" })
+        // A question whose code the fix just wrote has nothing left to ask
+        const asked = (x: Turn) => x.kind === "ask" && x.done === null && !!(BEATS[x.beat] as Ask).writes && holds(after, (BEATS[x.beat] as Ask).writes!.block)
+        next = { ...next, thread: next.thread.map((x) => (asked(x) ? ({ ...x, done: "skipped" } as Turn) : x)) }
+        // The act waiting above the proposal comes down under the fix, so the next press is where you are
+        const act = liveAct(next)?.turn
+        if (!act || act.state !== "live" || act.id > t.id) return next
+        next = { ...next, thread: next.thread.filter((x) => x.id !== act.id) }
+        return now(next, { kind: "act", step: act.step, beat: act.beat, act: act.act, state: "live", nudge: act.nudge })
+      }
       const w = write(next, t.file, t.after, "apply")
       next = now(w.s, { kind: "wrote", step: next.step, file: t.file, lines: w.lines, added: w.lines.length, preview: w.preview, from: "apply" })
       if (next.deployedLib !== null) return nudge(next)
@@ -820,7 +876,13 @@ function reducer(s: State, a: Action): State {
     case "keep": {
       const t = s.thread.find((x) => x.id === a.turn)
       if (!t || t.kind !== "apply" || t.done !== null) return s
-      return post(patch(s, t.id, { done: "kept" } as Partial<Turn>), { kind: "say", step: s.step, text: "Kept as it is. Ask again any time." })
+      let next = patch(s, t.id, { done: "kept" } as Partial<Turn>)
+      // A fix turned down can be asked for again: its button comes back
+      if (t.fix && t.source !== undefined) {
+        next = patch(next, t.source, { followDone: false } as Partial<Turn>)
+        return post(next, { kind: "say", step: s.step, text: "Kept as it is. Fix it in the editor, or press Show me the fix again." })
+      }
+      return post(next, { kind: "say", step: s.step, text: "Kept as it is. Ask again any time." })
     }
     case "edit": {
       let next: State = { ...s, files: { ...s.files, [a.file]: a.code }, fresh: { ...s.fresh, [a.file]: 0 } }
@@ -884,7 +946,8 @@ function reducer(s: State, a: Action): State {
     }
     case "resetFile": {
       const step = STEPS[s.step]
-      return { ...s, files: { ...s.files, [step.file]: step.start }, error: null, wrote: null }
+      const start = step.file === LIB && s.deployedLib !== null ? withId(step.start, PROGRAM_ID) : step.start
+      return { ...s, files: { ...s.files, [step.file]: start }, error: null, wrote: null }
     }
   }
 }

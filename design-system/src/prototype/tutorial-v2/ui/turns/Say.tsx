@@ -34,12 +34,15 @@ const PHONE_SAY: Record<string, string> = {
 export const baseName = (file: string) => file.split("/").pop() ?? file
 
 /** A line of a file quoted in a message: its path and the way to it, the line lit, or red with the
- * token the compiler named under a wavy line. An error quote goes quiet once the step passes */
+ * token the compiler named under a wavy line. An error quote goes quiet once the step passes, or
+ * once the line it quotes has changed */
 export function QuoteBox({ quote, quiet = false, phone = false }: { quote: Quote; quiet?: boolean; phone?: boolean }) {
   const { s, dispatch } = useStore()
-  const code = (s.files[quote.file] ?? "").split("\n")[quote.line - 1] ?? ""
+  // An error quote shows the line as it was then, so the history still says what was wrong after a fix
+  const live = (s.files[quote.file] ?? "").split("\n")[quote.line - 1] ?? ""
+  const code = quote.code ?? live
   const shown = code.trim()
-  const error = quote.tone === "error" && !quiet
+  const error = quote.tone === "error" && !quiet && code === live
   // The token to underline, inside the trimmed line
   const at = quote.mark ? shown.indexOf(`<${quote.mark}>`) + 1 : -1
   return (
