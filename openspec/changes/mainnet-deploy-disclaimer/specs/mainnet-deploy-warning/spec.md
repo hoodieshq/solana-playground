@@ -13,7 +13,7 @@ deploying from their own machine instead.
 While the connected cluster is mainnet-beta, the Flow's Deploy stage SHALL show
 a warning callout (`role="alert"`, `aria-label="Mainnet deploy warning"`)
 above the deploy action, built or not and whatever wallet is connected. It
-SHALL say that the deploy pays real SOL through the Playground wallet, whose
+SHALL say that the deploy moves real SOL through the Playground wallet, whose
 key is kept in this browser, and recommend deploying from the user's own
 machine with the Solana CLI or Anchor. On any other cluster it SHALL NOT show.
 The callout SHALL NOT disable the deploy action or ask for confirmation.

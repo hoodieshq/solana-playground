@@ -118,6 +118,22 @@ describe("BaseDeploy", () => {
     expect(mainnetWarning()).toBeTruthy();
   });
 
+  it("keeps the warning beside a failed deploy's alert", () => {
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "failed",
+          history: [record("a", null)],
+          cluster: "mainnet-beta",
+        })}
+      />
+    );
+
+    expect(mainnetWarning()).toBeTruthy();
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+  });
+
   it.each(["devnet", null])("does not warn on %s", (cluster) => {
     render(
       <BaseDeploy

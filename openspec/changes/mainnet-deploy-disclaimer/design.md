@@ -2,10 +2,12 @@
 
 ## Context
 
-See proposal.md for why. `commands/deploy/deploy.ts` pays every deploy from
-the Playground wallet: with an external ("standard") wallet connected it first
-transfers the deploy's cost to `PgWallet.accounts[0]`, a keypair held in
-local storage, and moves the buffer authority back afterwards. So the risk the
+See proposal.md for why. `commands/deploy/deploy.ts` pays for the buffer and
+the program's extension from a Playground wallet, a keypair held in local
+storage: the current one, or, with an external ("standard") wallet connected,
+`PgWallet.accounts[0]`, after transferring the cost to it; it hands the buffer
+authority to the external wallet, which signs only the final deploy or
+upgrade. So the risk the
 ticket names does not depend on which wallet is connected, and neither does
 the warning. There is no design for the warning in the design system or the
 prototype; the system's `Callout` with `variant="warning"` is the note for a
@@ -19,8 +21,8 @@ place in a page.
 
 ## Decisions
 
-- **Show for every wallet, not only the Playground wallet.** The scope row says
-  "with the local wallet", but an external wallet's deploy still passes its SOL
+- **Show for every wallet, not only the Playground wallet.** The roadmap's
+  scope row for HOO-867 names only the local wallet, but an external wallet's deploy still passes its SOL
   through the local one. Alternative: show only for the Playground wallet;
   rejected, it would hide the warning from exactly the users who think an
   external wallet keeps them safe.
@@ -38,4 +40,6 @@ place in a page.
 - [The wording outlives the behaviour] → when the intermediary wallet goes
   away for mainnet, this requirement is modified in the same change.
 - [Cluster unknown until the endpoint is read] → no warning while
-  `cluster` is `null`; it appears as soon as the cluster resolves.
+  `cluster` is `null`; it appears as soon as the cluster resolves. A custom
+  endpoint is resolved by its genesis hash, so a custom mainnet RPC that does
+  not answer leaves `cluster` `null` and shows no warning.

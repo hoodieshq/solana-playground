@@ -4,9 +4,11 @@
 
 A deploy to mainnet pays with real SOL, and the client routes that SOL through
 the Playground wallet, whose secret key sits in the browser's local storage
-where any script running on the page can read it (HOO-867). Even with an
-external wallet connected, the deploy command first transfers the deploy's
-cost to the first Playground wallet and pays from there. Nothing tells the
+where any script running on the page can read it (HOO-867). The buffer and
+the program's extension are paid from a Playground wallet even with an
+external wallet connected: the deploy command first transfers their cost to
+the first Playground wallet; only the final deploy is signed by the external
+wallet. Nothing tells the
 user this today, so they cannot choose the safer path: deploying from their
 own machine.
 
@@ -14,7 +16,7 @@ own machine.
 
 - The Flow's Deploy stage shows a warning callout whenever the connected
   cluster is mainnet-beta, before and after a build, whatever wallet is
-  connected. It says the deploy pays through the Playground wallet kept in
+  connected. It says the deploy moves SOL through the Playground wallet kept in
   this browser and recommends deploying from the user's own machine with the
   Solana CLI or Anchor.
 - The `deploy` terminal command prints the same warning before it starts on
