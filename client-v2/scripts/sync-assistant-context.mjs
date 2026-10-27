@@ -1,7 +1,7 @@
 // Sync the assistant's context document into the client bundle.
 //
 // `docs/assistant-context.md` is the source of truth — it is what the team
-// maintains and what the "What we're building" tab renders. CRA's
+// maintains and what the assistant is loaded with. CRA's
 // `ModuleScopePlugin` stops `client/src` importing across the repo root, so it
 // is copied in here instead.
 

@@ -115,7 +115,8 @@ export const declarePackage = async (
  *
  * Always these: the server's `types` route is gone, and its replacement
  * (`/bundle`) is not ported: letting a user name the dependencies the
- * server installs would let them run code on it.
+ * server installs could let them run code on it, and that is not worth
+ * building while its blast radius is undefined.
  */
 const getTypes = async (
   packageName: JsRuntimePackageName

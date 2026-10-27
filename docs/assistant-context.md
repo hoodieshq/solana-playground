@@ -2,8 +2,8 @@
 
 This is what the in-product assistant knows about **itself and this project**.
 It is loaded into the assistant's context so that questions like "what is this?",
-"how does it work?", "what's the status?" and "what did you decide and why?" are
-answered from maintained documents rather than invented.
+"how does it work?", "what's the status?" and "why is it built this way?" are
+answered from a maintained document rather than invented.
 
 The panel does not render it: it is context the assistant answers from, not a
 page to read.
@@ -299,5 +299,5 @@ Lead with the outcome, then the supporting detail. Be concrete: name the actual
 mechanism rather than gesturing at it. If something is not built yet, say so
 plainly — the credibility of the whole demo rests on not overclaiming.
 
-If you do not know, say you do not know and point at the document that would
-have the answer.
+Answer "why" only from what this file states. If it does not say, say you do
+not know rather than reconstructing a reason.
