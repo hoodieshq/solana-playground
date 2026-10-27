@@ -7,9 +7,23 @@ const state = vi.hoisted(() => ({
   all: [
     { name: "Hello Anchor", pageCount: 6 },
     { name: "Hello Solana", pageCount: 4 },
+    {
+      name: "Hello Conversation",
+      pageCount: 4,
+      definition: {
+        steps: [
+          { id: "program" },
+          { id: "deploy" },
+          { id: "client" },
+          { id: "name" },
+        ],
+      },
+    },
   ],
   workspaces: undefined as string[] | undefined,
   metadata: new Map<string, { pageNumber: number; completed: boolean }>(),
+  // Each started tutorial's `.workspace/tutorial-storage.json`
+  storage: new Map<string, Record<string, unknown>>(),
   // What reading a started tutorial's metadata throws when none is set
   unreadable: new Error("ENOENT: no such file") as Error,
   listeners: new Map<string, Set<() => void>>(),
@@ -44,6 +58,11 @@ vi.mock("../../../utils/tutorial/tutorial", () => ({
       if (!meta) throw state.unreadable;
       return meta;
     },
+    getStorageData: async (name: string) => {
+      const data = state.storage.get(name);
+      if (!data) throw new Error("ENOENT: no such file");
+      return data;
+    },
   },
 }));
 vi.mock("../../../utils/explorer/explorer", () => ({
@@ -67,6 +86,7 @@ describe("useTutorialProgress", () => {
   beforeEach(() => {
     state.workspaces = undefined;
     state.metadata.clear();
+    state.storage.clear();
     state.listeners.clear();
     state.held = [];
     state.unreadable = new Error("ENOENT: no such file");
@@ -90,6 +110,58 @@ describe("useTutorialProgress", () => {
       })
     );
     expect(result.current("Hello Solana")).toEqual({ state: "new" });
+  });
+
+  it("counts a conversation tutorial's passed steps", async () => {
+    state.workspaces = ["Hello Conversation"];
+    state.storage.set("Hello Conversation", {
+      conversation: {
+        version: 1,
+        passed: ["program", "deploy"],
+        finishedAt: null,
+      },
+    });
+    const { result } = renderHook(() => useTutorialProgress());
+
+    await waitFor(() =>
+      expect(result.current("Hello Conversation")).toEqual({
+        state: "started",
+        page: 2,
+        pages: 4,
+      })
+    );
+  });
+
+  it("shows a conversation tutorial done once its finish has shown", async () => {
+    state.workspaces = ["Hello Conversation"];
+    state.storage.set("Hello Conversation", {
+      conversation: { version: 1, passed: ["program"], finishedAt: 1 },
+    });
+    const { result } = renderHook(() => useTutorialProgress());
+
+    await waitFor(() =>
+      expect(result.current("Hello Conversation")).toEqual({
+        state: "completed",
+      })
+    );
+  });
+
+  it("reads a definition tutorial with no saved conversation by its page, silently", async () => {
+    state.workspaces = ["Hello Conversation"];
+    state.metadata.set("Hello Conversation", {
+      pageNumber: 3,
+      completed: false,
+    });
+    const { result } = renderHook(() => useTutorialProgress());
+
+    await waitFor(() =>
+      expect(result.current("Hello Conversation")).toEqual({
+        state: "started",
+        page: 3,
+        pages: 4,
+      })
+    );
+    expect(error).not.toHaveBeenCalled();
   });
 
   it("reads a tutorial it does not know as new", () => {
