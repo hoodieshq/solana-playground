@@ -45,8 +45,9 @@ function OptionText({ ask, i, line = false, ruled = false }: { ask: Ask; i: numb
       {chained(ruled ? [ask.options[i]] : highlight(ask.options[i]))}
     </code>
   ) : (
-    // A plain string: cn would drop the size token next to a text colour
-    <span className={ruled ? "text-control text-muted-foreground" : "text-control text-foreground"}>
+    // A plain string: cn would drop the size token next to a text colour. A button's words set a little
+    // tighter than prose
+    <span className={ruled ? "text-control leading-[1.375rem] text-muted-foreground" : "text-control leading-[1.375rem] text-foreground"}>
       <Prose text={ask.options[i]} {...READ_CODE} />
     </span>
   )
@@ -228,7 +229,8 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
               aria-describedby={wrong ? `${reasonId}-${i}` : undefined}
               className={cn(
                 // A radio list: the ring says pick one, with no arrow to read as "go" or to sit over long code
-                "group/opt flex min-h-12 w-full items-start gap-3 rounded-lg border px-4 py-3.5 text-left pointer-coarse:py-4 transition-colors duration-100 outline-none active:translate-y-px motion-reduce:transition-none",
+                // The mark 16px from the side, as the words are from the other; under a finger 2px taller
+                "group/opt flex min-h-11 w-full items-start gap-3 rounded-lg border py-3 pr-4 pl-3.5 text-left pointer-coarse:py-3.5 transition-colors duration-100 outline-none active:translate-y-px motion-reduce:transition-none",
                 isRight
                   ? "border-success/50 bg-success/10"
                   : wrong
@@ -238,9 +240,6 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
                       "cursor-default border-error/25 bg-error/[0.05]"
                     : "border-border bg-foreground/[0.02] hover:border-foreground/25 hover:bg-foreground/[0.05] focus-visible:border-foreground/25 focus-visible:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple",
                 lastOne === i && !isRight && "border-foreground/30 bg-foreground/[0.04]",
-                // The ring sits 5 inside its 24px slot: the row's left pad gives those back and a little more, so
-                // the ring reads as close to the side as to the top (the phone's rows are 2px taller under a finger)
-                phone ? "pl-3" : "pl-2.5",
                 shake?.i === i && "pg-shake"
               )}
               // A new key per wrong pick plays the shake again
@@ -248,8 +247,10 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
             >
               <span
                 className={cn(
-                  // One line of the code tall, so the figure sits on the code's first line whether it wraps or not
-                  "grid h-[1.21875rem] w-6 shrink-0 place-items-center rounded-sm text-[0.75rem] font-act lining-nums tabular-nums",
+                  // One line of the option tall, code's or words', so the mark sits on the first line's middle
+                  // whether it wraps or not. As wide as the right pick's square, the ring 1px inside it
+                  "grid w-[1.125rem] shrink-0 place-items-center rounded-sm text-[0.75rem] font-act lining-nums tabular-nums",
+                  ask.code ? "h-[1.21875rem]" : "h-[1.375rem]",
                   isRight ? "text-success-foreground" : wrong ? "text-error" : "text-muted-foreground group-hover/opt:text-foreground group-focus-visible/opt:text-foreground"
                 )}
               >
@@ -265,11 +266,13 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
                     <X strokeWidth={2.75} className="size-3" />
                   </span>
                 ) : (
-                  <span className="size-3.5 rounded-full border-[1.5px] border-muted-foreground/70 transition-colors group-hover/opt:border-foreground group-focus-visible/opt:border-foreground" />
+                  <span className="size-4 rounded-full border-[1.5px] border-muted-foreground/70 transition-colors group-hover/opt:border-foreground group-focus-visible/opt:border-foreground" />
                 )}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block">
+                {/* The words' line height on the block as well, or its own taller strut sets the lines apart.
+                    Words that wrap break into even lines, so no word is left alone on the second */}
+                <span className={cn("block leading-[1.375rem]", !ask.code && "text-balance")}>
                   <OptionText ask={ask} i={i} ruled={wrong} />
                 </span>
                 {wrong && ask.why[i] && (
