@@ -11,7 +11,8 @@ for; tasks with "after nothing" start at once.
       progress and the "<level> · <framework>" meta line), Hello Anchor's prototype script as `tutorial.json`,
       `tutorial_definition_rejected`. Verify: the check passes on Hello Anchor
       and fails with path errors on the spec's two broken fixtures; the catalog
-      lists Hello Anchor from JSON (HOO-1792; fleet; M 1.5; after nothing)
+      lists Hello Anchor from JSON (HOO-1792; fleet; M 1.5; after nothing;
+      plan: [plans/1.1-definition-v1.md](plans/1.1-definition-v1.md))
 - [ ] 1.2 `AUTHORING.md`, the instruction an agent follows to write a
       tutorial. Verify: an agent following only it writes a two-step fixture
       tutorial that passes the check and runs (HOO-2347; Natalia; S 1;
