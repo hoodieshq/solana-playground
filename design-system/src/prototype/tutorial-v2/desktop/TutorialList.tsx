@@ -1,3 +1,4 @@
+import { ListFilter } from "lucide-react"
 import { useState } from "react"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -19,33 +20,69 @@ const LEVEL_FIRST = 4
 
 /** An icon beside the search, not a second box: the search's height to hit, the glass's grey at
  * rest, the text's white under the pointer or when a filter is on. A dot says a filter is on */
-export function FilterButton({ value, onChange, className }: { value: FrameworkFilter; onChange: (v: FrameworkFilter) => void; className?: string }) {
+/** The framework filter. `boxed` is the desktop's: a square the search field's height, outlined like
+ * it, with the list glyph in the text's own white. The phone keeps its bare sliders, a thumb's square */
+export function FilterButton({
+  value,
+  onChange,
+  boxed = false,
+  className,
+}: {
+  value: FrameworkFilter
+  onChange: (v: FrameworkFilter) => void
+  boxed?: boolean
+  className?: string
+}) {
   const on = value !== "all"
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={on ? `Framework: ${value}` : "Filter by framework"}
         className={cn(
-          "relative flex size-10 shrink-0 items-center justify-center rounded-lg transition-colors duration-150 hover:text-foreground data-[state=open]:text-foreground [&>svg]:size-[1.375rem]",
+          "relative flex shrink-0 items-center justify-center transition-colors duration-150",
           FOCUS,
-          on ? "text-foreground" : "text-muted-foreground/80",
+          boxed
+            ? // No fill of its own, so its hairline is the field's edge as it reads against the ground
+              "size-8 rounded-lg border border-foreground/[0.1] text-foreground hover:bg-foreground/[0.06] data-[state=open]:border-transparent data-[state=open]:bg-foreground/[0.12] [&>svg]:size-[1.125rem]"
+            : cn("size-10 rounded-lg hover:text-foreground data-[state=open]:text-foreground [&>svg]:size-[1.375rem]", on ? "text-foreground" : "text-muted-foreground/80"),
           className
         )}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-          <path d="M6 4v8M6 16v4M12 4v2M12 10v10M18 4v10M18 18v2" />
-          <circle cx="6" cy="14" r="2" />
-          <circle cx="12" cy="8" r="2" />
-          <circle cx="18" cy="16" r="2" />
-        </svg>
-        {on && <span aria-hidden="true" className="absolute top-2 right-2 size-1.5 rounded-full bg-brand-purple" />}
+        {boxed ? (
+          <ListFilter strokeWidth={1.75} aria-hidden="true" />
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 4v8M6 16v4M12 4v2M12 10v10M18 4v10M18 18v2" />
+            <circle cx="6" cy="14" r="2" />
+            <circle cx="12" cy="8" r="2" />
+            <circle cx="18" cy="16" r="2" />
+          </svg>
+        )}
+        {on && <span aria-hidden="true" className={cn("absolute size-1.5 rounded-full bg-brand-purple", boxed ? "-top-0.5 -right-0.5" : "top-2 right-2")} />}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44!">
+      {/* Boxed, a small card on the field's own fill: rows of the button's height, the group's name in
+          the rows' size but grey, the tick on the right in the accent */}
+      <DropdownMenuContent align="end" sideOffset={boxed ? 6 : 4} className={cn("w-44!", boxed && "rounded-xl bg-surface p-1.5 shadow-panel")}>
         {/* The group's name a step under its choices in size, weight and tone, so it never reads as one more choice */}
-        <DropdownMenuLabel className="pt-1.5 pb-1 text-[0.75rem]! font-normal text-muted-foreground/85">Framework</DropdownMenuLabel>
+        <DropdownMenuLabel
+          className={
+            boxed ? "flex h-7 items-center px-2.5 py-0 text-[0.875rem] font-normal text-muted-foreground/80" : "pt-1.5 pb-1 text-[0.75rem]! font-normal text-muted-foreground/85"
+          }
+        >
+          Framework
+        </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as FrameworkFilter)}>
           {FRAMEWORKS.map((f) => (
-            <DropdownMenuRadioItem key={f.value} value={f.value} className="min-h-8 text-[0.8125rem]! text-foreground">
+            <DropdownMenuRadioItem
+              key={f.value}
+              value={f.value}
+              className={cn(
+                "text-foreground",
+                boxed
+                  ? "h-7 py-0 pr-9 pl-2.5 text-[0.875rem]! [&_[data-slot=dropdown-menu-radio-item-indicator]]:right-2 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-brand-purple"
+                  : "min-h-8 text-[0.8125rem]!"
+              )}
+            >
               {f.label}
             </DropdownMenuRadioItem>
           ))}

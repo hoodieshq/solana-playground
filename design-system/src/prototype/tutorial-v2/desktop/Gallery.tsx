@@ -1,9 +1,9 @@
+import { Search } from "lucide-react"
 import { useEffect, useRef, useState, type CSSProperties } from "react"
 import { flushSync } from "react-dom"
 
 import { cn } from "@/lib/utils"
 
-import { BrandIcon } from "../ui/brandGlyphs"
 import { filterCatalog, resultsLine, searchHint, type FrameworkFilter } from "../ui/catalog"
 import { StartHereBanner } from "../ui/StartHereBanner"
 import { FilterButton, TutorialLevels } from "./TutorialList"
@@ -251,18 +251,18 @@ export function TutorialsBody({ phone = false, className }: { phone?: boolean; c
             {!searchOpen && <h1 className="mr-auto font-heading text-[1.75rem] font-normal tracking-[-0.015em] text-foreground">Tutorials</h1>}
             <label
               className={cn(
-                "relative flex h-10 w-80 shrink-0 items-center gap-2 rounded-lg border border-[#a0a0a644] bg-surface-panel pr-3 pl-3.5 text-[0.8125rem] font-[350] text-muted-foreground/80 transition-colors duration-150 focus-within:border-muted-foreground",
-                // Folded: a square of the field's height, the glass centred in it, bare like the
+                // The filter's height and outline, as Claude Code's: a fill about ten levels over the ground
+                // and a hairline only eight over the fill, so it reads as a soft well and not a drawn box
+                "relative flex h-8 w-80 shrink-0 items-center gap-2 rounded-lg border border-foreground/[0.05] bg-surface-panel pr-2 pl-3 text-[0.875rem] text-foreground/80 transition-colors duration-150 focus-within:border-foreground/20",
+                // Folded: a square of the field's height, the glass centred in it, outlined like the
                 // filter beside it, since folded it's a button and not yet a field
                 !searchOpen &&
-                  "@max-[35rem]:w-10 @max-[35rem]:justify-center @max-[35rem]:border-transparent @max-[35rem]:bg-transparent @max-[35rem]:p-0 @max-[35rem]:text-foreground",
+                  "@max-[35rem]:w-8 @max-[35rem]:justify-center @max-[35rem]:border-foreground/[0.1] @max-[35rem]:bg-transparent @max-[35rem]:p-0 @max-[35rem]:text-foreground",
                 // Open on a narrow row: the whole row but Cancel
                 searchOpen && "min-w-0 flex-1"
               )}
             >
-              <span aria-hidden="true" className="flex size-[0.9375rem] shrink-0 [&>svg]:size-full">
-                <BrandIcon name="search" />
-              </span>
+              <Search strokeWidth={1.75} aria-hidden="true" className="size-4 shrink-0" />
               <input
                 ref={input}
                 type="search"
@@ -290,9 +290,9 @@ export function TutorialsBody({ phone = false, className }: { phone?: boolean; c
                     setQuery("")
                     input.current?.focus()
                   }}
-                  className="-mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-[6px] text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple"
+                  className="-mr-1 flex size-5 shrink-0 items-center justify-center rounded-[4px] text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-purple"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true" className="size-4">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true" className="size-3.5">
                     <path d="M18 6 6 18M6 6l12 12" />
                   </svg>
                 </button>
@@ -312,11 +312,11 @@ export function TutorialsBody({ phone = false, className }: { phone?: boolean; c
               )}
             </label>
             {searchOpen ? (
-              <button type="button" onClick={closeSearch} className="h-10 shrink-0 pr-1 pl-2 text-[0.875rem] text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={closeSearch} className="h-8 shrink-0 pr-1 pl-2 text-[0.875rem] text-muted-foreground hover:text-foreground">
                 Cancel
               </button>
             ) : (
-              <FilterButton value={framework} onChange={setFramework} />
+              <FilterButton boxed value={framework} onChange={setFramework} />
             )}
           </div>
         </div>
