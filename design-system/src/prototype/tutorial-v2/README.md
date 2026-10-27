@@ -14,7 +14,8 @@ It is a design prototype, not production code. It exists to get the concept appr
 | Desktop | `/prototype/tutorial-v2/?view=desktop` |
 | Phone | `/prototype/tutorial-v2/` |
 | Stand | https://playground-tutorial-prototype-v2.vercel.app (basic auth, ask Almaz for the login) |
-| Spec | `docs/superpowers/specs/2026-10-23-tutorial-v2-chat-design.md` (decisions D1 to D30, script, states, edge cases) |
+| Spec | `SPEC.md` next to this file (decisions D1 to D30, script, states, edge cases) |
+| Graph | `graph/graph.html`: GitHub shows only its source, so download it (Download raw file) and open it in a browser, then search "v2 Build History". `graph/GRAPH_REPORT.md` is its summary |
 | Client deck | https://pg-tutorial-flow-deck-v2-p8ijnr.vercel.app |
 | Branch | `almaz/mobile-tutorial-prototype` in `hoodieshq/solana-playground`, a reference branch that is never merged |
 | v1 | `src/prototype/tutorial`, frozen: it is what the client saw on 10/23 |
