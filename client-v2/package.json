@@ -38,6 +38,7 @@
     "@solana/wallet-adapter-react": "0.15.39",
     "@solana/web3.js": "*",
     "ai": "~7.0.141",
+    "ajv": "^8.17.1",
     "assert": "^2.0.0",
     "better-auth": "^1.7.5",
     "class-variance-authority": "^0.7.1",
