@@ -59,11 +59,10 @@ test.describe.serial("the editor", () => {
   });
 
   test("completes and checks TypeScript", async () => {
-    // Workaround: the editor's autosave debounce (500 ms) is cancelled, not
-    // flushed, when the editor unmounts, so closing the last tab right after
-    // an edit drops it (Monaco.tsx autosave effect). Remove this wait when
-    // that is fixed.
-    await page.waitForTimeout(1000);
+    // Opened inside the autosave's delay: the edit is saved to the file it
+    // was made in, not to the one the editor shows when the timer fires
+    await focusEditor(page);
+    await page.keyboard.type(" // switched");
     await item(page, "client").click();
     await page
       .locator("#root-dir")
@@ -91,6 +90,23 @@ test.describe.serial("the editor", () => {
     await expect(page.locator(".monaco-editor")).toHaveCount(1);
     await focusEditor(page);
     await expect.poll(() => editorText(page)).toMatch(/fn ugly\(\)/);
+    await expect.poll(() => editorText(page)).toContain("// switched");
+  });
+
+  test("keeps an edit made just before the last tab closes", async () => {
+    const tabs = page.locator('#tabs [data-slot="editor-tab"][id^="/"]');
+    await expect(tabs).toHaveCount(1);
+    await focusEditor(page);
+    await page.keyboard.type(" // kept");
+    // Closed inside the autosave's delay: the edit is saved as the editor
+    // unmounts, not dropped with its timer
+    const tab = tabs.first();
+    await tab.hover({ force: true });
+    await tab.getByRole("button", { name: /^Close / }).click({ force: true });
+    await expect(page.locator(".monaco-editor")).toHaveCount(0);
+    await item(page, "lib.rs").click();
+    await focusEditor(page);
+    await expect.poll(() => editorText(page)).toContain("// kept");
   });
 
   test("keeps the edit across a reload", async () => {
