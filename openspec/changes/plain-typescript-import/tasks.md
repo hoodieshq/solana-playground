@@ -20,7 +20,7 @@ Plan: [plans/1-plain-typescript-import.md](plans/1-plain-typescript-import.md).
   reading it (`views/flow/state/stage.ts`, `views/flow/header/`); depends on
   1.1. Verify: reducer cases in `stage.test.ts`, a `Stepper.test.tsx` case
   rendering only `flow-stage-tab-write`.
-- [ ] 1.4 e2e: `project-without-program` scenarios and the two new
+- [x] 1.4 e2e: `project-without-program` scenarios and the two new
   `gist-sharing` scenarios as Playwright tests titled `<capability>:
   <scenario>`, GitHub stubbed with `page.route`; depends on 1.1-1.3.
   Verify: `yarn test-e2e` on the specs touched.
