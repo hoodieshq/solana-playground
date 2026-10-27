@@ -220,9 +220,9 @@ const FlowFrame = () => {
   // the commit where both fire (a load moves the cursor too), open wins.
   // The record learns `opened` from the Reader once the page content
   // actually loads, which moves the record's tail off `enter` -- so the
-  // next state returns null here and
-  // the effect is inert; closing the sheet by hand does not reopen it,
-  // while a page that failed to load gets another chance on re-entry.
+  // next state returns null here and the effect is inert; closing the
+  // sheet by hand does not reopen it, while a page that failed to load
+  // gets another chance on re-entry.
   const entryStep = entryReading(lesson);
   useEffect(() => {
     if (entryStep) read();
