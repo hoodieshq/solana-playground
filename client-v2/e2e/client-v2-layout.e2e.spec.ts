@@ -285,7 +285,7 @@ test("client-v2-layout: Folding the console", async ({ seededPage: page }) => {
 // a load here. On the runner a `help` sent in that window once printed with
 // the view left at the top of the buffer (HOO-2370); that xterm step is not
 // reproduced, so this guards the overhang, the condition it ran in
-test("a command sent as the console opens prints into a terminal that fits it", async ({
+test("the terminal never overhangs the console while it opens and runs a command", async ({
   page,
 }) => {
   // How far the terminal reaches past the console, every frame from the load
