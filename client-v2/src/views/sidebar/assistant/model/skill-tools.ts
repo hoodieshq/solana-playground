@@ -1,8 +1,6 @@
 import { PgAssistant } from "../store";
 import {
-  DEFAULT_SKILL_IDS,
   describeCatalog,
-  findSkill,
   loadReference,
   loadSkill,
   requireEnabledSkill,
@@ -108,8 +106,14 @@ export const createSkillTools = (): ToolDefinition[] => [
 ];
 
 if (import.meta.vitest) {
-  const { describe, it, expect, vi, afterEach } = import.meta.vitest;
+  const { describe, it, expect, vi, beforeAll, afterEach } = import.meta.vitest;
   describe("views/sidebar/assistant/model/skill-tools", () => {
+    let DEFAULT_SKILL_IDS: typeof import("../grounding").DEFAULT_SKILL_IDS;
+    let findSkill: typeof import("../grounding").findSkill;
+    beforeAll(async () => {
+      ({ DEFAULT_SKILL_IDS, findSkill } = await import("../grounding"));
+    });
+
     const tool = (name: string) => {
       const found = createSkillTools().find((t) => t.name === name);
       if (!found) throw new Error(`no tool ${name}`);
