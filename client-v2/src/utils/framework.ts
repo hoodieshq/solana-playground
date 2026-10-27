@@ -90,6 +90,37 @@ export type Framework<N extends string = string> = RequiredKey<
 /** What `exportWorkspace` throws when it cannot tell a project's framework */
 const UNKNOWN_FRAMEWORK = "Could not identify framework";
 
+/** What Build compiles: a Rust or Python file anywhere under `src/` */
+const PROGRAM_FILE_REGEX = /^src\/.+\.(rs|py)$/;
+
+/** TypeScript and JavaScript, the only files a project with no program runs */
+const SCRIPT_FILE_REGEX = /\.[jt]sx?$/;
+
+/** A test file, named as the gist format's loose placement names one */
+const TEST_FILE_REGEX = /\.(test|spec)\.[jt]sx?$/;
+
+/** A leading folder a no-program layout replaces, and where its files go */
+const NO_PROGRAM_FOLDER_REGEX = /^(client|tests|test)\//;
+
+/**
+ * Lay out a repository with no program: tests under `tests/`, every other
+ * TypeScript or JavaScript file under `client/`, each keeping its path below
+ * the folder that placed it. Anything else has no place in such a project.
+ *
+ * @param files repository files, paths relative to the imported folder
+ * @returns the files in the playground layout, empty when none is a script
+ */
+const toNoProgramLayout = (files: TupleFiles): TupleFiles =>
+  files
+    .filter(([path]) => SCRIPT_FILE_REGEX.test(path))
+    .map(([path, content]) => {
+      const folder = NO_PROGRAM_FOLDER_REGEX.exec(path)?.[1];
+      const rest = folder ? path.slice(folder.length + 1) : path;
+      const isTest = folder === "tests" || folder === "test";
+      const target = isTest || TEST_FILE_REGEX.test(rest) ? "tests" : "client";
+      return [`${target}/${rest}`, content];
+    });
+
 export class PgFramework {
   /**
    * Whether an export failed only because the project's framework could not
@@ -127,14 +158,47 @@ export class PgFramework {
   }
 
   /**
-   * Convert files with the framework layout to the playground layout.
+   * Get whether the given project files hold a program, i.e. whether Build
+   * has anything to compile. Framework detection is not used: a program
+   * being written may not look like any framework's yet.
+   *
+   * @param paths file paths relative to the project root
+   * @returns whether a Rust or Python file sits under `src/`
+   */
+  static hasProgram(paths: string[]) {
+    return paths.some((path) => PROGRAM_FILE_REGEX.test(path));
+  }
+
+  /**
+   * Get whether the given project files hold something a project with no
+   * program can run: a TypeScript or JavaScript file under `client/` or
+   * `tests/`.
+   *
+   * @param paths file paths relative to the project root
+   * @returns whether such a file exists
+   */
+  static hasRunnableTypeScript(paths: string[]) {
+    return paths.some(
+      (path) => /^(client|tests)\//.test(path) && SCRIPT_FILE_REGEX.test(path)
+    );
+  }
+
+  /**
+   * Convert files with the framework layout to the playground layout. Files
+   * no framework recognises are laid out as a project with no program when
+   * they hold TypeScript or JavaScript.
    *
    * @param files framework files
    * @returns the playground layout converted files
+   * @throws when no framework recognises the files and none is a script
    */
   static async convertToPlaygroundLayout(files: TupleFiles) {
     const framework = await this.getFromFiles(files);
-    if (!framework) throw new Error(UNKNOWN_FRAMEWORK);
+    if (!framework) {
+      const noProgramFiles = toNoProgramLayout(files);
+      if (!noProgramFiles.length) throw new Error(UNKNOWN_FRAMEWORK);
+      return noProgramFiles;
+    }
 
     const { convertToPlayground } = await framework.import();
     const convertedFiles = await convertToPlayground(files);
@@ -214,8 +278,16 @@ export class PgFramework {
 }
 
 if (import.meta.vitest) {
-  const { describe, it, expect, vi, beforeEach, afterEach, beforeAll } =
-    import.meta.vitest;
+  const {
+    describe,
+    it,
+    expect,
+    vi,
+    beforeEach,
+    afterEach,
+    beforeAll,
+    afterAll,
+  } = import.meta.vitest;
 
   describe("utils/framework", () => {
     let JSZip: typeof import("jszip");
@@ -295,6 +367,115 @@ if (import.meta.vitest) {
         const [fileName, blob] = exported.mock.calls[0] as [string, Blob];
         expect(fileName).toBe("beta.zip");
         expect(await zipped(blob)).toEqual(["src/lib.rs"]);
+      });
+    });
+
+    /** A repository with no program used to fail as of no known framework */
+    describe("PgFramework.convertToPlaygroundLayout", () => {
+      // The real frameworks import the settings, which need the app's
+      // globals; one that claims `programs/` stands in for Anchor.
+      let all: typeof PgFramework.all;
+      beforeAll(() => {
+        all = PgFramework.all;
+        PgFramework.all = [
+          {
+            name: "Anchor",
+            getIsCurrent: (files: TupleFiles) =>
+              files.some(([path]) => path.startsWith("programs/")),
+            import: async () => ({
+              convertToPlayground: () => [["src/lib.rs", "anchor"]],
+            }),
+          } as unknown as Framework<FrameworkName>,
+        ];
+      });
+      afterAll(() => {
+        PgFramework.all = all;
+      });
+
+      const pathsOf = async (files: TupleFiles) =>
+        (await PgFramework.convertToPlaygroundLayout(files))
+          .map(([path]) => path)
+          .sort();
+
+      it("lays out a client and its tests", async () => {
+        expect(
+          await pathsOf([
+            ["index.ts", "a"],
+            ["lib/rpc.ts", "b"],
+            ["tests/rpc.test.ts", "c"],
+          ])
+        ).toEqual([
+          "client/index.ts",
+          "client/lib/rpc.ts",
+          "tests/rpc.test.ts",
+        ]);
+      });
+
+      it("keeps folders and drops other kinds", async () => {
+        expect(
+          await pathsOf([
+            ["src/app/main.ts", "a"],
+            ["test/unit/math.ts", "b"],
+            ["client/run.ts", "c"],
+            ["README.md", "d"],
+            ["package.json", "{}"],
+          ])
+        ).toEqual([
+          "client/run.ts",
+          "client/src/app/main.ts",
+          "tests/unit/math.ts",
+        ]);
+      });
+
+      it("puts a spec file outside tests under tests", async () => {
+        expect(await pathsOf([["lib/math.spec.ts", "a"]])).toEqual([
+          "tests/lib/math.spec.ts",
+        ]);
+      });
+
+      it("still refuses a repository with neither", async () => {
+        await expect(pathsOf([["README.md", "x"]])).rejects.toThrow(
+          UNKNOWN_FRAMEWORK
+        );
+      });
+
+      it("leaves an Anchor repository to Anchor", async () => {
+        const paths = await pathsOf([
+          [
+            "programs/p/src/lib.rs",
+            "use anchor_lang::prelude::*;\n#[program]\nmod p {}",
+          ],
+          ["app/x.ts", "a"],
+        ]);
+        expect(paths).toContain("src/lib.rs");
+        expect(paths).not.toContain("client/programs/p/src/lib.rs");
+      });
+    });
+
+    describe("PgFramework.hasProgram", () => {
+      it.each([
+        ["src/lib.rs", true],
+        ["src/instructions/mod.rs", true],
+        ["src/x.py", true],
+        ["client/x.ts", false],
+        ["client/src/lib.rs", false],
+        ["src/notes.md", false],
+        ["src/", false],
+      ])("%s -> %s", (path, expected) => {
+        expect(PgFramework.hasProgram([path])).toBe(expected);
+      });
+    });
+
+    describe("PgFramework.hasRunnableTypeScript", () => {
+      it.each([
+        ["client/a.ts", true],
+        ["tests/a.test.js", true],
+        ["client/nested/a.tsx", true],
+        ["a.ts", false],
+        ["client/notes.md", false],
+        ["src/lib.rs", false],
+      ])("%s -> %s", (path, expected) => {
+        expect(PgFramework.hasRunnableTypeScript([path])).toBe(expected);
       });
     });
   });

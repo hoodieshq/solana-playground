@@ -5,7 +5,7 @@ Plan: [plans/1-plain-typescript-import.md](plans/1-plain-typescript-import.md).
 
 ## 1. Import and present a project with no program
 
-- [ ] 1.1 `PgFramework.hasProgram` and the no-program layout in
+- [x] 1.1 `PgFramework.hasProgram` and the no-program layout in
   `convertToPlaygroundLayout` (`utils/framework.ts`), with in-source tests
   for every placement scenario of `project-without-program` and for a
   repository with a program staying unchanged. Verify: `yarn test-unit
