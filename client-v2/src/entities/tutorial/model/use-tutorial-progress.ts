@@ -72,6 +72,11 @@ const read = async (): Promise<Map<string, TutorialProgress>> => {
         const saved = await readConversation(t.name);
         const progress = conversationProgressOf(saved, steps);
         if (progress) return [t.name, progress] as const;
+        if (saved !== undefined) {
+          log.warn(`saved conversation of ${t.name} is unreadable`, {
+            context: { tutorial: t.name },
+          });
+        }
       }
       let meta = null;
       try {

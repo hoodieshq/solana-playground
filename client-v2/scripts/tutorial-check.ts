@@ -1,8 +1,9 @@
 // Check conversation tutorial definitions: `yarn tutorial:check [<slug> | <dir>]`.
 //
 // With no argument it checks every `src/tutorials/<slug>/tutorial.json`
-// (folders starting with `_` aside). Each error prints as its JSON path, what
-// was expected and what was found; any error exits with code 1.
+// (folders starting with `_` or `.` aside). Each error prints as its JSON
+// path, what was expected and what was found; any error, a file that is not
+// JSON, or finding no definition at all exits with code 1.
 
 import fs from "fs";
 import path from "path";
@@ -10,6 +11,7 @@ import path from "path";
 import {
   checkDefinition,
   formatError,
+  slugOf,
 } from "../src/entities/tutorial/model/definition/check";
 
 const CLIENT = path.join(__dirname, "..");
@@ -24,19 +26,52 @@ const folders = (dir: string) =>
         .map((e) => e.name)
     : [];
 
-/** Every tutorial a definition's `next` may name: definitions, custom and Markdown tutorials */
+const holds = (dir: string, test: (name: string) => boolean) =>
+  fs.readdirSync(dir).some(test);
+
+/** Upstream's tutorials, copied into `public/` by `yarn generate` */
+const PUBLIC = [
+  path.join(CLIENT, "public", "tutorials"),
+  path.join(CLIENT, "..", "client", "public", "tutorials"),
+].find((dir) => fs.existsSync(dir));
+if (!PUBLIC) {
+  console.error(
+    "no public/tutorials: run `git submodule update --init client/public`"
+  );
+  process.exit(1);
+}
+
+/**
+ * Every tutorial a definition's `next` may name, by slug, as the app's
+ * catalog (`src/tutorials/definitions.ts`) reads them: definitions and custom
+ * tutorials by folder, Markdown tutorials by the slug of their name
+ */
 const known = new Set([
-  ...folders(TUTORIALS),
-  ...folders(path.join(CLIENT, "public", "tutorials")),
-  ...folders(path.join(CLIENT, "..", "client", "public", "tutorials")),
+  ...folders(TUTORIALS).filter((slug) =>
+    holds(
+      path.join(TUTORIALS, slug),
+      (name) => name === DEFINITION || name.startsWith("index.")
+    )
+  ),
+  ...folders(PUBLIC)
+    .map((slug) => path.join(PUBLIC, slug, "data.json"))
+    .filter((file) => fs.existsSync(file))
+    .map((file) => slugOf(JSON.parse(fs.readFileSync(file, "utf8")).name)),
 ]);
 
 /** The folders to check, from the argument */
 const targets = (arg: string | undefined): string[] => {
   if (arg === undefined) {
-    return folders(TUTORIALS)
+    const all = folders(TUTORIALS)
       .map((slug) => path.join(TUTORIALS, slug))
       .filter((dir) => fs.existsSync(path.join(dir, DEFINITION)));
+    if (all.length === 0) {
+      console.error(
+        `no ${DEFINITION} under ${path.relative(CLIENT, TUTORIALS)}`
+      );
+      process.exit(1);
+    }
+    return all;
   }
   const dir = fs.existsSync(arg)
     ? path.resolve(arg)

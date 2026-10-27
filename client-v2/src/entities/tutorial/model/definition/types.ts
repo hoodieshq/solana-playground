@@ -1,7 +1,8 @@
 /**
  * A conversation tutorial as `src/tutorials/<slug>/tutorial.json` holds it.
  * `src/tutorials/tutorial.schema.json` is the source of truth; these types
- * mirror it, and `checkDefinition` is what makes a parsed file one.
+ * mirror its shape, not every limit (lengths, counts, patterns), and
+ * `checkDefinition` is what makes a parsed file one.
  */
 
 /** Inline Markdown, or that text with a shorter phone variant */
@@ -82,17 +83,22 @@ export interface Ask {
 
 export type Act = "build" | "deploy" | "buildDeploy" | "run" | "call";
 
-export interface ActBeat {
+interface ActBase {
   kind: "act";
   id: string;
-  act: Act;
   say?: Text;
   title: string;
   context: string;
   button: string;
-  /** Present exactly when `act` is `call` */
-  call?: { instruction: string; args?: string[] };
 }
+
+/** An act card; only a `call` act names its instruction, and it must */
+export type ActBeat =
+  | (ActBase & {
+      act: "call";
+      call: { instruction: string; args?: string[] };
+    })
+  | (ActBase & { act: Exclude<Act, "call">; call?: never });
 
 export type Beat = SayBeat | WriteBeat | Ask | ActBeat;
 
@@ -114,7 +120,12 @@ export interface Win {
   extra?: "openTest";
 }
 
-export interface Step {
+/** A planned build failure: its card's line and the beats after it, both or neither */
+type PlannedFailure =
+  | { planned: Text; onFail: Beat[] }
+  | { planned?: never; onFail?: never };
+
+export type Step = PlannedFailure & {
   id: string;
   title: string;
   short: string;
@@ -124,15 +135,13 @@ export interface Step {
   start: Files;
   target: Files;
   beats: Beat[];
-  planned?: Text;
-  onFail?: Beat[];
   goal: Goal;
   win: Win;
   explain: Text;
   chips: Chip[];
   errorChips?: Chip[];
   matches?: Match[];
-}
+};
 
 export interface TutorialDefinition {
   $schema?: string;

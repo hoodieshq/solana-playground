@@ -24,6 +24,8 @@ const state = vi.hoisted(() => ({
   metadata: new Map<string, { pageNumber: number; completed: boolean }>(),
   // Each started tutorial's `.workspace/tutorial-storage.json`
   storage: new Map<string, Record<string, unknown>>(),
+  // What reading any storage file throws, when set
+  storageFailure: undefined as Error | undefined,
   // What reading a started tutorial's metadata throws when none is set
   unreadable: new Error("ENOENT: no such file") as Error,
   listeners: new Map<string, Set<() => void>>(),
@@ -59,6 +61,7 @@ vi.mock("../../../utils/tutorial/tutorial", () => ({
       return meta;
     },
     getStorageData: async (name: string) => {
+      if (state.storageFailure) throw state.storageFailure;
       const data = state.storage.get(name);
       if (!data) throw new Error("ENOENT: no such file");
       return data;
@@ -87,6 +90,7 @@ describe("useTutorialProgress", () => {
     state.workspaces = undefined;
     state.metadata.clear();
     state.storage.clear();
+    state.storageFailure = undefined;
     state.listeners.clear();
     state.held = [];
     state.unreadable = new Error("ENOENT: no such file");
@@ -162,6 +166,52 @@ describe("useTutorialProgress", () => {
       })
     );
     expect(error).not.toHaveBeenCalled();
+  });
+
+  it("reports a storage file it cannot read, and shows the page", async () => {
+    state.workspaces = ["Hello Conversation"];
+    state.metadata.set("Hello Conversation", {
+      pageNumber: 2,
+      completed: false,
+    });
+    state.storageFailure = new SyntaxError("Unexpected token");
+    const { result } = renderHook(() => useTutorialProgress());
+
+    await waitFor(() =>
+      expect(result.current("Hello Conversation")).toEqual({
+        state: "started",
+        page: 2,
+        pages: 4,
+      })
+    );
+    expect(error).toHaveBeenCalledWith(state.storageFailure, {
+      report: true,
+      context: { tutorial: "Hello Conversation" },
+    });
+  });
+
+  it("warns of a saved conversation it cannot read, and shows the page", async () => {
+    state.workspaces = ["Hello Conversation"];
+    state.metadata.set("Hello Conversation", {
+      pageNumber: 2,
+      completed: false,
+    });
+    state.storage.set("Hello Conversation", {
+      conversation: { version: 2, steps: [] },
+    });
+    const { result } = renderHook(() => useTutorialProgress());
+
+    await waitFor(() =>
+      expect(result.current("Hello Conversation")).toEqual({
+        state: "started",
+        page: 2,
+        pages: 4,
+      })
+    );
+    expect(warn).toHaveBeenCalledWith(
+      "saved conversation of Hello Conversation is unreadable",
+      { context: { tutorial: "Hello Conversation" } }
+    );
   });
 
   it("reads a tutorial it does not know as new", () => {

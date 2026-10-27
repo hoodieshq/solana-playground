@@ -1,4 +1,4 @@
-import { createLogger } from "@/shared/lib/logger";
+import { createLogger, toError } from "@/shared/lib/logger";
 import { tutorialTelemetry } from "../telemetry";
 import { checkDefinition, formatError } from "./check";
 import type { TutorialDefinition } from "./types";
@@ -13,9 +13,9 @@ export interface LoadedDefinition {
 
 /**
  * The definitions that pass their check, in the order given. Each one that
- * fails is left out, logged once with its slug and its first error (reported,
- * since CI's `yarn tutorial:check` should have stopped it), and counted as
- * `tutorial_definition_rejected`.
+ * fails, or whose check throws, is left out, logged once with its slug and
+ * its first error (reported, since CI's `yarn tutorial:check` should have
+ * stopped it), and counted as `tutorial_definition_rejected`.
  *
  * @param raw parsed `tutorial.json` files by slug
  * @param known every tutorial slug a definition's `next` may name
@@ -25,14 +25,24 @@ export const loadDefinitions = (
   known: ReadonlySet<string>
 ): LoadedDefinition[] =>
   Object.entries(raw).flatMap(([slug, json]) => {
-    const errors = checkDefinition(json, known, slug);
+    let errors: string[];
+    try {
+      errors = checkDefinition(json, known, slug).map(formatError);
+    } catch (e) {
+      // One definition the check cannot read must not take the catalog down
+      errors = [`the check failed: ${toError(e).message}`];
+    }
     if (errors.length === 0) {
       return [{ slug, definition: json as TutorialDefinition }];
     }
-    log.error(
-      new Error(`tutorial "${slug}" is not listed: ${formatError(errors[0])}`),
-      { report: true, context: { tutorial: slug, errors: errors.length } }
-    );
+    // TODO(HOO-2369): this runs while the app's modules load, before
+    // `initObservability` installs Sentry, and the logger keeps nothing from
+    // before then, so this reaches the console only; the event below is
+    // buffered and does arrive
+    log.error(new Error(`tutorial "${slug}" is not listed: ${errors[0]}`), {
+      report: true,
+      context: { tutorial: slug, errors: errors.length },
+    });
     tutorialTelemetry.track("tutorial_definition_rejected", {
       tutorial: slug,
       errors: errors.length,
@@ -102,6 +112,29 @@ if (import.meta.vitest) {
         {
           name: "tutorial_definition_rejected",
           params: { tutorial: "broken", errors: 2 },
+          scope: undefined,
+        },
+      ]);
+    });
+
+    it("rejects a definition whose check throws, and keeps the others", () => {
+      // A getter that throws stands for any shape the check cannot read
+      const hostile = {};
+      Object.defineProperty(hostile, "version", {
+        enumerable: true,
+        get: () => {
+          throw new Error("unreadable");
+        },
+      });
+      const loaded = loadDefinitions(
+        { "hello-anchor": helloAnchor, hostile },
+        KNOWN
+      );
+      expect(loaded.map((l) => l.slug)).toEqual(["hello-anchor"]);
+      expect(events.events).toEqual([
+        {
+          name: "tutorial_definition_rejected",
+          params: { tutorial: "hostile", errors: 1 },
           scope: undefined,
         },
       ]);
