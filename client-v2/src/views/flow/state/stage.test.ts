@@ -19,6 +19,16 @@ vi.mock("../../../utils", () => ({
   },
   PgExplorer: {
     onDidSwitchWorkspace: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidInit: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidCreateItem: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidDeleteItem: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidRenameItem: vi.fn(() => ({ dispose: vi.fn() })),
+    isInitialized: true,
+    files: {},
+    getRelativePath: (path: string) => path.replace(/^\/ws\//, ""),
+  },
+  PgFramework: {
+    hasProgram: vi.fn(() => true),
   },
   PgGlobal: {
     deployState: "ready",
@@ -31,7 +41,13 @@ vi.mock("../../../utils", () => ({
   },
 }));
 
-import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
+import {
+  INITIAL_FLOW_STATE,
+  PgFlow,
+  STAGES,
+  countErrors,
+  stagesOf,
+} from "./stage";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 
 /** The mocked build-output module, in the shape the factory above gives it:
@@ -53,6 +69,7 @@ describe("PgFlow.reduce", () => {
       buildErrorCount: 0,
       buildMs: null,
       buildStartedAt: null,
+      hasProgram: true,
     });
   });
 
@@ -554,5 +571,89 @@ describe("PgFlow.init, seeding a reloaded page", () => {
     PgProgramInfo.lastBuildFailed = null;
     PgProgramInfo.onChain = null;
     wiring.sub.dispose();
+  });
+});
+
+describe("a project with no program", () => {
+  const noProgram = () =>
+    PgFlow.reduce(INITIAL_FLOW_STATE, { type: "program", has: false });
+
+  it("starts out with a program, so nothing hides before the explorer answers", () => {
+    expect(INITIAL_FLOW_STATE.hasProgram).toBe(true);
+    expect(stagesOf(INITIAL_FLOW_STATE)).toEqual(STAGES);
+  });
+
+  it("shows only Write", () => {
+    expect(stagesOf(noProgram())).toEqual(["write"]);
+  });
+
+  it("goes back to Write when the program goes away", () => {
+    const onBuild = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "set-stage",
+      stage: "build",
+    });
+    const s = PgFlow.reduce(onBuild, { type: "program", has: false });
+    expect(s.stage).toBe("write");
+    expect(s.hasProgram).toBe(false);
+  });
+
+  it("ignores a move to a hidden stage", () => {
+    const s = PgFlow.reduce(noProgram(), {
+      type: "set-stage",
+      stage: "deploy",
+    });
+    expect(s.stage).toBe("write");
+  });
+
+  it("stays on Write when a build or a deploy starts elsewhere", () => {
+    const built = PgFlow.reduce(noProgram(), { type: "build-start", at: 1 });
+    expect(built.stage).toBe("write");
+    expect(built.build).toBe("running");
+    const deployed = PgFlow.reduce(noProgram(), { type: "deploy-start" });
+    expect(deployed.stage).toBe("write");
+  });
+
+  it("brings the stages back with a program", () => {
+    const s = PgFlow.reduce(noProgram(), { type: "program", has: true });
+    expect(stagesOf(s)).toEqual(STAGES);
+  });
+
+  it("reads the open project's files after a workspace switch", async () => {
+    const { PgExplorer, PgFramework, PgProgramInfo } = (await import(
+      "../../../utils"
+    )) as unknown as {
+      PgExplorer: {
+        files: Record<string, { content?: string }>;
+        onDidSwitchWorkspace: typeof import("../../../utils").PgExplorer.onDidSwitchWorkspace;
+      };
+      PgFramework: { hasProgram: ReturnType<typeof vi.fn> };
+      PgProgramInfo: typeof import("../../../utils").PgProgramInfo;
+    };
+    vi.mocked(PgProgramInfo.onDidChangeOnChain).mockReturnValue({
+      dispose: vi.fn(),
+    });
+    let switched: (() => unknown) | undefined;
+    vi.mocked(PgExplorer.onDidSwitchWorkspace).mockImplementation((cb) => {
+      switched = cb;
+      return { dispose: vi.fn() };
+    });
+    PgExplorer.files = {
+      "/ws/client/": {},
+      "/ws/client/a.ts": { content: "" },
+    };
+    PgFramework.hasProgram.mockReturnValue(false);
+
+    const sub = PgFlow.init();
+    switched!();
+
+    expect(PgFramework.hasProgram).toHaveBeenLastCalledWith([
+      "client/",
+      "client/a.ts",
+    ]);
+    expect(PgFlow.state.hasProgram).toBe(false);
+
+    PgFramework.hasProgram.mockReturnValue(true);
+    PgExplorer.files = {};
+    sub.dispose();
   });
 });

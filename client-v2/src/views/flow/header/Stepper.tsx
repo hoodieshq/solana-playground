@@ -9,7 +9,7 @@ import {
 import type { StepperStatus } from "@/shared/ui/stepper";
 
 import { STEPPER_FULL_WIDTH_PX } from "./stepper-width";
-import { STAGES } from "../state/stage";
+import { stagesOf } from "../state/stage";
 import type { FlowState, Stage, StageStatus } from "../state/stage";
 
 const LABEL: Record<Stage, string> = {
@@ -96,7 +96,7 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, target, fill }) => {
       onValueChange={(v) => onSelect(v as Stage)}
     >
       <StepperList compact={compact} className={fill ? "w-full" : undefined}>
-        {STAGES.map((stage) => {
+        {stagesOf(state).map((stage) => {
           const status = statusOf(state, stage);
           return (
             <StepperItem

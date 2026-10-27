@@ -15,7 +15,7 @@ Plan: [plans/1-plain-typescript-import.md](plans/1-plain-typescript-import.md).
   (`features/gist/model/import.ts`); depends on 1.1. Verify: the
   `import.test.ts` cases for both scenarios, events asserted through the
   memory provider.
-- [ ] 1.3 `hasProgram` in `FlowState`, the `program` event wired from the
+- [x] 1.3 `hasProgram` in `FlowState`, the `program` event wired from the
   explorer in `PgFlow.init`, `stagesOf`, and the stepper and Ctrl+1..4
   reading it (`views/flow/state/stage.ts`, `views/flow/header/`); depends on
   1.1. Verify: reducer cases in `stage.test.ts`, a `Stepper.test.tsx` case
