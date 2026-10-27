@@ -11,7 +11,7 @@ offer the same set: the first time either side gains a tool, they drift
 
 ## What Changes
 
-- A new slice `features/agent-tools` holds the one list of what the assistant
+- A new entity slice `entities/agent-tools` holds the one list of what the assistant
   offers, as data: every built-in tool's name, description, argument schema
   and whether it needs the user's approval; the skill catalogue (id, name,
   description, where its files come from); and the default MCP upstreams.
@@ -24,8 +24,9 @@ offer the same set: the first time either side gains a tool, they drift
 - The skill picker, the prompt's skill catalogue and the skill tools read the
   registry's catalogue. The bundled skill's text stays a browser asset, bound
   to its catalogue entry by id.
-- No telemetry events are added, renamed or removed: the slice is data and
-  sends none, and the panel's tool calls log as they do today.
+- No telemetry events are added, renamed or removed: the slice is an entity
+  (data, no user action) and sends none, and the panel's tool calls log as
+  they do today.
 - User-visible consequence: none today. Tool names, descriptions, approval
   cards and skills read exactly as before. What changes is that parity
   between the two backends is enforced by a test instead of promised.
@@ -44,7 +45,8 @@ None.
 
 ## Impact
 
-- Code: new `client-v2/src/features/agent-tools/`; edits to
+- Code: new `client-v2/src/entities/agent-tools/`; `test-api` also runs
+  `src/entities/**/model/**/*.test.mjs`; edits to
   `views/sidebar/assistant/model/tools.ts`, `model/skill-tools.ts`,
   `grounding/registry.ts`, `grounding/types.ts` and their tests.
 - Builds on `@/shared/lib/ai` (`ToolDefinition`, `ToolSchema`, `toSdkTools`)
@@ -52,7 +54,7 @@ None.
 - Out of scope:
   - `client-v2/api/` (Alexander's lane). `api/agent.mjs` keeps forwarding the
     tools the browser sends; `api/mcp.mjs` keeps its own Solana literal. Both
-    can import `features/agent-tools/server.mjs`; switching them is a server
+    can import `entities/agent-tools/server.mjs`; switching them is a server
     change, named in the PR for its owner.
   - Running tools on the server. Every tool still runs in the browser behind
     the same approval card, whichever backend drives the turn. Whether the

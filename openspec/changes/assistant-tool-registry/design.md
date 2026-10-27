@@ -34,19 +34,24 @@ a `server.mjs`. Precedent for a value shared by both: `features/auth/config.mjs`
 
 ## Decisions
 
-### A new slice `features/agent-tools`, plain ESM at its core
+### A new entity slice `entities/agent-tools`, plain ESM at its core
 
 `model/registry.mjs` holds the data with JSDoc types; `index.ts` re-exports it
-for the browser with TypeScript types (a `.d.ts`-free re-export works through
-`allowJs`); `server.mjs` re-exports the same bindings for `api/`. The core
-imports nothing (no `@/`, no `ai`, no `zod`), so it cannot pull a browser
-module into Node.
+for the browser (through `allowJs`) and adds `bindTool(name, run)`, which
+builds a `ToolDefinition` from a declaration and throws on an undeclared name;
+`server.mjs` re-exports the same bindings for `api/`. The core imports nothing
+(no `@/`, no `ai`, no `zod`), so it cannot pull a browser module into Node. A
+`node --test` case loads `server.mjs` in plain Node, as Vercel does; `test-api`
+gains the `src/entities/**/model/**/*.test.mjs` glob for it.
 
-- Alternative: put it in `shared/`. Rejected: tool declarations are the
-  agent's domain, not a generic library, and `shared/` has no server door.
-- Alternative: reuse `features/agent/`. Rejected: that folder holds only the
-  `api/agent.mjs` integration spec; a name that says "tools" keeps the slice's
-  purpose obvious.
+- Why `entities`, not `features`: the registry is a domain object and what
+  reads it, not a user action. A feature slice must declare telemetry
+  (`app/slice-structure.test.ts`), and this one has no events to send; and a
+  feature cannot import another feature, whereas any future agent feature or
+  widget can import an entity. `api/` may reach entities through `server.mjs`.
+- Alternative: put it in `shared/`. Rejected: the skill descriptions carry
+  playground domain knowledge, which `shared/` must not, and `shared/` has no
+  server door.
 
 ### Declarations carry data only; runners stay in the panel
 
