@@ -28,10 +28,20 @@ for (const name of await fs.readdir(srcPath)) {
     "__tests__",
   ];
   const hasDir = items.some((item) => !item.ext);
-  const exports = items
-    .filter(
-      (item) => !namesToSkip.includes(item.name) && (hasDir ? !item.ext : true)
-    )
+  // A folder with no index has nothing to export: a tutorial that is only a
+  // `tutorial.json`, or a folder of generated files
+  const hasIndex = async (item) => {
+    const dir = pathModule.join(itemPath, item.base);
+    if (!(await fs.stat(dir)).isDirectory()) return false;
+    return (await fs.readdir(dir)).some((name) => name.startsWith("index."));
+  };
+  const exportable = [];
+  for (const item of items) {
+    if (namesToSkip.includes(item.name)) continue;
+    if (hasDir ? item.ext || !(await hasIndex(item)) : false) continue;
+    exportable.push(item);
+  }
+  const exports = exportable
     .map((item) => item.name)
     .reduce((acc, cur) => acc + `export * from "./${cur}";\n`, "");
 

@@ -1,0 +1,120 @@
+import { createLogger } from "@/shared/lib/logger";
+import { tutorialTelemetry } from "../telemetry";
+import { checkDefinition, formatError } from "./check";
+import type { TutorialDefinition } from "./types";
+
+const log = createLogger("tutorial:definition");
+
+/** A definition the check accepted, under its folder's slug */
+export interface LoadedDefinition {
+  slug: string;
+  definition: TutorialDefinition;
+}
+
+/**
+ * The definitions that pass their check, in the order given. Each one that
+ * fails is left out, logged once with its slug and its first error (reported,
+ * since CI's `yarn tutorial:check` should have stopped it), and counted as
+ * `tutorial_definition_rejected`.
+ *
+ * @param raw parsed `tutorial.json` files by slug
+ * @param known every tutorial slug a definition's `next` may name
+ */
+export const loadDefinitions = (
+  raw: Record<string, unknown>,
+  known: ReadonlySet<string>
+): LoadedDefinition[] =>
+  Object.entries(raw).flatMap(([slug, json]) => {
+    const errors = checkDefinition(json, known, slug);
+    if (errors.length === 0) {
+      return [{ slug, definition: json as TutorialDefinition }];
+    }
+    log.error(
+      new Error(`tutorial "${slug}" is not listed: ${formatError(errors[0])}`),
+      { report: true, context: { tutorial: slug, errors: errors.length } }
+    );
+    tutorialTelemetry.track("tutorial_definition_rejected", {
+      tutorial: slug,
+      errors: errors.length,
+    });
+    return [];
+  });
+
+if (import.meta.vitest) {
+  const { describe, it, expect, beforeAll, beforeEach, afterEach } = import.meta
+    .vitest;
+
+  describe("entities/tutorial/model/definition/load", () => {
+    let logger: typeof import("@/shared/lib/logger");
+    let telemetry: typeof import("@/shared/lib/telemetry");
+    let helloAnchor: unknown;
+    beforeAll(async () => {
+      logger = await import("@/shared/lib/logger");
+      telemetry = await import("@/shared/lib/telemetry");
+      helloAnchor = (
+        await import("../../../../tutorials/hello-anchor/tutorial.json")
+      ).default;
+    });
+
+    let logged: ReturnType<typeof import("@/shared/lib/logger").memoryProvider>;
+    let events: ReturnType<
+      typeof import("@/shared/lib/telemetry").memoryProvider
+    >;
+    beforeEach(() => {
+      logged = logger.memoryProvider();
+      logger.initLogger({ providers: [logged] });
+      events = telemetry.memoryProvider();
+      telemetry.initTelemetry({ providers: [events] });
+    });
+    afterEach(() => {
+      logger.resetLogger();
+      telemetry.resetTelemetry();
+    });
+
+    const KNOWN = new Set(["hello-anchor", "counter-pda-tutorial"]);
+
+    /** Hello Anchor with two schema errors: no minutes, a level no one has */
+    const broken = () => {
+      const d = structuredClone(helloAnchor) as Record<string, unknown>;
+      delete d.minutes;
+      d.level = "Expert";
+      return d;
+    };
+
+    it("keeps a definition that passes, under its slug", () => {
+      const loaded = loadDefinitions({ "hello-anchor": helloAnchor }, KNOWN);
+      expect(loaded.map((l) => l.slug)).toEqual(["hello-anchor"]);
+      expect(loaded[0].definition.steps).toHaveLength(4);
+      expect(events.events).toEqual([]);
+    });
+
+    it("drops a broken definition and keeps the others", () => {
+      const loaded = loadDefinitions(
+        { "hello-anchor": helloAnchor, broken: broken() },
+        KNOWN
+      );
+      expect(loaded.map((l) => l.slug)).toEqual(["hello-anchor"]);
+    });
+
+    it("counts a rejection once, with its slug and its number of errors", () => {
+      loadDefinitions({ broken: broken() }, KNOWN);
+      expect(events.events).toEqual([
+        {
+          name: "tutorial_definition_rejected",
+          params: { tutorial: "broken", errors: 2 },
+          scope: undefined,
+        },
+      ]);
+    });
+
+    it("logs a rejection once, naming the slug and its first error", () => {
+      loadDefinitions({ broken: broken() }, KNOWN);
+      expect(logged.entries).toHaveLength(1);
+      expect(logged.entries[0].ns).toBe("tutorial:definition");
+      expect(logged.entries[0].report).toBe(true);
+      expect(logged.entries[0].error?.message).toBe(
+        'tutorial "broken" is not listed: (root): needs "minutes", found none'
+      );
+    });
+  });
+}
