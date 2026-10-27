@@ -13,34 +13,34 @@ behaviour.
 ### Requirement: A tutorial opens on its intro card
 
 Opening a conversation tutorial SHALL show its chat column with one intro
-card and the workspace showing the finished program, read only. The intro
+card, and the workspace SHALL show the finished program, read only. The intro
 card SHALL show:
 
-- the thumbnail, the name and the meta line (level, framework, minutes,
-  authors);
-- the lead text;
-- one row per step with its number, title and objective;
-- a primary "Start" button with its ↵ key cap, and a ghost "Ask me anything
-  first" that focuses the composer.
+- the thumbnail, the name and the meta line;
+- "What you'll build": the definition's promise line, with the log line the
+  finished program prints;
+- "How it goes": the four-beat loop "I explain a piece, you pick an answer, I
+  write the code, you build and run it";
+- one primary button "Start step 1".
 
-Enter SHALL start when no text field has focus. On Start, the intro SHALL
-become its one-line record and the first step's divider SHALL appear. The
-workspace SHALL swap the preview for the step's start files. There SHALL be no
-separate About page, Lesson tab or Assistant tab.
+The words "start", "begin" or "go" typed in the composer SHALL start as well.
+On Start the intro SHALL leave the feed, and the first step's divider SHALL
+appear. The workspace SHALL swap the preview for the step's start files.
+There SHALL be no separate About page, Lesson tab or Assistant tab.
 
 #### Scenario: Starting Hello Anchor
 
-- **WHEN** the learner opens Hello Anchor for the first time and presses Enter
-- **THEN** the intro collapses to "Hello Anchor · 4 steps · 10 min"
-- **AND** the "Step 1 of 4" divider appears and `lib.rs` holds the step's
-  start content
+- **WHEN** the learner opens Hello Anchor for the first time and presses
+  "Start step 1"
+- **THEN** the intro leaves the feed and the "Step 1 of 4" divider appears
+- **AND** `lib.rs` holds the step's start content
 
 ### Requirement: Only the latest card acts
 
 Every action the learner takes in a tutorial SHALL sit on the latest card that
 asks for it: Start, a question's options, Build, Deploy, Run, Call, Explain
 the error and Next. A resolved card SHALL become a record: one line, no
-primary button. Navigation links in a record ("Show in lib.rs", "Open Test")
+primary button. Navigation links in a record ("Show in lib.rs", "Open Call")
 SHALL stay live. The ring and the shadow SHALL mark at most one card on screen:
 the live question, the live win or the finish. A click that speaks for the
 learner (a right pick, "Explain the error", a chip) SHALL be echoed as the
@@ -69,10 +69,16 @@ segments' states:
 A click on a done or current segment SHALL scroll its divider to 12 px under
 the bar and flash it once. It SHALL open that step's main file in the
 workspace, scrolled to the top, and reset nothing. ⌥↑ and ⌥↓ SHALL move to
-the previous and next divider. Under 380 px of chat width the labels SHALL
-hide and each segment SHALL keep a tooltip "Step n · <title>". While the live
-card is off screen, a "Back to step n" pill SHALL float above the composer,
-and a click SHALL scroll to the live card and focus its first control.
+the previous and next divider, up to the live step. A segment lights when its
+step is entered. Each segment's `aria-label` reads "Step n of m, <title>,
+done" or "…, current". Under 24rem of chat width, the bar SHALL become one
+button, "Step n of m · <short label>", that opens a menu of the steps marked
+Done and Now.
+
+While the live card is off screen, a pill SHALL float above the composer. It
+reads "Back to step n", or "Back to the start" before Start, with an arrow
+toward the card. A click SHALL scroll to the live card and focus its first
+control. After the finish there SHALL be no pill.
 
 #### Scenario: Jumping back from step 3
 
@@ -85,14 +91,21 @@ and a click SHALL scroll to the live card and focus its first control.
 
 ### Requirement: A question writes the code on a right pick
 
-An `ask` beat SHALL render as a question card: `section` labelled by its
-question, a "Question" tag ("Fix it" after a planned failure), its place
-("1 of 4"), the question, and three option buttons in a group, then "Type it
-myself" and "Skip". The card SHALL take focus on arrival without scrolling.
-Picking:
+An `ask` beat SHALL render as a question card: a `section` labelled by its
+question, holding the question, three option buttons in a group, and the foot
+buttons "Hint", "Type it myself" and "Skip". The card SHALL take focus on
+arrival without scrolling.
 
-- **Keys:** 1, 2 and 3 pick when no text field has focus; ↑ and ↓ move
-  between rows; Enter or Space picks the focused row; S skips.
+Keys, when no text field has focus:
+
+- 1, 2 and 3 pick an option;
+- ↑ and ↓ move between rows;
+- Enter or Space picks the focused row;
+- H shows the hint;
+- S skips.
+
+Outcomes:
+
 - **Right pick:**
   - the row turns green;
   - the card collapses to its record after 500 ms;
@@ -100,33 +113,36 @@ Picking:
   - the definition's block is written into the file, with a wrote card in
     the feed.
 - **Wrong pick:**
-  - the row turns amber, shakes once, becomes `aria-disabled`, and shows its
-    reason, linked by `aria-describedby`;
+  - the row turns red, shakes once, and becomes `aria-disabled`;
+  - it shows "Not quite." and its reason, linked by `aria-describedby`;
   - focus moves to the next pickable row;
-  - after two wrong picks, the last row is outlined, with "That leaves one.
-    Pick it and I'll write the code."
+  - after two wrong picks, the last row is outlined.
+- **Hint:** echoes "I'm stuck" as a pill and posts the hint once.
 - **Skip:** writes the block and records "· skipped".
 - **Type it myself:** focuses the editor at the line where the answer lands.
-- **Typed by hand:** once the file holds the block (whitespace aside), the
-  question resolves "· typed by you" and the assistant says "You beat me to
-  it. That's exactly it."
+- **Typed by hand:**
+  - once the file holds the question's key line, the question resolves
+    "· typed by you";
+  - the assistant writes the rest of the block and says so;
+  - typing the whole block resolves it the same way.
 
 The record SHALL read the right option and its qualifier: "· first try",
-"· 2nd try", "· 3rd try", "· typed by you" or "· skipped".
+"· 2nd try", "· 3rd try", "· typed by you" or "· skipped". A click on it
+SHALL expand the three rows in their final states, with their reasons.
 
 #### Scenario: A wrong pick, then the right one
 
 - **WHEN** on Hello Anchor's first question the learner presses 2, then 1
-- **THEN** option 2 shows "`println!` prints to a terminal, and a program on
-  Solana has none. On chain, a program talks through `msg!`."
+- **THEN** option 2 shows "Not quite." and "`println!` prints to a terminal,
+  and a program on Solana has none. On chain, a program talks through `msg!`."
 - **AND** after the right pick, `lib.rs` gains lines 5 to 13, the wrote card
-  reads "src/lib.rs · lines 5 to 13 · +9", and the record ends "· 2nd try"
+  reads "src/lib.rs · lines 5 to 13", and the record ends "· 2nd try"
 
 ### Requirement: The wrote card and the editor show what the assistant wrote
 
 A write SHALL post a wrote card. The card is a button with
-`aria-label="Show lines <a> to <b> in <file>"`, holding the path, the range,
-the added count and the first three written lines. Pressing it SHALL open the
+`aria-label="Show lines <a> to <b> in <file>"`, holding the path, the range
+("line n" for one line) and the first three written lines. Pressing it SHALL open the
 file's tab and scroll the first line to a third of the editor's height, then
 light the lines again. A write that creates a file SHALL show "Created
 <path>" with a "New file" tag. A block that cannot land in place (the learner
@@ -159,8 +175,8 @@ deploy" and build first when the main file changed since the last build.
 #### Scenario: Deploy stages
 
 - **WHEN** the learner presses ⌘↵ on "Deploy to devnet"
-- **THEN** the card shows the deploy's stages in order with "1 of 3" to
-  "3 of 3"
+- **THEN** the card shows the deploy's stages in order with "1 of 4" to
+  "4 of 4"
 - **AND** a result card follows when the deploy lands or fails
 
 ### Requirement: A failed build explains itself
@@ -196,22 +212,21 @@ For a failure the definition does not plan:
 
 A step's goal (see `tutorial-runs`) passing SHALL post the step's win card:
 
-- a drawn check, the tag "Step n done", the headline and line from the
+- a drawn check, the tag "Step n done", and the headline and line from the
   definition;
-- three stat pills, whose values come from the real result (build time,
-  compute units, confirmation time, the step's own time);
-- a primary "Next: <next step> ↵" and the definition's optional outline link.
+- a primary "Next: <next step>";
+- on the desktop, an outline "Open Call" once the program is deployed, or
+  "Write it in client.ts" when the step passed from the Call panel.
 
-At the same moment the step bar segment SHALL turn done, the hairline SHALL
-grow, and the divider SHALL get its check and time. Enter SHALL go Next while
-the win is live. The last step's win SHALL have no Next. The finish card SHALL
-follow 400 ms later with:
+At the same moment the step bar segment SHALL turn done and the divider SHALL
+get its check and time. Enter SHALL go Next while the win is live. The last
+step's win SHALL have no Next. The finish card SHALL follow 400 ms later with:
 
 - the headline and line;
-- the receipt of the last call;
+- a collapsed "Transaction details" row holding the last call's receipt;
 - "What you learned";
-- the time from Start to the finish;
-- "Next: <tutorial>", "Copy receipt", "See summary" and "Back to tutorials".
+- "<n> steps · <SOL> spent · <time>";
+- a primary "Next: <tutorial>" and "All tutorials".
 
 #### Scenario: Finishing Hello Anchor
 
@@ -222,23 +237,21 @@ follow 400 ms later with:
 
 ### Requirement: One composer; free questions go to the live assistant
 
-The chat column SHALL have one composer at its foot, never disabled; Enter
-sends and Shift+Enter breaks the line. Above it, a chips row SHALL show the
-step's chips, then "Explain this step", with "I'm stuck" always last. Chips
-that do not fit fold into "More". There are no chips while an act runs or a
-win is live. A chip already asked in a step is not offered again. What the
-composer does with a message, in this order:
+The chat column SHALL have one composer at its foot, never disabled. Enter
+sends and Shift+Enter breaks the line. ⌘↵ in the composer SHALL do nothing.
+The placeholder SHALL follow the moment: "Ask about this step", "Ask while it
+builds" while an act runs, and "Ask anything" after the finish. During the
+lesson there SHALL be no chips row. After the finish, the definition's finish
+chips SHALL show above the composer. What the composer does with a message,
+in this order:
 
 1. A message that is only a live action's word ("build", "deploy", "run",
-   "call", "send", "next", "explain", alone or with "please") SHALL run that
-   action and be echoed as a pill.
-2. A chip, or a message that matches a chip's label or a step's scripted
-   match, SHALL get the definition's answer.
-3. "I'm stuck" SHALL get the live question's hint plus "Or press Skip and
-   I'll write it.". On a failed build it gets "Press Explain the error and
-   I'll walk you through it.". Otherwise it gets the step's "Explain this
-   step".
-4. Anything else SHALL go to the product's assistant, with the tutorial, the
+   "call", "next", "explain", alone or with "please") SHALL run that action
+   and be echoed as a pill. While a question is open, the answer is instead
+   "Pick an answer above first, or press Skip. Then the button's yours."
+2. A message that matches a step's scripted match, or a finish chip, SHALL get
+   the definition's answer.
+3. Anything else SHALL go to the product's assistant, with the tutorial, the
    step, its objective, the open files and the last result as its context.
    Its answer SHALL post in the feed as the assistant's turn.
 
@@ -249,9 +262,9 @@ SHALL write the line with a wrote card. A deployed file changed this way SHALL
 get the redeploy nudge of `tutorial-runs`. The feed SHALL be `role="log"` with
 `aria-live="polite"`.
 
-#### Scenario: A scripted chip and a free question
+#### Scenario: A scripted match and a free question
 
-- **WHEN** in step 1 the learner presses "What does msg! do?", then types
+- **WHEN** in step 1 the learner types "what does declare_id do?", then
   "how is this different from Ethereum?"
 - **THEN** the first gets the definition's answer with no model call
 - **AND** the second is answered by the assistant in the feed, and no file
@@ -275,7 +288,7 @@ in the workspace's `.workspace/tutorial-storage.json`:
 - the resolved state of every beat;
 - the picks;
 - the results with their signatures and program id;
-- the open tab, the docked tree, whether the terminal is open, and the Test
+- the open tab, the docked tree, whether the terminal is open, and the Call
   form's values.
 
 Project sync SHALL carry it to another device. The assistant exchanges SHALL
@@ -290,7 +303,7 @@ preview.
 - **WHEN** the learner reloads on step 3 with the question open
 - **THEN** the feed opens on that question with every earlier card as its
   record
-- **AND** `client.ts`, the Test tab and the terminal state are as they were
+- **AND** `client.ts`, the Call panel and the terminal state are as they were
 
 ### Requirement: The conversation is measured
 
@@ -302,12 +315,12 @@ The tutorial slice SHALL emit:
 - `tutorial_question_answered` when a question resolves, with:
   - `tutorial`;
   - `question`: the beat id;
-  - `result`: `first_try`, `retry`, `typed`, `skipped` or `test`;
+  - `result`: `first_try`, `retry`, `typed`, `skipped` or `call_panel`;
   - `attempts`: 1 to 3.
 - `tutorial_step_passed` when a step's goal passes, with:
   - `tutorial`;
   - `step`: 1 to 6;
-  - `via`: `chat`, `client`, `test` or `typed`;
+  - `via`: `chat`, `client`, `call_panel` or `typed`;
   - `seconds`: the step's time.
 - `tutorial_finished` when the finish card shows, with:
   - `tutorial`;
@@ -316,7 +329,7 @@ The tutorial slice SHALL emit:
   assistant, with:
   - `tutorial`;
   - `step`;
-  - `source`: `typed` or `chip`.
+  - `source`: `typed` or `chip` (a finish chip).
 
 The text of the question is never sent.
 

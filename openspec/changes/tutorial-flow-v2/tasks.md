@@ -25,10 +25,10 @@ Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
       opened for a tutorial with a definition. Verify: unit tests for the fold
       rules and the width clamp; widths at 1440, 1280 and 1152 (ticket to
       file; fleet; M 1.5; after nothing)
-- [ ] 2.2 The workspace: head tabs that never close with `+N`, Files ⌘E and
-      Terminal ⌘J, the tree popover and dock, the terminal bar and drawer
-      with its auto-open rules, the editor's written, arriving, landing,
-      error and busy lines and the "Assistant wrote" chip. Verify: unit tests
+- [ ] 2.2 The workspace: head tabs that never close, the Call button slot,
+      Files ⌘E and Terminal ⌘J icons, the tree popover and dock, the terminal
+      bar and drawer with its states and auto-open rules, the editor's
+      written, arriving, landing, error and busy lines. Verify: unit tests
       for the line states and the tree keys (ticket to file; fleet; M 1.5;
       after nothing; mounts in 2.1's slot)
 
@@ -48,18 +48,19 @@ Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
       say and quote, wrote card, records, the back pill, `role="log"`.
       Verify: component tests for every record line in the spec and the jump
       from step 3 to step 1 (ticket to file; fleet; M 1.5; after 2.1, 3.1)
-- [ ] 3.4 Win and finish cards: stat pills from real results, Next with ↵,
-      receipt, "What you learned", Copy receipt, See summary, the next
-      tutorial. Verify: component tests for the last step's win with no Next
+- [ ] 3.4 Win and finish cards: Next with ↵, "Open Call" / "Write it in
+      client.ts", the finish's Transaction details, "What you learned", the
+      steps · SOL · time line, "Next: <tutorial>" and "All tutorials". Verify: component tests for the last step's win with no Next
       (ticket to file; fleet; S 1; after 3.1)
-- [ ] 3.5 The question card: picks, keys, wrong reasons, two-wrong outline,
-      Skip, Type it myself, typed by hand, the right pick's write with its
-      wrote card, `tutorial_question_answered`. Verify: component tests for
+- [ ] 3.5 The question card: picks, keys (1-3, H, S), "Not quite." and
+      reasons, two-wrong outline, Hint, Skip, Type it myself, the key line
+      typed by hand, the right pick's write with its wrote card, the
+      expandable record, `tutorial_question_answered`. Verify: component tests for
       the spec's wrong-then-right scenario and the typed-by-hand path (ticket
       to file; fleet; M 1.5; after 2.2, 3.1)
-- [ ] 3.6 Composer, chips and the live assistant in one thread: action words,
-      scripted chips and matches, "I'm stuck", free questions to the
-      assistant in tutorial mode (no writing or running tools), the apply
+- [ ] 3.6 Composer and the live assistant in one thread: action words (and
+      the open-question refusal), scripted matches, the finish chips, free
+      questions to the assistant in tutorial mode (no writing or running tools), the apply
       card, the merged feed, `tutorial_question_asked`. Verify: unit tests
       for the routing order; a tool call to write a file is refused in
       tutorial mode (ticket to file; fleet; L 2.5; after 3.1)
@@ -86,17 +87,19 @@ Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
       transactions. Verify: unit tests for signature capture and log picking;
       Hello Anchor's step 3 on devnet by hand (ticket to file; fleet; M 1.5;
       after 3.1, 3.2)
-- [ ] 4.4 The Test tab from the deployed IDL: the program row, View IDL, the
-      instruction cards with "New", Fill, Send, results in the tab, the feed
-      and the terminal, passing steps 3 and 4. Verify: component tests for the
-      upgrade adding `name`; Send passing step 3 (ticket to file; fleet; M
+- [ ] 4.4 The Call panel from the deployed IDL: the Form | IDL switch, the
+      program row with Explorer, the instruction cards with "New", the call
+      button, the latest result in the panel and the log in the terminal,
+      passing steps 3 and 4. Verify: component tests for the upgrade adding
+      `name`; a call passing step 3 (ticket to file; fleet; M
       1.5; after 2.2, 4.3)
 
 ## 5. Phone
 
-- [ ] 5.1 The phone: the header with the steps drawer, Chat, Code and Output
-      tabs with their dots, Show in switching to Code, the Test drawer, the
-      Type it myself sheet, touch sizes. Verify: component tests at 390 px;
+- [ ] 5.1 The phone: the header with the steps sheet and Start over, the
+      Chat | Code spaces with swipe and Code's dot, Code's file switcher and
+      status strip, Show in switching to Code, the Call sheet, no typing
+      paths, touch sizes. Verify: component tests at 390 px;
       the same turns as desktop from one saved progress (ticket to file;
       fleet; L 2.5; after 3.3, 3.5, 4.4)
 
@@ -120,7 +123,7 @@ Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
       Almaz's script)
 - [ ] 6.5 e2e for the flow: Hello Anchor from intro to finish on desktop
       and at 390 px with the build server and devnet as an `env` case; the
-      wrong pick, planned failure and Test paths. Verify: the specs run green
+      wrong pick, planned failure and Call panel paths. Verify: the specs run green
       in CI's e2e job (ticket to file; Natalia; M 1.5; after 3.5, 4.1, 4.2,
       4.4, 5.1, 6.2)
 

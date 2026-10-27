@@ -2,71 +2,75 @@
 
 ## Purpose
 
-A conversation tutorial on a phone: the same thread, cards and copy as on
-the desktop, with the workspace moved into tabs and the Test form into a
-drawer. Visual values follow Almaz's `SPEC.md` section 11.
+A conversation tutorial on a phone: the same thread, cards and questions as
+on the desktop, with the code one tap away in a second space and the Call panel
+in a sheet. Visual values follow Almaz's `SPEC.md` section 11 and the
+prototype's phone screens.
 
 ## ADDED Requirements
 
 ### Requirement: The phone shows the same conversation
 
 On a phone viewport a conversation tutorial SHALL render the same turns,
-cards, copy and order as on the desktop, from the same saved progress. A step
-started on one device SHALL continue on the other. The header SHALL show:
+cards, questions and order as on the desktop, from the same saved progress. A
+step started on one device SHALL continue on the other. Where the definition
+gives a phone variant of a text, the phone SHALL show that variant. The header
+SHALL show:
 
-- back;
-- "Step n of m · <title>";
-- a track of the steps that opens a drawer with one row per step (a tap
-  scrolls the chat to that divider);
-- close.
+- back, to the tutorials list with progress kept;
+- a button with the tutorial's name and where the learner is, which opens a
+  sheet of the steps with their titles and objectives and "Start over…";
+- the Chat | Code switch;
+- the step track along its bottom edge.
 
-Back and close SHALL return to the tutorials list with progress kept.
+Before Start, the "Start step 1" button SHALL take the composer's place, under
+the thumb.
 
-#### Scenario: Same path, same messages
+#### Scenario: Same path, same questions
 
 - **WHEN** Hello Anchor runs to step 3 on a 390 px phone and on a 1440 px
   desktop
 - **THEN** both feeds hold the same turns in the same order
 - **AND** both show the same four questions with the same options
 
-### Requirement: Chat, Code and Output are tabs
+### Requirement: Chat and Code are two spaces
 
-Under the header, a segmented control SHALL switch between three tabs:
+The header's switch, or a sideways swipe, SHALL move between two spaces:
 
-- **Chat** (the default): the feed, the chips and the composer.
-- **Code:** the files read only, with the written, landing and error line
-  states, and a file switcher that opens the tree in a drawer.
-- **Output:** the terminal log, the program id and the last receipt, with
-  "Open Test" once deployed.
+- **Chat** (the default): the feed and the composer.
+- **Code:**
+  - the files, read only, with the written, landing and error line states;
+  - a file switcher between the tutorial's files;
+  - "Call" in its head once the program is deployed;
+  - a status strip at its foot with the last result.
 
-A dot SHALL mark Code when the assistant wrote since it was last viewed, and
-Output when a result arrived. "Show in <file>" on a wrote card SHALL switch to
-Code with the lines lit.
+A dot SHALL mark Code when the assistant wrote since it was last viewed. "Show
+in <file>" on a wrote card SHALL switch to Code with the lines lit.
 
 Other differences from the desktop:
 
 - act buttons sit full width under their text;
-- option rows are at least 48 px with no key hints;
-- chips scroll sideways and hide while the keyboard is up;
-- the composer grows to four lines;
-- every touch target is at least 44 px.
+- option rows are at least 48 px, with no key hints;
+- every touch target is at least 44 px;
+- the learner only taps the card at the bottom of the chat.
 
 #### Scenario: The assistant wrote, seen from Chat
 
-- **WHEN** a right pick writes lines while the Chat tab is open
+- **WHEN** a right pick writes lines while Chat is open
 - **THEN** the wrote card shows the first lines in the feed and Code gets its
   dot
 - **AND** "Show in lib.rs" switches to Code with the lines lit
 
-### Requirement: The Test form is a drawer
+### Requirement: The phone leaves typing code to the desktop
 
-The Test form SHALL open in a drawer from "Open Test" in the chat or in
-Output. It SHALL be the same form, with the same results and the same step
-passing, as the desktop's Test tab. "Type it myself" SHALL open a sheet with
-the file and the landing line.
+On a phone the question card SHALL offer "Hint" and "Skip" without "Type it
+myself", and a failed build SHALL offer "Explain the error" without "I'll fix
+it myself". A win card SHALL have no "Open Call". The Call panel SHALL open
+as a sheet over the code from Code's head, with the same form, results and
+step passing as the desktop's panel.
 
 #### Scenario: Passing step 3 on a phone
 
-- **WHEN** after the deploy the learner opens Test from Output and sends
-  `hello`
-- **THEN** the drawer shows the result and the chat's step 3 win follows
+- **WHEN** after the deploy the learner opens Call from Code and calls `hello`
+- **THEN** the sheet shows the result and the chat's step 3 win follows
+- **AND** no question card on the phone offers "Type it myself"

@@ -118,7 +118,7 @@ The cards are a widget.
 - **Cards:** `widgets/tutorial-conversation`. Desktop and phone render the
   same card components.
 - **Workspace:** `widgets/tutorial-workspace`, built from the existing editor,
-  file tree, terminal and Test form.
+  file tree, terminal and Test form (shown as the Call panel).
 
 This split lets the engine, the cards, the workspace and the runs land as
 separate PRs against fixtures.
@@ -142,7 +142,7 @@ separate PRs against fixtures.
   the wallet's send);
 - each signature's logs are fetched from devnet, and the definition's log
   pattern picks the card's large line;
-- the call act and Test Send reuse the Test form's instruction sender.
+- the call act and the Call panel reuse the Test form's instruction sender.
 
 **Explorer:** links use the existing explorer URL helpers with the devnet
 cluster.

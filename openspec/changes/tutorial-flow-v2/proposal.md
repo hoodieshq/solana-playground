@@ -45,12 +45,12 @@ wallet. A step passes on what actually happened.
   - the editor shows the lines the assistant wrote;
   - the file tree opens from a toggle on the active tab and docks with a pin;
   - the terminal bar is always on screen;
-  - the first deploy adds a Test tab built from the deployed IDL;
+  - the first deploy adds a Call panel built from the deployed IDL;
   - the navigation folds to its icon rail on entering a tutorial.
 - **Real runs inside the flow.**
   - Build uses Playground's build server. Deploy and upgrade go from the
     learner's Playground wallet, funded on devnet the way deploy funds it today.
-  - Running the client and the Test form's Send call devnet.
+  - Running the client and calling from the Call panel go to devnet.
   - Every deploy and call result links its program id and transaction to
     Solana Explorer on the devnet cluster (Jonas).
   - Kora's 0 SOL deploy is not in this change.
@@ -58,8 +58,9 @@ wallet. A step passes on what actually happened.
   checked against the real result: a build passes, a deploy lands, an
   instruction is called with an argument and its log line comes back. The
   assistant judging a step is not in this change.
-- **The phone shows the same conversation.** It has the same cards and copy,
-  with Chat, Code and Output tabs and the Test form in a drawer.
+- **The phone shows the same conversation.** It has the same cards and
+  questions, with Chat and Code as two spaces and the Call panel in a sheet.
+  Typing code is left to the desktop.
 - **The three Breakpoint tutorials as definitions:** Hello Anchor (Beginner,
   the prototype's script), Lumberjack (Intermediate) and Zero Copy (Advanced).
 - **BREAKING for the lesson layer:**
@@ -85,13 +86,13 @@ wallet. A step passes on what actually happened.
   reload.
 - `tutorial-workspace`: the frame around the conversation: the folded
   navigation, the chat column width, the editor's written and landing lines,
-  the file tree popover, the terminal bar and drawer, and the Test tab built
+  the file tree popover, the terminal bar and drawer, and the Call panel built
   from the deployed IDL.
 - `tutorial-runs`: build, deploy, upgrade, client run and calls inside a
   tutorial against the build server and devnet, wallet funding, Explorer
   links, interrupted runs, and what passes each step.
-- `tutorial-phone`: the same conversation on a phone, with the workspace in
-  Code and Output tabs and the Test form in a drawer.
+- `tutorial-phone`: the same conversation on a phone, with Chat and Code as
+  two spaces and the Call panel in a sheet.
 
 ### Modified Capabilities
 

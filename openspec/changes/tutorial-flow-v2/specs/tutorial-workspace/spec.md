@@ -4,7 +4,7 @@
 
 The frame a conversation tutorial runs in: the navigation folded to its rail,
 the chat column and the workspace beside it, the editor's written and landing
-lines, the file tree, the terminal, and the Test tab built from the deployed
+lines, the file tree, the terminal, and the Call panel built from the deployed
 IDL. Visual values follow Almaz's `SPEC.md` sections 4, 5 and 8.
 
 ## ADDED Requirements
@@ -55,40 +55,43 @@ a key.
 
 ### Requirement: The workspace head holds tabs, Files and Terminal only
 
-The workspace head SHALL hold the file tabs, a "Files" button with ⌘E and a
-"Terminal" button with ⌘J, both `aria-pressed` while their panel is open. It
-SHALL hold no Build, Deploy or Run. Tabs SHALL never close. A file tab SHALL
-show `+N` after a write until the learner opens or edits that file. The active
-file tab SHALL carry a tree toggle button, `aria-label="Files"`, with
-`aria-expanded`. The Test tab SHALL appear on the first deploy with a dot that
-pulses twice, and the dot SHALL come back once when the IDL changes. Under
-760 px of workspace the Files and Terminal labels SHALL hide and their
-tooltips stay.
+The workspace head SHALL hold:
 
-#### Scenario: Tabs after step 3
+- the file tabs, which never close;
+- once the program is deployed, a "Call" button that opens the Call panel,
+  set apart by a rule;
+- the icon buttons Files (⌘E) and Terminal (⌘J), with tooltips, both
+  `aria-pressed` while their panel is open.
+
+It SHALL hold no Build, Deploy or Run. The active file tab SHALL carry a tree
+toggle, a chevron button with `aria-label="Files"` and `aria-expanded`. The
+Call button SHALL carry a dot on its first appearance, and again once when the
+IDL changes.
+
+#### Scenario: The head after step 3
 
 - **WHEN** step 3 has started
-- **THEN** the head shows `lib.rs`, `client.ts` and `Test`, in that order
+- **THEN** the head shows the tabs `lib.rs` and `client.ts`, then Call, Files
+  and Terminal
 - **AND** no tab has a close button
 
 ### Requirement: The editor shows written, landing, error and busy lines
 
 The editor SHALL mark lines by state:
 
-- **Written:** the lines the assistant wrote this beat: a green left border
-  and tint, until the next action or an edit of those lines.
-- **Arriving:** the same lines, brighter, settling over 1.4 s, 40 ms apart.
-- **Landing:** where an open question's block will go: a dashed purple left
+- **Written:** the lines the assistant wrote this beat: a quiet grey left
+  border, until the next action or an edit of those lines.
+- **Arriving:** the same lines flash green on arrival, settling over 1.4 s,
+  40 ms apart.
+- **Landing:** where an open question's block will go: a dashed grey left
   border. On an empty line it shows the ghost text "Your answer lands here",
   `aria-hidden` and not part of the file.
 - **Error:** a red line with a wavy underline under the failing token.
 - **Busy:** dimmed and read only while an act runs.
 
-A write SHALL show the chip "Assistant wrote lines a to b +N" at the editor's
-top right for 4 s, or until the first keystroke; a click on it scrolls to the
-lines. Every file SHALL stay editable, except the intro preview and the files
-the definition marks read only. Under reduced motion the lines SHALL show at
-their resting tint with no animation.
+Every file SHALL stay editable, except the intro preview and the files the
+definition marks read only. Under reduced motion the lines SHALL show at their
+resting state with no animation.
 
 #### Scenario: The landing line
 
@@ -100,11 +103,11 @@ their resting tint with no animation.
 ### Requirement: The file tree opens from the active tab and can dock
 
 The tree toggle or ⌘E SHALL open a 240 px popover under the active tab,
-grouped by the product explorer's sections (Program, Client, Tests):
+showing the tutorial's files in their folders (`src`, `client`):
 
 - the open file is marked;
 - the live step's file carries a dot;
-- a file a later step creates is dimmed with that step's tag.
+- a file a later step creates is disabled, with "Created in step n".
 
 In the popover, arrows move, Enter opens the file as a tab and closes the
 popover, and Esc closes it and returns focus to the toggle. A pin SHALL dock
@@ -124,10 +127,12 @@ A 28 px terminal bar SHALL stay at the workspace's foot with:
 
 - a status dot: idle, busy, ok or failed;
 - the last status text: "Ready", "Build successful · IDL: 1 instruction ·
-  hello", or the running stage;
+  hello", "Deploying · <stage>", or in amber "<file> changed since the last
+  deploy";
 - ⌘J.
 
-A click on the bar or ⌘J SHALL open a drawer, 240 px by default, resizable
+Before anything has run, the drawer SHALL read "Nothing run yet. Builds,
+deploys and calls print here." A click on the bar or ⌘J SHALL open a drawer, 240 px by default, resizable
 from 120 px to 60 % of the workspace. The drawer SHALL open by itself on a
 failed build, the first deploy and the first client run, and otherwise stay as
 the learner left it.
@@ -138,49 +143,51 @@ the learner left it.
 - **THEN** the drawer opens with the deploy's log
 - **AND** a later deploy does not open it if the learner closed it
 
-### Requirement: The Test tab is built from the deployed IDL
+### Requirement: The Call panel is built from the deployed IDL
 
-The Test tab SHALL show:
+The Call button SHALL open the Call panel over the editor area. The panel
+holds a Form | IDL switch:
 
-- the program's name and its id, with Copy and an Explorer link;
-- "View IDL", which opens the deployed IDL's JSON read only with a copy
-  button;
-- one card per instruction, with typed fields for its arguments, its accounts
-  and the fee payer, and Send with ↵.
+- **Form:**
+  - the program's name and id, with Copy and an Explorer link;
+  - one card per instruction, with typed fields for its arguments;
+  - a primary button "Call <instruction>". Enter in a field calls.
+- **IDL:** the deployed IDL's JSON, read only, with a copy button.
 
-The form SHALL read the IDL of the last deployed build, never the live file.
-An argument added by an upgrade SHALL carry a "New" tag on its first view.
-Send SHALL be disabled while a required field is empty and while a send runs.
-A string field stops at 32 characters, and "Fill" puts "Playground" in it.
+The panel SHALL read the IDL of the last deployed build, never the live file.
+An argument added by an upgrade SHALL carry a "New" tag on its first view. A
+call SHALL be disabled while a required field is empty and while a call runs.
+A string field stops at 32 characters.
 
-A result SHALL show under the form as the conversation's result card,
-newest on top. The same card SHALL post in the feed at the live point, and the
-log SHALL go to the terminal. Before any deploy the tab's empty state SHALL
-read "Nothing to call yet" and "Deploy the program first. Once it is on
-devnet, its instructions show up here."
+The latest result SHALL show under the form as the conversation's result
+card, and the log SHALL go to the terminal. A result SHALL not post its own
+card in the feed: the step's win follows when the call passes a goal. A result
+SHALL hide once the IDL's shape changes. Before any deploy there SHALL be no
+Call button.
 
 #### Scenario: The upgrade adds a field
 
 - **WHEN** step 4's build and deploy lands
-- **THEN** the `hello` card shows `name  string` with "New" and the Test tab's
-  dot shows once
+- **THEN** the `hello` card shows `name  string` with "New", and the Call
+  button's dot shows once
 - **AND** typing `name: String` in `lib.rs` before that upgrade adds no field
 
 ### Requirement: Keyboard paths are listed
 
 "Keyboard shortcuts" in the ⋯ menu SHALL list every key:
 
-- ⌘↵ runs the live action;
+- ⌘↵ runs the live action, except from the composer;
 - ↵ Start or Next;
 - 1 2 3 pick;
+- H shows the question's hint;
 - S skips the question;
 - ⌘B the menu;
 - ⌘E the files;
 - ⌘J the terminal;
 - ⌥↑ ⌥↓ the previous and next step.
 
-None of them SHALL fire while focus is in a text field, except ⌘↵, ⌘B, ⌘E
-and ⌘J.
+None of them SHALL fire while focus is in a text field, except ⌘B, ⌘E and
+⌘J.
 
 #### Scenario: Typing a digit in the composer
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-What a conversation tutorial's act cards and Test form actually do. They
+What a conversation tutorial's act cards and Call panel actually do. They
 build on Playground's build server, deploy and upgrade from the learner's
 wallet on devnet, run the client, and call the program, with Explorer links on
 every result. What happened decides when a step passes.
@@ -35,8 +35,12 @@ line SHALL show the log, with no line link.
 
 A deploy act SHALL deploy the last successful build to devnet through the BPF
 upgradeable loader, paid by the learner's Playground wallet. Its stages are
-"Writing buffer", "Deploying" and "Confirming", each with "n of 3". Before
-the first deploy:
+"Writing buffer", "Deploying", "Uploading IDL" ("Upgrading IDL" on a later
+deploy) and "Confirming", each with "n of 4". "Building" comes first, making
+five stages, when the program changed since the last build. The IDL goes on
+chain with the program, so any client finds the interface from the program
+id. The first deploy SHALL write the program id into `declare_id!` and light
+that line. Before the first deploy:
 
 - **No wallet:** the act card SHALL offer to create or connect one in place,
   and run nothing until there is one.
@@ -48,8 +52,8 @@ the first deploy:
 
 A deploy SHALL keep the program's keypair in the workspace, so the program
 keeps its address. Every later deploy of that tutorial's program SHALL upgrade
-it in place. The result card SHALL read "Deployed" (or "Upgraded <short id>")
-with:
+it in place. The result card SHALL read "Deployed" (or "Upgraded <short id>"),
+with "Show log" opening the terminal, and:
 
 - the SOL the deploy spent;
 - the program id with Copy and an Explorer link;
@@ -63,7 +67,7 @@ tab.
 
 - **WHEN** a learner with a new wallet and 0 SOL presses Deploy on Hello
   Anchor's step 2
-- **THEN** the card shows "Funding your wallet", then the three deploy stages
+- **THEN** the card shows "Funding your wallet", then the four deploy stages
 - **AND** the result shows the program id and the deploy transaction, each
   linking to `https://explorer.solana.com/...?cluster=devnet`
 
@@ -85,9 +89,10 @@ SHALL show the runner's output. The result card SHALL show:
 - the signature with Copy and an Explorer link, the compute units, the fee and
   the confirmation time.
 
-A call act and a Test Send SHALL send the instruction with the given arguments
-from the wallet, and post the same card with "Sent from the chat" or "Sent
-from the Test form". A transaction that fails SHALL post a failed card with
+A call act SHALL send the instruction with the given arguments from the
+wallet and post the same card with "Sent from the chat". A Call panel call
+SHALL send it the same way and show the card in the panel (see
+`tutorial-workspace`). A transaction that fails SHALL post a failed card with
 its error and its log, and the step SHALL not pass.
 
 #### Scenario: Hello from devnet
@@ -109,19 +114,19 @@ Each step's goal in the definition SHALL be checked against a real result:
   requires is non-empty, and the call is made on the program built from the
   target, so a call before the upgrade does not pass an argument goal.
 
-A call from the client run, the call act or the Test form SHALL pass the same
-goal. A Send outside a step's goal (on a win, after the finish) SHALL post its
-card and pass nothing. A passed step SHALL stay passed. No step SHALL pass on
+A call from the client run, the call act or the Call panel SHALL pass the same
+goal. A call outside a step's goal (on a win, after the finish) SHALL show its
+result and pass nothing. A passed step SHALL stay passed. No step SHALL pass on
 the learner's word alone.
 
-#### Scenario: Passing step 3 from the Test tab
+#### Scenario: Passing step 3 from the Call panel
 
-- **WHEN** with Hello Anchor's step 3 question still open the learner sends
-  `hello` from the Test tab
-- **THEN** the result posts at the live point with "Sent from the Test form"
-  and step 3's win follows with the definition's Test line
-- **AND** the open question's record reads "· skipped, called from Test"
-  after Next
+- **WHEN** with Hello Anchor's step 3 question still open the learner calls
+  `hello` from the Call panel
+- **THEN** the panel shows the result and step 3's win follows in the feed
+  with the definition's Call line and "Write it in client.ts"
+- **AND** the open question's record reads "· skipped, called from the Call
+  panel" after Next
 
 ### Requirement: A changed deployed file asks for a redeploy
 
@@ -154,7 +159,7 @@ for the same tutorial.
 
 ### Requirement: Runs are measured
 
-The tutorial slice SHALL emit `tutorial_action_run` when an act or a Test Send
+The tutorial slice SHALL emit `tutorial_action_run` when an act or a Call panel call
 ends. Its parameters:
 
 - `tutorial`: the slug;

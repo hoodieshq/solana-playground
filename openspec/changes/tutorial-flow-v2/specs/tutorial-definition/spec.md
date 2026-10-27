@@ -25,10 +25,10 @@ starting files and thumbnail. The definition SHALL hold:
   - the files' content at the step's start and at its target;
   - its beats in order;
   - its goal;
-  - its win;
-  - its "Explain this step" answer;
-  - its chips;
-- the finish: headline, line, what was learned, and the next tutorial's slug.
+  - its win, with the line it shows when the step passed from the Call panel;
+  - its scripted matches: a pattern and the answer it gets;
+- the finish: headline, line, what was learned, its chips with their answers,
+  and the next tutorial's slug.
 
 A beat SHALL be one of:
 
@@ -37,14 +37,16 @@ A beat SHALL be one of:
 - `write`: text and the block it writes into a file, or the file it creates;
 - `ask`: a question with exactly three options, the index of the right one,
   one reason per wrong option, a hint, the block a right pick or a Skip writes,
-  and whether the options are code or prose;
+  the key line that counts as typing it by hand, and whether the options are
+  code or prose;
 - `act`: build, deploy, build and deploy, run a client file, or call an
   instruction with arguments, with its title, context line and button label.
 
 A step MAY carry the beats that follow a planned build failure (the
 explanation, a fixing question and the second build) and the assistant's line
 inside the failed card. Text fields SHALL accept the inline Markdown the
-conversation renders: inline code, emphasis and links.
+conversation renders: inline code, emphasis and links. A text MAY carry a
+shorter phone variant.
 
 #### Scenario: Hello Anchor as the proof
 
@@ -90,8 +92,8 @@ SHALL reject:
 
 The catalog SHALL list each valid definition beside upstream's tutorials, with
 its level, framework, thumbnail and minutes. The card's progress SHALL read
-"Step n of m" while it is started and "Completed" once the finish card has
-shown. Opening a tutorial with a definition SHALL open the conversation. A
+"<passed> of <m>" beside the name while it is started, and show a check once
+the finish card has shown. Opening a tutorial with a definition SHALL open the conversation. A
 tutorial without one SHALL open upstream's pages, unchanged. A definition that
 fails validation in a running app SHALL not be listed. It SHALL be reported
 once through the logger with its slug and its first error, and SHALL emit
@@ -100,7 +102,7 @@ once through the logger with its slug and its first error, and SHALL emit
 #### Scenario: Hello Anchor half done
 
 - **WHEN** the learner has passed two of Hello Anchor's four steps
-- **THEN** its card reads "Step 3 of 4"
+- **THEN** its card reads "2 of 4"
 - **AND** the Start here banner offers "Continue · Step 3 of 4"
 
 #### Scenario: A broken definition in a build
