@@ -130,4 +130,24 @@ test.describe.serial("the editor", () => {
     await expect(page.locator(".xterm-rows").first()).toContainText(HELP_TAIL);
     await expect(page.locator(".xterm")).toHaveCount(1);
   });
+
+  test("keeps a file deleted just after an edit deleted", async () => {
+    await item(page, "lib.rs").click();
+    await focusEditor(page);
+    await page.keyboard.type(" // gone");
+    // Deleted inside the autosave's delay: disposing its model flushes the
+    // edit, which must not write the file back
+    await item(page, "lib.rs").click({ button: "right" });
+    await page.getByRole("menuitem", { name: /Delete/ }).click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(item(page, "lib.rs")).toBeHidden();
+    // Past the delay, so a save the delete left behind has run by the reload
+    await page.waitForTimeout(1000);
+    await page.reload();
+    await expect(item(page, "src")).toBeVisible();
+    // Whether the reload drew `src` open or closed, `lib.rs` is in neither
+    await expect(item(page, "lib.rs")).toBeHidden();
+    await item(page, "src").click();
+    await expect(item(page, "lib.rs")).toBeHidden();
+  });
 });

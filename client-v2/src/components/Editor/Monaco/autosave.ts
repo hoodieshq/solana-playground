@@ -9,12 +9,12 @@ interface PendingSave {
  * Debounces the editor's writes, keeping each edit with the file it was made
  * in.
  *
- * The path and the buffer are taken when the edit is made, not when the save
- * runs: by then the editor may show another file, and reading the editor's
- * current file and value wrote that file's text to itself and dropped the
- * edit. The buffer is read only when the save runs, so the save carries every
- * keystroke of the window, which is why the caller flushes before the buffer
- * goes away (the model disposed, the editor unmounted) rather than cancelling.
+ * The path is taken when the edit is made, so a save that runs after the
+ * editor has moved to another file still writes the file the edit was made
+ * in. The buffer is read only when the save runs, which spares a full read of
+ * it on every keystroke; the price is that the buffer must still exist then,
+ * so the caller flushes before it goes away (the model disposed, the editor
+ * unmounted) rather than cancelling.
  *
  * @param opts -
  * - `delay`: how long an edit waits for the next one, in ms
@@ -40,8 +40,8 @@ export const createAutosave = ({
   return {
     /** Saves `path` after the delay, reading its buffer with `read` then */
     schedule(path: string, read: () => string) {
-      // An edit in another file does not wait out this one's delay: its
-      // window would otherwise swallow this one
+      // One timer serves one file: reusing it for another file's edit would
+      // discard the pending one
       if (pending?.path !== path) flush();
       if (pending) clearTimeout(pending.timer);
       pending = { path, read, timer: setTimeout(flush, delay) };
@@ -107,6 +107,28 @@ if (import.meta.vitest) {
       vi.advanceTimersByTime(DELAY);
       autosave.flush();
       expect(saves).toEqual([["/src/lib.rs", "a"]]);
+    });
+
+    it("reads the buffer when the save runs, not when the edit is made", () => {
+      const { autosave, saves } = setup();
+      let buffer = "a";
+      autosave.schedule("/src/lib.rs", () => buffer);
+      buffer = "ab";
+      vi.advanceTimersByTime(DELAY);
+      expect(saves).toEqual([["/src/lib.rs", "ab"]]);
+    });
+
+    it("saves every file of edits that go back and forth", () => {
+      const { saves, edit } = setup();
+      edit("/src/lib.rs", "rust");
+      edit("/client/client.ts", "ts");
+      edit("/src/lib.rs", "rust 2");
+      vi.advanceTimersByTime(DELAY);
+      expect(saves).toEqual([
+        ["/src/lib.rs", "rust"],
+        ["/client/client.ts", "ts"],
+        ["/src/lib.rs", "rust 2"],
+      ]);
     });
 
     it("saves an edit to its own file when the next one is in another", () => {

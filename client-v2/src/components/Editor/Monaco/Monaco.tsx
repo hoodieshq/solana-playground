@@ -440,17 +440,23 @@ const Monaco = () => {
     if (!editor) return;
 
     const save = async (path: string, content: string) => {
-      // Save to state
-      PgExplorer.saveFileToState(path, content);
+      // A file deleted or renamed inside the delay has its model disposed,
+      // which flushes its edit here: writing it would bring the file back
+      if (!PgExplorer.getFile(path)) return;
 
-      // Saving to state is enough if it's a temporary project
-      if (PgExplorer.isTemporary) return;
-
-      // Save to `indexedDB`
       try {
+        // Save to state
+        PgExplorer.saveFileToState(path, content);
+
+        // Saving to state is enough if it's a temporary project
+        if (PgExplorer.isTemporary) return;
+
+        // Save to `indexedDB`
         await PgExplorer.fs.writeFile(path, content);
-      } catch (e: any) {
-        console.log(`Error saving file ${path}. ${e.message}`);
+      } catch (error) {
+        // Nothing awaits a save, the one made as the editor unmounts least of
+        // all, so this is the only place a lost edit can be heard
+        log.error(error, { report: true, context: { path } });
       }
     };
     const autosave = createAutosave({
@@ -477,7 +483,8 @@ const Monaco = () => {
     });
 
     return () => {
-      // An edit the editor shows is written, never dropped with its timer
+      // Unmounting disposes the models first, which has flushed already; this
+      // covers a model that outlives the editor
       autosave.flush();
       modelWillDispose?.dispose();
       content.dispose();
