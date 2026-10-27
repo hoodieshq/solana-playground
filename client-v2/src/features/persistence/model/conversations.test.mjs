@@ -256,8 +256,8 @@ describe("conversations", { skip: !DB && "DATABASE_URL not set" }, () => {
     // device could ever read back -- and a client deletes its own copy of a
     // thread on exactly that answer.
     it("refuses to add to it, and writes nothing", async () => {
-      // The delete erased the thread's messages; the push must not start
-      // filling it again, and must still be told "deleted", not "missing"
+      // The delete erased the thread's messages; the project's tombstone
+      // refuses the push, and nothing is written back
       await appendMessages(userId, on(1), [item(1)]);
       await deleteProject(userId, "p1");
 

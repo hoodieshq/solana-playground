@@ -2,9 +2,10 @@
 --
 -- Deleting a project tombstoned its conversations but left their messages and
 -- titles in place, unreadable through every API yet kept forever.
--- `deleteProject` now erases them in its own transaction; this clears the
--- conversations tombstoned before it did. The rows stay: a push to one is
--- answered "deleted" because of them.
+-- `deleteProject` erases them in its own transaction; this one-off backfill
+-- clears every conversation tombstoned before it did, however it came to be
+-- tombstoned. The rows stay: a restarted tutorial's old thread is refused by
+-- its own tombstone (`ensureThread`).
 
 -- migrate:up
 

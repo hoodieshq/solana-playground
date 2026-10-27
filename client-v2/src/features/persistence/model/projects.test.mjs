@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { before, beforeEach, describe, it } from "node:test";
 
+import pg from "pg";
+
 import {
   appendMessages,
   getThread,
@@ -481,8 +483,78 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
 
       await deleteProject(userId, "p1");
 
-      assert.equal((await left(earlier)).messages, 0);
-      assert.equal((await left(earlier)).title, null);
+      assert.deepEqual(await left(earlier), {
+        title: null,
+        deleted: true,
+        messages: 0,
+      });
+    });
+
+    it("erases a push that was in flight when the delete came", async () => {
+      // A push that has found its thread live and is still writing when the
+      // delete runs must either finish before the erase or be refused; its
+      // messages must never land under the tombstone afterwards. The push is
+      // held mid-write by an open transaction that inserted the same message
+      // id first, so the delete runs while the push is past its checks.
+      const threadId = "22222222-0000-4000-8000-000000000027";
+      const held = {
+        id: "22222222-0000-4000-8000-000000000327",
+        kind: "user",
+        createdAt: new Date(2000).toISOString(),
+        text: "in flight",
+      };
+      await say(userId, threadId, "p1", 27);
+      let push;
+      let deletion;
+
+      // Its own connection, outside the pool: the pool holds three, and the
+      // push and the delete take two of them while this one must keep
+      // polling and keep its transaction open
+      const side = new pg.Client({ connectionString: DB });
+      await side.connect();
+      try {
+        /** Sessions of this database waiting on a lock */
+        const waiting = async () => {
+          const { rows } = await side.query(
+            `select count(*)::int as n from pg_stat_activity
+              where datname = current_database() and wait_event_type = 'Lock'`
+          );
+          return rows[0].n;
+        };
+        const until = async (done) => {
+          for (let i = 0; i < 100 && !(await done()); i++) {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+          }
+        };
+
+        // Holds the push mid-write: it inserts the push's message id first,
+        // so the push waits on this row until the rollback below
+        await side.query("begin");
+        await side.query(
+          `insert into messages (id, conversation_id, kind, payload, created_at)
+           values ($1, $2, 'user', '{}', now())`,
+          [held.id, threadId]
+        );
+
+        push = appendMessages(userId, { threadId, projectId: "p1" }, [
+          held,
+        ]).catch((e) => e);
+        await until(async () => (await waiting()) >= 1);
+
+        let deleted = false;
+        deletion = deleteProject(userId, "p1").then(() => (deleted = true));
+        await until(async () => deleted || (await waiting()) >= 2);
+      } finally {
+        await side.query("rollback");
+        await side.end();
+      }
+      const pushed = await push;
+      await deletion;
+
+      if (pushed instanceof Error) {
+        assert.ok(pushed instanceof ThreadDeleted, pushed.message);
+      }
+      assert.equal((await left(threadId)).messages, 0);
     });
   });
 

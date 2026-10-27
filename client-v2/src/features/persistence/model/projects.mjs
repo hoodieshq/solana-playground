@@ -299,7 +299,7 @@ export const writeProject = async (q, userId, input) => {
 };
 
 /**
- * Tombstone a project.
+ * Tombstone a project and erase what its chat said.
  *
  * The row stays so another device's next sync sees "deleted" rather than
  * "missing" and does not push its local copy back up. Its files go: a
@@ -315,8 +315,12 @@ export const writeProject = async (q, userId, input) => {
  * What the conversations said goes too: their messages are deleted and their
  * titles cleared, for every conversation under the project, including one a
  * previous run of a tutorial left tombstoned. The conversation rows stay,
- * holding only ids and timestamps: a push to one is answered `ThreadDeleted`
- * because of them, which is how a device that missed the delete learns of it.
+ * holding only ids, owner, project and timestamps. While the project is
+ * deleted its own tombstone refuses every push; once a tutorial is started
+ * again under the same id, the conversation's tombstone is what answers a
+ * device still holding the old run's thread with `ThreadDeleted("thread")`
+ * instead of taking its push as a new thread. A push in flight during the
+ * delete is ordered against it by the lock `ensureThread` takes.
  */
 export const deleteProject = async (userId, id) => {
   await transaction(async (q) => {
