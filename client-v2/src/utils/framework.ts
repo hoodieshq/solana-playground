@@ -102,48 +102,97 @@ const SCRIPT_FILE_REGEX = /\.[jt]sx?$/;
 /** A test file, named as the gist format's loose placement names one */
 const TEST_FILE_REGEX = /\.(test|spec)\.[jt]sx?$/;
 
+/** The folders a project with no program keeps its files in */
+const NO_PROGRAM_FOLDER = { CLIENT: "client", TESTS: "tests" } as const;
+
+/** A path in one of `NO_PROGRAM_FOLDER`'s folders */
+const IN_NO_PROGRAM_FOLDER_REGEX = new RegExp(
+  `^(${Object.values(NO_PROGRAM_FOLDER).join("|")})/`
+);
+
 /**
  * A leading folder `toNoProgramLayout` drops, since it puts the file back
- * under `client/` or `tests/` itself
+ * under `client/` or `tests/` itself; `test/` is read as `tests/`
  */
-const NO_PROGRAM_FOLDER_REGEX = /^(client|tests|test)\//;
+const LEADING_FOLDER_REGEX = new RegExp(
+  `^(${Object.values(NO_PROGRAM_FOLDER).join("|")}|test)/`
+);
+
+/**
+ * Which file gets a contested path first, so the result does not depend on
+ * the order the files arrive in: a file at the top level, then one in
+ * `client/` or `tests/`, then one in `test/`
+ */
+const placementRank = (folder: string | undefined) => {
+  if (!folder) return 0;
+  return folder === "test" ? 2 : 1;
+};
+
+/**
+ * Give `path` a free name: itself, or itself with `-2`, `-3`, ... before the
+ * extension
+ *
+ * @param path the wanted path
+ * @param taken paths already handed out
+ * @returns a path not in `taken`
+ */
+const freePath = (path: string, taken: Set<string>) => {
+  if (!taken.has(path)) return path;
+  const dot = path.lastIndexOf(".");
+  for (let n = 2; ; n++) {
+    const candidate = `${path.slice(0, dot)}-${n}${path.slice(dot)}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+};
 
 /**
  * Lay out a repository with no program: tests under `tests/`, every other
  * TypeScript or JavaScript file under `client/`, each keeping its path below
- * the folder that placed it. Files of any other kind are left out. A file
- * whose place another file already took keeps its whole path instead, so
- * nothing is overwritten.
+ * the folder that placed it. Files of any other kind are left out. When two
+ * files want one path, the one `placementRank` puts first gets it and the
+ * other keeps its whole path, so nothing is overwritten.
  *
  * @param files repository files
  * @param root the imported folder, dropped from the front of every path
- * @returns the files in the playground layout, empty when none is a script
+ * @returns the files in the playground layout, in the given order, empty
+ * when none is a script
  */
 const toNoProgramLayout = (files: TupleFiles, root: string): TupleFiles => {
   const prefix = root.replace(/^\/+|\/+$/g, "");
-  const taken = new Set<string>();
-  return files
-    .map(([path, content]): [string, string] => {
-      const relative = path.replace(/^\.?\/+/, "");
-      return [
+  const wanted = files
+    .map(([fullPath, content]) => {
+      const relative = fullPath.replace(/^\.?\/+/, "");
+      const path =
         prefix && relative.startsWith(prefix + "/")
           ? relative.slice(prefix.length + 1)
-          : relative,
-        content,
-      ];
-    })
-    .filter(([path]) => SCRIPT_FILE_REGEX.test(path))
-    .map(([path, content]) => {
-      const folder = NO_PROGRAM_FOLDER_REGEX.exec(path)?.[1];
+          : relative;
+      const folder = LEADING_FOLDER_REGEX.exec(path)?.[1];
       const rest = folder ? path.slice(folder.length + 1) : path;
-      const isTest = folder === "tests" || folder === "test";
-      const target = isTest || TEST_FILE_REGEX.test(rest) ? "tests" : "client";
-      const placed = taken.has(`${target}/${rest}`)
-        ? `${target}/${path}`
-        : `${target}/${rest}`;
-      taken.add(placed);
-      return [placed, content];
+      const isTest =
+        folder === NO_PROGRAM_FOLDER.TESTS ||
+        folder === "test" ||
+        TEST_FILE_REGEX.test(rest);
+      const target = isTest
+        ? NO_PROGRAM_FOLDER.TESTS
+        : NO_PROGRAM_FOLDER.CLIENT;
+      return { path, content, folder, rest, target };
+    })
+    .filter(({ path }) => SCRIPT_FILE_REGEX.test(path));
+
+  const taken = new Set<string>();
+  const placed = new Map<typeof wanted[number], string>();
+  [...wanted]
+    .sort((a, b) => placementRank(a.folder) - placementRank(b.folder))
+    .forEach((file) => {
+      const own = `${file.target}/${file.rest}`;
+      const path = taken.has(own)
+        ? freePath(`${file.target}/${file.path}`, taken)
+        : own;
+      taken.add(path);
+      placed.set(file, path);
     });
+
+  return wanted.map((file) => [placed.get(file)!, file.content]);
 };
 
 export class PgFramework {
@@ -204,7 +253,8 @@ export class PgFramework {
    */
   static hasRunnableTypeScript(paths: string[]) {
     return paths.some(
-      (path) => /^(client|tests)\//.test(path) && SCRIPT_FILE_REGEX.test(path)
+      (path) =>
+        IN_NO_PROGRAM_FOLDER_REGEX.test(path) && SCRIPT_FILE_REGEX.test(path)
     );
   }
 
@@ -493,6 +543,32 @@ if (import.meta.vitest) {
           .map(([path]) => path)
           .sort();
         expect(paths).toEqual(["client/index.ts", "tests/a.ts"]);
+      });
+
+      it("keeps both files whichever comes first", async () => {
+        const files = await PgFramework.convertToPlaygroundLayout([
+          ["client/a.ts", "nested"],
+          ["a.ts", "root"],
+          ["test/b.ts", "test"],
+          ["tests/b.ts", "tests"],
+          ["tests/tests/b.ts", "deep"],
+        ]);
+        expect(files).toEqual([
+          ["client/client/a.ts", "nested"],
+          ["client/a.ts", "root"],
+          ["tests/test/b.ts", "test"],
+          ["tests/b.ts", "tests"],
+          ["tests/tests/b.ts", "deep"],
+        ]);
+      });
+
+      it("never hands out one path twice", async () => {
+        const files = await PgFramework.convertToPlaygroundLayout([
+          ["client/client/a.ts", "1"],
+          ["client/a.ts", "2"],
+          ["a.ts", "3"],
+        ]);
+        expect(new Set(files.map(([path]) => path)).size).toBe(3);
       });
 
       it("keeps both files when two land on one path", async () => {

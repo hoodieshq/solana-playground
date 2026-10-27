@@ -75,9 +75,10 @@ export const STAGES: readonly Stage[] = [
   "interact",
 ];
 
-/** The stages the given state offers: only Write for a project with no program */
+/** The one stage a project with no program offers, shared so it keeps its identity */
 const WRITE_ONLY: readonly Stage[] = ["write"];
 
+/** The stages the given state offers: only Write for a project with no program */
 export const stagesOf = (state: FlowState): readonly Stage[] =>
   state.hasProgram ? STAGES : WRITE_ONLY;
 
