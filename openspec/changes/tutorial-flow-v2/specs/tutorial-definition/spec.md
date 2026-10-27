@@ -116,7 +116,11 @@ once through the logger with its slug and its first error, and SHALL emit
 
 The repository SHALL hold one authoring instruction,
 `client-v2/src/tutorials/AUTHORING.md`, that an agent follows to turn a
-conversation with a product person into a definition. It SHALL cover:
+conversation with a product person into a definition. It SHALL be
+self-contained: together with `tutorial.schema.json` it is everything a person
+uploads to any LLM to write a tutorial, with no access to the repository. A
+tutorial SHALL be published by a pull request that adds its folder; there is no
+admin panel and no upload service. It SHALL cover:
 
 - the questions to settle first: audience, level, the program, the four to
   six steps and what each teaches;
@@ -126,7 +130,8 @@ conversation with a product person into a definition. It SHALL cover:
   step;
 - how to write the start and target files so every block lands;
 - how to run `yarn tutorial:check` and read its errors;
-- how to try the tutorial locally before a PR.
+- how to try the tutorial locally, and how to open the pull request that
+  publishes it.
 
 A definition written by following it, and passing the check, SHALL open and
 run in the conversation with no code change.

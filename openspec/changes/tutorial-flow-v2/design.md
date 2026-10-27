@@ -55,7 +55,8 @@ Almaz, not decisions taken here.
 - Moving upstream's other 13 tutorials. They keep their pages.
 - A live model writing the lesson. The lesson is scripted; only free
   questions reach the model.
-- Kora, a DSL, an admin panel, or the assistant judging a step.
+- Kora, a DSL, or the assistant judging a step. An admin panel is not planned
+  at all.
 
 ## Decisions
 
@@ -72,13 +73,18 @@ works as soon as it lands.
 - A schema gives errors by path that the agent can fix by itself.
 - A file in the repo needs no service.
 
+**Publishing:** a tutorial is published through Git. The author's agent
+writes the folder from `AUTHORING.md` and the schema, a pull request adds it,
+and the merge puts it on the site. There will be no admin panel (Slava, 27
+Oct).
+
 **Alternatives:**
 
 - A DSL: Sergey's suggestion, more readable, but it needs a parser and an
-  editor story.
-- An admin panel: needs a backend and storage.
+  editor story. Not for Breakpoint.
+- An admin panel: rejected by Slava, not deferred.
 
-Both stay with HOO-1792's later part. The shape follows the prototype's
+The shape follows the prototype's
 `data.ts` (`Step`, `Beat`, `Ask`, `ActBeat`, `Win`, `Chip`), with regex
 matches as strings and functions replaced by data. A step's files come as
 whole contents at start and at target, so a writer never computes offsets.

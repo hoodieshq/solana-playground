@@ -28,8 +28,9 @@ wallet. A step passes on what actually happened.
   reasons the wrong ones are wrong, hints, chips with scripted answers, win
   copy, and the files at each step's start and target. A schema validates it
   and names every error by its path. A loader turns it into a tutorial the
-  catalog lists. An authoring instruction lets an agent write a new tutorial
-  from a conversation with a product person. DSL and admin panel: not now.
+  catalog lists. An authoring instruction, self-contained so any LLM can use
+  it, lets an agent write a new tutorial from a conversation with a product
+  person. A tutorial is published by a pull request; there is no admin panel.
 - **The lesson is the conversation.** A tutorial opens as one chat column
   beside the workspace, with no Lesson or Assistant tabs:
   - an intro card replaces the About page as the start;
@@ -128,7 +129,7 @@ wallet. A step passes on what actually happened.
 - **Out of scope:**
   - Kora's 0 SOL deploy (HOO-1778, HOO-1780);
   - the assistant judging a step (HOO-1790 keeps that part);
-  - a DSL or an admin panel for tutorials (HOO-1792 keeps that part);
+  - a DSL for tutorials; an admin panel is not planned at all;
   - migrating the other 13 tutorials;
   - the live wall of hellos and the share link;
   - mainnet;
