@@ -6,7 +6,7 @@ for; tasks with "after nothing" start at once.
 
 ## 1. Definition
 
-- [ ] 1.1 Definition v1: `tutorial.schema.json`, `yarn tutorial:check` with
+- [x] 1.1 Definition v1: `tutorial.schema.json`, `yarn tutorial:check` with
       the semantic rules, the loader into the catalog (with "<passed> of <m>"
       progress and the "<level> · <framework>" meta line), Hello Anchor's prototype script as `tutorial.json`,
       `tutorial_definition_rejected`. Verify: the check passes on Hello Anchor

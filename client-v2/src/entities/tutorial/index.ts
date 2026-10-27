@@ -8,4 +8,23 @@ export { useTutorialProgress } from "./model/use-tutorial-progress";
 export { checkDefinition, formatError, slugOf } from "./model/definition/check";
 export { loadDefinitions } from "./model/definition/load";
 export type { LoadedDefinition } from "./model/definition/load";
-export type * from "./model/definition/types";
+export type {
+  Act,
+  ActBeat,
+  Ask,
+  Beat,
+  Block,
+  Chip,
+  DefinitionError,
+  Files,
+  Follow,
+  Goal,
+  Match,
+  Quote,
+  SayBeat,
+  Step,
+  Text,
+  TutorialDefinition,
+  Win,
+  WriteBeat,
+} from "./model/definition/types";
