@@ -48,8 +48,10 @@ imported folder. A test file (`*.test.*` or `*.spec.*` of `ts`, `tsx`, `js`,
 `jsx`) or any TypeScript or JavaScript file in a leading `tests/` or `test/`
 folder SHALL go under `tests/`; every other TypeScript or JavaScript file
 under `client/`. Each keeps its path with that leading folder (or
-`client/`) dropped, unless another file already took the place, in which
-case it keeps its whole path. Files of other kinds SHALL be left out.
+`client/`) dropped. When two files want one place, a top-level file takes
+it before one from `client/` or `tests/`, which takes it before one from
+`test/`, whatever their order; the other keeps its whole path. Files of
+other kinds SHALL be left out.
 
 #### Scenario: Folders are kept
 - **WHEN** a repository with no program holds `src/app/main.ts`,
