@@ -13,8 +13,9 @@ import { lineOf, linesOn } from "./telemetry";
 
 /**
  * What a signed-out person is told about where the conversation is kept
- * (`openspec/changes/sign-out-history-warning`, from the designers' Spec 08). Signed out, a turn needs a key of one's own, so the
- * provider is stubbed and the panel connected to it directly.
+ * (`openspec/specs/assistant-sign-out-history`, from the designers' Spec 08).
+ * Signed out, a turn needs a key of one's own, so the provider is stubbed and
+ * the panel connected to it directly.
  */
 
 const SIGN_IN_TO_KEEP =
