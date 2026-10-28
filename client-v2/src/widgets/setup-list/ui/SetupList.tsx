@@ -6,7 +6,6 @@ import { useRenderOnChange, useWallet } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { shortAddress } from "@/shared/lib/short-address";
 import { PgCommand, PgConnection, PgView } from "@/utils";
-import { SETTINGS_TRIGGER_ATTR } from "@/shared/lib/settings-request";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { SETUP_STEPS } from "../model/steps";
 import type { SetupStep, StepView } from "../model/steps";
@@ -30,21 +29,19 @@ const warnWallet = () =>
 export interface SetupListProps {
   /** Opens Connect a model; the assistant widget owns it */
   onConnectAssistant: () => void;
-  /** Opens the settings on the network; the layout owns them */
-  onChooseNetwork: () => void;
-  /** Starts folded to its title (the phone's menu page) */
+  /**
+   * Starts folded to its title until the user unfolds it: the phone's menu is
+   * the whole screen, so the prototype keeps the list to one line there
+   */
   folded?: boolean;
 }
 
 /**
- * "Get set up": the four steps' live state, and their actions. Gone for good
- * on this device once dismissed, or once all four were done together.
+ * "Get set up": the four steps' live state, and their actions. Folded as the
+ * user last left it on this device; gone for good on it once dismissed, or
+ * once all four were done together.
  */
-const SetupList = ({
-  onConnectAssistant,
-  onChooseNetwork,
-  folded,
-}: SetupListProps) => {
+const SetupList = ({ onConnectAssistant, folded = false }: SetupListProps) => {
   const marks = useSetupMarks();
   const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
   useRenderOnChange(PgSession.onDidChange);
@@ -55,7 +52,8 @@ const SetupList = ({
   // Keyed by step, so a new step without a state does not compile
   const states: Record<SetupStep, Omit<StepView, "step">> = {
     assistant: { done: PgAssistant.isConnected },
-    network: { done: marks.networkChosen, value: cluster ?? undefined },
+    // A network is always chosen: Devnet until the user picks another
+    network: { done: true, value: cluster ?? undefined },
     github: { done: !!user, value: user?.login ?? undefined },
     wallet: {
       done: !!wallet,
@@ -76,10 +74,9 @@ const SetupList = ({
     setupTelemetry.track("setup_completed", {});
   }, [allDone]);
 
-  // Keyed by step, so a new step without an action does not compile
-  const actions: Record<SetupStep, () => void> = {
+  // Keyed by the steps that can be to do; the network step never is
+  const actions: Record<Exclude<SetupStep, "network">, () => void> = {
     assistant: onConnectAssistant,
-    network: onChooseNetwork,
     github: () => {
       PgSession.signIn().catch((error: unknown) => {
         // `PgSession.signInState` holds every failure (a known step, or
@@ -106,6 +103,8 @@ const SetupList = ({
   };
 
   const pick = (step: SetupStep) => {
+    // Drawn done, so never picked; narrows `step` to the steps with an action
+    if (step === "network") return;
     setupTelemetry.track("setup_item_picked", { item: step });
     actions[step]();
   };
@@ -124,10 +123,8 @@ const SetupList = ({
       steps={steps}
       onPick={pick}
       onDismiss={dismiss}
-      folded={folded}
-      // The network step opens the settings, so it is marked as their trigger,
-      // as tests find the triggers
-      stepAttrs={{ network: { [SETTINGS_TRIGGER_ATTR]: "" } }}
+      folded={marks.folded ?? folded}
+      onFold={setupMarks.fold}
     />
   );
 };

@@ -42,7 +42,7 @@ import { LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
 import { RailFooter, SessionFooter } from "@/widgets/session-footer";
 import { SettingsPage, settingsTelemetry } from "@/widgets/settings-page";
-import { markNetworkChosen, SetupList } from "@/widgets/setup-list";
+import { SetupList } from "@/widgets/setup-list";
 
 /**
  * The Flow layout, with no header: `LayoutShell` places four columns, the
@@ -202,15 +202,6 @@ const FlowFrame = () => {
         );
     };
 
-  // Opens, never toggles: the checklist's "Choose a network" must not shut
-  // settings that are already open
-  const openSettings =
-    (closeSheet: () => void) =>
-    (focus: SettingsFocus = "page") => {
-      if (settings.open) return;
-      toggleSettings(closeSheet)({ from: "setup", focus });
-    };
-
   // `PgKeybind` reads Meta as Ctrl, so this is ⌘, on a Mac and Ctrl+,
   // elsewhere. The key has no way of its own to leave the navigation, so it
   // takes the one the navigation last handed over: on a phone the menu page
@@ -330,7 +321,6 @@ const FlowFrame = () => {
                   <SetupList
                     folded={menuPage}
                     onConnectAssistant={() => openConnectDialog("setup")}
-                    onChooseNetwork={() => openSettings(closeSheet)("network")}
                   />
                 }
               />
@@ -398,11 +388,7 @@ const FlowFrame = () => {
       </div>
 
       {settings.open && (
-        <SettingsPage
-          focus={settings.focus}
-          onClose={closeSettings}
-          onChooseNetwork={markNetworkChosen}
-        />
+        <SettingsPage focus={settings.focus} onClose={closeSettings} />
       )}
 
       <ModalHost />
