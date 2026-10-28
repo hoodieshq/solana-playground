@@ -19,6 +19,7 @@ import {
   isEnabled,
   listProjects,
   MAX_PROJECT_BODY_BYTES,
+  NO_FILES_REASON,
   projectKindOf,
   saveProject,
 } from "../src/features/persistence/server.mjs";
@@ -64,8 +65,11 @@ export const describeProject = (body) => {
   return { id, name, kind };
 };
 
+/** A refusal of the body itself: every one is a 400 but `force: true`'s */
+const refuse = (error, status = 400) => ({ error, status });
+
 /**
- * Which of the two write shapes a body is, or why it is neither.
+ * Which write a body is, or why it is none.
  *
  * Checked on the way *in* because the read side is destructive: restoring a
  * project replaces the workspace's files with what the row holds, so a row
@@ -74,9 +78,11 @@ export const describeProject = (body) => {
  *
  * - `files`: the whole set. Refused when empty -- a full write replaces the
  *   file set, so an empty one would delete every file, and no editor ever has
- *   a reason to send it (`pushCurrent` already refuses to build one).
+ *   a reason to send it (the client's `push` refuses an empty snapshot).
+ * - `snapshot.files`: the same, as the pre-#40 client spells it (below).
  * - `changed` + `removed`: a patch against the state `baseUpdatedAt` names.
- *   Without a token there is nothing for it to be relative to.
+ *   Without a token there is nothing for it to be relative to. Whether it
+ *   leaves the project any files only the row can say: `saveProject` checks.
  *
  * `force: true` is refused. There is no unconditional overwrite any more:
  * two devices' copies are merged on the client, so every write is either a
@@ -86,59 +92,86 @@ export const describeProject = (body) => {
  * and keeps doing so until reloaded. That client sends `{snapshot: {files},
  * baseUpdatedAt, force: false}` on every push and files every refusal except
  * 409 and 413 under a silent "skipped". So `force: false` reads as absent and
- * `snapshot` as a whole file set, which is exactly what it was then; and
- * `force: true`, which that client sends only when the user answers its
- * banner with "keep this version", is a 409, so the banner stays up rather
- * than the answer vanishing.
+ * `snapshot` as a whole file set, which is exactly what it was then. `force:
+ * true`, which that client sends only when the user answers its banner with
+ * "keep this version", is a 409: the banner stays up rather than the answer
+ * vanishing. It cannot be cleared until the tab is reloaded, and the body's
+ * `error` saying so is not shown by that client. Both doors can go once no tab
+ * from before the deploy can still be open.
  *
  * Exported for `api/projects.test.mjs`: the handler is behind the auth gate.
  *
  * @returns {{files: Record<string, string>}
  *   | {changed: Record<string, string>, removed: string[]}
- *   | {error: string, status?: 409}}
+ *   | {error: string, status: 400 | 409}}
  */
 export const describeWrite = (body) => {
   if (body.force === true) {
-    return {
-      error: "force is not supported; reload the page to sync",
-      status: 409,
-    };
+    return refuse("force is not supported; reload the page to sync", 409);
   }
   if (body.force !== undefined && body.force !== false) {
-    return { error: "force is not supported" };
+    return refuse("force is not supported");
   }
   const old = body.snapshot !== undefined;
   const full = body.files !== undefined;
   const patch = body.changed !== undefined || body.removed !== undefined;
   if (Number(old) + Number(full) + Number(patch) !== 1) {
-    return { error: "Send either files, or changed and removed" };
+    return refuse("Send either files, or changed and removed");
   }
 
   if (old || full) {
     const files = old ? body.snapshot?.files : body.files;
     return isFileMap(files) && Object.keys(files).length
       ? { files }
-      : { error: "files must be a non-empty map of paths to strings" };
+      : refuse("files must be a non-empty map of paths to strings");
   }
 
   if (!body.baseUpdatedAt) {
-    return { error: "A patch needs baseUpdatedAt" };
+    return refuse("A patch needs baseUpdatedAt");
   }
   const changed = body.changed ?? {};
   const removed = body.removed ?? [];
   if (!isFileMap(changed)) {
-    return { error: "changed must be a map of paths to strings" };
+    return refuse("changed must be a map of paths to strings");
   }
   if (
     !Array.isArray(removed) ||
     !removed.every((path) => typeof path === "string" && path.length > 0)
   ) {
-    return { error: "removed must be a list of paths" };
+    return refuse("removed must be a list of paths");
   }
   if (removed.some((path) => path in changed)) {
-    return { error: "A path cannot be both changed and removed" };
+    return refuse("A path cannot be both changed and removed");
   }
   return { changed, removed };
+};
+
+/**
+ * What to answer for what `saveProject` returned.
+ *
+ * A write that would leave the project with no files is a 400 naming itself
+ * in `reason`, not a 409. A 409 means "someone else wrote" to both clients:
+ * the pre-#40 one would ask "keep this version?" about it, and the current one
+ * would merge against a row that holds nothing. The current client only sends
+ * such a patch against a row that is already empty -- its patches are built
+ * from a non-empty snapshot -- and answers the `reason` with its whole file
+ * set, which puts the files back.
+ *
+ * Exported for `api/projects.test.mjs`, like `describeWrite`.
+ *
+ * @returns {{status: number, body: object}}
+ */
+export const describeSaved = (result) => {
+  if (result.refused === NO_FILES_REASON) {
+    return {
+      status: 400,
+      body: {
+        error: "A write must leave the project at least one file",
+        reason: NO_FILES_REASON,
+      },
+    };
+  }
+  return { status: result.conflict ? 409 : 200, body: result };
 };
 
 const sendJson = (res, status, body) => {
@@ -274,7 +307,7 @@ async function handler(req, res) {
 
       const write = describeWrite(body);
       if (write.error) {
-        return sendJson(res, write.status ?? 400, { error: write.error });
+        return sendJson(res, write.status, { error: write.error });
       }
 
       // Reaches SQL as a timestamptz. Unchecked, a malformed one is a cast
@@ -296,17 +329,18 @@ async function handler(req, res) {
         baseUpdatedAt: body.baseUpdatedAt,
         ...write,
       });
-      // A patch that would leave the project with no files. The client never
-      // sends one (`push` refuses an empty snapshot), so this is a bad request
-      // like any other, not a question for the user.
-      if (result.refused === "no-files") {
-        return sendJson(res, 400, {
-          error: "A write must leave the project at least one file",
+      const answer = describeSaved(result);
+      // The one refusal that says something reached a state it should not
+      // have: a row already empty, or a client building patches wrongly. Ids
+      // only; file contents never travel to the logs.
+      if (result.refused) {
+        console.warn("api/projects: write refused", {
+          userId: user.id,
+          projectId: project.id,
+          reason: result.refused,
         });
       }
-      return result.conflict
-        ? sendJson(res, 409, result)
-        : sendJson(res, 200, result);
+      return sendJson(res, answer.status, answer.body);
     }
 
     if (req.method === "DELETE") {

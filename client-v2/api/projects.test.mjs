@@ -376,6 +376,18 @@ describe("/api/projects", () => {
       assert.equal(full.status, 409);
     });
 
+    it("answers every other refusal with a 400", async () => {
+      const mod = await load();
+      assert.equal(mod.describeWrite({}).status, 400);
+      assert.equal(mod.describeWrite({ files: {} }).status, 400);
+      // Only the boolean `true` is the old client's "keep this version"
+      for (const force of [null, 0, "true", "false"]) {
+        const refused = mod.describeWrite({ files: { a: "1" }, force });
+        assert.ok(refused.error);
+        assert.equal(refused.status, 400);
+      }
+    });
+
     it("reads force: false as absent", async () => {
       const mod = await load();
       assert.deepEqual(mod.describeWrite({ files: { a: "1" }, force: false }), {
@@ -442,6 +454,17 @@ describe("/api/projects", () => {
       );
     });
 
+    it("refuses an old-format body that also carries a removal list", async () => {
+      const mod = await load();
+      assert.ok(
+        mod.describeWrite({
+          snapshot: { files: { a: "1" } },
+          removed: ["b"],
+          baseUpdatedAt: token.baseUpdatedAt,
+        }).error
+      );
+    });
+
     it("refuses content that is not a string, and an empty path", async () => {
       const mod = await load();
       assert.ok(mod.describeWrite({ files: { a: 1 } }).error);
@@ -449,6 +472,35 @@ describe("/api/projects", () => {
       assert.ok(
         mod.describeWrite({ changed: {}, removed: [7], ...token }).error
       );
+    });
+  });
+
+  describe("describeSaved", () => {
+    it("answers an accepted write with a 200 and its token", async () => {
+      const mod = await load();
+      assert.deepEqual(mod.describeSaved({ updatedAt: "t2" }), {
+        status: 200,
+        body: { updatedAt: "t2" },
+      });
+    });
+
+    it("answers a conflict with a 409, the body as the store said it", async () => {
+      const mod = await load();
+      const conflict = { conflict: true, updatedAt: "t1", reason: "deleted" };
+      assert.deepEqual(mod.describeSaved(conflict), {
+        status: 409,
+        body: conflict,
+      });
+    });
+
+    it("answers a write that would leave no files with a 400 the client can name", async () => {
+      // Not a 409: the pre-#40 client would raise "keep this version" over
+      // it, and the current one would merge against a row with nothing in it
+      const mod = await load();
+      const { status, body } = mod.describeSaved({ refused: "no-files" });
+      assert.equal(status, 400);
+      assert.equal(body.reason, "no-files");
+      assert.ok(body.error);
     });
   });
 });
