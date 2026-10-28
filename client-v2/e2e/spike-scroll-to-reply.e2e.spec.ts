@@ -122,6 +122,7 @@ const report = (label: string, samples: number[]) =>
   );
 
 test.describe.configure({ mode: "serial" });
+test.use({ video: process.env.SPIKE_VIDEO ? { mode: "on", size: { width: 1280, height: 720 } } : "off" });
 
 test("spike: streaming reply while the reader is at the end", async ({
   page,
@@ -174,8 +175,14 @@ test("spike: reader scrolled up, then sends", async ({ page }) => {
   await send(page, "Fill the thread");
   await idle(page);
   await viewport(page).hover();
-  await page.mouse.wheel(0, -300);
-  await sleep(300);
+  // Wheel until the reader is really up: a wheel during a follow can be undone
+  await expect
+    .poll(async () => {
+      await page.mouse.wheel(0, -300);
+      await sleep(200);
+      return gap(page);
+    })
+    .toBeGreaterThan(200);
   console.log(`[spike:${VARIANT}] scrolled up by wheel, gap ${await gap(page)} px`);
   await send(page, "Stream after scrolling up");
   const samples = await sampleWhile(page, idle(page));
