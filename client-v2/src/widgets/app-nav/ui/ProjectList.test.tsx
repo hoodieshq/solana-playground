@@ -42,7 +42,7 @@ const app = vi.hoisted(() => {
     return { dispose: () => listeners.delete(cb) };
   };
   const state = {
-    names: [] as string[],
+    names: [] as string[] | undefined,
     ids: {} as Record<string, string>,
     current: null as string | null,
     lessons: [] as string[],
@@ -192,6 +192,20 @@ describe("ProjectList", () => {
       document.getElementById(describedBy("alpha") ?? "")?.textContent
     ).toBe("This browser");
     expect(describedBy("beta")).toBeNull();
+  });
+
+  it("shows skeleton rows until the explorer has read the names", () => {
+    app.state.names = undefined;
+    draw();
+    expect(
+      document.querySelectorAll('[data-sidebar="menu-skeleton"]')
+    ).toHaveLength(3);
+    app.state.names = ["alpha"];
+    act(() => app.emit());
+    expect(
+      document.querySelectorAll('[data-sidebar="menu-skeleton"]')
+    ).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "alpha" })).toBeTruthy();
   });
 
   it("pins by key, keeps the pin by id, and lists the pinned first", () => {

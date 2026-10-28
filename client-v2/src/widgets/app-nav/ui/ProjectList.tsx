@@ -293,6 +293,7 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
   return (
     <BaseProjectList
       projects={projects}
+      loading={PgExplorer.allWorkspaceNames === undefined}
       current={PgExplorer.currentWorkspaceName ?? null}
       renaming={renamingGone ? null : renaming}
       renameError={renameError}
