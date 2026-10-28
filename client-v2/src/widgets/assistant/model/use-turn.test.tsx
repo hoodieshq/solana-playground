@@ -12,6 +12,8 @@ import {
   resetTelemetry,
 } from "@/shared/lib/telemetry";
 import * as reportModule from "@/shared/lib/report-button-failure";
+// The class itself, which the slice entry exports as a type only
+import { AiTurnError } from "@/shared/lib/ai/run-turn";
 import { PgSession } from "@/features/auth";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import { createProvider } from "../../../views/sidebar/assistant/model";
@@ -319,6 +321,56 @@ describe("useTurn", () => {
     ).toBe(true);
     expect(eventNames()).toContainEqual(["assistant_turn_stopped", {}]);
     await waitFor(() => expect(result.current.busy).toBe(false));
+  });
+
+  it.each([401, 403])(
+    "names the backend and offers its key again on a %s",
+    async (status) => {
+      const own: Connection = {
+        id: "openai",
+        apiKey: "sk-test",
+        endpoint: { baseUrl: "https://api.example.test/v1", model: "gpt-x" },
+      };
+      PgAssistant.connect(own);
+      provider.send.mockRejectedValue(
+        new AiTurnError("Unauthorized", { status })
+      );
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("hi"));
+
+      expect(PgAssistant.items.at(-1)).toMatchObject({
+        kind: "error",
+        text: `OpenAI-compatible did not accept the key (${status}).`,
+        recover: {
+          provider: "openai",
+          model: "gpt-x",
+          baseUrl: "https://api.example.test/v1",
+        },
+      });
+      expect(JSON.stringify(PgAssistant.items)).not.toContain("sk-test");
+      expect(eventNames()).toContainEqual([
+        "assistant_key_rejected",
+        { provider: "openai", status: String(status) },
+      ]);
+    }
+  );
+
+  it("keeps the provider's error for a failure that is not the key", async () => {
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-test" });
+    provider.send.mockRejectedValue(
+      new AiTurnError("Internal error", { status: 500 })
+    );
+    const { result } = renderHook(() => useTestTurn());
+
+    await act(() => result.current.send("hi"));
+
+    const error = PgAssistant.items.at(-1);
+    expect(error).toMatchObject({ kind: "error", text: "Internal error" });
+    expect(error).not.toHaveProperty("recover");
+    expect(eventNames().map(([name]) => name)).not.toContain(
+      "assistant_key_rejected"
+    );
   });
 
   it("reports a failed turn as an error item", async () => {

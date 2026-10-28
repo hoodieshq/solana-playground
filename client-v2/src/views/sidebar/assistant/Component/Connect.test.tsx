@@ -288,6 +288,20 @@ describe("Connect", () => {
     ).toBe("vendor/model-x");
   });
 
+  it("opens on the connected backend without its key when a preset names it", () => {
+    PgAssistant.connect(OWN);
+
+    renderConnect({
+      defaultBackend: "present",
+      preset: { provider: OWN.id, model: "gpt-x" },
+    });
+
+    expect(checked()?.getAttribute("value")).toBe(OWN.id);
+    expect(
+      document.querySelector<HTMLInputElement>("#assistant-api-key")?.value
+    ).toBe("");
+  });
+
   it("puts a preset base URL into an endpoint's base URL field", () => {
     renderConnect({
       defaultBackend: "present",

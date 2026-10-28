@@ -155,8 +155,12 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
   const signedIn = !!PgSession.get();
   const startId = preset?.provider ?? current?.id ?? "default";
   const initial = PROVIDERS.find((p) => p.id === startId)!;
-  /** Opened on the backend already connected: its own key and choices */
-  const onCurrent = current?.id === startId ? current : null;
+  /**
+   * Opened on the backend already connected: its own key and choices. Not for
+   * a preset, which says what to start from; one naming the connected backend
+   * comes from Enter key, after the provider refused that very key.
+   */
+  const onCurrent = !preset && current?.id === startId ? current : null;
 
   const [providerId, setProviderId] = useState<ModelProvider>(startId);
   const [expanded, setExpanded] = useState(false);

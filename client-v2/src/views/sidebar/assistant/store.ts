@@ -106,7 +106,15 @@ export type ChatItem =
       /** Set once the tool has actually run */
       outcome?: string;
     })
-  | (ChatItemBase & { kind: "error"; text: string })
+  | (ChatItemBase & {
+      kind: "error";
+      text: string;
+      /**
+       * The backend whose key the provider refused (401 or 403), for Enter key
+       * to reopen Connect a model on it. Never the key.
+       */
+      recover?: BackendParams;
+    })
   /** Something the panel did, not the model — e.g. the user stopped the turn */
   | (ChatItemBase & { kind: "notice"; text: string });
 
@@ -792,13 +800,15 @@ export class PgAssistant {
     PgAssistant._emit();
   }
 
-  static addError(text: string) {
+  static addError(text: string, recover?: BackendParams) {
     if (PgAssistant._dropsCut("error", text)) return;
     PgAssistant._items.push({
       kind: "error",
       id: makeId(),
       createdAt: created(),
       text: redactKey(text, PgAssistant._connection?.apiKey),
+      // Spread, like `origin`: an error with nothing to recover has no key
+      ...(recover ? { recover } : {}),
     });
     PgAssistant._emit();
   }

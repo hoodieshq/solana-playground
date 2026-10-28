@@ -607,4 +607,27 @@ test.describe("assistant-own-key", () => {
     await expect(dialog.locator("#assistant-model")).toHaveValue("gpt-y");
     await expect(dialog).not.toContainText("new conversation");
   });
+  test("assistant-own-key: A 401 offers Enter key", async ({ page }) => {
+    await page.route(COMPLETIONS_URL, (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { message: "Incorrect API key" } }),
+      })
+    );
+    await seedWorkspace(page, "own-key-401");
+    await connectOwn(page);
+    await composer(page).fill("hello");
+    await composer(page).press("Enter");
+
+    await expect(
+      page.getByText("OpenAI-compatible did not accept the key (401).")
+    ).toBeVisible(LONG);
+    await page.locator("#assistant-enter-key").click();
+
+    const dialog = page.getByRole("dialog", { name: "Connect a model" });
+    await expect(dialog).toBeVisible(LONG);
+    await expect(dialog.locator("#assistant-model")).toHaveValue("gpt-x");
+    await expect(dialog.locator("#assistant-api-key")).toHaveValue("");
+  });
 });

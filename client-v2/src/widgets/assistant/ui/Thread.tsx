@@ -114,8 +114,16 @@ export const Thread = ({
   const skippableId =
     onFinishedReply && stepAttempted && PgLesson.canPass() ? lastItem.id : null;
 
+  // Enter key goes on the thread's last error, and only if that one is a
+  // refused key: an older one has been answered by whatever came after it
+  const lastError = items.findLast((item) => item.kind === "error");
+  const rejected = lastError?.kind === "error" ? lastError.recover : undefined;
+
   const actionsFor = (id: string): ReplyActions | undefined => {
     const actions: ReplyActions = {};
+    if (rejected && id === lastError?.id) {
+      actions.enterKey = () => turn.openConnect("key-rejected", rejected);
+    }
     if (id === changeableId) {
       actions.makeChange = {
         mode: lesson ? "lastResort" : "next",

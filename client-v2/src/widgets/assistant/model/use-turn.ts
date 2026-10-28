@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 
+import type { AiTurnError } from "@/shared/lib/ai";
 import { createLogger } from "@/shared/lib/logger";
 
 import { pushThread } from "../../../effects/chat-thread/push-thread";
@@ -12,9 +13,12 @@ import {
   rememberedConnection,
 } from "../../../views/sidebar/assistant/model/remembered-backend";
 import { threadBackend } from "../../../views/sidebar/assistant/model/thread-backend";
-import { isDefaultBackend } from "../../../views/sidebar/assistant/model/types";
+import {
+  isDefaultBackend,
+  PROVIDERS,
+} from "../../../views/sidebar/assistant/model/types";
 import type { Provider } from "../../../views/sidebar/assistant/model/types";
-import { PgAssistant } from "../../../views/sidebar/assistant/store";
+import { paramsOf, PgAssistant } from "../../../views/sidebar/assistant/store";
 import type {
   Connection,
   PromptRequest,
@@ -42,6 +46,19 @@ const isAbort = (error: unknown) =>
   error !== null &&
   "name" in error &&
   error.name === "AbortError";
+
+/**
+ * The status of a turn that ended on the provider refusing the key, or
+ * `undefined`. By name, since the slice entry exports `AiTurnError` as a type
+ * only: the class loads with the SDK.
+ */
+const rejectedKey = (error: unknown): "401" | "403" | undefined => {
+  if (!(error instanceof Error) || error.name !== "AiTurnError") return;
+  const { status } = error as AiTurnError;
+  if (status === 401) return "401";
+  if (status === 403) return "403";
+  return undefined;
+};
 
 /** Where Connect a model was opened from */
 export type ConnectVia = AssistantEvents["assistant_connect_opened"]["via"];
@@ -362,7 +379,25 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     try {
       await instance.send(trimmed, controller.signal);
     } catch (e) {
-      if (!controller.signal.aborted) {
+      const status = rejectedKey(e);
+      if (
+        !controller.signal.aborted &&
+        status &&
+        !isDefaultBackend(current.id)
+      ) {
+        // The key-based backend refused the key: say which, and offer to enter
+        // it again on the same backend rather than leaving a bare 401
+        const { id } = current;
+        const name = PROVIDERS.find((p) => p.id === id)?.name ?? id;
+        PgAssistant.addError(
+          `${name} did not accept the key (${status}).`,
+          paramsOf(current)
+        );
+        assistantTelemetry.track("assistant_key_rejected", {
+          provider: current.id,
+          status,
+        });
+      } else if (!controller.signal.aborted) {
         PgAssistant.addError(e instanceof Error ? e.message : String(e));
       } else if (isAbort(e)) {
         // Aborted by `stop`, which has already written its notice, or by the

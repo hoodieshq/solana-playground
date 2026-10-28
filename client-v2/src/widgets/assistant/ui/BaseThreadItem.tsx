@@ -37,6 +37,11 @@ export type ReplyActions = {
   };
   /** The lesson's escape valve, recorded as a skip */
   skipStep?: { onClick: () => void; title: string };
+  /**
+   * On an error whose provider refused the key: reopens Connect a model on
+   * that backend for the key to be entered again
+   */
+  enterKey?: () => void;
 };
 
 const MAKE_CHANGE: Record<
@@ -118,6 +123,20 @@ export const BaseThreadItem = ({
           <CalloutDescription className="break-words">
             {item.text}
           </CalloutDescription>
+          {actions?.enterKey && (
+            // TODO(HOO-1719): no design yet for a recovery action in an error;
+            // the design system's outline button until Design alignment
+            // answers
+            <Button
+              id="assistant-enter-key"
+              variant="outline"
+              size="sm"
+              className="mt-2 self-start"
+              onClick={actions.enterKey}
+            >
+              Enter key
+            </Button>
+          )}
         </Callout>
       );
 

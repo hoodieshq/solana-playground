@@ -42,7 +42,7 @@ where stated; 1.1 and 1.2 may run at the same time.
 
 ## 4. A rejected key (depends on 1.1)
 
-- [ ] 4.1 The error item's optional `recover`, set by `useTurn` on an
+- [x] 4.1 The error item's optional `recover`, set by `useTurn` on an
   `AiTurnError` with status 401 or 403; `assistant_key_rejected` declared in
   `widgets/assistant/model/telemetry.ts` and emitted; the **Enter key** button
   (`#assistant-enter-key`) on the last such error opens Connect with
