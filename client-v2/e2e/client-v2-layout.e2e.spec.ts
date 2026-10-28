@@ -479,6 +479,15 @@ test.describe("on a phone", () => {
     await seedThenNarrow(page);
     const lines = page.locator(".monaco-editor .view-lines");
     await expect(lines).toContainText("use anchor_lang");
+    // The code is read at arm's length, a step up from the desktop's
+    await expect(lines.locator(".view-line").first()).toHaveCSS(
+      "font-size",
+      "15px"
+    );
+    await expect(lines.locator(".view-line").first()).toHaveCSS(
+      "line-height",
+      "23px"
+    );
     await page.locator(".monaco-editor textarea.inputarea").focus();
     await page.keyboard.press("ControlOrMeta+Home");
     await page.keyboard.type("// phone\n");
@@ -513,6 +522,36 @@ test.describe("on a phone", () => {
     await expect(composer).toHaveValue("hello");
   });
 
+  test("client-v2-layout: Reduced motion on a phone", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await seedThenNarrow(page);
+    // The page change does not animate: the pager jumps, it does not glide
+    const pager = page.getByTestId("phone-pager");
+    expect(
+      await pager.evaluate((el) => getComputedStyle(el).scrollBehavior)
+    ).toBe("auto");
+    // A sheet appears without sliding
+    await page.getByRole("button", { name: /^Files, .* open$/ }).click();
+    const files = page.getByRole("dialog", { name: "Files" });
+    await expect(files).toBeVisible();
+    expect(
+      await files.evaluate((el) => getComputedStyle(el).animationName)
+    ).toBe("none");
+    // and leaves the same way. A 200 ms exit animation would keep it mounted
+    // two frames after the key, so the check is made in the page, not by a
+    // retrying assertion that would wait the animation out
+    const goneAtOnce = await page.evaluate(async () => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+      for (let i = 0; i < 2; i++) {
+        await new Promise((done) => requestAnimationFrame(done));
+      }
+      return !document.querySelector('[role="dialog"]');
+    });
+    expect(goneAtOnce).toBe(true);
+  });
+
   test("client-v2-layout: Turning a phone across 768 px", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await seedWorkspace(page);
@@ -535,9 +574,16 @@ test.describe("on a phone", () => {
     await expect(lines).toContainText("// across");
     const before = await savedLayout(page);
 
+    // The code is a step up on a phone and Monaco's own size again off one
+    const viewLine = lines.locator(".view-line").first();
+    const wide = await viewLine.evaluate((el) => getComputedStyle(el).fontSize);
     for (const width of [390, 767, 768, 1024, 390, 1280]) {
       await page.setViewportSize({ width, height: 844 });
       await expect(lines).toContainText("// across");
+      await expect(viewLine).toHaveCSS(
+        "font-size",
+        width < 768 ? "15px" : wide
+      );
     }
     await expect(page.locator(".xterm-rows").first()).toContainText(HELP_TAIL);
     expect(await savedLayout(page)).toBe(before);
@@ -745,6 +791,40 @@ test("client-v2-layout: A fresh load focuses no settings trigger", async ({
     ).toBe(false);
     await expect(page.getByRole("tooltip")).toHaveCount(0);
   }
+});
+
+test.describe("on an iPhone", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+    hasTouch: true,
+  });
+
+  test("client-v2-layout: The editor's keyboard button on an iPhone", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await seedWorkspace(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const lines = page.locator(".monaco-editor .view-lines");
+    await expect(lines).toContainText("use anchor_lang");
+    // A tap on the code does not always raise the keyboard on an iPhone, so
+    // the editor's own button for it stays, drawn as one of the product's
+    const button = page.locator(".monaco-editor .iPadShowKeyboard");
+    await expect(button).toBeVisible();
+    await expect(button).toHaveCSS("width", "48px");
+    await expect(button).toHaveCSS("height", "48px");
+    await expect(button).toHaveCSS("border-radius", "14px");
+    await expect(button).toHaveCSS("border-top-width", "1px");
+    // A tap hands the focus to the code, which takes typing
+    await button.tap();
+    await expect(
+      page.locator(".monaco-editor textarea.inputarea")
+    ).toBeFocused();
+    await page.keyboard.type("// iphone\n");
+    await expect(lines).toContainText("// iphone");
+  });
 });
 
 test.describe("on a compact window", () => {

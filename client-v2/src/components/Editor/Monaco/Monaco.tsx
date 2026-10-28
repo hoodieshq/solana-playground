@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import styled, { useTheme } from "styled-components";
+import styled, { css, useTheme } from "styled-components";
 import * as monaco from "monaco-editor";
 
 import { editorBuffersOf } from "./editor-buffers";
@@ -30,6 +30,7 @@ import { resolveColor, TRANSPARENT } from "../../../shared/lib/css-color";
 import { createMountOpen } from "./mount-open";
 import { leavesFocusElsewhere } from "./open-focus";
 import { createLogger } from "@/shared/lib/logger";
+import { useViewport } from "@/shared/lib/hooks/use-viewport";
 
 const log = createLogger("editor:monaco");
 
@@ -219,14 +220,19 @@ const Monaco = () => {
     if (editor) return () => editor.dispose();
   }, [editor]);
 
-  // Set font
+  // Set font: a step up on a phone, where the code is read at arm's length
+  // (the prototype's 15/23). Off a phone, 0 hands both back to Monaco: its
+  // default size, and a line height derived from it.
+  const phone = useViewport() === "phone";
   useEffect(() => {
     if (!editor) return;
 
     editor.updateOptions({
       fontFamily: theme.components.editor.default.fontFamily,
+      fontSize: phone ? 15 : 0,
+      lineHeight: phone ? 23 : 0,
     });
-  }, [editor, theme]);
+  }, [editor, theme, phone]);
 
   // Set tab size
   useEffect(() => {
@@ -825,14 +831,30 @@ const Monaco = () => {
 };
 
 const Wrapper = styled.div`
-  width: 100%;
-  height: 100%;
+  ${({ theme }) => css`
+    width: 100%;
+    height: 100%;
 
-  /** Inlay hints */
-  & span[class^="dyn-rule"],
-  span[class*=" dyn-rule"] {
-    font-size: 12px;
-  }
+    /** Inlay hints */
+    & span[class^="dyn-rule"],
+    span[class*=" dyn-rule"] {
+      font-size: 12px;
+    }
+
+    /* The editor's own way to bring up the keyboard on an iPhone, where a
+       tap on the code does not always do it (spec 15, "The phone editor stays
+       editable"): kept, and drawn as one of the product's buttons rather than
+       the editor's grey box, as the prototype draws it. Monaco's stylesheet
+       sets the same properties at equal specificity, hence !important */
+    & .monaco-editor .iPadShowKeyboard {
+      width: 48px !important;
+      height: 48px !important;
+      border: 1px solid ${theme.colors.default.border} !important;
+      border-radius: 14px !important;
+      background-color: ${theme.colors.default.bgSecondary} !important;
+      background-size: 22px !important;
+    }
+  `}
 `;
 
 export default Monaco;
