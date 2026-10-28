@@ -31,18 +31,17 @@ const validator = () => {
  * The schema runs first; the rules a schema cannot express (a right index in
  * range, a reason per wrong option and none for the right one, blocks found
  * in their target, instructions some step's target defines, a `next` in
- * `known`, ids used once, patterns that compile) run only on a definition the
- * schema accepts, since they read its shape. The folder-name error leads,
+ * `known`, ids used once, patterns that compile, read-only files the step
+ * has, doc files that exist and link only to `https`) run only on a definition
+ * the schema accepts, since they read its shape. The folder-name error leads,
  * then the rules' errors in step order.
  *
  * @param known every tutorial slug `finish.next` may name
- * @param slug the folder the definition sits in, which its name must give:
- * routes and saved workspaces are named from the name
  */
 export const checkDefinition = (
   json: unknown,
   known: ReadonlySet<string>,
-  slug?: string
+  { slug, docs }: CheckOptions = {}
 ): DefinitionError[] => {
   const validate = validator();
   if (!validate(json)) {
@@ -59,7 +58,7 @@ export const checkDefinition = (
         ];
   }
   const d = json as TutorialDefinition;
-  const errors = ruleErrors(d, known);
+  const errors = ruleErrors(d, known, docs);
   if (slug !== undefined && slugOf(d.name) !== slug) {
     errors.unshift({
       path: "name",
@@ -70,6 +69,20 @@ export const checkDefinition = (
   }
   return errors;
 };
+
+export interface CheckOptions {
+  /**
+   * The folder the definition sits in, which its name must give: routes and
+   * saved workspaces are named from the name
+   */
+  slug?: string;
+  /**
+   * The Markdown in the tutorial's `docs/` folder, by file name. Without it
+   * the doc files go unchecked: the app's loader has no folder to read, and
+   * `yarn tutorial:check` in CI is where a missing page fails
+   */
+  docs?: Readonly<Record<string, string>>;
+}
 
 /** A tutorial's slug from its name, as `PgCommon.toKebabFromTitle` makes it */
 export const slugOf = (name: string) =>
@@ -269,15 +282,40 @@ const compiles = (pattern: string) => {
   }
 };
 
+/** Markdown with its code blocks and code spans blanked, so code is not read as links */
+const proseOf = (markdown: string) =>
+  markdown
+    .replace(/^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?^ {0,3}\1[^\n]*$/gm, "")
+    .replace(/(`+)[\s\S]*?\1/g, "");
+
+const LINKS = [
+  // [text](address "title") and ![alt](address)
+  /!?\[[^\]]*\]\(\s*<?([^\s)>]*)>?[^)]*\)/g,
+  // <scheme:address>
+  /<([a-z][a-z\d+.-]*:[^\s>]*)>/gi,
+  // [label]: address
+  /^ {0,3}\[[^\]]+\]:\s*<?([^\s>]+)>?/gm,
+];
+
+/** Every link address in a Markdown page */
+const linksOf = (markdown: string): string[] => {
+  const prose = proseOf(markdown);
+  return LINKS.flatMap((re) => [...prose.matchAll(re)].map((m) => m[1]));
+};
+
+const isHttps = (address: string) => /^https:\/\/\S/.test(address);
+
 /** The rules a schema cannot express, over a definition the schema accepted */
 const ruleErrors = (
   d: TutorialDefinition,
-  known: ReadonlySet<string>
+  known: ReadonlySet<string>,
+  docs: CheckOptions["docs"]
 ): DefinitionError[] => {
   const errors: DefinitionError[] = [];
   const targets = d.steps.flatMap((s) => Object.values(s.target));
   const beatIds = new Map<string, string>();
   const stepIds = new Map<string, string>();
+  const docFiles = new Map<string, string>();
 
   const once = (
     ids: Map<string, string>,
@@ -332,6 +370,16 @@ const ruleErrors = (
 
   d.steps.forEach((step, i) => {
     once(stepIds, step.id, `steps[${i}].id`, "step");
+    step.readOnly?.forEach((file, k) => {
+      if (step.start[file] === undefined && step.target[file] === undefined) {
+        errors.push({
+          path: `steps[${i}].readOnly[${k}]`,
+          message: `a file in the step's start or target, found ${JSON.stringify(
+            file
+          )}`,
+        });
+      }
+    });
     for (const [beat, at] of beatsOf(step, i)) {
       once(beatIds, beat.id, `${at}.id`, "beat");
       if (beat.kind === "write") {
@@ -401,9 +449,6 @@ const ruleErrors = (
     step.errorChips?.forEach((c, k) =>
       pattern(c.pattern, `steps[${i}].errorChips[${k}].pattern`)
     );
-    step.matches?.forEach((m, k) =>
-      pattern(m.pattern, `steps[${i}].matches[${k}].pattern`)
-    );
   });
   d.finish.chips.forEach((c, k) =>
     pattern(c.pattern, `finish.chips[${k}].pattern`)
@@ -415,6 +460,30 @@ const ruleErrors = (
       message: `the slug of a tutorial, found ${JSON.stringify(d.finish.next)}`,
     });
   }
+
+  d.docs?.forEach((doc, k) => {
+    const at = `docs[${k}].file`;
+    once(docFiles, doc.file, at, "doc");
+    if (docs === undefined) return;
+    const markdown = docs[doc.file];
+    if (markdown === undefined) {
+      errors.push({
+        path: at,
+        message: `a Markdown file in the tutorial's docs folder, found no ${JSON.stringify(
+          doc.file
+        )} there`,
+      });
+      return;
+    }
+    for (const address of linksOf(markdown).filter((a) => !isHttps(a))) {
+      errors.push({
+        path: at,
+        message: `https links only, found ${JSON.stringify(address)} in ${
+          doc.file
+        }`,
+      });
+    }
+  });
   return errors;
 };
 
@@ -454,8 +523,8 @@ if (import.meta.vitest) {
       thumbnail: "thumbnail.jpg",
       minutes: 5,
       intro: {
-        lead: "You write hello.",
-        prints: "Program log: hi",
+        promise: "You write hello.",
+        log: "Program log: hi",
         files: { "src/lib.rs": LIB },
       },
       steps: [
@@ -492,7 +561,6 @@ if (import.meta.vitest) {
             id: "s1.win",
             headline: "Built.",
             line: "One instruction.",
-            stats: [],
           },
           explain: "This step writes hello.",
           chips: [],
@@ -522,7 +590,6 @@ if (import.meta.vitest) {
             id: "s2.win",
             headline: "Called.",
             line: "It said hi.",
-            stats: [],
           },
           explain: "This step calls hello.",
           chips: [],
@@ -678,9 +745,11 @@ if (import.meta.vitest) {
     });
 
     it("needs the name to give the folder's slug", () => {
-      expect(checkDefinition(minimal(), KNOWN, "minimal")).toEqual([]);
+      expect(checkDefinition(minimal(), KNOWN, { slug: "minimal" })).toEqual(
+        []
+      );
       expect(
-        checkDefinition(minimal(), KNOWN, "other").map(formatError)
+        checkDefinition(minimal(), KNOWN, { slug: "other" }).map(formatError)
       ).toEqual([
         'name: a name whose slug is the folder\'s, "other", found "Minimal"',
       ]);
@@ -746,17 +815,106 @@ if (import.meta.vitest) {
       ]);
     });
 
-    it("checks the pattern of every chip and match", () => {
+    it("checks the pattern of every chip", () => {
       const d = minimal();
       d.steps[0].chips = [{ label: "A", answer: "a", pattern: "(" }];
       d.steps[0].errorChips = [{ label: "B", answer: "b", pattern: "[" }];
-      d.steps[1].matches = [{ pattern: "*", answer: "c" }];
       d.finish.chips = [{ label: "D", answer: "d", pattern: "(?<" }];
       expect(lines(d)).toEqual([
         'steps[0].chips[0].pattern: a regular expression, found "("',
         'steps[0].errorChips[0].pattern: a regular expression, found "["',
-        'steps[1].matches[0].pattern: a regular expression, found "*"',
         'finish.chips[0].pattern: a regular expression, found "(?<"',
+      ]);
+    });
+
+    it("refuses scripted matches and win stats", () => {
+      const d = minimal() as unknown as {
+        steps: Record<string, unknown>[];
+      };
+      d.steps[1].matches = [{ pattern: "hi", answer: "c" }];
+      Object.assign(d.steps[0].win as object, { stats: [] });
+      expect(lines(d)).toEqual([
+        "steps[0].win.stats: no such field, found a list of 0",
+        "steps[1].matches: no such field, found a list of 1",
+      ]);
+    });
+
+    it("needs a read-only file the step has", () => {
+      const d = minimal();
+      d.steps[0].readOnly = ["src/lib.rs", "Anchor.toml"];
+      expect(lines(d)).toEqual([
+        'steps[0].readOnly[1]: a file in the step\'s start or target, found "Anchor.toml"',
+      ]);
+    });
+
+    /** `minimal` with two docs, checked against the given docs folder */
+    const withDocs = (folder: Record<string, string>) => {
+      const d = minimal();
+      d.docs = [
+        {
+          title: "IDL",
+          url: "https://www.anchor-lang.com/docs/basics/idl",
+          file: "idl.md",
+        },
+        {
+          title: "Programs",
+          url: "https://solana.com/docs/core/programs",
+          file: "programs.md",
+        },
+      ];
+      return checkDefinition(d, KNOWN, { docs: folder }).map(formatError);
+    };
+
+    it("passes docs whose pages are there and link to https", () => {
+      expect(
+        withDocs({
+          "idl.md":
+            "# IDL\n\nSee [the spec](https://solana.com/docs) and <https://anchor-lang.com>.\n\n[ref]: https://github.com/coral-xyz/anchor\n",
+          "programs.md":
+            "Code is not a link: `[a](http://x)`\n\n```md\n[b](http://y)\n```\n",
+        })
+      ).toEqual([]);
+    });
+
+    it("names a doc whose Markdown file is missing", () => {
+      expect(withDocs({ "idl.md": "# IDL\n" })).toEqual([
+        'docs[1].file: a Markdown file in the tutorial\'s docs folder, found no "programs.md" there',
+      ]);
+    });
+
+    it("names every link in a doc that is not https", () => {
+      expect(
+        withDocs({
+          "idl.md":
+            "[a](http://anchor-lang.com) ![b](img/idl.png) <http://solana.com>\n\n[c]: ./programs.md\n",
+          "programs.md": "",
+        })
+      ).toEqual([
+        'docs[0].file: https links only, found "http://anchor-lang.com" in idl.md',
+        'docs[0].file: https links only, found "img/idl.png" in idl.md',
+        'docs[0].file: https links only, found "http://solana.com" in idl.md',
+        'docs[0].file: https links only, found "./programs.md" in idl.md',
+      ]);
+    });
+
+    it("refuses a doc address that is not https", () => {
+      const d = minimal();
+      d.docs = [
+        { title: "IDL", url: "http://anchor-lang.com", file: "idl.md" },
+      ];
+      expect(lines(d)).toEqual([
+        'docs[0].url: text matching /^https:///, found "http://anchor-lang.com"',
+      ]);
+    });
+
+    it("names a doc file listed twice, even with no folder to read", () => {
+      const d = minimal();
+      d.docs = [
+        { title: "IDL", url: "https://a.dev/idl", file: "idl.md" },
+        { title: "IDL again", url: "https://a.dev/idl2", file: "idl.md" },
+      ];
+      expect(lines(d)).toEqual([
+        'docs[1].file: an id no other doc has, found "idl.md", also at docs[0].file',
       ]);
     });
 

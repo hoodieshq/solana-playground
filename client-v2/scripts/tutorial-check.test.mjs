@@ -59,3 +59,27 @@ test("tutorial:check reports a file that is not JSON", () => {
   assert.equal(run.status, 1);
   assert.match(run.stdout, /tutorial\.json: not JSON, /);
 });
+
+test("tutorial:check names a doc whose page is missing from docs/", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tutorial-check-"));
+  const definition = JSON.parse(
+    fs.readFileSync(
+      path.join(CLIENT, "src", "tutorials", "hello-anchor", "tutorial.json"),
+      "utf8"
+    )
+  );
+  definition.docs = [
+    {
+      title: "IDL",
+      url: "https://www.anchor-lang.com/docs/basics/idl",
+      file: "idl.md",
+    },
+  ];
+  fs.writeFileSync(path.join(dir, "tutorial.json"), JSON.stringify(definition));
+  const run = check(dir);
+  assert.equal(run.status, 1);
+  assert.match(
+    run.stdout,
+    /^docs\[0\]\.file: a Markdown file in the tutorial's docs folder, found no "idl\.md" there$/m
+  );
+});

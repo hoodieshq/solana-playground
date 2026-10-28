@@ -3,7 +3,8 @@
 // With no argument it checks every `src/tutorials/<slug>/tutorial.json`
 // (folders starting with `_` or `.` aside). Each error prints as its JSON
 // path, what was expected and what was found; any error, a file that is not
-// JSON, or finding no definition at all exits with code 1.
+// JSON, or finding no definition at all exits with code 1. A definition's
+// docs are read from its `docs/` folder.
 
 import fs from "fs";
 import path from "path";
@@ -17,6 +18,7 @@ import {
 const CLIENT = path.join(__dirname, "..");
 const TUTORIALS = path.join(CLIENT, "src", "tutorials");
 const DEFINITION = "tutorial.json";
+const DOCS = "docs";
 
 const folders = (dir: string) =>
   fs.existsSync(dir)
@@ -59,6 +61,18 @@ const known = new Set([
     .map((file) => slugOf(JSON.parse(fs.readFileSync(file, "utf8")).name)),
 ]);
 
+/** The Markdown in a tutorial's `docs/` folder, by file name */
+const docsOf = (dir: string): Record<string, string> => {
+  const docs = path.join(dir, DOCS);
+  if (!fs.existsSync(docs)) return {};
+  return Object.fromEntries(
+    fs
+      .readdirSync(docs, { withFileTypes: true })
+      .filter((e) => e.isFile())
+      .map((e) => [e.name, fs.readFileSync(path.join(docs, e.name), "utf8")])
+  );
+};
+
 /** The folders to check, from the argument */
 const targets = (arg: string | undefined): string[] => {
   if (arg === undefined) {
@@ -94,7 +108,10 @@ for (const dir of targets(process.argv[2])) {
     failed++;
     continue;
   }
-  const errors = checkDefinition(json, known, slug);
+  const errors = checkDefinition(json, known, {
+    slug,
+    docs: docsOf(dir),
+  });
   if (errors.length === 0) {
     console.log(`${slug}: ok`);
     continue;

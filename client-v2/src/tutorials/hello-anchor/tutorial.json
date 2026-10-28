@@ -15,8 +15,8 @@
   "thumbnail": "/tutorials/hello-anchor/thumbnail.jpg",
   "minutes": 10,
   "intro": {
-    "lead": "You'll write a small Solana program, put it live on devnet and call it with your name.",
-    "prints": "Program log: Hello, your name!",
+    "promise": "You'll write a small Solana program, put it live on devnet and call it with your name.",
+    "log": "Program log: Hello, your name!",
     "files": {
       "src/lib.rs": "use anchor_lang::prelude::*;\n\ndeclare_id!(\"11111111111111111111111111111111\");\n\n#[program]\nmod hello_anchor {\n    use super::*;\n\n    pub fn hello(_ctx: Context<Hello>, name: String) -> Result<()> {\n        msg!(\"Hello, {}!\", name);\n        Ok(())\n    }\n}\n\n#[derive(Accounts)]\npub struct Hello {}\n",
       "client/client.ts": "// Call the hello instruction\nconst txHash = await pg.program.methods.hello().rpc();\nconsole.log(`Use 'solana confirm -v ${txHash}' to see the logs`);\n"
@@ -142,21 +142,7 @@
       "win": {
         "id": "s1.win",
         "headline": "Your program compiles.",
-        "line": "The build also made its IDL: one instruction, `hello`. That's what clients will call.",
-        "stats": [
-          {
-            "icon": "hammer",
-            "text": "Built"
-          },
-          {
-            "icon": "braces",
-            "text": "1 instruction"
-          },
-          {
-            "icon": "clock",
-            "text": "{took}"
-          }
-        ]
+        "line": "The build also made its IDL: one instruction, `hello`. That's what clients will call."
       },
       "explain": "This step writes the smallest Anchor program there is: one instruction, `hello`, that writes a line to the program log. I explain a piece, you pick the right line, and I write it in. Then the build checks it.",
       "chips": [
@@ -181,17 +167,6 @@
           "label": "Where is this in the docs?",
           "pattern": "\\b(docs?|documentation)\\b",
           "answer": "The Anchor docs cover it in [Program Structure](https://www.anchor-lang.com/docs/basics/program-structure#deriveaccounts-macro), in the section on `#[derive(Accounts)]`."
-        }
-      ],
-      "matches": [
-        {
-          "pattern": "declare_id",
-          "answer": "`declare_id!` sets the address the program checks every call against. Playground puts in the real one when you deploy."
-        },
-        {
-          "pattern": "why.*(fail|error)",
-          "answer": "Line 9 asks for `Context<Hello>`: the accounts `hello` works with, described by a type called `Hello`. That type doesn't exist yet, so the compiler stops. `hello` reads no accounts, so the type can be empty. The fix goes at the bottom of lib.rs.",
-          "local": true
         }
       ]
     },
@@ -252,20 +227,6 @@
         "id": "s2.win",
         "headline": "Your program is live on devnet.",
         "line": "Its IDL also gave you the Call panel: a form for every instruction. You'll use it in a moment.",
-        "stats": [
-          {
-            "icon": "rocket",
-            "text": "Live on devnet"
-          },
-          {
-            "icon": "coins",
-            "text": "Paid in devnet SOL"
-          },
-          {
-            "icon": "braces",
-            "text": "Call panel added"
-          }
-        ],
         "extra": "openTest"
       },
       "explain": "Deploying puts your built program on devnet, Solana's public test network, at an address of its own: the program id. Your Playground wallet pays in devnet SOL. Press Deploy and wait for the id.",
@@ -355,20 +316,6 @@
         "headline": "Your program answered from devnet.",
         "line": "That `Hello, World!` is the `msg!` line from lib.rs, coming back in the transaction's logs. The Call panel makes the same call without code.",
         "callPanelLine": "You called `hello` from the Call panel, which Playground built from the IDL. In code, the same call is one line.",
-        "stats": [
-          {
-            "icon": "cpu",
-            "text": "Compute used"
-          },
-          {
-            "icon": "timer",
-            "text": "Confirmed"
-          },
-          {
-            "icon": "coins",
-            "text": "Fee from your wallet"
-          }
-        ],
         "extra": "openTest"
       },
       "explain": "A client is code outside the program that sends it transactions. Here it's one line of TypeScript in `client.ts`. You can also call `hello` from the Call panel, no code needed.",
@@ -389,12 +336,6 @@
           "pattern": "without code|\\bcall panel\\b",
           "answer": "Yes. After the deploy, the Call panel has a form for each instruction. Fill the arguments and press Call hello.",
           "follow": "openTest"
-        }
-      ],
-      "matches": [
-        {
-          "pattern": "\\brpc\\b",
-          "answer": "`.rpc()` signs and sends the transaction, waits for devnet to confirm it and returns its signature."
         }
       ]
     },
@@ -477,21 +418,7 @@
       "win": {
         "id": "s4.win",
         "headline": "hello knows your name.",
-        "line": "You changed an instruction, shipped the new version and called it with an argument.",
-        "stats": [
-          {
-            "icon": "cpu",
-            "text": "Compute used"
-          },
-          {
-            "icon": "braces",
-            "text": "name: string"
-          },
-          {
-            "icon": "rocket",
-            "text": "Upgraded in place"
-          }
-        ]
+        "line": "You changed an instruction, shipped the new version and called it with an argument."
       },
       "explain": "Instructions can take arguments after their `Context`. This step adds a `name` to `hello`, ships the new version and calls it with your name.",
       "chips": [
@@ -504,12 +431,6 @@
           "label": "Can I call it with someone else's name?",
           "pattern": "someone else|another name|other name",
           "answer": "Sure. Type any name here or in the Call panel. The program logs whatever it gets, up to 32 characters here."
-        }
-      ],
-      "matches": [
-        {
-          "pattern": "string|bytes|serial",
-          "answer": "Anchor writes the `String` as its length followed by its bytes, and reads it back the same way. You don't have to do anything."
         }
       ]
     }

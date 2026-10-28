@@ -27,7 +27,7 @@ export const loadDefinitions = (
   Object.entries(raw).flatMap(([slug, json]) => {
     let errors: string[];
     try {
-      errors = checkDefinition(json, known, slug).map(formatError);
+      errors = checkDefinition(json, known, { slug }).map(formatError);
     } catch (e) {
       // One definition the check cannot read must not take the catalog down
       errors = [`the check failed: ${toError(e).message}`];

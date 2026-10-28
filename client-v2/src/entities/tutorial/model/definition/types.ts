@@ -27,15 +27,6 @@ export interface Chip {
   pattern?: string;
 }
 
-/** A scripted answer to a question typed in the composer */
-export interface Match {
-  pattern: string;
-  answer: Text;
-  follow?: Follow;
-  /** Answers only on its own step */
-  local?: boolean;
-}
-
 /** Code written into a file; it appears in its step's target for that file */
 export interface Block {
   file: string;
@@ -113,10 +104,6 @@ export interface Win {
   headline: Text;
   line: Text;
   callPanelLine?: Text;
-  stats: {
-    icon: "hammer" | "braces" | "clock" | "rocket" | "coins" | "cpu" | "timer";
-    text: string;
-  }[];
   extra?: "openTest";
 }
 
@@ -134,14 +121,24 @@ export type Step = PlannedFailure & {
   file: string;
   start: Files;
   target: Files;
+  /** Files the learner cannot edit in this step */
+  readOnly?: string[];
   beats: Beat[];
   goal: Goal;
   win: Win;
   explain: Text;
   chips: Chip[];
   errorChips?: Chip[];
-  matches?: Match[];
 };
+
+/** A doc page the tutorial needs, kept as Markdown in its `docs/` folder */
+export interface Doc {
+  title: string;
+  /** The page on its own site, `https` */
+  url: string;
+  /** The Markdown file's name in `docs/`: `idl.md` */
+  file: string;
+}
 
 export interface TutorialDefinition {
   $schema?: string;
@@ -155,7 +152,13 @@ export interface TutorialDefinition {
   categories?: string[];
   thumbnail: string;
   minutes: number;
-  intro: { lead: Text; prints: string; files: Files };
+  intro: {
+    /** What the learner ends with */
+    promise: Text;
+    /** The log line the finished program prints */
+    log: string;
+    files: Files;
+  };
   steps: Step[];
   finish: {
     headline: Text;
@@ -164,6 +167,7 @@ export interface TutorialDefinition {
     chips: Chip[];
     next: string | null;
   };
+  docs?: Doc[];
 }
 
 /** One problem in a definition, at its JSON path (`steps[1].beats[3].why[2]`) */

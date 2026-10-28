@@ -14,8 +14,8 @@
   "thumbnail": "/tutorials/hello-anchor/thumbnail.jpg",
   "minutes": 5,
   "intro": {
-    "lead": "You write hello.",
-    "prints": "Program log: hi",
+    "promise": "You write hello.",
+    "log": "Program log: hi",
     "files": {
       "src/lib.rs": "use anchor_lang::prelude::*;\n\npub fn hello(name: String) {\n    msg!(name);\n}\n"
     }
@@ -60,8 +60,7 @@
       "win": {
         "id": "s1.win",
         "headline": "Built.",
-        "line": "One instruction.",
-        "stats": []
+        "line": "One instruction."
       },
       "explain": "This step writes hello.",
       "chips": []
@@ -122,8 +121,7 @@
       "win": {
         "id": "s2.win",
         "headline": "Logged.",
-        "line": "It logs the name.",
-        "stats": []
+        "line": "It logs the name."
       },
       "explain": "This step logs the name.",
       "chips": []

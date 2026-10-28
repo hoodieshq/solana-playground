@@ -106,14 +106,14 @@
       "description": "What shows before Start.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["lead", "prints", "files"],
+      "required": ["promise", "log", "files"],
       "properties": {
-        "lead": {
-          "description": "The promise line: what the learner ends with.",
+        "promise": {
+          "description": "The promise line under \"What you'll build\": what the learner ends with.",
           "$ref": "#/definitions/text"
         },
-        "prints": {
-          "description": "The log line the finished program prints, shown as code under the lead.",
+        "log": {
+          "description": "The log line the finished program prints, shown as code under the promise.",
           "type": "string",
           "minLength": 1
         },
@@ -163,6 +163,14 @@
           "minLength": 1
         }
       }
+    },
+    "docs": {
+      "description": "The few doc pages the tutorial needs, opened as read-only tabs beside the files and linked by the assistant.",
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/definitions/doc"
+      }
     }
   },
   "definitions": {
@@ -210,6 +218,28 @@
         "type": "string"
       }
     },
+    "doc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "url", "file"],
+      "properties": {
+        "title": {
+          "description": "The tab's title.",
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "description": "The page on its own site, linked from the tab.",
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "file": {
+          "description": "The page as Markdown, a file in the tutorial's `docs/` folder: `idl.md`.",
+          "type": "string",
+          "pattern": "^[^/.][^/]*\\.md$"
+        }
+      }
+    },
     "pattern": {
       "description": "A JavaScript regular expression, matched case-insensitively.",
       "type": "string",
@@ -237,27 +267,6 @@
         "pattern": {
           "description": "The subject the chip answers when it is typed in other words.",
           "$ref": "#/definitions/pattern"
-        }
-      }
-    },
-    "match": {
-      "description": "A scripted answer to a question typed in the composer.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["pattern", "answer"],
-      "properties": {
-        "pattern": {
-          "$ref": "#/definitions/pattern"
-        },
-        "answer": {
-          "$ref": "#/definitions/text"
-        },
-        "follow": {
-          "$ref": "#/definitions/follow"
-        },
-        "local": {
-          "description": "Answers only on its own step.",
-          "type": "boolean"
         }
       }
     },
@@ -584,33 +593,10 @@
         }
       ]
     },
-    "stat": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["icon", "text"],
-      "properties": {
-        "icon": {
-          "enum": [
-            "hammer",
-            "braces",
-            "clock",
-            "rocket",
-            "coins",
-            "cpu",
-            "timer"
-          ]
-        },
-        "text": {
-          "description": "`{took}` is replaced by the step's own time.",
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "win": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "headline", "line", "stats"],
+      "required": ["id", "headline", "line"],
       "properties": {
         "id": {
           "$ref": "#/definitions/id"
@@ -624,13 +610,6 @@
         "callPanelLine": {
           "description": "The line instead of `line` when the step passed from the Call panel.",
           "$ref": "#/definitions/text"
-        },
-        "stats": {
-          "type": "array",
-          "maxItems": 3,
-          "items": {
-            "$ref": "#/definitions/stat"
-          }
         },
         "extra": {
           "const": "openTest"
@@ -689,6 +668,15 @@
           "description": "The files once the step is done. Every block a beat writes is found in them.",
           "$ref": "#/definitions/files"
         },
+        "readOnly": {
+          "description": "Files the learner cannot edit in this step, by path. Each is in the step's start or target.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/path"
+          }
+        },
         "beats": {
           "type": "array",
           "minItems": 1,
@@ -729,12 +717,6 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/chip"
-          }
-        },
-        "matches": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/match"
           }
         }
       },
