@@ -4,6 +4,10 @@ import { PgSyncClaim } from "./sync-claim";
 import { PgSession } from "@/features/auth";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { FileHashes } from "./snapshot";
+import type { Disposable } from "../../../utils/types";
+
+/** What happened to a mark, for `PgSyncMark.onDidChange` */
+export type SyncMarkChange = "written" | "dirtied" | "removed";
 
 /**
  * Whether an error just means "no such file".
@@ -158,8 +162,35 @@ export class PgSyncMark {
     return PgSyncMark._serial(projectId, async () => {
       if (await PgSyncMark._write(projectId, mark)) {
         await PgSyncClaim.drop(projectId);
+        PgSyncMark._emit(projectId, "written");
       }
     });
+  }
+
+  /**
+   * Fires after a mark of the signed-in account is written, flagged dirty or
+   * removed, with which. Read-only listeners: the project list's markers
+   * (`sync-marker.ts`) re-read on it, and must never write a mark back.
+   */
+  static onDidChange(
+    cb: (projectId: string, change: SyncMarkChange) => void
+  ): Disposable {
+    PgSyncMark._listeners.add(cb);
+    return { dispose: () => PgSyncMark._listeners.delete(cb) };
+  }
+
+  private static readonly _listeners = new Set<
+    (projectId: string, change: SyncMarkChange) => void
+  >();
+
+  private static _emit(projectId: string, change: SyncMarkChange) {
+    for (const cb of PgSyncMark._listeners) {
+      try {
+        cb(projectId, change);
+      } catch (e) {
+        report(`sync mark listener ${projectId}`, e);
+      }
+    }
   }
 
   /**
@@ -178,7 +209,9 @@ export class PgSyncMark {
     return PgSyncMark._serial(projectId, async () => {
       const mark = await PgSyncMark.read(projectId);
       if (!mark || mark.dirty) return;
-      await PgSyncMark._write(projectId, { ...mark, dirty: true });
+      if (await PgSyncMark._write(projectId, { ...mark, dirty: true })) {
+        PgSyncMark._emit(projectId, "dirtied");
+      }
     });
   }
 
@@ -258,6 +291,7 @@ export class PgSyncMark {
         if (!isMissing(e)) report(`remove sync mark ${projectId}`, e);
       }
       await PgSyncClaim.drop(projectId);
+      PgSyncMark._emit(projectId, "removed");
     });
   }
 

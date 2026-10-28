@@ -1853,3 +1853,25 @@ describe("a refusal the user has to clear", () => {
     expect(deleteWorkspace).not.toHaveBeenCalled();
   });
 });
+
+describe("PgSyncMark.onDidChange", () => {
+  beforeEach(reset);
+
+  it("says when this account's mark is written, flagged dirty and removed", async () => {
+    await signedIn();
+    const heard: string[] = [];
+    const sub = PgSyncMark.onDidChange((id, change) =>
+      heard.push(`${id}:${change}`)
+    );
+
+    await agreedOn("p1", "one", { a: "1" });
+    await PgSyncMark.markDirty("p1");
+    // Already dirty: nothing written, nothing said
+    await PgSyncMark.markDirty("p1");
+    await PgSyncMark.remove("p1");
+    sub.dispose();
+    await agreedOn("p1", "one", { a: "1" });
+
+    expect(heard).toEqual(["p1:written", "p1:dirtied", "p1:removed"]);
+  });
+});
