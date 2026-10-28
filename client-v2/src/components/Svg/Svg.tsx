@@ -14,7 +14,7 @@ const ROTATE_CLASSES = {
   "270deg": "rotate-[270deg]",
 };
 
-/** `<svg>` that works with `styled-components` and better defaults */
+/** `<svg>` with the playground's defaults: inline, sized and coloured from props */
 const Svg = forwardRef<SVGSVGElement, SvgProps>(
   ({ children, color, rotate, className, style, ...props }, ref) => (
     <svg

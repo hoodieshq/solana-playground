@@ -51,4 +51,3 @@ export const Spinner = forwardRef<HTMLDivElement, SpinnerProps>(
     />
   )
 );
-

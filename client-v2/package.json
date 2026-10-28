@@ -340,7 +340,8 @@
         "excludedFiles": [
           "src/{app,features,shared,entities,widgets}/**",
           "src/components/Wallet/**",
-          "src/providers/theme/**"
+          "src/providers/theme/**",
+          "src/types/declarations.d.ts"
         ],
         "rules": {
           "no-restricted-imports": [
