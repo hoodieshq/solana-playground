@@ -21,7 +21,8 @@ time; group 2 starts after group 1 merges, because both change
 - [ ] 2.4 One `moveItem` path for drag and Move to…: replace question on a taken name, a toast with the reason for any other refusal; verify with a test that a rejected rename toasts and leaves the tree
 - [ ] 2.5 Move to… dialog on the design system's `Command`; verify with the e2e scenario "client-v2-files: Move by keyboard"
 - [ ] 2.6 Tree roles: `tree`, `treeitem`, `group`, `aria-level`, `aria-expanded` kept in step with the `OPEN` class; verify with a test that opens a folder and reads the attributes
-- [ ] 2.7 Before/after screenshots, desktop and phone, of the foot, the menu, a refused name and Move to…
+- [ ] 2.7 `createWorkspace` is undone when a file write or the switch fails: the half-made workspace leaves the name list and storage, and the caller (New project, the phone quick start) shows the failure; intake of 29 Oct from the HOO-2391 review; verify with an `explorer.test.ts` case whose write rejects
+- [ ] 2.8 Before/after screenshots, desktop and phone, of the foot, the menu, a refused name and Move to…
 
 ## 3. Refused autosave writes (`scope/users-work`)
 
