@@ -1,12 +1,7 @@
-// The utils and hooks barrels read build-time globals jsdom lacks, and the
-// inputs need a connected program; the folds under test need none of it.
+// The utils barrel reads build-time globals jsdom lacks, and the inputs need
+// a connected program; the form under test needs none of it.
 vi.mock("../../../../../utils", () => ({
-  PgCommand: {},
   PgCommon: { debounce: (fn: () => void) => fn },
-  PgConnection: {},
-  PgSettings: {},
-  PgTerminal: {},
-  PgTx: {},
 }));
 vi.mock("../../../../../utils/program-interaction", () => ({
   PgProgramInteraction: {
@@ -18,9 +13,6 @@ vi.mock("../../../../../utils/program-interaction", () => ({
   },
 }));
 vi.mock("../../../../../hooks", () => ({ useWallet: () => ({}) }));
-vi.mock("../../../../../components/Button", () => ({
-  default: (props: { children: string }) => <button>{props.children}</button>,
-}));
 vi.mock("./InstructionInput", () => ({ default: () => null }));
 vi.mock("../IdlProvider", () => ({ useIdl: () => ({ idl: {} }) }));
 
@@ -29,20 +21,16 @@ import { expect, it, vi } from "vitest";
 
 import Instruction from "./Instruction";
 
+type Props = Parameters<typeof Instruction>[0];
+
+const IX = {
+  name: "increment",
+  args: [],
+  accounts: [],
+} as unknown as Props["idlInstruction"];
+
 it("starts with the Args and Accounts folds open", () => {
-  render(
-    <Instruction
-      idlInstruction={
-        {
-          name: "increment",
-          args: [],
-          accounts: [],
-        } as unknown as Parameters<typeof Instruction>[0]["idlInstruction"]
-      }
-    />
-  );
-  // The instruction's own fold is closed, so open it to reach the two inside.
-  fireEvent.click(screen.getByRole("button", { name: "increment" }));
+  render(<Instruction idlInstruction={IX} onCall={vi.fn()} />);
 
   expect(
     screen.getByRole("button", { name: "Args" }).getAttribute("aria-expanded")
@@ -52,4 +40,39 @@ it("starts with the Args and Accounts folds open", () => {
       .getByRole("button", { name: "Accounts" })
       .getAttribute("aria-expanded")
   ).toBe("true");
+});
+
+it("calls the instruction through onCall from a button named after it", () => {
+  const onCall = vi.fn(() => Promise.resolve());
+  render(<Instruction idlInstruction={IX} onCall={onCall} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Call increment" }));
+  expect(onCall).toHaveBeenCalledWith(
+    expect.objectContaining({ name: "increment" })
+  );
+});
+
+it("keeps Call off while the caller blocks it", () => {
+  render(<Instruction idlInstruction={IX} onCall={vi.fn()} callBlocked />);
+
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Call increment",
+      }) as HTMLButtonElement
+    ).disabled
+  ).toBe(true);
+});
+
+it("draws the fee payer slot above the actions", () => {
+  render(
+    <Instruction
+      idlInstruction={IX}
+      onCall={vi.fn()}
+      feePayer={<p>Fee paid by Playground wallet · 1 SOL</p>}
+    />
+  );
+  expect(
+    screen.getByText("Fee paid by Playground wallet · 1 SOL")
+  ).toBeTruthy();
 });
