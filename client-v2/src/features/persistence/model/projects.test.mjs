@@ -119,6 +119,51 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     });
   });
 
+  it("refuses a patch that removes every file, and changes nothing", async () => {
+    // Once a row holds no files, every other device reads it as no snapshot
+    // and can neither adopt it nor merge with it
+    const first = await put({ files });
+    const result = await put({
+      changed: {},
+      removed: Object.keys(files),
+      baseUpdatedAt: first.updatedAt,
+    });
+    assert.deepEqual(result, { refused: "no-files" });
+    const after = await getProject(userId, "p1");
+    assert.deepEqual(after.snapshot, { files });
+    assert.equal(after.updatedAt, first.updatedAt);
+  });
+
+  it("takes a patch that removes every file and adds another", async () => {
+    const first = await put({ files });
+    const result = await put({
+      changed: { "src/main.rs": "fn main() {}" },
+      removed: Object.keys(files),
+      baseUpdatedAt: first.updatedAt,
+    });
+    assert.ok(result.updatedAt);
+    assert.deepEqual((await getProject(userId, "p1")).snapshot, {
+      files: { "src/main.rs": "fn main() {}" },
+    });
+  });
+
+  it("refuses a swap that leaves a row with no files still empty", async () => {
+    // The parent row a chat turn creates holds no files; a patch adding
+    // nothing to it would bump its token over an empty project
+    await query(
+      `insert into projects (id, user_id, name, kind) values ('p1', $1, 'one', 'project')`,
+      [userId]
+    );
+    const { updatedAt } = await getProject(userId, "p1");
+    const result = await put({
+      changed: {},
+      removed: [],
+      baseUpdatedAt: updatedAt,
+    });
+    assert.deepEqual(result, { refused: "no-files" });
+    assert.equal((await getProject(userId, "p1")).updatedAt, updatedAt);
+  });
+
   it("leaves the rows a patch does not name unwritten", async () => {
     // The point of the table: an edit to one file costs one row
     const first = await put({ files });

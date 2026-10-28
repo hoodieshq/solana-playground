@@ -166,7 +166,11 @@ const UPSERT_FILES = `
     set content = excluded.content
   where project_files.content is distinct from excluded.content`;
 
-/** Read after an adoption, in a statement of its own -- see `CREATE` */
+/**
+ * Read after an adoption, in a statement of its own -- see `CREATE` -- and
+ * after a patch that adds nothing, which is the only write that can leave a
+ * row with no files
+ */
 const HAS_FILES = `
   select exists(
     select 1 from project_files where user_id = $1 and project_id = $2
@@ -174,10 +178,15 @@ const HAS_FILES = `
 
 /**
  * Thrown from inside the transaction so that it rolls back, and caught by
- * `saveProject` outside it. Returning a conflict instead would commit the
- * adoption's change to the row.
+ * `saveProject` outside it, which returns `outcome`. Returning the outcome
+ * instead would commit the swap's or the adoption's change to the row.
  */
-class AdoptionRefused extends Error {}
+class WriteRefused extends Error {
+  constructor(outcome) {
+    super("write refused");
+    this.outcome = outcome;
+  }
+}
 
 const DELETE_NAMED = `
   delete from project_files
@@ -231,17 +240,25 @@ const DELETE_OTHERS = `
  * A patch is only ever accepted together with a token, so "what it differs
  * from" is always the row the caller read.
  *
+ * A write after which the row holds no files is refused and rolled back
+ * (`refused: "no-files"`). Such a row reads back as no snapshot, so every
+ * other device can neither adopt it nor merge with it, and `CREATE` lets any
+ * device that never read it take it over: the project is lost everywhere.
+ * `api/projects.mjs` refuses an empty full write before it gets here; a patch
+ * can only be judged against the row.
+ *
  * @param {{id: string, name: string, kind: string, baseUpdatedAt?: string,
  *          files?: Record<string, string>,
  *          changed?: Record<string, string>, removed?: string[]}} input
  * @returns {Promise<{updatedAt: string} |
- *   {conflict: true, updatedAt: string | null, reason?: "deleted"}>}
+ *   {conflict: true, updatedAt: string | null, reason?: "deleted"} |
+ *   {refused: "no-files"}>}
  */
 export const saveProject = async (userId, input) => {
   try {
     return await transaction((q) => writeProject(q, userId, input));
   } catch (e) {
-    if (e instanceof AdoptionRefused) return e.outcome;
+    if (e instanceof WriteRefused) return e.outcome;
     throw e;
   }
 };
@@ -276,9 +293,7 @@ export const writeProject = async (q, userId, input) => {
       // The other writer's `updated_at` is gone -- this transaction just
       // overwrote it -- so the token is null, which only makes the client
       // read the project again.
-      const refused = new AdoptionRefused();
-      refused.outcome = { conflict: true, updatedAt: null };
-      throw refused;
+      throw new WriteRefused({ conflict: true, updatedAt: null });
     }
   }
 
@@ -293,6 +308,11 @@ export const writeProject = async (q, userId, input) => {
     if (removed?.length) await q(DELETE_NAMED, [userId, id, removed]);
     if (changed && Object.keys(changed).length) {
       await q(UPSERT_FILES, [userId, id, JSON.stringify(changed)]);
+    } else {
+      // Nothing added, so the row may now be empty. A full write needs no
+      // check: `api/projects.mjs` refuses an empty `files`.
+      const { rows: left } = await q(HAS_FILES, [userId, id]);
+      if (!left[0].has_files) throw new WriteRefused({ refused: "no-files" });
     }
   }
   return outcome;
