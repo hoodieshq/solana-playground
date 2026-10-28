@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useState } from "react";
+import { FC, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -25,6 +25,8 @@ vi.mock("../../utils", () => ({
       publicKey: { toBase58: () => "address" },
     },
     standardWallets: [],
+    accounts: [] as { name: string }[],
+    currentIndex: -1,
     import: vi.fn(),
     export: vi.fn(),
   },
@@ -87,7 +89,23 @@ afterEach(() => {
   told.length = 0;
   airdropHook.airdropCondition = false;
   PgWallet.standardWallets.length = 0;
+  PgWallet.accounts.length = 0;
 });
+
+/** What `PgWallet.add` does to the accounts: append and select, or select */
+const importsAs = (name: string) =>
+  vi.mocked(PgWallet.import).mockImplementationOnce(async () => {
+    const at = PgWallet.accounts.findIndex((account) => account.name === name);
+    if (at === -1) PgWallet.accounts.push({ name } as never);
+    PgWallet.currentIndex = at === -1 ? PgWallet.accounts.length - 1 : at;
+    return {} as never;
+  });
+
+/** The text of the toast `PgView.setToast` was given */
+const toastText = (call: number) => {
+  const Toast = vi.mocked(PgView.setToast).mock.calls[call][0] as FC;
+  return render(<Toast />).container.textContent;
+};
 
 /** What `Wallet.tsx` does: the rename input appears once `showRename` ran */
 const Host = () => {
@@ -211,7 +229,36 @@ describe("wallet Settings menu", () => {
     expect(told).toEqual([]);
   });
 
-  it("says nothing when Import imports or the picker is closed", async () => {
+  it("says which wallet Import added", async () => {
+    PgWallet.accounts.push({ name: "Wallet 1" } as never);
+    importsAs("Wallet 2");
+    render(<Host />);
+    await openMenu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Import/ }));
+
+    await waitFor(() => expect(PgView.setToast).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(PgView.setToast).mock.calls[0][1]).toEqual({
+      options: { name: "wallet-imported" },
+    });
+    expect(toastText(0)).toBe("Imported Wallet 2.");
+  });
+
+  it("says Import switched to a wallet that was already there", async () => {
+    PgWallet.accounts.push({ name: "Wallet 1" } as never);
+    importsAs("Wallet 1");
+    render(<Host />);
+    await openMenu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Import/ }));
+
+    await waitFor(() => expect(PgView.setToast).toHaveBeenCalledTimes(1));
+    expect(toastText(0)).toBe(
+      "Wallet 1 already holds that keypair, so it is now the current wallet."
+    );
+  });
+
+  it("says nothing when the picker is closed", async () => {
     vi.mocked(PgWallet.import).mockResolvedValueOnce(undefined);
     render(<Host />);
     await openMenu();

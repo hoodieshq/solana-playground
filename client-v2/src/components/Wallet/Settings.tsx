@@ -48,19 +48,36 @@ const openModal = async (action: string, load: () => Promise<unknown>) => {
   }
 };
 
-// A file that is not a keypair is the user's to fix, so the toast says why;
-// anything else is a failed click. A closed picker never gets here:
-// `PgWallet.import` resolves with nothing.
-const importWallet = () =>
-  PgWallet.import().catch((err: unknown) => {
+// The toast says what the import did: `PgWallet.add` switches to an account
+// that already holds the keypair instead of adding it, which would otherwise
+// look like nothing happened. A file that is not a keypair is the user's to
+// fix, so the toast says why; anything else is a failed click. A closed picker
+// resolves with nothing and says nothing.
+const importWallet = async () => {
+  const count = PgWallet.accounts.length;
+  try {
+    if (!(await PgWallet.import())) return;
+  } catch (err) {
     if (err instanceof KeypairFileError) {
-      PgView.setToast(() => <span>{err.message}</span>, {
+      const { message } = err;
+      PgView.setToast(() => <span>{message}</span>, {
         options: { name: "wallet-import-not-keypair" },
       });
       return;
     }
     reportButtonFailure("import the wallet")(err);
+    return;
+  }
+
+  const { name } = PgWallet.accounts[PgWallet.currentIndex];
+  const text =
+    PgWallet.accounts.length > count
+      ? `Imported ${name}.`
+      : `${name} already holds that keypair, so it is now the current wallet.`;
+  PgView.setToast(() => <span>{text}</span>, {
+    options: { name: "wallet-imported" },
   });
+};
 
 interface SettingsProps {
   showRename: Fn;
