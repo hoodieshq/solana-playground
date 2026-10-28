@@ -11,7 +11,7 @@ where stated; 1.1 and 1.2 may run at the same time.
   key field empty. Verify: in-source tests for `threadBackend` (an unknown
   provider reads as absent) and `Connect.test.tsx` cases for a preset base URL
   and effort.
-- [ ] 1.2 `rememberBackend` writes `paramsOf(connection)` as JSON;
+- [x] 1.2 `rememberBackend` writes `paramsOf(connection)` as JSON;
   `rememberedChoice()` reads it and the old bare id;
   `isDefaultBackendRemembered` reads both. Verify: in-source tests in
   `remembered-backend.ts`, including that `localStorage` never contains the

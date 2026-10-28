@@ -1,6 +1,8 @@
 import { createLogger } from "@/shared/lib/logger";
 import type { ModelProvider } from "@/shared/lib/ai";
 import type { Connection } from "../store";
+import { paramsOf } from "./backend-params";
+import type { BackendParams } from "./backend-params";
 import { REMEMBERED_BACKEND_KEY } from "./remembered-backend-key";
 import { PROVIDERS } from "./types";
 
@@ -9,8 +11,10 @@ export { REMEMBERED_BACKEND_KEY } from "./remembered-backend-key";
 /**
  * Which backend to reconnect to on the next load.
  *
- * Two answers in two stores. The keyless default backend is remembered by id
- * in `localStorage`, across tabs and restarts: nothing secret is written.
+ * Two answers in two stores. The backend last chosen is remembered by its
+ * parameters (provider, model, base URL, effort) in `localStorage`, across
+ * tabs and restarts: nothing secret is written. It reconnects the keyless
+ * default, and presets Connect a model for a key-based one (HOO-1719).
  * A backend that needs the user's own key is remembered whole, key included,
  * in `sessionStorage`, which is kept per tab: a new tab starts without it,
  * while a tab the browser duplicates or restores (a reopened closed tab, a
@@ -207,10 +211,14 @@ const dropKept = (what: string) => {
  * in any tab of this browser, a key-based backend only in this tab.
  */
 export const rememberBackend = (connection: Connection) => {
-  // Written down as a whole id rather than a flag, so switching to a
-  // key-based backend overwrites it instead of leaving a stale `true` behind
+  // Written down as the whole choice rather than a flag, so switching to a
+  // key-based backend overwrites it instead of leaving a stale `true` behind.
+  // `paramsOf` leaves the key out by construction
   attempt("remember the backend", () =>
-    localStorage.setItem(REMEMBERED_BACKEND_KEY, connection.id)
+    localStorage.setItem(
+      REMEMBERED_BACKEND_KEY,
+      JSON.stringify(paramsOf(connection))
+    )
   );
 
   if (connection.id === DEFAULT_ID) {
@@ -242,13 +250,51 @@ export const forgetBackend = () => {
   return dropKept("forget the key");
 };
 
+/**
+ * A stored choice, rebuilt field by field so nothing unknown rides along.
+ * Before HOO-1719 the choice was the bare provider id, which is not JSON; it
+ * reads as that provider with nothing else.
+ */
+const choiceFrom = (raw: string): BackendParams | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Not JSON: the bare id written before the choice carried its parameters
+    parsed = { provider: raw };
+  }
+  if (!isRecord(parsed)) return null;
+  // Named, so the closures below keep the narrowing
+  const stored = parsed;
+
+  const provider = PROVIDERS.find((p) => p.id === stored.provider);
+  if (!provider) return null;
+  const choice: BackendParams = { provider: provider.id };
+  if (typeof parsed.model === "string") choice.model = parsed.model;
+  if (typeof parsed.baseUrl === "string") choice.baseUrl = parsed.baseUrl;
+  const effort = provider.modelSettings?.efforts.find(
+    (e) => e === stored.effort
+  );
+  if (effort) choice.effort = effort;
+  return choice;
+};
+
+/**
+ * The backend this browser last chose, without its key: what a send with
+ * nothing connected offers when the thread names no backend of its own
+ */
+export const rememberedChoice = (): BackendParams | null => {
+  const raw = guarded(
+    "read the remembered backend",
+    () => localStorage.getItem(REMEMBERED_BACKEND_KEY),
+    null
+  );
+  return raw === null ? null : choiceFrom(raw);
+};
+
 /** Whether this browser should reconnect to the default backend by itself */
 export const isDefaultBackendRemembered = () =>
-  guarded(
-    "read the remembered backend",
-    () => localStorage.getItem(REMEMBERED_BACKEND_KEY) === DEFAULT_ID,
-    false
-  );
+  rememberedChoice()?.provider === DEFAULT_ID;
 
 /** The key-based connection this tab was using before a reload, if any */
 export const rememberedConnection = (): Connection | null => {
@@ -318,6 +364,51 @@ if (import.meta.vitest) {
         expect(rememberedConnection()).toBeNull();
       });
 
+      it("remembers the chosen backend's parameters without the key", () => {
+        rememberBackend(openai);
+        expect(rememberedChoice()).toEqual({
+          provider: "openai",
+          model: "gpt-x",
+          baseUrl: "https://api.example.test/v1",
+        });
+        rememberBackend(anthropic);
+        expect(rememberedChoice()).toEqual({
+          provider: "anthropic",
+          model: "claude-opus-5",
+          effort: "high",
+        });
+        expect(JSON.stringify(storedValues(localStorage))).not.toContain(KEY);
+      });
+
+      it("reads a choice written as a bare provider id", () => {
+        localStorage.setItem(REMEMBERED_BACKEND_KEY, "openai");
+        expect(rememberedChoice()).toEqual({ provider: "openai" });
+        localStorage.setItem(REMEMBERED_BACKEND_KEY, "default");
+        expect(isDefaultBackendRemembered()).toBe(true);
+      });
+
+      it.each([
+        ["an unknown provider", JSON.stringify({ provider: "nope" })],
+        ["an unknown bare id", "nope"],
+        ["no provider", JSON.stringify({ model: "m" })],
+        ["JSON null", "null"],
+      ])("reads %s as no choice", (_, raw) => {
+        localStorage.setItem(REMEMBERED_BACKEND_KEY, raw);
+        expect(rememberedChoice()).toBeNull();
+        expect(isDefaultBackendRemembered()).toBe(false);
+      });
+
+      it("leaves out an effort the provider does not offer", () => {
+        localStorage.setItem(
+          REMEMBERED_BACKEND_KEY,
+          JSON.stringify({ provider: "anthropic", model: "m", effort: "turbo" })
+        );
+        expect(rememberedChoice()).toEqual({
+          provider: "anthropic",
+          model: "m",
+        });
+      });
+
       it("keeps a key-based connection for this tab", () => {
         rememberBackend(openai);
         expect(rememberedConnection()).toEqual(openai);
@@ -346,6 +437,7 @@ if (import.meta.vitest) {
         rememberBackend(openai);
         expect(forgetBackend()).toBe(true);
         expect(isDefaultBackendRemembered()).toBe(false);
+        expect(rememberedChoice()).toBeNull();
         expect(rememberedConnection()).toBeNull();
         expect(sessionStorage.length).toBe(0);
       });
