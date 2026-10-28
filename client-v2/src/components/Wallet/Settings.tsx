@@ -26,6 +26,7 @@ import {
   reportButtonFailure,
 } from "@/shared/lib/report-button-failure";
 import { Fn, PgCommand, PgView, PgWallet } from "../../utils";
+import { KeypairFileError } from "../../utils/wallet/keypair-file";
 import { useAirdrop, useDarken } from "./hooks";
 import { isSignInFailure } from "../../features/auth";
 import { useCopy } from "../../hooks";
@@ -46,6 +47,19 @@ const openModal = async (action: string, load: () => Promise<unknown>) => {
     );
   }
 };
+
+// A file that is not a keypair is the user's to fix, so the toast says why;
+// anything else is a failed click.
+const importWallet = () =>
+  PgWallet.import().catch((err: unknown) => {
+    if (err instanceof KeypairFileError) {
+      PgView.setToast(() => <span>{err.message}</span>, {
+        options: { name: "wallet-import-not-keypair" },
+      });
+      return;
+    }
+    reportButtonFailure("import the wallet")(err);
+  });
 
 interface SettingsProps {
   showRename: Fn;
@@ -150,7 +164,7 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
               <MenuItemText>Remove</MenuItemText>
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onSelect={() => PgWallet.import()}>
+          <DropdownMenuItem onSelect={importWallet}>
             <ImportFile />
             <MenuItemText>Import</MenuItemText>
           </DropdownMenuItem>

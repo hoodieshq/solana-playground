@@ -10,6 +10,9 @@ import type {
   Accessor,
 } from "./types";
 
+/** What `PgCommon.import` rejects with when the user closes the file picker */
+const IMPORT_CANCELLED = "User cancelled the request";
+
 export class PgCommon {
   /**
    * @param ms amount of time to sleep in ms
@@ -1133,6 +1136,20 @@ export class PgCommon {
   }
 
   /**
+   * Whether a rejection of `PgCommon.import` is the user closing the picker.
+   *
+   * @param err what `PgCommon.import` rejected with
+   * @returns whether nothing was chosen
+   */
+  static isImportCancelled(err: unknown) {
+    return (
+      typeof err === "object" &&
+      err !== null &&
+      (err as { message?: unknown }).message === IMPORT_CANCELLED
+    );
+  }
+
+  /**
    * Import file(s) from the user's file system
    *
    * @param onChange callback function to run when file input has changed
@@ -1169,7 +1186,7 @@ export class PgCommon {
       };
 
       el.oncancel = () => {
-        rej({ message: "User cancelled the request" });
+        rej({ message: IMPORT_CANCELLED });
       };
 
       el.click();

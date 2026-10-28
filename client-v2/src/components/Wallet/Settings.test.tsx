@@ -8,6 +8,7 @@ import {
   resetLogger,
 } from "@/shared/lib/logger";
 import { PgCommand, PgView, PgWallet } from "../../utils";
+import { KeypairFileError } from "../../utils/wallet/keypair-file";
 import Settings from "./Settings";
 
 // The utils barrel needs build-time globals the unit runner does not define.
@@ -195,6 +196,36 @@ describe("wallet Settings menu", () => {
       );
     }
   );
+
+  it("says so when the imported file is not a keypair", async () => {
+    vi.mocked(PgWallet.import).mockRejectedValueOnce(new KeypairFileError());
+    render(<Host />);
+    await openMenu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Import/ }));
+
+    await waitFor(() => expect(PgView.setToast).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(PgView.setToast).mock.calls[0][1]).toEqual({
+      options: { name: "wallet-import-not-keypair" },
+    });
+    expect(told).toEqual([]);
+  });
+
+  it("tells the user when Import fails for another reason", async () => {
+    const failure = new Error("could not read the file");
+    vi.mocked(PgWallet.import).mockRejectedValueOnce(failure);
+    render(<Host />);
+    await openMenu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Import/ }));
+
+    await waitFor(() =>
+      expect(told).toEqual([
+        { action: "import the wallet", error: failure, shown: false },
+      ])
+    );
+    expect(PgView.setToast).not.toHaveBeenCalled();
+  });
 
   // `PgSession.signInState` holds a known failure and the account row shows
   // it: logged as a failed click, never toasted a second time

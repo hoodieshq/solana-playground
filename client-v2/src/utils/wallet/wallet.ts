@@ -9,6 +9,7 @@ import {
   updatable,
 } from "../decorators";
 import { PgWeb3 } from "../web3";
+import { parseKeypairFile } from "./keypair-file";
 import type {
   AnyTransaction,
   WalletState,
@@ -282,30 +283,28 @@ class _PgWallet {
    * Import a keypair from the user's file system.
    *
    * @param name name of the account
-   * @returns the imported keypair if importing was successful
+   * @returns the imported keypair, or `undefined` when no file was chosen
+   * @throws `KeypairFileError` when the file is not a keypair
    */
   static async import(name?: string) {
-    return await PgCommon.import(
-      async (ev) => {
-        const files = ev.target.files;
-        if (!files?.length) return;
+    try {
+      return await PgCommon.import(
+        async (ev) => {
+          const files = ev.target.files;
+          if (!files?.length) return;
 
-        try {
-          const file = files[0];
-          const text = await file.text();
-          const bytes = Uint8Array.from(JSON.parse(text));
-          if (bytes.length !== 64) throw new Error("Invalid keypair");
-
-          const keypair = PgWeb3.Keypair.fromSecretKey(bytes);
+          const keypair = parseKeypairFile(await files[0].text());
           PgWallet.add({ name, keypair });
 
           return keypair;
-        } catch (err: any) {
-          console.log(err.message);
-        }
-      },
-      { accept: ".json" }
-    );
+        },
+        { accept: ".json" }
+      );
+    } catch (err) {
+      // Closing the picker imports nothing; it is not a failure
+      if (PgCommon.isImportCancelled(err)) return;
+      throw err;
+    }
   }
 
   /**
