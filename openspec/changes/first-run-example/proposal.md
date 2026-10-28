@@ -11,7 +11,7 @@ Home treats every visitor the same: "Where should we begin?" and three tiles, an
 - Desktop Home on a return visit (any project in the browser) shows "Pick up where you left off" above the tiles, up to three projects and started tutorials, the open one first, then the latest added.
 - Phone Home on a first visit puts the example first among its quick starts; a return visit keeps "Continue {project}" first.
 - The Build stage, while a first build runs, shows the seconds so far, and after 60 s the line "First builds take longer. This one is running."
-- Telemetry, `home` slice: adds `home_example_run` and `home_recent_opened`; `home_quickstart_opened` gains the id `example`. No event is renamed or removed.
+- Telemetry, `home` slice: adds `home_example_run` (`outcome`: created, opened, current) and `home_recent_opened`; `home_quickstart_opened` gains the id `example`. No event is renamed or removed.
 
 ## Capabilities
 

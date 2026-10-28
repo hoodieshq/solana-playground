@@ -13,7 +13,7 @@ Desktop Home SHALL show a section labelled "Try an example" above its three tile
 - **WHEN** Home opens in a browser with no project
 - **THEN** a region named "Try an example" with a "Run it" button shows above the "New project" tile
 
-#### Scenario: Signed in with nothing synced yet
+#### Scenario: Signed in with nothing synced yet (manual)
 - **WHEN** Home opens with no project while a session is open
 - **THEN** no "Try an example" region shows
 
@@ -28,18 +28,18 @@ Desktop Home SHALL show a section labelled "Try an example" above its three tile
 - **WHEN** "Run it" is pressed with no `anchor-example` project
 - **THEN** the project `anchor-example` is created and opened, and one build starts
 
-#### Scenario: The example exists
+#### Scenario: The example exists (manual)
 - **WHEN** "Run it" is pressed while `anchor-example` exists
 - **THEN** that project opens, no second copy is made and no build starts
 
 ### Requirement: Home lists recent work on a return visit
 Desktop Home SHALL show a section labelled "Pick up where you left off" above its tiles when the browser holds a project, listing at most three: the open project first, then the rest latest added to this browser first. A press SHALL open the entry; a started tutorial opens at its page, and the open project returns to the work under Home.
 
-#### Scenario: Three of five
+#### Scenario: Three of five (manual)
 - **WHEN** Home opens with five projects, `b` open
 - **THEN** "Pick up where you left off" lists three entries, `b` first
 
-#### Scenario: Opening an entry
+#### Scenario: Opening an entry (manual)
 - **WHEN** an entry other than the open project is pressed
 - **THEN** that project or tutorial opens
 
@@ -57,17 +57,21 @@ While a build runs on the Build stage's "Nothing built yet" surface, the surface
 - **WHEN** the first build has run for 61 seconds
 - **THEN** the Build stage shows "61 s" and "First builds take longer. This one is running."
 
-#### Scenario: Under a minute
+#### Scenario: Under a minute (manual)
 - **WHEN** the first build has run for 12 seconds
 - **THEN** the Build stage shows "12 s" and not the slow-build line
 
 ### Requirement: Home counts the first run and recent work
-The `home` slice SHALL emit `home_example_run` with `outcome` `created` or `opened` when "Run it" or the phone's example quick start succeeds, and `home_recent_opened` with `kind` `project`, `tutorial` or `current` when a "Pick up where you left off" entry opens. `home_quickstart_opened` SHALL accept the id `example`.
+The `home` slice SHALL emit `home_example_run` with `outcome` `created`, `opened` or `current` (the example was already open) when "Run it" or the phone's example quick start succeeds, and `home_recent_opened` with `kind` `project`, `tutorial` or `current` when a "Pick up where you left off" entry opens. `home_quickstart_opened` SHALL accept the id `example`.
 
-#### Scenario: Example created
+#### Scenario: Example created (manual)
 - **WHEN** "Run it" creates the example
 - **THEN** `home_example_run` is tracked once with `outcome: "created"`
 
-#### Scenario: Recent tutorial
+#### Scenario: Example current (manual)
+- **WHEN** "Run it" is pressed while the example is already the open project
+- **THEN** the work under Home shows again and `home_example_run` is tracked with `outcome: "current"`
+
+#### Scenario: Recent tutorial (manual)
 - **WHEN** a started tutorial is opened from "Pick up where you left off"
 - **THEN** `home_recent_opened` is tracked with `kind: "tutorial"`

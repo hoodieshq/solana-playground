@@ -14,7 +14,7 @@
 
 - Copy, verbatim: "Try an example", "This program saves a number in an account and writes it to the logs.", "Run it", "Pick up where you left off", "First builds take longer. This one is running."
 - Example project name: `anchor-example`. Slow-build threshold: `SLOW_BUILD_MS = 60_000`. Recent list: at most 3.
-- Events: `home_example_run { outcome: "created" | "opened" }`, `home_recent_opened { kind: "project" | "tutorial" | "current" }`, `HomeQuickstart` gains `"example"`; each with a doc comment.
+- Events: `home_example_run { outcome: "created" | "opened" | "current" }`, `home_recent_opened { kind: "project" | "tutorial" | "current" }`, `HomeQuickstart` gains `"example"`; each with a doc comment.
 - Every `AsyncButton` passes `onError={reportButtonFailure(...)}`; no empty `catch`; no nested ternaries.
 - Commits: Conventional (`feat(client-v2): ...`), no attribution lines.
 
@@ -31,14 +31,14 @@
 ### Task 1: Example and recent model
 
 **Files:**
-- Create: `client-v2/src/widgets/home/model/first-run.ts` (in-source tests)
+- Create: `client-v2/src/widgets/home/model/recent.ts` (pure, in-source tests) and `model/example.ts` (the action; it imports `@/utils`, which an in-source block cannot load)
 - Modify: `client-v2/src/widgets/home/model/telemetry.ts`
 
 **Interfaces:**
-- Produces: `EXAMPLE_NAME = "anchor-example"`; `recentProjects(names: readonly string[], current: string | undefined, isLesson: (n: string) => boolean): RecentEntry[]` with `RecentEntry = { name: string; kind: "project" | "tutorial"; current: boolean }`; `runExample(deps?): Promise<"created" | "opened" | "current">` that finds `EXAMPLE_NAME` (current → `"current"`, else switch → `"opened"`) or creates it from Anchor's `getDefaultFiles` and calls `PgCommand.build.execute()` once (`"created"`); a build that throws is logged with `report: true`, not rethrown.
+- Produces: `recentProjects(names: readonly string[], current: string | undefined, isLesson: (n: string) => boolean): RecentEntry[]` with `RecentEntry = { name: string; kind: "project" | "tutorial"; current: boolean }`; `runExample(): Promise<"created" | "opened" | "current">` that finds `anchor-example` (current → `"current"`, else switch → `"opened"`) or creates it from Anchor's `getDefaultFiles` and starts one build, not awaited (`"created"`); a skipped or failed build is logged unreported, not rethrown.
 
-- [ ] Step 1: in-source tests for `recentProjects`: `["a","b","c","d","e"]` with current `"b"` → `["b","e","d"]`; current undefined → `["e","d","c"]`; lesson names get `kind: "tutorial"`.
-- [ ] Step 2: run `yarn test-unit src/widgets/home/model/first-run.ts`, expect fail; implement; expect pass.
+- [ ] Step 1: in-source tests for `recentProjects` in `recent.ts`: `["a","b","c","d","e"]` with current `"b"` → `["b","e","d"]`; current undefined → `["e","d","c"]`; lesson names get `kind: "tutorial"`.
+- [ ] Step 2: run `yarn test-unit src/widgets/home/model/recent.ts`, expect fail; implement; expect pass.
 - [ ] Step 3: `runExample` tested in `ui/Home.test.tsx` (it mocks `@/utils`), Task 2.
 - [ ] Step 4: add the events and `"example"` to `telemetry.ts`.
 
@@ -61,8 +61,8 @@
 
 ### Task 4: Slow first-build line
 
-**Files:** Modify `views/flow/stages/BaseBuild.tsx` (prop `elapsedMs: number | null`), `views/flow/stages/Build.tsx` (tick hook); test `BaseBuild.test.tsx`.
+**Files:** Modify `views/flow/stages/BaseBuild.tsx` (prop `elapsedMs: number | null`), `views/flow/stages/Build.tsx`; create `shared/lib/hooks/use-elapsed.ts`; tests `BaseBuild.test.tsx`, `use-elapsed.test.ts`.
 
 - [ ] Step 1: tests: building with `elapsedMs: 12_000` → "12 s", not the slow line; `61_000` → "61 s" and "First builds take longer. This one is running."
-- [ ] Step 2: implement: `Build` keeps `now` in state, ticks every 1 s only while `flow.build === "running"`, passes `now - buildStartedAt`.
+- [ ] Step 2: implement `useElapsed(startedAt)` in `shared/lib/hooks/use-elapsed.ts` (test file with fake timers); `Build` passes `buildStartedAt` while `flow.build === "running"`.
 - [ ] Step 3: `yarn run check` scope: `yarn test-types`, `yarn lint`, `yarn check-format`, the touched test files; commit.

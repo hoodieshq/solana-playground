@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
+import { useElapsed } from "@/shared/lib/hooks/use-elapsed";
+
 import BaseBuild from "./BaseBuild";
-import { useElapsed } from "./use-elapsed";
 import IdlActions from "./IdlActions";
 import { buildSurface, ownOutput } from "./build-surface";
 import { failedView } from "./build-view";
@@ -41,7 +42,9 @@ const Build = () => {
     };
   }, []);
 
-  const elapsedMs = useElapsed(flow);
+  const elapsedMs = useElapsed(
+    flow.build === "running" ? flow.buildStartedAt : null
+  );
   const own = ownOutput(out, PgExplorer.currentWorkspaceName ?? null);
   const surface = buildSurface({ flow, own });
 

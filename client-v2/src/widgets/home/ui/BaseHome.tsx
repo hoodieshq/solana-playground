@@ -130,37 +130,39 @@ const Recent = ({
     <p id="home-recent" className="text-caption text-muted-foreground">
       Pick up where you left off
     </p>
-    <div className="flex flex-col gap-2">
+    <ul aria-labelledby="home-recent" className="flex flex-col gap-2">
       {entries.map((entry) => (
-        <ActionCard key={entry.name}>
-          <ActionCardContent>
-            <ActionCardEyebrow>
-              {entry.current ? "Open now" : RECENT_KIND[entry.kind]}
-            </ActionCardEyebrow>
-            <ActionCardTitle>
-              {/* The whole row is the one target */}
-              <ActionCardLink asChild>
-                <button
-                  type="button"
-                  aria-label={`Open ${entry.name}`}
-                  onClick={() => {
-                    Promise.resolve()
-                      .then(() => onOpen(entry))
-                      .catch(reportButtonFailure(`open ${entry.name}`));
-                  }}
-                >
-                  {entry.name}
-                </button>
-              </ActionCardLink>
-            </ActionCardTitle>
-          </ActionCardContent>
-          <ChevronRight
-            aria-hidden="true"
-            className="shrink-0 self-center text-muted-foreground"
-          />
-        </ActionCard>
+        <li key={entry.name}>
+          <ActionCard>
+            <ActionCardContent>
+              <ActionCardEyebrow>
+                {entry.current ? "Open now" : RECENT_KIND[entry.kind]}
+              </ActionCardEyebrow>
+              <ActionCardTitle>
+                {/* The whole row is the one target */}
+                <ActionCardLink asChild>
+                  <button
+                    type="button"
+                    aria-label={`Open ${entry.name}`}
+                    onClick={() => {
+                      Promise.resolve()
+                        .then(() => onOpen(entry))
+                        .catch(reportButtonFailure(`open ${entry.name}`));
+                    }}
+                  >
+                    {entry.name}
+                  </button>
+                </ActionCardLink>
+              </ActionCardTitle>
+            </ActionCardContent>
+            <ChevronRight
+              aria-hidden="true"
+              className="shrink-0 self-center text-muted-foreground"
+            />
+          </ActionCard>
+        </li>
       ))}
-    </div>
+    </ul>
   </section>
 );
 
