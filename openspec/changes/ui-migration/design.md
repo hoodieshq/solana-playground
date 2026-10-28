@@ -1422,9 +1422,10 @@ Decided with Slava on 2026-10-16 (HOO-2070), from the prototype's sidebar
   its state above the frame and gives the menu its actions; a send in flight
   shows on the account row and on the rail's "Account". The requirement is
   revised in `feedback-widget`'s delta, which is not yet archived.
-- **The cluster that is down** turns the dot red, adds ", down" to the names,
-  and puts a warning first in the menu that opens the settings on the
-  cluster.
+- **The cluster that is down** turns the dot red, adds ", not answering" to
+  the names and " · not answering" to the cluster row (Spec 08's NET-02 chip,
+  which replaced the "Switch to localnet?" toast), and puts a warning first
+  in the menu that opens the settings on the cluster.
 - **⌘, toggles the settings** (Ctrl+, off macOS) from anywhere, through the
   same `toggleSettings` the rows use.
 - **A widget, `widgets/session-footer`**: `BaseSessionFooter` and
