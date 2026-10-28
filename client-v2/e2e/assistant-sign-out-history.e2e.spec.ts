@@ -9,6 +9,7 @@ import {
   test,
   TEST_USER,
 } from "./fixtures";
+import { lineOf, linesOn } from "./telemetry";
 
 /**
  * What a signed-out person is told about where the conversation is kept
@@ -90,4 +91,51 @@ test("assistant-sign-out-history: Signed in, or nothing to keep", async ({
   ).toBeVisible(LONG);
 
   await expect(page.getByText(SIGN_IN_TO_KEEP)).toHaveCount(0);
+});
+
+test("assistant-sign-out-history: Pressing the line's button", async ({
+  page,
+}) => {
+  const lines = linesOn(page);
+  await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
+  await stubSession(page, null);
+  await stubProvider(page);
+  // Refused, so no popup opens: what is under test is that the press is
+  // reported and starts a sign-in
+  let started = 0;
+  await page.route("**/api/auth/sign-in/social", (route) => {
+    started++;
+    return route.fulfill({ status: 500, body: "" });
+  });
+  await seedWorkspace(page, "sign-in-pressed");
+  await talk(page);
+
+  await page
+    .getByRole("log", { name: "Conversation" })
+    .getByRole("button", { name: "Sign in with GitHub" })
+    .click();
+
+  await expect
+    .poll(() => lineOf(lines, "assistant_sign_in_offered_clicked"))
+    .toBeTruthy();
+  await expect.poll(() => started).toBe(1);
+});
+
+test("assistant-sign-out-history: The sign-out dialog", async ({
+  page,
+  context,
+}) => {
+  await stubSignedIn(context);
+  await seedWorkspace(page, "sign-out-dialog");
+  await page
+    .getByRole("button", { name: `Account: ${TEST_USER.login}` })
+    .first()
+    .click(LONG);
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Sign out of Playground?" });
+  await expect(dialog).toContainText(
+    "Projects saved to your account leave this browser. Anything not saved stays here."
+  );
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
 });

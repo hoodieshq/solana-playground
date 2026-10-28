@@ -30,7 +30,12 @@ type Session = "unread" | { signedOut: boolean; pending: boolean };
  * nothing anywhere, and the line would say it does. Sync is asked once per
  * mount; a probe with no answer hides the line until the panel mounts again.
  */
-export const useSignInOffer = (hasItems: boolean): SignInOffer | null => {
+export const useSignInOffer = ({
+  hasItems,
+}: {
+  /** The open thread holds anything: an empty one has nothing to keep */
+  hasItems: boolean;
+}): SignInOffer | null => {
   const [session, setSession] = useState<Session>("unread");
   const [syncs, setSyncs] = useState(false);
 

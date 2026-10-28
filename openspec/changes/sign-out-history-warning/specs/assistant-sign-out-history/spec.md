@@ -44,7 +44,7 @@ holds messages.
 - **WHEN** the person is signed in, the thread is empty, or the deployment does not sync
 - **THEN** the line is not shown
 
-#### Scenario: The session ends with a conversation open
+#### Scenario: The session ends with a conversation open (manual)
 
 - **WHEN** the session ends while a thread with messages is open (an expiry, or a sign-out in another tab)
 - **THEN** the open thread ends in "Sign in to keep this conversation on your other devices." without a reload

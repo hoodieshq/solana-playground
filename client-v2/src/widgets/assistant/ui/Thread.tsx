@@ -65,7 +65,7 @@ export const Thread = ({
 
   const items = PgAssistant.items;
   const status = PgAssistant.status;
-  const signIn = useSignInOffer(items.length > 0);
+  const signIn = useSignInOffer({ hasItems: items.length > 0 });
   const { busy } = turn;
   const lesson = describeLesson(lessonState);
 
