@@ -39,6 +39,7 @@ const lines = (n: number, delay: number, tag: string): Turn => async (res) => {
     res.write(text(`${tag} line ${i} of ${n}.\n\n`));
     if (delay) await sleep(delay);
   }
+  res.write(sse({ choices: [{ delta: {}, finish_reason: "stop" }] }));
   res.write("data: [DONE]\n\n");
   res.end();
 };
