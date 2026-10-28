@@ -1179,10 +1179,15 @@ export class PgCommon {
         el[key] = dirProps[key];
       }
 
+      // A handler that throws rejects the import; otherwise the caller would
+      // wait forever and the error would surface only as unhandled
       el.onchange = async (ev) => {
-        // @ts-ignore
-        const result = await onChange(ev);
-        res(result);
+        try {
+          // @ts-ignore
+          res(await onChange(ev));
+        } catch (err) {
+          rej(err);
+        }
       };
 
       el.oncancel = () => {
@@ -1373,6 +1378,51 @@ if (import.meta.vitest) {
     beforeEach(() => {
       mockFetch.mockReset();
       vi.spyOn(globalThis, "fetch").mockImplementation(mockFetch);
+    });
+
+    describe("import", () => {
+      /** Opens the picker and hands back the input it clicked */
+      const pick = <T>(
+        onChange: (ev: Event & { target: HTMLInputElement }) => Promise<T>
+      ) => {
+        let input: HTMLInputElement | undefined;
+        vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(
+          function (this: HTMLInputElement) {
+            input = this;
+          }
+        );
+        const result = PgCommon.import(onChange);
+        return { result, input: () => input! };
+      };
+
+      it("rejects with what the change handler threw", async () => {
+        const failure = new Error("not a keypair");
+        const { result, input } = pick(async () => {
+          throw failure;
+        });
+
+        input().dispatchEvent(new Event("change"));
+
+        await expect(result).rejects.toBe(failure);
+      });
+
+      it("resolves with what the change handler returned", async () => {
+        const { result, input } = pick(async () => "file");
+
+        input().dispatchEvent(new Event("change"));
+
+        await expect(result).resolves.toBe("file");
+      });
+
+      it("rejects a closed picker as cancelled", async () => {
+        const { result, input } = pick(async () => "file");
+
+        input().dispatchEvent(new Event("cancel"));
+
+        const err = await result.catch((e: unknown) => e);
+        expect(PgCommon.isImportCancelled(err)).toBe(true);
+        expect(PgCommon.isImportCancelled(new Error("other"))).toBe(false);
+      });
     });
 
     describe("fetchText", () => {
