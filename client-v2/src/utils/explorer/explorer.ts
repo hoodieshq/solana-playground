@@ -53,6 +53,7 @@ export class PgExplorer {
   static readonly events = {
     ON_DID_INIT: "explorerondidinit",
     ON_DID_CREATE_ITEM: "explorerondidcreateitem",
+    ON_WILL_RENAME_ITEM: "exploreronwillrenameitem",
     ON_DID_RENAME_ITEM: "explorerondidrenameitem",
     ON_DID_DELETE_ITEM: "explorerondiddeleteitem",
     ON_DID_SAVE_FILE: "explorerondidsavefile",
@@ -396,6 +397,13 @@ export class PgExplorer {
       }
       if (newPathExists) throw new Error(PgExplorer.errors.ALREADY_EXISTS);
     }
+
+    // Before anything moves, so a pending autosave writes its edit at the old
+    // path and the rename carries it over
+    PgCommon.createAndDispatchCustomEvent(
+      this.events.ON_WILL_RENAME_ITEM,
+      oldPath
+    );
 
     // Rename in `indexedDB`. A rename changes only the folder tree, so a
     // reload before it is saved brings the old name back
@@ -1359,6 +1367,16 @@ export class PgExplorer {
    */
   static onDidCreateItem(cb: () => unknown) {
     return PgCommon.onDidChange(PgExplorer.events.ON_DID_CREATE_ITEM, cb);
+  }
+
+  /**
+   * Runs before renaming an item, once the rename has passed its checks.
+   *
+   * @param cb callback function to run
+   * @returns a dispose function to clear the event
+   */
+  static onWillRenameItem(cb: (path: string) => unknown) {
+    return PgCommon.onDidChange(PgExplorer.events.ON_WILL_RENAME_ITEM, cb);
   }
 
   /**
