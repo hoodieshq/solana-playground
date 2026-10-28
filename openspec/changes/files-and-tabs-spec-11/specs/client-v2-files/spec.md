@@ -47,12 +47,17 @@ and its program keypair are deleted from this browser." It SHALL add "Your
 progress in this lesson is lost." for a lesson project, and "It's also deleted
 from your account and your other devices." when the person is signed in. Its
 buttons SHALL read "Delete project" and "Cancel", and Cancel SHALL have focus
-when it opens.
+when it opens. Enter SHALL NOT confirm the delete from anywhere but the button;
+on a phone, which has no Cancel, the dialog itself has focus.
 
 #### Scenario: A signed-out scratch project
 - **WHEN** a signed-out person chooses Delete on the project "counter"
 - **THEN** the dialog reads "Delete counter?" with the files-and-keypair line only
 - **AND** Cancel has focus
+
+#### Scenario: Enter on a phone's delete dialog
+- **WHEN** the delete dialog opens at a phone width and the person presses Enter
+- **THEN** nothing is deleted
 
 #### Scenario: A lesson while signed in
 - **WHEN** a signed-in person chooses Delete on a lesson project
@@ -82,7 +87,8 @@ in place of the folder glyph. Every other row keeps the folder glyph.
 
 While the project names are still being read from browser storage, the
 project list SHALL show three skeleton rows under its "Projects" heading, and
-no empty message.
+no empty message. A preview of a GitHub link, which reads no stored names,
+SHALL show none.
 
 #### Scenario: Names not read yet
 - **WHEN** the project list renders before the names are read

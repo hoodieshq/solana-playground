@@ -84,7 +84,9 @@ already the design system's; the dialogs are copy. `ModalFrame` gains
 `openFocus: "cancel"` so Cancel has focus on open, and Enter submits only from
 a field, so a phone (no Cancel) cannot delete on Enter. `DeleteWorkspace` reads
 the session through `PgSession`; `DeleteItem` counts the files whose full path
-sits under the folder in `PgExplorer.files`.
+sits under the folder in `PgExplorer.files`. A dialog title wraps anywhere
+(`overflow-wrap: anywhere` in `BaseModalFrame`), for every dialog: a name
+without spaces would otherwise widen the dialog past a 320 px phone.
 
 **Autosave failure state is per file, owned by the editor.** A small store
 (`components/Editor/Monaco/save-failures.ts` on `scope/users-work`) holds the
