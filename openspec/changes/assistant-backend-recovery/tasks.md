@@ -5,11 +5,12 @@ where stated; 1.1 and 1.2 may run at the same time.
 
 ## 1. The backend a thread and a browser remember
 
-- [ ] 1.1 `threadBackend(items)` and `presetOf(params)` in
-  `views/sidebar/assistant/model`; `ConnectPreset` gains `baseUrl` and
-  `effort`, and Connect a model fills them from a preset with the key field
-  empty. Verify: in-source tests for both functions (an unknown provider reads
-  as absent) and a `Connect.test.tsx` case for a preset with a base URL.
+- [x] 1.1 `threadBackend(items)` in `views/sidebar/assistant/model`;
+  `ConnectPreset` gains `baseUrl` and `effort`, so a `BackendParams` is a
+  preset as it stands, and Connect a model fills them from a preset with the
+  key field empty. Verify: in-source tests for `threadBackend` (an unknown
+  provider reads as absent) and `Connect.test.tsx` cases for a preset base URL
+  and effort.
 - [ ] 1.2 `rememberBackend` writes `paramsOf(connection)` as JSON;
   `rememberedChoice()` reads it and the old bare id;
   `isDefaultBackendRemembered` reads both. Verify: in-source tests in

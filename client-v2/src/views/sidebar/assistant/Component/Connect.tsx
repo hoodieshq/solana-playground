@@ -72,6 +72,10 @@ export interface ConnectPreset {
   provider: ModelProvider;
   /** A model of the backend's own list, or its endpoint's model id */
   model?: string;
+  /** An endpoint's base URL in place of the provider's own */
+  baseUrl?: string;
+  /** An effort of the backend's own list */
+  effort?: Effort;
 }
 
 /**
@@ -111,20 +115,28 @@ export interface ConnectProps {
   frame(parts: { action: ConnectAction; form: ReactNode }): ReactElement;
 }
 
-/** The endpoint fields a backend starts with, `model` in place of its own */
-const startEndpoint = (provider: ProviderInfo, model?: string) =>
+/** The endpoint fields a backend starts with, the preset's in place of its own */
+const startEndpoint = (provider: ProviderInfo, preset?: ConnectPreset) =>
   provider.endpoint
     ? {
-        baseUrl: provider.endpoint.baseUrl,
-        model: model ?? provider.endpoint.model,
+        baseUrl: preset?.baseUrl ?? provider.endpoint.baseUrl,
+        model: preset?.model ?? provider.endpoint.model,
       }
     : null;
 
-/** The settings a backend starts with, `model` in place of its default */
-const startSettings = (provider: ProviderInfo, model?: string) => {
+/**
+ * The settings a backend starts with, the preset's model and effort in place
+ * of its defaults where the backend offers them
+ */
+const startSettings = (provider: ProviderInfo, preset?: ConnectPreset) => {
   const settings = defaultSettings(provider);
-  if (settings && model && provider.modelSettings?.models.includes(model)) {
-    settings.model = model;
+  if (!settings || !provider.modelSettings) return settings;
+  const { models, efforts } = provider.modelSettings;
+  if (preset?.model && models.includes(preset.model)) {
+    settings.model = preset.model;
+  }
+  if (preset?.effort && efforts.includes(preset.effort)) {
+    settings.effort = preset.effort;
   }
   return settings;
 };
@@ -162,12 +174,12 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
   } | null>(() =>
     onCurrent?.endpoint
       ? { ...onCurrent.endpoint }
-      : startEndpoint(initial, preset?.model)
+      : startEndpoint(initial, preset)
   );
   const [settings, setSettings] = useState(() =>
     onCurrent?.settings
       ? { ...onCurrent.settings }
-      : startSettings(initial, preset?.model)
+      : startSettings(initial, preset)
   );
 
   /** The probe is still out: the default is neither offered nor ruled out yet */

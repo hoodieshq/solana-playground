@@ -50,9 +50,8 @@
    `connectDefault()`. The discriminated union replaces the two hand-written
    conditions that disagree today.
 
-3. **`ConnectPreset` gains `baseUrl` and `effort`**, so a preset from a
-   `BackendParams` loses nothing. `presetOf(params: BackendParams)` maps one to
-   the other. Connect a model fills the base URL and effort fields from it
+3. **`ConnectPreset` gains `baseUrl` and `effort`**, so a `BackendParams` is
+   a preset as it stands and passes to `openConnect` with no mapping. Connect a model fills the base URL and effort fields from it
    where the provider has them, and leaves the key empty.
 
 4. **The remembered choice becomes `BackendParams` JSON** under the same
@@ -73,7 +72,7 @@
    key). `useTurn` sets it when the turn throws an `AiTurnError` with status
    401 or 403, with the text "<Provider name> did not accept the key." The
    item renders an **Enter key** button (`#assistant-enter-key`, the design
-   system's `Button`) that calls `openConnect("key-rejected", presetOf(recover))`.
+   system's `Button`) that calls `openConnect("key-rejected", recover)`.
    Alternative: a notice outside the thread; rejected, as the error belongs
    to the turn that failed and a thread restored later should still explain
    it. Only one error in a thread renders the button: the last one.
