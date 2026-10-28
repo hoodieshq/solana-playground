@@ -1,6 +1,9 @@
 // Monaco cannot run under jsdom: the controller is replaced, as in
 // `BaseConflictResolver.test.tsx`, by one that draws only the overlay nodes
 // the hunk controls go into. What a take does to the file is the real code.
+// The hooks barrel reaches generated globals that exist only in the built app;
+// the resolver reads the theme for the editors' font alone
+vi.mock("@/hooks", () => ({ usePgTheme: () => undefined }));
 vi.mock("./merge-editor/controller", () => ({
   createMergeEditor: (file: import("./merge-editor/merge-file").MergeFile) => {
     const overlay = () =>
