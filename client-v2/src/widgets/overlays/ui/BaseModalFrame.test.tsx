@@ -266,6 +266,39 @@ it("should focus the dialog itself on open when asked, so no field shows a ring"
   expect(document.activeElement).toBe(screen.getByRole("dialog"));
 });
 
+it("should focus Cancel on open when asked, so Enter cancels a destructive dialog", () => {
+  renderFrame({
+    openFocus: "cancel",
+    submit: submitOf("ready", vi.fn(), vi.fn()),
+  });
+
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Cancel" })
+  );
+});
+
+it("should focus the dialog when asked for Cancel on a phone, which has none", () => {
+  render(
+    <Modal open>
+      <BaseModalFrame
+        phone
+        title={{ text: "Delete counter?", hidden: false }}
+        submit={{
+          text: "Delete project",
+          status: "ready",
+          variant: "destructive",
+          onSubmit: vi.fn(),
+          onCancel: vi.fn(),
+        }}
+        openFocus="cancel"
+        size="default"
+      />
+    </Modal>
+  );
+
+  expect(document.activeElement).toBe(screen.getByRole("dialog"));
+});
+
 /** A press: Radix settles an outside press on the click that follows it */
 const pressOutside = (el: HTMLElement) => {
   fireEvent.pointerDown(el);

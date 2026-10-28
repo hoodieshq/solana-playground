@@ -29,10 +29,12 @@ export type ModalSize = NonNullable<
 
 /**
  * What has the focus when the dialog opens: the body's first field (or the
- * submit, when there is none), or the dialog itself, for one that should open with no field
- * ringed, as the prototype's New project does
+ * submit, when there is none); the dialog itself, for one that should open with no field
+ * ringed, as the prototype's New project does; or Cancel, for a destructive
+ * dialog, where Enter must not confirm (the dialog itself on a phone, which
+ * has no Cancel)
  */
-export type OpenFocus = "field" | "dialog";
+export type OpenFocus = "field" | "dialog" | "cancel";
 
 /**
  * How the submit is drawn: the stock `Button`'s `default` or `destructive`,
@@ -118,6 +120,7 @@ export const BaseModalFrame = ({
 }: BaseModalFrameProps) => {
   const formRef = useRef<HTMLFormElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
   const canSubmit = submit?.status === "ready";
   /** What either kind of submit button shows */
   const submitLabel = submit && (
@@ -157,9 +160,14 @@ export const BaseModalFrame = ({
 
   // Radix focuses the header's Close first, where Enter would close the
   // dialog; Enter must submit, so focus the body's first field or the submit,
-  // or the dialog itself when asked
+  // the dialog itself or Cancel when asked
   const handleOpenAutoFocus = (ev: Event) => {
-    if (openFocus === "dialog") {
+    if (openFocus === "cancel" && cancelRef.current) {
+      ev.preventDefault();
+      cancelRef.current.focus();
+      return;
+    }
+    if (openFocus === "dialog" || openFocus === "cancel") {
       // Radix dispatches this on the content, which takes focus at -1; on
       // anything else its own default focus stays
       if (!(ev.currentTarget instanceof HTMLElement)) return;
@@ -209,6 +217,7 @@ export const BaseModalFrame = ({
           <ModalFooter>
             {submit.onCancel && !phone && (
               <Button
+                ref={cancelRef}
                 type="button"
                 variant="ghost"
                 disabled={submit.status === "busy"}
