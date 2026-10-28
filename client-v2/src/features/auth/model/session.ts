@@ -23,11 +23,17 @@ class SignInFailed extends Error {
 const reasonOf = (error: unknown): SignInFailure =>
   error instanceof SignInFailed ? error.reason : "request-failed";
 
-/** Spec 02's words for a sign-in the server could not start, or one that broke before it did */
+/**
+ * Spec 02's words for a sign-in the server could not start, and for any
+ * failure at no known step (`messageOf`), such as the request never leaving
+ */
 const UNAVAILABLE =
   "Sign-in isn't available. Your work is saved in this browser.";
 
-/** Spec 02's words for a sign-in that went to GitHub and did not come back signed in */
+/**
+ * Spec 02's words for a popup that gave no answer in time or refused, and for
+ * a session unreadable after GitHub answered
+ */
 const DID_NOT_FINISH = "Sign-in did not finish.";
 
 /**
@@ -235,11 +241,17 @@ export class PgSession {
       }),
     });
     if (!response.ok) {
+      // The person reads one line for every way the start fails; the team
+      // gets the answer it was
+      log.warn("sign-in could not start", {
+        context: { status: response.status },
+      });
       throw new SignInFailed("request-failed", UNAVAILABLE);
     }
 
     const { url } = await response.json();
     if (!url) {
+      log.warn("sign-in start answered no authorize URL");
       throw new SignInFailed("request-failed", UNAVAILABLE);
     }
 

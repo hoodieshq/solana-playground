@@ -169,7 +169,8 @@ export class PgSyncMark {
 
   /**
    * Fires after a mark of the signed-in account is written, flagged dirty or
-   * removed, with which. Read-only listeners: the project list's markers
+   * removed (or found already gone), with which; never for a write or removal
+   * that failed. In this tab only. Read-only listeners: the project list's markers
    * (`sync-marker.ts`) re-read on it, and must never write a mark back.
    */
   static onDidChange(
@@ -285,13 +286,17 @@ export class PgSyncMark {
       const userId = currentUserId();
       if (!userId) return;
 
+      let gone = true;
       try {
         await PgFs.removeFile(pathOf(userId, projectId));
       } catch (e) {
-        if (!isMissing(e)) report(`remove sync mark ${projectId}`, e);
+        if (!isMissing(e)) {
+          gone = false;
+          report(`remove sync mark ${projectId}`, e);
+        }
       }
       await PgSyncClaim.drop(projectId);
-      PgSyncMark._emit(projectId, "removed");
+      if (gone) PgSyncMark._emit(projectId, "removed");
     });
   }
 

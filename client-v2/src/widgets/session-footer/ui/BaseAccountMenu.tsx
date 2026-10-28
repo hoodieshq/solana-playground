@@ -28,6 +28,7 @@ import {
   DOCS_URL,
   formatBalance,
   githubProfileUrl,
+  failureOf,
   leftoversText,
   profileName,
   SIGN_OUT_CONSEQUENCE,
@@ -46,7 +47,10 @@ export interface BaseAccountMenuProps {
   /** "⌘," on macOS, "Ctrl+," elsewhere */
   settingsShortcut: string;
   onPick: (item: AccountItem) => void;
-  /** Where the sign-out question stands; `asking` replaces the items with it */
+  /**
+   * Where the sign-out question stands: `asking` replaces the items with it,
+   * `done` puts the leftovers line above them
+   */
   signOut: SignOutState;
   /** Signs out; rejects, leaving the person signed in, when it could not */
   onSignOutConfirm: () => Promise<void>;
@@ -55,7 +59,8 @@ export interface BaseAccountMenuProps {
   /**
    * A phone's page, as the prototype draws the account there: the whole
    * screen, titled, with a close, its rows a fingertip tall and, signed out,
-   * Sign in with GitHub pinned at the foot with what signing in is for
+   * the sign-in item (`signInLabel`) pinned at the foot with what signing in
+   * is for
    */
   page?: boolean;
 }
@@ -91,8 +96,6 @@ const SessionItems = ({
 }: Pick<BaseAccountMenuProps, "account" | "onPick" | "page">) => {
   const { session } = account;
   if (session.status === "signed-in") {
-    // `preventDefault` keeps the menu open: the question is asked in place
-    // (Spec 02, "Sign-out asks in the menu")
     const { user } = session;
     return (
       <>
@@ -128,6 +131,8 @@ const SessionItems = ({
         )}
         <DropdownMenuItem
           onSelect={(ev) => {
+            // Keeps the menu open: the question is asked in place (Spec 02,
+            // "Sign-out asks in the menu")
             ev.preventDefault();
             onPick("sign-out");
           }}
@@ -171,12 +176,6 @@ const SessionItems = ({
     </>
   );
 };
-
-/** A failed sign-in's reason, unless the person cancelled it */
-const failureOf = ({ session }: AccountView) =>
-  session.status === "failed" && session.reason !== "cancelled"
-    ? session.message
-    : null;
 
 /** Spec 02's words on the sign-in item: off while offline, a retry after a failure */
 const signInLabel = (account: AccountView) => {

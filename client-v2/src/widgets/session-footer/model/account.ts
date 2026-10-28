@@ -52,8 +52,9 @@ export interface AccountView {
 
 /**
  * The one line under the account's name (Spec 02, "The account row says who
- * and where"): where work is saved, where a sign-in stands, or who is signed
- * in. The wallet is not on the row; the menu's wallet group carries it.
+ * and where"): where work is saved, where a sign-in stands, who is signed
+ * in, or that the network is down and work saves here. The wallet is not on
+ * the row; the menu's wallet group carries it.
  */
 export type AccountLine =
   | { kind: "saved-here" }
@@ -119,12 +120,20 @@ const signedInLine = (
 };
 
 /** Signed out: a sign-in under way or failed, else where work is saved */
+/**
+ * A failed sign-in's reason, unless the person cancelled it: a cancel is
+ * their choice, and there is nothing to report. The row and the menu both
+ * say a failure from this
+ */
+export const failureOf = ({ session }: Pick<AccountView, "session">) =>
+  session.status === "failed" && session.reason !== "cancelled"
+    ? session.message
+    : null;
+
 const signedOutLine = (session: AccountSession): AccountLine => {
   if (session.status === "pending") return { kind: "signing-in" };
-  // A cancel is the person's choice; there is nothing to report
-  if (session.status === "failed" && session.reason !== "cancelled") {
-    return { kind: "failed", message: session.message };
-  }
+  const failure = failureOf({ session });
+  if (failure) return { kind: "failed", message: failure };
   return { kind: "saved-here" };
 };
 

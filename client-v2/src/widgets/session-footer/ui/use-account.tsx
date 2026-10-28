@@ -70,6 +70,8 @@ export const useAccount = ({
   // The question's busy item already stops a second press; this stops a
   // second question (the footer and the rail swap) from starting another
   const signingOut = useRef<Promise<void> | null>(null);
+  // Whether the menu is open, for a sign-out that settles after a close
+  const menuOpen = useRef(false);
 
   const user = PgSession.get();
   // A session wins over the sign-in state: a sign-in that failed before the
@@ -162,11 +164,13 @@ export const useAccount = ({
   };
 
   const onMenuOpenChange = (open: boolean) => {
+    menuOpen.current = open;
     if (open) {
       sessionTelemetry.track("session_account_menu_opened", { from });
       return;
     }
-    // A sign-out under way is counted when it ends, not as a cancel
+    // A sign-out under way is counted when it ends, not as a cancel; it
+    // settles into a closed menu, which `signOut` sees
     if (signOutState.status === "asking" && !signingOut.current) {
       cancelSignOut();
       return;
@@ -182,22 +186,35 @@ export const useAccount = ({
       .catch((error: unknown) => {
         log.error(error, { report: true, context: { item: "sign-out" } });
         // Rethrown so the question's Sign out tells the user and the
-        // question stays: they are still signed in
+        // question stays: they are still signed in. Closed over meanwhile,
+        // the menu opens on its items next time, not on a question
+        if (!menuOpen.current) setSignOutState({ status: "idle" });
         throw error;
       })
       .finally(() => {
         signingOut.current = null;
       });
     await signingOut.current;
-    // What the sign-out did not release (`releaseLocalProjects`) never
-    // reached the account
+    // Everything still in the browser once the release ran
+    // (`releaseLocalProjects`): projects the account does not hold, or holds
+    // without this browser's latest edits
     const kept = PgExplorer.allWorkspaceNames?.length ?? 0;
     sessionTelemetry.track("session_sign_out_ended", {
       outcome: "ok",
       items_kept: kept,
     });
-    setSignOutState({ status: "done", kept });
+    // Said in the menu that signed out, never in one opened later
+    setSignOutState(
+      menuOpen.current ? { status: "done", kept } : { status: "idle" }
+    );
   };
+
+  // A question with no session left to end (another tab signed out) is not
+  // asked; one whose own sign-out is running stays, busy, until it settles
+  const shownSignOut: SignOutState =
+    signOutState.status === "asking" && !user && !signingOut.current
+      ? { status: "idle" }
+      : signOutState;
 
   const menu = (
     <BaseAccountMenu
@@ -206,7 +223,7 @@ export const useAccount = ({
       side={from === "footer" ? "top" : "right"}
       settingsShortcut={PgCommon.getOS() === "MacOS" ? "⌘," : "Ctrl+,"}
       onPick={pick}
-      signOut={signOutState}
+      signOut={shownSignOut}
       onSignOutConfirm={signOut}
       onSignOutCancel={cancelSignOut}
       page={page}

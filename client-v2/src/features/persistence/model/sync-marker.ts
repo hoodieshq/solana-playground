@@ -13,9 +13,10 @@ const snapshot = () => import("./snapshot");
 
 /**
  * Where a project in the navigation says its work lives (Spec 02, "A row shows
- * a marker only when it is not in the account"): only here, or in the account
- * but behind this browser. No marker is the account holding what this browser
- * holds.
+ * a marker only when it is not in the account"). `this-browser`: the account
+ * has no record of it from here. `not-synced`: the account holds the project
+ * but not this browser's latest work, or a conflict waits on the person. No
+ * marker is the account holding what this browser holds.
  */
 export type SyncMarker = "this-browser" | "not-synced";
 
@@ -33,8 +34,10 @@ interface MarkerFacts {
 
 /**
  * The marker for a project, from what sync knows. `isClean` hashes the local
- * copy and is asked only when the mark is dirty, as reconcile's cheap path
- * does: `dirty` lets a clean project skip the hash, never decides on its own.
+ * copy and is asked when the mark is dirty or unreadable. A mark that is not
+ * dirty skips the hash, as reconcile's cheap path does for a project nothing
+ * flagged: every local write flags the mark before its upload is tried
+ * (`effects/project-sync`), and a flagged mark is always hashed.
  */
 const decide = async (
   facts: MarkerFacts,
@@ -54,52 +57,67 @@ const decide = async (
  * never from state of its own. `null` while signed out or where sync is off:
  * the account row says that once, so the rows stay clean.
  *
+ * Rejects when it cannot tell: `null` would claim the account holds the
+ * project, so the caller keeps whatever the row showed before.
+ *
  * @param localName the workspace's name here, which the mark's name is held to
  */
 export const syncMarkerOf = async (
   projectId: string,
   localName: string
 ): Promise<SyncMarker | null> => {
-  try {
-    const { PgProjectSync, isCleanAgainst } = await sync();
-    const available = await PgProjectSync.isAvailable();
-    const hasMark = available && (await PgSyncMark.exists(projectId));
-    return await decide(
-      {
-        available,
-        conflict: !!PgProjectSync.conflictFor(projectId),
-        hasMark,
-        mark: hasMark ? await PgSyncMark.read(projectId) : null,
-      },
-      async (mark) => {
-        const { snapshotOf } = await snapshot();
-        return isCleanAgainst(
-          mark,
-          localName,
-          (await snapshotOf(localName)).files
-        );
-      }
-    );
-  } catch (e) {
-    // A marker is a hint on a row; a failed read leaves the row unmarked
-    report(`sync marker ${projectId}`, e);
-    return null;
-  }
+  const { PgProjectSync, isCleanAgainst } = await sync();
+  const available = await PgProjectSync.isAvailable();
+  const hasMark = available && (await PgSyncMark.exists(projectId));
+  return await decide(
+    {
+      available,
+      conflict: !!PgProjectSync.conflictFor(projectId),
+      hasMark,
+      mark: hasMark ? await PgSyncMark.read(projectId) : null,
+    },
+    async (mark) => {
+      const { snapshotOf } = await snapshot();
+      return isCleanAgainst(
+        mark,
+        localName,
+        (await snapshotOf(localName)).files
+      );
+    }
+  );
 };
+
+/**
+ * How long a mark flagged dirty waits before its row is read again, while the
+ * browser is online: past the editor's upload debounce (`DEBOUNCE_MS` in
+ * `effects/project-sync`, 3 s) and the upload itself
+ */
+const PENDING_GRACE_MS = 10_000;
 
 /**
  * Calls `cb` when a marker may have moved: a mark written or removed, a
  * conflict raised or settled, the network lost or back.
  *
- * A mark flagged dirty counts only while offline. Online, the editor uploads
- * within its debounce and the accepted mark that follows fires anyway, so the
- * open project would otherwise read "Not synced" for every pause in typing.
+ * A mark flagged dirty is read again at once only while offline. Online, the
+ * editor uploads within its debounce and the accepted mark fires on its own,
+ * so the open project would otherwise read "Not synced" for every pause in
+ * typing; it is read again after `PENDING_GRACE_MS` instead, so an upload the
+ * server refused, or one that never left, still shows.
  */
 export const onDidChangeSyncMarkers = (cb: () => void): Disposable => {
   let disposed = false;
   let conflicts: Disposable | null = null;
+  const timers = new Set<ReturnType<typeof setTimeout>>();
+  const later = () => {
+    const timer = setTimeout(() => {
+      timers.delete(timer);
+      cb();
+    }, PENDING_GRACE_MS);
+    timers.add(timer);
+  };
   const marks = PgSyncMark.onDidChange((_, change) => {
-    if (change !== "dirtied" || !navigator.onLine) cb();
+    if (change === "dirtied" && navigator.onLine) later();
+    else cb();
   });
   sync()
     .then(({ PgProjectSync }) => {
@@ -111,6 +129,8 @@ export const onDidChangeSyncMarkers = (cb: () => void): Disposable => {
   return {
     dispose: () => {
       disposed = true;
+      timers.forEach(clearTimeout);
+      timers.clear();
       marks.dispose();
       conflicts?.dispose();
       window.removeEventListener("online", cb);
@@ -192,11 +212,23 @@ if (import.meta.vitest) {
     });
 
     describe("syncMarkerOf", () => {
-      it("leaves the row unmarked when sync cannot be asked", async () => {
+      it("rejects rather than claim the account holds a project it cannot read", async () => {
         vi.spyOn(PgProjectSync, "isAvailable").mockRejectedValue(
           new Error("probe failed")
         );
-        expect(await syncMarkerOf("p1", "counter")).toBeNull();
+        await expect(syncMarkerOf("p1", "counter")).rejects.toThrow(
+          "probe failed"
+        );
+      });
+
+      it("reads Not synced while a conflict waits on the project", async () => {
+        vi.spyOn(PgProjectSync, "isAvailable").mockResolvedValue(true);
+        vi.spyOn(PgSyncMark, "exists").mockResolvedValue(true);
+        vi.spyOn(PgProjectSync, "conflictFor").mockReturnValue({
+          projectId: "p1",
+          kind: "deleted-elsewhere",
+        });
+        expect(await syncMarkerOf("p1", "counter")).toBe("not-synced");
       });
 
       it("reads This browser for a project with no mark", async () => {
@@ -264,15 +296,39 @@ if (import.meta.vitest) {
         PgProjectSync.reset();
       });
 
-      it("ignores a dirty flag while online, not while offline", () => {
-        const { cb, sub, fire } = listen();
-        vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
-        fire("dirtied");
-        expect(cb).not.toHaveBeenCalled();
-        vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
-        fire("dirtied");
-        expect(cb).toHaveBeenCalledOnce();
-        sub.dispose();
+      it("reads a dirty flag at once offline, and after the grace online", () => {
+        vi.useFakeTimers();
+        try {
+          const { cb, sub, fire } = listen();
+          vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+          fire("dirtied");
+          vi.advanceTimersByTime(PENDING_GRACE_MS - 1);
+          expect(cb).not.toHaveBeenCalled();
+          // An upload that never landed still shows
+          vi.advanceTimersByTime(1);
+          expect(cb).toHaveBeenCalledOnce();
+
+          vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+          fire("dirtied");
+          expect(cb).toHaveBeenCalledTimes(2);
+          sub.dispose();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it("drops a pending re-read once disposed", () => {
+        vi.useFakeTimers();
+        try {
+          const { cb, sub, fire } = listen();
+          vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+          fire("dirtied");
+          sub.dispose();
+          vi.advanceTimersByTime(PENDING_GRACE_MS);
+          expect(cb).not.toHaveBeenCalled();
+        } finally {
+          vi.useRealTimers();
+        }
       });
     });
   });

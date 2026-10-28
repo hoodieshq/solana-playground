@@ -6,7 +6,8 @@ The design alignment audit of 28 Oct (items A4, A5) found the account
 surfaces off Spec 02 (Account, sign-in, saved work and the profile): the
 account row and the sign-in errors show raw or missing copy, the sign-out
 confirmation says "Sign out of GitHub?" and promises that projects stay in
-the browser (sign-out releases every synced project), and nothing on a
+the browser (sign-out releases every project the account holds exactly as
+this browser does), and nothing on a
 project row says whether it is in the account. Stage 1 ships before
 Breakpoint, and this is the copy and the one visible sync signal people
 meet there. Ticket: HOO-2389.

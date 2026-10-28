@@ -275,9 +275,9 @@ const MARKER_TEXT: Record<SyncMarker, string> = {
 };
 
 /**
- * Where a project's work lives, when the account does not hold it: quiet
- * caption text where the pin sits, "Not synced" with a warning dot (design
- * gap 4.23, decided until the designers draw it)
+ * Where a project's work lives, when the account does not hold it. Spec 02
+ * names the words, not the look: quiet caption text where the pin sits, so the
+ * row's action keeps its place, and "Not synced" with a warning dot
  */
 const Marker = ({ id, marker }: { id: string; marker: SyncMarker }) => (
   <span

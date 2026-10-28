@@ -32,14 +32,30 @@ export const useSyncMarkers = (): Markers => {
     let disposed = false;
     let running = false;
     let queued = false;
+    // What the rows show now, so a read that fails keeps a row's marker
+    let shown: Markers = NONE;
 
+    /** Every row's marker; a row whose read failed keeps the one it had */
     const readAll = async () => {
       const next: Record<string, SyncMarker> = {};
+      const failed: string[] = [];
       for (const name of PgExplorer.allWorkspaceNames ?? []) {
         const id = PgExplorer.workspaceIdOf(name);
         if (!id) continue;
-        const marker = await syncMarkerOf(id, name);
-        if (marker) next[name] = marker;
+        try {
+          const marker = await syncMarkerOf(id, name);
+          if (marker) next[name] = marker;
+        } catch (e) {
+          // "No marker" would tell the person the account holds this one
+          failed.push(String(e));
+          if (shown[name]) next[name] = shown[name];
+        }
+      }
+      // Once per pass, not per row: a fault in the store fails every row
+      if (failed.length) {
+        log.warn("sync markers could not be read", {
+          context: { count: failed.length, first: failed[0] },
+        });
       }
       return next;
     };
@@ -55,10 +71,14 @@ export const useSyncMarkers = (): Markers => {
           queued = false;
           const next = await readAll();
           if (disposed) return;
-          setMarkers((prev) => (sameMarkers(prev, next) ? prev : next));
+          if (!sameMarkers(shown, next)) {
+            shown = next;
+            setMarkers(next);
+          }
         } while (queued);
       } catch (e) {
-        // The rows keep the markers they had; the next change reads again
+        // The explorer's list itself could not be read: the rows keep the
+        // markers they had, and the next change reads again
         log.warn("sync markers could not be read", { context: { e } });
       } finally {
         running = false;

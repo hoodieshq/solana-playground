@@ -16,7 +16,7 @@ Ticket HOO-2389. Inline (superpowers:executing-plans), test first.
    `accountLines` returns `{ primary, line }` (one line); wallet off the row;
    primary is the display name signed in, "Signing in…" pending. In-source
    tests first (red), then the change.
-4. `BaseSessionFooter`, `BaseRailFooter`, `use-account.tsx`: one line;
+4. `BaseSessionFooter`, `use-account.tsx`: one line;
    tests updated.
 5. `BaseAccountMenu`: pending "Waiting for GitHub…" + "Cancel sign-in";
    after a failure the reason + "Try again"; offline and signed out a
@@ -24,7 +24,7 @@ Ticket HOO-2389. Inline (superpowers:executing-plans), test first.
 
 ## 1.2 Sign-out in the menu
 
-1. `model/account.ts`: `SignOutState = idle | asking | leftovers(n)`,
+1. `model/account.ts`: `SignOutState = idle | asking | done(kept)`,
    `leftoversText(n)`.
 2. `BaseAccountMenu`: `signOut` prop + `onSignOutConfirm`/`onSignOutCancel`;
    the Sign out item `preventDefault`s and asks; the question replaces the
