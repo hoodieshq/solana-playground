@@ -4,11 +4,15 @@ import { PgSession } from "../../../features/auth";
 import { PgCommand, PgConnection } from "../../../utils";
 
 export const useAirdrop = () => {
-  const [airdropCondition, setAirdropCondition] = useState(false);
+  // `undefined` until the cluster is known, so the menu neither offers
+  // Airdrop nor says there is no faucet before it can tell
+  const [airdropCondition, setAirdropCondition] = useState<boolean>();
 
   useEffect(() => {
-    const { dispose } = PgConnection.onDidChangeCluster(() => {
-      setAirdropCondition(!!PgConnection.getAirdropAmount());
+    const { dispose } = PgConnection.onDidChangeCluster((cluster) => {
+      setAirdropCondition(
+        cluster ? !!PgConnection.getAirdropAmount() : undefined
+      );
     });
     return dispose;
   }, []);

@@ -9,6 +9,7 @@ import {
 } from "../../utils";
 import { checkWallet } from "../checks";
 import { createArgs, createCmd } from "../create";
+import { NO_FAUCET } from "./no-faucet";
 
 export const airdrop = createCmd({
   name: "airdrop",
@@ -29,7 +30,7 @@ export const airdrop = createCmd({
   handle: async (input) => {
     const defaultAmount = PgConnection.getAirdropAmount();
     if (typeof defaultAmount !== "number") {
-      throw new Error("Cannot airdrop on this cluster");
+      throw new Error(NO_FAUCET);
     }
 
     const amount = input.args.amount ?? defaultAmount;

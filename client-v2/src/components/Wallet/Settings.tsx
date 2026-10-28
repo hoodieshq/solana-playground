@@ -28,6 +28,7 @@ import {
 import { Fn, PgCommand, PgView, PgWallet } from "../../utils";
 import { useAirdrop, useDarken } from "./hooks";
 import { isSignInFailure } from "../../features/auth";
+import { NO_FAUCET } from "../../commands/airdrop/no-faucet";
 import { useCopy } from "../../hooks";
 
 const log = createLogger("wallet:settings");
@@ -117,6 +118,12 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
             >
               <Airdrop />
               <MenuItemText>Airdrop</MenuItemText>
+            </DropdownMenuItem>
+          )}
+          {airdropCondition === false && (
+            <DropdownMenuItem disabled>
+              <Airdrop />
+              <MenuItemText>{NO_FAUCET}</MenuItemText>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem

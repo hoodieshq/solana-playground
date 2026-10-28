@@ -42,3 +42,34 @@ it SHALL print no such line.
 - **WHEN** the endpoint is mainnet-beta and the user runs `deploy` in the
   terminal
 - **THEN** the terminal prints the mainnet warning before "Deploying..."
+
+### Requirement: Settings offers Mainnet Beta
+
+Settings › Network SHALL list Mainnet Beta among its chips. While it is
+picked, the line "Deploys with real SOL" SHALL show under the chips and
+describe the group. No other chip shows a line.
+
+#### Scenario: Mainnet Beta picked in Settings
+
+- **WHEN** the user picks Mainnet Beta in Settings › Network and opens the
+  Deploy stage
+- **THEN** "Deploys with real SOL" describes the network chips, and the
+  "Mainnet deploy warning" callout shows
+- **AND** after picking Devnet the callout is gone
+
+### Requirement: No faucet on mainnet
+
+Where the cluster has no faucet (mainnet-beta, or a custom URL whose cluster
+offers none), the wallet menu SHALL show a disabled "This network has no
+faucet." where Airdrop would be, and the `airdrop` command SHALL fail with
+the same line. Until the cluster is known the menu SHALL show neither.
+
+#### Scenario: Wallet menu on mainnet (manual)
+
+- **WHEN** the endpoint is mainnet-beta and the user opens the wallet menu
+- **THEN** "This network has no faucet." shows, disabled, and no Airdrop
+
+#### Scenario: Terminal airdrop on mainnet (manual)
+
+- **WHEN** the endpoint is mainnet-beta and the user runs `airdrop`
+- **THEN** the terminal prints "This network has no faucet."

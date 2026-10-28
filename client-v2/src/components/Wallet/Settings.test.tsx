@@ -32,7 +32,8 @@ vi.mock("../../utils", () => ({
 vi.mock("../../hooks", () => ({ useCopy: () => [false, vi.fn()] }));
 const airdropHook = vi.hoisted(() => ({
   airdrop: vi.fn(),
-  airdropCondition: false,
+  // `undefined` while the cluster is not known yet
+  airdropCondition: false as boolean | undefined,
 }));
 vi.mock("./hooks", () => ({
   useAirdrop: () => airdropHook,
@@ -198,6 +199,27 @@ describe("wallet Settings menu", () => {
 
   // `PgSession.signInState` holds a known failure and the account row shows
   // it: logged as a failed click, never toasted a second time
+  it("says the network has no faucet where Airdrop would be", async () => {
+    airdropHook.airdropCondition = false;
+    render(<Host />);
+    await openMenu();
+
+    const line = screen.getByRole("menuitem", {
+      name: "This network has no faucet.",
+    });
+    expect(line.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByRole("menuitem", { name: /Airdrop/ })).toBeNull();
+  });
+
+  it("shows neither Airdrop nor the no-faucet line before the cluster is known", async () => {
+    airdropHook.airdropCondition = undefined;
+    render(<Host />);
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: /Airdrop/ })).toBeNull();
+    expect(screen.queryByText("This network has no faucet.")).toBeNull();
+  });
+
   it("leaves a cancelled or blocked sign-in to the account row", async () => {
     airdropHook.airdropCondition = true;
     airdropHook.airdrop.mockRejectedValueOnce(knownSignIn);
