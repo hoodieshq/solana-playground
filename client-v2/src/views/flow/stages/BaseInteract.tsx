@@ -207,7 +207,12 @@ const Program = ({ id, cluster }: { id: string; cluster: string | null }) => (
       label="Copy program id"
       onError={reportButtonFailure("copy the program id")}
     />
-    {cluster && <span>· {cluster}</span>}
+    {cluster && (
+      <>
+        <span aria-hidden="true">·</span>
+        <span>{cluster}</span>
+      </>
+    )}
   </div>
 );
 
