@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { ThemeProvider } from "styled-components";
+import { DefaultTheme, ThemeProvider } from "styled-components";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -34,7 +34,7 @@ vi.mock("@/widgets/overlays", () => ({
 const theme = {
   colors: { default: { textSecondary: "gray" } },
   font: { code: { size: { small: "12px" } } },
-};
+} as unknown as DefaultTheme;
 
 const renderSetup = () =>
   render(
