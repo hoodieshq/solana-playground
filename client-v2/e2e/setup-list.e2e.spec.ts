@@ -92,7 +92,7 @@ test("client-v2-layout: A step opens its action", async ({ page }) => {
     .toContain("{via: setup}");
 });
 
-test("the checklist is on a phone's menu page, folded until unfolded there", async ({
+test("client-v2-layout: The checklist on a phone's menu page", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });

@@ -2,10 +2,10 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 
-import type { SetupStep, StepView } from "../model/steps";
+import type { SetupStep, StepView, TodoStep } from "../model/steps";
 import BaseSetupList from "./BaseSetupList";
 
-const todo = (step: SetupStep): StepView => ({ step, done: false });
+const todo = (step: TodoStep): StepView => ({ step, done: false });
 const done = (step: SetupStep, value: string): StepView => ({
   step,
   done: true,

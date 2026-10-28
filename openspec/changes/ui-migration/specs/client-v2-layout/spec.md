@@ -354,6 +354,13 @@ together on the device.
 - **WHEN** a user clicks "Get set up" to fold the checklist, then reloads
 - **THEN** the checklist shows only its title, folded
 
+#### Scenario: The checklist on a phone's menu page
+
+- **WHEN** a user who has never folded the checklist opens a phone's menu
+  page, unfolds the checklist there, then reloads and opens the menu again
+- **THEN** the checklist shows only its title at first, and is unfolded
+  after the reload
+
 #### Scenario: A step opens its action
 
 - **WHEN** a user clicks "Connect the assistant" in the checklist

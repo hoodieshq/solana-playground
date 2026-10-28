@@ -8,7 +8,7 @@ import { shortAddress } from "@/shared/lib/short-address";
 import { PgCommand, PgConnection, PgView } from "@/utils";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { SETUP_STEPS } from "../model/steps";
-import type { SetupStep, StepView } from "../model/steps";
+import type { StepView, TodoStep } from "../model/steps";
 import { setupMarks, useSetupMarks } from "../model/storage";
 import { setupTelemetry } from "../model/telemetry";
 import BaseSetupList from "./BaseSetupList";
@@ -55,21 +55,22 @@ const SetupList = ({
   const user = PgSession.get();
 
   // Keyed by step, so a new step without a state does not compile
-  const states: Record<SetupStep, Omit<StepView, "step">> = {
+  const states: Record<TodoStep, { done: boolean; value?: string }> = {
     assistant: { done: PgAssistant.isConnected },
-    // A network is always chosen: Devnet until the user picks another
-    network: { done: true, value: cluster ?? undefined },
     github: { done: !!user, value: user?.login ?? undefined },
     wallet: {
       done: !!wallet,
       value: wallet ? shortAddress(wallet.publicKey.toBase58()) : undefined,
     },
   };
-  const steps: StepView[] = SETUP_STEPS.map((step) => ({
-    step,
-    done: states[step].done,
-    value: states[step].value,
-  }));
+  const steps: StepView[] = SETUP_STEPS.map((step): StepView => {
+    // A network is always chosen: Devnet until the user picks another
+    if (step === "network") {
+      return { step, done: true, value: cluster ?? undefined };
+    }
+    const { done, value } = states[step];
+    return done ? { step, done, value } : { step, done };
+  });
   const done = steps.filter((s) => s.done).length;
   const allDone = done === steps.length;
 
@@ -79,8 +80,8 @@ const SetupList = ({
     setupTelemetry.track("setup_completed", {});
   }, [allDone]);
 
-  // Keyed by the steps that can be to do; the network step never is
-  const actions: Record<Exclude<SetupStep, "network">, () => void> = {
+  // Keyed by step, so a new step without an action does not compile
+  const actions: Record<TodoStep, () => void> = {
     assistant: onConnectAssistant,
     github: () => {
       PgSession.signIn().catch((error: unknown) => {
@@ -107,10 +108,7 @@ const SetupList = ({
     },
   };
 
-  const pick = (step: SetupStep) => {
-    // Never reached: the network step is drawn done, so it has no button.
-    // The check narrows `step` to the steps that have an action.
-    if (step === "network") return;
+  const pick = (step: TodoStep) => {
     setupTelemetry.track("setup_item_picked", { item: step });
     actions[step]();
   };
