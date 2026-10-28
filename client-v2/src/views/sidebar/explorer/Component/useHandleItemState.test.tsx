@@ -56,7 +56,7 @@ vi.mock("../../../../utils", () => ({
 }));
 
 // The hook only reads the theme name, to resubscribe when the theme changes
-vi.mock("../../../../hooks", () => ({
+vi.mock("@/shared/lib/hooks/use-pg-theme", () => ({
   usePgTheme: () => ({ name: "test" }),
 }));
 

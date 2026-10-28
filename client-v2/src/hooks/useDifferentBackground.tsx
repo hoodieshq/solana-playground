@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { usePgTheme } from "./usePgTheme";
+import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
 import { PgTheme } from "../utils";
 import { isTransparent } from "../shared/lib/css-color";
 

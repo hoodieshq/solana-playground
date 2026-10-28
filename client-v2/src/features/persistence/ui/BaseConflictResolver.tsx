@@ -9,7 +9,7 @@ import {
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
-import { usePgTheme } from "@/hooks";
+import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
 import { Button } from "@/shared/ui/button";
 import {
   Merge,

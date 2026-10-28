@@ -22,7 +22,6 @@ import {
 import {
   useAsyncEffect,
   useKeybind,
-  usePgTheme,
   useRenderOnChange,
   useSendAndReceiveCustomEvent,
 } from "../../../hooks";
@@ -30,6 +29,7 @@ import { resolveColor, TRANSPARENT } from "../../../shared/lib/css-color";
 import { createMountOpen } from "./mount-open";
 import { leavesFocusElsewhere } from "./open-focus";
 import { createLogger } from "@/shared/lib/logger";
+import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
 
 const log = createLogger("editor:monaco");
 

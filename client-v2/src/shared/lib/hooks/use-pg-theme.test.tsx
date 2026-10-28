@@ -16,7 +16,7 @@ const { theme, listeners, disposed, subscribe } = vi.hoisted(() => {
   };
 });
 
-vi.mock("../utils", () => ({
+vi.mock("@/utils", () => ({
   PgTheme: {
     get theme() {
       return theme.current;
@@ -36,7 +36,7 @@ vi.mock("../utils", () => ({
   },
 }));
 
-import { usePgTheme } from "./usePgTheme";
+import { usePgTheme } from "./use-pg-theme";
 
 const Probe = () => <span data-testid="name">{usePgTheme().name}</span>;
 

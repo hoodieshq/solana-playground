@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { PgCommon, PgTheme } from "../utils";
+import { PgCommon, PgTheme } from "@/utils";
 
 /**
  * The current playground theme, for the code that needs its values in

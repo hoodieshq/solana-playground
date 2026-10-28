@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useMemo, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
 
-import { usePgTheme, useRenderOnChange } from "@/hooks";
+import { useRenderOnChange } from "@/hooks";
+import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
 import { PgConnection, PgView } from "@/utils";
 import type { GithubLink } from "../lib/github-links";
 import { useFeedbackProvider } from "../model/context";

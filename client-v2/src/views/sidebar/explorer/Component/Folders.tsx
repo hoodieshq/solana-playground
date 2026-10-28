@@ -31,7 +31,8 @@ import { useCreateItem } from "./useCreateItem";
 import { useExplorerContextMenu } from "./useExplorerContextMenu";
 import { useResetCtxSelected } from "./useResetCtxSelected";
 import { useHandleItemState } from "./useHandleItemState";
-import { useKeybind, usePgTheme } from "../../../../hooks";
+import { useKeybind } from "../../../../hooks";
+import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 

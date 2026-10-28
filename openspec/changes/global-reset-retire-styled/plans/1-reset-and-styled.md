@@ -22,7 +22,7 @@ overlay the moved modules draw. e2e beyond the added spec is CI's.
    `e2e/reduced-motion.e2e.spec.ts`: with `reducedMotion: "reduce"`, open
    a dialog, a menu and a toast; their computed `animation-duration` and
    `transition-duration` are at most 0.01ms.
-3. **Theme hook (2.1).** `src/hooks/usePgTheme.ts` returns `PgTheme.theme`
+3. **Theme hook (2.1).** `src/shared/lib/hooks/use-pg-theme.ts` returns `PgTheme.theme`
    and re-renders on `onDidChangeThemeName` / `onDidChangeFontFamily`.
    Replace styled's `useTheme()` in Monaco, Terminal, CodeBlock,
    BaseConflictResolver, FeedbackWidget, Folders, useHandleItemState,

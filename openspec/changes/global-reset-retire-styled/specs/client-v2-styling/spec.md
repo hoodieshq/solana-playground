@@ -52,7 +52,10 @@ SHALL finish at once, so the element appears or leaves in its end state.
 
 No module SHALL import `styled-components` except those under
 `src/components/Wallet/` and `src/widgets/layout-shell/`, which move with
-their own tickets. The lint step SHALL fail on such an import anywhere else.
+their own tickets, and the two that serve them until then: the theme
+provider in `src/providers/theme/` and the theme's type declaration in
+`src/types/declarations.d.ts`. The lint step SHALL fail on such an import
+anywhere else.
 
 #### Scenario: A new styled import
 

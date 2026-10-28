@@ -68,7 +68,7 @@ xterm internals (client-v2/CLAUDE.md, "Never moved along the way"); removing
   unlayered `Markdown.css` scoped to `.pg-markdown`, flattened from the
   styled block (nesting is past the Safari 16.4 floor).
 - **`useTheme()` callers read `PgTheme.theme`** through a small hook in
-  `src/hooks/` that subscribes to `PgTheme.onDidChangeThemeName` and
+  `src/shared/lib/hooks/` that subscribes to `PgTheme.onDidChangeThemeName` and
   `onDidChangeFontFamily` (`usePgTheme`), so a component that needs a JS value (Monaco
   options, a font size) no longer needs the styled context. The styled
   `ThemeProvider` stays in part 1 for the wallet.

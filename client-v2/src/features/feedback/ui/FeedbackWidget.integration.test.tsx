@@ -35,6 +35,8 @@ const theme = {
 };
 vi.mock("@/hooks", () => ({
   useRenderOnChange: () => undefined,
+}));
+vi.mock("@/shared/lib/hooks/use-pg-theme", () => ({
   usePgTheme: () => theme,
 }));
 

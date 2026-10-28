@@ -5,11 +5,8 @@ import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { highlight } from "./highlight";
 import { PgTheme, resolveTextMateTheme } from "../../utils";
 import { resolveColor } from "../../shared/lib/css-color";
-import {
-  useAsyncEffect,
-  useDifferentBackground,
-  usePgTheme,
-} from "../../hooks";
+import { useAsyncEffect, useDifferentBackground } from "../../hooks";
+import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
 
 export interface CodeBlockProps {
   /** Code */
