@@ -182,6 +182,20 @@ describe("Assistant", () => {
     ).toBeTruthy();
   });
 
+  it("follows the model connected after it opens", () => {
+    setup();
+    act(() =>
+      PgAssistant.connect({
+        id: "anthropic",
+        apiKey: "sk-ant-fake",
+        settings: { model: "claude-sonnet-5-5", effort: "medium" },
+      })
+    );
+    expect(
+      screen.getByRole("heading", { name: "Sonnet 5.5 · your Anthropic key" })
+    ).toBeTruthy();
+  });
+
   it("hands the thread a switch or a rename of the project", () => {
     setup();
     explorer.name = "renamed";

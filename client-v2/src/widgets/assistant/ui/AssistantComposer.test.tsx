@@ -320,7 +320,7 @@ describe("AssistantComposer, nothing connected", () => {
     expect(sendBlocked()).toBe(true);
   });
 
-  // Spec 04, PAL-60 No model
+  // With no model, a message waits for one rather than going nowhere
   it("sends nothing on Enter with no model, keeps the text, and offers Connect a model", async () => {
     PgAssistant.disconnect();
     backend = { state: "absent" };

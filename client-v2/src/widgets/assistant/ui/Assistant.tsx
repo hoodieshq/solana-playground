@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
@@ -85,6 +85,9 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
   const turn = useTurn({ open: openConnect });
   const project = useProjectName();
   const defaultBackend = useDefaultBackend();
+  // The head names the connected model, so a change of connection redraws it
+  const [, render] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => PgAssistant.onDidChange(render).dispose, []);
 
   // What a pick from More opened takes focus once the menu has closed
   // (`BaseAssistantHead`'s `focusPicked`): Back in Sources; Connect a model
@@ -120,8 +123,7 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
   return (
     <div className="flex h-full max-h-full min-h-0 flex-1 flex-col">
       <BaseAssistantHead
-        // The composer's model, read on every render `useTurn` makes for a
-        // change in the store, as `forgetKey` is
+        // The composer's model, from the connection and the deployment's answer
         label={headLabel(modelShown(PgAssistant.connection, defaultBackend))}
         onSources={() => {
           setView("sources");

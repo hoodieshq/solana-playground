@@ -17,6 +17,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { MenuItemText } from "@/shared/ui/menu-extras";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+import { headText } from "../model/head-label";
 import type { HeadLabel } from "../model/head-label";
 import { OverflowTooltip } from "./OverflowTooltip";
 
@@ -55,7 +56,7 @@ export interface BaseAssistantHeadProps {
 /**
  * The assistant's head: the model in use, then More, Widen and Hide. Only
  * the model's name is cut when the column is narrow; the words around it
- * stay, and the cut name shows whole on hover.
+ * stay, and the cut name shows whole on hover (`OverflowTooltip`).
  *
  * More's items take S and K while it is open. The shortcuts are shown with
  * `DropdownMenuShortcut`, which only draws them, and the menu's typeahead
@@ -110,17 +111,23 @@ export function BaseAssistantHead({
           spaces between the parts */}
       <h2
         className="flex min-w-0 flex-1 text-sm font-medium whitespace-pre text-foreground"
-        aria-label={`${label.before}${label.model ?? ""}${label.after}`}
+        aria-label={headText(label)}
       >
-        {label.before && <span className="shrink-0">{label.before}</span>}
-        {label.model !== null && (
-          <OverflowTooltip label={label.model}>
-            <span data-overflow="" className="min-w-0 truncate">
-              {label.model}
-            </span>
-          </OverflowTooltip>
+        {label.kind === "plain" ? (
+          <span className="truncate">{label.text}</span>
+        ) : (
+          <>
+            {label.lead && <span className="shrink-0">{label.lead}</span>}
+            {/* Hover only: the head is no tab stop, and the composer's model
+                button shows the same name on focus */}
+            <OverflowTooltip label={label.model}>
+              <span data-overflow="" className="min-w-0 truncate">
+                {label.model}
+              </span>
+            </OverflowTooltip>
+            <span className="shrink-0">{label.tail}</span>
+          </>
         )}
-        {label.after && <span className="shrink-0">{label.after}</span>}
       </h2>
       <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
         <DropdownMenuTrigger asChild>

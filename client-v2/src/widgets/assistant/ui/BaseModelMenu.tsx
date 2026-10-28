@@ -60,10 +60,12 @@ export function BaseModelMenu({
   const current = options.findIndex((option) => isShown(model, option));
   return (
     <DropdownMenu>
-      <OverflowTooltip label={model.label}>
-        <DropdownMenuTrigger asChild disabled={disabled}>
-          {/* Its own slot named again: the two triggers above would
-              otherwise stamp theirs over the design system's */}
+      {/* The menu's trigger outside the tooltip's: its `data-state` (open,
+          closed) is the one the button keeps */}
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <OverflowTooltip label={model.label}>
+          {/* Its own slot named again: both triggers pass theirs down, and
+              the design system's name for the button would be lost */}
           <ComposerModel
             data-slot="composer-model"
             disabled={disabled}
@@ -73,8 +75,8 @@ export function BaseModelMenu({
               {model.label}
             </span>
           </ComposerModel>
-        </DropdownMenuTrigger>
-      </OverflowTooltip>
+        </OverflowTooltip>
+      </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
         className="max-w-[min(20rem,calc(100vw-2rem))] min-w-56"

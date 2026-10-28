@@ -223,4 +223,12 @@ describe("BaseModelMenu", () => {
     const label = sonnet.querySelector("[data-slot=menu-item-text]");
     expect(label?.className).toContain("[overflow-wrap:anywhere]");
   });
+
+  it("reports the menu open on the trigger, under the tooltip's trigger", async () => {
+    const { user } = setup(shownLong);
+    const trigger = screen.getByRole("button", { name: LONG });
+    await user.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.getAttribute("data-state")).toBe("open");
+  });
 });
