@@ -22,8 +22,16 @@ const FALLBACK_MAX_RESUMES = 3;
 /** Anthropic's raw stop reason for a turn it stopped early and expects resumed */
 const PAUSE_TURN = "pause_turn";
 
-/** Why a turn failed, so a caller can word each case for its own users */
-export type AiTurnErrorKind = "provider" | "refusal" | "paused";
+/**
+ * Why a turn failed, so a caller can word each case for its own users:
+ * `busy` is a 429, `key-refused` a 401 or 403, `provider` any other failure
+ */
+export type AiTurnErrorKind =
+  | "provider"
+  | "busy"
+  | "key-refused"
+  | "refusal"
+  | "paused";
 
 /**
  * A turn the provider ended in failure: an error, a refusal, or a turn that
@@ -35,6 +43,13 @@ export class AiTurnError extends Error {
   readonly status?: number;
   /** The failed response's body with the key redacted, so a caller can read its own backend's fields */
   readonly body?: string;
+  /**
+   * What the provider said, status and body included, with the key redacted:
+   * for logs and details, never the first line a user reads
+   */
+  readonly detail?: string;
+  /** Seconds the server asked to wait (`retry-after`), on a `busy` failure */
+  readonly retryAfter?: number;
 
   constructor(
     message: string,
@@ -42,13 +57,23 @@ export class AiTurnError extends Error {
       kind = "provider",
       status,
       body,
-    }: { kind?: AiTurnErrorKind; status?: number; body?: string } = {}
+      detail,
+      retryAfter,
+    }: {
+      kind?: AiTurnErrorKind;
+      status?: number;
+      body?: string;
+      detail?: string;
+      retryAfter?: number;
+    } = {}
   ) {
     super(message);
     this.name = "AiTurnError";
     this.kind = kind;
     this.status = status;
     this.body = body;
+    this.detail = detail;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -106,7 +131,7 @@ const BODY_IN_MESSAGE = 300;
  * The SDK's message, or, for a failed response whose body did not match the
  * provider's error shape, the status, its text, and the start of the body.
  */
-const apiCallMessage = (error: APICallError, body: string | undefined) => {
+const apiCallDetail = (error: APICallError, body: string | undefined) => {
   // The SDK sets `data` only when it parsed the error; otherwise its message is the bare status text
   const unparsed =
     error.data === undefined &&
@@ -130,10 +155,43 @@ const toTurnError = (error: unknown, apiKey: string | undefined) => {
     error.responseBody === undefined
       ? undefined
       : redactKey(error.responseBody, apiKey);
-  return new AiTurnError(redactKey(apiCallMessage(error, body), apiKey), {
-    status: error.statusCode,
+  const status = error.statusCode;
+  const detail = redactKey(apiCallDetail(error, body), apiKey);
+  // Spec 08: the status and the server's words stay in the log
+  log.warn("model request failed", { context: { status, detail } });
+  const kind = kindOf(status);
+  return new AiTurnError(FAILURE_MESSAGE[kind], {
+    kind,
+    status,
     body,
+    detail,
+    retryAfter: kind === "busy" ? retryAfterOf(error) : undefined,
   });
+};
+
+/** Which failure an HTTP status is, for the words a user reads */
+const kindOf = (status: number | undefined) => {
+  if (status === 429) return "busy";
+  if (status === 401 || status === 403) return "key-refused";
+  return "provider";
+};
+
+/**
+ * Spec 08's words for a failed model request (AI-03, AI-05, and the
+ * assistant's "Could not …" fallback): no status, JSON or server text
+ */
+const FAILURE_MESSAGE: Record<ReturnType<typeof kindOf>, string> = {
+  busy: "The model is busy.",
+  "key-refused":
+    "The model's provider did not accept this key. Check it in Settings, or use the hosted model.",
+  provider: "Could not get an answer from the model. Send your message again.",
+};
+
+/** The `retry-after` header in seconds; an HTTP date is not worth parsing here */
+const retryAfterOf = (error: APICallError) => {
+  const raw = error.responseHeaders?.["retry-after"];
+  const seconds = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : undefined;
 };
 
 // Anthropic reports the refusal category in its metadata; other providers give none

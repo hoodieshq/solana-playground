@@ -8,7 +8,7 @@ import {
   openAiToolCall,
   sse,
 } from "@/shared/lib/ai/__fixtures__/fake-provider";
-import { createProvider } from "./provider";
+import { createProvider, ModelBusyError } from "./provider";
 import { PgAssistant, type ChatItem } from "../store";
 import { PgSession } from "../../../../features/auth";
 import { DEFAULT_BACKEND_URL, MAX_RESUMES, MAX_STEPS } from "../config";
@@ -323,14 +323,15 @@ describe("the assistant's provider", () => {
 
     const failure = await provider.send("hi").catch((e: Error) => e.message);
 
-    expect(failure).toContain("Incorrect API key provided");
+    // Spec 08's AI-05: the provider's words stay in the log
+    expect(failure).toBe(
+      "The model's provider did not accept this key. Check it in Settings, or use the hosted model."
+    );
     expect(failure).not.toContain(KEY);
   });
 
   describe("a model limiting requests", () => {
-    const BUSY = "The model is busy. Try again in a few seconds.";
-
-    it("reads as busy, with no HTTP status, from a provider's own error", async () => {
+    it("is busy, with no HTTP status, from a provider's own error", async () => {
       respond(openAiError(429, "Rate limit reached for gpt-4o"));
       const provider = createProvider({
         id: "openai",
@@ -338,27 +339,45 @@ describe("the assistant's provider", () => {
         endpoint: { baseUrl: "https://llm.test/v1", model: "m" },
       });
 
-      await expect(provider.send("hi")).rejects.toThrow(
-        new RegExp(`^${BUSY}$`)
-      );
+      const failure = await provider.send("hi").catch((e: unknown) => e);
+
+      expect(failure).toBeInstanceOf(ModelBusyError);
+      expect((failure as ModelBusyError).message).toBe("The model is busy.");
     });
 
-    it("reads as busy, with no status or body, from the default backend", async () => {
+    it("carries the default backend's wait in seconds", async () => {
       respond(
-        new Response(
-          JSON.stringify({ error: 'Upstream 429: {"error":"slow down"}' }),
-          {
-            status: 429,
-            statusText: "Too Many Requests",
-            headers: { "content-type": "application/json" },
-          }
-        )
+        new Response(JSON.stringify({ error: "Upstream 429: slow down" }), {
+          status: 429,
+          statusText: "Too Many Requests",
+          headers: { "content-type": "application/json", "retry-after": "12" },
+        })
       );
 
-      await expect(defaultBackend().send("hi")).rejects.toThrow(
-        new RegExp(`^${BUSY}$`)
-      );
+      const failure = await defaultBackend()
+        .send("hi")
+        .catch((e: unknown) => e);
+
+      expect(failure).toBeInstanceOf(ModelBusyError);
+      expect((failure as ModelBusyError).waitSeconds).toBe(12);
     });
+  });
+
+  it("never shows the default backend's relay of an upstream failure", async () => {
+    respond(
+      new Response(
+        JSON.stringify({ error: 'Upstream 503: {"error":"overloaded"}' }),
+        {
+          status: 503,
+          statusText: "Service Unavailable",
+          headers: { "content-type": "application/json" },
+        }
+      )
+    );
+
+    await expect(defaultBackend().send("hi")).rejects.toThrow(
+      /^Could not get an answer from the model\. Send your message again\.$/
+    );
   });
 
   it("shows the default backend's sentence for a failure it refuses", async () => {
@@ -372,7 +391,10 @@ describe("the assistant's provider", () => {
       })
     );
 
-    await expect(defaultBackend().send("hi")).rejects.toThrow(sentence);
+    // Its own refusal, written for people: shown whole, with no status
+    await expect(defaultBackend().send("hi")).rejects.toThrow(
+      new Error(sentence)
+    );
   });
 
   it("echoes Gemini's thought signature on its tool call in the next turn", async () => {

@@ -11,8 +11,24 @@ import type { ReplayMessage } from "../../../../features/persistence/model/repla
 import type { ModelProviderInput } from "./model-providers";
 import type { Provider } from "./types";
 
-/** What the chat says when the model answers 429, from any backend */
-const MODEL_BUSY = "The model is busy. Try again in a few seconds.";
+/**
+ * A turn the model turned away for load (a 429, from any backend). The panel
+ * counts down and sends it again (Spec 08's AI-03) rather than showing an
+ * error.
+ */
+export class ModelBusyError extends Error {
+  /**
+   * @param waitSeconds what the server asked to wait, if it said
+   * @param options the provider's failure, kept as `cause`
+   */
+  constructor(
+    readonly waitSeconds: number | undefined,
+    options?: ErrorOptions
+  ) {
+    super("The model is busy.", options);
+    this.name = "ModelBusyError";
+  }
+}
 
 /** What a provider needs to be built: structurally the store's `Connection` */
 export interface ProviderConnection extends ModelProviderInput {
@@ -115,9 +131,13 @@ export const createProvider = (
         if (e.kind === "refusal") {
           throw new Error(`${e.message} Rephrase it, or switch backends.`);
         }
-        // Spec 08's AI-03: the chat never shows a status code or a raw body
-        if (e.status === 429) throw new Error(MODEL_BUSY, { cause: e });
+        if (e.kind === "busy") {
+          throw new ModelBusyError(e.retryAfter, { cause: e });
+        }
+        const own = profile.ownRefusal?.(e);
+        if (own) throw new Error(own, { cause: e });
         const refusal = profile.signedOutRefusal?.(e);
+        // Spec 08's words, never the status or the server's text
         if (!refusal) throw e;
         // The session ended server-side; ending it here makes the next send open Connect a model, which offers sign-in
         void PgSession.refresh();

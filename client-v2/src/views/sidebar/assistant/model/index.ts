@@ -1,3 +1,3 @@
 export * from "./types";
-export { createProvider } from "./provider";
+export { createProvider, ModelBusyError } from "./provider";
 export type { ProviderConnection } from "./provider";
