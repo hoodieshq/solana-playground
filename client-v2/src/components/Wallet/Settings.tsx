@@ -21,6 +21,7 @@ import {
   Trash,
 } from "../Icons";
 import { createLogger } from "@/shared/lib/logger";
+import { shortAddress } from "@/shared/lib/short-address";
 import {
   markFailureShown,
   reportButtonFailure,
@@ -47,10 +48,6 @@ const openModal = async (action: string, load: () => Promise<unknown>) => {
     );
   }
 };
-
-/** An address as Spec 12 writes it in copy: "7xKX…4fQa" */
-const shortAddress = (address: string) =>
-  `${address.slice(0, 4)}…${address.slice(-4)}`;
 
 // The toast says what the import did, in Spec 12's words: `PgWallet.add`
 // switches to an account that already holds the keypair instead of adding it,
