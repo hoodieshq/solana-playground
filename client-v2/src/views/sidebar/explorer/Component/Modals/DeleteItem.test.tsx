@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import { Modal } from "@/shared/ui/modal";
@@ -17,6 +17,8 @@ const utils = vi.hoisted(() => ({
     getItemNameFromPath: (path: string) =>
       path.replace(/\/$/, "").split("/").pop()!,
     deleteItem: vi.fn(),
+    // A selection is left, so the dialog has nothing to reselect after a delete
+    getSelectedEl: () => ({}),
   },
   PgCommon: {
     appendSlash: (path: string) => (path.endsWith("/") ? path : `${path}/`),
@@ -28,11 +30,14 @@ vi.mock("../../../../../utils", () => utils);
 import { DeleteItem } from "./DeleteItem";
 
 beforeEach(() => {
+  utils.PgExplorer.deleteItem.mockReset().mockResolvedValue(undefined);
   utils.PgExplorer.files = {
     "/ws/src/lib.rs": { content: "" },
     "/ws/src/utils/math.rs": { content: "" },
     "/ws/src/utils/deep/io.rs": { content: "" },
     "/ws/src/one/single.rs": { content: "" },
+    // Shares `utils` as a prefix, so a count without the slash would take it in
+    "/ws/src/utils2/other.rs": { content: "" },
     "/ws/src/empty/": {},
     "/ws/src/hollow/inner/": {},
   };
@@ -79,4 +84,12 @@ it("names an empty folder alone", () => {
 it("names a folder holding only empty folders alone", () => {
   draw("/src/hollow/");
   expect(title()).toBe("Delete hollow?");
+});
+
+it("deletes the item it names on Delete", async () => {
+  draw("/src/utils/");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  await waitFor(() =>
+    expect(utils.PgExplorer.deleteItem).toHaveBeenCalledWith("/src/utils/")
+  );
 });

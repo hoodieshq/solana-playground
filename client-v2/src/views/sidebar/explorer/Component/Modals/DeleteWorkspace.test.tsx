@@ -1,4 +1,10 @@
-import { act, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import { Modal } from "@/shared/ui/modal";
@@ -34,6 +40,7 @@ vi.mock("@/features/auth", () => ({
 import { DeleteWorkspace } from "./DeleteWorkspace";
 
 beforeEach(() => {
+  utils.PgExplorer.deleteWorkspace.mockReset().mockResolvedValue(undefined);
   session.user = null;
   session.listeners.clear();
 });
@@ -89,4 +96,27 @@ it("adds the account line once the session is read as signed in", () => {
     session.listeners.forEach((cb) => cb());
   });
   expect(screen.getByText(ACCOUNT_LINE)).toBeTruthy();
+});
+
+it("shows the lesson line and the account line together for a signed-in lesson", () => {
+  session.user = { id: "u1" };
+  draw({ name: "Hello Anchor", isLesson: true });
+  expect(screen.getByText(LESSON_LINE)).toBeTruthy();
+  expect(screen.getByText(ACCOUNT_LINE)).toBeTruthy();
+});
+
+it("deletes the project it names, not the open one", async () => {
+  draw({ name: "alpha" });
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await waitFor(() =>
+    expect(utils.PgExplorer.deleteWorkspace).toHaveBeenCalledWith("alpha")
+  );
+});
+
+it("deletes the open project when it names none", async () => {
+  draw();
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await waitFor(() =>
+    expect(utils.PgExplorer.deleteWorkspace).toHaveBeenCalledWith("counter")
+  );
 });

@@ -81,9 +81,10 @@ toggles the class. Children wrappers get `role="group"`. The dnd-kit
 
 **Delete dialogs keep `ModalFrame` and change their body.** The frame is
 already the design system's; the dialogs are copy. `ModalFrame` gains
-`openFocus: "cancel"` so Cancel has focus on open. `DeleteWorkspace` reads the
-session through `PgSession` and the folder's file count through
-`PgExplorer.getFolderContent` walked to depth.
+`openFocus: "cancel"` so Cancel has focus on open, and Enter submits only from
+a field, so a phone (no Cancel) cannot delete on Enter. `DeleteWorkspace` reads
+the session through `PgSession`; `DeleteItem` counts the files whose full path
+sits under the folder in `PgExplorer.files`.
 
 **Autosave failure state is per file, owned by the editor.** A small store
 (`components/Editor/Monaco/save-failures.ts` on `scope/users-work`) holds the
