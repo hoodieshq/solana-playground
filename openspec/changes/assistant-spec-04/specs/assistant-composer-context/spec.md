@@ -36,7 +36,11 @@ The composer SHALL show a button named "Add context" that opens a menu with "Sou
 - **THEN** the entry reads "Connection and key…"
 
 ### Requirement: A placed prompt takes focus in the composer
-When `PgAssistant.requestPrompt` leaves a prompt in the composer for the person to look at, the composer's input SHALL have focus, including when the panel mounts to take the prompt or leaves Sources and tools to show it.
+When `PgAssistant.requestPrompt` leaves a prompt in the composer for the person to look at (`send: false`), the composer's input SHALL have focus, including when the panel mounts to take the prompt or leaves Sources and tools to show it. Such a prompt sends nothing, so it SHALL NOT open Connect a model or ask for a backend.
+
+#### Scenario: A prompt placed with nothing connected
+- **WHEN** no model is connected and a prompt is requested with `send: false`
+- **THEN** the composer holds the prompt with focus, and Connect a model does not open
 
 #### Scenario: A prompt placed while Sources is open
 - **WHEN** Sources and tools is open and a prompt is requested with `send: false`

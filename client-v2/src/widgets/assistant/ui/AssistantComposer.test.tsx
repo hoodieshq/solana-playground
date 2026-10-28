@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -163,10 +163,17 @@ describe("AssistantComposer, context chips", () => {
       "hi{Enter}"
     );
 
-    expect(send).toHaveBeenCalledWith("hi", expect.anything(), {
-      openFile: false,
-    });
-    expect(await screen.findByText("lib.rs active")).toBeTruthy();
+    // The send starts after the default backend's probe; slow under load
+    await waitFor(
+      () =>
+        expect(send).toHaveBeenCalledWith("hi", expect.anything(), {
+          openFile: false,
+        }),
+      { timeout: 5_000 }
+    );
+    expect(
+      await screen.findByText("lib.rs active", {}, { timeout: 5_000 })
+    ).toBeTruthy();
   });
 });
 

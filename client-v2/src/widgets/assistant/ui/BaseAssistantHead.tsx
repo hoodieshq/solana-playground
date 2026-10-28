@@ -34,8 +34,8 @@ export interface BaseAssistantHeadProps {
   onSources(): void;
   /** Opens Connect a model */
   onConnect(): void;
-  /** Connect's item: "Connect a model…" with nothing connected, "Connection and key…" once connected */
-  connectLabel?: string;
+  /** Connect's item, from `connectLabel` in `model/connection` */
+  connectLabel: string;
   /**
    * Called once More's menu has closed on a picked item: gives focus to what
    * the pick opened. `false` when nothing took it, and More takes it back.
@@ -66,7 +66,7 @@ export function BaseAssistantHead({
   label,
   onSources,
   onConnect,
-  connectLabel = "Connect a model…",
+  connectLabel,
   focusPicked,
   wide,
   onWiden,

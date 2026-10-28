@@ -29,9 +29,9 @@
 
 ### Task 1: Undo patch (tasks 1.1, 1.2)
 
-**Files:** Create `client-v2/src/views/sidebar/assistant/patch-undo.ts` (+ in-source tests); Modify `store.ts` (approval `undone?: true`, `markUndone(id, outcome)`), `bridge/playground-bridge.ts` (`deleteFile(path): Promise<void>`), `model/tools.ts` (`PgPatchUndo.wrote(id)` after `applyPatch`), `widgets/assistant/ui/BaseApprovalCard.tsx` (`onUndo?`), `ui/BaseThreadItem.tsx`, `ui/Thread.tsx`, `model/telemetry.ts`; Tests `BaseApprovalCard.test.tsx`, `Thread.test.tsx`.
+**Files:** Create `client-v2/src/views/sidebar/assistant/patch-undo.ts` and `patch-undo.test.ts` (a file of its own: it mocks the bridge); Modify `store.ts` (approval `undone?: true`, `markUndone(id, outcome)`), `bridge/playground-bridge.ts` (`deleteFile(path): Promise<void>`), `model/tools.ts` (`PgPatchUndo.wrote(id)` after `applyPatch`), `widgets/assistant/ui/BaseApprovalCard.tsx` (`onUndo?`), `ui/BaseThreadItem.tsx`, `ui/Thread.tsx`, `model/telemetry.ts`; Tests `BaseApprovalCard.test.tsx`, `Thread.test.tsx`.
 
-**Interfaces:** Produces `PgPatchUndo.wrote(id: string): void`, `.can(item: ApprovalItem, bridge?): boolean`, `.undo(item, bridge?): Promise<"undone" | "moved-on" | "not-undoable">`; `BaseApprovalCard` prop `onUndo?: () => void`; `BaseThreadItem` prop `onUndo?: (id: string) => void`, `undoableIds` via `actionsFor`-like `canUndo(id)`.
+**Interfaces:** Produces `PgPatchUndo.wrote(id: string): void`, `.can(item: ApprovalItem, bridge?): boolean`, `.undo(item, bridge?): Promise<"undone" | "moved-on" | "not-undoable">`; `BaseApprovalCard` prop `onUndo?: () => void`; `BaseThreadItem` prop `onUndo?: () => void`, supplied per item by `BaseThread`'s `undoFor(id)`.
 
 - [ ] Failing tests: `can` true after `wrote` when file holds `after`; false when edited, when not recorded (restored), when `undone`; `undo` restores `before`, deletes when `before === null`, keeps the file's current `declare_id!`, returns `"moved-on"` and adds the PAL-27 notice when edited; `markUndone` stamps. Card: "Undo patch" shown only with `onUndo`, status "Undone" when `item.undone`, `h-11 min-w-11 md:h-8` on Undo.
 - [ ] Implement; run `yarn test-unit src/views/sidebar/assistant/patch-undo.ts src/widgets/assistant`; PASS.
@@ -49,9 +49,9 @@
 
 ### Task 3: Composer (tasks 3.1–3.3)
 
-**Files:** Modify `ui/BaseAssistantComposer.tsx`, `ui/AssistantComposer.tsx`, `ui/Assistant.tsx`, `ui/BaseAssistantHead.tsx` (connect label), `model/use-turn.ts` (`send(text, opts?: { openFile?: boolean })`), `views/sidebar/assistant/model/types.ts` (`Provider.send(input, signal?, context?: TurnContext)`), `model/provider.ts`, `model/prompt.ts` (`describeProject(bridge, { openFile })`), `model/telemetry.ts`; Tests for each.
+**Files:** Modify `ui/BaseAssistantComposer.tsx`, `ui/AssistantComposer.tsx`, `ui/Assistant.tsx`, `ui/BaseAssistantHead.tsx` (connect label), `model/use-turn.ts` (`openFileLeftOut`, `leaveOutOpenFile()`; `start` passes `{ openFile }` to `Provider.send`), `views/sidebar/assistant/model/types.ts` (`Provider.send(input, signal?, context?: TurnContext)`), `model/provider.ts`, `model/prompt.ts` (`describeProject(bridge, { openFile })`), `model/telemetry.ts`; Tests for each.
 
-**Interfaces:** `ComposerContextChip` gains `spoken: string` and `onRemove?: { label: string; run(): void }`; `BaseAssistantComposer` gains `onSources(): void`, `onConnect(): void`, `connectLabel: string`, `focusPicked(): boolean`; `TurnContext = { openFile: boolean }`.
+**Interfaces:** `ComposerContextChip` gains `spoken: string` and `remove?: { label: string; run(): void }`; `BaseAssistantComposer` gains `onSources(): void`, `onConnect(): void`, `connectLabel: string`, `focusPicked(): boolean`; `BaseAssistantHead` gains the required `connectLabel`; `TurnContext = { openFile: boolean }`.
 
 - [ ] Failing tests: chip accessible name equals `spoken`; remove button named "Leave lib.rs out of the next message" hides the chip, the next `send` passes `{ openFile: false }`, chip returns after; `describeProject(bridge, { openFile: false })` names the path, omits content; "Add context" menu lists "Sources and tools" and the connect label, S/K pick; More reads "Connection and key…" when connected; `requestPrompt(text, { send: false })` focuses the input, also from Sources.
 - [ ] Implement; run the tests; PASS.

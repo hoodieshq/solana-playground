@@ -28,6 +28,10 @@ Pressing "Undo patch" SHALL restore the file's content from before Apply, or del
 - **WHEN** the person presses "Undo patch" on a patch that created `src/new.rs`
 - **THEN** `src/new.rs` no longer exists and the card reads "Undone"
 
+#### Scenario: A build ran after Apply
+- **WHEN** a build wrote the program's id into `declare_id!` after Apply, and the person presses "Undo patch"
+- **THEN** the file is back as it was before Apply except that it keeps the id the build wrote, since a build's id is not an edit
+
 ### Requirement: Undo never drops a later edit
 When the file no longer holds what the patch wrote, the card SHALL NOT offer "Undo patch"; if it is pressed after such an edit, nothing SHALL be written and the thread SHALL say "You edited <path> after applying. Use undo in the editor."
 

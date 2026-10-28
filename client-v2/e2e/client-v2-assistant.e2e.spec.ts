@@ -749,6 +749,7 @@ test("assistant-composer-context: Connect a model from the + menu", async ({
   page,
 }) => {
   await stubAgent(page, { configured: false, model: null }, answer);
+  const lines = linesOn(page);
   await openProject(page, "add-menu");
 
   await page.getByRole("button", { name: "Add context" }).click();
@@ -757,4 +758,7 @@ test("assistant-composer-context: Connect a model from the + menu", async ({
   await expect(
     page.getByRole("dialog", { name: "Connect a model" })
   ).toBeVisible(LONG);
+  await expect
+    .poll(() => lineOf(lines, "assistant_connect_opened"))
+    .toMatch(/via\W+add/);
 });
