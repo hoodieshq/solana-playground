@@ -10,6 +10,7 @@ import {
   ThreadDeleted,
 } from "./conversations.mjs";
 import { query, transaction } from "./db.mjs";
+import { NO_FILES_REASON } from "./project-write.mjs";
 import {
   deleteProject,
   getProject,
@@ -128,7 +129,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       removed: Object.keys(files),
       baseUpdatedAt: first.updatedAt,
     });
-    assert.deepEqual(result, { refused: "no-files" });
+    assert.deepEqual(result, { refused: NO_FILES_REASON });
     const after = await getProject(userId, "p1");
     assert.deepEqual(after.snapshot, { files });
     assert.equal(after.updatedAt, first.updatedAt);
@@ -192,7 +193,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       removed: [],
       baseUpdatedAt: updatedAt,
     });
-    assert.deepEqual(result, { refused: "no-files" });
+    assert.deepEqual(result, { refused: NO_FILES_REASON });
     assert.equal((await getProject(userId, "p1")).updatedAt, updatedAt);
   });
 

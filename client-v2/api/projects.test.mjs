@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 
+import { NO_FILES_REASON } from "../src/features/persistence/server.mjs";
+
 // Read before `beforeEach` clears it: the cases below assert on an unconfigured
 // environment, and the one that needs a real database opens its own connection.
 const DB = process.env.DATABASE_URL;
@@ -497,9 +499,9 @@ describe("/api/projects", () => {
       // Not a 409: the pre-#40 client would raise "keep this version" over
       // it, and the current one would merge against a row with nothing in it
       const mod = await load();
-      const { status, body } = mod.describeSaved({ refused: "no-files" });
+      const { status, body } = mod.describeSaved({ refused: NO_FILES_REASON });
       assert.equal(status, 400);
-      assert.equal(body.reason, "no-files");
+      assert.equal(body.reason, NO_FILES_REASON);
       assert.ok(body.error);
     });
   });

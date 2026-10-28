@@ -2,6 +2,7 @@ import type { Mock } from "vitest";
 import { PgChatStorage } from "./chat-storage";
 import { clearFailures, getFailures } from "./diagnostics";
 import { PgProjectSync } from "./project-sync";
+import { NO_FILES_REASON } from "./project-write.mjs";
 import { sha256, snapshotOf, SYNCED_WORKSPACE_FILES } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
@@ -134,7 +135,7 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
         status: 400,
         json: async () => ({
           error: "A write must leave the project at least one file",
-          reason: "no-files",
+          reason: NO_FILES_REASON,
         }),
       };
     }
