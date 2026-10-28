@@ -1,4 +1,4 @@
-import { createLogger } from "../../../shared/lib/logger";
+import { createLogger } from "@/shared/lib/logger";
 import {
   GITHUB_UNAUTHORIZED,
   MAX_DESCRIPTION,
@@ -139,12 +139,12 @@ if (import.meta.vitest) {
     import.meta.vitest;
 
   describe("features/gist/model/export", () => {
-    let telemetry: typeof import("../../../shared/lib/telemetry");
+    let telemetry: typeof import("@/shared/lib/telemetry");
     let sent: ReturnType<
-      typeof import("../../../shared/lib/telemetry").memoryProvider
+      typeof import("@/shared/lib/telemetry").memoryProvider
     >;
     beforeAll(async () => {
-      telemetry = await import("../../../shared/lib/telemetry");
+      telemetry = await import("@/shared/lib/telemetry");
     });
     beforeEach(() => {
       sent = telemetry.memoryProvider();
