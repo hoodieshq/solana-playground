@@ -6,6 +6,9 @@ import Grounding from "../../../views/sidebar/assistant/Component/Grounding";
 import { PROVIDERS } from "../../../views/sidebar/assistant/model/types";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import { modelShown } from "../model/choice";
+import { useDefaultBackend } from "../model/default-backend";
+import { headLabel } from "../model/head-label";
 import { useTurn } from "../model/use-turn";
 import type { ConnectOpener } from "../model/use-turn";
 import { AssistantComposer } from "./AssistantComposer";
@@ -25,9 +28,6 @@ const forgetKeyOf = (busy: boolean): ForgetKey => {
   if (busy) return "busy";
   return "ready";
 };
-
-/** What a heading shows while no project is open yet */
-const NO_PROJECT = "Assistant";
 
 /**
  * The open project's name, or `null` before one is open, kept live through a
@@ -84,6 +84,7 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
   // outlive a visit to Sources; the thread and the composer share this one
   const turn = useTurn({ open: openConnect });
   const project = useProjectName();
+  const defaultBackend = useDefaultBackend();
 
   // What a pick from More opened takes focus once the menu has closed
   // (`BaseAssistantHead`'s `focusPicked`): Back in Sources; Connect a model
@@ -119,7 +120,9 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
   return (
     <div className="flex h-full max-h-full min-h-0 flex-1 flex-col">
       <BaseAssistantHead
-        title={project ?? NO_PROJECT}
+        // The composer's model, read on every render `useTurn` makes for a
+        // change in the store, as `forgetKey` is
+        label={headLabel(modelShown(PgAssistant.connection, defaultBackend))}
         onSources={() => {
           setView("sources");
           sourcesPicked.current = true;

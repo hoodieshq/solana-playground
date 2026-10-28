@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { BaseAssistantHead } from "./BaseAssistantHead";
 import type { ForgetKey } from "./BaseAssistantHead";
+import type { HeadLabel } from "../model/head-label";
 
 interface HeadChoice {
   wide?: boolean;
@@ -12,7 +13,16 @@ interface HeadChoice {
   /** What the caller's `focusPicked` does; takes focus by default */
   focusPicked?: () => boolean;
   forgetKey?: ForgetKey;
+  label?: HeadLabel;
 }
+
+const HOSTED: HeadLabel = {
+  before: "Assistant · ",
+  model: "GLM 5.3 Flash",
+  after: " · hosted",
+};
+
+const LONG = "deepseek/deepseek-chat-v3.1-terminus-instruct:free";
 
 const setup = (choice: HeadChoice = {}) => {
   const onSources = vi.fn();
@@ -24,7 +34,7 @@ const setup = (choice: HeadChoice = {}) => {
   render(
     <TooltipProvider>
       <BaseAssistantHead
-        title="hello-anchor"
+        label={choice.label ?? HOSTED}
         onSources={onSources}
         onConnect={onConnect}
         focusPicked={focusPicked}
@@ -60,9 +70,40 @@ describe("BaseAssistantHead", () => {
   beforeEach(() => vi.stubGlobal("ResizeObserver", NoopResizeObserver));
   afterEach(() => vi.unstubAllGlobals());
 
-  it("names the project", () => {
+  it("reads the model in use", () => {
     setup();
-    expect(screen.getByText("hello-anchor")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", {
+        name: "Assistant · GLM 5.3 Flash · hosted",
+      })
+    ).toBeTruthy();
+  });
+
+  it("reads Assistant alone with no model", () => {
+    setup({ label: { before: "Assistant", model: null, after: "" } });
+    expect(screen.getByRole("heading", { name: "Assistant" })).toBeTruthy();
+  });
+
+  it("cuts only the model's name, keeping the words around it whole", () => {
+    setup({
+      label: { before: "", model: LONG, after: " · your OpenRouter key" },
+    });
+    expect(screen.getByText(LONG).className).toContain("truncate");
+    expect(screen.getByText(LONG).hasAttribute("data-overflow")).toBe(true);
+    expect(screen.getByText("· your OpenRouter key").className).toContain(
+      "shrink-0"
+    );
+  });
+
+  it("shows a cut model name whole in a tooltip on hover", async () => {
+    const { user } = setup({
+      label: { before: "", model: LONG, after: " · your OpenRouter key" },
+    });
+    const text = screen.getByText(LONG);
+    Object.defineProperty(text, "scrollWidth", { value: 300 });
+    Object.defineProperty(text, "clientWidth", { value: 100 });
+    await user.hover(text);
+    expect((await screen.findByRole("tooltip")).textContent).toBe(LONG);
   });
 
   it("lists the three items under More, Clear conversation disabled", async () => {
@@ -239,8 +280,9 @@ describe("BaseAssistantHead", () => {
 
 it("is the frame's 44 px column bar", () => {
   setup();
-  const head = screen.getByRole("heading", { name: "hello-anchor" })
-    .parentElement!;
+  const head = screen.getByRole("heading", {
+    name: "Assistant · GLM 5.3 Flash · hosted",
+  }).parentElement!;
   expect(head.className).toMatch(/\bh-11\b/);
   expect(head.className).toMatch(/\bborder-b\b/);
 });
