@@ -211,6 +211,19 @@ describe("wallet Settings menu", () => {
     expect(told).toEqual([]);
   });
 
+  it("says nothing when Import imports or the picker is closed", async () => {
+    vi.mocked(PgWallet.import).mockResolvedValueOnce(undefined);
+    render(<Host />);
+    await openMenu();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Import/ }));
+
+    await waitFor(() => expect(PgWallet.import).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(PgView.setToast).not.toHaveBeenCalled();
+    expect(told).toEqual([]);
+  });
+
   it("tells the user when Import fails for another reason", async () => {
     const failure = new Error("could not read the file");
     vi.mocked(PgWallet.import).mockRejectedValueOnce(failure);

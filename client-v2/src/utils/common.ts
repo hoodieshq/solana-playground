@@ -11,7 +11,12 @@ import type {
 } from "./types";
 
 /** What `PgCommon.import` rejects with when the user closes the file picker */
-const IMPORT_CANCELLED = "User cancelled the request";
+class FilePickerCancelledError extends Error {
+  constructor() {
+    super("User cancelled the request");
+    this.name = "FilePickerCancelledError";
+  }
+}
 
 export class PgCommon {
   /**
@@ -1139,14 +1144,10 @@ export class PgCommon {
    * Whether a rejection of `PgCommon.import` is the user closing the picker.
    *
    * @param err what `PgCommon.import` rejected with
-   * @returns whether nothing was chosen
+   * @returns whether the user closed the picker
    */
   static isImportCancelled(err: unknown) {
-    return (
-      typeof err === "object" &&
-      err !== null &&
-      (err as { message?: unknown }).message === IMPORT_CANCELLED
-    );
+    return err instanceof FilePickerCancelledError;
   }
 
   /**
@@ -1156,6 +1157,9 @@ export class PgCommon {
    * @param opts options
    * - `accept`: file extensions to accept
    * - `dir`: whether to accept directories
+   * @returns what `onChange` returned
+   * @throws what `onChange` threw, or, when the user closes the picker, an
+   * error `PgCommon.isImportCancelled` recognises
    */
   static async import<T>(
     onChange: (ev: Event & { target: HTMLInputElement }) => Promise<T>,
@@ -1191,7 +1195,7 @@ export class PgCommon {
       };
 
       el.oncancel = () => {
-        rej({ message: IMPORT_CANCELLED });
+        rej(new FilePickerCancelledError());
       };
 
       el.click();
@@ -1422,6 +1426,10 @@ if (import.meta.vitest) {
         const err = await result.catch((e: unknown) => e);
         expect(PgCommon.isImportCancelled(err)).toBe(true);
         expect(PgCommon.isImportCancelled(new Error("other"))).toBe(false);
+        // Matched by type, so a handler's error that says the same is a failure
+        expect(
+          PgCommon.isImportCancelled(new Error((err as Error).message))
+        ).toBe(false);
       });
     });
 

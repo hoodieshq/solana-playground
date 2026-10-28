@@ -33,8 +33,11 @@ export const Setup = () => {
   };
 
   const handleImport = async () => {
+    setText("");
     try {
-      // Adds the keypair beside any wallet the user already has
+      // Never removes the wallet the user already has: the file may be
+      // cancelled or not a keypair. `PgWallet.add` switches to an account
+      // that is already there.
       const keypair = await PgWallet.import();
       if (keypair) setText("Imported address: " + keypair.publicKey.toBase58());
     } catch (err) {

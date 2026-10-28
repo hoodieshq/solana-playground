@@ -284,7 +284,8 @@ class _PgWallet {
    *
    * @param name name of the account
    * @returns the imported keypair, or `undefined` when no file was chosen
-   * @throws `KeypairFileError` when the file is not a keypair
+   * @throws {KeypairFileError} when the file is not a keypair; any other
+   * failure, such as an unreadable file, propagates as it is
    */
   static async import(name?: string) {
     try {

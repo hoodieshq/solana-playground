@@ -68,14 +68,40 @@ describe("wallet Setup", () => {
     expect(PgWallet.remove).not.toHaveBeenCalled();
   });
 
-  it("keeps the current wallet when the file picker is closed", async () => {
-    vi.mocked(PgWallet.import).mockResolvedValueOnce(undefined);
+  it("says nothing when the file picker is closed", async () => {
+    const failure = new KeypairFileError();
+    vi.mocked(PgWallet.import)
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(undefined);
+    renderSetup();
+    const button = screen.getByRole("button", { name: "Import keypair" });
+
+    fireEvent.click(button);
+    await screen.findByText(failure.message);
+    fireEvent.click(button);
+
+    // The earlier failure is cleared, not left standing as if it were current
+    await waitFor(() => expect(screen.queryByText(failure.message)).toBeNull());
+    expect(screen.queryByText(/Imported address|Could not/)).toBeNull();
+    expect(PgWallet.remove).not.toHaveBeenCalled();
+    expect(logs.entries).toEqual([]);
+  });
+
+  it("reports any other failure and shows it", async () => {
+    const failure = new Error("could not read the file");
+    vi.mocked(PgWallet.import).mockRejectedValueOnce(failure);
     renderSetup();
 
     fireEvent.click(screen.getByRole("button", { name: "Import keypair" }));
 
-    await waitFor(() => expect(PgWallet.import).toHaveBeenCalled());
-    expect(PgWallet.remove).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(
+        "Could not import the keypair: could not read the file"
+      )
+    ).toBeTruthy();
+    expect(logs.entries).toHaveLength(1);
+    expect(logs.entries[0].report).toBe(true);
+    expect(logs.entries[0].error).toBe(failure);
   });
 
   it("says so when the file is not a keypair, without reporting it", async () => {
