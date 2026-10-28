@@ -220,9 +220,10 @@ const Monaco = () => {
     if (editor) return () => editor.dispose();
   }, [editor]);
 
-  // Set font: a step up on a phone, where the code is read at arm's length
-  // (the prototype's 15/23). Off a phone, 0 hands both back to Monaco: its
-  // default size, and a line height derived from it.
+  // Set font: a step up on a phone, where the code is read at arm's length:
+  // 15 px with a 23 px line, a set pair rather than Monaco's ratio. Off a
+  // phone, 0 hands both back to Monaco: its default size, and a line height
+  // derived from it.
   const phone = useViewport() === "phone";
   useEffect(() => {
     if (!editor) return;
@@ -841,11 +842,14 @@ const Wrapper = styled.div`
       font-size: 12px;
     }
 
-    /* The editor's own way to bring up the keyboard on an iPhone, where a
-       tap on the code does not always do it (spec 15, "The phone editor stays
-       editable"): kept, and drawn as one of the product's buttons rather than
-       the editor's grey box, as the prototype draws it. Monaco's stylesheet
-       sets the same properties at equal specificity, hence !important */
+    /* Monaco's own button that raises the keyboard on iOS, where a tap on
+       the code does not always do it: kept, and drawn as one of the
+       product's buttons rather than the editor's grey box, as the prototype
+       draws it. Monaco mounts it on any iOS touch screen, so an iPad gets the
+       same button; the style is not limited to the phone layout on purpose.
+       Monaco's dark rule (".monaco-editor.vs-dark .iPadShowKeyboard") ties
+       this selector, and its "background" shorthand resets the longhands,
+       hence !important */
     & .monaco-editor .iPadShowKeyboard {
       width: 48px !important;
       height: 48px !important;

@@ -522,22 +522,36 @@ test.describe("on a phone", () => {
     await expect(composer).toHaveValue("hello");
   });
 
-  test("client-v2-layout: Reduced motion on a phone", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await seedThenNarrow(page);
-    // The page change does not animate: the pager jumps, it does not glide
+  // The page's pager and a sheet, as read under one motion preference
+  const motionOf = async (page: Page) => {
     const pager = page.getByTestId("phone-pager");
-    expect(
-      await pager.evaluate((el) => getComputedStyle(el).scrollBehavior)
-    ).toBe("auto");
-    // A sheet appears without sliding
+    const scroll = await pager.evaluate(
+      (el) => getComputedStyle(el).scrollBehavior
+    );
     await page.getByRole("button", { name: /^Files, .* open$/ }).click();
     const files = page.getByRole("dialog", { name: "Files" });
     await expect(files).toBeVisible();
-    expect(
-      await files.evaluate((el) => getComputedStyle(el).animationName)
-    ).toBe("none");
-    // and leaves the same way. A 200 ms exit animation would keep it mounted
+    const sheet = await files.evaluate(
+      (el) => getComputedStyle(el).animationName
+    );
+    const overlay = await page
+      .locator('[data-slot="sheet-overlay"]')
+      .evaluate((el) => getComputedStyle(el).animationName);
+    return { scroll, sheet, overlay };
+  };
+
+  test("client-v2-layout: Reduced motion on a phone", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await seedThenNarrow(page);
+    const lines = linesOn(page);
+    // The page change does not animate: the pager jumps, it does not glide,
+    // and a sheet and its scrim appear without sliding or fading
+    expect(await motionOf(page)).toEqual({
+      scroll: "auto",
+      sheet: "none",
+      overlay: "none",
+    });
+    // and leave the same way. A 200 ms exit animation would keep them mounted
     // two frames after the key, so the check is made in the page, not by a
     // retrying assertion that would wait the animation out
     const goneAtOnce = await page.evaluate(async () => {
@@ -547,9 +561,29 @@ test.describe("on a phone", () => {
       for (let i = 0; i < 2; i++) {
         await new Promise((done) => requestAnimationFrame(done));
       }
-      return !document.querySelector('[role="dialog"]');
+      return !document.querySelector(
+        '[role="dialog"], [data-slot="sheet-overlay"]'
+      );
     });
     expect(goneAtOnce).toBe(true);
+    // The jump lands on the page asked for, and its settle is no swipe
+    await page.getByRole("button", { name: "Preview the build" }).click();
+    await expect(page.locator("#flow-stage-panel-build")).toBeInViewport();
+    await page.waitForTimeout(400);
+    const shown = lines.filter((line) =>
+      line.startsWith("[telemetry:event] layout_page_shown ")
+    );
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toContain("via: button");
+  });
+
+  test("client-v2-layout: Motion on a phone by default", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await seedThenNarrow(page);
+    const motion = await motionOf(page);
+    expect(motion.scroll).toBe("smooth");
+    expect(motion.sheet).not.toBe("none");
+    expect(motion.overlay).not.toBe("none");
   });
 
   test("client-v2-layout: Turning a phone across 768 px", async ({ page }) => {
@@ -794,6 +828,8 @@ test("client-v2-layout: A fresh load focuses no settings trigger", async ({
 });
 
 test.describe("on an iPhone", () => {
+  // Monaco mounts its keyboard button only where it reads iOS: an iPhone's
+  // user agent on a touch screen. Without both the button is never there
   test.use({
     viewport: { width: 390, height: 844 },
     userAgent:
@@ -804,6 +840,7 @@ test.describe("on an iPhone", () => {
   test("client-v2-layout: The editor's keyboard button on an iPhone", async ({
     page,
   }) => {
+    // A project is started from the desktop's Home, as "on a phone" does
     await page.setViewportSize({ width: 1280, height: 800 });
     await seedWorkspace(page);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -817,6 +854,12 @@ test.describe("on an iPhone", () => {
     await expect(button).toHaveCSS("height", "48px");
     await expect(button).toHaveCSS("border-radius", "14px");
     await expect(button).toHaveCSS("border-top-width", "1px");
+    // The product's border, not the editor's own 4 px grey frame
+    // (#252526 dark, #F6F6F6 light)
+    const border = await button.evaluate(
+      (el) => getComputedStyle(el).borderTopColor
+    );
+    expect(["rgb(37, 37, 38)", "rgb(246, 246, 246)"]).not.toContain(border);
     // A tap hands the focus to the code, which takes typing
     await button.tap();
     await expect(
