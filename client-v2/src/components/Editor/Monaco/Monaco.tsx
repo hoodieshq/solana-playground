@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import styled, { css, useTheme } from "styled-components";
+import styled, { useTheme } from "styled-components";
 import * as monaco from "monaco-editor";
 
 import { editorBuffersOf } from "./editor-buffers";
@@ -31,6 +31,7 @@ import { createMountOpen } from "./mount-open";
 import { leavesFocusElsewhere } from "./open-focus";
 import { createLogger } from "@/shared/lib/logger";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
+import { editorFont } from "@/shared/lib/editor-font";
 
 const log = createLogger("editor:monaco");
 
@@ -220,18 +221,14 @@ const Monaco = () => {
     if (editor) return () => editor.dispose();
   }, [editor]);
 
-  // Set font: a step up on a phone, where the code is read at arm's length:
-  // 15 px with a 23 px line, a set pair rather than Monaco's ratio. Off a
-  // phone, 0 hands both back to Monaco: its default size, and a line height
-  // derived from it.
+  // Set font: a step up on a phone (`editorFont`)
   const phone = useViewport() === "phone";
   useEffect(() => {
     if (!editor) return;
 
     editor.updateOptions({
       fontFamily: theme.components.editor.default.fontFamily,
-      fontSize: phone ? 15 : 0,
-      lineHeight: phone ? 23 : 0,
+      ...editorFont(phone),
     });
   }, [editor, theme, phone]);
 
@@ -832,33 +829,14 @@ const Monaco = () => {
 };
 
 const Wrapper = styled.div`
-  ${({ theme }) => css`
-    width: 100%;
-    height: 100%;
+  width: 100%;
+  height: 100%;
 
-    /** Inlay hints */
-    & span[class^="dyn-rule"],
-    span[class*=" dyn-rule"] {
-      font-size: 12px;
-    }
-
-    /* Monaco's own button that raises the keyboard on iOS, where a tap on
-       the code does not always do it: kept, and drawn as one of the
-       product's buttons rather than the editor's grey box, as the prototype
-       draws it. Monaco mounts it on any iOS touch screen, so an iPad gets the
-       same button; the style is not limited to the phone layout on purpose.
-       Monaco's dark rule (".monaco-editor.vs-dark .iPadShowKeyboard") ties
-       this selector, and its "background" shorthand resets the longhands,
-       hence !important */
-    & .monaco-editor .iPadShowKeyboard {
-      width: 48px !important;
-      height: 48px !important;
-      border: 1px solid ${theme.colors.default.border} !important;
-      border-radius: 14px !important;
-      background-color: ${theme.colors.default.bgSecondary} !important;
-      background-size: 22px !important;
-    }
-  `}
+  /** Inlay hints */
+  & span[class^="dyn-rule"],
+  span[class*=" dyn-rule"] {
+    font-size: 12px;
+  }
 `;
 
 export default Monaco;
