@@ -57,7 +57,7 @@ a key.
 
 The workspace head SHALL hold:
 
-- the file tabs, which never close;
+- the file tabs, which never close, and the doc tabs, which close;
 - once the program is deployed, a "Call" button that opens the Call panel,
   set apart by a rule;
 - the icon buttons Files (⌘E) and Terminal (⌘J), with tooltips, both
@@ -73,7 +73,32 @@ IDL changes.
 - **WHEN** step 3 has started
 - **THEN** the head shows the tabs `lib.rs` and `client.ts`, then Call, Files
   and Terminal
-- **AND** no tab has a close button
+- **AND** no file tab has a close button
+
+### Requirement: Docs open as read-only tabs
+
+Each tutorial SHALL have its own short list of doc pages, only the ones that
+tutorial needs, kept as Markdown with the tutorial (see `tutorial-definition`).
+They SHALL open as tabs beside the file tabs:
+
+- **From the tree:** the list shows as a `Docs` folder under `src` and
+  `client`; picking a page opens it as a tab.
+- **From the assistant:** where a page helps (an explanation, Explain on a
+  build error), the assistant links it in its message, and the link opens it
+  as a tab. A page SHALL never open by itself; the code keeps the focus.
+- **The tab:** the page rendered read only, with its title and a link to the
+  page on its own site, opening in a new tab. A doc tab SHALL close; file
+  tabs SHALL not.
+
+Pages SHALL be served from the tutorial's own Markdown, never framed from the
+docs site. Open doc tabs SHALL be saved with the workspace state.
+
+#### Scenario: A doc from the assistant's answer
+
+- **WHEN** on Hello Anchor's step 2 the assistant's answer links "IDL"
+- **THEN** pressing the link opens an "IDL" tab beside `lib.rs`, read only,
+  with a link to the page on Anchor's site
+- **AND** the tab's close button closes it, and `lib.rs` keeps its tab
 
 ### Requirement: The editor shows written, landing, error and busy lines
 
@@ -103,7 +128,8 @@ resting state with no animation.
 ### Requirement: The file tree opens from the active tab and can dock
 
 The tree toggle or ⌘E SHALL open a 240 px popover under the active tab,
-showing the tutorial's files in their folders (`src`, `client`):
+showing the tutorial's files in their folders (`src`, `client`), then the
+`Docs` folder. A tutorial's tree SHALL hold no `tests` folder:
 
 - the open file is marked;
 - the live step's file carries a dot;
@@ -148,10 +174,13 @@ the learner left it.
 The Call button SHALL open the Call panel over the editor area. The panel
 holds a Form | IDL switch:
 
-- **Form:**
-  - the program's name and id, with Copy and an Explorer link;
-  - one card per instruction, with typed fields for its arguments;
-  - a primary button "Call <instruction>". Enter in a field calls.
+- **Form:** one form, so one call at a time:
+  - at the top, the program's name and id, with Copy and an Explorer link;
+  - an instruction picker, a row of chips with the instruction names. The
+    live step's own instruction is picked when the panel opens. A program
+    with one instruction shows no picker;
+  - the picked instruction's typed fields for its arguments;
+  - one primary button "Call <instruction>". Enter in a field calls.
 - **IDL:** the deployed IDL's JSON, read only, with a copy button.
 
 The panel SHALL read the IDL of the last deployed build, never the live file.
@@ -159,8 +188,9 @@ An argument added by an upgrade SHALL carry a "New" tag on its first view. A
 call SHALL be disabled while a required field is empty and while a call runs.
 A string field stops at 32 characters.
 
-The latest result SHALL show under the form as the conversation's result
-card, and the log SHALL go to the terminal. A result SHALL not post its own
+One result, the latest, SHALL show under the form as the conversation's
+result card. It names the instruction it called and keeps its Explorer link
+on its result line. The log SHALL go to the terminal. A result SHALL not post its own
 card in the feed: the step's win follows when the call passes a goal. A result
 SHALL hide once the IDL's shape changes. Before any deploy there SHALL be no
 Call button.
@@ -168,9 +198,16 @@ Call button.
 #### Scenario: The upgrade adds a field
 
 - **WHEN** step 4's build and deploy lands
-- **THEN** the `hello` card shows `name  string` with "New", and the Call
+- **THEN** the `hello` form shows `name string` with "New", and the Call
   button's dot shows once
 - **AND** typing `name: String` in `lib.rs` before that upgrade adds no field
+
+#### Scenario: Several instructions
+
+- **WHEN** a program has three instructions and the live step's goal calls
+  the second, and the learner opens the Call panel
+- **THEN** a chip row lists the three with the second picked
+- **AND** the panel holds one form and one "Call <second>" button
 
 ### Requirement: Keyboard paths are listed
 

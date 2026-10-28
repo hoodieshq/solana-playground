@@ -25,8 +25,8 @@ wallet. A step passes on what actually happened.
 
 - **Tutorial definition in JSON.** A tutorial on the new flow is a JSON file:
   steps, beats (say, write, ask, act), questions with three options and the
-  reasons the wrong ones are wrong, hints, chips with scripted answers, win
-  copy, and the files at each step's start and target. A schema validates it
+  reasons the wrong ones are wrong, hints, finish chips with their answers, win
+  copy, the tutorial's doc pages as Markdown, and the files at each step's start and target. A schema validates it
   and names every error by its path. A loader turns it into a tutorial the
   catalog lists. An authoring instruction, self-contained so any LLM can use
   it, lets an agent write a new tutorial from a conversation with a product
@@ -38,13 +38,17 @@ wallet. A step passes on what actually happened.
   - a four-segment step bar jumps back to the dividers;
   - the question, wrote, act, result, win and finish cards are the only places
     an action lives;
-  - one composer: an action word runs the live action, a scripted chip gets
-    its scripted answer, anything else goes to the live assistant, which in a
-    tutorial never writes or runs anything itself.
+  - one composer: an action word runs the live action, a finish chip gets
+    its answer, anything else goes to the live assistant, which in a
+    tutorial never writes or runs anything itself. It acts on the interface
+    only through four tools: open the menu, the hint, Skip, and a proposed
+    change to apply.
 - **The workspace beside it:**
   - before Start, the finished program, read only;
   - the editor shows the lines the assistant wrote;
   - the file tree opens from a toggle on the active tab and docks with a pin;
+  - the tutorial's doc pages open as read-only tabs that close, from a
+    `Docs` folder in the tree or a link in the assistant's answer;
   - the terminal bar is always on screen;
   - the first deploy adds a Call panel built from the deployed IDL;
   - the navigation folds to its icon rail on entering a tutorial.
@@ -53,7 +57,9 @@ wallet. A step passes on what actually happened.
     learner's Playground wallet, funded on devnet the way deploy funds it today.
   - Running the client and calling from the Call panel go to devnet.
   - Every deploy and call result links its program id and transaction to
-    Solana Explorer on the devnet cluster (Jonas).
+    Solana Explorer on the devnet cluster (Jonas), as the keys themselves.
+  - Every Kora line is replaced by Almaz's wallet copy, and a refused
+    airdrop gets a "Not enough devnet SOL" card with the faucet.
   - Kora's 0 SOL deploy is not in this change.
 - **Step checks on what happened.** Each step's goal in the definition is
   checked against the real result: a build passes, a deploy lands, an
@@ -87,8 +93,8 @@ wallet. A step passes on what actually happened.
   reload.
 - `tutorial-workspace`: the frame around the conversation: the folded
   navigation, the chat column width, the editor's written and landing lines,
-  the file tree popover, the terminal bar and drawer, and the Call panel built
-  from the deployed IDL.
+  the file tree popover, doc tabs, the terminal bar and drawer, and the Call
+  panel built from the deployed IDL.
 - `tutorial-runs`: build, deploy, upgrade, client run and calls inside a
   tutorial against the build server and devnet, wallet funding, Explorer
   links, interrupted runs, and what passes each step.

@@ -117,7 +117,9 @@ Outcomes:
   - it shows "Not quite." and its reason, linked by `aria-describedby`;
   - focus moves to the next pickable row;
   - after two wrong picks, the last row is outlined.
-- **Hint:** echoes "I'm stuck" as a pill and posts the hint once.
+- **Hint:** echoes "I'm stuck" as a pill and posts the hint once. The hint
+  is the definition's text, so it works with no model connected. "I'm stuck"
+  typed in the composer posts the same hint (see the composer's tools).
 - **Skip:** writes the block and records "· skipped".
 - **Type it myself:** focuses the editor at the line where the answer lands.
 - **Typed by hand:**
@@ -223,10 +225,14 @@ get its check and time. Enter SHALL go Next while the win is live. The last
 step's win SHALL have no Next. The finish card SHALL follow 400 ms later with:
 
 - the headline and line;
-- a collapsed "Transaction details" row holding the last call's receipt;
+- a collapsed "Transaction details" row holding the last call's receipt, with
+  Copy receipt as an icon button on the row;
 - "What you learned";
-- "<n> steps · <SOL> spent · <time>";
-- a primary "Next: <tutorial>" and "All tutorials".
+- the meta line "<n> steps · <time> · devnet only, nothing real spent";
+- a primary "Next: <tutorial>" and "All tutorials", and no "See summary".
+
+Neither the win card nor the finish card SHALL show stat pills, and the
+definition SHALL carry none.
 
 #### Scenario: Finishing Hello Anchor
 
@@ -249,26 +255,43 @@ in this order:
    "call", "next", "explain", alone or with "please") SHALL run that action
    and be echoed as a pill. While a question is open, the answer is instead
    "Pick an answer above first, or press Skip. Then the button's yours."
-2. A message that matches a step's scripted match, or a finish chip, SHALL get
-   the definition's answer.
+2. A finish chip SHALL get the definition's answer, with no model call.
 3. Anything else SHALL go to the product's assistant, with the tutorial, the
-   step, its objective, the open files and the last result as its context.
-   Its answer SHALL post in the feed as the assistant's turn.
+   step, its objective, the open files, the last result and the tutorial's
+   doc list as its context. Its answer SHALL post in the feed as the
+   assistant's turn. With no model connected, the message SHALL route to
+   connecting a model.
+
+There SHALL be no scripted answers matched from typed text: the assistant
+answers every free message. What does something in the interface SHALL be one
+of four tools the assistant calls in a tutorial, never canned text:
+
+- **Open the menu** ("show me the menu"): opens the navigation overlay.
+- **Hint** ("I'm stuck"): posts the live question's hint.
+- **Skip** ("do it for me"): skips the live question, as its Skip button
+  does.
+- **Propose a change** ("change what hello says"): posts the apply card below.
 
 In a tutorial the assistant SHALL not write files, build, deploy or send
-transactions. A change it proposes SHALL post as a card with the changed
-line's diff and two outline buttons, "Apply to <file>" and "Keep it". Applying
-SHALL write the line with a wrote card. A deployed file changed this way SHALL
-get the redeploy nudge of `tutorial-runs`. The feed SHALL be `role="log"` with
+transactions; Skip writes the lesson's own block, as the button would. A
+change it proposes SHALL post as a card with the changed line's diff and two
+outline buttons, "Apply to <file>" and "Keep it". It SHALL never apply by
+itself. Applying SHALL write the line with a wrote card. A deployed file
+changed this way SHALL get the redeploy nudge of `tutorial-runs`. The
+assistant MAY link one of the tutorial's doc pages in its answer (see
+`tutorial-workspace`). The feed SHALL be `role="log"` with
 `aria-live="polite"`.
 
-#### Scenario: A scripted match and a free question
+#### Scenario: A free question
 
-- **WHEN** in step 1 the learner types "what does declare_id do?", then
-  "how is this different from Ethereum?"
-- **THEN** the first gets the definition's answer with no model call
-- **AND** the second is answered by the assistant in the feed, and no file
-  changes
+- **WHEN** in step 1 the learner types "what does declare_id do?"
+- **THEN** the assistant answers in the feed, and no file changes
+
+#### Scenario: Typed "I'm stuck"
+
+- **WHEN** a question is open and the learner types "I'm stuck"
+- **THEN** the assistant calls its Hint tool and the question's hint posts
+- **AND** the question stays open
 
 #### Scenario: Change what hello says
 

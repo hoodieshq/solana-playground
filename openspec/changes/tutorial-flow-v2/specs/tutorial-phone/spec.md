@@ -40,7 +40,8 @@ The header's switch, or a sideways swipe, SHALL move between two spaces:
 - **Chat** (the default): the feed and the composer.
 - **Code:**
   - the files, read only, with the written, landing and error line states;
-  - a file switcher between the tutorial's files;
+  - a file list with the tutorial's files and its doc pages, which open
+    there like a file;
   - "Call" in its head once the program is deployed;
   - a status strip at its foot with the last result.
 
@@ -52,7 +53,10 @@ Other differences from the desktop:
 - act buttons sit full width under their text;
 - option rows are at least 48 px, with no key hints;
 - every touch target is at least 44 px;
-- the learner only taps the card at the bottom of the chat.
+- the learner only taps the card at the bottom of the chat;
+- the "Not enough devnet SOL" card's address row takes the full width;
+- the finish opens its own Finish screen, which keeps "Back to the
+  tutorial".
 
 #### Scenario: The assistant wrote, seen from Chat
 

@@ -25,10 +25,16 @@ starting files and thumbnail. The definition SHALL hold:
   - the files' content at the step's start and at its target;
   - its beats in order;
   - its goal;
-  - its win, with the line it shows when the step passed from the Call panel;
-  - its scripted matches: a pattern and the answer it gets;
+  - its win, with the line it shows when the step passed from the Call panel,
+    and no stat pills;
 - the finish: headline, line, what was learned, its chips with their answers,
-  and the next tutorial's slug.
+  and the next tutorial's slug;
+- the docs: the short list of pages the tutorial needs, each with a title,
+  the page's address on its own site, and a Markdown file under
+  `client-v2/src/tutorials/<slug>/docs/`.
+
+A definition SHALL hold no scripted answers matched from typed text; the live
+assistant answers free messages (see `tutorial-conversation`).
 
 A beat SHALL be one of:
 
@@ -56,6 +62,8 @@ shorter phone variant.
   questions and the planned E0412 failure in step 1, with the copy of
   Almaz's `SPEC.md` section 7 except where `tutorial-runs` replaces the Kora
   copy
+- **AND** its docs list Anchor's Program Structure and IDL pages and
+  Solana's Programs and Transactions pages
 
 ### Requirement: The schema names every error by its path
 
@@ -71,7 +79,8 @@ SHALL reject:
 - a step whose goal names an instruction that no step's target defines;
 - a `write` or `ask` block that does not appear in its step's target;
 - a `next` slug that names no tutorial;
-- two beats sharing an id.
+- two beats sharing an id;
+- a doc whose Markdown file is missing.
 
 `yarn run check` SHALL run it.
 

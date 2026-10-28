@@ -27,8 +27,7 @@ line SHALL show the log, with no line link.
 #### Scenario: The planned failure is a real compiler error
 
 - **WHEN** Hello Anchor's step 1 builds before the fixing question
-- **THEN** the build server answers with `error[E0412]: cannot find type
-  `Hello` in this scope` at `src/lib.rs:9:32`
+- **THEN** the build server answers with `error[E0412]: cannot find type `Hello` in this scope` at `src/lib.rs:9:32`
 - **AND** the card reads "E0412 · line 9" and line 9 is marked
 
 ### Requirement: Deploy goes from the learner's wallet on devnet
@@ -45,31 +44,45 @@ that line. Before the first deploy:
 - **No wallet:** the act card SHALL offer to create or connect one in place,
   and run nothing until there is one.
 - **Too little balance:** the deploy SHALL top up the wallet by airdrop, the
-  way the editor's deploy does. The stage reads "Funding your wallet".
-- **Airdrop refused or rate limited:** a failed card "Not enough devnet SOL"
-  SHALL post. It names the amount needed, offers "Try again", and links the
-  devnet faucet with the wallet's address to copy.
+  way the editor's deploy does, as an extra first stage on the act card,
+  "Funding your wallet". The stage shows only when the balance is short, and
+  the terminal prints the airdrop line. There is no separate card.
+- **Airdrop refused or rate limited:** a failed result card SHALL post, red
+  like a failed build, titled "Not enough devnet SOL", with the line "Your
+  wallet has {balance} SOL, this deploy needs about {cost}. The devnet faucet
+  is at its limit for now". Under it sits the wallet's address row (short
+  address, Copy). Its buttons are a primary "Try again" and "Open faucet",
+  which opens `https://faucet.solana.com` in a new tab. Typing "deploy" in the
+  composer retries too.
 
 A deploy SHALL keep the program's keypair in the workspace, so the program
 keeps its address. Every later deploy of that tutorial's program SHALL upgrade
 it in place. The result card SHALL read "Deployed" (or "Upgraded <short id>"),
 with "Show log" opening the terminal, and:
 
-- the SOL the deploy spent;
-- the program id with Copy and an Explorer link;
-- the deploy transaction with an Explorer link;
+- the devnet SOL the deploy spent;
+- on its meta line, the program id and the deploy signature, each a short key
+  with ↗ that is itself the Explorer link, with no separate Explorer button;
 - the IDL's instructions and their arguments.
 
-Every Explorer link SHALL open Solana Explorer on the devnet cluster in a new
-tab.
+In a receipt (the finish card's Transaction details), every address row SHALL
+carry Copy and an Explorer link. Every Explorer link SHALL open Solana
+Explorer on the devnet cluster in a new tab.
 
 #### Scenario: First deploy with an empty wallet
 
 - **WHEN** a learner with a new wallet and 0 SOL presses Deploy on Hello
   Anchor's step 2
 - **THEN** the card shows "Funding your wallet", then the four deploy stages
-- **AND** the result shows the program id and the deploy transaction, each
-  linking to `https://explorer.solana.com/...?cluster=devnet`
+- **AND** the result's meta line shows the program id and the deploy
+  signature as links to `https://explorer.solana.com/...?cluster=devnet`
+
+#### Scenario: The faucet is at its limit
+
+- **WHEN** the deploy's airdrop is refused
+- **THEN** a red card reads "Not enough devnet SOL" with the wallet's balance,
+  the deploy's cost, the address row with Copy, "Try again" and "Open faucet"
+- **AND** typing "deploy" runs the deploy again
 
 #### Scenario: The upgrade keeps the address
 
@@ -86,8 +99,8 @@ SHALL show the runner's output. The result card SHALL show:
 - the transactions the run sent and their confirmation;
 - the program's log line the definition names (for Hello Anchor, the first
   line starting `Program log: Hello`), as the card's large line;
-- the signature with Copy and an Explorer link, the compute units, the fee and
-  the confirmation time.
+- on its meta line, the signature as a short key with ↗ that is the Explorer
+  link, the compute units, the fee and the confirmation time.
 
 A call act SHALL send the instruction with the given arguments from the
 wallet and post the same card with "Sent from the chat". A Call panel call
@@ -101,6 +114,37 @@ its error and its log, and the step SHALL not pass.
 - **THEN** the result reads "Confirmed · Sent from client.ts" with "Program
   log: Hello, World!"
 - **AND** its signature opens the transaction in Explorer on devnet
+
+### Requirement: Wallet copy replaces every Kora line
+
+No copy in a tutorial SHALL name Kora, promise 0 SOL or mention closing
+programs after 7 days. The definition and the cards SHALL use these strings,
+Almaz's of 28 Oct, verbatim. `{cost}` and `{fee}` are the real numbers from
+the deploy and the transaction.
+
+| Where                       | String                                                                                                                                                                                   |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Intro note                  | A devnet wallet is set up for you with free test SOL. Your progress stays in this browser                                                                                                |
+| Deploy explanation (step 2) | Deploying costs devnet SOL. It's test money with no value, and Playground tops your wallet up for free when it runs low                                                                  |
+| Deploy card context line    | From your Playground wallet · free devnet SOL                                                                                                                                            |
+| Deploy result               | {cost} devnet SOL from your wallet                                                                                                                                                       |
+| Terminal                    | Deploying from {wallet short} · {cost} SOL                                                                                                                                               |
+| Call result and Call panel  | fee {fee} from your wallet                                                                                                                                                               |
+| Receipt signer row          | Your wallet · signer, with its short address                                                                                                                                             |
+| Finish card meta            | {N} steps · {time} · devnet only, nothing real spent                                                                                                                                     |
+| Finish receipt              | Fee {fee} devnet SOL                                                                                                                                                                     |
+| Finish chip                 | What is devnet SOL?                                                                                                                                                                      |
+| Its answer                  | Devnet is Solana's public test network. Its SOL is free and worth nothing, so you can deploy and call as much as you like. Playground keeps your wallet topped up from the devnet faucet |
+
+There SHALL be no "Why 7 days?" chip.
+
+#### Scenario: No Kora left
+
+- **WHEN** Hello Anchor runs from the intro to the finish
+- **THEN** no card, chip, terminal line or receipt reads "Kora", "0 SOL" or
+  "7 days"
+- **AND** the deploy result reads "{cost} devnet SOL from your wallet" with
+  the real cost
 
 ### Requirement: A step passes on what happened
 
@@ -174,5 +218,4 @@ key or the wallet's secret.
 #### Scenario: A refused airdrop
 
 - **WHEN** a deploy stops because the airdrop was refused
-- **THEN** `tutorial_action_run` reaches the memory provider with `action:
-  "deploy"` and `outcome: "no_funds"`
+- **THEN** `tutorial_action_run` reaches the memory provider with `action: "deploy"` and `outcome: "no_funds"`

@@ -37,8 +37,11 @@ The "from" side, on `new-face-polish-2` at `bdd350ba7`:
 
 The "to" side is Almaz's prototype (`almaz/mobile-tutorial-prototype`,
 `design-system/src/prototype/tutorial-v2`, `fb4b8e9ee`) and its `SPEC.md`. The
-prototype wins where they differ. The differences are a question batch for
-Almaz, not decisions taken here.
+prototype wins where they differ. The differences went to Almaz as a question
+batch (`questions-for-almaz.md`); he answered all 34 on 28 Oct, and the specs
+carry his answers. Nikita's "Spec 00 · Index and open decisions" (D3) lists
+seven places where this change differed from those answers; each is folded in
+(D6, D8, D9, D10).
 
 ## Goals / Non-Goals
 
@@ -53,8 +56,8 @@ Almaz, not decisions taken here.
 **Non-Goals:**
 
 - Moving upstream's other 13 tutorials. They keep their pages.
-- A live model writing the lesson. The lesson is scripted; only free
-  questions reach the model.
+- A live model writing the lesson. The lesson is scripted; free messages
+  reach the model, which acts on the interface only through four tools (D2).
 - Kora, a DSL, or the assistant judging a step. An admin panel is not planned
   at all.
 
@@ -104,10 +107,16 @@ start and the target, as the prototype's `insertBlock` does.
 - **Free questions and answers** are the assistant's own thread for that
   workspace, with its existing storage and chat sync. A tutorial workspace's
   thread runs in a tutorial mode:
-  - its tools are reduced to reading files and proposing one change as an
-    apply card;
-  - its system context holds the tutorial, the step, the objective and the
-    last result.
+  - its tools are reduced to reading files and four interface tools: open
+    the menu, post the live question's hint, skip the live question, and
+    propose one change as an apply card (Almaz, 3.17);
+  - its system context holds the tutorial, the step, the objective, the
+    last result and the tutorial's doc list, so it can link a page.
+
+There are no scripted answers matched from typed text. Almaz (3.17): the real
+assistant answers everything free, and what stays fixed is what does something
+in the interface, as tool calls. Only the finish chips keep the definition's
+answers.
 
 **Alternative:** one store holding both. It would duplicate the chat's
 persistence and sync, which already handle versioning, merges and two devices.
@@ -167,15 +176,42 @@ exist in the conversation.
 ### D6. Prototype copy that names Kora is replaced
 
 The definition carries the copy, so Hello Anchor's definition replaces the
-Kora copy with the wallet path:
+Kora copy with the wallet path. Almaz gave the words string by string on 28
+Oct (3.25), and `tutorial-runs` holds them verbatim in "Wallet copy replaces
+every Kora line": nine places and the chip "What is Kora?", which becomes
+"What is devnet SOL?". The "Why 7 days?" chip and the 7-day note go (3.28),
+since closing idle programs was Kora's rule.
 
-- "0 SOL, paid by Kora" becomes the real SOL spent;
-- "Through Kora · 0 SOL, no wallet" becomes "From your Playground wallet on
-  devnet";
-- the chip "What is Kora?" becomes "Where does the SOL come from?".
+### D8. The faucet's limit gets its own card, funding a stage
 
-The exact words are a question for Almaz. The specs only require that no copy
-promises 0 SOL.
+Funding is an extra first stage on the deploy act card, shown only when the
+balance is short; a refused airdrop is a red "Not enough devnet SOL" card with
+the balance, the cost, the address row, "Try again" and "Open faucet" (Almaz,
+3.26). Its strings sit in `tutorial-runs`.
+
+### D9. Explorer links are the keys themselves
+
+On a result card's meta line the program id and the signature are the links
+(a short key with ↗), with no separate Explorer button. A receipt gives every
+address row Copy and Explorer. The Call panel keeps its link on the result
+line (Almaz, 3.29).
+
+### D10. Docs are Markdown pages kept with the tutorial, opened as tabs
+
+**Choice:** each tutorial lists the few doc pages it needs, stored as
+Markdown in its folder, shown as a `Docs` folder in the tree and in the
+phone's file list, opened as read-only tabs that close, and linked by the
+assistant where a page helps (Almaz, 3.24).
+
+**Alternative:** the docs sites in an iframe. Those sites refuse to be
+framed, and a copy in the repo works offline from the build and goes through
+the same pull request as the tutorial.
+
+The Call panel's instruction picker is a row of chips, one form and one call
+button for the picked instruction (Almaz, 3.21). The button keeps the
+prototype's "Call <instruction>" rather than Almaz's "one Send": Nikita's Spec
+00, written after the answers, proposes "Call <instruction>" and holds "as
+drawn" until Almaz answers, and the prototype draws "Call hello".
 
 ### D7. The old lesson layer retires when Hello Anchor moves
 
@@ -195,8 +231,9 @@ stay in the workspace.
     retries, and e2e runs against devnet as an `env` case.
 - **A live assistant can contradict the script.**
   - Mitigation: the tutorial mode's context holds the step and its objective,
-    and its tools cannot write or run. The scripted chips answer the expected
-    questions without a model.
+    and its tools cannot write or run; the four interface tools only do what
+    the lesson's own buttons do. The hint is the definition's text, so it
+    works without a model.
 - **The thread merge (D2) touches chat persistence, the riskiest code in the
   fork.**
   - Mitigation: the scripted side writes only `tutorial-storage.json`, and the
@@ -205,8 +242,9 @@ stay in the workspace.
   large: deploy and account rent cost more SOL, and a step may need to wait.
   - Mitigation: their content tickets confirm the costs on devnet first. A
     step that waits shows the wait as an act stage.
-- **Almaz designs Lumberjack and Zero Copy from 28 Oct.** Their content
-  tickets wait for his scripts, not for code.
+- **Almaz delivers the Lumberjack and Zero Copy scripts by Fri 30 Oct**
+  (3.34), in the prototype and in Hello Anchor's shape. Their content tickets
+  wait for those scripts, not for code.
 
 ## Migration Plan
 
@@ -220,9 +258,14 @@ stay in the workspace.
 
 ## Open Questions
 
-- The exact copy that replaces Kora's (D6) is for Almaz. It changes words in
-  a definition, not the specs.
-- Whether the "docs as browser-style tabs" Almaz showed on the call means
-  documentation pages opening as tabs beside the files, or only the files. The
-  prototype's code opens files only, so the specs hold files only until he
-  answers.
+Open with Almaz, from Nikita's Spec 00. Until answered, the specs hold the
+value after the arrow.
+
+- When the Call panel's chips become a dropdown ("only if a program has
+  many"). Nikita proposes from seven instructions, or when a row does not fit
+  at 320 px. → chips.
+- "Send" or "Call <instruction>" on the Call panel's button (D10). →
+  "Call <instruction>", as drawn.
+- The intro note's wording (3.25): Nikita proposes "A Playground wallet is
+  set up for you with free devnet SOL. Your progress stays in this browser".
+  → Almaz's string, verbatim.

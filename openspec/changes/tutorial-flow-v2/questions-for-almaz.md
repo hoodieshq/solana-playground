@@ -5,6 +5,15 @@ These come from checking `SPEC.md` against the prototype's code (branch
 differ, the specs follow the prototype. Each question asks whether that is what
 you intend; a "no" changes the spec.
 
+**Answered 28 Oct.** Almaz answered all 34 at the design sync
+([answers](https://claude.ai/artifact/BryNJQpwujN3HYocHRz92y)). Most confirm
+what the specs already held. These changed the specs: 3.9 (a typed "I'm
+stuck"), 3.15 (the finish), 3.17 (four assistant tools, no scripted matches),
+3.21 (the Call panel's one form and chips), 3.24 (docs as tabs, HOO-2381),
+3.25 (the wallet copy), 3.26 (funding and the faucet card), 3.28 (no 7-day
+note) and 3.29 (Explorer links). 3.34: both scripts by Fri 30 Oct. What is
+still open is in `design.md`, Open Questions.
+
 ## Start and layout
 
 1. The intro card has "What you'll build", "How it goes" and one button, "Start
