@@ -172,7 +172,7 @@ const BaseFundDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Fund the Playground wallet</DialogTitle>
+          <DialogTitle>Fund your Playground wallet</DialogTitle>
           <DialogDescription>
             Sends SOL from your wallet to <strong>{receiver.name}</strong>{" "}
             <span className="font-mono">{shortAddress(receiver.address)}</span>,
@@ -233,6 +233,16 @@ const BaseFundDialog = ({
               )}
             </Field>
           </>
+        )}
+
+        {payer && cluster === "mainnet-beta" && (
+          <Callout variant="warning">
+            <CalloutTitle>Mainnet uses real SOL</CalloutTitle>
+            <CalloutDescription>
+              The Playground wallet's key is kept in this browser, where a
+              malicious script could read it. Send only what a deploy needs.
+            </CalloutDescription>
+          </Callout>
         )}
 
         {shown && (

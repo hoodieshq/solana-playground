@@ -1,5 +1,5 @@
 // What the Fund dialog draws for each state its spec names, from props alone.
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import BaseFundDialog from "./BaseFundDialog";
@@ -41,7 +41,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     renderDialog({});
 
     expect(
-      screen.getByRole("heading", { name: "Fund the Playground wallet" })
+      screen.getByRole("heading", { name: "Fund your Playground wallet" })
     ).toBeTruthy();
     expect(screen.getByText("Wallet 1")).toBeTruthy();
     expect(screen.getByText("9xQe…VFin")).toBeTruthy();
@@ -146,6 +146,15 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     renderDialog({ payer: PAYER, cluster: "mainnet-beta" });
 
     expect(screen.getByText("Sent on mainnet-beta.")).toBeTruthy();
+  });
+
+  it("warns above Send on mainnet only", () => {
+    renderDialog({ payer: PAYER, cluster: "mainnet-beta" });
+    expect(screen.getByText("Mainnet uses real SOL")).toBeTruthy();
+
+    cleanup();
+    renderDialog({ payer: PAYER, cluster: "devnet" });
+    expect(screen.queryByText("Mainnet uses real SOL")).toBeNull();
   });
 
   it("says when the balance cannot be read, and allows no send", () => {

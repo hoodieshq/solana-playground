@@ -25,7 +25,7 @@ const account = (page: Page) =>
 const fundItem = (page: Page) =>
   page.getByRole("menuitem", { name: "Fund from a wallet" });
 const dialog = (page: Page) =>
-  page.getByRole("dialog", { name: "Fund the Playground wallet" });
+  page.getByRole("dialog", { name: "Fund your Playground wallet" });
 
 /**
  * Reloads and waits for the editor to take the focus it takes when it mounts

@@ -21,7 +21,7 @@ The item SHALL be hidden before the Playground wallet has been set up.
 - **THEN** the menu does not show "Fund from a wallet"
 
 ### Requirement: The Fund dialog sends to the deploying wallet
-The dialog, titled "Fund the Playground wallet", SHALL name the receiving
+The dialog, titled "Fund your Playground wallet", SHALL name the receiving
 account (its name and short address): the current wallet when it is a
 Playground wallet, otherwise the first Playground account, which is the one
 `deploy` pays from. Sending SHALL NOT change the current wallet.
@@ -68,6 +68,10 @@ to, and the balance SHALL be read again when that cluster changes.
 #### Scenario: Not a number
 - **WHEN** the user enters `abc`, `0` or `-1`
 - **THEN** the send button is disabled and the field asks for an amount above 0
+
+#### Scenario: Mainnet
+- **WHEN** the Playground is on mainnet-beta and a paying wallet is connected
+- **THEN** a warning Callout titled "Mainnet uses real SOL" shows above the send button
 
 ### Requirement: Sending is one transfer approved in the wallet
 Pressing send SHALL build one System Program transfer of the amount from the
