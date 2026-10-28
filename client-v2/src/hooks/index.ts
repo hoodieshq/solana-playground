@@ -11,6 +11,7 @@ export { useGetStatic } from "./useGetStatic";
 export { useKeybind } from "./useKeybind";
 export { useMounted } from "./useMounted";
 export { useOnClickOutside } from "./useOnClickOutside";
+export { usePgTheme } from "./usePgTheme";
 export { useProgramInfo } from "./useProgramInfo";
 export { useRenderOnChange } from "./useRenderOnChange";
 export { useSendAndReceiveCustomEvent } from "./useSendAndReceiveCustomEvent";
