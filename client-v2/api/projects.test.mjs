@@ -360,13 +360,70 @@ describe("/api/projects", () => {
       assert.ok(mod.describeWrite({ changed: { a: "2" }, removed: [] }).error);
     });
 
-    it("refuses force outright", async () => {
+    it("refuses force: true with a 409, which the pre-#40 client surfaces", async () => {
+      // That client files every other failing status under a silent "skipped"
+      const mod = await load();
+      const patch = mod.describeWrite({
+        changed: {},
+        removed: [],
+        force: true,
+        baseUpdatedAt: token.baseUpdatedAt,
+      });
+      assert.ok(patch.error);
+      assert.equal(patch.status, 409);
+      const full = mod.describeWrite({ files: { a: "1" }, force: true });
+      assert.ok(full.error);
+      assert.equal(full.status, 409);
+    });
+
+    it("reads force: false as absent", async () => {
+      const mod = await load();
+      assert.deepEqual(mod.describeWrite({ files: { a: "1" }, force: false }), {
+        files: { a: "1" },
+      });
+    });
+
+    it("takes the pre-#40 client's body as a whole file set", async () => {
+      // Exactly what that client sends on every ordinary push, so a tab left
+      // open across the deploy keeps syncing until it is reloaded
+      const mod = await load();
+      const body = JSON.parse(
+        JSON.stringify({
+          id: "p1",
+          name: "one",
+          kind: "project",
+          snapshot: { files: { "src/lib.rs": "fn main() {}" } },
+          baseUpdatedAt: token.baseUpdatedAt,
+          force: false,
+        })
+      );
+      assert.deepEqual(mod.describeWrite(body), {
+        files: { "src/lib.rs": "fn main() {}" },
+      });
+    });
+
+    it("refuses an old-format body that is empty or not a file map", async () => {
+      const mod = await load();
+      assert.ok(mod.describeWrite({ snapshot: { files: {} } }).error);
+      assert.ok(mod.describeWrite({ snapshot: null }).error);
+      assert.ok(mod.describeWrite({ snapshot: { files: { a: 1 } } }).error);
+    });
+
+    it("refuses an old-format body that also carries a new shape", async () => {
       const mod = await load();
       assert.ok(
-        mod.describeWrite({ changed: {}, removed: [], force: true, ...token })
-          .error
+        mod.describeWrite({
+          snapshot: { files: { a: "1" } },
+          files: { a: "1" },
+        }).error
       );
-      assert.ok(mod.describeWrite({ files: { a: "1" }, force: true }).error);
+      assert.ok(
+        mod.describeWrite({
+          snapshot: { files: { a: "1" } },
+          changed: {},
+          baseUpdatedAt: token.baseUpdatedAt,
+        }).error
+      );
     });
 
     it("refuses both shapes at once, and neither", async () => {

@@ -78,27 +78,46 @@ export const describeProject = (body) => {
  * - `changed` + `removed`: a patch against the state `baseUpdatedAt` names.
  *   Without a token there is nothing for it to be relative to.
  *
- * `force` is refused outright. There is no unconditional overwrite any more:
+ * `force: true` is refused. There is no unconditional overwrite any more:
  * two devices' copies are merged on the client, so every write is either a
  * create or a swap against the row the caller read.
+ *
+ * A tab left open across the #40 deploy still runs the client from before it,
+ * and keeps doing so until reloaded. That client sends `{snapshot: {files},
+ * baseUpdatedAt, force: false}` on every push and files every refusal except
+ * 409 and 413 under a silent "skipped". So `force: false` reads as absent and
+ * `snapshot` as a whole file set, which is exactly what it was then; and
+ * `force: true`, which that client sends only when the user answers its
+ * banner with "keep this version", is a 409, so the banner stays up rather
+ * than the answer vanishing.
  *
  * Exported for `api/projects.test.mjs`: the handler is behind the auth gate.
  *
  * @returns {{files: Record<string, string>}
  *   | {changed: Record<string, string>, removed: string[]}
- *   | {error: string}}
+ *   | {error: string, status?: 409}}
  */
 export const describeWrite = (body) => {
-  if (body.force !== undefined) return { error: "force is not supported" };
+  if (body.force === true) {
+    return {
+      error: "force is not supported; reload the page to sync",
+      status: 409,
+    };
+  }
+  if (body.force !== undefined && body.force !== false) {
+    return { error: "force is not supported" };
+  }
+  const old = body.snapshot !== undefined;
   const full = body.files !== undefined;
   const patch = body.changed !== undefined || body.removed !== undefined;
-  if (full === patch) {
+  if (Number(old) + Number(full) + Number(patch) !== 1) {
     return { error: "Send either files, or changed and removed" };
   }
 
-  if (full) {
-    return isFileMap(body.files) && Object.keys(body.files).length
-      ? { files: body.files }
+  if (old || full) {
+    const files = old ? body.snapshot?.files : body.files;
+    return isFileMap(files) && Object.keys(files).length
+      ? { files }
       : { error: "files must be a non-empty map of paths to strings" };
   }
 
@@ -254,7 +273,9 @@ async function handler(req, res) {
       if (project.error) return sendJson(res, 400, { error: project.error });
 
       const write = describeWrite(body);
-      if (write.error) return sendJson(res, 400, { error: write.error });
+      if (write.error) {
+        return sendJson(res, write.status ?? 400, { error: write.error });
+      }
 
       // Reaches SQL as a timestamptz. Unchecked, a malformed one is a cast
       // error from the driver, which is a 500 for what is really a bad request.
@@ -275,6 +296,14 @@ async function handler(req, res) {
         baseUpdatedAt: body.baseUpdatedAt,
         ...write,
       });
+      // A patch that would leave the project with no files. The client never
+      // sends one (`push` refuses an empty snapshot), so this is a bad request
+      // like any other, not a question for the user.
+      if (result.refused === "no-files") {
+        return sendJson(res, 400, {
+          error: "A write must leave the project at least one file",
+        });
+      }
       return result.conflict
         ? sendJson(res, 409, result)
         : sendJson(res, 200, result);
