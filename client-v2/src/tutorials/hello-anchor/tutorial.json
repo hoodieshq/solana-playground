@@ -144,31 +144,7 @@
         "headline": "Your program compiles.",
         "line": "The build also made its IDL: one instruction, `hello`. That's what clients will call."
       },
-      "explain": "This step writes the smallest Anchor program there is: one instruction, `hello`, that writes a line to the program log. I explain a piece, you pick the right line, and I write it in. Then the build checks it.",
-      "chips": [
-        {
-          "label": "What is a Context?",
-          "pattern": "\\bcontext\\b",
-          "answer": "`Context<T>` is what Anchor hands an instruction when it's called: the accounts listed in the struct `T`, already checked, and the program id. `hello` reads no accounts, so its struct can stay empty."
-        },
-        {
-          "label": "What does msg! do?",
-          "pattern": "\\bmsg\\b",
-          "answer": "`msg!` writes a line to the program log, the way `println!` prints in plain Rust. The line shows up in the transaction's logs, which you'll read after the client calls `hello`."
-        }
-      ],
-      "errorChips": [
-        {
-          "label": "Why does hello need a struct?",
-          "pattern": "\\b(derive|struct)\\b",
-          "answer": "Without `#[derive(Accounts)]` Anchor can't tell which accounts an instruction expects, so it can't generate the code that checks them. An instruction that reads no accounts still needs the struct. It's just empty."
-        },
-        {
-          "label": "Where is this in the docs?",
-          "pattern": "\\b(docs?|documentation)\\b",
-          "answer": "The Anchor docs cover it in [Program Structure](https://www.anchor-lang.com/docs/basics/program-structure#deriveaccounts-macro), in the section on `#[derive(Accounts)]`."
-        }
-      ]
+      "explain": "This step writes the smallest Anchor program there is: one instruction, `hello`, that writes a line to the program log. I explain a piece, you pick the right line, and I write it in. Then the build checks it."
     },
     {
       "id": "deploy",
@@ -229,19 +205,7 @@
         "line": "Its IDL also gave you the Call panel: a form for every instruction. You'll use it in a moment.",
         "extra": "openTest"
       },
-      "explain": "Deploying puts your built program on devnet, Solana's public test network, at an address of its own: the program id. Your Playground wallet pays in devnet SOL. Press Deploy and wait for the id.",
-      "chips": [
-        {
-          "label": "What is devnet?",
-          "pattern": "\\bdevnet\\b",
-          "answer": "Devnet is Solana's public network for testing. It behaves like mainnet, but its SOL has no value."
-        },
-        {
-          "label": "Where does the SOL come from?",
-          "pattern": "\\b(sol|wallet|airdrop|pay)\\b",
-          "answer": "From your Playground wallet. Devnet SOL has no value, and when the wallet runs low the deploy tops it up with an airdrop from devnet."
-        }
-      ]
+      "explain": "Deploying puts your built program on devnet, Solana's public test network, at an address of its own: the program id. Your Playground wallet pays in devnet SOL. Press Deploy and wait for the id."
     },
     {
       "id": "call-client",
@@ -318,26 +282,7 @@
         "callPanelLine": "You called `hello` from the Call panel, which Playground built from the IDL. In code, the same call is one line.",
         "extra": "openTest"
       },
-      "explain": "A client is code outside the program that sends it transactions. Here it's one line of TypeScript in `client.ts`. You can also call `hello` from the Call panel, no code needed.",
-      "chips": [
-        {
-          "label": "What is pg?",
-          "pattern": "\\bpg\\b",
-          "answer": "`pg` is Playground's global with your program, wallet and connection already set up. `pg.program` knows `hello` from the IDL the build produced."
-        },
-        {
-          "label": "What's an IDL?",
-          "pattern": "\\bidls?\\b",
-          "answer": "The IDL is your program's interface, written by the build: its instructions, their arguments and accounts. Clients read it to know how to call you, and the Call panel is built from it.",
-          "follow": "openTest"
-        },
-        {
-          "label": "Can I call it without code?",
-          "pattern": "without code|\\bcall panel\\b",
-          "answer": "Yes. After the deploy, the Call panel has a form for each instruction. Fill the arguments and press Call hello.",
-          "follow": "openTest"
-        }
-      ]
+      "explain": "A client is code outside the program that sends it transactions. Here it's one line of TypeScript in `client.ts`. You can also call `hello` from the Call panel, no code needed."
     },
     {
       "id": "greet-by-name",
@@ -420,19 +365,7 @@
         "headline": "hello knows your name.",
         "line": "You changed an instruction, shipped the new version and called it with an argument."
       },
-      "explain": "Instructions can take arguments after their `Context`. This step adds a `name` to `hello`, ships the new version and calls it with your name.",
-      "chips": [
-        {
-          "label": "Which types work?",
-          "pattern": "\\btypes?\\b",
-          "answer": "Any type Anchor can serialize: numbers, `bool`, `String`, `Pubkey`, `Vec` and your own structs with `AnchorSerialize`."
-        },
-        {
-          "label": "Can I call it with someone else's name?",
-          "pattern": "someone else|another name|other name",
-          "answer": "Sure. Type any name here or in the Call panel. The program logs whatever it gets, up to 32 characters here."
-        }
-      ]
+      "explain": "Instructions can take arguments after their `Context`. This step adds a `name` to `hello`, ships the new version and calls it with your name."
     }
   ],
   "finish": {
@@ -447,7 +380,6 @@
     "chips": [
       {
         "label": "Change what hello says",
-        "pattern": "\\b(change|make|let)\\b.*\\b(say|says|text|message|log|story)\\b",
         "answer": "Sure. What should `hello` say?"
       },
       {

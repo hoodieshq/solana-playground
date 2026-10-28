@@ -442,17 +442,7 @@ const ruleErrors = (
       instruction(goal.instruction, `steps[${i}].goal.instruction`);
       pattern(goal.log, `steps[${i}].goal.log`);
     }
-
-    step.chips.forEach((c, k) =>
-      pattern(c.pattern, `steps[${i}].chips[${k}].pattern`)
-    );
-    step.errorChips?.forEach((c, k) =>
-      pattern(c.pattern, `steps[${i}].errorChips[${k}].pattern`)
-    );
   });
-  d.finish.chips.forEach((c, k) =>
-    pattern(c.pattern, `finish.chips[${k}].pattern`)
-  );
 
   if (d.finish.next !== null && !known.has(d.finish.next)) {
     errors.push({
@@ -563,7 +553,6 @@ if (import.meta.vitest) {
             line: "One instruction.",
           },
           explain: "This step writes hello.",
-          chips: [],
         },
         {
           id: "call",
@@ -592,7 +581,6 @@ if (import.meta.vitest) {
             line: "It said hi.",
           },
           explain: "This step calls hello.",
-          chips: [],
         },
       ],
       finish: {
@@ -815,27 +803,28 @@ if (import.meta.vitest) {
       ]);
     });
 
-    it("checks the pattern of every chip", () => {
+    it("checks the call goal's log pattern", () => {
       const d = minimal();
-      d.steps[0].chips = [{ label: "A", answer: "a", pattern: "(" }];
-      d.steps[0].errorChips = [{ label: "B", answer: "b", pattern: "[" }];
-      d.finish.chips = [{ label: "D", answer: "d", pattern: "(?<" }];
+      d.steps[1].goal = { kind: "call", instruction: "hello", log: "(" };
       expect(lines(d)).toEqual([
-        'steps[0].chips[0].pattern: a regular expression, found "("',
-        'steps[0].errorChips[0].pattern: a regular expression, found "["',
-        'finish.chips[0].pattern: a regular expression, found "(?<"',
+        'steps[1].goal.log: a regular expression, found "("',
       ]);
     });
 
-    it("refuses scripted matches and win stats", () => {
+    it("refuses scripted answers to typed text, step chips and win stats", () => {
       const d = minimal() as unknown as {
         steps: Record<string, unknown>[];
+        finish: { chips: unknown[] };
       };
+      d.steps[0].chips = [];
       d.steps[1].matches = [{ pattern: "hi", answer: "c" }];
       Object.assign(d.steps[0].win as object, { stats: [] });
+      d.finish.chips = [{ label: "SOL?", answer: "Test SOL.", pattern: "sol" }];
       expect(lines(d)).toEqual([
+        "steps[0].chips: no such field, found a list of 0",
         "steps[0].win.stats: no such field, found a list of 0",
         "steps[1].matches: no such field, found a list of 1",
+        'finish.chips[0].pattern: no such field, found "sol"',
       ]);
     });
 

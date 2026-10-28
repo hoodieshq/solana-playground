@@ -62,8 +62,7 @@
         "headline": "Built.",
         "line": "One instruction."
       },
-      "explain": "This step writes hello.",
-      "chips": []
+      "explain": "This step writes hello."
     },
     {
       "id": "log",
@@ -123,8 +122,7 @@
         "headline": "Logged.",
         "line": "It logs the name."
       },
-      "explain": "This step logs the name.",
-      "chips": []
+      "explain": "This step logs the name."
     }
   ],
   "finish": {

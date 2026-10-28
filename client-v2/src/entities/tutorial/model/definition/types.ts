@@ -11,7 +11,7 @@ export type Text = string | { text: string; phone: string };
 /** Whole file contents by workspace path */
 export type Files = Record<string, string>;
 
-/** A quiet button after an answer; it only opens or shows something */
+/** A quiet button after a finish chip's answer; it only opens or shows something */
 export type Follow =
   | "openTest"
   | "showMenu"
@@ -19,12 +19,11 @@ export type Follow =
   | "writeClient"
   | "nextTutorial";
 
+/** A finish chip: pressed, it posts its answer with no model call */
 export interface Chip {
   label: string;
   answer: Text;
   follow?: Follow;
-  /** The subject the chip answers when typed in other words, as a regex */
-  pattern?: string;
 }
 
 /** Code written into a file; it appears in its step's target for that file */
@@ -127,8 +126,6 @@ export type Step = PlannedFailure & {
   goal: Goal;
   win: Win;
   explain: Text;
-  chips: Chip[];
-  errorChips?: Chip[];
 };
 
 /** A doc page the tutorial needs, kept as Markdown in its `docs/` folder */

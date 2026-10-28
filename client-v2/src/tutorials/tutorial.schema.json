@@ -263,12 +263,9 @@
         },
         "follow": {
           "$ref": "#/definitions/follow"
-        },
-        "pattern": {
-          "description": "The subject the chip answers when it is typed in other words.",
-          "$ref": "#/definitions/pattern"
         }
-      }
+      },
+      "description": "A finish chip: pressed, it posts its answer with no model call."
     },
     "block": {
       "description": "Code written into a file. It must appear in its step's target for that file.",
@@ -631,8 +628,7 @@
         "beats",
         "goal",
         "win",
-        "explain",
-        "chips"
+        "explain"
       ],
       "properties": {
         "id": {
@@ -705,19 +701,6 @@
         "explain": {
           "description": "The answer to \"Explain this step\".",
           "$ref": "#/definitions/text"
-        },
-        "chips": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/chip"
-          }
-        },
-        "errorChips": {
-          "description": "The chips under a failed build.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/chip"
-          }
         }
       },
       "dependencies": {

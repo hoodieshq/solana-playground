@@ -9,6 +9,13 @@ import { fileURLToPath } from "node:url";
 const CLIENT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FIXTURES = path.join("src", "tutorials", "__tests__");
 
+/** A temporary folder, removed when the test `t` ends */
+const tempDir = (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tutorial-check-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  return dir;
+};
+
 /** `yarn tutorial:check` with these arguments, as the script runs it */
 const check = (...args) =>
   spawnSync(
@@ -52,16 +59,16 @@ test("tutorial:check stops on a slug with no definition", () => {
   assert.match(run.stderr, /no-such-tutorial/);
 });
 
-test("tutorial:check reports a file that is not JSON", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tutorial-check-"));
+test("tutorial:check reports a file that is not JSON", (t) => {
+  const dir = tempDir(t);
   fs.writeFileSync(path.join(dir, "tutorial.json"), "{ not json");
   const run = check(dir);
   assert.equal(run.status, 1);
   assert.match(run.stdout, /tutorial\.json: not JSON, /);
 });
 
-test("tutorial:check names a doc whose page is missing from docs/", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tutorial-check-"));
+test("tutorial:check names a doc whose page is missing from docs/", (t) => {
+  const dir = tempDir(t);
   const definition = JSON.parse(
     fs.readFileSync(
       path.join(CLIENT, "src", "tutorials", "hello-anchor", "tutorial.json"),
