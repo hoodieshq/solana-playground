@@ -18,7 +18,7 @@ const faucetOf = (cluster: unknown): Faucet => {
 };
 
 export const useAirdrop = () => {
-  const [faucet, setFaucet] = useState<Faucet>("unknown");
+  const [faucet, setFaucet] = useState(() => faucetOf(PgConnection.cluster));
 
   useEffect(() => {
     const { dispose } = PgConnection.onDidChangeCluster((cluster) => {
