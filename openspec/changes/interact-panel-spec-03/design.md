@@ -51,7 +51,9 @@ and the failing-line rule.
    a plain `CallOutcome` (`call-outcome.ts`, with the failing-line rule), which
    the result and the history render; it never rejects. The sidebar's Test
    page renders the same body, so both places call alike.
-4. **Pure parts are Base components.** `BaseCallResult` and `BaseCallHistory`
+4. **Pure parts are Base components, beside the stage.** They sit in
+   `views/flow/stages` next to `BaseInteract` and `BaseDeploy`: the stage
+   moves to a widget slice as a whole, in its own move, not part by part. `BaseCallResult` and `BaseCallHistory`
    take the outcome and records through props; `InteractBody` connects them,
    the chips and the `Instruction` form. The callouts are props of
    `BaseInteract`, computed in `Interact` from pure helpers
@@ -69,9 +71,9 @@ and the failing-line rule.
 
 ## Risks / Trade-offs
 
-- `getTransaction` may lag the confirmation on a slow RPC: logs are read once
-  after confirm; an empty read shows the result without logs rather than
-  waiting.
+- `getTransaction` may lag the confirmation on a slow RPC: an empty read is
+  asked once more after 1.5 s, then the result shows without logs rather than
+  waiting longer.
 - Accounts and Events lookups stay as they were, below the history, in the old
   folded style.
 - Explorer links use the current network until HOO-2385's per-record cluster

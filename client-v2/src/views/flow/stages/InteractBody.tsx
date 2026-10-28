@@ -55,6 +55,7 @@ const InteractBody = ({
   } | null>(null);
   const outcome = last?.target === target ? last.outcome : null;
   const history = useCallHistory(programId, cluster);
+  const network = cluster ?? "the network";
   const explorer = useBlockExplorer();
   const txUrl = (sig: string) => explorer.getTxUrl?.(sig) ?? "";
 
@@ -94,18 +95,15 @@ const InteractBody = ({
         )}
 
         {outcome && (
-          <BaseCallResult
-            outcome={outcome}
-            cluster={cluster ?? "the network"}
-            txUrl={txUrl}
-          />
+          <BaseCallResult outcome={outcome} cluster={network} txUrl={txUrl} />
         )}
 
         <BaseCallHistory
           records={history}
-          cluster={cluster ?? "the network"}
+          cluster={network}
           txUrl={txUrl}
-          onOpen={setPicked}
+          // A row of an instruction a rebuild removed leaves the form alone
+          onOpen={(name) => names.includes(name) && setPicked(name)}
         />
 
         {idl.accounts && (

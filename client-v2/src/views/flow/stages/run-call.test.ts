@@ -147,7 +147,7 @@ describe("runCall", () => {
     h.getTransaction.mockResolvedValue({ meta: { logMessages: [] } });
 
     await expect(runCall(IX)).resolves.toMatchObject({ ok: true });
-    expect(localStorage.getItem("flow.calls")).toBeNull();
+    expect(PgCallHistory.list("P", "devnet")).toEqual([]);
   });
 
   it("records under the program and network the call went to", async () => {

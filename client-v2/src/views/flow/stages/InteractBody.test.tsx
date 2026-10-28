@@ -144,4 +144,34 @@ describe("InteractBody", () => {
     );
     expect(screen.queryByRole("region", { name: "Call result" })).toBeNull();
   });
+
+  it("a history row of an instruction the IDL lost leaves the form alone", () => {
+    localStorage.setItem(
+      "flow.calls",
+      JSON.stringify([
+        {
+          id: "a",
+          programId: "P",
+          cluster: "devnet",
+          instruction: "removed",
+          ok: true,
+          signature: "sig",
+          failingLine: null,
+          at: 1,
+        },
+      ])
+    );
+    render(
+      wrap(
+        <InteractBody
+          idl={idl("initialize", "increment")}
+          programId="P"
+          cluster="devnet"
+        />
+      )
+    );
+    fireEvent.click(screen.getByRole("radio", { name: "increment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open removed" }));
+    expect(screen.getByText("form increment")).toBeTruthy();
+  });
 });
