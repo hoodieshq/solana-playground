@@ -239,7 +239,6 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
     endpoint: trimmedEndpoint,
     settings: activeSettings,
   };
-  const switching = !!current && !PgAssistant.isCurrent(next);
 
   const connect = () => PgAssistant.connect(next);
 
@@ -528,13 +527,6 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
       {/* Gone once the sign-in is no longer what the action does */}
       {needsSignIn && signInError && (
         <SignInError role="alert">{signInError}</SignInError>
-      )}
-
-      {switching && (
-        <Note>
-          Switching starts a new conversation. The current one cannot be
-          replayed to another backend.
-        </Note>
       )}
 
       {provider.needsKey && (

@@ -553,4 +553,58 @@ test.describe("assistant-own-key", () => {
     await expect(log).toContainText("You: again");
     expect(defaultTurns).toEqual([]);
   });
+  /**
+   * A conversation on the user's own key, then Connect a model open over it
+   * with another model typed in: a different connection, which used to start
+   * a new conversation
+   */
+  const switchingModel = async (page: Page) => {
+    const turns: { model?: string; messages?: unknown[] }[] = [];
+    await page.route(COMPLETIONS_URL, (route) => {
+      turns.push(JSON.parse(route.request().postData() ?? "{}"));
+      return route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: `data: ${JSON.stringify({
+          choices: [{ delta: { content: REPLY }, finish_reason: "stop" }],
+        })}\n\ndata: [DONE]\n\n`,
+      });
+    });
+    await seedWorkspace(page, "own-key-switch");
+    await connectOwn(page);
+    await composer(page).fill("hello");
+    await composer(page).press("Enter");
+    await expect(page.getByText(REPLY)).toBeVisible(LONG);
+
+    await page.getByRole("button", { name: "More", exact: true }).click();
+    await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+    const dialog = page.getByRole("dialog", { name: "Connect a model" });
+    await dialog.locator("#assistant-model").fill("gpt-y");
+    return { dialog, turns };
+  };
+
+  test("assistant-own-key: Switching backends keeps the thread", async ({
+    page,
+  }) => {
+    const { dialog, turns } = await switchingModel(page);
+    await dialog.getByRole("button", { name: "Switch" }).click();
+    await expect(dialog).toBeHidden(LONG);
+
+    const log = page.getByRole("log", { name: "Conversation" });
+    await expect(log).toContainText("You: hello");
+    await composer(page).fill("again");
+    await composer(page).press("Enter");
+    await expect(page.getByText(REPLY)).toHaveCount(2, LONG);
+    expect(turns.map((t) => t.model)).toEqual(["gpt-x", "gpt-y"]);
+    expect(JSON.stringify(turns[1].messages)).toContain("hello");
+  });
+
+  test("assistant-own-key: No warning about a new conversation", async ({
+    page,
+  }) => {
+    const { dialog } = await switchingModel(page);
+
+    await expect(dialog.locator("#assistant-model")).toHaveValue("gpt-y");
+    await expect(dialog).not.toContainText("new conversation");
+  });
 });

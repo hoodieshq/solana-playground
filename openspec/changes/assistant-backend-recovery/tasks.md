@@ -31,7 +31,7 @@ where stated; 1.1 and 1.2 may run at the same time.
 
 ## 3. Switching keeps the conversation
 
-- [ ] 3.1 `PgAssistant.connect` no longer calls `clear()`; the switching
+- [x] 3.1 `PgAssistant.connect` no longer calls `clear()`; the switching
   note leaves `Connect.tsx`; the JSDoc of `connect` and `clear` and the
   composer's pick comment say what happens now; `docs/assistant-context.md`
   checked for the same claim and synced with `yarn sync-assistant-context` if
