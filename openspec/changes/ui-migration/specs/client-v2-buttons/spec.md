@@ -85,4 +85,4 @@ The toast is covered by `report-button-failure.test.tsx` and `terminal-process.t
 #### Scenario: A failed build is told once, by the Build stage
 
 - **WHEN** a build started from the Build button fails while the console is folded
-- **THEN** the Build stage says "Build failed" and no toast appears
+- **THEN** the Build stage says "Build did not start" and no toast appears

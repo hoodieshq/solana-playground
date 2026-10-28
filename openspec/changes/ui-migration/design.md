@@ -632,7 +632,7 @@ here. One PR, stacked on 5.6's.
 | `color`, `bg`, `hoverColor`, `fontWeight`, `fullWidth`, `size` | a variant, or a class |
 
 The brand buttons: the Build stage's four ("Continue to Deploy" twice and
-"Fix with assistant" twice; its Build, Retry build and Rebuild are
+"Fix with assistant" twice; its Build, Try again and Rebuild are
 `AsyncButton`s), Deploy, the assistant's "Allow", Connect and Start from
 scratch. 5.21 adds the tutorial page's START and CONTINUE, after the
 prototype; its COMPLETED stays a ghost `AsyncButton`.
@@ -815,7 +815,7 @@ the workspace's own report:
 | Surface | When | Shows |
 |---|---|---|
 | `empty` | no build yet, or the first one running | "Nothing built yet" / "Building...", Build |
-| `unreached` | a build settled in this session with no report from the compiler | the build server named, Retry build |
+| `unreached` | a build settled in this session with no report from the compiler | Spec 08 BUILD-04: "Build did not start", Try again; the build server and the raw error behind Show details |
 | `restored` | a verdict kept from before a reload, and no build settled since (a rebuild in flight keeps it) | "Built earlier" / "Last build failed", Build |
 | `succeeded` | the report has no error | "Build succeeded", Continue to Deploy, Download IDL, Export project |
 | `failed` | the report has errors | one `Diagnostic` per error, the compiler's output behind a toggle, Rebuild |
@@ -844,7 +844,7 @@ failure after the file was accepted is ours and is reported. Interact's
 toolbar keeps a compact "Load IDL file" button (`IdlActions mode="button"`)
 until its own screen moves (5.12).
 
-**One accent action per screen.** Build, Retry build and Rebuild stay
+**One accent action per screen.** Build, Try again and Rebuild stay
 `AsyncButton`s (5.4), so the empty Build stage has no brand button; Continue to
 Deploy, the first Fix with assistant and Deploy are the brand ones.
 

@@ -24,11 +24,21 @@ export interface FlowState {
    * run. Lets a stage tell a stale `PgBuildOutput` apart from the one that
    * belongs to this run. */
   buildStartedAt: number | null;
+  /** What the last build that never reached the compiler failed with, for
+   * Build's "Show details"; `null` once a build settles otherwise */
+  buildFailure: string | null;
 }
 
 export type FlowEvent =
   | { type: "build-start"; at: number }
-  | { type: "build-finish"; failed: boolean; errorCount: number; ms: number }
+  | {
+      type: "build-finish";
+      failed: boolean;
+      errorCount: number;
+      ms: number;
+      /** The command's error, for a build that never reached the compiler */
+      failure?: string;
+    }
   | { type: "deploy-start" }
   | { type: "deploy-finish"; ok: boolean }
   | { type: "set-stage"; stage: Stage }
@@ -49,6 +59,7 @@ export const INITIAL_FLOW_STATE: FlowState = {
   buildErrorCount: 0,
   buildMs: null,
   buildStartedAt: null,
+  buildFailure: null,
 };
 
 export const STAGES: readonly Stage[] = [
@@ -110,6 +121,7 @@ export class PgFlow {
               buildSettled: "failed",
               buildErrorCount: ev.errorCount,
               buildMs: ev.ms,
+              buildFailure: ev.failure ?? null,
             }
           : {
               // Stay wherever the user is: the Build surface carries the
@@ -121,6 +133,7 @@ export class PgFlow {
               deploy: state.deploy === "upcoming" ? "active" : state.deploy,
               buildErrorCount: 0,
               buildMs: ev.ms,
+              buildFailure: null,
             };
       case "deploy-start":
         return { ...state, stage: "deploy", deploy: "running" };
@@ -198,6 +211,10 @@ export class PgFlow {
           failed: true,
           errorCount: 0,
           ms: startedAt === 0 ? 0 : Date.now() - startedAt,
+          failure:
+            result.err instanceof Error
+              ? result.err.message
+              : String(result.err),
         });
       }),
       PgCommand.deploy.onDidStart(() =>

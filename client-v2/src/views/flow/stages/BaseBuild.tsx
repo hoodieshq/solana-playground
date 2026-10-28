@@ -7,6 +7,7 @@ import { cn } from "@/shared/lib/utils";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { BrandButton, BrandButtonIcon } from "@/shared/ui/brand-button";
 import { Button } from "@/shared/ui/button";
+import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import {
   Collapsible,
   CollapsibleChevron,
@@ -29,6 +30,7 @@ import {
   StageEmptyDescription,
   StageEmptyMedia,
   StageEmptyMeta,
+  StageEmptyNotice,
   StageEmptyTitle,
 } from "@/shared/ui/stage-empty";
 import { errorMeta, msLabel, warningCount } from "./build-view";
@@ -52,6 +54,8 @@ export interface BaseBuildProps {
   building: boolean;
   /** The build server's host, for naming it */
   host: string;
+  /** The build server's URL, for BUILD-04's details */
+  serverUrl: string;
   /** The last build's duration, `null` while unknown */
   ms: number | null;
   onBuild: () => unknown;
@@ -160,21 +164,54 @@ const Empty = (p: BaseBuildProps) => (
   />
 );
 
-const Unreached = (p: BaseBuildProps) => (
+/**
+ * Spec 08's BUILD-04: the build never reached the compiler. The server and
+ * the raw error sit behind "Show details"; the terminal has the full text.
+ */
+const Unreached = (p: BaseBuildProps & { failure: string | null }) => (
   <Surface
     icon={<CircleX className="text-error" />}
-    title="Build failed"
+    title="Build did not start"
     meta={msLabel(p.ms)}
-    description={
-      <>
-        Build failed before the compiler ran — see the terminal. This usually
-        means the build server could not be reached: {p.host}. Change it under
-        Settings -&gt; Build server URL.
-      </>
-    }
-    actions={<BuildButton p={p} label="Retry build" />}
-  />
+    actions={<BuildButton p={p} label="Try again" />}
+  >
+    <StageEmptyNotice>
+      <Callout variant="error">
+        <CalloutDescription>
+          The Playground server did not answer. Your code is unchanged.
+        </CalloutDescription>
+      </Callout>
+    </StageEmptyNotice>
+    <Details serverUrl={p.serverUrl} failure={p.failure} />
+  </Surface>
 );
+
+/** What BUILD-04 keeps out of its first line: the server and the raw error */
+const Details = ({
+  serverUrl,
+  failure,
+}: {
+  serverUrl: string;
+  failure: string | null;
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="w-full">
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" size="sm">
+          <CollapsibleChevron data-icon="inline-start" />
+          {open ? "Hide" : "Show"} details
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <pre className="mt-2 overflow-x-auto rounded-lg border border-border bg-surface-well p-3 text-left font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+          {`Build server: ${serverUrl}`}
+          {failure && `\n${failure}`}
+        </pre>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
 
 const Restored = (p: BaseBuildProps & { failed: boolean }) => (
   <Surface
@@ -328,7 +365,7 @@ const BaseBuild = (p: BaseBuildProps) => {
     case "empty":
       return <Empty {...p} />;
     case "unreached":
-      return <Unreached {...p} />;
+      return <Unreached {...p} failure={s.failure} />;
     case "restored":
       return <Restored {...p} failed={s.failed} />;
     case "succeeded":

@@ -60,6 +60,7 @@ const Build = () => {
       }
       building={flow.build === "running"}
       host={serverHost()}
+      serverUrl={PgSettings.server.endpoint}
       ms={flow.buildMs}
       // The stage's catch rethrows; BaseBuild's buttons report what is left
       onBuild={() => PgCommand.build.execute().catch(toldByStage("build"))}

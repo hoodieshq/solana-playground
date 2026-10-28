@@ -40,6 +40,7 @@ const props = (
   surface,
   building,
   host: "api.solpg.io",
+  serverUrl: "https://api.solpg.io",
   ms: 2900,
   onBuild: vi.fn(() => Promise.resolve()),
   onContinue: vi.fn(),
@@ -101,20 +102,26 @@ describe("BaseBuild", () => {
     expect(lastIsActions(container)).toBe("stage-empty-actions");
   });
 
-  it("names the build server when the compiler was never reached", () => {
-    const p = props({ kind: "unreached" });
+  it("says a build that never reached the compiler did not start (BUILD-04)", () => {
+    const p = props({ kind: "unreached", failure: "Failed to fetch" });
     render(<BaseBuild {...p} />);
 
-    expect(screen.getByRole("heading", { name: "Build failed" })).toBeTruthy();
     expect(
-      screen.getByText(/could not be reached: api\.solpg\.io/)
+      screen.getByRole("heading", { name: "Build did not start" })
     ).toBeTruthy();
     expect(
       screen.getByText(
-        /^Build failed before the compiler ran — see the terminal\./
+        "The Playground server did not answer. Your code is unchanged."
       )
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Retry build" }));
+    // The server and the raw error wait behind Show details
+    expect(screen.queryByText(/api\.solpg\.io/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+    expect(
+      screen.getByText(/Build server: https:\/\/api\.solpg\.io/)
+    ).toBeTruthy();
+    expect(screen.getByText(/Failed to fetch/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(p.onBuild).toHaveBeenCalled();
   });
 

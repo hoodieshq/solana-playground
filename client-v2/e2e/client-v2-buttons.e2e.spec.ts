@@ -193,7 +193,7 @@ test.describe("client-v2-buttons", () => {
 
     // The console is folded, but the stage itself says the build failed
     await expect(
-      page.getByRole("heading", { name: "Build failed" })
+      page.getByRole("heading", { name: "Build did not start" })
     ).toBeVisible();
     await page.waitForTimeout(TOAST_RENDER_MS);
     expect(await page.locator("[data-sonner-toast]").count()).toBe(0);

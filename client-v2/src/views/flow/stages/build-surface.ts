@@ -46,7 +46,8 @@ export const isRestoredBuild = (
 /** Which of the Build stage's surfaces is on screen */
 export type BuildSurface =
   | { kind: "restored"; failed: boolean }
-  | { kind: "unreached" }
+  /** `failure` is what the run failed with, for the details */
+  | { kind: "unreached"; failure: string | null }
   | { kind: "empty" }
   | { kind: "succeeded" }
   | { kind: "failed"; stderr: string };
@@ -66,7 +67,7 @@ export const buildSurface = ({
 }: {
   flow: Pick<
     FlowState,
-    "build" | "buildSettled" | "buildStartedAt" | "buildMs"
+    "build" | "buildSettled" | "buildStartedAt" | "buildMs" | "buildFailure"
   >;
   own: BuildOutput | null;
 }): BuildSurface => {
@@ -88,7 +89,9 @@ export const buildSurface = ({
   if (isRestoredBuild(settled, own, flow.buildMs)) {
     return { kind: "restored", failed: settled === "failed" };
   }
-  if (settled === "failed" && (!own || stale)) return { kind: "unreached" };
+  if (settled === "failed" && (!own || stale)) {
+    return { kind: "unreached", failure: flow.buildFailure };
+  }
   // Also reached while the very first build is in flight: there is no
   // previous surface to hold onto, so the empty state says "Building...".
   if (!own) return { kind: "empty" };
@@ -167,7 +170,13 @@ if (import.meta.vitest) {
       buildSettled: StageStatus,
       buildStartedAt: number | null,
       buildMs: number | null = buildStartedAt === null ? null : 100
-    ) => ({ build, buildSettled, buildStartedAt, buildMs });
+    ) => ({
+      build,
+      buildSettled,
+      buildStartedAt,
+      buildMs,
+      buildFailure: "Failed to fetch",
+    });
 
     const report = (failed: boolean, at: number): BuildOutput => ({
       stderr: failed ? "error[E0308]: mismatched types" : "",
@@ -201,7 +210,7 @@ if (import.meta.vitest) {
       it("blames the server when a run left no report", () => {
         expect(
           buildSurface({ flow: flowOf("failed", "failed", 5), own: null })
-        ).toEqual({ kind: "unreached" });
+        ).toEqual({ kind: "unreached", failure: "Failed to fetch" });
       });
 
       /** A report from an earlier run is not this run's verdict */
@@ -211,7 +220,7 @@ if (import.meta.vitest) {
             flow: flowOf("failed", "failed", 5),
             own: report(false, 1),
           })
-        ).toEqual({ kind: "unreached" });
+        ).toEqual({ kind: "unreached", failure: "Failed to fetch" });
       });
 
       /** Swapping surfaces for the round trip of a run reads as a blink */
@@ -245,6 +254,7 @@ if (import.meta.vitest) {
               buildSettled: "failed",
               buildStartedAt: 5,
               buildMs: null,
+              buildFailure: null,
             },
             own: null,
           })

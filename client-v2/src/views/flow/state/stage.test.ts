@@ -53,6 +53,7 @@ describe("PgFlow.reduce", () => {
       buildErrorCount: 0,
       buildMs: null,
       buildStartedAt: null,
+      buildFailure: null,
     });
   });
 
@@ -105,6 +106,25 @@ describe("PgFlow.reduce", () => {
     });
     expect(s.build).toBe("done");
     expect(s.stage).toBe("build");
+  });
+
+  it("a build that settles clears the last one's failure", () => {
+    const failed = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "build-finish",
+      failed: true,
+      errorCount: 0,
+      ms: 1,
+      failure: "Failed to fetch",
+    });
+    expect(failed.buildFailure).toBe("Failed to fetch");
+
+    const s = PgFlow.reduce(failed, {
+      type: "build-finish",
+      failed: false,
+      errorCount: 0,
+      ms: 1,
+    });
+    expect(s.buildFailure).toBeNull();
   });
 
   it("successful build does not pull the user away from another stage", () => {
@@ -341,6 +361,8 @@ describe("PgFlow.init wiring", () => {
     buildFinishCallback!({ err: new Error("Failed to fetch") });
     expect(PgFlow.state.build).toBe("failed");
     expect(PgFlow.state.buildErrorCount).toBe(0);
+    // Kept for Build's "Show details", never its first line
+    expect(PgFlow.state.buildFailure).toBe("Failed to fetch");
 
     sub.dispose();
   });
