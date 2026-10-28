@@ -19,7 +19,7 @@ where stated; 1.1 and 1.2 may run at the same time.
 
 ## 2. A send with nothing connected (depends on 1.1, 1.2)
 
-- [ ] 2.1 `resolveSendBackend()` in `use-turn.ts`, used by `start` and by
+- [x] 2.1 `resolveSendBackend()` in `use-turn.ts`, used by `start` and by
   `onDidRequestPrompt`; `assistant_connect_opened.via` gains `"thread"`.
   Verify: failing-first cases in `use-turn.test.tsx` for a keyed thread in a
   new tab (no default request, Connect opens preset, prompt kept), a

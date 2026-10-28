@@ -479,4 +479,78 @@ test.describe("assistant-own-key", () => {
       .toContain(REPLY);
     expect((await indexedDbDump(page)).text).not.toContain(KEY);
   });
+  /**
+   * A thread answered by the user's own key, then a new tab: signed in, on a
+   * deployment that serves a default whose turns are counted, so a send that
+   * fell back to it would show
+   */
+  const keyedThreadInNewTab = async (page: Page) => {
+    const defaultTurns: string[] = [];
+    await page.context().route("**/api/agent", (route) => {
+      if (route.request().method() === "GET")
+        return json(route, {
+          configured: true,
+          model: "z-ai/glm-5.3-flash:US",
+        });
+      defaultTurns.push(route.request().postData() ?? "");
+      return route.fulfill({ status: 500 });
+    });
+    await page.context().route(COMPLETIONS_URL, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: `data: ${JSON.stringify({
+          choices: [{ delta: { content: REPLY }, finish_reason: "stop" }],
+        })}\n\ndata: [DONE]\n\n`,
+      })
+    );
+    await signIn(page);
+    await seedWorkspace(page, "own-key-thread");
+    await connectOwn(page);
+    await composer(page).fill("hello");
+    await composer(page).press("Enter");
+    await expect(page.getByText(REPLY)).toBeVisible(LONG);
+
+    const second = await page.context().newPage();
+    await signIn(second);
+    await second.goto("/");
+    await expect(second.getByText(REPLY)).toBeVisible(LONG);
+    await composer(second).fill("again");
+    await composer(second).press("Enter");
+    return { second, defaultTurns };
+  };
+
+  test("assistant-own-key: A new tab does not continue a keyed thread on the default", async ({
+    page,
+  }) => {
+    const { second, defaultTurns } = await keyedThreadInNewTab(page);
+
+    const dialog = second.getByRole("dialog", { name: "Connect a model" });
+    await expect(dialog).toBeVisible(LONG);
+    await expect(second.locator("#assistant-model")).toHaveValue("gpt-x");
+    await expect(second.locator("#assistant-api-key")).toHaveValue("");
+    // The dialog hides the panel behind it; closed, the prompt is still there
+    await second.keyboard.press("Escape");
+    await expect(composer(second)).toHaveValue("again");
+    expect(defaultTurns).toEqual([]);
+  });
+
+  test("assistant-own-key: Entering the key continues the same thread", async ({
+    page,
+  }) => {
+    const { second, defaultTurns } = await keyedThreadInNewTab(page);
+
+    await second.locator("#assistant-api-key").fill(KEY);
+    await second
+      .getByRole("dialog", { name: "Connect a model" })
+      .getByRole("button", { name: "Connect" })
+      .click();
+    await composer(second).press("Enter");
+
+    await expect(second.getByText(REPLY)).toHaveCount(2, LONG);
+    const log = second.getByRole("log", { name: "Conversation" });
+    await expect(log).toContainText("You: hello");
+    await expect(log).toContainText("You: again");
+    expect(defaultTurns).toEqual([]);
+  });
 });
