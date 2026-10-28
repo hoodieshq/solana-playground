@@ -36,6 +36,16 @@ const focusEditor = async (page: Page) => {
 const item = (page: Page, name: string) =>
   page.locator("#root-dir").getByText(name, { exact: true }).first();
 
+/** Renames an explorer item through its menu and dialog, without waiting */
+const renameTo = async (page: Page, name: string, to: string) => {
+  await item(page, name).click({ button: "right" });
+  await page.getByRole("menuitem", { name: /Rename/ }).click();
+  const dialog = page.getByRole("dialog", { name: `Rename '${name}'` });
+  await dialog.getByRole("textbox").fill(to);
+  await page.keyboard.press("Enter");
+  await expect(item(page, to)).toBeVisible();
+};
+
 test.describe.serial("the editor", () => {
   let page: Page;
 
@@ -129,6 +139,44 @@ test.describe.serial("the editor", () => {
     await runInTerminal(page, "help");
     await expect(page.locator(".xterm-rows").first()).toContainText(HELP_TAIL);
     await expect(page.locator(".xterm")).toHaveCount(1);
+  });
+
+  test("keeps an edit made just before its file is renamed", async () => {
+    await item(page, "lib.rs").click();
+    await focusEditor(page);
+    await page.keyboard.type(" // renamed");
+    // Renamed inside the autosave's delay: the edit is saved before the move,
+    // so the new name carries it
+    await renameTo(page, "lib.rs", "moved.rs");
+    await item(page, "moved.rs").click();
+    await focusEditor(page);
+    await expect.poll(() => editorText(page)).toContain("// renamed");
+    // And on disk: the write lands before the rename, not at the old path after
+    await page.reload();
+    await expect(page.locator("#root-dir")).toBeVisible();
+    if (!(await item(page, "moved.rs").isVisible())) {
+      await item(page, "src").click();
+    }
+    await item(page, "moved.rs").click();
+    await focusEditor(page);
+    await expect.poll(() => editorText(page)).toContain("// renamed");
+    await renameTo(page, "moved.rs", "lib.rs");
+  });
+
+  test("keeps an edit made just before its folder is renamed", async () => {
+    if (!(await item(page, "client.ts").isVisible())) {
+      await item(page, "client").click();
+    }
+    await item(page, "client.ts").click();
+    await focusEditor(page);
+    await page.keyboard.type(" // folder");
+    await renameTo(page, "client", "web");
+    if (!(await item(page, "client.ts").isVisible())) {
+      await item(page, "web").click();
+    }
+    await item(page, "client.ts").click();
+    await focusEditor(page);
+    await expect.poll(() => editorText(page)).toContain("// folder");
   });
 
   test("keeps a file deleted just after an edit deleted", async () => {
