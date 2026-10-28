@@ -31,7 +31,7 @@ the thumb.
 - **WHEN** Hello Anchor runs to step 3 on a 390 px phone and on a 1440 px
   desktop
 - **THEN** both feeds hold the same turns in the same order
-- **AND** both show the same four questions with the same options
+- **AND** both show the same questions so far, with the same options
 
 ### Requirement: Chat and Code are two spaces
 

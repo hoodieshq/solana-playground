@@ -211,7 +211,7 @@ Call button.
 
 ### Requirement: Keyboard paths are listed
 
-"Keyboard shortcuts" in the ⋯ menu SHALL list every key:
+"Keyboard shortcuts" in the ⋯ menu SHALL list these keys:
 
 - ⌘↵ runs the live action, except from the composer;
 - ↵ Start or Next;

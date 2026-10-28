@@ -35,7 +35,7 @@ wallet. A step passes on what actually happened.
   beside the workspace, with no Lesson or Assistant tabs:
   - an intro card replaces the About page as the start;
   - each step opens with a divider in the feed;
-  - a four-segment step bar jumps back to the dividers;
+  - a step bar, one segment per step, jumps back to the dividers;
   - the question, wrote, act, result, win and finish cards are the only places
     an action lives;
   - one composer: an action word runs the live action, a finish chip gets
@@ -77,8 +77,8 @@ wallet. A step passes on what actually happened.
     conversation;
   - tutorials without a definition keep upstream's pages, unchanged.
 - **Telemetry:** the tutorial slice adds the events in the `tutorial-conversation`
-  and `tutorial-runs` specs (start, question answered, action run, step
-  passed, finish, definition rejected). It renames or removes none.
+  and `tutorial-runs` specs (start, question answered, question asked,
+  action run, step passed, finish, definition rejected). It renames or removes none.
 
 ## Capabilities
 
@@ -134,7 +134,7 @@ wallet. A step passes on what actually happened.
   - the Explorer links make every deploy and call checkable outside Playground.
 - **Out of scope:**
   - Kora's 0 SOL deploy (HOO-1778, HOO-1780);
-  - the assistant judging a step (HOO-1790 keeps that part);
+  - the assistant judging a step (not ticketed; a later change);
   - a DSL for tutorials; an admin panel is not planned at all;
   - migrating the other 13 tutorials;
   - the live wall of hellos and the share link;

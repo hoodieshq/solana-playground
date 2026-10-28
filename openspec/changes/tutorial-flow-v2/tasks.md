@@ -1,14 +1,14 @@
 # Tasks
 
 Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
-(session-days) follow each task. Groups 1, 2 and 6 start at once; 3 needs
-1.1; 4 needs 3.1; 5 needs 3.1 and 2.1.
+(session-days) follow each task. Each task's "after" list is what it waits
+for; tasks with "after nothing" start at once.
 
 ## 1. Definition
 
 - [ ] 1.1 Definition v1: `tutorial.schema.json`, `yarn tutorial:check` with
-      the semantic rules, the loader into the catalog (with "Step n of m"
-      progress), Hello Anchor's prototype script as `tutorial.json`,
+      the semantic rules, the loader into the catalog (with "<passed> of <m>"
+      progress and the "<level> · <framework>" meta line), Hello Anchor's prototype script as `tutorial.json`,
       `tutorial_definition_rejected`. Verify: the check passes on Hello Anchor
       and fails with path errors on the spec's two broken fixtures; the catalog
       lists Hello Anchor from JSON (HOO-1792; fleet; M 1.5; after nothing)
@@ -47,11 +47,15 @@ Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
       Hello Anchor's definition from intro to finish with stubbed runs, and
       reload at every beat (HOO-2350; fleet; M 1.5; after 1.1)
 - [ ] 3.2 Step goals on real results: `build`, `deploy` and `call` checks
-      extending `VerifyCondition`, `read` dropped, `tutorial_step_passed`.
+      in the feature slice, reusing `VerifyCondition`'s logic from
+      `verify.ts` rather than extending the lessons type, `read` dropped,
+      `tutorial_step_passed`.
       Verify: unit tests per goal, including a call before the upgrade that
       does not pass the argument goal (HOO-1790; fleet; S 1; after 1.1)
 - [ ] 3.3 The feed: intro card, dividers, step bar with its states and keys,
-      say and quote, wrote card, records, the back pill, `role="log"`.
+      say and quote, wrote card, the act card (stages, "n of m", the stage
+      bar, disabling, call-act fields) and the result card shell, records,
+      the back pill, `role="log"`.
       Verify: component tests for every record line in the spec and the jump
       from step 3 to step 1 (HOO-2351; fleet; M 1.5; after 2.1, 3.1)
 - [ ] 3.4 Win and finish cards: Next with ↵, "Open Call" / "Write it in
@@ -86,21 +90,23 @@ Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
       address row, Try again and Open faucet, the program keypair kept,
       upgrade in place, the result with devnet SOL spent and the program id
       and signature as Explorer links on its meta line, the wallet copy, the redeploy nudge,
-      a deploy recognised after a reload. Verify: unit tests with a stubbed
-      connection for funding and recognition; one devnet deploy and upgrade
+      a deploy recognised after a reload, `tutorial_action_run` for deploys.
+      Verify: unit tests with a stubbed connection for funding and
+      recognition, and `outcome: "no_funds"` on a refused airdrop; one devnet deploy and upgrade
       by hand (HOO-2356; fleet; L 2.5; after 3.1, 3.2)
 - [ ] 4.3 Client run and the call act: the run bound to the program and
       wallet, the signatures it sent captured, logs fetched and the
       definition's line picked, the signature linked on the meta line and
       Copy and Explorer on every receipt address row, failed
-      transactions. Verify: unit tests for signature capture and log picking;
+      transactions, `tutorial_action_run` for runs and calls. Verify: unit tests for signature capture and log picking;
       Hello Anchor's step 3 on devnet by hand (HOO-2357; fleet; M 1.5;
       after 3.1, 3.2)
 - [ ] 4.4 The Call panel from the deployed IDL: the Form | IDL switch, the
       program row with Explorer, one form with the instruction chips (the
       step's own picked, none for one instruction), "New" fields, one call
       button, the result naming its instruction, the latest result in the panel and the log in the terminal,
-      passing steps 3 and 4. Verify: component tests for the upgrade adding
+      passing steps 3 and 4, `tutorial_action_run` with `call_panel`.
+      Verify: component tests for the upgrade adding
       `name`; a call passing step 3 (HOO-2358; fleet; M
       1.5; after 2.2, 4.3)
 
@@ -117,8 +123,8 @@ Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
 ## 6. Tutorials page and content
 
 - [ ] 6.1 The tutorials page by level: tutorials-gallery-stand tasks 3.1 and
-      3.2, plus a conversation tutorial's "Step n of m" and "Continue · Step
-      n of m" on its card and the Start here banner. Verify: that change's
+      3.2, plus a conversation tutorial's "<passed> of <m>" on its card and
+      "Continue · Step n of m" on the Start here banner. Verify: that change's
       scenarios and "Hello Anchor half done" (HOO-2360; Natalia; S 1;
       after 1.1)
 - [ ] 6.2 Hello Anchor on the real flow: the wallet copy of `tutorial-runs`,

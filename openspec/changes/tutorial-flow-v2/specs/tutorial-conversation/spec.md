@@ -17,6 +17,7 @@ card, and the workspace SHALL show the finished program, read only. The intro
 card SHALL show:
 
 - the thumbnail, the name and the meta line;
+- the intro note, the wallet copy of `tutorial-runs`;
 - "What you'll build": the definition's promise line, with the log line the
   finished program prints;
 - "How it goes": the four-beat loop "I explain a piece, you pick an answer, I
@@ -39,14 +40,17 @@ skeleton of the column.
 
 ### Requirement: Only the latest card acts
 
-Every action the learner takes in a tutorial SHALL sit on the latest card that
+Every action the learner takes in the feed SHALL sit on the latest card that
 asks for it: Start, a question's options, Build, Deploy, Run, Call, Explain
 the error and Next. A resolved card SHALL become a record: one line, no
 primary button. Navigation links in a record ("Show in lib.rs", "Open Call")
 SHALL stay live. The ring and the shadow SHALL mark at most one card on screen:
 the live question, the live win or the finish. A click that speaks for the
 learner (a right pick, "Explain the error", a chip) SHALL be echoed as the
-learner's pill. Build, Deploy, Run, Call, Send and Next SHALL not be echoed.
+learner's pill. Build, Deploy, Run, Call and Next SHALL not be echoed. Outside
+the feed, the Call panel (`tutorial-workspace`) and the editor are the only
+places that act: a call there, or the key line typed, can pass a step or
+resolve a question.
 
 #### Scenario: Records keep no buttons
 
@@ -120,8 +124,10 @@ Outcomes:
   - focus moves to the next pickable row;
   - after two wrong picks, the last row is outlined.
 - **Hint:** echoes "I'm stuck" as a pill and posts the hint once. The hint
-  is the definition's text, so it works with no model connected. "I'm stuck"
-  typed in the composer posts the same hint (see the composer's tools).
+  is the definition's text, so the button and H work with no model connected.
+  "I'm stuck" typed in the composer posts the same hint through the
+  assistant's Hint tool, so it needs a model; with none, it routes to
+  connecting one like any free message.
 - **Skip:** writes the block and records "· skipped".
 - **Type it myself:** focuses the editor at the line where the answer lands.
 - **Typed by hand:**
@@ -131,7 +137,8 @@ Outcomes:
   - typing the whole block resolves it the same way.
 
 The record SHALL read the right option and its qualifier: "· first try",
-"· 2nd try", "· 3rd try", "· typed by you" or "· skipped". A click on it
+"· 2nd try", "· 3rd try", "· typed by you", "· skipped" or "· skipped, called
+from the Call panel". A click on it
 SHALL expand the three rows in their final states, with their reasons.
 
 #### Scenario: A wrong pick, then the right one
@@ -173,8 +180,10 @@ context line and a primary button carrying ⌘↵. While the act runs:
 A call act with arguments SHALL show one field per argument and keep its
 button disabled while a required field is empty; a string field stops at 32
 characters, and Enter sends. When the act ends, the card SHALL become its
-record and a result card SHALL follow. A deploy act SHALL read "Build and
-deploy" and build first when the main file changed since the last build.
+record and a result card SHALL follow. A deploy act's button SHALL read the
+definition's label ("Deploy to devnet"), and "Build and deploy" when the
+program changed since the last build, in which case it builds first. "n of
+m" counts every stage the run shows.
 
 #### Scenario: Deploy stages
 
@@ -182,6 +191,13 @@ deploy" and build first when the main file changed since the last build.
 - **THEN** the card shows the deploy's stages in order with "1 of 4" to
   "4 of 4"
 - **AND** a result card follows when the deploy lands or fails
+
+#### Scenario: Funding and a build first
+
+- **WHEN** the wallet is short and `lib.rs` changed since the last build, and
+  the learner presses "Build and deploy"
+- **THEN** the stages run "Funding your wallet" (1 of 6), "Building" (2 of
+  6), then the four deploy stages to "6 of 6"
 
 ### Requirement: A failed build explains itself
 
@@ -313,8 +329,8 @@ in the workspace's `.workspace/tutorial-storage.json`:
 - the resolved state of every beat;
 - the picks;
 - the results with their signatures and program id;
-- the open tab, the docked tree, whether the terminal is open, and the Call
-  form's values.
+- the open tab, the open doc tabs, the docked tree, whether the terminal and
+  the Call panel are open, and the Call form's values.
 
 Project sync SHALL carry it to another device. The assistant exchanges SHALL
 live in the assistant's thread for that workspace. A reload SHALL restore the
@@ -351,10 +367,11 @@ The tutorial slice SHALL emit:
   - `tutorial`;
   - `seconds`: the time from Start.
 - `tutorial_question_asked` when a composer message goes to the live
-  assistant, with:
+  assistant or a finish chip is pressed, with:
   - `tutorial`;
   - `step`;
-  - `source`: `typed` or `chip` (a finish chip).
+  - `source`: `typed`, or `chip` when a finish chip is pressed (the event
+    fires for chips too, though their answer needs no model).
 
 The text of the question is never sent.
 

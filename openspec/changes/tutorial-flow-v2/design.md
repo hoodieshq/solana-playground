@@ -22,13 +22,15 @@ The "from" side, on `new-face-polish-2` at `bdd350ba7`:
   - only `lessons/paths/hello-anchor.ts` has a path.
 - **The assistant** (`client-v2/src/widgets/assistant/`) is a separate panel. It
   reads the lesson through `views/sidebar/assistant/bridge/lesson-context.ts`
-  and offers the lesson's starter questions.
+  and offers fixed lesson suggestions (`SUGGESTIONS.lesson`) and a "Step n of
+  m" chip.
 - **Runs:**
   - build: `commands/build/build.ts`, through `PgServer.build` to the
     settings' server;
   - deploy: `commands/deploy/deploy.ts`, through the BPF upgradeable loader,
     with `airdrop-top-up.ts` for funding;
-  - Explorer URLs: `views/flow/stages/Deploy.tsx` already builds them;
+  - Explorer URLs: `views/flow/stages/Deploy.tsx` builds them for the
+    explorer and cluster the settings pick;
   - IDL form: `views/sidebar/test/`, embedded in the Interact stage;
   - no Kora code exists.
 - **Tutorials page:** `openspec/changes/tutorials-gallery-stand` holds the
@@ -39,9 +41,13 @@ The "to" side is Almaz's prototype (`almaz/mobile-tutorial-prototype`,
 `design-system/src/prototype/tutorial-v2`, `fb4b8e9ee`) and its `SPEC.md`. The
 prototype wins where they differ. The differences went to Almaz as a question
 batch (`questions-for-almaz.md`); he answered all 34 on 28 Oct, and the specs
-carry his answers. Nikita's "Spec 00 · Index and open decisions" (D3) lists
-seven places where this change differed from those answers; each is folded in
-(D6, D8, D9, D10).
+carry his answers. Nikita's "Spec 00 · Index and open decisions", in its decision D3, lists
+seven places where this change differed from those answers. Each is folded
+in: the Call panel's one form with chips (D11); "What is devnet SOL?" and the
+wallet strings (D6); only four fixed assistant tools (D2); typed "I'm stuck"
+posting the hint (D2); Explorer placement (D9); the "Not enough devnet SOL"
+card (D8); doc tabs that close (D10). Almaz's answers are cited as Qn, the
+question's number in `questions-for-almaz.md` (his page numbers them 3.n).
 
 ## Goals / Non-Goals
 
@@ -109,11 +115,11 @@ start and the target, as the prototype's `insertBlock` does.
   thread runs in a tutorial mode:
   - its tools are reduced to reading files and four interface tools: open
     the menu, post the live question's hint, skip the live question, and
-    propose one change as an apply card (Almaz, 3.17);
+    propose one change as an apply card (Almaz, Q17);
   - its system context holds the tutorial, the step, the objective, the
     last result and the tutorial's doc list, so it can link a page.
 
-There are no scripted answers matched from typed text. Almaz (3.17): the real
+There are no scripted answers matched from typed text. Almaz (Q17): the real
 assistant answers everything free, and what stays fixed is what does something
 in the interface, as tool calls. Only the finish chips keep the definition's
 answers.
@@ -159,8 +165,10 @@ separate PRs against fixtures.
   pattern picks the card's large line;
 - the call act and the Call panel reuse the Test form's instruction sender.
 
-**Explorer:** links use the existing explorer URL helpers with the devnet
-cluster.
+**Explorer:** the tutorial builds Solana Explorer URLs with `?cluster=devnet`
+itself. The existing helpers do not fit: `Deploy.tsx`'s `useBlockExplorer()`
+returns whichever explorer the settings pick, and `solana-explorer.ts` takes
+the cluster from the current connection.
 
 **Server side:** none expected, since every step above is client-side.
 Alexander owns any server change a ticket finds it needs.
@@ -169,49 +177,20 @@ Alexander owns any server change a ticket finds it needs.
 
 A goal is `build` (instructions present), `deploy` (landed) or `call`
 (instruction, required non-empty arguments, log pattern, on the program built
-from the target). This reuses `VerifyCondition`'s `build-passes`, `deployed`
-and `idl` checks, adds `call`, and drops `read`. A self-attested step does not
+from the target). The checks live in the feature slice (D3), reusing the
+logic of `VerifyCondition`'s `build-passes`, `deployed` and `idl` from
+`verify.ts` rather than extending the lessons type, which D7 deletes; `call`
+is new and `read` is dropped. A self-attested step does not
 exist in the conversation.
 
 ### D6. Prototype copy that names Kora is replaced
 
 The definition carries the copy, so Hello Anchor's definition replaces the
 Kora copy with the wallet path. Almaz gave the words string by string on 28
-Oct (3.25), and `tutorial-runs` holds them verbatim in "Wallet copy replaces
+Oct (Q25), and `tutorial-runs` holds them verbatim in "Wallet copy replaces
 every Kora line": nine places and the chip "What is Kora?", which becomes
-"What is devnet SOL?". The "Why 7 days?" chip and the 7-day note go (3.28),
+"What is devnet SOL?". The "Why 7 days?" chip and the 7-day note go (Q28),
 since closing idle programs was Kora's rule.
-
-### D8. The faucet's limit gets its own card, funding a stage
-
-Funding is an extra first stage on the deploy act card, shown only when the
-balance is short; a refused airdrop is a red "Not enough devnet SOL" card with
-the balance, the cost, the address row, "Try again" and "Open faucet" (Almaz,
-3.26). Its strings sit in `tutorial-runs`.
-
-### D9. Explorer links are the keys themselves
-
-On a result card's meta line the program id and the signature are the links
-(a short key with ↗), with no separate Explorer button. A receipt gives every
-address row Copy and Explorer. The Call panel keeps its link on the result
-line (Almaz, 3.29).
-
-### D10. Docs are Markdown pages kept with the tutorial, opened as tabs
-
-**Choice:** each tutorial lists the few doc pages it needs, stored as
-Markdown in its folder, shown as a `Docs` folder in the tree and in the
-phone's file list, opened as read-only tabs that close, and linked by the
-assistant where a page helps (Almaz, 3.24).
-
-**Alternative:** the docs sites in an iframe. Those sites refuse to be
-framed, and a copy in the repo works offline from the build and goes through
-the same pull request as the tutorial.
-
-The Call panel's instruction picker is a row of chips, one form and one call
-button for the picked instruction (Almaz, 3.21). The button keeps the
-prototype's "Call <instruction>" rather than Almaz's "one Send": Nikita's Spec
-00, written after the answers, proposes "Call <instruction>" and holds "as
-drawn" until Almaz answers, and the prototype draws "Call hello".
 
 ### D7. The old lesson layer retires when Hello Anchor moves
 
@@ -221,6 +200,38 @@ conversation, together with `PgLesson`'s store key and its `migrate.ts`.
 Learners with an old record start Hello Anchor from its intro. There is
 nothing to carry over: the old record holds marks, not code, and the files
 stay in the workspace.
+
+### D8. The faucet's limit gets its own card, funding a stage
+
+Funding is an extra first stage on the deploy act card, shown only when the
+balance is short; a refused airdrop is a red "Not enough devnet SOL" card with
+the balance, the cost, the address row, "Try again" and "Open faucet" (Almaz,
+Q26). Its strings sit in `tutorial-runs`.
+
+### D9. Explorer links are the keys themselves
+
+On a result card's meta line the program id and the signature are the links
+(a short key with ↗), with no separate Explorer button. A receipt gives every
+address row Copy and Explorer. The Call panel keeps its link on the result
+line (Almaz, Q29).
+
+### D10. Docs are Markdown pages kept with the tutorial, opened as tabs
+
+**Choice:** each tutorial lists the few doc pages it needs, stored as
+Markdown in its folder, shown as a `Docs` folder in the tree and in the
+phone's file list, opened as read-only tabs that close, and linked by the
+assistant where a page helps (Almaz, Q24).
+
+**Alternative:** the docs sites in an iframe. Those sites refuse to be
+framed, and a copy in the repo works offline from the build and goes through
+the same pull request as the tutorial.
+
+### D11. The Call panel is one form with instruction chips
+
+The Call panel's instruction picker is a row of chips, one form and one call
+button for the picked instruction (Almaz, Q21). The button keeps the
+prototype's "Call <instruction>" rather than Almaz's "one Send": Nikita's Spec
+00, written after the answers, proposes "Call <instruction>" (see Open Questions), and the prototype draws "Call hello".
 
 ## Risks / Trade-offs
 
@@ -243,7 +254,7 @@ stay in the workspace.
   - Mitigation: their content tickets confirm the costs on devnet first. A
     step that waits shows the wait as an act stage.
 - **Almaz delivers the Lumberjack and Zero Copy scripts by Fri 30 Oct**
-  (3.34), in the prototype and in Hello Anchor's shape. Their content tickets
+  (Q34), in the prototype and in Hello Anchor's shape. Their content tickets
   wait for those scripts, not for code.
 
 ## Migration Plan
@@ -264,8 +275,11 @@ value after the arrow.
 - When the Call panel's chips become a dropdown ("only if a program has
   many"). Nikita proposes from seven instructions, or when a row does not fit
   at 320 px. → chips.
-- "Send" or "Call <instruction>" on the Call panel's button (D10). →
+- "Send" or "Call <instruction>" on the Call panel's button (D11). →
   "Call <instruction>", as drawn.
-- The intro note's wording (3.25): Nikita proposes "A Playground wallet is
+- The intro note's wording (Q25): Nikita proposes "A Playground wallet is
   set up for you with free devnet SOL. Your progress stays in this browser".
   → Almaz's string, verbatim.
+- "Your progress stays in this browser", in both versions, is true only
+  signed out: project sync carries progress to the learner's other devices
+  (D2). → Almaz's string, verbatim; asked whether to word it for both.

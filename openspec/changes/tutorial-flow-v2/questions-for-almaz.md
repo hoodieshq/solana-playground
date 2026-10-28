@@ -11,8 +11,9 @@ what the specs already held. These changed the specs: 3.9 (a typed "I'm
 stuck"), 3.15 (the finish), 3.17 (four assistant tools, no scripted matches),
 3.21 (the Call panel's one form and chips), 3.24 (docs as tabs, HOO-2381),
 3.25 (the wallet copy), 3.26 (funding and the faucet card), 3.28 (no 7-day
-note) and 3.29 (Explorer links). 3.34: both scripts by Fri 30 Oct. What is
-still open is in `design.md`, Open Questions.
+note) and 3.29 (Explorer links). 3.34: both scripts by Fri 30 Oct. All 34 are
+closed; his page numbers them 3.1 to 3.34, and `design.md` cites them as Qn.
+What is open now comes from Nikita's Spec 00 (`design.md`, Open Questions).
 
 ## Start and layout
 
@@ -33,7 +34,7 @@ still open is in `design.md`, Open Questions.
 
 6. The live question card shows no "Question" tag and no "1 of 4". The record
    shows "Q1" and "Fix". Should the live card show its place?
-7. A wrong pick is red, with "Not quite." in front of the reason. `SPEC.md` D13
+7. A wrong pick is red, with "Not quite." in front of the reason. Almaz's `SPEC.md`, D13
    says amber with no prefix. We follow red with "Not quite." Confirm?
 8. After two wrong picks, the last row is outlined, with no "That leaves one.
    Pick it and I'll write the code." Should the line be dropped?
@@ -78,6 +79,8 @@ still open is in `design.md`, Open Questions.
     several instructions we plan one card per instruction. We also plan the
     program id with an Explorer link at the top (Jonas asked for Explorer
     links). OK?
+    _Superseded by the answer: one form with instruction chips (`design.md`
+    D11)._
 22. A call from the panel posts nothing in the chat; only the step's win
     follows. Intended?
 23. The file tree shows folders (`src`, `client`), not the explorer's

@@ -35,8 +35,9 @@ line SHALL show the log, with no line link.
 A deploy act SHALL deploy the last successful build to devnet through the BPF
 upgradeable loader, paid by the learner's Playground wallet. Its stages are
 "Writing buffer", "Deploying", "Uploading IDL" ("Upgrading IDL" on a later
-deploy) and "Confirming", each with "n of 4". "Building" comes first, making
-five stages, when the program changed since the last build. The IDL goes on
+deploy) and "Confirming". "Building" comes before them when the program
+changed since the last build, and "Funding your wallet" first of all when the
+balance is short; "n of m" counts every stage shown, four to six. The IDL goes on
 chain with the program, so any client finds the interface from the program
 id. The first deploy SHALL write the program id into `declare_id!` and light
 that line. Before the first deploy:
@@ -73,7 +74,8 @@ Explorer on the devnet cluster in a new tab.
 
 - **WHEN** a learner with a new wallet and 0 SOL presses Deploy on Hello
   Anchor's step 2
-- **THEN** the card shows "Funding your wallet", then the four deploy stages
+- **THEN** the card shows "Funding your wallet" (1 of 5), then the four
+  deploy stages to "5 of 5"
 - **AND** the result's meta line shows the program id and the deploy
   signature as links to `https://explorer.solana.com/...?cluster=devnet`
 
@@ -208,7 +210,8 @@ ends. Its parameters:
 
 - `tutorial`: the slug;
 - `step`: 1 to 6;
-- `action`: `build`, `deploy`, `build_deploy`, `run`, `call` or `send`;
+- `action`: `build`, `deploy`, `build_deploy`, `run`, `call` (the call act)
+  or `call_panel` (a Call panel call);
 - `outcome`: `ok`, `failed`, `interrupted`, `no_wallet` or `no_funds`;
 - `seconds`: the run's duration.
 
