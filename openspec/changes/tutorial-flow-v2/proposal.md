@@ -103,8 +103,9 @@ wallet. A step passes on what actually happened.
 
 ### Modified Capabilities
 
-- `client-v2-lessons`: the objective band, the step rail and the phone's
-  lesson bar are removed. The lesson that used them now runs in the
+- `client-v2-lessons`: the objective band, the step rail, the reader and the
+  phone's lesson bar are removed, and the assistant panel loses its lesson
+  suggestions and "Step n of m" chip. The lesson that used them now runs in the
   conversation.
 
 ## Impact

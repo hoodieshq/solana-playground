@@ -125,7 +125,9 @@ for; tasks with "after nothing" start at once.
 - [ ] 6.1 The tutorials page by level: tutorials-gallery-stand tasks 3.1 and
       3.2, plus a conversation tutorial's "<passed> of <m>" on its card and
       "Continue · Step n of m" on the Start here banner. Verify: that change's
-      scenarios and "Hello Anchor half done" (HOO-2360; Natalia; S 1;
+      scenarios, except its caption and "Page n of m" banner, which
+      `tutorial-definition` overrides for conversation tutorials, and "Hello
+      Anchor half done" (HOO-2360; Natalia; S 1;
       after 1.1)
 - [ ] 6.2 Hello Anchor on the real flow: the wallet copy of `tutorial-runs`,
       the log patterns and goals tuned on the build server and devnet, a full
@@ -147,5 +149,8 @@ for; tasks with "after nothing" start at once.
 ## 7. Cleanup
 
 - [ ] 7.1 Retire the lesson band, rail, reader and phone bar, `PgLesson`'s
-      key and `migrate.ts`, per the `client-v2-lessons` delta. Verify: `yarn run check` passes and no import of `views/flow/lessons` remains
+      key and `migrate.ts`, and the assistant's lesson suggestions
+      (`SUGGESTIONS.lesson`), its "Step n of m" chip and `lesson-context.ts`,
+      per the `client-v2-lessons` delta. Verify also the delta's "Suggestions
+      outside a tutorial". Verify: `yarn run check` passes and no import of `views/flow/lessons` remains
       (HOO-2365; fleet; XS 0.5; after 3.3, 6.2)

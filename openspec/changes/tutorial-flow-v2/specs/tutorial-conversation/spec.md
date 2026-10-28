@@ -16,7 +16,8 @@ Opening a conversation tutorial SHALL show its chat column with one intro
 card, and the workspace SHALL show the finished program, read only. The intro
 card SHALL show:
 
-- the thumbnail, the name and the meta line;
+- the thumbnail, the name and the meta line with the minutes and the step
+  count;
 - the intro note, the wallet copy of `tutorial-runs`;
 - "What you'll build": the definition's promise line, with the log line the
   finished program prints;
@@ -328,16 +329,19 @@ in the workspace's `.workspace/tutorial-storage.json`:
 - the step;
 - the resolved state of every beat;
 - the picks;
-- the results with their signatures and program id;
-- the open tab, the open doc tabs, the docked tree, whether the terminal and
-  the Call panel are open, and the Call form's values.
+- the results with their signatures and program id.
 
-Project sync SHALL carry it to another device. The assistant exchanges SHALL
+Project sync SHALL carry it to another device. The workspace's own state (the
+open tab, the open doc tabs, the docked tree, whether the terminal and the
+Call panel are open, and the Call form's values) is local to the device: it
+SHALL be kept in `.workspace/metadata.json`, which sync leaves out, so
+opening a panel never makes the other device see a change. The assistant exchanges SHALL
 live in the assistant's thread for that workspace. A reload SHALL restore the
 feed scrolled to the live card, render turns whole with no typing or rise
 animation, and restore the files and the workspace state. "Start over" in the
 chat head's ⋯ menu SHALL confirm, then return to the intro card and the
-preview.
+preview. The assistant's thread is kept, and the feed shows only the
+exchanges after the restart.
 
 #### Scenario: Reload in step 3
 
@@ -352,7 +356,6 @@ The tutorial slice SHALL emit:
 
 - `tutorial_started` on Start, with:
   - `tutorial`: the slug;
-  - `resumed`: `false` (a returning learner does not fire it again).
 - `tutorial_question_answered` when a question resolves, with:
   - `tutorial`;
   - `question`: the beat id;
@@ -361,7 +364,7 @@ The tutorial slice SHALL emit:
 - `tutorial_step_passed` when a step's goal passes, with:
   - `tutorial`;
   - `step`: 1 to 6;
-  - `via`: `chat`, `client`, `call_panel` or `typed`;
+  - `via`: `chat` (an act card), `client` (a client run) or `call_panel`;
   - `seconds`: the step's time.
 - `tutorial_finished` when the finish card shows, with:
   - `tutorial`;

@@ -17,12 +17,14 @@ starting files and thumbnail. The definition SHALL hold:
 - the catalog metadata: name, description, authors, level (Beginner,
   Intermediate or Advanced), framework, languages, categories, thumbnail,
   minutes;
-- the intro: the lead text and the finished program shown before Start;
+- the intro: the promise line, the log line the finished program prints,
+  and the finished program shown before Start;
 - the steps, from one to six. Each step has:
   - its title and its short label for the step bar;
   - its objective and what it teaches;
   - its main file;
-  - the files' content at the step's start and at its target;
+  - the files' content at the step's start and at its target, and which
+    files are read only;
   - its beats in order;
   - its goal;
   - its win, with the line it shows when the step passed from the Call panel,
@@ -80,7 +82,8 @@ SHALL reject:
 - a `write` or `ask` block that does not appear in its step's target;
 - a `next` slug that names no tutorial;
 - two beats sharing an id;
-- a doc whose Markdown file is missing.
+- a doc whose Markdown file is missing;
+- a doc address or a Markdown link that is not `https`.
 
 `yarn run check` SHALL run it.
 
@@ -101,7 +104,10 @@ SHALL reject:
 
 The catalog SHALL list each valid definition beside upstream's tutorials, with
 its thumbnail, description and the meta line "<level> · <framework>". The
-minutes and the step count show on the intro card, not on the catalog card. The card's progress SHALL read
+minutes and the step count show on the intro card, not on the catalog card.
+For a conversation tutorial this replaces `tutorials-gallery-stand`'s caption
+"<framework> · by <first author>", and its Start here banner reads "Continue ·
+Step n of m" where that change has "Page <n> of <m>". The card's progress SHALL read
 "<passed> of <m>" beside the name while it is started, and show a check once
 the finish card has shown. Opening a tutorial with a definition SHALL open the conversation. A
 tutorial without one SHALL open upstream's pages, unchanged. A definition that
@@ -132,8 +138,8 @@ uploads to any LLM to write a tutorial, with no access to the repository. A
 tutorial SHALL be published by a pull request that adds its folder; there is no
 admin panel and no upload service. It SHALL cover:
 
-- the questions to settle first: audience, level, the program, the four to
-  six steps and what each teaches;
+- the questions to settle first: audience, level, the program, the steps
+  (one to six; four to six for a published tutorial) and what each teaches;
 - the beat types with one example each, taken from Hello Anchor;
 - the voice rules of the script: two to four sentences a message, one rich
   block at most, three options with a reason for each wrong one, a win per

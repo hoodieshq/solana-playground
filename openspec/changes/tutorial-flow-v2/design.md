@@ -173,7 +173,7 @@ the cluster from the current connection.
 **Server side:** none expected, since every step above is client-side.
 Alexander owns any server change a ticket finds it needs.
 
-### D5. Step checks extend the lesson layer's conditions
+### D5. Step checks reuse the lesson layer's logic in the feature slice
 
 A goal is `build` (instructions present), `deploy` (landed) or `call`
 (instruction, required non-empty arguments, log pattern, on the program built
@@ -277,6 +277,10 @@ value after the arrow.
   at 320 px. → chips.
 - "Send" or "Call <instruction>" on the Call panel's button (D11). →
   "Call <instruction>", as drawn.
+- The tree's dock pin hides under 1100 px of workspace (`SPEC.md`, the
+  prototype's `Workspace.tsx`), which a 1440 px window with the chat at 420 px
+  never reaches (968 px), so docking is out of reach on most laptops. →
+  1100 px, as drawn.
 - The intro note's wording (Q25): Nikita proposes "A Playground wallet is
   set up for you with free devnet SOL. Your progress stays in this browser".
   → Almaz's string, verbatim.
