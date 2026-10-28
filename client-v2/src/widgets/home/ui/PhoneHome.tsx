@@ -84,6 +84,7 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
   useRenderOnChange(PgExplorer.onDidInit);
   useRenderOnChange(PgExplorer.onDidChangeWorkspaceList);
+  useRenderOnChange(PgExplorer.onDidDeleteWorkspace);
   const programCount = useProgramCount();
 
   const framework = newFramework();
@@ -91,8 +92,8 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   const current = PgExplorer.currentWorkspaceName;
 
   const quickstarts: PhoneQuickstart[] = [];
-  // Spec 06's first visit: a browser with no project
-  if (!PgExplorer.allWorkspaceNames?.length) {
+  // Spec 06's first visit: a browser with no project, known to hold none
+  if (PgExplorer.allWorkspaceNames?.length === 0) {
     quickstarts.push({
       id: "example",
       title: "Try an example",

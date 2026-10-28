@@ -11,8 +11,9 @@ const RECENT_SHOWN = 3;
 
 /**
  * Up to three projects to pick up: the open one first, as the explorer
- * re-opens the last used on a load, then the rest newest first. The
- * explorer keeps no times, but appends each new project to its list.
+ * re-opens the last used on a load, then the rest by when they joined this
+ * browser's list, latest first. The explorer keeps no times; it appends a
+ * project it makes or sync imports, and a rename keeps its place.
  */
 export const recentProjects = (
   names: readonly string[],

@@ -29,7 +29,7 @@ Desktop Home SHALL show a section labelled "Try an example" above its three tile
 - **THEN** that project opens, no second copy is made and no build starts
 
 ### Requirement: Home lists recent work on a return visit
-Desktop Home SHALL show a section labelled "Pick up where you left off" above its tiles when the browser holds a project, listing at most three: the open project first, then the rest newest first. A press SHALL open the entry; a started tutorial opens at its page, and the open project returns to the work under Home.
+Desktop Home SHALL show a section labelled "Pick up where you left off" above its tiles when the browser holds a project, listing at most three: the open project first, then the rest latest added to this browser first. A press SHALL open the entry; a started tutorial opens at its page, and the open project returns to the work under Home.
 
 #### Scenario: Three of five
 - **WHEN** Home opens with five projects, `b` open
@@ -47,7 +47,7 @@ Phone Home SHALL offer "Try an example" as its first quick start when the browse
 - **THEN** the first quick start is "Try an example", followed by "New Anchor project" and the first Beginner tutorial
 
 ### Requirement: A slow first build says so
-While a build runs on the Build stage's "Nothing built yet" surface, the surface SHALL show the seconds since the build started, and from 60 s on its description SHALL read "First builds take longer. This one is running."
+While a build runs on the Build stage's "Nothing built yet" surface, the surface SHALL show the seconds since the build started, and from 60 s on it SHALL add the line "First builds take longer. This one is running." while the build goes on
 
 #### Scenario: Past a minute
 - **WHEN** the first build has run for 61 seconds

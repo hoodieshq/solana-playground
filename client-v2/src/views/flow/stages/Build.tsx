@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import BaseBuild from "./BaseBuild";
+import { useElapsed } from "./use-elapsed";
 import IdlActions from "./IdlActions";
 import { buildSurface, ownOutput } from "./build-surface";
 import { failedView } from "./build-view";
@@ -24,22 +25,6 @@ const serverHost = () => {
   } catch {
     return endpoint;
   }
-};
-
-/**
- * How long the running build has run, ticking once a second while it runs
- * and `null` otherwise, so an idle stage keeps no timer
- */
-const useElapsed = (flow: FlowState) => {
-  const running = flow.build === "running" ? flow.buildStartedAt : null;
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    if (running === null) return;
-    setNow(Date.now());
-    const tick = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(tick);
-  }, [running]);
-  return running === null ? null : Math.max(0, now - running);
 };
 
 /** The Build stage, connected: the flow, this workspace's report, commands */

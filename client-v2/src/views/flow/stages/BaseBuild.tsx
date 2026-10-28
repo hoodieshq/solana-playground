@@ -150,24 +150,7 @@ const FirstBuildButton = ({ p }: { p: BaseBuildProps }) => (
  * From when a first build reads as slow (Spec 06: "after 60 s", a number
  * still to agree with dev)
  */
-export const SLOW_BUILD_MS = 60_000;
-
-/**
- * What the empty surface says. A run in flight names the server and warns
- * about the wait. The Foundation's server took 381s on a cold first build
- * and 2.9s on the next one (measured 2026-09-21); six unexplained minutes
- * read as a hang, so it says the first build is the slow one, and once a
- * minute has passed, that this one is still running.
- */
-const emptyDescription = (p: BaseBuildProps) => {
-  if (!p.building) {
-    return "Build compiles your program on the server. Nothing leaves your browser except the source.";
-  }
-  if ((p.elapsedMs ?? 0) >= SLOW_BUILD_MS) {
-    return "First builds take longer. This one is running.";
-  }
-  return `Compiling on ${p.host}. A first build there can take several minutes.`;
-};
+const SLOW_BUILD_MS = 60_000;
 
 const Empty = (p: BaseBuildProps) => (
   <Surface
@@ -177,9 +160,24 @@ const Empty = (p: BaseBuildProps) => (
         ? `${Math.floor(p.elapsedMs / 1000)} s`
         : null
     }
-    description={emptyDescription(p)}
+    description={
+      // A run in flight names the server and warns about the wait. The
+      // Foundation's server took 381s on a cold first build and 2.9s on the
+      // next one (measured 2026-09-21); six unexplained minutes read as a
+      // hang, so say the first build is the slow one, and once a minute has
+      // passed, add that this one is still running (Spec 06).
+      p.building
+        ? `Compiling on ${p.host}. A first build there can take several minutes.`
+        : "Build compiles your program on the server. Nothing leaves your browser except the source."
+    }
     actions={<FirstBuildButton p={p} />}
-  />
+  >
+    {p.building && (p.elapsedMs ?? 0) >= SLOW_BUILD_MS && (
+      <StageEmptyDescription>
+        First builds take longer. This one is running.
+      </StageEmptyDescription>
+    )}
+  </Surface>
 );
 
 const Unreached = (p: BaseBuildProps) => (

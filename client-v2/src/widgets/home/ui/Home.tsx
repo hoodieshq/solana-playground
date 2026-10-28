@@ -45,15 +45,17 @@ const openRecent = async (entry: RecentEntry, onContinue: () => void) => {
 /**
  * What leads Home: the example while the browser holds no project (Spec 06's
  * first visit; an account's projects are imported by sync, so they count),
- * recent work otherwise
+ * recent work otherwise, and nothing while the list has not loaded
  */
-const useStart = (onContinue: () => void): HomeStart => {
+const useStart = (onContinue: () => void): HomeStart | null => {
   useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
   useRenderOnChange(PgExplorer.onDidInit);
   // Sync imports projects without a switch, and another tab deletes them
   useRenderOnChange(PgExplorer.onDidChangeWorkspaceList);
   useRenderOnChange(PgExplorer.onDidDeleteWorkspace);
-  const names = PgExplorer.allWorkspaceNames ?? [];
+  const names = PgExplorer.allWorkspaceNames;
+  // Unknown is not "no project": lead with nothing until the list loads
+  if (!names) return null;
   if (!names.length) {
     return {
       kind: "example",

@@ -36,6 +36,8 @@ const utils = vi.hoisted(() => ({
     get: vi.fn(),
   },
   PgCommand: { build: { execute: vi.fn() } },
+  PgGlobal: { buildLoading: false },
+  isTerminalUnmounted: () => false,
 }));
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
@@ -67,7 +69,13 @@ beforeEach(() => {
   utils.PgExplorer.currentWorkspaceName = undefined;
   utils.PgExplorer.allWorkspaceNames = [];
   utils.PgExplorer.switchWorkspace.mockReset().mockResolvedValue(undefined);
-  utils.PgExplorer.createWorkspace.mockReset().mockResolvedValue(undefined);
+  // Making a project opens it, as the explorer does
+  utils.PgExplorer.createWorkspace
+    .mockReset()
+    .mockImplementation(async (name: string) => {
+      utils.PgExplorer.allWorkspaceNames = [name];
+      utils.PgExplorer.currentWorkspaceName = name;
+    });
   utils.PgFramework.all = [{ name: "Native" }, { name: "Anchor" }];
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   utils.PgFramework.get.mockReset().mockReturnValue({

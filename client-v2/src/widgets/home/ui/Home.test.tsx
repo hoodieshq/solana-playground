@@ -36,6 +36,7 @@ const utils = vi.hoisted(() => ({
   },
   PgFramework: { get: vi.fn() },
   PgCommand: { build: { execute: vi.fn() } },
+  PgGlobal: { buildLoading: false as boolean },
   isTerminalUnmounted: (e: unknown) => e === UNMOUNTED,
 }));
 /** What the terminal answers before the work under Home has mounted it */
@@ -81,12 +82,19 @@ beforeEach(() => {
   utils.PgExplorer.currentWorkspaceName = undefined;
   utils.PgExplorer.allWorkspaceNames = [];
   utils.PgExplorer.switchWorkspace.mockReset().mockResolvedValue(undefined);
-  utils.PgExplorer.createWorkspace.mockReset().mockResolvedValue(undefined);
+  // Making a project opens it, as the explorer does
+  utils.PgExplorer.createWorkspace
+    .mockReset()
+    .mockImplementation(async (name: string) => {
+      utils.PgExplorer.allWorkspaceNames = [name];
+      utils.PgExplorer.currentWorkspaceName = name;
+    });
   utils.PgFramework.get.mockReset().mockReturnValue({
     defaultOpenFile: "/src/lib.rs",
     getDefaultFiles: async () => ({ files: [["/src/lib.rs", "// anchor"]] }),
   });
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
+  utils.PgGlobal.buildLoading = false;
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
   logged = memoryLogs();
@@ -231,20 +239,43 @@ it("makes the example and builds it once on a first visit", async () => {
   expect(events("home_example_run")).toEqual([{ outcome: "created" }]);
 });
 
-it("keeps the example when its build fails to start, and logs it", async () => {
-  const failure = new Error("server down");
-  utils.PgCommand.build.execute.mockRejectedValueOnce(failure);
+it("keeps the example when its build fails to run, and logs it unreported", async () => {
+  utils.PgCommand.build.execute.mockRejectedValueOnce(new Error("server down"));
   const { home } = draw();
   fireEvent.click(home.getByRole("button", { name: "Run it" }));
   await waitFor(() =>
     expect(events("home_example_run")).toEqual([{ outcome: "created" }])
   );
+  // The Build stage shows an unreached server; it is no bug to report
   await waitFor(() =>
-    expect(logged.entries.map((e) => [e.ns, e.error, e.report])).toEqual([
-      ["home:first-run", failure, true],
+    expect(logged.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
+      ["home:first-run", "warn", false],
     ])
   );
   expect(utils.PgView.setToast).not.toHaveBeenCalled();
+});
+
+it("builds nothing once the user has opened another project", async () => {
+  utils.PgExplorer.createWorkspace.mockImplementation(async (name: string) => {
+    utils.PgExplorer.allWorkspaceNames = [name, "other"];
+    // Picked in the list before the terminal mounted
+    utils.PgExplorer.currentWorkspaceName = "other";
+  });
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: "Run it" }));
+  await waitFor(() =>
+    expect(events("home_example_run")).toEqual([{ outcome: "created" }])
+  );
+  expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
+});
+
+it("leads with nothing while the project list has not loaded", () => {
+  utils.PgExplorer.allWorkspaceNames = undefined as unknown as string[];
+  const { home } = draw();
+  expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
+  expect(
+    home.queryByRole("region", { name: "Pick up where you left off" })
+  ).toBeNull();
 });
 
 it("opens an example that exists, and builds nothing", async () => {
@@ -322,4 +353,56 @@ it("starts the example's build once the work has mounted the terminal", async ()
   );
   expect(events("home_example_run")).toEqual([{ outcome: "created" }]);
   expect(logged.entries).toEqual([]);
+});
+
+it("opens the example another tab made since Home drew it, and builds nothing", async () => {
+  const { home } = draw();
+  utils.PgExplorer.allWorkspaceNames = ["anchor-example"];
+  fireEvent.click(home.getByRole("button", { name: "Run it" }));
+  await waitFor(() =>
+    expect(events("home_example_run")).toEqual([{ outcome: "opened" }])
+  );
+  expect(utils.PgExplorer.switchWorkspace).toHaveBeenCalledWith(
+    "anchor-example"
+  );
+  expect(utils.PgExplorer.createWorkspace).not.toHaveBeenCalled();
+  expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
+});
+
+it("goes back to the example when it is already open", async () => {
+  const { home, onContinue } = draw();
+  utils.PgExplorer.allWorkspaceNames = ["anchor-example"];
+  utils.PgExplorer.currentWorkspaceName = "anchor-example";
+  fireEvent.click(home.getByRole("button", { name: "Run it" }));
+  await waitFor(() =>
+    expect(events("home_example_run")).toEqual([{ outcome: "current" }])
+  );
+  expect(onContinue).toHaveBeenCalledTimes(1);
+  expect(utils.PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+});
+
+it("leaves the build to the stage's Build when one already runs", async () => {
+  utils.PgGlobal.buildLoading = true;
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: "Run it" }));
+  await waitFor(() =>
+    expect(events("home_example_run")).toEqual([{ outcome: "created" }])
+  );
+  await waitFor(() =>
+    expect(logged.entries.map((e) => e.context)).toEqual([
+      { reason: "already-building" },
+    ])
+  );
+  expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
+});
+
+it("tells the user when the example cannot be made, and counts nothing", async () => {
+  utils.PgExplorer.createWorkspace.mockRejectedValueOnce(new Error("quota"));
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: "Run it" }));
+  await waitFor(() =>
+    expect(logged.entries.map((e) => e.ns)).toEqual(["ui:button"])
+  );
+  expect(events("home_example_run")).toEqual([]);
+  expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
 });

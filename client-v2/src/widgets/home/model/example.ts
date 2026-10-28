@@ -3,36 +3,51 @@ import {
   PgCommand,
   PgExplorer,
   PgFramework,
+  PgGlobal,
   isTerminalUnmounted,
 } from "@/utils";
 
 const log = createLogger("home:first-run");
 
 /**
- * The first-run example's project, found by this name: a second "Run it"
- * opens it rather than making a copy. Spec 06 has the Anchor starter stand
- * in until an example is picked.
+ * The first-run example's project, found by this name: "Run it" shows only
+ * while the browser holds no project, but another tab or sync can make the
+ * example after Home drew it, and then it is opened rather than copied.
+ * Spec 06 has the Anchor starter stand in until an example is picked.
  */
-export const EXAMPLE_NAME = "anchor-example";
+const EXAMPLE_NAME = "anchor-example";
 
 /** How often, and for how long, the build waits for the work to mount */
 const MOUNT_POLL_MS = 100;
 const MOUNT_WAIT_MS = 15_000;
 
+/** Why the example's build did not run */
+type BuildSkipped =
+  | "left-example"
+  | "already-building"
+  | "terminal-never-mounted";
+
 /**
  * Start the build once a terminal is there to run it. On a first visit Home
  * mounts no work, so the terminal comes only after the new project has
- * replaced Home; until then the command answers "unmounted". Gives up after
- * `MOUNT_WAIT_MS`, leaving the Build stage's own Build button.
+ * replaced Home; until then the command throws `TerminalUnmounted`. Builds
+ * only while the example is still the open project (the command builds
+ * whatever is open, and the user may have moved on during the wait) and no
+ * build runs yet (the stage's Build may have been pressed). Gives
+ * up after `MOUNT_WAIT_MS`, leaving the Build stage's own Build button.
  */
-const buildWhenMounted = async () => {
+const buildWhenMounted = async (): Promise<BuildSkipped | null> => {
   const until = Date.now() + MOUNT_WAIT_MS;
   for (;;) {
+    if (PgExplorer.currentWorkspaceName !== EXAMPLE_NAME) return "left-example";
+    // The stage's own Build, pressed during the wait, is the one build
+    if (PgGlobal.buildLoading) return "already-building";
     try {
       await PgCommand.build.execute();
-      return;
+      return null;
     } catch (e) {
-      if (!isTerminalUnmounted(e) || Date.now() >= until) throw e;
+      if (!isTerminalUnmounted(e)) throw e;
+      if (Date.now() >= until) return "terminal-never-mounted";
     }
     await new Promise((resolve) => setTimeout(resolve, MOUNT_POLL_MS));
   }
@@ -49,7 +64,11 @@ export type ExampleRun = "created" | "opened" | "current";
  * example exists, so this answers `created` either way.
  */
 export const runExample = async (): Promise<ExampleRun> => {
-  if (PgExplorer.allWorkspaceNames?.includes(EXAMPLE_NAME)) {
+  const names = PgExplorer.allWorkspaceNames;
+  // Unknown is not empty: making the example now could put it beside work
+  // the explorer has not listed yet
+  if (!names) throw new Error("The project list has not loaded yet.");
+  if (names.includes(EXAMPLE_NAME)) {
     if (PgExplorer.currentWorkspaceName === EXAMPLE_NAME) return "current";
     await PgExplorer.switchWorkspace(EXAMPLE_NAME);
     return "opened";
@@ -62,9 +81,21 @@ export const runExample = async (): Promise<ExampleRun> => {
     defaultOpenFile: framework.defaultOpenFile,
   });
   // Not awaited: the example exists now, and the build is the Build stage's
-  // to show, however long it runs
-  buildWhenMounted().catch((e: unknown) =>
-    log.error(e, { report: true, context: { after: "example-created" } })
+  // to show, however long it runs. A compile error resolves (the stage lists
+  // it); a rejection is a build server that did not answer, which the stage
+  // shows as unreached, so neither is a bug for the team to hear of
+  buildWhenMounted().then(
+    (skipped) => {
+      if (skipped) {
+        log.warn("the example's build did not start", {
+          context: { reason: skipped },
+        });
+      }
+    },
+    (e: unknown) =>
+      log.warn("the example's build failed to run", {
+        context: { e, workspace: EXAMPLE_NAME },
+      })
   );
   return "created";
 };

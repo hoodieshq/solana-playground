@@ -91,6 +91,18 @@ describe("BaseBuild", () => {
     expect(busy.getAttribute("aria-busy")).toBe("true");
   });
 
+  it.each([
+    [59_999, false],
+    [60_000, true],
+  ])("at %i ms the slow line shows: %s", (elapsedMs, shown) => {
+    render(<BaseBuild {...props({ kind: "empty" }, true, elapsedMs)} />);
+
+    expect(
+      screen.queryByText("First builds take longer. This one is running.") !==
+        null
+    ).toBe(shown);
+  });
+
   it("counts the seconds of a first build, under a minute without the slow line", () => {
     render(<BaseBuild {...props({ kind: "empty" }, true, 12_400)} />);
 
@@ -101,10 +113,12 @@ describe("BaseBuild", () => {
     ).toBeNull();
   });
 
-  it("says a first build past a minute is still running", () => {
+  it("adds that a first build past a minute is still running", () => {
     render(<BaseBuild {...props({ kind: "empty" }, true, 61_000)} />);
 
+    expect(screen.getByRole("heading", { name: "Building..." })).toBeTruthy();
     expect(screen.getByText("61 s")).toBeTruthy();
+    expect(screen.getByText(/Compiling on api\.solpg\.io/)).toBeTruthy();
     expect(
       screen.getByText("First builds take longer. This one is running.")
     ).toBeTruthy();

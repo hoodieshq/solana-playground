@@ -35,7 +35,7 @@ export interface TutorialFailure {
 }
 
 /** The example's one line, Spec 06's draft for the Anchor starter */
-export const EXAMPLE_LINE =
+const EXAMPLE_LINE =
   "This program saves a number in an account and writes it to the logs.";
 
 /**
@@ -51,7 +51,7 @@ export type HomeStart =
     };
 
 export interface BaseHomeProps {
-  /** `null` while there is nothing to lead with */
+  /** `null` while the project list has not loaded */
   start: HomeStart | null;
   /** All of them: the first four are shown, the tiles count them all */
   tutorials: readonly HomeTutorial[];
