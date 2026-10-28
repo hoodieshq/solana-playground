@@ -81,10 +81,9 @@ const BaseSessionFooter = ({
               in the label the screen reader reads. Down, the row is Spec 08's
               NET-02 chip, "Devnet · not answering", in place of the old
               "Switch to localnet?" toast */}
-          <span className="truncate capitalize">
-            {account.cluster.down
-              ? `${account.cluster.name} · ${NOT_ANSWERING}`
-              : account.cluster.name}
+          <span className="truncate">
+            <span className="capitalize">{account.cluster.name}</span>
+            {account.cluster.down && ` · ${NOT_ANSWERING}`}
           </span>
         </SidebarMenuButton>
       </SidebarMenuItem>
