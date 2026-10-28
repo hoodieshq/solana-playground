@@ -17,21 +17,27 @@ visual directions `ui-A.md` "Quiet IDE" and `ui-B.md` "Assistant forward" with t
 and `ui-B.png` (all in the session scratchpad `v2/`). Where this spec and those files disagree, this spec
 wins. Everything is a prototype: no model, no devnet, canned answers, dummy transactions, example numbers.
 
+Three tutorials run in the prototype on this one flow (10/28): Hello Anchor (Beginner), Lumberjack
+(Intermediate) and Zero Copy (Advanced). This spec describes the flow and Hello Anchor's script; each
+lesson's steps, questions and decisions are in `lessons/README.md`, and their scripts in `lessons/`.
+Where an example below says Hello Anchor, the other two work the same way.
+
 ---
 
 ## 0. The idea in six lines
 
 1. One layout from Start to the finish: icon rail, chat, workspace, like ChatGPT desktop or Claude for Mac
    with Playground's workspace on the right.
-2. The lesson is the conversation. Each step opens with a divider in the feed; the 4 step bar on top of
-   the chat jumps back to those dividers.
+2. The lesson is the conversation. Each step opens with a divider in the feed; the step bar on top of
+   the chat (one segment a step: 4 in Hello Anchor and Lumberjack, 3 in Zero Copy) jumps back to those
+   dividers.
 3. One composer. Every button the learner needs right now sits on the latest card that asks for it.
 4. Question, then code: a short explanation, a question with 3 options, a right pick makes the assistant
    write that code into the file with the lines lit, a wrong pick gets one sentence and a retry.
 5. Something visibly changes in the first 5 seconds, the first green build lands before 60 seconds, and
    every step ends on a win card.
 6. Nothing of the IDE is gone: the nav is folded to icons, the file tree is one click from the file name,
-   the terminal bar is always on screen, and deploy adds a Test tab generated from the IDL.
+   the terminal bar is always on screen, and deploy adds the Call panel generated from the IDL (8.6).
 
 ---
 
@@ -54,11 +60,21 @@ wins. Everything is a prototype: no model, no devnet, canned answers, dummy tran
 * Light theme, the Programs page, Home, New project (stubs with the v1 toast).
 * Per step reset or "Quiz me again". Going back is reading; "Start over" resets the whole tutorial.
 
-### 1.3 Kora caveat (internal, not in the UI)
+### 1.3 Who pays
 
-"0 SOL, paid by Kora" is a product direction. The default Kora policy will not pay a learner's deploy
-rent, so building it needs its own Kora policy or a shared program. The copy keeps the direction as is;
-the numbers are examples. Say this in the review notes, not on screen.
+The learner's Playground wallet, a devnet key pair Playground makes in the browser, pays for everything
+in free devnet SOL. The first deploy starts with the stage "Funding your wallet": an airdrop of 5 SOL
+from the devnet faucet. Every cost names the wallet: "1.27 devnet SOL from your wallet" for a deploy,
+"0.0002 devnet SOL" for an upgrade, "fee 0.000005 SOL from your wallet" for a transaction. The numbers
+are examples (`lessons/common.ts`).
+
+When the faucet is at its limit, the deploy fails as a red result "Not enough devnet SOL": the wallet
+has 0 SOL and the deploy needs about 1.27, try again in a minute or top the wallet up; the wallet's short
+address with Copy, and "Open faucet". A new deploy card follows with "Try again", which asks the faucet
+again and deploys. `?demo=faucet` shows it.
+
+Kora was the earlier direction ("0 SOL, paid by Kora"). Its default policy will not pay a learner's
+deploy rent, so the copy no longer names it.
 
 ---
 
@@ -409,8 +425,9 @@ code you picked. The finished program is on the right.
   the step bar's "not reached" glyph.
 * Start: primary `Button size="lg"` + `Kbd` ↵. Enter starts when nothing else has focus. "Ask me anything
   first" is a ghost `sm`: focuses the composer.
-* On Start: the intro becomes its record, the step 1 divider appears, the workspace swaps the preview for
-  an empty lib.rs, the nav hint shows (first time).
+* On Start: the intro leaves the feed (the chat's header names the tutorial from then on, so a folded
+  intro would say it twice), the step 1 divider appears, the workspace swaps the preview for an empty
+  lib.rs, the nav hint shows (first time).
 * Returning in progress: the whole thread is there, scrolled to the live card. The list's banner reads
   "Continue · Step 3 of 4".
 
@@ -447,6 +464,13 @@ code you picked. The finished program is on the right.
   Trailing `ArrowRight` 16 slot.
 * Foot `mt-2 pt-1.5 border-t border-border flex items-center`: ghost `sm` `PenLine` "Type it myself",
   ghost `sm` "Skip", `ml-auto text-[0.75rem] text-subtle` "or ask below".
+* A "Fix it" question (the one after the planned failure) builds the learner's own code from inside
+  the card. Once lib.rs changed since its last build, a row above the foot says "You changed lib.rs.
+  Build it and the compiler checks your fix." with a soft Build (desktop only: a phone has no editor).
+  The build has no act card. A failure posts its result under the question already open on the
+  compiler's line, the link to the line and the reason, with no Explain of its own: the question is
+  still the way on, and the row comes back at the next edit. A pass resolves the question as typed and
+  passes the step. Typing the question's key line in the editor answers it without a build, as before.
 
 | State | Row | Key cap | Trailing, below |
 |---|---|---|---|
@@ -515,24 +539,44 @@ focused row; S skips. The record drops the ring and the shadow.
 | Running | the button swaps for `Spinner` 16 `text-brand-purple` + stage label `text-[0.8125rem] font-act` ("Writing buffer") + `text-[0.75rem] text-subtle tabular-nums` "2 of 3"; icon tile `bg-brand-purple/14 text-brand-purple`; a 2 px bar on the card's bottom edge `bg-brand-purple/60 origin-left`, scaled per stage (deploy 1/3, 2/3, 3/3; build 0 to 0.9 over 1.6 s) |
 | Interrupted by a reload | idle, the context line replaced by `text-warning-ink` "Interrupted by a reload. Run it again." |
 | Disabled (another run going, empty name) | DS `disabled:opacity-50` |
-| Record | collapses (200 ms) to one line, no button, ever |
+| Record | collapses (200 ms) to one line, no button, ever. When its result card follows right under it, the record isn't drawn at all: one line per action, and the time it took moves into the card's details. A grow or a chop keeps its card, which is its result; a grow's record keeps the map as its last press left it (the copy red past the heap, or the zero copy map at 40 KB) |
 
 #### 6.5.5 Tool result card
 
 One shape for build, deploy, run, call and Test sends (`23`, `24`).
 
-* `overflow-hidden rounded-control border border-border bg-surface-panel`, `role="status"`.
-* Head `h-9 px-3 gap-2`: status icon 16, title `text-[0.8125rem] font-label`, meta `text-[0.75rem]
-  text-subtle truncate`, `ml-auto` icon button `ChevronDown` "Show log" (opens the log fold and the
-  terminal).
+Redesigned on 10/28 (UX, UI and typography proposals merged by a judge). One box, never a box inside
+it: whatever the card shows (an account, a program id, the log) sits in it flat, set off by hairlines.
 
-| Kind | Head | Body |
-|---|---|---|
-| Build ok | `CircleCheck text-success` "Build successful", meta "IDL: 1 instruction · hello · 1.6 s" | log folded |
-| Build failed | box `border-error/40`, head `bg-error/[0.08]`, `CircleX text-error` "Build failed", meta "E0412 · line 9" | open: compiler line `text-foreground`, then `--> src/lib.rs:9:32` as a link that jumps to the line and lights it on hover (v1 `BuildLog`); then the assistant's line in `READ`; then the row: primary "Explain the error ⌘↵", ghost "I'll fix it myself" |
-| Deploy ok | `CircleCheck` "Deployed", meta "0 SOL, paid by Kora" | v1 `ProgramId` row (Copy, Explorer), then `text-[0.75rem] text-subtle` "Programs nobody calls for 7 days are closed. Deploy again to bring one back." |
-| Upgrade ok | `CircleCheck` "Upgraded 9hJqVk…WxCvB", meta "0 SOL, paid by Kora" | "IDL: 1 instruction · hello(name: string)" |
-| Tx ok | `CircleCheck` "Confirmed", meta "Sent from client.ts" / "Sent from the Test form" (lucide `FlaskConical` before it) / "Sent from the chat" | the answer line `font-mono text-[0.9375rem] text-foreground border-l-2 border-success pl-3` "Program log: Hello, World!", the v1 `HelloLine` peek of the `msg!` line, then the compact v1 `Receipt` (signature with Copy and Explorer, "fee 0.000005 SOL, paid by Kora", "1,042 CU", "~0.4 s"), printed in with `pg-print` |
+* DS `Collapsible`, `@container overflow-hidden rounded-control border border-border bg-(--card-ground)`;
+  head and body inside `role="status"`, the details after it.
+* Head: status icon 16, title `text-[0.8125rem] font-label`, meta `text-caption text-muted-foreground
+  truncate` (`h-9 px-3 gap-2`, `h-11` on a phone). The details open where they appear: on a card that
+  shows its result (the latest with a body), from the card's foot, a full-width `h-8` row under a
+  hairline with "Details" / "Hide details" at the left and the chevron at the card's edge; on a folded card or one with no body (a build), the whole head is the toggle with a
+  `ChevronDown` 16 at its end. Opening never opens the terminal: the details have "Open terminal" on a
+  desktop.
+* Latest card: head, the result, then the receipt under a hairline: the signature (mono, muted) with
+  Copy and Explorer, and "fee 0.000005 SOL from your wallet". One line at 25rem and up, two below.
+  Printed in with `pg-print` as it arrives. Compute and time are in the details.
+* Older cards (any run before the latest transaction or client read) fold to the head, the meta
+  saying what came back: "`init_player` · 5/5 energy, 0 wood", "`hello` · “Hello, Alex!”".
+* Details: first how long the run took, the line the act's record used to say: "Ran client.ts in
+  1.6 s · 1,042 CU · confirmed in ~0.4 s" ("Sent in" for a call from the chat), "Deployed in 5.6 s",
+  "Built and upgraded in 6.2 s". Then "Program log" with "Open terminal", and the program's own log
+  lines only (`programLog(tx)`), mono 12, wrapped under a hanging indent, no well.
+
+| Kind | Head | Body | Details |
+|---|---|---|---|
+| Build ok | `CircleCheck text-success` "Build successful", meta "IDL: 1 instruction · hello · 1.6 s" | none | "Build log", the log, at most 15rem then it scrolls |
+| Build failed | live: as before (own `h-12` head, Explain and I'll fix it myself); folded: `CircleX text-error` "Build failed", meta "E0412 on line 9" | open: the compiler line, `--> src/lib.rs:9:32` as a link to the line, the assistant's line | |
+| Deploy ok | `Check` "Deployed", meta "1.27 devnet SOL from your wallet" | `ProgramId flat` (Copy, Explorer). Stays in view on older cards | "Deploy log" |
+| Deploy, no SOL | `CircleX text-error` "Not enough devnet SOL" | "Your wallet has 0 SOL, and this deploy needs about 1.27 SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself.", then "Your wallet" with the short address and Copy, and "Open faucet". The act before it isn't drawn (its result is right under it); a new deploy card follows, "Asks the faucet again, then deploys" · "Try again" | the faucet's lines |
+| Upgrade ok | `Check` "Upgraded 9hJqVk…WxCvB", meta "0.0002 devnet SOL from your wallet" | "IDL: 1 instruction · hello(name: string)" | "Deploy log" |
+| Tx ok | `CircleCheck` "Confirmed", meta "`hello` from client.ts" / "from the chat" (the instruction in mono, without its arguments) | what came back: "Program log: Hello, World!" on a `border-l-2 border-success pl-3` rule with the `msg!` peek, or the account (`PlayerCard flat`, `MemoryCard flat`); then the receipt | facts, "Program log" |
+| Read, no tx | `Eye text-muted-foreground` "Read your player" / "Read your map", meta "No transaction, already there" | the account, no receipt | "Client output" |
+
+Calls from the Call panel show their result in the panel, never in the chat.
 
 #### 6.5.6 Win card
 
@@ -740,17 +784,20 @@ Divider: "Step 2 of 4" · "Build & Deploy" · "Deploy the program to devnet".
 
 **[s2.why] say**:
 
-> Right now your program exists only as a build. Deploying puts it on devnet, Solana's public test
-> network, where anyone can call it. Kora pays the cost, so you need 0 SOL and no wallet.
+> Right now your program is only a build: Playground compiled it, but nobody can call it yet. Deploying
+> uploads it to devnet, Solana's public test network, where anyone can call it. It costs devnet SOL,
+> test money with no value, and Playground tops your wallet up for free when it runs low.
 
-**[s2.deploy] act**: "Deploy to devnet" · context "Through Kora · 0 SOL, no wallet" · "Deploy ⌘↵". Stages:
-Writing buffer, Deploying, Confirming (1.1 s each). If lib.rs changed since the last build the title and
-button read "Build and deploy" and it builds first.
+**[s2.deploy] act**: "Deploy to devnet" · context "From your Playground wallet · free devnet SOL" ·
+"Deploy ⌘↵". Stages: Funding your wallet (the first deploy only), Writing buffer, Deploying, Confirming
+(1.1 s each). If lib.rs changed since the last build the title and button read "Build and deploy" and it
+builds first.
 
-**Result: deployed** · "0 SOL, paid by Kora" · Program Id `9hJqVk…WxCvB` · the 7 day note. At the same
-moment the Test tab arrives in the workspace with its dot; the terminal opens (first deploy).
+**Result: deployed** · "1.27 devnet SOL from your wallet" · Program Id `9hJqVk…WxCvB`. At the same
+moment the Test tab arrives in the workspace with its dot; the terminal opens (first deploy). The
+faucet at its limit: section 1.3.
 
-**[s2.win] win** · Step 2 done · pills `Rocket` "Live on devnet", `Coins` "0 SOL spent", `FlaskConical` "Test
+**[s2.win] win** · Step 2 done · pills `Rocket` "Live on devnet", `Coins` "Free devnet SOL", `FlaskConical` "Test
 tab added":
 
 > **Your program is live on devnet.**
@@ -759,7 +806,7 @@ tab added":
 
 Buttons "Next: Client ↵", outline "Open Test".
 
-Chips: "What is devnet?", "Why 7 days?", "What is Kora?".
+Chips: "What is devnet?", "What is devnet SOL?".
 
 ### 7.3 Step 3 · Client
 
@@ -795,13 +842,13 @@ Right pick writes `CLIENT_CALL` (client.ts lines 1 to 3, +3).
 
 > Run it and watch what comes back.
 
-Act: "Run client.ts" · context "Sends one transaction to devnet · Kora pays the fee" · "Run ⌘↵". Running
+Act: "Run client.ts" · context "Sends one transaction to devnet · fee from your wallet" · "Run ⌘↵". Running
 label "Sending hello to devnet". Terminal opens (first run): `clientLog`.
 
 **Result: tx** · Confirmed · Sent from client.ts · big line `Program log: Hello, World!` with the peek of
 lib.rs line 10 · signature `4sGjMW…HirAn` · 1,042 CU · ~0.4 s.
 
-**[s3.win] win** · Step 3 done · pills `Cpu` "1,042 CU", `Timer` "~0.4 s", `Coins` "Fee paid by Kora".
+**[s3.win] win** · Step 3 done · pills `Cpu` "1,042 CU", `Timer` "~0.4 s", `Coins` "0.000005 SOL fee".
 Signature moment 1:
 
 > **Your program answered from devnet.**
@@ -856,7 +903,7 @@ Right pick turns `LIB_FIXED` into `LIB_NAMED`; lines 9 and 10 light (+2):
 
 > Devnet still runs the old `hello`. Build and deploy again: the program keeps its address.
 
-Act: "Build and deploy" · context "Upgrades 9hJqVk…WxCvB in place · 0 SOL" · "Build and deploy ⌘↵". Stages:
+Act: "Build and deploy" · context "Upgrades 9hJqVk…WxCvB in place · from your wallet" · "Build and deploy ⌘↵". Stages:
 Building, Writing buffer, Deploying (about 4.9 s).
 
 **Result: upgraded** · "IDL: 1 instruction · hello(name: string)". The Test tab dot comes back; the form
@@ -866,7 +913,7 @@ now has `name  string` with NEW.
 
 > Now call it with your name. Here, or in the Test tab, where `name` just showed up.
 
-Act: "Call hello" · `NameField` · context "Sends hello with your name · Kora pays the fee" · "Call hello
+Act: "Call hello" · `NameField` · context "Sends hello with your name · fee from your wallet" · "Call hello
 ⌘↵".
 
 **Result: tx** · Confirmed · Sent from the chat · big line `Program log: Hello, Alex!` (whatever was typed,
@@ -884,11 +931,12 @@ Chips: "Which types work?", "Can I call it with someone else's name?", "Explain 
 ### 7.5 Finish card (400 ms after the step 4 win)
 
 > **You built and called your first Solana program.**
-> `Hello, Alex!` came back from devnet in a transaction Kora paid for.
+> `Hello, Alex!` came back from devnet, in a transaction your wallet signed.
 
 Printed receipt of the last call; "What you learned": Declaring a program and its instructions ·
-Deploying through Kora with 0 SOL · Calling a program from TypeScript · Passing arguments to an
-instruction; stats "4 steps · 0 SOL spent · 6 min 40 s" (from `startedAt` to `finishedAt`). Chips: "Change
+Deploying with free devnet SOL · Calling a program from TypeScript · Passing arguments to an
+instruction; stats "4 steps · 6 min 40 s · devnet only, nothing real spent" (from `startedAt` to
+`finishedAt`). Chips: "Change
 what hello says", "What should I build next?".
 
 ### 7.6 Records copy
@@ -912,7 +960,7 @@ Explain this step:
 | Step | Answer |
 |---|---|
 | 1 | "This step writes the smallest Anchor program there is: one instruction, `hello`, that writes a line to the program log. I explain a piece, you pick the right line, and I write it in. Then the build checks it." |
-| 2 | "Deploying puts your built program on devnet, Solana's public test network. Kora covers the cost, so this works without a wallet. Press Deploy and wait for the program id." |
+| 2 | "Deploying puts your built program on devnet, Solana's public test network, at an address of its own: the program id. It's paid from your Playground wallet in free devnet SOL. Press Deploy and wait for the id." |
 | 3 | "A client is code outside the program that sends it transactions. Here it's one line of TypeScript in `client.ts`. You can also call `hello` from the Test tab, no code needed." |
 | 4 | "Instructions can take arguments after their `Context`. This step adds a `name` to `hello`, ships the new version and calls it with your name." |
 
@@ -925,8 +973,7 @@ Step chips (answers from `data.ts` where they exist):
 | Why does hello need a struct? | `data.ts` as is |
 | Where is this in the docs? | `data.ts` as is |
 | What is devnet? | `data.ts` as is |
-| Why 7 days? | `data.ts` as is |
-| What is Kora? | "Kora is a service that pays transaction fees for you. In Playground it also covers the deploy on devnet, so you start with 0 SOL and no wallet." |
+| What is devnet SOL? | "Devnet is Solana's public test network. Its SOL is free and worth nothing, so you can deploy and call as much as you like. Playground keeps your wallet topped up from the devnet faucet." |
 | What is pg? | `data.ts` as is |
 | What's an IDL? | "The IDL is your program's interface, written by the build: its instructions, their arguments and accounts. Clients read it to know how to call you, and the Test tab is built from it." + follow up "Open Test" (after the deploy only) |
 | Can I test without code? | "Yes. After the deploy, the Test tab has a form for each instruction. Fill the arguments and press Send." + follow up "Open Test" (after the deploy only) |
@@ -1077,6 +1124,37 @@ DS `ConsoleDrawer` as v1 `Workspace` uses it.
 
 ### 8.6 Test tab with the IDL form (R7)
 
+**As built (10/28): the Call panel** (`ui/TestForm.tsx`). The sketch further down is the earlier Test
+tab; where they differ, this is current.
+
+* Head: Form | IDL. A program with several instructions lists them as chips (mono 13, `rounded-[7px]`,
+  the picked one filled), the latest added picked by default. After a deploy that brings whole
+  instructions (Zero Copy), one neutral NEW sits on the new instruction's chip; in Hello Anchor's step
+  4 it sits on the new `name` argument. No purple: the tag is neutral.
+* The request: the signature as its heading (mono 15, `font-medium`, the program name muted), "In code"
+  and the client's line in mono with no chip, then one row per argument (mono label over an input whose
+  value is mono too, 13 on a desktop, 16 on a phone so iOS doesn't zoom), then the button, with the
+  note that keeps it off (if any) right over it. Two sizes: 15 for the signature and the button, 13 for
+  everything else, the chips included. 4 between the signature and "In code", 8 inside a unit (label and
+  field, note and button), 16 between rows and from the chips to the signature, 24 between groups, 32
+  before the response. Class lists that pair `text-code` or `text-caption` with a colour are plain
+  strings: `cn` reads those size tokens as colours and drops them, which had the chips at 16 and the
+  inputs at 14.
+* Arguments: Hello Anchor's `name` is typed. A memory lesson starts each argument at what its step
+  sends and the learner can change it; the program answers what was sent, as devnet would (a grow over
+  10 KB at once is refused, a copy past 32 KB runs out of memory, a paint past the map's end panics).
+  A value the client couldn't encode (a `u32` that isn't a whole number) isn't sent: a note says why,
+  as it does for a call that would fail before it ran (a second `init`, a paint before the map is
+  40 KB). Notes keep to 64ch.
+* The response, at most 560 px: the status on the baseline ("Confirmed" or "Failed" at 15, "· Fee
+  0.000005 SOL from your wallet", Explorer at the row's end), the program's words on a well with the
+  `msg!` source in mono beside them, then the account (Lumberjack's player, Zero Copy's map) with no
+  border of its own. When the fields have moved on from what the last call sent, the response dims and
+  says "Last call, with text "gm", at 35000". A response from before the latest deploy isn't shown.
+* A refused call puts the program's answer on the terminal bar, red dot: "Failed · NotEnoughEnergy ·
+  error 6000" for an error of the program's own, else "Failed · an account can grow by at most 10,240
+  bytes in one instruction". It said "Build failed · line 1" before (10/28): a call isn't a build.
+
 Selecting the tab swaps the editor area for `flex-1 overflow-y-auto bg-surface`, inner `mx-auto w-full
 max-w-[640px] px-6 py-5 flex flex-col gap-4`. The terminal bar stays under it.
 
@@ -1087,13 +1165,13 @@ Program  hello_anchor  9hJqVk…WxCvB ⧉ ↗                       {} View IDL
 ├──────────────────────────────────────────────────────────────────────┤
 │ Args        name  string  [ Your name                     ]  NEW     │
 │ Accounts    None. Hello {} takes no accounts                         │
-│ Fee payer   ● Kora · 0 SOL                                           │
+│ Fee payer   ● 7xKXtg…osgAsU · your wallet                            │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                              Fill   [ ▶ Send  ↵ ]    │ 48
 ╰──────────────────────────────────────────────────────────────────────╯
 ┌ ✓ Confirmed · Sent from the Test form ───────────────────────────────┐
 │ Program log: Hello, Alex!                                              │
-│ 3vZp8L…qPzLyM ⧉ ↗ · 1,187 CU · fee 0.000005 SOL, paid by Kora · ~0.4 s │
+│ 3vZp8L…qPzLyM ⧉ ↗ · 1,187 CU · fee 0.000005 SOL from your wallet · ~0.4 s │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1112,7 +1190,7 @@ Program  hello_anchor  9hJqVk…WxCvB ⧉ ↗                       {} View IDL
       placeholder "Your name", `maxLength={32}`, Enter sends, `Tag brand` "New", `animate-rise` on arrival.
     * Accounts: "None. `Hello {}` takes no accounts" (shown on purpose: it is the step 1 error, seen from
       the other side).
-    * Fee payer: `size-[0.4375rem] rounded-full bg-success` + "Kora · 0 SOL".
+    * Fee payer: `size-[0.4375rem] rounded-full bg-success` + the wallet's short address, "your wallet".
   * Foot `h-12 justify-end gap-2 border-t px-4`: ghost `sm` "Fill" (puts "Playground", only when there are
     args), primary `Button` `Play` 12 filled + "Send" + `Kbd` ↵. Disabled while `name` is empty. Sending:
     `Spinner` + "Sending", form `opacity-60` read only.

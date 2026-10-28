@@ -1,10 +1,10 @@
 import { ArrowUpRight } from "lucide-react"
-import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { BEATS, NEXT_TUTORIAL, type ActBeat, type Follow, type Quote } from "../../data"
+import { LESSON, NEXT_TUTORIAL, type Follow, type Quote } from "../../data"
+import { useOpenTutorial } from "../../host"
 import { useStore, type Turn } from "../../store"
 import { highlight } from "../CodeView"
 import { emit } from "../events"
@@ -14,12 +14,12 @@ import { READ, READ_CODE } from "../type"
 
 type SayTurn = Extract<Turn, { kind: "say" }>
 
-const FOLLOW: Record<Follow, string> = {
-  openTest: "Open Call",
-  showMenu: "Show me",
-  showFix: "Show me the fix",
-  writeClient: "Write it in client.ts",
-  nextTutorial: `Next: ${NEXT_TUTORIAL.name}`,
+const FOLLOW: Record<Follow, () => string> = {
+  openTest: () => "Open Call",
+  showMenu: () => "Show me",
+  showFix: () => "Show me the fix",
+  writeClient: () => "Write it in client.ts",
+  nextTutorial: () => (NEXT_TUTORIAL ? `Next: ${NEXT_TUTORIAL.name}` : "All tutorials"),
 }
 
 /** Lines the thread shares with the desktop that point at what a phone doesn't have: an editor to fix
@@ -27,7 +27,7 @@ const FOLLOW: Record<Follow, string> = {
  * reads true either way; the phone says its own */
 const PHONE_SAY: Record<string, string> = {
   "Fix it in the editor and build again, or I can show you the lines this step needs.": "Want me to show you the lines this step needs?",
-  [(BEATS["s4.call"] as ActBeat).say ?? ""]: "Now call it with your name.",
+  "Now call it with your name. Here, or in the Call panel, where `name` just showed up.": "Now call it with your name.",
 }
 
 /** The file a quote or a card points into, by its name alone: "lib.rs" */
@@ -91,16 +91,17 @@ export function FollowButton({ turn, phone = false }: { turn: SayTurn; phone?: b
   // Show me opens the desktop's rail, which a phone doesn't have: an answer given on the desktop and
   // read on a phone keeps its words but not the button
   if (f === "showMenu" && phone) return null
+  const openTutorial = useOpenTutorial()
   const done = f === "showFix" && turn.followDone
   const onClick = () => {
     if (f === "openTest") dispatch({ type: "openTest" })
     else if (f === "showMenu") emit("nav:open")
     else if (f === "showFix") dispatch({ type: "showFix", turn: turn.id })
-    else if (f === "nextTutorial") toast("Only Hello Anchor is in this prototype")
+    else if (f === "nextTutorial") openTutorial(LESSON.next ?? "", LESSON.next ? "step" : "gallery")
   }
   return (
     <Button variant="outline" size="sm" className={cn("w-fit", phone && "h-11 px-4 text-[0.9375rem]")} disabled={done} onClick={onClick}>
-      {FOLLOW[f]}
+      {FOLLOW[f]()}
     </Button>
   )
 }

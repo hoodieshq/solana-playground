@@ -12,7 +12,7 @@ const LINK = "-my-3 flex shrink-0 items-center gap-1 py-3 text-muted-foreground 
 
 /** A key a run leaves behind, in one line under the log, with Copy and the Explorer link. The log
  * itself cuts it off at the edge */
-function KeyRow({ label, value, className, phone = false }: { label: string; value: string; className?: string; phone?: boolean }) {
+function KeyRow({ label, value, className, phone = false, flat = false }: { label: string; value: string; className?: string; phone?: boolean; flat?: boolean }) {
   // On a phone even the worded Copy is a full 44px square
   const link = cn(LINK, phone && "min-h-11 min-w-11 justify-center")
   const copy = () =>
@@ -21,7 +21,8 @@ function KeyRow({ label, value, className, phone = false }: { label: string; val
       .then(() => toast(`${label} copied`))
       .catch(() => toast(`Couldn't copy the ${label.toLowerCase()}`))
   return (
-    <div className={cn("@container flex items-center gap-3 rounded-control border border-border bg-surface-panel px-3 py-2 text-caption", className)}>
+    // `flat` drops the box inside a card that already has one
+    <div className={cn("@container flex items-center gap-3 text-caption", !flat && "rounded-control border border-border bg-surface-panel px-3 py-2", className)}>
       {/* On a narrow card the label goes over the key, so the key keeps the room the two 44px
           buttons leave */}
       <span className="flex min-w-0 flex-1 items-center gap-3 @max-xs:flex-col @max-xs:items-start @max-xs:gap-0">
@@ -45,8 +46,8 @@ function KeyRow({ label, value, className, phone = false }: { label: string; val
 }
 
 /** What a deploy leaves behind */
-export function ProgramId({ className, phone }: { className?: string; phone?: boolean }) {
-  return <KeyRow label="Program id" value={PROGRAM_ID} className={className} phone={phone} />
+export function ProgramId({ className, phone, flat }: { className?: string; phone?: boolean; flat?: boolean }) {
+  return <KeyRow label="Program id" value={PROGRAM_ID} className={className} phone={phone} flat={flat} />
 }
 
 /** What the client's call leaves behind: the transaction whose logs show hello ran */

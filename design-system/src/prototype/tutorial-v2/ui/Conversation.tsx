@@ -251,10 +251,18 @@ export function Conversation({
   }
   useEffect(() => on("feed:live", toLive))
 
-  // A call from the Call panel shows its result there, once: the chat carries only the step's win
-  const feed = s.thread.filter((t) => !(t.kind === "result" && t.from === "test"))
-  const lastTx = [...feed].reverse().find((t) => t.kind === "result" && !!t.tx)?.id
-  const latestOfKind = (t: Turn) => t.kind === "result" && t.tx && t.id === lastTx
+  // A call from the Call panel shows its result there, once: the chat carries only the step's win. An
+  // act that ran gives way to its result right under it: one line per action, not a record and then a
+  // card saying the same, and the time it took moves into the card. A grow or a chop keeps its card,
+  // which is its result
+  const chat = s.thread.filter((t) => !(t.kind === "result" && t.from === "test"))
+  const feed = chat.filter(
+    (t, i) => !(t.kind === "act" && t.state === "done" && !t.grows?.length && !t.chops?.length && chat[i + 1]?.kind === "result")
+  )
+  // The latest run that came back: a transaction, or a client that read its account back. Older ones
+  // fold to their head. Builds and deploys don't count
+  const lastTx = [...feed].reverse().find((t) => t.kind === "result" && t.ok && (!!t.tx || t.act === "run"))?.id
+  const latestOfKind = (t: Turn) => t.kind === "result" && t.id === lastTx
 
   const render = (t: Turn, fresh: boolean): ReactNode => {
     const keys = (k: typeof live) => live === k

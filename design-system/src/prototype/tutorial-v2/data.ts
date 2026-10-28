@@ -1,22 +1,13 @@
-export type Pass = { ok: true; log: string[]; note: string }
-/** `column` and `span` mark the token the compiler points at, for the underline under it. Without
- * them the whole line is the one to look at */
-export type Fail = { ok: false; log: string[]; line: number; reason: string; column?: number; span?: number }
-export type BuildResult = Pass | Fail
+import { AIRDROP, CLIENT, DEPLOY_COST, LIB, NO_ID, UPGRADE_COST, WALLET, shortKey } from "./lessons/common"
+import { LESSONS } from "./lessons"
+import type { Act, ActBeat, Beat, Lesson, Step, TutorialCard, Tx } from "./lessons/types"
 
-/** `match` is the subject the chip answers, for a question typed in other words: "what is an IDL?" */
-export type Chip = { label: string; answer: string; follow?: Follow; match?: RegExp }
+// The lesson that's open, for the store and the screens. Each lesson lives in `lessons/`; this file
+// holds the catalog and hands out the open one. The names below are live bindings: `openLesson`
+// sets them before the store mounts, and every module that imported them reads the new lesson
 
-/** A quiet button that may follow an answer. It only opens or shows something, never runs a build */
-export type Follow = "openTest" | "showMenu" | "showFix" | "writeClient" | "nextTutorial"
-
-export type TutorialCard = {
-  slug: string
-  name: string
-  level: "Beginner" | "Intermediate" | "Advanced"
-  framework: "Anchor" | "Seahorse" | "Native"
-  ext: "jpg" | "png"
-}
+export * from "./lessons/types"
+export { AIRDROP, CLIENT, DEPLOY_COST, FAUCET_URL, LIB, NAME_MAX, NO_ID, TX_CONFIRMED, TX_FEE, UPGRADE_COST, WALLET, shortKey } from "./lessons/common"
 
 export const thumb = (slug: string, ext: string) =>
   `${import.meta.env.BASE_URL}prototype/thumbs/${slug}.${ext}`
@@ -40,103 +31,113 @@ export const TUTORIALS: TutorialCard[] = [
   { slug: "zero-copy", name: "Zero Copy", level: "Advanced", framework: "Anchor", ext: "jpg" },
 ]
 
-export const LIB = "src/lib.rs"
-export const CLIENT = "client/client.ts"
+const cardOf = (slug: string) => TUTORIALS.find((t) => t.slug === slug) ?? TUTORIALS[0]
 
-// The pieces step 1 writes, in the order it writes them: the two routine lines, the module with
-// hello, then the struct the first build asks for
-const BOIL = `use anchor_lang::prelude::*;
+/** Prototype switches for a review, each lasting for the browser tab: `?demo=files` opens a lesson
+ * with the files a full Anchor workspace has besides the lesson's two (the tab overflow on a desktop,
+ * Recent in the phone's file sheet); `?demo=faucet` makes the first deploy meet the devnet faucet's
+ * limit (Not enough devnet SOL). `?demo=off` ends both */
+function demoSwitch(name: string) {
+  try {
+    const q = new URLSearchParams(window.location.search).getAll("demo")
+    const key = `pg-proto-demo-${name}`
+    if (q.includes(name)) sessionStorage.setItem(key, "1")
+    if (q.includes("off")) sessionStorage.removeItem(key)
+    return sessionStorage.getItem(key) === "1"
+  } catch {
+    return false
+  }
+}
+export const DEMO_FILES = demoSwitch("files")
+export const DEMO_FAUCET = demoSwitch("faucet")
 
-declare_id!("11111111111111111111111111111111");`
-
-const MODULE = `#[program]
-mod hello_anchor {
-    use super::*;
-
-    pub fn hello(_ctx: Context<Hello>) -> Result<()> {
-        msg!("Hello, World!");
-        Ok(())
-    }
-}`
-
-const STRUCT = `#[derive(Accounts)]
-pub struct Hello {}`
-
-// Step 1, first try: hello asks for Context<Hello>, but Hello is missing
-export const LIB_BROKEN = `${BOIL}
-
-${MODULE}`
-
-export const LIB_FIXED = `${LIB_BROKEN}
-
-${STRUCT}`
-
-const NAMED = `    pub fn hello(_ctx: Context<Hello>, name: String) -> Result<()> {
-        msg!("Hello, {}!", name);`
-
-export const LIB_NAMED = LIB_FIXED.replace(
-  `    pub fn hello(_ctx: Context<Hello>) -> Result<()> {
-        msg!("Hello, World!");`,
-  NAMED
-)
-
-export const CLIENT_CALL = `// Call the hello instruction
-const txHash = await pg.program.methods.hello().rpc();
-console.log(\`Use 'solana confirm -v \${txHash}' to see the logs\`);`
-
-// The files start empty. client.ts joins the tabs in step 3
-export const INITIAL_FILES: Record<string, string> = {
-  [LIB]: "",
-  [CLIENT]: "",
+const EXTRA_FILES: Record<string, string> = {
+  "tests/game.test.ts": `describe("game", () => {\n  it("creates a player", async () => {\n    // Filled in by the lesson's later steps\n  });\n});`,
+  "migrations/deploy.ts": `// Runs after anchor deploy\nmodule.exports = async function (provider) {\n  anchor.setProvider(provider);\n};`,
+  "app/game.ts": `// The game's front end talks to the program from here\nexport const RPC = "https://api.devnet.solana.com";`,
+  "app/ui.ts": `// Draws the player's energy and wood\nexport function render() {}`,
+  "Anchor.toml": `[provider]\ncluster = "devnet"\nwallet = "~/.config/solana/id.json"`,
+  "Cargo.toml": `[workspace]\nmembers = ["programs/*"]\nresolver = "2"`,
+  "package.json": `{\n  "name": "game",\n  "private": true\n}`,
+  "tsconfig.json": `{\n  "compilerOptions": { "strict": true }\n}`,
+  "README.md": `# Game\n\nBuilt in Solana Playground.`,
 }
 
-export const BUILD_OK = ["$ anchor build", "Compiling hello_anchor v0.1.0", "Finished release [optimized] target(s) in 2.41s"]
+const filesOf = (l: Lesson) => (DEMO_FILES ? { ...l.files, ...EXTRA_FILES } : l.files)
 
-export const PROGRAM_ID = "9hJqVkRZ3t2nX8cPfLwA5mYbE7sGdT4uK1oNjQzWxCvB"
-
-/** A key or signature cut in the middle, as explorers and wallets show them: you check one by its
- * start and its end, never its middle */
-export const shortKey = (key: string, n = 6) => `${key.slice(0, n)}…${key.slice(-n)}`
-
+export let LESSON: Lesson = LESSONS["hello-anchor"]
+export let STEPS: Step[] = LESSON.steps
+/** Every beat of the tutorial by id, the planned failure's too */
+export let BEATS: Record<string, Beat> = beatsOf(LESSON)
+export let INITIAL_FILES: Record<string, string> = filesOf(LESSON)
+export let PROGRAM_ID = LESSON.programId
 /** The account the deploy writes the IDL to, at an address derived from the program id, so Explorer
  * and any client find the interface from the program alone */
-export const IDL_ACCOUNT = "6mTqR4wYzHc8LkVb2NpXeA9sJ7dFuG3oK5iBnZx1QvCe"
+export let IDL_ACCOUNT = LESSON.idlAccount
+export let TX_SIGNATURE = LESSON.txSignature
+/** The tutorial the finish points to: the next one of the lesson's level, if there is one */
+export let NEXT_TUTORIAL: TutorialCard | null = LESSON.next ? cardOf(LESSON.next) : null
 
-export const TX_SIGNATURE = "4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZAMdL4VZHirAn"
-
-/** The call with a name on step 4 is a transaction of its own, so it has its own signature */
-export const NAMED_TX_SIGNATURE = "3vZp8LmQx2RkT9sWcYfN4hJdA6uE1oGbV7nKtXqPzLyM"
-
-/** One call of hello, as the receipt and the program's log show it. Fee, compute and timing are
- * example values: nothing here runs on devnet */
-export type Tx = {
-  instruction: "hello" | "hello(name)"
-  /** The line hello's `msg!` wrote, as it came back in the transaction's logs */
-  said: string
-  signature: string
-  compute: number
+function beatsOf(l: Lesson): Record<string, Beat> {
+  return Object.fromEntries(l.steps.flatMap((s) => [...s.beats, ...(s.onFail ?? [])]).map((b) => [b.id, b]))
 }
 
-export const TX_FEE = "0.000005 SOL"
-export const TX_CONFIRMED = "~0.4 s"
+/** Every beat id of a lesson, open or not, its steps' wins too, which the win turns name: a save that
+ * names one it no longer has is from an older script */
+export const beatIdsOf = (slug: string) => {
+  const l = LESSONS[slug] ?? LESSONS["hello-anchor"]
+  return new Set([...Object.keys(beatsOf(l)), ...l.steps.map((s) => s.win.id)])
+}
+
+/** Makes `slug` the open lesson. Called before the store for it mounts, never while one is mounted */
+export function openLesson(slug: string) {
+  const l = LESSONS[slug] ?? LESSONS["hello-anchor"]
+  LESSON = l
+  STEPS = l.steps
+  BEATS = beatsOf(l)
+  INITIAL_FILES = filesOf(l)
+  PROGRAM_ID = l.programId
+  IDL_ACCOUNT = l.idlAccount
+  TX_SIGNATURE = l.txSignature
+  NEXT_TUTORIAL = l.next ? cardOf(l.next) : null
+}
+
+/** The step a beat belongs to */
+export const stepOfBeat = (id: string) => STEPS.findIndex((s) => [...s.beats, ...(s.onFail ?? [])].some((b) => b.id === id))
+
+/** The first act of a kind in the script: the card a nudge puts up again */
+export const firstAct = (...acts: Act[]) => STEPS.flatMap((s) => s.beats).find((b): b is ActBeat => b.kind === "act" && acts.includes(b.act))
+
+export const buildOk = () => ["$ anchor build", `Compiling ${LESSON.program} v0.1.0`, "Finished release [optimized] target(s) in 2.41s"]
 
 const units = (n: number) => n.toLocaleString("en-US")
 
-/** The program's lines in a transaction's logs, as `solana confirm -v` prints them */
+/** An instruction's name as the program logs it: `chop_tree` is ChopTree */
+const pascal = (name: string) => name.replace(/\(.*$/, "").replace(/(^|_)(\w)/g, (_, __, c: string) => c.toUpperCase())
+
+/** The program's lines in a transaction's logs, as `solana confirm -v` prints them. A custom error
+ * ends them the way Anchor does: the error's code, number and message, then the failure */
 export const programLog = (tx: Tx) => [
   `Program ${shortKey(PROGRAM_ID)} invoke [1]`,
-  "Program log: Instruction: Hello",
-  `Program log: ${tx.said}`,
+  `Program log: Instruction: ${pascal(tx.instruction)}`,
+  ...(tx.inner ?? []),
+  ...(tx.said ? [`Program log: ${tx.said}`] : []),
+  ...(tx.error
+    ? (tx.error.log ?? [`Program log: AnchorError thrown in src/lib.rs:${tx.error.line}. Error Code: ${tx.error.name}. Error Number: ${tx.error.number}. Error Message: ${tx.error.message}.`])
+    : []),
   `Program ${shortKey(PROGRAM_ID)} consumed ${units(tx.compute)} of 200,000 compute units`,
-  `Program ${shortKey(PROGRAM_ID)} success`,
+  tx.error
+    ? `Program ${shortKey(PROGRAM_ID)} failed: ${tx.error.failed ?? `custom program error: 0x${tx.error.number.toString(16)}`}`
+    : `Program ${shortKey(PROGRAM_ID)} success`,
 ]
 
 /** Running the client prints what its last line logs, then the prototype runs that command for you,
- * so the transaction's logs follow the line that names them */
-export const clientLog = (tx: Tx) => [
-  "$ run client/client.ts",
+ * so the transaction's logs follow the line that names them. `out` is what the client printed after */
+export const clientLog = (tx: Tx, out: string[] = []) => [
+  `$ run ${CLIENT}`,
   "Running client...",
   `Use 'solana confirm -v ${tx.signature}' to see the logs`,
+  ...out,
   "Client finished",
   `$ solana confirm -v ${tx.signature}`,
   ...programLog(tx),
@@ -152,513 +153,45 @@ export const callLog = (tx: Tx, name: string) => [
 /** A call from the Call panel, printed like any other call: the command, then the logs. Nothing is
  * tested here, so the terminal doesn't say so */
 export const panelLog = (tx: Tx, name: string | null) => [
-  name === null ? "$ call hello" : `$ call hello --name ${JSON.stringify(name)}`,
+  name === null ? `$ call ${tx.instruction.replace(/\(.*$/, "")}` : `$ call hello --name ${JSON.stringify(name)}`,
   "Sending transaction...",
   ...programLog(tx),
 ]
 
-export const DEPLOY_LOG = [
+/** A wallet short of SOL is topped up from the faucet before the deploy, as Playground does */
+export const fundLog = () => [`$ solana airdrop ${AIRDROP.replace(" SOL", "")} ${shortKey(WALLET)}`, "Requesting airdrop...", `Airdrop confirmed · balance ${AIRDROP}`]
+
+/** The faucet said no: its limit for this address, for now */
+export const faucetLog = () => [`$ solana airdrop ${AIRDROP.replace(" SOL", "")} ${shortKey(WALLET)}`, "Requesting airdrop...", "Error: airdrop request failed. This can happen when the rate limit is reached.", "Balance: 0 SOL"]
+
+export const deployLog = (funded = false) => [
+  ...(funded ? fundLog() : []),
   "$ deploy --network devnet",
   "Writing buffer... 100%",
-  "Deploying through Kora · 0 SOL",
+  `Deploying from ${shortKey(WALLET)} · ${DEPLOY_COST}`,
   `Program Id: ${PROGRAM_ID}`,
   "Uploading IDL... 100%",
   `IDL account: ${IDL_ACCOUNT}`,
   "Deploy successful",
 ]
 
-export const UPGRADE_LOG = [
+export const upgradeLog = () => [
   "$ deploy --network devnet",
   "Writing buffer... 100%",
-  `Upgrading ${shortKey(PROGRAM_ID)} through Kora · 0 SOL`,
+  `Upgrading ${shortKey(PROGRAM_ID)} from ${shortKey(WALLET)} · ${UPGRADE_COST}`,
   `Program Id: ${PROGRAM_ID}`,
   "Upgrading IDL... 100%",
   `IDL account: ${IDL_ACCOUNT}`,
   "Upgrade successful",
 ]
 
-/** The longest name the call takes: enough for any name, short enough for one log line */
-export const NAME_MAX = 32
+/** The lib.rs a step builds, for the step's own file or the last lib.rs before it */
+export const libOf = (i: number) => [...STEPS.slice(0, i + 1)].reverse().map(libTargetOf).find(Boolean) ?? ""
 
-export type Act = "build" | "deploy" | "buildDeploy" | "run" | "call"
-export type Write = { file: string; block: string }
-/** `code` is the quoted line as it was when quoted, kept for an error so the history shows what was wrong */
-export type Quote = { file: string; line: number; mark?: string; tone: "lit" | "error"; code?: string }
+/** The client.ts a step runs: the last one the script writes up to it */
+export const clientOf = (i: number) => [...STEPS.slice(0, i + 1)].reverse().map((s) => (s.file === CLIENT ? s.target : s.client)).find(Boolean) ?? ""
 
-/** A question with three options. A right pick writes `writes` into the file, if it has one; a
- * wrong one gets its own reason and the question stays open. The right one sits at a different
- * place in each, so its place gives nothing away */
-export type Ask = {
-  kind: "ask"
-  id: string
-  kicker: "Question" | "Fix it"
-  /** Its place among the tutorial's four questions, one a step. The fix after the planned failure
-   * has none: it's a repair, not one of the four */
-  n?: number
-  question: string
-  options: [string, string, string]
-  /** Options are code, shown highlighted, or prose */
-  code: boolean
-  answer: 0 | 1 | 2
-  right: string
-  /** Why each option is wrong, by index; null for the right one */
-  why: [string | null, string | null, string | null]
-  hint: string
-  /** The code a right pick or a Skip writes. A question with none (Deploy's) checks a prediction the
-   * act that follows then shows */
-  writes?: Write
-  /** What Skip says, where the default "Here's the line" doesn't fit */
-  skipped?: string
-  /** The one line that answers it when typed by hand, for Type it myself. A code question's is its
-   * right option; a question in words names it here */
-  key?: string
-  /** What the assistant says when the learner typed the key line, before it fills in the rest */
-  typed?: string
-}
+/** The lib.rs a step ends with: its target when lib.rs is its file, or the one it names besides */
+export const libTargetOf = (s: Step) => (s.file === LIB ? s.target : s.lib)
 
-export type ActBeat = { kind: "act"; id: string; act: Act; say?: string; title: string; context: string; button: string }
-
-export type Beat =
-  | { kind: "say"; id: string; text: string; quote?: Quote }
-  | { kind: "write"; id: string; text: string; writes: Write | { create: string } }
-  | Ask
-  | ActBeat
-
-/** The step's win: the headline, a line under it and three stat pills. `{took}` in a pill is the
- * step's own time. `extra` is the quiet link beside Next */
-export type Win = {
-  id: string
-  headline: string
-  line: string
-  stats: { icon: StatIcon; text: string }[]
-  extra?: "openTest"
-}
-
-export type StatIcon = "hammer" | "braces" | "clock" | "rocket" | "coins" | "cpu" | "timer"
-
-export type Step = {
-  id: string
-  title: string
-  /** The step bar's label: Program, Deploy, Client, Name */
-  short: string
-  objective: string
-  learned: string
-  file: string
-  start: string
-  target: string
-  beats: Beat[]
-  /** What follows the planned failure: the explanation, the fixing question, the second build */
-  onFail?: Beat[]
-  /** The assistant's line inside the planned failure's card */
-  planned?: string
-  /** What passes the step: an act of this kind landing (or a call from the Call panel, steps 3 and 4) */
-  goal: Act
-  win: Win
-  explainStep: string
-  chips: Chip[]
-  errorChips?: Chip[]
-  /** `local` answers only on its own step: it's about that step's moment */
-  answers?: { match: RegExp; answer: string; follow?: Follow; local?: boolean }[]
-  /** The win's line when the step passed through the Call panel */
-  testWin?: string
-}
-
-const EXPLAIN_ERROR =
-  "Line 9 asks for `Context<Hello>`: the accounts `hello` works with, described by a type called `Hello`. That type doesn't exist yet, so the compiler stops. `hello` reads no accounts, so the type can be empty. The fix goes at the bottom of lib.rs."
-
-export const STEPS: Step[] = [
-  {
-    id: "write-program",
-    title: "Program",
-    short: "Program",
-    objective: "Define the hello instruction and log a message",
-    learned: "Declaring a program and its instructions",
-    file: LIB,
-    start: "",
-    target: LIB_FIXED,
-    goal: "build",
-    beats: [
-      {
-        kind: "write",
-        id: "s1.boil",
-        text: "Every Anchor program opens with the same two lines: the import and the program's id. They're routine, so I've written them.",
-        writes: { file: LIB, block: BOIL },
-      },
-      {
-        kind: "say",
-        id: "s1.what",
-        text: "A program does its work in instructions: functions inside a module marked `#[program]`. Yours is `hello`. I'll put the module under those two lines, and you pick its one line of code. A program on Solana has no terminal: the only place it can write is the program log, which comes back with every transaction.",
-      },
-      {
-        kind: "ask",
-        id: "s1.q1",
-        kicker: "Question",
-        n: 1,
-        question: "Which line writes to the program log?",
-        options: ['println!("Hello, World!");', 'msg!("Hello, World!");', 'console.log("Hello, World!");'],
-        code: true,
-        answer: 1,
-        right: "Yes. `msg!` writes to the program log. I've put `hello` in the `#[program]` module, under the two lines.",
-        why: [
-          "`println!` prints to a terminal, and a program on Solana has none. On chain, a program talks through `msg!`.",
-          null,
-          "That's TypeScript, and you'll use it in the client in step 3. Inside a Rust program the log line comes from `msg!`.",
-        ],
-        hint: "Think about where each line would print. A program on Solana runs on a validator, with no terminal and no console.",
-        writes: { file: LIB, block: MODULE },
-        typed: "That's the line. `msg!` writes to the program log. I've put `hello` and the `#[program]` module around it.",
-      },
-      {
-        kind: "act",
-        id: "s1.build",
-        act: "build",
-        say: "That's a whole program. Let's compile it.",
-        title: "Build lib.rs",
-        context: "Compiles lib.rs on Playground's build server",
-        button: "Build",
-      },
-    ],
-    planned: "This one's on purpose. Every Anchor developer meets this error once, so let's meet it now.",
-    onFail: [
-      { kind: "say", id: "f1.explain", text: EXPLAIN_ERROR, quote: { file: LIB, line: 9, mark: "Hello", tone: "error" } },
-      {
-        kind: "ask",
-        id: "f1.q2",
-        kicker: "Fix it",
-        question: "So what does `Context<Hello>` need?",
-        options: ["A `Hello` account on devnet", "An import of `Hello` from Anchor", "A struct `Hello` with `#[derive(Accounts)]`"],
-        code: false,
-        answer: 2,
-        right: "Exactly. `#[derive(Accounts)]` tells Anchor which accounts an instruction expects. I've added an empty one at the bottom.",
-        why: [
-          "`Hello` does describe accounts, but it's a type in your code. The compiler needs it before anything reaches devnet.",
-          "`Hello` isn't part of Anchor. It's yours to declare: the list of accounts `hello` reads.",
-          null,
-        ],
-        hint: "The compiler wants a type in your own code that lists accounts.",
-        writes: { file: LIB, block: STRUCT },
-        key: "struct Hello {}",
-        typed: "That's the struct. `#[derive(Accounts)]` is what tells Anchor it lists accounts, so I've put it on the line above.",
-      },
-      {
-        kind: "act",
-        id: "f1.build",
-        act: "build",
-        say: "Build again. This time it should pass.",
-        title: "Build lib.rs",
-        context: "Same build, now with the `Hello` struct",
-        button: "Build",
-      },
-    ],
-    win: {
-      id: "s1.win",
-      headline: "Your program compiles.",
-      line: "The build also made its IDL: one instruction, `hello`. That's what clients will call.",
-      stats: [
-        { icon: "hammer", text: "Built in 1.6 s" },
-        { icon: "braces", text: "1 instruction" },
-        { icon: "clock", text: "{took}" },
-      ],
-    },
-    explainStep:
-      "This step writes the smallest Anchor program there is: one instruction, `hello`, that writes a line to the program log. I explain a piece, you pick the right line, and I write it in. Then the build checks it.",
-    chips: [
-      {
-        label: "What is a Context?",
-        match: /\bcontext\b/i,
-        answer:
-          "`Context<T>` is what Anchor hands an instruction when it's called: the accounts listed in the struct `T`, already checked, and the program id. `hello` reads no accounts, so its struct can stay empty.",
-      },
-      {
-        label: "What does msg! do?",
-        match: /\bmsg\b/i,
-        answer:
-          "`msg!` writes a line to the program log, the way `println!` prints in plain Rust. The line shows up in the transaction's logs, which you'll read after the client calls `hello`.",
-      },
-    ],
-    errorChips: [
-      {
-        label: "Why does hello need a struct?",
-        match: /\b(derive|struct)\b/i,
-        answer:
-          "Without `#[derive(Accounts)]` Anchor can't tell which accounts an instruction expects, so it can't generate the code that checks them. An instruction that reads no accounts still needs the struct. It's just empty.",
-      },
-      {
-        label: "Where is this in the docs?",
-        match: /\b(docs?|documentation)\b/i,
-        answer:
-          "The Anchor docs cover it in [Program Structure](https://www.anchor-lang.com/docs/basics/program-structure#deriveaccounts-macro), in the section on `#[derive(Accounts)]`.",
-      },
-    ],
-    answers: [
-      {
-        match: /declare_id/i,
-        answer: "`declare_id!` sets the address the program checks every call against. Playground puts in the real one when you deploy.",
-      },
-      { match: /why.*(fail|error)/i, answer: EXPLAIN_ERROR, local: true },
-    ],
-  },
-  {
-    id: "deploy",
-    title: "Build & Deploy",
-    short: "Deploy",
-    objective: "Deploy the program to devnet",
-    learned: "Deploying through Kora with 0 SOL",
-    file: LIB,
-    start: LIB_FIXED,
-    target: LIB_FIXED,
-    goal: "deploy",
-    beats: [
-      {
-        kind: "say",
-        id: "s2.why",
-        text: "Right now your program is only a build: Playground compiled it, but nobody can call it yet. Deploying uploads it to devnet, Solana's public test network, where anyone can call it. Kora pays the cost, so you need 0 SOL and no wallet. Before you press Deploy, a guess.",
-      },
-      {
-        // A prediction, not a pick that writes: the deploy that follows shows the answer, and step 4
-        // leans on it ("the program keeps its address")
-        kind: "ask",
-        id: "s2.q2",
-        kicker: "Question",
-        n: 2,
-        question: "What does a deploy give your program, so clients can find it?",
-        options: ["An address: its program id", "A URL where it runs", "A copy of lib.rs on devnet"],
-        code: false,
-        answer: 0,
-        right: "Yes. Every program lives at an address, its program id. Watch for it when the deploy lands.",
-        why: [
-          null,
-          "A program isn't a web server, so there's no URL. Clients find it by its address and send it transactions.",
-          "Devnet keeps the compiled program, not your source. What clients need from it is its address.",
-        ],
-        hint: "Clients don't browse to a program. They send transactions to it. To what?",
-        skipped: "No problem. A deploy gives your program an address, its program id. Watch for it.",
-      },
-      {
-        kind: "act",
-        id: "s2.deploy",
-        act: "deploy",
-        say: "Press Deploy and watch for the program id.",
-        title: "Deploy to devnet",
-        context: "Through Kora · 0 SOL, no wallet",
-        button: "Deploy",
-      },
-    ],
-    win: {
-      id: "s2.win",
-      headline: "Your program is live on devnet.",
-      line: "Its IDL also gave you the Call panel: a form for every instruction. You'll use it in a moment.",
-      stats: [
-        { icon: "rocket", text: "Live on devnet" },
-        { icon: "coins", text: "0 SOL spent" },
-        { icon: "braces", text: "Call panel added" },
-      ],
-      extra: "openTest",
-    },
-    explainStep:
-      "Deploying puts your built program on devnet, Solana's public test network, at an address of its own: the program id. Kora covers the cost, so this works without a wallet. Press Deploy and wait for the id.",
-    chips: [
-      {
-        label: "What is devnet?",
-        match: /\bdevnet\b/i,
-        answer: "Devnet is Solana's public network for testing. It behaves like mainnet, but its SOL has no value.",
-      },
-      {
-        label: "Why 7 days?",
-        match: /\b(7|seven) days?\b/i,
-        answer:
-          "Kora pays the rent for programs on devnet. To keep that free for everyone, a program nobody calls for 7 days is closed. Deploy again and you get it back.",
-      },
-      {
-        label: "What is Kora?",
-        match: /\bkora\b/i,
-        answer:
-          "Kora is a service that pays transaction fees for you. In Playground it also covers the deploy on devnet, so you start with 0 SOL and no wallet.",
-      },
-    ],
-  },
-  {
-    id: "call-client",
-    title: "Client",
-    short: "Client",
-    objective: "Call the instruction from the TypeScript client",
-    learned: "Calling a program from TypeScript",
-    file: CLIENT,
-    start: "",
-    target: CLIENT_CALL,
-    goal: "run",
-    beats: [
-      {
-        kind: "write",
-        id: "s3.file",
-        text: "A client is code outside your program that sends it transactions, like the app your users will open. I've made `client/client.ts` for it.",
-        writes: { create: CLIENT },
-      },
-      {
-        kind: "say",
-        id: "s3.pg",
-        text: "In Playground, `pg.program` already knows your program from its IDL: `pg.program.methods` has one method per instruction. Calling one only builds the call; something still has to send it. Your line goes at the top of client.ts.",
-      },
-      {
-        kind: "ask",
-        id: "s3.q3",
-        kicker: "Question",
-        n: 3,
-        question: "Which line sends `hello` to devnet?",
-        options: ["await pg.program.hello().rpc()", "await pg.program.methods.hello()", "await pg.program.methods.hello().rpc()"],
-        code: true,
-        answer: 2,
-        right: "Right. `.methods.hello()` builds the call and `.rpc()` sends it, then hands back the transaction's signature. I've added a line that prints it.",
-        why: [
-          "Close. Instructions live under `.methods`, not on `pg.program` itself.",
-          "That builds the call but never sends it. `.rpc()` does the sending.",
-          null,
-        ],
-        hint: "Instructions live under `.methods`, and something has to send the call.",
-        writes: { file: CLIENT, block: CLIENT_CALL },
-        typed: "That's the line. `.methods.hello()` builds the call and `.rpc()` sends it. I've added the comment above it and a line under it that prints the signature.",
-      },
-      {
-        kind: "act",
-        id: "s3.run",
-        act: "run",
-        say: "Run it and watch what comes back.",
-        title: "Run client.ts",
-        context: "Sends one transaction to devnet · Kora pays the fee",
-        button: "Run",
-      },
-    ],
-    win: {
-      id: "s3.win",
-      headline: "Your program answered from devnet.",
-      line: "That `Hello, World!` is the `msg!` line from lib.rs, coming back in the transaction's logs. The Call panel makes the same call without code.",
-      stats: [
-        { icon: "cpu", text: "1,042 CU" },
-        { icon: "timer", text: "~0.4 s" },
-        { icon: "coins", text: "Fee paid by Kora" },
-      ],
-      extra: "openTest",
-    },
-    testWin: "You called `hello` from the Call panel, which Playground built from the IDL. In code, the same call is one line.",
-    explainStep:
-      "A client is code outside the program that sends it transactions. Here it's one line of TypeScript in `client.ts`. You can also call `hello` from the Call panel, no code needed.",
-    chips: [
-      {
-        label: "What is pg?",
-        match: /\bpg\b/i,
-        answer: "`pg` is Playground's global with your program, wallet and connection already set up. `pg.program` knows `hello` from the IDL the build produced.",
-      },
-      {
-        label: "What's an IDL?",
-        match: /\bidls?\b/i,
-        answer:
-          "The IDL is your program's interface, written by the build: its instructions, their arguments and accounts. Clients read it to know how to call you, and the Call panel is built from it.",
-        follow: "openTest",
-      },
-      {
-        label: "Can I call it without code?",
-        match: /without code|\bcall panel\b/i,
-        answer: "Yes. After the deploy, the Call panel has a form for each instruction. Fill the arguments and press Call hello.",
-        follow: "openTest",
-      },
-    ],
-    answers: [{ match: /\brpc\b/i, answer: "`.rpc()` signs and sends the transaction, waits for devnet to confirm it and returns its signature." }],
-  },
-  {
-    id: "greet-by-name",
-    title: "Name argument",
-    short: "Name",
-    objective: "Give hello a name argument and log it",
-    learned: "Passing arguments to an instruction",
-    file: LIB,
-    start: LIB_FIXED,
-    target: LIB_NAMED,
-    goal: "call",
-    beats: [
-      {
-        kind: "say",
-        id: "s4.why",
-        text: "`hello` greets everyone the same way. Let's make it greet you. Anchor hands every instruction its `Context` first; anything the caller sends, like a name, is a plain argument. I'll change `hello`'s first line, line 9.",
-      },
-      {
-        kind: "ask",
-        id: "s4.q4",
-        kicker: "Question",
-        n: 4,
-        question: "Where does `name` go?",
-        options: ["struct Hello { name: String }", "fn hello(_ctx: Context<Hello>, name: String)", "fn hello(name: String, _ctx: Context<Hello>)"],
-        code: true,
-        answer: 1,
-        right: "Yes. The `Context` comes first, then your own arguments. I've also put `name` in the log line: `msg!` fills `{}` with it.",
-        why: [
-          "`Hello` lists the accounts `hello` reads, not values the caller sends. A name is plain data, so it's an argument.",
-          null,
-          "Close, but Anchor expects the `Context` first. Your own arguments follow it.",
-        ],
-        hint: "A name is plain data the caller sends, not an account. Then think about the order Anchor expects.",
-        writes: { file: LIB, block: NAMED },
-        // The whole first line, not just the option: line 9 is edited in place, and the option alone
-        // would match halfway through, while `-> Result<()> {` is still being typed
-        key: "fn hello(_ctx: Context<Hello>, name: String) -> Result<()> {",
-        typed: "That's it: the `Context` first, then your own arguments. I've put `name` in the log line too: `msg!` fills `{}` with it.",
-      },
-      {
-        kind: "act",
-        id: "s4.ship",
-        act: "buildDeploy",
-        say: "Devnet still runs the old `hello`. Build and deploy again: the program keeps its address.",
-        title: "Build and deploy",
-        // A word joiner after the ellipsis, so a narrow card never splits the id in two
-        context: `Upgrades ${shortKey(PROGRAM_ID).replace("…", "…\u2060")} in place · 0 SOL`,
-        button: "Build and deploy",
-      },
-      {
-        kind: "act",
-        id: "s4.call",
-        act: "call",
-        say: "Now call it with your name. Here, or in the Call panel, where `name` just showed up.",
-        title: "Call hello",
-        context: "Sends hello with your name · Kora pays the fee",
-        button: "Call hello",
-      },
-    ],
-    win: {
-      id: "s4.win",
-      headline: "hello knows your name.",
-      line: "You changed an instruction, shipped the new version and called it with an argument.",
-      stats: [
-        { icon: "cpu", text: "1,187 CU" },
-        { icon: "braces", text: "name: string" },
-        { icon: "rocket", text: "Upgraded in place" },
-      ],
-    },
-    explainStep:
-      "Instructions can take arguments after their `Context`. This step adds a `name` to `hello`, ships the new version and calls it with your name.",
-    chips: [
-      {
-        label: "Which types work?",
-        match: /\btypes?\b/i,
-        answer: "Any type Anchor can serialize: numbers, `bool`, `String`, `Pubkey`, `Vec` and your own structs with `AnchorSerialize`.",
-      },
-      {
-        label: "Can I call it with someone else's name?",
-        match: /someone else|another name|other name/i,
-        answer: "Sure. Type any name here or in the Call panel. The program logs whatever it gets, up to 32 characters here.",
-      },
-    ],
-    answers: [
-      {
-        match: /string|bytes|serial/i,
-        answer: "Anchor writes the `String` as its length followed by its bytes, and reads it back the same way. You don't have to do anything.",
-      },
-    ],
-  },
-]
-
-/** Every beat of the tutorial by id, the planned failure's too */
-export const BEATS: Record<string, Beat> = Object.fromEntries(STEPS.flatMap((s) => [...s.beats, ...(s.onFail ?? [])]).map((b) => [b.id, b]))
-
-/** The step a beat belongs to */
-export const stepOfBeat = (id: string) => STEPS.findIndex((s) => [...s.beats, ...(s.onFail ?? [])].some((b) => b.id === id))
-
-export const NEXT_TUTORIAL = TUTORIALS.find((t) => t.slug === "counter-pda-tutorial")!
+export { NO_ID as PLACEHOLDER_ID }

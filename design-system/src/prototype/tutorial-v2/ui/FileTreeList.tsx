@@ -3,7 +3,7 @@ import { FileCode } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-import { CLIENT, LIB, STEPS } from "../data"
+import { CLIENT, INITIAL_FILES, STEPS } from "../data"
 import { useStore } from "../store"
 import { NAV_ICONS } from "./navIcons"
 
@@ -17,13 +17,22 @@ export const fileTint = (_file: string) => "text-muted-foreground"
 
 type Entry = { kind: "folder"; name: string; depth: number } | { kind: "file"; path: string; depth: number }
 
-// The folders group the files on their own: no section labels over them
-const TREE: Entry[] = [
-  { kind: "folder", name: "src", depth: 0 },
-  { kind: "file", path: LIB, depth: 1 },
-  { kind: "folder", name: "client", depth: 0 },
-  { kind: "file", path: CLIENT, depth: 1 },
-]
+/** The step that first writes client.ts, counted from 1: step 3 in Hello Anchor, step 2 in Lumberjack */
+const clientStep = () =>
+  STEPS.findIndex((s) => s.file === CLIENT || s.beats.some((b) => (b.kind === "write" || b.kind === "ask") && !!b.writes && ("create" in b.writes ? b.writes.create === CLIENT : b.writes.file === CLIENT))) + 1
+
+/** The folders group the files on their own, no section labels over them: each folder in the order
+ * its first file comes (src, then client), then the files at the project's root */
+function treeOf(files: string[]): Entry[] {
+  const folders = [...new Set(files.filter((f) => f.includes("/")).map((f) => f.split("/")[0]))]
+  return [
+    ...folders.flatMap((name) => [
+      { kind: "folder", name, depth: 0 } as Entry,
+      ...files.filter((f) => f.startsWith(`${name}/`)).map((path) => ({ kind: "file", path, depth: 1 }) as Entry),
+    ]),
+    ...files.filter((f) => !f.includes("/")).map((path) => ({ kind: "file", path, depth: 0 }) as Entry),
+  ]
+}
 
 /** The project's files by folder. A child starts right under its parent's name (caret 12 + gap 8 per
  * level). The open file is marked, the live step's file carries a dot and client.ts says when it
@@ -44,7 +53,7 @@ export function FileTreeList({ onPick, tall = false }: { onPick: (file: string) 
   }
   return (
     <div role="tree" aria-label="Files" onKeyDown={onKeyDown} className="flex flex-col gap-px">
-      {TREE.map((e, i) => {
+      {treeOf(Object.keys(INITIAL_FILES)).map((e, i) => {
         const indent = { paddingLeft: `${8 + e.depth * STEP}px` }
         if (e.kind === "folder")
           return (
@@ -84,7 +93,7 @@ export function FileTreeList({ onPick, tall = false }: { onPick: (file: string) 
             <FileCode className={cn("shrink-0 text-subtle", tall ? "size-4" : "size-[15px]")} aria-hidden="true" />
             <span className="truncate">{name}</span>
             {/* Not there yet, so said once in words: no fade, no lock */}
-            {waiting && <span className="ml-auto pl-3 text-caption text-muted-foreground">Created in step 3</span>}
+            {waiting && <span className="ml-auto pl-3 text-caption text-muted-foreground">Created in step {clientStep()}</span>}
             {!waiting && live === e.path && <span aria-label="This step's file" className="ml-auto size-1.5 shrink-0 rounded-full bg-brand-purple" />}
           </button>
         )

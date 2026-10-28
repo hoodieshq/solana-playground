@@ -9,12 +9,16 @@ import { NAV_ICONS } from "./navIcons"
 import { StepGlyph } from "./StepGlyph"
 import { FOCUS } from "./type"
 
+/** One column a step: Hello Anchor and Lumberjack have four, Zero Copy three. Read at render, since
+ * STEPS is the open lesson's */
+const columns = (): CSSProperties => ({ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` })
+
 /** The brand's progress fill, the one the gallery banner draws: it starts purple and lands on green */
 const PROGRESS_GRADIENT = "linear-gradient(90deg, #9945ff, #14f195)"
 
-/** One gradient laid across all four segments: each shows its own quarter, so the gaps break a single
- * bar instead of four colours. Percent positions move the image by (box minus image) times p, which
- * for an image four boxes wide is one box per third */
+/** One gradient laid across all the segments: each shows its own share, so the gaps break a single
+ * bar instead of a colour a step. Percent positions move the image by (box minus image) times p, which
+ * for an image n boxes wide is one box per n minus 1 */
 const quarter = (i: number): CSSProperties => ({
   backgroundImage: PROGRESS_GRADIENT,
   backgroundSize: `${STEPS.length * 100}% 100%`,
@@ -63,9 +67,9 @@ const litCount = (started: boolean, step: number, finished: boolean) => (!starte
 
 type BarProps = { viewing: number | null; onPick: (step: number) => void }
 
-/** The tutorial's four steps across the top of the chat, the desktop twin of the phone header's track.
+/** The tutorial's steps across the top of the chat, the desktop twin of the phone header's track.
  * A chat column narrower than 24rem can't hold four labels with their checks, so it says where you are
- * in one line over the same track and keeps the four steps in a menu. The column's own width decides */
+ * in one line over the same track and keeps the steps in a menu. The column's own width decides */
 export function StepBar(props: BarProps) {
   return (
     <div className="@container shrink-0">
@@ -86,7 +90,7 @@ function FullBar({ viewing, onPick }: BarProps) {
   const mounted = useMounted()
 
   return (
-    <nav aria-label="Tutorial steps" className="grid h-12 grid-cols-4 items-end gap-[3px] px-5 @max-[24rem]:hidden">
+    <nav aria-label="Tutorial steps" className="grid h-12 items-end gap-[3px] px-5 @max-[24rem]:hidden" style={columns()}>
       {STEPS.map((step, i) => {
         const done = s.passed[i]
         const current = s.started && !finished && i === s.step && !done
@@ -188,7 +192,7 @@ function CompactBar({ viewing, onPick }: BarProps) {
           })}
         </DropdownMenuContent>
       </DropdownMenu>
-      <span aria-hidden="true" className="mt-1.5 grid grid-cols-4 gap-[3px]">
+      <span aria-hidden="true" className="mt-1.5 grid gap-[3px]" style={columns()}>
         {STEPS.map((step, i) => (
           <Segment key={step.id} i={i} lit={i < lit} delay={delayFor(i)} />
         ))}
@@ -197,15 +201,15 @@ function CompactBar({ viewing, onPick }: BarProps) {
   )
 }
 
-/** The phone header's bottom edge: the same four segments in the same purple to green. Before Start
- * nothing is under way, and four empty segments read as a broken rule: one hairline instead */
+/** The phone header's bottom edge: the same segments in the same purple to green. Before Start
+ * nothing is under way, and empty segments read as a broken rule: one hairline instead */
 export function StepTrack({ done }: { done: boolean }) {
   const { s } = useStore()
   const lit = litCount(s.started, s.step, done)
   const delayFor = useSweep(lit)
   if (!s.started) return <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-border" />
   return (
-    <span aria-hidden="true" className="absolute inset-x-0 bottom-0 grid grid-cols-4 gap-[3px]">
+    <span aria-hidden="true" className="absolute inset-x-0 bottom-0 grid gap-[3px]" style={columns()}>
       {STEPS.map((step, i) => (
         <Segment key={step.id} i={i} lit={i < lit} delay={delayFor(i)} />
       ))}

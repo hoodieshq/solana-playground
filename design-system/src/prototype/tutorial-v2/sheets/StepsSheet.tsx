@@ -3,7 +3,7 @@ import { RotateCcw } from "lucide-react"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { cn } from "@/lib/utils"
 
-import { STEPS } from "../data"
+import { LESSON, STEPS } from "../data"
 import { useStore } from "../store"
 import { StepGlyph } from "../ui/StepGlyph"
 import { SHEET, SHEET_HEAD, SHEET_TITLE } from "./sheet"
@@ -19,8 +19,9 @@ export function StepsSheet({ open, onClose, onPick, onStartOver }: { open: boole
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent className={SHEET}>
         <DrawerHeader className={SHEET_HEAD}>
-          <DrawerTitle className={SHEET_TITLE}>Hello Anchor</DrawerTitle>
-          <DrawerDescription className="text-caption text-muted-foreground">
+          <DrawerTitle className={SHEET_TITLE}>{LESSON.card.name}</DrawerTitle>
+          {/* The caption size spelled as a length: the drawer's cn takes text-caption for a colour and drops it */}
+          <DrawerDescription className="text-(length:--text-caption) leading-(--text-caption--line-height) text-muted-foreground">
             {s.passed.filter(Boolean).length} of {STEPS.length} steps done. Tap one to read it again.
           </DrawerDescription>
         </DrawerHeader>

@@ -1,9 +1,10 @@
-import type { Fail } from "./data"
+import type { OwnCheck, SpecialCheck } from "./lessons/types"
 
-/** What a build of hand-written code finds. The prototype has no compiler, so it compares the
- * file with what the step needs, ignoring what a compiler would ignore or let through, and names
- * the two slips newcomers make most */
-export type OwnCheck = { ok: true } | (Fail & { explain: string })
+// What a build of hand-written code finds. The prototype has no compiler, so it compares the file
+// with what the step needs, ignoring what a compiler would ignore or let through, and names the slips
+// newcomers make most: the lesson's own (`SpecialCheck`), then the ones any Rust program can meet
+
+export type { OwnCheck }
 
 const DECLARE = /(declare_id!\(\s*")[^"]*("\s*\))/g
 
@@ -41,10 +42,13 @@ function norm(line: string) {
 const lines = (code: string) => uncomment(code).split("\n").map(norm)
 
 /** The 1-based line that holds `needle`, comments aside, or 1 */
-function lineOf(code: string, needle: string) {
+export function lineOf(code: string, needle: string) {
   const i = uncomment(code).split("\n").findIndex((l) => l.includes(needle))
   return i === -1 ? 1 : i + 1
 }
+
+/** The function a line declares, for a message about it */
+const fnName = (bare: string, line: number) => bare.split("\n")[line - 1]?.match(/fn\s+(\w+)/)?.[1] ?? "function"
 
 /** A line of code to quote in a message. Prose reads ticks as code, so a line with its own can't be quoted */
 const quote = (line: string) => (line.includes("`") ? "" : ` (\`${line.trim()}\`)`)
@@ -96,36 +100,38 @@ export function helloSays(lib: string, name: string | null): string {
   return name === null ? text : text.replaceAll("{}", () => name)
 }
 
-/** The line of the file the first `msg!` sits on, comments aside, for the peek that shows it */
-export const msgLine = (lib: string) => lineOf(lib, "msg!")
+/** The line of the file a `msg!` sits on, comments aside, for the peek that shows it: the one whose
+ * text, each `{}` filled with anything, reads as `said`, or the first one */
+export function msgLine(lib: string, said?: string) {
+  if (said) {
+    const rows = uncomment(straightQuotes(lib)).split("\n")
+    const i = rows.findIndex((row) => {
+      const text = row.match(/msg!\(\s*"((?:[^"\\]|\\.)*)"/)?.[1]
+      if (text === undefined) return false
+      const shape = new RegExp(`^${text.split("{}").map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`)
+      return shape.test(said)
+    })
+    if (i !== -1) return i + 1
+  }
+  return lineOf(lib, "msg!")
+}
 
 /** `start` is the file as the step found it, so a build before any change can say just that */
-export function checkOwn(written: string, target: string, file: string, start?: string): OwnCheck {
+export function checkOwn(written: string, target: string, file: string, start?: string, lesson?: { program: string; checks: SpecialCheck[] }): OwnCheck {
   const code = straightQuotes(written)
   const mine = lines(code)
   const want = lines(target)
   if (mine.join("") === want.join("")) return { ok: true }
 
   const rust = file.endsWith(".rs")
-  const head = rust ? ["$ anchor build", "Compiling hello_anchor v0.1.0"] : [`$ run ${file}`, "Running client..."]
+  const head = rust ? ["$ anchor build", `Compiling ${lesson?.program ?? "program"} v0.1.0`] : [`$ run ${file}`, "Running client..."]
   // Every reason starts the same way, so the status line reads alike whatever went wrong
   const failed = rust ? "Build failed" : "Run failed"
   const bare = uncomment(code)
 
-  if (target.includes("struct Hello") && bare.includes("Context<Hello>") && !/struct\s+Hello\b/.test(bare)) {
-    const line = lineOf(code, "Context<Hello>")
-    // rustc points at the missing type itself, the Hello inside the brackets
-    const column = bare.split("\n")[line - 1].indexOf("Context<Hello>") + "Context<".length + 1
-    return {
-      ok: false,
-      line,
-      column,
-      span: "Hello".length,
-      log: [...head, "error[E0412]: cannot find type `Hello` in this scope", ` --> ${file}:${line}:${column}`, "Build failed"],
-      reason: `${failed}: \`Context<Hello>\` on line ${line} needs a \`Hello\` struct.`,
-      explain:
-        "In Anchor every instruction receives its accounts through a struct marked `#[derive(Accounts)]`. Your `hello` asks for `Context<Hello>`, but `Hello` is never declared. `hello` reads no accounts, so an empty struct is enough.",
-    }
+  for (const check of rust ? (lesson?.checks ?? []) : []) {
+    const found = check({ code, bare, target, file, head, failed })
+    if (found) return found
   }
 
   if (target.includes("Ok(())") && bare.includes("Result<()>") && !bare.includes("Ok(())")) {
@@ -136,23 +142,7 @@ export function checkOwn(written: string, target: string, file: string, start?: 
       log: [...head, "error[E0308]: mismatched types", ` --> ${file}:${line}`, "expected `Result<()>`, found `()`", "Build failed"],
       reason: `${failed}: line ${line} promises a \`Result\`, but the function never returns one.`,
       explain:
-        "Your `hello` says it returns `Result<()>`, but its last line is `msg!`, which returns nothing. End the function with `Ok(())` to tell Anchor the instruction worked.",
-    }
-  }
-
-  // The struct is there but not marked: Context<Hello> needs Hello to list accounts
-  if (target.includes("#[derive(Accounts)]") && /struct\s+Hello\b/.test(bare) && !/#\[\s*derive\s*\(\s*Accounts\s*\)\s*\]/.test(bare) && bare.includes("Context<Hello>")) {
-    const line = lineOf(code, "Context<Hello>")
-    const column = bare.split("\n")[line - 1].indexOf("Context<Hello>") + 1
-    return {
-      ok: false,
-      line,
-      column,
-      span: "Context<Hello>".length,
-      log: [...head, "error[E0277]: the trait bound `Hello: Accounts<'_>` is not satisfied", ` --> ${file}:${line}:${column}`, "Build failed"],
-      reason: `${failed}: \`Hello\` on line ${lineOf(code, "struct Hello")} isn't marked \`#[derive(Accounts)]\`.`,
-      explain:
-        "`Context<Hello>` needs `Hello` to be a list of accounts, and `#[derive(Accounts)]` is what makes a struct one. Your `struct Hello` is there without it, so put `#[derive(Accounts)]` on the line above it.",
+        `Your \`${fnName(bare, line)}\` says it returns \`Result<()>\`, but its last line returns nothing. End the function with \`Ok(())\` to tell Anchor the instruction worked.`,
     }
   }
 
@@ -178,7 +168,7 @@ export function checkOwn(written: string, target: string, file: string, start?: 
       reason: `${failed}: the \`msg!\` on line ${line} has ${holes} \`{}\` and ${given} value${given === 1 ? "" : "s"} to fill ${holes === 1 ? "it" : "them"}.`,
       explain:
         holes > given
-          ? `Each \`{}\` in a \`msg!\` text takes the next value after the text. Line ${line} has ${holes} and ${given === 0 ? "no values" : given}, so the compiler has nothing to put in. Add \`, name\` after the text, or take the \`{}\` out.`
+          ? `Each \`{}\` in a \`msg!\` text takes the next value after the text. Line ${line} has ${holes} and ${given === 0 ? "no values" : given}, so the compiler has nothing to put in. Add ${/name\s*:\s*String/.test(bare) ? "\`, name\`" : "the value"} after the text, or take the \`{}\` out.`
           : `Line ${line} passes a value to \`msg!\`, but its text has no \`{}\` to put it in. Add \`{}\` where it should go, or drop the value.`,
     }
   }

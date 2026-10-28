@@ -6,6 +6,7 @@ import { Kbd } from "@/components/ui/kbd"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
+import { useOpenTutorial, useStartedLessons } from "../host"
 import { useStore } from "../store"
 import { BrandIcon, ProductLogo, ProductMark, type BrandIconName } from "../ui/brandGlyphs"
 import { on } from "../ui/events"
@@ -128,6 +129,8 @@ const ClusterDot = () => <span className="size-[0.4375rem] rounded-full bg-succe
  * on a pick, the scrim, Esc or ⌘B and gives the focus back. The pin docks it open, pushing the chat
  * and the code, until you leave the tutorial */
 export function Nav() {
+  const openTutorial = useOpenTutorial()
+  const started = useStartedLessons()
   const { s, dispatch } = useStore()
   const [open, setOpen] = useState<boolean | null>(() => read(KEY))
   const [tabletOpen, setTabletOpen] = useState<boolean | null>(() => read(TABLET_KEY))
@@ -225,10 +228,10 @@ export function Nav() {
     { id: "tutorials", label: "Tutorials", icon: "tutorial", current: true, onClick: go(() => dispatch({ type: "open", screen: "gallery" })) },
     { id: "programs", label: "Programs", icon: "programs", current: false, onClick: go(soon) },
   ]
-  // The workspaces this browser has, as the product lists them. Hello Anchor joins once it's started
+  // The workspaces this browser has, as the product lists them. A tutorial joins once it's started
   const projects: { name: string; current: boolean; onClick: () => void }[] = [
     ...["Counter", "Token Faucet", "Voting", "Tip Jar"].map((name) => ({ name, current: false, onClick: go(soon) })),
-    ...(s.startedAt !== null ? [{ name: "Hello Anchor", current: learning, onClick: go(() => dispatch({ type: "start" })) }] : []),
+    ...started.map((l) => ({ name: l.name, current: l.open && learning, onClick: go(() => openTutorial(l.slug)) })),
   ]
 
   return (
@@ -241,7 +244,7 @@ export function Nav() {
       <nav
         aria-label="Main"
         className={cn(
-          "flex shrink-0 flex-col overflow-hidden border-r border-border bg-surface-base text-foreground transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none",
+          "flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar text-foreground transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none",
           WIDTH[shape],
           floats && over && "absolute inset-y-0 left-0 z-40 shadow-modal"
         )}

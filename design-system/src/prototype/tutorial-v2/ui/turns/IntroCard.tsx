@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { thumb } from "../../data"
+import { LESSON, STEPS, thumb } from "../../data"
 import { useStore } from "../../store"
 import { Thumb } from "../Thumb"
 import { ACTION, ACTION_FILL, HEADING, READ } from "../type"
@@ -16,9 +16,8 @@ import { ACTION, ACTION_FILL, HEADING, READ } from "../type"
 // The loop is true of the tutorial as a whole, not of every step: Deploy's question writes nothing
 const LOOP = ["I explain a piece", "You pick an answer", "I write the code", "You build and run it"]
 
-// "No wallet, 0 SOL" stays soft until the Kora deploy policy is settled: zero SOL for a learner's
-// deploy needs its own Kora policy (see the tutorial notes)
-const COST = "No wallet, 0 SOL, and your progress stays in this browser"
+// Deploys go from the learner's own Playground wallet on devnet, topped up from the faucet: no real money
+const COST = "A devnet wallet is set up for you with free test SOL. Your progress stays in this browser"
 
 /* Three steps of type, each a size apart: headings at 16 (the title, How it goes), the reading text at
    15 (the promise, the loop) and one grey note at 13 for everything said on the side. The log line is
@@ -35,24 +34,26 @@ export function IntroCard({ phone = false }: { phone?: boolean }) {
     <section data-live-card aria-labelledby="intro-title" className={phone ? "pt-2" : "rounded-panel border border-border bg-(--card-ground) p-5"}>
       {phone && (
         <h2 id="intro-title" className="sr-only">
-          Hello Anchor
+          {LESSON.card.name}
         </h2>
       )}
       <div className={cn("flex items-center gap-3", phone && "hidden")}>
-        <Thumb src={thumb("hello-anchor", "jpg")} className="size-10 shrink-0 after:ring-foreground/[0.1]" />
+        <Thumb src={thumb(LESSON.card.slug, LESSON.card.ext)} className="size-10 shrink-0 after:ring-foreground/[0.1]" />
         <div className="min-w-0">
           <h2 id={phone ? undefined : "intro-title"} className={cn(HEADING, "truncate")}>
-            Hello Anchor
+            {LESSON.card.name}
           </h2>
-          <p className={`${NOTE} truncate`}>Beginner · 4 steps · 10 min</p>
+          <p className={`${NOTE} truncate`}>
+            {LESSON.card.level} · {STEPS.length} steps · {LESSON.minutes} min
+          </p>
         </div>
       </div>
 
-      <p className={cn(READ, !phone && "mt-4")}>You'll write a small Solana program, put it live on devnet and call it with your name.</p>
+      <p className={cn(READ, !phone && "mt-4")}>{LESSON.intro}</p>
       {/* The end, as the log will print it, so the promise is a thing you'll see, not a claim. One
           tone: the code face is difference enough */}
       <p aria-label="What your program prints at the end" className="mt-3 rounded-lg bg-foreground/[0.05] px-3 py-2.5 font-mono text-[0.8125rem] leading-[1.5] text-foreground/90">
-        Program log: Hello, your name!
+        {LESSON.proof}
       </p>
 
       {/* A heading over the beats, set as the title is: weight, not a new size or colour, tells it apart */}

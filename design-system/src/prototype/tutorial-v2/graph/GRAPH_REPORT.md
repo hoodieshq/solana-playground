@@ -1,107 +1,119 @@
-# Graph Report - design-system  (2026-10-27)
+# Graph Report - design-system  (2026-10-28)
 
 ## Corpus Check
-- 310 files · ~185,799 words
+- 322 files · ~464,921 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 3 file(s) not represented in the graph (no extension)
 - Styles: the 6 .css files (tokens.css included) come from a separate styles pass, since graphify has no CSS extractor; `uses_token` edges tie each .ts/.tsx file to the @theme variables and @utility classes its Tailwind classes resolve to
 
 ## Summary
-- 2343 nodes · 8616 edges · 115 communities (89 shown, 26 thin omitted)
-- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 34 edges (avg confidence: 0.85)
+- 2520 nodes · 8625 edges · 116 communities (103 shown, 13 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 49 edges (avg confidence: 0.85)
 - Token cost: 276,231 input · 0 output
 
 ## Community Hubs (Navigation)
-- v2 Thumbs and Card Types
-- v2 Desktop Nav
-- Cards, Tables, Accordion
-- Select and Input Groups
-- v1 Action Bar and Pointer
-- Dialogs and Command Menu
-- Code Blocks and Diagnostics
-- Prototype v2 Stylesheet
-- Tailwind Theme and Code Views
-- Tailwind Theme and Code Views (2)
-- Composer and Setup List
-- Menubar, Pagination, Breadcrumb
-- v2 Store Reducer
-- v2 Build History and Handoff
-- v1 Desktop Nav and Glyphs
-- Tailwind Theme and Code Views
-- Design Tokens (tokens.css) (2)
-- v1 Tutorial Store and Data
-- v1 Iso Voxel Art
-- Merge Conflict UI
 - Design Tokens (tokens.css)
-- Stepper Lab and React Root
-- v1 Gallery Catalog
-- Runtime Dependencies
-- v2 Receipt and Finish
-- v2 Canned Answers
-- v1 Desktop Nav and Glyphs (2)
-- Chat Messages and Attachments
-- v2 Lesson Script Data
-- v2 Gallery and Tutorial List
-- v2 Iso Voxel Art
-- Buttons, Drawer, Questionnaire
-- v1 Receipt and Program Id
-- Navigation Menu Blocks
-- v2 Keys and Block Insert
-- Empty States and Async Button
-- DS Site App Shell
-- Sidebar and Inputs
-- Registry and Snapshot Scripts
-- Composer and Setup List (2)
-- Achievements and Finish
-- Design System Docs
-- v2 Store Reducer (2)
-- DS Site App Shell (2)
-- Sheet and Phone Menu
-- v1 Code Check Tests
-- v2 Canned Answers (2)
-- App TypeScript Config
-- Fields and Button Groups
-- Alert Dialog
-- Buttons, Drawer, Questionnaire (2)
-- Console Drawer and Editor Tabs
-- shadcn Components Config
-- Alert Dialog (2)
-- Combobox
-- Node TypeScript Config
-- Stylesheet Entry and Runtime Deps
-- v2 Keys and Block Insert (2)
-- Carousel
-- Dev Dependencies
-- Stepper Lab and React Root (2)
-- Chart
-- v2 Lesson Script Data (2)
 - Code Blocks and Diagnostics (2)
-- Vite Build Tooling
-- Package Scripts
-- Composer and Setup List (3)
-- Start Here Surface Styles
-- v1 Desktop Nav and Glyphs (4)
-- v2 Gallery and Tutorial List (2)
-- v1 Stand Package
-- v2 Stand Package
+- Chat Messages and Attachments (2)
+- Design Tokens (tokens.css)
+- Tailwind Theme and Code Views
+- v1 Code Check Tests
+- v2 Lesson Script Data
+- Styles: lumberjack.ts
+- Tailwind Theme and Code Views
+- Prototype v2 Stylesheet
 - Composer and Setup List (4)
+- Console Drawer and Editor Tabs
+- v1 Code Check Tests (2)
+- Prototype v2 Stylesheet
+- v1 Desktop Nav and Glyphs (2)
+- v1 Code Check Tests (3)
+- shadcn Components Config
+- v1 Gallery Catalog
+- Merge Conflict UI
+- Composer and Setup List (2)
+- Select and Input Groups
+- Empty States and Async Button
+- Tailwind Theme and Code Views (2)
+- v1 Desktop Nav and Glyphs
+- Cards, Tables, Accordion
 - Cards, Tables, Accordion (2)
-- Lint Config
-- Achievements and Finish (2)
+- Prototype v2 Stylesheet (2)
+- v1 Code Check Tests (4)
+- DS Site App Shell (2)
+- Fields and Button Groups
+- v2 Thumbs and Card Types
+- Styles: zero-copy.ts
+- v2 Canned Answers (2)
+- Lessons and Principles
+- v2 Build History and Handoff
+- Code Blocks and Diagnostics (2) (2)
+- v2 Desktop Nav (4)
+- Vite Build Tooling
+- App TypeScript Config
+- v1 Desktop Nav and Glyphs (2) (2)
+- v1 Tutorial Store and Data (2)
+- Chat Messages and Attachments
+- Design Tokens (tokens.css) (2)
+- v2 Iso Voxel Art
+- Node TypeScript Config
+- Stepper Lab and React Root
+- v2 Build History and Handoff
+- shadcn Components Config (2)
+- v2 Desktop Nav (3)
+- Buttons, Drawer, Questionnaire
+- v2 Thumbs and Card Types (2)
+- v2 Store Reducer
+- Buttons, Drawer, Questionnaire (2)
+- v2 Iso Voxel Art (2)
+- v2 Store Reducer (2)
+- Stylesheet Entry and Runtime Deps
+- Lessons and Principles
+- v2 Thumbs and Card Types (2) (2)
+- Menubar, Pagination, Breadcrumb (2)
+- v1 Desktop Nav and Glyphs (2) (2)
+- Tailwind Theme and Code Views (3)
+- Carousel
+- Stylesheet Entry and Runtime Deps (2)
+- Tailwind Theme and Code Views (4)
+- Tailwind Theme and Code Views (2) (2)
+- v2 Store Reducer (2)
+- Sidebar and Inputs
+- v2 Build History and Handoff (2)
+- Component Registry
+- Dialogs and Command Menu (2)
+- v1 Desktop Nav and Glyphs (4)
+- v2 Thumbs and Card Types (2) (2)
+- v2 Thumbs and Card Types (3)
+- Lessons and Principles (2)
+- Tailwind Theme and Code Views (2) (3)
+- v2 Store Reducer (2) (2)
+- v2 Stand Package
+- Stylesheet Entry and Runtime Deps
+- v1 Desktop Nav and Glyphs (3)
+- v2 Build History and Handoff (3)
+- Registry and Snapshot Scripts (2)
+- v2 Store Reducer (4)
+- Select and Input Groups (2)
+- Buttons, Drawer, Questionnaire (2)
+- v2 Thumbs and Card Types (4)
+- Start Here Surface Styles
+- Tailwind Theme and Code Views (3)
+- Navigation Menu Blocks
+- Start Here Surface Styles
+- Code Blocks and Diagnostics (2) (2)
+- Menubar, Pagination, Breadcrumb (3)
+- Combobox (2)
+- Cards, Tables, Accordion (2)
+- Composer and Setup List
+- Runtime Dependencies (2)
+- Alert Dialog
 - v2 Resizable Column
-- v2 Keys and Block Insert (3)
-- Design System Docs (2)
 - v2 Vercel Config
 - v1 Vercel Config
-- Anchor and Seahorse Thumbs
-- Component Registry
-- v1 Tutorial Store and Data (2)
-- Root TypeScript Config
-- Design System Docs (3)
+- DS Site App Shell
 - Menu Motion Tokens
-- DS Site App Shell (2)
-- Finance Tutorial Thumbs
-- Seahorse Game Thumbs
+- v2 Iso Voxel Art (3)
 - Favicon
 - Battle Game Thumbs
 - Hello Solana Thumb
@@ -109,34 +121,23 @@
 - Tiny Adventure Thumbs
 - Zero Copy Thumb
 - Site Script
-- Composer and Setup List (5)
-- Design Tokens (tokens.css) (4)
-- Design Tokens (tokens.css) (5)
-- Design Tokens (tokens.css) (6)
-- Design Tokens (tokens.css) (7)
-- Design Tokens (tokens.css) (8)
-- Design Tokens (tokens.css) (9)
-- v2 Receipt and Finish (2)
-- Design Tokens (tokens.css) (10)
-- Design Tokens (tokens.css) (11)
-- Design Tokens (tokens.css) (12)
-- DS Site App Shell (3)
-- Composer and Setup List (3)
-- Counter PDA Thumb
-- Lumberjack Thumb
-- Combobox Rationale
+- Design Tokens (tokens.css) (2) (2)
+- Combobox (3)
+- Unused: warning-foreground
+- Community 112
+- Community 113
 
 ## God Nodes (most connected - your core abstractions)
-1. `react` - 177 edges
-2. `--color-muted-foreground (@theme)` - 147 edges
-3. `PlaygroundComponents()` - 138 edges
-4. `--color-foreground (@theme)` - 138 edges
-5. `Button()` - 114 edges
-6. `--color-border (@theme)` - 105 edges
-7. `lucide-react` - 93 edges
-8. `cn` - 86 edges
-9. `useStore()` - 76 edges
-10. `--text-caption (@theme)` - 70 edges
+1. `react` - 179 edges
+2. `PlaygroundComponents()` - 138 edges
+3. `--color-muted-foreground (@theme)` - 107 edges
+4. `lucide-react` - 98 edges
+5. `--color-foreground (@theme)` - 98 edges
+6. `Button()` - 96 edges
+7. `cn` - 86 edges
+8. `useStore()` - 84 edges
+9. `--color-border (@theme)` - 76 edges
+10. `Overlays()` - 64 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Tailwind 4` --references--> `tailwindcss`  [EXTRACTED]
@@ -145,8 +146,8 @@
   README.md → package.json
 - `Step bar lab prototype entry (src/prototype/stepper-lab/main.tsx)` --conceptually_related_to--> `Stepper component`  [INFERRED]
   prototype/stepper-lab/index.html → README.md
-- `ItemSeparator()` --calls--> `Separator()`  [EXTRACTED]
-  src/components/ui/item.tsx → src/components/ui/separator.tsx
+- `AttachmentAction()` --calls--> `Button()`  [EXTRACTED]
+  src/components/ui/attachment.tsx → src/components/ui/button.tsx
 - `ComboboxChip()` --calls--> `Button()`  [EXTRACTED]
   src/components/ui/combobox.tsx → src/components/ui/button.tsx
 
@@ -160,383 +161,439 @@
 - **Prototype tutorial gallery cover thumbnails** — public_prototype_thumbs_bank_simulator, public_prototype_thumbs_battle_coins, public_prototype_thumbs_boss_battle, public_prototype_thumbs_counter_pda_tutorial, public_prototype_thumbs_expense_tracker, public_prototype_thumbs_faucet_seahorse, public_prototype_thumbs_hello_anchor, public_prototype_thumbs_hello_seahorse [INFERRED 0.85]
 - **Prototype tutorial gallery cover thumbnails** — public_prototype_thumbs_hello_solana, public_prototype_thumbs_lumberjack, public_prototype_thumbs_spl_token_vault, public_prototype_thumbs_tictactoe_seahorse, public_prototype_thumbs_tiny_adventure_two, public_prototype_thumbs_tiny_adventure, public_prototype_thumbs_todo_app_seahorse, public_prototype_thumbs_zero_copy [INFERRED 0.85]
 
-## Communities (115 total, 26 thin omitted)
+## Communities (116 total, 13 thin omitted)
 
-### Community 0 - "v2 Thumbs and Card Types"
+### Community 0 - "Design Tokens (tokens.css)"
+Cohesion: 0.03
+Nodes (94): --color-accent (@theme), --color-brand-deep-green (@theme), --color-brand-ink (@theme), --color-brand-periwinkle (@theme), --color-brand-teal (@theme), --color-chart-1 (@theme), --color-chart-2 (@theme), --color-chart-3 (@theme) (+86 more)
+
+### Community 1 - "Code Blocks and Diagnostics (2)"
 Cohesion: 0.06
-Nodes (80): ActBeat, BEATS, Row, trimContext(), --card-ground, Turn, useStore(), Conversation() (+72 more)
+Nodes (55): Accordion(), AccordionContent(), AccordionItem(), AccordionTrigger(), Avatar(), AvatarFallback(), AvatarGroup(), ButtonGroup() (+47 more)
 
-### Community 1 - "v2 Desktop Nav"
+### Community 2 - "Chat Messages and Attachments (2)"
 Cohesion: 0.06
-Nodes (64): AttachmentAction(), Button(), CopyButton(), HelpTip(), Kbd(), SidebarMenuButton(), Tooltip(), TooltipContent() (+56 more)
+Nodes (63): BAND, DELETED_NAME, HUNK_ACTION, hunkGroup(), Merge(), MergeBand, MergeContext, MergeCount() (+55 more)
 
-### Community 2 - "Cards, Tables, Accordion"
-Cohesion: 0.06
-Nodes (53): Accordion(), AccordionContent(), AccordionItem(), AccordionTrigger(), Avatar(), AvatarFallback(), AvatarGroup(), Card() (+45 more)
+### Community 3 - "Design Tokens (tokens.css)"
+Cohesion: 0.12
+Nodes (27): class-variance-authority, cn, radix-ui, react, BubbleReactions(), bubbleReactionsVariants, MessageScrollerButton(), NativeSelectProps (+19 more)
 
-### Community 3 - "Select and Input Groups"
-Cohesion: 0.11
-Nodes (29): class-variance-authority, cn, radix-ui, react, BubbleReactions(), bubbleReactionsVariants, InputGroupTextarea(), MessageScrollerButton() (+21 more)
-
-### Community 4 - "v1 Action Bar and Pointer"
-Cohesion: 0.08
-Nodes (45): NAME_MAX, STEPS, ActionBar(), Feed(), inFlight(), land(), Msg, Question() (+37 more)
-
-### Community 5 - "Dialogs and Command Menu"
-Cohesion: 0.08
-Nodes (35): Command(), CommandDialog(), CommandEmpty(), CommandGroup(), CommandInput(), CommandItem(), CommandList(), CommandShortcut() (+27 more)
-
-### Community 6 - "Code Blocks and Diagnostics"
-Cohesion: 0.06
-Nodes (46): DropZone(), DropZoneDescription(), DropZoneIcon(), DropZoneTitle(), MenuFold(), MenuFoldChevron(), MenuFoldContent(), MenuFoldTrigger() (+38 more)
-
-### Community 7 - "Prototype v2 Stylesheet"
+### Community 4 - "Tailwind Theme and Code Views"
 Cohesion: 0.04
-Nodes (47): --safe-bottom, --tablet-safe-bottom, --tooth, --accent, --accent-fill-hover, --accent-foreground, --background, --border (+39 more)
+Nodes (55): --animate-menu-in (@theme), --animate-pop (@theme), --color-accent-foreground (@theme), --color-error-foreground (@theme), --color-info-foreground (@theme), --color-sidebar (@theme), --color-sidebar-accent-foreground (@theme), --color-sidebar-foreground (@theme) (+47 more)
+
+### Community 5 - "v1 Code Check Tests"
+Cohesion: 0.08
+Nodes (40): BEATS, Editor(), EditorError, diffLines(), Row, trimContext(), litLines(), CLASS (+32 more)
+
+### Community 6 - "v2 Lesson Script Data"
+Cohesion: 0.07
+Nodes (36): Command(), CommandDialog(), CommandEmpty(), CommandGroup(), CommandInput(), CommandItem(), CommandList(), CommandShortcut() (+28 more)
+
+### Community 7 - "Styles: lumberjack.ts"
+Cohesion: 0.05
+Nodes (47): CHECKS, clientTx(), HELLO_ANCHOR, LIB_NAMED, namedTx(), onDevnet(), STEPS, LESSONS (+39 more)
 
 ### Community 8 - "Tailwind Theme and Code Views"
-Cohesion: 0.13
-Nodes (33): Popover(), PopoverAnchor(), PopoverContent(), PopoverTrigger(), EditorError, CLASS, CodeView(), hang() (+25 more)
+Cohesion: 0.06
+Nodes (44): BrandButtonIcon(), CalloutTitle(), MenuFold(), MenuFoldChevron(), MenuFoldContent(), MenuFoldTrigger(), MenuItemDescription(), MenuItemText() (+36 more)
 
-### Community 9 - "Tailwind Theme and Code Views (2)"
-Cohesion: 0.15
-Nodes (24): Chip, Predict, reduce, typed, Add, HEADING, READ, READ_CODE (+16 more)
+### Community 9 - "Prototype v2 Stylesheet"
+Cohesion: 0.04
+Nodes (49): --safe-bottom, --tablet-safe-bottom, --tooth, --accent, --accent-fill-hover, --accent-foreground, --background, --border (+41 more)
 
-### Community 10 - "Composer and Setup List"
-Cohesion: 0.07
-Nodes (41): AchievementLabel(), BrandButtonIcon(), CalloutTitle(), ComposerAdd(), ComposerBanner(), ComposerChip(), ComposerContext, ComposerContextList() (+33 more)
+### Community 10 - "Composer and Setup List (4)"
+Cohesion: 0.09
+Nodes (42): App(), ChatColumn(), ShortcutsDialog(), DesktopApp(), useKeyboardRoom(), DockedTree(), flashKeys(), Gallery() (+34 more)
 
-### Community 11 - "Menubar, Pagination, Breadcrumb"
+### Community 11 - "Console Drawer and Editor Tabs"
+Cohesion: 0.11
+Nodes (40): AsyncButton(), Button(), Spinner(), ActionBar(), mac, PRIMARY_KEYS, primaryFor(), COARSE (+32 more)
+
+### Community 12 - "v1 Code Check Tests (2)"
+Cohesion: 0.09
+Nodes (39): DEMO_FAUCET, DEMO_FILES, deployLog(), EXTRA_FILES, fundLog(), IDL_ACCOUNT, PROGRAM_ID, TX_SIGNATURE (+31 more)
+
+### Community 13 - "Prototype v2 Stylesheet"
 Cohesion: 0.06
 Nodes (31): Breadcrumb(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage(), BreadcrumbSeparator(), Menubar(), MenubarContent() (+23 more)
 
-### Community 12 - "v2 Store Reducer"
-Cohesion: 0.09
-Nodes (45): actionWord(), wordFits(), OwnCheck, diffLines(), actUp(), afterAct(), Body, checkBuild() (+37 more)
+### Community 14 - "v1 Desktop Nav and Glyphs (2)"
+Cohesion: 0.08
+Nodes (43): buildOk(), clientOf(), firstAct(), libOf(), libTargetOf(), upgradeLog(), primaryFor(), askBlocks() (+35 more)
 
-### Community 13 - "v2 Build History and Handoff"
-Cohesion: 0.07
-Nodes (36): Hello Anchor tutorial prototype v1 entry (src/prototype/tutorial/main.tsx), Hello Anchor tutorial prototype v2 entry (src/prototype/tutorial-v2/main.tsx), build.sh script, config, v1 basic auth middleware.js (env credentials, X-Robots-Tag), Deploying the tutorial prototype (v1), Vercel project playground-tutorial-prototype (Hoodies team), build.sh script (+28 more)
+### Community 15 - "v1 Code Check Tests (3)"
+Cohesion: 0.10
+Nodes (34): thumb(), Conversation(), edges(), glide(), Group, groups(), isNew(), liveIn() (+26 more)
 
-### Community 14 - "v1 Desktop Nav and Glyphs"
-Cohesion: 0.09
-Nodes (35): MergePaneTabs(), Segmented(), SegmentedItem(), segmentedItemVariants, segmentedVariants, DeviceFrame(), TABLET, useTabletScale() (+27 more)
-
-### Community 15 - "Tailwind Theme and Code Views"
-Cohesion: 0.05
-Nodes (43): --animate-caret (@theme), --color-accent (@theme), --color-chart-4 (@theme), --color-info (@theme), --color-info-foreground (@theme), --color-sidebar-accent-foreground (@theme), --color-sidebar-primary-foreground (@theme), --color-sidebar-ring (@theme) (+35 more)
-
-### Community 16 - "Design Tokens (tokens.css) (2)"
-Cohesion: 0.05
-Nodes (42): Colour(), Motion(), Type(), Section(), SwatchGrid(), TokenRow(), --color-brand-deep-green (@theme), --color-brand-periwinkle (@theme) (+34 more)
-
-### Community 17 - "v1 Tutorial Store and Data"
+### Community 16 - "shadcn Components Config"
 Cohesion: 0.11
-Nodes (39): BUILD_OK, BuildResult, callLog(), clientLog(), Fail, INITIAL_FILES, LessonBlock, LIB_NAMED (+31 more)
+Nodes (37): BUILD_OK, BuildResult, callLog(), clientLog(), INITIAL_FILES, LessonBlock, LIB_NAMED, NAME_MAX (+29 more)
 
-### Community 18 - "v1 Iso Voxel Art"
-Cohesion: 0.08
-Nodes (36): NEXT_TUTORIAL, BAYER, blend(), BRAND, buildMark(), buildScene(), CELL_SIZES, chroma() (+28 more)
+### Community 17 - "v1 Gallery Catalog"
+Cohesion: 0.11
+Nodes (34): sonner, TutorialCard, TUTORIALS, Gallery(), PATTERN, TutorialsBody(), Card(), TutorialLevels() (+26 more)
 
-### Community 19 - "Merge Conflict UI"
-Cohesion: 0.08
-Nodes (38): BAND, DELETED_NAME, HUNK_ACTION, hunkGroup(), Merge(), MergeBand, MergeContext, MergeCount() (+30 more)
-
-### Community 20 - "Design Tokens (tokens.css)"
-Cohesion: 0.05
-Nodes (38): --color-brand-ink (@theme), --color-error-foreground (@theme), --color-sidebar (@theme), --color-sidebar-foreground (@theme), --color-sidebar-primary (@theme), --color-warning-foreground (@theme), --shadow-composer (@theme), --shadow-modal (@theme) (+30 more)
-
-### Community 21 - "Stepper Lab and React Root"
-Cohesion: 0.13
-Nodes (30): Switch(), TodayBar(), TodayGlyph(), TodayPhoneTrack(), RunnerUpBar(), ChatMock(), DECISION, LINES (+22 more)
-
-### Community 22 - "v1 Gallery Catalog"
-Cohesion: 0.12
-Nodes (33): TutorialCard, TUTORIALS, Gallery(), PATTERN, TutorialsBody(), Card(), TutorialLevels(), About (+25 more)
-
-### Community 23 - "Runtime Dependencies"
+### Community 18 - "Merge Conflict UI"
 Cohesion: 0.07
 Nodes (35): dependencies, @base-ui/react@^1.8.0, class-variance-authority@^0.7.1, cmdk@^1.1.1, cn@^0.4.0, date-fns@^4.4.0, embla-carousel-react@^8.6.0, @fontsource-variable/geist@^5.3.0 (+27 more)
 
-### Community 24 - "v2 Receipt and Finish"
+### Community 19 - "Composer and Setup List (2)"
+Cohesion: 0.14
+Nodes (26): Achievement(), AchievementLabel(), AchievementMedia(), Toaster(), TooltipProvider(), App(), DesktopApp(), useKeyboardRoom() (+18 more)
+
+### Community 20 - "Select and Input Groups"
+Cohesion: 0.16
+Nodes (20): EditorError, diffLines(), Row, freshLines(), CLASS, CodeView(), hang(), highlight() (+12 more)
+
+### Community 21 - "Empty States and Async Button"
+Cohesion: 0.14
+Nodes (30): Switch(), TodayBar(), TodayGlyph(), TodayPhoneTrack(), RunnerUpBar(), ChatMock(), DECISION, LINES (+22 more)
+
+### Community 22 - "Tailwind Theme and Code Views (2)"
+Cohesion: 0.13
+Nodes (27): Chip, Predict, Feed(), inFlight(), land(), Msg, Question(), Quote (+19 more)
+
+### Community 23 - "v1 Desktop Nav and Glyphs"
 Cohesion: 0.12
-Nodes (30): Achievement(), AchievementMedia(), NEXT_TUTORIAL, PROGRAM_ID, shortKey(), TX_CONFIRMED, TX_FEE, openExplorer() (+22 more)
+Nodes (29): App(), Fact(), Nav(), NavEntry, NavGroup, readTheme(), useCurrent(), useNav() (+21 more)
 
-### Community 25 - "v2 Canned Answers"
-Cohesion: 0.12
-Nodes (27): Composer(), ComposerInput(), ComposerSend(), ComposerToolbar(), DropdownMenu(), DropdownMenuContent(), DropdownMenuItem(), DropdownMenuLabel() (+19 more)
-
-### Community 26 - "v1 Desktop Nav and Glyphs (2)"
-Cohesion: 0.10
-Nodes (29): bus, FLASH_MS, flashKeys(), useFlash(), Avatar(), ClusterDot(), Nav(), OPEN_ONLY (+21 more)
-
-### Community 27 - "Chat Messages and Attachments"
-Cohesion: 0.08
-Nodes (26): Alert(), AlertDescription(), AlertTitle(), alertVariants, Attachment(), AttachmentContent(), AttachmentDescription(), AttachmentMedia() (+18 more)
-
-### Community 28 - "v2 Lesson Script Data"
-Cohesion: 0.07
-Nodes (31): Ask, Beat, BUILD_OK, BuildResult, callLog(), CLIENT, CLIENT_CALL, clientLog() (+23 more)
-
-### Community 29 - "v2 Gallery and Tutorial List"
-Cohesion: 0.11
-Nodes (31): TutorialCard, TUTORIALS, Gallery(), LAYER, LitGround(), SearchGlyph(), tiles(), TutorialsBody() (+23 more)
-
-### Community 30 - "v2 Iso Voxel Art"
+### Community 24 - "Cards, Tables, Accordion"
 Cohesion: 0.09
 Nodes (31): BAYER, blend(), BRAND, buildMark(), buildScene(), CELL_SIZES, chroma(), clamp01() (+23 more)
 
-### Community 31 - "Buttons, Drawer, Questionnaire"
-Cohesion: 0.21
-Nodes (24): Drawer(), DrawerContent(), DrawerDescription(), DrawerFooter(), DrawerHeader(), DrawerOverlay(), DrawerPortal(), DrawerTitle() (+16 more)
-
-### Community 32 - "v1 Receipt and Program Id"
-Cohesion: 0.15
-Nodes (26): sonner, PROGRAM_ID, shortKey(), TerminalBody(), OutputPane(), StepScreen(), arriving(), BuildLog() (+18 more)
-
-### Community 33 - "Navigation Menu Blocks"
-Cohesion: 0.12
-Nodes (25): AspectRatio(), ComboboxContent(), ComboboxEmpty(), ComboboxItem(), ComboboxList(), NavigationMenu(), NavigationMenuContent(), NavigationMenuItem() (+17 more)
-
-### Community 34 - "v2 Keys and Block Insert"
-Cohesion: 0.13
-Nodes (25): Editor(), bus, FLASH_MS, flashKeys(), enterFor(), FILES_KEYS, mac, MENU_KEYS (+17 more)
-
-### Community 35 - "Empty States and Async Button"
-Cohesion: 0.14
-Nodes (25): AsyncButton(), Empty(), EmptyDescription(), EmptyHeader(), EmptyMedia(), emptyMediaVariants, EmptyTitle(), Spinner() (+17 more)
-
-### Community 36 - "DS Site App Shell"
-Cohesion: 0.11
-Nodes (22): ONLY, OURS, Row, STATE_LABEL, STOCK, InstallLine(), Source, SOURCE_LABEL (+14 more)
-
-### Community 37 - "Sidebar and Inputs"
-Cohesion: 0.10
-Nodes (16): Input(), SidebarContext, SidebarContextProps, SidebarInput(), sidebarMenuButtonVariants, SidebarMenuSkeleton(), SidebarProvider(), SidebarRail() (+8 more)
-
-### Community 38 - "Registry and Snapshot Scripts"
+### Community 25 - "Cards, Tables, Accordion (2)"
 Cohesion: 0.09
-Nodes (16): here, PORT, ROOT, DIST, errors, here, indexFile, server (+8 more)
+Nodes (31): BAYER, blend(), BRAND, buildMark(), buildScene(), CELL_SIZES, chroma(), clamp01() (+23 more)
 
-### Community 39 - "Composer and Setup List (2)"
+### Community 26 - "Prototype v2 Stylesheet (2)"
+Cohesion: 0.16
+Nodes (28): LESSON, NEXT_TUTORIAL, Finish(), useOpenTutorial(), lastTx(), stepTx(), TxResult, txResults() (+20 more)
+
+### Community 27 - "v1 Code Check Tests (4)"
+Cohesion: 0.12
+Nodes (28): clientView(), pace(), Runner(), stageMs(), Turn, Blocks(), HeapBar(), kb() (+20 more)
+
+### Community 28 - "DS Site App Shell (2)"
+Cohesion: 0.12
+Nodes (29): TUTORIALS, LAYER, LitGround(), SearchGlyph(), tiles(), TutorialsBody(), Card(), FilterButton() (+21 more)
+
+### Community 29 - "Fields and Button Groups"
+Cohesion: 0.14
+Nodes (25): ConsoleDrawer(), ConsoleDrawerActions(), ConsoleDrawerBar(), ConsoleDrawerContent(), ConsoleDrawerContext, ConsoleDrawerStatus(), Ctx, EditorTab() (+17 more)
+
+### Community 30 - "v2 Thumbs and Card Types"
+Cohesion: 0.12
+Nodes (26): bus, FLASH_MS, useFlash(), Avatar(), ClusterDot(), Nav(), OPEN_ONLY, RAIL_ONLY (+18 more)
+
+### Community 31 - "Styles: zero-copy.ts"
+Cohesion: 0.09
+Nodes (26): args(), BIG, BIG_MAP_PDA, CHECKS, grow(), HEAP, initBoard(), KB (+18 more)
+
+### Community 32 - "v2 Canned Answers (2)"
+Cohesion: 0.13
+Nodes (24): ComboboxContent(), ComboboxEmpty(), ComboboxItem(), ComboboxList(), NavigationMenu(), NavigationMenuContent(), NavigationMenuItem(), NavigationMenuLink() (+16 more)
+
+### Community 33 - "Lessons and Principles"
+Cohesion: 0.16
+Nodes (28): One chat flow, a lesson module per tutorial, Fix it key: the line that is the fix; Build lets the compiler judge the rest, Open lesson: a store per lesson, its own saved key, ?tutorial=, Ladder: Hello Anchor, Lumberjack, then Zero Copy, Lesson: card, copy, steps, files, checks, runTx, callTx, game, memory, Lumberjack vs the original: unused fields gone, InitSpace, real time refill, Lumberjack signature moments: player card, error by name, energy back with no transaction, Lumberjack step 1 Player: planned init without system_program, Fix it (+20 more)
+
+### Community 34 - "v2 Build History and Handoff"
 Cohesion: 0.10
-Nodes (24): ActionCard(), ActionCardAction(), ActionCardContent(), ActionCardDescription(), ActionCardEyebrow(), ActionCardLink(), ActionCardMedia(), ActionCardTitle() (+16 more)
+Nodes (19): Attachment(), AttachmentAction(), AttachmentContent(), AttachmentDescription(), AttachmentMedia(), attachmentMediaVariants, AttachmentTitle(), attachmentVariants (+11 more)
 
-### Community 40 - "Achievements and Finish"
-Cohesion: 0.23
-Nodes (19): Toaster(), TooltipProvider(), App(), DesktopApp(), useKeyboardRoom(), Finish(), Finish(), useStore() (+11 more)
+### Community 35 - "Code Blocks and Diagnostics (2) (2)"
+Cohesion: 0.09
+Nodes (17): ButtonGroupSeparator(), Field(), FieldSeparator(), fieldVariants, Item(), ItemActions(), ItemContent(), ItemDescription() (+9 more)
 
-### Community 41 - "Design System Docs"
+### Community 36 - "v2 Desktop Nav (4)"
+Cohesion: 0.10
+Nodes (22): CodeBlock(), CodeBlockActions(), CodeBlockContent(), CodeBlockHeader(), CodeBlockLine(), CodeBlockTitle(), MergePaneTabs(), Segmented() (+14 more)
+
+### Community 37 - "Vite Build Tooling"
+Cohesion: 0.21
+Nodes (26): checkOwn(), fixOf(), fnName(), helloSays(), holds(), insertBlock(), lineOf(), lines() (+18 more)
+
+### Community 38 - "App TypeScript Config"
+Cohesion: 0.10
+Nodes (24): actionWord(), Answer, answerFor(), CHANGE_CHIP, CHANGE_TEXT, Context, EXPLAIN_STEP, FALLBACK (+16 more)
+
+### Community 39 - "v1 Desktop Nav and Glyphs (2) (2)"
+Cohesion: 0.18
+Nodes (26): callLog(), clientLog(), faucetLog(), panelLog(), pascal(), programLog(), units(), actUp() (+18 more)
+
+### Community 40 - "v1 Tutorial Store and Data (2)"
+Cohesion: 0.10
+Nodes (14): SidebarContext, SidebarContextProps, sidebarMenuButtonVariants, SidebarMenuSkeleton(), SidebarProvider(), SidebarRail(), SidebarTrigger(), useSidebar() (+6 more)
+
+### Community 41 - "Chat Messages and Attachments"
+Cohesion: 0.22
+Nodes (18): lucide-react, BrandButton(), brandButtonVariants, ObjectiveMeter(), STEPS, thumb(), byWindow(), clamp() (+10 more)
+
+### Community 42 - "Design Tokens (tokens.css) (2)"
+Cohesion: 0.27
+Nodes (16): Drawer(), DrawerContent(), DrawerDescription(), DrawerFooter(), DrawerHeader(), DrawerOverlay(), DrawerPortal(), DrawerTitle() (+8 more)
+
+### Community 43 - "v2 Iso Voxel Art"
+Cohesion: 0.13
+Nodes (22): beatIdsOf(), beatsOf(), cardOf(), filesOf(), openLesson(), cardOf(), Ctx, LADDER (+14 more)
+
+### Community 44 - "Node TypeScript Config"
+Cohesion: 0.09
+Nodes (22): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+14 more)
+
+### Community 45 - "Stepper Lab and React Root"
 Cohesion: 0.12
 Nodes (20): Design system page HTML entry (src/main.tsx), ds-theme localStorage light/dark bootstrap script, client-v2 (consumer app), src/components/ui (60 stock shadcn + 27 own), yarn ds-add (one-step install into client-v2), ds-inject.css, src/ds design system page (foundations, component blocks, migration map), solana-playground-ds.vercel.app (DS page + product + Studio) (+12 more)
 
-### Community 42 - "v2 Store Reducer (2)"
-Cohesion: 0.23
-Nodes (22): checkOwn(), fixOf(), helloSays(), holds(), insertBlock(), lineOf(), lines(), loose() (+14 more)
+### Community 46 - "v2 Build History and Handoff"
+Cohesion: 0.15
+Nodes (23): Principle: the lesson is the conversation, Principle: question, then code, Client call 10/23, Call panel built from the deployed IDL, Chat driven flow: the lesson is the conversation, Client deck v2 (pg-tutorial-flow-deck-v2), Design prototype, not production code, Direction A Quiet IDE: the frame and the rules (+15 more)
 
-### Community 43 - "DS Site App Shell (2)"
+### Community 47 - "shadcn Components Config (2)"
+Cohesion: 0.19
+Nodes (18): checkOwn(), helloSays(), holds(), insertBlock(), lineOf(), lines(), msgLine(), norm() (+10 more)
+
+### Community 48 - "v2 Desktop Nav (3)"
+Cohesion: 0.19
+Nodes (19): PROGRAM_ID, shortKey(), TX_SIGNATURE, openExplorer(), KeyRow(), ProgramId(), Transaction(), at() (+11 more)
+
+### Community 49 - "Buttons, Drawer, Questionnaire"
 Cohesion: 0.16
-Nodes (19): App(), Fact(), Nav(), NavEntry, NavGroup, readTheme(), useCurrent(), useNav() (+11 more)
+Nodes (20): MENU_KEYS, Avatar(), ClusterDot(), Nav(), OPEN_ONLY, RAIL_ONLY, RailButton(), read() (+12 more)
 
-### Community 44 - "Sheet and Phone Menu"
+### Community 50 - "v2 Thumbs and Card Types (2)"
+Cohesion: 0.30
+Nodes (12): CopyButton(), HelpTip(), SidebarMenuButton(), Tooltip(), TooltipContent(), TooltipTrigger(), StepTrack(), Add (+4 more)
+
+### Community 51 - "v2 Store Reducer"
 Cohesion: 0.18
-Nodes (16): Sheet(), SheetContent(), SheetDescription(), SheetHeader(), SheetOverlay(), SheetPortal(), SheetTitle(), SheetTrigger() (+8 more)
+Nodes (16): DeviceFrame(), TABLET, useTabletScale(), resetDesktop(), PrototypeBar(), Bar, installScrollIndicator(), SIZES (+8 more)
 
-### Community 45 - "v1 Code Check Tests"
-Cohesion: 0.20
-Nodes (17): checkOwn(), helloSays(), holds(), insertBlock(), lineOf(), lines(), msgLine(), norm() (+9 more)
-
-### Community 46 - "v2 Canned Answers (2)"
-Cohesion: 0.10
-Nodes (20): Answer, answerFor(), CHANGE_CHIP, CHANGE_TEXT, Context, EXPLAIN_STEP, FALLBACK, FALLBACK_NO_ASK (+12 more)
-
-### Community 47 - "App TypeScript Config"
+### Community 52 - "Buttons, Drawer, Questionnaire (2)"
 Cohesion: 0.10
 Nodes (20): compilerOptions, allowArbitraryExtensions, allowImportingTsExtensions, erasableSyntaxOnly, jsx, lib, module, moduleDetection (+12 more)
 
-### Community 48 - "Fields and Button Groups"
-Cohesion: 0.14
-Nodes (10): ButtonGroup(), ButtonGroupSeparator(), buttonGroupVariants, Field(), FieldLabel(), FieldSeparator(), fieldVariants, Label() (+2 more)
+### Community 53 - "v2 Iso Voxel Art (2)"
+Cohesion: 0.13
+Nodes (19): Migration(), ONLY, OURS, Row, Rows(), STATE_LABEL, Steps(), STOCK (+11 more)
 
-### Community 49 - "Alert Dialog"
-Cohesion: 0.26
-Nodes (15): BrandButton(), brandButtonVariants, ObjectiveMeter(), thumb(), byWindow(), clamp(), Column(), store() (+7 more)
+### Community 54 - "v2 Store Reducer (2)"
+Cohesion: 0.19
+Nodes (15): DeviceFrame(), TABLET, useTabletScale(), resetDesktop(), PrototypeBar(), Bar, installScrollIndicator(), SIZES (+7 more)
 
-### Community 50 - "Buttons, Drawer, Questionnaire (2)"
+### Community 55 - "Stylesheet Entry and Runtime Deps"
 Cohesion: 0.13
 Nodes (7): buttonVariants, Calendar(), CalendarDayButton(), QuestionnaireNext(), QuestionnairePrevious(), QuestionnaireSkip(), QuestionnaireSubmit()
 
-### Community 51 - "Console Drawer and Editor Tabs"
-Cohesion: 0.22
-Nodes (16): ConsoleDrawer(), ConsoleDrawerActions(), ConsoleDrawerBar(), ConsoleDrawerContent(), ConsoleDrawerContext, ConsoleDrawerStatus(), Ctx, EditorTab() (+8 more)
+### Community 56 - "Lessons and Principles"
+Cohesion: 0.18
+Nodes (17): Empty(), EmptyContent(), EmptyDescription(), EmptyHeader(), EmptyMedia(), emptyMediaVariants, EmptyTitle(), arriving() (+9 more)
 
-### Community 52 - "shadcn Components Config"
-Cohesion: 0.12
-Nodes (16): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+8 more)
-
-### Community 53 - "Alert Dialog (2)"
-Cohesion: 0.37
-Nodes (13): AlertDialog(), AlertDialogAction(), AlertDialogCancel(), AlertDialogContent(), AlertDialogDescription(), AlertDialogFooter(), AlertDialogHeader(), AlertDialogOverlay() (+5 more)
-
-### Community 54 - "Combobox"
+### Community 57 - "v2 Thumbs and Card Types (2) (2)"
 Cohesion: 0.15
-Nodes (8): ComboboxChip(), ComboboxClear(), ComboboxInput(), ComboboxTrigger(), InputGroupButton(), inputGroupButtonVariants, --color-accent-foreground (@theme), --accent-foreground
+Nodes (17): ActionCard(), ActionCardAction(), ActionCardContent(), ActionCardDescription(), ActionCardEyebrow(), ActionCardLink(), ActionCardMedia(), ActionCardTitle() (+9 more)
 
-### Community 55 - "Node TypeScript Config"
+### Community 58 - "Menubar, Pagination, Breadcrumb (2)"
+Cohesion: 0.14
+Nodes (9): ComboboxChip(), ComboboxClear(), ComboboxInput(), ComboboxTrigger(), InputGroupButton(), inputGroupButtonVariants, InputGroupInput(), Input() (+1 more)
+
+### Community 59 - "v1 Desktop Nav and Glyphs (2) (2)"
+Cohesion: 0.18
+Nodes (15): AspectRatio(), Carousel(), CarouselApi, CarouselContent(), CarouselContext, CarouselContextProps, CarouselItem(), CarouselNext() (+7 more)
+
+### Community 60 - "Tailwind Theme and Code Views (3)"
+Cohesion: 0.14
+Nodes (16): Composer(), ComposerAdd(), ComposerBanner(), ComposerChip(), ComposerContext, ComposerContextList(), ComposerContextValue, ComposerEffort() (+8 more)
+
+### Community 61 - "Carousel"
 Cohesion: 0.12
 Nodes (16): compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib, module, moduleDetection, noEmit, noFallthroughCasesInSwitch (+8 more)
 
-### Community 56 - "Stylesheet Entry and Runtime Deps"
-Cohesion: 0.14
-Nodes (14): tailwind, baseColor, config, css, cssVariables, prefix, shadcn@^4.21.0, tailwindcss@^4.3.3 (+6 more)
+### Community 62 - "Stylesheet Entry and Runtime Deps (2)"
+Cohesion: 0.34
+Nodes (12): AlertDialog(), AlertDialogAction(), AlertDialogCancel(), AlertDialogContent(), AlertDialogDescription(), AlertDialogFooter(), AlertDialogHeader(), AlertDialogOverlay() (+4 more)
 
-### Community 57 - "v2 Keys and Block Insert (2)"
-Cohesion: 0.18
-Nodes (11): lucide-react, StepperStatus, command(), lastResult(), ResultTurn, TerminalBody(), BuildLog(), said() (+3 more)
+### Community 63 - "Tailwind Theme and Code Views (4)"
+Cohesion: 0.13
+Nodes (14): Diagnostic(), DiagnosticCode(), DiagnosticDescription(), DiagnosticFooter(), DiagnosticHeader(), DiagnosticLine(), DiagnosticSource(), DiagnosticTitle() (+6 more)
 
-### Community 58 - "Carousel"
+### Community 64 - "Tailwind Theme and Code Views (2) (2)"
+Cohesion: 0.17
+Nodes (11): Hello Anchor tutorial prototype v1 entry (src/prototype/tutorial/main.tsx), Hello Anchor tutorial prototype v2 entry (src/prototype/tutorial-v2/main.tsx), build.sh script, v1 basic auth middleware.js (env credentials, X-Robots-Tag), Deploying the tutorial prototype (v1), Vercel project playground-tutorial-prototype (Hoodies team), build.sh script, v2 basic auth middleware.js (env credentials, X-Robots-Tag, root redirect to /prototype/tutorial-v2/) (+3 more)
+
+### Community 65 - "v2 Store Reducer (2)"
+Cohesion: 0.15
+Nodes (9): here, PORT, ROOT, DIST, errors, here, indexFile, server (+1 more)
+
+### Community 66 - "Sidebar and Inputs"
+Cohesion: 0.23
+Nodes (8): DropdownMenu(), DropdownMenuContent(), DropdownMenuLabel(), DropdownMenuRadioGroup(), DropdownMenuRadioItem(), DropdownMenuTrigger(), FilterButton(), FilterMenu()
+
+### Community 67 - "v2 Build History and Handoff (2)"
 Cohesion: 0.21
-Nodes (14): Carousel(), CarouselApi, CarouselContent(), CarouselContext, CarouselContextProps, CarouselItem(), CarouselNext(), CarouselOptions (+6 more)
+Nodes (12): Sheet(), SheetContent(), SheetDescription(), SheetHeader(), SheetOverlay(), SheetPortal(), SheetTitle(), SheetTrigger() (+4 more)
 
-### Community 59 - "Dev Dependencies"
-Cohesion: 0.14
-Nodes (14): devDependencies, oxlint@^1.81.0, @tailwindcss/cli@^4.3.3, @types/node@^24.13.3, @types/react@^19.2.18, @types/react-dom@^19.2.7, typescript@~6.0.2, @vitejs/plugin-react@^6.1.1 (+6 more)
+### Community 68 - "Component Registry"
+Cohesion: 0.15
+Nodes (13): devDependencies, oxlint@^1.81.0, @tailwindcss/cli@^4.3.3, @types/node@^24.13.3, @types/react@^19.2.18, @types/react-dom@^19.2.7, typescript@~6.0.2, oxlint (+5 more)
 
-### Community 60 - "Stepper Lab and React Root (2)"
-Cohesion: 0.32
-Nodes (12): BarProps, CompactBar(), FullBar(), litCount(), quarter(), Segment(), StepBar(), StepTrack() (+4 more)
-
-### Community 61 - "Chart"
+### Community 69 - "Dialogs and Command Menu (2)"
 Cohesion: 0.22
 Nodes (12): ChartConfig, ChartContainer(), ChartContext, ChartContextProps, ChartLegendContent(), ChartStyle(), ChartTooltipContent(), getPayloadConfigFromPayload() (+4 more)
 
-### Community 62 - "v2 Lesson Script Data (2)"
-Cohesion: 0.27
-Nodes (10): NAMED_TX_SIGNATURE, Tx, TX_SIGNATURE, clientTx(), lastTx(), namedTx(), onDevnet(), stepTx() (+2 more)
+### Community 70 - "v1 Desktop Nav and Glyphs (4)"
+Cohesion: 0.37
+Nodes (12): BarProps, columns(), CompactBar(), FullBar(), litCount(), quarter(), Segment(), StepBar() (+4 more)
 
-### Community 63 - "Code Blocks and Diagnostics (2)"
+### Community 71 - "v2 Thumbs and Card Types (2) (2)"
 Cohesion: 0.20
-Nodes (8): StageEmpty(), StageEmptyActions(), StageEmptyDescription(), StageEmptyFooter(), StageEmptyMedia(), StageEmptyMeta(), StageEmptyTitle(), --font-weight-headline (@theme)
+Nodes (10): StatusDot(), statusDotVariants, Terminal(), TerminalCaret(), TerminalLine(), terminalLineVariants, --animate-caret (@theme), --animate-pulse-dot (@theme) (+2 more)
 
-### Community 64 - "Vite Build Tooling"
-Cohesion: 0.39
-Nodes (5): @tailwindcss/vite@^4.3.3, vite@^8.3.0, @tailwindcss/vite, vite, @vitejs/plugin-react
+### Community 72 - "v2 Thumbs and Card Types (3)"
+Cohesion: 0.33
+Nodes (7): useStartedLessons(), Gallery(), NAV_ICONS, PhoneMenu(), Row(), soon(), TopBar()
 
-### Community 65 - "Package Scripts"
+### Community 73 - "Lessons and Principles (2)"
+Cohesion: 0.26
+Nodes (11): deployedArgs(), DISCRIMINATORS, Idl, IdlArg, IdlIx, idlLine(), idlOf(), idlShape() (+3 more)
+
+### Community 74 - "Tailwind Theme and Code Views (2) (3)"
+Cohesion: 0.18
+Nodes (6): Principle: desktop is the reference, tablet and phone follow, config, config, Build 10/24 to 10/26 in spec section 15 order, Desktop is the reference; phone redesigned to follow it, Stand playground-tutorial-prototype-v2 behind basic auth
+
+### Community 75 - "v2 Store Reducer (2) (2)"
+Cohesion: 0.18
+Nodes (7): here, OURS, plain, registry, specific, system, UI
+
+### Community 76 - "v2 Stand Package"
+Cohesion: 0.29
+Nodes (10): Art, asked, BrandArt(), ReceiptArt(), reduced(), SHORT, StartHereArt(), StepsArt() (+2 more)
+
+### Community 77 - "Stylesheet Entry and Runtime Deps"
+Cohesion: 0.24
+Nodes (8): shadcn@^4.21.0, tailwindcss@^4.3.3, tw-animate-css@^1.4.0, shadcn/ui, shadcn, tailwindcss, tw-animate-css, --font-text
+
+### Community 78 - "v1 Desktop Nav and Glyphs (3)"
+Cohesion: 0.33
+Nodes (6): @tailwindcss/vite@^4.3.3, vite@^8.3.0, @vitejs/plugin-react@^6.1.1, @tailwindcss/vite, vite, @vitejs/plugin-react
+
+### Community 79 - "v2 Build History and Handoff (3)"
+Cohesion: 0.27
+Nodes (8): Alert(), AlertDescription(), AlertTitle(), alertVariants, Progress(), Feedback(), --color-card (@theme), --color-card-foreground (@theme)
+
+### Community 80 - "Registry and Snapshot Scripts (2)"
 Cohesion: 0.22
 Nodes (9): scripts, build, build:inject, build:prototype, build:registry, dev, lint, preview (+1 more)
 
-### Community 66 - "Composer and Setup List (3)"
+### Community 81 - "v2 Store Reducer (4)"
 Cohesion: 0.25
 Nodes (8): Diff(), DiffContent(), DiffFooter(), DiffHeader(), DiffLine(), diffLineVariants, DiffStat(), DiffTitle()
 
-### Community 67 - "Start Here Surface Styles"
-Cohesion: 0.22
-Nodes (7): BAYER, FIELD, --color-brand-green (@theme), --color-brand-violet (@theme), --brand-green, --brand-purple, --brand-violet
+### Community 82 - "Select and Input Groups (2)"
+Cohesion: 0.33
+Nodes (4): Popover(), PopoverAnchor(), PopoverContent(), PopoverTrigger()
 
-### Community 68 - "v1 Desktop Nav and Glyphs (4)"
+### Community 83 - "Buttons, Drawer, Questionnaire (2)"
+Cohesion: 0.25
+Nodes (5): GLYPH, ROW, Step, STEPS, NAV_ICONS
+
+### Community 84 - "v2 Thumbs and Card Types (4)"
+Cohesion: 0.33
+Nodes (8): COARSE, FINE, isCoarse(), listeners, subscribeHints(), useCoarse(), useKeyHints(), watch()
+
+### Community 85 - "Start Here Surface Styles"
+Cohesion: 0.25
+Nodes (6): BAYER, FIELD, --color-brand-green (@theme), --color-brand-violet (@theme), --brand-green, --brand-violet
+
+### Community 86 - "Tailwind Theme and Code Views (3)"
 Cohesion: 0.25
 Nodes (6): BEDS, Field, FIELDS, Ground, GROUND_BY_FRAMEWORK, PLACES
 
-### Community 69 - "v2 Gallery and Tutorial List (2)"
+### Community 87 - "Navigation Menu Blocks"
+Cohesion: 0.32
+Nodes (6): INITIAL_FILES, clientStep(), Entry, FileTreeList(), ROW, treeOf()
+
+### Community 88 - "Start Here Surface Styles"
 Cohesion: 0.25
 Nodes (6): BEDS, Field, FIELDS, Ground, GROUND_BY_FRAMEWORK, PLACES
 
-### Community 70 - "v1 Stand Package"
+### Community 89 - "Code Blocks and Diagnostics (2) (2)"
 Cohesion: 0.33
 Nodes (6): dependencies, @vercel/functions@^3.10.2, @vercel/functions, name, private, type
 
-### Community 71 - "v2 Stand Package"
+### Community 90 - "Menubar, Pagination, Breadcrumb (3)"
 Cohesion: 0.33
 Nodes (6): dependencies, @vercel/functions@^3.10.2, @vercel/functions, name, private, type
 
-### Community 72 - "Composer and Setup List (4)"
-Cohesion: 0.29
-Nodes (6): CodeBlock(), CodeBlockActions(), CodeBlockContent(), CodeBlockHeader(), CodeBlockLine(), CodeBlockTitle()
-
-### Community 73 - "Cards, Tables, Accordion (2)"
-Cohesion: 0.33
-Nodes (7): KbdGroup(), ToggleGroup(), ToggleGroupItem(), Toggle(), toggleVariants, More(), Actions()
-
-### Community 74 - "Lint Config"
+### Community 91 - "Combobox (2)"
 Cohesion: 0.33
 Nodes (5): plugins, rules, react/only-export-components, react/rules-of-hooks, $schema
 
-### Community 75 - "Achievements and Finish (2)"
-Cohesion: 0.40
-Nodes (6): BrandArt(), ReceiptArt(), reduced(), StartHereArt(), StepsArt(), useSweep()
+### Community 92 - "Cards, Tables, Accordion (2)"
+Cohesion: 0.53
+Nodes (5): NEXT_TUTORIAL, DesktopBanner(), QuietAction(), StartHereBanner(), useBanner()
 
-### Community 76 - "v2 Resizable Column"
+### Community 93 - "Composer and Setup List"
 Cohesion: 0.67
 Nodes (5): byWindow(), clamp(), Column(), store(), stored()
 
-### Community 77 - "v2 Keys and Block Insert (3)"
-Cohesion: 0.47
-Nodes (5): pace(), Runner(), Action, stageMs(), One store for desktop and phone: the thread is the lesson
-
-### Community 78 - "Design System Docs (2)"
+### Community 94 - "Runtime Dependencies (2)"
 Cohesion: 0.40
 Nodes (5): @shadcn/react@^0.3.1, message-scroller component, questionnaire component, @shadcn/react runtime package, @shadcn/react
 
-### Community 79 - "v2 Vercel Config"
+### Community 95 - "Alert Dialog"
 Cohesion: 0.40
 Nodes (4): buildCommand, framework, outputDirectory, $schema
 
-### Community 80 - "v1 Vercel Config"
+### Community 96 - "v2 Resizable Column"
 Cohesion: 0.40
 Nodes (4): buildCommand, framework, outputDirectory, $schema
 
-### Community 81 - "Anchor and Seahorse Thumbs"
+### Community 97 - "v2 Vercel Config"
 Cohesion: 0.40
 Nodes (5): Faucet Seahorse thumbnail (seahorse at a water tap), Hello Anchor tutorial thumbnail, Anchor framework, Hello Seahorse tutorial thumbnail, Seahorse framework (Python for Solana)
 
-### Community 82 - "Component Registry"
+### Community 98 - "v1 Vercel Config"
 Cohesion: 0.40
 Nodes (4): homepage, items, name, $schema
 
-### Community 84 - "Root TypeScript Config"
+### Community 99 - "DS Site App Shell"
 Cohesion: 0.40
 Nodes (4): compilerOptions, paths, files, references
 
-### Community 85 - "Design System Docs (3)"
+### Community 100 - "Menu Motion Tokens"
 Cohesion: 0.50
 Nodes (4): Step bar lab prototype entry (src/prototype/stepper-lab/main.tsx), Segmented component, Stepper component, use-indicator hook (measured sliding thumb)
 
-### Community 86 - "Menu Motion Tokens"
-Cohesion: 0.50
-Nodes (4): --animate-menu-in (@theme), --ease-menu (@theme), --duration-menu, --ease-menu-value
-
-### Community 87 - "DS Site App Shell (2)"
-Cohesion: 0.50
-Nodes (4): .bg-gradient-product (@utility), .brand-action (@utility), --gradient-product, --surface-hover
-
-### Community 88 - "Finance Tutorial Thumbs"
+### Community 102 - "Favicon"
 Cohesion: 0.67
 Nodes (3): Bank Simulator tutorial thumbnail, Clockwork (on-chain automation for interest returns), Expense Tracker tutorial thumbnail (on-chain CRUD, donut chart)
 
-### Community 89 - "Seahorse Game Thumbs"
+### Community 103 - "Battle Game Thumbs"
 Cohesion: 1.00
 Nodes (3): Seahorse (Python framework for Solana programs), TicTacToe Seahorse tutorial thumbnail (cartoon seahorse and crabs on tic tac toe sand board), Todo App Seahorse tutorial thumbnail (seahorse with TODO clipboard)
 
 ## Knowledge Gaps
-- **81 isolated node(s):** `Counter PDA tutorial thumbnail (+1 on purple-teal gradient)`, `Lumberjack tutorial thumbnail (bearded lumberjack portrait)`, `combobox component (Base UI)`, `solana-playground-ds.vercel.app (DS page + product + Studio)`, `Studio picking by data-slot / data-variant / data-size / data-status` (+76 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 584 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **26 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **82 isolated node(s):** `Counter PDA tutorial thumbnail (+1 on purple-teal gradient)`, `Lumberjack tutorial thumbnail (bearded lumberjack portrait)`, `combobox component (Base UI)`, `Still open: sign in, share link, model name, Home, New project, Programs, network failures`, `Real in the prototype: flow, states, copy, timings, keys, editor check, IDL form, layout` (+77 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 624 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **13 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `Select and Input Groups` to `v2 Thumbs and Card Types`, `v2 Desktop Nav`, `Cards, Tables, Accordion`, `v1 Action Bar and Pointer`, `Dialogs and Command Menu`, `Code Blocks and Diagnostics`, `Tailwind Theme and Code Views`, `Tailwind Theme and Code Views (2)`, `Composer and Setup List`, `Menubar, Pagination, Breadcrumb`, `v2 Store Reducer`, `v1 Desktop Nav and Glyphs`, `v1 Tutorial Store and Data`, `v1 Iso Voxel Art`, `Merge Conflict UI`, `Stepper Lab and React Root`, `v1 Gallery Catalog`, `Runtime Dependencies`, `v2 Receipt and Finish`, `v2 Canned Answers`, `v1 Desktop Nav and Glyphs (2)`, `Chat Messages and Attachments`, `v2 Lesson Script Data`, `v2 Gallery and Tutorial List`, `v2 Iso Voxel Art`, `Buttons, Drawer, Questionnaire`, `v1 Receipt and Program Id`, `Navigation Menu Blocks`, `v2 Keys and Block Insert`, `Empty States and Async Button`, `DS Site App Shell`, `Sidebar and Inputs`, `Composer and Setup List (2)`, `Achievements and Finish`, `DS Site App Shell (2)`, `Sheet and Phone Menu`, `Fields and Button Groups`, `Alert Dialog`, `Buttons, Drawer, Questionnaire (2)`, `Console Drawer and Editor Tabs`, `Alert Dialog (2)`, `Combobox`, `v2 Keys and Block Insert (2)`, `Carousel`, `Stepper Lab and React Root (2)`, `Chart`, `Code Blocks and Diagnostics (2)`, `Composer and Setup List (3)`, `Start Here Surface Styles`, `Composer and Setup List (4)`, `v2 Resizable Column`, `v2 Keys and Block Insert (3)`?**
-  _High betweenness centrality (0.172) - this node is a cross-community bridge._
+- **Why does `react` connect `Design Tokens (tokens.css)` to `Code Blocks and Diagnostics (2)`, `Chat Messages and Attachments (2)`, `v1 Code Check Tests`, `v2 Lesson Script Data`, `Tailwind Theme and Code Views`, `Composer and Setup List (4)`, `Console Drawer and Editor Tabs`, `v1 Code Check Tests (2)`, `Prototype v2 Stylesheet`, `v1 Desktop Nav and Glyphs (2)`, `v1 Code Check Tests (3)`, `shadcn Components Config`, `v1 Gallery Catalog`, `Merge Conflict UI`, `Composer and Setup List (2)`, `Select and Input Groups`, `Empty States and Async Button`, `Tailwind Theme and Code Views (2)`, `v1 Desktop Nav and Glyphs`, `Cards, Tables, Accordion`, `Cards, Tables, Accordion (2)`, `Prototype v2 Stylesheet (2)`, `v1 Code Check Tests (4)`, `DS Site App Shell (2)`, `Fields and Button Groups`, `v2 Thumbs and Card Types`, `v2 Canned Answers (2)`, `v2 Build History and Handoff`, `Code Blocks and Diagnostics (2) (2)`, `v2 Desktop Nav (4)`, `App TypeScript Config`, `v1 Tutorial Store and Data (2)`, `Chat Messages and Attachments`, `Design Tokens (tokens.css) (2)`, `v2 Iso Voxel Art`, `v2 Desktop Nav (3)`, `Buttons, Drawer, Questionnaire`, `v2 Thumbs and Card Types (2)`, `v2 Store Reducer`, `v2 Store Reducer (2)`, `Stylesheet Entry and Runtime Deps`, `Lessons and Principles`, `v2 Thumbs and Card Types (2) (2)`, `Menubar, Pagination, Breadcrumb (2)`, `v1 Desktop Nav and Glyphs (2) (2)`, `Tailwind Theme and Code Views (3)`, `Stylesheet Entry and Runtime Deps (2)`, `Tailwind Theme and Code Views (4)`, `Sidebar and Inputs`, `v2 Build History and Handoff (2)`, `Dialogs and Command Menu (2)`, `v1 Desktop Nav and Glyphs (4)`, `v2 Thumbs and Card Types (2) (2)`, `v2 Thumbs and Card Types (3)`, `v2 Stand Package`, `v2 Build History and Handoff (3)`, `v2 Store Reducer (4)`, `Select and Input Groups (2)`, `Buttons, Drawer, Questionnaire (2)`, `v2 Thumbs and Card Types (4)`, `Start Here Surface Styles`, `Navigation Menu Blocks`, `Cards, Tables, Accordion (2)`, `Composer and Setup List`?**
+  _High betweenness centrality (0.247) - this node is a cross-community bridge._
 - **What connects `Counter PDA tutorial thumbnail (+1 on purple-teal gradient)`, `Lumberjack tutorial thumbnail (bearded lumberjack portrait)`, `combobox component (Base UI)` to the rest of the system?**
-  _81 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `v2 Thumbs and Card Types` be split into smaller, more focused modules?**
-  _Cohesion score 0.057647801388596674 - nodes in this community are weakly interconnected._
-- **Why does `--color-muted-foreground (@theme)` connect `Tailwind Theme and Code Views (2)` to `v2 Thumbs and Card Types`, `v2 Desktop Nav`, `Cards, Tables, Accordion`, `Select and Input Groups`, `v1 Action Bar and Pointer`, `Dialogs and Command Menu`, `Code Blocks and Diagnostics`, `Prototype v2 Stylesheet`, `Tailwind Theme and Code Views`, `Composer and Setup List`, `Menubar, Pagination, Breadcrumb`, `v1 Desktop Nav and Glyphs`, `Tailwind Theme and Code Views`, `Design Tokens (tokens.css) (2)`, `v1 Iso Voxel Art`, `Merge Conflict UI`, `Stepper Lab and React Root`, `v1 Gallery Catalog`, `v2 Receipt and Finish`, `v2 Canned Answers`, `v1 Desktop Nav and Glyphs (2)`, `Chat Messages and Attachments`, `v2 Lesson Script Data`, `v2 Gallery and Tutorial List`, `Buttons, Drawer, Questionnaire`, `v1 Receipt and Program Id`, `Navigation Menu Blocks`, `Empty States and Async Button`, `DS Site App Shell`, `Composer and Setup List (2)`, `Achievements and Finish`, `DS Site App Shell (2)`, `Sheet and Phone Menu`, `Fields and Button Groups`, `Alert Dialog`, `Buttons, Drawer, Questionnaire (2)`, `Console Drawer and Editor Tabs`, `Alert Dialog (2)`, `Combobox`, `v2 Keys and Block Insert (2)`, `Stepper Lab and React Root (2)`, `Chart`, `Code Blocks and Diagnostics (2)`, `Composer and Setup List (3)`, `Composer and Setup List (4)`?**
-  _High betweenness centrality (0.059) - this node is a cross-community bridge._
-- **Should `v2 Desktop Nav` be split into smaller, more focused modules?**
-  _Cohesion score 0.0644384221619994 - nodes in this community are weakly interconnected._
-- **Why does `--color-foreground (@theme)` connect `Tailwind Theme and Code Views (2)` to `v2 Thumbs and Card Types`, `v2 Desktop Nav`, `Cards, Tables, Accordion`, `Select and Input Groups`, `v1 Action Bar and Pointer`, `Dialogs and Command Menu`, `Code Blocks and Diagnostics`, `Tailwind Theme and Code Views`, `Composer and Setup List`, `Menubar, Pagination, Breadcrumb`, `v1 Desktop Nav and Glyphs`, `Tailwind Theme and Code Views`, `v1 Iso Voxel Art`, `Merge Conflict UI`, `Stepper Lab and React Root`, `v1 Gallery Catalog`, `v2 Receipt and Finish`, `v2 Canned Answers`, `v1 Desktop Nav and Glyphs (2)`, `Chat Messages and Attachments`, `v2 Lesson Script Data`, `v2 Gallery and Tutorial List`, `Buttons, Drawer, Questionnaire`, `v1 Receipt and Program Id`, `Navigation Menu Blocks`, `Empty States and Async Button`, `DS Site App Shell`, `Composer and Setup List (2)`, `Achievements and Finish`, `DS Site App Shell (2)`, `Sheet and Phone Menu`, `Alert Dialog`, `Console Drawer and Editor Tabs`, `Alert Dialog (2)`, `Combobox`, `v2 Keys and Block Insert (2)`, `Stepper Lab and React Root (2)`, `Chart`, `Code Blocks and Diagnostics (2)`?**
-  _High betweenness centrality (0.045) - this node is a cross-community bridge._
-- **Should `Cards, Tables, Accordion` be split into smaller, more focused modules?**
-  _Cohesion score 0.05898021308980213 - nodes in this community are weakly interconnected._
+  _82 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Design Tokens (tokens.css)` be split into smaller, more focused modules?**
+  _Cohesion score 0.030713058419243985 - nodes in this community are weakly interconnected._
+- **Why does `lucide-react` connect `Chat Messages and Attachments` to `Design Tokens (tokens.css)`, `Code Blocks and Diagnostics (2)`, `Chat Messages and Attachments (2)`, `Design Tokens (tokens.css)`, `v1 Code Check Tests`, `v2 Lesson Script Data`, `Tailwind Theme and Code Views`, `Composer and Setup List (4)`, `Console Drawer and Editor Tabs`, `v1 Code Check Tests (2)`, `Prototype v2 Stylesheet`, `v1 Code Check Tests (3)`, `v1 Gallery Catalog`, `Merge Conflict UI`, `Composer and Setup List (2)`, `Select and Input Groups`, `Empty States and Async Button`, `Tailwind Theme and Code Views (2)`, `v1 Desktop Nav and Glyphs`, `Prototype v2 Stylesheet (2)`, `v1 Code Check Tests (4)`, `DS Site App Shell (2)`, `Fields and Button Groups`, `v2 Thumbs and Card Types`, `v2 Canned Answers (2)`, `v2 Desktop Nav (4)`, `App TypeScript Config`, `v1 Tutorial Store and Data (2)`, `Design Tokens (tokens.css) (2)`, `v2 Iso Voxel Art`, `v2 Desktop Nav (3)`, `v2 Thumbs and Card Types (2)`, `v2 Store Reducer`, `v2 Store Reducer (2)`, `Stylesheet Entry and Runtime Deps`, `Lessons and Principles`, `Menubar, Pagination, Breadcrumb (2)`, `v1 Desktop Nav and Glyphs (2) (2)`, `Tailwind Theme and Code Views (3)`, `Sidebar and Inputs`, `v2 Build History and Handoff (2)`, `v2 Thumbs and Card Types (3)`, `v2 Stand Package`, `Navigation Menu Blocks`, `Cards, Tables, Accordion (2)`?**
+  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+- **Should `Code Blocks and Diagnostics (2)` be split into smaller, more focused modules?**
+  _Cohesion score 0.05955734406438632 - nodes in this community are weakly interconnected._
+- **Why does `Tutorial prototype v2 guide (README)` connect `v2 Build History and Handoff` to `Lessons and Principles`, `Prototype v2 Stylesheet`, `Tailwind Theme and Code Views (2) (3)`, `v2 Store Reducer`, `v1 Code Check Tests (4)`?**
+  _High betweenness centrality (0.041) - this node is a cross-community bridge._
+- **Should `Chat Messages and Attachments (2)` be split into smaller, more focused modules?**
+  _Cohesion score 0.05625 - nodes in this community are weakly interconnected._

@@ -1,38 +1,42 @@
 import { useEffect, useId, useRef, useState, type ComponentProps } from "react"
 import { ArrowRight, Check } from "lucide-react"
-import { toast } from "sonner"
 
 import { BrandButton } from "@/components/ui/brand-button"
 import { cn } from "@/lib/utils"
 
-import { NEXT_TUTORIAL, STEPS } from "../data"
-import { useStore } from "../store"
+import { cardOf, useFeatured, useOpenTutorial, useProgress } from "../host"
+import { LESSONS } from "../lessons"
 import { IsoVoxels } from "./IsoVoxels"
 
 /** What the banner says in each state, the same on every size */
 function useBanner() {
-  const { s, dispatch } = useStore()
-  const finished = s.finishedAt !== null
-  const started = s.startedAt !== null && !finished
+  const slug = useFeatured()
+  const lesson = LESSONS[slug]
+  const STEPS = lesson.steps
+  const p = useProgress(slug)
+  const openTutorial = useOpenTutorial()
+  const finished = p.finished
+  const started = p.started && !finished
   const fresh = !started && !finished
-  const done = s.passed.filter(Boolean).length
-  const first = s.passed.findIndex((p) => !p)
+  const done = p.passed.filter(Boolean).length
+  const first = STEPS.findIndex((_, i) => !p.passed[i])
 
   const label = finished ? "Completed" : started ? `Continue · Step ${Math.min(STEPS.length, (first === -1 ? STEPS.length - 1 : first) + 1)} of ${STEPS.length}` : "Start here"
   const line = finished
-    ? "Your program is on devnet, and its hello came back"
+    ? lesson.headline.replace(/\.$/, "")
     : started
       ? first === -1
         ? "Every step passed. One more tap to finish"
         : `Next: ${STEPS[first].objective}`
-      : "Write, deploy and call your first Solana program"
+      : lesson.line
 
   // The tutorial opens on its conversation: the intro card, or scrolled to the live card
-  const open = () => dispatch({ type: "open", screen: "step" })
+  const open = () => openTutorial(slug)
   const go = open
-  // Only Hello Anchor runs in this prototype, so the next one says so, as the gallery's cards do
-  const next = () => toast("Only Hello Anchor is in this prototype")
-  return { finished, started, fresh, done, label, line, open, go, next }
+  // The one after it on the ladder; one the prototype doesn't run says so, as the gallery's cards do
+  const nextCard = lesson.next ? cardOf(lesson.next) : null
+  const next = () => lesson.next && openTutorial(lesson.next)
+  return { lesson, steps: STEPS.length, nextCard, finished, started, fresh, done, label, line, open, go, next }
 }
 
 /** The second action beside the main button: words and an arrow, no box. Its box is a button's
@@ -119,7 +123,7 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
             {b.label}
           </p>
           <h2 id={titleId} className="mt-1.5 font-heading text-[1.5rem] font-normal tracking-[-0.015em] text-foreground">
-            Hello Anchor
+            {b.lesson.card.name}
           </h2>
           <p className="mt-2 max-w-[44ch] text-[0.9375rem] leading-[1.35] text-balance text-foreground/78">{b.line}</p>
           {b.started ? (
@@ -127,18 +131,20 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
               <span aria-hidden="true" className="h-[3px] flex-1 overflow-hidden rounded-[2px] bg-border">
                 <span
                   className="block h-full bg-[linear-gradient(90deg,#9945ff,#14f195)] transition-[width] duration-400 ease-[cubic-bezier(0.2,0,0,1)]"
-                  style={{ width: `${(b.done / STEPS.length) * 100}%` }}
+                  style={{ width: `${(b.done / b.steps) * 100}%` }}
                 />
               </span>
               <span className="text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">
-                {b.done} of {STEPS.length}
+                {b.done} of {b.steps}
               </span>
             </div>
           ) : (
             !b.finished && (
               <p className="mt-3 text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">
                 {/* The phone's column takes the facts that decide a start; the framework and the author are on the card below */}
-                {phone ? `Beginner · ${STEPS.length} steps · 10 min` : `10 min · ${STEPS.length} steps · Beginner · Anchor · by acheron`}
+                {phone
+                  ? `${b.lesson.card.level} · ${b.steps} steps · ${b.lesson.minutes} min`
+                  : `${b.lesson.minutes} min · ${b.steps} steps · ${b.lesson.card.level} · ${b.lesson.card.framework} · by ${b.lesson.by}`}
               </p>
             )
           )}
@@ -147,9 +153,11 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
           <div className={cn("mt-6 flex flex-wrap items-center gap-x-4 gap-y-2", phone && "[&>button:first-child]:h-12 [&>button:first-child]:w-full")}>
             {b.finished ? (
               <>
-                <BrandButton className={GO} onClick={b.next}>
-                  Start {NEXT_TUTORIAL.name}
-                </BrandButton>
+                {b.nextCard && (
+                  <BrandButton className={GO} onClick={b.next}>
+                    Start {b.nextCard.name}
+                  </BrandButton>
+                )}
                 {/* Its 44 for the thumb reaches below the words: given back, so the card's foot is as deep as its head */}
                 <QuietAction onClick={b.open} className={cn(phone && "-mb-3")}>
                   Open again

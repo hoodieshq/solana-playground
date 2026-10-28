@@ -1,12 +1,12 @@
-import { STEPS, type Act, type Chip, type Follow } from "./data"
+import { LESSON, STEPS, type Act, type Chip, type Follow } from "./data"
 
 // What the composer understands. The prototype has no model: a word that names the live action
 // runs it, a few intents get their own turns, the rest is matched against canned answers. A free
 // answer never changes a file or runs anything (spec 7.7)
 
 /** The one action word a message can be, alone or with "please": build, deploy, run, call, send,
- * next, explain. What it does depends on the live card, so the store decides */
-export type Word = "build" | "deploy" | "run" | "call" | "send" | "next" | "explain"
+ * chop, next, explain. What it does depends on the live card, so the store decides */
+export type Word = "build" | "deploy" | "run" | "call" | "send" | "chop" | "grow" | "next" | "explain"
 
 export function actionWord(text: string): Word | null {
   const t = text
@@ -15,7 +15,7 @@ export function actionWord(text: string): Word | null {
     .replace(/[.!?]+$/, "")
     .replace(/^(please\s+)|(\s+please)$/g, "")
     .trim()
-  const words: Word[] = ["build", "deploy", "run", "call", "send", "next", "explain"]
+  const words: Word[] = ["build", "deploy", "run", "call", "send", "chop", "grow", "next", "explain"]
   return (words as string[]).includes(t) ? (t as Word) : null
 }
 
@@ -25,7 +25,9 @@ export function wordFits(word: Word, act: Act | null): boolean {
   if (word === "build") return act === "build" || act === "buildDeploy"
   if (word === "deploy") return act === "deploy" || act === "buildDeploy"
   if (word === "run") return act === "run"
-  if (word === "call" || word === "send") return act === "call"
+  if (word === "call" || word === "send") return act === "call" || act === "send"
+  if (word === "chop") return act === "chop"
+  if (word === "grow") return act === "grow"
   return false
 }
 
@@ -59,10 +61,18 @@ const WHERE_PHONE: Answer = {
 }
 
 const GLOBAL: { match: RegExp; answer: Answer }[] = [
+  // Every lesson deploys an IDL and draws the Call panel from it, so every lesson can say what it is
+  {
+    match: /\bidl\b/i,
+    answer: {
+      text: "The IDL is your program's interface, written by the build: its instructions, their arguments and accounts. Clients read it to know how to call you, and the Call panel is built from it.",
+      follow: "openTest",
+    },
+  },
   {
     match: /(create|build|make|start).*(project|app)/i,
     answer: {
-      text: "I can't set up a new project from here yet. Finish this one first: in 10 minutes you'll know the pieces every project needs. Afterwards, New project in the menu is where to start.",
+      text: "I can't set up a new project from here yet. Finish this one first: you'll know the pieces every project needs. Afterwards, New project in the menu is where to start.",
     },
   },
 ]
@@ -74,10 +84,8 @@ export const FALLBACK =
 /** The same, with no question open to give a hint */
 export const FALLBACK_NO_ASK = "That one's past this prototype: in the product, the model behind the assistant answers it. Here, ask about this step or pick a suggestion."
 
-export const NEXT_ANSWER: Answer = {
-  text: "Counter PDA Tutorial is a good next one: it stores a number on chain and changes it, so you meet accounts for real.",
-  follow: "nextTutorial",
-}
+/** What to build next: the lesson's own pointer to the tutorial after it */
+export const nextAnswer = (): Answer => (LESSON.next ? { text: LESSON.nextLine, follow: "nextTutorial" } : { text: LESSON.nextLine })
 
 /** The situation an answer depends on: the step, whether a question or a failure is live, whether
  * the program is deployed yet */
@@ -99,7 +107,7 @@ export function answerFor(c: Context, text: string): Answer {
   const fit = (a: Answer): Answer => (a.follow === "openTest" && !c.deployed ? { text: a.text } : a)
   if (t === STUCK) return stuckAnswer(c)
   if (t === EXPLAIN_STEP) return { text: step.explainStep }
-  if (t === NEXT_CHIP) return NEXT_ANSWER
+  if (t === NEXT_CHIP) return nextAnswer()
   const chips = [...c.chips, ...STEPS.flatMap((s) => [...s.chips, ...(s.errorChips ?? [])])]
   const chip = chips.find((x) => plain(x.label) === plain(t))
   if (chip) return fit({ text: chip.answer, follow: chip.follow })
@@ -109,7 +117,7 @@ export function answerFor(c: Context, text: string): Answer {
     return c.hint ? { text: "Pick an answer and I'll write it, or press Skip and I'll write it straight away." } : { text: step.explainStep }
   if (WHERE.test(t)) return c.phone ? WHERE_PHONE : WHERE_DESKTOP
   const global = GLOBAL.find((g) => g.match.test(t))
-  if (global) return global.answer
+  if (global) return fit(global.answer)
   // A question in other words still finds its answer by its subject, this step's first, then the lesson's
   const named = chips.find((x) => x.match?.test(t)) ?? STEPS.flatMap((s) => (s.answers ?? []).filter((a) => !a.local)).find((a) => a.match.test(t))
   if (named) return fit({ text: named.answer, follow: named.follow })

@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Kbd } from "@/components/ui/kbd"
 
+import { LESSON } from "../data"
 import { useStore } from "../store"
 import { ChatComposer } from "../ui/ChatComposer"
 import { Conversation, type Jump } from "../ui/Conversation"
@@ -53,7 +54,7 @@ export function ChatColumn({ jump, onPick, viewing, onViewing }: { jump: Jump; o
           <ChevronLeft className="size-4" />
           Tutorials
         </Button>
-        <h1 className="ml-2 min-w-0 flex-1 truncate text-[0.875rem] text-foreground">Hello Anchor</h1>
+        <h1 className="ml-2 min-w-0 flex-1 truncate text-[0.875rem] text-foreground">{LESSON.card.name}</h1>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label="More" className="text-muted-foreground">

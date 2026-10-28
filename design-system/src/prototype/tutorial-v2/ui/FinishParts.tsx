@@ -1,19 +1,21 @@
 import { useState } from "react";
 import {
   Anchor,
+  Axe,
+  Expand,
   Check,
   ChevronRight,
   Copy,
   ExternalLink,
   Play,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Achievement, AchievementMedia } from "@/components/ui/achievement";
 import { BrandButton } from "@/components/ui/brand-button";
 import { cn } from "@/lib/utils";
 
-import { NEXT_TUTORIAL, STEPS, shortKey } from "../data";
+import { LESSON, NEXT_TUTORIAL, STEPS, TX_FEE, shortKey } from "../data";
+import { useOpenTutorial } from "../host";
 import { useStore } from "../store";
 import { lastTx } from "../tx";
 import { openExplorer } from "./explorer";
@@ -25,10 +27,11 @@ export function FinishBadge({ className }: { className?: string }) {
     <Achievement
       className={cn("mx-auto w-auto", className)}
       role="img"
-      aria-label="Badge earned: First Anchor program"
+      aria-label={`Badge earned: ${LESSON.badge}`}
     >
       <AchievementMedia className="size-16 shadow-glow duration-[440ms] ease-pop animate-in fade-in zoom-in-50 motion-reduce:animate-none">
-        <Anchor />
+        {/* The badge draws what the lesson built: an Anchor program, or a game's axe */}
+        {LESSON.game ? <Axe /> : LESSON.memory ? <Expand /> : <Anchor />}
       </AchievementMedia>
     </Achievement>
   );
@@ -43,11 +46,12 @@ export function FinishMeta({ className }: { className?: string }) {
       ? Math.max(1, Math.round((s.finishedAt - s.startedAt) / 60000))
       : 1;
   return (
+    // text-caption outside cn, which takes it for a colour and drops it next to text-muted-foreground
     <p
-      className={cn(
-        "text-center text-caption text-muted-foreground tabular-nums",
+      className={`${cn(
+        "text-center text-muted-foreground tabular-nums",
         className,
-      )}
+      )} text-caption`}
     >
       <span className="whitespace-nowrap">
         {s.passed.filter(Boolean).length} steps
@@ -78,7 +82,7 @@ export function FinishHeadline({
 }
 
 /** The proof, short: the call and what the program answered, the only place the name appears; then
- * what it cost, with Kora's part in view. The full receipt opens under it on request */
+ * what it cost your wallet, in test SOL. The full receipt opens under it on request */
 export function AnswerCard({ className }: { className?: string }) {
   const { s } = useStore();
   const tx = lastTx(s);
@@ -90,9 +94,11 @@ export function AnswerCard({ className }: { className?: string }) {
       <div className="rounded-card border border-border bg-surface-well">
         <div className="px-4 pt-4 pb-3.5">
           <p className="font-mono text-code text-muted-foreground">
-            {s.name !== null
-              ? `hello("${s.name}") returned`
-              : "hello() returned"}
+            {LESSON.callTx
+              ? s.name !== null
+                ? `hello("${s.name}") returned`
+                : "hello() returned"
+              : `${tx.instruction}() returned`}
           </p>
           <p className="mt-1 font-mono text-[1.375rem] leading-tight font-medium break-words text-foreground max-[30rem]:text-[1.25rem]">
             {tx.said}
@@ -100,8 +106,8 @@ export function AnswerCard({ className }: { className?: string }) {
           <div className="mt-3.5 flex items-start justify-between gap-4 border-t border-border pt-3 text-caption">
             <span className="text-muted-foreground">You paid</span>
             <span className="text-right">
-              <span className="block font-medium text-success">0 SOL</span>
-              <span className="block text-subtle">Fee sponsored by Kora</span>
+              <span className="block font-medium text-foreground">{TX_FEE}</span>
+              <span className="block text-subtle">Devnet SOL: free test money</span>
             </span>
           </div>
         </div>
@@ -172,10 +178,13 @@ export function LearnedList({ className }: { className?: string }) {
 
 /** One way on, and the only gradient on the screen: the next tutorial, by name */
 export function NextTutorialButton({ className }: { className?: string }) {
+  const openTutorial = useOpenTutorial();
+  if (!NEXT_TUTORIAL || !LESSON.next) return null;
+  const next = LESSON.next;
   return (
     <BrandButton
       className={cn("h-12 w-full text-[0.9375rem]", className)}
-      onClick={() => toast("Only Hello Anchor is in this prototype")}
+      onClick={() => openTutorial(next)}
     >
       <Play className="size-4 fill-current" aria-hidden="true" />
       Start {NEXT_TUTORIAL.name}

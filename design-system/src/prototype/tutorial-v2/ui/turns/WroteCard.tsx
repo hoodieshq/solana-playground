@@ -71,15 +71,17 @@ export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: bo
           {shown.map((n) => {
             const k = turn.lines.indexOf(n)
             return (
+              // Two columns that line up with the head: the numbers centred in the file icon's 14 px (from
+              // 12 px in), and the code starting where the file name does, 8 px on
               <span key={n} className="flex pr-3">
-                <span className="w-9 shrink-0 pr-2.5 text-right text-subtle select-none">{n}</span>
+                <span className="w-[1.625rem] shrink-0 pl-3 text-center text-subtle tabular-nums select-none">{n}</span>
                 {/* Wrapped, not cut: the program id is the point of declare_id! */}
-                <span className="min-w-0 flex-1 whitespace-pre-wrap text-syntax-plain [overflow-wrap:anywhere]">{k === -1 ? (rows[n - 1] ?? "") : highlight(text(n, k))}</span>
+                <span className="min-w-0 flex-1 pl-2 whitespace-pre-wrap text-syntax-plain [overflow-wrap:anywhere]">{k === -1 ? (rows[n - 1] ?? "") : highlight(text(n, k))}</span>
               </span>
             )
           })}
           {more > 0 && (
-            <span className="block pl-9 text-subtle">
+            <span className="block pl-[2.125rem] text-subtle">
               {more} more {more === 1 ? "line" : "lines"}
             </span>
           )}

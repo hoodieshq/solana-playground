@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+import { useOpenTutorial, useStartedLessons } from "../host"
 import { useStore } from "../store"
 import { BrandIcon, type BrandIconName } from "./brandGlyphs"
 import { NAV_ICONS } from "./navIcons"
@@ -55,7 +56,10 @@ export function PhoneMenu() {
     { label: "Tutorials", icon: "tutorial", current: !inProject, onClick: go(() => dispatch({ type: "open", screen: "gallery" })) },
     { label: "Programs", icon: "programs", current: false, onClick: go(soon) },
   ]
-  const projects = ["Counter", "Token Faucet", "Voting", "Tip Jar", ...(s.startedAt !== null ? ["Hello Anchor"] : [])]
+  const started = useStartedLessons()
+  const openTutorial = useOpenTutorial()
+  const lessons = new Map(started.map((l) => [l.name, l]))
+  const projects = ["Counter", "Token Faucet", "Voting", "Tip Jar", ...started.map((l) => l.name)]
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -100,8 +104,8 @@ export function PhoneMenu() {
                     key={name}
                     glyph={NAV_ICONS.folder}
                     label={name}
-                    current={name === "Hello Anchor" && inProject}
-                    onClick={go(name === "Hello Anchor" ? () => dispatch({ type: "open", screen: "step" }) : soon)}
+                    current={!!lessons.get(name)?.open && inProject}
+                    onClick={go(lessons.has(name) ? () => openTutorial(lessons.get(name)!.slug) : soon)}
                   />
                 ))}
               </div>

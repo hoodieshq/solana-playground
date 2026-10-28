@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils"
 
 import { CHANGE_CHIP, EXPLAIN_STEP, NEXT_CHIP, STUCK } from "../answers"
-import { STEPS } from "../data"
+import { LESSON, STEPS } from "../data"
 import { liveFail, liveWin, useStore, type State } from "../store"
 import { on } from "./events"
 import { launch } from "./turns/YouPill"
@@ -20,7 +20,7 @@ const CHIP =
 export function chipsFor(s: State): string[] {
   if (!s.started) return []
   if (s.phase !== "idle" || liveWin(s)) return []
-  if (s.thread.some((t) => t.kind === "finish")) return [CHANGE_CHIP, NEXT_CHIP]
+  if (s.thread.some((t) => t.kind === "finish")) return LESSON.story ? [CHANGE_CHIP, NEXT_CHIP] : [NEXT_CHIP]
   // During the lesson the card in front of you is the one thing to do: no suggestions beside it
   if (s.started) return []
   const step = STEPS[s.step]

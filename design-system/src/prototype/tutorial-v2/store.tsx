@@ -4,32 +4,41 @@ import { CHANGE_CHIP, CHANGE_TEXT, STUCK, actionWord, answerFor, stuckAnswer, wo
 import { checkOwn, fixOf, holds, insertBlock, msgLine, sameCode, straightQuotes, typedKey, uncomment, withId, withOwnText, type OwnCheck } from "./check"
 import {
   BEATS,
-  BUILD_OK,
+  beatIdsOf,
   CLIENT,
-  CLIENT_CALL,
-  DEPLOY_LOG,
   INITIAL_FILES,
+  LESSON,
   LIB,
-  LIB_FIXED,
-  LIB_NAMED,
   PROGRAM_ID,
   STEPS,
-  UPGRADE_LOG,
+  buildOk,
   callLog,
   clientLog,
+  clientOf,
+  DEMO_FAUCET,
+  deployLog,
+  faucetLog,
+  firstAct,
+  libOf,
+  libTargetOf,
   panelLog,
+  programLog,
+  upgradeLog,
   type Act,
   type ActBeat,
   type Ask,
   type Beat,
+  type Chop,
   type Follow,
+  type Grow,
+  type Memory,
+  type Player,
   type Quote,
   type Tx,
 } from "./data"
 import { diffLines } from "./diff"
-import { deployedArgs, signature } from "./idl"
+import { deployedArgs, idlLine, idlOf, idlShape, signature } from "./idl"
 import { Runner } from "./runner"
-import { clientTx, namedTx } from "./tx"
 
 export type Screen = "gallery" | "step" | "finish"
 /** Only whether something runs. What is offered comes from the live card (spec 9.1) */
@@ -47,7 +56,25 @@ export type Turn = TurnBase &
     | { kind: "you"; text: string; code?: boolean }
     | { kind: "ask"; beat: string; picks: number[]; done: null | "right" | "typed" | "skipped" | "test"; lead?: string; hinted?: boolean }
     | { kind: "wrote"; file: string; lines: number[]; added: number; created?: boolean; appended?: boolean; from?: string; preview?: string[] }
-    | { kind: "act"; beat: string; act: Act; state: "live" | "running" | "done" | "interrupted"; took?: number; nudge?: boolean; name?: string; via?: "test"; failed?: boolean }
+    | {
+        kind: "act"
+        beat: string
+        act: Act
+        state: "live" | "running" | "done" | "interrupted"
+        took?: number
+        nudge?: boolean
+        name?: string
+        via?: "test"
+        failed?: boolean
+        /** A chop card's chops so far: it stays up for the next one until the step passes */
+        chops?: Chop[]
+        /** A grow card's presses so far, the same way */
+        grows?: Grow[]
+        /** A deploy put up again after the faucet said no: its button reads Try again */
+        retry?: boolean
+        /** A deploy the faucet stopped: its record says so */
+        faucet?: boolean
+      }
     | {
         kind: "result"
         act: Act | "test"
@@ -64,6 +91,13 @@ export type Turn = TurnBase &
         took?: number
         /** The file the run read, as it was then: the status line tells when it has changed since */
         src?: string
+        /** A deploy that stopped before it began: the wallet was short and the faucet said no */
+        funding?: boolean
+        /** The arguments a Call panel call went with, so the panel can tell when its fields moved on */
+        sent?: Record<string, string>
+        /** A build of a fix typed by hand, from the open "Fix it" question: it opens on the compiler's
+         * words, and the question stays the way on, so it carries no Explain of its own */
+        checked?: boolean
       }
     | { kind: "win"; beat: string; done: boolean; took: number; via?: "test" }
     // `fix` is Show me the fix's proposal, with `source` the answer that offered it
@@ -78,7 +112,7 @@ export type Body = DistributiveOmit<Turn, "id" | "at">
  * worked out when it posts, against the file as it is then */
 type Pending =
   | { kind: "turn"; turn: Body }
-  | { kind: "write"; step: number; file: string; block: string; from: string }
+  | { kind: "write"; step: number; file: string; block: string; from: string; ref?: string; start?: string }
   | { kind: "create"; step: number; file: string }
   // The rest of a question's block, around the line the learner typed themselves
   | { kind: "fill"; step: number; beat: string }
@@ -86,7 +120,8 @@ type Pending =
   | { kind: "file"; step: number; file: string; code: string; from: string }
 
 /** A run going: which act, its stages and the one running, and the card it belongs to */
-export type Run = { act: Act | "test"; stages: string[]; stage: number; turn: number | null; at: number }
+/** `args` are what the Call panel sent with `ix`, when it was given any */
+export type Run = { act: Act | "test"; stages: string[]; stage: number; turn: number | null; at: number; ix?: string; args?: Record<string, string> }
 
 export type State = {
   v: 2
@@ -111,6 +146,12 @@ export type State = {
   /** A place in a file to show: Show in lib.rs, a compiler line, the step bar. `caret` puts the caret there */
   reveal: { file: string; lines: number[]; at: number; caret?: boolean; top?: boolean } | null
   tabs: string[]
+  /** The Playground wallet has had its airdrop: only the first deploy funds it first */
+  funded: boolean
+  /** The faucet's limit was met once (`?demo=faucet`): the next airdrop goes through */
+  faucetTried: boolean
+  /** Files the learner opened, the latest first: the phone's file sheet lists them as Recent */
+  recent: string[]
   /** The file shown, or "test" for the Call panel */
   open: string
   /** Lines the assistant added to each file since the learner last opened or edited it, for +N */
@@ -137,6 +178,10 @@ export type State = {
   times: { from: number | null; to: number | null }[]
   /** Set after "change what hello says": the next message is the new text */
   awaiting: "story" | null
+  /** A game lesson's player account on devnet, once the client created it */
+  player: Player | null
+  /** A memory lesson's accounts on devnet, once the client created them */
+  memory: Memory | null
 }
 
 export type Action =
@@ -150,7 +195,8 @@ export type Action =
   | { type: "typeIt"; turn: number }
   | { type: "act"; act?: Act }
   | { type: "stage" }
-  | { type: "test" }
+  | { type: "test"; ix?: string; args?: Record<string, string> }
+  | { type: "checkFix" }
   | { type: "explain" }
   | { type: "fixMyself" }
   | { type: "showFix"; turn: number }
@@ -170,15 +216,23 @@ export type Action =
   | { type: "goto"; step: number }
   | { type: "resetFile" }
 
-const KEY = "pg-proto-tutorial-v2"
+/** Where a lesson's progress is saved. Hello Anchor keeps the key it had before there were others */
+export const storageKey = (slug: string) => (slug === "hello-anchor" ? "pg-proto-tutorial-v2" : `pg-proto-tutorial-v2-${slug}`)
+const key = () => storageKey(LESSON.card.slug)
 
-/** Timings of D29. The prototype has no build server: these are what a run would take */
-export const STAGE_MS: Record<string, number> = { Building: 1600, "Compiling hello_anchor": 1600 }
-export const stageMs = (stage: string) => STAGE_MS[stage] ?? (stage.startsWith("Sending") ? 1600 : 1100)
+/** Timings of D29. The prototype has no build server: these are what a run would take. A chop is a
+ * game move, quicker so five in a row don't drag */
+export const STAGE_MS: Record<string, number> = { Building: 1600, "Sending chop_tree to devnet": 900, "Sending grow to devnet": 900, "Sending grow_big to devnet": 900 }
+export const stageMs = (stage: string) => STAGE_MS[stage] ?? (stage.startsWith("Compiling") || stage.startsWith("Sending") ? 1600 : 1100)
+
+/** An instruction as the TypeScript client calls it: `init_big_map` is `initBigMap` */
+export const camel = (ix: string) => ix.replace(/_(\w)/g, (_, c: string) => c.toUpperCase())
 
 // The IDL goes up with the program, as anchor deploy does since 0.30, so Explorer can read the calls.
 // An upgrade rewrites the one already there
-const deployStages = (s: State) => ["Writing buffer", "Deploying", s.deployedLib === null ? "Uploading IDL" : "Upgrading IDL", "Confirming"]
+const FUNDING = "Funding your wallet"
+// A new Playground wallet holds 0 SOL: the first deploy tops it up from the faucet first
+const deployStages = (s: State) => [...(s.funded ? [] : [FUNDING]), "Writing buffer", "Deploying", s.deployedLib === null ? "Uploading IDL" : "Upgrading IDL", "Confirming"]
 
 export const initial = (): State => ({
   v: 2,
@@ -198,6 +252,9 @@ export const initial = (): State => ({
   wrote: null,
   reveal: null,
   tabs: [LIB],
+  funded: false,
+  faucetTried: false,
+  recent: [],
   open: LIB,
   fresh: {},
   testDot: false,
@@ -216,6 +273,8 @@ export const initial = (): State => ({
   finishedAt: null,
   times: STEPS.map(() => ({ from: null, to: null })),
   awaiting: null,
+  player: null,
+  memory: null,
 })
 
 const setAt = <T,>(xs: T[], i: number, v: T) => xs.map((x, k) => (k === i ? v : x))
@@ -272,12 +331,21 @@ export function liveCard(s: State): Live {
   return null
 }
 
-/** The lib.rs a build of the moment is checked against: the named one once step 4's question is
- * behind, the fixed one before */
-function libTarget(s: State) {
-  if (s.passed[3] || (s.step === 3 && s.cursor[3].at > 2)) return LIB_NAMED
-  return LIB_FIXED
+/** The step whose lib.rs a build of the moment is checked against: the live step's once its first
+ * change to lib.rs is behind (a question answered, a block written), the last one before it until then */
+function libStep(s: State) {
+  for (let i = s.step; i >= 0; i--) {
+    const step = STEPS[i]
+    if (!libTargetOf(step)) continue
+    if (i < s.step || s.passed[i]) return i
+    const first = step.beats.findIndex((b) => (b.kind === "ask" || b.kind === "write") && !!b.writes && "file" in b.writes && b.writes.file === LIB)
+    if (first === -1 || s.cursor[i].at > first + 1) return i
+  }
+  return 0
 }
+
+/** The lib.rs a build of the moment is checked against */
+const libTarget = (s: State) => libTargetOf(STEPS[libStep(s)])!
 
 /** Whether lib.rs differs from what's on devnet, whitespace aside: the amber dot on step 2 */
 export const deployChanged = (s: State) => s.deployedLib !== null && !sameCode(s.files[LIB], s.deployedLib)
@@ -321,7 +389,7 @@ function flow(s: State): State {
     if (b.kind === "say") next = post(next, { kind: "say", step: i, beat: b.id, text: b.text, quote: b.quote })
     else if (b.kind === "write") {
       next = post(next, { kind: "say", step: i, beat: b.id, text: b.text })
-      next = { ...next, queue: [...next.queue, "create" in b.writes ? { kind: "create", step: i, file: b.writes.create } : { kind: "write", step: i, file: b.writes.file, block: b.writes.block, from: b.id }] }
+      next = { ...next, queue: [...next.queue, "create" in b.writes ? { kind: "create", step: i, file: b.writes.create } : { kind: "write", step: i, file: b.writes.file, block: b.writes.block, from: b.id, ref: b.writes.ref, start: b.writes.start }] }
     } else if (b.kind === "ask") {
       next = post(next, { kind: "ask", step: i, beat: b.id, picks: [], done: null })
       break
@@ -412,9 +480,11 @@ function tick(s: State): State {
   }
   const step = STEPS[head.step]
   const before = next.files[head.file] ?? ""
-  const placed = insertBlock(before, head.block, step.target, step.start)
+  const ref = head.ref ?? step.target
+  const start = head.start ?? step.start
+  const placed = insertBlock(before, head.block, ref, start)
   // Lines of the learner's own that the step's code doesn't know: then the block went at the end
-  const own = before.split("\n").some((l) => uncomment(l).trim() !== "" && !holds(step.target, l) && !holds(step.start, l))
+  const own = before.split("\n").some((l) => uncomment(l).trim() !== "" && !holds(ref, l) && !holds(start, l))
   const w = write(next, head.file, placed.code, head.from)
   return now(w.s, { kind: "wrote", step: head.step, file: head.file, lines: w.lines, added: w.lines.length, preview: w.preview, appended: own, from: head.from })
 }
@@ -437,7 +507,7 @@ function fill(s: State, i: number, ask: Ask): State {
     rows.splice(at - 1, 1)
     base = rows.join("\n")
   }
-  const placed = insertBlock(base, own, step.target, step.start)
+  const placed = insertBlock(base, own, ask.writes.ref ?? step.target, ask.writes.start ?? step.start)
   const w = write(s, file, placed.code, ask.id)
   return now(w.s, { kind: "wrote", step: i, file, lines: w.lines, added: w.lines.length, preview: w.preview, from: ask.id })
 }
@@ -451,14 +521,21 @@ function flush(s: State): State {
 
 // ---- Runs
 
-function stagesFor(s: State, act: Act | "test"): string[] {
-  if (act === "build") return ["Compiling hello_anchor"]
+/** The instruction a call sends, by its name alone: `hello`, not `hello(name)` */
+const bare = (tx: Tx) => tx.instruction.replace(/\(.*$/, "")
+
+function stagesFor(s: State, act: Act | "test", ix?: string): string[] {
+  if (act === "build") return [`Compiling ${LESSON.program}`]
   if (act === "buildDeploy") return ["Building", ...deployStages(s)]
   if (act === "deploy") return s.builtLib !== null && sameCode(s.builtLib, s.files[LIB]) ? deployStages(s) : ["Building", ...deployStages(s)]
-  return ["Sending hello to devnet"]
+  if (act === "chop") return ["Sending chop_tree to devnet"]
+  if (act === "grow" || act === "send") return [`Sending ${ix ?? "grow"} to devnet`]
+  // A client that only reads an account it already made sends nothing
+  if (act === "run" && LESSON.game && s.player) return ["Reading your player"]
+  return [`Sending ${bare(LESSON.runTx(s))} to devnet`]
 }
 
-const PHASE: Record<Act | "test", Phase> = { build: "building", deploy: "deploying", buildDeploy: "deploying", run: "running", call: "calling", test: "testing" }
+const PHASE: Record<Act | "test", Phase> = { build: "building", deploy: "deploying", buildDeploy: "deploying", run: "running", call: "calling", chop: "calling", grow: "calling", send: "calling", test: "testing" }
 
 /** Starts the live act, the one a word or a key asked for. Only a card that is up runs: a build
  * started while step 1's question was open failed on half a program, cost the first try and left a
@@ -475,14 +552,16 @@ function startAct(s: State, want?: Act): State {
     name = s.draft.trim()
     if (!name) return s
   }
-  const stages = stagesFor(next, act)
+  // The instruction a send or a grow names: init_map, grow_big
+  const ix = (BEATS[turn.beat] as ActBeat | undefined)?.ix
+  const stages = stagesFor(next, act, ix)
   next = patch(next, turn.id, { state: "running", name } as Partial<Turn>)
   // The terminal opens by itself the first time a deploy or the client runs (spec 8.5)
   const first = (act === "deploy" || act === "buildDeploy") ? s.deployedLib === null : act === "run" ? !s.thread.some((t) => t.kind === "result" && t.from === "client") : false
   return {
     ...next,
     phase: PHASE[act],
-    run: { act, stages, stage: 0, turn: turn.id, at: Date.now() },
+    run: { act, stages, stage: 0, turn: turn.id, at: Date.now(), ix },
     name: act === "call" ? name! : next.name,
     // What was just written stops being lit at the next action
     wrote: null,
@@ -492,15 +571,18 @@ function startAct(s: State, want?: Act): State {
   }
 }
 
-const buildLog = (lib: string) => [...BUILD_OK, `IDL: 1 instruction · hello${signature(deployedArgs(lib)) === "()" ? "" : signature(deployedArgs(lib))}`, "Build successful"]
+const buildLog = (lib: string) => [...buildOk(), idlLine(lib), "Build successful"]
 
 /** A build checked, as the prototype's compiler: step 1 against its target, later rebuilds against
- * the lib.rs the moment expects */
+ * the lib.rs the moment expects. Any lib.rs the lesson builds passes: one typed ahead of the script
+ * compiles too */
 function checkBuild(s: State): OwnCheck {
-  if (s.step === 0 && !s.passed[0]) return checkOwn(s.files[LIB], LIB_FIXED, LIB, "")
+  if (s.step === 0 && !s.passed[0]) return checkOwn(s.files[LIB], STEPS[0].target, LIB, "", LESSON)
   const lib = s.files[LIB]
-  if (checkOwn(lib, LIB_NAMED, LIB).ok || checkOwn(lib, LIB_FIXED, LIB).ok) return { ok: true }
-  return checkOwn(lib, libTarget(s), LIB, LIB_FIXED)
+  const targets = [...new Set(STEPS.map(libTargetOf).filter((t): t is string => !!t))]
+  if (targets.some((t) => checkOwn(lib, t, LIB, undefined, LESSON).ok)) return { ok: true }
+  const at = libStep(s)
+  return checkOwn(lib, libTarget(s), LIB, at > 0 ? libOf(at - 1) : STEPS[0].target, LESSON)
 }
 
 /** A failed build or run: its card opens with Explain, the editor marks the line, the terminal opens */
@@ -508,10 +590,12 @@ function fail(s: State, act: Act, c: Extract<OwnCheck, { ok: false }>, file: str
   const run = s.run
   // Step 1's first build fails by design on the missing struct: that's the planned failure, and it
   // isn't a miss on the learner's first try
-  const planned = s.step === 0 && !s.cursor[0].fail && !s.passed[0] && c.reason.includes("`Hello` struct")
+  const planned = s.step === 0 && !s.cursor[0].fail && !s.passed[0] && !!c.planned
+  // A build with no card of its own came from the "Fix it" question's Build: the question goes on
+  const checked = act === "build" && run?.turn === null
   let next: State = run?.turn ? patch(s, run.turn, { state: "done", took, failed: true } as Partial<Turn>) : s
   const code = s.files[file].split("\n")[c.line - 1]?.trim() ?? ""
-  next = now(next, { kind: "result", step: s.step, act, ok: false, log: c.log, fail: { line: c.line, column: c.column, span: c.span, reason: c.reason, explain: c.explain, code }, open: true, planned, took, src: s.files[file] })
+  next = now(next, { kind: "result", step: s.step, act, ok: false, log: c.log, fail: { line: c.line, column: c.column, span: c.span, reason: c.reason, explain: c.explain, code }, open: !checked, checked, planned, took, src: s.files[file] })
   return {
     ...next,
     phase: "idle",
@@ -523,12 +607,35 @@ function fail(s: State, act: Act, c: Extract<OwnCheck, { ok: false }>, file: str
   }
 }
 
-/** After an act lands: the step passes on its goal, a scripted act moves the script on, a nudge just ends */
+/** The faucet met its limit before a first deploy: the card says so, with the wallet's address and the
+ * faucet, and the deploy comes up again under it as Try again. The next airdrop goes through */
+function faucetLimit(s: State, took: number): State {
+  const run = s.run!
+  const turn = run.turn !== null ? s.thread.find((t) => t.id === run.turn) : undefined
+  let next: State = run.turn !== null ? patch(s, run.turn, { state: "done", took, failed: true, faucet: true } as Partial<Turn>) : s
+  const log = faucetLog()
+  next = now(next, { kind: "result", step: s.step, act: run.act as Act, ok: false, log, funding: true, took })
+  if (turn && turn.kind === "act") next = now(next, { kind: "act", step: s.step, beat: turn.beat, act: turn.act, state: "live", retry: true })
+  return { ...next, phase: "idle", run: null, log, terminal: true, faucetTried: true }
+}
+
+/** After an act lands: the step passes on its goal, a scripted act moves the script on, a nudge just ends.
+ * A chop's goal is what it shows, so a chop passes its step in `chopped` */
 function afterAct(s: State, act: Act, nudge: boolean): State {
   const i = s.step
   if (nudge) return s
-  if (!s.passed[i] && STEPS[i].goal === act) return pass(s, i)
+  if (!s.passed[i] && STEPS[i].goal === act && act !== "chop" && act !== "grow" && act !== "send") return pass(s, i)
   return flow(s)
+}
+
+/** A memory lesson's call from the chat, printed the way the client would make it: the call with its
+ * arguments, its logs, then what the account is now */
+function sendLog(s: State, tx: Tx, ix: string, out: string[] = []) {
+  // Numbers as they are, text in quotes, as the client writes them
+  const args = Object.values(LESSON.memory!.args(s, ix))
+    .map((v) => (/^\d+$/.test(v) ? v : JSON.stringify(v)))
+    .join(", ")
+  return [`$ pg.program.methods.${camel(ix)}(${args}).rpc()`, "Sending transaction...", ...programLog(tx), ...out]
 }
 
 /** A stage finished: the next one starts, or the run lands */
@@ -539,6 +646,11 @@ function stage(s: State): State {
   const turn = run.turn !== null ? s.thread.find((t) => t.id === run.turn) : undefined
   const nudge = !!(turn && turn.kind === "act" && turn.nudge)
   const done = run.stages[run.stage]
+  // The airdrop before a first deploy: the faucet can say no, and then nothing is deployed
+  if (done === FUNDING) {
+    if (DEMO_FAUCET && !s.faucetTried) return faucetLimit(s, took)
+    s = { ...s, funded: true }
+  }
   // The build half of a deploy: checked before anything is written to devnet
   if (done === "Building") {
     const c = checkBuild(s)
@@ -571,10 +683,9 @@ function stage(s: State): State {
     const first = s.deployedLib === null
     const own = withId(s.files[LIB], PROGRAM_ID)
     const idLine = own.split("\n").findIndex((l) => l.includes(PROGRAM_ID)) + 1
-    const argsBefore = signature(deployedArgs(s.deployedLib))
     const argsAfter = signature(deployedArgs(lib))
-    const changed = first || argsBefore !== argsAfter
-    const log = first ? DEPLOY_LOG : UPGRADE_LOG
+    const changed = first || idlShape(s.deployedLib) !== idlShape(lib)
+    const log = first ? deployLog(run.stages.includes(FUNDING)) : upgradeLog()
     let next = idle(closeAct({
       ...s,
       files: { ...s.files, [LIB]: own },
@@ -593,18 +704,68 @@ function stage(s: State): State {
   }
 
   if (run.act === "run") {
-    const c = checkOwn(s.files[CLIENT], CLIENT_CALL, CLIENT, "")
+    const c = checkOwn(s.files[CLIENT], clientOf(s.step), CLIENT, "", LESSON)
     if (!c.ok) return fail(s, "run", c, CLIENT, took)
-    const tx = clientTx(s)
-    const log = clientLog(tx)
-    let next = idle(closeAct({ ...s, log, txAt: Date.now() }))
+    // A lesson that works its runs out itself: what the client sends and prints, and the accounts after
+    if (LESSON.run) {
+      const r = LESSON.run(s)
+      const log = r.tx ? clientLog(r.tx, r.out) : [`$ run ${CLIENT}`, "Running client...", ...r.out, "Client finished"]
+      let next = idle(closeAct({ ...s, log, memory: r.memory, txAt: r.tx ? Date.now() : s.txAt }))
+      next = now(next, { kind: "result", step: s.step, act: "run", ok: true, log, tx: r.tx ?? undefined, from: "client", took, src: s.files[CLIENT] })
+      return afterAct(next, "run", nudge)
+    }
+    const game = LESSON.game
+    // A game's client creates the player once; later runs only read it back, with nothing to send
+    if (game && s.player) {
+      const p = s.player
+      const log = [`$ run ${CLIENT}`, "Running client...", `Wood: ${p.wood}, energy: ${p.energy}`, "Client finished"]
+      const next = idle(closeAct({ ...s, log }))
+      return afterAct(now(next, { kind: "result", step: s.step, act: "run", ok: true, log, from: "client", took, src: s.files[CLIENT] }), "run", nudge)
+    }
+    const tx = LESSON.runTx(s)
+    const player = game ? { wood: 0, energy: game.max, last: Date.now() } : null
+    const log = clientLog(tx, player ? [`Wood: ${player.wood}, energy: ${player.energy}`] : [])
+    let next = idle(closeAct({ ...s, log, txAt: Date.now(), player: player ?? s.player }))
     next = now(next, { kind: "result", step: s.step, act: "run", ok: true, log, tx, from: "client", took, src: s.files[CLIENT] })
     return afterAct(next, "run", nudge)
   }
 
+  if (run.act === "chop") {
+    const live = turn && turn.kind === "act" ? turn : null
+    const r = LESSON.game!.chop(s)
+    const log = ["$ pg.program.methods.chopTree().rpc()", "Sending transaction...", ...programLog(r.tx)]
+    let next: State = idle({ ...s, player: r.player, log, txAt: Date.now(), terminal: s.terminal || !r.chop.ok })
+    // The card keeps its button for the next chop, with this one listed on it
+    if (live) next = patch(next, live.id, { state: "live", took, chops: [...(live.chops ?? []), r.chop] } as Partial<Turn>)
+    return chopped(next, r.chop)
+  }
+
+  if (run.act === "grow") {
+    const live = turn && turn.kind === "act" ? turn : null
+    const ix = run.ix ?? "grow"
+    const r = LESSON.memory!.grow(s, ix)
+    const log = [`$ pg.program.methods.${camel(ix)}(${r.row.ok ? r.row.size : r.row.size + 10 * 1024}).rpc()`, "Sending transaction...", ...programLog(r.tx)]
+    let next: State = idle({ ...s, memory: r.memory, log, txAt: Date.now(), terminal: s.terminal || !r.row.ok })
+    if (live) next = patch(next, live.id, { state: "live", took, grows: [...(live.grows ?? []), r.row] } as Partial<Turn>)
+    return grown(next, r.row)
+  }
+
+  if (run.act === "send") {
+    const ix = run.ix ?? ""
+    const r = LESSON.memory!.panel(s, ix)
+    // Already done from the Call panel: nothing to send, and the script goes on
+    if ("note" in r) return nudge ? idle(closeAct(s)) : flow(idle(closeAct(s, { via: "test" })))
+    const log = sendLog(s, r.tx, ix, r.out)
+    let next = idle(closeAct({ ...s, memory: r.memory, log, txAt: Date.now() }))
+    next = now(next, { kind: "result", step: s.step, act: "send", ok: true, log, tx: r.tx, from: "chat", took })
+    const i = next.step
+    if (nudge) return next
+    return !next.passed[i] && STEPS[i].goal === "send" && LESSON.memory!.panelPasses(i, ix) ? pass(next, i) : flow(next)
+  }
+
   if (run.act === "call") {
     const name = s.name ?? ""
-    const tx = namedTx(s, name)
+    const tx = LESSON.callTx!(s, name)
     const log = callLog(tx, name)
     let next = idle(closeAct({ ...s, log, txAt: Date.now() }))
     next = now(next, { kind: "result", step: s.step, act: "call", ok: true, log, tx, from: "chat", took })
@@ -612,11 +773,15 @@ function stage(s: State): State {
     return afterAct(next, "call", nudge)
   }
 
-  // A call from the Call panel: its result stays in the panel (the chat skips it), and it passes steps 3 and 4
+  // A call from the Call panel: its result stays in the panel (the chat skips it). In a game it is a
+  // move like any other: it can create the player or chop
+  if (LESSON.game) return panelGame(idle(s), run.ix ?? "", took)
+  if (LESSON.memory) return panelMemory(idle(s), run.ix ?? "", took, run.args)
+  // In Hello Anchor it passes steps 3 and 4
   const args = deployedArgs(s.deployedLib)
   const named = args.length > 0
   const name = named ? s.testName.trim() : null
-  const tx = named ? namedTx(s, name ?? "") : clientTx(s)
+  const tx = named ? LESSON.callTx!(s, name ?? "") : LESSON.runTx(s)
   const log = panelLog(tx, name)
   let next: State = idle({ ...s, log, txAt: Date.now(), name: named ? name : s.name })
   next = now(next, { kind: "result", step: s.step, act: "test", ok: true, log, tx, from: "test", took })
@@ -624,11 +789,15 @@ function stage(s: State): State {
   const passes = !next.passed[i] && ((i === 2 && next.deployedLib !== null) || (i === 3 && named && !!name))
   if (!passes) return next
   if (i === 3 && name) next = nameClient(next, name)
-  // The act the panel's call stood in for is done, without its button ever pressed, and a question still
-  // open in the step folds into its record, so nothing above the win can still be picked
-  next = {
-    ...next,
-    thread: next.thread.map((t) =>
+  return passedByPanel(next, i)
+}
+
+/** The act the panel's call stood in for is done, without its button ever pressed, and a question still
+ * open in the step folds into its record, so nothing above the win can still be picked */
+function passedByPanel(s: State, i: number): State {
+  const next: State = {
+    ...s,
+    thread: s.thread.map((t) =>
       t.kind === "act" && t.step === i && t.state !== "done"
         ? { ...t, state: "done", via: "test" }
         : t.kind === "ask" && t.step === i && t.done === null
@@ -638,6 +807,75 @@ function stage(s: State): State {
   }
   return pass(next, i, "test")
 }
+
+/** A chop landed, from the chat or the panel: the step passes when it shows what the step is about,
+ * and the card it came from turns into its record */
+function chopped(s: State, c: Chop, via?: "test"): State {
+  const i = s.step
+  if (s.passed[i] || STEPS[i].goal !== "chop" || !LESSON.game!.chopPasses(s, i, c)) return s
+  if (via) return passedByPanel(s, i)
+  const card = liveAct(s)?.turn
+  const next = card && card.act === "chop" ? patch(s, card.id, { state: "done" } as Partial<Turn>) : s
+  return pass(next, i)
+}
+
+/** A grow landed, from the chat or the panel: the step passes when the press shows what it's about. A
+ * grow that's a move on the way, not the step's goal, ends its card once the account is big enough,
+ * and the script goes on */
+function grown(s: State, row: Grow, via?: "test"): State {
+  const i = s.step
+  const card = liveAct(s)?.turn
+  if (!s.passed[i] && STEPS[i].goal !== "grow" && card?.act === "grow" && LESSON.memory!.grownEnough(s, row))
+    return flow(patch(s, card.id, { state: "done", via } as Partial<Turn>))
+  if (s.passed[i] || STEPS[i].goal !== "grow" || !LESSON.memory!.growPasses(s, i, row)) return s
+  if (via) return passedByPanel(s, i)
+  const next = card && card.act === "grow" ? patch(s, card.id, { state: "done" } as Partial<Turn>) : s
+  return pass(next, i)
+}
+
+/** A call from a memory lesson's Call panel: grow is a press like the chat's; the others send what the
+ * chat's cards would, so the panel can make a map, or paint once the big map is there. A card in the
+ * chat for the same call is done then, and the script goes on past it */
+function panelMemory(s: State, ix: string, took: number, args?: Record<string, string>): State {
+  if (ix === "grow" || ix === "grow_big") {
+    const r = LESSON.memory!.grow(s, ix, args)
+    const log = panelLog(r.tx, null)
+    let next: State = { ...s, memory: r.memory, log, txAt: Date.now() }
+    next = now(next, { kind: "result", step: s.step, act: "test", ok: r.row.ok, log, tx: r.tx, from: "test", took, sent: args })
+    return grown(next, r.row, "test")
+  }
+  const r = LESSON.memory!.panel(s, ix, args)
+  if ("note" in r) return s
+  const log = panelLog(r.tx, null)
+  let next: State = { ...s, memory: r.memory, log, txAt: Date.now() }
+  next = now(next, { kind: "result", step: s.step, act: "test", ok: !r.tx.error, log, tx: r.tx, from: "test", took, sent: args })
+  if (r.tx.error) return next
+  const i = next.step
+  if (!next.passed[i] && LESSON.memory!.panelPasses(i, ix)) return passedByPanel(next, i)
+  const card = liveAct(next)?.turn
+  return card?.act === "send" && (BEATS[card.beat] as ActBeat).ix === ix ? flow(patch(next, card.id, { state: "done", via: "test" } as Partial<Turn>)) : next
+}
+
+/** A call from a game's Call panel: init_player creates the player (and passes the step that asks for
+ * it), chop_tree is a chop like the chat's */
+function panelGame(s: State, ix: string, took: number): State {
+  const game = LESSON.game!
+  if (ix === "init_player") {
+    if (s.player) return s
+    const tx = LESSON.runTx(s)
+    const log = panelLog(tx, null)
+    let next: State = { ...s, log, txAt: Date.now(), player: { wood: 0, energy: game.max, last: Date.now() } }
+    next = now(next, { kind: "result", step: s.step, act: "test", ok: true, log, tx, from: "test", took })
+    const i = next.step
+    return !next.passed[i] && STEPS[i].goal === "run" ? passedByPanel(next, i) : next
+  }
+  const r = game.chop(s)
+  const log = panelLog(r.tx, null)
+  let next: State = { ...s, log, txAt: Date.now(), player: r.player }
+  next = now(next, { kind: "result", step: s.step, act: "test", ok: r.chop.ok, log, tx: r.tx, from: "test", took })
+  return chopped(next, r.chop, "test")
+}
+
 
 /** Step 4 called hello with a name: client.ts still calls it without one, which the new hello
  * refuses, so its call takes the same name. Only the call's own parentheses change; the rest of the
@@ -683,7 +921,7 @@ function nudge(s: State): State {
   const ahead = (s.cursor[s.step].fail ? step.onFail ?? [] : step.beats).slice(s.cursor[s.step].at)
   if (!s.passed[s.step] && ahead.some((b) => b.kind === "act" && (b.act === "deploy" || b.act === "buildDeploy"))) return s
   let next = post(s, { kind: "say", step: s.step, text: "You changed lib.rs after deploying. Devnet still runs the old version.", nudge: true })
-  next = post(next, { kind: "act", step: s.step, beat: "s4.ship", act: "buildDeploy", state: "live", nudge: true })
+  next = post(next, { kind: "act", step: s.step, beat: (firstAct("buildDeploy") ?? firstAct("deploy"))!.id, act: "buildDeploy", state: "live", nudge: true })
   return next
 }
 
@@ -725,7 +963,7 @@ function reducer(s: State, a: Action): State {
       let next = patch(s, t.id, { done: "right" } as Partial<Turn>)
       next = post(next, { kind: "you", step: t.step, text: ask.options[a.choice], code: ask.code })
       next = post(next, { kind: "say", step: t.step, beat: ask.id, text: ask.right })
-      if (ask.writes) next = { ...next, queue: [...next.queue, { kind: "write", step: t.step, file: ask.writes.file, block: ask.writes.block, from: ask.id }] }
+      if (ask.writes) next = { ...next, queue: [...next.queue, { kind: "write", step: t.step, file: ask.writes.file, block: ask.writes.block, from: ask.id, ref: ask.writes.ref, start: ask.writes.start }] }
       return t.step === next.step ? flow(next) : next
     }
     case "skip": {
@@ -734,7 +972,7 @@ function reducer(s: State, a: Action): State {
       const ask = BEATS[t.beat] as Ask
       let next = patch(s, t.id, { done: "skipped" } as Partial<Turn>)
       next = post(next, { kind: "say", step: t.step, text: ask.skipped ?? "No problem. Here's the line, and I'll walk you through the rest." })
-      if (ask.writes) next = { ...next, queue: [...next.queue, { kind: "write", step: t.step, file: ask.writes.file, block: ask.writes.block, from: ask.id }] }
+      if (ask.writes) next = { ...next, queue: [...next.queue, { kind: "write", step: t.step, file: ask.writes.file, block: ask.writes.block, from: ask.id, ref: ask.writes.ref, start: ask.writes.start }] }
       return t.step === next.step ? flow(next) : next
     }
     case "hint": {
@@ -756,7 +994,7 @@ function reducer(s: State, a: Action): State {
       const file = ask.writes.file
       const step = STEPS[t.step]
       const code = s.files[file] ?? ""
-      const dry = insertBlock(code, ask.writes.block, step.target, step.start)
+      const dry = insertBlock(code, ask.writes.block, ask.writes.ref ?? step.target, ask.writes.start ?? step.start)
       const placed = dry.code.split("\n")
       const line = dry.lines.find((n) => (placed[n - 1] ?? "").trim() !== "") ?? dry.lines[0] ?? 1
       const rows = code.split("\n")
@@ -769,13 +1007,23 @@ function reducer(s: State, a: Action): State {
     }
     case "act":
       return startAct(s, a.act)
+    case "checkFix": {
+      // The open "Fix it" question's Build: the learner's own edit, built as it stands, with no act card.
+      // A failure opens on the compiler's words; a pass resolves the question as typed and the step
+      const ask = liveAsk(s)
+      if (s.phase !== "idle" || !ask || ask.beat.kicker !== "Fix it") return s
+      return { ...s, phase: "building", run: { act: "build", stages: [`Compiling ${LESSON.program}`], stage: 0, turn: null, at: Date.now() }, wrote: null, log: [], error: null }
+    }
     case "stage":
       return stage(s)
     case "test": {
       if (s.phase !== "idle" || s.deployedLib === null) return s
+      const ix = a.ix ?? idlOf(s.deployedLib).instructions[0].name
       const named = deployedArgs(s.deployedLib).length > 0
-      if (named && !s.testName.trim()) return s
-      return { ...s, phase: "testing", run: { act: "test", stages: ["Sending hello to devnet"], stage: 0, turn: null, at: Date.now() }, log: [] }
+      if (!LESSON.game && named && !s.testName.trim()) return s
+      // The player is made once: the panel says so instead of sending a call that would fail
+      if (ix === "init_player" && s.player) return s
+      return { ...s, phase: "testing", run: { act: "test", stages: [`Sending ${ix} to devnet`], stage: 0, turn: null, at: Date.now(), ix, args: a.args }, log: [] }
     }
     case "explain": {
       const f = liveFail(s)
@@ -796,7 +1044,7 @@ function reducer(s: State, a: Action): State {
       next = { ...next, open: file, reveal: { file, lines: [f.planned ? end + 2 : f.fail?.line ?? end], at: Date.now(), caret: true } }
       if (f.planned) {
         // The fix question still follows, carrying the explanation's first sentence as its say
-        next = post(next, { kind: "say", step: 0, text: "Line 9 asks for `Context<Hello>`, and `Hello` doesn't exist yet." })
+        next = post(next, { kind: "say", step: 0, text: STEPS[0].plannedShort ?? STEPS[0].explainStep })
         return flow({ ...next, cursor: setAt(next.cursor, 0, { at: 1, fail: true }) })
       }
       return repost(next, f)
@@ -808,8 +1056,8 @@ function reducer(s: State, a: Action): State {
       if (t.follow !== "showFix") return s
       // The step's target lines, proposed as a change to review: what the learner wrote is kept where it
       // fits, and nothing lands in the file until Apply
-      const file = s.error?.file === CLIENT || (s.step === 2 && !s.passed[2]) ? CLIENT : LIB
-      const target = file === CLIENT ? CLIENT_CALL : s.step === 0 ? LIB_FIXED : libTarget(s)
+      const file = s.error?.file === CLIENT || (STEPS[s.step].file === CLIENT && !s.passed[s.step]) ? CLIENT : LIB
+      const target = file === CLIENT ? clientOf(s.step) : s.step === 0 ? STEPS[0].target : libTarget(s)
       const before = s.files[file] ?? ""
       const fixed = fixOf(before, file === LIB && s.deployedLib !== null ? withId(target, PROGRAM_ID) : target)
       const next = patch(s, t.id, { followDone: true } as Partial<Turn>)
@@ -837,12 +1085,12 @@ function reducer(s: State, a: Action): State {
       }
       let next = post(s, you)
       if (!s.started && /^(start|begin|go)\b/i.test(text)) return reducer(next, { type: "start" })
-      if (s.awaiting === "story") {
+      if (s.awaiting === "story" && LESSON.story) {
         const { line, after } = storyLine(s, text)
         next = post({ ...next, awaiting: null }, { kind: "say", step, text: `Here's line ${line} with your text.` })
         return post(next, { kind: "apply", step, file: LIB, before: s.files[LIB], after, line, done: null })
       }
-      if (text === CHANGE_CHIP || CHANGE_TEXT.test(text)) {
+      if (LESSON.story && (text === CHANGE_CHIP || CHANGE_TEXT.test(text))) {
         if (!s.files[LIB].includes("msg!")) return post(next, { kind: "say", step, text: "There's no `msg!` line in lib.rs yet. Once `hello` is written, I can change what it says." })
         return post({ ...next, awaiting: "story" }, { kind: "say", step, text: "Sure. What should `hello` say?" })
       }
@@ -870,7 +1118,7 @@ function reducer(s: State, a: Action): State {
       const w = write(next, t.file, t.after, "apply")
       next = now(w.s, { kind: "wrote", step: next.step, file: t.file, lines: w.lines, added: w.lines.length, preview: w.preview, from: "apply" })
       if (next.deployedLib !== null) return nudge(next)
-      if (next.passed[0]) return post(post(next, { kind: "say", step: next.step, text: "That's in lib.rs. Build it to check it still compiles.", nudge: true }), { kind: "act", step: next.step, beat: "s1.build", act: "build", state: "live", nudge: true })
+      if (next.passed[0]) return post(post(next, { kind: "say", step: next.step, text: "That's in lib.rs. Build it to check it still compiles.", nudge: true }), { kind: "act", step: next.step, beat: firstAct("build")!.id, act: "build", state: "live", nudge: true })
       return next
     }
     case "keep": {
@@ -912,7 +1160,8 @@ function reducer(s: State, a: Action): State {
       const tabs = s.tabs.includes(a.file) ? s.tabs : [...s.tabs, a.file]
       // Opening a file from another tab counts as having seen what was written there
       const fresh = s.open !== a.file ? { ...s.fresh, [a.file]: 0 } : s.fresh
-      return { ...s, tabs, open: a.file, fresh, idlNew: s.open === "test" && a.file !== "test" ? false : s.idlNew, testDot: a.file === "test" ? false : s.testDot }
+      const recent = a.file === "test" ? s.recent : [a.file, ...s.recent.filter((f) => f !== a.file)].slice(0, 5)
+      return { ...s, tabs, recent, open: a.file, fresh, idlNew: s.open === "test" && a.file !== "test" ? false : s.idlNew, testDot: a.file === "test" ? false : s.testDot }
     }
     case "openTest":
       if (!s.tabs.includes("test")) return s
@@ -961,19 +1210,37 @@ function repost(s: State, f: Extract<Turn, { kind: "result" }>): State {
   return post(s, { kind: "act", step: f.step, beat: prev.beat, act: prev.act, state: "live", nudge: prev.nudge })
 }
 
-/** Saved progress, as the reload finds it: queued turns posted, runs cut short (spec 10.6) */
-function load(): State {
+/** Saved progress, as the reload finds it: queued turns posted, runs cut short (spec 10.6). `screen`
+ * is where a lesson just switched to opens, whatever it was left on */
+function load(screen?: Screen): State {
+  const s = loadSaved()
+  return screen ? { ...s, screen } : s
+}
+
+/** A save this version can open: the state's shape, and every beat its turns name still in the script */
+function current(saved: Partial<State> | null, beats: Set<string>) {
+  const known = (t: object): boolean =>
+    (!("turn" in t) || typeof t.turn !== "object" || t.turn === null || known(t.turn)) && (!("beat" in t) || typeof t.beat !== "string" || beats.has(t.beat))
+  return saved?.v === 2 && [...(saved.thread ?? []), ...(saved.queue ?? [])].every(known)
+}
+
+function loadSaved(): State {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(key())
     if (raw) {
       const saved = JSON.parse(raw) as Partial<State>
-      // A state of another shape would crash the feed: the tutorial starts again at the intro
-      if (saved.v === 2) {
+      // A state of another shape would crash the feed, and so would one whose turns name beats the
+      // lesson's script no longer has (it was rewritten since), or one with another number of steps:
+      // the tutorial starts again at the intro
+      if (current(saved, beatIdsOf(LESSON.card.slug)) && saved.cursor?.length === STEPS.length) {
         const s = flush({ ...initial(), ...saved } as State)
         // A save from when the project had a test file may still have it open: those go back to lib.rs
         const tabs = s.tabs.filter((t) => t === "test" || t in INITIAL_FILES)
         return {
           ...s,
+          // Files the lesson has that the save doesn't (the review's extra files) start as the lesson has
+          // them; files the lesson no longer has (Zero Copy's client.ts) are gone
+          files: { ...INITIAL_FILES, ...Object.fromEntries(Object.entries(s.files).filter(([f]) => f in INITIAL_FILES)) },
           tabs,
           open: tabs.includes(s.open) ? s.open : LIB,
           phase: "idle",
@@ -982,15 +1249,17 @@ function load(): State {
         }
       }
     }
-  } catch {
-    // Storage blocked or broken: start fresh
+  } catch (e) {
+    // Storage blocked or broken: start fresh, and say why, so a save the code can't replay doesn't
+    // vanish without a trace
+    console.warn("Saved progress couldn't be restored; the tutorial starts over", e)
   }
   return initial()
 }
 
 export function resetStorage() {
   try {
-    localStorage.removeItem(KEY)
+    localStorage.removeItem(key())
   } catch {
     // Nothing stored, nothing to clear
   }
@@ -998,11 +1267,27 @@ export function resetStorage() {
 
 const Ctx = createContext<{ s: State; dispatch: Dispatch<Action> } | null>(null)
 
-export function Store({ children }: { children: ReactNode }) {
-  const [s, dispatch] = useReducer(reducer, undefined, load)
+/** How far a lesson got, from its saved state: for the gallery's cards and banner, which show every
+ * lesson while only the open one has a store */
+export type Progress = { started: boolean; finished: boolean; passed: boolean[] }
+
+export function savedProgress(slug: string, steps: number): Progress {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey(slug)) ?? "null") as Partial<State> | null
+    if (saved && current(saved, beatIdsOf(slug))) return { started: saved.startedAt != null, finished: saved.finishedAt != null, passed: saved.passed ?? [] }
+  } catch {
+    // Storage blocked or broken: nothing started
+  }
+  return { started: false, finished: false, passed: Array.from({ length: steps }, () => false) }
+}
+
+export const progressOf = (s: State): Progress => ({ started: s.startedAt !== null, finished: s.finishedAt !== null, passed: s.passed })
+
+export function Store({ children, screen }: { children: ReactNode; screen?: Screen }) {
+  const [s, dispatch] = useReducer(reducer, screen, load)
   useEffect(() => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(s))
+      localStorage.setItem(key(), JSON.stringify(s))
     } catch {
       // Private mode: progress lives only in memory
     }

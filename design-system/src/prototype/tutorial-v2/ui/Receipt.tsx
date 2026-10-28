@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 
-import { PROGRAM_ID, TX_CONFIRMED, TX_FEE, shortKey, type Tx } from "../data";
+import { LESSON, PROGRAM_ID, TX_CONFIRMED, TX_FEE, WALLET, shortKey, type Tx } from "../data";
 import { openExplorer } from "./explorer";
 
 type Row = { label: string; value: ReactNode; text: string };
@@ -23,13 +23,13 @@ function groups(tx: Tx): Row[][] {
         label: "Program",
         value: (
           <>
-            hello_anchor{" "}
+            {LESSON.program}{" "}
             <span className="whitespace-nowrap text-muted-foreground">
               · {shortKey(PROGRAM_ID)}
             </span>
           </>
         ),
-        text: `hello_anchor (${PROGRAM_ID})`,
+        text: `${LESSON.program} (${PROGRAM_ID})`,
       },
       {
         label: "Instruction",
@@ -40,18 +40,21 @@ function groups(tx: Tx): Row[][] {
     [
       {
         label: "Fee payer",
-        value: <>Kora {muted("· signer")}</>,
-        text: "Kora (signer)",
+        value: (
+          <>
+            <span className="font-mono">{shortKey(WALLET)}</span> {muted("· your wallet, signer")}
+          </>
+        ),
+        text: `${WALLET} (your wallet, signer)`,
       },
-      { label: "You", value: "0 SOL", text: "0 SOL" },
       {
         label: "Fee",
         value: (
           <>
-            {TX_FEE} {muted("· paid by Kora")}
+            {TX_FEE} {muted("· test SOL")}
           </>
         ),
-        text: `${TX_FEE}, paid by Kora`,
+        text: `${TX_FEE}, test SOL`,
       },
       { label: "Compute", value: units, text: units },
       { label: "Confirmed", value: TX_CONFIRMED, text: TX_CONFIRMED },
@@ -74,7 +77,7 @@ function receiptText(tx: Tx) {
     { label: "Signature", text: tx.signature },
   ];
   return [
-    "Hello Anchor · transaction receipt",
+    `${LESSON.card.name} · transaction receipt`,
     ...rows.map((r) => `${r.label.padEnd(12)}${r.text}`),
     "Example values from the Solana Playground tutorial prototype",
   ].join("\n");
@@ -135,7 +138,7 @@ const LINK =
   "-my-2 flex shrink-0 items-center gap-1 py-2 text-muted-foreground hover:text-foreground pointer-coarse:min-h-11 @max-[17rem]:-mx-1.5 @max-[17rem]:size-11 @max-[17rem]:justify-center @max-[17rem]:py-0";
 
 /** What a transaction leaves behind, beside or under its log. It tells the step's story rather than
- * listing fields: what the program said, then that you paid nothing because Kora did, then how
+ * listing fields: what the program said, then what it cost your wallet in test SOL, then how
  * fast. Program, instruction, compute and the signature wait under Details. `print` keys it, so it
  * prints once as its transaction arrives. `flat` is the desktop terminal's cut: a column of the
  * terminal with a rule on its left, not a card floating over the log */
@@ -198,10 +201,10 @@ export function Receipt({
         {/* Who paid: the part a newcomer to Solana doesn't expect */}
         <div {...at(i++)} className="mt-3 border-t border-border pt-3">
           <p className="text-foreground">
-            You paid <span className="font-medium">0 SOL</span>
+            You paid <span className="font-medium">{TX_FEE}</span>
           </p>
           <p className="text-muted-foreground">
-            Fee {TX_FEE}, paid by Kora · confirmed in {TX_CONFIRMED}
+            Devnet SOL, free test money · confirmed in {TX_CONFIRMED}
           </p>
         </div>
         <details
@@ -221,7 +224,7 @@ export function Receipt({
               <dt className="text-muted-foreground">Program</dt>
               {/* The key never breaks across lines: on a narrow card it goes under the name, whole */}
               <dd className="min-w-0 break-words text-foreground">
-                hello_anchor{" "}
+                {LESSON.program}{" "}
                 <span className="whitespace-nowrap text-muted-foreground">
                   · {shortKey(PROGRAM_ID)}
                 </span>
@@ -329,7 +332,7 @@ export function PrintedReceipt({
         {/* Set from the left edge, as the rows under it are: a centred head read as a till slip */}
         <div className={cn("flex flex-col", printing && "pg-print")}>
           <p {...at(i++)} className="text-foreground">
-            hello_anchor · devnet
+            {LESSON.program} · devnet
           </p>
           {date && (
             <p {...at(i++)} className="text-muted-foreground">

@@ -4,11 +4,12 @@ import { Check, ChevronRight, Lightbulb, PenLine, SkipForward, X } from "lucide-
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { BEATS, type Ask } from "../../data"
+import { sameCode } from "../../check"
+import { BEATS, LIB, type Ask } from "../../data"
 import { useStore, type Turn } from "../../store"
 import { highlight } from "../CodeView"
 import { Prose } from "../Prose"
-import { HEADING, READ_CODE } from "../type"
+import { ACTION_SOFT, HEADING, READ_CODE } from "../type"
 
 type AskTurn = Extract<Turn, { kind: "ask" }>
 
@@ -131,8 +132,18 @@ function AskRecord({ ask, t, phone }: { ask: Ask; t: AskTurn; phone: boolean }) 
  * red, as a failed build does, with one sentence of why, shakes once and stays open; after two, the last option is lit.
  * Keys 1 to 3 pick, the arrows move, S skips, H asks for the hint. `keys` is whether this card owns them right now */
 export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: AskTurn; keys: boolean; busy: boolean; arriving: boolean; phone?: boolean }) {
-  const { dispatch } = useStore()
+  const { s, dispatch } = useStore()
   const ask = BEATS[turn.beat] as Ask
+  // The last build's code, to tell an edit made since: the planned failure's, or a check of a fix
+  const lastBuild = [...s.thread].reverse().find((t) => t.kind === "result" && (t.act === "build" || t.act === "buildDeploy"))
+  const fixEdited =
+    !phone &&
+    ask.kicker === "Fix it" &&
+    turn.done === null &&
+    ask.writes?.file === LIB &&
+    lastBuild?.kind === "result" &&
+    lastBuild.src !== undefined &&
+    !sameCode(s.files[LIB] ?? "", lastBuild.src)
   const titleId = useId()
   const reasonId = useId()
   const [right, setRight] = useState<number | null>(null)
@@ -295,6 +306,17 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
       <p aria-live="polite" className="sr-only">
         {turn.picks.length > 0 ? `Not quite. ${ask.why[turn.picks[turn.picks.length - 1]] ?? ""}` : ""}
       </p>
+      {/* A fix typed by hand that isn't the answer yet: the compiler judges it, here in the question, so
+          a partial fix shows its own error instead of nothing. Offered once lib.rs changed since its last
+          build, and gone again after each build until the next edit */}
+      {fixEdited && (
+        <div className="mt-3 flex items-center gap-3 rounded-control bg-foreground/[0.04] py-2 pr-2 pl-3">
+          <p className="min-w-0 flex-1 text-caption text-muted-foreground">You changed lib.rs. Build it and the compiler checks your fix.</p>
+          <Button size="sm" variant="ghost" disabled={s.phase !== "idle"} className={cn("shrink-0", ACTION_SOFT)} onClick={() => dispatch({ type: "checkFix" })}>
+            {s.phase === "building" ? "Building" : "Build"}
+          </Button>
+        </div>
+      )}
       {/* Ghost buttons pulled out by their own padding, so the labels stand on the options' edge. Type
           it myself only where a pick writes code; Hint and Skip are the quieter pair, and Hint goes once
           it has been given, since the answer stays in the chat above */}

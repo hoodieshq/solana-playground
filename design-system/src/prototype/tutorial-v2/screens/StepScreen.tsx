@@ -4,7 +4,7 @@ import { ArrowRight, ChevronLeft, ChevronUp, Code, MessageSquare, Send } from "l
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { LIB, LIB_NAMED, STEPS } from "../data"
+import { LESSON, LIB, STEPS } from "../data"
 import { TerminalBody, TerminalStatus } from "../desktop/Terminal"
 import { landingFor } from "../landing"
 import { FilesSheet } from "../sheets/FilesSheet"
@@ -113,8 +113,9 @@ export function StepScreen() {
   const preview = !s.started
   // Under the Call drawer the code stays on the file you were reading: falling back to lib.rs swapped
   // client.ts out from behind the sheet the moment Call was pressed
-  const file = preview ? LIB : s.open === "test" ? before.current : s.open
-  const code = preview ? LIB_NAMED : (s.files[file] ?? "")
+  const file = s.open === "test" ? before.current : preview && !(s.open in s.files) ? LIB : s.open
+  // Before Start lib.rs shows the finished program; another file shows itself, read only
+  const code = preview && file === LIB ? LESSON.preview : (s.files[file] ?? "")
   const wrote = s.wrote?.file === file ? s.wrote : null
   const reveal = s.reveal?.file === file && !s.reveal.top ? s.reveal : null
   // Lines shown again stay lit until the next run lands, as written ones do until the next action
@@ -136,7 +137,7 @@ export function StepScreen() {
   }
 
   // Where you are, under the tutorial's name: the step's short name, so the line never cuts
-  const where = !s.started ? `${STEPS.length} steps · 10 min` : finished ? `Done · ${STEPS.length} of ${STEPS.length}` : `Step ${s.step + 1} of ${STEPS.length} · ${step.short}`
+  const where = !s.started ? `${STEPS.length} steps · ${LESSON.minutes} min` : finished ? `Done · ${STEPS.length} of ${STEPS.length}` : `Step ${s.step + 1} of ${STEPS.length} · ${step.short}`
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -150,10 +151,10 @@ export function StepScreen() {
         <button
           type="button"
           onClick={() => setSteps(true)}
-          aria-label={`Hello Anchor, ${where}. Show the steps`}
+          aria-label={`${LESSON.card.name}, ${where}. Show the steps`}
           className="flex h-11 min-w-0 flex-1 flex-col items-start justify-center rounded-lg px-1.5 text-left outline-none active:bg-surface-hover focus-visible:outline-2 focus-visible:outline-brand-purple"
         >
-          <span className="max-w-full truncate font-heading text-[0.9375rem] leading-[1.3] font-medium text-foreground">Hello Anchor</span>
+          <span className="max-w-full truncate font-heading text-[0.9375rem] leading-[1.3] font-medium text-foreground">{LESSON.card.name}</span>
           <span className="max-w-full truncate text-caption text-muted-foreground">{where}</span>
         </button>
         {/* The one way across besides the swipe: it names the space it takes you to. Drawn as the desktop's

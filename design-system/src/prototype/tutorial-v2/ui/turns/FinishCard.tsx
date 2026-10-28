@@ -1,17 +1,19 @@
 import { useRef, useState } from "react"
 import { ChevronRight, Play } from "lucide-react"
-import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { NEXT_TUTORIAL, shortKey } from "../../data"
+import { LESSON, NEXT_TUTORIAL, STEPS, shortKey } from "../../data"
+import { useOpenTutorial } from "../../host"
+import { LiveBigMemory } from "../MemoryCard"
+import { LivePlayer } from "../PlayerCard"
 import { useStore } from "../../store"
 import { lastTx } from "../../tx"
 import { FinishBadge, LearnedList } from "../FinishParts"
 import { Prose } from "../Prose"
 import { PrintedReceipt } from "../Receipt"
-import { ACTION, ACTION_FILL, ACTION_SOFT, HEADING, PHONE_CTA, READ, READ_CODE, reducedMotion } from "../type"
+import { ACTION, ACTION_FILL, ACTION_SOFT, HEADING, PHONE_CTA, READ_CODE, reducedMotion } from "../type"
 
 /** "6 min 40 s" from start to finish */
 function span(from: number | null, to: number | null) {
@@ -35,6 +37,7 @@ const NOTE = "text-caption text-muted-foreground tabular-nums"
  * under the chips and the composer it printed in out of sight */
 export function FinishCard({ phone = false }: { phone?: boolean }) {
   const { s, dispatch } = useStore()
+  const openTutorial = useOpenTutorial()
   const tx = lastTx(s)
   const time = span(s.startedAt, s.finishedAt)
   const [receipt, setReceipt] = useState(false)
@@ -52,12 +55,21 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
         {/* On a phone the badge's glow spilled past the feed's edge and was cut: it steps in a little */}
         <FinishBadge className={cn("mx-0 self-start", phone && "ml-2")} />
         <div>
-          <h3 className="font-heading text-display text-foreground">You built and called your first Solana program.</h3>
-          <p className={`mt-2 ${READ}`}>
-            <Prose text={`\`${tx.said}\` came back from devnet in a transaction Kora paid for.`} {...READ_CODE} />
+          <h3 className="font-heading text-display text-foreground">{LESSON.headline}</h3>
+          {/* Three tiers, each a step quieter and further off: the headline, what came back, then the facts
+              about the run. At 8 apart in nearly one grey the last two read as one paragraph, so what came
+              back takes the full text colour and the facts sit 16 under it */}
+          {/* The reading text's size and face in the full text colour: at READ's 80% it was the note's grey */}
+          <p className="mt-2 font-read text-[0.9375rem] leading-[1.6] text-foreground">
+            <Prose text={LESSON.proofLine(tx, s)} {...READ_CODE} />
           </p>
-          <p className={`mt-2 ${NOTE}`}>4 steps · 0 SOL spent{time ? ` · ${time}` : ""}</p>
+          <p className={`mt-4 ${NOTE}`}>
+            {STEPS.length} steps{time ? ` · ${time}` : ""} · devnet only, nothing real spent
+          </p>
         </div>
+        {/* A game's proof is its player, live: the energy ticking back with no transaction */}
+        {LESSON.game && <LivePlayer phone={phone} />}
+        {LESSON.memory && <LiveBigMemory phone={phone} />}
         <section aria-labelledby="learned-title">
           <h4 id="learned-title" className={HEADING}>
             What you learned
@@ -67,10 +79,13 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
         </section>
         {/* One way on, filled, and one way back beside it, as Claude Code pairs them */}
         <div className={cn("flex gap-2", phone ? "flex-col items-stretch" : "flex-wrap")}>
-          <Button className={cn(ACTION, ACTION_FILL, phone && PHONE_CTA)} onClick={() => toast("Only Hello Anchor is in this prototype")}>
-            <Play className="fill-current" />
-            Next: {NEXT_TUTORIAL.name}
-          </Button>
+          {/* The last tutorial of its level has no next one: the way back to the list is the only way on */}
+          {NEXT_TUTORIAL && LESSON.next && (
+            <Button className={cn(ACTION, ACTION_FILL, phone && PHONE_CTA)} onClick={() => openTutorial(LESSON.next!)}>
+              <Play className="fill-current" />
+              Next: {NEXT_TUTORIAL.name}
+            </Button>
+          )}
           <Button variant="ghost" className={cn(ACTION, ACTION_SOFT, phone && PHONE_CTA)} onClick={() => dispatch({ type: "open", screen: "gallery" })}>
             All tutorials
           </Button>
@@ -86,8 +101,8 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
         >
           <span className="shrink-0 text-foreground">Transaction details</span>
           <span className="min-w-0 truncate text-subtle">
-            {/* Who paid, not "0 SOL": the fee was real, Kora paid it, as step 3's receipt says */}
-            · <span className="font-mono">{shortKey(tx.signature, 4)}</span> · paid by Kora
+            {/* Who paid: your wallet, in test SOL, as step 3's receipt says */}
+            · <span className="font-mono">{shortKey(tx.signature, 4)}</span> · from your wallet
           </span>
           <ChevronRight
             aria-hidden="true"

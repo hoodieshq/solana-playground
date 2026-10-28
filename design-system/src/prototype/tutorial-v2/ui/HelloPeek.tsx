@@ -15,10 +15,11 @@ const FILE = "src/lib.rs"
  * where the open file is the client. With a mouse it opens on hover and a click keeps it open; a
  * finger taps it, on the phone too. `before` is what sits over the caption, the lit line itself in
  * the terminal: the peek opens off both, so it never covers the line it explains */
-export function HelloSource({ before, className, inline = false }: { before?: ReactNode; className?: string; inline?: boolean }) {
+export function HelloSource({ before, className, inline = false, said }: { before?: ReactNode; className?: string; inline?: boolean; said?: string }) {
   const { s } = useStore()
   const lib = s.files[FILE] ?? ""
-  const line = msgLine(lib)
+  // The msg! that wrote this line, when the program has more than one
+  const line = msgLine(lib, said)
   const rows = lib.split("\n")
   // The line and one either side: the function it sits in, and its end
   const shown = [line - 1, line, line + 1].filter((n) => n >= 1 && n <= rows.length)
@@ -74,7 +75,7 @@ export function HelloSource({ before, className, inline = false }: { before?: Re
                 }
               }}
               // A plain string, not cn: cn would drop text-caption next to the colour
-              className={`flex items-center gap-1.5 font-sans text-caption text-muted-foreground underline-offset-4 hover:text-foreground hover:underline ${inline ? "shrink-0 pointer-coarse:-my-3 pointer-coarse:min-h-11" : "mb-0.5 pointer-coarse:min-h-11"}`}
+              className={`flex items-center gap-1.5 font-mono text-code text-muted-foreground underline-offset-4 hover:text-foreground hover:underline ${inline ? "shrink-0 pointer-coarse:-my-3 pointer-coarse:min-h-11" : "mb-0.5 pointer-coarse:min-h-11"}`}
             >
               {/* Inline it sits beside the log line it explains, so it needs no arrow pointing back up */}
               {!inline && (
@@ -126,6 +127,7 @@ export function HelloSource({ before, className, inline = false }: { before?: Re
 export function HelloLine({ text }: { text: string }) {
   return (
     <HelloSource
+      said={text.replace(/^Program log: /, "")}
       before={
         // Lit, with a purple edge: your hello, back from the network
         <div className="relative -mx-4 bg-brand-purple/12 px-4 text-foreground before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-brand-purple">{text}</div>

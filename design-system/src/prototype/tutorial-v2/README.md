@@ -5,6 +5,10 @@ lesson is one conversation with the assistant: it explains a piece, asks a quest
 writes the code once you pick the right one, and every action (Build, Deploy, Run, Call, Next) sits on
 the latest card in the chat. Code, terminal and the Call panel stay on the right.
 
+Since 10/27 it is the main tutorial prototype and runs more than one lesson: Hello Anchor, Lumberjack and Zero Copy,
+each a module in `lessons/` (see `lessons/README.md` for the principles every lesson follows and how to
+add one). What follows describes Hello Anchor, the first.
+
 It is a design prototype, not production code. It exists to get the concept approved; the product
 (`client-v2`) gets rebuilt from it with real data. Everything that would need a backend is mocked (see
 "What is real and what is mocked").
@@ -57,6 +61,23 @@ cards and copy, phone patterns on top).
 filter were redrawn after Claude Code's (`d0e65915`), the answer rows were realigned (`8eda5471`), and
 the deck frames were recaptured for the client review.
 
+**10/27 to 10/28, a lesson per tutorial.** v2 became the main tutorial prototype, and the flow was split
+from Hello Anchor's script: each tutorial is now a lesson module in `lessons/`. Two were added, one a
+level: Lumberjack (Intermediate, 4 steps: an account the program creates, its address as a PDA, an error
+of your own, time on chain) and Zero Copy (Advanced, 3 steps: the stack, the heap, then zero copy).
+Their steps and the decisions against the originals are in `lessons/README.md`. What the flow gained on
+the way:
+
+* the Call panel picks one instruction at a time from chips, and in Zero Copy its arguments can be
+  edited: the program answers whatever is sent, as devnet would (8.6 in the spec);
+* the costs are real devnet SOL from the learner's wallet instead of a sponsored 0 SOL (1.3);
+* a "Fix it" question offers Build once lib.rs was changed by hand, so a partial fix gets its own
+  compiler error (6.5.2);
+* result cards keep their details under a Details row at the foot, and an action's record is hidden
+  when its result card sits right under it (6.5.4, 6.5.5);
+* the Call panel's type comes down to two sizes on one spacing scale, and the terminal bar names a
+  refused call by the program's own error instead of a build failure.
+
 ## Running it
 
 ```bash
@@ -74,6 +95,8 @@ Then open the desktop or phone address above. The view is picked by the address:
 | `?embed` | inside an iframe, no frame of its own |
 | `?deck=overview` or `?deck=N` | what a deck slide embeds: the tutorial page, or step N (0 based) with the steps before it done; nothing is saved |
 | `?keep` | set when the prototype bar switches views, so the same screen reopens |
+| `?demo=files` | the lesson with nine more files a full Anchor workspace has, to review the tab overflow (fade, All tabs) and Recent in the phone's file sheet; lasts for the browser tab, `?demo=off` ends it |
+| `?demo=faucet` | the first deploy meets the devnet faucet's limit: Not enough devnet SOL, then Try again deploys; lasts for the browser tab, `?demo=off` ends it |
 
 Progress is saved in `localStorage` under `pg-proto-tutorial-v2`. "Start over" in the ⋯ menu, or the
 prototype bar, clears it. A saved state with another version (`v` in the state) is dropped.
@@ -90,7 +113,8 @@ continues on the other.
 |---|---|
 | `store.tsx` | The state machine: one reducer, the `Turn` types of the conversation, the `Action`s the UI sends, and the queries the screens use (`liveCard`, `liveAsk`, `liveAct`). `thread` is the lesson itself and is persisted |
 | `runner.tsx` | The single clock. It posts queued turns at a reading pace and moves a run (build, deploy, run, call) through its stages with the timings of spec D29 |
-| `data.ts` | The script: the tutorials list, the files at each point, `STEPS` with their beats (say, ask, act, win), the logs, the program id and transaction examples |
+| `lessons/` | One module per tutorial: its script (`STEPS` with their beats: say, write, ask, act, win), the code at each point, its compiler errors and transactions. `lessons/README.md` has the principles |
+| `data.ts`, `host.tsx` | The tutorials catalog and the open lesson, handed to everything else; which lesson is open, a store per lesson, and the hooks that open one |
 | `answers.ts` | What the composer understands without a model: action words ("build", "deploy"), a few intents (I'm stuck, change what hello says) and canned answers |
 | `check.ts` | A stand in for the compiler: compares the learner's typed code with the step's target and returns the error rustc would print, line and column included |
 | `idl.ts`, `tx.ts`, `diff.ts` | The IDL read off `lib.rs` for the Call panel, the transactions a run leaves, line diffs for Show me the fix |
@@ -110,9 +134,12 @@ says it is the prototype's limit); there is no build server (`check.ts` plays th
 planned first failure in step 1); there is no devnet (program id, signatures, fees, compute units and
 times are examples in `data.ts`); the IDL is read off the file with a regex.
 
-Kora: "0 SOL, paid by Kora" is the product direction the copy shows. The default Kora policy will not
-pay a learner's deploy rent, so building it needs its own Kora policy or a shared program. This is an
-open question for engineering, not something the UI should change.
+Who pays: the learner's Playground wallet, a devnet key pair Playground makes in the browser. The first
+deploy tops it up from the devnet faucet ("Funding your wallet", `AIRDROP`), and every cost is shown as
+devnet SOL from that wallet: `DEPLOY_COST`, `UPGRADE_COST` and `TX_FEE` in `lessons/common.ts`. When
+the faucet is at its limit, the deploy fails with "Not enough devnet SOL", the wallet's address and a
+link to the faucet, and the deploy card offers Try again. Kora is not in the copy any more: its default
+policy will not pay a learner's deploy rent.
 
 Real: the flow, every state and its copy, the timings, keyboard paths, the editor (you can type the
 code yourself and get checked), the IDL driven Call form, and the layout at 1152 to 1728 wide and on

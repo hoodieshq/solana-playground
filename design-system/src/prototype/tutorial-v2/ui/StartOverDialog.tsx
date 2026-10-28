@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+import { LESSON } from "../data"
 import { useStore } from "../store"
 
 /** Starting over clears progress, so it asks first */
@@ -19,7 +20,7 @@ export function StartOverDialog({ open, onOpenChange }: { open: boolean; onOpenC
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent size="sm">
         <AlertDialogHeader>
-          <AlertDialogTitle>Start Hello Anchor over?</AlertDialogTitle>
+          <AlertDialogTitle>Start {LESSON.card.name} over?</AlertDialogTitle>
           <AlertDialogDescription>
             {done === 0
               ? "Your progress and the code written so far will be cleared."

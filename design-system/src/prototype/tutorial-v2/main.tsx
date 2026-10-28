@@ -8,7 +8,9 @@ import { App } from "./App"
 import { DesktopApp } from "./desktop/DesktopApp"
 import { DeviceFrame } from "./DeviceFrame"
 import { installScrollIndicator } from "./scrollIndicator"
-import { resetStorage, Store } from "./store"
+import { firstLesson, LessonHost } from "./host"
+import { LESSONS } from "./lessons"
+import { resetStorage } from "./store"
 import { DECK, view } from "./view"
 import { PrototypeBar } from "./PrototypeBar"
 
@@ -37,6 +39,9 @@ if (desktop) {
   installScrollIndicator("desktop")
 }
 
+// The device frame's page has no lesson of its own: its tab names the one the frame opens
+document.title = `${LESSONS[firstLesson()].card.name} · Playground prototype v2`
+
 const resetDesktop = () => {
   resetStorage()
   location.reload()
@@ -61,33 +66,33 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {DECK !== null ? (
       <div className="h-dvh">
-        <Store>
+        <LessonHost>
           <DesktopApp />
-        </Store>
+        </LessonHost>
       </div>
     ) : inTablet ? (
       <div className="h-dvh">
-        <Store>
+        <LessonHost>
           <DesktopApp />
-        </Store>
+        </LessonHost>
       </div>
     ) : wide && !embedded ? (
       desktop ? (
         <div className="flex h-dvh flex-col">
           <PrototypeBar onReset={resetDesktop} />
           <div className="min-h-0 flex-1">
-            <Store>
+            <LessonHost>
               <DesktopApp />
-            </Store>
+            </LessonHost>
           </div>
         </div>
       ) : (
         <DeviceFrame device={view === "tablet" ? "tablet" : "phone"} />
       )
     ) : (
-      <Store>
+      <LessonHost>
         <App />
-      </Store>
+      </LessonHost>
     )}
   </StrictMode>
 )

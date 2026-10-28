@@ -1,12 +1,10 @@
-import { toast } from "sonner"
-
-import { STEPS, TUTORIALS, type TutorialCard } from "../data"
+import { TUTORIALS, type TutorialCard } from "../data"
+import { playable } from "../lessons"
 
 /** What the gallery says about a tutorial. The description is the tutorial's own, from the
  * Playground repo: client/public/tutorials/<slug>/data.json, and for the three hello tutorials,
  * which have no data.json there, client/src/tutorials/<slug>/<slug>.ts. `parts` is the number of
- * pages in its pages folder, `by` its authors from the same file. Nobody has timed them, so only Hello Anchor, the one this prototype
- * runs, says how long it takes */
+ * pages in its pages folder, `by` its authors from the same file */
 type About = { description: string; parts: number; by?: string }
 
 const ABOUT: Record<string, About> = {
@@ -60,24 +58,6 @@ export const FRAMEWORKS: { value: FrameworkFilter; label: string }[] = [
   { value: "Native", label: "Native" },
 ]
 
-/** The tutorial the gallery puts first, for someone who hasn't started one */
-export const HERO = {
-  slug: "hello-anchor",
-  name: "Hello Anchor",
-  line: "Write, deploy and call your first program",
-  meta: `10 min · ${STEPS.length} steps`,
-}
-
-/** The program as the last step leaves it: what the hero shows you'll build */
-export const FINISHED_PROGRAM = STEPS[STEPS.length - 1].target
-
-/** The line under a card's description: who wrote it and how long it is. Sections already name
- * the level, and the filter the framework */
-export function metaFor(t: Entry) {
-  const size = t.slug === HERO.slug ? HERO.meta : `${t.parts} ${t.parts === 1 ? "part" : "parts"}`
-  return t.by ? `by ${t.by} · ${size}` : size
-}
-
 /** A tutorial's name as the product shows it: the data keeps upstream's name, which is also its key */
 const SHOWN: Record<string, string> = { "tictactoe-seahorse": "Tic-tac-toe Seahorse" }
 export const shownName = (t: Entry) => SHOWN[t.slug] ?? t.name
@@ -101,9 +81,11 @@ export function filterCatalog(query: string, framework: FrameworkFilter) {
   )
 }
 
-/** The cards by level, without the levels nothing is left in */
+/** The cards by level, without the levels nothing is left in. The tutorials the prototype runs lead
+ * their level, so a section folded to its first cards still shows them */
 export function byLevel(list: Entry[]) {
-  return LEVELS.map((level) => ({ level, items: list.filter((t) => t.level === level) })).filter((g) => g.items.length > 0)
+  const runs = (t: Entry) => (playable(t.slug) ? 0 : 1)
+  return LEVELS.map((level) => ({ level, items: list.filter((t) => t.level === level).sort((a, b) => runs(a) - runs(b)) })).filter((g) => g.items.length > 0)
 }
 
 /** What the results line says: "3 results", or "No Seahorse tutorials match “vault”" */
@@ -113,9 +95,6 @@ export function resultsLine(count: number, query: string, framework: FrameworkFi
   if (count === 0) return q ? `No ${kind} match “${q}”` : `No ${kind} yet`
   return `${count} ${count === 1 ? "result" : "results"}`
 }
-
-/** Only Hello Anchor runs in this prototype. The rest say so when opened */
-export const openTutorial = (slug: string, open: () => void) => (slug === HERO.slug ? open() : toast("Only Hello Anchor is in this prototype"))
 
 /** The search field's hint names the filter when one is on, the one place it shows while searching */
 export const searchHint = (framework: FrameworkFilter) =>

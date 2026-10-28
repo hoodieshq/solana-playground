@@ -1,4 +1,4 @@
-import { CircleCheck, Send } from "lucide-react"
+import { Check, Send } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -43,7 +43,7 @@ export function WinCard({ turn, phone = false }: { turn: WinTurn; phone?: boolea
   if (turn.done)
     return (
       <div className="flex h-9 items-center gap-2 rounded-control border border-border bg-(--card-ground) px-3 text-caption">
-        <CircleCheck className="size-3.5 shrink-0 text-success" aria-hidden="true" />
+        <Check className="size-3.5 shrink-0 text-success" aria-hidden="true" />
         <span className="min-w-0 truncate text-muted-foreground">
           <span className="text-foreground">Step {turn.step + 1} done</span> · {win.headline.replace(/\.$/, "")}
         </span>

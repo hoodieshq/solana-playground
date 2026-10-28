@@ -390,7 +390,9 @@ html.dark {
      app's warm grey at low alpha, so a hairline reads as an edge, not a drawn line */
   --background: #141413;
   --surface-base: #141413;
-  --sidebar: #141413;
+  /* The left nav a tone over the window, as Claude Code's sidebar: set apart by its ground, not only
+     by the hairline. Hover (#1f1e1d) still reads a step above it */
+  --sidebar: #1a1918;
   --surface-panel: #1f1e1d;
   --card: #1f1e1d;
   --popover: #1f1e1d;

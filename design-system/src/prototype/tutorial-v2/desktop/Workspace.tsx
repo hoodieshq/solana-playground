@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent } from "react"
 
 import { ConsoleDrawer, ConsoleDrawerBar, ConsoleDrawerContent, ConsoleDrawerStatus } from "@/components/ui/console-drawer"
 
-import { CLIENT, LIB, LIB_NAMED } from "../data"
+import { CLIENT, LESSON, LIB } from "../data"
 import { landingFor } from "../landing"
 import { useStore } from "../store"
 import { Editor } from "./Editor"
@@ -69,10 +69,12 @@ export function Workspace({ treeOpen, onTree }: { treeOpen: boolean; onTree: (op
 
   const wrote = s.wrote
 
+  // Before Start everything is read only, and lib.rs shows the finished program. Another file picked
+  // from the tree shows itself: the finished lib.rs under its tab read as that file's content
   const preview = !s.started
-  const file = preview ? LIB : s.open
+  const file = preview && !(s.open in s.files) ? LIB : s.open
   const test = file === "test"
-  const code = preview ? LIB_NAMED : (s.files[file] ?? "")
+  const code = preview && file === LIB ? LESSON.preview : (s.files[file] ?? "")
 
   // What lights: the lines just written, or the ones Show in asked for, arriving again
   const reveal = s.reveal?.file === file && !s.reveal.caret && !s.reveal.top ? s.reveal : null
@@ -112,7 +114,8 @@ export function Workspace({ treeOpen, onTree }: { treeOpen: boolean; onTree: (op
       </div>
       <ConsoleDrawer open={s.terminal} onOpenChange={(open) => dispatch({ type: "terminal", open })}>
         <ConsoleDrawerBar>
-          <ConsoleDrawerStatus>
+          {/* The status takes the bar's width, so the chevron stays at the bar's end whatever it says */}
+          <ConsoleDrawerStatus className="flex-1">
             <TerminalStatus />
           </ConsoleDrawerStatus>
         </ConsoleDrawerBar>

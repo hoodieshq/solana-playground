@@ -4,9 +4,9 @@ import { useState } from "react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
-import { STEPS } from "../data"
-import { useStore } from "../store"
-import { FRAMEWORKS, HERO, byLevel, openTutorial, productMeta, shownName, upstreamName, type Entry, type FrameworkFilter } from "../ui/catalog"
+import { useOpenTutorial, useProgress } from "../host"
+import { LESSONS } from "../lessons"
+import { FRAMEWORKS, byLevel, productMeta, shownName, upstreamName, type Entry, type FrameworkFilter } from "../ui/catalog"
 import { NAV_ICONS } from "../ui/navIcons"
 import { TutorialCover } from "../ui/TutorialCover"
 
@@ -96,14 +96,15 @@ export function FilterButton({
  * square is the card's one button, stretched over the whole card; it only shows what a press does:
  * the arrow out to the tutorial, a tick once it's done */
 function Card({ t }: { t: Entry }) {
-  const { s, dispatch } = useStore()
-  const mine = t.slug === HERO.slug
-  const finished = mine && s.finishedAt !== null
-  const started = mine && s.startedAt !== null && !finished
-  const done = s.passed.filter(Boolean).length
+  const open = useOpenTutorial()
+  const p = useProgress(t.slug)
+  const steps = LESSONS[t.slug]?.steps.length ?? 0
+  const finished = p.finished
+  const started = p.started && !finished
+  const done = p.passed.filter(Boolean).length
   const name = shownName(t)
   // The tutorial opens on its conversation: the intro card before Start, the live card after
-  const press = () => openTutorial(t.slug, () => dispatch({ type: "open", screen: "step" }))
+  const press = () => open(t.slug)
 
   return (
     <div className="group/card relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-panel border border-border bg-surface-panel p-3.5 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none">
@@ -114,7 +115,7 @@ function Card({ t }: { t: Entry }) {
           {/* How far a lesson under way is, beside its name */}
           {started && done > 0 && (
             <span className="ml-2 inline-flex items-center align-middle text-[0.75rem] font-normal text-muted-foreground tabular-nums">
-              {done} of {STEPS.length}
+              {done} of {steps}
             </span>
           )}
         </div>

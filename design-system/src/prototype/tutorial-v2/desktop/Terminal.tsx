@@ -4,8 +4,9 @@ import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 import { sameCode } from "../check"
-import { CLIENT, LIB } from "../data"
-import { useStore, type State, type Turn } from "../store"
+import { CLIENT, DEPLOY_COST, LIB } from "../data"
+import { idlLine } from "../idl"
+import { camel, useStore, type State, type Turn } from "../store"
 import { BuildLog } from "../ui/BuildLog"
 import { ProgramId } from "../ui/ProgramId"
 
@@ -13,13 +14,28 @@ type ResultTurn = Extract<Turn, { kind: "result" }>
 
 const lastResult = (s: State) => [...s.thread].reverse().find((t): t is ResultTurn => t.kind === "result")
 
+/** A call the program refused (a Call panel grow past 10 KB, a chop with no energy): its own error by
+ * name and number when it has one, else what went wrong. Not a build, so no line to point at */
+const refused = (tx: NonNullable<ResultTurn["tx"]>) =>
+  tx.error?.number ? `Failed · ${tx.error.name} · error ${tx.error.number}` : `Failed · ${tx.error?.message ?? tx.instruction}`
+
+/** A game's last chop from its card, which leaves no result turn of its own */
+const lastChop = (s: State) =>
+  s.thread
+    .flatMap((t) => (t.kind === "act" ? [...(t.chops ?? []), ...(t.grows ?? [])] : []))
+    .sort((a, b) => a.at - b.at)
+    .pop() ?? null
+
 /** The command a run starts with, as the terminal echoes it while it goes */
 function command(s: State) {
   const run = s.run
   if (!run) return ""
   if (run.act === "run") return `$ run ${CLIENT}`
   if (run.act === "call") return `$ pg.program.methods.hello(${JSON.stringify(s.name ?? "")}).rpc()`
-  if (run.act === "test") return s.testName.trim() ? `$ call hello --name ${JSON.stringify(s.testName.trim())}` : "$ call hello"
+  if (run.act === "chop") return "$ pg.program.methods.chopTree().rpc()"
+  if (run.act === "grow") return `$ pg.program.methods.${camel(run.ix ?? "grow")}(len).rpc()`
+  if (run.act === "send") return `$ pg.program.methods.${camel(run.ix ?? "")}().rpc()`
+  if (run.act === "test") return s.testName.trim() && !run.ix ? `$ call hello --name ${JSON.stringify(s.testName.trim())}` : `$ call ${run.ix ?? "hello"}`
   return "$ anchor build"
 }
 
@@ -28,11 +44,21 @@ function command(s: State) {
 export function TerminalStatus() {
   const { s } = useStore()
   const r = lastResult(s)
+  const chop = lastChop(s)
   const busy = s.phase !== "idle"
   const file = r?.act === "run" ? CLIENT : LIB
   const edited = !busy && r?.src !== undefined && !sameCode(r.src, s.files[file] ?? "")
-  const failed = !busy && !edited && r && !r.ok
-  const text = edited
+  const chopped = !busy && chop && (!r || chop.at > r.at)
+  const failed = chopped ? !chop.ok : !busy && !edited && r && !r.ok
+  const text = chopped
+    ? chop.ok
+      ? chop.tx.said
+        ? `Confirmed · Program log: ${chop.tx.said}`
+        : `Confirmed · ${chop.tx.instruction}`
+      : chop.tx.error?.number === 0
+        ? `Failed · ${chop.tx.error.message}`
+        : "Failed · NotEnoughEnergy · error 6000"
+    : edited
     ? `${file === CLIENT ? "client.ts" : "lib.rs"} changed since the last ${!r.ok ? (r.act === "run" ? "failed run" : "failed build") : r.act === "run" ? "run" : r.act === "build" ? "build" : "deploy"}`
     : busy
       ? s.run && s.run.stages.length > 1
@@ -43,14 +69,22 @@ export function TerminalStatus() {
       : !r
         ? "Ready"
         : !r.ok
-          ? `${r.act === "run" ? "Run" : "Build"} failed · line ${r.fail?.line ?? 1}`
+          ? r.funding
+            ? "Not enough devnet SOL · the faucet is at its limit"
+            : r.tx
+              ? refused(r.tx)
+              : `${r.act === "run" ? "Run" : "Build"} failed · line ${r.fail?.line ?? 1}`
           : r.act === "build"
-            ? `Build successful · IDL: 1 instruction · hello${r.args && r.args !== "()" ? r.args : ""}`
+            ? `Build successful · ${idlLine(r.src ?? "")}`
             : r.act === "deploy" || r.act === "buildDeploy"
               ? r.upgrade
-                ? `Upgraded · IDL: hello${r.args}`
-                : "Deployed · 0 SOL, paid by Kora"
-              : `Confirmed · Program log: ${r.tx?.said ?? ""}`
+                ? `Upgraded · ${idlLine(r.src ?? "")}`
+                : `Deployed · ${DEPLOY_COST.replace(" SOL", " devnet SOL")} from your wallet`
+              : r.tx?.said
+                ? `Confirmed · Program log: ${r.tx.said}`
+                : r.tx
+                  ? `Confirmed · ${r.tx.instruction}`
+                  : "Read your player · no transaction"
   return (
     <>
       <span
