@@ -24,8 +24,9 @@ Spec ticket: HOO-2321. One task is one ticket and one PR. Owner and estimate
       navigation folding to its rail with overlay, pin and the first-time hint,
       the chat head with back, name and ⋯ menu, column width and handle,
       opened for a tutorial with a definition. Verify: unit tests for the fold
-      rules and the width clamp; widths at 1440, 1280 and 1152 (ticket to
-      file; fleet; M 1.5; after nothing)
+      rules and the width clamp; widths at 1440, 1280 and 1152 (HOO-2348;
+      fleet; M 1.5; after nothing;
+      plan: [plans/2.1-tutorial-frame.md](plans/2.1-tutorial-frame.md))
 - [ ] 2.2 The workspace: head tabs that never close, the Call button slot,
       Files ⌘E and Terminal ⌘J icons, the tree popover and dock, the terminal
       bar and drawer with its states and auto-open rules, the editor's
