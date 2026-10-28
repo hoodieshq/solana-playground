@@ -129,4 +129,62 @@ describe("BaseApprovalCard", () => {
       expect(button.classList.contains("md:h-8")).toBe(true);
     }
   });
+
+  describe("Undo patch", () => {
+    const request = {
+      type: "patch",
+      path: "src/lib.rs",
+      before: "a",
+      after: "b",
+    } as const;
+    const appliedCard = (): ApprovalItem => ({
+      id: "card-3",
+      createdAt: CREATED,
+      kind: "approval",
+      status: "allowed",
+      outcome: "wrote src/lib.rs",
+      request,
+    });
+    const undoneCard = (): ApprovalItem => ({
+      id: "card-3",
+      createdAt: CREATED,
+      kind: "approval",
+      status: "allowed",
+      outcome: "undone, src/lib.rs is back as it was",
+      undone: true,
+      request,
+    });
+
+    it("offers Undo patch on an applied card it can take back", () => {
+      const onUndo = vi.fn();
+      render(
+        <BaseApprovalCard
+          item={appliedCard()}
+          onAnswer={vi.fn()}
+          onUndo={onUndo}
+        />
+      );
+      expect(screen.getByText("Applied")).toBeTruthy();
+      const undo = screen.getByRole("button", { name: "Undo patch" });
+      // A thumb's target on a phone, both ways
+      expect(undo.className).toContain("h-11");
+      expect(undo.className).toContain("min-w-11");
+      fireEvent.click(undo);
+      expect(onUndo).toHaveBeenCalledTimes(1);
+    });
+
+    it("offers no Undo patch without onUndo", () => {
+      render(<BaseApprovalCard item={appliedCard()} onAnswer={vi.fn()} />);
+      expect(screen.queryByRole("button", { name: "Undo patch" })).toBeNull();
+    });
+
+    it("reads Undone once taken back", () => {
+      render(<BaseApprovalCard item={undoneCard()} onAnswer={vi.fn()} />);
+      expect(screen.getByText("Undone")).toBeTruthy();
+      expect(screen.queryByText("Applied")).toBeNull();
+      expect(
+        screen.getByText("undone, src/lib.rs is back as it was")
+      ).toBeTruthy();
+    });
+  });
 });

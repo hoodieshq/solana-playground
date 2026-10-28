@@ -50,18 +50,23 @@ const ANSWER = "h-11 md:h-8";
  * A change or a command the assistant wants to make, with the user's answer.
  *
  * Draws only: `onAnswer` is called with the user's answer, and whether a card
- * is still open to an answer is its `status`, which the store owns.
+ * is still open to an answer is its `status`, which the store owns. An
+ * applied patch offers Undo patch only when the caller passes `onUndo`, which
+ * it does while the patch can still be taken back.
  */
 export const BaseApprovalCard = ({
   item,
   onAnswer,
+  onUndo,
 }: {
   item: ApprovalItem;
   onAnswer: (answer: ApprovalAnswer) => void;
+  onUndo?: () => void;
 }) => {
   const { request, status } = item;
   const pending = status === "pending";
   const patch = request.type === "patch";
+  const undone = !!item.undone;
 
   return (
     <Diff data-status={status} className={cn(pending && "border-primary")}>
@@ -72,9 +77,9 @@ export const BaseApprovalCard = ({
         {patch ? <PatchStat request={request} /> : <span className="ml-auto" />}
         <Badge
           variant={pending ? "default" : "outline"}
-          className={cn(status === "allowed" && "text-success")}
+          className={cn(status === "allowed" && !undone && "text-success")}
         >
-          {STATUS_LABEL[status]}
+          {undone ? "Undone" : STATUS_LABEL[status]}
         </Badge>
       </DiffHeader>
 
@@ -113,14 +118,28 @@ export const BaseApprovalCard = ({
             </Button>
           </>
         ) : (
-          <span
-            className={cn(
-              "text-xs",
-              status === "allowed" ? "text-success" : "text-muted-foreground"
+          <>
+            <span
+              className={cn(
+                "text-xs",
+                status === "allowed" && !undone
+                  ? "text-success"
+                  : "text-muted-foreground"
+              )}
+            >
+              {item.outcome ?? OUTCOME[status]}
+            </span>
+            {onUndo && (
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn("ml-auto min-w-11 md:min-w-0", ANSWER)}
+                onClick={onUndo}
+              >
+                Undo patch
+              </Button>
             )}
-          >
-            {item.outcome ?? OUTCOME[status]}
-          </span>
+          </>
         )}
       </DiffFooter>
     </Diff>

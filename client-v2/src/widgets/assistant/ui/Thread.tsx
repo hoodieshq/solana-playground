@@ -17,6 +17,8 @@ import {
   verifyingStage,
 } from "../../../views/flow/lessons";
 import type { LessonState } from "../../../views/flow/lessons";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { PgPatchUndo } from "../../../views/sidebar/assistant/patch-undo";
 import { assistantTelemetry } from "../model/telemetry";
 import type { Turn } from "../model/use-turn";
 import { BaseThread } from "./BaseThread";
@@ -154,6 +156,20 @@ export const Thread = ({
     PgAssistant.resolveApproval(id, answer === "allow");
   };
 
+  // Asked on every render: the thread redraws on every change in the store,
+  // and an edit in the editor that takes Undo away is caught again by `undo`
+  const undoFor = (id: string) => {
+    const card = items.find((item) => item.id === id);
+    if (card?.kind !== "approval" || !PgPatchUndo.can(card)) return undefined;
+    return () => {
+      PgPatchUndo.undo(card).then((result) => {
+        if (result === "undone") {
+          assistantTelemetry.track("assistant_patch_undone", { via: "card" });
+        }
+      }, reportButtonFailure("undo the patch"));
+    };
+  };
+
   // Cover the silent gaps: before the first token and while tools run.
   // Once text streams into the last assistant item the marker comes down.
   const working =
@@ -174,6 +190,7 @@ export const Thread = ({
       }}
       actionsFor={actionsFor}
       onAnswer={onAnswer}
+      undoFor={undoFor}
     />
   );
 };

@@ -63,10 +63,13 @@ export const BaseThreadItem = ({
   item,
   actions,
   onAnswer,
+  onUndo,
 }: {
   item: ChatItem;
   actions?: ReplyActions;
   onAnswer: (id: string, answer: ApprovalAnswer) => void;
+  /** Takes back this item's applied patch; only while it still can be */
+  onUndo?: () => void;
 }) => {
   switch (item.kind) {
     case "user":
@@ -133,6 +136,7 @@ export const BaseThreadItem = ({
         <BaseApprovalCard
           item={item}
           onAnswer={(answer) => onAnswer(item.id, answer)}
+          onUndo={onUndo}
         />
       );
   }

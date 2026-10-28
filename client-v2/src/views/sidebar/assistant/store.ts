@@ -131,6 +131,8 @@ export type ChatItem =
       status: ApprovalStatus;
       /** Set once the tool has actually run */
       outcome?: string;
+      /** An applied patch the user took back from its card (`PgPatchUndo`) */
+      undone?: true;
     })
   | (ChatItemBase & { kind: "error"; text: string })
   /** Something the panel did, not the model — e.g. the user stopped the turn */
@@ -910,6 +912,19 @@ export class PgAssistant {
       stamp(item);
       PgAssistant._emit();
     }
+  }
+
+  /**
+   * Record that an applied patch was taken back, with what the card says now.
+   * Stamped, so the account keeps the newer copy.
+   */
+  static markUndone(id: string, outcome: string) {
+    const item = PgAssistant._items.find((i) => i.id === id);
+    if (item?.kind !== "approval" || item.status !== "allowed") return;
+    item.undone = true;
+    item.outcome = outcome;
+    stamp(item);
+    PgAssistant._emit();
   }
 
   /** Deny everything still waiting — used when a turn is abandoned */

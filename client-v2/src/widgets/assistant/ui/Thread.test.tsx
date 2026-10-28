@@ -54,6 +54,15 @@ vi.mock("../../../views/sidebar/assistant/bridge/lesson-context", () => ({
   describeLesson: (state: { path: unknown }) =>
     state.path ? { verifiedBy: "A build proves this step" } : null,
 }));
+// Undo reads and writes the project through the real bridge, which reaches
+// the same barrel; the thread only decides when to offer it and what to report
+const undo = vi.hoisted(() => ({
+  can: vi.fn(() => false),
+  undo: vi.fn(async (): Promise<string> => "undone"),
+}));
+vi.mock("../../../views/sidebar/assistant/patch-undo", () => ({
+  PgPatchUndo: undo,
+}));
 vi.mock("../../../components/Markdown", () => ({
   default: ({ children }: { children: string }) => <p>{children}</p>,
 }));
@@ -153,6 +162,48 @@ describe("Thread, approvals", () => {
     expect(tracked()).toEqual([
       ["assistant_approval_answered", { kind: "command", answer: "deny" }],
     ]);
+  });
+});
+
+describe("Thread, undo", () => {
+  const applied = () => {
+    act(() => {
+      PgAssistant.requestApproval(PATCH);
+      PgAssistant.resolveApproval(PgAssistant.items[0].id, true);
+    });
+  };
+
+  it("offers Undo patch on a card it can take back, and reports the undo once", async () => {
+    undo.can.mockReturnValue(true);
+    applied();
+    render(<Thread turn={stubTurn(false)} project="Counter" />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Undo patch" }));
+    });
+
+    expect(undo.undo).toHaveBeenCalledWith(PgAssistant.items[0]);
+    expect(tracked()).toEqual([["assistant_patch_undone", { via: "card" }]]);
+  });
+
+  it("reports nothing when the file moved on", async () => {
+    undo.can.mockReturnValue(true);
+    undo.undo.mockResolvedValueOnce("moved-on");
+    applied();
+    render(<Thread turn={stubTurn(false)} project="Counter" />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Undo patch" }));
+    });
+
+    expect(tracked()).toEqual([]);
+  });
+
+  it("offers no Undo patch on a card it cannot take back", () => {
+    undo.can.mockReturnValue(false);
+    applied();
+    render(<Thread turn={stubTurn(false)} project="Counter" />);
+    expect(screen.queryByRole("button", { name: "Undo patch" })).toBeNull();
   });
 });
 

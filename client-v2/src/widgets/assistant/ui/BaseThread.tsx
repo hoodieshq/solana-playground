@@ -38,6 +38,7 @@ export const BaseThread = ({
   onSuggestion,
   actionsFor,
   onAnswer,
+  undoFor = () => undefined,
 }: {
   items: readonly ChatItem[];
   /** The turn is running and the last item is not a reply with text: before the first token and while tools run */
@@ -51,6 +52,8 @@ export const BaseThread = ({
   /** The moves offered on a reply, for the one reply that offers them */
   actionsFor: (id: string) => ReplyActions | undefined;
   onAnswer: (id: string, answer: ApprovalAnswer) => void;
+  /** Takes back the patch of the card `id`, or `undefined` when it no longer can */
+  undoFor?: (id: string) => (() => void) | undefined;
 }) => (
   <MessageScrollerProvider autoScroll>
     <FollowOnSend items={items} working={working} />
@@ -78,6 +81,7 @@ export const BaseThread = ({
                   item={item}
                   actions={actionsFor(item.id)}
                   onAnswer={onAnswer}
+                  onUndo={undoFor(item.id)}
                 />
               </MessageScrollerItem>
             ))

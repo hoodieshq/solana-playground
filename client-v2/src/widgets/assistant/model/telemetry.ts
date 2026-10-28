@@ -23,6 +23,8 @@ export type AssistantEvents = {
   assistant_suggestion_picked: NoParams;
   /** The user asked for a described change as a patch ("Make this change" or "Write it for me"). */
   assistant_make_change_requested: NoParams;
+  /** An applied patch was taken back and its file written back; `via` says from where (only the card's Undo patch so far). */
+  assistant_patch_undone: { via: "card" };
 };
 
 export const assistantTelemetry = createTracker<AssistantEvents>();
