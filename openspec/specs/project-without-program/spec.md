@@ -79,7 +79,8 @@ no Rust (`.rs`) or Python (`.py`) file. For such a project the dev-loop
 stepper SHALL show only the Write stage: the Build, Deploy and Interact
 tabs (`flow-stage-tab-build`, `flow-stage-tab-deploy`,
 `flow-stage-tab-interact`) SHALL not be rendered, and their keyboard
-shortcuts SHALL do nothing. The stepper row SHALL stay in place. The
+shortcuts SHALL do nothing. The stepper row SHALL stay in place and SHALL
+carry the label "Client project" (`flow-client-project`). The
 check SHALL follow the files, so the stages return as soon as a program
 file is added and leave when the last one is removed.
 
@@ -87,11 +88,13 @@ file is added and leave when the last one is removed.
 - **WHEN** the user opens a project that holds only `client/` and
   `tests/` files
 - **THEN** the stepper shows the Write tab and no Build, Deploy or
-  Interact tab, and Ctrl+2 leaves the Write stage shown
+  Interact tab, the row shows the label "Client project", and Ctrl+2
+  leaves the Write stage shown
 
 #### Scenario: A program is added
 - **WHEN** the user creates `src/lib.rs` in a project with no program
-- **THEN** the Build, Deploy and Interact tabs appear
+- **THEN** the Build, Deploy and Interact tabs appear and the "Client
+  project" label goes
 
 #### Scenario: A project with a program
 - **WHEN** the user opens a project whose `src/` holds `lib.rs`

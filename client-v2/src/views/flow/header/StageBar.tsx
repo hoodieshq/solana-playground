@@ -2,6 +2,8 @@ import type { FC } from "react";
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import { Badge } from "@/shared/ui/badge";
+
 import Stepper from "./Stepper";
 import {
   cursorStep,
@@ -22,7 +24,8 @@ import { useViewport } from "@/shared/lib/hooks/use-viewport";
  * `stageTabs`, design.md "Frame chrome (5.25)"); on a phone, in the preview
  * page's bar, where it keeps its own width. It owns the Ctrl+1..4 stage keys and
  * points the stepper at the stage the current lesson step is graded on. A
- * project with no program offers only Write, so the other keys do nothing. The
+ * project with no program offers only Write, so the other keys do nothing,
+ * and the row labels it "Client project". The
  * project list and the session footer live in the navigation (`AppNav`),
  * not here.
  */
@@ -64,6 +67,11 @@ const StageBar: FC = () => {
         target={target}
         fill={row}
       />
+      {!state.hasProgram && (
+        <Badge variant="outline" id="flow-client-project">
+          Client project
+        </Badge>
+      )}
     </Bar>
   );
 };
@@ -78,6 +86,7 @@ const Bar = styled.div<{ $row: boolean }>`
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.5rem;
     min-width: 0;
     background: transparent;
     font-family: ${theme.font.other.family};
