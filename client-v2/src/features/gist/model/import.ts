@@ -1,6 +1,6 @@
 import { PgExplorer, PgFramework } from "@/utils";
 import type { TupleFiles } from "@/utils";
-import { createLogger } from "../../../shared/lib/logger";
+import { createLogger } from "@/shared/lib/logger";
 import { fromGistFiles, GistFormatError } from "../lib/format";
 import { parseGistUrl } from "../lib/url";
 import type { GistRef } from "../lib/url";

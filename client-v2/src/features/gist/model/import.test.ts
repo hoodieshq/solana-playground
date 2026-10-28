@@ -5,12 +5,12 @@ import {
   initLogger,
   memoryProvider as logMemory,
   resetLogger,
-} from "../../../shared/lib/logger";
+} from "@/shared/lib/logger";
 import {
   initTelemetry,
   memoryProvider,
   resetTelemetry,
-} from "../../../shared/lib/telemetry";
+} from "@/shared/lib/telemetry";
 import { getGistFiles, GistImportError, importGist } from "./import";
 
 const utils = vi.hoisted(() => ({
