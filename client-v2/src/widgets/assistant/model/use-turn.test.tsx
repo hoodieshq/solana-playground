@@ -172,6 +172,17 @@ describe("useTurn", () => {
     expect(provider.send.mock.calls[1][2]).toEqual({ openFile: true });
   });
 
+  it("keeps the open file left out when a send opens Connect instead of starting a turn", async () => {
+    const { result } = renderHook(() => useTestTurn());
+
+    act(() => result.current.leaveOutOpenFile());
+    await act(() => result.current.send("hi"));
+
+    expect(open).toHaveBeenCalled();
+    expect(provider.send).not.toHaveBeenCalled();
+    expect(result.current.openFileLeftOut).toBe(true);
+  });
+
   it("says Stopped once for two Stops before the turn unwinds", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     let unwind!: () => void;
@@ -855,6 +866,41 @@ describe("useTurn's failures and races", () => {
       expect(PgAssistant.items.at(-1)).toMatchObject({
         kind: "error",
         text: "network error",
+      });
+    });
+
+    it("shows a programming TypeError after text as an error, not a cut-off", async () => {
+      PgAssistant.connect({ id: "default", apiKey: "" });
+      failAfter(
+        "The program",
+        new TypeError("Cannot read properties of undefined (reading 'x')")
+      );
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("hi"));
+
+      const reply = PgAssistant.items.find((i) => i.kind === "assistant")!;
+      expect(PgAssistant.isCutOff(reply)).toBe(false);
+      expect(PgAssistant.items.at(-1)).toMatchObject({ kind: "error" });
+    });
+
+    it("cuts off nothing when the request drops after a finished reply and a tool", async () => {
+      PgAssistant.connect({ id: "default", apiKey: "" });
+      provider.send.mockImplementation(async () => {
+        const id = PgAssistant.startAssistantMessage();
+        PgAssistant.appendToAssistantMessage(id, "Let me read it.");
+        PgAssistant.addToolCall("read src/lib.rs");
+        throw new TypeError("Failed to fetch");
+      });
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("hi"));
+
+      const reply = PgAssistant.items.find((i) => i.kind === "assistant")!;
+      expect(PgAssistant.isCutOff(reply)).toBe(false);
+      expect(PgAssistant.items.at(-1)).toMatchObject({
+        kind: "error",
+        text: "Failed to fetch",
       });
     });
 

@@ -130,6 +130,32 @@ describe("PgPatchUndo", () => {
     expect(bridge.applyPatch).toHaveBeenCalledTimes(1);
   });
 
+  it("says so, reported, when the card is gone by the time the file is back", async () => {
+    const card = await applied("old", "new");
+    PgPatchUndo.wrote(card.id);
+    const { bridge, file } = fakeBridge("new");
+    const { initLogger, memoryProvider, resetLogger } = await import(
+      "@/shared/lib/logger"
+    );
+    const logs = memoryProvider();
+    initLogger({ providers: [logs] });
+    vi.mocked(bridge.applyPatch).mockImplementationOnce(async ({ content }) => {
+      file.content = content;
+      // A workspace switch lands while the write runs
+      PgAssistant.clear();
+    });
+
+    try {
+      expect(await PgPatchUndo.undo(card, bridge)).toBe("undone");
+      expect(file.content).toBe("old");
+      expect(logs.entries.map((e) => [e.ns, e.level, e.report])).toContainEqual(
+        ["assistant:patch-undo", "warn", true]
+      );
+    } finally {
+      resetLogger();
+    }
+  });
+
   it("can undo again when the write failed", async () => {
     const card = await applied("old", "new");
     PgPatchUndo.wrote(card.id);

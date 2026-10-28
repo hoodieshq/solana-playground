@@ -39,7 +39,7 @@ export interface ComposerContextChip {
 const CHIP_TARGET =
   "relative before:absolute before:inset-x-0 before:-inset-y-[11px] before:content-[''] md:before:hidden";
 const REMOVE_TARGET =
-  "relative grid place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-3.5 before:content-[''] md:before:-inset-1";
+  "relative grid place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-x-1 before:-inset-y-3.5 before:content-[''] md:before:-inset-1";
 
 /**
  * Where the user writes to the assistant: what it will read, the words, the
@@ -48,8 +48,8 @@ const REMOVE_TARGET =
  *
  * The input stays editable during a turn; the design system's `Composer`
  * refuses to submit while `busy`, so typing ahead cannot start a second turn.
- * The + (`ComposerAdd`) opens Sources and tools or Connect a model, the
- * same two entries as the head's More, with the same keys.
+ * The + (`ComposerAdd`) opens Sources and tools or Connect a model: the
+ * same Sources and Connect entries as the head's More, with the same keys.
  */
 export function BaseAssistantComposer({
   chips,
@@ -158,7 +158,10 @@ export function BaseAssistantComposer({
           onChange={(e) => onValueChange(e.target.value)}
           onKeyDown={(e) => {
             // Escape stops a running turn, as Stop does; the draft stays
-            if (e.key !== "Escape" || !busy) return;
+            // An Escape that ends an IME composition is the input method's
+            if (e.key !== "Escape" || !busy || e.nativeEvent.isComposing) {
+              return;
+            }
             e.preventDefault();
             onStop();
           }}

@@ -289,7 +289,7 @@ describe("BaseAssistantComposer", () => {
     const remove = screen.getByRole("button", {
       name: "Leave lib.rs out of the next message",
     });
-    expect(remove.className).toContain("before:-inset-3.5");
+    expect(remove.className).toContain("before:-inset-y-3.5");
     expect(chipOf("lib.rs active").className).toContain(
       "before:-inset-y-[11px]"
     );

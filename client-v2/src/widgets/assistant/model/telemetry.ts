@@ -25,7 +25,7 @@ export type AssistantEvents = {
   assistant_suggestion_picked: NoParams;
   /** The user asked for a described change as a patch ("Make this change" or "Write it for me"). */
   assistant_make_change_requested: NoParams;
-  /** A reply failed; `reason` is `interrupted` when the connection dropped after text had streamed, leaving the reply cut off. */
+  /** A reply was cut off: the connection dropped after text had streamed (`reason: "interrupted"`). Other failures show their error and send nothing here. */
   assistant_reply_failed: { reason: "interrupted" };
   /** The user pressed Try again under the last reply; `after` says whether it had been stopped or cut off. */
   assistant_reply_retried: { after: "stopped" | "interrupted" };

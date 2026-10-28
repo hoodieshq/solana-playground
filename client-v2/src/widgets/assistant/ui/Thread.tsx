@@ -163,11 +163,13 @@ export const Thread = ({
     const card = items.find((item) => item.id === id);
     if (card?.kind !== "approval" || !PgPatchUndo.can(card)) return undefined;
     return () => {
-      PgPatchUndo.undo(card).then((result) => {
-        if (result === "undone") {
-          assistantTelemetry.track("assistant_patch_undone", { via: "card" });
-        }
-      }, reportButtonFailure("undo the patch"));
+      PgPatchUndo.undo(card)
+        .then((result) => {
+          if (result === "undone") {
+            assistantTelemetry.track("assistant_patch_undone", { via: "card" });
+          }
+        })
+        .catch(reportButtonFailure("undo the patch"));
     };
   };
 

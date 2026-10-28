@@ -45,10 +45,14 @@ const isAbort = (error: unknown) =>
 
 /**
  * What `fetch`, and a stream it was reading, reject with when the connection
- * drops. Only a network failure after text has streamed reads as a cut-off
- * reply; anything else keeps its own message.
+ * drops: a `TypeError` whose message names the network ("Failed to fetch",
+ * "NetworkError…", "Load failed", "network error", "terminated"). Matched on
+ * the message too, so a programming error that is also a `TypeError` keeps
+ * its own message instead of reading as a cut-off reply.
  */
-const isNetworkFailure = (error: unknown) => error instanceof TypeError;
+const NETWORK_FAILURE = /fetch|network|load failed|terminated/i;
+const isNetworkFailure = (error: unknown) =>
+  error instanceof TypeError && NETWORK_FAILURE.test(error.message);
 
 /** Where Connect a model was opened from */
 export type ConnectVia = AssistantEvents["assistant_connect_opened"]["via"];

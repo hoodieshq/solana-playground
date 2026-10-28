@@ -1,9 +1,12 @@
 import { realBridge } from "./bridge/playground-bridge";
 import type { PlaygroundBridge } from "./bridge/playground-bridge";
+import { createLogger } from "@/shared/lib/logger";
 import { PgAssistant } from "./store";
 import type { ChatItem } from "./store";
 
 type ApprovalItem = Extract<ChatItem, { kind: "approval" }>;
+
+const log = createLogger("assistant:patch-undo");
 
 /**
  * What a press of Undo patch did: put the file back, found it edited since
@@ -100,7 +103,14 @@ export class PgPatchUndo {
       written.add(item.id);
       throw error;
     }
-    PgAssistant.markUndone(item.id, undoneOutcome(request.path));
+    if (!PgAssistant.markUndone(item.id, undoneOutcome(request.path))) {
+      // The file is back, but the thread moved on during the write (a
+      // workspace switch, a sign-out), so no card says so
+      log.warn("undid a patch whose card is gone", {
+        report: true,
+        context: { path: request.path },
+      });
+    }
     return "undone";
   }
 }

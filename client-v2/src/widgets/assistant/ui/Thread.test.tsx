@@ -58,7 +58,11 @@ vi.mock("../../../views/sidebar/assistant/bridge/lesson-context", () => ({
 // the same barrel; the thread only decides when to offer it and what to report
 const undo = vi.hoisted(() => ({
   can: vi.fn(() => false),
-  undo: vi.fn(async (): Promise<string> => "undone"),
+  undo: vi.fn(
+    async (): Promise<
+      import("../../../views/sidebar/assistant/patch-undo").UndoResult
+    > => "undone"
+  ),
 }));
 vi.mock("../../../views/sidebar/assistant/patch-undo", () => ({
   PgPatchUndo: undo,

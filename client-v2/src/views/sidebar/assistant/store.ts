@@ -136,7 +136,12 @@ export type ChatItem =
       status: ApprovalStatus;
       /** Set once the tool has actually run */
       outcome?: string;
-      /** An applied patch the user took back from its card (`PgPatchUndo`) */
+      /**
+       * An applied patch the user took back from its card (`PgPatchUndo`).
+       * Only on an `allowed` card. A flag beside `status` rather than a fifth
+       * status, because `ApprovalStatus` is what the codec and the server
+       * read, and an undone patch was still allowed when it ran.
+       */
       undone?: true;
     })
   | (ChatItemBase & { kind: "error"; text: string })
@@ -642,6 +647,9 @@ export class PgAssistant {
   /**
    * Unregister the turn.
    *
+   * Settles the replies the turn opened: `streaming` is dropped from each,
+   * so only one a reload or a closed tab left behind reads as cut off.
+   *
    * @param controller the one passed to `beginTurn`
    * @returns `true` when the turn ran to its end uncut; `false` when a closed
    * thread or `stopTurn` cut it off, or `controller` is not the turn
@@ -845,16 +853,17 @@ export class PgAssistant {
   }
 
   /**
-   * The running turn's latest reply that has text, or `null`: what a turn
-   * that fails mid-reply leaves cut off.
+   * The running turn's reply that was streaming when it failed: its latest,
+   * still the thread's last item, and with text. `null` otherwise -- a turn
+   * that failed in a tool step, after a finished reply, cut nothing off.
    */
   static turnReplyWithText() {
-    const replies = PgAssistant._turn?.replies ?? [];
-    for (let i = replies.length - 1; i >= 0; i--) {
-      const item = PgAssistant._items.find((it) => it.id === replies[i]);
-      if (item?.kind === "assistant" && item.text) return item.id;
+    const id = PgAssistant._turn?.replies.at(-1);
+    const last = PgAssistant._items[PgAssistant._items.length - 1];
+    if (!id || last?.id !== id || last.kind !== "assistant" || !last.text) {
+      return null;
     }
-    return null;
+    return id;
   }
 
   /** Record that a reply was cut off mid-stream; it keeps its text */
@@ -982,14 +991,17 @@ export class PgAssistant {
   /**
    * Record that an applied patch was taken back, with what the card says now.
    * Stamped, so the account keeps the newer copy.
+   *
+   * @returns `false` when the open thread no longer holds that applied card
    */
   static markUndone(id: string, outcome: string) {
     const item = PgAssistant._items.find((i) => i.id === id);
-    if (item?.kind !== "approval" || item.status !== "allowed") return;
+    if (item?.kind !== "approval" || item.status !== "allowed") return false;
     item.undone = true;
     item.outcome = outcome;
     stamp(item);
     PgAssistant._emit();
+    return true;
   }
 
   /** Deny everything still waiting — used when a turn is abandoned */

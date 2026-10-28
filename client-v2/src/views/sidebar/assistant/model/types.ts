@@ -19,7 +19,9 @@ export interface Provider {
    *
    * @param input what the user typed
    * @param signal aborts the turn; rejects with the abort reason
-   * @param context what goes with this message; everything when absent
+   * @param context what goes with this message; everything when absent. A
+   * provider must pass it to `describeProject`: `openFile: false` is the user
+   * leaving that file's content out, and sending it anyway breaks that
    */
   send(
     input: string,
