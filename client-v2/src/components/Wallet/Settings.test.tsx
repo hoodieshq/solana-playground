@@ -9,6 +9,7 @@ import {
 } from "@/shared/lib/logger";
 import { PgCommand, PgView, PgWallet } from "../../utils";
 import Settings from "./Settings";
+import type { Faucet } from "./hooks";
 
 // The utils barrel needs build-time globals the unit runner does not define.
 vi.mock("../../utils", () => ({
@@ -32,8 +33,7 @@ vi.mock("../../utils", () => ({
 vi.mock("../../hooks", () => ({ useCopy: () => [false, vi.fn()] }));
 const airdropHook = vi.hoisted(() => ({
   airdrop: vi.fn(),
-  // `undefined` while the cluster is not known yet
-  airdropCondition: false as boolean | undefined,
+  faucet: "none" as Faucet,
 }));
 vi.mock("./hooks", () => ({
   useAirdrop: () => airdropHook,
@@ -85,7 +85,7 @@ afterEach(() => {
   vi.clearAllMocks();
   resetLogger();
   told.length = 0;
-  airdropHook.airdropCondition = false;
+  airdropHook.faucet = "none";
   PgWallet.standardWallets.length = 0;
 });
 
@@ -159,7 +159,7 @@ describe("wallet Settings menu", () => {
   // say so rather than leave an unhandled rejection
   it("tells the user when Airdrop fails", async () => {
     const failure = new Error("The terminal is not open.");
-    airdropHook.airdropCondition = true;
+    airdropHook.faucet = "available";
     airdropHook.airdrop.mockRejectedValueOnce(failure);
     render(<Host />);
     await openMenu();
@@ -197,10 +197,8 @@ describe("wallet Settings menu", () => {
     }
   );
 
-  // `PgSession.signInState` holds a known failure and the account row shows
-  // it: logged as a failed click, never toasted a second time
   it("says the network has no faucet where Airdrop would be", async () => {
-    airdropHook.airdropCondition = false;
+    airdropHook.faucet = "none";
     render(<Host />);
     await openMenu();
 
@@ -212,7 +210,7 @@ describe("wallet Settings menu", () => {
   });
 
   it("shows neither Airdrop nor the no-faucet line before the cluster is known", async () => {
-    airdropHook.airdropCondition = undefined;
+    airdropHook.faucet = "unknown";
     render(<Host />);
     await openMenu();
 
@@ -220,8 +218,10 @@ describe("wallet Settings menu", () => {
     expect(screen.queryByText("This network has no faucet.")).toBeNull();
   });
 
+  // `PgSession.signInState` holds a known failure and the account row shows
+  // it: logged as a failed click, never toasted a second time
   it("leaves a cancelled or blocked sign-in to the account row", async () => {
-    airdropHook.airdropCondition = true;
+    airdropHook.faucet = "available";
     airdropHook.airdrop.mockRejectedValueOnce(knownSignIn);
     render(<Host />);
     await openMenu();

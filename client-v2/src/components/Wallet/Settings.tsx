@@ -55,7 +55,7 @@ interface SettingsProps {
 const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
   showRename,
 }) => {
-  const { airdrop, airdropCondition } = useAirdrop();
+  const { airdrop, faucet } = useAirdrop();
   const { darken, lighten } = useDarken();
 
   const wallet = PgWallet.current!;
@@ -105,7 +105,7 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
             <Copy />
             <MenuItemText>Copy address</MenuItemText>
           </DropdownMenuItem>
-          {airdropCondition && (
+          {faucet === "available" && (
             <DropdownMenuItem
               onSelect={() => {
                 airdrop().catch((error: unknown) => {
@@ -120,7 +120,7 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
               <MenuItemText>Airdrop</MenuItemText>
             </DropdownMenuItem>
           )}
-          {airdropCondition === false && (
+          {faucet === "none" && (
             <DropdownMenuItem disabled>
               <Airdrop />
               <MenuItemText>{NO_FAUCET}</MenuItemText>

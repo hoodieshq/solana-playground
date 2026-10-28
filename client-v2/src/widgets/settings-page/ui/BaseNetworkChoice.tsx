@@ -3,9 +3,10 @@ import { useId } from "react";
 import { Endpoint, PLATFORM_ENDPOINTS } from "@/constants";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 
+const REAL_SOL = "Deploys with real SOL";
+
 // `string`, not `Endpoint`: platform endpoints are build-time URLs, not enum
-// members. `line` is Spec 03's picker line; the other networks' lines come
-// with the picker's redesign.
+// members. `line` says how a network deploys; only mainnet has one so far.
 const NETWORKS: ReadonlyArray<{
   label: string;
   endpoint: string;
@@ -14,15 +15,12 @@ const NETWORKS: ReadonlyArray<{
   { label: "Devnet", endpoint: Endpoint.DEVNET },
   { label: "Testnet", endpoint: Endpoint.TESTNET },
   { label: "Localnet", endpoint: Endpoint.LOCALNET },
-  ...PLATFORM_ENDPOINTS.map(({ name, value }) => ({
+  ...PLATFORM_ENDPOINTS.map(({ name, value, cluster }) => ({
     label: name,
     endpoint: value,
+    line: cluster === "mainnet-beta" ? REAL_SOL : undefined,
   })),
-  {
-    label: "Mainnet Beta",
-    endpoint: Endpoint.MAINNET_BETA,
-    line: "Deploys with real SOL",
-  },
+  { label: "Mainnet Beta", endpoint: Endpoint.MAINNET_BETA, line: REAL_SOL },
 ];
 
 /**

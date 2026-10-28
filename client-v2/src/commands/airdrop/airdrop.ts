@@ -28,6 +28,11 @@ export const airdrop = createCmd({
   ]),
   preChecks: [checkWallet, checkSignedIn],
   handle: async (input) => {
+    // Until the endpoint is read every cluster looks faucet-less; saying so
+    // then would be wrong
+    if (!PgConnection.cluster) {
+      throw new Error("The network is still loading. Try again in a moment.");
+    }
     const defaultAmount = PgConnection.getAirdropAmount();
     if (typeof defaultAmount !== "number") {
       throw new Error(NO_FAUCET);

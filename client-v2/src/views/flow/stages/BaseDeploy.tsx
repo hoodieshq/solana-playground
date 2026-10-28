@@ -74,8 +74,8 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
 };
 
 /**
- * The cluster for prose: "mainnet" for mainnet-beta, as the design names it;
- * "the network" until the endpoint has been read
+ * The cluster in the deploy button's label and the stage's prose: "mainnet"
+ * for mainnet-beta; "the network" until the endpoint has been read
  */
 const clusterName = (p: BaseDeployProps) =>
   p.cluster === "mainnet-beta" ? "mainnet" : p.cluster ?? "the network";
