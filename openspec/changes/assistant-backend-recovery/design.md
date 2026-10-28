@@ -70,7 +70,7 @@
 6. **A rejected key is an error item with a recovery.** The error item gains
    an optional `recover?: BackendParams` (the connection's params, never the
    key). `useTurn` sets it when the turn throws an `AiTurnError` with status
-   401 or 403, with the text "<Provider name> did not accept the key." The
+   401 or 403, with the text "<Provider name> did not accept this key. Check it and enter it again, or pick another model." (Spec 08, state AI-05, without the status code). The
    item renders an **Enter key** button (`#assistant-enter-key`, the design
    system's `Button`) that calls `openConnect("key-rejected", recover)`.
    Alternative: a notice outside the thread; rejected, as the error belongs

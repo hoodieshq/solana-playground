@@ -390,7 +390,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
         const { id } = current;
         const name = PROVIDERS.find((p) => p.id === id)?.name ?? id;
         PgAssistant.addError(
-          `${name} did not accept the key (${status}).`,
+          `${name} did not accept this key. Check it and enter it again, or pick another model.`,
           paramsOf(current)
         );
         assistantTelemetry.track("assistant_key_rejected", {

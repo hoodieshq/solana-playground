@@ -621,7 +621,9 @@ test.describe("assistant-own-key", () => {
     await composer(page).press("Enter");
 
     await expect(
-      page.getByText("OpenAI-compatible did not accept the key (401).")
+      page.getByText(
+        "OpenAI-compatible did not accept this key. Check it and enter it again, or pick another model."
+      )
     ).toBeVisible(LONG);
     await page.locator("#assistant-enter-key").click();
 

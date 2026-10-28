@@ -124,9 +124,10 @@ export const BaseThreadItem = ({
             {item.text}
           </CalloutDescription>
           {actions?.enterKey && (
-            // TODO(HOO-1719): no design yet for a recovery action in an error;
-            // the design system's outline button until Design alignment
-            // answers
+            // Spec 08 (state AI-05) offers Open settings and Use hosted model;
+            // the key lives in Connect a model here, so Enter key opens that.
+            // TODO(HOO-1719): its look awaits Design alignment's sync item
+            // 4.15; the design system's outline button until then
             <Button
               id="assistant-enter-key"
               variant="outline"

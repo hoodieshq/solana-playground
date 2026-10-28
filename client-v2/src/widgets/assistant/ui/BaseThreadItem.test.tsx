@@ -96,7 +96,7 @@ describe("BaseThreadItem", () => {
           kind: "error",
           id: "e",
           createdAt: CREATED,
-          text: "OpenAI-compatible did not accept the key (401).",
+          text: "OpenAI-compatible did not accept this key. Check it and enter it again, or pick another model.",
         }}
         actions={{ enterKey }}
         onAnswer={vi.fn()}
