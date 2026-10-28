@@ -23,13 +23,13 @@ on screen. HOO-1719: a thread survives losing its key.
   does. The note "Switching starts a new conversation. The current one cannot
   be replayed to another backend." is removed, and the comments that say a
   switch starts a new conversation are corrected.
-- A turn the provider refuses with 401 or 403 ends in an error naming the
+- A turn the provider refuses with 401 ends in an error naming the
   backend, with an **Enter key** button that opens Connect a model preset to
   that backend.
 - Telemetry (`widgets/assistant`): `assistant_connect_opened.via` gains
   `"thread"` (a send reopened the thread's own backend) and `"key-rejected"`
   (the Enter key button); a new event `assistant_key_rejected` fires when a
-  turn ends on 401 or 403. No event is renamed or removed.
+  turn ends on 401. No event is renamed or removed.
 
 ## Capabilities
 

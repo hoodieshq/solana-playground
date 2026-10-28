@@ -19,6 +19,7 @@ import Link from "../../../../components/Link";
 import { isSignInFailure, PgSession } from "../../../../features/auth";
 import { useRenderOnChange } from "../../../../hooks/useRenderOnChange";
 import { PgAssistant } from "../store";
+import type { BackendParams } from "../model/backend-params";
 import type { ModelProvider } from "@/shared/lib/ai";
 import {
   isDefaultBackend,
@@ -63,20 +64,13 @@ const ALTERNATIVES = PROVIDERS.filter((p) => p.id !== "default");
 
 const FIELD_LABEL = "text-xs tracking-[0.1em] text-muted-foreground";
 
-/** The backend, and maybe the model, Connect a model opens on */
-export interface ConnectPreset {
-  /**
-   * A key-based backend, or the default only for a signed-out user: the
-   * form is where they sign in for it
-   */
-  provider: ModelProvider;
-  /** A model of the backend's own list, or its endpoint's model id */
-  model?: string;
-  /** An endpoint's base URL in place of the provider's own */
-  baseUrl?: string;
-  /** An effort of the backend's own list */
-  effort?: Effort;
-}
+/**
+ * The backend, and maybe its model, base URL and effort, Connect a model opens
+ * on: a key-based backend, or the default only for a signed-out user, for
+ * whom the form is where they sign in for it. A backend's parameters as a
+ * thread records them, so a field added there reaches the form too.
+ */
+export type ConnectPreset = BackendParams;
 
 /**
  * The form's one action. Its host draws it (`ConnectProps.frame`): Connect a

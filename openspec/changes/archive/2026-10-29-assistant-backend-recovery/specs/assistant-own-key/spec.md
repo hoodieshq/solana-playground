@@ -77,11 +77,13 @@ new conversation.
 
 ### Requirement: A rejected key can be entered again
 
-When the provider answers a turn with 401 or 403, the turn SHALL end in an
-error that names the backend and says its key was not accepted, with an
-**Enter key** button (`#assistant-enter-key`). The button SHALL open Connect a
-model preset to that backend with an empty key field. Other failures keep
-their current error.
+When the provider answers a turn on a key-based backend with 401, the turn
+SHALL end in an error that names the backend and says its key was not
+accepted, without the status code, with an **Enter key** button
+(`#assistant-enter-key`). The button SHALL open Connect a model preset to that
+backend with an empty key field, and SHALL be offered only while nothing but
+notices follows that error. Other failures, a 403 included (a valid key
+without access to the model), keep their current error.
 
 #### Scenario: A 401 offers Enter key
 
@@ -91,9 +93,9 @@ their current error.
   button, and pressing it opens Connect a model with that provider selected and
   the key field empty
 
-#### Scenario: A 500 keeps the ordinary error (manual)
+#### Scenario: A 403 or a 500 keeps the ordinary error (manual)
 
-- **WHEN** a turn's request is answered with 500
+- **WHEN** a turn's request is answered with 403 or 500
 - **THEN** the chat shows the provider's error without an **Enter key**
   button
 
@@ -107,15 +109,14 @@ The assistant widget SHALL report, through its tracker:
   connected opens Connect a model preset to the thread's own backend, and
   `"key-rejected"` when the **Enter key** button opens it; its other values
   (`"menu"`, `"model"`, `"send"`, `"setup"`) are unchanged.
-- `assistant_key_rejected` when a turn ends on 401 or 403, with `provider`
-  the backend's provider id and `status` `"401"` or `"403"`. It carries
-  nothing else: no key, no model, no base URL.
+- `assistant_key_rejected` when a turn on a key-based backend ends on 401,
+  with `provider` the backend's provider id. It carries nothing else: no key,
+  no model, no base URL.
 
 #### Scenario: A rejected key is counted (manual)
 
-- **WHEN** a turn's request is answered with 403
-- **THEN** `assistant_key_rejected` is reported once with the provider and
-  `status` `"403"`
+- **WHEN** a turn's request on a key-based backend is answered with 401
+- **THEN** `assistant_key_rejected` is reported once with the provider
 
 Checked by a unit test through the memory provider in
 `client-v2/src/widgets/assistant/model/use-turn.test.tsx`.

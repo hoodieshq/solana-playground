@@ -1,7 +1,7 @@
 import { createLogger } from "@/shared/lib/logger";
 import type { ModelProvider } from "@/shared/lib/ai";
 import type { Connection } from "../store";
-import { paramsOf } from "./backend-params";
+import { backendParamsFrom, paramsOf } from "./backend-params";
 import type { BackendParams } from "./backend-params";
 import { REMEMBERED_BACKEND_KEY } from "./remembered-backend-key";
 import { PROVIDERS } from "./types";
@@ -207,12 +207,11 @@ const dropKept = (what: string) => {
 };
 
 /**
- * Record the user's choice, so a later load can reconnect to it: the default
- * in any tab of this browser, a key-based backend only in this tab.
+ * Record the user's choice, so a later load can reconnect to it: its
+ * parameters in every tab of this browser, the key only in this tab.
  */
 export const rememberBackend = (connection: Connection) => {
-  // Written down as the whole choice rather than a flag, so switching to a
-  // key-based backend overwrites it instead of leaving a stale `true` behind.
+  // The whole choice, so the newest pick always overwrites the last one.
   // `paramsOf` leaves the key out by construction
   attempt("remember the backend", () =>
     localStorage.setItem(
@@ -251,9 +250,9 @@ export const forgetBackend = () => {
 };
 
 /**
- * A stored choice, rebuilt field by field so nothing unknown rides along.
- * Before HOO-1719 the choice was the bare provider id, which is not JSON; it
- * reads as that provider with nothing else.
+ * A stored choice, read as `backendParamsFrom` reads any. Before HOO-1719
+ * the choice was the bare provider id, which is not JSON; it reads as that
+ * provider with nothing else.
  */
 const choiceFrom = (raw: string): BackendParams | null => {
   let parsed: unknown;
@@ -263,20 +262,7 @@ const choiceFrom = (raw: string): BackendParams | null => {
     // Not JSON: the bare id written before the choice carried its parameters
     parsed = { provider: raw };
   }
-  if (!isRecord(parsed)) return null;
-  // Named, so the closures below keep the narrowing
-  const stored = parsed;
-
-  const provider = PROVIDERS.find((p) => p.id === stored.provider);
-  if (!provider) return null;
-  const choice: BackendParams = { provider: provider.id };
-  if (typeof parsed.model === "string") choice.model = parsed.model;
-  if (typeof parsed.baseUrl === "string") choice.baseUrl = parsed.baseUrl;
-  const effort = provider.modelSettings?.efforts.find(
-    (e) => e === stored.effort
-  );
-  if (effort) choice.effort = effort;
-  return choice;
+  return backendParamsFrom(parsed);
 };
 
 /**
@@ -289,7 +275,12 @@ export const rememberedChoice = (): BackendParams | null => {
     () => localStorage.getItem(REMEMBERED_BACKEND_KEY),
     null
   );
-  return raw === null ? null : choiceFrom(raw);
+  if (raw === null) return null;
+  const choice = choiceFrom(raw);
+  // Logged without the value, like a dropped connection: without the choice a
+  // send can only offer the default, and the log is where that shows
+  if (!choice) log.warn("ignored a remembered backend this build cannot use");
+  return choice;
 };
 
 /** Whether this browser should reconnect to the default backend by itself */

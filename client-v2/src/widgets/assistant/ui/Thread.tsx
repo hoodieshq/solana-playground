@@ -17,6 +17,7 @@ import {
   verifyingStage,
 } from "../../../views/flow/lessons";
 import type { LessonState } from "../../../views/flow/lessons";
+import { backendParamsFrom } from "../../../views/sidebar/assistant/model/backend-params";
 import { assistantTelemetry } from "../model/telemetry";
 import type { Turn } from "../model/use-turn";
 import { BaseThread } from "./BaseThread";
@@ -114,15 +115,18 @@ export const Thread = ({
   const skippableId =
     onFinishedReply && stepAttempted && PgLesson.canPass() ? lastItem.id : null;
 
-  // Enter key goes on the thread's last error, and only if that one is a
-  // refused key: an older one has been answered by whatever came after it
-  const lastError = items.findLast((item) => item.kind === "error");
-  const rejected = lastError?.kind === "error" ? lastError.recover : undefined;
+  // Enter key goes on a refused key only while nothing has followed it but
+  // notices: a reply or a newer error after it means it has been answered,
+  // and `recover` is stored with the thread, so it would otherwise come back
+  // on every load
+  const lastWord = items.findLast((item) => item.kind !== "notice");
+  const refused =
+    lastWord?.kind === "error" ? backendParamsFrom(lastWord.recover) : null;
 
   const actionsFor = (id: string): ReplyActions | undefined => {
     const actions: ReplyActions = {};
-    if (rejected && id === lastError?.id) {
-      actions.enterKey = () => turn.openConnect("key-rejected", rejected);
+    if (refused && id === lastWord?.id) {
+      actions.enterKey = () => turn.openConnect("key-rejected", refused);
     }
     if (id === changeableId) {
       actions.makeChange = {

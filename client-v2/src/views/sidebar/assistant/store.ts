@@ -118,6 +118,16 @@ export type ChatItem =
   /** Something the panel did, not the model — e.g. the user stopped the turn */
   | (ChatItemBase & { kind: "notice"; text: string });
 
+/** Whether two connections reach the same backend with the same key and choices */
+const isSame = (a: Connection | null, b: Connection) =>
+  !!a &&
+  a.id === b.id &&
+  a.apiKey === b.apiKey &&
+  a.endpoint?.baseUrl === b.endpoint?.baseUrl &&
+  a.endpoint?.model === b.endpoint?.model &&
+  a.settings?.model === b.settings?.model &&
+  a.settings?.effort === b.settings?.effort;
+
 /**
  * Whether the turn ending at the last item already produced an approval card.
  *
@@ -304,17 +314,20 @@ export class PgAssistant {
       ...connection,
       apiKey: connection.apiKey.trim(),
     };
+    // A turn still running on the old backend is cut, not carried over: it
+    // would go on spending the old key, and every reply it starts from here
+    // would be stamped with the new backend's `origin`, which `threadBackend`
+    // then trusts to pick where the next send goes
+    if (!isSame(PgAssistant._connection, next)) PgAssistant._cutTurn();
     PgAssistant._connection = next;
     PgAssistant._pickingBackend = false;
-    // So a reload of this tab reconnects without asking again: the keyless
-    // default by id, a key-based backend whole for this tab only. See
+    // So a reload reconnects without asking again: the backend's parameters
+    // for every tab, a key-based backend's key for this tab only. See
     // `remembered-backend`.
     rememberBackend(next);
 
     // `_emitOnly`, because nothing here is the user writing to the
-    // conversation. `clear` above goes out of its way to leave the stored
-    // thread alone, and `_emit` would write the emptied list straight back
-    // over it -- undoing that, one line later.
+    // conversation
     PgAssistant._emitOnly();
   }
 
@@ -1922,6 +1935,30 @@ if (import.meta.vitest) {
         expect(PgAssistant.items[0]).not.toHaveProperty("origin");
       });
 
+      it("cuts a turn still running when the backend changes", () => {
+        PgAssistant.connect({ id: "default", apiKey: "" });
+        const controller = new AbortController();
+        PgAssistant.beginTurn(controller);
+
+        PgAssistant.connect({ id: "anthropic", apiKey: "k" });
+        PgAssistant.startAssistantMessage();
+
+        expect(controller.signal.aborted).toBe(true);
+        expect(PgAssistant.items).toEqual([]);
+        PgAssistant.endTurn(controller);
+      });
+
+      it("leaves a running turn alone when the same backend is picked again", () => {
+        PgAssistant.connect({ id: "anthropic", apiKey: "k" });
+        const controller = new AbortController();
+        PgAssistant.beginTurn(controller);
+
+        PgAssistant.connect({ id: "anthropic", apiKey: "k" });
+
+        expect(controller.signal.aborted).toBe(false);
+        PgAssistant.endTurn(controller);
+      });
+
       it("follows the user switching backends mid-thread", () => {
         PgAssistant.connect({ id: "default", apiKey: "" });
         PgAssistant.startAssistantMessage();
@@ -2528,8 +2565,7 @@ if (import.meta.vitest) {
         ]);
 
         // A reload starts with no connection in memory, so the first thing the
-        // user does is connect, and that must not be mistaken for switching away
-        // from a backend they were already talking to
+        // user does is connect, and connecting never clears a restored thread
         PgAssistant.disconnect();
         await PgAssistant.loadThread("t1");
         expect(PgAssistant.items).toHaveLength(1);

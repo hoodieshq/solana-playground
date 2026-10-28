@@ -1,5 +1,6 @@
 import type { ModelProvider } from "@/shared/lib/ai";
 import type { Connection } from "../store";
+import { PROVIDERS } from "./types";
 import type { Effort } from "./types";
 
 /**
@@ -29,5 +30,28 @@ export const paramsOf = (
   if (connection.endpoint?.baseUrl)
     params.baseUrl = connection.endpoint.baseUrl;
   if (connection.settings?.effort) params.effort = connection.settings.effort;
+  return params;
+};
+
+/**
+ * Backend parameters read from anywhere they may have been written by another
+ * build, or by hand: a stored thread, the account's copy of it, the remembered
+ * choice. Rebuilt field by field so nothing unknown rides along; a provider
+ * this build does not have reads as `null`, since Connect a model cannot open
+ * on it, and an effort the provider does not offer is left out.
+ */
+export const backendParamsFrom = (value: unknown): BackendParams | null => {
+  if (typeof value !== "object" || value === null) return null;
+  const stored = value as Record<string, unknown>;
+
+  const provider = PROVIDERS.find((p) => p.id === stored.provider);
+  if (!provider) return null;
+  const params: BackendParams = { provider: provider.id };
+  if (typeof stored.model === "string") params.model = stored.model;
+  if (typeof stored.baseUrl === "string") params.baseUrl = stored.baseUrl;
+  const effort = provider.modelSettings?.efforts.find(
+    (e) => e === stored.effort
+  );
+  if (effort) params.effort = effort;
   return params;
 };

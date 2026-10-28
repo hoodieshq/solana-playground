@@ -1,5 +1,6 @@
-import type { BackendParams, ChatItem } from "../store";
-import { PROVIDERS } from "./types";
+import type { ChatItem } from "../store";
+import { backendParamsFrom } from "./backend-params";
+import type { BackendParams } from "./backend-params";
 
 /**
  * The backend the open thread was last answered by: the `origin` of its last
@@ -14,8 +15,8 @@ export const threadBackend = (
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
     if (item.kind !== "assistant" || !item.origin) continue;
-    const { provider } = item.origin;
-    if (PROVIDERS.some((p) => p.id === provider)) return item.origin;
+    const origin = backendParamsFrom(item.origin);
+    if (origin) return origin;
   }
   return undefined;
 };

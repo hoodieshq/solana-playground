@@ -14,8 +14,8 @@ export type AssistantEvents = {
   };
   /** The user stopped a turn in progress with the stop button. */
   assistant_turn_stopped: NoParams;
-  /** A turn on a key-based backend ended on the provider refusing the key; `status` is the HTTP status it answered with. Never the key, the model or the base URL. */
-  assistant_key_rejected: { provider: ModelProvider; status: "401" | "403" };
+  /** A turn on a key-based backend ended on the provider refusing the key with a 401. Never the key, the model or the base URL. */
+  assistant_key_rejected: { provider: ModelProvider };
   /** The default backend's probe failed and the default was treated as absent; `reason` says whether the request, the status (not a 404, which is a deployment without the agent) or the body. */
   assistant_default_probe_failed: { reason: "network" | "status" | "body" };
   /** The user answered an approval card, once per card; `kind` says whether it proposed a patch or a command. */

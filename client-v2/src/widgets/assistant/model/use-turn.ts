@@ -48,17 +48,16 @@ const isAbort = (error: unknown) =>
   error.name === "AbortError";
 
 /**
- * The status of a turn that ended on the provider refusing the key, or
- * `undefined`. By name, since the slice entry exports `AiTurnError` as a type
- * only: the class loads with the SDK.
+ * Whether a turn ended on the provider refusing the key: a 401. Not a 403,
+ * which providers also answer for a valid key without access to the model, a
+ * region or an organisation's policy; asking for the key again there loops,
+ * so a 403 keeps the provider's own message. By name, since the slice entry
+ * exports `AiTurnError` as a type only: the class loads with the SDK.
  */
-const rejectedKey = (error: unknown): "401" | "403" | undefined => {
-  if (!(error instanceof Error) || error.name !== "AiTurnError") return;
-  const { status } = error as AiTurnError;
-  if (status === 401) return "401";
-  if (status === 403) return "403";
-  return undefined;
-};
+const isRejectedKey = (error: unknown) =>
+  error instanceof Error &&
+  error.name === "AiTurnError" &&
+  (error as AiTurnError).status === 401;
 
 /** Where Connect a model was opened from */
 export type ConnectVia = AssistantEvents["assistant_connect_opened"]["via"];
@@ -379,10 +378,9 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     try {
       await instance.send(trimmed, controller.signal);
     } catch (e) {
-      const status = rejectedKey(e);
       if (
         !controller.signal.aborted &&
-        status &&
+        isRejectedKey(e) &&
         !isDefaultBackend(current.id)
       ) {
         // The key-based backend refused the key: say which, and offer to enter
@@ -395,7 +393,9 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
         );
         assistantTelemetry.track("assistant_key_rejected", {
           provider: current.id,
-          status,
+        });
+        connectLog.warn("the provider refused the key", {
+          context: { provider: current.id },
         });
       } else if (!controller.signal.aborted) {
         PgAssistant.addError(e instanceof Error ? e.message : String(e));

@@ -323,54 +323,66 @@ describe("useTurn", () => {
     await waitFor(() => expect(result.current.busy).toBe(false));
   });
 
-  it.each([401, 403])(
-    "names the backend and offers its key again on a %s",
-    async (status) => {
-      const own: Connection = {
-        id: "openai",
-        apiKey: "sk-test",
-        endpoint: { baseUrl: "https://api.example.test/v1", model: "gpt-x" },
-      };
-      PgAssistant.connect(own);
-      provider.send.mockRejectedValue(
-        new AiTurnError("Unauthorized", { status })
-      );
-      const { result } = renderHook(() => useTestTurn());
+  it("names the backend and offers its key again on a 401", async () => {
+    const own: Connection = {
+      id: "openai",
+      apiKey: "sk-test",
+      endpoint: { baseUrl: "https://api.example.test/v1", model: "gpt-x" },
+    };
+    PgAssistant.connect(own);
+    provider.send.mockRejectedValue(
+      new AiTurnError("Unauthorized", { status: 401 })
+    );
+    const { result } = renderHook(() => useTestTurn());
 
-      await act(() => result.current.send("hi"));
+    await act(() => result.current.send("hi"));
 
-      expect(PgAssistant.items.at(-1)).toMatchObject({
-        kind: "error",
-        text: `OpenAI-compatible did not accept this key. Check it and enter it again, or pick another model.`,
-        recover: {
-          provider: "openai",
-          model: "gpt-x",
-          baseUrl: "https://api.example.test/v1",
-        },
-      });
-      expect(JSON.stringify(PgAssistant.items)).not.toContain("sk-test");
-      expect(eventNames()).toContainEqual([
-        "assistant_key_rejected",
-        { provider: "openai", status: String(status) },
-      ]);
-    }
-  );
+    expect(PgAssistant.items.at(-1)).toMatchObject({
+      kind: "error",
+      text: "OpenAI-compatible did not accept this key. Check it and enter it again, or pick another model.",
+      recover: {
+        provider: "openai",
+        model: "gpt-x",
+        baseUrl: "https://api.example.test/v1",
+      },
+    });
+    expect(JSON.stringify(PgAssistant.items)).not.toContain("sk-test");
+    expect(eventNames()).toContainEqual([
+      "assistant_key_rejected",
+      { provider: "openai" },
+    ]);
+  });
 
-  it("keeps the provider's error for a failure that is not the key", async () => {
+  it.each([
+    ["a 403, which a valid key without access gets too", 403],
+    ["a 500", 500],
+  ])("keeps the provider's error for %s", async (_, status) => {
     PgAssistant.connect({ id: "anthropic", apiKey: "sk-test" });
     provider.send.mockRejectedValue(
-      new AiTurnError("Internal error", { status: 500 })
+      new AiTurnError("Provider says no", { status })
     );
     const { result } = renderHook(() => useTestTurn());
 
     await act(() => result.current.send("hi"));
 
     const error = PgAssistant.items.at(-1);
-    expect(error).toMatchObject({ kind: "error", text: "Internal error" });
+    expect(error).toMatchObject({ kind: "error", text: "Provider says no" });
     expect(error).not.toHaveProperty("recover");
     expect(eventNames().map(([name]) => name)).not.toContain(
       "assistant_key_rejected"
     );
+  });
+
+  it("keeps the ordinary error for a 401 from the default", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    provider.send.mockRejectedValue(
+      new AiTurnError("Unauthorized", { status: 401 })
+    );
+    const { result } = renderHook(() => useTestTurn());
+
+    await act(() => result.current.send("hi"));
+
+    expect(PgAssistant.items.at(-1)).not.toHaveProperty("recover");
   });
 
   it("reports a failed turn as an error item", async () => {
@@ -574,6 +586,7 @@ describe("useTurn", () => {
 });
 
 describe("useTurn when the key is gone", () => {
+  afterEach(() => localStorage.clear());
   const OPENAI = {
     provider: "openai" as const,
     model: "gpt-x",
@@ -631,7 +644,6 @@ describe("useTurn when the key is gone", () => {
     expect(PgAssistant.connection).toBeNull();
     expect(open).toHaveBeenCalledWith("send", OPENAI);
     expect(provider.send).not.toHaveBeenCalled();
-    localStorage.clear();
   });
 
   it("keeps a requested prompt waiting on the thread's own backend", async () => {
