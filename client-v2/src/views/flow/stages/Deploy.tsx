@@ -89,9 +89,10 @@ const Deploy = () => {
         // imported id; redeploying always targets the project's own key,
         // never whatever Interact last selected.
         PgProgramInfo.update({ customPk: null });
+        // `toldByStage` rethrows, so the button's report comes last
         PgCommand.deploy
           .execute()
-          .catch(toldByStage)
+          .catch(toldByStage("deploy"))
           .catch(reportButtonFailure("deploy"));
       }}
       onInteract={() => PgFlow.setStage("interact")}

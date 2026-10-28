@@ -61,7 +61,8 @@ const Build = () => {
       building={flow.build === "running"}
       host={serverHost()}
       ms={flow.buildMs}
-      onBuild={() => PgCommand.build.execute().catch(toldByStage)}
+      // The stage's catch rethrows; BaseBuild's buttons report what is left
+      onBuild={() => PgCommand.build.execute().catch(toldByStage("build"))}
       onContinue={() => PgFlow.setStage("deploy")}
       onExport={() => PgFramework.exportWorkspace()}
       onFix={(prompt) => PgAssistant.requestPrompt(prompt)}

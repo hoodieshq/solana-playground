@@ -45,7 +45,11 @@ interface EmptyCopy {
   notice?: string;
 }
 
-/** Spec 03's "Interact with nothing to call", which Spec 08 lists as EMPTY-04 */
+/**
+ * Spec 03's "Interact with nothing to call" (Spec 08's EMPTY-04). Before a
+ * build and before a deploy Interact asks for the same step, a deploy, so the
+ * two surfaces share it.
+ */
 const NOTHING_TO_CALL: EmptyCopy = {
   title: "Nothing to call yet",
   description: () => "Deploy the program, and its instructions show up here.",

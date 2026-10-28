@@ -53,10 +53,10 @@ A click whose action fails SHALL tell the user what did not happen, in one
 sentence naming the action ("Could not copy."), never the raw error. A failure
 the action already showed (a terminal command printed it to the open console)
 SHALL NOT be shown again; one printed into a folded console SHALL still be
-told. A failure the clicked place itself shows SHALL NOT be shown again either:
-the Build and Deploy stages show a failed run in place, so their own run
-buttons toast nothing, folded console or not (Spec 08: one cause, one
-message). Every failure SHALL still be logged under
+told, except where the clicked place itself shows the failure: a Build or
+Deploy run that leaves its stage failed is shown there, so its button toasts
+nothing, folded console or not (Spec 08: one cause, one message). A run that
+fails before it settles its stage is told by the toast. Every failure SHALL still be logged under
 `ui:button`, not marked for reporting (a user-caused or already-shown failure
 must not reach error tracking), and the button SHALL stay usable.
 A click whose action cannot run where it was clicked (a terminal command

@@ -62,7 +62,7 @@ describe("BaseInteract", () => {
     expect(screen.queryByText("FORM")).toBeNull();
   });
 
-  it("an unknown cluster reads as the network", () => {
+  it("an unknown cluster reads as the network while checking", () => {
     render(<BaseInteract {...props("checking", { cluster: null })} />);
     expect(
       screen.getByText(/^Reading the program from the network/)

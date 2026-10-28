@@ -13,8 +13,8 @@ already holds.
 Importing a keypair file SHALL leave every wallet the user already has in
 place, whether the file is imported, rejected or the file picker is closed.
 A file that is not a keypair SHALL be rejected with a message that says so
-and what file to pick instead, and SHALL change nothing. An import from the
-wallet's menu SHALL say what it did: that it added the keypair as a new
+and what file to pick instead, and SHALL change nothing. An import, from
+Setup or the wallet's menu, SHALL say what it did: that it added the keypair as a new
 wallet, or that a wallet already holding that keypair is now the current
 one.
 
