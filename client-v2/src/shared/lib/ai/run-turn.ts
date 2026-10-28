@@ -152,7 +152,8 @@ const toTurnError = (error: unknown, apiKey: string | undefined) => {
     // A dropped stream or a fetch that never reached the provider: Spec 08's
     // words on screen, the raw text in the log
     const detail = redactKey(messageOf(error), apiKey);
-    log.warn("model request failed", { report: true, context: { detail } });
+    // Not reported: an offline user would send one event per message
+    log.warn("model request failed", { context: { detail } });
     return new AiTurnError(FAILURE_MESSAGE.provider, { detail });
   }
   const body =

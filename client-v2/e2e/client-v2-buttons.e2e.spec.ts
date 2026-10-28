@@ -179,9 +179,8 @@ test.describe("client-v2-buttons", () => {
     seededPage: page,
   }) => {
     test.setTimeout(120_000);
-    await page.route("**/build", (route) =>
-      route.fulfill({ status: 500, body: "boom" })
-    );
+    // The build server never answers: Spec 08's BUILD-04
+    await page.route("**/build", (route) => route.abort("connectionrefused"));
 
     const drawer = page.getByRole("button", { name: "Terminal", exact: true });
     if ((await drawer.getAttribute("aria-expanded")) === "true") {

@@ -53,8 +53,8 @@ const BUSY_RETRIES = 3;
  */
 const BUSY_WAIT_MAX_SECONDS = 60;
 
-/** What the thread says once the model stays busy, or asks for a long wait */
-const BUSY_LATER = "The model is busy. Send your message again in a minute.";
+/** What the thread adds once the model stays busy, or asks for a long wait */
+const COME_BACK_LATER = "Send your message again in a minute.";
 
 /** What the thread says when the model changed while a message waited */
 const NOT_RESENT =
@@ -217,7 +217,6 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   // remounted. The store's status may already read idle (a closed thread, a
   // backend change), so its record is all that says the turn still runs; it
   // shows as stopping because this hook cannot stop it
-
   const phaseOf = (): TurnPhase => {
     if (turn.current?.signal.aborted) return "stopping";
     if (PgAssistant.status !== "idle") return PgAssistant.status;
@@ -436,7 +435,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   const waitOnBusy = (text: string, attempt: number, busy: ModelBusyError) => {
     const seconds = Math.max(1, busy.waitSeconds ?? BUSY_WAIT_SECONDS);
     if (attempt >= BUSY_RETRIES || seconds > BUSY_WAIT_MAX_SECONDS) {
-      PgAssistant.addError(BUSY_LATER);
+      PgAssistant.addError(`${busy.message} ${COME_BACK_LATER}`);
       return;
     }
     const at = Date.now();
@@ -476,6 +475,14 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     const held = waiting.current;
     if (!held) return;
     setWaiting(null);
+    // The effect above drops a wait whose conversation changed, but only once
+    // React commits; a click in that render must not send it either
+    if (
+      held.threadId !== PgAssistant.threadId ||
+      held.conversation !== PgAssistant.conversation
+    ) {
+      return;
+    }
     const current = usableConnection();
     if (!current || provider.current?.connection !== current) {
       PgAssistant.addError(NOT_RESENT);
