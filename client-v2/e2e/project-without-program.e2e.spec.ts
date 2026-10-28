@@ -129,7 +129,11 @@ test("project-without-program: A program no framework recognises", async ({
   await importRepository(page);
 
   await expect(
-    page.getByRole("dialog").getByText("Could not identify framework")
+    page
+      .getByRole("dialog")
+      .getByText(
+        "This doesn't look like a Solana program. Playground opens Anchor, native Rust and Seahorse programs."
+      )
   ).toBeVisible(LONG);
 });
 
@@ -162,7 +166,7 @@ test("project-without-program: A repository with neither", async ({
   await expect(
     page
       .getByRole("dialog")
-      .getByText(`No source files found in "${OWNER}/${REPO}".`)
+      .getByText(`No program code found in ${OWNER}/${REPO}.`)
   ).toBeVisible(LONG);
 });
 

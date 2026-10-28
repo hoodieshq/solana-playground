@@ -6,6 +6,7 @@ import { PgFramework } from "./framework";
 vi.mock("./explorer", () => ({ PgExplorer: {} }));
 
 vi.mock("./framework", () => ({
+  noProgramCode: (source: string) => `No program code found in ${source}.`,
   PgFramework: {
     convertToPlaygroundLayout: vi.fn((files: unknown) => files),
   },
@@ -135,7 +136,7 @@ describe("PgGithub.getFiles", () => {
     );
   });
 
-  it("hands the imported folder to the layout", async () => {
+  it("hands the imported folder and where it came from to the layout", async () => {
     mockFetch((url) =>
       url.startsWith("https://api.github.com/")
         ? treeResponse(["program/client.ts"])
@@ -148,7 +149,8 @@ describe("PgGithub.getFiles", () => {
 
     expect(PgFramework.convertToPlaygroundLayout).toHaveBeenLastCalledWith(
       [["program/client.ts", "x"]],
-      "program"
+      "program",
+      { source: "program in solana-labs/example" }
     );
   });
 
@@ -220,14 +222,14 @@ describe("PgGithub.getFiles", () => {
     ).rejects.toThrow(/too large to import/);
   });
 
-  it("reports a path that holds no source files", async () => {
+  it("reports a path that holds no program code", async () => {
     mockFetch(() => treeResponse(["docs/logo.png"]));
 
     await expect(
       PgGithub.getFiles(
         "https://github.com/solana-labs/example/tree/master/docs"
       )
-    ).rejects.toThrow(/No source files found in "docs"/);
+    ).rejects.toThrow("No program code found in docs in solana-labs/example.");
   });
 
   it("asks which program to import before downloading anything", async () => {

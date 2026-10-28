@@ -32,14 +32,15 @@ be refused as before, never imported without its program.
 #### Scenario: A program no framework recognises
 - **WHEN** the user imports a repository with `onchain/src/lib.rs`, which
   no framework recognises, and `client.ts`
-- **THEN** the import fails as it did before this change, and nothing is
-  imported
+- **THEN** the import fails with "This doesn't look like a Solana
+  program. Playground opens Anchor, native Rust and Seahorse programs.",
+  and nothing is imported
 
 #### Scenario: A repository with neither
 - **WHEN** the user imports a repository that holds no program and no
   TypeScript or JavaScript file
-- **THEN** the import fails with the message it gave before this change
-  for a repository it cannot recognise
+- **THEN** the import fails with "No program code found in
+  {owner}/{repo}." (or "{folder} in {owner}/{repo}" for a folder of it)
 
 ### Requirement: Place a no-program repository's files by kind
 

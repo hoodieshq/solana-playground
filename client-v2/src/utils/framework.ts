@@ -90,6 +90,20 @@ export type Framework<N extends string = string> = RequiredKey<
 /** What `exportWorkspace` throws when it cannot tell a project's framework */
 const UNKNOWN_FRAMEWORK = "Could not identify framework";
 
+/** An import holding Rust or Python that no framework recognises (spec 10) */
+const NOT_A_PROGRAM =
+  "This doesn't look like a Solana program. Playground opens Anchor, native Rust and Seahorse programs.";
+
+/**
+ * An import with nothing to open: no program and no TypeScript or JavaScript
+ * (spec 10). Shared with `PgGithub`, which refuses an empty path before
+ * downloading anything.
+ *
+ * @param source where the files came from, such as `owner/repo`
+ */
+export const noProgramCode = (source?: string) =>
+  source ? `No program code found in ${source}.` : "No program code found.";
+
 /** What Build compiles: a Rust or Python file anywhere under `src/` */
 const PROGRAM_FILE_REGEX = /^src\/.+\.(rs|py)$/;
 
@@ -268,19 +282,24 @@ export class PgFramework {
    * @param files framework files
    * @param root the imported folder, which a project with no program drops
    * from its paths; frameworks find their own layout wherever it sits
+   * @param opts.source where the files came from, named in the refusal
    * @returns the playground layout converted files
-   * @throws `UNKNOWN_FRAMEWORK` when no framework recognises the files and
-   * they hold program source or no script; "Could not convert files" when a
-   * framework's conversion returns nothing
+   * @throws `NOT_A_PROGRAM` when no framework recognises program source;
+   * `noProgramCode` when there is no program and no script; "Could not
+   * convert files" when a framework's conversion returns nothing
    */
-  static async convertToPlaygroundLayout(files: TupleFiles, root = "") {
+  static async convertToPlaygroundLayout(
+    files: TupleFiles,
+    root = "",
+    opts?: { source?: string }
+  ) {
     const framework = await this.getFromFiles(files);
     if (!framework) {
       if (files.some(([path]) => PROGRAM_SOURCE_REGEX.test(path))) {
-        throw new Error(UNKNOWN_FRAMEWORK);
+        throw new Error(NOT_A_PROGRAM);
       }
       const noProgramFiles = toNoProgramLayout(files, root);
-      if (!noProgramFiles.length) throw new Error(UNKNOWN_FRAMEWORK);
+      if (!noProgramFiles.length) throw new Error(noProgramCode(opts?.source));
       return noProgramFiles;
     }
 
@@ -523,13 +542,13 @@ if (import.meta.vitest) {
             ["onchain/src/lib.rs", "fn main() {}"],
             ["client.ts", "a"],
           ])
-        ).rejects.toThrow(UNKNOWN_FRAMEWORK);
+        ).rejects.toThrow(NOT_A_PROGRAM);
         await expect(
           pathsOf([
             ["prog/main.py", "x"],
             ["client.ts", "a"],
           ])
-        ).rejects.toThrow(UNKNOWN_FRAMEWORK);
+        ).rejects.toThrow(NOT_A_PROGRAM);
       });
 
       it("drops the imported folder from every path", async () => {
@@ -582,10 +601,15 @@ if (import.meta.vitest) {
         ]);
       });
 
-      it("still refuses a repository with neither", async () => {
+      it("refuses a repository with neither, naming where it looked", async () => {
         await expect(pathsOf([["README.md", "x"]])).rejects.toThrow(
-          UNKNOWN_FRAMEWORK
+          "No program code found."
         );
+        await expect(
+          PgFramework.convertToPlaygroundLayout([["README.md", "x"]], "", {
+            source: "alice/docs",
+          })
+        ).rejects.toThrow("No program code found in alice/docs.");
       });
 
       it("leaves an Anchor repository to Anchor", async () => {
