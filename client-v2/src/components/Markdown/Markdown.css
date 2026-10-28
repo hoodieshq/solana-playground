@@ -1033,6 +1033,22 @@
   height: fit-content;
 }
 
+/* GitHub's sheet leaves lists and images to the browser; preflight, in
+   \`base\`, takes the bullets and makes an image a block, so they are named
+   here. The nested-list rules above still pick their own markers. */
+.pg-markdown :where(ul) {
+  list-style-type: disc;
+}
+
+.pg-markdown :where(ol) {
+  list-style-type: decimal;
+}
+
+.pg-markdown img {
+  display: inline;
+  vertical-align: baseline;
+}
+
 .pg-markdown.pg-markdown-code-font {
   font-family: var(--pg-font-code, var(--font-code)) !important;
   font-size: 0.8125rem !important;

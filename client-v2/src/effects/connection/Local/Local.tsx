@@ -36,16 +36,20 @@ export const Local = () => {
           Here are the steps for connecting to localnet from playground.
         </div>
 
-        <Markdown className="mt-6" codeFontOnly>
-          {require("./steps.md")
-            .replace("<OS_NAME>", PgCommon.getOS() ?? "Other")
-            .replace(
-              "<OS_INSTALLATION>",
-              PgCommon.getOS() === "Windows"
-                ? require("./install-windows.md")
-                : require("./install-unix.md")
-            )}
-        </Markdown>
+        {/* The markdown sheet resets its own margin, unlayered, so the gap
+            sits on a wrapper */}
+        <div className="mt-6">
+          <Markdown codeFontOnly>
+            {require("./steps.md")
+              .replace("<OS_NAME>", PgCommon.getOS() ?? "Other")
+              .replace(
+                "<OS_INSTALLATION>",
+                PgCommon.getOS() === "Windows"
+                  ? require("./install-windows.md")
+                  : require("./install-unix.md")
+              )}
+          </Markdown>
+        </div>
 
         <Issues />
       </div>

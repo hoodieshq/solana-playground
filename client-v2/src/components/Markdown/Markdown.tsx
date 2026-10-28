@@ -19,7 +19,6 @@ interface MarkdownProps {
   rootSrc?: string;
   /** Whether to support URL hashes `<URL>#<HASH>` */
   linkable?: boolean;
-  className?: string;
 }
 
 /** react-markdown 9 passes one child where 8 passed an array. */
@@ -29,7 +28,6 @@ const Markdown: FC<React.PropsWithChildren<MarkdownProps>> = ({
   rootSrc,
   linkable,
   codeFontOnly,
-  className,
   ...props
 }) => {
   // Scroll to section if it's linkable
@@ -68,11 +66,7 @@ const Markdown: FC<React.PropsWithChildren<MarkdownProps>> = ({
 
   return (
     <ReactMarkdown
-      className={cn(
-        "pg-markdown",
-        codeFontOnly && "pg-markdown-code-font",
-        className
-      )}
+      className={cn("pg-markdown", codeFontOnly && "pg-markdown-code-font")}
       remarkPlugins={[remarkGfm]}
       components={{
         /** Links */
