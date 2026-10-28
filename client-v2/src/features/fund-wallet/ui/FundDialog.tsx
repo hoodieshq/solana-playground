@@ -65,18 +65,19 @@ const describe = (error: unknown) => {
 const failureOf = (
   stage: "connect" | "send",
   reason: FailureReason,
-  error: unknown
+  error: unknown,
+  wallet: string
 ): FundFailure => {
   if (error instanceof TransferNotConfirmedError) {
     return { kind: "send-unconfirmed", signature: error.signature };
   }
   if (stage === "connect") {
     return reason === "rejected"
-      ? { kind: "connect-declined" }
+      ? { kind: "connect-declined", wallet }
       : { kind: "connect-failed", detail: describe(error) };
   }
   return reason === "rejected"
-    ? { kind: "send-declined" }
+    ? { kind: "send-declined", wallet }
     : { kind: "send-failed", detail: describe(error) };
 };
 
@@ -166,7 +167,7 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
       const reason = classify(error);
       fundTelemetry.track("fund_failed", { stage: "connect", reason });
       logFailure("connect", reason, error);
-      setFailure(failureOf("connect", reason, error));
+      setFailure(failureOf("connect", reason, error, name));
       return;
     }
     fundTelemetry.track("fund_wallet_connected", { wallet: name });
@@ -196,7 +197,7 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
       fundTelemetry.track("fund_failed", { stage: "send", reason });
       logFailure("send", reason, error);
       if (attempt.current === mine)
-        setFailure(failureOf("send", reason, error));
+        setFailure(failureOf("send", reason, error, payer.name));
       return;
     }
     // `PgConnection.cluster` is null only before the first endpoint is read

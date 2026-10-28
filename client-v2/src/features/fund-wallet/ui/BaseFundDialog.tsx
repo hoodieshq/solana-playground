@@ -42,9 +42,9 @@ export interface FundPayer {
 
 /** What went wrong last, shown above the footer until the next attempt */
 export type FundFailure =
-  | { kind: "connect-declined" }
+  | { kind: "connect-declined"; wallet: string }
   | { kind: "connect-failed"; detail: string }
-  | { kind: "send-declined" }
+  | { kind: "send-declined"; wallet: string }
   | { kind: "send-failed"; detail: string }
   /** Sent, possibly landed: sending again could pay twice, so Send stays off */
   | { kind: "send-unconfirmed"; signature: string };
@@ -116,20 +116,17 @@ const amountNote = (
   };
 };
 
+/** The shared wallet copy (Spec 12, `wallet`) for a request the user refused */
+const declinedIn = (wallet: string) =>
+  `You declined in ${wallet}. Nothing was sent.`;
+
 const failureText = (failure: FundFailure) => {
   switch (failure.kind) {
     case "connect-declined":
-      return {
-        title: "The connection was declined in the wallet.",
-        detail: null,
-      };
+    case "send-declined":
+      return { title: declinedIn(failure.wallet), detail: null };
     case "connect-failed":
       return { title: "Couldn't connect the wallet.", detail: failure.detail };
-    case "send-declined":
-      return {
-        title: "The transfer was declined in the wallet.",
-        detail: null,
-      };
     case "send-failed":
       return { title: "Couldn't send the SOL.", detail: failure.detail };
     case "send-unconfirmed":
@@ -182,9 +179,11 @@ const BaseFundDialog = ({
 
         {wallets.length === 0 && (
           <div>
-            <p className="font-medium">No wallet found</p>
+            <p className="font-medium">
+              No wallet extension found in this browser.
+            </p>
             <p className="text-muted-foreground text-sm">
-              Install a Solana wallet such as Phantom, then open this again.
+              Install Phantom, Backpack or Solflare, then reload.
             </p>
           </div>
         )}
@@ -196,6 +195,7 @@ const BaseFundDialog = ({
                 key={wallet.name}
                 variant="outline"
                 className="justify-start"
+                loadingText={`Waiting for ${wallet.name}…`}
                 onClick={() => onConnect(wallet.name)}
                 onError={reportButtonFailure(`connect ${wallet.name}`)}
               >

@@ -38,7 +38,9 @@ Playground wallet, otherwise the first Playground account, which is the one
 The dialog SHALL list every detected wallet, each as a button labelled
 `Connect <wallet name>` with the wallet's icon, and show the connected one with
 its short address and SOL balance. With no wallet detected it SHALL say
-"No wallet found" and suggest installing one. A wallet connected here SHALL NOT
+"No wallet extension found in this browser." and suggest installing one;
+while a wallet is asked to connect, its button SHALL read
+`Waiting for <wallet name>…`. A wallet connected here SHALL NOT
 become the current wallet.
 
 #### Scenario: Connect in the dialog
@@ -47,11 +49,11 @@ become the current wallet.
 
 #### Scenario: No wallet installed
 - **WHEN** no Wallet Standard wallet is detected
-- **THEN** the dialog shows "No wallet found" and no amount field
+- **THEN** the dialog shows "No wallet extension found in this browser." and no amount field
 
 #### Scenario: The user declines the connection
 - **WHEN** the user rejects the connection request in the wallet
-- **THEN** the dialog stays open, lists the wallets again and says the connection was declined
+- **THEN** the dialog stays open, lists the wallets again and says "You declined in Phantom. Nothing was sent."
 
 ### Requirement: The amount is checked before the wallet is asked
 The amount field (label "Amount (SOL)", id `fund-amount`) SHALL start at 1 and
@@ -87,7 +89,7 @@ updates on its own.
 
 #### Scenario: The user declines the transfer
 - **WHEN** the user rejects the signature request in the wallet
-- **THEN** nothing is sent, the dialog stays open with the amount kept, and it says the transfer was declined
+- **THEN** nothing is sent, the dialog stays open with the amount kept, and it says "You declined in <wallet name>. Nothing was sent."
 
 #### Scenario: The transfer fails on the network
 - **WHEN** the transaction never reaches the cluster, or the cluster runs it and it fails

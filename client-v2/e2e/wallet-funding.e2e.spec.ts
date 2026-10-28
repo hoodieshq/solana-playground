@@ -235,7 +235,9 @@ test("client-v2-wallet-funding: No wallet installed", async ({
 }) => {
   await openFund(page);
 
-  await expect(dialog(page)).toContainText("No wallet found");
+  await expect(dialog(page)).toContainText(
+    "No wallet extension found in this browser."
+  );
   await expect(dialog(page).getByLabel("Amount (SOL)")).toHaveCount(0);
 });
 
@@ -251,7 +253,7 @@ test("client-v2-wallet-funding: The user declines the connection", async ({
   await dialog(page).getByRole("button", { name: "Connect Phantom" }).click();
 
   await expect(dialog(page).getByRole("alert")).toContainText(
-    "The connection was declined in the wallet."
+    "You declined in Phantom. Nothing was sent."
   );
   await expect(
     dialog(page).getByRole("button", { name: "Connect Phantom" })
@@ -293,7 +295,7 @@ test("client-v2-wallet-funding: The user declines the transfer", async ({
   await dialog(page).getByRole("button", { name: "Send 0.5 SOL" }).click();
 
   await expect(dialog(page).getByRole("alert")).toContainText(
-    "The transfer was declined in the wallet."
+    "You declined in Phantom. Nothing was sent."
   );
   await expect(dialog(page).getByLabel("Amount (SOL)")).toHaveValue("0.5");
   expect(cluster.sent).toHaveLength(0);

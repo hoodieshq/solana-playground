@@ -149,7 +149,7 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     await connectPhantom();
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "The connection was declined in the wallet."
+      "You declined in Phantom. Nothing was sent."
     );
     expect(
       screen.getByRole("button", { name: "Connect Phantom" })
@@ -196,7 +196,7 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     });
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "The transfer was declined in the wallet."
+      "You declined in Phantom. Nothing was sent."
     );
     expect(
       (screen.getByLabelText("Amount (SOL)") as HTMLInputElement).value

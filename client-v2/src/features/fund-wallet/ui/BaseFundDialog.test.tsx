@@ -56,10 +56,20 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     expect(onConnect).toHaveBeenCalledWith("Phantom");
   });
 
+  it("says it waits for the wallet while connecting", () => {
+    renderDialog({ onConnect: () => new Promise<void>(() => {}) });
+
+    fireEvent.click(screen.getByRole("button", { name: "Connect Phantom" }));
+
+    expect(screen.getByText("Waiting for Phantom…")).toBeTruthy();
+  });
+
   it("says no wallet was found, and shows no amount field", () => {
     renderDialog({ wallets: [] });
 
-    expect(screen.getByText("No wallet found")).toBeTruthy();
+    expect(
+      screen.getByText("No wallet extension found in this browser.")
+    ).toBeTruthy();
     expect(screen.queryByLabelText("Amount (SOL)")).toBeNull();
   });
 
@@ -114,12 +124,12 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
 
   it.each([
     [
-      { kind: "connect-declined" as const },
-      "The connection was declined in the wallet.",
+      { kind: "connect-declined" as const, wallet: "Phantom" },
+      "You declined in Phantom. Nothing was sent.",
     ],
     [
-      { kind: "send-declined" as const },
-      "The transfer was declined in the wallet.",
+      { kind: "send-declined" as const, wallet: "Phantom" },
+      "You declined in Phantom. Nothing was sent.",
     ],
   ])("says when %j", (failure, text) => {
     renderDialog({ payer: PAYER, failure });
