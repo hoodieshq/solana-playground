@@ -38,7 +38,7 @@ export const build = createCmd({
         throwIfStopped(signal, STOPPED);
         throw e;
       });
-      // A reply that lands after a stop is dropped: nothing was built
+      // A reply that lands after a stop is dropped: nothing of it is kept
       throwIfStopped(signal, STOPPED);
       // Server only returns `uuid` on the first build of a session, so we
       // can't use it as a success signal. Mirror the server's own check on
@@ -60,8 +60,11 @@ export const build = createCmd({
   },
 });
 
-/** What the terminal says after a stopped build */
-const STOPPED = "Stopped. Nothing was built.";
+/**
+ * What the terminal says after a stopped build (Spec 13's copy). Not
+ * "nothing was built": the server may finish; its reply is only not kept.
+ */
+const STOPPED = "Stopped.";
 
 /**
  * Compile the current project.

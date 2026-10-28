@@ -20,9 +20,7 @@ const holdBuilds = async (page: Page) => {
   const answered = new Promise<void>((res) => (answer = res));
   await page.route("**/build", async (route) => {
     await answered;
-    await json(route, { stderr: "", uuid: null, idl: null }).catch(() => {
-      // The page aborted the request: nothing is left to answer
-    });
+    await json(route, { stderr: "", uuid: null, idl: null });
   });
   return { answer };
 };
@@ -34,17 +32,26 @@ const startBuild = async (page: Page) => {
 
 const terminalText = (page: Page) => page.locator(".xterm-rows").first();
 
+const openConsole = async (page: Page) => {
+  const drawer = page.getByRole("button", { name: "Terminal", exact: true });
+  if ((await drawer.getAttribute("aria-expanded")) !== "true") {
+    await drawer.click();
+  }
+};
+
 test.describe("client-v2-command-stop", () => {
   test("client-v2-command-stop: Stop shows while a build runs", async ({
     seededPage: page,
   }) => {
     await holdBuilds(page);
+    await openConsole(page);
     await startBuild(page);
 
     await expect(
       page.getByRole("button", { name: "Stop build" })
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Clear" })).toHaveCount(0);
+    // Spec 13 (TRM-28): Clear is off beside Stop on a desktop
+    await expect(page.getByRole("button", { name: "Clear" })).toBeDisabled();
   });
 
   test("client-v2-command-stop: Stop leaves when the run ends", async ({
@@ -67,17 +74,12 @@ test.describe("client-v2-command-stop", () => {
     seededPage: page,
   }) => {
     await holdBuilds(page);
-    const drawer = page.getByRole("button", { name: "Terminal", exact: true });
-    if ((await drawer.getAttribute("aria-expanded")) !== "true") {
-      await drawer.click();
-    }
+    await openConsole(page);
     await startBuild(page);
 
     await page.getByRole("button", { name: "Stop build" }).click();
 
-    await expect(terminalText(page)).toContainText(
-      "Stopped. Nothing was built."
-    );
+    await expect(terminalText(page)).toContainText("Stopped.");
     await expect(terminalText(page)).not.toContainText("Process error");
     // The prompt is back
     await expect(terminalText(page)).toHaveText(/\$\s*$/);
@@ -99,10 +101,7 @@ test.describe("client-v2-command-stop", () => {
     seededPage: page,
   }) => {
     await holdBuilds(page);
-    const drawer = page.getByRole("button", { name: "Terminal", exact: true });
-    if ((await drawer.getAttribute("aria-expanded")) !== "true") {
-      await drawer.click();
-    }
+    await openConsole(page);
     await expect(terminalText(page)).toHaveText(/\$\s*$/);
     await startBuild(page);
     await expect(
@@ -113,10 +112,26 @@ test.describe("client-v2-command-stop", () => {
     await input.focus();
     await page.keyboard.press("Control+C");
 
-    await expect(terminalText(page)).toContainText(
-      /\^C\s*Stopped\. Nothing was built\./
-    );
+    await expect(terminalText(page)).toContainText(/\^C\s*Stopped\./);
     // The prompt is back
+    await expect(terminalText(page)).toHaveText(/\$\s*$/);
+  });
+
+  test("client-v2-command-stop: ⌘. during a build", async ({
+    seededPage: page,
+  }) => {
+    await holdBuilds(page);
+    await openConsole(page);
+    await expect(terminalText(page)).toHaveText(/\$\s*$/);
+    await startBuild(page);
+    await expect(
+      page.getByRole("button", { name: "Stop build" })
+    ).toBeVisible();
+
+    await page.getByLabel("Terminal input").first().focus();
+    await page.keyboard.press("Meta+Period");
+
+    await expect(terminalText(page)).toContainText(/\^C\s*Stopped\./);
     await expect(terminalText(page)).toHaveText(/\$\s*$/);
   });
 });

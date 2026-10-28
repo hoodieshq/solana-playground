@@ -10,6 +10,9 @@ import type { Disposable } from "../../../utils";
 export type Stage = "write" | "build" | "deploy" | "interact";
 export type StageStatus = "upcoming" | "active" | "done" | "failed" | "running";
 
+/** A run the console strip can stop */
+export type RunKind = "build" | "deploy";
+
 export interface FlowState {
   stage: Stage;
   build: StageStatus;
@@ -29,12 +32,13 @@ export interface FlowState {
   /** Why the last build never reached the compiler, for Build's surface
    * and its "Show details"; `null` once a build settles otherwise */
   buildFailure: BuildFailure | null;
-  /** What Deploy showed before the deploy in flight, so a stopped deploy
-   * goes back to it; `null` when no deploy has run */
+  /** What Deploy showed when the last deploy started, which a stopped
+   * deploy goes back to; `null` until the first deploy starts. Set by
+   * `deploy-start`, read only by `deploy-stop`. */
   deployBeforeRun: StageStatus | null;
   /** Which run the person stopped last, for the console strip's words;
    * `null` once the next run starts */
-  stopped: "build" | "deploy" | null;
+  stopped: RunKind | null;
 }
 
 /**
@@ -57,11 +61,13 @@ export type FlowEvent =
       /** Why a build never reached the compiler */
       failure?: BuildFailure;
     }
-  /** The person stopped the build: no result, nothing changes */
+  /** The person stopped the build: no result is kept, the stage goes back to
+   * its settled status */
   | { type: "build-stop" }
   | { type: "deploy-start" }
   | { type: "deploy-finish"; ok: boolean }
-  /** The person stopped the deploy: the program on chain is as it was */
+  /** The person stopped the deploy before its last step: the program on
+   * chain is as it was, and the stage goes back to where it was */
   | { type: "deploy-stop" }
   | { type: "set-stage"; stage: Stage }
   | { type: "workspace-change" }
@@ -156,6 +162,7 @@ export class PgFlow {
           stopped: null,
         };
       case "build-stop":
+        if (state.build !== "running") return state;
         return { ...state, build: state.buildSettled, stopped: "build" };
       case "build-finish":
         return ev.failed
@@ -181,6 +188,9 @@ export class PgFlow {
               buildFailure: null,
             };
       case "deploy-start":
+        // A second Deploy click pauses or resumes the run in flight and
+        // starts again: what Deploy showed before is the first click's
+        if (state.deploy === "running") return state;
         return {
           ...state,
           stage: "deploy",
@@ -189,10 +199,12 @@ export class PgFlow {
           stopped: null,
         };
       case "deploy-stop":
+        if (state.deploy !== "running") return state;
         return {
           ...state,
           deploy: state.deployBeforeRun ?? "active",
-          stopped: "deploy",
+          // A stop of the build a deploy runs first is the build's stop
+          stopped: state.stopped === "build" ? "build" : "deploy",
         };
       case "deploy-finish":
         return ev.ok

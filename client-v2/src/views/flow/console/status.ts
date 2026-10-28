@@ -4,7 +4,7 @@ import type { statusDotVariants } from "@/shared/ui/status-dot";
 import { parseBuildReport } from "../stages/build-report";
 import { msLabel } from "../stages/build-view";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
-import type { FlowState } from "../state/stage";
+import type { FlowState, RunKind } from "../state/stage";
 
 type StatusDotVariant = NonNullable<
   VariantProps<typeof statusDotVariants>["variant"]
@@ -50,8 +50,9 @@ const running = (what: string, elapsedMs: number | null): ConsoleStatus => ({
  * on every tick of a run.
  *
  * Precedence (most recent/relevant first): a run in progress, then a
- * stop, then a deploy result (it is always newer than the build that unlocked it), then
- * the last build's result, then nothing before the first build.
+ * stop, then a deploy result (it is always newer than the build that
+ * unlocked it), then the last build's result, then nothing before the first
+ * build.
  */
 export const describeConsoleStatus = (
   flow: FlowState,
@@ -86,11 +87,11 @@ export const describeConsoleStatus = (
 };
 
 /**
- * Which run the strip's Stop would stop, or `null` while nothing runs. A
- * build inside a deploy (deploy builds first) is the build: it is what the
- * strip says is running.
+ * Which run the strip's Stop is named after, or `null` while nothing runs.
+ * A build a deploy runs first (when the program is not built) names it: it is
+ * what the strip says is running. Stop itself stops every run in flight.
  */
-export const runToStop = (flow: FlowState): "build" | "deploy" | null => {
+export const runToStop = (flow: FlowState): RunKind | null => {
   if (flow.build === "running") return "build";
   if (flow.deploy === "running") return "deploy";
   return null;

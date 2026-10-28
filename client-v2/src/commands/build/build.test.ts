@@ -1,5 +1,5 @@
 // The `build` command's refusal of an empty program file (Spec 09): it
-// names the file and sends nothing. A file of its own, since it mocks the
+// names the file and sends nothing; and its stop, which keeps nothing. A file of its own, since it mocks the
 // utils barrel the command reaches the explorer and the server through.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -97,7 +97,7 @@ describe("commands/build/build", () => {
       const err = await built.catch((e: unknown) => e);
 
       expect(isStopped(err)).toBe(true);
-      expect((err as Error).message).toBe("Stopped. Nothing was built.");
+      expect((err as Error).message).toBe("Stopped.");
       expect(utils.PgProgramInfo.update).not.toHaveBeenCalled();
       expect(PgBuildOutput.set).not.toHaveBeenCalled();
       expect(utils.PgGlobal.update).toHaveBeenLastCalledWith({

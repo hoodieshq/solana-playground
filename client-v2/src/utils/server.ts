@@ -113,7 +113,8 @@ export class PgServer {
   /**
    * Send an HTTP request to the Playground server.
    *
-   * @param opts server send request options
+   * @param opts server send request options; an aborted `signal` fails the
+   * request like any other network failure ("Server request failed")
    * @throws when the response is not OK (with the decoded response)
    * @returns the HTTP response
    */

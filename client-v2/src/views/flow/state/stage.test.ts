@@ -229,6 +229,49 @@ describe("PgFlow.reduce, a stopped run", () => {
     expect(s.stopped).toBe("deploy");
   });
 
+  it("a second Deploy click keeps what Deploy showed before the run", () => {
+    const deploying = PgFlow.reduce(builtOnce(), { type: "deploy-start" });
+    const pausedClick = PgFlow.reduce(deploying, { type: "deploy-start" });
+
+    const s = PgFlow.reduce(pausedClick, { type: "deploy-stop" });
+
+    expect(s.deploy).toBe("active");
+  });
+
+  it("a stopped retry keeps the failed build it retried", () => {
+    const failed = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "build-finish",
+      failed: true,
+      errorCount: 2,
+      ms: 5,
+    });
+    const retrying = PgFlow.reduce(failed, { type: "build-start", at: 9 });
+
+    const s = PgFlow.reduce(retrying, { type: "build-stop" });
+
+    expect(s.build).toBe("failed");
+    expect(s.buildErrorCount).toBe(2);
+  });
+
+  it("a stop of the build a deploy runs first reads as the build's", () => {
+    const deploying = PgFlow.reduce(builtOnce(), { type: "deploy-start" });
+    const building = PgFlow.reduce(deploying, { type: "build-start", at: 9 });
+    const buildStopped = PgFlow.reduce(building, { type: "build-stop" });
+
+    const s = PgFlow.reduce(buildStopped, { type: "deploy-stop" });
+
+    expect(s.stopped).toBe("build");
+    expect(s.deploy).toBe("active");
+    expect(s.build).toBe("done");
+  });
+
+  it("ignores a stop when nothing of its kind runs", () => {
+    const done = builtOnce();
+
+    expect(PgFlow.reduce(done, { type: "build-stop" })).toBe(done);
+    expect(PgFlow.reduce(done, { type: "deploy-stop" })).toBe(done);
+  });
+
   it("the next run clears the stop", () => {
     const stopped = PgFlow.reduce(
       PgFlow.reduce(builtOnce(), { type: "build-start", at: 9 }),
@@ -308,14 +351,13 @@ describe("PgFlow.init wiring", () => {
     const sub = PgFlow.init();
 
     buildStart.cb!(null);
-    buildFinish.cb!({ err: new StoppedError("Stopped. Nothing was built.") });
-    expect(PgFlow.state.build).not.toBe("failed");
-    expect(PgFlow.state.build).not.toBe("running");
+    buildFinish.cb!({ err: new StoppedError("Stopped.") });
+    expect(PgFlow.state.build).toBe(PgFlow.state.buildSettled);
     expect(PgFlow.state.stopped).toBe("build");
 
     deployStart.cb!(null);
     deployFinish.cb!({ err: new StoppedError("Stopped.") });
-    expect(PgFlow.state.deploy).not.toBe("failed");
+    expect(PgFlow.state.deploy).toBe(PgFlow.state.deployBeforeRun);
     expect(PgFlow.state.stopped).toBe("deploy");
 
     sub.dispose();

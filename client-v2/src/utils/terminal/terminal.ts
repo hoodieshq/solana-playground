@@ -158,8 +158,8 @@ export class PgTerminal {
       // so a button that started this must not show the failure a second
       // time. Only while the console is open: printed into a folded one, the
       // user saw nothing here, so the button's toast tells them, unless the
-      // place they clicked shows it itself (`toldByStage`)
-      // A stop is the person's own request and never a failure to toast
+      // place they clicked shows it itself (`toldByStage`). A stop is never
+      // toasted, folded or not: the person asked for it
       if (PgTerminal._consoleOpen || isStopped(e)) markFailureShown(e);
       throw e;
     }
@@ -710,10 +710,22 @@ export class PgTerm {
 
       switch (key) {
         case "C":
-          if (ev.shiftKey) {
+          // Ctrl+C copies a selection; with nothing selected it reaches the
+          // shell, which stops a running command
+          if (ev.shiftKey || (ev.ctrlKey && this._xterm.hasSelection())) {
             ev.preventDefault();
             const selection = this._xterm.getSelection();
             navigator.clipboard.writeText(selection);
+            return false;
+          }
+
+          return true;
+
+        // ⌘. stops a running command on a Mac, as in a Mac terminal
+        case ".":
+          if (ev.metaKey && !this._shell.isPrompting()) {
+            ev.preventDefault();
+            this._shell.stopCommand();
             return false;
           }
 

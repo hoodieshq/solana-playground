@@ -70,7 +70,7 @@ describe("PgTerminal.process", () => {
   // may toast "Could not build" for it, folded console or not
   it("marks a stopped run as shown, even in a folded console", async () => {
     PgTerminal.setConsoleOpen(false);
-    const stopped = new StoppedError("Stopped. Nothing was built.");
+    const stopped = new StoppedError("Stopped.");
 
     await expect(
       PgTerminal.process(() => {

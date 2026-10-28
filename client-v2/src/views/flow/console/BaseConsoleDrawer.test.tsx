@@ -13,8 +13,7 @@ const draw = (
   handlers: {
     onOpenChange?: (open: boolean) => void;
     onClear?: () => void;
-    onStop?: () => void;
-    running?: "build" | "deploy" | null;
+    stop?: { run: "build" | "deploy"; onStop: () => void } | null;
   }
 ) =>
   render(
@@ -23,8 +22,7 @@ const draw = (
       status={idle}
       onOpenChange={handlers.onOpenChange ?? vi.fn()}
       onClear={handlers.onClear ?? vi.fn()}
-      onStop={handlers.onStop ?? vi.fn()}
-      running={handlers.running ?? null}
+      stop={handlers.stop ?? null}
       shortcut="⌘J"
     >
       <div className="xterm" />
@@ -77,27 +75,32 @@ it("clears without toggling", () => {
   expect(onOpenChange).not.toHaveBeenCalled();
 });
 
-// Spec 13: Stop takes Clear's place while a command runs
+// Spec 13: Stop shows while a build or a deploy runs, folded or open
 it.each([
   ["build", true],
   ["build", false],
   ["deploy", true],
   ["deploy", false],
-] as const)(
-  "offers Stop %s in place of Clear (open: %s), without toggling",
-  (run, open) => {
-    const onOpenChange = vi.fn();
-    const onStop = vi.fn();
-    draw(open, { onOpenChange, onStop, running: run });
+] as const)("offers Stop %s (open: %s), without toggling", (run, open) => {
+  const onOpenChange = vi.fn();
+  const onStop = vi.fn();
+  draw(open, { onOpenChange, stop: { run, onStop } });
 
-    const stop = screen.getByRole("button", { name: `Stop ${run}` });
-    expect(stop.textContent).toBe("Stop");
-    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
-    fireEvent.click(stop);
-    expect(onStop).toHaveBeenCalledTimes(1);
-    expect(onOpenChange).not.toHaveBeenCalled();
-  }
-);
+  const stop = screen.getByRole("button", { name: `Stop ${run}` });
+  expect(stop.textContent).toBe("Stop");
+  fireEvent.click(stop);
+  expect(onStop).toHaveBeenCalledTimes(1);
+  expect(onOpenChange).not.toHaveBeenCalled();
+});
+
+// Spec 13 (TRM-28): Clear is off beside Stop; a phone hides it for Stop
+it("turns Clear off while a run can be stopped", () => {
+  draw(true, { stop: { run: "build", onStop: vi.fn() } });
+
+  const clear = screen.getByRole("button", { name: "Clear" });
+  expect(clear.hasAttribute("disabled")).toBe(true);
+  expect(clear.className).toContain("max-md:hidden");
+});
 
 it("offers no Stop while nothing runs", () => {
   draw(true, {});
@@ -112,8 +115,7 @@ it("shows the status text with a dot of its tone", () => {
       status={{ text: "build failed", tone: "error" }}
       onOpenChange={vi.fn()}
       onClear={vi.fn()}
-      onStop={vi.fn()}
-      running={null}
+      stop={null}
       shortcut="⌘J"
     />
   );

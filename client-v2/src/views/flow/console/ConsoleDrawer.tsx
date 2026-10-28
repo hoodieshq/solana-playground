@@ -69,6 +69,7 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
     flow.build === "running" ? flow.buildStartedAt : null
   );
   const status = describeConsoleStatus(flow, elapsed);
+  const stop = runToStop(flow);
 
   // What `PgTerminal.process` needs to know whether a failure it printed
   // was seen
@@ -93,8 +94,7 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
       status={status}
       shortcut={keyLabel(CONSOLE_KEY, PgCommon.getOS())}
       onClear={clear}
-      onStop={() => PgCommandManager.stop()}
-      running={runToStop(flow)}
+      stop={stop && { run: stop, onStop: () => PgCommandManager.stop() }}
     >
       <Terminal />
     </BaseConsoleDrawer>
