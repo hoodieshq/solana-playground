@@ -35,19 +35,21 @@ afterEach(() => {
 
 describe("utils/wallet/wallet", () => {
   it("import adds the keypair a keypair file holds", async () => {
-    const add = vi.spyOn(PgWallet, "add").mockImplementation(() => {});
+    const add = vi.spyOn(PgWallet, "add").mockImplementation(() => false);
     const keypair = PgWeb3.Keypair.generate();
     const { result, choose } = pick();
 
     choose(async () => JSON.stringify(Array.from(keypair.secretKey)));
 
     const imported = await result;
-    expect(imported?.publicKey.equals(keypair.publicKey)).toBe(true);
+    expect(imported?.keypair.publicKey.equals(keypair.publicKey)).toBe(true);
+    // What `add` answered: here, that the wallet already held the keypair
+    expect(imported?.added).toBe(false);
     expect(add).toHaveBeenCalledTimes(1);
   });
 
   it("import resolves with nothing when the picker is closed", async () => {
-    const add = vi.spyOn(PgWallet, "add").mockImplementation(() => {});
+    const add = vi.spyOn(PgWallet, "add").mockImplementation(() => true);
     const { result, close } = pick();
 
     close();
@@ -57,7 +59,7 @@ describe("utils/wallet/wallet", () => {
   });
 
   it("import rejects a file that is not a keypair, adding nothing", async () => {
-    const add = vi.spyOn(PgWallet, "add").mockImplementation(() => {});
+    const add = vi.spyOn(PgWallet, "add").mockImplementation(() => true);
     const { result, choose } = pick();
 
     choose(async () => '{"hello":"world"}');
@@ -67,7 +69,7 @@ describe("utils/wallet/wallet", () => {
   });
 
   it("import passes on a failure to read the file", async () => {
-    vi.spyOn(PgWallet, "add").mockImplementation(() => {});
+    vi.spyOn(PgWallet, "add").mockImplementation(() => true);
     const failure = new Error("could not read the file");
     const { result, choose } = pick();
 

@@ -1,11 +1,14 @@
 import { PgWeb3 } from "../web3";
 
-/** A chosen file that does not hold a keypair; its message is for the user */
+/**
+ * A chosen file that does not hold a keypair; its message is for the user, in
+ * the words of the designers' Spec 12 ("Import error")
+ */
 export class KeypairFileError extends Error {
   /** @param cause what rejected the file, kept for debugging */
   constructor(cause?: unknown) {
     super(
-      "That file is not a keypair. Choose a keypair file: a JSON array of 64 numbers.",
+      "This file isn't a Solana keypair. Pick a .json file saved from Playground or the Solana CLI.",
       { cause }
     );
     this.name = "KeypairFileError";
@@ -65,7 +68,7 @@ if (import.meta.vitest) {
       ["64 entries that are not numbers", JSON.stringify(Array(64).fill("a"))],
     ])("parseKeypairFile rejects %s with a message for the user", (_, text) => {
       expect(() => parseKeypairFile(text)).toThrow(KeypairFileError);
-      expect(() => parseKeypairFile(text)).toThrow(/not a keypair/);
+      expect(() => parseKeypairFile(text)).toThrow(/isn't a Solana keypair/);
     });
   });
 }

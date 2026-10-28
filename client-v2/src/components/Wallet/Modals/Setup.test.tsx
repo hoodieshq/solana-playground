@@ -56,7 +56,8 @@ afterEach(() => {
 describe("wallet Setup", () => {
   it("keeps the current wallet when a keypair is imported", async () => {
     vi.mocked(PgWallet.import).mockResolvedValueOnce({
-      publicKey: { toBase58: () => "NewAddress" },
+      keypair: { publicKey: { toBase58: () => "NewAddress" } },
+      added: true,
     } as never);
     renderSetup();
 

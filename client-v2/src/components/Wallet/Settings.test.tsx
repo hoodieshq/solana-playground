@@ -92,13 +92,16 @@ afterEach(() => {
   PgWallet.accounts.length = 0;
 });
 
-/** What `PgWallet.add` does to the accounts: append and select, or select */
-const importsAs = (name: string) =>
+/** What `PgWallet.import` does: append and select, or select an existing one */
+const importsAs = (name: string, address: string) =>
   vi.mocked(PgWallet.import).mockImplementationOnce(async () => {
     const at = PgWallet.accounts.findIndex((account) => account.name === name);
     if (at === -1) PgWallet.accounts.push({ name } as never);
     PgWallet.currentIndex = at === -1 ? PgWallet.accounts.length - 1 : at;
-    return {} as never;
+    return {
+      keypair: { publicKey: { toBase58: () => address } },
+      added: at === -1,
+    } as never;
   });
 
 /** The text of the toast `PgView.setToast` was given */
@@ -231,7 +234,7 @@ describe("wallet Settings menu", () => {
 
   it("says which wallet Import added", async () => {
     PgWallet.accounts.push({ name: "Wallet 1" } as never);
-    importsAs("Wallet 2");
+    importsAs("Wallet 2", "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU");
     render(<Host />);
     await openMenu();
 
@@ -241,12 +244,12 @@ describe("wallet Settings menu", () => {
     expect(vi.mocked(PgView.setToast).mock.calls[0][1]).toEqual({
       options: { name: "wallet-imported" },
     });
-    expect(toastText(0)).toBe("Imported Wallet 2.");
+    expect(toastText(0)).toBe("Imported 7xKX…gAsU as Wallet 2.");
   });
 
   it("says Import switched to a wallet that was already there", async () => {
     PgWallet.accounts.push({ name: "Wallet 1" } as never);
-    importsAs("Wallet 1");
+    importsAs("Wallet 1", "9ohTQmMgo8uYEG8DgZn2bTt1Km6WGnBUa7UNAqC3odC");
     render(<Host />);
     await openMenu();
 

@@ -48,15 +48,29 @@ const openModal = async (action: string, load: () => Promise<unknown>) => {
   }
 };
 
-// The toast says what the import did: `PgWallet.add` switches to an account
-// that already holds the keypair instead of adding it, which would otherwise
-// look like nothing happened. A file that is not a keypair is the user's to
-// fix, so the toast says why; anything else is a failed click. A closed picker
-// resolves with nothing and says nothing.
+/** An address as Spec 12 writes it in copy: "7xKX…4fQa" */
+const shortAddress = (address: string) =>
+  `${address.slice(0, 4)}…${address.slice(-4)}`;
+
+// The toast says what the import did, in Spec 12's words: `PgWallet.add`
+// switches to an account that already holds the keypair instead of adding it,
+// which would otherwise look like nothing happened. A file that is not a
+// keypair is the user's to fix, so the toast says why; anything else is a
+// failed click. A closed picker resolves with nothing and says nothing.
 const importWallet = async () => {
-  const count = PgWallet.accounts.length;
   try {
-    if (!(await PgWallet.import())) return;
+    const imported = await PgWallet.import();
+    if (!imported) return;
+
+    const { name } = PgWallet.accounts[PgWallet.currentIndex];
+    const text = imported.added
+      ? `Imported ${shortAddress(
+          imported.keypair.publicKey.toBase58()
+        )} as ${name}.`
+      : `${name} already holds that keypair, so it is now the current wallet.`;
+    PgView.setToast(() => <span>{text}</span>, {
+      options: { name: "wallet-imported" },
+    });
   } catch (err) {
     if (err instanceof KeypairFileError) {
       const { message } = err;
@@ -66,17 +80,7 @@ const importWallet = async () => {
       return;
     }
     reportButtonFailure("import the wallet")(err);
-    return;
   }
-
-  const { name } = PgWallet.accounts[PgWallet.currentIndex];
-  const text =
-    PgWallet.accounts.length > count
-      ? `Imported ${name}.`
-      : `${name} already holds that keypair, so it is now the current wallet.`;
-  PgView.setToast(() => <span>{text}</span>, {
-    options: { name: "wallet-imported" },
-  });
 };
 
 interface SettingsProps {

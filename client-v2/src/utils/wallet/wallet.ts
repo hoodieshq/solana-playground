@@ -214,6 +214,8 @@ class _PgWallet {
    *
    * @param name name of the account
    * @param keypair optional keypair, default to a random keypair
+   * @returns `false` when an account with the name or keypair already existed
+   * and it switched to that account instead
    */
   static add(params?: { name?: string; keypair?: PgWeb3.Keypair }) {
     const { name, keypair } = PgCommon.setDefault(params, {
@@ -234,7 +236,7 @@ class _PgWallet {
     if (accountIndex !== -1) {
       // Account exists, switch to the account
       PgWallet.switch(accountIndex);
-      return;
+      return false;
     }
 
     // Add the account
@@ -249,6 +251,8 @@ class _PgWallet {
       accounts: PgWallet.accounts,
       currentIndex: PgWallet.accounts.length - 1,
     });
+
+    return true;
   }
 
   /**
@@ -283,7 +287,9 @@ class _PgWallet {
    * Import a keypair from the user's file system.
    *
    * @param name name of the account
-   * @returns the imported keypair, or `undefined` when no file was chosen
+   * @returns the imported keypair and whether it was added (`false`: the
+   * wallet already held it and switched to it), or `undefined` when no file
+   * was chosen
    * @throws {KeypairFileError} when the file is not a keypair; any other
    * failure, such as an unreadable file, propagates as it is
    */
@@ -295,9 +301,9 @@ class _PgWallet {
           if (!files?.length) return;
 
           const keypair = parseKeypairFile(await files[0].text());
-          PgWallet.add({ name, keypair });
+          const added = PgWallet.add({ name, keypair });
 
-          return keypair;
+          return { keypair, added };
         },
         { accept: ".json" }
       );
