@@ -80,6 +80,7 @@ const flowState = (
   buildFailure: null,
   deployBeforeRun: null,
   stopped: null,
+  hasProgram: true,
 });
 
 beforeEach(() => {
