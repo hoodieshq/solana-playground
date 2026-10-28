@@ -33,6 +33,10 @@ import {
   StageEmptyNotice,
   StageEmptyTitle,
 } from "@/shared/ui/stage-empty";
+import {
+  EMPTY_SOURCE_HINT,
+  fileLabel,
+} from "../../../commands/build/empty-source";
 import { errorMeta, msLabel, warningCount } from "./build-view";
 import type { BuildSurface } from "./build-surface";
 import type { BuildFailure } from "../state/stage";
@@ -221,11 +225,11 @@ const Unreached = (p: BaseBuildProps & { failure: BuildFailure | null }) => {
  * program comes first, so opening the file is the brand action.
  */
 const EmptySource = (p: BaseBuildProps & { file: string }) => {
-  const name = p.file.split("/").pop() ?? p.file;
+  const name = fileLabel(p.file);
   return (
     <Surface
       title={`${name} is empty`}
-      description="Write a program, or ask the assistant for one."
+      description={EMPTY_SOURCE_HINT}
       actions={
         <>
           <BrandButton onClick={() => p.onOpenFile(p.file)}>
@@ -404,9 +408,18 @@ const CompilerOutput = ({ raw }: { raw: string }) => {
 /** What the failed surface says once Explain or Fix is pressed (Spec 04) */
 const ANSWERING = "The assistant is answering in the side panel.";
 
+/**
+ * The announcement after `asks` presses. A polite region speaks only when
+ * its text changes, so every other ask adds a trailing no-break space.
+ */
+const answeringText = (asks: number) => {
+  if (asks === 0) return "";
+  if (asks % 2 === 1) return ANSWERING;
+  return `${ANSWERING}\u00a0`;
+};
+
 const Failed = (p: BaseBuildProps & FailedView) => {
-  // A polite region speaks only when its text changes, so each ask flips a
-  // trailing no-break space; a rebuild's new errors have not been asked about
+  // A rebuild's new errors have not been asked about
   const [asks, setAsks] = useState(0);
   useEffect(() => {
     if (p.building) setAsks(0);
@@ -437,7 +450,7 @@ const Failed = (p: BaseBuildProps & FailedView) => {
         <CompilerOutput raw={p.raw} />
         {/* Spec 04: focus stays on the card, so say once where the answer is */}
         <p role="status" className="sr-only">
-          {asks === 0 ? "" : ANSWERING + (asks % 2 ? "" : "\u00a0")}
+          {answeringText(asks)}
         </p>
       </div>
     </Surface>

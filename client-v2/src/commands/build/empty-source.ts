@@ -15,16 +15,21 @@ export const PROGRAM_FILE = "src/lib.rs";
 export const isEmptyProgram = (content: string | undefined) =>
   content !== undefined && content.trim() === "";
 
+/** What to do about an empty program file, said by the terminal and the stage */
+export const EMPTY_SOURCE_HINT =
+  "Write a program, or ask the assistant for one.";
+
+/** `src/lib.rs` as a person names it: `lib.rs` */
+export const fileLabel = (file: string) => file.split("/").pop() ?? file;
+
 /** The error the `build` command throws instead of sending `file` */
-export const emptySourceError = (file: string) => {
-  const name = file.split("/").pop() ?? file;
-  return Object.assign(
-    new Error(
-      `${name} is empty. Write a program, or ask the assistant for one.`
-    ),
-    { emptyFile: file }
+export const emptySourceError = (file: string) =>
+  Object.assign(
+    new Error(`${fileLabel(file)} is empty. ${EMPTY_SOURCE_HINT}`),
+    {
+      emptyFile: file,
+    }
   );
-};
 
 /**
  * The file a rejected build refused to send, or `null` for any other
