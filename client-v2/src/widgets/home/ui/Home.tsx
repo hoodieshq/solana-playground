@@ -1,25 +1,84 @@
 import { useState } from "react";
 
 import { StartFromScratch } from "@/features/new-project";
+import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
-import { PgTutorial } from "@/utils";
+import { PgExplorer, PgTutorial } from "@/utils";
 import { errorMessage } from "../lib/error-message";
+import { runExample } from "../model/example";
+import { recentProjects } from "../model/recent";
+import type { RecentEntry } from "../model/recent";
 import { useProgramCount } from "../model/use-program-count";
 import { homeTelemetry } from "../model/telemetry";
 import type { PageTile } from "../model/telemetry";
 import BaseHome from "./BaseHome";
-import type { TutorialFailure } from "./BaseHome";
+import type { HomeStart, TutorialFailure } from "./BaseHome";
 
 export interface HomeProps {
   onAsk: () => void;
+  /** Go back to the project open under Home */
+  onContinue: () => void;
   /** Open the Tutorials or Programs page, in Home's place */
   onOpenPage: (page: PageTile) => void;
 }
 
 const log = createLogger("home:actions");
 
-const Home = ({ onAsk, onOpenPage }: HomeProps) => {
+/**
+ * Open a recent row. The open project is still under Home, so it goes back
+ * to it, never re-reading it under a live editor; a started tutorial opens
+ * through `PgTutorial.open`, which restores its route and page.
+ */
+const openRecent = async (entry: RecentEntry, onContinue: () => void) => {
+  if (!PgExplorer.allWorkspaceNames?.includes(entry.name)) {
+    throw new Error(`${entry.name} no longer exists.`);
+  }
+  if (entry.current) {
+    onContinue();
+    return "current" as const;
+  }
+  if (entry.kind === "tutorial") await PgTutorial.open(entry.name);
+  else await PgExplorer.switchWorkspace(entry.name);
+  return entry.kind;
+};
+
+/**
+ * What leads Home: the example while the browser holds no project (Spec 06's
+ * first visit; an account's projects are imported by sync, so they count),
+ * recent work otherwise
+ */
+const useStart = (onContinue: () => void): HomeStart => {
+  useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
+  useRenderOnChange(PgExplorer.onDidInit);
+  // Sync imports projects without a switch, and another tab deletes them
+  useRenderOnChange(PgExplorer.onDidChangeWorkspaceList);
+  useRenderOnChange(PgExplorer.onDidDeleteWorkspace);
+  const names = PgExplorer.allWorkspaceNames ?? [];
+  if (!names.length) {
+    return {
+      kind: "example",
+      onRun: async () => {
+        const outcome = await runExample();
+        if (outcome === "current") onContinue();
+        homeTelemetry.track("home_example_run", { outcome });
+      },
+    };
+  }
+  return {
+    kind: "recent",
+    entries: recentProjects(names, PgExplorer.currentWorkspaceName, (name) =>
+      PgTutorial.isWorkspaceTutorial(name)
+    ),
+    onOpen: async (entry) => {
+      const kind = await openRecent(entry, onContinue);
+      homeTelemetry.track("home_recent_opened", { kind });
+    },
+  };
+};
+
+const Home = ({ onAsk, onContinue, onOpenPage }: HomeProps) => {
   const programCount = useProgramCount();
+  const start = useStart(onContinue);
   const [tutorialError, setTutorialError] = useState<TutorialFailure | null>(
     null
   );
@@ -31,6 +90,7 @@ const Home = ({ onAsk, onOpenPage }: HomeProps) => {
 
   return (
     <BaseHome
+      start={start}
       tutorials={PgTutorial.all}
       programCount={programCount}
       scratch={<StartFromScratch />}

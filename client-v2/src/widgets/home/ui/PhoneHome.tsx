@@ -1,6 +1,7 @@
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgFramework, PgTutorial } from "@/utils";
+import { runExample } from "../model/example";
 import { homeTelemetry } from "../model/telemetry";
 import type { PageTile } from "../model/telemetry";
 import { useProgramCount } from "../model/use-program-count";
@@ -40,6 +41,12 @@ const openQuickstart = async (
   onContinue: () => void
 ) => {
   switch (target.id) {
+    case "example": {
+      const outcome = await runExample();
+      if (outcome === "current") onContinue();
+      homeTelemetry.track("home_example_run", { outcome });
+      return;
+    }
     case "continue": {
       if (!PgExplorer.allWorkspaceNames?.includes(target.workspace)) {
         throw new Error(`${target.workspace} no longer exists.`);
@@ -76,6 +83,7 @@ const openQuickstart = async (
 const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
   useRenderOnChange(PgExplorer.onDidInit);
+  useRenderOnChange(PgExplorer.onDidChangeWorkspaceList);
   const programCount = useProgramCount();
 
   const framework = newFramework();
@@ -83,6 +91,14 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   const current = PgExplorer.currentWorkspaceName;
 
   const quickstarts: PhoneQuickstart[] = [];
+  // Spec 06's first visit: a browser with no project
+  if (!PgExplorer.allWorkspaceNames?.length) {
+    quickstarts.push({
+      id: "example",
+      title: "Try an example",
+      description: "The Anchor starter, built for you",
+    });
+  }
   if (current) {
     quickstarts.push({
       id: "continue",

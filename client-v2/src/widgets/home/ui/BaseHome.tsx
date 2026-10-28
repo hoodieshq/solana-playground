@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import {
@@ -13,9 +14,11 @@ import {
   ActionCardTitle,
 } from "@/shared/ui/action-card";
 import { AsyncButton } from "@/shared/ui/async-button";
+import { BrandButton, BrandButtonIcon } from "@/shared/ui/brand-button";
 import { BrandIcon } from "@/shared/ui/brand-icon";
 import { Button } from "@/shared/ui/button";
 import type { TutorialData } from "@/utils";
+import type { RecentEntry } from "../model/recent";
 import type { PageTile } from "../model/telemetry";
 import HomeComposer from "./HomeComposer";
 
@@ -31,7 +34,25 @@ export interface TutorialFailure {
   message: string;
 }
 
+/** The example's one line, Spec 06's draft for the Anchor starter */
+export const EXAMPLE_LINE =
+  "This program saves a number in an account and writes it to the logs.";
+
+/**
+ * What leads Home, by visit: the example on a first one, recent work on a
+ * return one. Each rejection is the button's to report.
+ */
+export type HomeStart =
+  | { kind: "example"; onRun: () => Promise<void> }
+  | {
+      kind: "recent";
+      entries: readonly RecentEntry[];
+      onOpen: (entry: RecentEntry) => Promise<void>;
+    };
+
 export interface BaseHomeProps {
+  /** `null` while there is nothing to lead with */
+  start: HomeStart | null;
   /** All of them: the first four are shown, the tiles count them all */
   tutorials: readonly HomeTutorial[];
   /** `null` while loading */
@@ -50,7 +71,101 @@ export interface BaseHomeProps {
 
 const SHOWN_TUTORIALS = 4;
 
+/**
+ * "Run it": the view's one brand action, so a `BrandButton`, which has no
+ * busy state of its own (`AsyncButton` is a `Button`): it is kept here, so
+ * a second press while the first runs does nothing.
+ */
+const RunButton = ({ onRun }: { onRun: () => Promise<void> }) => {
+  const [running, setRunning] = useState(false);
+  return (
+    <BrandButton
+      disabled={running}
+      aria-busy={running || undefined}
+      onClick={() => {
+        setRunning(true);
+        // Through `then`, so a synchronous throw is caught as well
+        Promise.resolve()
+          .then(onRun)
+          .catch(reportButtonFailure("open the example"))
+          .finally(() => setRunning(false));
+      }}
+    >
+      Run it
+      <BrandButtonIcon />
+    </BrandButton>
+  );
+};
+
+const Example = ({ onRun }: { onRun: () => Promise<void> }) => (
+  <section aria-label="Try an example">
+    <ActionCard>
+      <ActionCardContent>
+        <ActionCardEyebrow>Try an example</ActionCardEyebrow>
+        <ActionCardTitle>Anchor starter</ActionCardTitle>
+        <ActionCardDescription>{EXAMPLE_LINE}</ActionCardDescription>
+      </ActionCardContent>
+      {/* Not `ActionCardAction`, which hides below md: here the button is
+          the only way in */}
+      <div className="relative z-10 ml-auto shrink-0 self-center">
+        <RunButton onRun={onRun} />
+      </div>
+    </ActionCard>
+  </section>
+);
+
+const RECENT_KIND: Record<RecentEntry["kind"], string> = {
+  project: "Project",
+  tutorial: "Tutorial",
+};
+
+const Recent = ({
+  entries,
+  onOpen,
+}: {
+  entries: readonly RecentEntry[];
+  onOpen: (entry: RecentEntry) => Promise<void>;
+}) => (
+  <section aria-labelledby="home-recent" className="flex flex-col gap-2">
+    <p id="home-recent" className="text-caption text-muted-foreground">
+      Pick up where you left off
+    </p>
+    <div className="flex flex-col gap-2">
+      {entries.map((entry) => (
+        <ActionCard key={entry.name}>
+          <ActionCardContent>
+            <ActionCardEyebrow>
+              {entry.current ? "Open now" : RECENT_KIND[entry.kind]}
+            </ActionCardEyebrow>
+            <ActionCardTitle>
+              {/* The whole row is the one target */}
+              <ActionCardLink asChild>
+                <button
+                  type="button"
+                  aria-label={`Open ${entry.name}`}
+                  onClick={() => {
+                    Promise.resolve()
+                      .then(() => onOpen(entry))
+                      .catch(reportButtonFailure(`open ${entry.name}`));
+                  }}
+                >
+                  {entry.name}
+                </button>
+              </ActionCardLink>
+            </ActionCardTitle>
+          </ActionCardContent>
+          <ChevronRight
+            aria-hidden="true"
+            className="shrink-0 self-center text-muted-foreground"
+          />
+        </ActionCard>
+      ))}
+    </div>
+  </section>
+);
+
 const BaseHome = ({
+  start,
   tutorials,
   programCount,
   scratch,
@@ -72,6 +187,11 @@ const BaseHome = ({
       <h1 className="text-center font-heading text-display font-headline text-foreground">
         Where should we begin?
       </h1>
+      {/* Above the composer, so Tab reaches "Run it" first (Spec 06) */}
+      {start?.kind === "example" && <Example onRun={start.onRun} />}
+      {start?.kind === "recent" && (
+        <Recent entries={start.entries} onOpen={start.onOpen} />
+      )}
       <HomeComposer onAsk={onAsk} />
 
       <div className="grid grid-cols-3 gap-3">

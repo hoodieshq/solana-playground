@@ -22,11 +22,23 @@ const utils = vi.hoisted(() => ({
   PgTutorial: {
     all: [] as unknown[],
     open: vi.fn(),
+    isWorkspaceTutorial: vi.fn(),
   },
   PgView: { setModal: vi.fn(), setToast: vi.fn() },
   PgCommon: { fetchJSON: vi.fn() },
+  PgExplorer: {
+    currentWorkspaceName: undefined as string | undefined,
+    allWorkspaceNames: [] as string[],
+    switchWorkspace: vi.fn(),
+    createWorkspace: vi.fn(),
+    onDidSwitchWorkspace: vi.fn(),
+    onDidInit: vi.fn(),
+  },
+  PgFramework: { get: vi.fn() },
+  PgCommand: { build: { execute: vi.fn() } },
 }));
 vi.mock("@/utils", () => utils);
+vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
 // Home only hands Start from scratch on; its own tests cover it
 vi.mock("@/features/new-project", () => ({
   StartFromScratch: () => <div data-testid="scratch" />,
@@ -60,6 +72,18 @@ beforeEach(() => {
   utils.PgView.setModal.mockReset().mockResolvedValue(null);
   utils.PgView.setToast.mockReset();
   utils.PgCommon.fetchJSON.mockReset().mockResolvedValue(LISTING);
+  utils.PgTutorial.isWorkspaceTutorial
+    .mockReset()
+    .mockImplementation((name: string) => name === "Hello Anchor");
+  utils.PgExplorer.currentWorkspaceName = undefined;
+  utils.PgExplorer.allWorkspaceNames = [];
+  utils.PgExplorer.switchWorkspace.mockReset().mockResolvedValue(undefined);
+  utils.PgExplorer.createWorkspace.mockReset().mockResolvedValue(undefined);
+  utils.PgFramework.get.mockReset().mockReturnValue({
+    defaultOpenFile: "/src/lib.rs",
+    getDefaultFiles: async () => ({ files: [["/src/lib.rs", "// anchor"]] }),
+  });
+  utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
   logged = memoryLogs();
@@ -73,11 +97,15 @@ afterEach(() => {
 const draw = () => {
   const onAsk = vi.fn();
   const onOpenPage = vi.fn();
-  render(<Home onAsk={onAsk} onOpenPage={onOpenPage} />);
+  const onContinue = vi.fn();
+  render(
+    <Home onAsk={onAsk} onOpenPage={onOpenPage} onContinue={onContinue} />
+  );
   return {
     home: within(screen.getByRole("region", { name: "Home" })),
     onAsk,
     onOpenPage,
+    onContinue,
   };
 };
 const events = (name: string) =>
@@ -186,4 +214,92 @@ it("keeps the ellipsis and logs the URL when the registry is not a list", async 
   expect(logged.entries[0].ns).toBe("home:programs");
   expect(logged.entries[0].report).toBe(false);
   expect(String(logged.entries[0].error)).toContain("/programs/programs.json");
+});
+
+it("makes the example and builds it once on a first visit", async () => {
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: "Run it" }));
+  await waitFor(() => expect(events("home_example_run")).toHaveLength(1));
+  expect(utils.PgExplorer.createWorkspace).toHaveBeenCalledWith(
+    "anchor-example",
+    { files: [["/src/lib.rs", "// anchor"]], defaultOpenFile: "/src/lib.rs" }
+  );
+  expect(utils.PgCommand.build.execute).toHaveBeenCalledTimes(1);
+  expect(events("home_example_run")).toEqual([{ outcome: "created" }]);
+});
+
+it("keeps the example when its build fails to start, and logs it", async () => {
+  const failure = new Error("server down");
+  utils.PgCommand.build.execute.mockRejectedValueOnce(failure);
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: "Run it" }));
+  await waitFor(() =>
+    expect(events("home_example_run")).toEqual([{ outcome: "created" }])
+  );
+  expect(logged.entries.map((e) => [e.ns, e.error, e.report])).toEqual([
+    ["home:first-run", failure, true],
+  ]);
+  expect(utils.PgView.setToast).not.toHaveBeenCalled();
+});
+
+it("opens an example that exists, and builds nothing", async () => {
+  utils.PgExplorer.allWorkspaceNames = ["anchor-example"];
+  utils.PgExplorer.currentWorkspaceName = undefined;
+  const { home } = draw();
+  // A project exists, so Home lists it rather than offering the example
+  expect(home.queryByRole("button", { name: "Run it" })).toBeNull();
+  fireEvent.click(home.getByRole("button", { name: "Open anchor-example" }));
+  await waitFor(() =>
+    expect(utils.PgExplorer.switchWorkspace).toHaveBeenCalledWith(
+      "anchor-example"
+    )
+  );
+  expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
+});
+
+it("lists recent work on a return visit, the open project first", async () => {
+  utils.PgExplorer.allWorkspaceNames = ["a", "Hello Anchor", "b", "c"];
+  utils.PgExplorer.currentWorkspaceName = "a";
+  const { home } = draw();
+  const recent = within(
+    home.getByRole("region", { name: "Pick up where you left off" })
+  );
+  expect(
+    recent.getAllByRole("button").map((b) => b.getAttribute("aria-label"))
+  ).toEqual(["Open a", "Open c", "Open b"]);
+});
+
+it("goes back to the work from the open project", async () => {
+  utils.PgExplorer.allWorkspaceNames = ["a"];
+  utils.PgExplorer.currentWorkspaceName = "a";
+  const { home, onContinue } = draw();
+  fireEvent.click(home.getByRole("button", { name: "Open a" }));
+  await waitFor(() => expect(onContinue).toHaveBeenCalledTimes(1));
+  expect(utils.PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+  expect(events("home_recent_opened")).toEqual([{ kind: "current" }]);
+});
+
+it("opens a started tutorial at its page from the recent list", async () => {
+  utils.PgExplorer.allWorkspaceNames = ["Hello Anchor"];
+  const { home } = draw();
+  const recent = within(
+    home.getByRole("region", { name: "Pick up where you left off" })
+  );
+  fireEvent.click(recent.getByRole("button", { name: "Open Hello Anchor" }));
+  await waitFor(() =>
+    expect(events("home_recent_opened")).toEqual([{ kind: "tutorial" }])
+  );
+  expect(utils.PgTutorial.open).toHaveBeenCalledWith("Hello Anchor");
+  expect(utils.PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+});
+
+it("opens another project from the recent list", async () => {
+  utils.PgExplorer.allWorkspaceNames = ["a", "b"];
+  utils.PgExplorer.currentWorkspaceName = "a";
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: "Open b" }));
+  await waitFor(() =>
+    expect(events("home_recent_opened")).toEqual([{ kind: "project" }])
+  );
+  expect(utils.PgExplorer.switchWorkspace).toHaveBeenCalledWith("b");
 });

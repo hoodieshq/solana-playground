@@ -1,4 +1,10 @@
-import { ChevronRight, GraduationCap, Play, Plus } from "lucide-react";
+import {
+  ChevronRight,
+  FlaskConical,
+  GraduationCap,
+  Play,
+  Plus,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
@@ -10,6 +16,7 @@ import HomeComposer from "./HomeComposer";
 
 /** What a quick start opens, with what it needs to open it */
 export type QuickstartTarget =
+  | { id: "example" }
   | { id: "continue"; workspace: string }
   | { id: "new"; framework: FrameworkName }
   | { id: "tutorial"; name: string };
@@ -20,7 +27,10 @@ export type PhoneQuickstart = QuickstartTarget & {
 };
 
 export interface BasePhoneHomeProps {
-  /** At most three, in order; `continue` first when there is one */
+  /**
+   * At most three, in order: `example` first on a first visit, `continue`
+   * first when a project is open
+   */
   quickstarts: readonly PhoneQuickstart[];
   tutorialCount: number;
   /** `null` while loading */
@@ -32,12 +42,14 @@ export interface BasePhoneHomeProps {
 }
 
 const ICONS: Record<HomeQuickstart, ReactNode> = {
+  example: <FlaskConical aria-hidden="true" />,
   continue: <Play aria-hidden="true" />,
   new: <Plus aria-hidden="true" />,
   tutorial: <GraduationCap aria-hidden="true" />,
 };
 
 const TILE_TINTS: Record<HomeQuickstart, string> = {
+  example: "bg-brand-green/15 text-brand-green",
   continue: "bg-brand-purple/15 text-brand-purple",
   new: "bg-brand-green/15 text-brand-green",
   tutorial: "bg-brand-purple/15 text-brand-purple",

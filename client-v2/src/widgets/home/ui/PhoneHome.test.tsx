@@ -35,6 +35,7 @@ const utils = vi.hoisted(() => ({
     all: [] as { name: string; defaultOpenFile?: string }[],
     get: vi.fn(),
   },
+  PgCommand: { build: { execute: vi.fn() } },
 }));
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
@@ -68,6 +69,7 @@ beforeEach(() => {
   utils.PgExplorer.switchWorkspace.mockReset().mockResolvedValue(undefined);
   utils.PgExplorer.createWorkspace.mockReset().mockResolvedValue(undefined);
   utils.PgFramework.all = [{ name: "Native" }, { name: "Anchor" }];
+  utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   utils.PgFramework.get.mockReset().mockReturnValue({
     defaultOpenFile: "/src/lib.rs",
     getDefaultFiles: async () => ({ files }),
@@ -103,13 +105,37 @@ const titles = (home: ReturnType<typeof draw>["home"]) =>
 const events = (name: string) =>
   sent.events.filter((e) => e.name === name).map((e) => e.params);
 
-it("offers a new Anchor project and the first beginner tutorial without a project", async () => {
+it("leads with the example on a first visit, then a new Anchor project and the first beginner tutorial", async () => {
   const { home } = draw();
   await home.findByText("3 tutorials, 34 programs");
   expect(titles(home)).toEqual([
+    "Try an exampleThe Anchor starter, built for you",
     "New Anchor projectA working starter you shape with the assistant",
     "Hello AnchorBeginner tutorial",
   ]);
+});
+
+it("makes the example and builds it once from its quick start", async () => {
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: /Try an example/ }));
+  await waitFor(() =>
+    expect(events("home_quickstart_opened")).toEqual([{ id: "example" }])
+  );
+  expect(utils.PgExplorer.createWorkspace).toHaveBeenCalledWith(
+    "anchor-example",
+    { files, defaultOpenFile: "/src/lib.rs" }
+  );
+  expect(utils.PgCommand.build.execute).toHaveBeenCalledTimes(1);
+  expect(events("home_example_run")).toEqual([{ outcome: "created" }]);
+});
+
+it("offers no example once the browser holds a project", async () => {
+  utils.PgExplorer.allWorkspaceNames = ["counter"];
+  const { home } = draw();
+  await home.findByText("3 tutorials, 34 programs");
+  expect(titles(home).some((t) => t?.startsWith("Try an example"))).toBe(
+    false
+  );
 });
 
 it("puts Continue first when a project is open and goes back to it without a switch", async () => {
