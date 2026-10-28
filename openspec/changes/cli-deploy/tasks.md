@@ -11,4 +11,4 @@ One PR (HOO-2404); groups land in order.
 ## 2. CLI deploy guide
 
 - [x] 2.1 `BaseCliDeployGuide`/`CliDeployGuide` dialog with Tool and Cluster controls, the commands, copy buttons, the keypair note and the download; verify by tests of the commands per tool and cluster and of `cli_guide_opened`/`cli_command_copied` (HOO-2404; after 1.3)
-- [x] 2.2 Triggers: "Deploy from your machine" in the mainnet warning, "Deploy with the CLI" on the Deploy stage; verify by `BaseDeploy` tests and the e2e scenarios "cli-deploy: Guide from the Deploy stage" and "mainnet-deploy-warning: Guide from the mainnet warning" (HOO-2404; after 2.1)
+- [x] 2.2 Triggers: the mainnet warning's own words "deploy from your own machine", "Deploy with the CLI" on the Deploy stage; verify by `BaseDeploy` tests and the e2e scenarios "cli-deploy: Guide from the Deploy stage" and "mainnet-deploy-warning: Guide from the mainnet warning" (HOO-2404; after 2.1)
