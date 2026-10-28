@@ -25,9 +25,9 @@ import type { ApprovalAnswer } from "./BaseApprovalCard";
  *
  * The scroller follows new content while the reader is at the end and stays
  * put once they scroll up by wheel, touch or keys, offering "Scroll to end"
- * instead. The log "Conversation" is the scroller's content. A message the
- * user sends takes the thread back to the end (`FollowOnSend`), so the reply
- * is followed even when they sent it while scrolled up.
+ * instead. The log "Conversation" is the scroller's content. Sending takes
+ * the thread back to the end (`FollowOnSend`), so the reply is followed even
+ * when the user sent it while scrolled up.
  */
 export const BaseThread = ({
   items,
@@ -53,7 +53,7 @@ export const BaseThread = ({
   onAnswer: (id: string, answer: ApprovalAnswer) => void;
 }) => (
   <MessageScrollerProvider autoScroll>
-    <FollowOnSend items={items} />
+    <FollowOnSend items={items} working={working} />
     <MessageScroller className="flex-1">
       <MessageScrollerViewport>
         <MessageScrollerContent
@@ -97,20 +97,28 @@ export const BaseThread = ({
 );
 
 /**
- * Scrolls to the end when a new user message appears. Without it a reader who
- * had scrolled up stayed in free scrolling and the reply streamed off-screen;
- * `scrollToEnd` under `autoScroll` turns following back on.
+ * Scrolls to the end when the user sends: a new last user message that comes
+ * with a turn starting (`working`, set in the same tick by `useTurn`'s send).
+ * Without it a reader who had scrolled up stayed in free scrolling and the
+ * reply streamed off-screen; `scrollToEnd` under `autoScroll` turns following
+ * back on. A user message that arrives with no turn here, folded in from
+ * another device or in another thread, leaves the reader where they are.
  */
-const FollowOnSend = ({ items }: { items: readonly ChatItem[] }) => {
+const FollowOnSend = ({
+  items,
+  working,
+}: {
+  items: readonly ChatItem[];
+  working: boolean;
+}) => {
   const { scrollToEnd } = useMessageScroller();
   const lastSent = items.findLast((item) => item.kind === "user")?.id;
-  // Starts at the thread as opened, so opening or restoring one scrolls nothing
   const seen = useRef(lastSent);
   useEffect(() => {
     if (lastSent === seen.current) return;
     seen.current = lastSent;
-    if (lastSent) scrollToEnd({ behavior: "auto" });
-  }, [lastSent, scrollToEnd]);
+    if (lastSent && working) scrollToEnd({ behavior: "auto" });
+  }, [lastSent, working, scrollToEnd]);
   return null;
 };
 

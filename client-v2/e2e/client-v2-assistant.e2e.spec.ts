@@ -596,7 +596,6 @@ test.describe("The thread", () => {
     await expect(
       thread(page).getByText("The reply you sent for")
     ).toBeInViewport(LONG);
-    // At the end the button stays mounted, faded out and inert
     await expect(
       page.getByRole("button", { name: "Scroll to end" })
     ).toHaveAttribute("data-active", "false");
