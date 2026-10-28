@@ -1,10 +1,10 @@
 import { useSyncExternalStore } from "react";
 
 /** Whether the browser says it has a network (`navigator.onLine`) */
-export const isOnline = () => navigator.onLine;
+const isOnline = () => navigator.onLine;
 
 /** Calls `onChange` on the window's `online` and `offline` events */
-export const onOnlineChange = (onChange: () => void) => {
+const onOnlineChange = (onChange: () => void) => {
   window.addEventListener("online", onChange);
   window.addEventListener("offline", onChange);
   return () => {

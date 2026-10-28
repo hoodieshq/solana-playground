@@ -119,7 +119,6 @@ const signedInLine = (
   return null;
 };
 
-/** Signed out: a sign-in under way or failed, else where work is saved */
 /**
  * A failed sign-in's reason, unless the person cancelled it: a cancel is
  * their choice, and there is nothing to report. The row and the menu both
@@ -130,6 +129,7 @@ export const failureOf = ({ session }: Pick<AccountView, "session">) =>
     ? session.message
     : null;
 
+/** Signed out: a sign-in under way or failed, else where work is saved */
 const signedOutLine = (session: AccountSession): AccountLine => {
   if (session.status === "pending") return { kind: "signing-in" };
   const failure = failureOf({ session });

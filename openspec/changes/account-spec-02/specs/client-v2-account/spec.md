@@ -101,9 +101,11 @@ show one marker, or none:
 - "This browser": this account has no record of syncing the project here,
   so the project is only here;
 - "Not synced": the account has the project, but it waits on a conflict
-  the person has not answered, or holds work the account has not accepted.
-  Work still inside the editor's short upload delay counts only while the
-  browser is offline, so a row does not flash while the person types;
+  the person has not answered, or holds work the account has not accepted:
+  an upload pending or stopped. Online, a project the editor has just
+  flagged is not read again until its upload has had time to land (10 s,
+  past the editor's 3 s delay), so a pause in typing does not flash the
+  marker; offline it is read at once;
 - no marker: the account holds exactly what this browser holds.
 
 Signed out, or where sync is not available, no row shows a marker. The

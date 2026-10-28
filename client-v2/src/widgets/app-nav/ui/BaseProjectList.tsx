@@ -31,6 +31,7 @@ import {
   SidebarMenuItem,
 } from "@/shared/ui/sidebar";
 import { StatusDot } from "@/shared/ui/status-dot";
+import { cn } from "@/shared/lib/utils";
 import type { SyncMarker } from "@/features/persistence";
 import type { ProjectAction } from "../model/project-action";
 import type { ProjectEntry } from "../model/project-entries";
@@ -181,7 +182,13 @@ const Row = ({
         <span>{entry.name}</span>
       </SidebarMenuButton>
       {(entry.pinned || entry.marker) && (
-        <span className="pointer-events-none absolute top-1.5 right-7 flex items-center gap-1.5 text-xs text-muted-foreground group-focus-within/menu-item:hidden group-hover/menu-item:hidden max-md:top-1/2 max-md:-translate-y-1/2">
+        <span
+          className={cn(
+            "pointer-events-none absolute top-1.5 right-7 flex items-center gap-1.5 text-xs text-muted-foreground group-focus-within/menu-item:hidden group-hover/menu-item:hidden",
+            // On a phone's taller rows the marker sits on the name's line
+            entry.marker && "max-md:top-1/2 max-md:-translate-y-1/2"
+          )}
+        >
           {entry.marker && <Marker id={markerId} marker={entry.marker} />}
           {entry.pinned && (
             <span title="Pinned">
