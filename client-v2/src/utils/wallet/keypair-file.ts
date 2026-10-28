@@ -12,6 +12,10 @@ export class KeypairFileError extends Error {
   }
 }
 
+/** Whether a parsed JSON value is one byte, 0 to 255 */
+const isByte = (value: unknown) =>
+  Number.isInteger(value) && (value as number) >= 0 && (value as number) <= 255;
+
 /**
  * Read a keypair file's text, the format `solana-keygen` writes.
  *
@@ -20,9 +24,6 @@ export class KeypairFileError extends Error {
  * @throws {KeypairFileError} for text that is not JSON, not an array of 64
  * bytes, or bytes that are not a keypair
  */
-const isByte = (value: unknown) =>
-  Number.isInteger(value) && (value as number) >= 0 && (value as number) <= 255;
-
 export const parseKeypairFile = (text: string): PgWeb3.Keypair => {
   let parsed: unknown;
   try {
