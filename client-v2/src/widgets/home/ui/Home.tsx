@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { PgSession } from "@/features/auth";
 import { StartFromScratch } from "@/features/new-project";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
@@ -43,9 +44,10 @@ const openRecent = async (entry: RecentEntry, onContinue: () => void) => {
 };
 
 /**
- * What leads Home: the example while the browser holds no project (Spec 06's
- * first visit; an account's projects are imported by sync, so they count),
- * recent work otherwise, and nothing while the list has not loaded
+ * What leads Home: the example on Spec 06's first visit (no project in the
+ * browser and no session: a signed-in account's projects are on their way
+ * by sync), recent work once there are projects, and nothing otherwise
+ * (the list not loaded yet, or an account's projects not arrived)
  */
 const useStart = (onContinue: () => void): HomeStart | null => {
   useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
@@ -53,10 +55,12 @@ const useStart = (onContinue: () => void): HomeStart | null => {
   // Sync imports projects without a switch, and another tab deletes them
   useRenderOnChange(PgExplorer.onDidChangeWorkspaceList);
   useRenderOnChange(PgExplorer.onDidDeleteWorkspace);
+  useRenderOnChange(PgSession.onDidChange);
   const names = PgExplorer.allWorkspaceNames;
   // Unknown is not "no project": lead with nothing until the list loads
   if (!names) return null;
   if (!names.length) {
+    if (PgSession.get()) return null;
     return {
       kind: "example",
       onRun: async () => {

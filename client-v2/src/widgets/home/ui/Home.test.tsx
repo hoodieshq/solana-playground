@@ -43,6 +43,8 @@ const utils = vi.hoisted(() => ({
 const UNMOUNTED = vi.hoisted(() => new Error("terminal unmounted"));
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
+const session = vi.hoisted(() => ({ get: vi.fn(), onDidChange: vi.fn() }));
+vi.mock("@/features/auth", () => ({ PgSession: session }));
 // Home only hands Start from scratch on; its own tests cover it
 vi.mock("@/features/new-project", () => ({
   StartFromScratch: () => <div data-testid="scratch" />,
@@ -94,6 +96,7 @@ beforeEach(() => {
     getDefaultFiles: async () => ({ files: [["/src/lib.rs", "// anchor"]] }),
   });
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
+  session.get.mockReset().mockReturnValue(null);
   utils.PgGlobal.buildLoading = false;
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
@@ -405,4 +408,15 @@ it("tells the user when the example cannot be made, and counts nothing", async (
   );
   expect(events("home_example_run")).toEqual([]);
   expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
+});
+
+it("offers no example to a signed-in account whose projects have not arrived", () => {
+  session.get.mockReturnValue({
+    id: "u1",
+    name: "Ada",
+    image: null,
+    login: "ada",
+  });
+  const { home } = draw();
+  expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
 });

@@ -41,6 +41,8 @@ const utils = vi.hoisted(() => ({
 }));
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
+const session = vi.hoisted(() => ({ get: vi.fn(), onDidChange: vi.fn() }));
+vi.mock("@/features/auth", () => ({ PgSession: session }));
 import PhoneHome from "./PhoneHome";
 
 const files = [["/src/lib.rs", "// anchor"]];
@@ -78,6 +80,7 @@ beforeEach(() => {
     });
   utils.PgFramework.all = [{ name: "Native" }, { name: "Anchor" }];
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
+  session.get.mockReset().mockReturnValue(null);
   utils.PgFramework.get.mockReset().mockReturnValue({
     defaultOpenFile: "/src/lib.rs",
     getDefaultFiles: async () => ({ files }),
@@ -272,4 +275,18 @@ it("switches to the project Continue names when another opened since Home drew i
     expect(utils.PgExplorer.switchWorkspace).toHaveBeenCalledWith("counter")
   );
   expect(onContinue).not.toHaveBeenCalled();
+});
+
+it("offers no example quick start to a signed-in account", async () => {
+  session.get.mockReturnValue({
+    id: "u1",
+    name: "Ada",
+    image: null,
+    login: "ada",
+  });
+  const { home } = draw();
+  await home.findByText("3 tutorials, 34 programs");
+  expect(titles(home)[0]).toBe(
+    "New Anchor projectA working starter you shape with the assistant"
+  );
 });

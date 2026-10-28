@@ -12,7 +12,7 @@ Home lives in `widgets/home` (`Home`, `PhoneHome`, their `Base` parts); `homeSlo
 
 ## Decisions
 
-- **First visit = no project in the browser.** No flag. A user who deletes every project sees the example again, which Spec 06's own rule ("a browser with no project") allows. A signed-in account's projects are imported into the browser by sync, so they count without reading the session.
+- **First visit = no project in the browser and no session** (Spec 06). No flag. A user who deletes every project while signed out sees the example again, which Spec 06's rule allows. A signed-in account with nothing in the browser yet sees neither section until sync imports its projects.
 - **The example is found by name, `anchor-example`.** A second "Run it" opens it. A stored id was rejected: a rename would then still find it, but a name is what the user sees, and storage (`localStorage` is near its budget) is avoided.
 - **The automatic build is part of the "Run it" action**, called after `createWorkspace` resolves. It is not a flag read on load, so a reload cannot start one, by construction.
 - **Recency is the explorer's list, reversed, with the open project first.** No timestamps exist; new projects are appended to the list, so its tail is the newest. The open one is what the explorer re-opens on a load, so it is the last used.

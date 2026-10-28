@@ -1,4 +1,5 @@
 import { useRenderOnChange } from "@/hooks";
+import { PgSession } from "@/features/auth";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgFramework, PgTutorial } from "@/utils";
 import { runExample } from "../model/example";
@@ -85,6 +86,7 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   useRenderOnChange(PgExplorer.onDidInit);
   useRenderOnChange(PgExplorer.onDidChangeWorkspaceList);
   useRenderOnChange(PgExplorer.onDidDeleteWorkspace);
+  useRenderOnChange(PgSession.onDidChange);
   const programCount = useProgramCount();
 
   const framework = newFramework();
@@ -92,8 +94,9 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   const current = PgExplorer.currentWorkspaceName;
 
   const quickstarts: PhoneQuickstart[] = [];
-  // Spec 06's first visit: a browser with no project, known to hold none
-  if (PgExplorer.allWorkspaceNames?.length === 0) {
+  // Spec 06's first visit: a browser known to hold no project, and no
+  // session, whose projects would be on their way by sync
+  if (PgExplorer.allWorkspaceNames?.length === 0 && !PgSession.get()) {
     quickstarts.push({
       id: "example",
       title: "Try an example",
