@@ -42,7 +42,7 @@ export const Spinner = forwardRef<HTMLDivElement, SpinnerProps>(
     <div
       ref={ref}
       className={cn(
-        "after:absolute after:inset-0 after:m-auto after:box-content after:h-[var(--spinner-size)] after:w-[var(--spinner-size)] after:rounded-full after:border-4 after:border-transparent after:border-t-primary after:border-r-primary after:content-['']",
+        "after:absolute after:inset-0 after:m-auto after:h-[var(--spinner-size)] after:w-[var(--spinner-size)] after:rounded-full after:border-4 after:border-transparent after:border-t-primary after:border-r-primary after:content-['']",
         "after:[animation:pg-spin_0.5s_linear_infinite]",
         className
       )}

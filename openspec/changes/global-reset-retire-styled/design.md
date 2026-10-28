@@ -27,9 +27,11 @@ xterm internals (client-v2/CLAUDE.md, "Never moved along the way"); removing
   `theme, base, components, utilities` already declared. Utilities beat it,
   and while the wallet and layout shell keep their styled rules, those still
   beat it too, so the two folders left for part 2 look the same with it on.
-  The `[data-slot]` reset is deleted: preflight does all of it except the
-  `font-family` on `[data-slot]`, which moves to `body` (the text font) so
-  every element inherits it.
+  The `[data-slot]` reset is deleted, since preflight does all of it; only
+  its `font-family` stays, because the legacy theme provider still sets the
+  code font on the app's root. `html` keeps `line-height: normal` over
+  preflight's 1.5: every screen was drawn on the browser's `normal`, and 1.5
+  grew every block of text that sets no leading of its own.
   _Rejected:_ preflight scoped to a wrapper class (two resets to maintain,
   and portalled overlays escape the wrapper).
 - **Monaco and xterm are checked, then excluded only where needed.** Both
@@ -54,15 +56,25 @@ xterm internals (client-v2/CLAUDE.md, "Never moved along the way"); removing
   or an arbitrary value `[var(--token)]` where no utility exists. Classes are
   joined with `cn` from `shared/lib`. Element type, ids, aria-labels, test
   ids and DOM nesting stay as they were.
+- **The code font is the user's, through a variable.** Settings offer two
+  code fonts, so `theme.font.code.family` is not the design system's
+  `--font-code`. `PgTheme.set` writes `--pg-font-code` on `<html>`, and the
+  `font-pg-code` utility reads it. Markdown's GitHub stylesheet moves to an
+  unlayered `Markdown.css` scoped to `.pg-markdown`, flattened from the
+  styled block (nesting is past the Safari 16.4 floor).
 - **`useTheme()` callers read `PgTheme.theme`** through a small hook in
   `src/hooks/` that subscribes to `PgTheme.onDidChangeThemeName` and
-  `onDidChangeFontFamily`, so a component that needs a JS value (Monaco
+  `onDidChangeFontFamily` (`usePgTheme`), so a component that needs a JS value (Monaco
   options, a font size) no longer needs the styled context. The styled
   `ThemeProvider` stays in part 1 for the wallet.
-- **Lint holds the line.** `no-restricted-imports` in `eslintConfig` bans
-  `styled-components` across `src/`, with an override for
-  `src/components/Wallet/**` and `src/widgets/layout-shell/**` and the
-  provider in `src/providers/theme/`. Part 2 deletes the override.
+- **Lint holds the line.** `no-restricted-imports` bans `styled-components`
+  in the layers' existing override and in a new one for the legacy roots;
+  `src/widgets/layout-shell/**` gets the layers' list without it, and the
+  wallet, `src/providers/theme/` and the theme's type declaration are left
+  out. ESLint replaces a rule's options per matching override, so the ban
+  rides in the lists that already exist rather than a `src/**` override,
+  which would have dropped the `uuid` and `cn` bans. Part 2 deletes the
+  exceptions.
 
 ## Risks / Trade-offs
 

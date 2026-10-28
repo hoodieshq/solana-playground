@@ -25,9 +25,10 @@ const Svg = forwardRef<SVGSVGElement, SvgProps>(
       strokeWidth="0"
       width="1em"
       height="1em"
-      // Preflight makes an svg a block; it was inline in the text
+      // Preflight makes an svg a block in the middle of the line; it was
+      // inline on the baseline
       className={cn(
-        "inline [transition:color_50ms_linear]",
+        "inline align-baseline [transition:color_50ms_linear]",
         rotate && ROTATE_CLASSES[rotate],
         className
       )}

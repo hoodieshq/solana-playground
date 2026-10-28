@@ -16,11 +16,6 @@ import { PROVIDERS } from "../model/types";
 
 const MUTED = "text-[0.7rem] text-[var(--text-secondary)]";
 
-// Preflight gives `code` the design system's mono at 1em; the browser's own
-// monospace is drawn a step smaller, which is what these notes had
-const BROWSER_CODE =
-  "[&_code]:[font-family:monospace] [&_code]:text-[0.8125em]";
-
 const ACTION =
   "cursor-pointer rounded-panel border border-border bg-transparent px-2.5 py-[0.3125rem] text-[0.7rem] text-[var(--text-secondary)] hover:enabled:bg-surface-hover hover:enabled:text-[var(--text-primary)] disabled:cursor-default disabled:opacity-45";
 
@@ -68,7 +63,7 @@ const Grounding = () => {
         <div className={cn(MUTED, "pb-[0.4375rem] tracking-[0.1em]")}>
           SKILLS
         </div>
-        <div className={cn(MUTED, BROWSER_CODE, "pb-[0.875rem] leading-[1.6]")}>
+        <div className={cn(MUTED, "pb-[0.875rem] leading-[1.6]")}>
           Reference documents the assistant loads when it decides it needs them.
           Only the names and descriptions below sit in the prompt.
         </div>
@@ -97,7 +92,7 @@ const Grounding = () => {
         <div className={cn(MUTED, "pb-[0.4375rem] tracking-[0.1em]")}>
           MCP SERVERS
         </div>
-        <div className={cn(MUTED, BROWSER_CODE, "pb-[0.875rem] leading-[1.6]")}>
+        <div className={cn(MUTED, "pb-[0.875rem] leading-[1.6]")}>
           Tools from remote servers, available to whichever backend is
           connected. This page calls each one itself, directly or through the
           gateway at <code>/api/mcp</code> for a host that refuses the browser.
@@ -114,7 +109,7 @@ const Grounding = () => {
           ))}
 
         {!servers.some((server) => server.enabled) && (
-          <div className={cn(MUTED, BROWSER_CODE, "pb-[0.4375rem]")}>
+          <div className={cn(MUTED, "pb-[0.4375rem]")}>
             No servers. The gateway reports which ones it serves, so an empty
             list means it is not running (use <code>yarn dev</code>) or has none
             configured.
@@ -124,7 +119,7 @@ const Grounding = () => {
         <div className={cn(MUTED, "pb-[0.4375rem] tracking-[0.1em]")}>
           ADDITIONAL SERVERS
         </div>
-        <div className={cn(MUTED, BROWSER_CODE, "pb-[0.4375rem]")}>
+        <div className={cn(MUTED, "pb-[0.4375rem]")}>
           The gateway above owns its own list — these are extra entries, and
           they are the only ones this editor changes.
         </div>
@@ -133,7 +128,7 @@ const Grounding = () => {
           <div
             key={server.id}
             role="status"
-            className={cn(MUTED, BROWSER_CODE, "pb-[0.4375rem]")}
+            className={cn(MUTED, "pb-[0.4375rem]")}
           >
             Not used: the gateway serves a server with the id{" "}
             <code>{server.id}</code>, which replaces this entry. Rename the

@@ -101,6 +101,20 @@
     overflow: hidden;
   }
 
+  /* Preflight sets 1.5; the screens were drawn on the browser's own
+     `normal`, so text keeps it and a component that wants more says so */
+  html {
+    line-height: normal;
+  }
+
+  /* Preflight gives code the theme's mono at 1em; inline code across the
+     app was drawn in the browser's monospace, a step smaller. A utility or
+     the markdown sheet still sets its own */
+  :where(code, kbd, samp, pre) {
+    font-family: revert;
+    font-size: revert;
+  }
+
   body {
     position: relative;
   }

@@ -24,7 +24,7 @@ export const ThreeDots = forwardRef<HTMLDivElement, ThreeDotsProps>(
     <div
       ref={ref}
       className={cn(
-        "relative h-[var(--dot-height)] w-[var(--dot-width)] rounded-[12px] bg-[var(--bg)] box-content",
+        "relative h-[var(--dot-height)] w-[var(--dot-width)] rounded-[12px] bg-[var(--bg)]",
         "[--bg-fade:color-mix(in_srgb,var(--primary)_9%,transparent)] [--bg:var(--primary)]",
         "[animation:pg-three-dots_1s_linear_0.5s_infinite_alternate]",
         "before:absolute before:top-0 before:inline-block before:h-[var(--dot-height)] before:w-[var(--dot-width)] before:rounded-[12px] before:bg-[var(--bg)] before:content-['']",

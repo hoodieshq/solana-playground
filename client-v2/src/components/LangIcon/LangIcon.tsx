@@ -16,7 +16,8 @@ const LangIcon: FC<React.PropsWithChildren<LangIconProps>> = ({ path }) => {
   }, [path]);
 
   return (
-    <div className="h-4 w-4 [&>img]:h-full [&>img]:w-full [&>svg]:h-full [&>svg]:w-full">
+    // An image icon stays inline on the baseline, as before preflight
+    <div className="h-4 w-4 [&>img]:inline [&>img]:h-full [&>img]:w-full [&>img]:align-baseline [&>svg]:h-full [&>svg]:w-full">
       {Icon}
     </div>
   );

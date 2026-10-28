@@ -2,8 +2,8 @@
 
 ## 1. Reset and motion (part 1)
 
-- [ ] 1.1 Preflight on in `src/index.css`, the `[data-slot]` reset removed,
-      the text font on `body`; Monaco and xterm checked in the browser and
+- [ ] 1.1 Preflight on in `src/index.css`, the `[data-slot]` reset removed
+      but for its font, `line-height: normal` kept on `html`; Monaco and xterm checked in the browser and
       reverted by a scoped rule only where they break. Verify: screenshots
       of the editor and terminal before and after match (HOO-2077;
       plan: [plans/1-reset-and-styled.md](plans/1-reset-and-styled.md), covers 1.1-2.3)

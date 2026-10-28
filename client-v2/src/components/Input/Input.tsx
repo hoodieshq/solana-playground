@@ -28,7 +28,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {...defaultInputProps}
         {...props}
         className={cn(
-          "box-content h-8 w-full rounded-[12px] border border-border bg-surface-raised px-3 py-[0.4375rem] text-[0.8125rem] font-normal text-[var(--text-primary)] shadow-none",
+          "h-8 w-full rounded-[12px] border border-border bg-surface-raised px-3 py-[0.4375rem] text-[0.8125rem] font-normal text-[var(--text-primary)] shadow-none",
           "focus:outline focus:outline-1 focus:outline-[color-mix(in_srgb,var(--primary)_39%,transparent)]",
           "disabled:cursor-not-allowed disabled:bg-muted disabled:text-[var(--text-secondary)]",
           "[&.error]:border-error [&.success]:border-success",

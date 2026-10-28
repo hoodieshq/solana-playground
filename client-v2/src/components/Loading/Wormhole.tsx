@@ -25,7 +25,7 @@ export const Wormhole: FC<React.PropsWithChildren<WormholeProps>> = ({
           .map((number) => (
             <span
               key={number}
-              className="absolute box-content rounded-full border-2 border-primary border-y-transparent [animation:pg-wormhole_1s_linear_infinite] [transition:all_2s_ease_0s]"
+              className="absolute rounded-full border-2 border-primary border-y-transparent [animation:pg-wormhole_1s_linear_infinite] [transition:all_2s_ease_0s]"
               style={{
                 height: `${size * (1 - number / 10)}rem`,
                 width: `${size * (1 - number / 10)}rem`,
