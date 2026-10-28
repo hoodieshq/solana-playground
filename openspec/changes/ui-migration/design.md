@@ -1561,7 +1561,8 @@ Decided with Slava on 2026-10-19 (HOO-2075), from the prototype's sidebar
   (`openConnectDialog`), the GitHub sign-in, the wallet's connect.
 - **The title counts.** "Get set up · n of 4", folding the list, with the
   design system's dismiss beside it. The fold is kept per device (HOO-2330,
-  #126 Q7); a phone's menu page starts folded until the user unfolds it.
+  #126 Q7): one fold per device, wherever it was made; until there is one,
+  a phone's menu page starts folded.
 - **It goes for good, on this device.** Dismissing it hides it; so does the
   first moment all four steps are done together. Live state alone would not
   do: the assistant's connection is held per tab, so a new tab would bring
@@ -1711,8 +1712,8 @@ they are answered. One PR.
     assistant's Sheet as a key's, not the product's). The page opens once
     they are closed, and the trigger of the layer focus was in stands in as
     the control to give focus back to.
-  - When the control that opened the page is gone on close (a checklist step
-    the pick ticked, a footer the phone's menu page took with it), focus
+  - When the control that opened the page is gone on close (a footer the
+    phone's menu page took with it), focus
     goes to the first control that opens the settings still on screen, else
     to the one that opens the navigation. The failure notice closes on
     Escape too, its own listener in place of the page's.

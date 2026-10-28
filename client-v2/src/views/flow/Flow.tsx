@@ -104,8 +104,7 @@ const focusWhenShown = (el: HTMLElement, frames = 30): (() => void) => {
 
 /**
  * Where focus goes back when the control that opened the settings is gone or
- * out of reach: a checklist step that the pick ticked, a footer the rail
- * swapped out, a cluster row on the phone's menu page once Work shows. The
+ * out of reach: a footer the rail swapped out, a cluster row on the phone's menu page once Work shows. The
  * first control that opens the settings still in reach, else the control
  * that opens the navigation.
  */
@@ -319,7 +318,7 @@ const FlowFrame = () => {
                 }
                 setup={
                   <SetupList
-                    folded={menuPage}
+                    defaultFolded={menuPage}
                     onConnectAssistant={() => openConnectDialog("setup")}
                   />
                 }

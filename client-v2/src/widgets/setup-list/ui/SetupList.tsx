@@ -30,10 +30,12 @@ export interface SetupListProps {
   /** Opens Connect a model; the assistant widget owns it */
   onConnectAssistant: () => void;
   /**
-   * Starts folded to its title until the user unfolds it: the phone's menu is
-   * the whole screen, so the prototype keeps the list to one line there
+   * The fold while the user has kept none on this device: folded to its title
+   * on the phone's menu page, which is the whole screen, so the prototype keeps
+   * the list to one line there. Once the user folds or unfolds it anywhere,
+   * that fold is the device's.
    */
-  folded?: boolean;
+  defaultFolded?: boolean;
 }
 
 /**
@@ -41,7 +43,10 @@ export interface SetupListProps {
  * user last left it on this device; gone for good on it once dismissed, or
  * once all four were done together.
  */
-const SetupList = ({ onConnectAssistant, folded = false }: SetupListProps) => {
+const SetupList = ({
+  onConnectAssistant,
+  defaultFolded = false,
+}: SetupListProps) => {
   const marks = useSetupMarks();
   const cluster = useRenderOnChange(PgConnection.onDidChangeCluster);
   useRenderOnChange(PgSession.onDidChange);
@@ -103,7 +108,8 @@ const SetupList = ({ onConnectAssistant, folded = false }: SetupListProps) => {
   };
 
   const pick = (step: SetupStep) => {
-    // Drawn done, so never picked; narrows `step` to the steps with an action
+    // Never reached: the network step is drawn done, so it has no button.
+    // The check narrows `step` to the steps that have an action.
     if (step === "network") return;
     setupTelemetry.track("setup_item_picked", { item: step });
     actions[step]();
@@ -123,7 +129,7 @@ const SetupList = ({ onConnectAssistant, folded = false }: SetupListProps) => {
       steps={steps}
       onPick={pick}
       onDismiss={dismiss}
-      folded={marks.folded ?? folded}
+      folded={marks.folded ?? defaultFolded}
       onFold={setupMarks.fold}
     />
   );

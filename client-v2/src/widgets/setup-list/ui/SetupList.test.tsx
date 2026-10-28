@@ -70,10 +70,13 @@ afterEach(() => {
   PgSession.reset();
 });
 
-const draw = (folded?: boolean) => {
+const draw = (defaultFolded?: boolean) => {
   const onConnectAssistant = vi.fn();
   const view = render(
-    <SetupList onConnectAssistant={onConnectAssistant} folded={folded} />
+    <SetupList
+      onConnectAssistant={onConnectAssistant}
+      defaultFolded={defaultFolded}
+    />
   );
   return { onConnectAssistant, view };
 };
@@ -137,6 +140,16 @@ it("stays unfolded after a reload once unfolded again", async () => {
   await userEvent.click(title()!);
   reload(view);
   draw();
+  expect(listShown()).toBe(true);
+});
+
+it("keeps a fold from elsewhere on the device over the phone's default", () => {
+  localStorage.setItem(
+    SETUP_LIST_KEY,
+    '{"dismissed":false,"completed":false,"folded":false}'
+  );
+  window.dispatchEvent(new StorageEvent("storage", { key: null }));
+  draw(true);
   expect(listShown()).toBe(true);
 });
 

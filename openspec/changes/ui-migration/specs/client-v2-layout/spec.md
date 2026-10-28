@@ -323,8 +323,9 @@ signed in, and the fourth while a wallet is connected. A done step SHALL show a 
 value (the cluster's name, the login, the wallet's shortened address); a
 step to do SHALL run its action when clicked: open Connect a model, start
 the GitHub sign-in, connect the wallet. The title SHALL fold the list, and
-the fold SHALL be kept on the device across a reload; on a phone's menu page
-the list SHALL start folded until the user unfolds it there.
+the user's last fold SHALL be kept on the device across a reload, one fold
+for the device wherever it was made; until the user has folded or unfolded
+it, a phone's menu page SHALL show it folded.
 "Dismiss the checklist" SHALL hide it for good on the device, and so SHALL
 all four steps being done at once. The rail SHALL show no checklist.
 

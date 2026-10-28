@@ -31,20 +31,27 @@ const nothingDone = (): SetupMarks => ({
 });
 
 /**
- * A stored value from before the fold was kept has no `folded`, and one from
- * before the network counted by default has a `networkChosen`, which is
- * ignored
+ * The marks of a parsed value, or `null` when they are not booleans. Only the
+ * marks decide: a `folded` that is not a boolean is dropped, so a bad fold
+ * never brings back a list the user dismissed, and any other key (such as
+ * the `networkChosen` older builds stored) is ignored and gone on the next
+ * write.
  */
-const isMarks = (
-  value: unknown
-): value is SetupMarks & Record<string, unknown> => {
-  if (typeof value !== "object" || value === null) return false;
-  const marks = value as Record<string, unknown>;
-  return (
-    typeof marks.dismissed === "boolean" &&
-    typeof marks.completed === "boolean" &&
-    (marks.folded === undefined || typeof marks.folded === "boolean")
-  );
+const parseMarks = (value: unknown): SetupMarks | null => {
+  if (typeof value !== "object" || value === null) return null;
+  const stored = value as Record<string, unknown>;
+  if (
+    typeof stored.dismissed !== "boolean" ||
+    typeof stored.completed !== "boolean"
+  ) {
+    return null;
+  }
+  const marks: SetupMarks = {
+    dismissed: stored.dismissed,
+    completed: stored.completed,
+  };
+  if (typeof stored.folded === "boolean") marks.folded = stored.folded;
+  return marks;
 };
 
 /**
@@ -71,14 +78,8 @@ export const readMarks = (storage?: Storage): SetupMarks => {
     log.warn("marks unreadable: not JSON", { context: { e } });
     return nothingDone();
   }
-  if (isMarks(value)) {
-    const marks: SetupMarks = {
-      dismissed: value.dismissed,
-      completed: value.completed,
-    };
-    if (value.folded !== undefined) marks.folded = value.folded;
-    return marks;
-  }
+  const marks = parseMarks(value);
+  if (marks) return marks;
 
   log.warn("marks unreadable: wrong shape");
   return nothingDone();
@@ -245,23 +246,29 @@ if (import.meta.vitest) {
         expect("networkChosen" in marks).toBe(false);
       });
 
-      it.each([
-        "{",
-        "[]",
-        '{"dismissed":"yes"}',
-        '{"dismissed":false,"completed":false,"folded":1}',
-      ])("reads %s as nothing done and warns once", (raw) => {
-        const memory = memoryProvider();
-        initLogger({ providers: [memory] });
-        localStorage.setItem(SETUP_LIST_KEY, raw);
-        expect(readMarks()).toEqual(NOTHING_DONE);
-        expect(memory.entries).toEqual([
-          expect.objectContaining({
-            ns: "setup-list:storage",
-            level: "warn",
-          }),
-        ]);
+      it("drops a fold that is not a boolean and keeps the marks", () => {
+        localStorage.setItem(
+          SETUP_LIST_KEY,
+          '{"dismissed":true,"completed":false,"folded":1}'
+        );
+        expect(readMarks()).toEqual({ dismissed: true, completed: false });
       });
+
+      it.each(["{", "[]", '{"dismissed":"yes"}'])(
+        "reads %s as nothing done and warns once",
+        (raw) => {
+          const memory = memoryProvider();
+          initLogger({ providers: [memory] });
+          localStorage.setItem(SETUP_LIST_KEY, raw);
+          expect(readMarks()).toEqual(NOTHING_DONE);
+          expect(memory.entries).toEqual([
+            expect.objectContaining({
+              ns: "setup-list:storage",
+              level: "warn",
+            }),
+          ]);
+        }
+      );
 
       it("reads nothing done, logged, where storage cannot be read", () => {
         const memory = memoryProvider();
@@ -316,6 +323,33 @@ if (import.meta.vitest) {
           completed: false,
           folded: true,
         });
+      });
+
+      it("keeps the fold when a mark is set after it", () => {
+        createSetupMarks().fold(true);
+        createSetupMarks().mark("completed");
+        expect(createSetupMarks().get()).toEqual({
+          dismissed: false,
+          completed: true,
+          folded: true,
+        });
+      });
+
+      it("keeps this page's fold when another tab stores marks with none", () => {
+        const storage = refusingStorage();
+        const marks = createSetupMarks(storage);
+        marks.subscribe(() => {});
+        marks.fold(true);
+        // The write was refused; another tab then stores marks without a fold
+        vi.spyOn(storage, "getItem").mockReturnValue(
+          '{"dismissed":false,"completed":true}'
+        );
+
+        window.dispatchEvent(
+          new StorageEvent("storage", { key: SETUP_LIST_KEY })
+        );
+
+        expect(marks.get().folded).toBe(true);
       });
 
       it("takes another tab's fold as soon as it is stored", () => {
