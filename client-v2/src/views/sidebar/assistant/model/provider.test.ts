@@ -8,7 +8,8 @@ import {
   openAiToolCall,
   sse,
 } from "@/shared/lib/ai/__fixtures__/fake-provider";
-import { createProvider, ModelBusyError } from "./provider";
+import { createProvider } from "./provider";
+import { ModelBusyError } from "./model-busy";
 import { PgAssistant, type ChatItem } from "../store";
 import { PgSession } from "../../../../features/auth";
 import { DEFAULT_BACKEND_URL, MAX_RESUMES, MAX_STEPS } from "../config";

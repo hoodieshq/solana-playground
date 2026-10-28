@@ -6,6 +6,7 @@ import { pushThread } from "../../../effects/chat-thread/push-thread";
 import { PgSession } from "@/features/auth";
 import { report, toReplayMessages } from "@/features/persistence";
 import { createProvider } from "../../../views/sidebar/assistant/model";
+import { ModelBusyError } from "../../../views/sidebar/assistant/model/model-busy";
 import {
   isDefaultBackendRemembered,
   rememberedConnection,
@@ -40,6 +41,29 @@ const isAbort = (error: unknown) =>
   "name" in error &&
   error.name === "AbortError";
 
+/** Seconds to wait on a busy model whose server named no wait (Spec 08 AI-03) */
+const BUSY_WAIT_SECONDS = 10;
+
+/** Busy answers sent again by themselves before the panel stops and says so */
+const BUSY_RETRIES = 3;
+
+/** What the thread says once the model has stayed busy through every retry */
+const STILL_BUSY =
+  "The model is still busy. Send your message again in a minute.";
+
+/** A message the model turned away for load, waiting to be sent again */
+interface BusyRetry {
+  text: string;
+  /** When it is sent again, in `Date.now()` time */
+  at: number;
+  /** The server named no wait, so the user may send it sooner */
+  canTryNow: boolean;
+  /** Which retry this is, from 1 */
+  attempt: number;
+  /** The thread it belongs to; another thread open by then drops it */
+  threadId: string | null;
+}
+
 /** Where Connect a model was opened from */
 export type ConnectVia = AssistantEvents["assistant_connect_opened"]["via"];
 
@@ -58,9 +82,15 @@ export interface TurnOptions {
  * Where the turn is. `stopping` is a turn that was stopped, by the user
  * (`stop`) or by the store (`PgAssistant.stopTurn`, or its thread closing),
  * and is still unwinding: the store's status reads idle before its provider
- * finishes.
+ * finishes. `waiting` is a message the model turned away for load, counting
+ * down to its next send (`retry`).
  */
-export type TurnPhase = "idle" | "running" | "awaiting" | "stopping";
+export type TurnPhase =
+  | "idle"
+  | "running"
+  | "awaiting"
+  | "stopping"
+  | "waiting";
 
 /**
  * One assistant turn at a time, shared by the thread and the composer.
@@ -71,8 +101,15 @@ export type TurnPhase = "idle" | "running" | "awaiting" | "stopping";
 export interface Turn {
   /** Send a prompt; with nothing connected, connect the default or open Connect */
   send(text: string): Promise<void>;
-  /** Abort the turn in flight and deny whatever it is waiting on */
+  /** Abort the turn in flight and deny whatever it is waiting on, or end a busy wait */
   stop(): void;
+  /**
+   * A message the model turned away for load, counting down to its next send
+   * (Spec 08's AI-03). `canTryNow` is off while the server's own wait runs.
+   */
+  retry: { secondsLeft: number; canTryNow: boolean } | null;
+  /** Send the waiting message now */
+  tryNow(): Promise<void>;
   phase: TurnPhase;
   /** `phase` is not idle: a turn runs, waits on an approval, or unwinds */
   busy: boolean;
@@ -158,11 +195,16 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   // remounted. The store's status may already read idle (a closed thread, a
   // backend change), so its record is all that says the turn still runs; it
   // shows as stopping because this hook cannot stop it
+  const [retry, setRetry] = useState<BusyRetry | null>(null);
+  // Re-read each second while a retry counts down
+  const [now, setNow] = useState(() => Date.now());
+
   const phaseOf = (): TurnPhase => {
     if (turn.current?.signal.aborted) return "stopping";
     if (PgAssistant.status !== "idle") return PgAssistant.status;
     if (turn.current) return "running";
     if (PgAssistant.turnRunning) return "stopping";
+    if (retry) return "waiting";
     return "idle";
   };
   const phase = phaseOf();
@@ -310,21 +352,32 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
         instance: createProvider(current, toReplayMessages(PgAssistant.items)),
       };
     }
-    const instance = provider.current.instance;
-
     PgAssistant.addUserMessage(trimmed);
     // Cleared only once the message is in: a store that throws leaves the
     // typed text where the user can send it again
     setInput("");
+    await runTurn(trimmed, 0);
+    return true;
+  };
+  /**
+   * One request for a message already in the thread, on the provider `start`
+   * chose: the first send, or a busy message sent again.
+   *
+   * @param attempt which retry this is, 0 for the first send
+   */
+  const runTurn = async (text: string, attempt: number) => {
+    const instance = provider.current!.instance;
     const controller = new AbortController();
     turn.current = controller;
     PgAssistant.beginTurn(controller);
     PgAssistant.setStatus("running");
 
     try {
-      await instance.send(trimmed, controller.signal);
+      await instance.send(text, controller.signal);
     } catch (e) {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && e instanceof ModelBusyError) {
+        waitOnBusy(text, attempt, e);
+      } else if (!controller.signal.aborted) {
         PgAssistant.addError(e instanceof Error ? e.message : String(e));
       } else if (isAbort(e)) {
         // Aborted by `stop`, which has already written its notice, or by the
@@ -351,7 +404,65 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
         void pushThread(threadId).catch((e) => report("push turn", e));
       }
     }
-    return true;
+  };
+
+  /**
+   * A busy model: count down and send the message again, up to
+   * `BUSY_RETRIES` times, then say so in the thread. The wait is the
+   * server's when it names one; Try now is off until it ends.
+   */
+  const waitOnBusy = (text: string, attempt: number, busy: ModelBusyError) => {
+    if (attempt >= BUSY_RETRIES) {
+      PgAssistant.addError(STILL_BUSY);
+      return;
+    }
+    const at = Date.now();
+    setNow(at);
+    setRetry({
+      text,
+      at: at + (busy.waitSeconds ?? BUSY_WAIT_SECONDS) * 1000,
+      canTryNow: busy.waitSeconds === undefined,
+      attempt: attempt + 1,
+      threadId: PgAssistant.threadId,
+    });
+  };
+
+  /**
+   * Send a waiting message again, unless the conversation moved on: another
+   * thread or connection open by then would put it where it was not written.
+   */
+  const resend = async (waiting: BusyRetry) => {
+    setRetry(null);
+    const current = usableConnection();
+    if (
+      !current ||
+      occupied() ||
+      PgAssistant.threadId !== waiting.threadId ||
+      provider.current?.connection !== current
+    ) {
+      log.debug("a busy message was not sent again: the thread moved on");
+      return;
+    }
+    await runTurn(waiting.text, waiting.attempt);
+  };
+  const resendRef = useRef(resend);
+  resendRef.current = resend;
+
+  // The countdown: a tick each second while a message waits
+  useEffect(() => {
+    if (!retry) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [retry]);
+  // ...and the send once it reaches zero
+  useEffect(() => {
+    if (!retry || retry.at > now) return;
+    void resendRef.current(retry).catch(reportButtonFailure("send again"));
+  }, [retry, now]);
+
+  const tryNow = async () => {
+    if (!retry?.canTryNow) return;
+    await resend(retry);
   };
   // `start` answers its own failures once a turn runs; one before that (the
   // store throwing on the new message) would be an unhandled rejection with
@@ -371,6 +482,13 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
    * that window has nothing left to stop and must not say so twice.
    */
   const stop = () => {
+    if (retry && !turn.current) {
+      // The message stays the user's to send again
+      setRetry(null);
+      setInput(retry.text);
+      PgAssistant.addNotice("Stopped.");
+      return;
+    }
     if (!turn.current || turn.current.signal.aborted) return;
     turn.current.abort();
     PgAssistant.cancelPending();
@@ -457,6 +575,11 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   return {
     send,
     stop,
+    retry: retry && {
+      secondsLeft: Math.max(0, Math.ceil((retry.at - now) / 1000)),
+      canTryNow: retry.canTryNow,
+    },
+    tryNow,
     phase,
     busy,
     input,
