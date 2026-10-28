@@ -8,6 +8,9 @@ export class StoppedError extends Error {
   name = "StoppedError";
 }
 
+/** The words every stopped run's line starts with (Spec 13's copy) */
+export const STOPPED = "Stopped.";
+
 /** Whether a run ended because the person stopped it */
 export const isStopped = (error: unknown): error is StoppedError =>
   error instanceof StoppedError;

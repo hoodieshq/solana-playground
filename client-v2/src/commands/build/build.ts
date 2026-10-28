@@ -11,7 +11,7 @@ import {
   PgWeb3,
   TupleFiles,
 } from "../../utils";
-import { throwIfStopped } from "../../utils/stopped";
+import { STOPPED, throwIfStopped } from "../../utils/stopped";
 import { createCmd } from "../create";
 import { emptySourceError, isEmptyProgram, PROGRAM_FILE } from "./empty-source";
 import { PgBuildOutput } from "../../views/sidebar/assistant/bridge/build-output";
@@ -34,7 +34,8 @@ export const build = createCmd({
 
     try {
       const result = await buildProgram(signal).catch((e: unknown) => {
-        // The aborted request fails; say it was stopped, not that it failed
+        // The aborted request fails; say it was stopped, not that it failed.
+        // Only "Stopped.": the server may still finish, its reply is not kept
         throwIfStopped(signal, STOPPED);
         throw e;
       });
@@ -59,12 +60,6 @@ export const build = createCmd({
     }
   },
 });
-
-/**
- * What the terminal says after a stopped build (Spec 13's copy). Not
- * "nothing was built": the server may finish; its reply is only not kept.
- */
-const STOPPED = "Stopped.";
 
 /**
  * Compile the current project.

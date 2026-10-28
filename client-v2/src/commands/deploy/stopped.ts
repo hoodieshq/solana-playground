@@ -1,3 +1,5 @@
+import { STOPPED } from "../../utils/stopped";
+
 /** What a stopped deploy left of its buffer account */
 export type StoppedBuffer =
   | { state: "none" }
@@ -13,7 +15,7 @@ export type StoppedBuffer =
  * @returns the line for `StoppedError`
  */
 export const deployStoppedLine = (buffer: StoppedBuffer) => {
-  const line = "Stopped. The program was not deployed.";
+  const line = `${STOPPED} The program was not deployed.`;
   switch (buffer.state) {
     case "none":
       return line;

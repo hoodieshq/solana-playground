@@ -433,6 +433,11 @@ const getAdditionalLen = (programLen: number) => {
  * Load buffer with the ability to pause, resume and cancel on demand, and to
  * stop: a stop ends the write after the chunks in flight, and answers an open
  * "Continue deployment?" with no.
+ *
+ * TODO(HOO-2394 follow-up): unit tests for the stop paths (stop at the pause
+ * question, mid-chunk, a failed buffer close) need this loader out of
+ * `deploy.ts` with the loader and terminal injected; held back while HOO-2385
+ * rewrites this file, and covered by the manual deploy scenarios until then.
  */
 const loadBufferWithControl = (
   signal: AbortSignal,
