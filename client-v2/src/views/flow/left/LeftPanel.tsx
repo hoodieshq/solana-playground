@@ -242,7 +242,8 @@ export default LeftPanel;
  * (not just the source) via the running dev server.
  *
  * Each rule is an arbitrary variant with `!`: the explorer's own elements
- * still carry unlayered styled rules, which beat a utility in the layer.
+ * set their `display` with utilities of the same layer, and which of two
+ * utilities wins then depends on their order in the built sheet.
  */
 const EXPLORER_CONTAINER = cn(
   // Workspaces row (project select + "Projects" label) and the icon

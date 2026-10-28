@@ -72,9 +72,8 @@
 /*
  * A browser gives a button the arrow; the prototype gives buttons and links
  * the hand, and a disabled one (`disabled` or `aria-disabled`) the arrow.
- * Unlike the reset above, this reaches every button and link on the page,
- * the styled-components ones too; anything that sets its own cursor (a
- * utility, a styled component) still wins over this layer.
+ * It reaches every button and link on the page; anything that sets its own
+ * cursor (a utility, the wallet's styled rules) still wins over this layer.
  */
 @layer base {
   :where(button, [role="button"], a[href]) {
@@ -221,7 +220,7 @@
   font-size: 12px;
 }
 
-/* Group D: the main view's fade-in, held invisible for the first 40% so a
+/* The main view's fade-in, held invisible for the first 40% so a
    lazy view never flashes half drawn */
 @keyframes pg-primary-fade-in {
   0%,
@@ -233,7 +232,7 @@
   }
 }
 
-/* Group C: the loading components' keyframes (Loading/*) */
+/* The loading components' keyframes (Loading/*) */
 @keyframes pg-spin {
   0% {
     transform: rotate(0deg);

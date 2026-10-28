@@ -2,10 +2,10 @@
 
 ## Context
 
-See proposal.md. Tailwind 4 runs beside styled-components 5. `src/index.css`
-imports Tailwind's theme and utilities but not its preflight, and carries a
-`:where([data-slot] ...)` reset so design-system elements lose the browser's
-button face. The legacy theme object (`src/themes/palette.ts`) already holds
+See proposal.md. Before this change, Tailwind 4 ran beside
+styled-components 5: `src/index.css` imported Tailwind's theme and utilities
+but not its preflight, and carried a `:where([data-slot] ...)` reset so
+design-system elements lost the browser's button face. The legacy theme object (`src/themes/palette.ts`) already holds
 only `var(--token)` references, so a styled rule's colour maps one to one to
 a design-system token. styled CSS is unlayered and beats any `@layer` rule on
 the same property, preflight included.
@@ -39,7 +39,12 @@ xterm internals (client-v2/CLAUDE.md, "Never moved along the way"); removing
   `box-sizing: border-box` and `img, svg { display: block }` are the known
   risks. Each is checked in the browser (text, cursor, selection, minimap,
   terminal rows); a break gets a scoped revert under `.monaco-editor` or
-  `.xterm` in `@layer base`, with a comment naming what it fixes.
+  `.xterm` in `@layer base`, with a comment naming what it fixes. The
+  check found nothing to revert: the old global reset already made every
+  box `border-box`, and the screenshots of both match. Inline `code` keeps
+  the browser's monospace (`font-family` and `font-size: revert` on
+  `code, kbd, samp, pre`), since the screens were drawn on it, and inline
+  icons (`Svg`, the file icons) keep `inline` on the baseline.
 - **One reduced-motion rule in `@layer base`**:
   under `@media (prefers-reduced-motion: reduce)`, every element and
   pseudo-element gets `animation-duration` and `transition-duration` of

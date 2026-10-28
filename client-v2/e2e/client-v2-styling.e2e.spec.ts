@@ -54,3 +54,48 @@ test("client-v2-styling: Without reduced motion", async ({
   const dialog = await openDialog(page);
   expect(await longestMotion(dialog)).toBeGreaterThan(1);
 });
+
+test("client-v2-styling: A plain form control", async ({
+  seededPage: page,
+}) => {
+  const control = await page.evaluate(() => {
+    const wrap = document.createElement("div");
+    wrap.style.font = "15px serif";
+    const button = document.createElement("button");
+    button.textContent = "plain";
+    wrap.appendChild(button);
+    document.body.appendChild(wrap);
+    const style = getComputedStyle(button);
+    const result = {
+      border: style.borderTopWidth,
+      background: style.backgroundColor,
+      font: style.fontFamily,
+      size: style.fontSize,
+    };
+    wrap.remove();
+    return result;
+  });
+
+  expect(control).toEqual({
+    border: "0px",
+    background: "rgba(0, 0, 0, 0)",
+    font: "serif",
+    size: "15px",
+  });
+});
+
+test("client-v2-styling: Editor and terminal under the reset", async ({
+  seededPage: page,
+}) => {
+  // The code font the user picked reaches CSS through `--pg-font-code`
+  const codeFont = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue(
+      "--pg-font-code"
+    )
+  );
+  expect(codeFont).toContain("JetBrains Mono");
+
+  const terminal = page.locator(".xterm-rows");
+  await expect(terminal).toBeVisible();
+  await expect(terminal).toHaveCSS("font-family", /JetBrains Mono/);
+});
