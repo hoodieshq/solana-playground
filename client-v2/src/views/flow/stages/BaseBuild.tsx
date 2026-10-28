@@ -35,6 +35,7 @@ import {
 } from "@/shared/ui/stage-empty";
 import { errorMeta, msLabel, warningCount } from "./build-view";
 import type { BuildSurface } from "./build-surface";
+import type { BuildFailure } from "../state/stage";
 import type { DiagnosticView, FailedView } from "./build-view";
 import {
   STAGE_BODY,
@@ -165,28 +166,35 @@ const Empty = (p: BaseBuildProps) => (
 );
 
 /**
- * Spec 08's BUILD-04: the build never reached the compiler. The server and
- * the raw error sit behind "Show details"; the terminal has the full text.
+ * A build that never reached the compiler. A build server that never replied
+ * is Spec 08's BUILD-04; anything else is its ANY-00 for Build. The server
+ * and the raw error sit behind "Show details"; the terminal has the full
+ * text.
  */
-const Unreached = (p: BaseBuildProps & { failure: string | null }) => (
-  <Surface
-    icon={<CircleX className="text-error" />}
-    title="Build did not start"
-    meta={msLabel(p.ms)}
-    actions={<BuildButton p={p} label="Try again" />}
-  >
-    <StageEmptyNotice>
-      <Callout variant="error">
-        <CalloutDescription>
-          The Playground server did not answer. Your code is unchanged.
-        </CalloutDescription>
-      </Callout>
-    </StageEmptyNotice>
-    <Details serverUrl={p.serverUrl} failure={p.failure} />
-  </Surface>
-);
+const Unreached = (p: BaseBuildProps & { failure: BuildFailure | null }) => {
+  const noAnswer = p.failure?.kind === "no-answer";
+  return (
+    <Surface
+      icon={<CircleX className="text-error" />}
+      title={noAnswer ? "Build did not start" : "Could not build"}
+      meta={msLabel(p.ms)}
+      actions={<BuildButton p={p} label="Try again" />}
+    >
+      <StageEmptyNotice>
+        <Callout variant="error">
+          <CalloutDescription>
+            {noAnswer
+              ? "The Playground server did not answer. Your code is unchanged."
+              : "The full log has the details."}
+          </CalloutDescription>
+        </Callout>
+      </StageEmptyNotice>
+      <Details serverUrl={p.serverUrl} failure={p.failure?.message ?? null} />
+    </Surface>
+  );
+};
 
-/** What BUILD-04 keeps out of its first line: the server and the raw error */
+/** What a build that never started keeps out of its first line: the server and the raw error */
 const Details = ({
   serverUrl,
   failure,

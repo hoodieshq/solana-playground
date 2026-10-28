@@ -5,6 +5,9 @@ import {
   PgWallet,
   SyncOrAsync,
 } from "../../utils";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("connection:helper");
 
 export const connection = () => {
   return PgCommon.batchChanges(async () => {
@@ -34,7 +37,9 @@ const executeOnce = async (kind: keyof typeof cache, cb: () => SyncOrAsync) => {
 
   try {
     await cb();
-  } catch {
+  } catch (error) {
+    // Asked again on the next connection change
+    log.error(error, { report: true, context: { helper: kind } });
     cache[kind] = false;
   }
 };

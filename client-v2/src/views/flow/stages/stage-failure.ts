@@ -6,9 +6,10 @@ import { PgFlow } from "../state/stage";
  * failed, the stage says so in place (Build's failed surface, Deploy's
  * Callout), so the failure is marked shown and the button's
  * `reportButtonFailure` only logs it: Spec 08's "one cause shows one
- * message". A run that failed before it settled the stage (a pre-check, a
- * command that could not start here) left nothing on screen, so its toast
- * stays. Either way the failure is rethrown for the button to log.
+ * message". Every run that starts settles its stage (`PgCommandManager`
+ * finishes even a pre-check that throws); one that never started, such as a
+ * command with no terminal mounted to run it, left nothing on screen, so its
+ * toast stays. Either way the failure is rethrown for the button to log.
  *
  * @param stage the stage whose run this is
  * @returns the handler for the run's rejection

@@ -332,6 +332,8 @@ describe("useTurn", () => {
   });
 
   describe("a busy model (Spec 08 AI-03)", () => {
+    const BUSY = "The model is busy.";
+    const LATER = "The model is busy. Send your message again in a minute.";
     beforeEach(() => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       PgAssistant.connect({ id: "default", apiKey: "" });
@@ -345,7 +347,7 @@ describe("useTurn", () => {
 
     it("counts down from 10 s, then sends the same message again", async () => {
       provider.send
-        .mockRejectedValueOnce(new ModelBusyError(undefined))
+        .mockRejectedValueOnce(new ModelBusyError(undefined, BUSY))
         .mockResolvedValueOnce(undefined);
       const { result } = renderHook(() => useTestTurn());
 
@@ -370,7 +372,7 @@ describe("useTurn", () => {
     });
 
     it("waits as long as the server says, with Try now off", async () => {
-      provider.send.mockRejectedValueOnce(new ModelBusyError(30));
+      provider.send.mockRejectedValueOnce(new ModelBusyError(30, BUSY));
       const { result } = renderHook(() => useTestTurn());
 
       await act(() => result.current.send("hi"));
@@ -383,7 +385,7 @@ describe("useTurn", () => {
 
     it("Try now sends at once", async () => {
       provider.send
-        .mockRejectedValueOnce(new ModelBusyError(undefined))
+        .mockRejectedValueOnce(new ModelBusyError(undefined, BUSY))
         .mockResolvedValueOnce(undefined);
       const { result } = renderHook(() => useTestTurn());
       await act(() => result.current.send("hi"));
@@ -394,8 +396,8 @@ describe("useTurn", () => {
       expect(result.current.retry).toBeNull();
     });
 
-    it("Stop ends the wait and gives the message back to the composer", async () => {
-      provider.send.mockRejectedValueOnce(new ModelBusyError(undefined));
+    it("Stop ends the wait and leaves the message where it is", async () => {
+      provider.send.mockRejectedValueOnce(new ModelBusyError(undefined, BUSY));
       const { result } = renderHook(() => useTestTurn());
       await act(() => result.current.send("hi"));
 
@@ -404,12 +406,60 @@ describe("useTurn", () => {
 
       expect(result.current.retry).toBeNull();
       expect(result.current.busy).toBe(false);
-      expect(result.current.input).toBe("hi");
+      // In the thread once, not handed back to be sent a second time
+      expect(userMessages()).toBe(1);
+      expect(result.current.input).toBe("");
+      expect(provider.send).toHaveBeenCalledTimes(1);
+    });
+
+    it("starts no other turn while a message waits", async () => {
+      provider.send.mockRejectedValueOnce(new ModelBusyError(undefined, BUSY));
+      const { result } = renderHook(() => useTestTurn());
+      await act(() => result.current.send("hi"));
+
+      await act(() => result.current.send("something else"));
+
+      expect(provider.send).toHaveBeenCalledTimes(1);
+      expect(userMessages()).toBe(1);
+    });
+
+    it("Try now does nothing while the server's wait runs", async () => {
+      provider.send.mockRejectedValueOnce(new ModelBusyError(30, BUSY));
+      const { result } = renderHook(() => useTestTurn());
+      await act(() => result.current.send("hi"));
+
+      await act(() => result.current.tryNow());
+
+      expect(provider.send).toHaveBeenCalledTimes(1);
+      expect(result.current.retry?.canTryNow).toBe(false);
+    });
+
+    it("counts no wait longer than a minute down; it says to come back", async () => {
+      provider.send.mockRejectedValueOnce(new ModelBusyError(3600, BUSY));
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("hi"));
+
+      expect(result.current.retry).toBeNull();
+      expect(
+        errors().map((item) => item.kind === "error" && item.text)
+      ).toEqual([LATER]);
+    });
+
+    it("drops the wait when the conversation changes, sending nothing", async () => {
+      provider.send.mockRejectedValueOnce(new ModelBusyError(undefined, BUSY));
+      const { result } = renderHook(() => useTestTurn());
+      await act(() => result.current.send("hi"));
+
+      act(() => PgAssistant.clear());
+      await act(() => vi.advanceTimersByTimeAsync(15_000));
+
+      expect(result.current.retry).toBeNull();
       expect(provider.send).toHaveBeenCalledTimes(1);
     });
 
     it("gives up with one line after three busy answers in a row", async () => {
-      provider.send.mockRejectedValue(new ModelBusyError(1));
+      provider.send.mockRejectedValue(new ModelBusyError(1, BUSY));
       const { result } = renderHook(() => useTestTurn());
 
       await act(() => result.current.send("hi"));
@@ -421,9 +471,7 @@ describe("useTurn", () => {
       await waitFor(() => expect(result.current.retry).toBeNull());
       expect(
         errors().map((item) => item.kind === "error" && item.text)
-      ).toEqual([
-        "The model is still busy. Send your message again in a minute.",
-      ]);
+      ).toEqual([LATER]);
     });
   });
 

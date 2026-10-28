@@ -1609,8 +1609,8 @@ only logged (5.4), and nothing on screen said the action did not happen.
   into a folded console is still toasted, since the user saw nothing. The
   Build and Deploy stages mark their own run's failure shown (`toldByStage`)
   when the run left the stage failed, since the stage then shows it in place
-  whether the console is open or not; a run that failed before it settled
-  its stage keeps its toast. An
+  whether the console is open or not; a run that never started (no terminal
+  mounted) keeps its toast. An
   object is matched by identity, a thrown string by value (`Send` throws
   `txResult.err`, which can be a string) and only once, so a later failure
   with the same text is told; `null` and `undefined` are never marked.

@@ -114,7 +114,7 @@ export const createProvider = (
           throw new Error(`${e.message} Rephrase it, or switch backends.`);
         }
         if (e.kind === "busy") {
-          throw new ModelBusyError(e.retryAfter, { cause: e });
+          throw new ModelBusyError(e.retryAfter, e.message, { cause: e });
         }
         const own = profile.ownRefusal?.(e);
         if (own) throw new Error(own, { cause: e });

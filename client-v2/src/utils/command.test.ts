@@ -1,5 +1,7 @@
 // A command that fails before its handler still finishes: the flow, the
-// stepper and the stages wait on `onDidFinish` to leave "running".
+// stepper and the stages wait on `onDidFinish` to leave "running". A file of
+// its own rather than an in-source block: `command.ts` is the commands'
+// runtime, and the terminal it runs through is stubbed here.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PgCommandManager } from "./command";
@@ -18,10 +20,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** One command named `probe`, built from `cmd`'s parts */
-const install = (cmd: Record<string, unknown>) => {
+/** One command named `probe`, with every field named */
+const install = ({
+  preChecks,
+  handle,
+}: {
+  preChecks?: () => void;
+  handle: () => unknown;
+}) => {
   PgCommandManager.all = {
-    probe: { name: "probe", description: "", options: [], ...cmd },
+    probe: { name: "probe", description: "", options: [], preChecks, handle },
   } as never;
 };
 

@@ -24,7 +24,7 @@ const PAUSE_TURN = "pause_turn";
 
 /**
  * Why a turn failed, so a caller can word each case for its own users:
- * `busy` is a 429, `key-refused` a 401 or 403, `provider` any other failure
+ * `busy` is a 429, `key-refused` a 401, `provider` any other failure
  */
 export type AiTurnErrorKind =
   | "provider"
@@ -149,7 +149,11 @@ const apiCallDetail = (error: APICallError, body: string | undefined) => {
 const toTurnError = (error: unknown, apiKey: string | undefined) => {
   if (error instanceof AiTurnError) return error;
   if (!APICallError.isInstance(error)) {
-    return new AiTurnError(redactKey(messageOf(error), apiKey));
+    // A dropped stream or a fetch that never reached the provider: Spec 08's
+    // words on screen, the raw text in the log
+    const detail = redactKey(messageOf(error), apiKey);
+    log.warn("model request failed", { report: true, context: { detail } });
+    return new AiTurnError(FAILURE_MESSAGE.provider, { detail });
   }
   const body =
     error.responseBody === undefined
@@ -157,9 +161,14 @@ const toTurnError = (error: unknown, apiKey: string | undefined) => {
       : redactKey(error.responseBody, apiKey);
   const status = error.statusCode;
   const detail = redactKey(apiCallDetail(error, body), apiKey);
-  // Spec 08: the status and the server's words stay in the log
-  log.warn("model request failed", { context: { status, detail } });
   const kind = kindOf(status);
+  // Spec 08: the status and the server's words stay in the log. A refused
+  // key or a busy model is the user's or the provider's; anything else the
+  // team hears of
+  log.warn("model request failed", {
+    report: kind === "provider",
+    context: { status, detail },
+  });
   return new AiTurnError(FAILURE_MESSAGE[kind], {
     kind,
     status,
@@ -169,10 +178,14 @@ const toTurnError = (error: unknown, apiKey: string | undefined) => {
   });
 };
 
-/** Which failure an HTTP status is, for the words a user reads */
+/**
+ * Which failure an HTTP status is, for the words a user reads. Only a 401
+ * says the key was refused: a 403 is as often a region, a policy or a quota,
+ * and "check your key" would send the user to the wrong fix.
+ */
 const kindOf = (status: number | undefined) => {
   if (status === 429) return "busy";
-  if (status === 401 || status === 403) return "key-refused";
+  if (status === 401) return "key-refused";
   return "provider";
 };
 

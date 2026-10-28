@@ -103,7 +103,10 @@ describe("BaseBuild", () => {
   });
 
   it("says a build that never reached the compiler did not start (BUILD-04)", () => {
-    const p = props({ kind: "unreached", failure: "Failed to fetch" });
+    const p = props({
+      kind: "unreached",
+      failure: { kind: "no-answer", message: "Failed to fetch" },
+    });
     render(<BaseBuild {...p} />);
 
     expect(
@@ -123,6 +126,23 @@ describe("BaseBuild", () => {
     expect(screen.getByText(/Failed to fetch/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(p.onBuild).toHaveBeenCalled();
+  });
+
+  // A server that replied with an error, or any other failure: not BUILD-04
+  it("says it could not build when the server did answer (ANY-00)", () => {
+    const p = props({
+      kind: "unreached",
+      failure: { kind: "other", message: "Server request failed: boom" },
+    });
+    render(<BaseBuild {...p} />);
+
+    expect(
+      screen.getByRole("heading", { name: "Could not build" })
+    ).toBeTruthy();
+    expect(screen.getByText("The full log has the details.")).toBeTruthy();
+    expect(screen.queryByText(/did not answer/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+    expect(screen.getByText(/Server request failed: boom/)).toBeTruthy();
   });
 
   it("says a failed build happened before the reload", () => {

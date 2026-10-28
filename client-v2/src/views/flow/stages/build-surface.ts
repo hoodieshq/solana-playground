@@ -1,5 +1,5 @@
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
-import type { FlowState, StageStatus } from "../state/stage";
+import type { BuildFailure, FlowState, StageStatus } from "../state/stage";
 
 /**
  * The build report this workspace may show, or `null`.
@@ -46,8 +46,8 @@ export const isRestoredBuild = (
 /** Which of the Build stage's surfaces is on screen */
 export type BuildSurface =
   | { kind: "restored"; failed: boolean }
-  /** `failure` is what the run failed with, for the details */
-  | { kind: "unreached"; failure: string | null }
+  /** `failure` is why the run never reached the compiler, when known */
+  | { kind: "unreached"; failure: BuildFailure | null }
   | { kind: "empty" }
   | { kind: "succeeded" }
   | { kind: "failed"; stderr: string };
@@ -175,8 +175,13 @@ if (import.meta.vitest) {
       buildSettled,
       buildStartedAt,
       buildMs,
-      buildFailure: "Failed to fetch",
+      buildFailure: NO_ANSWER,
     });
+
+    const NO_ANSWER = {
+      kind: "no-answer",
+      message: "Failed to fetch",
+    } as const;
 
     const report = (failed: boolean, at: number): BuildOutput => ({
       stderr: failed ? "error[E0308]: mismatched types" : "",
@@ -210,7 +215,7 @@ if (import.meta.vitest) {
       it("blames the server when a run left no report", () => {
         expect(
           buildSurface({ flow: flowOf("failed", "failed", 5), own: null })
-        ).toEqual({ kind: "unreached", failure: "Failed to fetch" });
+        ).toEqual({ kind: "unreached", failure: NO_ANSWER });
       });
 
       /** A report from an earlier run is not this run's verdict */
@@ -220,7 +225,7 @@ if (import.meta.vitest) {
             flow: flowOf("failed", "failed", 5),
             own: report(false, 1),
           })
-        ).toEqual({ kind: "unreached", failure: "Failed to fetch" });
+        ).toEqual({ kind: "unreached", failure: NO_ANSWER });
       });
 
       /** Swapping surfaces for the round trip of a run reads as a blink */

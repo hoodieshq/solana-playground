@@ -46,10 +46,11 @@ describe("toldByStage", () => {
     ).not.toHaveBeenCalled();
   });
 
-  // A pre-check throws before the command can settle the flow
-  it("a run that failed before it settled its stage is still toasted", () => {
+  // No terminal mounted to run it: the command never started, so the stage
+  // still shows the run before it
+  it("a run that never started is still toasted", () => {
     expect(
-      settle("deploy", "running", new Error("pre-check"))
+      settle("deploy", "active", new Error("no terminal"))
     ).toHaveBeenCalledOnce();
   });
 });

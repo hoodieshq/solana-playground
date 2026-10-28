@@ -101,8 +101,8 @@ describe("Deploy stage", () => {
     expect(mocks.markShown).toHaveBeenCalledWith(failure);
   });
 
-  it("leaves a deploy that failed before the stage settled to the toast", async () => {
-    const failure = new Error("pre-check");
+  it("leaves a deploy that never started to the toast", async () => {
+    const failure = new Error("no terminal");
     mocks.execute.mockRejectedValue(failure);
     render(<Deploy />);
 

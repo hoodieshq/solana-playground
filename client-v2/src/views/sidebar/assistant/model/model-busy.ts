@@ -6,13 +6,16 @@
 export class ModelBusyError extends Error {
   /**
    * @param waitSeconds what the server asked to wait, if it said
+   * @param message what the turn's failure says, so the words live in one
+   * place (`run-turn`)
    * @param options the provider's failure, kept as `cause`
    */
   constructor(
     readonly waitSeconds: number | undefined,
+    message: string,
     options?: ErrorOptions
   ) {
-    super("The model is busy.", options);
+    super(message, options);
     this.name = "ModelBusyError";
   }
 }

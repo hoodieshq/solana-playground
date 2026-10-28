@@ -268,8 +268,13 @@ describe("runTurn", () => {
 
     const turn = runTurn({ model: openAi(fetch), messages: USER });
 
-    await expect(turn).rejects.toThrow(AiTurnError);
-    await expect(turn).rejects.toThrow(/overloaded/);
+    // Spec 08's words on screen; the provider's own, "overloaded", in the detail
+    const failure = (await turn.catch((e: unknown) => e)) as AiTurnError;
+    expect(failure).toBeInstanceOf(AiTurnError);
+    expect(failure.message).toBe(
+      "Could not get an answer from the model. Send your message again."
+    );
+    expect(failure.detail).toMatch(/overloaded/);
   });
 
   it("rejects a refusal with its category", async () => {

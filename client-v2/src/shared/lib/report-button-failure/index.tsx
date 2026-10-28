@@ -15,8 +15,8 @@ const shownStrings: unknown[] = [];
 /**
  * Mark a failure as already shown to the user, so `reportButtonFailure` logs
  * it without a toast. `PgTerminal.process` calls it for every failure it
- * printed to an open console, `toldByStage` for a Build or Deploy run its
- * stage shows failed, and the wallet's airdrop for a sign-in failure the
+ * printed to an open console, `toldByStage` for a Build or Deploy run whose
+ * stage shows it failed, and the wallet's airdrop for a sign-in failure the
  * account row shows.
  *
  * Objects are matched by identity. A thrown primitive (`Send` throws the
