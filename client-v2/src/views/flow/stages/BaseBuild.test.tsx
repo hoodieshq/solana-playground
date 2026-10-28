@@ -83,7 +83,7 @@ describe("BaseBuild", () => {
   it("says where a first build runs while it runs", () => {
     render(<BaseBuild {...props({ kind: "empty" }, true)} />);
 
-    expect(screen.getByRole("heading", { name: "Building..." })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Building…" })).toBeTruthy();
     expect(screen.getByText(/Compiling on api\.solpg\.io/)).toBeTruthy();
     const busy = screen.getByRole("button", { name: /Building/ });
     expect(busy).toHaveProperty("disabled", true);
@@ -302,6 +302,25 @@ describe("BaseBuild", () => {
       "The assistant is answering in the side panel."
     );
     expect(document.activeElement).toBe(explain);
+  });
+
+  // A polite region speaks only when its text changes
+  it("says it again for a second ask, and forgets it once a rebuild starts", () => {
+    const surface = failed([typeError("it", "a")]);
+    const { rerender } = render(<BaseBuild {...props(surface)} />);
+
+    const status = screen.getByRole("status");
+    fireEvent.click(screen.getByRole("button", { name: "Explain" }));
+    const first = status.textContent;
+    fireEvent.click(screen.getByRole("button", { name: "Fix" }));
+    expect(status.textContent).not.toBe(first);
+    expect(status.textContent?.trim()).toBe(
+      "The assistant is answering in the side panel."
+    );
+
+    rerender(<BaseBuild {...props(surface, true)} />);
+    rerender(<BaseBuild {...props(surface)} />);
+    expect(screen.queryByText(/The assistant is answering/)).toBeNull();
   });
 
   // Spec 08 BUILD-05: a slow build is not a broken one

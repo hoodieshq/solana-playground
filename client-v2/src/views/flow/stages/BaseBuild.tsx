@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { CircleAlert, CircleCheck, CircleX, History } from "lucide-react";
 
@@ -134,7 +134,7 @@ const BuildButton = ({
   <AsyncButton
     variant={variant}
     loading={p.building}
-    loadingText="Building..."
+    loadingText="Building…"
     onClick={p.onBuild}
     onError={reportButtonFailure("build")}
   >
@@ -160,14 +160,14 @@ const FirstBuildButton = ({ p }: { p: BaseBuildProps }) => (
       Promise.resolve().then(p.onBuild).catch(reportButtonFailure("build"));
     }}
   >
-    {p.building ? "Building..." : "Build"}
+    {p.building ? "Building…" : "Build"}
     {!p.building && <BrandButtonIcon />}
   </BrandButton>
 );
 
 const Empty = (p: BaseBuildProps) => (
   <Surface
-    title={p.building ? "Building..." : "Nothing built yet"}
+    title={p.building ? "Building…" : "Nothing built yet"}
     description={
       // A run in flight names the server and warns about the wait. The
       // Foundation's server took 381s on a cold first build and 2.9s on the
@@ -184,7 +184,8 @@ const Empty = (p: BaseBuildProps) => (
 
 /**
  * A build that never reached the compiler. A build server that never replied
- * is Spec 08's BUILD-04; anything else is its ANY-00 for Build. The server
+ * is Spec 08's BUILD-04; an empty program file the build refused to send is
+ * Spec 09's, drawn by `EmptySource`; anything else is Spec 08's ANY-00. The server
  * and the raw error sit behind "Show details"; the terminal has the full
  * text.
  */
@@ -400,10 +401,18 @@ const CompilerOutput = ({ raw }: { raw: string }) => {
   );
 };
 
+/** What the failed surface says once Explain or Fix is pressed (Spec 04) */
+const ANSWERING = "The assistant is answering in the side panel.";
+
 const Failed = (p: BaseBuildProps & FailedView) => {
-  const [asked, setAsked] = useState(false);
+  // A polite region speaks only when its text changes, so each ask flips a
+  // trailing no-break space; a rebuild's new errors have not been asked about
+  const [asks, setAsks] = useState(0);
+  useEffect(() => {
+    if (p.building) setAsks(0);
+  }, [p.building]);
   const ask = (prompt: string) => {
-    setAsked(true);
+    setAsks((n) => n + 1);
     p.onAsk(prompt);
   };
   return (
@@ -428,7 +437,7 @@ const Failed = (p: BaseBuildProps & FailedView) => {
         <CompilerOutput raw={p.raw} />
         {/* Spec 04: focus stays on the card, so say once where the answer is */}
         <p role="status" className="sr-only">
-          {asked ? "The assistant is answering in the side panel." : ""}
+          {asks === 0 ? "" : ANSWERING + (asks % 2 ? "" : "\u00a0")}
         </p>
       </div>
     </Surface>

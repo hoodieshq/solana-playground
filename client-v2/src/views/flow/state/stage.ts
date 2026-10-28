@@ -2,6 +2,7 @@ import {
   PgBuildOutput,
   stripKnownNoise,
 } from "../../sidebar/assistant/bridge/build-output";
+import { emptyFileOf } from "../../../commands/build/empty-source";
 import { PgCommand, PgExplorer, PgGlobal, PgProgramInfo } from "../../../utils";
 import type { Disposable } from "../../../utils";
 
@@ -101,15 +102,14 @@ export const countErrors = (stderr: string) =>
  * mock.
  */
 const buildFailureOf = (err: unknown): BuildFailure => {
-  const { answered, emptyFile, message } = (err ?? {}) as {
+  const { answered, message } = (err ?? {}) as {
     answered?: unknown;
-    emptyFile?: unknown;
     message?: unknown;
   };
   const text = typeof message === "string" ? message : String(err);
-  if (typeof emptyFile === "string") {
+  const emptyFile = emptyFileOf(err);
+  if (emptyFile)
     return { kind: "empty-source", message: text, file: emptyFile };
-  }
   return { kind: answered === false ? "no-answer" : "other", message: text };
 };
 

@@ -12,23 +12,19 @@ import {
   TupleFiles,
 } from "../../utils";
 import { createCmd } from "../create";
+import { emptySourceError, isEmptyProgram, PROGRAM_FILE } from "./empty-source";
 import { PgBuildOutput } from "../../views/sidebar/assistant/bridge/build-output";
 
 export const build = createCmd({
   name: "build",
   description: "Build your program",
   handle: async () => {
-    // Spec 09: an empty program file is named, and nothing goes to the server
-    const empty = emptyProgramFile();
-    if (empty) {
-      throw Object.assign(
-        new Error(
-          `${PgExplorer.getItemNameFromPath(
-            empty
-          )} is empty. Write a program, or ask the assistant for one.`
-        ),
-        { emptyFile: empty }
-      );
+    // Spec 09: an empty program file is named and nothing is sent. The
+    // refusal counts as a failed build, so Deploy does not go on with the
+    // binary of the program that file used to hold.
+    if (isEmptyProgram(PgExplorer.getFileContent(PROGRAM_FILE))) {
+      PgProgramInfo.update({ lastBuildFailed: true });
+      throw emptySourceError(PROGRAM_FILE);
     }
 
     PgGlobal.update({ buildLoading: true });
@@ -55,18 +51,6 @@ export const build = createCmd({
     }
   },
 });
-
-/** The program file every Rust project builds from */
-const PROGRAM_FILE = "src/lib.rs";
-
-/**
- * `src/lib.rs` when it exists and holds nothing but whitespace, else `null`.
- * A Python project has no `lib.rs`, so it is never empty here.
- */
-const emptyProgramFile = () => {
-  const content = PgExplorer.getFileContent(PROGRAM_FILE);
-  return content !== undefined && content.trim() === "" ? PROGRAM_FILE : null;
-};
 
 /**
  * Compile the current project.

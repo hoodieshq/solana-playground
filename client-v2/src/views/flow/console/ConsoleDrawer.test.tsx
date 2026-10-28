@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PgCommon, PgTerminal } from "../../../utils";
 import type { FlowState, StageStatus } from "../state/stage";
@@ -61,15 +61,21 @@ vi.mock("../../sidebar/assistant/bridge/build-output", () => ({
 }));
 
 /** A flow before its first build, or with one running */
-const flowState = (build: StageStatus): FlowState => ({
+const flowState = (
+  build: StageStatus,
+  {
+    deploy = "upcoming",
+    buildStartedAt = build === "running" ? 1000 : null,
+  }: { deploy?: StageStatus; buildStartedAt?: number | null } = {}
+): FlowState => ({
   stage: "build",
   build,
   buildSettled: "upcoming",
-  deploy: "upcoming",
+  deploy,
   interact: "upcoming",
   buildErrorCount: 0,
   buildMs: null,
-  buildStartedAt: build === "running" ? 1000 : null,
+  buildStartedAt,
   buildFailure: null,
 });
 
@@ -151,17 +157,40 @@ it("should show the flow's status as it changes", () => {
   expect(screen.getByText(/^Building…/)).toBeTruthy();
 });
 
-it("should count a run's seconds on the strip", () => {
-  vi.useFakeTimers();
-  try {
-    render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
-    act(() => flow.listener!(flowState("running")));
-    act(() => vi.advanceTimersByTime(3_000));
+describe("the strip's clock", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
-    expect(screen.getByText("Building… \u00b7 3 s")).toBeTruthy();
-  } finally {
-    vi.useRealTimers();
-  }
+  it("should count a build from its own start, as the slow line does", () => {
+    render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
+    // Mounted 5 s into the run, as after a remount
+    act(() =>
+      flow.listener!(
+        flowState("running", { buildStartedAt: Date.now() - 5_000 })
+      )
+    );
+    expect(screen.getByText("Building… \u00b7 5 s")).toBeTruthy();
+
+    act(() => vi.advanceTimersByTime(3_000));
+    expect(screen.getByText("Building… \u00b7 8 s")).toBeTruthy();
+  });
+
+  it("should count a deploy from when the strip saw it start", () => {
+    render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
+    act(() => flow.listener!(flowState("done", { deploy: "running" })));
+    act(() => vi.advanceTimersByTime(2_000));
+
+    expect(screen.getByText("Deploying… \u00b7 2 s")).toBeTruthy();
+  });
+
+  it("should stop counting once the run is over", () => {
+    render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
+    act(() => flow.listener!(flowState("done", { deploy: "running" })));
+    act(() => flow.listener!(flowState("done", { deploy: "done" })));
+
+    expect(screen.getByText("Deployed")).toBeTruthy();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
 
 it.each([

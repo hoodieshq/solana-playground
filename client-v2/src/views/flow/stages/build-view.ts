@@ -96,7 +96,11 @@ export const diagnosticView = (
   };
 };
 
-/** Explain and Fix for one failure, `subject` quoted after the ask */
+/**
+ * Explain and Fix for one failure, `subject` quoted after the ask: after a
+ * space for a one-line diagnostic, on a line of its own for the compiler's
+ * whole output
+ */
 const askAbout = (
   subject: string,
   what: "error" | "failure",
@@ -113,7 +117,7 @@ const askAbout = (
 const unparsedView = (stderr: string): DiagnosticView => ({
   code: null,
   title: "The compiler stopped",
-  // Spec 08 BUILD-02
+  // Spec 08 BUILD-02's message
   explanation:
     "The compiler stopped with an error we can't read line by line. The compiler output is below.",
   label: null,

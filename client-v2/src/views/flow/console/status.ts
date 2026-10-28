@@ -2,6 +2,7 @@ import type { VariantProps } from "class-variance-authority";
 
 import type { statusDotVariants } from "@/shared/ui/status-dot";
 import { parseBuildReport } from "../stages/build-report";
+import { msLabel } from "../stages/build-view";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { FlowState } from "../state/stage";
 
@@ -25,10 +26,6 @@ export interface ConsoleStatus {
   text: string;
   tone: ConsoleStatusTone;
 }
-
-/** `flow.buildMs` as `3.4 s`, or `null` while it is unknown */
-const buildTime = (ms: number | null) =>
-  ms === null ? null : `${(ms / 1000).toFixed(1)} s`;
 
 /** A run's words, with its whole seconds so far when they are known */
 const running = (what: string, elapsedMs: number | null): ConsoleStatus => ({
@@ -77,7 +74,7 @@ export const describeConsoleStatus = (
     };
   }
   if (flow.build === "done") {
-    const time = buildTime(flow.buildMs);
+    const time = msLabel(flow.buildMs);
     return { text: time ? `Built in ${time}` : "Built", tone: "success" };
   }
   return { text: "", tone: "idle" };
