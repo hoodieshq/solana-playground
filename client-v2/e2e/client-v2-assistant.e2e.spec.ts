@@ -81,7 +81,9 @@ test("client-v2-assistant: A backend with an effort ladder", async ({
   await openProject(page, "effort-ladder");
 
   await page.getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+  await page
+    .getByRole("menuitem", { name: /Connect a model…|Connection and key…/ })
+    .click();
   await page.getByRole("radio", { name: "Anthropic" }).click();
   await page.locator("#assistant-api-key").fill("sk-ant-fake-key");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
@@ -288,7 +290,9 @@ test("client-v2-assistant: Stopping a turn is reported once", async ({
 /** Connect a model, opened from the head's More */
 const openConnect = async (page: Page) => {
   await page.getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+  await page
+    .getByRole("menuitem", { name: /Connect a model…|Connection and key…/ })
+    .click();
   const dialog = page.getByRole("dialog", { name: "Connect a model" });
   await expect(dialog).toBeVisible(LONG);
   return dialog;
@@ -338,7 +342,9 @@ test.describe("Connect a model", () => {
       const work = page.getByRole("region", { name: "Work" });
       await expect(work).toBeInViewport();
       await work.getByRole("button", { name: "More", exact: true }).click();
-      await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+      await page
+        .getByRole("menuitem", { name: /Connect a model…|Connection and key…/ })
+        .click();
       const dialog = page.getByRole("dialog", { name: "Connect a model" });
       await expect(dialog).toBeVisible(LONG);
 

@@ -319,7 +319,9 @@ test.describe("assistant-own-key", () => {
   }) => {
     await seedWorkspace(page, "own-key-change");
     await page.getByRole("button", { name: "More", exact: true }).click();
-    await page.getByRole("menuitem", { name: /Connect a model/ }).click();
+    await page
+      .getByRole("menuitem", { name: /Connect a model…|Connection and key…/ })
+      .click();
     const dialog = page.getByRole("dialog", { name: "Connect a model" });
     await expect(dialog.locator("#assistant-api-key")).toBeVisible(LONG);
 

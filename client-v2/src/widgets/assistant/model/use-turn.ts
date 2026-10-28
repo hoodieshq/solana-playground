@@ -95,6 +95,10 @@ export interface Turn {
   promptWaiting: boolean;
   /** Bumped whenever the composer's input should take focus */
   focusRequest: number;
+  /** The next message goes without the open file's content */
+  openFileLeftOut: boolean;
+  /** Leaves the open file's content out of the next message, whoever sends it */
+  leaveOutOpenFile(): void;
 }
 
 /**
@@ -147,6 +151,13 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   // the panel's job, not the conversation's: a notice item would outlive the
   // connect and be stored with the thread
   const [promptWaiting, setPromptWaiting] = useState(false);
+  const [openFileLeftOut, setOpenFileLeftOut] = useState(false);
+  // Read by `start`, which a requested prompt runs from an older render
+  const leftOut = useRef(false);
+  const leaveOutOpenFile = () => {
+    leftOut.current = true;
+    setOpenFileLeftOut(true);
+  };
 
   const provider = useRef<{
     connection: Connection;
@@ -326,13 +337,17 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     // Cleared only once the message is in: a store that throws leaves the
     // typed text where the user can send it again
     setInput("");
+    // For this message only: the file goes with the next one again
+    const context = { openFile: !leftOut.current };
+    leftOut.current = false;
+    setOpenFileLeftOut(false);
     const controller = new AbortController();
     turn.current = controller;
     PgAssistant.beginTurn(controller);
     PgAssistant.setStatus("running");
 
     try {
-      await instance.send(trimmed, controller.signal);
+      await instance.send(trimmed, controller.signal, context);
     } catch (e) {
       const cutReply = isNetworkFailure(e)
         ? PgAssistant.turnReplyWithText()
@@ -340,7 +355,9 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
       if (!controller.signal.aborted && cutReply) {
         // The reply keeps what it streamed and says it was cut off
         PgAssistant.markCutOff(cutReply);
-        log.warn(e, { context: { cutOff: true } });
+        log.warn("the connection dropped mid-reply", {
+          context: { error: e instanceof Error ? e.message : String(e) },
+        });
         assistantTelemetry.track("assistant_reply_failed", {
           reason: "interrupted",
         });
@@ -429,6 +446,12 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     };
     return PgAssistant.onDidRequestPrompt(
       (request) => {
+        // Nothing is sent, so no backend is needed: the prompt takes the
+        // composer and its focus whether or not one is connected
+        if (!request.send) {
+          place(request.text);
+          return;
+        }
         if (usableConnection()) {
           run(request);
           return;
@@ -457,7 +480,9 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
               run(request);
               return;
             }
-            setInput(request.text);
+            // Focused first, so Connect a model gives focus back to the
+            // composer holding the prompt when it closes
+            place(request.text);
             setPromptWaiting(true);
             openConnect("send");
           })
@@ -484,5 +509,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     openConnect,
     promptWaiting,
     focusRequest,
+    openFileLeftOut,
+    leaveOutOpenFile,
   };
 };

@@ -79,13 +79,18 @@ const anthropic: Connection = {
  * dialog opens on is `ConnectDialog`'s to test
  */
 const openConnect = vi.fn();
+const openSources = vi.fn();
 
 /** The composer with the turn held by its parent, as the widget holds it */
 function Harness() {
   const turn = useTurn({ open: openConnect });
   return (
     <TooltipProvider>
-      <AssistantComposer turn={turn} />
+      <AssistantComposer
+        turn={turn}
+        onSources={openSources}
+        focusPicked={() => false}
+      />
     </TooltipProvider>
   );
 }
@@ -116,11 +121,82 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   openConnect.mockReset();
+  openSources.mockReset();
   PgAssistant.disconnect();
   PgSession.reset();
   resetTelemetry();
   resetLogger();
   vi.restoreAllMocks();
+});
+
+describe("AssistantComposer, context chips", () => {
+  it("names each chip by what it sends", () => {
+    render(<Harness />);
+    expect(
+      screen.getByText("Sent with this message: lib.rs, the open file, in full")
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Sent with this message: the path of 1 file")
+    ).toBeTruthy();
+  });
+
+  it("leaves the open file out of the next message only, and reports it", async () => {
+    const send = vi.fn(() => Promise.resolve());
+    vi.spyOn(
+      await import("../../../views/sidebar/assistant/model"),
+      "createProvider"
+    ).mockReturnValue({ id: "anthropic", label: "stub", send });
+    render(<Harness />);
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Leave lib.rs out of the next message",
+      })
+    );
+
+    expect(screen.queryByText("lib.rs active")).toBeNull();
+    expect(tracked()).toEqual([["assistant_file_chip_removed", {}]]);
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Message the assistant" }),
+      "hi{Enter}"
+    );
+
+    expect(send).toHaveBeenCalledWith("hi", expect.anything(), {
+      openFile: false,
+    });
+    expect(await screen.findByText("lib.rs active")).toBeTruthy();
+  });
+});
+
+describe("AssistantComposer, the + menu", () => {
+  it("opens Sources and tools", async () => {
+    render(<Harness />);
+    const user = await openMenu(/Add context/);
+    await user.click(
+      screen.getByRole("menuitem", { name: /Sources and tools/ })
+    );
+    expect(openSources).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Connection and key… once connected, and opens Connect from +", async () => {
+    render(<Harness />);
+    const user = await openMenu(/Add context/);
+    await user.click(
+      screen.getByRole("menuitem", { name: /Connection and key…/ })
+    );
+    expect(openConnect).toHaveBeenCalledWith("add", undefined);
+  });
+
+  it("offers Connect a model… with nothing connected", async () => {
+    PgAssistant.disconnect();
+    render(<Harness />);
+    await openMenu(/Add context/);
+    expect(
+      screen.getByRole("menuitem", { name: /Connect a model…/ })
+    ).toBeTruthy();
+  });
 });
 
 describe("AssistantComposer, connected", () => {

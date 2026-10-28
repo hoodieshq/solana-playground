@@ -158,6 +158,20 @@ describe("useTurn", () => {
     await waitFor(() => expect(result.current.busy).toBe(false));
   });
 
+  it("sends the next message without the open file once it is left out, then with it again", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    const { result } = renderHook(() => useTestTurn());
+
+    act(() => result.current.leaveOutOpenFile());
+    expect(result.current.openFileLeftOut).toBe(true);
+    await act(() => result.current.send("first"));
+    expect(provider.send.mock.calls[0][2]).toEqual({ openFile: false });
+    expect(result.current.openFileLeftOut).toBe(false);
+
+    await act(() => result.current.send("second"));
+    expect(provider.send.mock.calls[1][2]).toEqual({ openFile: true });
+  });
+
   it("says Stopped once for two Stops before the turn unwinds", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     let unwind!: () => void;
@@ -377,6 +391,21 @@ describe("useTurn", () => {
 
     expect(result.current.input).toBe("Explain this error");
     expect(provider.send).not.toHaveBeenCalled();
+  });
+
+  it("puts a requested prompt in the composer and focuses it, with nothing connected", async () => {
+    const { result } = renderHook(() => useTestTurn());
+    const before = result.current.focusRequest;
+
+    act(() => PgAssistant.requestPrompt("Explain this error", { send: false }));
+
+    await waitFor(() =>
+      expect(result.current.input).toBe("Explain this error")
+    );
+    expect(result.current.focusRequest).toBeGreaterThan(before);
+    // Nothing is to be sent, so nothing asks for a backend
+    expect(open).not.toHaveBeenCalled();
+    expect(result.current.promptWaiting).toBe(false);
   });
 
   it("sends a requested prompt when connected", async () => {
