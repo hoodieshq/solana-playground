@@ -13,16 +13,19 @@ import {
   SyncOrAsync,
 } from "../../utils";
 import { checkWallet } from "../checks";
+import { StoppedError, throwIfStopped } from "../../utils/stopped";
 import { createCmd } from "../create";
 import { additionalProgramLen } from "./additional-len";
 import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
+import { deployStoppedLine } from "./stopped";
 
 export const deploy = createCmd({
   name: "deploy",
   description: "Deploy your program",
   preChecks: [checkWallet, checkProgram],
-  handle: async () => {
+  stoppable: true,
+  handle: async ({ signal }) => {
     switch (PgGlobal.deployState) {
       case "ready":
         PgGlobal.update({ deployState: "loading" });
@@ -46,7 +49,7 @@ export const deploy = createCmd({
 
     try {
       const startTime = performance.now();
-      await processDeploy();
+      await processDeploy(signal);
       const timePassed = (performance.now() - startTime) / 1000;
       PgTerminal.println(
         `${PgTerminal.success(
@@ -131,8 +134,13 @@ Your address: ${PgWallet.current!.publicKey}`);
   }
 }
 
-/** Deploy the current program. */
-const processDeploy = async () => {
+/**
+ * Deploy the current program.
+ *
+ * @param signal a stop ends the deploy before its first transaction, or
+ * between chunks of the write step; never inside the final deploy or upgrade
+ */
+const processDeploy = async (signal: AbortSignal) => {
   const programBytes =
     PgProgramInfo.importedProgram?.bytes ??
     (await PgServer.deploy(PgProgramInfo.uuid!));
@@ -152,6 +160,9 @@ const processDeploy = async () => {
       PgWeb3.BpfLoaderUpgradeableProgram.getBufferAccountSize(programLen)
     ),
   ]);
+
+  // The last point where a stop leaves nothing behind
+  throwIfStopped(signal, deployStoppedLine(null));
 
   // Get the balance required to deploy/upgrade (without fees)
   const programExists = PgProgramInfo.onChain!.deployed;
@@ -257,6 +268,7 @@ const processDeploy = async () => {
 
   // Load buffer
   const loadBufferResult = await loadBufferWithControl(
+    signal,
     bufferKp.publicKey,
     programBytes,
     {
@@ -284,6 +296,11 @@ const processDeploy = async () => {
     }
   );
   if (loadBufferResult.cancelled) {
+    // Stopped: no questions, the buffer stays and the line says so
+    if (signal.aborted) {
+      throw new StoppedError(deployStoppedLine(bufferKp.publicKey.toBase58()));
+    }
+
     const term = await PgTerminal.get();
     const shouldCloseBufferAccount = await term.waitForInput(
       `${PgTerminal.warning(
@@ -380,8 +397,13 @@ const getAdditionalLen = (programLen: number) => {
   });
 };
 
-/** Load buffer with the ability to pause, resume and cancel on demand. */
+/**
+ * Load buffer with the ability to pause, resume and cancel on demand, and to
+ * stop: a stop ends the write after the chunks in flight, answering an open
+ * "Continue deployment?" with no.
+ */
 const loadBufferWithControl = (
+  signal: AbortSignal,
   ...args: Parameters<typeof BpfLoaderUpgradeable["loadBuffer"]>
 ) => {
   return new Promise<
@@ -394,10 +416,18 @@ const loadBufferWithControl = (
         success: true;
       }
   >(async (res, rej) => {
+    if (signal.aborted) return res({ cancelled: true });
+
     const abortController = new AbortController();
     args[2] = { ...args[2], abortController };
 
     const term = await PgTerminal.get();
+    const stop = () => {
+      // Paused: the open question ends the load, as a "no" would
+      if (abortController.signal.aborted) term.executeFromStr("no");
+      else abortController.abort();
+    };
+    signal.addEventListener("abort", stop, { once: true });
     const handle = async () => {
       if (abortController.signal.aborted) {
         await term.executeFromStr("yes");
@@ -411,7 +441,7 @@ const loadBufferWithControl = (
 
         if (shouldContinue) {
           PgGlobal.update({ deployState: "loading" });
-          loadBufferWithControl(...args).then(res);
+          loadBufferWithControl(signal, ...args).then(res);
         } else {
           PgGlobal.update({ deployState: "cancelled" });
           res({ cancelled: true });
@@ -432,11 +462,16 @@ const loadBufferWithControl = (
 
     try {
       await BpfLoaderUpgradeable.loadBuffer(...args);
-      if (!abortController.signal.aborted) res({ success: true });
+      if (signal.aborted) res({ cancelled: true });
+      else if (!abortController.signal.aborted) res({ success: true });
     } catch (e) {
-      if (!abortController.signal.aborted) rej(e);
+      if (signal.aborted) res({ cancelled: true });
+      else if (!abortController.signal.aborted) rej(e);
     } finally {
-      if (!abortController.signal.aborted) dispose();
+      if (signal.aborted || !abortController.signal.aborted) {
+        signal.removeEventListener("abort", stop);
+        dispose();
+      }
     }
   });
 };

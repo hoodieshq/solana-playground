@@ -50,7 +50,7 @@ const running = (what: string, elapsedMs: number | null): ConsoleStatus => ({
  * on every tick of a run.
  *
  * Precedence (most recent/relevant first): a run in progress, then a
- * deploy result (it is always newer than the build that unlocked it), then
+ * stop, then a deploy result (it is always newer than the build that unlocked it), then
  * the last build's result, then nothing before the first build.
  */
 export const describeConsoleStatus = (
@@ -59,6 +59,11 @@ export const describeConsoleStatus = (
 ): ConsoleStatus => {
   if (flow.build === "running") return running("Building…", elapsedMs);
   if (flow.deploy === "running") return running("Deploying…", elapsedMs);
+  // A stop is newer than any result, and shows none (Spec 13)
+  if (flow.stopped === "build") return { text: "Build stopped", tone: "idle" };
+  if (flow.stopped === "deploy") {
+    return { text: "Deploy stopped", tone: "idle" };
+  }
   if (flow.deploy === "failed") {
     return { text: "Deploy failed", tone: "error" };
   }
@@ -78,4 +83,15 @@ export const describeConsoleStatus = (
     return { text: time ? `Built in ${time}` : "Built", tone: "success" };
   }
   return { text: "", tone: "idle" };
+};
+
+/**
+ * Which run the strip's Stop would stop, or `null` while nothing runs. A
+ * build inside a deploy (deploy builds first) is the build: it is what the
+ * strip says is running.
+ */
+export const runToStop = (flow: FlowState): "build" | "deploy" | null => {
+  if (flow.build === "running") return "build";
+  if (flow.deploy === "running") return "deploy";
+  return null;
 };

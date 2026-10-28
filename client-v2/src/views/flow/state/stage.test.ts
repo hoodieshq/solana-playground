@@ -32,6 +32,7 @@ vi.mock("../../../utils", () => ({
 }));
 
 import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
+import { StoppedError } from "../../../utils/stopped";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 
 /** The mocked build-output module, in the shape the factory above gives it:
@@ -54,6 +55,8 @@ describe("PgFlow.reduce", () => {
       buildMs: null,
       buildStartedAt: null,
       buildFailure: null,
+      deployBeforeRun: null,
+      stopped: null,
     });
   });
 
@@ -177,6 +180,68 @@ describe("PgFlow.reduce", () => {
   });
 });
 
+// Spec 13: a stopped run shows no result; the stage goes back to where it was
+describe("PgFlow.reduce, a stopped run", () => {
+  const builtOnce = () =>
+    PgFlow.reduce(
+      PgFlow.reduce(INITIAL_FLOW_STATE, { type: "build-start", at: 1 }),
+      {
+        type: "build-finish",
+        failed: false,
+        errorCount: 0,
+        ms: 3000,
+      }
+    );
+
+  it("a stopped build goes back to the last settled build", () => {
+    const rebuilding = PgFlow.reduce(builtOnce(), {
+      type: "build-start",
+      at: 9,
+    });
+
+    const s = PgFlow.reduce(rebuilding, { type: "build-stop" });
+
+    expect(s.build).toBe("done");
+    expect(s.buildMs).toBe(3000);
+    expect(s.stopped).toBe("build");
+  });
+
+  it("a stopped first build goes back to upcoming", () => {
+    const building = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "build-start",
+      at: 1,
+    });
+
+    const s = PgFlow.reduce(building, { type: "build-stop" });
+
+    expect(s.build).toBe("upcoming");
+    expect(s.buildFailure).toBeNull();
+  });
+
+  it("a stopped deploy goes back to what Deploy showed before it", () => {
+    const deploying = PgFlow.reduce(builtOnce(), { type: "deploy-start" });
+    expect(deploying.deploy).toBe("running");
+
+    const s = PgFlow.reduce(deploying, { type: "deploy-stop" });
+
+    expect(s.deploy).toBe("active");
+    expect(s.interact).toBe("upcoming");
+    expect(s.stopped).toBe("deploy");
+  });
+
+  it("the next run clears the stop", () => {
+    const stopped = PgFlow.reduce(
+      PgFlow.reduce(builtOnce(), { type: "build-start", at: 9 }),
+      { type: "build-stop" }
+    );
+
+    expect(
+      PgFlow.reduce(stopped, { type: "build-start", at: 10 }).stopped
+    ).toBeNull();
+    expect(PgFlow.reduce(stopped, { type: "deploy-start" }).stopped).toBeNull();
+  });
+});
+
 describe("countErrors", () => {
   it("counts real diagnostics, not the summary lines", async () => {
     // The factory's identity function: `mockReset` (see `vitest.config.ts`)
@@ -206,6 +271,54 @@ describe("PgFlow.init wiring", () => {
     vi.mocked(PgProgramInfo.onDidChangeOnChain).mockReturnValue({
       dispose: vi.fn(),
     });
+  });
+
+  it("maps a stopped build or deploy to a stop, not a failure", async () => {
+    const { PgCommand, PgExplorer, PgGlobal } = await import("../../../utils");
+    PgGlobal.deployState = "ready";
+    const buildOutputModule = await mockedBuildOutput();
+    buildOutputModule.PgBuildOutput.latest = null;
+    const capture = <T>(mock: Mock) => {
+      const box: { cb?: T } = {};
+      mock.mockImplementationOnce((cb: T) => {
+        box.cb = cb;
+        return { dispose: vi.fn() };
+      });
+      return box;
+    };
+    const buildStart = capture<(input: null) => void>(
+      vi.mocked(PgCommand.build.onDidStart)
+    );
+    vi.mocked(buildOutputModule.PgBuildOutput.onDidChange).mockReturnValueOnce({
+      dispose: vi.fn(),
+    });
+    const buildFinish = capture<(r: { err: unknown }) => void>(
+      vi.mocked(PgCommand.build.onDidFinish)
+    );
+    const deployStart = capture<(input: null) => void>(
+      vi.mocked(PgCommand.deploy.onDidStart)
+    );
+    const deployFinish = capture<(r: { err: unknown }) => void>(
+      vi.mocked(PgCommand.deploy.onDidFinish)
+    );
+    vi.mocked(PgExplorer.onDidSwitchWorkspace).mockReturnValueOnce({
+      dispose: vi.fn(),
+    });
+
+    const sub = PgFlow.init();
+
+    buildStart.cb!(null);
+    buildFinish.cb!({ err: new StoppedError("Stopped. Nothing was built.") });
+    expect(PgFlow.state.build).not.toBe("failed");
+    expect(PgFlow.state.build).not.toBe("running");
+    expect(PgFlow.state.stopped).toBe("build");
+
+    deployStart.cb!(null);
+    deployFinish.cb!({ err: new StoppedError("Stopped.") });
+    expect(PgFlow.state.deploy).not.toBe("failed");
+    expect(PgFlow.state.stopped).toBe("deploy");
+
+    sub.dispose();
   });
 
   it("deploy-finish detects success and failure via result shape", async () => {

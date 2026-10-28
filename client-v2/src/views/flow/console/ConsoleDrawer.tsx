@@ -3,12 +3,12 @@ import { useEffect, useReducer, useState } from "react";
 
 import { createLogger } from "../../../shared/lib/logger";
 import { CONSOLE_KEY, keyLabel } from "../../../widgets/layout-shell";
-import { PgCommon, PgTerminal } from "../../../utils";
+import { PgCommandManager, PgCommon, PgTerminal } from "../../../utils";
 import Terminal from "../../main/secondary/terminal/Component/Terminal";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { PgFlow } from "../state/stage";
 import BaseConsoleDrawer from "./BaseConsoleDrawer";
-import { describeConsoleStatus } from "./status";
+import { describeConsoleStatus, runToStop } from "./status";
 
 const log = createLogger("flow:console");
 
@@ -93,6 +93,8 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
       status={status}
       shortcut={keyLabel(CONSOLE_KEY, PgCommon.getOS())}
       onClear={clear}
+      onStop={() => PgCommandManager.stop()}
+      running={runToStop(flow)}
     >
       <Terminal />
     </BaseConsoleDrawer>

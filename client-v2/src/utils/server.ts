@@ -38,9 +38,10 @@ export class PgServer {
    * Build the program files.
    *
    * @param req build request
+   * @param opts.signal aborts the request
    * @returns the build response
    */
-  static async build(req: BuildRequest) {
+  static async build(req: BuildRequest, opts?: { signal?: AbortSignal }) {
     interface BuildResponse {
       /** Build output */
       stderr: string;
@@ -53,6 +54,7 @@ export class PgServer {
     const response = await this._send("/build", {
       post: { body: JSON.stringify(req) },
       unstable: PgSettings.experimental.unstable,
+      signal: opts?.signal,
     });
     return (await response.json()) as BuildResponse;
   }
@@ -122,9 +124,10 @@ export class PgServer {
       post?: { body: string };
       useDbServer?: boolean;
       unstable?: boolean;
+      signal?: AbortSignal;
     }
   ) {
-    const requestInit: RequestInit = {};
+    const requestInit: RequestInit = { signal: opts?.signal };
     if (!opts?.cache) requestInit.cache = "no-store";
 
     if (opts?.post) {

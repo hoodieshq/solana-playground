@@ -2,6 +2,15 @@ import { PgCommon } from "./common";
 import { PgTerminal } from "./terminal";
 import type { Arrayable, Disposable, Getable, SyncOrAsync } from "./types";
 
+/** A command run in flight, for `PgCommandManager.stop` */
+interface Run {
+  /** Name of the top-level command */
+  name: string;
+  /** Whether the handler running now honours its signal */
+  stoppable: boolean;
+  controller: AbortController;
+}
+
 /** Terminal command creation parameter */
 export type CommandParam<
   N extends string,
@@ -16,6 +25,12 @@ export type CommandParam<
   description: string;
   /* Only process the command if the condition passes */
   preChecks?: Arrayable<() => SyncOrAsync<void>>;
+  /**
+   * Whether the handler honours its input's `signal`: a stop (Ctrl+C, the
+   * console strip's Stop) aborts it, and the handler ends with a
+   * `StoppedError`. Any other command answers a stop with "can't be stopped".
+   */
+  stoppable?: true;
 } & (WithSubcommands<S> | WithHandle<A, O, R>);
 
 type WithSubcommands<S> = {
@@ -47,6 +62,8 @@ type ParsedInput<A, O> = {
   args: ParsedArgs<A>;
   /** Parsed options */
   options: ParsedOptions<O>;
+  /** Aborted when the person stops the run (see `stoppable`) */
+  signal: AbortSignal;
 };
 
 /** Recursively map argument types */
@@ -308,6 +325,13 @@ export class PgCommandManager {
 
       const input = tokens.join(" ");
 
+      const run: Run = {
+        name: topCmd.name,
+        stoppable: false,
+        controller: new AbortController(),
+      };
+      PgCommandManager._runs.add(run);
+
       // Dispatch start event
       const eventNames = PgCommandManager._getEventNames(topCmd.name);
       PgCommon.createAndDispatchCustomEvent(eventNames.start, input);
@@ -543,10 +567,12 @@ Available subcommands: ${cmd.subcommands.map((cmd) => cmd.name).join(", ")}`
           }
 
           // Run the command processor
+          run.stoppable = !!cmd.stoppable;
           const ret = await cmd.handle({
             raw: input,
             args: parsedArgs,
             options: parsedOpts,
+            signal: run.controller.signal,
           });
           result = { ok: ret };
           return ret;
@@ -555,12 +581,45 @@ Available subcommands: ${cmd.subcommands.map((cmd) => cmd.name).join(", ")}`
         result = { err: e };
         throw e;
       } finally {
+        PgCommandManager._runs.delete(run);
         if (result) {
           PgCommon.createAndDispatchCustomEvent(eventNames.finish, result);
         }
       }
     });
   }
+
+  /**
+   * Stop the runs in flight: Ctrl+C in the terminal and the console strip's
+   * Stop. A run of a `stoppable` command has its signal aborted and ends with
+   * a `StoppedError` at its next safe point; a run that cannot stop goes on,
+   * and the terminal says so. Several runs are in flight when one starts
+   * another (deploy builds first), and all of them stop.
+   *
+   * @returns whether a run was asked to stop
+   */
+  static stop() {
+    const runs = [...PgCommandManager._runs];
+    const last = runs.at(-1);
+    if (!last) return false;
+
+    const stoppable = runs.filter(
+      (run) => run.stoppable && !run.controller.signal.aborted
+    );
+    if (!stoppable.length) {
+      PgTerminal.println(
+        `^C\n\`${last.name}\` can't be stopped. Wait for it to finish.`
+      );
+      return false;
+    }
+
+    PgTerminal.println("^C");
+    for (const run of stoppable) run.controller.abort();
+    return true;
+  }
+
+  /** Runs in flight, oldest first */
+  private static readonly _runs = new Set<Run>();
 
   /**
    * Runs after the command starts execution.

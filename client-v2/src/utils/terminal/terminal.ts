@@ -7,6 +7,7 @@ import { PgHistory } from "./history";
 import { PgShell } from "./shell";
 import { PgTty } from "./tty";
 import { PgCommon } from "../common";
+import { isStopped } from "../stopped";
 import { createLogger } from "@/shared/lib/logger";
 import {
   markFailureShown,
@@ -158,7 +159,8 @@ export class PgTerminal {
       // time. Only while the console is open: printed into a folded one, the
       // user saw nothing here, so the button's toast tells them, unless the
       // place they clicked shows it itself (`toldByStage`)
-      if (PgTerminal._consoleOpen) markFailureShown(e);
+      // A stop is the person's own request and never a failure to toast
+      if (PgTerminal._consoleOpen || isStopped(e)) markFailureShown(e);
       throw e;
     }
   }
@@ -679,7 +681,10 @@ export class PgTerm {
       // The previous line is not available until the next event loop
       await PgCommon.sleep(0);
 
-      const msg = `Process error: ${e?.message ? e.message : e}`;
+      // A stop says what it stopped and what it left, as a plain line
+      const msg = isStopped(e)
+        ? e.message
+        : `Process error: ${e?.message ? e.message : e}`;
       const previousLine = this._tty.getLine(1)?.translateToString().trim();
       if (previousLine !== msg) this.println(msg);
 

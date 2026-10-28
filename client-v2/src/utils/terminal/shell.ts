@@ -159,8 +159,14 @@ export class PgShell {
 
   /** Handle terminal -> tty input. */
   handleTermData = (data: string) => {
-    // Only Allow CTRL+C through
-    if (!this.isPrompting() && data !== "\x03") return;
+    // While a command runs, only Ctrl+C gets through, and it stops the
+    // command. It must not reach the prompt bookkeeping below: read from an
+    // empty line, the prompt prefix would become "", and every line would
+    // then look like a prompt, so none came back after the command
+    if (!this.isPrompting()) {
+      if (data === "\x03") this._cmdManager.stop();
+      return;
+    }
 
     if (this._tty.firstInit && this._activePrompt) {
       const line = this._tty.getLine();
@@ -467,8 +473,8 @@ export class PgShell {
           this._handleCursorMove(-1);
           break;
 
-        // TODO: implement stopping commands
-        // case "\x03": // CTRL+C
+        // CTRL+C stops a running command in `handleTermData`; at a prompt
+        // it does nothing (a question asked mid-command is answered)
 
         case "\x05": // CTRL+E
           this._tty.setCursor(this._tty.input.length);

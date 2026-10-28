@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PgCommandManager } from "./command";
+import { isStopped, StoppedError } from "./stopped";
 import { PgTerminal } from "./terminal";
 
 let saved: typeof PgCommandManager.all;
@@ -24,12 +25,21 @@ afterEach(() => {
 const install = ({
   preChecks,
   handle,
+  stoppable,
 }: {
   preChecks?: () => void;
-  handle: () => unknown;
+  handle: (input: { signal: AbortSignal }) => unknown;
+  stoppable?: true;
 }) => {
   PgCommandManager.all = {
-    probe: { name: "probe", description: "", options: [], preChecks, handle },
+    probe: {
+      name: "probe",
+      description: "",
+      options: [],
+      preChecks,
+      handle,
+      stoppable,
+    },
   } as never;
 };
 
@@ -81,5 +91,57 @@ describe("PgCommandManager.execute", () => {
 
     dispose();
     expect(seen).toEqual([{ err: failure }]);
+  });
+});
+
+describe("PgCommandManager.stop", () => {
+  /** A handler that waits until its run is stopped, then throws as build does */
+  const untilStopped = ({ signal }: { signal: AbortSignal }) =>
+    new Promise((_, rej) =>
+      signal.addEventListener("abort", () =>
+        rej(new StoppedError("Stopped. Nothing was built."))
+      )
+    );
+
+  it("does nothing when no command runs", () => {
+    const println = vi.spyOn(PgTerminal, "println").mockResolvedValue();
+
+    expect(PgCommandManager.stop()).toBe(false);
+    expect(println).not.toHaveBeenCalled();
+  });
+
+  it("aborts a stoppable run, which finishes with the stop", async () => {
+    const println = vi.spyOn(PgTerminal, "println").mockResolvedValue();
+    install({ handle: untilStopped, stoppable: true });
+    const { seen, dispose } = finishes();
+
+    const run = PgCommandManager.execute(["probe"]);
+    await Promise.resolve();
+    expect(PgCommandManager.stop()).toBe(true);
+
+    const err = await run.catch((e: unknown) => e);
+    dispose();
+    expect(isStopped(err)).toBe(true);
+    expect(println).toHaveBeenCalledWith("^C");
+    expect(seen).toEqual([{ err }]);
+  });
+
+  it("says a run that cannot stop goes on", async () => {
+    const println = vi.spyOn(PgTerminal, "println").mockResolvedValue();
+    let finish = () => {};
+    install({
+      handle: () => new Promise<void>((res) => (finish = res)),
+    });
+
+    const run = PgCommandManager.execute(["probe"]);
+    await Promise.resolve();
+    expect(PgCommandManager.stop()).toBe(false);
+    expect(println).toHaveBeenCalledWith(
+      "^C\n`probe` can't be stopped. Wait for it to finish."
+    );
+
+    finish();
+    await expect(run).resolves.toBeUndefined();
+    expect(PgCommandManager.stop()).toBe(false);
   });
 });

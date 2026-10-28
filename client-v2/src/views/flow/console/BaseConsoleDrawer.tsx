@@ -21,6 +21,10 @@ interface BaseConsoleDrawerProps {
   /** The state the drawer asks for, which may be the one it is in */
   onOpenChange: (open: boolean) => void;
   onClear: () => void;
+  /** Stops the run in flight; offered in Clear's place while one runs */
+  onStop: () => void;
+  /** What runs now, for Stop's name, or `null` */
+  running: "build" | "deploy" | null;
   status: ConsoleStatus;
   /** The toggle's key: "⌘J" on a Mac, "Ctrl+J" elsewhere */
   shortcut: string;
@@ -39,6 +43,8 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
   open,
   onOpenChange,
   onClear,
+  onStop,
+  running,
   status,
   shortcut,
   children,
@@ -67,7 +73,20 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
       </ConsoleDrawerStatus>
       <ConsoleDrawerActions>
         <Kbd aria-hidden>{shortcut}</Kbd>
-        {open && (
+        {/* Spec 13: Stop takes Clear's place while a command runs, and
+            shows folded too, since the strip is all a folded console shows */}
+        {running && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            aria-label={`Stop ${running}`}
+            onClick={onStop}
+          >
+            Stop
+          </Button>
+        )}
+        {open && !running && (
           <Button type="button" variant="ghost" size="xs" onClick={onClear}>
             Clear
           </Button>
