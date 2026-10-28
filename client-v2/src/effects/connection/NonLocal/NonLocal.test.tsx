@@ -1,6 +1,6 @@
 // The "Switch to localnet?" toast: each answer does something.
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ThemeProvider } from "styled-components";
+import { DefaultTheme, ThemeProvider } from "styled-components";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -25,7 +25,7 @@ import { NonLocal } from "./NonLocal";
 const THEME = {
   colors: { default: { textSecondary: "gray" } },
   font: { code: { size: { small: "12px" } } },
-};
+} as unknown as DefaultTheme;
 
 const renderToast = () =>
   render(
