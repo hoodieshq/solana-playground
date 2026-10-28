@@ -3,6 +3,9 @@ import type { Idl } from "@coral-xyz/anchor";
 import { PgCommon } from "./common";
 import { PgSettings } from "./settings";
 import type { TupleFiles } from "./explorer";
+import { PgServerError } from "./server-error";
+
+export { PgServerError };
 
 /** Rust `Option` type */
 type Option<T> = T | null;
@@ -138,16 +141,20 @@ export class PgServer {
       : PgSettings.server.endpoint;
     if (opts?.unstable) path = PgCommon.joinPaths("unstable", path);
     const requestUrl = PgCommon.joinPaths(serverUrl, path);
+    let response: Response;
     try {
-      const response = await fetch(requestUrl, requestInit);
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message);
-      }
-
-      return response;
+      response = await fetch(requestUrl, requestInit);
     } catch (e: any) {
-      throw new Error(`Server request failed (${requestUrl}): ${e?.message}`);
+      throw new PgServerError(requestUrl, null, e?.message);
     }
+    if (!response.ok) {
+      throw new PgServerError(
+        requestUrl,
+        response.status,
+        await response.text()
+      );
+    }
+
+    return response;
   }
 }

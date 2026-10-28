@@ -1,4 +1,4 @@
-import { PgServer } from "./server";
+import { PgServer, PgServerError } from "./server";
 
 const settings = {
   server: { endpoint: "http://server.test" },
@@ -79,5 +79,33 @@ describe("the unstable switch", () => {
     respond("share-id");
     await PgServer.shareNew({ explorer: { files: {} } });
     expect(requestedUrl()).toBe("http://server.test/new");
+  });
+});
+
+describe("PgServer failures", () => {
+  it("keeps the status and body of a refused request", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => "Program is not built",
+    });
+
+    const error = await PgServer.deploy("gone").catch((e) => e);
+
+    expect(error).toBeInstanceOf(PgServerError);
+    expect(error.status).toBe(500);
+    expect(error.body).toBe("Program is not built");
+    expect(error.message).toBe(
+      "Server request failed (http://server.test/deploy/gone): Program is not built"
+    );
+  });
+
+  it("has no status when the request never got an answer", async () => {
+    mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const error = await PgServer.deploy("x").catch((e) => e);
+
+    expect(error).toBeInstanceOf(PgServerError);
+    expect(error.status).toBeNull();
   });
 });
