@@ -100,7 +100,8 @@ SHALL reject:
 ### Requirement: The loader lists a definition beside the other tutorials
 
 The catalog SHALL list each valid definition beside upstream's tutorials, with
-its level, framework, thumbnail and minutes. The card's progress SHALL read
+its thumbnail, description and the meta line "<level> · <framework>". The
+minutes and the step count show on the intro card, not on the catalog card. The card's progress SHALL read
 "<passed> of <m>" beside the name while it is started, and show a check once
 the finish card has shown. Opening a tutorial with a definition SHALL open the conversation. A
 tutorial without one SHALL open upstream's pages, unchanged. A definition that

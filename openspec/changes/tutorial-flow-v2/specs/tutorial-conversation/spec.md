@@ -27,6 +27,8 @@ The words "start", "begin" or "go" typed in the composer SHALL start as well.
 On Start the intro SHALL leave the feed, and the first step's divider SHALL
 appear. The workspace SHALL swap the preview for the step's start files.
 There SHALL be no separate About page, Lesson tab or Assistant tab.
+While the tutorial loads, the chat column SHALL show one spinner, with no
+skeleton of the column.
 
 #### Scenario: Starting Hello Anchor
 
