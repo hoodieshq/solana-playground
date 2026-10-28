@@ -1081,9 +1081,7 @@ describe("on a phone", () => {
     expect(
       document.querySelector('[data-slot="sheet-content"]')
     ).not.toBeNull();
-    expect(toggled()).toEqual([
-      { panel: "files", open: true, via: "button" },
-    ]);
+    expect(toggled()).toEqual([{ panel: "files", open: true, via: "button" }]);
   });
 
   it("writes nothing to the saved layout on a visit", () => {
