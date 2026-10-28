@@ -31,13 +31,13 @@ export interface FlowState {
 
 /**
  * A build that failed before the compiler said anything: `no-answer` when the
- * build server never replied (Spec 08's BUILD-04), `other` for anything else
- * (ANY-00). `message` is the command's own error, for the details.
+ * build server never replied (Spec 08's BUILD-04), `empty-source` when the
+ * program file was empty and nothing was sent (Spec 09), `other` for anything
+ * else (ANY-00). `message` is the command's own error, for the details.
  */
-export interface BuildFailure {
-  kind: "no-answer" | "other";
-  message: string;
-}
+export type BuildFailure =
+  | { kind: "no-answer" | "other"; message: string }
+  | { kind: "empty-source"; message: string; file: string };
 
 export type FlowEvent =
   | { type: "build-start"; at: number }
@@ -95,19 +95,22 @@ export const countErrors = (stderr: string) =>
     }).length;
 
 /**
- * What a `build` command's rejection says about the server. By shape, not
- * `instanceof PgServerRequestError`: the flow's tests stand the utils barrel
- * in with a mock.
+ * What a `build` command's rejection says: about the server, or about an
+ * empty program file it never sent. By shape, not `instanceof
+ * PgServerRequestError`: the flow's tests stand the utils barrel in with a
+ * mock.
  */
 const buildFailureOf = (err: unknown): BuildFailure => {
-  const { answered, message } = (err ?? {}) as {
+  const { answered, emptyFile, message } = (err ?? {}) as {
     answered?: unknown;
+    emptyFile?: unknown;
     message?: unknown;
   };
-  return {
-    kind: answered === false ? "no-answer" : "other",
-    message: typeof message === "string" ? message : String(err),
-  };
+  const text = typeof message === "string" ? message : String(err);
+  if (typeof emptyFile === "string") {
+    return { kind: "empty-source", message: text, file: emptyFile };
+  }
+  return { kind: answered === false ? "no-answer" : "other", message: text };
 };
 
 /**

@@ -18,6 +18,19 @@ export const build = createCmd({
   name: "build",
   description: "Build your program",
   handle: async () => {
+    // Spec 09: an empty program file is named, and nothing goes to the server
+    const empty = emptyProgramFile();
+    if (empty) {
+      throw Object.assign(
+        new Error(
+          `${PgExplorer.getItemNameFromPath(
+            empty
+          )} is empty. Write a program, or ask the assistant for one.`
+        ),
+        { emptyFile: empty }
+      );
+    }
+
     PgGlobal.update({ buildLoading: true });
     PgTerminal.println(PgTerminal.info("Building..."));
 
@@ -42,6 +55,18 @@ export const build = createCmd({
     }
   },
 });
+
+/** The program file every Rust project builds from */
+const PROGRAM_FILE = "src/lib.rs";
+
+/**
+ * `src/lib.rs` when it exists and holds nothing but whitespace, else `null`.
+ * A Python project has no `lib.rs`, so it is never empty here.
+ */
+const emptyProgramFile = () => {
+  const content = PgExplorer.getFileContent(PROGRAM_FILE);
+  return content !== undefined && content.trim() === "" ? PROGRAM_FILE : null;
+};
 
 /**
  * Compile the current project.

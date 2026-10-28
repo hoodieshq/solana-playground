@@ -144,11 +144,24 @@ it("should toggle on a request for the other state only", () => {
 
 it("should show the flow's status as it changes", () => {
   render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
-  expect(screen.queryByText("building...")).toBeNull();
+  expect(screen.queryByText(/Building/)).toBeNull();
 
   act(() => flow.listener!(flowState("running")));
 
-  expect(screen.getByText("building...")).toBeTruthy();
+  expect(screen.getByText(/^Building…/)).toBeTruthy();
+});
+
+it("should count a run's seconds on the strip", () => {
+  vi.useFakeTimers();
+  try {
+    render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
+    act(() => flow.listener!(flowState("running")));
+    act(() => vi.advanceTimersByTime(3_000));
+
+    expect(screen.getByText("Building… \u00b7 3 s")).toBeTruthy();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it.each([
