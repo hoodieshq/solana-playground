@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { FrownIcon, InfoIcon } from "lucide-react";
-import styled, { css } from "styled-components";
 
 import {
   Collapsible,
@@ -31,13 +30,13 @@ export const Local = () => {
         <CalloutDescription>Unable to connect to localnet</CalloutDescription>
       </Callout>
 
-      <Content>
-        <ContentTitle>How to connect</ContentTitle>
-        <ContentDescription>
+      <div className="pt-4 pb-2">
+        <div className="text-[0.875rem] font-bold">How to connect</div>
+        <div className="mt-2 text-[0.75rem] text-[var(--text-secondary)]">
           Here are the steps for connecting to localnet from playground.
-        </ContentDescription>
+        </div>
 
-        <MarkdownSteps codeFontOnly>
+        <Markdown className="mt-6" codeFontOnly>
           {require("./steps.md")
             .replace("<OS_NAME>", PgCommon.getOS() ?? "Other")
             .replace(
@@ -46,34 +45,13 @@ export const Local = () => {
                 ? require("./install-windows.md")
                 : require("./install-unix.md")
             )}
-        </MarkdownSteps>
+        </Markdown>
 
         <Issues />
-      </Content>
+      </div>
     </ModalFrame>
   );
 };
-
-const Content = styled.div`
-  padding: 1rem 0 0.5rem;
-`;
-
-const ContentTitle = styled.div`
-  font-weight: bold;
-  font-size: ${({ theme }) => theme.font.code.size.large};
-`;
-
-const ContentDescription = styled.div`
-  ${({ theme }) => css`
-    margin-top: 0.5rem;
-    color: ${theme.colors.default.textSecondary};
-    font-size: ${theme.font.code.size.small};
-  `}
-`;
-
-const MarkdownSteps = styled(Markdown)`
-  margin-top: 1.5rem;
-`;
 
 const Issues = () => {
   const browser = PgCommon.getBrowser();
