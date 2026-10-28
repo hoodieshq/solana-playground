@@ -4,6 +4,7 @@ import { useRenderOnChange } from "../../../hooks/useRenderOnChange";
 import { PgCommand } from "../../../utils/command";
 import { describeLesson } from "../../../views/sidebar/assistant/bridge/lesson-context";
 import {
+  isStoppedNotice,
   PgAssistant,
   turnAppliedApproval,
   turnProducedApproval,
@@ -170,6 +171,27 @@ export const Thread = ({
     };
   };
 
+  // Try again sends the last message once more, from the thread's last item
+  // only, and only when that item is where a turn was stopped or cut off
+  const lastSent = items.findLast((item) => item.kind === "user");
+  const retryAfter = (): "stopped" | "interrupted" | null => {
+    if (busy || !lastItem || lastSent?.kind !== "user") return null;
+    if (isStoppedNotice(lastItem)) return "stopped";
+    if (PgAssistant.isCutOff(lastItem)) return "interrupted";
+    return null;
+  };
+  const after = retryAfter();
+  const retryFor = (id: string) => {
+    if (!after || id !== lastItem?.id || lastSent?.kind !== "user") {
+      return undefined;
+    }
+    const text = lastSent.text;
+    return () => {
+      assistantTelemetry.track("assistant_reply_retried", { after });
+      send(text);
+    };
+  };
+
   // Cover the silent gaps: before the first token and while tools run.
   // Once text streams into the last assistant item the marker comes down.
   const working =
@@ -191,6 +213,8 @@ export const Thread = ({
       actionsFor={actionsFor}
       onAnswer={onAnswer}
       undoFor={undoFor}
+      isCutOff={(item) => PgAssistant.isCutOff(item)}
+      retryFor={retryFor}
     />
   );
 };

@@ -207,6 +207,58 @@ describe("Thread, undo", () => {
   });
 });
 
+describe("Thread, try again", () => {
+  const stopped = () => {
+    PgAssistant.addUserMessage("What does this program do?");
+    const id = PgAssistant.startAssistantMessage();
+    PgAssistant.appendToAssistantMessage(id, "The program");
+    PgAssistant.addNotice("Stopped.");
+  };
+
+  it("after Stop sends the last message again and reports it", () => {
+    stopped();
+    const send = vi.fn();
+    render(<Thread turn={stubTurn(false, send)} project="Counter" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(send).toHaveBeenCalledWith("What does this program do?");
+    expect(tracked()).toEqual([
+      ["assistant_reply_retried", { after: "stopped" }],
+    ]);
+  });
+
+  it("after a cut-off reply sends the last message again", () => {
+    PgAssistant.addUserMessage("What does this program do?");
+    const id = PgAssistant.startAssistantMessage();
+    PgAssistant.appendToAssistantMessage(id, "The program");
+    PgAssistant.markCutOff(id);
+    const send = vi.fn();
+    render(<Thread turn={stubTurn(false, send)} project="Counter" />);
+
+    expect(screen.getByText("This reply was cut off.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(send).toHaveBeenCalledWith("What does this program do?");
+    expect(tracked()).toEqual([
+      ["assistant_reply_retried", { after: "interrupted" }],
+    ]);
+  });
+
+  it("is not offered while a turn runs", () => {
+    stopped();
+    render(<Thread turn={stubTurn(true)} project="Counter" />);
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
+  it("is not offered once the conversation moved on", () => {
+    stopped();
+    PgAssistant.addUserMessage("Something else");
+    render(<Thread turn={stubTurn(false)} project="Counter" />);
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+});
+
 describe("Thread, the working marker", () => {
   const marker = () =>
     screen.queryByRole("status", { name: "Assistant is working" });

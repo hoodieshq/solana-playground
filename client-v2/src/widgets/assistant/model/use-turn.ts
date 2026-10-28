@@ -11,7 +11,10 @@ import {
   rememberedConnection,
 } from "../../../views/sidebar/assistant/model/remembered-backend";
 import type { Provider } from "../../../views/sidebar/assistant/model/types";
-import { PgAssistant } from "../../../views/sidebar/assistant/store";
+import {
+  PgAssistant,
+  STOPPED_NOTICE,
+} from "../../../views/sidebar/assistant/store";
 import type {
   Connection,
   PromptRequest,
@@ -39,6 +42,13 @@ const isAbort = (error: unknown) =>
   error !== null &&
   "name" in error &&
   error.name === "AbortError";
+
+/**
+ * What `fetch`, and a stream it was reading, reject with when the connection
+ * drops. Only a network failure after text has streamed reads as a cut-off
+ * reply; anything else keeps its own message.
+ */
+const isNetworkFailure = (error: unknown) => error instanceof TypeError;
 
 /** Where Connect a model was opened from */
 export type ConnectVia = AssistantEvents["assistant_connect_opened"]["via"];
@@ -324,7 +334,17 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     try {
       await instance.send(trimmed, controller.signal);
     } catch (e) {
-      if (!controller.signal.aborted) {
+      const cutReply = isNetworkFailure(e)
+        ? PgAssistant.turnReplyWithText()
+        : null;
+      if (!controller.signal.aborted && cutReply) {
+        // The reply keeps what it streamed and says it was cut off
+        PgAssistant.markCutOff(cutReply);
+        log.warn(e, { context: { cutOff: true } });
+        assistantTelemetry.track("assistant_reply_failed", {
+          reason: "interrupted",
+        });
+      } else if (!controller.signal.aborted) {
         PgAssistant.addError(e instanceof Error ? e.message : String(e));
       } else if (isAbort(e)) {
         // Aborted by `stop`, which has already written its notice, or by the
@@ -374,7 +394,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     if (!turn.current || turn.current.signal.aborted) return;
     turn.current.abort();
     PgAssistant.cancelPending();
-    PgAssistant.addNotice("Stopped.");
+    PgAssistant.addNotice(STOPPED_NOTICE);
     assistantTelemetry.track("assistant_turn_stopped", {});
   };
 

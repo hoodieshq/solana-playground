@@ -105,6 +105,12 @@ export function BaseAssistantComposer({
           value={value}
           placeholder={placeholder}
           onChange={(e) => onValueChange(e.target.value)}
+          onKeyDown={(e) => {
+            // Escape stops a running turn, as Stop does; the draft stays
+            if (e.key !== "Escape" || !busy) return;
+            e.preventDefault();
+            onStop();
+          }}
         />
         <ComposerToolbar>
           {model}

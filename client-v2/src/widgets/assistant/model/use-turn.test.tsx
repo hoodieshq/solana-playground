@@ -788,6 +788,63 @@ describe("useTurn's failures and races", () => {
     expect(result.current.input).toBe("Explain this error");
   });
 
+  describe("a reply cut off mid-stream", () => {
+    const failAfter = (text: string, error: unknown) =>
+      provider.send.mockImplementation(async () => {
+        if (text) {
+          const id = PgAssistant.startAssistantMessage();
+          PgAssistant.appendToAssistantMessage(id, text);
+        }
+        throw error;
+      });
+
+    it("keeps the text and marks the reply cut off on a network error", async () => {
+      PgAssistant.connect({ id: "default", apiKey: "" });
+      failAfter("The program", new TypeError("network error"));
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("What does this program do?"));
+
+      const reply = PgAssistant.items.find((i) => i.kind === "assistant")!;
+      expect(reply).toMatchObject({ text: "The program", state: "cut-off" });
+      expect(PgAssistant.isCutOff(reply)).toBe(true);
+      expect(PgAssistant.items.some((i) => i.kind === "error")).toBe(false);
+      expect(eventNames()).toContainEqual([
+        "assistant_reply_failed",
+        { reason: "interrupted" },
+      ]);
+      expect(logged()).toContainEqual(["assistant:turn", "warn", false]);
+    });
+
+    it("shows a network error before any text as an error", async () => {
+      PgAssistant.connect({ id: "default", apiKey: "" });
+      failAfter("", new TypeError("network error"));
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("hi"));
+
+      expect(PgAssistant.items.at(-1)).toMatchObject({
+        kind: "error",
+        text: "network error",
+      });
+    });
+
+    it("shows any other failure after text as an error", async () => {
+      PgAssistant.connect({ id: "default", apiKey: "" });
+      failAfter("The program", new Error("The model refused"));
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("hi"));
+
+      const reply = PgAssistant.items.find((i) => i.kind === "assistant")!;
+      expect(PgAssistant.isCutOff(reply)).toBe(false);
+      expect(PgAssistant.items.at(-1)).toMatchObject({
+        kind: "error",
+        text: "The model refused",
+      });
+    });
+  });
+
   it("logs, and reports, an error a stopped turn ends with", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     let fail!: (error: unknown) => void;

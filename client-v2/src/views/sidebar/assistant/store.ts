@@ -123,6 +123,11 @@ export type ChatItem =
        * replies recorded it, and on one written while nothing was connected.
        */
       origin?: BackendParams;
+      /**
+       * `streaming` while a turn writes it, `cut-off` when its request failed
+       * mid-reply; absent once it finished. See `PgAssistant.isCutOff`.
+       */
+      state?: "streaming" | "cut-off";
     })
   | (ChatItemBase & { kind: "tool"; label: string })
   | (ChatItemBase & {
@@ -167,6 +172,13 @@ export const turnAppliedApproval = (items: readonly ChatItem[]) => {
   }
   return false;
 };
+
+/** What the thread says where the user stopped a turn */
+export const STOPPED_NOTICE = "Stopped.";
+
+/** Whether `item` is the notice a stopped turn leaves */
+export const isStoppedNotice = (item: ChatItem) =>
+  item.kind === "notice" && item.text === STOPPED_NOTICE;
 
 /** Shown when disconnecting could not remove the key from this tab */
 export const KEY_NOT_FORGOTTEN =
@@ -624,7 +636,7 @@ export class PgAssistant {
    * thread closes, or on `stopTurn`
    */
   static beginTurn(controller: AbortController) {
-    PgAssistant._turn = { controller, cut: false };
+    PgAssistant._turn = { controller, cut: false, replies: [] };
   }
 
   /**
@@ -641,6 +653,14 @@ export class PgAssistant {
     if (turn?.controller !== controller) return false;
     if (turn.overdue) clearTimeout(turn.overdue);
     PgAssistant._turn = null;
+    // Not written here: the caller sets the status next, which writes it
+    for (const id of turn.replies) {
+      const item = PgAssistant._items.find((i) => i.id === id);
+      if (item?.kind === "assistant" && item.state === "streaming") {
+        delete item.state;
+        stamp(item);
+      }
+    }
     return !turn.cut;
   }
 
@@ -799,12 +819,17 @@ export class PgAssistant {
     // switches backends. Spread rather than assigned, so a reply written with
     // nothing connected has no `origin` key at all rather than an empty one.
     const origin = paramsOf(PgAssistant._connection);
+    // Marked while a turn writes it, so a copy stored mid-reply says so after
+    // a reload (`isCutOff`)
+    const turn = PgAssistant._turn;
+    turn?.replies.push(id);
     PgAssistant._items.push({
       kind: "assistant",
       id,
       createdAt: created(),
       text: "",
       ...(origin ? { origin } : {}),
+      ...(turn ? { state: "streaming" as const } : {}),
     });
     PgAssistant._emit();
     return id;
@@ -817,6 +842,46 @@ export class PgAssistant {
       stamp(item);
       PgAssistant._emit();
     }
+  }
+
+  /**
+   * The running turn's latest reply that has text, or `null`: what a turn
+   * that fails mid-reply leaves cut off.
+   */
+  static turnReplyWithText() {
+    const replies = PgAssistant._turn?.replies ?? [];
+    for (let i = replies.length - 1; i >= 0; i--) {
+      const item = PgAssistant._items.find((it) => it.id === replies[i]);
+      if (item?.kind === "assistant" && item.text) return item.id;
+    }
+    return null;
+  }
+
+  /** Record that a reply was cut off mid-stream; it keeps its text */
+  static markCutOff(id: string) {
+    const item = PgAssistant._items.find((i) => i.id === id);
+    if (item?.kind !== "assistant") return;
+    item.state = "cut-off";
+    stamp(item);
+    PgAssistant._emit();
+  }
+
+  /**
+   * Whether a reply was cut off: marked so when its request failed, or still
+   * marked streaming while no turn in this tab writes it, which is what a
+   * reload or a closed tab mid-reply leaves stored.
+   *
+   * Read, never written back: another device that pulls a reply mid-stream
+   * holds the same mark until the finished copy folds in, and a notice
+   * stored there would outlive it.
+   */
+  static isCutOff(item: ChatItem) {
+    if (item.kind !== "assistant") return false;
+    if (item.state === "cut-off") return true;
+    return (
+      item.state === "streaming" &&
+      !PgAssistant._turn?.replies.includes(item.id)
+    );
   }
 
   static addToolCall(label: string) {
@@ -1353,6 +1418,8 @@ export class PgAssistant {
   private static _turn: {
     controller: AbortController;
     cut: boolean;
+    /** The replies it opened, oldest first: what `endTurn` settles */
+    replies: string[];
     /** Reports a cut turn that has not ended in `CUT_TURN_OVERDUE_MS` */
     overdue?: ReturnType<typeof setTimeout>;
   } | null = null;
@@ -2643,6 +2710,59 @@ if (import.meta.vitest) {
         PgAssistant.closeThread();
         vi.useRealTimers();
         logger.resetLogger();
+      });
+
+      describe("a reply's state", () => {
+        const reply = (id: string) =>
+          PgAssistant.items.find(
+            (i): i is Extract<ChatItem, { kind: "assistant" }> => i.id === id
+          )!;
+
+        it("streams while its turn runs and settles when the turn ends", () => {
+          const id = PgAssistant.startAssistantMessage();
+          PgAssistant.appendToAssistantMessage(id, "Hel");
+          expect(reply(id).state).toBe("streaming");
+          expect(PgAssistant.isCutOff(reply(id))).toBe(false);
+
+          const streamed = versionOf(reply(id));
+          PgAssistant.endTurn(turn);
+
+          expect(reply(id).state).toBeUndefined();
+          expect(versionOf(reply(id))).toBeGreaterThan(streamed);
+          expect(PgAssistant.isCutOff(reply(id))).toBe(false);
+        });
+
+        it("reads as cut off once marked, and stays so when the turn ends", () => {
+          const id = PgAssistant.startAssistantMessage();
+          PgAssistant.appendToAssistantMessage(id, "Hel");
+          PgAssistant.markCutOff(id);
+          PgAssistant.endTurn(turn);
+
+          expect(reply(id).state).toBe("cut-off");
+          expect(PgAssistant.isCutOff(reply(id))).toBe(true);
+        });
+
+        it("reads as cut off when it is still streaming and no turn here wrote it", async () => {
+          const id = PgAssistant.startAssistantMessage();
+          PgAssistant.appendToAssistantMessage(id, "Hel");
+          await settled();
+
+          // A reload: the stored copy comes back with nothing running
+          PgAssistant.closeThread();
+          PgAssistant.endTurn(turn);
+          await PgAssistant.loadThread("t1");
+
+          expect(reply(id).state).toBe("streaming");
+          expect(PgAssistant.isCutOff(reply(id))).toBe(true);
+        });
+
+        it("names the running turn's latest reply with text", () => {
+          expect(PgAssistant.turnReplyWithText()).toBeNull();
+          const empty = PgAssistant.startAssistantMessage();
+          expect(PgAssistant.turnReplyWithText()).toBeNull();
+          PgAssistant.appendToAssistantMessage(empty, "Hel");
+          expect(PgAssistant.turnReplyWithText()).toBe(empty);
+        });
       });
 
       it("stops when its thread closes", () => {

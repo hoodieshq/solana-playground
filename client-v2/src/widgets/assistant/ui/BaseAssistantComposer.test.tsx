@@ -69,6 +69,22 @@ describe("BaseAssistantComposer", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
+  it("stops a running turn on Escape, and keeps the draft", async () => {
+    const { onStop, user } = setup({ busy: true, value: "draft" });
+    input().focus();
+    await user.keyboard("{Escape}");
+    expect(onStop).toHaveBeenCalledTimes(1);
+    expect(input()).toHaveProperty("value", "draft");
+  });
+
+  it("does nothing on Escape with no turn running", async () => {
+    const { onStop, user } = setup({ value: "draft" });
+    input().focus();
+    await user.keyboard("{Escape}");
+    expect(onStop).not.toHaveBeenCalled();
+    expect(input()).toHaveProperty("value", "draft");
+  });
+
   it("shows Stop while busy, and pressing it stops", async () => {
     const { onStop, onSend, user } = setup({ busy: true, value: "draft" });
     expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
