@@ -58,7 +58,7 @@ const Instruction: FC<InstructionProps> = ({
   // This is intentionally done in a `useEffect` instead of changing the
   // setting the default value of the `disabled`'s `useState` in order to:
   // - Enable the button when `idlInstruction` changes
-  // - Avoid flickering of the Test button i.e. the button renders as enabled
+  // - Avoid flickering of the Call button i.e. the button renders as enabled
   // and switches to disabled state after.
   useEffect(() => {
     if (!idlInstruction.args.length && !idlInstruction.accounts.length) {

@@ -42,12 +42,15 @@ and the failing-line rule.
    result inline on the page, a deviation raised with the designers.
 3. **The call is run by the stage, the inputs stay in `Instruction`.**
    `Instruction` keeps its inputs, Fill and Reset, and takes an `onCall`
-   callback, a `locked` flag and a `feePayer` slot; it no longer talks to the
-   terminal. A new `run-call.ts` sends through `PgProgramInteraction.test`,
+   callback, a `callBlocked` flag and a `feePayer` slot, and locks its inputs
+   while its own call is in flight; it no longer talks to the terminal. A new
+   `run-call.ts` sends through `PgProgramInteraction.test`,
    confirms with `PgTx.confirm`, reads logs from `getTransaction` (success
    or on-chain failure) or from the thrown `SendTransactionError.logs`
    (preflight failure), and prints the same lines to the terminal. It returns
-   a plain `CallOutcome`, which the result and the history render.
+   a plain `CallOutcome` (`call-outcome.ts`, with the failing-line rule), which
+   the result and the history render; it never rejects. The sidebar's Test
+   page renders the same body, so both places call alike.
 4. **Pure parts are Base components.** `BaseCallResult` and `BaseCallHistory`
    take the outcome and records through props; `InteractBody` connects them,
    the chips and the `Instruction` form. The callouts are props of
@@ -60,8 +63,8 @@ and the failing-line rule.
    `PgBuildOutput.latest`, which a reload drops; after a reload the callout
    stays hidden until the next build. The deploy side is the newest record for
    this project on the current network.
-7. **"SOL needed" checks one fee.** 5000 lamports against
-   `PgWallet.balance`; rent for accounts a call creates is not estimated.
+7. **"SOL needed" checks one fee.** 5000 lamports against the current
+   wallet's balance (`useBalance`), only with a wallet and a known network; rent for accounts a call creates is not estimated.
    "Get <network> SOL" reuses `useAirdrop`.
 
 ## Risks / Trade-offs

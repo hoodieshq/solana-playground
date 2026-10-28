@@ -47,7 +47,8 @@ None.
 - Code: `client-v2/src/views/flow/stages/` (Interact, BaseInteract and new
   parts), `client-v2/src/views/flow/state/call-history.ts` (new),
   `client-v2/src/views/sidebar/test/Component/Instruction/Instruction.tsx`
-  (button and call handler).
+  (button and call handler), `Test.tsx` (the sidebar's Test page now renders
+  the same body).
 - Storage: one new `localStorage` key, `flow.calls`, capped at 50 records of a
   few hundred bytes; logs are not stored.
 - Out of scope: Run again with stored values, "Explain this failure"

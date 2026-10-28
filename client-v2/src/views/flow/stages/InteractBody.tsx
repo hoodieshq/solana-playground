@@ -46,10 +46,17 @@ const InteractBody = ({
   const current = picked && names.includes(picked) ? picked : names[0];
   const idlInstruction = idl.instructions.find((ix) => ix.name === current);
 
-  const [outcome, setOutcome] = useState<CallOutcome | null>(null);
+  // The last call, kept with the program and network it went to: switching
+  // either hides it rather than showing it under another program's form
+  const target = `${programId}|${cluster}`;
+  const [last, setLast] = useState<{
+    target: string;
+    outcome: CallOutcome;
+  } | null>(null);
+  const outcome = last?.target === target ? last.outcome : null;
   const history = useCallHistory(programId, cluster);
   const explorer = useBlockExplorer();
-  const txUrl = (sig: string) => explorer.getTxUrl!(sig);
+  const txUrl = (sig: string) => explorer.getTxUrl?.(sig) ?? "";
 
   return (
     <IdlProvider idl={idl}>
@@ -79,7 +86,9 @@ const InteractBody = ({
               idlInstruction={idlInstruction}
               callBlocked={callBlocked}
               feePayer={<FeePayer />}
-              onCall={async (ix) => setOutcome(await runCall(ix))}
+              onCall={async (ix) =>
+                setLast({ target, outcome: await runCall(ix) })
+              }
             />
           </section>
         )}

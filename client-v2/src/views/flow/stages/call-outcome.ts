@@ -5,7 +5,7 @@ export interface CallOutcome {
   /** Null when the transaction never reached the network */
   signature: string | null;
   logs: string[];
-  /** The line that explains a failure; null on success */
+  /** The line that explains a failure, never empty then; null on success */
   failingLine: string | null;
 }
 

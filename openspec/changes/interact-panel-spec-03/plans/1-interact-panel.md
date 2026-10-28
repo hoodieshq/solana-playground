@@ -48,7 +48,7 @@ export class PgCallHistory {
 
 ### Task 2: runCall
 
-**Files:** Create `client-v2/src/views/flow/stages/run-call.ts` (in-source tests for `failingLine`).
+**Files:** Create `client-v2/src/views/flow/stages/call-outcome.ts` (`CallOutcome`, `failingLine`, in-source tests) and `run-call.ts` (`runCall`, tests in `run-call.test.ts`).
 
 **Interfaces — Produces:**
 ```ts
@@ -57,12 +57,12 @@ export const failingLine: (logs: string[], message?: string) => string | null
 export const runCall: (ix: GeneratableInstruction) => Promise<CallOutcome>   // never rejects
 ```
 - [ ] Tests for `failingLine`: picks "Program log: Error Code: AccountNotInitialized…" out of a list; picks a "custom program error: 0x1" line; falls back to the last line; with `[]` returns the message; with `[]` and no message returns `null`.
-- [ ] Implement `runCall`: inside `PgTerminal.process`, print `Calling \`<name>\`...`; `PgProgramInteraction.test(ix)` → signature; `PgTx.confirm`; logs from `PgConnection.current.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 })?.meta?.logMessages ?? []`; `ok = !confirm?.err`. A throw becomes `ok: false`, `signature: null`, logs from `e.logs` when an array; keep the old message map ("unable to infer src variant" → "Enum variant not found"). Print "Call succeeded." / "Call failed: <line>" via `PgTerminal.success`/`error`. Keep `PgSettings.testUi.showTxDetailsInTerminal` → `solana confirm <sig> -v`. Record to `PgCallHistory` with `PgProgramInfo.getPkStr()` and `PgConnection.cluster`.
+- [ ] Implement `runCall`: with `PgTerminal.println`, print `Calling \`<name>\`...`; `PgProgramInteraction.test(ix)` → signature; `PgTx.confirm`; logs from `PgConnection.current.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 })?.meta?.logMessages ?? []`; `ok = !confirm?.err`. A throw becomes `ok: false`, `signature: null`, logs from `e.logs` when an array; keep the old message map ("unable to infer src variant" → "Enum variant not found"). Print "Call succeeded." / "Call failed: <line>" via `PgTerminal.success`/`error`. Keep `PgSettings.testUi.showTxDetailsInTerminal` → `solana confirm <sig> -v`. Record to `PgCallHistory` with `PgProgramInfo.getPkStr()` and `PgConnection.cluster`.
 - [ ] Unit tests pass; commit.
 
 ### Task 3: BaseCallResult and BaseCallHistory
 
-**Files:** Create `client-v2/src/views/flow/stages/BaseCallResult.tsx`, `BaseCallHistory.tsx`, test `BaseCallResult.test.tsx`, `BaseCallHistory.test.tsx`.
+**Files:** Create `client-v2/src/views/flow/stages/BaseCallResult.tsx`, `BaseCallHistory.tsx`; both suites in `BaseCallResult.test.tsx`.
 
 **Interfaces — Produces:**
 ```ts
@@ -77,16 +77,16 @@ BaseCallHistory: { records: CallRecord[]; cluster: string; txUrl: (sig: string) 
 
 **Files:** Modify `client-v2/src/views/sidebar/test/Component/Instruction/Instruction.tsx`, its test.
 
-**Interfaces — Produces:** `Instruction` props `{ idlInstruction; onCall: (ix: GeneratableInstruction) => Promise<void>; locked?: boolean; callBlocked?: boolean; feePayer?: ReactNode }`. Renders flat (no `Interaction` fold): Args and Accounts folds, `feePayer`, then `AsyncButton` "Call <name>" (`disabled = !wallet || invalid || callBlocked || locked`, label "Calling…" while its promise runs), Fill, Reset. Inputs wrapped in `<fieldset disabled={locked}>`.
+**Interfaces — Produces:** `Instruction` props `{ idlInstruction; onCall: (ix: GeneratableInstruction) => Promise<unknown>; callBlocked?: boolean; feePayer?: ReactNode }`. Renders flat (no `Interaction` fold): Args and Accounts folds, `feePayer`, then `AsyncButton` "Call <name>" (`disabled = !wallet || invalid || callBlocked`, label "Calling…" while its promise runs), Fill, Reset. Inputs wrapped in `<fieldset disabled={calling}>`, `calling` being its own call in flight.
 - [ ] Update the test: no outer fold; button "Call increment" exists; clicking it calls `onCall` with the instruction; `callBlocked` disables it.
 - [ ] Implement; remove `handleTest` and terminal imports.
 - [ ] Tests pass; commit.
 
 ### Task 5: InteractBody
 
-**Files:** Create `client-v2/src/views/flow/stages/InteractBody.tsx`; modify `Interact.tsx` to pass it as `form`; `Test.tsx` keeps Accounts/Events, exported as parts used by the body (or the body renders `Account`/`Event` directly under `IdlProvider`).
+**Files:** Create `client-v2/src/views/flow/stages/InteractBody.tsx`; modify `Interact.tsx` to pass it as `form`; `Test.tsx` becomes a thin wrapper that renders the body; the body renders `Account`/`Event` under `IdlProvider`.
 
-- [ ] Body: `IdlProvider`; `Segmented variant="chips" aria-label="Instruction"` with one `SegmentedItem` per instruction (mono); picked = state, falls back to the first when absent from the IDL; `<Instruction key={picked} … />`; `BaseCallResult` for the last outcome of the picked instruction's program; `BaseCallHistory` from `PgCallHistory.list(programId, cluster)`; Accounts and Events sections below. Keep `useBigNumberJson` and `useSyncInstructionStorage` from `Test.tsx`.
+- [ ] Body: `IdlProvider`; `Segmented variant="chips" aria-label="Instruction"` with one `SegmentedItem` per instruction (mono); picked = state, falls back to the first when absent from the IDL; `<Instruction key={JSON.stringify(idlInstruction)} … />`; `BaseCallResult` for the last outcome, shown only while the program and network are the ones it went to; `BaseCallHistory` from `PgCallHistory.list(programId, cluster)`; Accounts and Events sections below. Keep `useBigNumberJson` and `useSyncInstructionStorage` from `Test.tsx`.
 - [ ] Fee payer row: `Fee paid by <wallet.isPg ? "Playground wallet" : wallet.name> · <balance> SOL` (balance to 4 decimals, "—" when null).
 - [ ] Commit.
 
@@ -102,7 +102,7 @@ export const solNeeded: (balance: number | null) => boolean
 BaseInteract new props: programId: string | null; builtAfterDeploy: boolean; solNeeded: { balance: number; cluster: string; airdrop: (() => Promise<void>) | null } | null
 ```
 - [ ] Tests: `builtAfterDeploy(2, 1)` true, `(1, 2)` false, `(null, 1)` false, `(2, null)` false; `solNeeded(0)` true, `(0.000005)` false, `(null)` false.
-- [ ] Head: under the title row, "Program" + `shorten(programId)` (4…4) + `CopyButton label="Copy program id"` + network. Callouts in `STAGE_FRAME` above the form on `ready` only; Redeploy calls `onGoTo("deploy")`; Get SOL is `AsyncButton` with `reportButtonFailure("get devnet SOL")`.
+- [ ] Head: under the title row, "Program" + `shortenId(programId)` (4…4) + `CopyButton label="Copy program id"` + network. Callouts in `STAGE_FRAME` above the form on `ready` only; Redeploy calls `onGoTo("deploy")`; Get SOL is `AsyncButton` with `reportButtonFailure("get devnet SOL")`.
 - [ ] `Interact`: build time from `PgBuildOutput.latest` when `!failed` (subscribe `onDidChange`); deploy time from the newest `history` record whose `cluster === PgConnection.cluster`; balance via `useBalance`, wallet via `useWallet`, faucet via `useAirdrop`. Pass `callBlocked = !!solNeeded` into the body.
 - [ ] `BaseInteract.test.tsx` gains: program id and copy shown; both callouts render their copy and buttons.
 - [ ] `yarn test-types`, unit tests pass; commit.
