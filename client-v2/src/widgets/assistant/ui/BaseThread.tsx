@@ -12,6 +12,11 @@ import {
   MessageScrollerViewport,
 } from "@/shared/ui/message-scroller";
 import { Spinner } from "@/shared/ui/spinner";
+import { useEffect, useRef } from "react";
+import type * as React from "react";
+import type { ReactNode } from "react";
+import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
+import { useMessageScroller } from "@/shared/ui/message-scroller";
 import { THREAD_NOT_SAVED } from "../../../views/sidebar/assistant/store";
 import type { ChatItem } from "../../../views/sidebar/assistant/store";
 import { BaseThreadItem } from "./BaseThreadItem";
@@ -26,7 +31,7 @@ import type { ApprovalAnswer } from "./BaseApprovalCard";
  * instead. The log "Conversation" is the scroller's content; there is no
  * scroll anchor, so a send made while scrolled up does not move the thread.
  */
-export const BaseThread = ({
+const ThreadNow = ({
   items,
   working,
   unsaved,
@@ -50,6 +55,7 @@ export const BaseThread = ({
   onAnswer: (id: string, answer: ApprovalAnswer) => void;
 }) => (
   <MessageScrollerProvider autoScroll>
+    {SPIKE === "fix" && <FollowOnSend items={items} />}
     <MessageScroller className="flex-1">
       <MessageScrollerViewport>
         <MessageScrollerContent
@@ -126,3 +132,98 @@ const EmptyThread = ({
     </div>
   </div>
 );
+
+// --- Spike HOO-2293, never merged: `localStorage.spikeScroller` picks the variant
+type ThreadProps = Parameters<typeof ThreadNow>[0];
+const SPIKE = (() => {
+  try {
+    return localStorage.getItem("spikeScroller") ?? "now";
+  } catch {
+    return "now";
+  }
+})();
+
+const lastUserId = (items: readonly ChatItem[]) =>
+  [...items].reverse().find((i) => i.kind === "user")?.id;
+
+/** Minimal fix: a new user message takes the thread back to the end, which re-arms following */
+const FollowOnSend = ({ items }: { items: readonly ChatItem[] }) => {
+  const { scrollToEnd } = useMessageScroller();
+  const id = lastUserId(items);
+  const seen = useRef(id);
+  useEffect(() => {
+    if (id === seen.current) return;
+    seen.current = id;
+    scrollToEnd({ behavior: "auto" });
+  }, [id, scrollToEnd]);
+  return null;
+};
+
+// Its components return `ReactNode`, which this TypeScript does not take as a JSX component
+const Stb = StickToBottom as unknown as (
+  p: React.ComponentProps<"div"> & { initial?: "smooth"; resize?: "smooth" }
+) => React.JSX.Element;
+const StbContent = StickToBottom.Content as unknown as (
+  p: React.ComponentProps<"div">
+) => React.JSX.Element;
+
+/** AI Elements `Conversation`, as its registry source draws it */
+const Conversation = ({ children }: { children: ReactNode }) => (
+  <Stb
+    className="relative flex-1 overflow-y-hidden"
+    initial="smooth"
+    resize="smooth"
+    role="log"
+  >
+    {children}
+  </Stb>
+);
+
+const ConversationScrollButton = () => {
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
+  return isAtBottom ? null : (
+    <Button
+      className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full"
+      size="icon-sm"
+      variant="secondary"
+      onClick={() => scrollToBottom()}
+    >
+      <span className="sr-only">Scroll to end</span>↓
+    </Button>
+  );
+};
+
+const ThreadStb = ({
+  items,
+  working,
+  actionsFor,
+  onAnswer,
+}: ThreadProps) => (
+  <Conversation>
+    <StbContent
+      aria-label="Conversation"
+      className="flex flex-col gap-4 px-3 py-4"
+    >
+      {items.map((item) => (
+        <div key={item.id} data-message-id={item.id}>
+          <BaseThreadItem
+            item={item}
+            actions={actionsFor(item.id)}
+            onAnswer={onAnswer}
+          />
+        </div>
+      ))}
+      {working && (
+        <Marker role="status" aria-label="Assistant is working">
+          <MarkerIcon>
+            <Spinner />
+          </MarkerIcon>
+        </Marker>
+      )}
+    </StbContent>
+    <ConversationScrollButton />
+  </Conversation>
+);
+
+export const BaseThread = (props: ThreadProps) =>
+  SPIKE === "stb" ? <ThreadStb {...props} /> : <ThreadNow {...props} />;
