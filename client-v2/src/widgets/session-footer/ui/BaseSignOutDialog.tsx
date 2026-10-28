@@ -28,8 +28,8 @@ const BaseSignOutDialog = ({
     <DialogContent className="sm:max-w-sm">
       <DialogHeader>
         <DialogTitle>Sign out of Playground?</DialogTitle>
-        {/* Sign-out removes from this browser what the account already holds
-            (`relinquish` in effects/session) and keeps only what never reached it */}
+        {/* Sign-out removes from this browser what the server confirms it
+            holds (`relinquish` in effects/session); the rest stays */}
         <DialogDescription>
           Projects saved to your account leave this browser. Anything not saved
           stays here.

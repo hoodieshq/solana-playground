@@ -7,11 +7,12 @@ import {
   stubSession,
   stubSignedIn,
   test,
+  TEST_USER,
 } from "./fixtures";
 
 /**
  * What a signed-out person is told about where the conversation is kept
- * (Spec 08, AI-11). Signed out, a turn needs a key of one's own, so the
+ * (`openspec/changes/sign-out-history-warning`, from the designers' Spec 08). Signed out, a turn needs a key of one's own, so the
  * provider is stubbed and the panel connected to it directly.
  */
 
@@ -83,6 +84,10 @@ test("assistant-sign-out-history: Signed in, or nothing to keep", async ({
   await seedWorkspace(page, "signed-in-history");
 
   await talk(page);
+  // The session has been read as signed in, so the line had its chance to show
+  await expect(
+    page.getByRole("button", { name: `Account: ${TEST_USER.login}` }).first()
+  ).toBeVisible(LONG);
 
   await expect(page.getByText(SIGN_IN_TO_KEEP)).toHaveCount(0);
 });

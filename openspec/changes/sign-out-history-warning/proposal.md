@@ -9,9 +9,11 @@ stay in this browser and stop syncing", while sign-out removes from the browser
 every chat and project the account already holds (`PgChatSync.handOver`,
 `releaseLocalProjects`) and keeps only what never reached it.
 
-The designers' specs settle both strings. Spec 02 ("Account copy") gives the
-sign-out dialog; Spec 08 ("Assistant failures", AI-11) gives a line at the foot
-of the thread for a signed-out person.
+The designers' specs settle both strings. [Spec 02](https://linear.app/hoodies/document/spec-02-account-sign-in-saved-work-and-the-profile-065dc4fd844b)
+("Account copy") gives the sign-out dialog;
+[Spec 08](https://linear.app/hoodies/document/spec-08-failure-and-empty-states-the-catalogue-bb9694459ccc)
+("Assistant failures", AI-11) gives a line at the foot of the thread for a
+signed-out person.
 
 ## What Changes
 

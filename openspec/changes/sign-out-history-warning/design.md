@@ -30,17 +30,18 @@ false for everything already in the account.
 - **AI-11 shows for any signed-out person, not only after a sign-out in this
   tab.** The spec's trigger is "signed out". Tying it to a sign-out event
   would need state that survives a panel unmount and a reload, and would
-  still leave a never-signed-in person untold. A sign-out in this tab closes
-  the thread and `handOver` removes what the account holds, so the panel is
-  empty right after it; the line comes with the first message written signed
-  out (own key only: the default backend refuses a signed-out turn and opens
+  still leave a never-signed-in person untold. A sign-out in this tab ends in
+  `closeThread`, so the panel is empty right after it; the line comes with the
+  next thread that holds messages: a thread `handOver` could not upload and
+  kept, or the first message written signed out (own key only: the default backend refuses a signed-out turn and opens
   Connect a model instead).
 - **Drawn from state, like `unsaved`.** `BaseThread` takes a `signIn` prop
   (`null` when the line is hidden) and renders it after the items. A stored
   notice item would be uploaded into the account on the next sign-in.
 - **Gated on `PgSyncClient.available()`.** On a deployment without a database
-  "on your other devices" is false. The probe is memoised, so asking it from
-  the panel adds no request after the first. Exported through
+  "on your other devices" is false. A definite answer is memoised, so the
+  panel adds no request once sync has answered; a probe with no answer is
+  asked again on the next mount and hides the line until then. Exported through
   `features/persistence/index.ts` rather than a deep import.
 - **Waits on `PgSession.afterRead`, a new wait that never reads.** Before the
   first session read `get()` is `null`, so the line would flash at a signed-in

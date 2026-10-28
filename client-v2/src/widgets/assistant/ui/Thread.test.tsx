@@ -7,6 +7,11 @@ import { PgSession } from "../../../features/auth";
 import type { SessionUser } from "../../../features/auth";
 import { PgSyncClient } from "../../../features/persistence";
 import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "../../../shared/lib/logger";
+import {
   initTelemetry,
   memoryProvider as memoryTelemetry,
   resetTelemetry,
@@ -196,6 +201,97 @@ describe("Thread, signed out", () => {
     await screen.findByText(SIGN_IN_TO_KEEP);
     expect(whenRead).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("waits for the session read before offering anything", async () => {
+    session(USER);
+    syncs(true);
+    let answer!: () => void;
+    vi.spyOn(PgSession, "afterRead").mockReturnValue(
+      new Promise<void>((resolve) => (answer = resolve))
+    );
+    // Before the read `get()` is `null` for everyone
+    vi.spyOn(PgSession, "get").mockReturnValue(null);
+    act(() => {
+      PgAssistant.addUserMessage("Hi");
+    });
+    render(<Thread turn={stubTurn(false)} project="Counter" />);
+    await act(async () => {});
+    expect(screen.queryByText(SIGN_IN_TO_KEEP)).toBeNull();
+
+    vi.spyOn(PgSession, "get").mockReturnValue(USER);
+    await act(async () => answer());
+    expect(screen.queryByText(SIGN_IN_TO_KEEP)).toBeNull();
+  });
+
+  it("a sign-in under way holds the button, and its end frees it", async () => {
+    const setUser = session(null);
+    syncs(true);
+    const state = vi
+      .spyOn(PgSession, "signInState")
+      .mockReturnValue({ status: "pending" });
+    act(() => {
+      PgAssistant.addUserMessage("Hi");
+    });
+    render(<Thread turn={stubTurn(false)} project="Counter" />);
+    const button = (await screen.findByRole("button", {
+      name: "Sign in with GitHub",
+    })) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+
+    state.mockReturnValue({ status: "idle" });
+    act(() => setUser(null));
+    expect(button.disabled).toBe(false);
+  });
+
+  it("signing in takes the offer away", async () => {
+    const setUser = session(null);
+    syncs(true);
+    act(() => {
+      PgAssistant.addUserMessage("Hi");
+    });
+    render(<Thread turn={stubTurn(false)} project="Counter" />);
+    await screen.findByText(SIGN_IN_TO_KEEP);
+
+    act(() => setUser(USER));
+    expect(screen.queryByText(SIGN_IN_TO_KEEP)).toBeNull();
+  });
+
+  it("a cancelled sign-in is logged, anything else reported", async () => {
+    session(null);
+    syncs(true);
+    const logged = logMemory();
+    initLogger({ providers: [logged] });
+    // A real failure at a known step: the server refuses to start the sign-in
+    const refused = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue({ ok: false } as Response);
+    const cancelled = await PgSession.signIn().catch((e: unknown) => e);
+    refused.mockRestore();
+    const broken = new Error("popup threw");
+    vi.spyOn(PgSession, "signIn")
+      .mockRejectedValueOnce(cancelled)
+      .mockRejectedValueOnce(broken);
+    act(() => {
+      PgAssistant.addUserMessage("Hi");
+    });
+    render(<Thread turn={stubTurn(false)} project="Counter" />);
+    const button = await screen.findByRole("button", {
+      name: "Sign in with GitHub",
+    });
+
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await act(async () => {});
+
+    const mine = logged.entries.filter(
+      (e) => e.ns === "assistant:sign-in-offer"
+    );
+    expect(mine).toEqual([
+      expect.objectContaining({ level: "info" }),
+      expect.objectContaining({ level: "error", error: broken, report: true }),
+    ]);
+    resetLogger();
   });
 
   it("an empty thread has nothing to keep", async () => {

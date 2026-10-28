@@ -31,8 +31,8 @@ be disabled while a sign-in is pending. A failed sign-in is shown where every
 other sign-in failure is, on the account row. The line SHALL NOT show while
 signed in, on an empty thread, or on a deployment without sync. It is drawn
 from state, never stored in or synced with the thread. A sign-out in this tab
-closes the thread and removes from the browser what the account holds, so
-there the line appears once the person writes again.
+closes the open thread, so there the line appears with the next thread that
+holds messages.
 
 #### Scenario: Signed out with a conversation
 

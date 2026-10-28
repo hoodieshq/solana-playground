@@ -7,7 +7,7 @@ import { assistantTelemetry } from "./telemetry";
 
 const log = createLogger("assistant:sign-in-offer");
 
-/** What the thread's sign-in line needs, or `null` when it is not shown */
+/** What the thread's sign-in line needs */
 export interface SignInOffer {
   /** A sign-in is under way, from here or anywhere else */
   pending: boolean;
@@ -15,43 +15,58 @@ export interface SignInOffer {
 }
 
 /**
- * Spec 08's AI-11: a signed-out thread with something in it ends in an offer
- * to sign in and keep it on other devices.
+ * The session as the line sees it. `unread` until the page's own read has
+ * answered: before it `get()` is `null` for everyone, and the line would flash
+ * at a signed-in person while their cookie is restored.
+ */
+type Session = "unread" | { signedOut: boolean; pending: boolean };
+
+/**
+ * `assistant-sign-out-history` (from the designers' Spec 08): a signed-out thread with something in it
+ * ends in an offer to sign in and keep it on other devices. Returns `null`
+ * when the line is not shown.
  *
  * Only where the deployment syncs: without a database, signing in keeps
- * nothing anywhere, and the line would say it does. The session is waited on
- * first so a cookie still being restored on load does not flash the line at
- * someone who is signed in.
+ * nothing anywhere, and the line would say it does. Sync is asked once per
+ * mount; a probe with no answer hides the line until the panel mounts again.
  */
 export const useSignInOffer = (hasItems: boolean): SignInOffer | null => {
-  const [signedOut, setSignedOut] = useState(false);
-  const [pending, setPending] = useState(false);
+  const [session, setSession] = useState<Session>("unread");
   const [syncs, setSyncs] = useState(false);
 
   useEffect(() => {
     let live = true;
-    const read = () => {
-      setSignedOut(!PgSession.get());
-      setPending(PgSession.signInState().status === "pending");
-    };
+    let ready = false;
+    const read = () =>
+      setSession({
+        signedOut: !PgSession.get(),
+        pending: PgSession.signInState().status === "pending",
+      });
     // `afterRead`, never `whenRead`: the panel can mount before the session
     // effect, and a read started here would hide the account's sign-in from it
     void PgSession.afterRead().then(() => {
-      if (live) read();
+      if (!live) return;
+      ready = true;
+      read();
     });
     // `available` never rejects: a probe that fails answers `false`
     void PgSyncClient.available().then((answer) => {
       if (live) setSyncs(answer);
     });
-    const sub = PgSession.onDidChange(read);
+    // A sign-in started elsewhere notifies before the first read has answered
+    const sub = PgSession.onDidChange(() => {
+      if (ready) read();
+    });
     return () => {
       live = false;
       sub.dispose();
     };
   }, []);
 
-  if (!signedOut || !syncs || !hasItems) return null;
-  return { pending, onSignIn: signIn };
+  if (session === "unread" || !session.signedOut || !syncs || !hasItems) {
+    return null;
+  }
+  return { pending: session.pending, onSignIn: signIn };
 };
 
 const signIn = () => {
