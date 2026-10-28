@@ -167,7 +167,7 @@ const Unreached = (p: BaseBuildProps) => (
     meta={msLabel(p.ms)}
     description={
       <>
-        Build failed before the compiler ran - see the console. This usually
+        Build failed before the compiler ran — see the terminal. This usually
         means the build server could not be reached: {p.host}. Change it under
         Settings -&gt; Build server URL.
       </>

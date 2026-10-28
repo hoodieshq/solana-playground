@@ -1606,7 +1606,9 @@ only logged (5.4), and nothing on screen said the action did not happen.
   rethrowing it, and `reportButtonFailure`
   only logs a marked failure. Only while the console is open: the console
   drawer tells the terminal whether it can be seen, and a failure printed
-  into a folded console is still toasted, since the user saw nothing. An
+  into a folded console is still toasted, since the user saw nothing. The
+  Build and Deploy stages mark their own run's failure shown (`toldByStage`),
+  since the stage shows it in place whether the console is open or not. An
   object is matched by identity, a thrown string by value (`Send` throws
   `txResult.err`, which can be a string) and only once, so a later failure
   with the same text is told; `null` and `undefined` are never marked.

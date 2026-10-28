@@ -327,6 +327,40 @@ describe("the assistant's provider", () => {
     expect(failure).not.toContain(KEY);
   });
 
+  describe("a model limiting requests", () => {
+    const BUSY = "The model is busy. Try again in a few seconds.";
+
+    it("reads as busy, with no HTTP status, from a provider's own error", async () => {
+      respond(openAiError(429, "Rate limit reached for gpt-4o"));
+      const provider = createProvider({
+        id: "openai",
+        apiKey: KEY,
+        endpoint: { baseUrl: "https://llm.test/v1", model: "m" },
+      });
+
+      await expect(provider.send("hi")).rejects.toThrow(
+        new RegExp(`^${BUSY}$`)
+      );
+    });
+
+    it("reads as busy, with no status or body, from the default backend", async () => {
+      respond(
+        new Response(
+          JSON.stringify({ error: 'Upstream 429: {"error":"slow down"}' }),
+          {
+            status: 429,
+            statusText: "Too Many Requests",
+            headers: { "content-type": "application/json" },
+          }
+        )
+      );
+
+      await expect(defaultBackend().send("hi")).rejects.toThrow(
+        new RegExp(`^${BUSY}$`)
+      );
+    });
+  });
+
   it("shows the default backend's sentence for a failure it refuses", async () => {
     const sentence =
       "Sign-in is not configured on this deployment, so its default backend is off.";

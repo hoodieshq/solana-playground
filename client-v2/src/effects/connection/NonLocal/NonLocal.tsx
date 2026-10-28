@@ -52,7 +52,7 @@ export const NonLocal: FC<React.PropsWithChildren<ToastChildProps>> = ({
         >
           Yes
         </Button>
-        <Button variant="ghost" size="sm">
+        <Button onClick={() => PgView.closeToast(id)} variant="ghost" size="sm">
           No
         </Button>
       </ButtonsWrapper>

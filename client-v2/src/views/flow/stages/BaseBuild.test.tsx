@@ -109,6 +109,11 @@ describe("BaseBuild", () => {
     expect(
       screen.getByText(/could not be reached: api\.solpg\.io/)
     ).toBeTruthy();
+    expect(
+      screen.getByText(
+        /^Build failed before the compiler ran — see the terminal\./
+      )
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Retry build" }));
     expect(p.onBuild).toHaveBeenCalled();
   });

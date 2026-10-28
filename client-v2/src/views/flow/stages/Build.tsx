@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import BaseBuild from "./BaseBuild";
 import IdlActions from "./IdlActions";
 import { buildSurface, ownOutput } from "./build-surface";
+import { toldByStage } from "./stage-failure";
 import { failedView } from "./build-view";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
@@ -60,7 +61,7 @@ const Build = () => {
       building={flow.build === "running"}
       host={serverHost()}
       ms={flow.buildMs}
-      onBuild={() => PgCommand.build.execute()}
+      onBuild={() => PgCommand.build.execute().catch(toldByStage)}
       onContinue={() => PgFlow.setStage("deploy")}
       onExport={() => PgFramework.exportWorkspace()}
       onFix={(prompt) => PgAssistant.requestPrompt(prompt)}

@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
   report: vi.fn(),
+  markShown: vi.fn(),
   deployState: "ready",
   history: [] as unknown[],
   update: vi.fn(),
@@ -51,6 +52,8 @@ vi.mock("./IdlActions", () => ({ default: () => null }));
 vi.mock("@/shared/lib/report-button-failure", () => ({
   reportButtonFailure: (action: string) =>
     action === "deploy" ? mocks.report : vi.fn(),
+  markFailureShown: mocks.markShown,
+  unavailableHere: () => null,
 }));
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
@@ -77,6 +80,19 @@ describe("Deploy stage", () => {
     );
 
     expect(mocks.report).toHaveBeenCalledWith(failure);
+  });
+
+  // The stage's Callout says it failed; a toast would say it twice
+  it("marks a failed deploy as shown by the stage", async () => {
+    const failure = new Error("insufficient balance");
+    mocks.execute.mockRejectedValue(failure);
+    render(<Deploy />);
+
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
+    );
+
+    expect(mocks.markShown).toHaveBeenCalledWith(failure);
   });
 
   it("holds the button while a deploy is under way", () => {

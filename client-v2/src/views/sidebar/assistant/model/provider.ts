@@ -11,6 +11,9 @@ import type { ReplayMessage } from "../../../../features/persistence/model/repla
 import type { ModelProviderInput } from "./model-providers";
 import type { Provider } from "./types";
 
+/** What the chat says when the model answers 429, from any backend */
+const MODEL_BUSY = "The model is busy. Try again in a few seconds.";
+
 /** What a provider needs to be built: structurally the store's `Connection` */
 export interface ProviderConnection extends ModelProviderInput {
   id: ModelProvider;
@@ -112,6 +115,8 @@ export const createProvider = (
         if (e.kind === "refusal") {
           throw new Error(`${e.message} Rephrase it, or switch backends.`);
         }
+        // Spec 08's AI-03: the chat never shows a status code or a raw body
+        if (e.status === 429) throw new Error(MODEL_BUSY, { cause: e });
         const refusal = profile.signedOutRefusal?.(e);
         if (!refusal) throw e;
         // The session ended server-side; ending it here makes the next send open Connect a model, which offers sign-in
