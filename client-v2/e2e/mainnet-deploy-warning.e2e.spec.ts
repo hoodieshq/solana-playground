@@ -43,6 +43,9 @@ test("mainnet-deploy-warning: Deploy stage on mainnet shows the warning", async 
   await expect(warning).toBeVisible(LONG);
   await expect(warning).toContainText("Playground wallet");
   await expect(warning).toContainText("your own machine");
+  await expect(
+    panel.getByRole("button", { name: "Deploy to mainnet" })
+  ).toBeVisible();
 });
 
 test("mainnet-deploy-warning: Deploy stage on devnet shows no warning", async ({
