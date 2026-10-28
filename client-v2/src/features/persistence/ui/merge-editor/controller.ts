@@ -175,7 +175,7 @@ class MonacoMergeEditor implements MergeEditor {
         automaticLayout: true,
         fontLigatures: true,
         fontFamily: this._options.fontFamily,
-        ...editorFont(this._options.phone ?? false),
+        ...editorFont({ phone: this._options.phone ?? false }),
         minimap: { enabled: false },
         folding: false,
         glyphMargin: false,
@@ -266,7 +266,7 @@ class MonacoMergeEditor implements MergeEditor {
     }
     if (options.phone !== undefined) {
       for (const editor of Object.values(this._editors)) {
-        editor.updateOptions(editorFont(options.phone));
+        editor.updateOptions(editorFont({ phone: options.phone }));
       }
     }
     this._refresh();

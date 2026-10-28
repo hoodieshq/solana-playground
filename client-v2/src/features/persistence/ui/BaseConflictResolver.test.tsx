@@ -125,6 +125,7 @@ describe("BaseConflictResolver", () => {
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
+    delete (globalThis as { __mergeOptions?: unknown }).__mergeOptions;
   });
 
   it("makes the panes at Monaco's own size off a phone", () => {

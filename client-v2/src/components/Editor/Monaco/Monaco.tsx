@@ -228,7 +228,7 @@ const Monaco = () => {
 
     editor.updateOptions({
       fontFamily: theme.components.editor.default.fontFamily,
-      ...editorFont(phone),
+      ...editorFont({ phone }),
     });
   }, [editor, theme, phone]);
 
