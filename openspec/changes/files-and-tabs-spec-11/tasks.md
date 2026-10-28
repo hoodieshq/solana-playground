@@ -6,7 +6,7 @@ time; group 2 starts after group 1 merges, because both change
 
 ## 1. Empty editor, tab menu, delete dialogs, project rows (`scope/interface`)
 
-- [ ] 1.1 `PgView.showFiles()` and `onDidRequestFiles`; `LayoutShell` opens the Files column (desktop) or the Files page (phone) on it; verify with a `LayoutShell.test.tsx` case for each width
+- [ ] 1.1 ([plan](plans/1-empty-editor-tabs-dialogs-rows.md)) `PgView.showFiles()` and `onDidRequestFiles`; `LayoutShell` opens the Files column (desktop) or the Files page (phone) on it; verify with a `LayoutShell.test.tsx` case for each width
 - [ ] 1.2 `BaseNoFileOpen` / `NoFileOpen` in `widgets/layout-shell`, rendered by `Editor.tsx` in place of `Editor/Home`, which is deleted; verify with a Base test and the e2e scenario "client-v2-files: Closing the last tab"
 - [ ] 1.3 Tab menu in sentence case, key hint "Alt+W"; verify with the updated `Tab.test.tsx` list
 - [ ] 1.4 `ModalFrame` `openFocus: "cancel"`; `DeleteWorkspace` and `DeleteItem` copy, lesson line, signed-in line and folder file count per the spec; verify with tests for each line's presence and Cancel's focus
