@@ -133,9 +133,7 @@ it("offers no example once the browser holds a project", async () => {
   utils.PgExplorer.allWorkspaceNames = ["counter"];
   const { home } = draw();
   await home.findByText("3 tutorials, 34 programs");
-  expect(titles(home).some((t) => t?.startsWith("Try an example"))).toBe(
-    false
-  );
+  expect(titles(home).some((t) => t?.startsWith("Try an example"))).toBe(false);
 });
 
 it("puts Continue first when a project is open and goes back to it without a switch", async () => {

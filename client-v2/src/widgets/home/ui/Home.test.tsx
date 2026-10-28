@@ -36,7 +36,10 @@ const utils = vi.hoisted(() => ({
   },
   PgFramework: { get: vi.fn() },
   PgCommand: { build: { execute: vi.fn() } },
+  isTerminalUnmounted: (e: unknown) => e === UNMOUNTED,
 }));
+/** What the terminal answers before the work under Home has mounted it */
+const UNMOUNTED = vi.hoisted(() => new Error("terminal unmounted"));
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
 // Home only hands Start from scratch on; its own tests cover it
@@ -236,9 +239,11 @@ it("keeps the example when its build fails to start, and logs it", async () => {
   await waitFor(() =>
     expect(events("home_example_run")).toEqual([{ outcome: "created" }])
   );
-  expect(logged.entries.map((e) => [e.ns, e.error, e.report])).toEqual([
-    ["home:first-run", failure, true],
-  ]);
+  await waitFor(() =>
+    expect(logged.entries.map((e) => [e.ns, e.error, e.report])).toEqual([
+      ["home:first-run", failure, true],
+    ])
+  );
   expect(utils.PgView.setToast).not.toHaveBeenCalled();
 });
 
@@ -302,4 +307,19 @@ it("opens another project from the recent list", async () => {
     expect(events("home_recent_opened")).toEqual([{ kind: "project" }])
   );
   expect(utils.PgExplorer.switchWorkspace).toHaveBeenCalledWith("b");
+});
+
+it("starts the example's build once the work has mounted the terminal", async () => {
+  utils.PgCommand.build.execute
+    .mockRejectedValueOnce(UNMOUNTED)
+    .mockRejectedValueOnce(UNMOUNTED)
+    .mockResolvedValueOnce(undefined);
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: "Run it" }));
+  await waitFor(
+    () => expect(utils.PgCommand.build.execute).toHaveBeenCalledTimes(3),
+    { timeout: 3000 }
+  );
+  expect(events("home_example_run")).toEqual([{ outcome: "created" }]);
+  expect(logged.entries).toEqual([]);
 });

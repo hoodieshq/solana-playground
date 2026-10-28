@@ -20,7 +20,8 @@ export const recentProjects = (
   isLesson: (name: string) => boolean
 ): RecentEntry[] => {
   const rest = names.filter((name) => name !== current).reverse();
-  const ordered = current && names.includes(current) ? [current, ...rest] : rest;
+  const ordered =
+    current && names.includes(current) ? [current, ...rest] : rest;
   return ordered.slice(0, RECENT_SHOWN).map((name) => ({
     name,
     kind: isLesson(name) ? "tutorial" : "project",
@@ -49,7 +50,11 @@ if (import.meta.vitest) {
       });
 
       it("lists the newest first when none is open", () => {
-        const recent = recentProjects(["a", "b", "c", "d"], undefined, noLessons);
+        const recent = recentProjects(
+          ["a", "b", "c", "d"],
+          undefined,
+          noLessons
+        );
         expect(recent.map((r) => r.name)).toEqual(["d", "c", "b"]);
       });
 

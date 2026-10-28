@@ -26,6 +26,22 @@ const serverHost = () => {
   }
 };
 
+/**
+ * How long the running build has run, ticking once a second while it runs
+ * and `null` otherwise, so an idle stage keeps no timer
+ */
+const useElapsed = (flow: FlowState) => {
+  const running = flow.build === "running" ? flow.buildStartedAt : null;
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (running === null) return;
+    setNow(Date.now());
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, [running]);
+  return running === null ? null : Math.max(0, now - running);
+};
+
 /** The Build stage, connected: the flow, this workspace's report, commands */
 const Build = () => {
   const [out, setOut] = useState<BuildOutput | null>(null);
@@ -40,6 +56,7 @@ const Build = () => {
     };
   }, []);
 
+  const elapsedMs = useElapsed(flow);
   const own = ownOutput(out, PgExplorer.currentWorkspaceName ?? null);
   const surface = buildSurface({ flow, own });
 
@@ -60,6 +77,7 @@ const Build = () => {
       building={flow.build === "running"}
       host={serverHost()}
       ms={flow.buildMs}
+      elapsedMs={elapsedMs}
       onBuild={() => PgCommand.build.execute()}
       onContinue={() => PgFlow.setStage("deploy")}
       onExport={() => PgFramework.exportWorkspace()}
