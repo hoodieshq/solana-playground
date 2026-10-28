@@ -1,4 +1,5 @@
 import { CirclePlayIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
@@ -10,6 +11,7 @@ import {
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
+  useMessageScroller,
 } from "@/shared/ui/message-scroller";
 import { Spinner } from "@/shared/ui/spinner";
 import { THREAD_NOT_SAVED } from "../../../views/sidebar/assistant/store";
@@ -23,8 +25,9 @@ import type { ApprovalAnswer } from "./BaseApprovalCard";
  *
  * The scroller follows new content while the reader is at the end and stays
  * put once they scroll up by wheel, touch or keys, offering "Scroll to end"
- * instead. The log "Conversation" is the scroller's content; there is no
- * scroll anchor, so a send made while scrolled up does not move the thread.
+ * instead. The log "Conversation" is the scroller's content. A message the
+ * user sends takes the thread back to the end (`FollowOnSend`), so the reply
+ * is followed even when they sent it while scrolled up.
  */
 export const BaseThread = ({
   items,
@@ -50,6 +53,7 @@ export const BaseThread = ({
   onAnswer: (id: string, answer: ApprovalAnswer) => void;
 }) => (
   <MessageScrollerProvider autoScroll>
+    <FollowOnSend items={items} />
     <MessageScroller className="flex-1">
       <MessageScrollerViewport>
         <MessageScrollerContent
@@ -91,6 +95,24 @@ export const BaseThread = ({
     </MessageScroller>
   </MessageScrollerProvider>
 );
+
+/**
+ * Scrolls to the end when a new user message appears. Without it a reader who
+ * had scrolled up stayed in free scrolling and the reply streamed off-screen;
+ * `scrollToEnd` under `autoScroll` turns following back on.
+ */
+const FollowOnSend = ({ items }: { items: readonly ChatItem[] }) => {
+  const { scrollToEnd } = useMessageScroller();
+  const lastSent = items.findLast((item) => item.kind === "user")?.id;
+  // Starts at the thread as opened, so opening or restoring one scrolls nothing
+  const seen = useRef(lastSent);
+  useEffect(() => {
+    if (lastSent === seen.current) return;
+    seen.current = lastSent;
+    if (lastSent) scrollToEnd({ behavior: "auto" });
+  }, [lastSent, scrollToEnd]);
+  return null;
+};
 
 const EmptyThread = ({
   project,

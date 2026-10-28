@@ -596,9 +596,10 @@ test.describe("The thread", () => {
     await expect(
       thread(page).getByText("The reply you sent for")
     ).toBeInViewport(LONG);
+    // At the end the button stays mounted, faded out and inert
     await expect(
       page.getByRole("button", { name: "Scroll to end" })
-    ).toBeHidden();
+    ).toHaveAttribute("data-active", "false");
   });
 
   test("client-v2-assistant: Reloading with a card pending", async ({
