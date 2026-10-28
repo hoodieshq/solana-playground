@@ -55,11 +55,11 @@ on a phone, which has no Cancel, the dialog itself has focus.
 - **THEN** the dialog reads "Delete counter?" with the files-and-keypair line only
 - **AND** Cancel has focus
 
-#### Scenario: Enter on a phone's delete dialog
+#### Scenario: Enter on a phone's delete dialog (manual)
 - **WHEN** the delete dialog opens at a phone width and the person presses Enter
 - **THEN** nothing is deleted
 
-#### Scenario: A lesson while signed in
+#### Scenario: A lesson while signed in (manual)
 - **WHEN** a signed-in person chooses Delete on a lesson project
 - **THEN** the dialog shows the lesson line and the account line
 
@@ -79,7 +79,7 @@ this." and its buttons "Delete" and "Cancel", with Cancel focused.
 A row in the project list for a lesson project SHALL show the tutorial glyph
 in place of the folder glyph. Every other row keeps the folder glyph.
 
-#### Scenario: A lesson next to a scratch project
+#### Scenario: A lesson next to a scratch project (manual)
 - **WHEN** the list holds a lesson project and a scratch project
 - **THEN** the lesson's row shows the tutorial glyph and the scratch row the folder glyph
 
@@ -90,7 +90,7 @@ project list SHALL show three skeleton rows under its "Projects" heading, and
 no empty message. A preview of a GitHub link, which reads no stored names,
 SHALL show none.
 
-#### Scenario: Names not read yet
+#### Scenario: Names not read yet (manual)
 - **WHEN** the project list renders before the names are read
 - **THEN** three skeleton rows show and no project row renders
 
