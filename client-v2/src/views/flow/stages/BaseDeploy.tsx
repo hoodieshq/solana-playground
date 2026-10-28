@@ -18,9 +18,11 @@ import {
 import { StatusDot } from "@/shared/ui/status-dot";
 import {
   MAINNET_DEPLOY_WARNING_BODY,
+  MAINNET_DEPLOY_WARNING_GUIDE,
   MAINNET_DEPLOY_WARNING_TITLE,
   warnsOnDeploy,
 } from "../../../commands/deploy/mainnet-warning";
+import type { GuideFrom } from "@/features/cli-deploy";
 import type { DeployRecord } from "../state/deploy-history";
 import { STAGE_BODY, STAGE_FOOT, STAGE_FRAME } from "./stage-layout";
 
@@ -58,6 +60,8 @@ export interface BaseDeployProps {
   onInteract: () => void;
   /** The IDL drop zone */
   idlDrop: ReactNode;
+  /** Opens the CLI deploy guide; `from` is the control pressed */
+  onOpenCliGuide: (from: GuideFrom) => void;
 }
 
 /** Why the Deploy button is off, for its tooltip; undefined when it is on */
@@ -219,6 +223,29 @@ const History = ({ p }: { p: BaseDeployProps }) => (
   </section>
 );
 
+/**
+ * The mainnet warning's body, its "deploy from your own machine" turned into
+ * the button that opens the CLI deploy guide; the words stay the terminal's
+ */
+const MainnetWarningBody = ({ p }: { p: BaseDeployProps }) => {
+  const [before, after] = MAINNET_DEPLOY_WARNING_BODY.split(
+    MAINNET_DEPLOY_WARNING_GUIDE
+  );
+  return (
+    <>
+      {before}
+      <Button
+        variant="link"
+        className="h-auto p-0 text-[length:inherit]"
+        onClick={() => p.onOpenCliGuide("mainnet-warning")}
+      >
+        {MAINNET_DEPLOY_WARNING_GUIDE}
+      </Button>
+      {after}
+    </>
+  );
+};
+
 /** The Deploy stage, drawn from props alone; `Deploy` connects it */
 const BaseDeploy = (p: BaseDeployProps) => {
   const latest = p.history[0] ?? null;
@@ -255,7 +282,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
             <TriangleAlert />
             <CalloutTitle>{MAINNET_DEPLOY_WARNING_TITLE}</CalloutTitle>
             <CalloutDescription>
-              {MAINNET_DEPLOY_WARNING_BODY}
+              <MainnetWarningBody p={p} />
             </CalloutDescription>
           </Callout>
         )}
@@ -263,6 +290,12 @@ const BaseDeploy = (p: BaseDeployProps) => {
         <History p={p} />
         {p.idlDrop}
         <StageEmptyActions className={STAGE_FOOT}>
+          <Button
+            variant="ghost"
+            onClick={() => p.onOpenCliGuide("deploy-stage")}
+          >
+            Deploy with the CLI
+          </Button>
           <BrandButton
             disabled={!p.built || p.deploy === "running"}
             aria-busy={p.deploy === "running" || undefined}

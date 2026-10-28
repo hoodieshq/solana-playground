@@ -55,8 +55,9 @@ on the user's behalf; caching the binary.
   (Tool, Cluster), `CodeBlock` with `CopyButton` per command, the download
   button inline. Anchor's path copies the files into `target/deploy/`,
   because `anchor deploy` deploys whatever is there under the lib name.
-- **Triggers.** Mainnet callout: a `link` button "Deploy from your machine"
-  under the body, opening on Mainnet. Deploy stage: a ghost "Deploy with the
+- **Triggers.** Mainnet callout: the body's own words "deploy from your own
+  machine" become a `link` button opening on Mainnet (Spec 03 keeps that
+  copy, still open with design, so no words are added). Deploy stage: a ghost "Deploy with the
   CLI" beside the brand action, opening on the current cluster. Distinct
   labels, because on mainnet both show at once.
 - **`BaseDeploy` gains one prop**, `onOpenCliGuide(from)`; `Deploy` owns the

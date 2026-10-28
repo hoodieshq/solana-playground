@@ -87,7 +87,7 @@ content:
   longer holds the build;
 - `cli_guide_opened` `{ from: "mainnet-warning" | "deploy-stage" }`;
 - `cli_command_copied` `{ tool: "solana" | "anchor", cluster: "devnet" |
-  "mainnet" }`.
+  "mainnet" }`: a command's copy button was pressed.
 
 #### Scenario: Events of a download and a copy (manual)
 

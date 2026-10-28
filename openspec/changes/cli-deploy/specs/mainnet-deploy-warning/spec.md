@@ -4,12 +4,13 @@
 
 ### Requirement: The mainnet warning opens the CLI deploy guide
 
-The Deploy stage's "Mainnet deploy warning" callout SHALL end with a link
-button "Deploy from your machine" that opens the CLI deploy guide on
-Mainnet.
+In the Deploy stage's "Mainnet deploy warning" callout, the body's own words
+"deploy from your own machine" SHALL be a link button that opens the CLI
+deploy guide on Mainnet. The body's wording SHALL stay the terminal's; no
+words are added.
 
 #### Scenario: Guide from the mainnet warning
 
-- **WHEN** the endpoint is mainnet-beta and the user presses "Deploy from
-  your machine" in the mainnet warning
+- **WHEN** the endpoint is mainnet-beta and the user presses "deploy from
+  your own machine" in the mainnet warning
 - **THEN** the "Deploy from your machine" dialog opens with Mainnet picked

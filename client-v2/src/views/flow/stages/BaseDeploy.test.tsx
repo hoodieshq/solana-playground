@@ -43,6 +43,7 @@ const props = (state: {
   details?: DeployDetails;
   /** devnet unless the test is about the cluster */
   cluster?: string | null;
+  onOpenCliGuide?: BaseDeployProps["onOpenCliGuide"];
 }): BaseDeployProps => ({
   cluster: state.cluster === undefined ? "devnet" : state.cluster,
   built: state.built,
@@ -55,6 +56,7 @@ const props = (state: {
   onDeploy: vi.fn(),
   onInteract: vi.fn(),
   idlDrop: null,
+  onOpenCliGuide: state.onOpenCliGuide ?? vi.fn(),
 });
 
 /** The app gives every screen a tooltip provider; the copy button needs one */
@@ -103,6 +105,55 @@ describe("BaseDeploy", () => {
     expect(deploy).toHaveProperty("disabled", false);
     expect(lastIsActions(container)).toBe("stage-empty-actions");
   });
+
+  it("opens the CLI guide from the warning's own words", () => {
+    const onOpenCliGuide = vi.fn();
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          history: [],
+          cluster: "mainnet-beta",
+          onOpenCliGuide,
+        })}
+      />
+    );
+
+    const warning = mainnetWarning()!;
+    expect(warning.textContent).toContain(
+      "For a program that matters, deploy from your own machine with the Solana CLI or Anchor."
+    );
+    fireEvent.click(
+      within(warning).getByRole("button", {
+        name: "deploy from your own machine",
+      })
+    );
+    expect(onOpenCliGuide).toHaveBeenCalledWith("mainnet-warning");
+  });
+
+  it.each(["devnet", "mainnet-beta"])(
+    "offers the CLI guide beside Deploy on %s",
+    (cluster) => {
+      const onOpenCliGuide = vi.fn();
+      render(
+        <BaseDeploy
+          {...props({
+            built: false,
+            deploy: "idle",
+            history: [],
+            cluster,
+            onOpenCliGuide,
+          })}
+        />
+      );
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Deploy with the CLI" })
+      );
+      expect(onOpenCliGuide).toHaveBeenCalledWith("deploy-stage");
+    }
+  );
 
   it("warns on mainnet before a build too", () => {
     render(
