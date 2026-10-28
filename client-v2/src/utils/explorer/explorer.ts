@@ -350,12 +350,14 @@ export class PgExplorer {
   /**
    * If the project is not temporary(default):
    * - Name and path checks
+   * - Announce it (`ON_WILL_RENAME_ITEM`), so a pending edit is saved first
    * - Rename in `indexedDB`, and save the folder tree at once (`_saveTree`),
    *   so a reload right after keeps the new name
    * - If rename is successful also rename item in the state
    *
    * If the project is temporary:
    * - Name and path checks
+   * - Announce it (`ON_WILL_RENAME_ITEM`)
    * - Rename in state
    */
   static async renameItem(
@@ -1372,7 +1374,8 @@ export class PgExplorer {
   /**
    * Runs before renaming an item, once the rename has passed its checks.
    *
-   * @param cb callback function to run
+   * @param cb receives the item's full path before the rename (a folder's, for
+   * a folder). It is not awaited: only its synchronous part runs first
    * @returns a dispose function to clear the event
    */
   static onWillRenameItem(cb: (path: string) => unknown) {

@@ -36,7 +36,10 @@ const focusEditor = async (page: Page) => {
 const item = (page: Page, name: string) =>
   page.locator("#root-dir").getByText(name, { exact: true }).first();
 
-/** Renames an explorer item through its menu and dialog, without waiting */
+/**
+ * Renames an explorer item through its menu and dialog with no pause first, so
+ * it starts inside the autosave's delay, and returns once the new name shows
+ */
 const renameTo = async (page: Page, name: string, to: string) => {
   await item(page, name).click({ button: "right" });
   await page.getByRole("menuitem", { name: /Rename/ }).click();
@@ -145,8 +148,9 @@ test.describe.serial("the editor", () => {
     await item(page, "lib.rs").click();
     await focusEditor(page);
     await page.keyboard.type(" // renamed");
-    // Renamed inside the autosave's delay: the edit is saved before the move,
-    // so the new name carries it
+    // Meant to land inside the autosave's delay, where the edit is saved before
+    // the move; on a slow runner the timer may win, so the event's ordering is
+    // pinned in `explorer.test.ts`, and this checks the user's path end to end
     await renameTo(page, "lib.rs", "moved.rs");
     await item(page, "moved.rs").click();
     await focusEditor(page);
@@ -157,6 +161,7 @@ test.describe.serial("the editor", () => {
     if (!(await item(page, "moved.rs").isVisible())) {
       await item(page, "src").click();
     }
+    await expect(item(page, "lib.rs")).toBeHidden();
     await item(page, "moved.rs").click();
     await focusEditor(page);
     await expect.poll(() => editorText(page)).toContain("// renamed");
@@ -177,6 +182,21 @@ test.describe.serial("the editor", () => {
     await item(page, "client.ts").click();
     await focusEditor(page);
     await expect.poll(() => editorText(page)).toContain("// folder");
+    // On disk too, and the old folder is not written back
+    await page.reload();
+    await expect(item(page, "web")).toBeVisible();
+    await expect(item(page, "client")).toBeHidden();
+    if (!(await item(page, "client.ts").isVisible())) {
+      await item(page, "web").click();
+    }
+    await item(page, "client.ts").click();
+    await focusEditor(page);
+    await expect.poll(() => editorText(page)).toContain("// folder");
+    await renameTo(page, "web", "client");
+    // The reload may draw `src` closed, and the next test starts from `lib.rs`
+    if (!(await item(page, "lib.rs").isVisible())) {
+      await item(page, "src").click();
+    }
   });
 
   test("keeps a file deleted just after an edit deleted", async () => {

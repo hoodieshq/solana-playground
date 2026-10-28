@@ -483,8 +483,10 @@ const Monaco = () => {
       autosave.schedule(path, () => model.getValue());
     });
 
-    // A rename moves the file out from under the pending save's path, so the
-    // edit is saved before it, where the rename picks it up
+    // A rename of the edited file, or of a folder above it, moves the pending
+    // save's path away, so the edit is saved before it, where the rename picks
+    // it up. Only the write's start is ordered: the fs runs it before the
+    // rename because it runs operations in call order
     const willRename = PgExplorer.onWillRenameItem(() => autosave.flush());
 
     return () => {
