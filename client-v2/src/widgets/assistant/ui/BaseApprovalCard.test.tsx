@@ -189,6 +189,45 @@ describe("BaseApprovalCard", () => {
       expect(screen.queryByRole("button", { name: "Undo patch" })).toBeNull();
     });
 
+    it("offers the original even when it was an empty file", () => {
+      render(
+        <TooltipProvider>
+          <BaseApprovalCard
+            item={appliedCard()}
+            onAnswer={vi.fn()}
+            original=""
+          />
+        </TooltipProvider>
+      );
+      expect(
+        screen.getByRole("button", { name: "Copy the original" })
+      ).toBeTruthy();
+    });
+
+    it("offers nothing to copy without an original", () => {
+      render(<BaseApprovalCard item={appliedCard()} onAnswer={vi.fn()} />);
+      expect(
+        screen.queryByRole("button", { name: "Copy the original" })
+      ).toBeNull();
+    });
+
+    it("reads an undo that did not finish as a warning", () => {
+      const card: ApprovalItem = {
+        id: "card-4",
+        createdAt: CREATED,
+        kind: "approval",
+        status: "allowed",
+        outcome: "Undo did not finish: src/lib.rs changed while Undo wrote it.",
+        request,
+      };
+      render(<BaseApprovalCard item={card} onAnswer={vi.fn()} />);
+      expect(
+        screen.getByText(
+          "Undo did not finish: src/lib.rs changed while Undo wrote it."
+        ).className
+      ).toContain("text-warning");
+    });
+
     it("offers no Undo patch without onUndo", () => {
       render(<BaseApprovalCard item={appliedCard()} onAnswer={vi.fn()} />);
       expect(screen.queryByRole("button", { name: "Undo patch" })).toBeNull();

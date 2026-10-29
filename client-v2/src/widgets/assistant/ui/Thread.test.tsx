@@ -117,6 +117,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  undo.original.mockReturnValue(null);
   // The thread is still mounted here: RTL's own cleanup runs after this hook
   act(() => PgAssistant.clear());
   resetTelemetry();
@@ -217,7 +218,14 @@ describe("Thread, undo", () => {
     expect(
       screen.getByRole("button", { name: "Copy the original" })
     ).toBeTruthy();
-    undo.original.mockReturnValue(null);
+  });
+
+  it("offers nothing to copy on a card whose Undo did not strand", () => {
+    applied();
+    render(<Thread turn={stubTurn(false)} project="Counter" />);
+    expect(
+      screen.queryByRole("button", { name: "Copy the original" })
+    ).toBeNull();
   });
 
   it("offers no Undo patch on a card it cannot take back", () => {

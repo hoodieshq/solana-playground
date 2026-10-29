@@ -19,6 +19,7 @@ import {
   diffLines,
   summarizeDiff,
 } from "../../../views/sidebar/assistant/diff";
+import { isUndoStranded } from "../../../views/sidebar/assistant/store";
 import type {
   ApprovalStatus,
   ChatItem,
@@ -42,6 +43,17 @@ const OUTCOME: Record<Exclude<ApprovalStatus, "pending">, string> = {
   allowed: "done",
   denied: "not applied",
   unanswered: "not applied -- the session ended before you answered",
+};
+
+/** An undo that did not finish is a warning; a patch still applied, a success */
+const outcomeTone = (
+  status: ApprovalStatus,
+  undone: boolean,
+  stranded: boolean
+) => {
+  if (stranded) return "text-warning";
+  if (status === "allowed" && !undone) return "text-success";
+  return "text-muted-foreground";
 };
 
 // The answers sit in one row of thumb-sized targets on a phone, where the
@@ -72,6 +84,7 @@ export const BaseApprovalCard = ({
   const pending = status === "pending";
   const patch = request.type === "patch";
   const undone = !!item.undone;
+  const stranded = isUndoStranded(item.outcome);
 
   return (
     <Diff data-status={status} className={cn(pending && "border-primary")}>
@@ -125,12 +138,7 @@ export const BaseApprovalCard = ({
         ) : (
           <>
             <span
-              className={cn(
-                "text-xs",
-                status === "allowed" && !undone
-                  ? "text-success"
-                  : "text-muted-foreground"
-              )}
+              className={cn("text-xs", outcomeTone(status, undone, stranded))}
             >
               {item.outcome ?? OUTCOME[status]}
             </span>

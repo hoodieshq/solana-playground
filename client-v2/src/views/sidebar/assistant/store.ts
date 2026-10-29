@@ -170,6 +170,19 @@ export const turnAppliedApproval = (items: readonly ChatItem[]) => {
   return false;
 };
 
+/** A card's outcome when its Undo threw and did not finish */
+export const undoStrandedOutcome = (
+  path: string,
+  why: string,
+  created: boolean
+) =>
+  `Undo did not finish: ${path} ${why}.` +
+  (created ? " It did not exist before the patch." : "");
+
+/** Whether a card's outcome says its Undo did not finish */
+export const isUndoStranded = (outcome: string | undefined) =>
+  !!outcome?.startsWith("Undo did not finish:");
+
 /** What the thread says where the user stopped a turn */
 export const STOPPED_NOTICE = "Stopped.";
 

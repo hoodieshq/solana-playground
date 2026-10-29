@@ -218,13 +218,15 @@ describe("PgPatchUndo", () => {
       expect(card.undone).toBeUndefined();
       expect(PgPatchUndo.can(card, bridge)).toBe(false);
       expect(card.outcome).toBe(
-        "Undo did not finish: src/lib.rs changed while Undo wrote it. Copy the original below."
+        "Undo did not finish: src/lib.rs changed while Undo wrote it."
       );
       expect(PgPatchUndo.original(card)).toBe("old");
-      expect(getFailures().map((f) => f.what)).toEqual(["undo a patch"]);
+      expect(getFailures().map((f) => f.what)).toEqual([
+        "undo src/lib.rs: it changed while Undo wrote it",
+      ]);
     });
 
-    it("says so and reports it when the file cannot be read back", async () => {
+    it("says so, reports it and keeps Undo when the file cannot be read back", async () => {
       const card = await applied("old", "new");
       PgPatchUndo.wrote(card.id);
       const { bridge } = fakeBridge("new");
@@ -237,12 +239,18 @@ describe("PgPatchUndo", () => {
       await expect(PgPatchUndo.undo(card, bridge)).rejects.toThrow("disk");
 
       expect(card.outcome).toBe(
-        "Undo did not finish: src/lib.rs could not be read back. Copy the original below."
+        "Undo did not finish: src/lib.rs could not be read back."
       );
       expect(PgPatchUndo.original(card)).toBe("old");
       expect(getFailures().map((f) => f.what)).toEqual([
-        "read a file back after a failed undo",
+        "undo src/lib.rs: read it back after the write failed",
       ]);
+      // The file still holds the patch once it reads: Undo is offered, and
+      // a retry that lands clears the copy
+      expect(PgPatchUndo.can(card, bridge)).toBe(true);
+      expect(await PgPatchUndo.undo(card, bridge)).toBe("undone");
+      expect(card.undone).toBe(true);
+      expect(PgPatchUndo.original(card)).toBeNull();
     });
 
     it("offers nothing to copy for a created file, and says it did not exist", async () => {
@@ -259,6 +267,8 @@ describe("PgPatchUndo", () => {
       expect(card.outcome).toBe(
         "Undo did not finish: src/lib.rs changed while Undo wrote it. It did not exist before the patch."
       );
+      expect(card.undone).toBeUndefined();
+      expect(PgPatchUndo.can(card, bridge)).toBe(false);
       expect(PgPatchUndo.original(card)).toBeNull();
     });
   });
@@ -273,6 +283,24 @@ describe("PgPatchUndo", () => {
 
     expect(card.undone).toBeUndefined();
     expect(PgPatchUndo.can(card, bridge)).toBe(true);
+    expect(card.outcome).toBeUndefined();
+    expect(PgPatchUndo.original(card)).toBeNull();
+  });
+
+  it("offers Undo again when a write failed before it landed, under the build's id", async () => {
+    const card = await applied(
+      'declare_id!("11111111111111111111111111111111");\nold',
+      'declare_id!("11111111111111111111111111111111");\nnew'
+    );
+    PgPatchUndo.wrote(card.id);
+    const { bridge } = fakeBridge('declare_id!("Built1111");\nnew');
+    vi.mocked(bridge.applyPatch).mockRejectedValueOnce(new Error("disk"));
+
+    await expect(PgPatchUndo.undo(card, bridge)).rejects.toThrow("disk");
+
+    expect(card.undone).toBeUndefined();
+    expect(PgPatchUndo.can(card, bridge)).toBe(true);
+    expect(PgPatchUndo.original(card)).toBeNull();
   });
 
   it("marks the card undone when the write with the build's id landed and what followed failed", async () => {

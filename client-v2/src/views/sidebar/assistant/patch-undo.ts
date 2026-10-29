@@ -3,6 +3,7 @@ import type { PlaygroundBridge } from "./bridge/playground-bridge";
 import { report } from "@/features/persistence";
 import { createLogger } from "@/shared/lib/logger";
 import { PgAssistant } from "./store";
+import { undoStrandedOutcome } from "./store";
 import type { ChatItem, PatchApproval } from "./store";
 
 type ApprovalItem = Extract<ChatItem, { kind: "approval" }>;
@@ -24,9 +25,10 @@ const written = new Set<string>();
 
 /**
  * Cards whose Undo threw and left the file holding neither the patch nor
- * the original, or a file that could not be read back. The card says so and
- * offers the original to copy (`PgPatchUndo.original`); in memory, like
- * `written`, since only this tab holds the whole original.
+ * the original, or a file that could not be read back. Their stored outcome
+ * says Undo did not finish (`undoStrandedOutcome`); this tab also offers the
+ * original to copy (`PgPatchUndo.original`). In memory, like `written`: only
+ * this tab holds the whole original, and a reload loses it.
  */
 const stranded = new Set<string>();
 
@@ -46,18 +48,19 @@ const keepId = (content: string, now: string | null) => {
   return id ? content.replace(DECLARE_ID, id) : content;
 };
 
-/** The card's outcome when Undo could neither finish nor be offered again */
-export const undoStrandedOutcome = (
-  path: string,
-  why: string,
-  created: boolean
-) =>
-  created
-    ? `Undo did not finish: ${path} ${why}. It did not exist before the patch.`
-    : `Undo did not finish: ${path} ${why}. Copy the original below.`;
-
-/** Never a silent card with no Undo: say why on it, keep the original */
+/**
+ * Never a silent card: its outcome says Undo did not finish and why, stored
+ * with the thread, and this tab keeps the original for the card to offer
+ */
 const strand = (item: ApprovalItem, request: PatchApproval, why: string) => {
+  if (!PgAssistant.items.some((i) => i.id === item.id)) {
+    // The thread moved on during the write: no card is left to say it
+    log.warn("an undo did not finish and its card is gone", {
+      report: true,
+      context: { path: request.path, why },
+    });
+    return;
+  }
   stranded.add(item.id);
   PgAssistant.setApprovalOutcome(
     item.id,
@@ -66,22 +69,30 @@ const strand = (item: ApprovalItem, request: PatchApproval, why: string) => {
 };
 
 /**
- * After a write that threw: what the file holds now decides the card, and a
- * file that cannot be read strands it too. Never throws, so the caller
- * rethrows the write's own error.
+ * After a write that threw: what the file holds now decides the card. Still
+ * the patch: Undo is offered again. Back as it was: the card reads Undone.
+ * Anything else: the card says Undo did not finish. A file that cannot be
+ * read says so too, and keeps Undo for when it can. Throws nothing of its
+ * own, so the caller rethrows the write's error.
  */
 const settleFailedUndo = (
   item: ApprovalItem,
   request: PatchApproval,
   /** What the file held before the write: the patch, with its current id */
-  held: string | null,
-  bridge: PlaygroundBridge
+  held: string,
+  bridge: PlaygroundBridge,
+  writeError: unknown
 ) => {
   let now: string | null;
   try {
     now = bridge.readFile(request.path);
   } catch (readError) {
-    report("read a file back after a failed undo", readError);
+    report(
+      `undo ${request.path}: read it back after the write failed`,
+      readError
+    );
+    // Unknown, not lost: `can` reads the file again on the next render
+    written.add(item.id);
     strand(item, request, "could not be read back");
     return;
   }
@@ -94,10 +105,7 @@ const settleFailedUndo = (
       ? now === null
       : now === keepId(request.before, held);
   if (!restored) {
-    report(
-      "undo a patch",
-      new Error(`${request.path} changed while Undo wrote it`)
-    );
+    report(`undo ${request.path}: it changed while Undo wrote it`, writeError);
     strand(item, request, "changed while Undo wrote it");
     return;
   }
@@ -136,7 +144,9 @@ export class PgPatchUndo {
    */
   static original(item: ApprovalItem) {
     const { request } = item;
-    if (!stranded.has(item.id) || request.type !== "patch") return null;
+    if (!stranded.has(item.id) || item.undone || request.type !== "patch") {
+      return null;
+    }
     return request.before;
   }
 
@@ -166,7 +176,7 @@ export class PgPatchUndo {
       return "not-undoable";
     }
     const now = bridge.readFile(request.path);
-    if (!holdsPatch(now, request.after)) {
+    if (now === null || !holdsPatch(now, request.after)) {
       PgAssistant.addNotice(editedAfterApply(request.path));
       return "moved-on";
     }
@@ -186,9 +196,11 @@ export class PgPatchUndo {
       // offered again; back as it was, and the card says so; anything else,
       // or a file that cannot be read, and the card says Undo did not finish
       // and offers the original to copy
-      settleFailedUndo(item, request, now, bridge);
+      settleFailedUndo(item, request, now, bridge, error);
       throw error;
     }
+    // A retry after a stranded attempt: the card no longer needs the copy
+    stranded.delete(item.id);
     if (!PgAssistant.markUndone(item.id, undoneOutcome(request.path))) {
       // The file is back, but the thread moved on during the write (a
       // workspace switch, a sign-out), so no card says so
