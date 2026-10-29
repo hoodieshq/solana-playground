@@ -107,6 +107,24 @@ describe("the session effect", () => {
 
     expect(calls).toContain("reconcile");
     expect(switchWorkspace).not.toHaveBeenCalled();
+    // The effect's own hold, given back once by the restore
+    expect(calls.filter((c) => c === "hold")).toHaveLength(1);
+    expect(calls.filter((c) => c === "release")).toHaveLength(1);
+    effect.dispose();
+  });
+
+  it("takes a sign-in after a signed-out read Home made before the effects mounted as a sign-in", async () => {
+    sync.mockResolvedValue(result({ latest: "Newest" }));
+    await PgSession.refreshWith(null);
+    (PgSession.refresh as unknown as MockInstance).mockResolvedValue(undefined);
+
+    const effect = session();
+    await settle();
+    expect(calls).not.toContain("reconcile");
+    await PgSession.refreshWith(user);
+    await settle();
+
+    expect(switchWorkspace).toHaveBeenCalledWith("Newest");
     effect.dispose();
   });
 

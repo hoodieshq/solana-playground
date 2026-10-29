@@ -252,7 +252,8 @@ export const session = (): Disposable => {
 
   // The first answered read that no sign-in started is the cookie being
   // restored on load -- `refresh` fires it before its own promise settles,
-  // and when the load's read failed, Home's retry is the one that answers. A
+  // Home's read may have settled it before this effect mounted, and when the
+  // load's read failed, Home's retry is the one that answers. A
   // sign-in's own read, and any transition after the restore, is a real
   // sign-in, and only that one takes the user somewhere.
   let restored = false;
