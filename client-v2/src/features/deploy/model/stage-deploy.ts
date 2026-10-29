@@ -152,10 +152,16 @@ export class PgStageDeploy {
       return;
     }
     let backupFor: string | null = null;
-    const paidBy = PgWallet.current;
-    if (paidBy?.isPg) {
-      const address = paidBy.publicKey.toBase58();
-      if (!isBackupAnswered(address)) backupFor = address;
+    try {
+      const paidBy = PgWallet.current;
+      if (paidBy?.isPg) {
+        const address = paidBy.publicKey.toBase58();
+        if (!isBackupAnswered(address)) backupFor = address;
+      }
+    } catch (error) {
+      // The program is deployed; without the wallet's address only the
+      // backup line is lost, and the stage must still leave "running"
+      log.error(error, { report: true, context: { after: "deploy" } });
     }
     PgStageDeploy._set({ phase: "done", backupFor });
     try {
@@ -199,6 +205,11 @@ export class PgStageDeploy {
       // Another run's question, if one is somehow open, is answered no
       // rather than left to hang
       PgStageDeploy._staleResolve?.(false);
+      // A run that has already ended takes no question
+      if (!PgStageDeploy._running()) {
+        resolve(false);
+        return;
+      }
       PgStageDeploy._staleResolve = resolve;
       PgStageDeploy._set({ phase: "running", askingStaleBuild: true });
     });
