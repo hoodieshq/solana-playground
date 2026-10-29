@@ -242,17 +242,18 @@ it("makes the example and builds it once on a first visit", async () => {
   expect(events("home_example_run")).toEqual([{ outcome: "created" }]);
 });
 
-it("keeps the example when its build fails to run, and logs it unreported", async () => {
-  utils.PgCommand.build.execute.mockRejectedValueOnce(new Error("server down"));
+it("keeps the example when its build fails to run, and reports it", async () => {
+  const failure = new Error("server down");
+  utils.PgCommand.build.execute.mockRejectedValueOnce(failure);
   const { home } = draw();
   fireEvent.click(home.getByRole("button", { name: "Run it" }));
   await waitFor(() =>
     expect(events("home_example_run")).toEqual([{ outcome: "created" }])
   );
-  // The Build stage shows an unreached server; it is no bug to report
+  // The stage may show it as an unreached server, but it could be a bug
   await waitFor(() =>
-    expect(logged.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
-      ["home:first-run", "warn", false],
+    expect(logged.entries.map((e) => [e.ns, e.error, e.report])).toEqual([
+      ["home:first-run", failure, true],
     ])
   );
   expect(utils.PgView.setToast).not.toHaveBeenCalled();
@@ -419,4 +420,41 @@ it("offers no example to a signed-in account whose projects have not arrived", (
   });
   const { home } = draw();
   expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
+});
+
+it("reports a terminal that never mounted, and stops asking for it", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    utils.PgCommand.build.execute.mockRejectedValue(UNMOUNTED);
+    const { home } = draw();
+    fireEvent.click(home.getByRole("button", { name: "Run it" }));
+    await waitFor(() =>
+      expect(events("home_example_run")).toEqual([{ outcome: "created" }])
+    );
+    await vi.advanceTimersByTimeAsync(15_100);
+    await waitFor(() =>
+      expect(
+        logged.entries.map((e) => [e.ns, e.report, e.context?.waitedMs])
+      ).toEqual([["home:first-run", true, 15_000]])
+    );
+    const calls = utils.PgCommand.build.execute.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(utils.PgCommand.build.execute).toHaveBeenCalledTimes(calls);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("tells the user when a recent project is gone since Home drew it", async () => {
+  utils.PgExplorer.allWorkspaceNames = ["a", "b"];
+  utils.PgExplorer.currentWorkspaceName = "a";
+  const { home } = draw();
+  // Deleted in another tab; the row is still drawn
+  utils.PgExplorer.allWorkspaceNames = ["a"];
+  fireEvent.click(home.getByRole("button", { name: "Open b" }));
+  await waitFor(() =>
+    expect(logged.entries.map((e) => e.ns)).toEqual(["ui:button"])
+  );
+  expect(utils.PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+  expect(events("home_recent_opened")).toEqual([]);
 });

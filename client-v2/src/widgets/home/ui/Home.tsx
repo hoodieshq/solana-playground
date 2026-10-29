@@ -8,6 +8,7 @@ import { PgExplorer, PgTutorial } from "@/utils";
 import { errorMessage } from "../lib/error-message";
 import { runExample } from "../model/example";
 import { recentProjects } from "../model/recent";
+import { visitOf } from "../model/visit";
 import type { RecentEntry } from "../model/recent";
 import { useProgramCount } from "../model/use-program-count";
 import { homeTelemetry } from "../model/telemetry";
@@ -57,10 +58,9 @@ const useStart = (onContinue: () => void): HomeStart | null => {
   useRenderOnChange(PgExplorer.onDidDeleteWorkspace);
   useRenderOnChange(PgSession.onDidChange);
   const names = PgExplorer.allWorkspaceNames;
-  // Unknown is not "no project": lead with nothing until the list loads
-  if (!names) return null;
-  if (!names.length) {
-    if (PgSession.get()) return null;
+  const visit = visitOf(names, PgSession.get() !== null);
+  if (visit === "unknown" || !names) return null;
+  if (visit === "first") {
     return {
       kind: "example",
       onRun: async () => {

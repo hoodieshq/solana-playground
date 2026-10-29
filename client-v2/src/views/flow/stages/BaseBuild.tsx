@@ -146,10 +146,7 @@ const FirstBuildButton = ({ p }: { p: BaseBuildProps }) => (
   </BrandButton>
 );
 
-/**
- * From when a first build reads as slow (Spec 06: "after 60 s", a number
- * still to agree with dev)
- */
+/** From when a first build reads as slow (spec `client-v2-first-run`) */
 const SLOW_BUILD_MS = 60_000;
 
 const Empty = (p: BaseBuildProps) => (
@@ -164,8 +161,8 @@ const Empty = (p: BaseBuildProps) => (
       // A run in flight names the server and warns about the wait. The
       // Foundation's server took 381s on a cold first build and 2.9s on the
       // next one (measured 2026-09-21); six unexplained minutes read as a
-      // hang, so say the first build is the slow one, and once a minute has
-      // passed, add that this one is still running (Spec 06).
+      // hang, so say the first build is the slow one; from `SLOW_BUILD_MS`
+      // a second line below adds that this one is still running.
       p.building
         ? `Compiling on ${p.host}. A first build there can take several minutes.`
         : "Build compiles your program on the server. Nothing leaves your browser except the source."

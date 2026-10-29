@@ -59,7 +59,7 @@ export type ExampleRun = "created" | "opened" | "current";
 /**
  * Open the example, or make it and start its one build. The build is part
  * of making it, never read back from storage, so a reload cannot start
- * another (Spec 06: the build starts on its own only once). It is started,
+ * another (spec `client-v2-first-run`). It is started,
  * not awaited: a build that fails is the Build stage's to show, and the
  * example exists, so this answers `created` either way.
  */
@@ -82,20 +82,24 @@ export const runExample = async (): Promise<ExampleRun> => {
   });
   // Not awaited: the example exists now, and the build is the Build stage's
   // to show, however long it runs. A compile error resolves (the stage lists
-  // it); a rejection is a build server that did not answer, which the stage
-  // shows as unreached, so neither is a bug for the team to hear of
+  // it). The user leaving the example or pressing Build is no fault; a
+  // terminal that never mounted, or a rejection the stage may show as an
+  // unreached server but that could as well be a bug, the team hears of
   buildWhenMounted().then(
     (skipped) => {
-      if (skipped) {
-        log.warn("the example's build did not start", {
+      if (skipped === "terminal-never-mounted") {
+        log.error(new Error("The example's build found no terminal"), {
+          report: true,
+          context: { waitedMs: MOUNT_WAIT_MS },
+        });
+      } else if (skipped) {
+        log.info("the example's build was left to the user", {
           context: { reason: skipped },
         });
       }
     },
     (e: unknown) =>
-      log.warn("the example's build failed to run", {
-        context: { e, workspace: EXAMPLE_NAME },
-      })
+      log.error(e, { report: true, context: { workspace: EXAMPLE_NAME } })
   );
   return "created";
 };

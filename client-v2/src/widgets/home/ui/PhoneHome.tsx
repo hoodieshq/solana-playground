@@ -3,6 +3,7 @@ import { PgSession } from "@/features/auth";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgFramework, PgTutorial } from "@/utils";
 import { runExample } from "../model/example";
+import { visitOf } from "../model/visit";
 import { homeTelemetry } from "../model/telemetry";
 import type { PageTile } from "../model/telemetry";
 import { useProgramCount } from "../model/use-program-count";
@@ -94,9 +95,10 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   const current = PgExplorer.currentWorkspaceName;
 
   const quickstarts: PhoneQuickstart[] = [];
-  // Spec 06's first visit: a browser known to hold no project, and no
-  // session, whose projects would be on their way by sync
-  if (PgExplorer.allWorkspaceNames?.length === 0 && !PgSession.get()) {
+  // The example leads only a first visit (`visitOf`)
+  if (
+    visitOf(PgExplorer.allWorkspaceNames, PgSession.get() !== null) === "first"
+  ) {
     quickstarts.push({
       id: "example",
       title: "Try an example",

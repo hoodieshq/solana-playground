@@ -36,7 +36,7 @@ type HomeEvents = {
   home_quickstart_opened: { id: HomeQuickstart };
   /**
    * "Run it", or the phone's example quick start, opened the example: made
-   * it and started its build (`created`), opened it, or went back to it
+   * it and left its build to start on its own (`created`), opened it, or went back to it
    */
   home_example_run: { outcome: HomeExampleOutcome };
   /** A user opened a row of "Pick up where you left off" */
