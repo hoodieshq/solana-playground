@@ -78,12 +78,23 @@ const deployStatus = (
 
 /**
  * Connect the Playground wallet a stage deploy pays from, without a dialog:
- * the current account, else the first, else a new one.
+ * the current account, else the first, else a new one. Resolves once it is
+ * `PgWallet.current`, which is derived asynchronously: the deploy's own
+ * wallet check would otherwise ask in the terminal.
  */
-const ensurePlaygroundWallet = () => {
+const ensurePlaygroundWallet = async () => {
   if (PgWallet.current) return;
+  const connected = new Promise<void>((resolve) => {
+    const sub = PgWallet.onDidChangeCurrent((current) => {
+      if (!current) return;
+      // The listener can fire before `onDidChangeCurrent` returns
+      queueMicrotask(() => sub.dispose());
+      resolve();
+    });
+  });
   if (PgWallet.accounts.length === 0) PgWallet.add();
   else PgWallet.switch(Math.max(PgWallet.currentIndex, 0));
+  await connected;
 };
 
 /** The Deploy stage, connected: the flow, the history, the chain, commands */
@@ -149,24 +160,26 @@ const Deploy = () => {
     // imported id; redeploying always targets the project's own key,
     // never whatever Interact last selected.
     PgProgramInfo.update({ customPk: null });
-    ensurePlaygroundWallet();
 
     const cluster: Cluster | null = PgConnection.cluster;
     const redeploy = deployed;
     if (cluster) deployTelemetry.track("deploy_started", { cluster, redeploy });
 
-    PgDeployRun.withAnswers(
-      {
-        confirmStaleBuild: () =>
-          new Promise<boolean>((resolve) =>
-            setStaleAnswer(() => (answer: boolean) => {
-              setStaleAnswer(null);
-              resolve(answer);
-            })
-          ),
-      },
-      () => PgCommand.deploy.execute()
-    )
+    ensurePlaygroundWallet()
+      .then(() =>
+        PgDeployRun.withAnswers(
+          {
+            confirmStaleBuild: () =>
+              new Promise<boolean>((resolve) =>
+                setStaleAnswer(() => (answer: boolean) => {
+                  setStaleAnswer(null);
+                  resolve(answer);
+                })
+              ),
+          },
+          () => PgCommand.deploy.execute()
+        )
+      )
       .then((result) => {
         if (!result) return;
         if (cluster) {

@@ -32,7 +32,13 @@ const mocks = vi.hoisted(() => ({
     add: vi.fn(),
     switch: vi.fn(),
     export: vi.fn(),
+    onDidChangeCurrent: vi.fn((cb: (w: unknown) => void) => {
+      mocks.walletListeners.add(cb);
+      cb(mocks.wallet.current);
+      return { dispose: () => mocks.walletListeners.delete(cb) };
+    }),
   },
+  walletListeners: new Set<(w: unknown) => void>(),
   signIn: vi.fn(),
 }));
 
@@ -94,7 +100,14 @@ const render = (ui: ReactElement) =>
   rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
 
 let sent: ReturnType<typeof memoryProvider>;
+/** The wallet `add` creates becomes current, and its listeners hear it */
+const becomeCurrent = () => {
+  mocks.wallet.current = pgWallet();
+  for (const cb of mocks.walletListeners) cb(mocks.wallet.current);
+};
+
 beforeEach(() => {
+  mocks.wallet.add.mockImplementation(becomeCurrent);
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
   localStorage.clear();
@@ -176,13 +189,21 @@ describe("Deploy stage", () => {
   });
 
   it("creates the Playground wallet it pays from, without a dialog", async () => {
-    mocks.execute.mockResolvedValue(undefined);
+    // The wallet becomes current only after its derivation settles, as
+    // `PgWallet.current` does; the deploy's own wallet check must see it
+    mocks.wallet.add.mockImplementation(() => setTimeout(becomeCurrent));
+    let walletAtDeploy: string | null = "not run";
+    mocks.execute.mockImplementation(async () => {
+      walletAtDeploy = mocks.wallet.current?.publicKey.toBase58() ?? null;
+    });
     render(<Deploy />);
 
     await pressDeploy();
+    await act(async () => new Promise((r) => setTimeout(r, 10)));
 
     expect(mocks.wallet.add).toHaveBeenCalledOnce();
     expect(mocks.wallet.switch).not.toHaveBeenCalled();
+    expect(walletAtDeploy).toBe(WALLET);
   });
 
   it("asks about a failed build in the panel and stops on Cancel", async () => {

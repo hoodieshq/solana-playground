@@ -66,11 +66,16 @@ export const BaseApprovalCard = ({
   return (
     <Diff data-status={status} className={cn(pending && "border-primary")}>
       <DiffHeader>
-        <DiffTitle>
-          {patch
-            ? request.path
-            : request.question ?? `wants to run ${request.name}`}
-        </DiffTitle>
+        {!patch && request.question ? (
+          // A question is read whole, so it wraps instead of truncating
+          <DiffTitle className="font-sans text-sm whitespace-normal text-foreground">
+            {request.question}
+          </DiffTitle>
+        ) : (
+          <DiffTitle>
+            {patch ? request.path : `wants to run ${request.name}`}
+          </DiffTitle>
+        )}
         {patch ? <PatchStat request={request} /> : <span className="ml-auto" />}
         <Badge
           variant={pending ? "default" : "outline"}
