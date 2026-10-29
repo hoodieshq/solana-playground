@@ -41,7 +41,7 @@ for; tasks with "after nothing" start at once.
 
 ## 3. Conversation
 
-- [ ] 3.1 The conversation engine: the reducer over definition and
+- [x] 3.1 The conversation engine: the reducer over definition and
       progress, the runner's clock, saving to `tutorial-storage.json` under
       `conversation`, reload (turns whole, runs interrupted), Start over,
       `tutorial_started` and `tutorial_finished`. Verify: unit tests that walk
