@@ -92,6 +92,29 @@ export type SignInState =
 
 const IDLE: SignInState = { status: "idle" };
 
+/** Statuses that are no answer about who is signed in, only a busy server */
+const RETRY_LATER = new Set([408, 425, 429]);
+
+/**
+ * The auth route's 503 for a deployment with no sign-in configured. Only a
+ * JSON body can say so; any other 503, a body that does not parse included,
+ * is an outage.
+ */
+const notConfigured = async (response: Response) => {
+  if (response.status !== 503) return false;
+  if (!response.headers?.get("content-type")?.includes("application/json")) {
+    return false;
+  }
+  try {
+    const body = await response.json();
+    return body?.error === AUTH_NOT_CONFIGURED;
+  } catch (e) {
+    // The 5xx branch reports the 503 with its status; the parse error is detail
+    log.debug("session read 503 body did not parse", { context: { e } });
+    return false;
+  }
+};
+
 /**
  * The signed-in user, from our backend rather than from GitHub.
  *
@@ -104,18 +127,8 @@ const IDLE: SignInState = { status: "idle" };
  * barrel reaches most of the app, and the circular-dependency plugin fails the
  * build on a cycle.
  */
-/**
- * The auth route's 503 for a deployment with no sign-in configured. Only a
- * JSON body can say so; any other 503 is an outage.
- */
-const notConfigured = async (response: Response) => {
-  if (response.status !== 503) return false;
-  if (!response.headers?.get("content-type")?.includes("application/json")) {
-    return false;
-  }
-  const body = await response.json();
-  return body?.error === AUTH_NOT_CONFIGURED;
-};
+/** How the last session read went; see `PgSession.readState` */
+export type ReadState = "unread" | "failed" | "answered";
 
 export class PgSession {
   static get(): SessionUser | null {
@@ -137,20 +150,18 @@ export class PgSession {
   }
 
   /**
-   * Whether a session read has settled. It is true after a failed read too,
-   * which leaves `get()` null without meaning nobody is signed in; see
-   * `readFailed`.
+   * How the last session read went: not yet, `failed` (no answer, a 5xx
+   * other than the auth route's not-configured answer, or a 408, 425 or
+   * 429), when `get()` being null says nothing about who is signed in, or
+   * `answered`. A change fires `onDidChange` even when the user does not.
    */
-  static get hasRead(): boolean {
-    return PgSession._hasRead;
+  static get readState(): ReadState {
+    return PgSession._readState;
   }
 
-  /**
-   * Whether the last read failed (no answer, or a 5xx), so `get()` being null
-   * says nothing about who is signed in. A 4xx is an answer: nobody.
-   */
-  static get readFailed(): boolean {
-    return PgSession._readFailed;
+  /** Whether a session read has settled, failed or answered */
+  static get hasRead(): boolean {
+    return PgSession._readState !== "unread";
   }
 
   /**
@@ -159,10 +170,10 @@ export class PgSession {
    * reads again, so a caller deciding on `get()` waits for the page's own read
    * without turning a later sign-in elsewhere into a change seen here, which
    * the session effect would take for a sign-in of its own. It never rejects:
-   * a failed read settles too, with `readFailed` set.
+   * a failed read settles too, as `readState` `failed`.
    */
   static whenRead(): Promise<void> {
-    if (PgSession._hasRead) return Promise.resolve();
+    if (PgSession.hasRead) return Promise.resolve();
     return PgSession._reading ?? PgSession.refresh();
   }
 
@@ -188,7 +199,7 @@ export class PgSession {
       } else if (await notConfigured(response)) {
         // This deployment has no sign-in, so nobody is signed in: an answer
         log.debug("sign-in is not configured here");
-      } else if (response.status >= 500) {
+      } else if (response.status >= 500 || RETRY_LATER.has(response.status)) {
         failed = true;
         log.error(new Error(`session read answered ${response.status}`), {
           report: true,
@@ -204,9 +215,7 @@ export class PgSession {
       log.error(error, { report: true, context: { step: "refresh" } });
     }
 
-    PgSession._hasRead = true;
-    PgSession._readFailed = failed;
-    PgSession._set(next);
+    PgSession._setRead(failed ? "failed" : "answered", next);
   }
 
   /**
@@ -452,9 +461,7 @@ export class PgSession {
 
   /** Test seam: set the user without a network round trip */
   static async refreshWith(user: SessionUser | null) {
-    PgSession._hasRead = true;
-    PgSession._readFailed = false;
-    PgSession._set(user);
+    PgSession._setRead("answered", user);
   }
 
   /** Test seam: open a stub channel instead of a real popup */
@@ -474,8 +481,7 @@ export class PgSession {
     PgSession._ending = false;
     PgSession._pending = undefined;
     PgSession._signInState = IDLE;
-    PgSession._hasRead = false;
-    PgSession._readFailed = false;
+    PgSession._readState = "unread";
     PgSession._reading = undefined;
   }
 
@@ -487,9 +493,8 @@ export class PgSession {
   private static readonly _listeners = new Set<() => void>();
 
   private static _pending: Promise<void> | undefined;
-  /** A session read has answered, so `get()` is what the server said */
-  private static _hasRead = false;
-  private static _readFailed = false;
+  /** How the last session read went; see `readState` */
+  private static _readState: ReadState = "unread";
   private static _reading: Promise<void> | undefined;
   private static _signInState: SignInState = IDLE;
 
@@ -509,16 +514,27 @@ export class PgSession {
     for (const cb of PgSession._listeners) cb();
   }
 
-  private static _set(user: SessionUser | null) {
+  /** Settle a read: its state, then its user, with one change for both */
+  private static _setRead(state: ReadState, user: SessionUser | null) {
+    const stateChanged = PgSession._readState !== state;
+    PgSession._readState = state;
+    if (!PgSession._set(user) && stateChanged) {
+      for (const cb of PgSession._listeners) cb();
+    }
+  }
+
+  /** Set the user; whether it changed, and so whether listeners heard */
+  private static _set(user: SessionUser | null): boolean {
     const unchanged =
       PgSession._user?.id === user?.id &&
       PgSession._user?.name === user?.name &&
       PgSession._user?.image === user?.image &&
       PgSession._user?.login === user?.login;
-    if (unchanged) return;
+    if (unchanged) return false;
 
     PgSession._user = user;
     for (const cb of PgSession._listeners) cb();
+    return true;
   }
 }
 
@@ -604,6 +620,21 @@ if (import.meta.vitest) {
           true,
         ],
         ["a 401", () => Promise.resolve({ ok: false, status: 401 }), false],
+        ["a 429", () => Promise.resolve({ ok: false, status: 429 }), true],
+        ["a 408", () => Promise.resolve({ ok: false, status: 408 }), true],
+        [
+          "a 503 whose JSON body does not parse",
+          () =>
+            Promise.resolve({
+              ok: false,
+              status: 503,
+              headers: new Headers({ "content-type": "application/json" }),
+              json: async () => {
+                throw new SyntaxError("Unexpected end of JSON input");
+              },
+            }),
+          true,
+        ],
         [
           "a 503 saying sign-in is not configured",
           () =>
@@ -632,10 +663,30 @@ if (import.meta.vitest) {
           await PgSession.whenRead();
 
           expect(PgSession.hasRead).toBe(true);
-          expect(PgSession.readFailed).toBe(failed);
+          expect(PgSession.readState).toBe(failed ? "failed" : "answered");
           expect(PgSession.get()).toBeNull();
         }
       );
+
+      it("tells listeners when a failed read is answered, though nobody is signed in", async () => {
+        initLogger({ providers: [memoryProvider()] });
+        const request = vi
+          .spyOn(globalThis, "fetch")
+          .mockRejectedValueOnce(new Error("offline"));
+        await PgSession.refresh();
+        expect(PgSession.readState).toBe("failed");
+
+        const heard = vi.fn();
+        PgSession.onDidChange(heard);
+        request.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ user: null }),
+        } as Response);
+        await PgSession.refresh();
+
+        expect(PgSession.readState).toBe("answered");
+        expect(heard).toHaveBeenCalledTimes(1);
+      });
 
       it("is signed out before any refresh", () => {
         expect(PgSession.get()).toBeNull();

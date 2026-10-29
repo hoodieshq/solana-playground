@@ -6,7 +6,7 @@ Gets a first-time visitor from Home to a running example in one press, a returni
 ## Requirements
 
 ### Requirement: Home offers the example on a first visit
-Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed, since that says nothing of who is signed in.
+Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed (no answer, a 5xx, a 408, 425 or 429), since that says nothing of who is signed in. A deployment with no sign-in configured answers with a 503 that says so; that is an answer (nobody is signed in), not a failure.
 
 #### Scenario: First visit on desktop
 - **WHEN** Home opens in a browser with no project
@@ -19,6 +19,10 @@ Desktop Home SHALL show a section labelled "Try an example" above its three tile
 #### Scenario: Session read failed (manual)
 - **WHEN** Home opens with no project and the session read got no answer or a 5xx
 - **THEN** no "Try an example" region shows
+
+#### Scenario: Sign-in not configured (manual)
+- **WHEN** Home opens with no project on a deployment whose auth route answers "Authentication is not configured"
+- **THEN** the "Try an example" region shows
 
 #### Scenario: Return visit on desktop
 - **WHEN** Home opens in a browser holding a project
@@ -54,7 +58,7 @@ Phone Home SHALL offer "Try an example" as its first quick start when the browse
 - **THEN** the first quick start is "Try an example", followed by "New Anchor project" and the first Beginner tutorial
 
 ### Requirement: A slow first build says so
-While a build runs on the Build stage's "Nothing built yet" surface, the surface SHALL show the seconds since the build started, and from 60 s on it SHALL add the line "First builds take longer. This one is running." while the build goes on
+While a build runs on the Build stage's "Nothing built yet" surface, the surface SHALL show the seconds since the build started, and from 60 s on it SHALL add the line "First builds take longer. This one is running." while the build goes on.
 
 #### Scenario: Past a minute
 - **WHEN** the first build has run for 61 seconds

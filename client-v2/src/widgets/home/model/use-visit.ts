@@ -1,22 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { PgSession } from "@/features/auth";
 import { useRenderOnChange } from "@/hooks";
+import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer } from "@/utils";
 import { visitOf } from "./visit";
-import type { SessionSeen, Visit } from "./visit";
+import type { Visit } from "./visit";
 
-const sessionSeen = (): SessionSeen => {
-  if (!PgSession.hasRead) return "unread";
-  return PgSession.readFailed ? "failed" : "answered";
-};
+const log = createLogger("home:visit");
 
 /**
  * The visit, for both Homes, kept current: the project list changes by a
  * switch, an init, sync's imports or another tab's delete, and the session
- * by a sign-in or a sign-out, which fire a change, or by its first read,
- * which fires none when it finds nobody; the local `read` state re-renders
- * for that one
+ * fires a change on a sign-in, a sign-out or any change in how its read went
  */
 export const useVisit = (): Visit => {
   useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
@@ -24,16 +20,12 @@ export const useVisit = (): Visit => {
   useRenderOnChange(PgExplorer.onDidChangeWorkspaceList);
   useRenderOnChange(PgExplorer.onDidDeleteWorkspace);
   useRenderOnChange(PgSession.onDidChange);
-  const [, setRead] = useState(PgSession.hasRead);
+  // Starts the page's first read if nothing has; its result arrives as a change
   useEffect(() => {
-    let live = true;
-    // Never rejects; a failed read settles too, and leaves the visit unknown
-    void PgSession.whenRead().then(() => {
-      if (live) setRead(true);
-    });
-    return () => {
-      live = false;
-    };
+    PgSession.whenRead().catch((e: unknown) =>
+      // `whenRead` never rejects; should it start to, the team hears of it
+      log.error(e, { report: true })
+    );
   }, []);
-  return visitOf(PgExplorer.allWorkspaceNames, sessionSeen());
+  return visitOf(PgExplorer.allWorkspaceNames, PgSession.readState);
 };

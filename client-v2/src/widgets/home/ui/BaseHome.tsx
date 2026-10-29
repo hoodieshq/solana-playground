@@ -52,8 +52,8 @@ export type HomeStart =
 
 export interface BaseHomeProps {
   /**
-   * `null` while the visit is unknown: the project list or the session not
-   * read yet, or a signed-in account's projects not arrived
+   * `null` while the visit is unknown: the project list not loaded, or the
+   * session unread or its read failed (see `visitOf`)
    */
   start: HomeStart | null;
   /** All of them: the first four are shown, the tiles count them all */

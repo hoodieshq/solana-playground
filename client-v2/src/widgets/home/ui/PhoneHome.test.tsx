@@ -44,8 +44,7 @@ vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
 const session = vi.hoisted(() => ({
   get: vi.fn(),
   onDidChange: vi.fn(),
-  hasRead: true,
-  readFailed: false,
+  readState: "answered" as "unread" | "failed" | "answered",
   whenRead: vi.fn(),
 }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
@@ -87,8 +86,7 @@ beforeEach(() => {
   utils.PgFramework.all = [{ name: "Native" }, { name: "Anchor" }];
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
-  session.hasRead = true;
-  session.readFailed = false;
+  session.readState = "answered";
   session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgFramework.get.mockReset().mockReturnValue({
     defaultOpenFile: "/src/lib.rs",
@@ -287,8 +285,8 @@ it("switches to the project Continue names when another opened since Home drew i
 });
 
 it.each([
-  ["the session is unread", () => (session.hasRead = false)],
-  ["the session read failed", () => (session.readFailed = true)],
+  ["the session is unread", () => (session.readState = "unread")],
+  ["the session read failed", () => (session.readState = "failed")],
 ])("offers no example quick start while %s", async (_, set) => {
   set();
   session.whenRead.mockReturnValue(new Promise(() => {}));

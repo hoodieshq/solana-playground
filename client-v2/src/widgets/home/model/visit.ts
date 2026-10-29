@@ -7,7 +7,10 @@
  */
 export type Visit = "first" | "return" | "unknown";
 
-/** The session as far as the visit goes: not read yet, failed, or answered */
+/**
+ * How the session read went (`PgSession.readState`), restated here so this
+ * module stays free of the auth slice and its in-source tests can load
+ */
 export type SessionSeen = "unread" | "failed" | "answered";
 
 /** A project in the browser wins over the session; then the session decides */

@@ -46,8 +46,7 @@ vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
 const session = vi.hoisted(() => ({
   get: vi.fn(),
   onDidChange: vi.fn(),
-  hasRead: true,
-  readFailed: false,
+  readState: "answered" as "unread" | "failed" | "answered",
   whenRead: vi.fn(),
 }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
@@ -103,8 +102,7 @@ beforeEach(() => {
   });
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
-  session.hasRead = true;
-  session.readFailed = false;
+  session.readState = "answered";
   session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgGlobal.buildLoading = false;
   sent = memoryProvider();
@@ -458,7 +456,7 @@ it("tells the user when a recent project is gone since Home drew it", async () =
 });
 
 it("offers no example before the session has been read", () => {
-  session.hasRead = false;
+  session.readState = "unread";
   session.whenRead.mockReturnValue(new Promise(() => {}));
   const { home } = draw();
   expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
@@ -476,7 +474,23 @@ it("offers the example to a signed-in account with no projects", () => {
 });
 
 it("offers no example when the session read failed", () => {
-  session.readFailed = true;
+  session.readState = "failed";
   const { home } = draw();
   expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
+});
+
+it("stops waiting for the terminal once the user opens another project", async () => {
+  utils.PgCommand.build.execute.mockRejectedValue(UNMOUNTED);
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: "Run it" }));
+  await waitFor(() => expect(utils.PgCommand.build.execute).toHaveBeenCalled());
+  // Picked in the list while the example's build waits for its terminal
+  utils.PgExplorer.currentWorkspaceName = "other";
+  const calls = utils.PgCommand.build.execute.mock.calls.length;
+  await waitFor(() =>
+    expect(logged.entries.map((e) => e.context)).toEqual([
+      { reason: "left-example" },
+    ])
+  );
+  expect(utils.PgCommand.build.execute).toHaveBeenCalledTimes(calls);
 });

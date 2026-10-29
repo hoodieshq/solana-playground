@@ -89,15 +89,14 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   const current = PgExplorer.currentWorkspaceName;
 
   const quickstarts: PhoneQuickstart[] = [];
-  // The example leads only a first visit (`visitOf`)
+  // One lead: the example on a first visit (`visitOf`), else the open project
   if (visit === "first") {
     quickstarts.push({
       id: "example",
       title: "Try an example",
       description: "The Anchor starter, built for you",
     });
-  }
-  if (current) {
+  } else if (current) {
     quickstarts.push({
       id: "continue",
       workspace: current,
@@ -124,9 +123,8 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
 
   return (
     <BasePhoneHome
-      // `example` and `continue` exclude each other, so this cuts nothing
-      // today; it keeps the spec's "at most three" if that changes
-      quickstarts={quickstarts.slice(0, 3)}
+      // One lead, New project and one tutorial: three, the spec's most
+      quickstarts={quickstarts}
       tutorialCount={PgTutorial.all.length}
       programCount={programCount}
       onQuickstart={async (quickstart) => {

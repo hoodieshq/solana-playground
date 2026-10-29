@@ -23,7 +23,8 @@ export const AUTH_CHANNEL_NAME = "pg-auth-complete";
 
 /**
  * `error` on the 503 the auth route answers when this deployment has no
- * sign-in configured: an answer, not a failure, since nobody can be signed in
+ * sign-in configured: an answer, not a failure, since nobody can be signed in.
+ * The browser matches this exact string (`notConfigured` in the session model).
  */
 export const AUTH_NOT_CONFIGURED = "Authentication is not configured";
 

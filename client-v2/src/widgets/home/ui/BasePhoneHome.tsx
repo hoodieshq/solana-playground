@@ -28,8 +28,8 @@ export type PhoneQuickstart = QuickstartTarget & {
 
 export interface BasePhoneHomeProps {
   /**
-   * At most three, in order: `example` first on a first visit (no project
-   * in the browser and no one signed in), otherwise `continue` first when one is open
+   * At most three, in order: one lead (`example` on a first visit, see
+   * `visitOf`, else `continue` when a project is open), then the rest
    */
   quickstarts: readonly PhoneQuickstart[];
   tutorialCount: number;

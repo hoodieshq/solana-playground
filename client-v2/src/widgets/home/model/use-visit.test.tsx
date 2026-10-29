@@ -9,62 +9,70 @@ const explorer = vi.hoisted(() => ({
   onDidChangeWorkspaceList: vi.fn(),
   onDidDeleteWorkspace: vi.fn(),
 }));
-const session = vi.hoisted(() => ({
-  hasRead: false,
-  readFailed: false,
-  whenRead: vi.fn(),
-  onDidChange: vi.fn(),
-}));
+const session = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  return {
+    readState: "unread" as "unread" | "failed" | "answered",
+    whenRead: vi.fn(),
+    onDidChange: (cb: () => void) => {
+      listeners.add(cb);
+      return { dispose: () => listeners.delete(cb) };
+    },
+    /** A read settling, as `PgSession` tells its listeners */
+    settle(state: "failed" | "answered") {
+      this.readState = state;
+      listeners.forEach((cb) => cb());
+    },
+  };
+});
 vi.mock("@/utils", () => ({ PgExplorer: explorer }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
-vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
+// The real subscription, so a session change re-renders as on the page
+vi.mock("@/hooks", async () => {
+  const { useEffect, useReducer } = await import("react");
+  return {
+    useRenderOnChange: (
+      on: (cb: () => void) => { dispose: () => void } | unknown
+    ) => {
+      const [, render] = useReducer((n: number) => n + 1, 0);
+      useEffect(() => {
+        const sub = on(render) as { dispose?: () => void } | undefined;
+        return () => sub?.dispose?.();
+      }, [on]);
+    },
+  };
+});
 
 import { useVisit } from "./use-visit";
-
-/** A read the test settles when it likes */
-const pendingRead = () => {
-  let settle!: () => void;
-  session.whenRead.mockReturnValue(
-    new Promise<void>((resolve) => (settle = resolve))
-  );
-  return (failed: boolean) =>
-    act(async () => {
-      session.hasRead = true;
-      session.readFailed = failed;
-      settle();
-    });
-};
 
 describe("widgets/home/model/use-visit", () => {
   beforeEach(() => {
     explorer.allWorkspaceNames = [];
-    session.hasRead = false;
-    session.readFailed = false;
-    session.whenRead.mockReset();
+    session.readState = "unread";
+    session.whenRead.mockReset().mockReturnValue(new Promise(() => {}));
   });
 
-  it("turns a first visit once the session's first read answers", async () => {
-    const answer = pendingRead();
+  it("turns a first visit once the session's first read answers", () => {
     const { result } = renderHook(() => useVisit());
     expect(result.current).toBe("unknown");
 
-    await answer(false);
+    act(() => session.settle("answered"));
 
     expect(result.current).toBe("first");
   });
 
-  it("stays unknown when that read fails", async () => {
-    const answer = pendingRead();
+  it("stays unknown while the read has failed, and turns first once one answers", () => {
     const { result } = renderHook(() => useVisit());
 
-    await answer(true);
-
+    act(() => session.settle("failed"));
     expect(result.current).toBe("unknown");
+
+    act(() => session.settle("answered"));
+    expect(result.current).toBe("first");
   });
 
   it("is a return visit whatever the session, once a project exists", () => {
     explorer.allWorkspaceNames = ["a"];
-    session.whenRead.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useVisit());
     expect(result.current).toBe("return");
   });
