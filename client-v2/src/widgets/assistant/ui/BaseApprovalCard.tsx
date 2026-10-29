@@ -67,7 +67,9 @@ export const BaseApprovalCard = ({
     <Diff data-status={status} className={cn(pending && "border-primary")}>
       <DiffHeader>
         <DiffTitle>
-          {patch ? request.path : `wants to run ${request.name}`}
+          {patch
+            ? request.path
+            : request.question ?? `wants to run ${request.name}`}
         </DiffTitle>
         {patch ? <PatchStat request={request} /> : <span className="ml-auto" />}
         <Badge

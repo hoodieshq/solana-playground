@@ -40,7 +40,7 @@ terminal SHALL keep the terminal's connect question.
 ### Requirement: The stage shows the run as steps
 
 While a deploy started from the stage or the terminal runs, the stage SHALL
-replace the deploy action's label with a progress region (`role="status"`,
+show, above its held deploy action, a progress region (`role="status"`,
 `aria-label="Deploy progress"`) listing the steps in order: "Funding wallet"
 (only when the run funds the wallet), "Preparing buffer", "Writing program,
 {percent}%" and "Deploying" ("Upgrading" when the program exists). Each step

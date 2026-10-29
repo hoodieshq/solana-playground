@@ -18,6 +18,16 @@ import {
 } from "@/shared/ui/stage-empty";
 import { StatusDot } from "@/shared/ui/status-dot";
 import {
+  BaseBackupLine,
+  BaseDeployProgress,
+  BaseNotEnoughSol,
+  BaseStaleBuildDialog,
+  formatSol,
+  networkName,
+  shortKey,
+} from "@/features/deploy";
+import type { DeployRunState, DeployFundingError } from "@/commands/deploy/run";
+import {
   MAINNET_DEPLOY_WARNING_BODY,
   MAINNET_DEPLOY_WARNING_GUIDE,
   MAINNET_DEPLOY_WARNING_TITLE,
@@ -45,6 +55,15 @@ export interface DeployDetails {
 /** Where the project's last deploy stands */
 export type DeployStatus = "idle" | "running" | "failed";
 
+/** The wallet that pays for the deploy; `balance` is SOL, `null` until read */
+export interface DeployPayer {
+  address: string;
+  balance: number | null;
+}
+
+/** Why the last run could not fund its wallet */
+export type FundingStop = DeployFundingError["detail"];
+
 export interface BaseDeployProps {
   /** The cluster's name, `null` until the endpoint has been read */
   cluster: string | null;
@@ -60,9 +79,24 @@ export interface BaseDeployProps {
   details: DeployDetails;
   /** Every deployment of the project, newest first */
   history: DeployRecord[];
-  addressUrl: (programId: string) => string;
-  txUrl: (signature: string) => string;
+  /** The Playground wallet that pays; `null` before one exists */
+  payer: DeployPayer | null;
+  /** The running deploy's steps */
+  run: DeployRunState;
+  /** The last run stopped for lack of SOL */
+  funding: FundingStop | null;
+  /** Show the keypair backup line under the result */
+  backup: boolean;
+  /** Ask whether to deploy the last successful build */
+  staleBuild: boolean;
+  /** An Explorer link that opens `cluster`, whatever is picked now */
+  addressUrl: (programId: string, cluster: string) => string;
+  txUrl: (signature: string, cluster: string) => string;
   onDeploy: () => void;
+  onSignIn: () => void;
+  onSaveKeypair: () => void;
+  onDismissBackup: () => void;
+  onStaleBuildAnswer: (deploy: boolean) => void;
   onInteract: () => void;
   /** The secondary "Upload IDL" action (`IdlActions mode="upload"`) */
   idlUpload: ReactNode;
@@ -87,8 +121,19 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
  * The cluster in the deploy button's label and the stage's prose: "mainnet"
  * for mainnet-beta; "the network" until the endpoint has been read
  */
-const clusterName = (p: BaseDeployProps) =>
-  p.cluster === "mainnet-beta" ? "mainnet" : p.cluster ?? "the network";
+const clusterName = (p: BaseDeployProps) => networkName(p.cluster);
+
+/** Who pays, before a deploy */
+const payerLine = (payer: DeployPayer | null) => {
+  if (!payer) {
+    return "Deploys from a Playground wallet created on your first deploy.";
+  }
+  const balance =
+    payer.balance === null ? "" : ` · ${payer.balance.toFixed(2)} SOL`;
+  return `Deploys from your Playground wallet · ${shortKey(
+    payer.address
+  )}${balance}`;
+};
 
 const description = (p: BaseDeployProps, latest: DeployRecord | null) => {
   if (!p.built) {
@@ -97,15 +142,22 @@ const description = (p: BaseDeployProps, latest: DeployRecord | null) => {
   if (latest) {
     return "The program id stays constant across deploys; redeploying upgrades it in place.";
   }
-  return `Deploying sends the compiled program to ${clusterName(
-    p
-  )} using the connected wallet.`;
+  return `Deploying sends the compiled program to ${clusterName(p)}.`;
 };
 
-const ExplorerLink = ({ href, label }: { href: string; label: string }) => (
+/** An Explorer link whose text names the network it opens */
+const ExplorerLink = ({
+  href,
+  label,
+  children,
+}: {
+  href: string;
+  label: string;
+  children: ReactNode;
+}) => (
   <Button size="sm" variant="ghost" asChild>
     <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label}>
-      Explorer
+      {children}
       <ExternalLink data-icon="inline-end" />
     </a>
   </Button>
@@ -119,7 +171,7 @@ const Fact = ({ name, children }: { name: string; children: ReactNode }) => (
   </>
 );
 
-/** After a deploy: the program id to copy, where to see it, the facts */
+/** After a deploy: what happened, the program id to copy, where to see it */
 const DeployResult = ({
   latest,
   p,
@@ -128,14 +180,18 @@ const DeployResult = ({
   p: BaseDeployProps;
 }) => {
   const { upgradable, authority, programSize } = p.details;
+  const network = networkName(latest.cluster);
   return (
     <div
       role="status"
+      aria-label="Deploy result"
       className="flex w-full flex-col gap-3 rounded-xl border border-border bg-surface-panel p-4"
     >
       <div className="flex items-center gap-2 text-control font-act text-foreground">
         <StatusDot variant="success" size="lg" />
-        Deployed to {latest.cluster}
+        {latest.upgraded
+          ? "Upgraded. The program id stays the same."
+          : `Deployed to ${network}`}
       </div>
       <div className="flex items-center gap-2 rounded-lg bg-surface-base px-3 py-2">
         <span className="shrink-0 text-caption text-subtle">Program id</span>
@@ -143,7 +199,7 @@ const DeployResult = ({
           className="min-w-0 truncate font-mono text-code text-foreground"
           title={latest.programId}
         >
-          {latest.programId}
+          {shortKey(latest.programId)}
         </code>
         <CopyButton
           value={latest.programId}
@@ -153,10 +209,8 @@ const DeployResult = ({
         />
       </div>
       <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-caption">
-        {latest.signature && (
-          <Fact name="Transaction">
-            {latest.signature.slice(0, 20)}&hellip;
-          </Fact>
+        {latest.cost !== undefined && (
+          <Fact name="Cost">{formatSol(latest.cost)} SOL</Fact>
         )}
         {upgradable !== null && (
           <Fact name="Upgradable">{upgradable ? "Yes" : "No"}</Fact>
@@ -174,23 +228,27 @@ const DeployResult = ({
           Interact
         </Button>
         <ExplorerLink
-          href={p.addressUrl(latest.programId)}
-          label={`View latest deployment (${latest.programId}) on Explorer`}
-        />
+          href={p.addressUrl(latest.programId, latest.cluster)}
+          label={`View latest deployment (${latest.programId}) on Explorer (${network})`}
+        >
+          View on Explorer ({network})
+        </ExplorerLink>
         {latest.signature && (
-          <Button size="sm" variant="ghost" asChild>
-            <a
-              href={p.txUrl(latest.signature)}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`View latest deployment transaction (${latest.signature}) on Explorer`}
-            >
-              Transaction
-              <ExternalLink data-icon="inline-end" />
-            </a>
-          </Button>
+          <ExplorerLink
+            href={p.txUrl(latest.signature, latest.cluster)}
+            label={`View latest deployment transaction (${latest.signature}) on Explorer (${network})`}
+          >
+            Transaction ({network})
+          </ExplorerLink>
         )}
       </div>
+      {p.backup && (
+        <BaseBackupLine
+          cluster={latest.cluster}
+          onSave={p.onSaveKeypair}
+          onDismiss={p.onDismissBackup}
+        />
+      )}
     </div>
   );
 };
@@ -215,9 +273,13 @@ const History = ({ p }: { p: BaseDeployProps }) => (
             </span>
           </span>
           <ExplorerLink
-            href={p.addressUrl(r.programId)}
-            label={`View deployment (${r.programId}) on Explorer`}
-          />
+            href={p.addressUrl(r.programId, r.cluster)}
+            label={`View deployment (${r.programId}) on Explorer (${networkName(
+              r.cluster
+            )})`}
+          >
+            Explorer ({networkName(r.cluster)})
+          </ExplorerLink>
         </li>
       ))}
     </ul>
@@ -280,7 +342,27 @@ const BaseDeploy = (p: BaseDeployProps) => {
             Program id <code className="font-mono">{p.programId}</code>
           </p>
         )}
-        {p.deploy === "failed" && (
+        {p.built && !running && (
+          <p
+            aria-label="Who pays"
+            className="text-caption text-muted-foreground"
+          >
+            {payerLine(p.payer)}
+          </p>
+        )}
+        {p.funding && (
+          <BaseNotEnoughSol
+            cluster={p.cluster}
+            reason={p.funding.reason}
+            balance={p.funding.balance}
+            needed={p.funding.needed}
+            address={p.funding.address}
+            cause={p.funding.cause}
+            onRetry={p.onDeploy}
+            onSignIn={p.onSignIn}
+          />
+        )}
+        {p.deploy === "failed" && !p.funding && (
           <Callout variant="error" role="alert">
             <CalloutDescription>
               Deploy failed - see the console.
@@ -298,7 +380,12 @@ const BaseDeploy = (p: BaseDeployProps) => {
         )}
         {latest && <DeployResult latest={latest} p={p} />}
         {latest && <History p={p} />}
+        <BaseStaleBuildDialog
+          open={p.staleBuild}
+          onAnswer={p.onStaleBuildAnswer}
+        />
         <StageEmptyActions className={cn(STAGE_FOOT, !latest && "flex-col")}>
+          {running && p.run.step && <BaseDeployProgress state={p.run} />}
           <BrandButton
             disabled={!p.built || running}
             aria-busy={running || undefined}

@@ -43,6 +43,11 @@ export interface CommandApproval {
   name: "build" | "deploy";
   /** Plain-language description of what running it will do */
   effect: string;
+  /**
+   * The card's title, a question naming the program, the network and the
+   * cost; absent on cards restored from before it was asked
+   */
+  question?: string;
 }
 
 export type ApprovalRequest = PatchApproval | CommandApproval;
