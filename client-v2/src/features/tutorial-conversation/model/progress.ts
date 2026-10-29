@@ -41,7 +41,11 @@ export type Cursor =
 export interface StepTime {
   from: number;
   to: number | null;
+  /** How the step passed: an act card, a client run or the Call panel */
+  via?: PassedVia;
 }
+
+export type PassedVia = "chat" | "client" | "call_panel";
 
 /**
  * A beat's state once the lesson has reached it. A `say` is `said`; a
@@ -51,25 +55,32 @@ export interface StepTime {
  */
 export type Resolution =
   | { kind: "said"; at: number }
-  | { kind: "written"; at: number; file: string; lines: number[] }
-  | { kind: "open"; at: number; wrong: number[]; hinted?: true }
-  | {
+  | { kind: "written"; at: number; wrote: Wrote }
+  | { kind: "open"; at: number; wrong: number[]; hintedAt?: number }
+  | ({
       kind: "picked";
-      at: number;
       option: number;
       /** 1 to 3: the right pick counts */
       attempts: number;
-      wrong: number[];
-      hinted?: true;
-    }
-  | { kind: "typed"; at: number; wrong: number[]; hinted?: true }
-  | {
-      kind: "skipped";
-      at: number;
-      via: "button" | "call_panel";
-      wrong: number[];
-      hinted?: true;
-    };
+    } & Resolved)
+  | ({ kind: "typed" } & Resolved)
+  | ({ kind: "skipped"; via: "button" | "call_panel" } & Resolved);
+
+/** What every resolved question carries */
+interface Resolved {
+  at: number;
+  wrong: number[];
+  hintedAt?: number;
+  /** The block the answer wrote, once it landed */
+  wrote?: Wrote;
+}
+
+/** Lines a write took in a file, counted from 1; none for a created file */
+export interface Wrote {
+  file: string;
+  lines: number[];
+  created?: true;
+}
 
 /**
  * One act's run. `started` is what the save holds while the run is in
@@ -183,44 +194,68 @@ const parseCursor = (v: unknown): Cursor | null => {
   return null;
 };
 
+const parseWrote = (v: unknown): Wrote | null => {
+  if (!isRecord(v) || typeof v.file !== "string" || !isIndexes(v.lines)) {
+    return null;
+  }
+  return v.created === true
+    ? { file: v.file, lines: v.lines, created: true }
+    : { file: v.file, lines: v.lines };
+};
+
+/** The fields every resolved question carries, or null when one is off */
+const parseResolved = (v: Record<string, unknown>): Resolved | null => {
+  if (!isMs(v.at) || !isIndexes(v.wrong)) return null;
+  const out: Resolved = { at: v.at, wrong: v.wrong };
+  if (isMs(v.hintedAt)) out.hintedAt = v.hintedAt;
+  if (v.wrote !== undefined) {
+    const wrote = parseWrote(v.wrote);
+    if (!wrote) return null;
+    out.wrote = wrote;
+  }
+  return out;
+};
+
 /** An unknown entry is dropped rather than failing the whole save */
 const parseResolution = (v: unknown): Resolution | null => {
   if (!isRecord(v) || !isMs(v.at)) return null;
   const at = v.at;
-  const hinted = v.hinted === true ? { hinted: true as const } : {};
   switch (v.kind) {
     case "said":
       return { kind: "said", at };
-    case "written":
-      return typeof v.file === "string" && isIndexes(v.lines)
-        ? { kind: "written", at, file: v.file, lines: v.lines }
-        : null;
-    case "open":
-      return isIndexes(v.wrong)
-        ? { kind: "open", at, wrong: v.wrong, ...hinted }
-        : null;
-    case "picked":
-      return Number.isInteger(v.option) &&
-        Number.isInteger(v.attempts) &&
-        isIndexes(v.wrong)
+    case "written": {
+      const wrote = parseWrote(v.wrote);
+      return wrote ? { kind: "written", at, wrote } : null;
+    }
+    case "open": {
+      if (!isIndexes(v.wrong)) return null;
+      const open: Resolution = { kind: "open", at, wrong: v.wrong };
+      if (isMs(v.hintedAt)) open.hintedAt = v.hintedAt;
+      return open;
+    }
+    case "picked": {
+      const resolved = parseResolved(v);
+      return resolved &&
+        Number.isInteger(v.option) &&
+        Number.isInteger(v.attempts)
         ? {
             kind: "picked",
-            at,
             option: v.option as number,
             attempts: v.attempts as number,
-            wrong: v.wrong,
-            ...hinted,
+            ...resolved,
           }
         : null;
-    case "typed":
-      return isIndexes(v.wrong)
-        ? { kind: "typed", at, wrong: v.wrong, ...hinted }
+    }
+    case "typed": {
+      const resolved = parseResolved(v);
+      return resolved ? { kind: "typed", ...resolved } : null;
+    }
+    case "skipped": {
+      const resolved = parseResolved(v);
+      return resolved && (v.via === "button" || v.via === "call_panel")
+        ? { kind: "skipped", via: v.via, ...resolved }
         : null;
-    case "skipped":
-      return (v.via === "button" || v.via === "call_panel") &&
-        isIndexes(v.wrong)
-        ? { kind: "skipped", at, via: v.via, wrong: v.wrong, ...hinted }
-        : null;
+    }
     default:
       return null;
   }
@@ -271,10 +306,14 @@ const parseEach = <T>(
   return out;
 };
 
-const parseTime = (v: unknown): StepTime | null =>
-  isRecord(v) && isMs(v.from) && isMsOrNull(v.to)
-    ? { from: v.from, to: v.to }
-    : null;
+const VIAS: readonly PassedVia[] = ["chat", "client", "call_panel"];
+
+const parseTime = (v: unknown): StepTime | null => {
+  if (!isRecord(v) || !isMs(v.from) || !isMsOrNull(v.to)) return null;
+  const time: StepTime = { from: v.from, to: v.to };
+  if (VIAS.includes(v.via as PassedVia)) time.via = v.via as PassedVia;
+  return time;
+};
 
 /**
  * The saved `conversation`, or null when it is not a version 1 save. A null
@@ -331,8 +370,7 @@ if (import.meta.vitest) {
           "s1.boil": {
             kind: "written",
             at: 1100,
-            file: "src/lib.rs",
-            lines: [1, 2, 3],
+            wrote: { file: "src/lib.rs", lines: [1, 2, 3] },
           },
           "s1.what": { kind: "said", at: 1200 },
           "s1.q1": {
@@ -341,8 +379,12 @@ if (import.meta.vitest) {
             option: 1,
             attempts: 2,
             wrong: [0],
+            wrote: {
+              file: "src/lib.rs",
+              lines: [5, 6, 7, 8, 9, 10, 11, 12, 13],
+            },
           },
-          "s2.q2": { kind: "open", at: 2000, wrong: [1], hinted: true },
+          "s2.q2": { kind: "open", at: 2000, wrong: [1], hintedAt: 2050 },
         },
         opts.beats
       ),
@@ -364,7 +406,7 @@ if (import.meta.vitest) {
       ),
       times: Object.assign(
         {
-          "write-program": { from: 1000, to: 1500 },
+          "write-program": { from: 1000, to: 1500, via: "chat" },
           deploy: { from: 1500, to: null },
         },
         opts.times
