@@ -30,4 +30,4 @@ and land in one PR (Slava, 29 Oct).
 
 ## 5. Integration
 
-- [ ] 5.1 `yarn run check` green; before/after screenshots of the Deploy stage and an approval card, desktop and phone, in the PR
+- [x] 5.1 `yarn run check` green; before/after screenshots of the Deploy stage and an approval card, desktop and phone, in the PR
