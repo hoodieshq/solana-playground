@@ -137,10 +137,16 @@ const placement = (
   // The block's own text for each reference line it lands on: what `msg!`
   // says is the writer's, and a learner's words must reach the file
   const ownLine = new Map<number, string>();
-  const blockRows = block.split("\n").filter((l) => l.trim() !== "");
+  const blockRows = block.split("\n");
+  const blockNorm = lines(straightQuotes(block));
   let k = 0;
-  for (let i = place[0]; i <= place[1] && k < blockRows.length; i++) {
-    if (refNorm[i] !== "") ownLine.set(i, blockRows[k++]);
+  for (let i = place[0]; i <= place[1]; i++) {
+    if (refNorm[i] === "") continue;
+    // The block's rows pair with the reference's by the same reading: a
+    // comment or a blank line counts in neither
+    while (k < blockRows.length && blockNorm[k] === "") k++;
+    if (k >= blockRows.length) break;
+    ownLine.set(i, blockRows[k++]);
   }
   return { ref, refNorm, place, mine, ownLine };
 };
