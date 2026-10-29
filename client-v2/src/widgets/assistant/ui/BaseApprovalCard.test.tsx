@@ -187,6 +187,14 @@ describe("BaseApprovalCard", () => {
       const copy = screen.getByRole("button", { name: "Copy the original" });
       expect(copy.className).toContain("size-11");
       expect(screen.queryByRole("button", { name: "Undo patch" })).toBeNull();
+      const writeText = vi.fn(async () => {});
+      vi.stubGlobal("navigator", { clipboard: { writeText } });
+      try {
+        fireEvent.click(copy);
+        expect(writeText).toHaveBeenCalledWith("old");
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
 
     it("offers the original even when it was an empty file", () => {

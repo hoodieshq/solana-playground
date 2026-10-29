@@ -1107,6 +1107,10 @@ describe("useTurn's failures and races", () => {
         "a network message that is not a TypeError",
         new Error("Failed to fetch"),
       ],
+      [
+        "a network message with more after it",
+        new TypeError("Failed to fetch: x"),
+      ],
     ])("shows %s after text as an error", async (_, error) => {
       PgAssistant.connect({ id: "default", apiKey: "" });
       failAfter("The program", error);

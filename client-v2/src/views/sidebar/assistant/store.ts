@@ -170,18 +170,23 @@ export const turnAppliedApproval = (items: readonly ChatItem[]) => {
   return false;
 };
 
+/** A patch card's outcome once `write_file` wrote its file */
+export const wroteOutcome = (path: string) => `wrote ${path}`;
+
+const UNDO_STRANDED = "Undo did not finish:";
+
 /** A card's outcome when its Undo threw and did not finish */
 export const undoStrandedOutcome = (
   path: string,
   why: string,
   created: boolean
 ) =>
-  `Undo did not finish: ${path} ${why}.` +
+  `${UNDO_STRANDED} ${path} ${why}.` +
   (created ? " It did not exist before the patch." : "");
 
 /** Whether a card's outcome says its Undo did not finish */
 export const isUndoStranded = (outcome: string | undefined) =>
-  !!outcome?.startsWith("Undo did not finish:");
+  !!outcome?.startsWith(UNDO_STRANDED);
 
 /** What the thread says where the user stopped a turn */
 export const STOPPED_NOTICE = "Stopped.";
@@ -1613,6 +1618,19 @@ if (import.meta.vitest) {
       request: { type: "patch", path: "src/lib.rs", before: "a", after: "b" },
       status: "allowed",
     };
+
+    describe("undoStrandedOutcome", () => {
+      it("is read back by isUndoStranded, and nothing else is", () => {
+        expect(
+          isUndoStranded(undoStrandedOutcome("src/lib.rs", "changed", false))
+        ).toBe(true);
+        expect(undoStrandedOutcome("src/new.rs", "changed", true)).toBe(
+          "Undo did not finish: src/new.rs changed. It did not exist before the patch."
+        );
+        expect(isUndoStranded(wroteOutcome("src/lib.rs"))).toBe(false);
+        expect(isUndoStranded(undefined)).toBe(false);
+      });
+    });
 
     describe("turnProducedApproval", () => {
       it("is false for a turn that only replied", () => {

@@ -154,7 +154,11 @@ export const BaseApprovalCard = ({
               <Button
                 variant="outline"
                 size="sm"
-                className={cn("ml-auto min-w-11 md:min-w-0", ANSWER)}
+                className={cn(
+                  "min-w-11 md:min-w-0",
+                  original === undefined && "ml-auto",
+                  ANSWER
+                )}
                 onClick={onUndo}
               >
                 Undo patch
