@@ -1,4 +1,5 @@
-import { uuid } from "../../../shared/lib/ids";
+import { uuid } from "@/shared/lib/ids";
+import { timeoutSignal } from "@/shared/lib/timeout-signal";
 import { DELETED_REASON } from "./deleted.mjs";
 import { report } from "./diagnostics";
 import {
@@ -9,16 +10,21 @@ import {
   settleConflicts,
   withLocalKeypair,
 } from "./merge";
-import { MAX_PROJECT_BODY_BYTES, projectKindOf } from "./project-write.mjs";
+import {
+  MAX_PROJECT_BODY_BYTES,
+  NO_FILES_REASON,
+  projectKindOf,
+} from "./project-write.mjs";
 import { diffFiles, hashFiles, sameUserFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";
-import { LOCKED_REQUEST_MS, timeoutSignal, withSyncLock } from "./sync-lock";
+import { LOCKED_REQUEST_MS, withSyncLock } from "./sync-lock";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgThreadIndex } from "./thread-index";
 import { PgWorkspaceRegistry } from "./workspace-registry";
-import { PgSession } from "../../auth";
+// TODO(ui-migration 1.4): a feature importing a feature; project sync runs only for a signed-in session
+import { PgSession } from "@/features/auth";
 // Deep import rather than the `utils` barrel: the barrel reaches `settings.ts`,
 // which reads `GLOBAL_SETTINGS`, a global only webpack defines, so the unit
 // tests could not load this module.
@@ -30,6 +36,33 @@ import type { SyncMark } from "./sync-mark";
 import type { Disposable } from "../../../utils/types";
 
 type PushResult = "ok" | "conflict" | "skipped";
+
+/** `push`'s options -- see there */
+type PushOptions = {
+  immediate?: boolean;
+  merging?: boolean;
+  generation?: number;
+};
+
+/**
+ * Why sync left a project alone as another account's.
+ *
+ * - `not-uploaded`: a push or a reconcile met the previous user's leftover
+ *   project and did not upload it. Expected on a shared browser.
+ * - `hiding-account-copy`: the account signed in holds a project under the
+ *   same id, a tutorial's, and the leftover is in its way: the user sees the
+ *   other account's files, their edits do not sync, and nothing on screen
+ *   says why. A known gap, left unfixed because it needs two GitHub accounts
+ *   on one browser; reported under its own message so it is visible in
+ *   error tracking if it does happen.
+ */
+export type Disowned = "not-uploaded" | "hiding-account-copy";
+
+const DISOWNED_REPORTS: Record<Disowned, string> = {
+  "not-uploaded": "another account's project on this browser, not uploaded",
+  "hiding-account-copy":
+    "another account's leftover hides this account's copy (known gap, issue #98)",
+};
 
 /** A project as `/api/projects` lists it */
 export interface ServerProject {
@@ -470,7 +503,7 @@ export class PgProjectSync {
     projectId: string,
     snapshot: Snapshot,
     name?: string,
-    opts: { immediate?: boolean; merging?: boolean; generation?: number } = {}
+    opts: PushOptions = {}
   ): Promise<PushResult> {
     // Held from reading the mark to writing the new one -- and through a
     // merge a refusal leads to -- so no other tab decides against a mark that
@@ -485,7 +518,10 @@ export class PgProjectSync {
     projectId: string,
     snapshot: Snapshot,
     name: string | undefined,
-    opts: { immediate?: boolean; merging?: boolean; generation?: number }
+    opts: PushOptions & {
+      /** Send the whole set even with a mark -- see the `no-files` 400 */
+      whole?: boolean;
+    }
   ): Promise<PushResult> {
     if (!(await PgProjectSync._ready())) return "skipped";
 
@@ -520,6 +556,15 @@ export class PgProjectSync {
     if (!opts.immediate) await PgProjectSync._gate;
 
     const mark = await PgSyncMark.read(projectId);
+
+    // Only reconcile used to ask whose a project was, and the editor's push
+    // uploaded the previous user's leftover project into the account signed
+    // in now. Asked only without a mark: one of this account's own settles it.
+    if (!mark && (await PgSyncMark.belongsToAnotherAccount(projectId))) {
+      PgProjectSync.reportDisowned(projectId, "not-uploaded");
+      return "skipped";
+    }
+
     const hashes = await hashFiles(snapshot);
     const localName = name ?? PgProjectSync._names.get(projectId) ?? projectId;
     // A stand-in sync gave the workspace here -- see `SyncMark.localName` --
@@ -529,7 +574,7 @@ export class PgProjectSync {
     const storedName = pinned ? mark!.name : localName;
     // Relative to the last agreement, when there is one. Without a mark there
     // is nothing to be relative to.
-    const patch = mark ? diffFiles(mark.files, hashes) : null;
+    const patch = mark && !opts.whole ? diffFiles(mark.files, hashes) : null;
 
     // Before anything that can decline to send. What these files held at the
     // last agreement is the one thing a later merge cannot rebuild, and a
@@ -642,11 +687,26 @@ export class PgProjectSync {
       if (!response.ok) {
         // The server's own words, when it sent any: a 400 names the check
         // the body failed, which "HTTP 400" alone leaves to guesswork
-        const said = await response.json().then(
-          (refusal) => refusal?.error,
+        const refusal = await response.json().then(
+          (answer) => answer,
           // No readable body; the status is reported below all the same
           () => undefined
         );
+        // A patch that would leave the account's copy with no files. This
+        // device builds its patches from a non-empty snapshot, so the row is
+        // already empty -- emptied before the server refused that -- and the
+        // whole set puts the files back. Past the gate already, and a whole
+        // set is never refused for this, so it is sent once.
+        if (patch && refusal?.reason === NO_FILES_REASON) {
+          report(`push project ${projectId}: account copy was empty`, null);
+          return await PgProjectSync._push(projectId, snapshot, name, {
+            immediate: true,
+            merging: opts.merging,
+            generation: opts.generation,
+            whole: true,
+          });
+        }
+        const said = refusal?.error;
         report(
           `push project ${projectId}: HTTP ${response.status}` +
             (typeof said === "string" ? ` (${said})` : ""),
@@ -1699,9 +1759,8 @@ export class PgProjectSync {
   /**
    * Run the sign-out teardown with this tab's own deletes disowned.
    *
-   * A counter rather than a boolean: sign-out hands over conversations and
-   * projects independently, and a nested or repeated call must not clear the
-   * flag while an outer one is still running.
+   * A counter rather than a boolean: a nested or repeated release must not
+   * clear the flag while an outer one is still running.
    */
   static async whileSigningOut<T>(fn: () => Promise<T>): Promise<T> {
     PgProjectSync._signingOut++;
@@ -1764,14 +1823,29 @@ export class PgProjectSync {
     PgProjectSync._merging.clear();
     PgProjectSync._tails.clear();
     PgProjectSync._generations.clear();
+    PgProjectSync._disowned.clear();
     // Every hold at once: a reset is the one place that is allowed to
     PgProjectSync._holds = 0;
     PgProjectSync._openGate();
   }
 
+  /**
+   * Report a project left alone as another account's
+   * (`PgSyncMark.belongsToAnotherAccount`), once per project and case per
+   * account: the editor's push meets it every few seconds while the user
+   * types, and reconcile on every switch and refocus.
+   */
+  static reportDisowned(projectId: string, why: Disowned) {
+    const key = `${why}:${projectId}`;
+    if (PgProjectSync._disowned.has(key)) return;
+    PgProjectSync._disowned.add(key);
+    report(`sync ${projectId}: ${DISOWNED_REPORTS[why]}`, null);
+  }
+
   /** Sign-out: the account's state goes, the listeners stay */
   static forgetAccount() {
     PgProjectSync._names.clear();
+    PgProjectSync._disowned.clear();
     const had = PgProjectSync._conflicts.size;
     PgProjectSync._conflicts.clear();
     if (had) PgProjectSync._emit();
@@ -1791,6 +1865,8 @@ export class PgProjectSync {
   private static readonly _tails = new Map<string, Promise<void>>();
   /** Rewrites of each project's local files -- see `generationOf` */
   private static readonly _generations = new Map<string, number>();
+  /** `<case>:<projectId>` already reported -- see `reportDisowned` */
+  private static readonly _disowned = new Set<string>();
 
   private static _openGate() {
     PgProjectSync._release?.();
@@ -1845,8 +1921,13 @@ export class PgProjectSync {
     for (const cb of PgProjectSync._conflictListeners) cb();
   }
 
+  /** Not while a sign-out tears down: the cookie is gone, see `PgSession.isEnding` */
   private static async _ready() {
-    return !!PgSession.get() && (await PgSyncClient.available());
+    return (
+      !!PgSession.get() &&
+      !PgSession.isEnding &&
+      (await PgSyncClient.available())
+    );
   }
 }
 
@@ -1872,9 +1953,9 @@ export const isCleanAgainst = async (
  * Whether a stored snapshot can be written to a workspace.
  *
  * An empty file map is not: written, it is the workspace emptied, exactly as
- * a malformed one would be. The server refuses a full write of one, but a row
- * written before it did can hold one, and so can a patch that removes every
- * file, which the server does not check.
+ * a malformed one would be. The server refuses any write that would leave
+ * one, but a row written before it did can hold one: a full write before it
+ * checked those, or a patch that removed every file before it checked that.
  *
  * Exported because reconcile checks it before the same destructive call, and
  * both halves have to agree on what "usable" means.
