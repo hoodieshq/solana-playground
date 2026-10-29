@@ -256,9 +256,9 @@ export const session = (): Disposable => {
   // sign-in's own read, and any transition after the restore, is a real
   // sign-in, and only that one takes the user somewhere.
   let restored = false;
-  let signedIn = !!PgSession.get();
-  let userId = PgSession.get()?.id ?? null;
-  const onChange = PgSession.onDidChange(() => {
+  let signedIn = false;
+  let userId: string | null = null;
+  const onSessionChange = () => {
     const nowSignedIn = !!PgSession.get();
     // Another account, or none: what the last one's list held says nothing
     // of this one's, however the session ended
@@ -288,7 +288,11 @@ export const session = (): Disposable => {
     }
     signedIn = nowSignedIn;
     if (restoring || PgSession.readState === "answered") restored = true;
-  });
+  };
+  const onChange = PgSession.onDidChange(onSessionChange);
+  // Effects mount after a delay, and Home starts the page's read as it draws:
+  // a read that settled before this effect existed fired its change unheard
+  if (PgSession.hasRead) onSessionChange();
 
   PgSession.setOnSignOut(relinquish);
 

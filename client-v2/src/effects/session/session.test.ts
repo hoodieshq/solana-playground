@@ -96,6 +96,20 @@ describe("the session effect", () => {
     effect.dispose();
   });
 
+  it("takes on the account when Home read the session before the effects mounted", async () => {
+    // Effects mount after a delay, and Home starts the page's read as it
+    // draws: the user is known before this effect exists, so no change fires
+    await PgSession.refreshWith(user);
+    calls = [];
+
+    const effect = session();
+    await settle();
+
+    expect(calls).toContain("reconcile");
+    expect(switchWorkspace).not.toHaveBeenCalled();
+    effect.dispose();
+  });
+
   it("waits for the explorer before reconciling against it", async () => {
     // Effects mount concurrently with the async `PgExplorer.init()`. Running
     // first meant `workspaceNameOf` answered `undefined` for everything and
@@ -570,6 +584,8 @@ describe("signing out", () => {
       order.push("pushProject");
       return "ok";
     });
+    vi.spyOn(PgChatSync, "adoptAccountThreads").mockResolvedValue(undefined);
+    vi.spyOn(restore, "reconcile").mockResolvedValue(result());
     vi.spyOn(PgChatSync, "forget").mockImplementation(async () => {
       order.push("forgetChats");
     });
@@ -598,6 +614,15 @@ describe("signing out", () => {
     PgProjectSync.forgetAccount();
   });
 
+  // The user is known before the effect mounts, so it takes the account on
+  // first; that pass settles before anything here is recorded
+  const mount = async () => {
+    const effect = session();
+    await settle();
+    order.length = 0;
+    return effect;
+  };
+
   const serverSignsOut = (answer: Partial<Response>) =>
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       order.push("request");
@@ -615,7 +640,7 @@ describe("signing out", () => {
     // before the close lands ahead of `forget`, which then keeps that thread.
     serverSignsOut({ ok: true });
 
-    const effect = session();
+    const effect = await mount();
     await PgSession.signOut();
 
     expect(order).toEqual([
@@ -641,7 +666,7 @@ describe("signing out", () => {
     expect(PgAssistant.threadId).toBeNull();
     PgAssistant.addUserMessage("from the last account");
 
-    const effect = session();
+    const effect = await mount();
     await PgSession.signOut();
 
     expect(PgAssistant.items).toEqual([]);
@@ -653,7 +678,7 @@ describe("signing out", () => {
     // the next account's sign-in dump uploads them into that account
     serverSignsOut({ ok: true });
 
-    const effect = session();
+    const effect = await mount();
     await PgSession.signOut();
 
     expect(PgChatSync.forget).toHaveBeenCalledWith(handed);
@@ -666,7 +691,7 @@ describe("signing out", () => {
     serverSignsOut({ ok: false, status: 500 });
     PgProjectSync.raise({ projectId: "tut:hello", kind: "divergent" });
 
-    const effect = session();
+    const effect = await mount();
     await expect(PgSession.signOut()).rejects.toThrow();
 
     expect(order).toEqual(["pushChats", "pushProject", "request"]);
@@ -679,7 +704,7 @@ describe("signing out", () => {
     vi.spyOn(PgChatSync, "pushAll").mockRejectedValue(new Error("offline"));
     serverSignsOut({ ok: true });
 
-    const effect = session();
+    const effect = await mount();
     await PgSession.signOut();
 
     // The threads were not uploaded, so nothing is forgotten and they are
@@ -697,7 +722,7 @@ describe("signing out", () => {
     serverSignsOut({ ok: true });
     PgProjectSync.raise({ projectId: "tut:hello", kind: "divergent" });
 
-    const effect = session();
+    const effect = await mount();
     await PgSession.signOut();
 
     // A tutorial's id is identical across accounts, so a banner left over from
