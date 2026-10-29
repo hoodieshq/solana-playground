@@ -97,7 +97,7 @@ vi.mock("../model/workspace-files", async (importOriginal) => ({
 // The markers' reading is `use-sync-markers.test.tsx`'s; here, only where
 // they land
 const syncMarkers = vi.hoisted(() => ({
-  current: {} as Record<string, "this-browser" | "not-synced">,
+  current: new Map<string, "this-browser" | "not-synced">(),
 }));
 vi.mock("./use-sync-markers", () => ({
   useSyncMarkers: () => syncMarkers.current,
@@ -145,7 +145,7 @@ afterEach(() => {
   localStorage.clear();
   resetTelemetry();
   resetLogger();
-  syncMarkers.current = {};
+  syncMarkers.current = new Map();
 });
 
 const onPickCurrent = vi.fn();
@@ -181,7 +181,7 @@ const toasts = () =>
 
 describe("ProjectList", () => {
   it("puts each workspace's sync marker on its own row, by name", () => {
-    syncMarkers.current = { alpha: "this-browser" };
+    syncMarkers.current = new Map([["alpha", "this-browser"]]);
     draw();
     const projects = screen.getByRole("group", { name: "Projects" });
     const describedBy = (name: string) =>

@@ -47,7 +47,7 @@ menu SHALL say why with one of: "Allow popups for this site to sign in."
 (the popup was blocked), "Sign-in did not finish." (no answer in time, or
 the session could not be read after GitHub answered), "Sign-in isn't
 available. Your work is saved in this browser." (the server could not start
-a sign-in); the menu's sign-in item then reads "Try again". A cancelled
+a sign-in, or the sign-in failed at no known step); the menu's sign-in item then reads "Try again". A cancelled
 sign-in ("Sign-in cancelled.") leaves the menu as it was. Offline and signed
 out, the menu's sign-in item SHALL be disabled and read "You're offline".
 No raw string, such as "Could not start sign-in", reaches the person.
@@ -68,7 +68,8 @@ browser. Anything not saved stays here.", a destructive Sign out and a
 Cancel that holds focus. Cancel SHALL return the menu to its items. On
 confirm, the menu stays open while sign-out runs; when projects stay in the
 browser afterwards, the menu SHALL say "{n} projects stayed in this browser
-because they weren't saved to your account." ("1 project" for one). A
+because they weren't saved to your account.", for one "1 project stayed in
+this browser because it wasn't saved to your account." A
 sign-out that fails SHALL leave the person signed in and say so. No
 "Sign out of GitHub?" remains.
 
@@ -86,7 +87,9 @@ The session-footer slice SHALL emit `session_sign_out_ended` when the
 sign-out question closes, with `outcome` (`ok`, `cancelled`) and, for `ok`,
 `items_kept` (a whole number: the projects left in the browser). A question
 closed by closing the menu counts as `cancelled`. A failed sign-out emits
-nothing; the question stays open.
+nothing; the question stays open. A menu closed while its sign-out runs
+emits nothing for the close: the sign-out is counted when it succeeds, and
+one that then fails ends the question with no event.
 
 #### Scenario: Cancelling counts once (manual)
 - **WHEN** the person presses Sign out, then Cancel
@@ -108,7 +111,8 @@ show one marker, or none:
 - no marker: the account holds exactly what this browser holds.
 
 Signed out, or where sync is not available, no row shows a marker. The
-marker is text, so a screen reader reads it with the row.
+marker is text, so a screen reader reads it with the row. It gives way to
+the row's actions while the row is hovered or focused, as the pin does.
 
 #### Scenario: Signed out shows no markers (manual)
 - **WHEN** a signed-out person has projects in the browser
@@ -120,7 +124,7 @@ marker is text, so a screen reader reads it with the row.
 
 #### Scenario: ACC-26 Signed in, offline (manual)
 - **WHEN** signed in, the person goes offline and edits a synced project
-- **THEN** the row reads "Offline · saving here", the project shows "Not synced", and back online the marker clears with no question
+- **THEN** the account row reads "Offline · saving here", the project shows "Not synced", and back online the marker clears with no question once the next upload or reconcile lands (an edit, a switch or a refocus)
 
 #### Scenario: A conflict on another project (manual)
 - **WHEN** a project has an unanswered sync conflict and the person opens another project

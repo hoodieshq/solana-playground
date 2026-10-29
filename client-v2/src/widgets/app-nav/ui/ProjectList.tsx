@@ -163,7 +163,7 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
     {
       idOf: (name) => PgExplorer.workspaceIdOf(name),
       isLesson: (name) => PgTutorial.isWorkspaceTutorial(name),
-      markerOf: (name) => markers[name] ?? null,
+      markerOf: (name) => markers.get(name) ?? null,
     },
     livePins
   );

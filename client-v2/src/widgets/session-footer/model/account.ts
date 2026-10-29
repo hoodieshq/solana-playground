@@ -70,6 +70,23 @@ export type SignOutState =
   /** Signed out; `kept` projects stayed in this browser */
   | { status: "done"; kept: number };
 
+/**
+ * What the menu shows of the sign-out question, given the session now. A
+ * question with no session left to end (another tab signed out) is not asked,
+ * unless its own sign-out is running and stays busy until it settles; the
+ * leftovers line belongs to the signed-out menu, and a new session drops it.
+ */
+export const shownSignOutState = (
+  state: SignOutState,
+  now: { signedIn: boolean; running: boolean }
+): SignOutState => {
+  if (state.status === "asking" && !now.signedIn && !now.running) {
+    return { status: "idle" };
+  }
+  if (state.status === "done" && now.signedIn) return { status: "idle" };
+  return state;
+};
+
 export const SIGN_OUT_QUESTION = "Sign out of Playground?";
 
 export const SIGN_OUT_CONSEQUENCE =
@@ -138,8 +155,8 @@ const signedOutLine = (session: AccountSession): AccountLine => {
 };
 
 /**
- * The account row's name, and the one line under it. A failed sign-in stays
- * failed in `PgSession` until the next attempt, so it holds the line until then
+ * The account row's name, and the one line under it. A sign-in failure the
+ * person did not cancel holds the line until the next attempt or a session
  */
 export const accountLines = (
   view: AccountView
@@ -216,9 +233,7 @@ if (import.meta.vitest) {
     const TESTER = { name: "Tester", login: "t", image: null };
     const NAME_ONLY = { name: "Tester", login: null, image: null };
     const NAMELESS = { name: null, login: null, image: null };
-    const signedIn = (
-      user: typeof TESTER | typeof NAME_ONLY
-    ): AccountSession => ({
+    const signedIn = (user: AccountUser): AccountSession => ({
       status: "signed-in",
       user,
     });
@@ -348,6 +363,45 @@ if (import.meta.vitest) {
         expect(lineText({ kind: "login", login: "t" })).toBe("@t");
         expect(lineText({ kind: "offline" })).toBe("Offline · saving here");
       });
+    });
+
+    describe("shownSignOutState", () => {
+      const ASKING = { status: "asking" } as const;
+      const DONE = { status: "done", kept: 2 } as const;
+
+      it("drops a question whose session ended elsewhere", () => {
+        expect(
+          shownSignOutState(ASKING, { signedIn: false, running: false })
+        ).toEqual({ status: "idle" });
+      });
+
+      it("keeps a question whose own sign-out is running", () => {
+        expect(
+          shownSignOutState(ASKING, { signedIn: false, running: true })
+        ).toBe(ASKING);
+        expect(
+          shownSignOutState(ASKING, { signedIn: true, running: false })
+        ).toBe(ASKING);
+      });
+
+      it("drops the leftovers line once a session is back", () => {
+        expect(
+          shownSignOutState(DONE, { signedIn: true, running: false })
+        ).toEqual({ status: "idle" });
+        expect(
+          shownSignOutState(DONE, { signedIn: false, running: false })
+        ).toBe(DONE);
+      });
+    });
+
+    it("leaves the @login out when it is already the name", () => {
+      expect(
+        accountLines(
+          view({
+            session: signedIn({ name: null, login: "t", image: null }),
+          })
+        )
+      ).toEqual({ primary: "t", line: null });
     });
 
     describe("leftoversText", () => {

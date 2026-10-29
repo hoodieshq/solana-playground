@@ -1874,4 +1874,24 @@ describe("PgSyncMark.onDidChange", () => {
 
     expect(heard).toEqual(["p1:written", "p1:dirtied", "p1:removed"]);
   });
+
+  it("keeps the write and the other listeners whole when a listener throws", async () => {
+    await signedIn();
+    clearFailures();
+    const heard: string[] = [];
+    const first = PgSyncMark.onDidChange(() => {
+      throw new Error("listener broke");
+    });
+    const second = PgSyncMark.onDidChange((id, change) =>
+      heard.push(`${id}:${change}`)
+    );
+
+    await expect(agreedOn("p1", "one", { a: "1" })).resolves.toBeUndefined();
+    first.dispose();
+    second.dispose();
+
+    expect(heard).toEqual(["p1:written"]);
+    expect(await PgSyncMark.read("p1")).not.toBeNull();
+    expect(getFailures().map((f) => f.what)).toContain("sync mark listener p1");
+  });
 });

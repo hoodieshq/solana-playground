@@ -15,6 +15,7 @@ import type {
   AccountView,
   SignOutState,
 } from "../model/account";
+import { shownSignOutState } from "../model/account";
 import { sessionTelemetry } from "../model/telemetry";
 import { useClusterStatus } from "../model/use-cluster-status";
 import BaseAccountMenu from "./BaseAccountMenu";
@@ -182,7 +183,23 @@ export const useAccount = ({
   };
 
   const signOut = async () => {
+    // Counted and settled once per sign-out, inside the shared promise: a
+    // second press, from a menu reopened while it runs, only joins it
     signingOut.current ??= PgSession.signOut()
+      .then(() => {
+        // Everything still in the browser once the release ran
+        // (`releaseLocalProjects`): projects the account does not hold, or
+        // holds without this browser's latest edits
+        const kept = PgExplorer.allWorkspaceNames?.length ?? 0;
+        sessionTelemetry.track("session_sign_out_ended", {
+          outcome: "ok",
+          items_kept: kept,
+        });
+        // Said in the menu that signed out, never in one opened later
+        setSignOutState(
+          menuOpen.current ? { status: "done", kept } : { status: "idle" }
+        );
+      })
       .catch((error: unknown) => {
         log.error(error, { report: true, context: { item: "sign-out" } });
         // Rethrown so the question's Sign out tells the user and the
@@ -195,26 +212,12 @@ export const useAccount = ({
         signingOut.current = null;
       });
     await signingOut.current;
-    // Everything still in the browser once the release ran
-    // (`releaseLocalProjects`): projects the account does not hold, or holds
-    // without this browser's latest edits
-    const kept = PgExplorer.allWorkspaceNames?.length ?? 0;
-    sessionTelemetry.track("session_sign_out_ended", {
-      outcome: "ok",
-      items_kept: kept,
-    });
-    // Said in the menu that signed out, never in one opened later
-    setSignOutState(
-      menuOpen.current ? { status: "done", kept } : { status: "idle" }
-    );
   };
 
-  // A question with no session left to end (another tab signed out) is not
-  // asked; one whose own sign-out is running stays, busy, until it settles
-  const shownSignOut: SignOutState =
-    signOutState.status === "asking" && !user && !signingOut.current
-      ? { status: "idle" }
-      : signOutState;
+  const shownSignOut = shownSignOutState(signOutState, {
+    signedIn: !!user,
+    running: !!signingOut.current,
+  });
 
   const menu = (
     <BaseAccountMenu

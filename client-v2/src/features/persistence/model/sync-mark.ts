@@ -265,15 +265,23 @@ export class PgSyncMark {
    * is still the difference between "deleted elsewhere" and "never uploaded".
    */
   static async exists(projectId: string): Promise<boolean> {
-    const userId = currentUserId();
-    if (!userId) return false;
-
     try {
-      return await PgFs.exists(pathOf(userId, projectId));
+      return await PgSyncMark.existsOrThrow(projectId);
     } catch (e) {
       report(`find sync mark ${projectId}`, e);
       return false;
     }
+  }
+
+  /**
+   * `exists`, rejecting when the store cannot say. For a reader that must not
+   * take a failed look for "never synced": the project list's marker would
+   * otherwise tell the person the account lacks a project it holds.
+   */
+  static async existsOrThrow(projectId: string): Promise<boolean> {
+    const userId = currentUserId();
+    if (!userId) return false;
+    return await PgFs.exists(pathOf(userId, projectId));
   }
 
   /**

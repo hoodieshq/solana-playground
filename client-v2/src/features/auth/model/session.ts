@@ -824,6 +824,25 @@ if (import.meta.vitest) {
         );
       });
 
+      it("says sign-in isn't available when the start answers no authorize URL", async () => {
+        vi.spyOn(globalThis, "fetch").mockImplementation(
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({}),
+          }) as unknown as typeof fetch
+        );
+        const open = vi.fn();
+        PgSession.setOpenChannel(open as never);
+
+        await expect(PgSession.signIn()).rejects.toThrow(
+          "Sign-in isn't available. Your work is saved in this browser."
+        );
+        expect(PgSession.signInState()).toMatchObject({
+          reason: "request-failed",
+        });
+        expect(open).not.toHaveBeenCalled();
+      });
+
       it("never shows a raw error as the reason a sign-in failed", async () => {
         vi.spyOn(globalThis, "fetch").mockRejectedValue(
           new TypeError("Failed to fetch")

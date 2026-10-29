@@ -26,7 +26,7 @@ interface MarkerFacts {
   available: boolean;
   /** A conflict waits on the person (`PgProjectSync.conflicts`) */
   conflict: boolean;
-  /** This account has a mark for it, readable or not (`PgSyncMark.exists`) */
+  /** This account has a mark for it, readable or not (`PgSyncMark.existsOrThrow`) */
   hasMark: boolean;
   /** The mark, or `null` when it cannot be read */
   mark: SyncMark | null;
@@ -68,7 +68,7 @@ export const syncMarkerOf = async (
 ): Promise<SyncMarker | null> => {
   const { PgProjectSync, isCleanAgainst } = await sync();
   const available = await PgProjectSync.isAvailable();
-  const hasMark = available && (await PgSyncMark.exists(projectId));
+  const hasMark = available && (await PgSyncMark.existsOrThrow(projectId));
   return await decide(
     {
       available,
@@ -223,7 +223,7 @@ if (import.meta.vitest) {
 
       it("reads Not synced while a conflict waits on the project", async () => {
         vi.spyOn(PgProjectSync, "isAvailable").mockResolvedValue(true);
-        vi.spyOn(PgSyncMark, "exists").mockResolvedValue(true);
+        vi.spyOn(PgSyncMark, "existsOrThrow").mockResolvedValue(true);
         vi.spyOn(PgProjectSync, "conflictFor").mockReturnValue({
           projectId: "p1",
           kind: "deleted-elsewhere",
@@ -233,13 +233,23 @@ if (import.meta.vitest) {
 
       it("reads This browser for a project with no mark", async () => {
         vi.spyOn(PgProjectSync, "isAvailable").mockResolvedValue(true);
-        vi.spyOn(PgSyncMark, "exists").mockResolvedValue(false);
+        vi.spyOn(PgSyncMark, "existsOrThrow").mockResolvedValue(false);
         expect(await syncMarkerOf("p1", "counter")).toBe("this-browser");
+      });
+
+      it("rejects when the store cannot say whether a mark exists, never This browser", async () => {
+        vi.spyOn(PgProjectSync, "isAvailable").mockResolvedValue(true);
+        vi.spyOn(PgSyncMark, "existsOrThrow").mockRejectedValue(
+          new Error("store locked")
+        );
+        await expect(syncMarkerOf("p1", "counter")).rejects.toThrow(
+          "store locked"
+        );
       });
 
       it("reads a clean mark as no marker", async () => {
         vi.spyOn(PgProjectSync, "isAvailable").mockResolvedValue(true);
-        vi.spyOn(PgSyncMark, "exists").mockResolvedValue(true);
+        vi.spyOn(PgSyncMark, "existsOrThrow").mockResolvedValue(true);
         vi.spyOn(PgSyncMark, "read").mockResolvedValue(MARK);
         expect(await syncMarkerOf("p1", "counter")).toBeNull();
       });

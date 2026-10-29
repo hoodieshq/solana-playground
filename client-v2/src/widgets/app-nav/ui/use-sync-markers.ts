@@ -8,16 +8,16 @@ import { PgExplorer } from "@/utils";
 
 const log = createLogger("app-nav:sync-markers");
 
-type Markers = Readonly<Record<string, SyncMarker>>;
+/**
+ * By workspace name. A `Map`, not an object: a workspace may be called
+ * `constructor` or `__proto__`, which an object would answer from its prototype
+ */
+type Markers = ReadonlyMap<string, SyncMarker>;
 
-const NONE: Markers = {};
+const NONE: Markers = new Map();
 
-const sameMarkers = (a: Markers, b: Markers) => {
-  const keys = Object.keys(a);
-  return (
-    keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k])
-  );
-};
+const sameMarkers = (a: Markers, b: Markers) =>
+  a.size === b.size && [...a].every(([name, marker]) => b.get(name) === marker);
 
 /**
  * Each workspace's sync marker, by name, read again whenever one may have
@@ -37,18 +37,19 @@ export const useSyncMarkers = (): Markers => {
 
     /** Every row's marker; a row whose read failed keeps the one it had */
     const readAll = async () => {
-      const next: Record<string, SyncMarker> = {};
+      const next = new Map<string, SyncMarker>();
       const failed: string[] = [];
       for (const name of PgExplorer.allWorkspaceNames ?? []) {
         const id = PgExplorer.workspaceIdOf(name);
         if (!id) continue;
         try {
           const marker = await syncMarkerOf(id, name);
-          if (marker) next[name] = marker;
+          if (marker) next.set(name, marker);
         } catch (e) {
           // "No marker" would tell the person the account holds this one
           failed.push(String(e));
-          if (shown[name]) next[name] = shown[name];
+          const kept = shown.get(name);
+          if (kept) next.set(name, kept);
         }
       }
       // Once per pass, not per row: a fault in the store fails every row
