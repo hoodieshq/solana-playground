@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PgProgramInfo, PgServer } from "../../utils";
-import { estimateDeployCost } from "./estimate";
+import { estimateDeployCost, estimateDeployCostWithin } from "./estimate";
 
 // Rent is one lamport per byte here, so each case reads as arithmetic
 vi.mock("../../utils", () => ({
@@ -57,5 +57,28 @@ describe("estimateDeployCost", () => {
     Object.assign(PgProgramInfo, { onChain: undefined });
 
     expect(await estimateDeployCost()).toBeNull();
+  });
+});
+
+describe("estimateDeployCostWithin", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("gives no estimate once the build server stalls past the limit", async () => {
+    vi.useFakeTimers();
+    vi.mocked(PgServer.deploy).mockReturnValue(new Promise(() => {}));
+
+    const quote = estimateDeployCostWithin(3000);
+    await vi.advanceTimersByTimeAsync(3000);
+
+    await expect(quote).resolves.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("gives the estimate, and leaves no timer, when it answers in time", async () => {
+    vi.useFakeTimers();
+    vi.mocked(PgServer.deploy).mockResolvedValue(new Uint8Array(2500));
+
+    await expect(estimateDeployCostWithin(3000)).resolves.toBe(2537 + fees(3));
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

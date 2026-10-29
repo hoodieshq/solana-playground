@@ -42,7 +42,7 @@ deploy logic drift, and the assistant's bridge must keep calling one command.
 `processDeploy` already returns the final transaction's signature; `handle`
 returns `{ signature, cost, upgraded }`, cost being the paying wallets'
 balance before minus after. `PgDeployHistory.init` stores them. The bridge's
-`deploy()` reads the same result.
+`deploy()` keeps linking the program address, which an upgrade keeps.
 
 ### D3. Explorer links take a cluster
 

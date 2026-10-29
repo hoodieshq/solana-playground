@@ -14,9 +14,9 @@ import { deployTelemetry } from "./telemetry";
 const log = createLogger("deploy:stage");
 
 /**
- * How the stage's last run stopped short of a deploy, when it did; the
- * project and network it ran on, so another project or network never shows
- * this run's card
+ * How the stage's last run stopped short of a deploy. A funding stop names
+ * the project and network it ran on, so another project or network never
+ * shows its card; a cancel shows nothing anywhere.
  */
 export type StageStop =
   | {
@@ -25,22 +25,23 @@ export type StageStop =
       cluster: string | null;
       workspace: string | null;
     }
-  | { kind: "cancelled" }
-  | null;
+  | { kind: "cancelled" };
 
 /**
  * The stage's run, kept outside the stage: the stage router remounts it on
- * every switch, and a question or an outcome must outlive that
+ * every switch, and a question or an outcome must outlive that. One phase at
+ * a time, so a question, a stop and the backup line never show together.
  */
-export interface StageDeployState {
-  /** A run the stage started has not finished */
-  starting: boolean;
-  /** The run is waiting on "Your last build failed" */
-  askingStaleBuild: boolean;
-  stop: StageStop;
-  /** The wallet address the backup line is shown for */
-  backupFor: string | null;
-}
+export type StageDeployState =
+  | { phase: "idle" }
+  | {
+      phase: "running";
+      /** The run is waiting on "Your last build failed" */
+      askingStaleBuild: boolean;
+    }
+  | { phase: "stopped"; stop: StageStop }
+  /** `backupFor` is the wallet address the backup line is shown for */
+  | { phase: "done"; backupFor: string | null };
 
 /** How long a new Playground wallet may take to become current */
 const WALLET_TIMEOUT_MS = 15_000;
@@ -100,7 +101,7 @@ export class PgStageDeploy {
 
   /** Deploy the project's program from the stage; a second press is ignored */
   static async start() {
-    if (PgStageDeploy._state.starting) return;
+    if (PgStageDeploy._running()) return;
     // Loaded here, not at the top: the slice's parts and helpers render in
     // places that never load the playground's runtime
     const {
@@ -111,10 +112,9 @@ export class PgStageDeploy {
       PgProgramInfo,
       PgWallet,
     } = await import("@/utils");
-    if (PgStageDeploy._state.starting || PgGlobal.deployState === "loading") {
-      return;
-    }
-    PgStageDeploy._set({ starting: true, stop: null, backupFor: null });
+    // Read again: another press may have started a run during the import
+    if (PgStageDeploy._running() || PgGlobal.deployState === "loading") return;
+    PgStageDeploy._set({ phase: "running", askingStaleBuild: false });
 
     const cluster = PgConnection.cluster;
     const workspace = PgExplorer.currentWorkspaceName ?? null;
@@ -144,25 +144,27 @@ export class PgStageDeploy {
       // A question still open when the run ended can no longer be answered
       PgStageDeploy._staleResolve?.(false);
       PgStageDeploy._staleResolve = null;
-      PgStageDeploy._set({ starting: false, askingStaleBuild: false });
     }
 
     // A press that only paused or resumed a run reports nothing
-    if (!result) return;
+    if (!result) {
+      PgStageDeploy._set({ phase: "idle" });
+      return;
+    }
+    let backupFor: string | null = null;
+    const paidBy = PgWallet.current;
+    if (paidBy?.isPg) {
+      const address = paidBy.publicKey.toBase58();
+      if (!isBackupAnswered(address)) backupFor = address;
+    }
+    PgStageDeploy._set({ phase: "done", backupFor });
     try {
       if (cluster) {
         deployTelemetry.track("deploy_succeeded", { cluster, redeploy });
       }
-      const paidBy = PgWallet.current;
-      if (paidBy?.isPg) {
-        const address = paidBy.publicKey.toBase58();
-        if (!isBackupAnswered(address)) {
-          PgStageDeploy._set({ backupFor: address });
-          deployTelemetry.track("deploy_backup_shown", {});
-        }
-      }
+      if (backupFor) deployTelemetry.track("deploy_backup_shown", {});
     } catch (error) {
-      // The program is deployed; only the backup line or an event is lost
+      // The program is deployed and the line shows; only an event is lost
       log.error(error, { report: true, context: { after: "deploy" } });
     }
   }
@@ -171,23 +173,25 @@ export class PgStageDeploy {
   static answerStaleBuild(deploy: boolean) {
     const resolve = PgStageDeploy._staleResolve;
     PgStageDeploy._staleResolve = null;
-    PgStageDeploy._set({ askingStaleBuild: false });
+    if (PgStageDeploy._state.phase === "running") {
+      PgStageDeploy._set({ phase: "running", askingStaleBuild: false });
+    }
     resolve?.(deploy);
   }
 
   /**
-   * The user answered the backup line; it hides for this wallet whether or
-   * not the answer could be stored
+   * The user answered the backup line; it stays hidden for this wallet for
+   * the page view even when the answer could not be stored
    */
   static answerBackup(saved: boolean) {
-    const address = PgStageDeploy._state.backupFor;
-    if (!address) return;
-    answerBackup(address);
+    const state = PgStageDeploy._state;
+    if (state.phase !== "done" || !state.backupFor) return;
+    answerBackup(state.backupFor);
     deployTelemetry.track(
       saved ? "deploy_backup_saved" : "deploy_backup_dismissed",
       {}
     );
-    PgStageDeploy._set({ backupFor: null });
+    PgStageDeploy._set({ phase: "done", backupFor: null });
   }
 
   private static _askStaleBuild = () =>
@@ -196,7 +200,7 @@ export class PgStageDeploy {
       // rather than left to hang
       PgStageDeploy._staleResolve?.(false);
       PgStageDeploy._staleResolve = resolve;
-      PgStageDeploy._set({ askingStaleBuild: true });
+      PgStageDeploy._set({ phase: "running", askingStaleBuild: true });
     });
 
   private static _failed(
@@ -209,11 +213,12 @@ export class PgStageDeploy {
   ) {
     const { cluster, workspace } = run;
     if (error instanceof DeployCancelledError) {
-      PgStageDeploy._set({ stop: { kind: "cancelled" } });
+      PgStageDeploy._set({ phase: "stopped", stop: { kind: "cancelled" } });
       return;
     }
     if (error instanceof DeployFundingError) {
       PgStageDeploy._set({
+        phase: "stopped",
         stop: { kind: "funding", detail: error.detail, cluster, workspace },
       });
       if (cluster) {
@@ -231,20 +236,20 @@ export class PgStageDeploy {
         step: (run.reachedRun && PgDeployRun.lastStep) || "checks",
       });
     }
+    PgStageDeploy._set({ phase: "idle" });
     reportButtonFailure("deploy")(error);
   }
 
-  private static _set(patch: Partial<StageDeployState>) {
-    PgStageDeploy._state = { ...PgStageDeploy._state, ...patch };
+  private static _running() {
+    return PgStageDeploy._state.phase === "running";
+  }
+
+  private static _set(next: StageDeployState) {
+    PgStageDeploy._state = next;
     for (const cb of PgStageDeploy._listeners) cb();
   }
 
-  private static _state: StageDeployState = {
-    starting: false,
-    askingStaleBuild: false,
-    stop: null,
-    backupFor: null,
-  };
+  private static _state: StageDeployState = { phase: "idle" };
   private static _staleResolve: ((deploy: boolean) => void) | null = null;
   private static readonly _listeners = new Set<() => void>();
 }

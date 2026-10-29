@@ -21,12 +21,19 @@ const read = (): string[] => {
   }
 };
 
+/**
+ * Answers this page view gave, kept beside the stored ones: an answer the
+ * browser refused to store still holds until the page reloads
+ */
+const answeredHere = new Set<string>();
+
 /** Whether the backup line was answered for the wallet at `address` */
 export const isBackupAnswered = (address: string): boolean =>
-  read().includes(address);
+  answeredHere.has(address) || read().includes(address);
 
 /** Hide the backup line for the wallet at `address` in this browser */
 export const answerBackup = (address: string): void => {
+  answeredHere.add(address);
   const kept = [address, ...read().filter((a) => a !== address)].slice(
     0,
     MAX_ADDRESSES
@@ -34,9 +41,8 @@ export const answerBackup = (address: string): void => {
   try {
     localStorage.setItem(KEY, JSON.stringify(kept));
   } catch (e) {
-    // At the origin's quota the answer holds for this page view only; the
-    // line comes back after a reload, which beats a second keypair download
-    // on the same page
+    // At the origin's quota the answer holds for this page view only, through
+    // `answeredHere`; the line comes back after a reload
     log.error(e, { context: { what: "store the backup answer" } });
   }
 };
@@ -45,7 +51,10 @@ if (import.meta.vitest) {
   const { describe, it, expect, beforeEach } = import.meta.vitest;
 
   describe("features/deploy/model/backup", () => {
-    beforeEach(() => localStorage.clear());
+    beforeEach(() => {
+      localStorage.clear();
+      answeredHere.clear();
+    });
 
     it("remembers an answer per wallet address", () => {
       answerBackup("A");
@@ -53,8 +62,9 @@ if (import.meta.vitest) {
       expect(isBackupAnswered("B")).toBe(false);
     });
 
-    it("forgets the oldest address past the cap", () => {
+    it("forgets the oldest stored address past the cap, after a reload", () => {
       for (let i = 0; i <= MAX_ADDRESSES; i++) answerBackup(`W${i}`);
+      answeredHere.clear(); // what a reload leaves
       expect(isBackupAnswered("W0")).toBe(false);
       expect(isBackupAnswered(`W${MAX_ADDRESSES}`)).toBe(true);
     });
@@ -67,7 +77,8 @@ if (import.meta.vitest) {
           throw new DOMException("full", "QuotaExceededError");
         });
       try {
-        expect(() => answerBackup("A")).not.toThrow();
+        expect(() => answerBackup("refused")).not.toThrow();
+        expect(isBackupAnswered("refused")).toBe(true);
       } finally {
         setItem.mockRestore();
       }

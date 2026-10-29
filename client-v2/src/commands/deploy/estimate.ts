@@ -4,6 +4,9 @@ import { additionalProgramLen } from "./additional-len";
 
 const log = createLogger("deploy:estimate");
 
+/** How long the deploy approval waits on its cost estimate */
+const QUOTE_TIMEOUT_MS = 3000;
+
 /** The fee of one signature, in lamports */
 const LAMPORTS_PER_SIGNATURE = 5000;
 /**
@@ -59,5 +62,27 @@ export const estimateDeployCost = async (): Promise<number | null> => {
       context: { error: String(e) },
     });
     return null;
+  }
+};
+
+/**
+ * {@link estimateDeployCost}, or `null` once `ms` pass without an answer:
+ * the approval card waits on it, and a stalled build server or RPC must not
+ * hold the card
+ */
+export const estimateDeployCostWithin = async (
+  ms: number = QUOTE_TIMEOUT_MS
+): Promise<number | null> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      log.warn("the deploy cost estimate timed out", { context: { ms } });
+      resolve(null);
+    }, ms);
+  });
+  try {
+    return await Promise.race([estimateDeployCost(), timeout]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 };

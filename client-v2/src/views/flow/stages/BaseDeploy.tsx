@@ -81,7 +81,7 @@ export interface BaseDeployProps {
   details: DeployDetails;
   /** Every deployment of the project, newest first */
   history: DeployRecord[];
-  /** The Playground wallet that pays; `null` before one exists */
+  /** The wallet that pays, Playground or connected; `null` while none is current */
   payer: DeployPayer | null;
   /** The running deploy's steps */
   run: DeployRunState;

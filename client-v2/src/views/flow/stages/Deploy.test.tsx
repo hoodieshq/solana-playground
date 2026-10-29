@@ -357,7 +357,13 @@ describe("Deploy stage", () => {
   });
 
   it("saves the keypair from the backup line, and keeps the line when the save fails", async () => {
-    mocks.wallet.current = pgWallet();
+    // A wallet of its own: the page remembers answers given earlier
+    mocks.wallet.current = {
+      isPg: true,
+      publicKey: {
+        toBase58: () => "SaveWa11et1111111111111111111111111111111111",
+      },
+    };
     mocks.execute.mockResolvedValue({
       signature: "s",
       cost: 1,
@@ -469,5 +475,68 @@ describe("Deploy stage", () => {
 
     const failed = sent.events.find((e) => e.name === "deploy_failed");
     expect(failed?.params).toEqual({ cluster: "devnet", step: "checks" });
+  });
+
+  it("gives up on a wallet that never connects, says so, and leaves nothing listening", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.wallet.add.mockImplementation(() => undefined);
+      render(<Deploy />);
+
+      await pressDeploy();
+      await act(async () => vi.advanceTimersByTimeAsync(15_000));
+
+      expect(mocks.execute).not.toHaveBeenCalled();
+      expect(String(mocks.report.mock.calls[0]?.[0])).toContain(
+        "did not connect"
+      );
+      expect(mocks.walletListeners.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows the funding card only on the project and network it ran on", async () => {
+    const utils = (await import("../../../utils")) as unknown as {
+      PgConnection: { cluster: string };
+      PgExplorer: { currentWorkspaceName: string };
+    };
+    mocks.wallet.current = pgWallet();
+    mocks.execute.mockRejectedValue(
+      new DeployFundingError({
+        reason: "airdrop_failed",
+        balance: 0,
+        needed: 1,
+        address: WALLET,
+        cause: "429",
+      })
+    );
+    const view = render(<Deploy />);
+    await pressDeploy();
+    expect(screen.getByRole("alert", { name: "Not enough SOL" })).toBeTruthy();
+
+    const rerender = () =>
+      view.rerender(
+        <TooltipProvider>
+          <Deploy />
+        </TooltipProvider>
+      );
+    try {
+      utils.PgConnection.cluster = "testnet";
+      rerender();
+      expect(
+        screen.queryByRole("alert", { name: "Not enough SOL" })
+      ).toBeNull();
+
+      utils.PgConnection.cluster = "devnet";
+      utils.PgExplorer.currentWorkspaceName = "other";
+      rerender();
+      expect(
+        screen.queryByRole("alert", { name: "Not enough SOL" })
+      ).toBeNull();
+    } finally {
+      utils.PgConnection.cluster = "devnet";
+      utils.PgExplorer.currentWorkspaceName = "counter";
+    }
   });
 });

@@ -44,8 +44,9 @@ export interface CommandApproval {
   /** Plain-language description of what running it will do */
   effect: string;
   /**
-   * The card's title, a question naming the program, the network and the
-   * cost; absent on a card saved without one, which falls back to its name
+   * The card's title, a question naming the program, and for a deploy the
+   * network and, when it could be estimated, the cost; absent on a card
+   * saved without one, which falls back to its name
    */
   question?: string;
 }

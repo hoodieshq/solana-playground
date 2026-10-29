@@ -44,11 +44,21 @@ const deployStatus = (
   flow: FlowState,
   stage: StageDeployState
 ): DeployStatus => {
-  if (deployState === "loading" || stage.starting) return "running";
-  if (flow.deploy === "failed" && stage.stop?.kind !== "cancelled") {
-    return "failed";
-  }
+  if (deployState === "loading" || stage.phase === "running") return "running";
+  const cancelled =
+    stage.phase === "stopped" && stage.stop.kind === "cancelled";
+  if (flow.deploy === "failed" && !cancelled) return "failed";
   return "idle";
+};
+
+/** The funding stop's detail, when it ran on the project and network open now */
+const fundingHere = (stage: StageDeployState) => {
+  if (stage.phase !== "stopped" || stage.stop.kind !== "funding") return null;
+  const { stop } = stage;
+  const here =
+    stop.cluster === PgConnection.cluster &&
+    stop.workspace === (PgExplorer.currentWorkspaceName ?? null);
+  return here ? stop.detail : null;
 };
 
 /**
@@ -148,18 +158,13 @@ const Deploy = () => {
         history={history}
         payer={payer}
         run={run}
-        funding={
-          stage.stop?.kind === "funding" &&
-          stage.stop.cluster === PgConnection.cluster &&
-          stage.stop.workspace === (PgExplorer.currentWorkspaceName ?? null)
-            ? stage.stop.detail
-            : null
-        }
+        funding={fundingHere(stage)}
         backup={
+          stage.phase === "done" &&
           stage.backupFor !== null &&
           stage.backupFor === wallet?.publicKey.toBase58()
         }
-        staleBuild={stage.askingStaleBuild}
+        staleBuild={stage.phase === "running" && stage.askingStaleBuild}
         addressUrl={(id, cluster) =>
           linkTo(cluster, (c) => explorer.getAddressUrl(id, c))
         }

@@ -21,6 +21,9 @@ import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
 import { MAINNET_DEPLOY_WARNING, warnsOnDeploy } from "./mainnet-warning";
 import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
 import type { DeployResult, FundingFailure } from "./run";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("deploy:command");
 
 export const deploy = createCmd({
   name: "deploy",
@@ -234,8 +237,9 @@ const processDeploy = async (): Promise<DeployResult> => {
       await PgCommand.airdrop.execute(amount.toString());
     } catch (e) {
       if (!answers) throw e;
-      // The stage shows the faucet's answer on its card; the error itself
-      // already went to the terminal through the airdrop command
+      // The stage shows the faucet's answer on its card; the error and its
+      // stack go to the logs, where a faucet regression can be found
+      log.error(e, { report: true, context: { what: "stage deploy airdrop" } });
       throw short("airdrop_failed", e instanceof Error ? e.message : String(e));
     }
   }

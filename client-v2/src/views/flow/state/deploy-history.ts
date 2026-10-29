@@ -88,7 +88,7 @@ export class PgDeployHistory {
       const cluster = PgConnection.cluster;
       if (!programId || !workspace || !cluster) return;
 
-      // `ok` is undefined only for a finish with nothing deployed to report
+      // A finish from a command that reports no result keeps what it can
       const ran = result.ok;
       PgDeployHistory.add({
         workspace,
