@@ -19,11 +19,7 @@ import { additionalProgramLen } from "./additional-len";
 import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
 import { MAINNET_DEPLOY_WARNING, warnsOnDeploy } from "./mainnet-warning";
-import {
-  DeployCancelledError,
-  DeployFundingError,
-  PgDeployRun,
-} from "./run";
+import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
 import type { DeployResult, FundingFailure } from "./run";
 
 export const deploy = createCmd({
