@@ -2,7 +2,7 @@ import { realBridge } from "./bridge/playground-bridge";
 import type { PlaygroundBridge } from "./bridge/playground-bridge";
 import { createLogger } from "@/shared/lib/logger";
 import { PgAssistant } from "./store";
-import type { ChatItem } from "./store";
+import type { ChatItem, PatchApproval } from "./store";
 
 type ApprovalItem = Extract<ChatItem, { kind: "approval" }>;
 
@@ -35,6 +35,41 @@ const holdsPatch = (now: string | null, after: string) =>
 const keepId = (content: string, now: string | null) => {
   const id = now?.match(DECLARE_ID)?.[0];
   return id ? content.replace(DECLARE_ID, id) : content;
+};
+
+/**
+ * After a write that threw: what the file holds now decides the card. Never
+ * throws, so the caller rethrows the write's own error.
+ */
+const settleFailedUndo = (
+  item: ApprovalItem,
+  request: PatchApproval,
+  /** What the file held before the write: the patch, with its current id */
+  held: string | null,
+  bridge: PlaygroundBridge
+) => {
+  let now: string | null;
+  try {
+    now = bridge.readFile(request.path);
+  } catch (error) {
+    log.error(error, { report: true, context: { path: request.path } });
+    return;
+  }
+  if (holdsPatch(now, request.after)) {
+    written.add(item.id);
+    return;
+  }
+  const restored =
+    request.before === null
+      ? now === null
+      : now === keepId(request.before, held);
+  if (!restored) return;
+  if (!PgAssistant.markUndone(item.id, undoneOutcome(request.path))) {
+    log.warn("undid a patch whose card is gone", {
+      report: true,
+      context: { path: request.path },
+    });
+  }
 };
 
 /** The card's outcome once its patch is taken back */
@@ -100,12 +135,10 @@ export class PgPatchUndo {
         });
     } catch (error) {
       // A write can land before what follows it fails (the editor's model
-      // sync): only a file that still holds the patch may offer Undo again
-      if (holdsPatch(bridge.readFile(request.path), request.after)) {
-        written.add(item.id);
-      } else {
-        PgAssistant.markUndone(item.id, undoneOutcome(request.path));
-      }
+      // sync), so the file says what happened: still the patch, and Undo is
+      // offered again; back as it was, and the card says so; anything else
+      // is an edit nobody made here, and the card is left as it is
+      settleFailedUndo(item, request, now, bridge);
       throw error;
     }
     if (!PgAssistant.markUndone(item.id, undoneOutcome(request.path))) {

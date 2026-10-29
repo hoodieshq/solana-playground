@@ -184,6 +184,16 @@ describe("useTurn", () => {
     expect(provider.send.mock.calls[1][2]).toEqual({ openFile: true });
   });
 
+  it("leaves nothing out with no file open and nothing left out", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    vi.spyOn(PgExplorer, "currentFilePath", "get").mockReturnValue(null);
+    const { result } = renderHook(() => useTestTurn());
+
+    await act(() => result.current.send("hi"));
+
+    expect(provider.send.mock.calls[0][2]).toEqual({ openFile: true });
+  });
+
   it("sends a file the user switched to in full, though another was left out", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     const current = vi
@@ -1066,6 +1076,26 @@ describe("useTurn's failures and races", () => {
         kind: "error",
         text: "Failed to fetch",
       });
+    });
+
+    it.each([
+      "Failed to fetch",
+      "fetch failed",
+      "network error",
+      "NetworkError when attempting to fetch resource.",
+      "Error in input stream",
+      "Load failed",
+      "The network connection was lost.",
+      "terminated",
+    ])("reads %j after text as a cut-off reply", async (message) => {
+      PgAssistant.connect({ id: "default", apiKey: "" });
+      failAfter("The program", new TypeError(message));
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("hi"));
+
+      const reply = PgAssistant.items.find((i) => i.kind === "assistant")!;
+      expect(PgAssistant.isCutOff(reply)).toBe(true);
     });
 
     it("shows a TypeError that only mentions fetch as an error", async () => {

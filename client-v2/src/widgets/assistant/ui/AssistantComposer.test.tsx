@@ -178,6 +178,31 @@ describe("AssistantComposer, context chips", () => {
   });
 });
 
+describe("AssistantComposer, a left-out file", () => {
+  it("shows the chip of a file the user switches to, and that file's goes back", async () => {
+    const { PgExplorer } = await import("../../../utils/explorer/explorer");
+    const explorer = PgExplorer as { currentFilePath: string };
+    render(<Harness />);
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Leave lib.rs out of the next message",
+      })
+    );
+    expect(screen.queryByText("lib.rs")).toBeNull();
+
+    try {
+      explorer.currentFilePath = "src/other.rs";
+      // Any change in the store redraws the composer
+      act(() => PgAssistant.setStatus("idle"));
+      expect(screen.getByText("other.rs")).toBeTruthy();
+    } finally {
+      explorer.currentFilePath = "src/lib.rs";
+    }
+  });
+});
+
 describe("AssistantComposer, the + menu", () => {
   it("opens Sources and tools", async () => {
     render(<Harness />);

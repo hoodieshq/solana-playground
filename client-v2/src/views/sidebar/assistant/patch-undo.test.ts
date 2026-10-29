@@ -182,6 +182,36 @@ describe("PgPatchUndo", () => {
     expect(PgPatchUndo.can(card, bridge)).toBe(false);
   });
 
+  it("marks a created file's card undone when the delete landed and what followed failed", async () => {
+    const card = await applied(null, "new");
+    PgPatchUndo.wrote(card.id);
+    const { bridge, file } = fakeBridge("new");
+    vi.mocked(bridge.deleteFile).mockImplementationOnce(async () => {
+      file.content = null;
+      throw new Error("the explorer could not refresh");
+    });
+
+    await expect(PgPatchUndo.undo(card, bridge)).rejects.toThrow("refresh");
+
+    expect(card.undone).toBe(true);
+  });
+
+  it("leaves the card alone when the file holds neither the patch nor the original after a failed write", async () => {
+    const card = await applied("old", "new");
+    PgPatchUndo.wrote(card.id);
+    const { bridge, file } = fakeBridge("new");
+    vi.mocked(bridge.applyPatch).mockImplementationOnce(async () => {
+      // Another tab writes while this one fails
+      file.content = "someone else's edit";
+      throw new Error("disk");
+    });
+
+    await expect(PgPatchUndo.undo(card, bridge)).rejects.toThrow("disk");
+
+    expect(card.undone).toBeUndefined();
+    expect(PgPatchUndo.can(card, bridge)).toBe(false);
+  });
+
   it("can undo again when the write failed", async () => {
     const card = await applied("old", "new");
     PgPatchUndo.wrote(card.id);

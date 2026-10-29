@@ -300,6 +300,64 @@ describe("BaseAssistantComposer", () => {
     expect(document.activeElement).toBe(input());
   });
 
+  it("puts focus in the input when the removed chip goes away", async () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const Removable = () => {
+      const [kept, setKept] = useState(true);
+      return (
+        <TooltipProvider>
+          <BaseAssistantComposer
+            chips={
+              kept
+                ? [
+                    {
+                      label: "lib.rs",
+                      title: "The tab you are looking at",
+                      spoken: "Sent with this message: lib.rs",
+                      remove: {
+                        label: "Leave lib.rs out of the next message",
+                        run: () => setKept(false),
+                      },
+                    },
+                  ]
+                : []
+            }
+            value=""
+            onValueChange={vi.fn()}
+            onSend={vi.fn()}
+            onStop={vi.fn()}
+            busy={false}
+            placeholder="Ask"
+            model={null}
+            effort={null}
+            onSources={vi.fn()}
+            onConnect={vi.fn()}
+            connectLabel="Connect a model…"
+            focusPicked={() => false}
+          />
+        </TooltipProvider>
+      );
+    };
+    render(<Removable />);
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Leave lib.rs out of the next message",
+      })
+    );
+
+    expect(screen.queryByText("lib.rs")).toBeNull();
+    expect(document.activeElement).toBe(input());
+  });
+
   describe("the + menu", () => {
     it("offers Sources and tools and Connect a model…", async () => {
       const { user, onSources } = setup();

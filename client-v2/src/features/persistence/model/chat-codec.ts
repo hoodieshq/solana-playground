@@ -317,10 +317,7 @@ if (import.meta.vitest) {
         expect(encodeItem(cut)).toMatchObject({ state: "cut-off" });
         // And back, through JSON as storage and the server hold it
         const stored = JSON.parse(JSON.stringify([undone, cut]));
-        expect(decodeThread(stored)).toEqual([
-          expect.objectContaining({ undone: true }),
-          expect.objectContaining({ state: "cut-off" }),
-        ]);
+        expect(decodeThread(stored)).toEqual([undone, cut]);
       });
 
       it("stores a pending approval as unanswered, since it can never resume", () => {

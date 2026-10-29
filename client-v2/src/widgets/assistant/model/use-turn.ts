@@ -65,14 +65,16 @@ const isRejectedKey = (error: unknown) =>
 
 /**
  * What `fetch`, and a stream it was reading, reject with when the connection
- * drops: a `TypeError` whose whole message is one the browsers and Node use
- * for it ("Failed to fetch", "NetworkError when attempting to fetch
- * resource.", "Load failed", "network error", "terminated"). Matched whole, so
+ * drops: a `TypeError` whose whole message is one Chrome ("Failed to fetch",
+ * "network error"), Firefox ("NetworkError when attempting to fetch
+ * resource.", "Error in input stream"), Safari ("Load failed", "The network
+ * connection was lost.") or Node's fetch ("fetch failed", "terminated") use
+ * for it. Matched whole, so
  * a programming error that is also a `TypeError` ("x.fetch is not a
  * function") keeps its own message instead of reading as a cut-off reply.
  */
 const NETWORK_FAILURE =
-  /^(failed to fetch|networkerror when attempting to fetch resource|load failed|network error|terminated)\.?$/i;
+  /^(failed to fetch|fetch failed|networkerror when attempting to fetch resource|load failed|network error|the network connection was lost|error in input stream|terminated)\.?$/i;
 const isNetworkFailure = (error: unknown) =>
   error instanceof TypeError && NETWORK_FAILURE.test(error.message);
 
@@ -404,7 +406,9 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     setInput("");
     // For this message only: the file goes with the next one again
     const context = {
-      openFile: leftOut.current !== PgExplorer.currentFilePath,
+      openFile:
+        leftOut.current === null ||
+        leftOut.current !== PgExplorer.currentFilePath,
     };
     leftOut.current = null;
     setOpenFileLeftOut(null);
