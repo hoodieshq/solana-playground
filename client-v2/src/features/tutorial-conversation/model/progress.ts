@@ -1,0 +1,442 @@
+import type { Act, ConversationSave } from "@/entities/tutorial";
+
+/**
+ * What a conversation tutorial saves under `conversation` in
+ * `.workspace/tutorial-storage.json`: facts, never copy. The feed's turns are
+ * a fold over this and the definition (`view.ts`), so a fixed typo in the
+ * definition shows on reload. Project sync carries the file.
+ *
+ * `version`, `passed` and `finishedAt` are the contract the tutorials card
+ * reads (`conversationProgressOf` in `entities/tutorial`); the rest is the
+ * engine's own.
+ */
+export interface ConversationProgress extends ConversationSave {
+  version: 1;
+  passed: string[];
+  finishedAt: number | null;
+  /** When Start was pressed, in ms, or null before it */
+  startedAt: number | null;
+  cursor: Cursor;
+  /** Every beat the lesson has reached, by id */
+  beats: Record<string, Resolution>;
+  /** Every act's run, by its beat id */
+  runs: Record<string, RunRecord>;
+  /** When each step started and passed, by step id, for the divider's time */
+  times: Record<string, StepTime>;
+}
+
+/** Where the lesson stands: before Start, in a step, or past the last win */
+export type Cursor =
+  | { kind: "intro" }
+  | {
+      kind: "step";
+      stepId: string;
+      /** Index of the next beat to post in `beats`, or in `onFail` */
+      beat: number;
+      /** Whether the step is running its planned failure's beats */
+      fail: boolean;
+    }
+  | { kind: "finished" };
+
+export interface StepTime {
+  from: number;
+  to: number | null;
+}
+
+/**
+ * A beat's state once the lesson has reached it. A `say` is `said`; a
+ * `write` is `written` once the block landed; a question is `open` until a
+ * right pick, the key line typed, or Skip resolves it; an act is `said`, its
+ * run living in `runs`.
+ */
+export type Resolution =
+  | { kind: "said"; at: number }
+  | { kind: "written"; at: number; file: string; lines: number[] }
+  | { kind: "open"; at: number; wrong: number[]; hinted?: true }
+  | {
+      kind: "picked";
+      at: number;
+      option: number;
+      /** 1 to 3: the right pick counts */
+      attempts: number;
+      wrong: number[];
+      hinted?: true;
+    }
+  | { kind: "typed"; at: number; wrong: number[]; hinted?: true }
+  | {
+      kind: "skipped";
+      at: number;
+      via: "button" | "call_panel";
+      wrong: number[];
+      hinted?: true;
+    };
+
+/**
+ * One act's run. `started` is what the save holds while the run is in
+ * flight; a reload turns it into `interrupted` (`parseProgress`), since a
+ * run never resumes and is never repeated by the engine.
+ */
+export type RunRecord =
+  | { status: "started"; at: number }
+  | { status: "interrupted"; at: number }
+  | { status: "ok"; at: number; took: number; result: RunResult }
+  | { status: "failed"; at: number; took: number; result: RunResult };
+
+/** The first compiler error of a failed build, as the server's log names it */
+export interface BuildError {
+  code: string | null;
+  file: string | null;
+  line: number | null;
+  column: number | null;
+  message: string;
+}
+
+/**
+ * The facts a run leaves behind, by act. These are the fields the spec's
+ * result cards read; the run tickets (4.1 to 4.3) add to them, never rename.
+ */
+export type RunResult =
+  | { act: "build"; ok: true; seconds: number; instructions: string[] }
+  | {
+      act: "build";
+      ok: false;
+      seconds: number;
+      error: BuildError | null;
+      log: string;
+    }
+  | {
+      act: "deploy" | "buildDeploy";
+      ok: true;
+      seconds: number;
+      programId: string;
+      signature: string;
+      upgraded: boolean;
+      lamports: number;
+      instructions: string[];
+    }
+  | {
+      act: "deploy" | "buildDeploy";
+      ok: false;
+      seconds: number;
+      reason: "failed" | "no_wallet" | "no_funds";
+      message: string;
+    }
+  | {
+      act: "run" | "call";
+      ok: true;
+      seconds: number;
+      signatures: string[];
+      /** The program log line the definition's pattern picked, if any */
+      line: string | null;
+    }
+  | {
+      act: "run" | "call";
+      ok: false;
+      seconds: number;
+      message: string;
+      log: string;
+    };
+
+export const freshProgress = (): ConversationProgress => ({
+  version: 1,
+  passed: [],
+  finishedAt: null,
+  startedAt: null,
+  cursor: { kind: "intro" },
+  beats: {},
+  runs: {},
+  times: {},
+});
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+
+const isMs = (v: unknown): v is number => Number.isFinite(v);
+
+const isMsOrNull = (v: unknown): v is number | null => v === null || isMs(v);
+
+const isStrings = (v: unknown): v is string[] =>
+  Array.isArray(v) && v.every((s) => typeof s === "string");
+
+const isIndexes = (v: unknown): v is number[] =>
+  Array.isArray(v) && v.every((n) => Number.isInteger(n));
+
+const ACTS: readonly Act[] = ["build", "deploy", "buildDeploy", "run", "call"];
+
+const parseCursor = (v: unknown): Cursor | null => {
+  if (!isRecord(v)) return null;
+  if (v.kind === "intro" || v.kind === "finished") return { kind: v.kind };
+  if (
+    v.kind === "step" &&
+    typeof v.stepId === "string" &&
+    Number.isInteger(v.beat) &&
+    (v.beat as number) >= 0 &&
+    typeof v.fail === "boolean"
+  ) {
+    return {
+      kind: "step",
+      stepId: v.stepId,
+      beat: v.beat as number,
+      fail: v.fail,
+    };
+  }
+  return null;
+};
+
+/** An unknown entry is dropped rather than failing the whole save */
+const parseResolution = (v: unknown): Resolution | null => {
+  if (!isRecord(v) || !isMs(v.at)) return null;
+  const at = v.at;
+  const hinted = v.hinted === true ? { hinted: true as const } : {};
+  switch (v.kind) {
+    case "said":
+      return { kind: "said", at };
+    case "written":
+      return typeof v.file === "string" && isIndexes(v.lines)
+        ? { kind: "written", at, file: v.file, lines: v.lines }
+        : null;
+    case "open":
+      return isIndexes(v.wrong)
+        ? { kind: "open", at, wrong: v.wrong, ...hinted }
+        : null;
+    case "picked":
+      return Number.isInteger(v.option) &&
+        Number.isInteger(v.attempts) &&
+        isIndexes(v.wrong)
+        ? {
+            kind: "picked",
+            at,
+            option: v.option as number,
+            attempts: v.attempts as number,
+            wrong: v.wrong,
+            ...hinted,
+          }
+        : null;
+    case "typed":
+      return isIndexes(v.wrong)
+        ? { kind: "typed", at, wrong: v.wrong, ...hinted }
+        : null;
+    case "skipped":
+      return (v.via === "button" || v.via === "call_panel") &&
+        isIndexes(v.wrong)
+        ? { kind: "skipped", at, via: v.via, wrong: v.wrong, ...hinted }
+        : null;
+    default:
+      return null;
+  }
+};
+
+/**
+ * A result is kept as it was saved once its act and `ok` are sound: the run
+ * tickets own its other fields, and the cards read them by act.
+ */
+const parseResult = (v: unknown): RunResult | null =>
+  isRecord(v) &&
+  ACTS.includes(v.act as Act) &&
+  typeof v.ok === "boolean" &&
+  isMs(v.seconds)
+    ? (v as unknown as RunResult)
+    : null;
+
+/** A run saved as `started` comes back `interrupted`: nothing resumes */
+const parseRun = (v: unknown): RunRecord | null => {
+  if (!isRecord(v) || !isMs(v.at)) return null;
+  const at = v.at;
+  switch (v.status) {
+    case "started":
+    case "interrupted":
+      return { status: "interrupted", at };
+    case "ok":
+    case "failed": {
+      const result = parseResult(v.result);
+      return result && isMs(v.took)
+        ? { status: v.status, at, took: v.took, result }
+        : null;
+    }
+    default:
+      return null;
+  }
+};
+
+const parseEach = <T>(
+  v: unknown,
+  parse: (entry: unknown) => T | null
+): Record<string, T> => {
+  if (!isRecord(v)) return {};
+  const out: Record<string, T> = {};
+  for (const [id, entry] of Object.entries(v)) {
+    const parsed = parse(entry);
+    if (parsed !== null) out[id] = parsed;
+  }
+  return out;
+};
+
+const parseTime = (v: unknown): StepTime | null =>
+  isRecord(v) && isMs(v.from) && isMsOrNull(v.to)
+    ? { from: v.from, to: v.to }
+    : null;
+
+/**
+ * The saved `conversation`, or null when it is not a version 1 save. A null
+ * opens the tutorial on the intro and, through the store's `loadFailed`
+ * guard, keeps the file unwritten until the learner acts; it never overwrites
+ * a save it could not read. Entries it cannot read are dropped one by one.
+ */
+export const parseProgress = (saved: unknown): ConversationProgress | null => {
+  if (!isRecord(saved) || saved.version !== 1) return null;
+  if (!isStrings(saved.passed) || !isMsOrNull(saved.finishedAt)) return null;
+  const cursor = parseCursor(saved.cursor);
+  if (!cursor) return null;
+  if (!isMsOrNull(saved.startedAt)) return null;
+
+  return {
+    version: 1,
+    passed: Array.from(new Set(saved.passed)),
+    finishedAt: saved.finishedAt,
+    startedAt: saved.startedAt,
+    cursor,
+    beats: parseEach(saved.beats, parseResolution),
+    runs: parseEach(saved.runs, parseRun),
+    times: parseEach(saved.times, parseTime),
+  };
+};
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  describe("features/tutorial-conversation/model/progress", () => {
+    const STEPS = ["write-program", "deploy", "call-client", "greet-by-name"];
+
+    /**
+     * A save midway through step 2, built field by field. The optional
+     * `extra` entries are the unreadable ones a test adds; `passed` and
+     * `finishedAt` the ones a test overrides.
+     */
+    const midway = (
+      opts: {
+        passed?: string[];
+        finishedAt?: number | null;
+        beats?: Record<string, unknown>;
+        runs?: Record<string, unknown>;
+        times?: Record<string, unknown>;
+      } = {}
+    ) => ({
+      version: 1 as const,
+      passed: opts.passed ?? ["write-program"],
+      finishedAt: opts.finishedAt ?? null,
+      startedAt: 1000,
+      cursor: { kind: "step" as const, stepId: "deploy", beat: 2, fail: false },
+      beats: Object.assign(
+        {
+          "s1.boil": {
+            kind: "written",
+            at: 1100,
+            file: "src/lib.rs",
+            lines: [1, 2, 3],
+          },
+          "s1.what": { kind: "said", at: 1200 },
+          "s1.q1": {
+            kind: "picked",
+            at: 1300,
+            option: 1,
+            attempts: 2,
+            wrong: [0],
+          },
+          "s2.q2": { kind: "open", at: 2000, wrong: [1], hinted: true },
+        },
+        opts.beats
+      ),
+      runs: Object.assign(
+        {
+          "s1.build": {
+            status: "ok",
+            at: 1400,
+            took: 1600,
+            result: {
+              act: "build",
+              ok: true,
+              seconds: 1.6,
+              instructions: ["hello"],
+            },
+          },
+        },
+        opts.runs
+      ),
+      times: Object.assign(
+        {
+          "write-program": { from: 1000, to: 1500 },
+          deploy: { from: 1500, to: null },
+        },
+        opts.times
+      ),
+    });
+
+    /** Through JSON, as the file holds it */
+    const reload = (p: unknown) => parseProgress(JSON.parse(JSON.stringify(p)));
+
+    it("parses a fresh save to itself", () => {
+      expect(reload(freshProgress())).toEqual(freshProgress());
+    });
+
+    it("parses a midway save to itself", () => {
+      expect(reload(midway())).toEqual(midway());
+    });
+
+    it("is null for another version, a bad field or a missing cursor", () => {
+      expect(parseProgress(undefined)).toBeNull();
+      expect(
+        parseProgress(Object.assign(freshProgress(), { version: 2 }))
+      ).toBeNull();
+      expect(
+        parseProgress({ version: 1, passed: [], finishedAt: null })
+      ).toBeNull();
+      expect(
+        parseProgress(Object.assign(freshProgress(), { passed: "x" }))
+      ).toBeNull();
+    });
+
+    it("turns a started run into an interrupted one", () => {
+      const saved = midway({
+        runs: { "s2.deploy": { status: "started", at: 2100 } },
+      });
+      expect(reload(saved)?.runs["s2.deploy"]).toEqual({
+        status: "interrupted",
+        at: 2100,
+      });
+    });
+
+    it("drops the entries it cannot read and keeps the rest", () => {
+      const saved = midway({
+        beats: {
+          "s2.why": { kind: "sung", at: 1 },
+          "s2.q9": { kind: "picked", at: 1 },
+        },
+        runs: {
+          "s2.deploy": { status: "ok", at: 1, took: 1, result: { act: "fly" } },
+        },
+        times: { broken: { from: "yesterday" } },
+      });
+      expect(reload(saved)).toEqual(midway());
+    });
+
+    it("keeps a passed step once", () => {
+      expect(reload(midway({ passed: ["a", "a", "b"] }))?.passed).toEqual([
+        "a",
+        "b",
+      ]);
+    });
+
+    // The card's reader (`conversationProgressOf`, `entities/tutorial`) is
+    // not called here: the entity's barrel loads UI that reads the build's
+    // globals on import. `ConversationProgress extends ConversationSave`
+    // holds the shape by type; this pins the two fields it reads at runtime.
+    it("keeps the fields the card reads", () => {
+      const half = reload(midway());
+      expect(half?.passed).toEqual(["write-program"]);
+      expect(half?.finishedAt).toBeNull();
+      const done = reload(midway({ passed: STEPS, finishedAt: 9000 }));
+      expect(done?.passed).toEqual(STEPS);
+      expect(done?.finishedAt).toBe(9000);
+    });
+  });
+}
