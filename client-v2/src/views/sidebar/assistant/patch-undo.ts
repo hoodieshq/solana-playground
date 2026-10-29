@@ -171,12 +171,19 @@ export class PgPatchUndo {
   /** Whether the card's patch can still be taken back with one press */
   static can(item: ApprovalItem, bridge: PlaygroundBridge = realBridge) {
     const { request } = item;
+    if (
+      request.type !== "patch" ||
+      item.status !== "allowed" ||
+      item.undone ||
+      !written.has(item.id)
+    ) {
+      return false;
+    }
+    const now = bridge.readFile(request.path);
+    // A stranded attempt whose write did land: the press finishes it
     return (
-      request.type === "patch" &&
-      item.status === "allowed" &&
-      !item.undone &&
-      written.has(item.id) &&
-      holdsPatch(bridge.readFile(request.path), request.after)
+      (now !== null && holdsPatch(now, request.after)) ||
+      (stranded.has(item.id) && holdsOriginal(now, request))
     );
   }
 

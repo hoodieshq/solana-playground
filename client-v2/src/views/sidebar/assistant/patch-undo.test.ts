@@ -272,6 +272,8 @@ describe("PgPatchUndo", () => {
       await expect(PgPatchUndo.undo(card, bridge)).rejects.toThrow("model");
       expect(file.content).toBe("old");
 
+      // The card offers Undo, and the press finishes it
+      expect(PgPatchUndo.can(card, bridge)).toBe(true);
       expect(await PgPatchUndo.undo(card, bridge)).toBe("undone");
       expect(card.outcome).toBe("undone, src/lib.rs is back as it was");
       expect(PgAssistant.items.some((i) => i.kind === "notice")).toBe(false);
