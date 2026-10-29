@@ -5,6 +5,7 @@ vi.mock("../../../utils/explorer/explorer", () => ({
     currentWorkspaceName: null as string | null,
     convertToFullPath: (path: string) => `/root/ws/${path}`,
     getFileContent: vi.fn(),
+    deleteItem: vi.fn(async () => {}),
   },
 }));
 vi.mock("../../../utils/explorer/apply-file", () => ({
@@ -35,6 +36,18 @@ describe("realWorkspace", () => {
     expect(applyFile).toHaveBeenCalledWith("src/lib.rs", "new");
   });
 
+  it("removes a file that is there and leaves one that is not", async () => {
+    setWorkspace("Hello Anchor");
+    await realWorkspace.remove("client/client.ts", "Hello Anchor");
+    expect(PgExplorer.deleteItem).toHaveBeenCalledWith(
+      "/root/ws/client/client.ts"
+    );
+    vi.mocked(PgExplorer.deleteItem).mockClear();
+    vi.mocked(PgExplorer.getFileContent).mockReturnValue(undefined as never);
+    await realWorkspace.remove("client/client.ts", "Hello Anchor");
+    expect(PgExplorer.deleteItem).not.toHaveBeenCalled();
+  });
+
   it("reads null for a file that is not there", async () => {
     setWorkspace("Hello Anchor");
     vi.mocked(PgExplorer.getFileContent).mockReturnValue(undefined as never);
@@ -51,6 +64,10 @@ describe("realWorkspace", () => {
     await expect(
       realWorkspace.read("src/lib.rs", "Hello Anchor")
     ).rejects.toThrow("The workspace is Other, not Hello Anchor");
+    await expect(
+      realWorkspace.remove("src/lib.rs", "Hello Anchor")
+    ).rejects.toBeInstanceOf(WorkspaceMovedError);
     expect(applyFile).not.toHaveBeenCalled();
+    expect(PgExplorer.deleteItem).not.toHaveBeenCalled();
   });
 });

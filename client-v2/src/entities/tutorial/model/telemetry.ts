@@ -7,9 +7,9 @@ type TutorialEvents = {
    */
   tutorial_definition_rejected: { tutorial: string; errors: number };
   /**
-   * The learner pressed Start on a conversation tutorial's intro card, or
-   * typed a start word. Fires once per start; Start over then Start fires it
-   * again. `tutorial` is the slug.
+   * The engine's `start` action: the intro card's Start, or, once the
+   * composer lands (task 3.6), a start word. Fires once per start; Start
+   * over then Start fires it again. `tutorial` is the slug.
    */
   tutorial_started: { tutorial: string };
   /**

@@ -18,6 +18,8 @@ export interface Workspace {
   read(path: string, workspace: string): Promise<string | null>;
   /** Writes the whole file, creating it when needed */
   write(path: string, content: string, workspace: string): Promise<void>;
+  /** Removes the file; nothing to do when there is none */
+  remove(path: string, workspace: string): Promise<void>;
 }
 
 export interface RunInput {
@@ -69,8 +71,9 @@ export const failedResult = (
 
 /**
  * A runner for a test or a storybook that has none: every act fails with a
- * message that says so. Never the store's default: a failed build that
- * never ran would read as the step's planned failure.
+ * message that says so. Never the store's default, so a frame that forgets
+ * its runner fails to compile rather than ship a lesson whose every act
+ * fails with "not wired".
  */
 export const unwiredRunner: Runner = {
   run: async (act) => failedResult(act, `The ${act} act is not wired yet.`),
@@ -89,6 +92,9 @@ export const memoryWorkspace = (
     read: async (path) => (path in files ? files[path] : null),
     write: async (path, content) => {
       files[path] = content;
+    },
+    remove: async (path) => {
+      delete files[path];
     },
   };
 };
@@ -131,6 +137,9 @@ if (import.meta.vitest) {
       expect(await ws.read("client/client.ts", "x")).toBeNull();
       await ws.write("client/client.ts", "// hi", "x");
       expect(ws.files["client/client.ts"]).toBe("// hi");
+      await ws.remove("client/client.ts", "x");
+      await ws.remove("never/there.ts", "x");
+      expect(ws.files).toEqual({ "src/lib.rs": "" });
     });
 
     it("stubRunner reports the stages, answers in order and refuses past the script", async () => {

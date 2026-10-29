@@ -13,6 +13,7 @@ import type {
 
 import { FINISH_DELAY_MS } from "./clock";
 import type {
+  ConversationProgress,
   PassedVia,
   Resolution,
   RunRecord,
@@ -191,6 +192,28 @@ const actStateOf = (run: RunRecord | undefined): ActState => {
   if (run.status === "started") return "running";
   if (run.status === "ok") return "done";
   return run.status;
+};
+
+/**
+ * The id of the act card to keep live when the cursor's step has not passed
+ * and the last act the cursor went past ended well: the step's goal refused
+ * the result, so the card is the way to try again. Null otherwise.
+ */
+const refusedAct = (
+  definition: TutorialDefinition,
+  p: ConversationProgress
+): string | null => {
+  const cursor = p.cursor;
+  if (cursor.kind !== "step" || p.passed.includes(cursor.stepId)) return null;
+  const step = definition.steps.find((s) => s.id === cursor.stepId);
+  if (!step) return null;
+  const beats = beatsOf(step, cursor.fail).slice(0, cursor.beat);
+  const last = [...beats].reverse().find((b) => b.kind === "act");
+  if (!last) return null;
+  const runs = p.runs[last.id] ?? [];
+  const run = runs.at(-1);
+  if (!run || run.status !== "ok") return null;
+  return runs.length === 1 ? last.id : `${last.id}:${runs.length - 1}`;
 };
 
 export const view = (
@@ -491,22 +514,31 @@ export const view = (
   const nextAt = ahead.length ? ahead[0].at : null;
 
   const running = turns.find((t) => t.kind === "act" && t.state === "running");
-  const live =
-    (p.cursor.kind === "finished" ? null : undefined) ??
-    [...turns]
-      .reverse()
-      .find(
-        (t) =>
-          (t.kind === "win" && !t.done) ||
-          (t.kind === "act" &&
-            (t.state === "live" ||
-              t.state === "running" ||
-              t.state === "interrupted")) ||
-          (t.kind === "ask" && t.open) ||
-          (t.kind === "result" && t.open) ||
-          t.kind === "intro"
-      ) ??
-    null;
+  // After the finish nothing acts; before it, the latest card that does. An
+  // act of a step already passed (from the Call panel) is a record, not a card
+  // The last act the cursor passed whose latest run ended well without
+  // passing the step (its result failed the goal): its card stays the one
+  // to press, so the learner can run it again
+  const refusedActId = refusedAct(definition, p);
+  let live: Turn | null = null;
+  if (p.cursor.kind !== "finished") {
+    live =
+      [...turns].reverse().find((t) => {
+        if (t.kind === "win") return !t.done;
+        if (t.kind === "act") {
+          if (t.step !== null && p.passed.includes(t.step)) return false;
+          if (t.state === "done") return t.id === refusedActId;
+          return (
+            t.state === "live" ||
+            t.state === "running" ||
+            t.state === "interrupted"
+          );
+        }
+        if (t.kind === "ask") return t.open;
+        if (t.kind === "result") return t.open;
+        return t.kind === "intro";
+      }) ?? null;
+  }
 
   const steps: StepBarItem[] = definition.steps.map((step) => {
     const time = p.times[step.id];
@@ -700,7 +732,7 @@ if (import.meta.vitest) {
         hello,
         play([
           { type: "start", at: 1000 },
-          { type: "skip", beatId: "s1.q1", via: "button", at: 4000 },
+          { type: "skip", beatId: "s1.q1", at: 4000 },
         ]),
         LATE
       );
@@ -839,6 +871,87 @@ if (import.meta.vitest) {
       expect(v.turns.find((t) => t.id === "wrote:s1.q1")).toMatchObject({
         failed: true,
       });
+    });
+
+    it("a question skipped from elsewhere posts no Skip line and no wrote card", () => {
+      const v = view(
+        hello,
+        play([
+          { type: "start", at: 1000 },
+          { type: "passed", via: "client", result: OK_BUILD, at: 4000 },
+        ]),
+        LATE
+      );
+      expect(v.turns.find((t) => t.id === "s1.q1")).toMatchObject({
+        outcome: "skipped",
+        open: false,
+      });
+      expect(v.turns.find((t) => t.id === "right:s1.q1")).toBeUndefined();
+      expect(v.turns.find((t) => t.id === "wrote:s1.q1")).toBeUndefined();
+      expect(v.turns.find((t) => t.id === "win:write-program")).toMatchObject({
+        via: "client",
+      });
+    });
+
+    it("nothing is live after the finish, even an act the step left unpressed", () => {
+      const steps: Action[] = toFailed()
+        .slice(0, 3)
+        .concat([
+          { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+          { type: "next", at: 9000 },
+          { type: "passed", via: "call_panel", result: CALLED, at: 9500 },
+          { type: "next", at: 10000 },
+          { type: "passed", via: "call_panel", result: CALLED, at: 10500 },
+          { type: "next", at: 11000 },
+          { type: "pick", beatId: "s4.q4", option: 1, at: 11500 },
+          // The panel passes the step while s4.ship is still unpressed
+          { type: "passed", via: "call_panel", result: CALLED, at: 14000 },
+        ]);
+      const won = view(hello, play(steps), LATE);
+      expect(won.live).toMatchObject({ id: "win:greet-by-name" });
+      expect(won.turns.find((t) => t.id === "s4.ship")).toMatchObject({
+        state: "live",
+      });
+      const done = view(
+        hello,
+        play(steps.concat([{ type: "finish", at: 14400 }])),
+        LATE
+      );
+      expect(done.live).toBeNull();
+    });
+
+    it("an act whose ok result the goal refused stays the live card", () => {
+      const refusing = {
+        definition: hello,
+        slug: "hello-anchor",
+        judge: () => false,
+      };
+      let state = INITIAL;
+      for (const a of toFailed().slice(0, 3))
+        state = reduce(refusing, state, a).state;
+      state = reduce(refusing, state, {
+        type: "ended",
+        beatId: "s1.build",
+        result: OK_BUILD,
+        at: 8600,
+      }).state;
+      const v = view(hello, state, LATE);
+      expect(v.turns.find((t) => t.id === "s1.build")).toMatchObject({
+        state: "done",
+      });
+      expect(v.live?.id).toBe("s1.build");
+      state = reduce(refusing, state, {
+        type: "act",
+        beatId: "s1.build",
+        at: 9000,
+      }).state;
+      state = reduce(refusing, state, {
+        type: "ended",
+        beatId: "s1.build",
+        result: OK_BUILD,
+        at: 10600,
+      }).state;
+      expect(view(hello, state, LATE).live?.id).toBe("s1.build:1");
     });
 
     it("a run again keeps the first result as a record and posts a second card", () => {

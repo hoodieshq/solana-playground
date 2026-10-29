@@ -3,12 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../utils/explorer/explorer", () => ({
   PgExplorer: {
     currentWorkspaceName: null as string | null,
+    PATHS: { ROOT_DIR_PATH: "/" },
     onDidSwitchWorkspace: vi.fn(() => ({ dispose: vi.fn() })),
-    fs: { exists: vi.fn(async () => false) },
+    fs: { exists: vi.fn(async () => false), readToJSON: vi.fn() },
   },
 }));
+vi.mock("../../../utils/explorer/workspace-file", () => ({
+  writeWorkspaceFile: vi.fn(),
+}));
 vi.mock("../../../utils/tutorial/tutorial", () => ({
-  PgTutorial: { all: [] as unknown[], getStorage: vi.fn() },
+  PgTutorial: { all: [] as unknown[] },
   storageDataPath: () => ".workspace/tutorial-storage.json",
 }));
 vi.mock("../../../utils/view", () => ({ PgView: { setToast: vi.fn() } }));
@@ -32,6 +36,7 @@ import {
 } from "./store";
 import { TICK_MS } from "./clock";
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
 import { PgView } from "../../../utils/view";
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
@@ -51,7 +56,7 @@ const setWorkspace = (name: string | null) => {
     name;
 };
 
-/** The storage file as `getStorage` reads and writes it, one object per test */
+/** The storage file's JSON, one object per test; `exists` says whether it is there */
 let file: Record<string, unknown>;
 let exists: boolean;
 
@@ -84,20 +89,38 @@ const open = (
   });
 };
 
+/** The storage file as the store reads and writes it: `file` is its JSON */
+const mockStorage = () => {
+  vi.mocked(PgExplorer.fs.exists).mockImplementation(async () => exists);
+  vi.mocked(PgExplorer.fs.readToJSON).mockImplementation(async () => {
+    if (!exists) throw new Error("ENOENT");
+    return JSON.parse(JSON.stringify(file));
+  });
+  vi.mocked(writeWorkspaceFile).mockImplementation(async (path, data) => {
+    writtenTo.push(path);
+    file = JSON.parse(data);
+    exists = true;
+  });
+};
+
+/** Every path the store wrote its save to */
+let writtenTo: string[] = [];
+const SAVE_PATH = `/${NAME}/.workspace/tutorial-storage.json`;
+
+/** The explorer's switch, as the store subscribed to it */
+const switchWorkspace = (name: string | null) => {
+  setWorkspace(name);
+  const calls = vi.mocked(PgExplorer.onDidSwitchWorkspace).mock.calls;
+  const cb = calls[calls.length - 1][0] as () => unknown;
+  cb();
+};
+
 beforeEach(() => {
   file = {};
   exists = false;
-  vi.mocked(PgExplorer.fs.exists).mockImplementation(async () => exists);
+  writtenTo = [];
+  mockStorage();
   vi.mocked(PgTutorial).all = [{ name: NAME, definition: hello }] as never;
-  vi.mocked(PgTutorial.getStorage).mockImplementation(
-    (def: Record<string, unknown>) =>
-      ({
-        getItem: async (key: string) => (key in file ? file[key] : def[key]),
-        setItem: async (key: string, value: unknown) => {
-          file[key] = JSON.parse(JSON.stringify(value));
-        },
-      } as never)
-  );
   logged = memoryProvider();
   initLogger({ providers: [logged] });
   events = memoryEvents();
@@ -161,6 +184,7 @@ describe("PgConversation", () => {
   it("persists a pick under conversation and leaves the file's other keys alone", async () => {
     const lesson = { v: 2, events: [{ seq: 1 }] };
     file = { lesson };
+    exists = true;
     open(NAME);
     await settle();
     PgConversation.start();
@@ -300,6 +324,267 @@ describe("PgConversation", () => {
     expect(PgConversation.view(LATER)?.live?.id).toBe("win:write-program");
   });
 
+  it("writes the save once per act, never per stage", async () => {
+    let release: (r: RunResult) => void = () => {};
+    const runner: Runner = {
+      run: (_act, _input, onStage) =>
+        new Promise<RunResult>((r) => {
+          release = r;
+          onStage({ label: "Writing buffer", index: 1, count: 3 });
+          onStage({ label: "Deploying", index: 2, count: 3 });
+          onStage({ label: "Confirming", index: 3, count: 3 });
+        }),
+    };
+    open(NAME, { runner });
+    await settle();
+    PgConversation.start();
+    await settle();
+    PgConversation.pick("s1.q1", 1);
+    await settle();
+    const before = vi.mocked(writeWorkspaceFile).mock.calls.length;
+    PgConversation.act("s1.build");
+    await settle();
+    expect(PgConversation.state.engine.stage).toMatchObject({ index: 3 });
+    expect(vi.mocked(writeWorkspaceFile).mock.calls.length).toBe(before + 1);
+    release(OK_BUILD);
+    await settle();
+    expect(vi.mocked(writeWorkspaceFile).mock.calls.length).toBe(before + 2);
+  });
+
+  it.each([
+    ["beats", { "s9.gone": { kind: "said", at: 1 } }],
+    ["runs", { "s9.gone": [{ status: "interrupted", at: 1 }] }],
+    ["times", { gone: { from: 1, to: null } }],
+  ])(
+    "treats a save with an unknown id under %s as a failed load",
+    async (section, entry) => {
+      exists = true;
+      const saved = freshProgress();
+      saved.startedAt = 1000;
+      saved.cursor = {
+        kind: "step",
+        stepId: "write-program",
+        beat: 0,
+        fail: false,
+      };
+      saved.times = { "write-program": { from: 1000, to: null } };
+      Object.assign(saved[section as "beats" | "runs" | "times"], entry);
+      file = { [STORAGE_KEY]: saved };
+      open(NAME);
+      await settle();
+      expect(PgConversation.state.loadFailed).toBe(true);
+      expect(
+        logged.entries.some((e) =>
+          `${e.message ?? ""}${e.error?.message ?? ""}`.includes("gone")
+        )
+      ).toBe(true);
+    }
+  );
+
+  it("treats a cursor past its step's beats as a failed load", async () => {
+    exists = true;
+    const saved = freshProgress();
+    saved.startedAt = 1000;
+    saved.cursor = { kind: "step", stepId: "deploy", beat: 9, fail: false };
+    saved.times = { deploy: { from: 1000, to: null } };
+    file = { [STORAGE_KEY]: saved };
+    open(NAME);
+    await settle();
+    expect(PgConversation.state.loadFailed).toBe(true);
+  });
+
+  it("a save with entries this engine cannot read is a failed load, named by key", async () => {
+    exists = true;
+    const saved = freshProgress();
+    saved.startedAt = 1000;
+    saved.cursor = {
+      kind: "step",
+      stepId: "write-program",
+      beat: 1,
+      fail: false,
+    };
+    saved.times = { "write-program": { from: 1000, to: null } };
+    saved.beats = { "s1.boil": { kind: "sung", at: 1 } as never };
+    file = { [STORAGE_KEY]: saved };
+    open(NAME);
+    await settle();
+    expect(PgConversation.state.loadFailed).toBe(true);
+    expect(
+      logged.entries.some((e) =>
+        `${e.message ?? ""}${e.error?.message ?? ""}`.includes("beats.s1.boil")
+      )
+    ).toBe(true);
+  });
+
+  it("loads a save inside the planned failure", async () => {
+    exists = true;
+    const saved = freshProgress();
+    saved.startedAt = 1000;
+    saved.cursor = {
+      kind: "step",
+      stepId: "write-program",
+      beat: 2,
+      fail: true,
+    };
+    saved.beats = {
+      "s1.boil": {
+        kind: "written",
+        at: 1000,
+        wrote: { file: "src/lib.rs", lines: [1, 2, 3] },
+      },
+      "s1.what": { kind: "said", at: 1100 },
+      "s1.q1": {
+        kind: "picked",
+        at: 2000,
+        openedAt: 1200,
+        option: 1,
+        attempts: 1,
+        wrong: [],
+      },
+      "s1.build": { kind: "said", at: 2100 },
+      "f1.explain": { kind: "said", at: 4000 },
+      "f1.q2": { kind: "open", at: 4700, wrong: [] },
+    };
+    saved.runs = {
+      "s1.build": [
+        {
+          status: "failed",
+          at: 3000,
+          took: 900,
+          result: {
+            act: "build",
+            ok: false,
+            seconds: 0.9,
+            error: null,
+            log: "x",
+          },
+          planned: true,
+        },
+      ],
+    };
+    saved.times = { "write-program": { from: 1000, to: null } };
+    file = { [STORAGE_KEY]: saved };
+    open(NAME);
+    await settle();
+    expect(PgConversation.state.loadFailed).toBe(false);
+    expect(PgConversation.view(LATER)?.live?.id).toBe("f1.q2");
+  });
+
+  it("writes the save at the tutorial's own path, even after a switch", async () => {
+    const releases: (() => void)[] = [];
+    vi.mocked(writeWorkspaceFile).mockImplementation(async (path, data) => {
+      await new Promise<void>((r) => releases.push(r));
+      writtenTo.push(path);
+      file = JSON.parse(data);
+      exists = true;
+    });
+    open(NAME);
+    await settle();
+    PgConversation.start();
+    await settle();
+    setWorkspace("Other");
+    // Start persists twice (the start, then s1.boil written), one at a time
+    while (releases.length) {
+      releases.shift()!();
+      await settle();
+    }
+    expect(writtenTo).toEqual([SAVE_PATH, SAVE_PATH]);
+    expect(logged.entries.filter((e) => e.level === "error")).toEqual([]);
+  });
+
+  it("writes saves one at a time, the latest last, past a failed one", async () => {
+    let calls = 0;
+    let releaseFirst: () => void = () => {};
+    vi.mocked(writeWorkspaceFile).mockImplementation(async (path, data) => {
+      calls++;
+      if (calls === 1) {
+        await new Promise<void>((r) => {
+          releaseFirst = r;
+        });
+        throw new Error("the first write failed");
+      }
+      writtenTo.push(path);
+      file = JSON.parse(data);
+      exists = true;
+    });
+    open(NAME);
+    await settle();
+    // Start persists twice in a row: the started save, then s1.boil written
+    PgConversation.start();
+    await settle();
+    expect(writtenTo).toEqual([]);
+    releaseFirst();
+    // The failed write tells the learner (a dynamic import) before the
+    // chain moves on to the next save
+    await vi.waitFor(() => expect(writtenTo).toEqual([SAVE_PATH]));
+    expect(
+      (file[STORAGE_KEY] as { beats: Record<string, { kind: string }> }).beats[
+        "s1.boil"
+      ].kind
+    ).toBe("written");
+  });
+
+  it("does not reload the same workspace while an act runs, and does once it ends", async () => {
+    let release: (r: RunResult) => void = () => {};
+    const runner: Runner = {
+      run: () =>
+        new Promise<RunResult>((r) => {
+          release = r;
+        }),
+    };
+    open(NAME, { runner });
+    await settle();
+    PgConversation.start();
+    await settle();
+    PgConversation.pick("s1.q1", 1);
+    await settle();
+    PgConversation.act("s1.build");
+    await settle();
+    switchWorkspace(NAME);
+    await settle();
+    expect(PgConversation.state.engine.progress.runs["s1.build"]).toEqual([
+      { status: "started", at: expect.any(Number) },
+    ]);
+    release(OK_BUILD);
+    await settle();
+    expect(PgConversation.state.engine.progress.passed).toEqual([
+      "write-program",
+    ]);
+    // With nothing running, the same switch reloads from the file
+    const fresh = freshProgress();
+    fresh.startedAt = 5;
+    file = { [STORAGE_KEY]: fresh };
+    switchWorkspace(NAME);
+    await settle();
+    expect(PgConversation.state.engine.progress.startedAt).toBe(5);
+  });
+
+  it("a reload waits for a save of the same tutorial still in flight", async () => {
+    const releases: (() => void)[] = [];
+    vi.mocked(writeWorkspaceFile).mockImplementation(async (path, data) => {
+      await new Promise<void>((r) => releases.push(r));
+      writtenTo.push(path);
+      file = JSON.parse(data);
+      exists = true;
+    });
+    open(NAME);
+    await settle();
+    PgConversation.start();
+    await settle();
+    switchWorkspace(NAME);
+    await settle();
+    // The reload has not replaced the state with the older file
+    expect(PgConversation.state.engine.progress.startedAt).not.toBeNull();
+    while (releases.length) {
+      releases.shift()!();
+      await settle();
+    }
+    expect(PgConversation.state.engine.progress.startedAt).not.toBeNull();
+    expect(
+      (file[STORAGE_KEY] as { startedAt: number | null }).startedAt
+    ).not.toBeNull();
+  });
+
   it("a runner that throws ends the run as a failed result", async () => {
     const runner = {
       runs: [],
@@ -326,12 +611,13 @@ describe("PgConversation", () => {
     expect(logged.entries.filter((e) => e.level === "error")).toHaveLength(1);
   });
 
-  it("a failing write logs once and records nothing", async () => {
+  it("a failing write logs it and records writeFailed", async () => {
     const workspace: Workspace = {
       read: async () => "",
       write: async () => {
         throw new Error("disk full");
       },
+      remove: async () => {},
     };
     open(NAME, { workspace });
     await settle();
@@ -451,20 +737,17 @@ describe("PgConversation", () => {
 
   it("a load that lands after a workspace switch is dropped", async () => {
     let release: (value: unknown) => void = () => {};
-    vi.mocked(PgTutorial.getStorage).mockImplementation(
+    exists = true;
+    vi.mocked(PgExplorer.fs.readToJSON).mockImplementation(
       () =>
-        ({
-          getItem: () =>
-            new Promise((r) => {
-              release = r;
-            }),
-          setItem: async () => {},
-        } as never)
+        new Promise((r) => {
+          release = r;
+        })
     );
     open(NAME);
     await settle();
     setWorkspace("Other");
-    release(undefined);
+    release({});
     await settle();
     expect(PgConversation.state).toBe(INITIAL_CONVERSATION_STATE);
   });
@@ -539,18 +822,27 @@ describe("PgConversation", () => {
     });
     await settle();
     expect(PgConversation.state).toBe(before);
+    expect(
+      logged.entries.some(
+        (e) =>
+          e.level === "warn" &&
+          (e.message ?? "").includes("no longer in flight")
+      )
+    ).toBe(true);
   });
 
   it("refuses to write while the load failed, and still shows the intro", async () => {
     exists = true;
-    file = {};
+    vi.mocked(PgExplorer.fs.readToJSON).mockRejectedValue(
+      new Error("bad JSON")
+    );
     open(NAME);
     await settle();
     expect(PgConversation.state.loadFailed).toBe(true);
     expect(PgConversation.view(LATER)?.live?.kind).toBe("intro");
     PgConversation.start();
     await settle();
-    expect(file[STORAGE_KEY]).toBeUndefined();
+    expect(writeWorkspaceFile).not.toHaveBeenCalled();
     expect(PgConversation.state.engine.progress.startedAt).not.toBeNull();
   });
 
@@ -565,15 +857,16 @@ describe("PgConversation", () => {
 
   it("a workspace switch mid-write does not write into the new workspace", async () => {
     let release: () => void = () => {};
-    const written: string[] = [];
+    const written: [string, string][] = [];
     const workspace: Workspace = {
       read: async () => "",
-      write: async (path) => {
+      write: async (path, content) => {
         await new Promise<void>((r) => {
           release = r;
         });
-        written.push(path);
+        written.push([path, content]);
       },
+      remove: async () => {},
     };
     open(NAME, { workspace });
     await settle();
@@ -582,7 +875,8 @@ describe("PgConversation", () => {
     setWorkspace("Other");
     release();
     await settle();
-    expect(written).toEqual(["src/lib.rs"]);
+    // Only the restore of step 1's start landed; the block write never ran
+    expect(written).toEqual([["src/lib.rs", ""]]);
     expect(PgConversation.state.engine.progress.beats["s1.boil"]).toMatchObject(
       { kind: "said" }
     );
@@ -627,15 +921,9 @@ describe("PgConversation", () => {
   });
 
   it("tells the learner once when a save fails", async () => {
-    vi.mocked(PgTutorial.getStorage).mockImplementation(
-      () =>
-        ({
-          getItem: async () => undefined,
-          setItem: async () => {
-            throw new Error("quota");
-          },
-        } as never)
-    );
+    vi.mocked(writeWorkspaceFile).mockImplementation(async () => {
+      throw new Error("quota");
+    });
     open(NAME);
     await settle();
     PgConversation.start();
@@ -647,6 +935,6 @@ describe("PgConversation", () => {
     );
     expect(
       logged.entries.filter((e) => e.level === "error").length
-    ).toBeGreaterThanOrEqual(2);
+    ).toBeGreaterThanOrEqual(1);
   });
 });

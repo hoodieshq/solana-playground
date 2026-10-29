@@ -3,12 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../utils/explorer/explorer", () => ({
   PgExplorer: {
     currentWorkspaceName: null as string | null,
+    PATHS: { ROOT_DIR_PATH: "/" },
     onDidSwitchWorkspace: vi.fn(() => ({ dispose: vi.fn() })),
-    fs: { exists: vi.fn(async () => false) },
+    fs: { exists: vi.fn(async () => false), readToJSON: vi.fn() },
   },
 }));
+vi.mock("../../../utils/explorer/workspace-file", () => ({
+  writeWorkspaceFile: vi.fn(),
+}));
 vi.mock("../../../utils/tutorial/tutorial", () => ({
-  PgTutorial: { all: [] as unknown[], getStorage: vi.fn() },
+  PgTutorial: { all: [] as unknown[] },
   storageDataPath: () => ".workspace/tutorial-storage.json",
 }));
 vi.mock("../../../utils/view", () => ({ PgView: { setToast: vi.fn() } }));
@@ -28,6 +32,7 @@ import { PgConversation, STORAGE_KEY } from "./store";
 import { INTERRUPTED, view } from "./view";
 import type { ConversationView, Turn } from "./view";
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
 import type { Disposable } from "../../../utils/types";
 import type { TutorialDefinition } from "@/entities/tutorial";
@@ -154,15 +159,13 @@ beforeEach(() => {
     async () => STORAGE_KEY in file
   );
   vi.mocked(PgTutorial).all = [{ name: NAME, definition: hello }] as never;
-  vi.mocked(PgTutorial.getStorage).mockImplementation(
-    (def: Record<string, unknown>) =>
-      ({
-        getItem: async (key: string) => (key in file ? file[key] : def[key]),
-        setItem: async (key: string, value: unknown) => {
-          file[key] = JSON.parse(JSON.stringify(value));
-        },
-      } as never)
-  );
+  vi.mocked(PgExplorer.fs.readToJSON).mockImplementation(async () => {
+    if (!(STORAGE_KEY in file)) throw new Error("ENOENT");
+    return JSON.parse(JSON.stringify(file));
+  });
+  vi.mocked(writeWorkspaceFile).mockImplementation(async (_path, data) => {
+    file = JSON.parse(data);
+  });
   logged = memoryProvider();
   initLogger({ providers: [logged] });
   events = memoryEvents();
@@ -375,5 +378,22 @@ describe("Hello Anchor through the engine", () => {
       "tutorial_started",
       "tutorial_started",
     ]);
+    // Start put step 1's start files back (the first write beat's boilerplate
+    // landed on top at once) and took the preview's client away
+    expect(workspace.files["src/lib.rs"]).toBe(
+      'use anchor_lang::prelude::*;\n\ndeclare_id!("11111111111111111111111111111111");'
+    );
+    expect(workspace.files["client/client.ts"]).toBeUndefined();
+    const restartedAt = PgConversation.state.engine.progress.restartedAt;
+    expect(restartedAt).not.toBeNull();
+    await step(() => PgConversation.pick("s1.q1", 1));
+    expect(workspace.files["src/lib.rs"]).toBe(
+      definition.steps[0].target["src/lib.rs"]
+        .trimEnd()
+        .replace("\n\n#[derive(Accounts)]\npub struct Hello {}", "")
+    );
+    expect((file[STORAGE_KEY] as { restartedAt: number }).restartedAt).toBe(
+      restartedAt
+    );
   });
 });

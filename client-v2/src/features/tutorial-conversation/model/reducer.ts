@@ -65,7 +65,8 @@ export type Action =
   | { type: "start"; at: number }
   | { type: "pick"; beatId: string; option: number; at: number }
   | { type: "hint"; beatId: string; at: number }
-  | { type: "skip"; beatId: string; via: SkipVia; at: number }
+  /** The question's Skip button; a skip from elsewhere is `pass`'s to record */
+  | { type: "skip"; beatId: string; at: number }
   | { type: "typeIt"; beatId: string; at: number }
   /** The learner changed a file; `content` is the whole file now */
   | { type: "edit"; file: string; content: string; at: number }
@@ -141,8 +142,10 @@ export type Effect =
   | { kind: "focus"; file: string; line: number | "landing" }
   /** An unplanned failure to explain through the live assistant (task 4.1) */
   | { kind: "explain"; beatId: string; result: RunResult }
-  /** Whole files to put in the workspace: a step's start, or the preview */
-  | { kind: "restore"; files: Record<string, string> };
+  /** Whole files to put in the workspace (a step's start, or the preview),
+   * and the files of the other set to take away, so a preview file never
+   * survives into the lesson */
+  | { kind: "restore"; files: Record<string, string>; remove: string[] };
 
 export interface Reduced {
   state: EngineState;
@@ -319,13 +322,13 @@ const pass = (
         wrong: r.wrong,
         ...(r.hintedAt ? { hintedAt: r.hintedAt } : {}),
       };
-      beats[b.id] = fail
-        ? { kind: "typed", ...base }
-        : {
-            kind: "skipped",
-            via: via === "call_panel" ? "call_panel" : "elsewhere",
-            ...base,
-          };
+      if (fail) {
+        beats[b.id] = { kind: "typed", ...base };
+      } else {
+        const skippedVia: SkipVia =
+          via === "call_panel" ? "call_panel" : "elsewhere";
+        beats[b.id] = { kind: "skipped", via: skippedVia, ...base };
+      }
     }
   }
   const from = p.times[step.id]?.from ?? at;
@@ -364,6 +367,33 @@ const fixQuestionIndex = (step: Step): number => {
   return i === -1 ? 0 : i;
 };
 
+/** Every file the lesson's steps start or end with */
+const lessonFiles = (definition: TutorialDefinition): Set<string> =>
+  new Set(
+    definition.steps.flatMap((s) => [
+      ...Object.keys(s.start),
+      ...Object.keys(s.target),
+    ])
+  );
+
+/**
+ * The preview's files the first step does not start with: taken away on
+ * Start, so a file a later step creates (Hello Anchor's `client.ts`) is not
+ * already there, finished, when that step's `create` beat and question come.
+ * A later step that starts with a file no beat created writes into an
+ * absent file, which `insertBlock` treats as empty.
+ */
+const previewOnly = (definition: TutorialDefinition): string[] =>
+  Object.keys(definition.intro.files).filter(
+    (path) => !(path in definition.steps[0].start)
+  );
+
+/** The lesson's files the preview does not hold: taken away on Start over */
+const lessonOnly = (definition: TutorialDefinition): string[] =>
+  [...lessonFiles(definition)].filter(
+    (path) => !(path in definition.intro.files)
+  );
+
 const withProgress = (
   state: EngineState,
   progress: ConversationProgress,
@@ -391,7 +421,11 @@ export const reduce = (
       const flowed = flow(ctx, started, action.at);
       return withProgress(state, flowed.progress, [
         // The workspace swaps the preview for the first step's start files
-        { kind: "restore", files: first.start },
+        {
+          kind: "restore",
+          files: first.start,
+          remove: previewOnly(definition),
+        },
         {
           kind: "event",
           name: "tutorial_started",
@@ -455,7 +489,7 @@ export const reduce = (
         kind: "skipped",
         at: action.at,
         openedAt: open.at,
-        via: action.via,
+        via: "button",
         wrong: open.wrong,
         ...(open.hintedAt ? { hintedAt: open.hintedAt } : {}),
       };
@@ -546,8 +580,8 @@ export const reduce = (
         return same(state);
       if (!p.beats[beat.id] || passed(p, step) || running(p))
         return same(state);
-      const run = lastRun(p, beat.id);
-      if (run && run.status === "ok") return same(state);
+      // A run that ended well may run again while the step has not passed:
+      // its result may have failed the goal (a call before the upgrade)
       const input: RunInput = { beatId: beat.id };
       if (beat.act === "call") {
         input.call = {
@@ -636,9 +670,19 @@ export const reduce = (
         const via: PassedVia = beat.act === "run" ? "client" : "chat";
         return withProgress(cleared, pass(ctx, recorded, step, action.at, via));
       }
-      // A run that outlived its step (passed from the Call panel, then Next)
-      // records its result and moves nothing on
-      if (p.cursor.kind !== "step" || p.cursor.stepId !== step.id) {
+      // Only the act the cursor just passed moves the lesson on: a run that
+      // outlived its step, or a run again of an act the flow already went
+      // past (its first result failed the goal), records its result and
+      // posts nothing, so an open question is never skipped
+      const index = beatsOf(step, found.fail).findIndex(
+        (b) => b.id === beat.id
+      );
+      if (
+        p.cursor.kind !== "step" ||
+        p.cursor.stepId !== step.id ||
+        p.cursor.fail !== found.fail ||
+        p.cursor.beat !== index + 1
+      ) {
         return same(cleared);
       }
       const flowed = flow(ctx, recorded, action.at + TICK_MS);
@@ -657,7 +701,12 @@ export const reduce = (
       const run = lastRun(p, action.beatId);
       const found = locate(definition, action.beatId);
       if (!run || run.status !== "failed" || !found) return same(state);
-      if (!run.planned || p.cursor.kind !== "step" || p.cursor.fail) {
+      // Only the live step's failure is anyone's to explain
+      if (p.cursor.kind !== "step" || p.cursor.stepId !== found.step.id) {
+        return same(state);
+      }
+      if (passed(p, found.step)) return same(state);
+      if (!run.planned || p.cursor.fail) {
         return {
           state,
           effects: [
@@ -680,6 +729,10 @@ export const reduce = (
       const run = lastRun(p, action.beatId);
       const found = locate(definition, action.beatId);
       if (!run || run.status !== "failed" || !found) return same(state);
+      if (p.cursor.kind !== "step" || p.cursor.stepId !== found.step.id) {
+        return same(state);
+      }
+      if (passed(p, found.step)) return same(state);
       const focus: Effect = {
         kind: "focus",
         file: found.step.file,
@@ -688,7 +741,7 @@ export const reduce = (
             ? run.result.error.line
             : "landing",
       };
-      if (!run.planned || p.cursor.kind !== "step" || p.cursor.fail) {
+      if (!run.planned || p.cursor.fail) {
         return { state, effects: [focus] };
       }
       // The fix question still follows; the explanation before it is skipped
@@ -749,7 +802,13 @@ export const reduce = (
       // learner's way out of it
       return {
         state: { progress: freshProgress(action.at), stage: null },
-        effects: [{ kind: "restore", files: definition.intro.files }],
+        effects: [
+          {
+            kind: "restore",
+            files: definition.intro.files,
+            remove: lessonOnly(definition),
+          },
+        ],
       };
   }
 };
@@ -858,7 +917,11 @@ if (import.meta.vitest) {
           wrong: [],
         });
         expect(effects).toEqual([
-          { kind: "restore", files: hello.steps[0].start },
+          {
+            kind: "restore",
+            files: hello.steps[0].start,
+            remove: ["client/client.ts"],
+          },
           {
             kind: "event",
             name: "tutorial_started",
@@ -968,7 +1031,7 @@ if (import.meta.vitest) {
         const { progress, effects } = play([
           start,
           { type: "hint", beatId: "s1.q1", at: 3000 },
-          { type: "skip", beatId: "s1.q1", via: "button", at: 4000 },
+          { type: "skip", beatId: "s1.q1", at: 4000 },
         ]);
         expect(progress.beats["s1.q1"]).toEqual({
           kind: "skipped",
@@ -1238,7 +1301,7 @@ if (import.meta.vitest) {
           build(7000),
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
-          { type: "skip", beatId: "s2.q2", via: "button", at: 9500 },
+          { type: "skip", beatId: "s2.q2", at: 9500 },
           { type: "act", beatId: "s2.deploy", at: 10000 },
           {
             type: "passed",
@@ -1266,6 +1329,73 @@ if (import.meta.vitest) {
         ]);
         expect(r.state.progress.beats["s3.q3"]).toMatchObject({ kind: "open" });
         expect(r.state.progress.beats["s3.run"]).toBeUndefined();
+        expect(r.effects).toEqual([]);
+      });
+
+      it("an ok result the judge refuses leaves the act to run again", () => {
+        const strict: EngineContext = {
+          definition: hello,
+          slug: "hello-anchor",
+          judge: (goal, result) =>
+            result.ok && goal.kind === result.act && result.act !== "build",
+        };
+        let state = INITIAL_ENGINE_STATE;
+        for (const a of [start, rightPick, build(7000)])
+          state = reduce(strict, state, a).state;
+        const refused = reduce(strict, state, {
+          type: "ended",
+          beatId: "s1.build",
+          result: OK_BUILD,
+          at: 8600,
+        }).state;
+        expect(refused.progress.passed).toEqual([]);
+        const again = reduce(strict, refused, build(9000));
+        expect(again.state.progress.runs["s1.build"]).toMatchObject([
+          { status: "ok" },
+          { status: "started", at: 9000 },
+        ]);
+      });
+
+      it("a run again of an act the flow went past posts nothing, even when ok", () => {
+        // A step whose act comes before its question: refused twice, the
+        // second result must not post the beats past the open question
+        const definition = {
+          ...hello,
+          steps: [
+            {
+              ...hello.steps[0],
+              beats: [
+                hello.steps[0].beats[3],
+                hello.steps[0].beats[1],
+                hello.steps[0].beats[2],
+              ],
+              onFail: undefined,
+              planned: undefined,
+            },
+          ],
+        } as unknown as TutorialDefinition;
+        const refusing: EngineContext = {
+          definition,
+          slug: "x",
+          judge: () => false,
+        };
+        let state = INITIAL_ENGINE_STATE;
+        const run = (a: Action) => (state = reduce(refusing, state, a).state);
+        run(start);
+        run(build(2000));
+        run({ type: "ended", beatId: "s1.build", result: OK_BUILD, at: 3000 });
+        // The flow went on to the question
+        expect(state.progress.beats["s1.q1"]).toMatchObject({ kind: "open" });
+        const cursorBefore = state.progress.cursor;
+        run(build(4000));
+        const r = reduce(refusing, state, {
+          type: "ended",
+          beatId: "s1.build",
+          result: OK_BUILD,
+          at: 5000,
+        });
+        expect(r.state.progress.cursor).toEqual(cursorBefore);
+        expect(r.state.progress.beats["s1.q1"]).toMatchObject({ kind: "open" });
         expect(r.effects).toEqual([]);
       });
 
@@ -1301,7 +1431,7 @@ if (import.meta.vitest) {
           build(7000),
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
-          { type: "skip", beatId: "s2.q2", via: "button", at: 9500 },
+          { type: "skip", beatId: "s2.q2", at: 9500 },
           { type: "act", beatId: "s2.deploy", at: 10000 },
           {
             type: "ended",
@@ -1310,7 +1440,7 @@ if (import.meta.vitest) {
             at: 12000,
           },
           { type: "next", at: 13000 },
-          { type: "skip", beatId: "s3.q3", via: "button", at: 13500 },
+          { type: "skip", beatId: "s3.q3", at: 13500 },
           { type: "act", beatId: "s3.run", at: 14000 },
           {
             type: "ended",
@@ -1325,7 +1455,7 @@ if (import.meta.vitest) {
             at: 15000,
           },
           { type: "next", at: 16000 },
-          { type: "skip", beatId: "s4.q4", via: "button", at: 16500 },
+          { type: "skip", beatId: "s4.q4", at: 16500 },
           { type: "act", beatId: "s4.ship", at: 17000 },
         ]);
         expect(s4.progress.times["call-client"]).toMatchObject({
@@ -1537,7 +1667,7 @@ if (import.meta.vitest) {
           build(7000),
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
-          { type: "skip", beatId: "s2.q2", via: "button", at: 9500 },
+          { type: "skip", beatId: "s2.q2", at: 9500 },
           { type: "act", beatId: "s2.deploy", at: 10000 },
           {
             type: "ended",
@@ -1559,6 +1689,104 @@ if (import.meta.vitest) {
     });
 
     describe("passed from outside the feed", () => {
+      it("a client run passing the step skips its open question from elsewhere, writing nothing", () => {
+        const { progress, effects } = play([
+          start,
+          { type: "passed", via: "client", result: OK_BUILD, at: 4000 },
+        ]);
+        expect(progress.beats["s1.q1"]).toEqual({
+          kind: "skipped",
+          at: 4000,
+          openedAt: 1000 + 2 * TICK_MS,
+          via: "elsewhere",
+          wrong: [],
+        });
+        expect(progress.times["write-program"]).toEqual({
+          from: 1000,
+          to: 4000,
+          via: "client",
+        });
+        expect(
+          effects.filter((e) => e.kind === "write" && e.beatId === "s1.q1")
+        ).toEqual([]);
+      });
+
+      it("explain and fix it myself are no-ops on a passed step the cursor is still on", () => {
+        const passedHere = play([
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: FAILED_BUILD, at: 8200 },
+          { type: "passed", via: "call_panel", result: OK_BUILD, at: 8500 },
+        ]).state;
+        expect(passedHere.progress.cursor).toMatchObject({
+          stepId: "write-program",
+        });
+        expect(
+          reduce(ctx(), passedHere, {
+            type: "explain",
+            beatId: "s1.build",
+            at: 9000,
+          }).state
+        ).toBe(passedHere);
+        expect(
+          reduce(ctx(), passedHere, {
+            type: "fixMyself",
+            beatId: "s1.build",
+            at: 9000,
+          }).state
+        ).toBe(passedHere);
+      });
+
+      it("fix it myself on an unplanned failure only focuses the landing", () => {
+        const s2 = play([
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+          { type: "next", at: 9000 },
+          { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.deploy", at: 10000 },
+          {
+            type: "ended",
+            beatId: "s2.deploy",
+            result: FAILED_DEPLOY,
+            at: 11000,
+          },
+        ]).state;
+        const r = reduce(ctx(), s2, {
+          type: "fixMyself",
+          beatId: "s2.deploy",
+          at: 12000,
+        });
+        expect(r.state).toBe(s2);
+        expect(r.effects).toEqual([
+          { kind: "focus", file: "src/lib.rs", line: "landing" },
+        ]);
+      });
+
+      it("explain and fix it myself are no-ops once the step has passed", () => {
+        const left = play([
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: FAILED_BUILD, at: 8200 },
+          { type: "passed", via: "call_panel", result: OK_BUILD, at: 8500 },
+          { type: "next", at: 9000 },
+        ]).state;
+        expect(
+          reduce(ctx(), left, { type: "explain", beatId: "s1.build", at: 9500 })
+            .state
+        ).toBe(left);
+        expect(
+          reduce(ctx(), left, {
+            type: "fixMyself",
+            beatId: "s1.build",
+            at: 9500,
+          }).state
+        ).toBe(left);
+      });
+
       it("passes the step through the judge and skips its open question as called from the panel", () => {
         const { progress } = play([
           start,
@@ -1692,7 +1920,7 @@ if (import.meta.vitest) {
         expect(r.state.progress).toEqual(freshProgress(9000));
         expect(r.state.stage).toBeNull();
         expect(r.effects).toEqual([
-          { kind: "restore", files: hello.intro.files },
+          { kind: "restore", files: hello.intro.files, remove: [] },
         ]);
       });
     });

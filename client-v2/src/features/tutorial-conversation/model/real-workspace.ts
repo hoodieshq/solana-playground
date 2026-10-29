@@ -34,4 +34,10 @@ export const realWorkspace: Workspace = {
     expectOpen(workspace);
     await applyFile(path, content);
   },
+  async remove(path, workspace) {
+    expectOpen(workspace);
+    const fullPath = PgExplorer.convertToFullPath(path);
+    if (PgExplorer.getFileContent(fullPath) === undefined) return;
+    await PgExplorer.deleteItem(fullPath);
+  },
 };

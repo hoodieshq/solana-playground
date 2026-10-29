@@ -57,8 +57,8 @@ export type PassedVia = "chat" | "client" | "call_panel";
 /**
  * A beat's state once the lesson has reached it. A `say` is `said`; a
  * `write` is `written` once the block landed; a question is `open` until a
- * right pick, the key line typed, or Skip resolves it; an act is `said`, its
- * run living in `runs`.
+ * right pick, the key line typed, Skip, or the step passing around it
+ * (`pass`) resolves it; an act is `said`, its run living in `runs`.
  */
 export type Resolution =
   | { kind: "said"; at: number; writeFailed?: true }
@@ -333,21 +333,34 @@ const parseRun = (v: unknown): RunRecord | null => {
 };
 
 /** An act's runs, the unreadable ones dropped; none left drops the act */
-const parseRuns = (v: unknown): RunRecord[] | null => {
+const parseRuns = (
+  v: unknown,
+  onDrop: (key: string) => void,
+  key: string
+): RunRecord[] | null => {
   if (!Array.isArray(v)) return null;
-  const runs = v.map(parseRun).filter((r): r is RunRecord => r !== null);
+  const runs: RunRecord[] = [];
+  v.forEach((entry, i) => {
+    const run = parseRun(entry);
+    if (run) runs.push(run);
+    else onDrop(`${key}[${i}]`);
+  });
   return runs.length ? runs : null;
 };
 
 const parseEach = <T>(
   v: unknown,
-  parse: (entry: unknown) => T | null
+  parse: (entry: unknown, key: string) => T | null,
+  onDrop: (key: string) => void,
+  section: string
 ): Record<string, T> => {
   if (!isRecord(v)) return {};
   const out: Record<string, T> = {};
   for (const [id, entry] of Object.entries(v)) {
-    const parsed = parse(entry);
+    const key = `${section}.${id}`;
+    const parsed = parse(entry, key);
     if (parsed !== null) out[id] = parsed;
+    else onDrop(key);
   }
   return out;
 };
@@ -366,15 +379,21 @@ const parseTime = (v: unknown): StepTime | null => {
  * opens the tutorial on the intro and, through the store's `loadFailed`
  * guard, keeps the file unwritten for the rest of that load: the learner's
  * actions live in memory only, and only Start over writes over a save that
- * could not be read. Entries it cannot read are dropped one by one.
+ * could not be read. Entries it cannot read are dropped one by one, each
+ * reported to `onDrop` by its key, so the store can log what the save lost.
  */
-export const parseProgress = (saved: unknown): ConversationProgress | null => {
+export const parseProgress = (
+  saved: unknown,
+  onDrop: (key: string) => void = () => {}
+): ConversationProgress | null => {
   if (!isRecord(saved) || saved.version !== 1) return null;
   if (!isStrings(saved.passed) || !isMsOrNull(saved.finishedAt)) return null;
   const cursor = parseCursor(saved.cursor);
   if (!cursor) return null;
   if (!isMsOrNull(saved.startedAt)) return null;
-  const restartedAt = isMs(saved.restartedAt) ? saved.restartedAt : null;
+  // One rule for the save's timestamps: a malformed one fails the save
+  if (!isMsOrNull(saved.restartedAt)) return null;
+  const restartedAt = saved.restartedAt;
 
   return {
     version: 1,
@@ -383,9 +402,14 @@ export const parseProgress = (saved: unknown): ConversationProgress | null => {
     startedAt: saved.startedAt,
     restartedAt,
     cursor,
-    beats: parseEach(saved.beats, parseResolution),
-    runs: parseEach(saved.runs, parseRuns),
-    times: parseEach(saved.times, parseTime),
+    beats: parseEach(saved.beats, parseResolution, onDrop, "beats"),
+    runs: parseEach(
+      saved.runs,
+      (entry, key) => parseRuns(entry, onDrop, key),
+      onDrop,
+      "runs"
+    ),
+    times: parseEach(saved.times, parseTime, onDrop, "times"),
   };
 };
 
@@ -511,21 +535,72 @@ if (import.meta.vitest) {
       ]);
     });
 
-    it("drops the entries it cannot read and keeps the rest", () => {
+    it("drops the entries it cannot read, names each, and keeps the rest", () => {
       const saved = midway({
         beats: {
           "s2.why": { kind: "sung", at: 1 },
           "s2.q9": { kind: "picked", at: 1 },
+          "s2.q8": {
+            kind: "skipped",
+            at: 1,
+            openedAt: 1,
+            via: "magic",
+            wrong: [],
+          },
         },
         runs: {
           "s2.deploy": [
             { status: "ok", at: 1, took: 1, result: { act: "fly" } },
           ],
           "s3.run": { status: "ok", at: 1, took: 1 },
+          "s4.call": [
+            { status: "interrupted", at: 1 },
+            {
+              status: "ok",
+              at: 2,
+              took: "1.6",
+              result: { act: "call", ok: true, seconds: 1 },
+            },
+          ],
         },
         times: { broken: { from: "yesterday" } },
       });
-      expect(reload(saved)).toEqual(midway());
+      const dropped: string[] = [];
+      const kept = midway({
+        runs: { "s4.call": [{ status: "interrupted", at: 1 }] },
+      });
+      expect(
+        parseProgress(JSON.parse(JSON.stringify(saved)), (k) => dropped.push(k))
+      ).toEqual(kept);
+      expect(dropped).toEqual([
+        "beats.s2.why",
+        "beats.s2.q9",
+        "beats.s2.q8",
+        "runs.s2.deploy[0]",
+        "runs.s2.deploy",
+        "runs.s3.run",
+        "runs.s4.call[1]",
+        "times.broken",
+      ]);
+    });
+
+    it("keeps a restart time and a question skipped from elsewhere, and refuses a malformed restart time", () => {
+      const restarted = midway({
+        beats: {
+          "s2.q2": {
+            kind: "skipped",
+            at: 2800,
+            openedAt: 2700,
+            via: "elsewhere",
+            wrong: [],
+          },
+        },
+      });
+      (restarted as { restartedAt: number | null }).restartedAt = 7000;
+      expect(reload(restarted)).toEqual(restarted);
+      const bad = midway();
+      (bad as { restartedAt: unknown }).restartedAt = "yesterday";
+      expect(reload(bad)).toBeNull();
     });
 
     it("keeps a passed step once", () => {

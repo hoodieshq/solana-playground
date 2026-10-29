@@ -5,19 +5,16 @@ import { createLogger } from "@/shared/lib/logger";
 import { insertBlock, typedKey, withOwnText } from "./landing";
 import { failedResult, passingJudge } from "./ports";
 import type { Judge, Runner, Workspace } from "./ports";
+import { WorkspaceMovedError } from "./real-workspace";
 import { freshProgress, parseProgress } from "./progress";
-import type {
-  ConversationProgress,
-  PassedVia,
-  RunResult,
-  SkipVia,
-} from "./progress";
+import type { ConversationProgress, PassedVia, RunResult } from "./progress";
 import { INITIAL_ENGINE_STATE, reduce, stepOfBeat } from "./reducer";
 import type { Action, Effect, EngineContext, EngineState } from "./reducer";
 import { tutorialTelemetry } from "./telemetry";
 import { view } from "./view";
 import type { ConversationView } from "./view";
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
 import { PgTutorial, storageDataPath } from "../../../utils/tutorial/tutorial";
 import type { Disposable } from "../../../utils/types";
 import { PgView } from "../../../utils/view";
@@ -51,20 +48,19 @@ export const INITIAL_CONVERSATION_STATE: ConversationState = {
 export const STORAGE_KEY = "conversation";
 
 /**
- * The sentinel `getStorage` returns for a missing or unreadable file, by
- * identity. `storageDefault` is fresh per call: the storage's `setItem`
- * writes into the default it was handed, so a shared container would leak
- * one tutorial's save into the next.
+ * The storage file of a tutorial's workspace, as a full path. Reads and
+ * writes go to this path, resolved once from the tutorial's name, so a
+ * workspace switch while one is in flight cannot move it to the next
+ * workspace (`PgTutorial.getStorage` resolves against the open one at write
+ * time, which is why the store does not use it).
  */
-const EMPTY_SAVE = Object.freeze({});
-const storageDefault = (): { [STORAGE_KEY]: unknown } => ({
-  [STORAGE_KEY]: EMPTY_SAVE,
-});
+const storagePath = (name: string) =>
+  `${PgExplorer.PATHS.ROOT_DIR_PATH}${name}/${storageDataPath()}`;
 
 export interface ConversationPorts {
   workspace: Workspace;
-  /** Required: a missing runner would fail every act, and a failed build
-   * reads as the step's planned failure */
+  /** Required: a frame that forgets it fails to compile, rather than ship a
+   * lesson whose every act fails with "not wired" */
   runner: Runner;
   judge?: Judge;
 }
@@ -74,9 +70,10 @@ export interface ConversationPorts {
  *
  * One entry point: the cards and the composer call the methods below, each
  * of which is one reducer action. The reducer's effects are drained here,
- * through the ports `init` was given, and every change is written through
- * to `PgTutorial.getStorage` under `conversation`, in the tutorial's own
- * workspace, which project sync carries.
+ * through the ports `init` was given, and every change to the save (never a
+ * stage change, and nothing while the load failed) is written under
+ * `conversation` in the tutorial's own storage file, which project sync
+ * carries.
  */
 export class PgConversation {
   static get state(): ConversationState {
@@ -132,8 +129,9 @@ export class PgConversation {
     PgConversation._dispatch({ type: "hint", beatId, at: Date.now() });
   }
 
-  static skip(beatId: string, via: SkipVia = "button") {
-    PgConversation._dispatch({ type: "skip", beatId, via, at: Date.now() });
+  /** The question's Skip button */
+  static skip(beatId: string) {
+    PgConversation._dispatch({ type: "skip", beatId, at: Date.now() });
   }
 
   static typeIt(beatId: string) {
@@ -183,8 +181,8 @@ export class PgConversation {
       judge: ports.judge ?? passingJudge,
     };
     // Once a session: `init` is called once from the frame
-    PgConversation._toldSaveFailed = false;
-    PgConversation._toldLoadFailed = false;
+    PgConversation._told.clear();
+    PgConversation._persisting.clear();
 
     const subs: Disposable[] = [
       PgExplorer.onDidSwitchWorkspace(() => {
@@ -207,6 +205,20 @@ export class PgConversation {
       PgConversation._set(INITIAL_CONVERSATION_STATE);
       return;
     }
+    // The same workspace opened again (a sync pass re-opens it) while an act
+    // runs: a reload would read the run as interrupted and drop its result
+    const current = PgConversation._state;
+    if (
+      current.context?.definition.name === name &&
+      Object.values(current.engine.progress.runs).some(
+        (rs) => rs.at(-1)?.status === "started"
+      )
+    ) {
+      log.info(
+        `${name} opened again while an act runs; the save is not reloaded`
+      );
+      return;
+    }
     const ports = PgConversation._ports;
     const context: EngineContext = {
       definition,
@@ -214,40 +226,62 @@ export class PgConversation {
       judge: ports?.judge ?? passingJudge,
     };
 
+    // A save of this tutorial still in flight lands first, so the read
+    // sees it rather than the older file
+    await PgConversation._persisting.get(name);
+
     let progress: ConversationProgress = freshProgress();
     let loadFailed = false;
+    let reason: string | null = null;
+    const path = storagePath(name);
     try {
-      const storage = PgTutorial.getStorage(storageDefault());
-      const hasFile = await PgExplorer.fs.exists(storageDataPath());
-      const loaded: unknown = await storage.getItem(STORAGE_KEY);
-      // `getItem` swallows every read or parse error and returns the same
-      // default a first visit produces. The file's existence tells them apart.
-      if (hasFile && loaded === EMPTY_SAVE) {
-        loadFailed = true;
-      } else if (loaded == null || loaded === EMPTY_SAVE) {
-        progress = freshProgress();
-      } else {
-        const parsed = parseProgress(loaded);
-        if (!parsed) {
-          // The file holds something this engine never wrote. Refusing to
-          // write is cheaper than being wrong about it.
-          loadFailed = true;
-        } else if (!PgConversation._knows(definition, parsed)) {
-          // A step or beat the definition no longer has: the engine could
-          // act on nothing, so the save reads as unreadable
-          loadFailed = true;
+      if (await PgExplorer.fs.exists(path)) {
+        const data: unknown = await PgExplorer.fs.readToJSON(path);
+        const loaded =
+          typeof data === "object" && data !== null
+            ? (data as Record<string, unknown>)[STORAGE_KEY]
+            : undefined;
+        if (loaded === undefined) {
+          progress = freshProgress();
         } else {
-          progress = parsed;
+          const dropped: string[] = [];
+          const parsed = parseProgress(loaded, (key) => dropped.push(key));
+          if (dropped.length) {
+            // Entries this engine cannot read: a newer build's, or corrupt.
+            // Writing the save back without them would delete them for
+            // good, and sync would carry the deletion, so the load fails
+            // and the file is kept as it is
+            log.error(
+              `The saved progress of ${name} holds entries this engine cannot read: ${dropped.join(
+                ", "
+              )}`,
+              { report: true }
+            );
+            reason = "holds entries this engine cannot read";
+            loadFailed = true;
+          } else if (!parsed) {
+            // The file holds something this engine never wrote. Refusing to
+            // write is cheaper than being wrong about it.
+            reason = "not a version 1 save";
+            loadFailed = true;
+          } else if (!PgConversation._knows(definition, parsed)) {
+            // A step or beat the definition no longer has, or a cursor past
+            // its beats: the engine could act on nothing
+            reason = "names what the definition does not have";
+            loadFailed = true;
+          } else {
+            progress = parsed;
+          }
         }
       }
     } catch (e) {
-      log.error(e, { report: true });
+      // The file could not be checked, read or parsed
+      log.error(e, { report: true, context: { name, path } });
+      reason = "could not be read";
       loadFailed = true;
     }
     if (loadFailed) {
-      log.error(`Could not read the saved progress of ${name}`, {
-        report: true,
-      });
+      log.error(`The saved progress of ${name} ${reason}`, { report: true });
     }
 
     // The workspace may have moved on while the read was in flight
@@ -258,7 +292,12 @@ export class PgConversation {
       loadFailed,
       loadedAt: Date.now(),
     });
-    if (loadFailed) void PgConversation._tellLoadFailed();
+    if (loadFailed) {
+      void PgConversation._tellLoadFailed(name);
+    } else {
+      // A later failed load of this tutorial is told again
+      PgConversation._told.delete(`load:${name}`);
+    }
   }
 
   /** Whether every step and beat the save names is in the definition */
@@ -276,6 +315,7 @@ export class PgConversation {
       progress.cursor.kind === "step" ? [progress.cursor.stepId] : [];
     const orphan = [
       ...cursorStep.filter((id) => !steps.has(id)),
+      ...PgConversation._cursorPastItsBeats(definition, progress),
       ...Object.keys(progress.beats).filter((id) => !beats.has(id)),
       ...Object.keys(progress.runs).filter((id) => !beats.has(id)),
       ...Object.keys(progress.times).filter((id) => !steps.has(id)),
@@ -291,10 +331,26 @@ export class PgConversation {
     return false;
   }
 
-  /** The learner hears once that this session is not being saved */
-  private static async _tellLoadFailed() {
-    if (PgConversation._toldLoadFailed) return;
-    PgConversation._toldLoadFailed = true;
+  /** The cursor's step as an orphan when its beat index or its `fail` is
+   * past what the step holds, so a shrunk definition reads as a failed load */
+  private static _cursorPastItsBeats(
+    definition: TutorialDefinition,
+    progress: ConversationProgress
+  ): string[] {
+    const cursor = progress.cursor;
+    if (cursor.kind !== "step") return [];
+    const step = definition.steps.find((s) => s.id === cursor.stepId);
+    if (!step) return [];
+    const beats = cursor.fail ? step.onFail : step.beats;
+    if (!beats || cursor.beat > beats.length)
+      return [`cursor:${cursor.stepId}`];
+    return [];
+  }
+
+  /** The learner hears once per tutorial that this session is not being saved */
+  private static async _tellLoadFailed(name: string) {
+    if (PgConversation._told.has(`load:${name}`)) return;
+    PgConversation._told.add(`load:${name}`);
     try {
       const { default: LoadFailedToast } = await import(
         "../ui/LoadFailedToast"
@@ -314,6 +370,13 @@ export class PgConversation {
   private static _dispatch(action: Action) {
     const s = PgConversation._state;
     if (!s.context) return;
+    if (!PgConversation._ports) {
+      // Nothing would carry the effects out, so no state is committed either
+      log.error(`${action.type} dispatched before PgConversation.init`, {
+        report: true,
+      });
+      return;
+    }
     const { state: engine, effects } = reduce(s.context, s.engine, action);
     if (engine === s.engine && effects.length === 0) return;
 
@@ -333,7 +396,7 @@ export class PgConversation {
         // The tutorial's name is captured now: by the time the write lands,
         // a workspace switch could have moved the state on
         const name = s.context.definition.name;
-        void PgConversation._persist(name, engine.progress, loadFailed);
+        if (!loadFailed) PgConversation._persist(name, engine.progress);
       }
     }
     void PgConversation._drain(s.context, effects);
@@ -384,133 +447,222 @@ export class PgConversation {
     const stillOpen = () => PgExplorer.currentWorkspaceName === name;
 
     for (const effect of effects) {
-      switch (effect.kind) {
-        case "event":
-          tutorialTelemetry.track(effect.name, effect.params);
-          break;
-        case "focus":
-          for (const cb of PgConversation._focusListeners) {
-            cb({ file: effect.file, line: effect.line });
-          }
-          break;
-        case "explain":
-          for (const cb of PgConversation._explainListeners) {
-            cb({ beatId: effect.beatId, result: effect.result });
-          }
-          break;
-        case "restore": {
-          // Whole files, in order; a failure leaves the rest to the learner
-          for (const [path, content] of Object.entries(effect.files)) {
-            try {
-              if (!stillOpen()) break;
-              await ports.workspace.write(path, content, name);
-            } catch (e) {
-              log.error(e, { report: true });
-            }
-          }
-          break;
+      try {
+        await PgConversation._carryOut(context, effect, ports, name, stillOpen);
+      } catch (e) {
+        // A listener or the tracker threw: the effects after it still run
+        log.error(e, {
+          report: true,
+          context: { effect: effect.kind, tutorial: name },
+        });
+      }
+    }
+  }
+
+  /** The workspace moved while the port was in flight: expected, not an error */
+  private static _moved(e: unknown, name: string, what: string): boolean {
+    if (!(e instanceof WorkspaceMovedError)) return false;
+    log.warn(`The ${what} for ${name} was dropped: ${e.message}`);
+    return true;
+  }
+
+  private static async _carryOut(
+    context: EngineContext,
+    effect: Effect,
+    ports: Required<ConversationPorts>,
+    name: string,
+    stillOpen: () => boolean
+  ) {
+    switch (effect.kind) {
+      case "event":
+        tutorialTelemetry.track(effect.name, effect.params);
+        break;
+      case "focus":
+        for (const cb of PgConversation._focusListeners) {
+          cb({ file: effect.file, line: effect.line });
         }
-        case "create": {
-          try {
-            if (!stillOpen()) break;
-            const exists =
-              (await ports.workspace.read(effect.path, name)) !== null;
-            if (!stillOpen()) break;
-            if (!exists) await ports.workspace.write(effect.path, "", name);
-            if (!stillOpen()) break;
-            PgConversation._dispatch({
-              type: "written",
-              beatId: effect.beatId,
-              wrote: { file: effect.path, lines: [], created: true },
-              at: effect.at,
-            });
-          } catch (e) {
-            log.error(e, { report: true });
-            PgConversation._writeFailed(effect.beatId, name);
-          }
-          break;
+        break;
+      case "explain":
+        for (const cb of PgConversation._explainListeners) {
+          cb({ beatId: effect.beatId, result: effect.result });
         }
-        case "write": {
-          try {
-            if (!stillOpen()) break;
-            const step = stepOfBeat(context.definition, effect.beatId);
-            const before =
-              (await ports.workspace.read(effect.file, name)) ?? "";
-            if (!stillOpen()) break;
-            // A key line the learner typed is replaced by the block around it,
-            // keeping their own `msg!` words
-            let base = before;
-            let block = effect.block;
-            const at = effect.key ? typedKey(before, effect.key) : null;
-            if (at !== null) {
-              const rows = before.split("\n");
-              block = withOwnText(block, rows[at - 1]);
-              rows.splice(at - 1, 1);
-              base = rows.join("\n");
-            }
-            const placed = insertBlock(
-              base,
-              block,
-              step?.target[effect.file],
-              step?.start[effect.file] ?? ""
-            );
-            await ports.workspace.write(effect.file, placed.code, name);
-            if (!stillOpen()) break;
-            PgConversation._dispatch({
-              type: "written",
-              beatId: effect.beatId,
-              wrote: { file: effect.file, lines: placed.lines },
-              at: effect.at,
-            });
-          } catch (e) {
-            // The question stays resolved and the block is not in the file:
-            // the card says so (`writeFailed`) and the learner types it
-            log.error(e, { report: true });
-            PgConversation._writeFailed(effect.beatId, name);
-          }
-          break;
-        }
-        case "run": {
-          let result: RunResult;
-          try {
-            result = await ports.runner.run(effect.act, effect.input, (stage) =>
-              PgConversation._dispatch({
-                type: "stage",
-                beatId: effect.beatId,
-                startedAt: effect.startedAt,
-                label: stage.label,
-                index: stage.index,
-                count: stage.count,
-                at: Date.now(),
-              })
-            );
-          } catch (e) {
-            log.error(e, { report: true });
-            result = failedResult(
-              effect.act,
-              e instanceof Error ? e.message : String(e)
-            );
-          }
+        break;
+      case "restore": {
+        // Whole files, in order; a file that fails is logged and left to
+        // the learner, the others still land
+        const left: string[] = [];
+        for (const path of effect.remove) {
           if (!stillOpen()) {
-            // The result is lost with the switch: a landed deploy reads as
-            // interrupted and may be run again, so the team hears of it
-            log.warn(
-              `A ${effect.act} result for ${name} arrived after the workspace moved on (ok: ${result.ok})`,
-              { report: result.ok && effect.act !== "build" }
-            );
+            left.push(path);
+            continue;
+          }
+          try {
+            await ports.workspace.remove(path, name);
+          } catch (e) {
+            if (!PgConversation._moved(e, name, `removal of ${path}`)) {
+              log.error(e, { report: true, context: { name, path } });
+            }
+          }
+        }
+        for (const [path, content] of Object.entries(effect.files)) {
+          if (!stillOpen()) {
+            left.push(path);
+            continue;
+          }
+          try {
+            await ports.workspace.write(path, content, name);
+          } catch (e) {
+            if (!PgConversation._moved(e, name, `restore of ${path}`)) {
+              log.error(e, { report: true, context: { name, path } });
+            }
+          }
+        }
+        if (left.length) {
+          // The workspace moved mid-restore: the file holds the old lesson
+          // and the save the new one, so the team hears of it
+          log.warn(
+            `The restore for ${name} stopped at the workspace switch; not restored: ${left.join(
+              ", "
+            )}`,
+            { report: true }
+          );
+        }
+        break;
+      }
+      case "create": {
+        try {
+          if (!stillOpen()) break;
+          const exists =
+            (await ports.workspace.read(effect.path, name)) !== null;
+          if (!stillOpen()) break;
+          if (!exists) await ports.workspace.write(effect.path, "", name);
+          if (!stillOpen()) {
+            PgConversation._landedLate(name, effect.path);
             break;
           }
           PgConversation._dispatch({
-            type: "ended",
+            type: "written",
             beatId: effect.beatId,
-            startedAt: effect.startedAt,
-            result,
-            at: Date.now(),
+            wrote: { file: effect.path, lines: [], created: true },
+            at: effect.at,
           });
+        } catch (e) {
+          if (PgConversation._moved(e, name, `creation of ${effect.path}`)) {
+            break;
+          }
+          log.error(e, {
+            report: true,
+            context: { name, path: effect.path },
+          });
+          PgConversation._writeFailed(effect.beatId, name);
+        }
+        break;
+      }
+      case "write": {
+        try {
+          if (!stillOpen()) break;
+          const step = stepOfBeat(context.definition, effect.beatId);
+          const before = (await ports.workspace.read(effect.file, name)) ?? "";
+          if (!stillOpen()) break;
+          // A key line the learner typed is replaced by the block around it,
+          // keeping their own `msg!` words
+          let base = before;
+          let block = effect.block;
+          const at = effect.key ? typedKey(before, effect.key) : null;
+          if (at !== null) {
+            const rows = before.split("\n");
+            block = withOwnText(block, rows[at - 1]);
+            rows.splice(at - 1, 1);
+            base = rows.join("\n");
+          }
+          const placed = insertBlock(
+            base,
+            block,
+            step?.target[effect.file],
+            step?.start[effect.file] ?? ""
+          );
+          await ports.workspace.write(effect.file, placed.code, name);
+          if (!stillOpen()) {
+            PgConversation._landedLate(name, effect.file);
+            break;
+          }
+          PgConversation._dispatch({
+            type: "written",
+            beatId: effect.beatId,
+            wrote: { file: effect.file, lines: placed.lines },
+            at: effect.at,
+          });
+        } catch (e) {
+          if (PgConversation._moved(e, name, `write to ${effect.file}`)) {
+            break;
+          }
+          // The question stays resolved and the block is not in the file:
+          // the card says so (`writeFailed`) and the learner types it
+          log.error(e, {
+            report: true,
+            context: { name, path: effect.file },
+          });
+          PgConversation._writeFailed(effect.beatId, name);
+        }
+        break;
+      }
+      case "run": {
+        let result: RunResult;
+        try {
+          result = await ports.runner.run(effect.act, effect.input, (stage) =>
+            PgConversation._dispatch({
+              type: "stage",
+              beatId: effect.beatId,
+              startedAt: effect.startedAt,
+              label: stage.label,
+              index: stage.index,
+              count: stage.count,
+              at: Date.now(),
+            })
+          );
+        } catch (e) {
+          log.error(e, { report: true });
+          result = failedResult(
+            effect.act,
+            e instanceof Error ? e.message : String(e)
+          );
+        }
+        if (!stillOpen()) {
+          // The result is lost with the switch: a landed deploy reads as
+          // interrupted and may be run again, so the team hears of it
+          log.warn(
+            `A ${effect.act} result for ${name} arrived after the workspace moved on (ok: ${result.ok})`,
+            { report: result.ok && effect.act !== "build" }
+          );
           break;
         }
+        const before = PgConversation._state.engine;
+        PgConversation._dispatch({
+          type: "ended",
+          beatId: effect.beatId,
+          startedAt: effect.startedAt,
+          result,
+          at: Date.now(),
+        });
+        if (PgConversation._state.engine === before) {
+          // Start over, or a later run of the same act, left this run
+          // behind: its result is lost, and a landed deploy spent SOL
+          log.warn(
+            `A ${effect.act} result for ${name} arrived for a run no longer in flight (ok: ${result.ok})`,
+            { report: result.ok && effect.act !== "build" }
+          );
+        }
+        break;
       }
     }
+  }
+
+  /** The block is in the file but its record cannot be saved: the workspace
+   * moved between the write and the dispatch */
+  private static _landedLate(name: string, path: string) {
+    log.warn(
+      `A write to ${path} for ${name} landed after the workspace moved on; its lines are not recorded`
+    );
   }
 
   /** A write that did not land, told to the card unless the workspace moved */
@@ -520,27 +672,42 @@ export class PgConversation {
   }
 
   /**
+   * Writes the save under `conversation` in the tutorial's storage file,
+   * keeping the file's other keys. Writes to one tutorial run one at a time,
+   * in order, so the latest save lands last; the path is resolved once from
+   * the name, so a switch mid-write cannot move it.
+   *
    * @param name the tutorial this write belongs to, captured when queued
    * @param progress the save to write, captured the same way
-   * @param loadFailed whether the load could not read the file; if so the
-   * write is skipped rather than risk replacing a real save
    */
-  private static async _persist(
-    name: string,
-    progress: ConversationProgress,
-    loadFailed: boolean
-  ) {
-    if (loadFailed) return;
-    if (PgExplorer.currentWorkspaceName !== name) return;
+  private static _persist(name: string, progress: ConversationProgress) {
+    const previous = PgConversation._persisting.get(name) ?? Promise.resolve();
+    const next = previous
+      .catch(() => {})
+      .then(() => PgConversation._write(name, progress));
+    PgConversation._persisting.set(name, next);
+  }
+
+  private static async _write(name: string, progress: ConversationProgress) {
+    const path = storagePath(name);
     try {
-      const storage = PgTutorial.getStorage(storageDefault());
-      await storage.setItem(STORAGE_KEY, progress);
+      let data: Record<string, unknown> = {};
+      if (await PgExplorer.fs.exists(path)) {
+        const read: unknown = await PgExplorer.fs.readToJSON(path);
+        if (typeof read === "object" && read !== null) {
+          data = read as Record<string, unknown>;
+        }
+      }
+      data[STORAGE_KEY] = progress;
+      await writeWorkspaceFile(path, JSON.stringify(data));
+      // A later failing streak is told again
+      PgConversation._told.delete(`save:${name}`);
     } catch (e) {
       // The in-memory save is still right for this session; a reload loses
-      // its tail. Reported every time, told to the learner once.
-      log.error(e, { report: true });
-      if (!PgConversation._toldSaveFailed) {
-        PgConversation._toldSaveFailed = true;
+      // its tail. Reported every time, told to the learner once per tutorial.
+      log.error(e, { report: true, context: { name, path } });
+      if (!PgConversation._told.has(`save:${name}`)) {
+        PgConversation._told.add(`save:${name}`);
         try {
           const { default: SaveFailedToast } = await import(
             "../ui/SaveFailedToast"
@@ -555,8 +722,10 @@ export class PgConversation {
     }
   }
 
-  private static _toldSaveFailed = false;
-  private static _toldLoadFailed = false;
+  /** `load:<name>` and `save:<name>`: which toasts this session has shown */
+  private static readonly _told = new Set<string>();
+  /** One write at a time per tutorial, the latest save last */
+  private static readonly _persisting = new Map<string, Promise<void>>();
   private static _state: ConversationState = INITIAL_CONVERSATION_STATE;
   private static _ports: Required<ConversationPorts> | null = null;
   private static _timer: ReturnType<typeof setTimeout> | null = null;
