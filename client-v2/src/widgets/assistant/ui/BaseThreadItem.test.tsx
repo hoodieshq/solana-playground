@@ -1,7 +1,13 @@
 // One item of the thread, drawn from the design system's message parts.
 import { createElement } from "react";
 import type { FC } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -88,6 +94,38 @@ describe("BaseThreadItem", () => {
     expect(container.innerHTML).toBe("");
   });
 
+  it("an error offers Enter key when its turn says so", () => {
+    const enterKey = vi.fn();
+    render(
+      <BaseThreadItem
+        item={{
+          kind: "error",
+          id: "e",
+          createdAt: CREATED,
+          text: "OpenAI-compatible did not accept this key. Check it and enter it again, or pick another model.",
+        }}
+        actions={{ enterKey }}
+        onAnswer={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Enter key" }));
+
+    expect(enterKey).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("#assistant-enter-key")).not.toBeNull();
+  });
+
+  it("an error offers nothing on its own", () => {
+    render(
+      <BaseThreadItem
+        item={{ kind: "error", id: "e", createdAt: CREATED, text: "quota" }}
+        onAnswer={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
   it("a tool line is a marker", () => {
     const { container } = render(
       <BaseThreadItem
@@ -134,7 +172,7 @@ describe("BaseThreadItem", () => {
     ).toBeNull();
   });
 
-  it("the verify step is named by its stage and runs its action", () => {
+  it("the verify step is named by its stage and runs its action", async () => {
     const onClick = vi.fn(() => Promise.resolve());
     render(
       <BaseThreadItem
@@ -145,7 +183,10 @@ describe("BaseThreadItem", () => {
         onAnswer={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
+    // Async: the verify step is an AsyncButton, which settles once `onClick` resolves
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Deploy" }));
+    });
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 

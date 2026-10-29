@@ -122,7 +122,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   openConnect.mockReset();
   openSources.mockReset();
-  PgAssistant.disconnect();
+  // The harness is still mounted here: RTL's own cleanup runs after this hook
+  act(() => PgAssistant.disconnect());
   PgSession.reset();
   resetTelemetry();
   resetLogger();
@@ -155,7 +156,7 @@ describe("AssistantComposer, context chips", () => {
       })
     );
 
-    expect(screen.queryByText("lib.rs active")).toBeNull();
+    expect(screen.queryByText("lib.rs")).toBeNull();
     expect(tracked()).toEqual([["assistant_file_chip_removed", {}]]);
 
     await user.type(
@@ -172,7 +173,7 @@ describe("AssistantComposer, context chips", () => {
       { timeout: 5_000 }
     );
     expect(
-      await screen.findByText("lib.rs active", {}, { timeout: 5_000 })
+      await screen.findByText("lib.rs", {}, { timeout: 5_000 })
     ).toBeTruthy();
   });
 });
@@ -203,6 +204,20 @@ describe("AssistantComposer, the + menu", () => {
     expect(
       screen.getByRole("menuitem", { name: /Connect a model…/ })
     ).toBeTruthy();
+  });
+});
+
+describe("AssistantComposer, chip order", () => {
+  it("names the active file before the file count, as the prototype orders them", () => {
+    render(<Harness />);
+    // Each chip is its tooltip's trigger, which takes over its data-slot
+    const chips = Array.from(
+      document.querySelectorAll('[data-slot="composer-context"] > *')
+    ).map(
+      // The short label; the chip also carries its spoken name for a reader
+      (chip) => chip.querySelector('[aria-hidden="true"]')?.textContent
+    );
+    expect(chips).toEqual(["lib.rs", "1 file"]);
   });
 });
 
@@ -238,7 +253,7 @@ describe("AssistantComposer, connected", () => {
     expect(PgAssistant.items.length).toBe(1);
   });
 
-  it("connects the default from a keyed backend and clears the thread", async () => {
+  it("connects the default from a keyed backend and keeps the thread", async () => {
     await PgSession.refreshWith({
       id: "u1",
       name: null,
@@ -252,7 +267,7 @@ describe("AssistantComposer, connected", () => {
     );
 
     expect(PgAssistant.connection?.id).toBe("default");
-    expect(PgAssistant.items.length).toBe(0);
+    expect(PgAssistant.items.length).toBe(1);
     expect(tracked()).toEqual([
       ["assistant_model_picked", { provider: "default", via: "menu" }],
     ]);

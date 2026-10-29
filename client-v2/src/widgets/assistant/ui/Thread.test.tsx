@@ -115,7 +115,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  PgAssistant.clear();
+  // The thread is still mounted here: RTL's own cleanup runs after this hook
+  act(() => PgAssistant.clear());
   resetTelemetry();
   vi.clearAllMocks();
   vi.restoreAllMocks();
@@ -301,6 +302,54 @@ describe("Thread, the working marker", () => {
   });
 });
 
+describe("Thread, a refused key", () => {
+  const RECOVER = { provider: "openai" as const, model: "gpt-x" };
+  const withOpener = (openConnect: Turn["openConnect"]) =>
+    ({ busy: false, send: vi.fn(), openConnect } as unknown as Turn);
+
+  it("offers Enter key on the error, opening Connect on that backend", () => {
+    act(() => {
+      PgAssistant.addUserMessage("hi");
+      PgAssistant.addError(
+        "OpenAI-compatible did not accept this key.",
+        RECOVER
+      );
+    });
+    const openConnect = vi.fn();
+    render(<Thread turn={withOpener(openConnect)} project="Counter" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Enter key" }));
+
+    expect(openConnect).toHaveBeenCalledWith("key-rejected", RECOVER);
+  });
+
+  it("offers nothing once a reply came after the error", () => {
+    act(() => {
+      PgAssistant.addUserMessage("hi");
+      PgAssistant.addError(
+        "OpenAI-compatible did not accept this key.",
+        RECOVER
+      );
+    });
+    act(() => finishedReply("Hello."));
+    render(<Thread turn={withOpener(vi.fn())} project="Counter" />);
+
+    expect(screen.queryByRole("button", { name: "Enter key" })).toBeNull();
+  });
+
+  it("offers nothing for a backend this build does not have", () => {
+    act(() => {
+      PgAssistant.addUserMessage("hi");
+      PgAssistant.addError("Gone did not accept this key.", {
+        provider: "gone" as typeof RECOVER.provider,
+      });
+    });
+    render(<Thread turn={withOpener(vi.fn())} project="Counter" />);
+
+    expect(screen.queryByRole("button", { name: "Enter key" })).toBeNull();
+  });
+});
+
 describe("Thread, sending", () => {
   it("a suggestion sends and is reported", () => {
     const send = vi.fn().mockResolvedValue(undefined);
@@ -311,6 +360,26 @@ describe("Thread, sending", () => {
     );
 
     expect(send).toHaveBeenCalledWith("Why did my build fail?");
+    expect(tracked()).toEqual([["assistant_suggestion_picked", {}]]);
+  });
+
+  it("offers the lesson's questions while a lesson is open", () => {
+    lesson.open = true;
+    const send = vi.fn().mockResolvedValue(undefined);
+    render(<Thread turn={stubTurn(false, send)} project="Hello Anchor" />);
+    for (const name of [
+      "Explain this step",
+      "Give me a hint",
+      "Why did my build fail?",
+    ]) {
+      expect(screen.getByRole("button", { name })).toBeTruthy();
+    }
+    expect(
+      screen.queryByRole("button", { name: "What does this program do?" })
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Give me a hint" }));
+    expect(send).toHaveBeenCalledWith("Give me a hint");
     expect(tracked()).toEqual([["assistant_suggestion_picked", {}]]);
   });
 
@@ -364,12 +433,15 @@ describe("Thread, inside a lesson", () => {
     ).toBeTruthy();
   });
 
-  it("after an applied patch the move is the step's build", () => {
+  it("after an applied patch the move is the step's build", async () => {
     lesson.open = true;
     act(() => appliedPatchThenReply());
     render(<Thread turn={stubTurn(false)} project="Counter" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Build" }));
+    // Async: Build is an AsyncButton, which settles once the command resolves
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Build" }));
+    });
 
     expect(lesson.execute).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "Skip this step" })).toBeNull();

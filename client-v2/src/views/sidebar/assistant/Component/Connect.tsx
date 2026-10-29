@@ -19,6 +19,7 @@ import Link from "../../../../components/Link";
 import { isSignInFailure, PgSession } from "../../../../features/auth";
 import { useRenderOnChange } from "../../../../hooks/useRenderOnChange";
 import { PgAssistant } from "../store";
+import type { BackendParams } from "../model/backend-params";
 import type { ModelProvider } from "@/shared/lib/ai";
 import {
   isDefaultBackend,
@@ -26,6 +27,7 @@ import {
   type Effort,
   type ProviderInfo,
 } from "../model/types";
+import { displayModelName, EFFORT_LABELS } from "../model/labels";
 
 /** Model and effort a backend starts on, when it offers the choice */
 const defaultSettings = (provider: ProviderInfo) =>
@@ -61,18 +63,16 @@ const DEFAULT_PROVIDER = PROVIDERS.find((p) => p.id === "default")!;
 /** Everything behind the accordion: each of these needs a key of your own */
 const ALTERNATIVES = PROVIDERS.filter((p) => p.id !== "default");
 
-const FIELD_LABEL = "text-xs tracking-[0.1em] text-muted-foreground";
+/** The prototype's field label: small, grey, in sentence case, untracked */
+const FIELD_LABEL = "text-[0.7rem] font-normal text-muted-foreground";
 
-/** The backend, and maybe the model, Connect a model opens on */
-export interface ConnectPreset {
-  /**
-   * A key-based backend, or the default only for a signed-out user: the
-   * form is where they sign in for it
-   */
-  provider: ModelProvider;
-  /** A model of the backend's own list, or its endpoint's model id */
-  model?: string;
-}
+/**
+ * The backend, and maybe its model, base URL and effort, Connect a model opens
+ * on: a key-based backend, or the default only for a signed-out user, for
+ * whom the form is where they sign in for it. A backend's parameters as a
+ * thread records them, so a field added there reaches the form too.
+ */
+export type ConnectPreset = BackendParams;
 
 /**
  * The form's one action. Its host draws it (`ConnectProps.frame`): Connect a
@@ -111,28 +111,36 @@ export interface ConnectProps {
   frame(parts: { action: ConnectAction; form: ReactNode }): ReactElement;
 }
 
-/** The endpoint fields a backend starts with, `model` in place of its own */
-const startEndpoint = (provider: ProviderInfo, model?: string) =>
+/** The endpoint fields a backend starts with, the preset's in place of its own */
+const startEndpoint = (provider: ProviderInfo, preset?: ConnectPreset) =>
   provider.endpoint
     ? {
-        baseUrl: provider.endpoint.baseUrl,
-        model: model ?? provider.endpoint.model,
+        baseUrl: preset?.baseUrl ?? provider.endpoint.baseUrl,
+        model: preset?.model ?? provider.endpoint.model,
       }
     : null;
 
-/** The settings a backend starts with, `model` in place of its default */
-const startSettings = (provider: ProviderInfo, model?: string) => {
+/**
+ * The settings a backend starts with, the preset's model and effort in place
+ * of its defaults where the backend offers them
+ */
+const startSettings = (provider: ProviderInfo, preset?: ConnectPreset) => {
   const settings = defaultSettings(provider);
-  if (settings && model && provider.modelSettings?.models.includes(model)) {
-    settings.model = model;
+  if (!settings || !provider.modelSettings) return settings;
+  const { models, efforts } = provider.modelSettings;
+  if (preset?.model && models.includes(preset.model)) {
+    settings.model = preset.model;
+  }
+  if (preset?.effort && efforts.includes(preset.effort)) {
+    settings.effort = preset.effort;
   }
   return settings;
 };
 
 /**
- * The form of Connect a model. It lives in `ConnectDialog`, which gives it its
- * title and closes it once a backend is connected; reconnecting on load is
- * `useTurn`'s.
+ * The form of Connect a model. It lives in `ConnectDialog`, which gives the
+ * dialog its title and closes it once a backend is connected; the form heads
+ * only its own lead. Reconnecting on load is `useTurn`'s.
  */
 const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
   // Reopened over a live connection: seed the fields with it so changing just
@@ -143,8 +151,12 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
   const signedIn = !!PgSession.get();
   const startId = preset?.provider ?? current?.id ?? "default";
   const initial = PROVIDERS.find((p) => p.id === startId)!;
-  /** Opened on the backend already connected: its own key and choices */
-  const onCurrent = current?.id === startId ? current : null;
+  /**
+   * Opened on the backend already connected: its own key and choices. Not for
+   * a preset, which says what to start from; one naming the connected backend
+   * comes from Enter key, after the provider refused that very key.
+   */
+  const onCurrent = !preset && current?.id === startId ? current : null;
 
   const [providerId, setProviderId] = useState<ModelProvider>(startId);
   const [expanded, setExpanded] = useState(false);
@@ -162,12 +174,12 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
   } | null>(() =>
     onCurrent?.endpoint
       ? { ...onCurrent.endpoint }
-      : startEndpoint(initial, preset?.model)
+      : startEndpoint(initial, preset)
   );
   const [settings, setSettings] = useState(() =>
     onCurrent?.settings
       ? { ...onCurrent.settings }
-      : startSettings(initial, preset?.model)
+      : startSettings(initial, preset)
   );
 
   /** The probe is still out: the default is neither offered nor ruled out yet */
@@ -227,7 +239,6 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
     endpoint: trimmedEndpoint,
     settings: activeSettings,
   };
-  const switching = !!current && !PgAssistant.isCurrent(next);
 
   const connect = () => PgAssistant.connect(next);
 
@@ -291,13 +302,18 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
       key={p.id}
       onPointerDown={() => (pointerPick.current = true)}
       className={cn(
-        "flex cursor-pointer items-start gap-2 rounded-md border border-border px-2.5 py-2 transition-colors hover:bg-accent has-data-checked:border-primary has-data-disabled:cursor-not-allowed has-data-disabled:opacity-45 has-data-disabled:hover:bg-transparent"
+        "relative flex cursor-pointer items-start gap-2 rounded-xl border border-border has-focus-visible:ring-2 has-focus-visible:ring-ring px-2.5 py-2 transition-colors hover:bg-accent has-data-checked:border-primary has-data-disabled:cursor-not-allowed has-data-disabled:opacity-45 has-data-disabled:hover:bg-transparent"
       )}
     >
+      {/* The card is the choice, as the prototype draws it; the circle
+          stays for the keyboard and the screen reader */}
       <RadioGroupItem
         value={p.id}
         disabled={isUnavailable(p)}
-        className="mt-0.5"
+        // Unseen, over the whole card: a press anywhere on it is a press on
+        // the radio itself (`sr-only` would lose to the item's own `relative`
+        // and `size-4`)
+        className="absolute inset-0 size-full rounded-xl border-0 opacity-0"
       />
       <span className="flex min-w-0 flex-col">
         <span
@@ -323,24 +339,29 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
 
   const form = (
     <Wrapper>
-      {!current && (
-        <Intro>
+      <Intro>
+        <Title>
+          {current
+            ? "Switch backend"
+            : "An assistant that can see your project"}
+        </Title>
+        {!current && (
           <Lead>
             It reads the tab you are looking at and the last build error,
             explains what went wrong against your actual code, and proposes
             patches you apply yourself.
           </Lead>
-          {defaultBackend === "present" && (
-            <Lead>
-              Out of the box it runs on this deployment's own backend, with the
-              capabilities listed below. Bring your own key to run it on
-              something else.
-            </Lead>
-          )}
-        </Intro>
-      )}
+        )}
+        {!current && defaultBackend === "present" && (
+          <Lead>
+            Out of the box it runs on this deployment's own backend, with the
+            capabilities listed below. Bring your own key to run it on something
+            else.
+          </Lead>
+        )}
+      </Intro>
 
-      <Label as="div">BACKEND</Label>
+      <Label as="div">Backend</Label>
       <Providers>
         <RadioGroup
           aria-label="Backend"
@@ -383,7 +404,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
         <>
           <Field className="mb-3">
             <FieldLabel htmlFor="assistant-base-url" className={FIELD_LABEL}>
-              BASE URL
+              Base URL
             </FieldLabel>
             <Input
               id="assistant-base-url"
@@ -397,7 +418,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
           </Field>
           <Field className="mb-3">
             <FieldLabel htmlFor="assistant-model" className={FIELD_LABEL}>
-              MODEL
+              Model
             </FieldLabel>
             {provider.endpoint.models && (
               <Segmented
@@ -438,7 +459,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
               htmlFor="assistant-model-select"
               className={FIELD_LABEL}
             >
-              MODEL
+              Model
             </FieldLabel>
             <Select
               value={activeSettings.model}
@@ -449,14 +470,14 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
               <SelectTrigger
                 id="assistant-model-select"
                 aria-label="Model"
-                className="w-full font-mono"
+                className="w-full"
               >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
                 {provider.modelSettings.models.map((m) => (
-                  <SelectItem key={m} value={m} className="font-mono">
-                    {m}
+                  <SelectItem key={m} value={m}>
+                    {displayModelName(m)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -468,7 +489,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
               htmlFor="assistant-effort-select"
               className={FIELD_LABEL}
             >
-              EFFORT
+              Effort
             </FieldLabel>
             <Select
               value={activeSettings.effort}
@@ -479,14 +500,14 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
               <SelectTrigger
                 id="assistant-effort-select"
                 aria-label="Effort"
-                className="w-full font-mono"
+                className="w-full"
               >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
                 {provider.modelSettings.efforts.map((e) => (
-                  <SelectItem key={e} value={e} className="font-mono">
-                    {e}
+                  <SelectItem key={e} value={e}>
+                    {EFFORT_LABELS[e]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -499,7 +520,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
         <>
           <Field className="mb-3">
             <FieldLabel htmlFor="assistant-api-key" className={FIELD_LABEL}>
-              API KEY{provider.keyOptional ? " (OPTIONAL)" : ""}
+              API key{provider.keyOptional ? " (optional)" : ""}
             </FieldLabel>
             <Input
               id="assistant-api-key"
@@ -516,13 +537,6 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
       {/* Gone once the sign-in is no longer what the action does */}
       {needsSignIn && signInError && (
         <SignInError role="alert">{signInError}</SignInError>
-      )}
-
-      {switching && (
-        <Note>
-          Switching starts a new conversation. The current one cannot be
-          replayed to another backend.
-        </Note>
       )}
 
       {provider.needsKey && (
@@ -569,6 +583,16 @@ const Intro = styled.div`
   padding-bottom: 1.25rem;
 `;
 
+const Title = styled.h3`
+  ${({ theme }) => css`
+    margin: 0;
+    color: ${theme.colors.default.textPrimary};
+    font-size: ${theme.font.code.size.medium};
+    font-weight: 500;
+    line-height: 1.5;
+  `}
+`;
+
 const Lead = styled.div`
   ${({ theme }) => css`
     color: ${theme.colors.default.textSecondary};
@@ -582,7 +606,6 @@ const Label = styled.label`
     display: block;
     color: ${theme.colors.default.textSecondary};
     font-size: ${theme.font.code.size.xsmall};
-    letter-spacing: 0.1em;
     padding-bottom: 0.4375rem;
   `}
 `;

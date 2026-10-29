@@ -52,14 +52,27 @@ const contextChips = (
   }`;
   const openName =
     currentFilePath && PgExplorer.getItemNameFromPath(currentFilePath);
+  // The prototype's order: where you are, what you are looking at, then
+  // what else is sent
   return [
     lesson
       ? {
-          label: `step ${lesson.stepIndex} of ${lesson.stepCount}`,
+          label: `Step ${lesson.stepIndex} of ${lesson.stepCount}`,
           title: lesson.objective,
           spoken: sent(
             `step ${lesson.stepIndex} of ${lesson.stepCount} and its goal`
           ),
+        }
+      : null,
+    openName && !openFile.leftOut
+      ? {
+          label: openName,
+          title: "The tab you are looking at, sent in full every turn",
+          spoken: sent(`${openName}, the open file, in full`),
+          remove: {
+            label: `Leave ${openName} out of the next message`,
+            run: openFile.leaveOut,
+          },
         }
       : null,
     {
@@ -80,17 +93,6 @@ const contextChips = (
             "\n"
           )}`,
           spoken: sent(`the names of your ${openPaths.length} open tabs`),
-        }
-      : null,
-    openName && !openFile.leftOut
-      ? {
-          label: `${openName} active`,
-          title: "The tab you are looking at, sent in full every turn",
-          spoken: sent(`${openName}, the open file, in full`),
-          remove: {
-            label: `Leave ${openName} out of the next message`,
-            run: openFile.leaveOut,
-          },
         }
       : null,
     PgBuildOutput.latest?.failed
@@ -179,8 +181,8 @@ export function AssistantComposer({
         turn.openConnect("model", { provider: "default" });
         return;
       }
-      // From a keyed backend this is a change of backend, and starts a new
-      // conversation as connecting always has
+      // From a keyed backend this is a change of backend; the conversation
+      // carries over, as it does on every connect
       PgAssistant.connect(DEFAULT_CONNECTION);
       assistantTelemetry.track("assistant_model_picked", {
         provider: "default",
