@@ -235,6 +235,10 @@ export const projectSync = (): Disposable => {
    * project here deleted that one too -- on the server, chat included.
    * Not by re-reading the list here: that is the reload's to do, inside its
    * own queue, where nothing is half-way through when the list changes.
+   *
+   * Once every delete reached an account whose list was read, a browser left
+   * with no project marks that list empty (`PgAccountList`), which is what
+   * lets Home offer the example to a signed-in account again.
    */
   const settleLocalDeletes = async () => {
     // Whether every delete below reached the account; one that did not leaves
@@ -268,9 +272,15 @@ export const projectSync = (): Disposable => {
         await PgSyncClaim.forget(projectId);
       }
 
-      // Every delete above reached the account, so a browser left with no
-      // project means an account with none: Home offers the example again
-      if (allReached && PgExplorer.allWorkspaceNames?.length === 0) {
+      // The account's list was read, and every delete above reached it, so a
+      // browser left with no project means an account with none: Home offers
+      // the example again. An unread list stays unread: a delete here says
+      // nothing of projects the account holds that this browser never saw
+      if (
+        allReached &&
+        PgAccountList.state === "holds" &&
+        PgExplorer.allWorkspaceNames?.length === 0
+      ) {
         PgAccountList.listed(0);
       }
     } catch (e) {
