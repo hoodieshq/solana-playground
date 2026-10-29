@@ -9,6 +9,7 @@ import { runExample } from "../model/example";
 import { recentProjects } from "../model/recent";
 import { useSessionRetry } from "../model/session-retry";
 import { useVisit } from "../model/use-visit";
+import { needsSessionRetry } from "../model/visit";
 import type { RecentEntry } from "../model/recent";
 import { useProgramCount } from "../model/use-program-count";
 import { homeTelemetry } from "../model/telemetry";
@@ -58,9 +59,7 @@ const useStart = (onContinue: () => void): HomeStart | null => {
   // A failed session check with no project hangs the visit: retry it, and
   // never fall back to the example, whose build could start for someone
   // signed in
-  const retry = useSessionRetry(
-    names?.length === 0 && PgSession.readState === "failed"
-  );
+  const retry = useSessionRetry(needsSessionRetry(names, PgSession.readState));
   if (retry.kind === "exhausted") {
     return {
       kind: "retry",

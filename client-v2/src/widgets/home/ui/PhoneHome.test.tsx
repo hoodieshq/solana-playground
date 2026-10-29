@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -45,6 +46,7 @@ const session = vi.hoisted(() => ({
   get: vi.fn(),
   onDidChange: vi.fn(),
   readState: "answered" as "unread" | "failed" | "answered",
+  refresh: vi.fn(),
   whenRead: vi.fn(),
 }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
@@ -87,6 +89,7 @@ beforeEach(() => {
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
   session.readState = "answered";
+  session.refresh.mockReset().mockResolvedValue(undefined);
   session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgFramework.get.mockReset().mockReturnValue({
     defaultOpenFile: "/src/lib.rs",
@@ -349,4 +352,31 @@ it("toasts an example that cannot be made, and counts nothing", async () => {
   expect(events("home_example_run")).toEqual([]);
   expect(events("home_quickstart_opened")).toEqual([]);
   expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
+});
+
+it("offers Try again above the quick starts once a failed check has spent its re-reads", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    session.readState = "failed";
+    const { home } = draw();
+    await home.findByText("3 tutorials, 34 programs");
+    expect(titles(home)[0]).toBe(
+      "New Anchor projectA working starter you shape with the assistant"
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    for (let i = 0; i < 4; i++) {
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+      });
+    }
+    fireEvent.click(home.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(events("home_session_retried")).toEqual([{}]));
+    expect(titles(home).some((t) => t?.startsWith("Try an example"))).toBe(
+      false
+    );
+  } finally {
+    vi.useRealTimers();
+  }
 });

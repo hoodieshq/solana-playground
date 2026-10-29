@@ -20,6 +20,15 @@ export const visitOf = (
   return session === "answered" ? "first" : "unknown";
 };
 
+/**
+ * Whether the visit hangs on a failed account check, so Home retries it:
+ * no project in the browser to lead with, and a read that failed
+ */
+export const needsSessionRetry = (
+  names: readonly string[] | undefined,
+  session: SessionSeen
+) => names?.length === 0 && session === "failed";
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -35,6 +44,13 @@ if (import.meta.vitest) {
 
     it("is unknown before the list loads", () => {
       expect(visitOf(undefined, "answered")).toBe("unknown");
+    });
+
+    it("retries the check only when a failed read is all there is to go on", () => {
+      expect(needsSessionRetry([], "failed")).toBe(true);
+      expect(needsSessionRetry(["a"], "failed")).toBe(false);
+      expect(needsSessionRetry(undefined, "failed")).toBe(false);
+      expect(needsSessionRetry([], "unread")).toBe(false);
     });
 
     it("is unknown until the session answers, and after a failed read", () => {

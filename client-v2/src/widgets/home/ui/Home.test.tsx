@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -47,6 +48,7 @@ const session = vi.hoisted(() => ({
   get: vi.fn(),
   onDidChange: vi.fn(),
   readState: "answered" as "unread" | "failed" | "answered",
+  refresh: vi.fn(),
   whenRead: vi.fn(),
 }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
@@ -103,6 +105,7 @@ beforeEach(() => {
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
   session.readState = "answered";
+  session.refresh.mockReset().mockResolvedValue(undefined);
   session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgGlobal.buildLoading = false;
   sent = memoryProvider();
@@ -493,4 +496,28 @@ it("stops waiting for the terminal once the user opens another project", async (
     ])
   );
   expect(utils.PgCommand.build.execute).toHaveBeenCalledTimes(calls);
+});
+
+it("offers Try again, not the example, once a failed account check has spent its re-reads", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    session.readState = "failed";
+    const { home } = draw();
+    expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    for (let i = 0; i < 4; i++) {
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+      });
+    }
+    expect(session.refresh).toHaveBeenCalledTimes(5);
+    fireEvent.click(home.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(events("home_session_retried")).toEqual([{}]));
+    expect(session.refresh).toHaveBeenCalledTimes(6);
+    expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
 });

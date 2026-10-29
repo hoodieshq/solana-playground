@@ -156,7 +156,7 @@ const Recent = ({
     <h2 id="home-recent" className="text-caption text-muted-foreground">
       Pick up where you left off
     </h2>
-    <ul aria-labelledby="home-recent" className="flex flex-col gap-2">
+    <ul className="flex flex-col gap-2">
       {entries.map((entry) => (
         <li key={entry.name}>
           <ActionCard>

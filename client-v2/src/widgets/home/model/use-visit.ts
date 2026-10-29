@@ -12,7 +12,7 @@ const log = createLogger("home:visit");
 /**
  * The visit, for both Homes, kept current: the project list changes by a
  * switch, an init, sync's imports or another tab's delete, and the session
- * fires a change on a sign-in, a sign-out or any change in how its read went
+ * fires on any change to the user, to how its reads went, or to sign-in
  */
 export const useVisit = (): Visit => {
   useRenderOnChange(PgExplorer.onDidSwitchWorkspace);

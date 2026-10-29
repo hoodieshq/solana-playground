@@ -6,7 +6,7 @@ Gets a first-time visitor from Home to a running example in one press, a returni
 ## Requirements
 
 ### Requirement: Home offers the example on a first visit
-Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed (no answer, a 5xx, a 403, 408, 425 or 429), since that says nothing of who is signed in. A deployment with no sign-in configured answers with a 503 that says so, and a host with no auth route answers a page; both are answers (nobody is signed in), not failures. Once a read has answered, a later failed one does not take the example away.
+Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed (no answer, a 5xx, a 4xx other than 401 or 404, or JSON that does not parse), since that says nothing of who is signed in. A deployment with no sign-in configured answers with a 503 that says so, and a host with no auth route answers a page or a 404; these are answers (nobody is signed in), not failures. Once a read has answered, a later failed one does not take the example away.
 
 #### Scenario: First visit on desktop
 - **WHEN** Home opens in a browser with no project
@@ -21,8 +21,8 @@ Desktop Home SHALL show a section labelled "Try an example" above its three tile
 - **THEN** no "Try an example" region shows
 
 #### Scenario: Failed check retried (manual)
-- **WHEN** Home opens with no project, the session read fails, and the window regains focus or comes back online five times with the check still failing
-- **THEN** each of those re-reads the session (none while offline), no "Try an example" region shows, and after the fifth Home shows "We could not check your account." with a "Try again" button that re-reads it and counts `home_session_retried`
+- **WHEN** Home opens with no project, the session read fails, and the check keeps failing
+- **THEN** it re-reads once two seconds later and then on each focus or return online (none while offline), five reads in all; no "Try an example" region shows; after the fifth Home shows "We could not check your account." with a "Try again" button, which re-reads it, counts `home_session_retried` and stays until a read answers
 
 #### Scenario: Sign-in not configured (manual)
 - **WHEN** Home opens with no project on a deployment whose auth route answers "Authentication is not configured"
@@ -73,7 +73,7 @@ While a build runs on the Build stage's "Nothing built yet" surface, the surface
 - **THEN** the Build stage shows "12 s" and not the slow-build line
 
 ### Requirement: Home counts the first run and recent work
-The `home` slice SHALL emit `home_example_run` with `outcome` `created`, `opened` or `current` (the example was already open) when "Run it" or the phone's example quick start succeeds, and `home_recent_opened` with `kind` `project`, `tutorial` or `current` when a "Pick up where you left off" entry opens. `home_quickstart_opened` SHALL accept the id `example`.
+The `home` slice SHALL emit `home_example_run` with `outcome` `created`, `opened` or `current` (the example was already open) when "Run it" or the phone's example quick start succeeds, and `home_recent_opened` with `kind` `project`, `tutorial` or `current` when a "Pick up where you left off" entry opens. `home_quickstart_opened` SHALL accept the id `example`, and `home_session_retried` SHALL be emitted when "Try again" is pressed after the account check kept failing.
 
 #### Scenario: Example created (manual)
 - **WHEN** "Run it" creates the example

@@ -13,59 +13,98 @@ const wake = async (event: "focus" | "online") => {
   });
 };
 
+/** The first automatic re-read, two seconds after the failure */
+const firstRetry = () =>
+  act(async () => {
+    await vi.advanceTimersByTimeAsync(2_000);
+  });
+
 describe("widgets/home/model/session-retry", () => {
   let online: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
+    vi.useFakeTimers();
     session.refresh.mockReset().mockResolvedValue(undefined);
     online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
   });
-  afterEach(() => online.mockRestore());
+  afterEach(() => {
+    online.mockRestore();
+    vi.useRealTimers();
+  });
 
   it("does nothing while inactive", async () => {
     const { result } = renderHook(() => useSessionRetry(false));
+    await firstRetry();
     await wake("focus");
     expect(result.current).toEqual({ kind: "none" });
     expect(session.refresh).not.toHaveBeenCalled();
   });
 
-  it("re-reads on focus and when back online, five times, then offers a retry", async () => {
+  it("re-reads once on its own, then on focus and online, five in all, then offers a retry", async () => {
     const { result } = renderHook(() => useSessionRetry(true));
     expect(result.current.kind).toBe("waiting");
 
-    for (const event of [
-      "focus",
-      "online",
-      "focus",
-      "online",
-      "focus",
-    ] as const) {
+    await firstRetry();
+    expect(session.refresh).toHaveBeenCalledTimes(1);
+    for (const event of ["focus", "online", "focus", "online"] as const) {
       await wake(event);
     }
     expect(session.refresh).toHaveBeenCalledTimes(5);
     expect(result.current.kind).toBe("exhausted");
 
-    // Spent: a sixth wake reads nothing more
+    // Spent: a further wake reads nothing more
     await wake("focus");
     expect(session.refresh).toHaveBeenCalledTimes(5);
+  });
+
+  it("counts only the reads it starts", async () => {
+    let settle!: () => void;
+    session.refresh.mockReturnValueOnce(
+      new Promise<void>((resolve) => (settle = resolve))
+    );
+    const { result } = renderHook(() => useSessionRetry(true));
+    await firstRetry();
+    // A focus and an online together while that read is in flight
+    await wake("focus");
+    await wake("online");
+    expect(session.refresh).toHaveBeenCalledTimes(1);
+    await act(async () => settle());
+    expect(result.current.kind).toBe("waiting");
   });
 
   it("pauses while offline", async () => {
     online.mockReturnValue(false);
     const { result } = renderHook(() => useSessionRetry(true));
+    await firstRetry();
     await wake("focus");
     expect(session.refresh).not.toHaveBeenCalled();
     expect(result.current.kind).toBe("waiting");
   });
 
-  it("re-reads on the user's retry and starts a fresh round", async () => {
+  it("keeps offering the retry when a pressed one fails again", async () => {
     const { result } = renderHook(() => useSessionRetry(true));
-    for (let i = 0; i < 5; i++) await wake("focus");
+    await firstRetry();
+    for (let i = 0; i < 4; i++) await wake("focus");
     const exhausted = result.current;
     if (exhausted.kind !== "exhausted") throw new Error("not exhausted");
 
     await act(() => exhausted.retry());
 
     expect(session.refresh).toHaveBeenCalledTimes(6);
+    expect(result.current.kind).toBe("exhausted");
+  });
+
+  it("starts a fresh round once the check has answered", async () => {
+    const { result, rerender } = renderHook(
+      ({ active }) => useSessionRetry(active),
+      { initialProps: { active: true } }
+    );
+    await firstRetry();
+    for (let i = 0; i < 4; i++) await wake("focus");
+    expect(result.current.kind).toBe("exhausted");
+
+    rerender({ active: false });
+    rerender({ active: true });
+
     expect(result.current.kind).toBe("waiting");
   });
 });

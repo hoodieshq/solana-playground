@@ -57,7 +57,8 @@ const buildWhenMounted = async (): Promise<BuildSkipped | null> => {
 export type ExampleRun = "created" | "opened" | "current";
 
 /**
- * Open the example, or make it and start its one build. The build is part
+ * Open the example, find it already open (`current`), or make it and start
+ * its one build. The build is part
  * of making it, never read back from storage, so a reload cannot start
  * another (spec `client-v2-first-run`). It is started,
  * not awaited: a build that fails is the Build stage's to show, and the

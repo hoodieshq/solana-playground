@@ -3,51 +3,67 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PgSession } from "@/features/auth";
 
 /**
- * How many automatic re-reads a failed session check gets before Home offers
- * "Try again" (the designers' Spec 08, retries and backoff: five, then a
- * manual retry)
+ * How many automatic re-reads a failed account check gets before Home
+ * offers "Try again": five, then a manual retry, as the designers' Spec 08
+ * section "Retries and backoff" asks
  */
 const AUTO_RETRIES = 5;
+
+/** How long after a failed check the first automatic re-read waits */
+const FIRST_RETRY_MS = 2_000;
 
 export type SessionRetry =
   /** Nothing to retry: the session answered, or Home leads anyway */
   | { kind: "none" }
-  /** Re-reading on its own, on focus and when the browser is back online */
+  /**
+   * Re-reading on its own: once shortly after the failure, then on each
+   * focus and each return online
+   */
   | { kind: "waiting" }
-  /** The automatic re-reads are spent; only the user's press reads again */
+  /**
+   * The automatic re-reads are spent; the line stays, and `retry` re-reads
+   * on a press until a read answers
+   */
   | { kind: "exhausted"; retry: () => Promise<void> };
 
 /**
- * Re-reads a failed session check while it decides what Home leads with
- * (`active`: no project in the browser, so the visit hangs on it). Each
- * focus or return online re-reads, up to `AUTO_RETRIES`; offline pauses, as
- * a re-read then could only fail again. After that, `retry` re-reads on a
- * press and starts a fresh round.
+ * Re-reads a failed account check while it decides what Home leads with
+ * (`active`: no project in the browser, so the visit hangs on it). It reads
+ * once after `FIRST_RETRY_MS`, then on each focus or return online, counting
+ * only reads it starts, up to `AUTO_RETRIES`; offline pauses, as a read then
+ * could only fail again. The count resets once the check answers.
  */
 export const useSessionRetry = (active: boolean): SessionRetry => {
   const [tries, setTries] = useState(0);
-  const reading = useRef(false);
+  const reading = useRef<Promise<void> | null>(null);
 
-  const reread = useCallback(async () => {
-    if (reading.current) return;
-    reading.current = true;
-    try {
-      await PgSession.refresh();
-    } finally {
-      reading.current = false;
-    }
+  /** Starts a read, or joins the one in flight; whether it started one */
+  const reread = useCallback(() => {
+    if (reading.current) return { started: false, done: reading.current };
+    const done = PgSession.refresh().finally(() => {
+      reading.current = null;
+    });
+    reading.current = done;
+    return { started: true, done };
   }, []);
+
+  useEffect(() => {
+    if (!active) setTries(0);
+  }, [active]);
 
   useEffect(() => {
     if (!active || tries >= AUTO_RETRIES) return;
     const onWake = () => {
       if (!navigator.onLine) return;
-      setTries((n) => n + 1);
-      void reread();
+      if (reread().started) setTries((n) => n + 1);
     };
+    const first = setTimeout(() => {
+      if (tries === 0) onWake();
+    }, FIRST_RETRY_MS);
     window.addEventListener("focus", onWake);
     window.addEventListener("online", onWake);
     return () => {
+      clearTimeout(first);
       window.removeEventListener("focus", onWake);
       window.removeEventListener("online", onWake);
     };
@@ -58,8 +74,7 @@ export const useSessionRetry = (active: boolean): SessionRetry => {
   return {
     kind: "exhausted",
     retry: async () => {
-      setTries(0);
-      await reread();
+      await reread().done;
     },
   };
 };

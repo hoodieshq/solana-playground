@@ -4,6 +4,7 @@ import { PgExplorer, PgFramework, PgTutorial } from "@/utils";
 import { runExample } from "../model/example";
 import { useSessionRetry } from "../model/session-retry";
 import { useVisit } from "../model/use-visit";
+import { needsSessionRetry } from "../model/visit";
 import { homeTelemetry } from "../model/telemetry";
 import type { PageTile } from "../model/telemetry";
 import { useProgramCount } from "../model/use-program-count";
@@ -87,8 +88,7 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   const programCount = useProgramCount();
   // As on desktop: retry a failed account check, never fall back to the example
   const retry = useSessionRetry(
-    PgExplorer.allWorkspaceNames?.length === 0 &&
-      PgSession.readState === "failed"
+    needsSessionRetry(PgExplorer.allWorkspaceNames, PgSession.readState)
   );
 
   const framework = newFramework();
