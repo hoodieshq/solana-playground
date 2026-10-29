@@ -392,6 +392,19 @@ describe("BaseDeploy", () => {
     );
   });
 
+  it("leaves out an Explorer link the explorer cannot open", () => {
+    const p = props({
+      built: true,
+      deploy: "idle",
+      history: [record("a", "5sig", "playnet")],
+    });
+    p.addressUrl = () => null;
+    p.txUrl = () => null;
+    render(<BaseDeploy {...p} />);
+
+    expect(screen.queryAllByRole("link")).toHaveLength(0);
+  });
+
   it("says an upgrade kept the program id, and what the deploy cost", () => {
     const upgraded: DeployRecord = {
       id: "a",

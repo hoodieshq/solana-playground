@@ -89,9 +89,12 @@ export interface BaseDeployProps {
   backup: boolean;
   /** Ask whether to deploy the last successful build */
   staleBuild: boolean;
-  /** An Explorer link that opens `cluster`, whatever is picked now */
-  addressUrl: (programId: string, cluster: string) => string;
-  txUrl: (signature: string, cluster: string) => string;
+  /**
+   * An Explorer link that opens `cluster`, whatever network is selected;
+   * `null` when the explorer cannot open it, and the link is left out
+   */
+  addressUrl: (programId: string, cluster: string) => string | null;
+  txUrl: (signature: string, cluster: string) => string | null;
   onDeploy: () => void;
   onSignIn: () => void;
   onSaveKeypair: () => void;
@@ -183,6 +186,8 @@ const DeployResult = ({
 }) => {
   const { upgradable, authority, programSize } = p.details;
   const network = networkName(latest.cluster);
+  const programUrl = p.addressUrl(latest.programId, latest.cluster);
+  const txUrl = latest.signature && p.txUrl(latest.signature, latest.cluster);
   return (
     <div
       role="status"
@@ -229,15 +234,17 @@ const DeployResult = ({
         <Button size="sm" variant="outline" onClick={p.onInteract}>
           Interact
         </Button>
-        <ExplorerLink
-          href={p.addressUrl(latest.programId, latest.cluster)}
-          label={`View latest deployment (${latest.programId}) on Explorer (${network})`}
-        >
-          View on Explorer ({network})
-        </ExplorerLink>
-        {latest.signature && (
+        {programUrl && (
           <ExplorerLink
-            href={p.txUrl(latest.signature, latest.cluster)}
+            href={programUrl}
+            label={`View latest deployment (${latest.programId}) on Explorer (${network})`}
+          >
+            View on Explorer ({network})
+          </ExplorerLink>
+        )}
+        {txUrl && (
+          <ExplorerLink
+            href={txUrl}
             label={`View latest deployment transaction (${latest.signature}) on Explorer (${network})`}
           >
             Transaction ({network})
@@ -252,6 +259,23 @@ const DeployResult = ({
         />
       )}
     </div>
+  );
+};
+
+/** A history row's Explorer link, left out when the explorer cannot open its network */
+const HistoryLink = ({ p, r }: { p: BaseDeployProps; r: DeployRecord }) => {
+  const href = p.addressUrl(r.programId, r.cluster);
+  if (!href) return null;
+  const network = networkName(r.cluster);
+  return (
+    <ExplorerLink
+      href={href}
+      // On a phone the link takes a row of its own, under the id
+      className="max-md:col-start-2 max-md:justify-self-start"
+      label={`View deployment (${r.programId}) on Explorer (${network})`}
+    >
+      Explorer ({network})
+    </ExplorerLink>
   );
 };
 
@@ -274,16 +298,7 @@ const History = ({ p }: { p: BaseDeployProps }) => (
               {new Date(r.at).toLocaleString()}
             </span>
           </span>
-          <ExplorerLink
-            href={p.addressUrl(r.programId, r.cluster)}
-            // On a phone the link takes a row of its own, under the id
-            className="max-md:col-start-2 max-md:justify-self-start"
-            label={`View deployment (${r.programId}) on Explorer (${networkName(
-              r.cluster
-            )})`}
-          >
-            Explorer ({networkName(r.cluster)})
-          </ExplorerLink>
+          <HistoryLink p={p} r={r} />
         </li>
       ))}
     </ul>

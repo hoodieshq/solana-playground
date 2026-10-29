@@ -14,7 +14,7 @@ export interface DeployRecord {
   programId: string;
   signature: string | null;
   at: number;
-  /** Lamports the paying wallet spent; absent on records kept before it was */
+  /** Lamports the paying wallets spent; absent when the finish reported none */
   cost?: number;
   /** The deploy upgraded a program already on the cluster */
   upgraded?: boolean;

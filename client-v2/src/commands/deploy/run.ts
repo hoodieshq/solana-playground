@@ -8,7 +8,7 @@ export interface DeployRunState {
   step: DeployStep | null;
   /** How much of the program the write step has sent, 0 to 100 */
   percent: number;
-  /** The run funds the wallet first, so "funding" is one of its steps */
+  /** The run tops the wallet up first, so "funding" is one of its steps */
   funds: boolean;
   /** The program exists on the cluster, so the last step upgrades it */
   upgrade: boolean;
@@ -18,7 +18,7 @@ export interface DeployRunState {
 export interface DeployResult {
   /** The deploy or upgrade transaction; `null` when the RPC returned none */
   signature: string | null;
-  /** Lamports the paying wallet spent on the run, fees included */
+  /** Lamports the paying wallets spent on the run, fees included */
   cost: number;
   upgraded: boolean;
 }
@@ -51,7 +51,7 @@ export class DeployFundingError extends Error {
   ) {
     super(
       detail.reason === "signed_out"
-        ? "Sign in with GitHub to request devnet SOL."
+        ? "Sign in with GitHub to request SOL from the faucet."
         : "Not enough SOL to deploy."
     );
     this.name = "DeployFundingError";
@@ -87,6 +87,14 @@ export class PgDeployRun {
     return PgDeployRun._answers;
   }
 
+  /**
+   * The last step the latest run reached; kept after the run ends, so a
+   * caller that catches the run's error can say where it stopped
+   */
+  static get lastStep(): DeployStep | null {
+    return PgDeployRun._lastStep;
+  }
+
   static onDidChange(cb: (state: DeployRunState) => void): Disposable {
     PgDeployRun._listeners.add(cb);
     return { dispose: () => PgDeployRun._listeners.delete(cb) };
@@ -100,18 +108,28 @@ export class PgDeployRun {
     answers: DeployAnswers,
     start: () => Promise<T>
   ): Promise<T> {
+    // Restored, not cleared: a run started inside another keeps its own
+    const outer = PgDeployRun._answers;
     PgDeployRun._answers = answers;
+    PgDeployRun._lastStep = null;
     try {
       return await start();
     } finally {
-      PgDeployRun._answers = null;
+      PgDeployRun._answers = outer;
     }
   }
 
   /** Record the run's progress; the deploy command alone calls it */
   static update(patch: Partial<DeployRunState>) {
-    PgDeployRun._state = { ...PgDeployRun._state, ...patch };
-    for (const cb of PgDeployRun._listeners) cb(PgDeployRun._state);
+    const prev = PgDeployRun._state;
+    const next = { ...prev, ...patch };
+    // The write step reports every chunk; a percent that did not move
+    // re-renders nothing
+    const keys = Object.keys(next) as Array<keyof DeployRunState>;
+    if (keys.every((k) => next[k] === prev[k])) return;
+    PgDeployRun._state = next;
+    if (next.step) PgDeployRun._lastStep = next.step;
+    for (const cb of PgDeployRun._listeners) cb(next);
   }
 
   /** Back to no run; the deploy command calls it when it ends */
@@ -122,6 +140,7 @@ export class PgDeployRun {
 
   private static _state: DeployRunState = IDLE;
   private static _answers: DeployAnswers | null = null;
+  private static _lastStep: DeployStep | null = null;
   private static readonly _listeners = new Set<
     (state: DeployRunState) => void
   >();

@@ -65,6 +65,7 @@ vi.mock("../../../hooks", () => ({
   useBlockExplorer: () => ({
     getAddressUrl: (id: string) => `https://explorer.test/address/${id}`,
     getTxUrl: (sig: string) => `https://explorer.test/tx/${sig}`,
+    opens: () => true,
   }),
   useProgramInfo: () => ({ onChain: null, pk: null }),
   useWallet: () => mocks.wallet.current,
@@ -294,5 +295,140 @@ describe("Deploy stage", () => {
       )
     );
     expect(screen.queryByLabelText("Keypair backup")).toBeNull();
+  });
+
+  it("keeps the failed-build question across a switch away and back", async () => {
+    mocks.wallet.current = pgWallet();
+    let answer: Promise<boolean> | undefined;
+    mocks.execute.mockImplementation(async () => {
+      answer = PgDeployRun.answers!.confirmStaleBuild();
+      await answer;
+    });
+    const first = render(<Deploy />);
+    await pressDeploy();
+    first.unmount();
+
+    render(<Deploy />);
+    expect(
+      screen.getByRole("dialog", { name: "Your last build failed" })
+    ).toBeTruthy();
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Deploy last build" }))
+    );
+
+    await expect(answer).resolves.toBe(true);
+  });
+
+  it("starts one deploy however often Deploy is pressed while it starts", async () => {
+    mocks.wallet.current = pgWallet();
+    let finish = () => {};
+    mocks.execute.mockImplementation(
+      () => new Promise<void>((resolve) => (finish = resolve))
+    );
+    render(<Deploy />);
+
+    await pressDeploy();
+    fireEvent.click(screen.getByRole("button", { name: "Deploying..." }));
+    await act(async () => finish());
+
+    expect(mocks.execute).toHaveBeenCalledOnce();
+  });
+
+  it("names the step a deploy failed at, after the run has reset", async () => {
+    mocks.wallet.current = pgWallet();
+    mocks.execute.mockImplementation(async () => {
+      PgDeployRun.update({ step: "write", percent: 40 });
+      PgDeployRun.reset();
+      throw new Error("write failed");
+    });
+    render(<Deploy />);
+
+    await pressDeploy();
+
+    const failed = sent.events.find((e) => e.name === "deploy_failed");
+    expect(failed?.params).toEqual({ cluster: "devnet", step: "write" });
+  });
+
+  it("saves the keypair from the backup line, and keeps the line when the save fails", async () => {
+    mocks.wallet.current = pgWallet();
+    mocks.execute.mockResolvedValue({
+      signature: "s",
+      cost: 1,
+      upgraded: false,
+    });
+    mocks.history = [
+      {
+        id: "a",
+        workspace: "counter",
+        cluster: "devnet",
+        programId: "Prog111",
+        signature: "s",
+        at: 1,
+      },
+    ];
+    render(<Deploy />);
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Redeploy to devnet" })
+      )
+    );
+
+    mocks.wallet.export.mockImplementationOnce(() => {
+      throw new Error("blocked");
+    });
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Save keypair" }))
+    );
+    expect(screen.getByLabelText("Keypair backup")).toBeTruthy();
+
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Save keypair" }))
+    );
+    expect(mocks.wallet.export).toHaveBeenCalledTimes(2);
+    expect(screen.queryByLabelText("Keypair backup")).toBeNull();
+    expect(events()).toContain("deploy_backup_saved");
+  });
+
+  it("offers no keypair backup for a wallet that is not the Playground's", async () => {
+    mocks.wallet.current = {
+      isPg: false,
+      publicKey: { toBase58: () => WALLET },
+    };
+    mocks.execute.mockResolvedValue({
+      signature: "s",
+      cost: 1,
+      upgraded: false,
+    });
+    render(<Deploy />);
+
+    await pressDeploy();
+
+    expect(events()).not.toContain("deploy_backup_shown");
+  });
+
+  it("signs in from the funding card, then deploys again", async () => {
+    mocks.wallet.current = pgWallet();
+    mocks.execute.mockRejectedValueOnce(
+      new DeployFundingError({
+        reason: "signed_out",
+        balance: 0,
+        needed: 1,
+        address: WALLET,
+        cause: null,
+      })
+    );
+    mocks.execute.mockResolvedValueOnce(undefined);
+    mocks.signIn.mockResolvedValue(undefined);
+    render(<Deploy />);
+
+    await pressDeploy();
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Sign in with GitHub" })
+      )
+    );
+
+    expect(mocks.signIn).toHaveBeenCalledOnce();
+    expect(mocks.execute).toHaveBeenCalledTimes(2);
   });
 });

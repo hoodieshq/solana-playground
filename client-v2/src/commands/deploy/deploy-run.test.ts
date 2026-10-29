@@ -76,7 +76,11 @@ vi.mock("../../utils", () => {
     PgWallet: { current: { publicKey: pk, isPg: true } },
     PgWeb3: {
       Keypair: { generate: () => ({ publicKey: pk }) },
-      BpfLoaderUpgradeableProgram: { getBufferAccountSize: (n: number) => n },
+      BpfLoaderUpgradeableProgram: {
+        getBufferAccountSize: (n: number) => n,
+        getProgramDataAccountSize: (n: number) => n + 45,
+        MINIMUM_EXTEND_PROGRAM_BYTES: 100,
+      },
       lamportsToSol: (l: number) => l / 1e9,
       solToLamports: (s: number) => s * 1e9,
       DEFAULT_MS_PER_SLOT: 1,
@@ -88,12 +92,16 @@ const answers = (stale = true) => ({
   confirmStaleBuild: vi.fn(async () => stale),
 });
 
+const subscriptions: Array<{ dispose: () => void }> = [];
+
 /** Every step the run reported, in order, without repeats */
 const recordSteps = () => {
   const steps: Array<DeployRunState["step"]> = [];
-  PgDeployRun.onDidChange(({ step }) => {
-    if (step && steps.at(-1) !== step) steps.push(step);
-  });
+  subscriptions.push(
+    PgDeployRun.onDidChange(({ step }) => {
+      if (step && steps.at(-1) !== step) steps.push(step);
+    })
+  );
   return steps;
 };
 
@@ -103,11 +111,13 @@ const runChecks = async () => {
 };
 
 beforeEach(() => {
+  for (const sub of subscriptions.splice(0)) sub.dispose();
   vi.clearAllMocks();
   balance.mockResolvedValue(10_000_000_000);
   Object.assign(PgProgramInfo, {
     lastBuildFailed: false,
     importedProgram: { bytes: new Uint8Array(100) },
+    onChain: { deployed: false, upgradable: true, programDataLen: 0 },
   });
 });
 
@@ -122,9 +132,9 @@ describe("deploy run", () => {
   it("reports buffer, write and deploy in order, and returns the deploy's result", async () => {
     const steps = recordSteps();
     balance
-      .mockResolvedValueOnce(10_000_000_000) // what the deploy needs
-      .mockResolvedValueOnce(10_000_000_000) // before
-      .mockResolvedValueOnce(9_000_000_000); // after
+      .mockResolvedValueOnce(10_000_000_000) // read against what it needs
+      .mockResolvedValueOnce(10_000_000_000) // before the run spends
+      .mockResolvedValueOnce(9_000_000_000); // after it
 
     const result = await deploy.handle!({} as never);
 
@@ -223,5 +233,43 @@ describe("deploy run", () => {
     await runChecks();
 
     expect(waitForInput).toHaveBeenCalledOnce();
+  });
+
+  it("upgrades a program that is already on the cluster", async () => {
+    Object.assign(PgProgramInfo, {
+      onChain: { deployed: true, upgradable: true, programDataLen: 1000 },
+    });
+    const upgrades: boolean[] = [];
+    subscriptions.push(
+      PgDeployRun.onDidChange(({ upgrade }) => upgrades.push(upgrade))
+    );
+
+    const result = await deploy.handle!({} as never);
+
+    expect(result).toMatchObject({ signature: "sig-upgrade", upgraded: true });
+    expect(upgrades).toContain(true);
+  });
+
+  it("goes back to no run after a failure", async () => {
+    const { BpfLoaderUpgradeable } = await import("./bpf-loader-upgradeable");
+    vi.mocked(BpfLoaderUpgradeable.deployProgram).mockRejectedValue(
+      new Error("rpc down")
+    );
+
+    await expect(deploy.handle!({} as never)).rejects.toThrow();
+
+    expect(PgDeployRun.state.step).toBeNull();
+    expect(PgDeployRun.lastStep).toBe("deploy");
+    vi.mocked(BpfLoaderUpgradeable.deployProgram).mockResolvedValue(
+      "sig-deploy"
+    );
+  });
+
+  it("deploys the last successful build when the stage says yes", async () => {
+    lastBuildFailed();
+
+    await PgDeployRun.withAnswers(answers(true), runChecks);
+
+    expect(waitForInput).not.toHaveBeenCalled();
   });
 });

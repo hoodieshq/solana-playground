@@ -18,7 +18,7 @@ export type DeployFailedStep =
   | "deploy";
 
 type DeployEvents = {
-  /** A deploy started from the Deploy stage; `redeploy` when one exists. */
+  /** A deploy started from the Deploy stage; `redeploy` when the program is already on the cluster. */
   deploy_started: { cluster: DeployCluster; redeploy: boolean };
   /** A deploy started from the stage finished on `cluster`. */
   deploy_succeeded: { cluster: DeployCluster; redeploy: boolean };

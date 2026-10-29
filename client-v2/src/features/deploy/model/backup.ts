@@ -31,7 +31,13 @@ export const answerBackup = (address: string): void => {
     0,
     MAX_ADDRESSES
   );
-  localStorage.setItem(KEY, JSON.stringify(kept));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(kept));
+  } catch (e) {
+    // At the origin's quota the answer holds for this page only; the line
+    // comes back after a reload, which beats a second keypair download now
+    log.error(e, { context: { what: "store the backup answer" } });
+  }
 };
 
 if (import.meta.vitest) {
@@ -50,6 +56,20 @@ if (import.meta.vitest) {
       for (let i = 0; i <= MAX_ADDRESSES; i++) answerBackup(`W${i}`);
       expect(isBackupAnswered("W0")).toBe(false);
       expect(isBackupAnswered(`W${MAX_ADDRESSES}`)).toBe(true);
+    });
+
+    it("survives storage that refuses the write", () => {
+      const { vi } = import.meta.vitest!;
+      const setItem = vi
+        .spyOn(Storage.prototype, "setItem")
+        .mockImplementation(() => {
+          throw new DOMException("full", "QuotaExceededError");
+        });
+      try {
+        expect(() => answerBackup("A")).not.toThrow();
+      } finally {
+        setItem.mockRestore();
+      }
     });
 
     it("reads corrupted storage as no answers", () => {

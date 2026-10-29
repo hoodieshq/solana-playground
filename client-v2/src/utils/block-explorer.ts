@@ -11,7 +11,7 @@ interface BlockExplorerParam {
   /**
    * Get the cluster URL parameter to add to the explorer URLs.
    *
-   * @param cluster the network the link opens; the one picked now when omitted
+   * @param cluster the network the link opens; the selected network when omitted
    * @returns the cluster URL parameter
    */
   getClusterParam(cluster?: Cluster | null): string;
@@ -21,14 +21,14 @@ interface BlockExplorerParam {
    *
    * @param path URL path
    * @param value last path value
-   * @param cluster the network the link opens; the one picked now when omitted
+   * @param cluster the network the link opens; the selected network when omitted
    */
   getCommonUrl?(path: string, value: string, cluster?: Cluster | null): string;
   /**
    * Get address URL for the configured explorer.
    *
    * @param address public key
-   * @param cluster the network the link opens; the one picked now when omitted
+   * @param cluster the network the link opens; the selected network when omitted
    * @returns the address URL
    */
   getAddressUrl?(address: string, cluster?: Cluster | null): string;
@@ -36,7 +36,7 @@ interface BlockExplorerParam {
    * Get transaction URL for the configured explorer.
    *
    * @param txHash transaction signature
-   * @param cluster the network the link opens; the one picked now when omitted
+   * @param cluster the network the link opens; the selected network when omitted
    * @returns the transaction URL
    */
   getTxUrl?(txHash: string, cluster?: Cluster | null): string;
@@ -45,7 +45,13 @@ interface BlockExplorerParam {
 type BlockExplorer = Omit<
   Required<BlockExplorerParam>,
   "getClusterParam" | "getCommonUrl"
->;
+> & {
+  /**
+   * Whether a link can open `cluster`: mainnet needs no parameter, and a
+   * cluster the explorer has none for would otherwise open mainnet
+   */
+  opens(cluster: Cluster | null): boolean;
+};
 
 const derive = () => ({
   /** The current block explorer based on user's block explorer setting */
@@ -74,7 +80,9 @@ class _PgBlockExplorer {
       b.getCommonUrl!("address", address, cluster);
     b.getTxUrl ??= (txHash, cluster) => b.getCommonUrl!("tx", txHash, cluster);
 
-    return b as BlockExplorer;
+    const opens = (cluster: Cluster | null) =>
+      cluster === "mainnet-beta" || b.getClusterParam(cluster) !== "";
+    return Object.assign(b, { opens }) as BlockExplorer;
   }
 }
 

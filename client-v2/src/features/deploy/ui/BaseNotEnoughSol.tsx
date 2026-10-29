@@ -24,10 +24,13 @@ export interface BaseNotEnoughSolProps {
   onSignIn: () => void;
 }
 
-const REASON: Record<FundingFailure, string> = {
-  signed_out: "Sign in with GitHub to request devnet SOL.",
-  no_faucet: "This network has no faucet. Send SOL to the wallet below.",
-  airdrop_failed: "The faucet did not send SOL.",
+const reasonLine = (reason: FundingFailure, network: string) => {
+  const lines: Record<FundingFailure, string> = {
+    signed_out: `Sign in with GitHub to request ${network} SOL.`,
+    no_faucet: "This network has no faucet. Send SOL to the wallet below.",
+    airdrop_failed: "The faucet did not send SOL.",
+  };
+  return lines[reason];
 };
 
 /** The deploy stopped because the paying wallet holds too little SOL */
@@ -45,7 +48,7 @@ const BaseNotEnoughSol = (p: BaseNotEnoughSolProps) => {
           {formatSol(p.balance)} SOL.
         </span>
         <span>
-          {REASON[p.reason]}
+          {reasonLine(p.reason, network)}
           {p.cause && <span className="text-subtle"> {p.cause}</span>}
         </span>
         <span className="flex items-center gap-2 rounded-lg bg-surface-base px-3 py-1.5">

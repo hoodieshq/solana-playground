@@ -1,15 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { CliDeployGuide } from "@/features/cli-deploy";
 import type { GuideFrom } from "@/features/cli-deploy";
 
 import BaseDeploy from "./BaseDeploy";
-import type {
-  DeployDetails,
-  DeployPayer,
-  DeployStatus,
-  FundingStop,
-} from "./BaseDeploy";
+import type { DeployDetails, DeployPayer, DeployStatus } from "./BaseDeploy";
 import IdlActions from "./IdlActions";
 import {
   useBalance,
@@ -18,28 +13,11 @@ import {
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
-import {
-  PgCommand,
-  PgConnection,
-  PgExplorer,
-  PgGlobal,
-  PgProgramInfo,
-  PgWallet,
-} from "../../../utils";
+import { PgConnection, PgExplorer, PgGlobal, PgWallet } from "../../../utils";
 import type { Cluster } from "../../../utils";
-import {
-  DeployCancelledError,
-  DeployFundingError,
-  PgDeployRun,
-} from "../../../commands/deploy/run";
-import type { DeployStep } from "../../../commands/deploy/run";
 import { isSignInFailure, PgSession } from "@/features/auth";
-import {
-  answerBackup,
-  deployTelemetry,
-  isBackupAnswered,
-  useDeployRun,
-} from "@/features/deploy";
+import { PgStageDeploy, useDeployRun, useStageDeploy } from "@/features/deploy";
+import type { StageDeployState } from "@/features/deploy";
 import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { PgDeployHistory } from "../state/deploy-history";
@@ -53,48 +31,44 @@ const log = createLogger("flow:deploy");
 const readHistory = () =>
   PgDeployHistory.list(PgExplorer.currentWorkspaceName ?? "");
 
-/** How the stage's last run stopped short of a deploy, when it did */
-type Stop =
-  | { kind: "funding"; detail: FundingStop }
-  | { kind: "cancelled" }
-  | null;
-
 /**
  * A second click on Deploy while one is already running pauses it
  * (`deployState` becomes "paused") rather than starting a new one, which
  * upstream's sidebar exposes as an explicit "Continue"/pause toggle. Flow
  * does not offer that control, so the stage holds the button while a deploy
- * is "running" instead. A run the user cancelled is not a failure.
+ * is starting or "running" instead. A run the user cancelled is not a
+ * failure.
  */
 const deployStatus = (
   deployState: unknown,
   flow: FlowState,
-  stop: Stop
+  stage: StageDeployState
 ): DeployStatus => {
-  if (deployState === "loading") return "running";
-  if (flow.deploy === "failed" && stop?.kind !== "cancelled") return "failed";
+  if (deployState === "loading" || stage.starting) return "running";
+  if (flow.deploy === "failed" && stage.stop?.kind !== "cancelled") {
+    return "failed";
+  }
   return "idle";
 };
 
 /**
- * Connect the Playground wallet a stage deploy pays from, without a dialog:
- * the current account, else the first, else a new one. Resolves once it is
- * `PgWallet.current`, which is derived asynchronously: the deploy's own
- * wallet check would otherwise ask in the terminal.
+ * Sign in for the faucet, then run the deploy the funding card stopped. A
+ * failed sign-in shows on the account row, which `PgSession` updates.
  */
-const ensurePlaygroundWallet = async () => {
-  if (PgWallet.current) return;
-  const connected = new Promise<void>((resolve) => {
-    const sub = PgWallet.onDidChangeCurrent((current) => {
-      if (!current) return;
-      // The listener can fire before `onDidChangeCurrent` returns
-      queueMicrotask(() => sub.dispose());
-      resolve();
-    });
-  });
-  if (PgWallet.accounts.length === 0) PgWallet.add();
-  else PgWallet.switch(Math.max(PgWallet.currentIndex, 0));
-  await connected;
+const signInThenDeploy = async () => {
+  try {
+    await PgSession.signIn();
+  } catch (error) {
+    if (isSignInFailure(error)) {
+      log.info("sign-in from the deploy stage failed", {
+        context: { error: String(error) },
+      });
+      return;
+    }
+    reportButtonFailure("sign in")(error);
+    return;
+  }
+  await PgStageDeploy.start();
 };
 
 /** The Deploy stage, connected: the flow, the history, the chain, commands */
@@ -104,11 +78,7 @@ const Deploy = () => {
   // on every switch, and no event fires to fill it again.
   const [history, setHistory] = useState<DeployRecord[]>(readHistory);
   const [guide, setGuide] = useState<GuideFrom | null>(null);
-  const [stop, setStop] = useState<Stop>(null);
-  const [staleAnswer, setStaleAnswer] = useState<
-    ((deploy: boolean) => void) | null
-  >(null);
-  const [backupFor, setBackupFor] = useState<string | null>(null);
+  const stage = useStageDeploy();
   const explorer = useBlockExplorer();
   const programInfo = useProgramInfo();
   const run = useDeployRun();
@@ -116,10 +86,6 @@ const Deploy = () => {
   const balance = useBalance();
   const deployState = useRenderOnChange(PgGlobal.onDidChangeDeployState);
   useRenderOnChange(PgConnection.onDidChangeCluster);
-
-  // The step a run was on when it threw; the run state is reset by then
-  const lastStep = useRef<DeployStep | null>(null);
-  if (run.step) lastStep.current = run.step;
 
   useEffect(() => {
     const refresh = () => setHistory(readHistory());
@@ -152,112 +118,20 @@ const Deploy = () => {
       }
     : null;
 
-  const deploy = () => {
-    setStop(null);
-    setBackupFor(null);
-    lastStep.current = null;
-    // Interact's deployment switcher may have pointed the project at an
-    // imported id; redeploying always targets the project's own key,
-    // never whatever Interact last selected.
-    PgProgramInfo.update({ customPk: null });
-
-    const cluster: Cluster | null = PgConnection.cluster;
-    const redeploy = deployed;
-    if (cluster) deployTelemetry.track("deploy_started", { cluster, redeploy });
-
-    ensurePlaygroundWallet()
-      .then(() =>
-        PgDeployRun.withAnswers(
-          {
-            confirmStaleBuild: () =>
-              new Promise<boolean>((resolve) =>
-                setStaleAnswer(() => (answer: boolean) => {
-                  setStaleAnswer(null);
-                  resolve(answer);
-                })
-              ),
-          },
-          () => PgCommand.deploy.execute()
-        )
-      )
-      .then((result) => {
-        if (!result) return;
-        if (cluster) {
-          deployTelemetry.track("deploy_succeeded", { cluster, redeploy });
-        }
-        const paidBy = PgWallet.current;
-        if (paidBy?.isPg) {
-          const address = paidBy.publicKey.toBase58();
-          if (!isBackupAnswered(address)) {
-            setBackupFor(address);
-            deployTelemetry.track("deploy_backup_shown", {});
-          }
-        }
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DeployCancelledError) {
-          setStop({ kind: "cancelled" });
-          return;
-        }
-        if (error instanceof DeployFundingError) {
-          setStop({ kind: "funding", detail: error.detail });
-          if (cluster) {
-            deployTelemetry.track("deploy_sol_needed_shown", {
-              cluster,
-              reason: error.detail.reason,
-            });
-            deployTelemetry.track("deploy_failed", {
-              cluster,
-              step: "funding",
-            });
-          }
-          return;
-        }
-        if (cluster) {
-          deployTelemetry.track("deploy_failed", {
-            cluster,
-            step: lastStep.current ?? "checks",
-          });
-        }
-        reportButtonFailure("deploy")(error);
-      });
-  };
-
-  const signIn = () => {
-    PgSession.signIn()
-      // Signed in, the funding the card asked for goes ahead on its own
-      .then(deploy)
-      .catch((error: unknown) => {
-        // `PgSession.signInState` holds every failure and the account row
-        // shows it; `auth` telemetry has its reason
-        if (isSignInFailure(error)) {
-          log.info("sign-in from the deploy stage failed", {
-            context: { error: String(error) },
-          });
-          return;
-        }
-        log.error(error, { report: true, context: { from: "deploy" } });
-      });
-  };
-
-  const backupAddress = wallet?.publicKey.toBase58() ?? null;
-  const answerBackupLine = (save: boolean) => {
-    if (!backupAddress) return;
-    if (save) {
-      try {
-        PgWallet.export();
-      } catch (error) {
-        reportButtonFailure("save the keypair")(error);
-        return;
-      }
+  const saveKeypair = () => {
+    try {
+      PgWallet.export();
+    } catch (error) {
+      reportButtonFailure("save the keypair")(error);
+      return;
     }
-    answerBackup(backupAddress);
-    deployTelemetry.track(
-      save ? "deploy_backup_saved" : "deploy_backup_dismissed",
-      {}
-    );
-    setBackupFor(null);
+    PgStageDeploy.answerBackup(true);
   };
+
+  // A record's cluster is whatever the browser stored; an explorer that
+  // cannot open it gets no link rather than one to mainnet
+  const linkTo = (cluster: string, url: (c: Cluster) => string) =>
+    explorer.opens(cluster as Cluster) ? url(cluster as Cluster) : null;
 
   const built = flow.build === "done";
   const programId = programInfo.pk?.toBase58() ?? null;
@@ -267,26 +141,29 @@ const Deploy = () => {
       <BaseDeploy
         cluster={PgConnection.cluster}
         built={built}
-        deploy={deployStatus(deployState, flow, stop)}
+        deploy={deployStatus(deployState, flow, stage)}
         programId={programId}
         details={details}
         history={history}
         payer={payer}
         run={run}
-        funding={stop?.kind === "funding" ? stop.detail : null}
-        backup={backupFor !== null && backupFor === backupAddress}
-        staleBuild={staleAnswer !== null}
+        funding={stage.stop?.kind === "funding" ? stage.stop.detail : null}
+        backup={
+          stage.backupFor !== null &&
+          stage.backupFor === wallet?.publicKey.toBase58()
+        }
+        staleBuild={stage.askingStaleBuild}
         addressUrl={(id, cluster) =>
-          explorer.getAddressUrl(id, cluster as Cluster)
+          linkTo(cluster, (c) => explorer.getAddressUrl(id, c))
         }
         txUrl={(signature, cluster) =>
-          explorer.getTxUrl(signature, cluster as Cluster)
+          linkTo(cluster, (c) => explorer.getTxUrl(signature, c))
         }
-        onDeploy={deploy}
-        onSignIn={signIn}
-        onSaveKeypair={() => answerBackupLine(true)}
-        onDismissBackup={() => answerBackupLine(false)}
-        onStaleBuildAnswer={(answer) => staleAnswer?.(answer)}
+        onDeploy={() => void PgStageDeploy.start()}
+        onSignIn={() => void signInThenDeploy()}
+        onSaveKeypair={saveKeypair}
+        onDismissBackup={() => PgStageDeploy.answerBackup(false)}
+        onStaleBuildAnswer={(answer) => PgStageDeploy.answerStaleBuild(answer)}
         onInteract={() => PgFlow.setStage("interact")}
         idlUpload={<IdlActions mode="upload" />}
         onOpenCliGuide={setGuide}

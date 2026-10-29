@@ -12,7 +12,10 @@ const LAMPORTS_PER_SIGNATURE = 5000;
  * the transaction's own bytes; an estimate needs no more precision
  */
 const WRITE_CHUNK_BYTES = 1000;
-/** Creating the buffer, extending the program data, and the deploy itself */
+/**
+ * Creating the buffer, extending the program data and the deploy itself,
+ * counted whether or not the extension is needed: the estimate rounds up
+ */
 const FIXED_TRANSACTIONS = 3;
 
 /**
@@ -20,6 +23,7 @@ const FIXED_TRANSACTIONS = 3;
  * or `null` when the program or the chain cannot be read. A first deploy
  * keeps the buffer's rent as the program's; an upgrade gets the buffer's
  * rent back and pays only for a larger program data account and the fees.
+ * The program account's own rent, about 0.001 SOL, is left out.
  */
 export const estimateDeployCost = async (): Promise<number | null> => {
   try {

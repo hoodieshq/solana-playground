@@ -194,8 +194,8 @@ export const createTools = (
     name: "deploy",
     description:
       "Deploy the compiled program to the configured cluster. Requires the " +
-      "user's approval. Costs SOL from the Playground wallet, which an " +
-      "airdrop funds on devnet and testnet when it is short.",
+      "user's approval. Costs SOL from the connected wallet; when it holds " +
+      "too little, the terminal asks the user whether to request an airdrop.",
     schema: { type: "object", properties: {}, additionalProperties: false },
     run: async () => {
       const { cluster } = bridge.getProjectContext();

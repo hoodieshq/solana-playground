@@ -234,13 +234,25 @@ const processDeploy = async (): Promise<DeployResult> => {
       await PgCommand.airdrop.execute(amount.toString());
     } catch (e) {
       if (!answers) throw e;
+      // The stage shows the faucet's answer on its card; the error itself
+      // already went to the terminal through the airdrop command
       throw short("airdrop_failed", e instanceof Error ? e.message : String(e));
     }
   }
 
-  // What the run costs is measured on the paying wallet from here on, so an
-  // airdrop above is not counted as spent
-  const balanceBefore = await connection.getBalance(wallet.publicKey);
+  // What the run costs is measured from here on, so an airdrop above is not
+  // counted as spent. A standard wallet hands SOL to the Playground wallet,
+  // which then pays: the cost is what both spent together.
+  const payers = standardWallet
+    ? [standardWallet.publicKey, pgWallet.publicKey]
+    : [wallet.publicKey];
+  const spendable = async () => {
+    const balances = await Promise.all(
+      payers.map((pk) => connection.getBalance(pk))
+    );
+    return balances.reduce((sum, b) => sum + b, 0);
+  };
+  const balanceBefore = await spendable();
   PgDeployRun.update({ step: "buffer" });
 
   // If deploying from a standard wallet, transfer the required lamports for
@@ -391,7 +403,7 @@ const processDeploy = async (): Promise<DeployResult> => {
   // Deploy
   PgDeployRun.update({ step: "deploy" });
   const signature = await (programExists ? upgrade() : deployNew());
-  const balanceAfter = await connection.getBalance(wallet.publicKey);
+  const balanceAfter = await spendable();
   return {
     signature: signature ?? null,
     cost: Math.max(0, balanceBefore - balanceAfter),

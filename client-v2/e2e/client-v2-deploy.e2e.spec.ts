@@ -10,7 +10,7 @@ const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 test("client-v2-deploy: A devnet record viewed on testnet", async ({
   seededPage: page,
 }) => {
-  // Testnet is picked now; its requests are refused, so CI never reaches
+  // Testnet is the selected network; its requests are refused, so CI never reaches
   // it: the cluster is read from the endpoint's URL, not from an answer
   await page.route("https://api.testnet.solana.com/**", (route) =>
     route.abort("connectionrefused")

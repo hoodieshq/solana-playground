@@ -11,6 +11,7 @@ import {
   PgWallet,
 } from "../../../../utils";
 import { estimateDeployCost } from "../../../../commands/deploy/estimate";
+import { networkName } from "@/features/deploy";
 import { PgLesson } from "../../../flow/lessons";
 
 /** A condensed view of the program's interface, cheaper than the whole IDL */
@@ -175,8 +176,7 @@ export const realBridge: PlaygroundBridge = {
   async quoteDeploy() {
     const cluster = PgConnection.cluster;
     return {
-      network:
-        cluster === "mainnet-beta" ? "mainnet" : cluster ?? "the network",
+      network: networkName(cluster),
       cost: await estimateDeployCost(),
     };
   },

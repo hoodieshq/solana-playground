@@ -8,7 +8,7 @@ vi.hoisted(() => {
   vi.stubGlobal("GLOBAL_SETTINGS", { default: {} });
 });
 
-// Testnet is the network picked now; every record below is from elsewhere
+// Testnet is the selected network; every record below is from elsewhere
 // (each explorer imports the `utils` barrel, `./index` from here)
 vi.mock("./index", async () => ({
   PgBlockExplorer: (await import("./block-explorer")).PgBlockExplorer,
@@ -30,7 +30,14 @@ describe("block explorers", () => {
     );
   });
 
-  it("open the network picked now when given none", () => {
+  it("say which networks they can open", () => {
+    expect(solanaExplorer.opens("devnet")).toBe(true);
+    expect(solanaExplorer.opens("mainnet-beta")).toBe(true);
+    expect(solscan.opens("localnet")).toBe(false);
+    expect(solanaExplorer.opens("playnet")).toBe(false);
+  });
+
+  it("open the selected network when given none", () => {
     expect(solanaExplorer.getTxUrl("sig")).toBe(
       "https://explorer.solana.com/tx/sig?cluster=testnet"
     );

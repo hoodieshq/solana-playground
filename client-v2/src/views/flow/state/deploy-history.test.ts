@@ -103,7 +103,7 @@ describe("PgDeployHistory.init wiring", () => {
     deployCallback!({ err: new Error("deploy failed") });
     expect(PgDeployHistory.list("w")).toHaveLength(0);
 
-    // A finish with no result (an older command) records a null signature
+    // A finish that reports no result records a null signature
     deployCallback!({ ok: undefined });
     const list = PgDeployHistory.list("w");
     expect(list).toHaveLength(1);

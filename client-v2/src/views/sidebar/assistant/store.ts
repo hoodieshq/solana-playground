@@ -45,7 +45,7 @@ export interface CommandApproval {
   effect: string;
   /**
    * The card's title, a question naming the program, the network and the
-   * cost; absent on cards restored from before it was asked
+   * cost; absent on a card saved without one, which falls back to its name
    */
   question?: string;
 }
