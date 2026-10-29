@@ -1,43 +1,45 @@
 /**
- * What leads Home, by visit (spec `client-v2-first-run`): `first` for a
- * browser known to hold no project with no one signed in, `return` once it
- * holds one, and `unknown` while the list has not loaded, the session has
- * not been read, or a signed-in account's projects are on their way by sync
+ * What leads Home, by visit (spec `client-v2-first-run`): `return` once the
+ * browser holds a project, `first` when it is known to hold none and the
+ * session has answered (signed in or not), and `unknown` while the list or
+ * the session has not, a failed read included: it says nothing of who is
+ * signed in or what sync will bring
  */
 export type Visit = "first" | "return" | "unknown";
 
-/** The session as far as the visit goes: not read yet, nobody, or someone */
-export type SessionSeen = "unread" | "out" | "in";
+/** The session as far as the visit goes: not read yet, failed, or answered */
+export type SessionSeen = "unread" | "failed" | "answered";
 
+/** A project in the browser wins over the session; then the session decides */
 export const visitOf = (
   names: readonly string[] | undefined,
   session: SessionSeen
 ): Visit => {
   if (!names) return "unknown";
   if (names.length) return "return";
-  return session === "out" ? "first" : "unknown";
+  return session === "answered" ? "first" : "unknown";
 };
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
   describe("widgets/home/model/visit", () => {
-    it("is a first visit with no project and no session", () => {
-      expect(visitOf([], "out")).toBe("first");
+    it("is a first visit with no project once the session has answered", () => {
+      expect(visitOf([], "answered")).toBe("first");
     });
 
     it("is a return visit once the browser holds a project", () => {
-      expect(visitOf(["a"], "out")).toBe("return");
-      expect(visitOf(["a"], "in")).toBe("return");
+      expect(visitOf(["a"], "answered")).toBe("return");
+      expect(visitOf(["a"], "failed")).toBe("return");
     });
 
-    it("is unknown before the list loads, or while an account's projects arrive", () => {
-      expect(visitOf(undefined, "out")).toBe("unknown");
-      expect(visitOf([], "in")).toBe("unknown");
+    it("is unknown before the list loads", () => {
+      expect(visitOf(undefined, "answered")).toBe("unknown");
     });
 
-    it("is unknown until the session has been read", () => {
+    it("is unknown until the session answers, and after a failed read", () => {
       expect(visitOf([], "unread")).toBe("unknown");
+      expect(visitOf([], "failed")).toBe("unknown");
     });
   });
 }

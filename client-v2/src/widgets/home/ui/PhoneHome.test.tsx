@@ -45,6 +45,7 @@ const session = vi.hoisted(() => ({
   get: vi.fn(),
   onDidChange: vi.fn(),
   hasRead: true,
+  readFailed: false,
   whenRead: vi.fn(),
 }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
@@ -87,6 +88,7 @@ beforeEach(() => {
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
   session.hasRead = true;
+  session.readFailed = false;
   session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgFramework.get.mockReset().mockReturnValue({
     defaultOpenFile: "/src/lib.rs",
@@ -284,7 +286,20 @@ it("switches to the project Continue names when another opened since Home drew i
   expect(onContinue).not.toHaveBeenCalled();
 });
 
-it("offers no example quick start to a signed-in account", async () => {
+it.each([
+  ["the session is unread", () => (session.hasRead = false)],
+  ["the session read failed", () => (session.readFailed = true)],
+])("offers no example quick start while %s", async (_, set) => {
+  set();
+  session.whenRead.mockReturnValue(new Promise(() => {}));
+  const { home } = draw();
+  await home.findByText("3 tutorials, 34 programs");
+  expect(titles(home)[0]).toBe(
+    "New Anchor projectA working starter you shape with the assistant"
+  );
+});
+
+it("offers the example to a signed-in account with no projects", async () => {
   session.get.mockReturnValue({
     id: "u1",
     name: "Ada",
@@ -294,6 +309,46 @@ it("offers no example quick start to a signed-in account", async () => {
   const { home } = draw();
   await home.findByText("3 tutorials, 34 programs");
   expect(titles(home)[0]).toBe(
-    "New Anchor projectA working starter you shape with the assistant"
+    "Try an exampleThe Anchor starter, built for you"
   );
+});
+
+it("opens the example another tab made since Home drew it, and builds nothing", async () => {
+  const { home } = draw();
+  utils.PgExplorer.allWorkspaceNames = ["anchor-example"];
+  fireEvent.click(home.getByRole("button", { name: /Try an example/ }));
+  await waitFor(() =>
+    expect(events("home_example_run")).toEqual([{ outcome: "opened" }])
+  );
+  expect(utils.PgExplorer.switchWorkspace).toHaveBeenCalledWith(
+    "anchor-example"
+  );
+  expect(utils.PgExplorer.createWorkspace).not.toHaveBeenCalled();
+  expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
+  expect(events("home_quickstart_opened")).toEqual([{ id: "example" }]);
+});
+
+it("goes back to the example when it is already open", async () => {
+  const { home, onContinue } = draw();
+  utils.PgExplorer.allWorkspaceNames = ["anchor-example"];
+  utils.PgExplorer.currentWorkspaceName = "anchor-example";
+  fireEvent.click(home.getByRole("button", { name: /Try an example/ }));
+  await waitFor(() =>
+    expect(events("home_example_run")).toEqual([{ outcome: "current" }])
+  );
+  expect(onContinue).toHaveBeenCalledTimes(1);
+  expect(utils.PgExplorer.switchWorkspace).not.toHaveBeenCalled();
+});
+
+it("toasts an example that cannot be made, and counts nothing", async () => {
+  utils.PgExplorer.createWorkspace.mockRejectedValueOnce(new Error("quota"));
+  const { home } = draw();
+  fireEvent.click(home.getByRole("button", { name: /Try an example/ }));
+  await waitFor(() => expect(utils.PgView.setToast).toHaveBeenCalled());
+  expect(logged.entries.map((e) => [e.ns, e.report])).toEqual([
+    ["home:actions", true],
+  ]);
+  expect(events("home_example_run")).toEqual([]);
+  expect(events("home_quickstart_opened")).toEqual([]);
+  expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
 });

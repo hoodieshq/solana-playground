@@ -47,6 +47,7 @@ const session = vi.hoisted(() => ({
   get: vi.fn(),
   onDidChange: vi.fn(),
   hasRead: true,
+  readFailed: false,
   whenRead: vi.fn(),
 }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
@@ -103,6 +104,7 @@ beforeEach(() => {
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
   session.hasRead = true;
+  session.readFailed = false;
   session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgGlobal.buildLoading = false;
   sent = memoryProvider();
@@ -418,17 +420,6 @@ it("tells the user when the example cannot be made, and counts nothing", async (
   expect(utils.PgCommand.build.execute).not.toHaveBeenCalled();
 });
 
-it("offers no example to a signed-in account whose projects have not arrived", () => {
-  session.get.mockReturnValue({
-    id: "u1",
-    name: "Ada",
-    image: null,
-    login: "ada",
-  });
-  const { home } = draw();
-  expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
-});
-
 it("reports a terminal that never mounted, and stops asking for it", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   try {
@@ -469,6 +460,23 @@ it("tells the user when a recent project is gone since Home drew it", async () =
 it("offers no example before the session has been read", () => {
   session.hasRead = false;
   session.whenRead.mockReturnValue(new Promise(() => {}));
+  const { home } = draw();
+  expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
+});
+
+it("offers the example to a signed-in account with no projects", () => {
+  session.get.mockReturnValue({
+    id: "u1",
+    name: "Ada",
+    image: null,
+    login: "ada",
+  });
+  const { home } = draw();
+  expect(home.getByRole("region", { name: "Try an example" })).toBeTruthy();
+});
+
+it("offers no example when the session read failed", () => {
+  session.readFailed = true;
   const { home } = draw();
   expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
 });

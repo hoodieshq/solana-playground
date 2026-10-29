@@ -2,6 +2,7 @@ import {
   AUTH_CHANNEL_NAME,
   AUTH_COMPLETE_ROUTE,
   AUTH_MESSAGE_TYPE,
+  AUTH_NOT_CONFIGURED,
   FLOW_MAX_AGE_SECONDS,
   SIGN_OUT_TIMEOUT_MS,
 } from "../config.mjs";
@@ -103,6 +104,19 @@ const IDLE: SignInState = { status: "idle" };
  * barrel reaches most of the app, and the circular-dependency plugin fails the
  * build on a cycle.
  */
+/**
+ * The auth route's 503 for a deployment with no sign-in configured. Only a
+ * JSON body can say so; any other 503 is an outage.
+ */
+const notConfigured = async (response: Response) => {
+  if (response.status !== 503) return false;
+  if (!response.headers?.get("content-type")?.includes("application/json")) {
+    return false;
+  }
+  const body = await response.json();
+  return body?.error === AUTH_NOT_CONFIGURED;
+};
+
 export class PgSession {
   static get(): SessionUser | null {
     return PgSession._user;
@@ -123,17 +137,30 @@ export class PgSession {
   }
 
   /**
-   * Settles once the session has been read: at once after any read, on the
-   * read in flight if there is one, or on a first read started here. It never
-   * reads again, so a caller deciding on `get()` waits for the page's own read
-   * without turning a later sign-in elsewhere into a change seen here, which
-   * the session effect would take for a sign-in of its own.
+   * Whether a session read has settled. It is true after a failed read too,
+   * which leaves `get()` null without meaning nobody is signed in; see
+   * `readFailed`.
    */
-  /** Whether the session has been read yet: before, `get()` says nothing */
   static get hasRead(): boolean {
     return PgSession._hasRead;
   }
 
+  /**
+   * Whether the last read failed (no answer, or a 5xx), so `get()` being null
+   * says nothing about who is signed in. A 4xx is an answer: nobody.
+   */
+  static get readFailed(): boolean {
+    return PgSession._readFailed;
+  }
+
+  /**
+   * Settles once the session has been read: at once after any read, on the
+   * read in flight if there is one, or on a first read started here. It never
+   * reads again, so a caller deciding on `get()` waits for the page's own read
+   * without turning a later sign-in elsewhere into a change seen here, which
+   * the session effect would take for a sign-in of its own. It never rejects:
+   * a failed read settles too, with `readFailed` set.
+   */
   static whenRead(): Promise<void> {
     if (PgSession._hasRead) return Promise.resolve();
     return PgSession._reading ?? PgSession.refresh();
@@ -141,6 +168,7 @@ export class PgSession {
 
   private static async _read() {
     let next: SessionUser | null = null;
+    let failed = false;
 
     try {
       const response = await fetch("/api/auth/get-session", {
@@ -157,7 +185,11 @@ export class PgSession {
               login: body.user.login ?? null,
             }
           : null;
+      } else if (await notConfigured(response)) {
+        // This deployment has no sign-in, so nobody is signed in: an answer
+        log.debug("sign-in is not configured here");
       } else if (response.status >= 500) {
+        failed = true;
         log.error(new Error(`session read answered ${response.status}`), {
           report: true,
           context: { status: response.status },
@@ -168,10 +200,12 @@ export class PgSession {
         });
       }
     } catch (error) {
+      failed = true;
       log.error(error, { report: true, context: { step: "refresh" } });
     }
 
     PgSession._hasRead = true;
+    PgSession._readFailed = failed;
     PgSession._set(next);
   }
 
@@ -419,6 +453,7 @@ export class PgSession {
   /** Test seam: set the user without a network round trip */
   static async refreshWith(user: SessionUser | null) {
     PgSession._hasRead = true;
+    PgSession._readFailed = false;
     PgSession._set(user);
   }
 
@@ -440,6 +475,7 @@ export class PgSession {
     PgSession._pending = undefined;
     PgSession._signInState = IDLE;
     PgSession._hasRead = false;
+    PgSession._readFailed = false;
     PgSession._reading = undefined;
   }
 
@@ -453,6 +489,7 @@ export class PgSession {
   private static _pending: Promise<void> | undefined;
   /** A session read has answered, so `get()` is what the server said */
   private static _hasRead = false;
+  private static _readFailed = false;
   private static _reading: Promise<void> | undefined;
   private static _signInState: SignInState = IDLE;
 
@@ -552,6 +589,53 @@ if (import.meta.vitest) {
 
         expect(request).toHaveBeenCalledTimes(1);
       });
+
+      it.each([
+        ["no answer", () => Promise.reject(new Error("offline")), true],
+        [
+          "a 503",
+          () =>
+            Promise.resolve({
+              ok: false,
+              status: 503,
+              headers: new Headers({ "content-type": "application/json" }),
+              json: async () => ({ error: "upstream" }),
+            }),
+          true,
+        ],
+        ["a 401", () => Promise.resolve({ ok: false, status: 401 }), false],
+        [
+          "a 503 saying sign-in is not configured",
+          () =>
+            Promise.resolve({
+              ok: false,
+              status: 503,
+              headers: new Headers({ "content-type": "application/json" }),
+              json: async () => ({ error: "Authentication is not configured" }),
+            }),
+          false,
+        ],
+        [
+          "nobody",
+          () =>
+            Promise.resolve({ ok: true, json: async () => ({ user: null }) }),
+          false,
+        ],
+      ])(
+        "marks a read that got %s as failed: %s",
+        async (_, answer, failed) => {
+          initLogger({ providers: [memoryProvider()] });
+          vi.spyOn(globalThis, "fetch").mockImplementation(
+            answer as unknown as typeof fetch
+          );
+
+          await PgSession.whenRead();
+
+          expect(PgSession.hasRead).toBe(true);
+          expect(PgSession.readFailed).toBe(failed);
+          expect(PgSession.get()).toBeNull();
+        }
+      );
 
       it("is signed out before any refresh", () => {
         expect(PgSession.get()).toBeNull();

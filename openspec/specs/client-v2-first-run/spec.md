@@ -6,14 +6,18 @@ Gets a first-time visitor from Home to a running example in one press, a returni
 ## Requirements
 
 ### Requirement: Home offers the example on a first visit
-Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and no one is signed in, with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists or a session is open, since a signed-in account's projects arrive by sync.
+Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed, since that says nothing of who is signed in.
 
 #### Scenario: First visit on desktop
 - **WHEN** Home opens in a browser with no project
 - **THEN** a region named "Try an example" with a "Run it" button shows above the "New project" tile
 
-#### Scenario: Signed in with nothing synced yet (manual)
-- **WHEN** Home opens with no project while a session is open
+#### Scenario: Signed in with no projects (manual)
+- **WHEN** Home opens with no project for a signed-in account
+- **THEN** the "Try an example" region shows
+
+#### Scenario: Session read failed (manual)
+- **WHEN** Home opens with no project and the session read got no answer or a 5xx
 - **THEN** no "Try an example" region shows
 
 #### Scenario: Return visit on desktop
@@ -43,7 +47,7 @@ Desktop Home SHALL show a section labelled "Pick up where you left off" above it
 - **THEN** that project or tutorial opens
 
 ### Requirement: Phone Home starts with the example on a first visit
-Phone Home SHALL offer "Try an example" as its first quick start when the browser holds no project and no one is signed in, opening it as "Run it" does; with a project open, "Continue {project}" SHALL stay first. It SHALL show at most three quick starts.
+Phone Home SHALL offer "Try an example" as its first quick start when the browser holds no project and the session has answered, opening it as "Run it" does; with a project open, "Continue {project}" SHALL stay first. It SHALL show at most three quick starts.
 
 #### Scenario: Phone, first visit
 - **WHEN** phone Home opens with no project
