@@ -51,7 +51,10 @@ export type HomeStart =
     };
 
 export interface BaseHomeProps {
-  /** `null` while the project list has not loaded */
+  /**
+   * `null` while the visit is unknown: the project list or the session not
+   * read yet, or a signed-in account's projects not arrived
+   */
   start: HomeStart | null;
   /** All of them: the first four are shown, the tiles count them all */
   tutorials: readonly HomeTutorial[];
@@ -72,9 +75,10 @@ export interface BaseHomeProps {
 const SHOWN_TUTORIALS = 4;
 
 /**
- * "Run it": the view's one brand action, so a `BrandButton`, which has no
- * busy state of its own (`AsyncButton` is a `Button`): it is kept here, so
- * a second press while the first runs does nothing.
+ * "Run it", the view's one brand action. Not an `AsyncButton`, which wraps
+ * `Button`: the brand look needs `BrandButton`, which has no busy state, so
+ * the busy flag is kept here and a second press while the first runs does
+ * nothing.
  */
 const RunButton = ({ onRun }: { onRun: () => Promise<void> }) => {
   const [running, setRunning] = useState(false);

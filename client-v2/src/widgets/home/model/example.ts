@@ -82,9 +82,10 @@ export const runExample = async (): Promise<ExampleRun> => {
   });
   // Not awaited: the example exists now, and the build is the Build stage's
   // to show, however long it runs. A compile error resolves (the stage lists
-  // it). The user leaving the example or pressing Build is no fault; a
-  // terminal that never mounted, or a rejection the stage may show as an
-  // unreached server but that could as well be a bug, the team hears of
+  // it), and the user leaving the example or pressing Build is no fault, so
+  // those are only noted. A terminal that never mounted is reported, and so
+  // is a rejection: the stage may show it as an unreached server, but it
+  // could as well be a bug
   buildWhenMounted().then(
     (skipped) => {
       if (skipped === "terminal-never-mounted") {

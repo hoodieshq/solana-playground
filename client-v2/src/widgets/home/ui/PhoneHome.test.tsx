@@ -41,7 +41,12 @@ const utils = vi.hoisted(() => ({
 }));
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
-const session = vi.hoisted(() => ({ get: vi.fn(), onDidChange: vi.fn() }));
+const session = vi.hoisted(() => ({
+  get: vi.fn(),
+  onDidChange: vi.fn(),
+  hasRead: true,
+  whenRead: vi.fn(),
+}));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
 import PhoneHome from "./PhoneHome";
 
@@ -81,6 +86,8 @@ beforeEach(() => {
   utils.PgFramework.all = [{ name: "Native" }, { name: "Anchor" }];
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
+  session.hasRead = true;
+  session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgFramework.get.mockReset().mockReturnValue({
     defaultOpenFile: "/src/lib.rs",
     getDefaultFiles: async () => ({ files }),

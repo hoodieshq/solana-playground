@@ -1,9 +1,7 @@
-import { useRenderOnChange } from "@/hooks";
-import { PgSession } from "@/features/auth";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgFramework, PgTutorial } from "@/utils";
 import { runExample } from "../model/example";
-import { visitOf } from "../model/visit";
+import { useVisit } from "../model/use-visit";
 import { homeTelemetry } from "../model/telemetry";
 import type { PageTile } from "../model/telemetry";
 import { useProgramCount } from "../model/use-program-count";
@@ -83,11 +81,7 @@ const openQuickstart = async (
 };
 
 const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
-  useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
-  useRenderOnChange(PgExplorer.onDidInit);
-  useRenderOnChange(PgExplorer.onDidChangeWorkspaceList);
-  useRenderOnChange(PgExplorer.onDidDeleteWorkspace);
-  useRenderOnChange(PgSession.onDidChange);
+  const visit = useVisit();
   const programCount = useProgramCount();
 
   const framework = newFramework();
@@ -96,9 +90,7 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
 
   const quickstarts: PhoneQuickstart[] = [];
   // The example leads only a first visit (`visitOf`)
-  if (
-    visitOf(PgExplorer.allWorkspaceNames, PgSession.get() !== null) === "first"
-  ) {
+  if (visit === "first") {
     quickstarts.push({
       id: "example",
       title: "Try an example",
@@ -132,7 +124,9 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
 
   return (
     <BasePhoneHome
-      quickstarts={quickstarts}
+      // `example` and `continue` exclude each other, so this cuts nothing
+      // today; it keeps the spec's "at most three" if that changes
+      quickstarts={quickstarts.slice(0, 3)}
       tutorialCount={PgTutorial.all.length}
       programCount={programCount}
       onQuickstart={async (quickstart) => {

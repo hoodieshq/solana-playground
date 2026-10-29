@@ -43,7 +43,12 @@ const utils = vi.hoisted(() => ({
 const UNMOUNTED = vi.hoisted(() => new Error("terminal unmounted"));
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => {} }));
-const session = vi.hoisted(() => ({ get: vi.fn(), onDidChange: vi.fn() }));
+const session = vi.hoisted(() => ({
+  get: vi.fn(),
+  onDidChange: vi.fn(),
+  hasRead: true,
+  whenRead: vi.fn(),
+}));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
 // Home only hands Start from scratch on; its own tests cover it
 vi.mock("@/features/new-project", () => ({
@@ -97,6 +102,8 @@ beforeEach(() => {
   });
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
+  session.hasRead = true;
+  session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgGlobal.buildLoading = false;
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
@@ -457,4 +464,11 @@ it("tells the user when a recent project is gone since Home drew it", async () =
   );
   expect(utils.PgExplorer.switchWorkspace).not.toHaveBeenCalled();
   expect(events("home_recent_opened")).toEqual([]);
+});
+
+it("offers no example before the session has been read", () => {
+  session.hasRead = false;
+  session.whenRead.mockReturnValue(new Promise(() => {}));
+  const { home } = draw();
+  expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
 });

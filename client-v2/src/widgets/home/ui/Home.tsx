@@ -1,14 +1,12 @@
 import { useState } from "react";
 
-import { PgSession } from "@/features/auth";
 import { StartFromScratch } from "@/features/new-project";
-import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgTutorial } from "@/utils";
 import { errorMessage } from "../lib/error-message";
 import { runExample } from "../model/example";
 import { recentProjects } from "../model/recent";
-import { visitOf } from "../model/visit";
+import { useVisit } from "../model/use-visit";
 import type { RecentEntry } from "../model/recent";
 import { useProgramCount } from "../model/use-program-count";
 import { homeTelemetry } from "../model/telemetry";
@@ -45,20 +43,12 @@ const openRecent = async (entry: RecentEntry, onContinue: () => void) => {
 };
 
 /**
- * What leads Home: the example on Spec 06's first visit (no project in the
- * browser and no session: a signed-in account's projects are on their way
- * by sync), recent work once there are projects, and nothing otherwise
- * (the list not loaded yet, or an account's projects not arrived)
+ * What leads Home, by `useVisit`: the example on a first visit, recent work
+ * once there are projects, and nothing while the visit is unknown
  */
 const useStart = (onContinue: () => void): HomeStart | null => {
-  useRenderOnChange(PgExplorer.onDidSwitchWorkspace);
-  useRenderOnChange(PgExplorer.onDidInit);
-  // Sync imports projects without a switch, and another tab deletes them
-  useRenderOnChange(PgExplorer.onDidChangeWorkspaceList);
-  useRenderOnChange(PgExplorer.onDidDeleteWorkspace);
-  useRenderOnChange(PgSession.onDidChange);
+  const visit = useVisit();
   const names = PgExplorer.allWorkspaceNames;
-  const visit = visitOf(names, PgSession.get() !== null);
   if (visit === "unknown" || !names) return null;
   if (visit === "first") {
     return {

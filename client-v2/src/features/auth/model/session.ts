@@ -129,6 +129,11 @@ export class PgSession {
    * without turning a later sign-in elsewhere into a change seen here, which
    * the session effect would take for a sign-in of its own.
    */
+  /** Whether the session has been read yet: before, `get()` says nothing */
+  static get hasRead(): boolean {
+    return PgSession._hasRead;
+  }
+
   static whenRead(): Promise<void> {
     if (PgSession._hasRead) return Promise.resolve();
     return PgSession._reading ?? PgSession.refresh();
