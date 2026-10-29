@@ -40,7 +40,7 @@ deploy logic drift, and the assistant's bridge must keep calling one command.
 ### D2. The run returns its signature and cost
 
 `processDeploy` already returns the final transaction's signature; `handle`
-returns `{ signature, cost, upgraded }`, cost being the paying wallet's
+returns `{ signature, cost, upgraded }`, cost being the paying wallets'
 balance before minus after. `PgDeployHistory.init` stores them. The bridge's
 `deploy()` reads the same result.
 

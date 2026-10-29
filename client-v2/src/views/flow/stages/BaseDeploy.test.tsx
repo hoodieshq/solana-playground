@@ -71,7 +71,9 @@ const props = (state: {
   details: state.details ?? NO_DETAILS,
   history: state.history,
   payer:
-    state.payer === undefined ? { address: WALLET, balance: 4.2 } : state.payer,
+    state.payer === undefined
+      ? { address: WALLET, balance: 4.2, playground: true }
+      : state.payer,
   run: state.run ?? IDLE_RUN,
   funding: state.funding ?? null,
   backup: state.backup ?? false,

@@ -59,6 +59,8 @@ export type DeployStatus = "idle" | "running" | "failed";
 export interface DeployPayer {
   address: string;
   balance: number | null;
+  /** The Playground wallet, not a connected one such as Phantom */
+  playground: boolean;
 }
 
 /** Why the last run could not fund its wallet */
@@ -133,9 +135,8 @@ const payerLine = (payer: DeployPayer | null) => {
   }
   const balance =
     payer.balance === null ? "" : ` · ${payer.balance.toFixed(2)} SOL`;
-  return `Deploys from your Playground wallet · ${shortKey(
-    payer.address
-  )}${balance}`;
+  const which = payer.playground ? "your Playground wallet" : "your wallet";
+  return `Deploys from ${which} · ${shortKey(payer.address)}${balance}`;
 };
 
 const description = (p: BaseDeployProps, latest: DeployRecord | null) => {

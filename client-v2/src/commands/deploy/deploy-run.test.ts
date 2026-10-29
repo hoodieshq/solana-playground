@@ -267,9 +267,70 @@ describe("deploy run", () => {
 
   it("deploys the last successful build when the stage says yes", async () => {
     lastBuildFailed();
+    const said = answers(true);
 
-    await PgDeployRun.withAnswers(answers(true), runChecks);
+    await expect(
+      PgDeployRun.withAnswers(said, runChecks)
+    ).resolves.toBeUndefined();
 
+    expect(said.confirmStaleBuild).toHaveBeenCalledOnce();
     expect(waitForInput).not.toHaveBeenCalled();
+  });
+
+  it("drops the stage's answers once its run ends, however it ends", async () => {
+    await PgDeployRun.withAnswers(answers(), async () => undefined);
+    expect(PgDeployRun.answers).toBeNull();
+
+    await PgDeployRun.withAnswers(answers(), async () => {
+      throw new Error("failed");
+    }).catch(() => undefined);
+    expect(PgDeployRun.answers).toBeNull();
+  });
+
+  it("counts what both wallets spent when a connected wallet pays", async () => {
+    const utils = await import("../../utils");
+    const pgPk = { toBase58: () => "PgWa11et", equals: () => true };
+    const before: Record<string, number> = {
+      [WALLET]: 5_000_000_000,
+      PgWa11et: 0,
+    };
+    const after: Record<string, number> = {
+      [WALLET]: 3_000_000_000,
+      PgWa11et: 1_500_000_000,
+    };
+    let reads = 0;
+    balance.mockImplementation(async (...args: unknown[]) => {
+      reads += 1;
+      const key = (args[0] as { toBase58: () => string }).toBase58();
+      // The first read checks the balance against what the deploy needs,
+      // the next two are the run's "before", the last two its "after"
+      return (reads <= 3 ? before : after)[key];
+    });
+    const standard = {
+      publicKey: utils.PgWallet.current!.publicKey,
+      isPg: false,
+    };
+    Object.assign(utils.PgWallet, {
+      current: standard,
+      accounts: [{}],
+      create: () => ({ publicKey: pgPk, isPg: true }),
+    });
+    Object.assign(utils.PgTx, { send: async () => "sig-transfer" });
+    Object.assign(utils.PgWeb3, {
+      SystemProgram: { transfer: () => ({}) },
+    });
+    const { BpfLoaderUpgradeable } = await import("./bpf-loader-upgradeable");
+    Object.assign(BpfLoaderUpgradeable, {
+      setBufferAuthority: async () => "sig-authority",
+    });
+
+    try {
+      const result = await deploy.handle!({} as never);
+      expect(result?.cost).toBe(500_000_000);
+    } finally {
+      Object.assign(utils.PgWallet, {
+        current: { publicKey: standard.publicKey, isPg: true },
+      });
+    }
   });
 });

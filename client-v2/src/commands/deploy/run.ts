@@ -35,7 +35,7 @@ export interface DeployAnswers {
 /** Why a run could not fund its wallet */
 export type FundingFailure = "signed_out" | "no_faucet" | "airdrop_failed";
 
-/** A run with answers stopped because the wallet holds too little SOL */
+/** A run with answers stopped: the wallet holds too little SOL and could not be funded (`reason`) */
 export class DeployFundingError extends Error {
   constructor(
     readonly detail: {

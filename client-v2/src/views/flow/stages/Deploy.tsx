@@ -115,6 +115,7 @@ const Deploy = () => {
     ? {
         address: wallet.publicKey.toBase58(),
         balance: typeof balance === "number" ? balance : null,
+        playground: wallet.isPg === true,
       }
     : null;
 
@@ -147,7 +148,13 @@ const Deploy = () => {
         history={history}
         payer={payer}
         run={run}
-        funding={stage.stop?.kind === "funding" ? stage.stop.detail : null}
+        funding={
+          stage.stop?.kind === "funding" &&
+          stage.stop.cluster === PgConnection.cluster &&
+          stage.stop.workspace === (PgExplorer.currentWorkspaceName ?? null)
+            ? stage.stop.detail
+            : null
+        }
         backup={
           stage.backupFor !== null &&
           stage.backupFor === wallet?.publicKey.toBase58()

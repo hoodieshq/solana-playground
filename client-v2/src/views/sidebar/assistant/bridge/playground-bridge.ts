@@ -14,6 +14,9 @@ import { estimateDeployCost } from "../../../../commands/deploy/estimate";
 import { networkName } from "@/features/deploy";
 import { PgLesson } from "../../../flow/lessons";
 
+/** How long the deploy approval waits on its cost estimate */
+const QUOTE_TIMEOUT_MS = 3000;
+
 /** A condensed view of the program's interface, cheaper than the whole IDL */
 export interface IdlSummary {
   name: string;
@@ -177,7 +180,13 @@ export const realBridge: PlaygroundBridge = {
     const cluster = PgConnection.cluster;
     return {
       network: networkName(cluster),
-      cost: await estimateDeployCost(),
+      // The card waits on this; a stalled server leaves the cost out
+      cost: await Promise.race([
+        estimateDeployCost(),
+        new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), QUOTE_TIMEOUT_MS)
+        ),
+      ]),
     };
   },
 

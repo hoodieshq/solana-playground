@@ -7,11 +7,11 @@ const log = createLogger("deploy:estimate");
 /** The fee of one signature, in lamports */
 const LAMPORTS_PER_SIGNATURE = 5000;
 /**
- * Program bytes one write transaction carries, rounded down from
- * `BpfLoaderUpgradeable.loadBuffer`'s chunk, which is the packet size less
- * the transaction's own bytes; an estimate needs no more precision
+ * Program bytes one write transaction carries; kept at or below the chunk
+ * `BpfLoaderUpgradeable.loadBuffer` writes (the packet size less the
+ * transaction's own bytes), so the write count, and the fee, round up
  */
-const WRITE_CHUNK_BYTES = 1000;
+const WRITE_CHUNK_BYTES = 900;
 /**
  * Creating the buffer, extending the program data and the deploy itself,
  * counted whether or not the extension is needed: the estimate rounds up
@@ -55,7 +55,7 @@ export const estimateDeployCost = async (): Promise<number | null> => {
     return (onChain.deployed ? 0 : bufferRent) + extensionRent + fees;
   } catch (e) {
     // The approval card leaves the cost out; the deploy itself is unaffected
-    log.info("could not estimate the deploy cost", {
+    log.warn("could not estimate the deploy cost", {
       context: { error: String(e) },
     });
     return null;

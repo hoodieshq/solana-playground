@@ -34,8 +34,9 @@ export const answerBackup = (address: string): void => {
   try {
     localStorage.setItem(KEY, JSON.stringify(kept));
   } catch (e) {
-    // At the origin's quota the answer holds for this page only; the line
-    // comes back after a reload, which beats a second keypair download now
+    // At the origin's quota the answer holds for this page view only; the
+    // line comes back after a reload, which beats a second keypair download
+    // on the same page
     log.error(e, { context: { what: "store the backup answer" } });
   }
 };

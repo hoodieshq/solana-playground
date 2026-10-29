@@ -53,7 +53,12 @@ vi.mock("../../../utils", () => ({
     currentWorkspaceName: "counter",
     onDidSwitchWorkspace: mocks.noop,
   },
-  PgGlobal: { onDidChangeDeployState: "deployState" },
+  PgGlobal: {
+    onDidChangeDeployState: "deployState",
+    get deployState() {
+      return mocks.deployState;
+    },
+  },
   PgProgramInfo: { update: mocks.update },
   PgWallet: mocks.wallet,
 }));
@@ -94,6 +99,7 @@ import {
   DeployFundingError,
   PgDeployRun,
 } from "../../../commands/deploy/run";
+import { PgStageDeploy } from "@/features/deploy";
 import Deploy from "./Deploy";
 
 /** The app gives every screen a tooltip provider; the copy button needs one */
@@ -227,6 +233,7 @@ describe("Deploy stage", () => {
     await expect(answer).resolves.toBe(false);
     expect(mocks.report).not.toHaveBeenCalled();
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(events()).not.toContain("deploy_failed");
   });
 
   it("shows the funding card and its event when the airdrop is refused", async () => {
@@ -430,5 +437,37 @@ describe("Deploy stage", () => {
 
     expect(mocks.signIn).toHaveBeenCalledOnce();
     expect(mocks.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it("connects the existing Playground account rather than adding one", async () => {
+    mocks.wallet.accounts = [{}];
+    mocks.wallet.switch.mockImplementation(becomeCurrent);
+    mocks.execute.mockResolvedValue(undefined);
+    render(<Deploy />);
+
+    await pressDeploy();
+
+    expect(mocks.wallet.switch).toHaveBeenCalledWith(0);
+    expect(mocks.wallet.add).not.toHaveBeenCalled();
+  });
+
+  it("starts nothing while a deploy typed in the terminal runs", async () => {
+    mocks.deployState = "loading";
+    render(<Deploy />);
+
+    await act(async () => PgStageDeploy.start());
+
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it("names the checks when a deploy fails before any step", async () => {
+    mocks.wallet.current = pgWallet();
+    mocks.execute.mockRejectedValue(new Error("not built"));
+    render(<Deploy />);
+
+    await pressDeploy();
+
+    const failed = sent.events.find((e) => e.name === "deploy_failed");
+    expect(failed?.params).toEqual({ cluster: "devnet", step: "checks" });
   });
 });
