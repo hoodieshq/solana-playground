@@ -112,9 +112,10 @@ export interface SyncMark {
  * shared with `settings`, `wallet`, `theme` and `flow.deploys`, and this is one
  * more file next to the code it describes.
  *
- * Every method swallows its failures into `diagnostics`. A mark that cannot be
- * read is not a reason to take the panel down; it degrades to "never synced",
- * which reconcile handles.
+ * Every method but `existsOrThrow` swallows its failures into `diagnostics`.
+ * A mark that cannot be read is not a reason to take the panel down; it
+ * degrades to "never synced", which reconcile handles. `existsOrThrow` is for
+ * a reader that must not take a failed look for "never synced".
  */
 export class PgSyncMark {
   /** @returns the mark, or `null` when this project has never synced here */

@@ -28,7 +28,7 @@ interface MarkerFacts {
   conflict: boolean;
   /** This account has a mark for it, readable or not (`PgSyncMark.existsOrThrow`) */
   hasMark: boolean;
-  /** The mark, or `null` when it cannot be read */
+  /** The mark, or `null` when it cannot be read (`PgSyncMark.read` swallows why) */
   mark: SyncMark | null;
 }
 
@@ -57,8 +57,11 @@ const decide = async (
  * never from state of its own. `null` while signed out or where sync is off:
  * the account row says that once, so the rows stay clean.
  *
- * Rejects when it cannot tell: `null` would claim the account holds the
- * project, so the caller keeps whatever the row showed before.
+ * Rejects when it cannot tell whether a mark exists (`existsOrThrow`): "This
+ * browser" or `null` would both be guesses, so the caller keeps whatever the
+ * row showed before. A mark that exists but cannot be read, for any reason,
+ * reads "Not synced": the account holds the project, and the agreement this
+ * browser holds with it is unknown.
  *
  * @param localName the workspace's name here, which the mark's name is held to
  */
