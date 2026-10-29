@@ -296,6 +296,8 @@ describe("BaseAssistantComposer", () => {
     expect(screen.getAllByRole("button", { name: /^Leave / })).toHaveLength(1);
     await user.click(remove);
     expect(run).toHaveBeenCalledTimes(1);
+    // The button goes with its chip; the keyboard lands in the input
+    expect(document.activeElement).toBe(input());
   });
 
   describe("the + menu", () => {

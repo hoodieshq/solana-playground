@@ -156,6 +156,32 @@ describe("PgPatchUndo", () => {
     }
   });
 
+  it("writes nothing for a file deleted after Apply", async () => {
+    const card = await applied("old", "new");
+    PgPatchUndo.wrote(card.id);
+    const { bridge } = fakeBridge(null);
+
+    expect(PgPatchUndo.can(card, bridge)).toBe(false);
+    expect(await PgPatchUndo.undo(card, bridge)).toBe("moved-on");
+    expect(bridge.applyPatch).not.toHaveBeenCalled();
+  });
+
+  it("marks the card undone when the write landed and what followed failed", async () => {
+    const card = await applied("old", "new");
+    PgPatchUndo.wrote(card.id);
+    const { bridge, file } = fakeBridge("new");
+    vi.mocked(bridge.applyPatch).mockImplementationOnce(async ({ content }) => {
+      file.content = content;
+      throw new Error("the editor's model could not load");
+    });
+
+    await expect(PgPatchUndo.undo(card, bridge)).rejects.toThrow("model");
+
+    expect(file.content).toBe("old");
+    expect(card.undone).toBe(true);
+    expect(PgPatchUndo.can(card, bridge)).toBe(false);
+  });
+
   it("can undo again when the write failed", async () => {
     const card = await applied("old", "new");
     PgPatchUndo.wrote(card.id);

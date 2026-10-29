@@ -103,10 +103,11 @@ export const BaseThread = ({
 );
 
 /**
- * Before the first text and while tools run: "Thinking", then the seconds so
- * far. Announced once, by its name: the count is hidden from screen readers,
- * which would otherwise read it every second, and the spinner stands still
- * under reduced motion.
+ * While `working` (a turn runs and its last item is not a reply with text:
+ * before the first text, and while a tool runs after one): "Thinking", then
+ * the seconds since the marker appeared. Announced once, by its name: the
+ * count is hidden from screen readers, which would otherwise read it every
+ * second, and the spinner stands still under reduced motion.
  */
 const Thinking = () => {
   const [seconds, setSeconds] = useState(0);

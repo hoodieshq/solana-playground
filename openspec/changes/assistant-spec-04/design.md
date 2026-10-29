@@ -2,7 +2,7 @@
 
 ## Context
 
-The panel's turn lives in `useTurn` (`widgets/assistant/model/use-turn.ts`), shared by the thread and the composer; the store (`views/sidebar/assistant/store.ts`) owns the items, which sync to the account and merge by `updatedAt`. A patch reaches the file through the `write_file` tool (`model/tools.ts`), one file per card, after the card's Apply. Almaz's stand (`almaz/tutorial-in-product`, `patch-undo.ts`) has a working Undo; it is the reference for behaviour, not code to port.
+The panel's turn lives in `useTurn` (`widgets/assistant/model/use-turn.ts`), shared by the thread and the composer; the store (`views/sidebar/assistant/store.ts`) owns the items, which sync to the account and merge by `updatedAt`. A patch reaches the file through the `write_file` tool (`model/tools.ts`), one file per card, after the card's Apply. Almaz's stand has a working Undo; it is the reference for behaviour, not code to port.
 
 ## Goals / Non-Goals
 

@@ -14,11 +14,11 @@ Every chip over the composer SHALL have an accessible name that says what is sen
 - **THEN** its chip's accessible name is "Sent with this message: lib.rs, the open file, in full"
 
 ### Requirement: The open file can be left out of the next message
-The open-file chip SHALL carry a button named "Leave <file> out of the next message". Pressing it SHALL remove the chip; the next message SHALL be sent without that file's content (its path is still named) and SHALL send `assistant_file_chip_removed` (no parameters). After that message, the chip SHALL return. No other chip can be removed.
+The open-file chip SHALL carry a button named "Leave <file> out of the next message". Pressing it SHALL remove the chip; the next message SHALL be sent without that file's content (its path is still named) and SHALL send `assistant_file_chip_removed` (no parameters). After that message, the chip SHALL return. A file the person switches to before sending is sent in full, as its chip says. No other chip can be removed.
 
 #### Scenario: Remove the file chip and send
 - **WHEN** the person presses "Leave lib.rs out of the next message" and sends a message
-- **THEN** the turn's project state names `src/lib.rs` without its content, and the chip "lib.rs active" is back after the send
+- **THEN** the turn's project state names `src/lib.rs` without its content, and the chip "lib.rs" is back after the send
 
 ### Requirement: The composer's + menu
 The composer SHALL show a button named "Add context" that opens a menu with "Sources and tools" (shortcut S) and, with nothing connected, "Connect a model…" or, once connected, "Connection and key…" (shortcut K), doing what the same entries in the head's More do; More SHALL name its entry the same way. Opening Connect a model from it SHALL send `assistant_connect_opened` with `via: "add"`.

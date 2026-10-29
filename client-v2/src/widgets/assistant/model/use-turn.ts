@@ -65,12 +65,14 @@ const isRejectedKey = (error: unknown) =>
 
 /**
  * What `fetch`, and a stream it was reading, reject with when the connection
- * drops: a `TypeError` whose message names the network ("Failed to fetch",
- * "NetworkError…", "Load failed", "network error", "terminated"). Matched on
- * the message too, so a programming error that is also a `TypeError` keeps
- * its own message instead of reading as a cut-off reply.
+ * drops: a `TypeError` whose whole message is one the browsers and Node use
+ * for it ("Failed to fetch", "NetworkError when attempting to fetch
+ * resource.", "Load failed", "network error", "terminated"). Matched whole, so
+ * a programming error that is also a `TypeError` ("x.fetch is not a
+ * function") keeps its own message instead of reading as a cut-off reply.
  */
-const NETWORK_FAILURE = /fetch|network|load failed|terminated/i;
+const NETWORK_FAILURE =
+  /^(failed to fetch|networkerror when attempting to fetch resource|load failed|network error|terminated)\.?$/i;
 const isNetworkFailure = (error: unknown) =>
   error instanceof TypeError && NETWORK_FAILURE.test(error.message);
 
@@ -119,10 +121,14 @@ export interface Turn {
   promptWaiting: boolean;
   /** Bumped whenever the composer's input should take focus */
   focusRequest: number;
-  /** The next message goes without the open file's content */
-  openFileLeftOut: boolean;
-  /** Leaves the open file's content out of the next message, whoever sends it */
-  leaveOutOpenFile(): void;
+  /** The file whose content the next message leaves out, or `null` */
+  openFileLeftOut: string | null;
+  /**
+   * Leaves `path`'s content out of the next message, whoever sends it, as
+   * long as it is still the open file then: another file the user switched
+   * to goes in full, as its chip says
+   */
+  leaveOutOpenFile(path: string): void;
 }
 
 /**
@@ -203,12 +209,12 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   // the panel's job, not the conversation's: a notice item would outlive the
   // connect and be stored with the thread
   const [promptWaiting, setPromptWaiting] = useState(false);
-  const [openFileLeftOut, setOpenFileLeftOut] = useState(false);
+  const [openFileLeftOut, setOpenFileLeftOut] = useState<string | null>(null);
   // Read by `start`, which a requested prompt runs from an older render
-  const leftOut = useRef(false);
-  const leaveOutOpenFile = () => {
-    leftOut.current = true;
-    setOpenFileLeftOut(true);
+  const leftOut = useRef<string | null>(null);
+  const leaveOutOpenFile = (path: string) => {
+    leftOut.current = path;
+    setOpenFileLeftOut(path);
   };
 
   const provider = useRef<{
@@ -397,9 +403,11 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     // typed text where the user can send it again
     setInput("");
     // For this message only: the file goes with the next one again
-    const context = { openFile: !leftOut.current };
-    leftOut.current = false;
-    setOpenFileLeftOut(false);
+    const context = {
+      openFile: leftOut.current !== PgExplorer.currentFilePath,
+    };
+    leftOut.current = null;
+    setOpenFileLeftOut(null);
     const controller = new AbortController();
     turn.current = controller;
     PgAssistant.beginTurn(controller);

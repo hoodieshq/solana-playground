@@ -38,7 +38,7 @@ const sent = (what: string) => `Sent with this message: ${what}`;
  */
 const contextChips = (
   lessonState: LessonState,
-  openFile: { leftOut: boolean; leaveOut(): void }
+  openFile: { leftOut: string | null; leaveOut(path: string): void }
 ): ComposerContextChip[] => {
   // Mirror what `describeProject()` actually sends, so the row cannot claim
   // less than the model gets. Paths only — never file content, since this runs
@@ -64,14 +64,14 @@ const contextChips = (
           ),
         }
       : null,
-    openName && !openFile.leftOut
+    currentFilePath && openName && openFile.leftOut !== currentFilePath
       ? {
           label: openName,
           title: "The tab you are looking at, sent in full every turn",
           spoken: sent(`${openName}, the open file, in full`),
           remove: {
             label: `Leave ${openName} out of the next message`,
-            run: openFile.leaveOut,
+            run: () => openFile.leaveOut(currentFilePath),
           },
         }
       : null,
@@ -238,8 +238,8 @@ export function AssistantComposer({
       <BaseAssistantComposer
         chips={contextChips(lessonState, {
           leftOut: turn.openFileLeftOut,
-          leaveOut: () => {
-            turn.leaveOutOpenFile();
+          leaveOut: (path) => {
+            turn.leaveOutOpenFile(path);
             assistantTelemetry.track("assistant_file_chip_removed", {});
           },
         })}

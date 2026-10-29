@@ -169,27 +169,44 @@ describe("useTurn", () => {
 
   it("sends the next message without the open file once it is left out, then with it again", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
+    vi.spyOn(PgExplorer, "currentFilePath", "get").mockReturnValue(
+      "/src/lib.rs"
+    );
     const { result } = renderHook(() => useTestTurn());
 
-    act(() => result.current.leaveOutOpenFile());
-    expect(result.current.openFileLeftOut).toBe(true);
+    act(() => result.current.leaveOutOpenFile("/src/lib.rs"));
+    expect(result.current.openFileLeftOut).toBe("/src/lib.rs");
     await act(() => result.current.send("first"));
     expect(provider.send.mock.calls[0][2]).toEqual({ openFile: false });
-    expect(result.current.openFileLeftOut).toBe(false);
+    expect(result.current.openFileLeftOut).toBeNull();
 
     await act(() => result.current.send("second"));
     expect(provider.send.mock.calls[1][2]).toEqual({ openFile: true });
   });
 
+  it("sends a file the user switched to in full, though another was left out", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    const current = vi
+      .spyOn(PgExplorer, "currentFilePath", "get")
+      .mockReturnValue("/src/lib.rs");
+    const { result } = renderHook(() => useTestTurn());
+
+    act(() => result.current.leaveOutOpenFile("/src/lib.rs"));
+    current.mockReturnValue("/src/other.rs");
+    await act(() => result.current.send("first"));
+
+    expect(provider.send.mock.calls[0][2]).toEqual({ openFile: true });
+  });
+
   it("keeps the open file left out when a send opens Connect instead of starting a turn", async () => {
     const { result } = renderHook(() => useTestTurn());
 
-    act(() => result.current.leaveOutOpenFile());
+    act(() => result.current.leaveOutOpenFile("/src/lib.rs"));
     await act(() => result.current.send("hi"));
 
     expect(open).toHaveBeenCalled();
     expect(provider.send).not.toHaveBeenCalled();
-    expect(result.current.openFileLeftOut).toBe(true);
+    expect(result.current.openFileLeftOut).toBe("/src/lib.rs");
   });
 
   it("says Stopped once for two Stops before the turn unwinds", async () => {
@@ -1049,6 +1066,18 @@ describe("useTurn's failures and races", () => {
         kind: "error",
         text: "Failed to fetch",
       });
+    });
+
+    it("shows a TypeError that only mentions fetch as an error", async () => {
+      PgAssistant.connect({ id: "default", apiKey: "" });
+      failAfter("The program", new TypeError("x.fetch is not a function"));
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("hi"));
+
+      const reply = PgAssistant.items.find((i) => i.kind === "assistant")!;
+      expect(PgAssistant.isCutOff(reply)).toBe(false);
+      expect(PgAssistant.items.at(-1)).toMatchObject({ kind: "error" });
     });
 
     it("shows any other failure after text as an error", async () => {

@@ -135,7 +135,12 @@ export function BaseAssistantComposer({
                         type="button"
                         aria-label={chip.remove.label}
                         className={REMOVE_TARGET}
-                        onClick={chip.remove.run}
+                        onClick={() => {
+                          chip.remove?.run();
+                          // The button goes with its chip; the input next to
+                          // it keeps the keyboard where the user was
+                          form.current?.querySelector("textarea")?.focus();
+                        }}
                       >
                         <XIcon aria-hidden="true" />
                       </button>

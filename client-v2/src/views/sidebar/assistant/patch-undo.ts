@@ -99,8 +99,13 @@ export class PgPatchUndo {
           content: keepId(request.before, now),
         });
     } catch (error) {
-      // Nothing was taken back, so the card may still offer it
-      written.add(item.id);
+      // A write can land before what follows it fails (the editor's model
+      // sync): only a file that still holds the patch may offer Undo again
+      if (holdsPatch(bridge.readFile(request.path), request.after)) {
+        written.add(item.id);
+      } else {
+        PgAssistant.markUndone(item.id, undoneOutcome(request.path));
+      }
       throw error;
     }
     if (!PgAssistant.markUndone(item.id, undoneOutcome(request.path))) {

@@ -33,8 +33,8 @@
 
 **Interfaces:** Produces `PgPatchUndo.wrote(id: string): void`, `.can(item: ApprovalItem, bridge?): boolean`, `.undo(item, bridge?): Promise<"undone" | "moved-on" | "not-undoable">`; `BaseApprovalCard` prop `onUndo?: () => void`; `BaseThreadItem` prop `onUndo?: () => void`, supplied per item by `BaseThread`'s `undoFor(id)`.
 
-- [ ] Failing tests: `can` true after `wrote` when file holds `after`; false when edited, when not recorded (restored), when `undone`; `undo` restores `before`, deletes when `before === null`, keeps the file's current `declare_id!`, returns `"moved-on"` and adds the PAL-27 notice when edited; `markUndone` stamps. Card: "Undo patch" shown only with `onUndo`, status "Undone" when `item.undone`, `h-11 min-w-11 md:h-8` on Undo.
-- [ ] Implement; run `yarn test-unit src/views/sidebar/assistant/patch-undo.ts src/widgets/assistant`; PASS.
+- [ ] Failing tests: `can` true after `wrote` when file holds `after`; false when edited, when not recorded (restored), when `undone`; `undo` restores `before`, deletes when `before === null`, keeps the file's current `declare_id!`, returns `"moved-on"` and adds the notice "You edited {path} after applying. Use undo in the editor." when edited; `markUndone` stamps. Card: "Undo patch" shown only with `onUndo`, status "Undone" when `item.undone`, `h-11 min-w-11 md:h-8` on Undo.
+- [ ] Implement; run `yarn test-unit src/views/sidebar/assistant/patch-undo.test.ts src/widgets/assistant`; PASS.
 - [ ] Commit `feat(client-v2): undo an applied patch from its card (HOO-2387)`.
 
 ### Task 2: Turn states (tasks 2.1, 2.2)
