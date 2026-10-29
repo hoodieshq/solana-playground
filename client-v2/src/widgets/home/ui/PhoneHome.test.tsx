@@ -50,6 +50,11 @@ const session = vi.hoisted(() => ({
   whenRead: vi.fn(),
 }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
+const accountList = vi.hoisted(() => ({
+  state: "empty" as "unknown" | "empty" | "holds",
+  onDidChange: vi.fn(),
+}));
+vi.mock("@/features/persistence", () => ({ PgAccountList: accountList }));
 import PhoneHome from "./PhoneHome";
 
 const files = [["/src/lib.rs", "// anchor"]];
@@ -89,6 +94,7 @@ beforeEach(() => {
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
   session.readState = "answered";
+  accountList.state = "empty";
   session.refresh.mockReset().mockResolvedValue(undefined);
   session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgFramework.get.mockReset().mockReturnValue({
@@ -379,4 +385,17 @@ it("offers Try again above the quick starts once a failed check has spent its re
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("offers no example quick start while a signed-in account's list is unread", async () => {
+  session.get.mockReturnValue({
+    id: "u1",
+    name: "Ada",
+    image: null,
+    login: "ada",
+  });
+  accountList.state = "unknown";
+  const { home } = draw();
+  await home.findByText("3 tutorials, 34 programs");
+  expect(titles(home).some((t) => t?.startsWith("Try an example"))).toBe(false);
 });

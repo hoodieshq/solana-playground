@@ -7,6 +7,7 @@ import {
   reconcile,
   releaseLocalProjects,
 } from "../../features/persistence/model/project-restore";
+import { PgAccountList } from "../../features/persistence/model/account-list";
 import { PgThreadIndex } from "../../features/persistence/model/thread-index";
 import { PgAssistant } from "../../views/sidebar/assistant/store";
 import { openThread } from "../chat-thread/open-thread";
@@ -185,6 +186,8 @@ export const session = (): Disposable => {
    * project look unsynced and none of them removable.
    */
   const relinquish = async () => {
+    // The next account's list is not known until its own pass reads it
+    PgAccountList.forget();
     // Independently, not one `try` around both, here and in the teardown: the
     // conversations and the projects are separate data, and one failing is no
     // reason to skip the other.

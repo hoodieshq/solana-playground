@@ -52,6 +52,11 @@ const session = vi.hoisted(() => ({
   whenRead: vi.fn(),
 }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
+const accountList = vi.hoisted(() => ({
+  state: "empty" as "unknown" | "empty" | "holds",
+  onDidChange: vi.fn(),
+}));
+vi.mock("@/features/persistence", () => ({ PgAccountList: accountList }));
 // Home only hands Start from scratch on; its own tests cover it
 vi.mock("@/features/new-project", () => ({
   StartFromScratch: () => <div data-testid="scratch" />,
@@ -105,6 +110,7 @@ beforeEach(() => {
   utils.PgCommand.build.execute.mockReset().mockResolvedValue(undefined);
   session.get.mockReset().mockReturnValue(null);
   session.readState = "answered";
+  accountList.state = "empty";
   session.refresh.mockReset().mockResolvedValue(undefined);
   session.whenRead.mockReset().mockResolvedValue(undefined);
   utils.PgGlobal.buildLoading = false;
@@ -520,4 +526,16 @@ it("offers Try again, not the example, once a failed account check has spent its
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("waits for a signed-in account's own list before offering the example", () => {
+  session.get.mockReturnValue({
+    id: "u1",
+    name: "Ada",
+    image: null,
+    login: "ada",
+  });
+  accountList.state = "unknown";
+  const { home } = draw();
+  expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
 });

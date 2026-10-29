@@ -6,15 +6,19 @@ Gets a first-time visitor from Home to a running example in one press, a returni
 ## Requirements
 
 ### Requirement: Home offers the example on a first visit
-Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed (no answer within 10 s, a 5xx, a 4xx other than 401 or 404, or JSON that does not parse), since that says nothing of who is signed in. A deployment with no sign-in configured answers with a 503 that says so, and a host with no auth route answers a page or a 404; these are answers, except while a user is already known, when a page or a 404 is a proxy's and fails (nobody is signed in), not failures. Once a read has answered, a later failed one does not take the example away.
+Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project, the session has answered, and either nobody is signed in or the signed-in account's own project list has come back empty, with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed (no answer within 10 s, a 5xx, a 4xx other than 401 or 404, or JSON that does not parse), since that says nothing of who is signed in. A deployment with no sign-in configured answers with a 503 that says so, and a host with no auth route answers a page or a 404; these are answers, except while a user is already known, when a page or a 404 is a proxy's and fails (nobody is signed in), not failures. Once a read has answered, a later failed one does not take the example away.
 
 #### Scenario: First visit on desktop
 - **WHEN** Home opens in a browser with no project
 - **THEN** a region named "Try an example" with a "Run it" button shows above the "New project" tile
 
 #### Scenario: Signed in with no projects (manual)
-- **WHEN** Home opens with no project for a signed-in account
+- **WHEN** Home opens with no project for a signed-in account whose project list has come back empty
 - **THEN** the "Try an example" region shows
+
+#### Scenario: Signed in, account list not read yet (manual)
+- **WHEN** Home opens with no project for a signed-in account whose project list sync has not read yet
+- **THEN** neither "Try an example" nor "Pick up where you left off" shows until it has
 
 #### Scenario: Session read failed
 - **WHEN** Home opens with no project and the session read got no answer or a 5xx
@@ -55,7 +59,7 @@ Desktop Home SHALL show a section labelled "Pick up where you left off" above it
 - **THEN** that project or tutorial opens
 
 ### Requirement: Phone Home starts with the example on a first visit
-Phone Home SHALL offer "Try an example" as its first quick start when the browser holds no project and the session has answered, opening it as "Run it" does; with a project open, "Continue {project}" SHALL stay first. It SHALL show at most three quick starts.
+Phone Home SHALL offer "Try an example" as its first quick start when the browser holds no project and the visit is a first one as above, opening it as "Run it" does; with a project open, "Continue {project}" SHALL stay first. It SHALL show at most three quick starts.
 
 #### Scenario: Phone, first visit
 - **WHEN** phone Home opens with no project

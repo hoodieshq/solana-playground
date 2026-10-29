@@ -13,6 +13,8 @@ const session = vi.hoisted(() => {
   const listeners = new Set<() => void>();
   return {
     readState: "unread" as "unread" | "failed" | "answered",
+    user: null as { id: string } | null,
+    get: () => session.user,
     whenRead: vi.fn(),
     onDidChange: (cb: () => void) => {
       listeners.add(cb);
@@ -27,6 +29,22 @@ const session = vi.hoisted(() => {
 });
 vi.mock("@/utils", () => ({ PgExplorer: explorer }));
 vi.mock("@/features/auth", () => ({ PgSession: session }));
+const account = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  return {
+    state: "unknown" as "unknown" | "empty" | "holds",
+    onDidChange: (cb: () => void) => {
+      listeners.add(cb);
+      return { dispose: () => listeners.delete(cb) };
+    },
+    /** The reconcile pass reading the account's list */
+    listed(state: "empty" | "holds") {
+      this.state = state;
+      listeners.forEach((cb) => cb());
+    },
+  };
+});
+vi.mock("@/features/persistence", () => ({ PgAccountList: account }));
 // The real subscription, so a session change re-renders as on the page
 vi.mock("@/hooks", async () => {
   const { useEffect, useReducer } = await import("react");
@@ -49,6 +67,8 @@ describe("widgets/home/model/use-visit", () => {
   beforeEach(() => {
     explorer.allWorkspaceNames = [];
     session.readState = "unread";
+    session.user = null;
+    account.state = "unknown";
     session.whenRead.mockReset().mockReturnValue(new Promise(() => {}));
   });
 
@@ -68,6 +88,17 @@ describe("widgets/home/model/use-visit", () => {
     expect(result.current).toBe("unknown");
 
     act(() => session.settle("answered"));
+    expect(result.current).toBe("first");
+  });
+
+  it("turns a first visit for a signed-in account once its list reads empty", () => {
+    session.user = { id: "u1" };
+    const { result } = renderHook(() => useVisit());
+    act(() => session.settle("answered"));
+    expect(result.current).toBe("unknown");
+
+    act(() => account.listed("empty"));
+
     expect(result.current).toBe("first");
   });
 
