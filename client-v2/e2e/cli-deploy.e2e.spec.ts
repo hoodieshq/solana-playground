@@ -45,7 +45,7 @@ test("cli-deploy: Anchor on mainnet", async ({ seededPage: page }) => {
   await guide.getByRole("radio", { name: "Mainnet" }).click();
 
   await expect(lines(guide)).toHaveText([
-    /^cp (\w+)\.so \1-keypair\.json target\/deploy\/$/,
+    /^mkdir -p target\/deploy && cp (\w+)\.so \1-keypair\.json target\/deploy\/$/,
     "anchor deploy --provider.cluster mainnet",
   ]);
 });

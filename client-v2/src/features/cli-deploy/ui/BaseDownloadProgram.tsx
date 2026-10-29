@@ -1,11 +1,19 @@
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 
+/** A failure the user is told about beside the button rather than in a toast */
+export type DownloadNote = "no-build" | "not-built";
+
+const NOTES: Record<DownloadNote, string> = {
+  "no-build": "Build the program to download the binary.",
+  "not-built": "Build again to download the binary.",
+};
+
 export interface BaseDownloadProgramProps {
   /** The file the binary is saved as, `<program>.so` */
   fileName: string;
-  /** The server no longer holds the build, so the binary must be built again */
-  notBuilt: boolean;
+  /** Why the last press saved nothing, when a build would fix it */
+  note: DownloadNote | null;
   /** Fetches and saves the binary; a rejection is a failure to report */
   onDownload: () => Promise<void>;
 }
@@ -21,9 +29,9 @@ const BaseDownloadProgram = (p: BaseDownloadProgramProps) => (
     >
       Download .so
     </AsyncButton>
-    {p.notBuilt && (
+    {p.note && (
       <span role="status" className="font-mono text-xs text-muted-foreground">
-        Build again to download the binary.
+        {NOTES[p.note]}
       </span>
     )}
   </>

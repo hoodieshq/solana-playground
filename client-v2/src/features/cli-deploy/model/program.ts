@@ -1,7 +1,15 @@
 import { PgServerError } from "@/utils/server-error";
 
-/** Why a binary download failed, as the user is told it */
-export type DownloadFailure = "not-built" | "server";
+/**
+ * Why a binary download failed: `no-build` when this browser holds no build
+ * id to ask for, `not-built` when the server no longer holds the build,
+ * `server` for any other refusal or no answer, `save` when the bytes came but
+ * the browser could not be handed them
+ */
+export type DownloadFailure = "no-build" | "not-built" | "server" | "save";
+
+/** A server failure, as `downloadFailure` classifies it */
+type ServerFailure = Extract<DownloadFailure, "not-built" | "server">;
 
 /** What the build server says when the build's directory is gone */
 const NOT_BUILT = "Program is not built";
@@ -11,17 +19,22 @@ const NOT_BUILT = "Program is not built";
  * answer asks for a rebuild; a 404 is not one, because on the public host it
  * means the route is missing and building again would not help.
  */
-export const downloadFailure = (error: unknown): DownloadFailure =>
+export const downloadFailure = (error: unknown): ServerFailure =>
   error instanceof PgServerError &&
   error.status === 500 &&
   error.body.trim() === NOT_BUILT
     ? "not-built"
     : "server";
 
-/** A name in the snake_case Anchor gives its program files */
+/**
+ * A name in the snake_case Anchor gives its program files. A camelCase word
+ * boundary splits too: an IDL from before Anchor 0.30 names the program
+ * `helloAnchor`, its files `hello_anchor.so`.
+ */
 const snake = (name: string) =>
   name
     .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
@@ -64,6 +77,12 @@ if (import.meta.vitest) {
       );
       expect(programName({ idlName: null, workspace: "My Counter!" })).toBe(
         "my_counter"
+      );
+      expect(programName({ idlName: "helloAnchor", workspace: null })).toBe(
+        "hello_anchor"
+      );
+      expect(programName({ idlName: "Counter2Pda", workspace: null })).toBe(
+        "counter2_pda"
       );
       expect(programName({ idlName: undefined, workspace: "  " })).toBe(
         "program"

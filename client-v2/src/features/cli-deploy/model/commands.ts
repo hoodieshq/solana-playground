@@ -38,7 +38,8 @@ export const deployCommands = (p: {
     ];
   }
   return [
-    `cp ${so} ${keypair} target/deploy/`,
+    // A workspace never built has no target/deploy yet, and cp needs it
+    `mkdir -p target/deploy && cp ${so} ${keypair} target/deploy/`,
     `anchor deploy --provider.cluster ${p.cluster}`,
   ];
 };
@@ -64,7 +65,7 @@ if (import.meta.vitest) {
       expect(
         deployCommands({ tool: "anchor", cluster: "mainnet", name: "hello" })
       ).toEqual([
-        "cp hello.so hello-keypair.json target/deploy/",
+        "mkdir -p target/deploy && cp hello.so hello-keypair.json target/deploy/",
         "anchor deploy --provider.cluster mainnet",
       ]);
     });

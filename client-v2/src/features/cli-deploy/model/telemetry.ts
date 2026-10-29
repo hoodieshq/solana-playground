@@ -12,13 +12,18 @@ type CliDeployEvents = {
   /** A program binary was fetched and handed to the browser to save. */
   cli_binary_downloaded: { from: DownloadFrom };
   /**
-   * Fetching the binary failed; `reason` is `not-built` when the server no
-   * longer holds the build, `server` for any other failure.
+   * Getting the binary failed; `reason` is a `DownloadFailure`: no build id
+   * in this browser, the server no longer holding the build, any other server
+   * failure, or the browser refusing the save.
    */
   cli_binary_download_failed: { from: DownloadFrom; reason: DownloadFailure };
   /** The "Deploy from your machine" guide opened from `from`. */
   cli_guide_opened: { from: GuideFrom };
-  /** The copy button of a deploy command in the guide was pressed. */
+  /**
+   * The copy button of a deploy command in the guide was pressed; counted on
+   * the press, since `CopyButton` reports no success, so a refused clipboard
+   * still counts.
+   */
   cli_command_copied: { tool: CliTool; cluster: CliCluster };
 };
 

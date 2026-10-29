@@ -21,7 +21,8 @@ export interface CliDeployGuideProps {
 
 /**
  * The cluster the guide opens on: Mainnet from the mainnet warning, else the
- * one Playground is on, else Devnet
+ * one Playground is on, else Devnet. Localnet, testnet and custom endpoints
+ * open on Devnet: the guide is for the two clusters people deploy to.
  */
 const openingCluster = (from: GuideFrom, cluster: string | null): CliCluster =>
   from === "mainnet-warning" ? "mainnet" : cliClusterOf(cluster) ?? "devnet";
@@ -29,17 +30,23 @@ const openingCluster = (from: GuideFrom, cluster: string | null): CliCluster =>
 /** The CLI deploy guide, connected: the program's name, the download, events */
 const CliDeployGuide = (p: CliDeployGuideProps) => {
   const name = useProgramName();
+  // The tool is the user's habit and stays across openings; the cluster is
+  // the situation's, so each opening picks it again
   const [tool, setTool] = useState<CliTool>("solana");
   const [cluster, setCluster] = useState<CliCluster>("devnet");
+  const [openedFrom, setOpenedFrom] = useState<GuideFrom | null>(null);
 
   const { from } = p;
+  // Set while rendering, not in an effect, so the dialog's first frame
+  // already shows the opening cluster. Only an opening sets it: a cluster
+  // read while the guide is open must not undo the user's pick.
+  if (from !== openedFrom) {
+    setOpenedFrom(from);
+    if (from) setCluster(openingCluster(from, p.cluster));
+  }
+
   useEffect(() => {
-    if (!from) return;
-    setCluster(openingCluster(from, p.cluster));
-    cliDeployTelemetry.track("cli_guide_opened", { from });
-    // Only an opening resets the cluster; a cluster read while the guide is
-    // open must not undo the user's pick
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (from) cliDeployTelemetry.track("cli_guide_opened", { from });
   }, [from]);
 
   return (
@@ -54,7 +61,8 @@ const CliDeployGuide = (p: CliDeployGuideProps) => {
       onClusterChange={setCluster}
       name={name}
       programId={p.programId}
-      download={p.built ? <DownloadProgram from="guide" /> : null}
+      built={p.built}
+      download={<DownloadProgram from="guide" />}
       onCopy={() =>
         cliDeployTelemetry.track("cli_command_copied", { tool, cluster })
       }

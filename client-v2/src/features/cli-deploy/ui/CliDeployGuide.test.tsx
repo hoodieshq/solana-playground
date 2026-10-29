@@ -124,9 +124,52 @@ describe("features/cli-deploy/ui/CliDeployGuide", () => {
     pick("Mainnet");
 
     expect(commands()).toEqual([
-      "cp hello_anchor.so hello_anchor-keypair.json target/deploy/",
+      "mkdir -p target/deploy && cp hello_anchor.so hello_anchor-keypair.json target/deploy/",
       "anchor deploy --provider.cluster mainnet",
     ]);
+  });
+
+  it("opens again on the opening cluster, keeping the tool", () => {
+    const { rerender } = renderGuide(
+      <CliDeployGuide
+        {...props({ from: "deploy-stage", cluster: "devnet", built: true })}
+      />
+    );
+    pick("Anchor");
+    pick("Mainnet");
+    const again = (from: CliDeployGuideProps["from"]) =>
+      rerender(
+        <TooltipProvider>
+          <CliDeployGuide
+            {...props({ from, cluster: "devnet", built: true })}
+          />
+        </TooltipProvider>
+      );
+    again(null);
+    again("deploy-stage");
+
+    expect(commands()[1]).toBe("anchor deploy --provider.cluster devnet");
+    expect(
+      sent.events.filter((e) => e.name === "cli_guide_opened")
+    ).toHaveLength(2);
+  });
+
+  it("keeps the user's cluster when Playground's changes while open", () => {
+    const { rerender } = renderGuide(
+      <CliDeployGuide
+        {...props({ from: "deploy-stage", cluster: "devnet", built: true })}
+      />
+    );
+    pick("Mainnet");
+    rerender(
+      <TooltipProvider>
+        <CliDeployGuide
+          {...props({ from: "deploy-stage", cluster: "localnet", built: true })}
+        />
+      </TooltipProvider>
+    );
+
+    expect(commands()[0]).toContain("--url mainnet-beta");
   });
 
   it("offers no download before a build succeeded", () => {
@@ -162,6 +205,28 @@ describe("features/cli-deploy/ui/CliDeployGuide", () => {
     expect(sent.events[1].params).toEqual({
       tool: "solana",
       cluster: "devnet",
+    });
+  });
+
+  it("copies Anchor's two lines as one script", async () => {
+    renderGuide(
+      <CliDeployGuide
+        {...props({ from: "mainnet-warning", cluster: "devnet", built: true })}
+      />
+    );
+    pick("Anchor");
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Copy the deploy command" })
+      );
+    });
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      "mkdir -p target/deploy && cp hello_anchor.so hello_anchor-keypair.json target/deploy/\nanchor deploy --provider.cluster mainnet"
+    );
+    expect(sent.events[1].params).toEqual({
+      tool: "anchor",
+      cluster: "mainnet",
     });
   });
 

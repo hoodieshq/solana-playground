@@ -249,8 +249,8 @@ const MainnetWarningBody = ({ p }: { p: BaseDeployProps }) => {
 
 /**
  * The Deploy stage, drawn from props alone; `Deploy` connects it. Before the
- * first deploy it is the prototype's empty stage: centred, the pill and
- * "Upload IDL" under it, no history yet. After one it shows the result and
+ * first deploy it is the prototype's empty stage: centred, the pill with
+ * "Upload IDL" and "Deploy with the CLI" under it, no history yet. After one it shows the result and
  * the history, read from the left.
  */
 const BaseDeploy = (p: BaseDeployProps) => {
@@ -307,7 +307,8 @@ const BaseDeploy = (p: BaseDeployProps) => {
             {deployLabel(p, latest !== null)}
             {!running && <BrandButtonIcon />}
           </BrandButton>
-          {/* Before the first deploy, centred under the pill on a desk and
+          {/* Upload IDL and the CLI guide: before the first deploy, centred
+              under the pill on a desk and
               above it on a phone, where the row stretches the pill to the
               screen's width; after one, beside the pill */}
           <div className="flex flex-wrap justify-center gap-2">

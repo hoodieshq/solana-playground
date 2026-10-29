@@ -145,14 +145,14 @@ export class PgServer {
     try {
       response = await fetch(requestUrl, requestInit);
     } catch (e: any) {
-      throw new PgServerError(requestUrl, null, e?.message);
+      throw new PgServerError(requestUrl, null, e?.message ?? String(e), {
+        cause: e,
+      });
     }
     if (!response.ok) {
-      throw new PgServerError(
-        requestUrl,
-        response.status,
-        await response.text()
-      );
+      // A body cut off mid-read still leaves the status to report
+      const body = await response.text().catch(() => "");
+      throw new PgServerError(requestUrl, response.status, body);
     }
 
     return response;

@@ -11,8 +11,8 @@ it from their own machine with the Solana CLI or Anchor.
 After a successful build, the Build stage SHALL show an outline button
 "Download .so" beside "Download IDL". A press SHALL fetch the binary of the
 project's last build from the build server and save it as `<program>.so`,
-where `<program>` is the IDL's program name, else the workspace name, else
-`program`. The bytes SHALL NOT be kept in the client. A failed or restored
+where `<program>` is the IDL's program name, else the workspace name, in
+snake_case (camelCase split at its word boundaries), else `program`. The bytes SHALL NOT be kept in the client. A failed or restored
 build SHALL show no such button.
 
 #### Scenario: Binary offered after a successful build (manual)
@@ -30,8 +30,10 @@ build SHALL show no such button.
 
 When the build server answers that the program is not built (its build
 directory is gone), the download SHALL show "Build again to download the
-binary." as a status line beside the button and save nothing. Any other
-failure SHALL toast "Could not download the program binary." and be logged.
+binary." as a status line beside the button and save nothing; with no build
+id in the browser it SHALL show "Build the program to download the binary."
+without asking the server. Any other failure, an empty answer included,
+SHALL toast "Could not download the program binary." and be logged.
 
 #### Scenario: Build expired on the server (manual)
 
@@ -47,9 +49,9 @@ deploys the downloaded binary, for the tool picked in a "Tool" control
 Mainnet), with `<program>.so` and `<program>-keypair.json` filled in, each
 command block with a copy button. It SHALL offer "Download .so" while the
 last build succeeded, and say that deploying with the project's program
-keypair keeps the program id, naming it, while deploying without one makes a
-new id. It SHALL open on the current cluster when that is devnet or
-mainnet-beta, else on Devnet.
+keypair keeps the program id, naming it, and what to do without that file.
+Opened from the mainnet warning it SHALL open on Mainnet; otherwise on the
+current cluster when that is devnet or mainnet-beta, else on Devnet.
 
 #### Scenario: Solana CLI on devnet
 
@@ -60,9 +62,9 @@ mainnet-beta, else on Devnet.
 #### Scenario: Anchor on mainnet
 
 - **WHEN** the user picks Anchor and Mainnet
-- **THEN** it shows the commands that place `hello_anchor.so` and its
-  keypair under `target/deploy/` and `anchor deploy --provider.cluster
-  mainnet`
+- **THEN** it shows `mkdir -p target/deploy && cp hello_anchor.so
+  hello_anchor-keypair.json target/deploy/` and `anchor deploy
+  --provider.cluster mainnet`
 
 ### Requirement: The Deploy stage opens the guide
 
@@ -82,8 +84,9 @@ content:
 - `cli_binary_downloaded` `{ from: "build-stage" | "guide" }`: a binary was
   fetched and handed to the browser to save;
 - `cli_binary_download_failed` `{ from: "build-stage" | "guide", reason:
-  "not-built" | "server" }`: the fetch failed; `not-built` when the server no
-  longer holds the build;
+  "no-build" | "not-built" | "server" | "save" }`: no binary was saved;
+  `no-build` with no build id in the browser, `not-built` when the server no
+  longer holds the build, `save` when the browser refused the file;
 - `cli_guide_opened` `{ from: "mainnet-warning" | "deploy-stage" }`;
 - `cli_command_copied` `{ tool: "solana" | "anchor", cluster: "devnet" |
   "mainnet" }`: a command's copy button was pressed.

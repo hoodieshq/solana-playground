@@ -32,7 +32,9 @@ export interface BaseCliDeployGuideProps {
   name: string;
   /** The project's program id, `null` when it has none yet */
   programId: string | null;
-  /** The binary download, `null` until a build succeeded */
+  /** The last build succeeded, so there is a binary to download */
+  built: boolean;
+  /** The binary download, shown once `built` */
   download: ReactNode;
   /** A command's copy button was pressed */
   onCopy: () => void;
@@ -50,8 +52,18 @@ const CLUSTERS: Record<CliCluster, string> = {
 
 const PAYER: Record<CliCluster, string> = {
   devnet:
-    "It pays from your CLI wallet (solana config get). On devnet, solana airdrop 2 funds it.",
+    "It pays from your CLI wallet (solana config get). On devnet, solana airdrop 2 --url devnet funds it.",
   mainnet: "It pays real SOL from your CLI wallet (solana config get).",
+};
+
+// TODO(HOO-2397): link the keypair's export from the Deploy stage once it
+// exists; until then a user without the file follows the line below
+/** What to do without the project's program keypair, per tool */
+const NO_KEYPAIR: Record<CliTool, string> = {
+  solana:
+    "Without that file, leave out --program-id: the deploy creates a new program id.",
+  anchor:
+    "Without that file, copy only the .so: anchor deploy uses the workspace's own keypair and its program id.",
 };
 
 /** A numbered step of the guide */
@@ -106,7 +118,7 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
         </div>
         <ol className="flex min-w-0 flex-col gap-4">
           <Step title="1. Download the program">
-            {p.download ? (
+            {p.built ? (
               <div className="flex flex-wrap items-center gap-2">
                 {p.download}
               </div>
@@ -127,7 +139,7 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
                   <code className="font-mono break-all">{p.programId}</code>
                 </>
               ) : null}
-              . Without it, the deploy creates a new program id.
+              . {NO_KEYPAIR[p.tool]}
             </p>
           </Step>
           <Step title="3. Run the deploy">

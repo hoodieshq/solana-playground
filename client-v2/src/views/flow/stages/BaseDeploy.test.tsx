@@ -340,7 +340,7 @@ describe("BaseDeploy", () => {
     ).toHaveLength(2);
   });
 
-  /** The prototype's first deploy: the pill, and Upload IDL under it */
+  /** The prototype's first deploy: the pill, Upload IDL and the CLI guide under it */
   it("before the first deploy it has no history, only Upload IDL and the CLI guide", () => {
     const { container } = render(
       <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
