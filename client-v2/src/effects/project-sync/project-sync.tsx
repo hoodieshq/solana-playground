@@ -6,6 +6,7 @@ import {
   snapshotOf,
 } from "../../features/persistence/model/snapshot";
 import { PgSyncBase } from "../../features/persistence/model/sync-base";
+import { PgAccountList } from "../../features/persistence/model/account-list";
 import { PgSyncClaim } from "../../features/persistence/model/sync-claim";
 import { PgSyncMark } from "../../features/persistence/model/sync-mark";
 import { PgThreadIndex } from "../../features/persistence/model/thread-index";
@@ -263,6 +264,10 @@ export const projectSync = (): Disposable => {
         if ((await PgWorkspaceRegistry.lists(projectId)) !== false) continue;
         await PgSyncClaim.forget(projectId);
       }
+
+      // The deletes above reached the account, so a browser left with no
+      // project means an account with none: Home offers the example again
+      if (PgExplorer.allWorkspaceNames?.length === 0) PgAccountList.listed(0);
     } catch (e) {
       report("settle local deletes", e);
     }

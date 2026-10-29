@@ -255,8 +255,14 @@ export const session = (): Disposable => {
   // sign-in, and only that one takes the user somewhere.
   let restored = false;
   let signedIn = !!PgSession.get();
+  let userId = PgSession.get()?.id ?? null;
   const onChange = PgSession.onDidChange(() => {
     const nowSignedIn = !!PgSession.get();
+    // Another account, or none: what the last one's list held says nothing
+    // of this one's, however the session ended
+    const nowUserId = PgSession.get()?.id ?? null;
+    if (nowUserId !== userId) PgAccountList.forget();
+    userId = nowUserId;
     const restoring =
       !restored &&
       PgSession.readState === "answered" &&

@@ -1,6 +1,7 @@
 import type { MockInstance } from "vitest";
 import { session } from "./session";
 import { PgSession } from "../../features/auth";
+import { PgAccountList } from "../../features/persistence/model/account-list";
 import { PgChatStorage } from "../../features/persistence/model/chat-storage";
 import { PgChatSync } from "../../features/persistence/model/chat-sync";
 import { PgProjectSync } from "../../features/persistence/model/project-sync";
@@ -366,6 +367,18 @@ describe("the session effect", () => {
     );
     expect(calls.filter((c) => c === "hold")).toHaveLength(2);
     expect(calls.filter((c) => c === "release")).toHaveLength(2);
+    effect.dispose();
+  });
+
+  it("forgets what the last account's list held once the user changes, however the session ended", async () => {
+    const effect = session();
+    await settle();
+    PgAccountList.listed(0);
+
+    // A re-read that finds nobody, not a sign-out through the app
+    await PgSession.refreshWith(null);
+
+    expect(PgAccountList.state).toBe("unknown");
     effect.dispose();
   });
 
