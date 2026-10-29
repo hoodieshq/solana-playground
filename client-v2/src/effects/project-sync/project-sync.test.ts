@@ -520,6 +520,24 @@ describe("deleting a workspace here", () => {
     PgAccountList.forget();
   });
 
+  it("keeps the account's list as it was when the delete did not reach it", async () => {
+    vi.spyOn(PgSyncMark, "projectIds").mockResolvedValue(["last"]);
+    vi.spyOn(PgSyncMark, "remove").mockResolvedValue(undefined);
+    vi.spyOn(PgExplorer, "workspaceNameOf").mockReturnValue(undefined);
+    vi.spyOn(PgExplorer, "allWorkspaceNames", "get").mockReturnValue([]);
+    vi.spyOn(PgProjectSync, "remove").mockResolvedValue(false as never);
+    vi.spyOn(PgThreadIndex, "forget").mockResolvedValue(true);
+    registered([]);
+    PgAccountList.listed(1);
+
+    effect = projectSync();
+    dispatch(PgExplorer.events.ON_DID_DELETE_WORKSPACE);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(PgAccountList.state).toBe("holds");
+    PgAccountList.forget();
+  });
+
   it("leaves a project another tab created that this tab has not listed", async () => {
     // Synced from the neighbour, so it has a mark, which every tab shares --
     // and no name here until this tab re-reads the list

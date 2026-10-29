@@ -237,6 +237,9 @@ export const projectSync = (): Disposable => {
    * own queue, where nothing is half-way through when the list changes.
    */
   const settleLocalDeletes = async () => {
+    // Whether every delete below reached the account; one that did not leaves
+    // the project alive there
+    let allReached = true;
     try {
       for (const projectId of await PgSyncMark.projectIds()) {
         if (PgExplorer.workspaceNameOf(projectId)) continue;
@@ -244,7 +247,7 @@ export const projectSync = (): Disposable => {
         // known to be
         if ((await PgWorkspaceRegistry.lists(projectId)) !== false) continue;
 
-        await PgProjectSync.remove(projectId);
+        if (!(await PgProjectSync.remove(projectId))) allReached = false;
         await PgSyncMark.remove(projectId);
         // A tutorial's id is derived from its name, so deleting and restarting
         // one produces the same id -- and without this the previous run's
@@ -265,9 +268,11 @@ export const projectSync = (): Disposable => {
         await PgSyncClaim.forget(projectId);
       }
 
-      // The deletes above reached the account, so a browser left with no
+      // Every delete above reached the account, so a browser left with no
       // project means an account with none: Home offers the example again
-      if (PgExplorer.allWorkspaceNames?.length === 0) PgAccountList.listed(0);
+      if (allReached && PgExplorer.allWorkspaceNames?.length === 0) {
+        PgAccountList.listed(0);
+      }
     } catch (e) {
       report("settle local deletes", e);
     }
