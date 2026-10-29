@@ -111,9 +111,9 @@ export const accountLabel = (view: AccountView) => {
 /** Signed in: offline first, then the handle under the display name */
 const signedInLine = (
   user: AccountUser,
-  online: boolean
+  view: Pick<AccountView, "online">
 ): AccountLine | null => {
-  if (!online) return { kind: "offline" };
+  if (!view.online) return { kind: "offline" };
   // Without a display name the handle is already the name above
   if (user.login && user.name) return { kind: "login", login: user.login };
   return null;
@@ -148,7 +148,7 @@ export const accountLines = (
   if (user) {
     return {
       primary: profileName(user),
-      line: signedInLine(user, view.online),
+      line: signedInLine(user, view),
     };
   }
   return {

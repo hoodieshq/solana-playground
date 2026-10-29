@@ -66,7 +66,7 @@ const signedInWith = async (
 test("client-v2-auth: A sign-out", async ({ page }) => {
   test.setTimeout(120_000);
   // Held until the in-progress state is checked: the upload and the request
-  // can take seconds, and the dialog's button says so meanwhile
+  // can take seconds, and the menu's Sign out item says so meanwhile
   let accept: () => void = () => {};
   const accepted = new Promise<void>((resolve) => {
     accept = resolve;
