@@ -22,6 +22,14 @@ export interface RunInput {
   call?: { instruction: string; args: Record<string, string> };
 }
 
+/** One stage of a run as it starts: its label, and "n of m" */
+export interface RunStage {
+  label: string;
+  /** 1-based */
+  index: number;
+  count: number;
+}
+
 /**
  * Runs one act and reports its stages as they start ("Building",
  * "Writing buffer", ...). The result is a fact, never a throw: a run that
@@ -32,9 +40,32 @@ export interface Runner {
   run(
     act: Act,
     input: RunInput,
-    onStage: (stage: string) => void
+    onStage: (stage: RunStage) => void
   ): Promise<RunResult>;
 }
+
+/** A run that could not happen, as that act's failed result */
+export const failedResult = (
+  act: Act,
+  message: string,
+  seconds = 0
+): RunResult => {
+  switch (act) {
+    case "build":
+      return { act, ok: false, seconds, error: null, log: message };
+    case "deploy":
+    case "buildDeploy":
+      return { act, ok: false, seconds, reason: "failed", message };
+    case "run":
+    case "call":
+      return { act, ok: false, seconds, message, log: "" };
+  }
+};
+
+/** The runner the store starts with until the run tickets wire the real one */
+export const unwiredRunner: Runner = {
+  run: async (act) => failedResult(act, `The ${act} act is not wired yet.`),
+};
 
 /** Whether a run's result passes a step's goal (task 3.2 supplies the real checks) */
 export type Judge = (goal: Goal, result: RunResult) => boolean;
@@ -69,7 +100,10 @@ export const stubRunner = (
       runs.push({ act, input });
       const next = queue.shift();
       if (!next) throw new Error(`stubRunner: no result scripted for ${act}`);
-      for (const stage of next.stages ?? []) onStage(stage);
+      const stages = next.stages ?? [];
+      stages.forEach((label, i) =>
+        onStage({ label, index: i + 1, count: stages.length })
+      );
       return next.result;
     },
   };
@@ -98,17 +132,35 @@ if (import.meta.vitest) {
         instructions: [],
       };
       const runner = stubRunner([{ stages: ["Building"], result: ok }]);
-      const stages: string[] = [];
+      const stages: RunStage[] = [];
       await expect(
         runner.run("build", { beatId: "s1.build" }, (s) => stages.push(s))
       ).resolves.toBe(ok);
-      expect(stages).toEqual(["Building"]);
+      expect(stages).toEqual([{ label: "Building", index: 1, count: 1 }]);
       expect(runner.runs).toEqual([
         { act: "build", input: { beatId: "s1.build" } },
       ]);
       await expect(
         runner.run("build", { beatId: "f1.build" }, () => {})
       ).rejects.toThrow("no result scripted");
+    });
+
+    it("failedResult shapes a failure for each act, and the unwired runner answers with one", async () => {
+      expect(failedResult("build", "down")).toEqual({
+        act: "build",
+        ok: false,
+        seconds: 0,
+        error: null,
+        log: "down",
+      });
+      expect(failedResult("deploy", "down")).toMatchObject({
+        reason: "failed",
+        message: "down",
+      });
+      expect(failedResult("call", "down")).toMatchObject({ message: "down" });
+      await expect(
+        unwiredRunner.run("run", { beatId: "x" }, () => {})
+      ).resolves.toMatchObject({ ok: false });
     });
 
     it("passingJudge passes on ok alone", () => {

@@ -152,6 +152,12 @@ const locate = (
   return null;
 };
 
+/** The step a beat belongs to, for the store's writes */
+export const stepOfBeat = (
+  definition: TutorialDefinition,
+  beatId: string
+): Step | null => locate(definition, beatId)?.step ?? null;
+
 const stepAt = (definition: TutorialDefinition, cursor: Cursor): Step | null =>
   cursor.kind === "step"
     ? definition.steps.find((s) => s.id === cursor.stepId) ?? null

@@ -11,8 +11,27 @@ export type {
   StepTime,
   Wrote,
 } from "./model/progress";
-export { memoryWorkspace, passingJudge, stubRunner } from "./model/ports";
-export type { Judge, RunInput, Runner, Workspace } from "./model/ports";
+export {
+  failedResult,
+  memoryWorkspace,
+  passingJudge,
+  stubRunner,
+  unwiredRunner,
+} from "./model/ports";
+export type {
+  Judge,
+  RunInput,
+  RunStage,
+  Runner,
+  Workspace,
+} from "./model/ports";
+export { realWorkspace } from "./model/real-workspace";
+export {
+  INITIAL_CONVERSATION_STATE,
+  PgConversation,
+  STORAGE_KEY,
+} from "./model/store";
+export type { ConversationPorts, ConversationState } from "./model/store";
 export { FINISH_DELAY_MS, TICK_MS } from "./model/clock";
 export {
   holds,
@@ -26,7 +45,7 @@ export {
   withOwnText,
 } from "./model/landing";
 export type { Landing, Placed } from "./model/landing";
-export { INITIAL_ENGINE_STATE, reduce } from "./model/reducer";
+export { INITIAL_ENGINE_STATE, reduce, stepOfBeat } from "./model/reducer";
 export type {
   Action,
   Effect,

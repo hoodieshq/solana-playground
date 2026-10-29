@@ -134,7 +134,15 @@ const placement = (
   const mine = lines(straightQuotes(file)).filter(Boolean);
   const known = new Set([...refNorm, ...lines(start)]);
   if (!place || mine.some((l) => !known.has(l))) return null;
-  return { ref, refNorm, place, mine };
+  // The block's own text for each reference line it lands on: what `msg!`
+  // says is the writer's, and a learner's words must reach the file
+  const ownLine = new Map<number, string>();
+  const blockRows = block.split("\n").filter((l) => l.trim() !== "");
+  let k = 0;
+  for (let i = place[0]; i <= place[1] && k < blockRows.length; i++) {
+    if (refNorm[i] !== "") ownLine.set(i, blockRows[k++]);
+  }
+  return { ref, refNorm, place, mine, ownLine };
 };
 
 export interface Placed {
@@ -167,7 +175,7 @@ export const insertBlock = (
   };
   const placed = placement(file, block, reference, start);
   if (!placed) return append();
-  const { ref, refNorm, place, mine } = placed;
+  const { ref, refNorm, place, mine, ownLine } = placed;
 
   const have = new Set(mine);
   const kept = (i: number) =>
@@ -194,7 +202,7 @@ export const insertBlock = (
     if (gap && out[out.length - 1] !== "") out.push("");
     gap = false;
     if (line.trim() === "" && out[out.length - 1] === "") return;
-    out.push(line);
+    out.push(ownLine.get(i) ?? line);
     if (own[i]) taken.push(out.length);
   });
   while (out[out.length - 1] === "") out.pop();
@@ -295,6 +303,15 @@ if (import.meta.vitest) {
         const placed = insertBlock(start, block, named, start);
         expect(placed.code).toBe(named.trimEnd());
         expect(placed.lines).toEqual([9, 10]);
+      });
+    });
+
+    describe("insertBlock keeps the block's own words", () => {
+      it("writes the block's msg! text, not the target's", () => {
+        const own = MOD.replace("Hello, World!", "Hi there");
+        const placed = insertBlock(HEAD, own, TARGET, "");
+        expect(placed.code).toBe(`${HEAD}\n\n${own}`);
+        expect(placed.lines).toEqual([5, 6, 7, 8, 9, 10, 11, 12, 13]);
       });
     });
 
