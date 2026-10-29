@@ -237,7 +237,7 @@ export const projectSync = (): Disposable => {
    * own queue, where nothing is half-way through when the list changes.
    *
    * Once every delete reached an account whose list was read, a browser left
-   * with no project marks that list empty (`PgAccountList`), which is what
+   * with no workspace marks that list empty (`PgAccountList`), which is what
    * lets Home offer the example to a signed-in account again.
    */
   const settleLocalDeletes = async () => {
