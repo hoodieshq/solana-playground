@@ -13,6 +13,7 @@ import {
   THREAD_NOT_SAVED,
 } from "../../../views/sidebar/assistant/store";
 import type { Turn } from "../model/use-turn";
+import { TooltipProvider } from "@/shared/ui/tooltip";
 import { Thread } from "./Thread";
 
 /** The open lesson as the thread sees it; no lesson unless a test opens one */
@@ -58,6 +59,7 @@ vi.mock("../../../views/sidebar/assistant/bridge/lesson-context", () => ({
 // the same barrel; the thread only decides when to offer it and what to report
 const undo = vi.hoisted(() => ({
   can: vi.fn(() => false),
+  original: vi.fn((): string | null => null),
   undo: vi.fn(
     async (): Promise<
       import("../../../views/sidebar/assistant/patch-undo").UndoResult
@@ -202,6 +204,20 @@ describe("Thread, undo", () => {
     });
 
     expect(tracked()).toEqual([]);
+  });
+
+  it("offers the original to copy on a card whose Undo could not finish", () => {
+    undo.original.mockReturnValue("old");
+    applied();
+    render(
+      <TooltipProvider>
+        <Thread turn={stubTurn(false)} project="Counter" />
+      </TooltipProvider>
+    );
+    expect(
+      screen.getByRole("button", { name: "Copy the original" })
+    ).toBeTruthy();
+    undo.original.mockReturnValue(null);
   });
 
   it("offers no Undo patch on a card it cannot take back", () => {

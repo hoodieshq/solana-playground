@@ -3,6 +3,8 @@ import { useMemo } from "react";
 import { Badge } from "@/shared/ui/badge";
 import { BrandButton } from "@/shared/ui/brand-button";
 import { Button } from "@/shared/ui/button";
+import { CopyButton } from "@/shared/ui/copy-button";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import {
   Diff,
   DiffContent,
@@ -58,10 +60,13 @@ export const BaseApprovalCard = ({
   item,
   onAnswer,
   onUndo,
+  original,
 }: {
   item: ApprovalItem;
   onAnswer: (answer: ApprovalAnswer) => void;
   onUndo?: () => void;
+  /** The file before the patch, offered to copy when Undo could not finish */
+  original?: string;
 }) => {
   const { request, status } = item;
   const pending = status === "pending";
@@ -129,6 +134,14 @@ export const BaseApprovalCard = ({
             >
               {item.outcome ?? OUTCOME[status]}
             </span>
+            {original !== undefined && (
+              <CopyButton
+                value={original}
+                label="Copy the original"
+                className="ml-auto size-11 md:size-8"
+                onError={reportButtonFailure("copy the original")}
+              />
+            )}
             {onUndo && (
               <Button
                 variant="outline"

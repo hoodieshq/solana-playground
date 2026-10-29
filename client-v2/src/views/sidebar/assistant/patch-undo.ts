@@ -1,5 +1,6 @@
 import { realBridge } from "./bridge/playground-bridge";
 import type { PlaygroundBridge } from "./bridge/playground-bridge";
+import { report } from "@/features/persistence";
 import { createLogger } from "@/shared/lib/logger";
 import { PgAssistant } from "./store";
 import type { ChatItem, PatchApproval } from "./store";
@@ -21,6 +22,14 @@ export type UndoResult = "undone" | "moved-on" | "not-undoable";
  */
 const written = new Set<string>();
 
+/**
+ * Cards whose Undo threw and left the file holding neither the patch nor
+ * the original, or a file that could not be read back. The card says so and
+ * offers the original to copy (`PgPatchUndo.original`); in memory, like
+ * `written`, since only this tab holds the whole original.
+ */
+const stranded = new Set<string>();
+
 const DECLARE_ID = /declare_id!\("[^"]*"\)/;
 
 /**
@@ -37,9 +46,29 @@ const keepId = (content: string, now: string | null) => {
   return id ? content.replace(DECLARE_ID, id) : content;
 };
 
+/** The card's outcome when Undo could neither finish nor be offered again */
+export const undoStrandedOutcome = (
+  path: string,
+  why: string,
+  created: boolean
+) =>
+  created
+    ? `Undo did not finish: ${path} ${why}. It did not exist before the patch.`
+    : `Undo did not finish: ${path} ${why}. Copy the original below.`;
+
+/** Never a silent card with no Undo: say why on it, keep the original */
+const strand = (item: ApprovalItem, request: PatchApproval, why: string) => {
+  stranded.add(item.id);
+  PgAssistant.setApprovalOutcome(
+    item.id,
+    undoStrandedOutcome(request.path, why, request.before === null)
+  );
+};
+
 /**
- * After a write that threw: what the file holds now decides the card. Never
- * throws, so the caller rethrows the write's own error.
+ * After a write that threw: what the file holds now decides the card, and a
+ * file that cannot be read strands it too. Never throws, so the caller
+ * rethrows the write's own error.
  */
 const settleFailedUndo = (
   item: ApprovalItem,
@@ -51,8 +80,9 @@ const settleFailedUndo = (
   let now: string | null;
   try {
     now = bridge.readFile(request.path);
-  } catch (error) {
-    log.error(error, { report: true, context: { path: request.path } });
+  } catch (readError) {
+    report("read a file back after a failed undo", readError);
+    strand(item, request, "could not be read back");
     return;
   }
   if (holdsPatch(now, request.after)) {
@@ -63,7 +93,14 @@ const settleFailedUndo = (
     request.before === null
       ? now === null
       : now === keepId(request.before, held);
-  if (!restored) return;
+  if (!restored) {
+    report(
+      "undo a patch",
+      new Error(`${request.path} changed while Undo wrote it`)
+    );
+    strand(item, request, "changed while Undo wrote it");
+    return;
+  }
   if (!PgAssistant.markUndone(item.id, undoneOutcome(request.path))) {
     log.warn("undid a patch whose card is gone", {
       report: true,
@@ -91,6 +128,16 @@ export class PgPatchUndo {
   /** Call once a patch from an approval card is written */
   static wrote(approvalId: string) {
     written.add(approvalId);
+  }
+
+  /**
+   * The file's content before the patch, for a card whose Undo could not
+   * finish; `null` for any other card, or a patch that created its file
+   */
+  static original(item: ApprovalItem) {
+    const { request } = item;
+    if (!stranded.has(item.id) || request.type !== "patch") return null;
+    return request.before;
   }
 
   /** Whether the card's patch can still be taken back with one press */
@@ -136,8 +183,9 @@ export class PgPatchUndo {
     } catch (error) {
       // A write can land before what follows it fails (the editor's model
       // sync), so the file says what happened: still the patch, and Undo is
-      // offered again; back as it was, and the card says so; anything else
-      // is an edit nobody made here, and the card is left as it is
+      // offered again; back as it was, and the card says so; anything else,
+      // or a file that cannot be read, and the card says Undo did not finish
+      // and offers the original to copy
       settleFailedUndo(item, request, now, bridge);
       throw error;
     }

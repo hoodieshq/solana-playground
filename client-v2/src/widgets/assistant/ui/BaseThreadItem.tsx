@@ -84,6 +84,7 @@ export const BaseThreadItem = ({
   actions,
   onAnswer,
   onUndo,
+  original,
   cutOff = false,
   onRetry,
 }: {
@@ -92,6 +93,8 @@ export const BaseThreadItem = ({
   onAnswer: (id: string, answer: ApprovalAnswer) => void;
   /** Takes back this item's applied patch; only while it still can be */
   onUndo?: () => void;
+  /** The file before this item's patch, when its Undo could not finish */
+  original?: string;
   /** The reply's request failed mid-stream, or a reload cut it short */
   cutOff?: boolean;
   /** Sends the last message again; given to the last item only, when it was stopped or cut off */
@@ -187,6 +190,7 @@ export const BaseThreadItem = ({
           item={item}
           onAnswer={(answer) => onAnswer(item.id, answer)}
           onUndo={onUndo}
+          original={original}
         />
       );
   }

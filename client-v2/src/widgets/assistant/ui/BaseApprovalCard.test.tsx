@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { TooltipProvider } from "@/shared/ui/tooltip";
 import { BaseApprovalCard } from "./BaseApprovalCard";
 import type { ApprovalItem } from "./BaseApprovalCard";
 
@@ -171,6 +172,21 @@ describe("BaseApprovalCard", () => {
       expect(undo.className).toContain("min-w-11");
       fireEvent.click(undo);
       expect(onUndo).toHaveBeenCalledTimes(1);
+    });
+
+    it("offers the original to copy when Undo could not finish", () => {
+      render(
+        <TooltipProvider>
+          <BaseApprovalCard
+            item={appliedCard()}
+            onAnswer={vi.fn()}
+            original="old"
+          />
+        </TooltipProvider>
+      );
+      const copy = screen.getByRole("button", { name: "Copy the original" });
+      expect(copy.className).toContain("size-11");
+      expect(screen.queryByRole("button", { name: "Undo patch" })).toBeNull();
     });
 
     it("offers no Undo patch without onUndo", () => {

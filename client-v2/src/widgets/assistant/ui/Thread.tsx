@@ -190,6 +190,12 @@ export const Thread = ({
     };
   };
 
+  const originalFor = (id: string) => {
+    const card = items.find((item) => item.id === id);
+    if (card?.kind !== "approval") return undefined;
+    return PgPatchUndo.original(card) ?? undefined;
+  };
+
   // Try again sends the last message once more, from the thread's last item
   // only, and only when that item is where a turn was stopped or cut off
   const lastSent = items.findLast((item) => item.kind === "user");
@@ -232,6 +238,7 @@ export const Thread = ({
       actionsFor={actionsFor}
       onAnswer={onAnswer}
       undoFor={undoFor}
+      originalFor={originalFor}
       isCutOff={(item) => PgAssistant.isCutOff(item)}
       retryFor={retryFor}
     />

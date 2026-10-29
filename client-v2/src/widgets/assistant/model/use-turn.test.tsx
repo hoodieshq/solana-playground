@@ -1098,6 +1098,27 @@ describe("useTurn's failures and races", () => {
       expect(PgAssistant.isCutOff(reply)).toBe(true);
     });
 
+    it.each([
+      [
+        "a TypeError that only contains a network message",
+        new TypeError("prefix failed to fetch"),
+      ],
+      [
+        "a network message that is not a TypeError",
+        new Error("Failed to fetch"),
+      ],
+    ])("shows %s after text as an error", async (_, error) => {
+      PgAssistant.connect({ id: "default", apiKey: "" });
+      failAfter("The program", error);
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send("hi"));
+
+      const reply = PgAssistant.items.find((i) => i.kind === "assistant")!;
+      expect(PgAssistant.isCutOff(reply)).toBe(false);
+      expect(PgAssistant.items.at(-1)).toMatchObject({ kind: "error" });
+    });
+
     it("shows a TypeError that only mentions fetch as an error", async () => {
       PgAssistant.connect({ id: "default", apiKey: "" });
       failAfter("The program", new TypeError("x.fetch is not a function"));

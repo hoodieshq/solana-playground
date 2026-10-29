@@ -39,6 +39,7 @@ export const BaseThread = ({
   actionsFor,
   onAnswer,
   undoFor = () => undefined,
+  originalFor = () => undefined,
   isCutOff = () => false,
   retryFor = () => undefined,
 }: {
@@ -56,6 +57,8 @@ export const BaseThread = ({
   onAnswer: (id: string, answer: ApprovalAnswer) => void;
   /** Takes back the patch of the card `id`, or `undefined` when it no longer can */
   undoFor?: (id: string) => (() => void) | undefined;
+  /** The file before the patch of the card `id`, when its Undo could not finish */
+  originalFor?: (id: string) => string | undefined;
   /** Whether a reply was cut off mid-stream */
   isCutOff?: (item: ChatItem) => boolean;
   /** Sends the last message again from the item `id`, or `undefined` where Try again is not offered */
@@ -88,6 +91,7 @@ export const BaseThread = ({
                   actions={actionsFor(item.id)}
                   onAnswer={onAnswer}
                   onUndo={undoFor(item.id)}
+                  original={originalFor(item.id)}
                   cutOff={isCutOff(item)}
                   onRetry={retryFor(item.id)}
                 />
