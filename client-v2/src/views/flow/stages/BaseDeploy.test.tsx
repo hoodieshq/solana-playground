@@ -341,7 +341,7 @@ describe("BaseDeploy", () => {
   });
 
   /** The prototype's first deploy: the pill, and Upload IDL under it */
-  it("before the first deploy it has no history, only Upload IDL", () => {
+  it("before the first deploy it has no history, only Upload IDL and the CLI guide", () => {
     const { container } = render(
       <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
     );
@@ -353,7 +353,11 @@ describe("BaseDeploy", () => {
     const labels = [...actions.querySelectorAll("button")].map(
       (b) => b.textContent
     );
-    expect(labels).toEqual(["Deploy to devnet", "Upload IDL"]);
+    expect(labels).toEqual([
+      "Deploy to devnet",
+      "Upload IDL",
+      "Deploy with the CLI",
+    ]);
   });
 
   /** After a deploy the stage reports: the history, and Upload IDL beside the pill */
