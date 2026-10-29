@@ -31,7 +31,8 @@ import type { Disposable } from "../../utils/types";
  * circular -- so the composition happens out here, in the effect layer that is
  * allowed to know about both.
  *
- * `refresh` never throws; it treats any failure as signed out.
+ * `refresh` never throws; a failed read keeps the user it had (signed out on
+ * a first read) and sets `readState` to `failed`.
  */
 export const session = (): Disposable => {
   /**
