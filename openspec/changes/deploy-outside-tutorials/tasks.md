@@ -5,10 +5,10 @@ and land in one PR (Slava, 29 Oct).
 
 ## 1. History and Explorer links
 
-- [ ] 1.1 Block explorers take a cluster (design D3); verify with a failing-first test that a devnet record's Explorer URL carries `cluster=devnet` while testnet is picked
-- [ ] 1.2 The deploy command returns `{ signature, cost, upgraded }` and `PgDeployHistory` stores signature and cost, still reading old records (D2); verify with in-source tests in `deploy-history.ts`
+- [x] 1.1 Block explorers take a cluster (design D3); verify with a failing-first test that a devnet record's Explorer URL carries `cluster=devnet` while testnet is picked
+- [x] 1.2 The deploy command returns `{ signature, cost, upgraded }` and `PgDeployHistory` stores signature and cost, still reading old records (D2); verify with in-source tests in `deploy-history.ts`
 - [ ] 1.3 History rows and result card links use the record's cluster and name it ("Explorer (devnet)"); verify with `BaseDeploy` tests and the e2e scenario "client-v2-deploy: A devnet record viewed on testnet" (depends on 1.1, 1.2)
-- [ ] 1.4 Reword the "Build & Deploy" tab string in `commands/deploy/deploy.ts`; verify by grep
+- [x] 1.4 Reword the "Build & Deploy" tab string in `commands/deploy/deploy.ts`; verify by grep
 
 ## 2. Run state and panel answers
 
