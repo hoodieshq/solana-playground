@@ -290,6 +290,28 @@ describe("the session effect", () => {
     });
   });
 
+  it("takes a retry that answers after a failed first read as the restore, not a sign-in", async () => {
+    sync.mockResolvedValue(result({ latest: "Newest" }));
+    (PgSession.refresh as unknown as MockInstance).mockRestore();
+    vi.spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user }),
+      } as never);
+
+    const effect = session();
+    await settle();
+    expect(PgSession.readState).toBe("failed");
+    // Home's retry of the account check
+    await PgSession.refresh();
+    await settle();
+
+    expect(PgSession.get()?.id).toBe("u1");
+    expect(switchWorkspace).not.toHaveBeenCalled();
+    effect.dispose();
+  });
+
   it("opens the newest project when the user actually signs in", async () => {
     sync.mockResolvedValue(result({ latest: "Newest" }));
 

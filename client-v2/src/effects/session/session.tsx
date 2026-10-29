@@ -245,13 +245,16 @@ export const session = (): Disposable => {
     PgProjectSync.releasePushes();
   };
 
-  // The first transition is the cookie being restored on load, not the user
-  // signing in -- `refresh` fires it before its own promise settles. Anything
-  // after that is a real sign-in, and only that one takes the user somewhere.
+  // The first answered read is the cookie being restored on load, not the
+  // user signing in -- `refresh` fires it before its own promise settles, and
+  // when the load's read failed, Home's retry is the one that answers. Any
+  // transition after that is a real sign-in, and only that one takes the user
+  // somewhere.
   let restored = false;
   let signedIn = !!PgSession.get();
   const onChange = PgSession.onDidChange(() => {
     const nowSignedIn = !!PgSession.get();
+    const restoring = !restored && PgSession.readState === "answered";
     // Nothing awaits this, so a failure here would otherwise surface as an
     // unhandled rejection and nowhere else. It is reported and swallowed: the
     // app has to keep working offline, and `__pgSyncDiagnostics.failures()` is
@@ -259,17 +262,19 @@ export const session = (): Disposable => {
     if (nowSignedIn && !signedIn) {
       // A panel sign-in happens mid-task, with a prompt written for the open project
       const fromPanel = PgSession.signingInFrom === "assistant";
-      void adopt({ openLatest: restored && !fromPanel }).catch((e) =>
+      void adopt({ openLatest: !restoring && !fromPanel }).catch((e) =>
         report("adopt", e)
       );
     }
     signedIn = nowSignedIn;
+    if (restoring) restored = true;
   });
 
   PgSession.setOnSignOut(relinquish);
 
   void PgSession.refresh().then(() => {
-    restored = true;
+    // A failed read restores nothing: the read that later answers does
+    if (PgSession.readState === "answered") restored = true;
     // Signed out, so no reconcile is coming and nothing should be waiting on
     // one. `adopt` releases in its own right when there is a session.
     if (!PgSession.get()) releaseHold();

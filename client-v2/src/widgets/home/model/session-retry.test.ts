@@ -56,6 +56,17 @@ describe("widgets/home/model/session-retry", () => {
     expect(session.refresh).toHaveBeenCalledTimes(5);
   });
 
+  it("backs off on a timer alone, five reads in all, with no focus or online", async () => {
+    const { result } = renderHook(() => useSessionRetry(true));
+    for (const ms of [2_000, 4_000, 8_000, 16_000, 32_000]) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    }
+    expect(session.refresh).toHaveBeenCalledTimes(5);
+    expect(result.current.kind).toBe("exhausted");
+  });
+
   it("counts only the reads it starts", async () => {
     let settle!: () => void;
     session.refresh.mockReturnValueOnce(

@@ -100,6 +100,13 @@ const IDLE: SignInState = { status: "idle" };
 const ANSWERS = new Set([401, 404]);
 
 /**
+ * How long a session read may hang before it counts as no answer: a read
+ * that never settles would leave `readState` unread and Home with nothing
+ * to lead with or retry
+ */
+const READ_TIMEOUT_MS = 10_000;
+
+/**
  * How a session read can go: none settled yet, `failed` (no answer, a 5xx
  * other than the not-configured 503, a 4xx other than `ANSWERS`, or JSON
  * that does not parse), when `get()` says nothing new about who is signed
@@ -217,6 +224,7 @@ export class PgSession {
       const response = await fetch("/api/auth/get-session", {
         credentials: "include",
         cache: "no-store",
+        signal: timeoutSignal(READ_TIMEOUT_MS),
       });
       if (response.ok) {
         const body = await jsonOrPage(response);
@@ -801,6 +809,18 @@ if (import.meta.vitest) {
 
         expect(PgSession.readState).toBe("failed");
         expect(logs.entries.some((e) => e.report)).toBe(reported);
+      });
+
+      it("gives up on a read that hangs, as no answer", async () => {
+        initLogger({ providers: [memoryProvider()] });
+        const request = vi
+          .spyOn(globalThis, "fetch")
+          .mockRejectedValue(new DOMException("timed out", "TimeoutError"));
+
+        await PgSession.refresh();
+
+        expect(request.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+        expect(PgSession.readState).toBe("failed");
       });
 
       it("keeps a signed-in user through a read that fails", async () => {
