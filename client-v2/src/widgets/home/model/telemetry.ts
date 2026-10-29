@@ -41,6 +41,8 @@ type HomeEvents = {
   home_example_run: { outcome: HomeExampleOutcome };
   /** A user opened a row of "Pick up where you left off" */
   home_recent_opened: { kind: HomeRecentKind };
+  /** A user pressed "Try again" after the account check kept failing */
+  home_session_retried: NoParams;
   /** A user opened the assistant from Home's composer */
   home_composer_opened: NoParams;
 };

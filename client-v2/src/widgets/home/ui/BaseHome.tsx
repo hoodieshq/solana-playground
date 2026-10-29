@@ -34,7 +34,7 @@ export interface TutorialFailure {
   message: string;
 }
 
-/** The example's one line, Spec 06's draft for the Anchor starter */
+/** The example's one line (spec `client-v2-first-run`) */
 const EXAMPLE_LINE =
   "This program saves a number in an account and writes it to the logs.";
 
@@ -44,6 +44,7 @@ const EXAMPLE_LINE =
  */
 export type HomeStart =
   | { kind: "example"; onRun: () => Promise<void> }
+  | { kind: "retry"; onRetry: () => Promise<void> }
   | {
       kind: "recent";
       entries: readonly RecentEntry[];
@@ -118,6 +119,27 @@ const Example = ({ onRun }: { onRun: () => Promise<void> }) => (
   </section>
 );
 
+/**
+ * What Home leads with when the account check keeps failing. Our copy: the
+ * designers' Spec 08 has no row for a failed account check.
+ */
+export const RetryLine = ({ onRetry }: { onRetry: () => Promise<void> }) => (
+  <div
+    role="status"
+    className="flex items-center justify-between gap-3 text-caption text-muted-foreground"
+  >
+    <span>We could not check your account.</span>
+    <AsyncButton
+      variant="outline"
+      size="sm"
+      onClick={onRetry}
+      onError={reportButtonFailure("check your account")}
+    >
+      Try again
+    </AsyncButton>
+  </div>
+);
+
 const RECENT_KIND: Record<RecentEntry["kind"], string> = {
   project: "Project",
   tutorial: "Tutorial",
@@ -131,9 +153,9 @@ const Recent = ({
   onOpen: (entry: RecentEntry) => Promise<void>;
 }) => (
   <section aria-labelledby="home-recent" className="flex flex-col gap-2">
-    <p id="home-recent" className="text-caption text-muted-foreground">
+    <h2 id="home-recent" className="text-caption text-muted-foreground">
       Pick up where you left off
-    </p>
+    </h2>
     <ul aria-labelledby="home-recent" className="flex flex-col gap-2">
       {entries.map((entry) => (
         <li key={entry.name}>
@@ -193,8 +215,10 @@ const BaseHome = ({
       <h1 className="text-center font-heading text-display font-headline text-foreground">
         Where should we begin?
       </h1>
-      {/* Above the composer, so Tab reaches "Run it" first (Spec 06) */}
+      {/* Above the composer, so Tab reaches "Run it" first (spec
+          `client-v2-first-run`) */}
       {start?.kind === "example" && <Example onRun={start.onRun} />}
+      {start?.kind === "retry" && <RetryLine onRetry={start.onRetry} />}
       {start?.kind === "recent" && (
         <Recent entries={start.entries} onOpen={start.onOpen} />
       )}

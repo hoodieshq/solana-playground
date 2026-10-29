@@ -12,6 +12,7 @@ import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { Logo, LogoMark } from "@/shared/ui/logo";
 import type { HomeQuickstart } from "../model/telemetry";
+import { RetryLine } from "./BaseHome";
 import HomeComposer from "./HomeComposer";
 
 /** What a quick start opens, with what it needs to open it */
@@ -39,6 +40,8 @@ export interface BasePhoneHomeProps {
   onQuickstart: (quickstart: PhoneQuickstart) => Promise<void>;
   onBrowse: () => void;
   onAsk: () => void;
+  /** Set once the account check has spent its automatic re-reads */
+  onRetrySession?: () => Promise<void>;
 }
 
 const ICONS: Record<HomeQuickstart, ReactNode> = {
@@ -62,6 +65,7 @@ const BasePhoneHome = ({
   onQuickstart,
   onBrowse,
   onAsk,
+  onRetrySession,
 }: BasePhoneHomeProps) => (
   <section
     aria-label="Home"
@@ -76,6 +80,7 @@ const BasePhoneHome = ({
       </h1>
     </div>
 
+    {onRetrySession && <RetryLine onRetry={onRetrySession} />}
     <nav aria-label="Quick start" className="flex flex-col gap-2">
       {quickstarts.map((q) => (
         <AsyncButton

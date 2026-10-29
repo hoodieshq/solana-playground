@@ -13,7 +13,7 @@ const log = createLogger("home:first-run");
  * The first-run example's project, found by this name: "Run it" shows only
  * while the browser holds no project, but another tab or sync can make the
  * example after Home drew it, and then it is opened rather than copied.
- * Spec 06 has the Anchor starter stand in until an example is picked.
+ * The Anchor starter stands in until an example is picked.
  */
 const EXAMPLE_NAME = "anchor-example";
 

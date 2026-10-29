@@ -7,11 +7,8 @@
  */
 export type Visit = "first" | "return" | "unknown";
 
-/**
- * How the session read went (`PgSession.readState`), restated here so this
- * module stays free of the auth slice and its in-source tests can load
- */
-export type SessionSeen = "unread" | "failed" | "answered";
+/** How the session read went: `PgSession.readState`, by type only */
+export type SessionSeen = import("@/features/auth").ReadState;
 
 /** A project in the browser wins over the session; then the session decides */
 export const visitOf = (

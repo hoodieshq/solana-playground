@@ -184,7 +184,7 @@ it("offers the example on a first visit, ahead of the composer", async () => {
   ).toBeTruthy();
   const run = example.getByRole("button", { name: "Run it" });
   const ask = home.getByRole("button", { name: "Ask the assistant" });
-  // Tab reaches Run it before the composer (Spec 06, Accessibility)
+  // Tab reaches Run it before the composer (spec `client-v2-first-run`)
   expect(
     run.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING
   ).toBeTruthy();
@@ -220,4 +220,15 @@ it("shows neither section when there is nothing to offer", () => {
   expect(
     home.queryByRole("region", { name: "Pick up where you left off" })
   ).toBeNull();
+});
+
+it("offers to check the account again once the automatic re-reads are spent", async () => {
+  const onRetry = vi.fn().mockResolvedValue(undefined);
+  const home = draw(props({ kind: "retry", onRetry }));
+  expect(home.getByRole("status").textContent).toContain(
+    "We could not check your account."
+  );
+  expect(home.queryByRole("region", { name: "Try an example" })).toBeNull();
+  fireEvent.click(home.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(onRetry).toHaveBeenCalledTimes(1));
 });

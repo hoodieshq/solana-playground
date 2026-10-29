@@ -6,7 +6,7 @@ Gets a first-time visitor from Home to a running example in one press, a returni
 ## Requirements
 
 ### Requirement: Home offers the example on a first visit
-Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed (no answer, a 5xx, a 408, 425 or 429), since that says nothing of who is signed in. A deployment with no sign-in configured answers with a 503 that says so; that is an answer (nobody is signed in), not a failure.
+Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed (no answer, a 5xx, a 403, 408, 425 or 429), since that says nothing of who is signed in. A deployment with no sign-in configured answers with a 503 that says so, and a host with no auth route answers a page; both are answers (nobody is signed in), not failures. Once a read has answered, a later failed one does not take the example away.
 
 #### Scenario: First visit on desktop
 - **WHEN** Home opens in a browser with no project
@@ -19,6 +19,10 @@ Desktop Home SHALL show a section labelled "Try an example" above its three tile
 #### Scenario: Session read failed (manual)
 - **WHEN** Home opens with no project and the session read got no answer or a 5xx
 - **THEN** no "Try an example" region shows
+
+#### Scenario: Failed check retried (manual)
+- **WHEN** Home opens with no project, the session read fails, and the window regains focus or comes back online five times with the check still failing
+- **THEN** each of those re-reads the session (none while offline), no "Try an example" region shows, and after the fifth Home shows "We could not check your account." with a "Try again" button that re-reads it and counts `home_session_retried`
 
 #### Scenario: Sign-in not configured (manual)
 - **WHEN** Home opens with no project on a deployment whose auth route answers "Authentication is not configured"

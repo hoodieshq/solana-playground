@@ -1,11 +1,13 @@
 import { useState } from "react";
 
+import { PgSession } from "@/features/auth";
 import { StartFromScratch } from "@/features/new-project";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgTutorial } from "@/utils";
 import { errorMessage } from "../lib/error-message";
 import { runExample } from "../model/example";
 import { recentProjects } from "../model/recent";
+import { useSessionRetry } from "../model/session-retry";
 import { useVisit } from "../model/use-visit";
 import type { RecentEntry } from "../model/recent";
 import { useProgramCount } from "../model/use-program-count";
@@ -30,10 +32,13 @@ const log = createLogger("home:actions");
  * through `PgTutorial.open`, which restores its route and page.
  */
 const openRecent = async (entry: RecentEntry, onContinue: () => void) => {
-  if (!PgExplorer.allWorkspaceNames?.includes(entry.name)) {
+  const names = PgExplorer.allWorkspaceNames;
+  if (!names) throw new Error("The project list has not loaded yet.");
+  if (!names.includes(entry.name)) {
     throw new Error(`${entry.name} no longer exists.`);
   }
-  if (entry.current) {
+  // Read now, not when Home drew: another tab or sync may have opened another
+  if (entry.name === PgExplorer.currentWorkspaceName) {
     onContinue();
     return "current" as const;
   }
@@ -44,11 +49,27 @@ const openRecent = async (entry: RecentEntry, onContinue: () => void) => {
 
 /**
  * What leads Home, by `useVisit`: the example on a first visit, recent work
- * once there are projects, and nothing while the visit is unknown
+ * once there are projects, "Try again" once a failed session check has
+ * spent its automatic re-reads, and nothing while the visit is unknown
  */
 const useStart = (onContinue: () => void): HomeStart | null => {
   const visit = useVisit();
   const names = PgExplorer.allWorkspaceNames;
+  // A failed session check with no project hangs the visit: retry it, and
+  // never fall back to the example, whose build could start for someone
+  // signed in
+  const retry = useSessionRetry(
+    names?.length === 0 && PgSession.readState === "failed"
+  );
+  if (retry.kind === "exhausted") {
+    return {
+      kind: "retry",
+      onRetry: async () => {
+        homeTelemetry.track("home_session_retried", {});
+        await retry.retry();
+      },
+    };
+  }
   if (visit === "unknown" || !names) return null;
   if (visit === "first") {
     return {

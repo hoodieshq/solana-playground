@@ -29,6 +29,16 @@ describe("shared/lib/hooks/use-elapsed", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("counts a new run from its own start", () => {
+    const { result, rerender } = renderHook(({ at }) => useElapsed(at), {
+      initialProps: { at: START as number | null },
+    });
+    act(() => vi.advanceTimersByTime(30_000));
+    rerender({ at: START + 30_000 });
+    act(() => vi.advanceTimersByTime(2_000));
+    expect(result.current).toBe(2_000);
+  });
+
   it("stops when the run ends", () => {
     const { result, rerender } = renderHook(
       ({ running }) => useElapsed(flow(running)),

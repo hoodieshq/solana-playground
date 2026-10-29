@@ -1,6 +1,8 @@
+import { PgSession } from "@/features/auth";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgFramework, PgTutorial } from "@/utils";
 import { runExample } from "../model/example";
+import { useSessionRetry } from "../model/session-retry";
 import { useVisit } from "../model/use-visit";
 import { homeTelemetry } from "../model/telemetry";
 import type { PageTile } from "../model/telemetry";
@@ -83,6 +85,11 @@ const openQuickstart = async (
 const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
   const visit = useVisit();
   const programCount = useProgramCount();
+  // As on desktop: retry a failed account check, never fall back to the example
+  const retry = useSessionRetry(
+    PgExplorer.allWorkspaceNames?.length === 0 &&
+      PgSession.readState === "failed"
+  );
 
   const framework = newFramework();
   const tutorial = PgTutorial.all.find((t) => t.level === "Beginner");
@@ -143,6 +150,14 @@ const PhoneHome = ({ onAsk, onContinue, onOpenPage }: PhoneHomeProps) => {
         homeTelemetry.track("home_quickstart_opened", { id: quickstart.id });
       }}
       onBrowse={() => onOpenPage("tutorials")}
+      onRetrySession={
+        retry.kind === "exhausted"
+          ? async () => {
+              homeTelemetry.track("home_session_retried", {});
+              await retry.retry();
+            }
+          : undefined
+      }
       onAsk={() => {
         homeTelemetry.track("home_composer_opened", {});
         onAsk();

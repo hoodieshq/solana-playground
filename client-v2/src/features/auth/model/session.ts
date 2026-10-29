@@ -92,8 +92,34 @@ export type SignInState =
 
 const IDLE: SignInState = { status: "idle" };
 
-/** Statuses that are no answer about who is signed in, only a busy server */
-const RETRY_LATER = new Set([408, 425, 429]);
+/**
+ * Statuses that say "try again later" or "not you, not now" (a firewall's
+ * 403), not who is signed in. Expected under load, so logged, not reported.
+ */
+const NOT_AN_ANSWER = new Set([403, 408, 425, 429]);
+
+/**
+ * How a session read can go: none settled yet, `failed` (no answer, a 5xx
+ * other than the not-configured 503, or a `NOT_AN_ANSWER` status), when a
+ * null user says nothing about who is signed in, or `answered`
+ */
+export type ReadState = "unread" | "failed" | "answered";
+
+/**
+ * A 2xx body, or `null` when it is a page rather than JSON: a host with no
+ * auth route serves its app shell there, which says nobody can be signed in
+ */
+const jsonOrPage = async (response: Response) => {
+  try {
+    return await response.json();
+  } catch (e) {
+    if (!(e instanceof SyntaxError)) throw e;
+    log.warn("session read answered without JSON", {
+      context: { status: response.status },
+    });
+    return null;
+  }
+};
 
 /**
  * The auth route's 503 for a deployment with no sign-in configured. Only a
@@ -127,9 +153,6 @@ const notConfigured = async (response: Response) => {
  * barrel reaches most of the app, and the circular-dependency plugin fails the
  * build on a cycle.
  */
-/** How the last session read went; see `PgSession.readState` */
-export type ReadState = "unread" | "failed" | "answered";
-
 export class PgSession {
   static get(): SessionUser | null {
     return PgSession._user;
@@ -138,8 +161,10 @@ export class PgSession {
   /**
    * Re-read the session cookie.
    *
-   * Never throws: a failed read leaves the user signed out, since nobody can be
-   * proved signed in, and is logged (reported when it threw or answered 5xx).
+   * Never throws. A read that fails (see `ReadState`) leaves the user signed
+   * out, since nobody can be proved signed in; a 5xx or no answer is
+   * reported, a `NOT_AN_ANSWER` status only logged. Any other non-2xx, and a
+   * 2xx that is not JSON (no auth route here), is an answer: nobody.
    */
   static refresh(): Promise<void> {
     const read = PgSession._read().finally(() => {
@@ -150,10 +175,9 @@ export class PgSession {
   }
 
   /**
-   * How the last session read went: not yet, `failed` (no answer, a 5xx
-   * other than the auth route's not-configured answer, or a 408, 425 or
-   * 429), when `get()` being null says nothing about who is signed in, or
-   * `answered`. A change fires `onDidChange` even when the user does not.
+   * How session reads have gone (`ReadState`). Once one has answered it stays
+   * `answered`: a later failed read says nothing new about who is signed in.
+   * A change in this value fires `onDidChange` even if the user is unchanged.
    */
   static get readState(): ReadState {
     return PgSession._readState;
@@ -187,7 +211,7 @@ export class PgSession {
         cache: "no-store",
       });
       if (response.ok) {
-        const body = await response.json();
+        const body = await jsonOrPage(response);
         next = body?.user
           ? {
               id: String(body.user.id),
@@ -199,7 +223,12 @@ export class PgSession {
       } else if (await notConfigured(response)) {
         // This deployment has no sign-in, so nobody is signed in: an answer
         log.debug("sign-in is not configured here");
-      } else if (response.status >= 500 || RETRY_LATER.has(response.status)) {
+      } else if (NOT_AN_ANSWER.has(response.status)) {
+        failed = true;
+        log.warn(`session read answered ${response.status}`, {
+          context: { status: response.status },
+        });
+      } else if (response.status >= 500) {
         failed = true;
         log.error(new Error(`session read answered ${response.status}`), {
           report: true,
@@ -516,8 +545,12 @@ export class PgSession {
 
   /** Settle a read: its state, then its user, with one change for both */
   private static _setRead(state: ReadState, user: SessionUser | null) {
-    const stateChanged = PgSession._readState !== state;
-    PgSession._readState = state;
+    const next =
+      state === "failed" && PgSession._readState === "answered"
+        ? "answered"
+        : state;
+    const stateChanged = PgSession._readState !== next;
+    PgSession._readState = next;
     if (!PgSession._set(user) && stateChanged) {
       for (const cb of PgSession._listeners) cb();
     }
@@ -622,6 +655,32 @@ if (import.meta.vitest) {
         ["a 401", () => Promise.resolve({ ok: false, status: 401 }), false],
         ["a 429", () => Promise.resolve({ ok: false, status: 429 }), true],
         ["a 408", () => Promise.resolve({ ok: false, status: 408 }), true],
+        ["a 425", () => Promise.resolve({ ok: false, status: 425 }), true],
+        ["a 403", () => Promise.resolve({ ok: false, status: 403 }), true],
+        ["a 404", () => Promise.resolve({ ok: false, status: 404 }), false],
+        ["a 502", () => Promise.resolve({ ok: false, status: 502 }), true],
+        [
+          "a 503 that is a page",
+          () =>
+            Promise.resolve({
+              ok: false,
+              status: 503,
+              headers: new Headers({ "content-type": "text/html" }),
+            }),
+          true,
+        ],
+        [
+          "a 200 that is a page (no auth route here)",
+          () =>
+            Promise.resolve({
+              ok: true,
+              status: 200,
+              json: async () => {
+                throw new SyntaxError("Unexpected token '<'");
+              },
+            }),
+          false,
+        ],
         [
           "a 503 whose JSON body does not parse",
           () =>
@@ -642,7 +701,7 @@ if (import.meta.vitest) {
               ok: false,
               status: 503,
               headers: new Headers({ "content-type": "application/json" }),
-              json: async () => ({ error: "Authentication is not configured" }),
+              json: async () => ({ error: AUTH_NOT_CONFIGURED }),
             }),
           false,
         ],
@@ -686,6 +745,19 @@ if (import.meta.vitest) {
 
         expect(PgSession.readState).toBe("answered");
         expect(heard).toHaveBeenCalledTimes(1);
+      });
+
+      it("stays answered when a later read fails", async () => {
+        initLogger({ providers: [memoryProvider()] });
+        const request = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ user: null }),
+        } as Response);
+        await PgSession.refresh();
+        request.mockRejectedValueOnce(new Error("offline"));
+        await PgSession.refresh();
+
+        expect(PgSession.readState).toBe("answered");
       });
 
       it("is signed out before any refresh", () => {
