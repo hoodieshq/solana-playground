@@ -127,3 +127,44 @@ test.describe("on a phone", () => {
     await expect(starts.nth(2)).toContainText("Beginner tutorial");
   });
 });
+
+test.describe("when the account check fails", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("client-v2-first-run: Session read failed", async ({ page }) => {
+    let failing = true;
+    await page.route("**/api/auth/get-session", (route) =>
+      failing
+        ? route.fulfill({ status: 502, body: "bad gateway" })
+        : route.fulfill({
+            contentType: "application/json",
+            body: JSON.stringify({ user: null }),
+          })
+    );
+    await page.goto("/");
+    await expect(home(page)).toBeVisible();
+    await expect(
+      homeRegion(page).getByRole("region", { name: "Try an example" })
+    ).toHaveCount(0);
+
+    // The check answers on its next re-read, two seconds on
+    failing = false;
+    await expect(
+      homeRegion(page).getByRole("region", { name: "Try an example" })
+    ).toBeVisible(LONG);
+  });
+
+  test("client-v2-first-run: Sign-in not configured", async ({ page }) => {
+    await page.route("**/api/auth/get-session", (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Authentication is not configured" }),
+      })
+    );
+    await page.goto("/");
+    await expect(
+      homeRegion(page).getByRole("region", { name: "Try an example" })
+    ).toBeVisible(LONG);
+  });
+});

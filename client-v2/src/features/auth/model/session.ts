@@ -179,7 +179,8 @@ export class PgSession {
    * signed out on a first read; no answer, a 5xx other than the
    * not-configured 503, or JSON that does not parse is reported, any other
    * failing status only logged. A 401, a 404 and an HTML page (no auth route
-   * here) are answers: nobody.
+   * here) are answers -- nobody -- except while a user is known, when the
+   * last two are a proxy's and fail.
    */
   static refresh(): Promise<void> {
     const read = PgSession._read().finally(() => {
@@ -228,6 +229,9 @@ export class PgSession {
       });
       if (response.ok) {
         const body = await jsonOrPage(response);
+        // A page where this user's session came from is a proxy's, not this
+        // host lacking the route: it says nothing about them
+        if (body === null && PgSession._user) failed = true;
         next = body?.user
           ? {
               id: String(body.user.id),
@@ -238,6 +242,12 @@ export class PgSession {
           : null;
       } else if (await notConfigured(response)) {
         // This deployment has no sign-in, so nobody is signed in: an answer
+      } else if (response.status === 404 && PgSession._user) {
+        // As with a page: a host that served this user a session has the route
+        failed = true;
+        log.warn(`session read answered 404 for a known user`, {
+          context: { status: response.status },
+        });
       } else if (ANSWERS.has(response.status)) {
         log.warn(`session read answered ${response.status}`, {
           context: { status: response.status },
@@ -821,6 +831,41 @@ if (import.meta.vitest) {
 
         expect(request.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
         expect(PgSession.readState).toBe("failed");
+      });
+
+      it("tells listeners when the first read fails, and not again when the next one does", async () => {
+        initLogger({ providers: [memoryProvider()] });
+        vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+        const heard = vi.fn();
+        PgSession.onDidChange(heard);
+
+        await PgSession.refresh();
+        expect(heard).toHaveBeenCalledTimes(1);
+        await PgSession.refresh();
+        expect(heard).toHaveBeenCalledTimes(1);
+      });
+
+      it.each([
+        [
+          "a page",
+          {
+            ok: true,
+            status: 200,
+            headers: new Headers({ "content-type": "text/html" }),
+          },
+        ],
+        ["a 404", { ok: false, status: 404 }],
+      ])("keeps a known user through %s", async (_, answer) => {
+        initLogger({ providers: [memoryProvider()] });
+        const request = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ user: { id: "u1", name: null, image: null } }),
+        } as Response);
+        await PgSession.refresh();
+        request.mockResolvedValueOnce(answer as Response);
+        await PgSession.refresh();
+
+        expect(PgSession.get()?.id).toBe("u1");
       });
 
       it("keeps a signed-in user through a read that fails", async () => {

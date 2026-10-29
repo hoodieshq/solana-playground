@@ -6,7 +6,7 @@ Gets a first-time visitor from Home to a running example in one press, a returni
 ## Requirements
 
 ### Requirement: Home offers the example on a first visit
-Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed (no answer within 10 s, a 5xx, a 4xx other than 401 or 404, or JSON that does not parse), since that says nothing of who is signed in. A deployment with no sign-in configured answers with a 503 that says so, and a host with no auth route answers a page or a 404; these are answers (nobody is signed in), not failures. Once a read has answered, a later failed one does not take the example away.
+Desktop Home SHALL show a section labelled "Try an example" above its three tiles when the browser holds no project and the session has answered (signed in or not), with the line "This program saves a number in an account and writes it to the logs." and a button "Run it" that comes before the composer in tab order. It SHALL NOT show when any project exists, or while the session is unread or its read failed (no answer within 10 s, a 5xx, a 4xx other than 401 or 404, or JSON that does not parse), since that says nothing of who is signed in. A deployment with no sign-in configured answers with a 503 that says so, and a host with no auth route answers a page or a 404; these are answers, except while a user is already known, when a page or a 404 is a proxy's and fails (nobody is signed in), not failures. Once a read has answered, a later failed one does not take the example away.
 
 #### Scenario: First visit on desktop
 - **WHEN** Home opens in a browser with no project
@@ -16,15 +16,15 @@ Desktop Home SHALL show a section labelled "Try an example" above its three tile
 - **WHEN** Home opens with no project for a signed-in account
 - **THEN** the "Try an example" region shows
 
-#### Scenario: Session read failed (manual)
+#### Scenario: Session read failed
 - **WHEN** Home opens with no project and the session read got no answer or a 5xx
-- **THEN** no "Try an example" region shows
+- **THEN** no "Try an example" region shows until a re-read answers
 
 #### Scenario: Failed check retried (manual)
 - **WHEN** Home opens with no project, the session read fails, and the check keeps failing
 - **THEN** it re-reads on a timer that backs off (2, 4, 8, 16, 32 s) and sooner on each focus or return online (none while offline), five reads in all; no "Try an example" region shows; after the fifth Home shows "We could not check your account." with a "Try again" button, which re-reads it, counts `home_session_retried` and stays until a read answers
 
-#### Scenario: Sign-in not configured (manual)
+#### Scenario: Sign-in not configured
 - **WHEN** Home opens with no project on a deployment whose auth route answers "Authentication is not configured"
 - **THEN** the "Try an example" region shows
 

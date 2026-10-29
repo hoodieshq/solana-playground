@@ -82,6 +82,35 @@ describe("widgets/home/model/session-retry", () => {
     expect(result.current.kind).toBe("waiting");
   });
 
+  it("re-arms its timer when it fired while a read was still in flight", async () => {
+    let settle!: () => void;
+    session.refresh.mockReturnValueOnce(
+      new Promise<void>((resolve) => (settle = resolve))
+    );
+    renderHook(() => useSessionRetry(true));
+    await firstRetry();
+    // The next timer (4 s) fires while the first read hangs
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+    expect(session.refresh).toHaveBeenCalledTimes(1);
+    await act(async () => settle());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+    expect(session.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("resumes on its timer once back online", async () => {
+    online.mockReturnValue(false);
+    renderHook(() => useSessionRetry(true));
+    await firstRetry();
+    expect(session.refresh).not.toHaveBeenCalled();
+    online.mockReturnValue(true);
+    await firstRetry();
+    expect(session.refresh).toHaveBeenCalledTimes(1);
+  });
+
   it("pauses while offline", async () => {
     online.mockReturnValue(false);
     const { result } = renderHook(() => useSessionRetry(true));

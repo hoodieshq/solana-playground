@@ -312,6 +312,63 @@ describe("the session effect", () => {
     effect.dispose();
   });
 
+  it("opens the newest project for a sign-in that follows a failed load read", async () => {
+    sync.mockResolvedValue(result({ latest: "Newest" }));
+    (PgSession.refresh as unknown as MockInstance).mockRestore();
+    let loadRead = true;
+    vi.spyOn(globalThis, "fetch").mockImplementation((async (url: string) => {
+      if (url === "/api/auth/get-session") {
+        if (loadRead) {
+          loadRead = false;
+          throw new Error("offline");
+        }
+        return { ok: true, json: async () => ({ user }) };
+      }
+      return {
+        ok: true,
+        json: async () => ({ url: "https://github.com/login/oauth/x" }),
+      };
+    }) as never);
+    PgSession.setOpenChannel(() => ({
+      receive: async () => ({ delivered: true as const, data: {} }),
+      cancel: () => {},
+    }));
+
+    const effect = session();
+    await settle();
+    expect(PgSession.readState).toBe("failed");
+    await PgSession.signIn();
+    await settle();
+
+    expect(switchWorkspace).toHaveBeenCalledWith("Newest");
+    effect.dispose();
+  });
+
+  it("holds pushes again for a restore that answers after a failed load read", async () => {
+    (PgSession.refresh as unknown as MockInstance).mockRestore();
+    vi.spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user }),
+      } as never);
+
+    const effect = session();
+    await settle();
+    expect(calls.filter((c) => c === "release")).toHaveLength(1);
+
+    await PgSession.refresh();
+    await settle();
+
+    // Held before the late reconcile, released once after it
+    expect(calls.indexOf("hold", 1)).toBeLessThan(
+      calls.lastIndexOf("reconcile")
+    );
+    expect(calls.filter((c) => c === "hold")).toHaveLength(2);
+    expect(calls.filter((c) => c === "release")).toHaveLength(2);
+    effect.dispose();
+  });
+
   it("opens the newest project when the user actually signs in", async () => {
     sync.mockResolvedValue(result({ latest: "Newest" }));
 

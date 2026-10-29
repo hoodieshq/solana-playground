@@ -10,8 +10,9 @@ import { PgSession } from "@/features/auth";
 const AUTO_RETRIES = 5;
 
 /**
- * How long the first timed re-read waits after Home starts waiting on a
- * failed check; each later one waits twice as long (2, 4, 8, 16, 32 s)
+ * How long the first timed re-read waits; the wait doubles with each read
+ * the hook has started (focus and online ones included) and counts from the
+ * last read that settled
  */
 const FIRST_RETRY_MS = 2_000;
 
@@ -39,6 +40,9 @@ export type SessionRetry =
  */
 export const useSessionRetry = (active: boolean): SessionRetry => {
   const [tries, setTries] = useState(0);
+  // Bumped when a read settles or a timed wake could not read, so the timer
+  // re-arms: one that fired while a read was in flight, or offline, is spent
+  const [rearm, setRearm] = useState(0);
   const reading = useRef<Promise<void> | null>(null);
 
   /** Starts a read, or joins the one this hook has in flight; whether it started one */
@@ -46,6 +50,7 @@ export const useSessionRetry = (active: boolean): SessionRetry => {
     if (reading.current) return { started: false, done: reading.current };
     const done = PgSession.refresh().finally(() => {
       reading.current = null;
+      setRearm((n) => n + 1);
     });
     reading.current = done;
     return { started: true, done };
@@ -58,10 +63,14 @@ export const useSessionRetry = (active: boolean): SessionRetry => {
   useEffect(() => {
     if (!active || tries >= AUTO_RETRIES) return;
     const onWake = () => {
-      if (!navigator.onLine) return;
-      if (reread().started) setTries((n) => n + 1);
+      if (!navigator.onLine) return false;
+      const { started } = reread();
+      if (started) setTries((n) => n + 1);
+      return started;
     };
-    const timed = setTimeout(onWake, FIRST_RETRY_MS * 2 ** tries);
+    const timed = setTimeout(() => {
+      if (!onWake()) setRearm((n) => n + 1);
+    }, FIRST_RETRY_MS * 2 ** tries);
     window.addEventListener("focus", onWake);
     window.addEventListener("online", onWake);
     return () => {
@@ -69,7 +78,7 @@ export const useSessionRetry = (active: boolean): SessionRetry => {
       window.removeEventListener("focus", onWake);
       window.removeEventListener("online", onWake);
     };
-  }, [active, tries, reread]);
+  }, [active, tries, rearm, reread]);
 
   if (!active) return { kind: "none" };
   if (tries < AUTO_RETRIES) return { kind: "waiting" };

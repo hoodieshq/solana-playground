@@ -245,21 +245,30 @@ export const session = (): Disposable => {
     PgProjectSync.releasePushes();
   };
 
-  // The first answered read is the cookie being restored on load, not the
-  // user signing in -- `refresh` fires it before its own promise settles, and
-  // when the load's read failed, Home's retry is the one that answers. Any
-  // transition after that is a real sign-in, and only that one takes the user
-  // somewhere.
+  // The first answered read that no sign-in started is the cookie being
+  // restored on load -- `refresh` fires it before its own promise settles,
+  // and when the load's read failed, Home's retry is the one that answers. A
+  // sign-in's own read, and any transition after the restore, is a real
+  // sign-in, and only that one takes the user somewhere.
   let restored = false;
   let signedIn = !!PgSession.get();
   const onChange = PgSession.onDidChange(() => {
     const nowSignedIn = !!PgSession.get();
-    const restoring = !restored && PgSession.readState === "answered";
+    const restoring =
+      !restored &&
+      PgSession.readState === "answered" &&
+      PgSession.signInState().status !== "pending";
     // Nothing awaits this, so a failure here would otherwise surface as an
     // unhandled rejection and nowhere else. It is reported and swallowed: the
     // app has to keep working offline, and `__pgSyncDiagnostics.failures()` is
     // where a sync that did not happen can be found.
     if (nowSignedIn && !signedIn) {
+      // A failed load read gave the hold back; the restore that answers late
+      // holds again, so the editor's push cannot beat its reconcile either
+      if (restoring && !holding) {
+        holding = true;
+        PgProjectSync.holdPushes();
+      }
       // A panel sign-in happens mid-task, with a prompt written for the open project
       const fromPanel = PgSession.signingInFrom === "assistant";
       void adopt({ openLatest: !restoring && !fromPanel }).catch((e) =>
@@ -267,7 +276,7 @@ export const session = (): Disposable => {
       );
     }
     signedIn = nowSignedIn;
-    if (restoring) restored = true;
+    if (restoring || PgSession.readState === "answered") restored = true;
   });
 
   PgSession.setOnSignOut(relinquish);
