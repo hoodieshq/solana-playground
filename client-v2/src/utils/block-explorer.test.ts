@@ -1,16 +1,17 @@
-import { solanaExplorer } from "./solana-explorer";
-import { solanaFM } from "./solana-fm";
-import { solscan } from "./solscan";
+import { solanaExplorer } from "../block-explorers/solana-explorer";
+import { solanaFM } from "../block-explorers/solana-fm";
+import { solscan } from "../block-explorers/solscan";
 
-// `settings.ts`, reached through the block explorer module, reads a global
+// `settings.ts`, reached through this module, reads a global
 // that only exists once the app has booted
 vi.hoisted(() => {
   vi.stubGlobal("GLOBAL_SETTINGS", { default: {} });
 });
 
 // Testnet is the network picked now; every record below is from elsewhere
-vi.mock("../utils", async () => ({
-  PgBlockExplorer: (await import("../utils/block-explorer")).PgBlockExplorer,
+// (each explorer imports the `utils` barrel, `./index` from here)
+vi.mock("./index", async () => ({
+  PgBlockExplorer: (await import("./block-explorer")).PgBlockExplorer,
   PgConnection: { cluster: "testnet" },
 }));
 
