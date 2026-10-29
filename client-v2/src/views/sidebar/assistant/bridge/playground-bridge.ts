@@ -184,8 +184,8 @@ export const realBridge: PlaygroundBridge = {
   async deploy() {
     await PgCommand.deploy.execute();
 
-    // The deploy command prints the transaction to the terminal but does not
-    // return it; the program address is the stable thing to link to.
+    // The program address is the stable thing to link to: an upgrade keeps
+    // it, while the transaction differs on every deploy.
     const programId = PgProgramInfo.getPkStr();
     if (!programId) return null;
     return {

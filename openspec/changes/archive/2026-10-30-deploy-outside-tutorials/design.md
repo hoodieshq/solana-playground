@@ -26,8 +26,9 @@ stage composes them); Cancel and pause from the panel; Kora.
 
 `commands/deploy/run.ts` exports `PgDeployRun`: the current step
 (`funding | buffer | write | deploy`), the write percent, an event for
-changes, and an optional `answers` object (`confirmStaleBuild(): Promise<boolean>`,
-`autoFund: true`) set by the caller for one execution. The command reads it
+changes, and an optional `answers` object (`confirmStaleBuild(): Promise<boolean>`)
+set by the caller for one execution; its presence also means the run funds
+without asking. The command reads it
 where it asks today: with `answers`, it skips `waitForInput` for the failed
 build, funds without a question, and throws a typed `DeployFundingError`
 (balance, needed, address, reason) instead of asking. Without `answers`, the
@@ -53,8 +54,8 @@ history and result card pass the record's cluster.
 ### D4. A feature slice holds the new UI and the events
 
 `features/deploy` (prefix `deploy`) holds `model/` (the run state as a React
-hook over `PgDeployRun`, the cost estimate, the backup choice store,
-telemetry) and `ui/` Base components: `BaseDeployProgress`,
+hook over `PgDeployRun`, the stage's run store `PgStageDeploy`, the backup
+choice store, telemetry) and `ui/` Base components: `BaseDeployProgress`,
 `BaseNotEnoughSol`, `BaseStaleBuildDialog`, `BaseBackupLine`. It imports no
 other feature: the stage (`views/flow/stages/Deploy.tsx`) connects sign-in
 (`@/features/auth`) and the wallet export. The result card stays in
@@ -62,7 +63,7 @@ other feature: the stage (`views/flow/stages/Deploy.tsx`) connects sign-in
 
 ### D5. Cost estimate for the approval card
 
-`estimateDeployCost()` in `commands/deploy` fetches the built binary's
+`estimateDeployCost()` in `commands/deploy/estimate.ts` fetches the built binary's
 length the way the deploy does, then sums the rent the run must hold (buffer,
 and the program-data extension on an upgrade, as `processDeploy` computes)
 and the write fees (one signature per write chunk plus the fixed
