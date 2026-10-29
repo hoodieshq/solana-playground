@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
@@ -27,13 +27,16 @@ const save = (name: string, bytes: Uint8Array) => {
   const a = document.createElement("a");
   a.download = name;
   a.href = url;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), REVOKE_AFTER_MS);
+  try {
+    a.click();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), REVOKE_AFTER_MS);
+  }
 };
 
 /**
- * The program's file name: the IDL the last build produced names it, else the
- * workspace (`programName`)
+ * The program's file name: the project's IDL names it (built or loaded), else
+ * the workspace (`programName`)
  */
 export const useProgramName = () => {
   const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl) as {
@@ -52,10 +55,19 @@ const DownloadProgram = ({ from }: { from: DownloadFrom }) => {
   const [note, setNote] = useState<DownloadNote | null>(null);
   const fileName = `${name}.so`;
 
+  // A new build answers the note; it must not linger beside the new binary
+  useEffect(() => {
+    const sub = PgProgramInfo.onDidChangeUuid(() => setNote(null));
+    return () => sub.dispose();
+  }, []);
+
   const failed = (reason: DownloadFailure) =>
     cliDeployTelemetry.track("cli_binary_download_failed", { from, reason });
 
-  /** Tells the user a build would fix it; nothing for the team to hear */
+  /**
+   * Tells the user, in a note rather than a toast, that a build would fix it.
+   * The event and an info log still record it; it is no fault to report.
+   */
   const askForBuild = (reason: DownloadNote, uuid: string | null) => {
     failed(reason);
     log.info("No binary to download; a build is needed", {

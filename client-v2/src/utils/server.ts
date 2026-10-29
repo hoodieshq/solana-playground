@@ -3,7 +3,7 @@ import type { Idl } from "@coral-xyz/anchor";
 import { PgCommon } from "./common";
 import { PgSettings } from "./settings";
 import type { TupleFiles } from "./explorer";
-import { PgServerError } from "./server-error";
+import { PgServerError, UNREADABLE_BODY } from "./server-error";
 
 export { PgServerError };
 
@@ -145,13 +145,14 @@ export class PgServer {
     try {
       response = await fetch(requestUrl, requestInit);
     } catch (e: any) {
-      throw new PgServerError(requestUrl, null, e?.message ?? String(e), {
+      throw new PgServerError(requestUrl, null, e?.message || String(e), {
         cause: e,
       });
     }
     if (!response.ok) {
-      // A body cut off mid-read still leaves the status to report
-      const body = await response.text().catch(() => "");
+      // A body cut off mid-read still leaves the status to report; the
+      // placeholder says in the error's message that the body was lost
+      const body = await response.text().catch(() => UNREADABLE_BODY);
       throw new PgServerError(requestUrl, response.status, body);
     }
 

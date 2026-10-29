@@ -56,14 +56,18 @@ const PAYER: Record<CliCluster, string> = {
   mainnet: "It pays real SOL from your CLI wallet (solana config get).",
 };
 
-// TODO(HOO-2397): link the keypair's export from the Deploy stage once it
-// exists; until then a user without the file follows the line below
-/** What to do without the project's program keypair, per tool */
-const NO_KEYPAIR: Record<CliTool, string> = {
-  solana:
+/**
+ * What to do without the project's program keypair, per tool, said against
+ * the commands `deployCommands` shows.
+ *
+ * TODO(HOO-2397): link the keypair's export from the Deploy stage once it
+ * exists; until then a user without the file follows this text.
+ */
+const NO_KEYPAIR: Record<CliTool, (name: string) => string> = {
+  solana: () =>
     "Without that file, leave out --program-id: the deploy creates a new program id.",
-  anchor:
-    "Without that file, copy only the .so: anchor deploy uses the workspace's own keypair and its program id.",
+  anchor: (name) =>
+    `Without that file, drop ${name}-keypair.json from the cp: anchor deploy uses the workspace's own keypair and its program id.`,
 };
 
 /** A numbered step of the guide */
@@ -139,7 +143,7 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
                   <code className="font-mono break-all">{p.programId}</code>
                 </>
               ) : null}
-              . {NO_KEYPAIR[p.tool]}
+              . {NO_KEYPAIR[p.tool](p.name)}
             </p>
           </Step>
           <Step title="3. Run the deploy">
@@ -148,7 +152,13 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
                 <CodeBlockTitle>
                   {TOOLS[p.tool]} · {CLUSTERS[p.cluster]}
                 </CodeBlockTitle>
-                <CodeBlockActions onClickCapture={p.onCopy}>
+                <CodeBlockActions
+                  onClickCapture={(e) => {
+                    // Only the copy button's press, not a click beside it
+                    const target = e.target as Element;
+                    if (target.closest('[data-slot="copy-button"]')) p.onCopy();
+                  }}
+                >
                   <CopyButton
                     value={script}
                     label="Copy the deploy command"

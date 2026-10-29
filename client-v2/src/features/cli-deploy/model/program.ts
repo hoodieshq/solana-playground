@@ -3,7 +3,7 @@ import { PgServerError } from "@/utils/server-error";
 /**
  * Why a binary download failed: `no-build` when this browser holds no build
  * id to ask for, `not-built` when the server no longer holds the build,
- * `server` for any other refusal or no answer, `save` when the bytes came but
+ * `server` for any other refusal, no answer or an empty answer, `save` when the bytes came but
  * the browser could not be handed them
  */
 export type DownloadFailure = "no-build" | "not-built" | "server" | "save";
@@ -16,8 +16,9 @@ const NOT_BUILT = "Program is not built";
 
 /**
  * Classifies a failed `PgServer.deploy`. Only the server's own "not built"
- * answer asks for a rebuild; a 404 is not one, because on the public host it
- * means the route is missing and building again would not help.
+ * answer (500, `Program is not built`) asks for a rebuild. A 404 is not the
+ * server's own answer: api.solpg.io returns nginx's 404 for a route it does
+ * not serve (`/unstable/deploy`, probed 2026-10-29), which no build fixes.
  */
 export const downloadFailure = (error: unknown): ServerFailure =>
   error instanceof PgServerError &&

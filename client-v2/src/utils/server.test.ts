@@ -122,7 +122,7 @@ describe("PgServer refusals with an unreadable body", () => {
 
     expect(error).toBeInstanceOf(PgServerError);
     expect(error.status).toBe(502);
-    expect(error.body).toBe("");
+    expect(error.body).toBe("<unreadable response body>");
   });
 
   it("keeps the network error as the cause", async () => {

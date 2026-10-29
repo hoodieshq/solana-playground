@@ -2,8 +2,12 @@
  * A request to the build server that failed. `status` is the HTTP status of
  * a refused request and `body` what the server answered; with no answer
  * (offline, CORS, abort), `status` is `null` and `body` is the network
- * error's message. Kept apart so a caller can tell one refusal from another.
+ * error's message, and `cause` the error itself. Callers branch on `status`
+ * and `body` (`downloadFailure` tells a dropped build from other refusals).
  */
+/** `PgServerError.body` when the refusal's body could not be read */
+export const UNREADABLE_BODY = "<unreadable response body>";
+
 export class PgServerError extends Error {
   constructor(
     readonly url: string,
@@ -11,10 +15,7 @@ export class PgServerError extends Error {
     readonly body: string,
     options?: { cause?: unknown }
   ) {
-    super(`Server request failed (${url}): ${body}`);
+    super(`Server request failed (${url}): ${body}`, options);
     this.name = "PgServerError";
-    if (options && "cause" in options) {
-      Object.defineProperty(this, "cause", { value: options.cause });
-    }
   }
 }

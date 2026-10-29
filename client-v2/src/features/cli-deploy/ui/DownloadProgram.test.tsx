@@ -22,6 +22,7 @@ vi.mock("@/utils", () => ({
   PgExplorer: { currentWorkspaceName: "My Counter" },
   PgProgramInfo: {
     onDidChangeIdl: "idl",
+    onDidChangeUuid: () => ({ dispose: () => undefined }),
     get uuid() {
       return mocks.uuid;
     },

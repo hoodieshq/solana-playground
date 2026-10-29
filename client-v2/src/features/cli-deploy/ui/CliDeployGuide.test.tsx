@@ -13,7 +13,11 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 
 vi.mock("@/utils", () => ({
   PgExplorer: { currentWorkspaceName: "hello" },
-  PgProgramInfo: { onDidChangeIdl: "idl", uuid: "u" },
+  PgProgramInfo: {
+    onDidChangeIdl: "idl",
+    onDidChangeUuid: () => ({ dispose: () => undefined }),
+    uuid: "u",
+  },
   PgServer: { deploy: vi.fn() },
 }));
 vi.mock("@/hooks", () => ({

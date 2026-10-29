@@ -11,11 +11,7 @@ export type GuideFrom = "mainnet-warning" | "deploy-stage";
 type CliDeployEvents = {
   /** A program binary was fetched and handed to the browser to save. */
   cli_binary_downloaded: { from: DownloadFrom };
-  /**
-   * Getting the binary failed; `reason` is a `DownloadFailure`: no build id
-   * in this browser, the server no longer holding the build, any other server
-   * failure, or the browser refusing the save.
-   */
+  /** No binary was saved; `reason` is a `DownloadFailure`. */
   cli_binary_download_failed: { from: DownloadFrom; reason: DownloadFailure };
   /** The "Deploy from your machine" guide opened from `from`. */
   cli_guide_opened: { from: GuideFrom };
