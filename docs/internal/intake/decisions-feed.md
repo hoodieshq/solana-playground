@@ -32,3 +32,6 @@ Newest first. One line per decision or requirement change; a superseded line gai
 - 2026-10-16 — Every PR author runs `sx:review-pr` and fixes the critical and important findings that seem necessary; the agent pipeline runs it (Slava, Sergey). [entry](2026-10-16-slack-sergey-sx-review.md)
 - 2026-10-16 — Review gaps outside a PR's scope become Linear issues, fixed later via agent rules or tooling (Slava, Sergey). [entry](2026-10-16-slack-sergey-sx-review.md)
 - 2026-10-16 — Author's gate: `pr-review-toolkit` with `sx` reviewer-only → `sx:review-pr` by the author; must-fix widened from critical to critical + important (Slava, Sergey). [entry](2026-10-16-slack-sergey-sx-review.md)
+Newest first. One line per decision or requirement change.
+
+- 2026-10-29: own model key moves into an iframe on a separate domain; agent context = open tabs plus "+"; build server gets an optional API key behind our proxy; previews on GCP Cloud SQL, not Neon. [record](2026-10-29-zoom-security-review-call.md)
