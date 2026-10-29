@@ -7,6 +7,7 @@ export type {
   PassedVia,
   Resolution,
   RunRecord,
+  SkipVia,
   RunResult,
   StepTime,
   Wrote,
@@ -54,7 +55,13 @@ export type {
   Reduced,
   Stage,
 } from "./model/reducer";
-export { EXPLAIN, SKIPPED_DEFAULT, STUCK, view } from "./model/view";
+export {
+  EXPLAIN,
+  INTERRUPTED,
+  SKIPPED_DEFAULT,
+  STUCK,
+  view,
+} from "./model/view";
 export type {
   ActState,
   AskOutcome,

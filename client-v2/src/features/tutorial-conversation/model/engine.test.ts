@@ -9,6 +9,7 @@ vi.mock("../../../utils/explorer/explorer", () => ({
 }));
 vi.mock("../../../utils/tutorial/tutorial", () => ({
   PgTutorial: { all: [] as unknown[], getStorage: vi.fn() },
+  storageDataPath: () => ".workspace/tutorial-storage.json",
 }));
 vi.mock("../../../utils/view", () => ({ PgView: { setToast: vi.fn() } }));
 vi.mock("@/entities/tutorial", async () => ({
@@ -24,7 +25,7 @@ import { FINISH_DELAY_MS } from "./clock";
 import { parseProgress } from "./progress";
 import type { RunResult } from "./progress";
 import { PgConversation, STORAGE_KEY } from "./store";
-import { view } from "./view";
+import { INTERRUPTED, view } from "./view";
 import type { ConversationView, Turn } from "./view";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
@@ -352,17 +353,23 @@ describe("Hello Anchor through the engine", () => {
     expect(reloaded.live).toMatchObject({
       id: "s1.build",
       state: "interrupted",
+      note: INTERRUPTED,
     });
     expect(reloaded.turns.filter((t) => t.kind === "result")).toEqual([]);
   });
 
   it("start over returns to the intro and a new start counts again", async () => {
-    open();
+    const workspace = open();
     await settle();
     await step(() => PgConversation.start());
     await step(() => PgConversation.pick("s1.q1", 1));
     await step(() => PgConversation.startOver());
     expect(liveView().live?.kind).toBe("intro");
+    expect(PgConversation.state.engine.progress.restartedAt).not.toBeNull();
+    // The preview is back in the workspace
+    expect(workspace.files["src/lib.rs"]).toBe(
+      definition.intro.files["src/lib.rs"]
+    );
     await step(() => PgConversation.start());
     expect(events.events.map((e) => e.name)).toEqual([
       "tutorial_started",

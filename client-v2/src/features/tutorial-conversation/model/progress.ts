@@ -16,6 +16,12 @@ export interface ConversationProgress extends ConversationSave {
   finishedAt: number | null;
   /** When Start was pressed, in ms, or null before it */
   startedAt: number | null;
+  /**
+   * When Start over last reset this save, or null. The assistant's thread
+   * is kept across a restart, and the feed shows only its exchanges after
+   * this moment (task 3.6 filters on it).
+   */
+  restartedAt: number | null;
   cursor: Cursor;
   /** Every beat the lesson has reached, by id */
   beats: Record<string, Resolution>;
@@ -65,7 +71,14 @@ export type Resolution =
       attempts: number;
     } & Resolved)
   | ({ kind: "typed" } & Resolved)
-  | ({ kind: "skipped"; via: "button" | "call_panel" } & Resolved);
+  | ({ kind: "skipped"; via: SkipVia } & Resolved);
+
+/**
+ * How a question was skipped: its Skip button, a Call panel call that passed
+ * the step, or the step passing from somewhere else (a client run), which
+ * writes nothing and posts no Skip line
+ */
+export type SkipVia = "button" | "call_panel" | "elsewhere";
 
 /** What every resolved question carries */
 interface Resolved {
@@ -161,11 +174,14 @@ export type RunResult =
       log: string;
     };
 
-export const freshProgress = (): ConversationProgress => ({
+export const freshProgress = (
+  restartedAt: number | null = null
+): ConversationProgress => ({
   version: 1,
   passed: [],
   finishedAt: null,
   startedAt: null,
+  restartedAt,
   cursor: { kind: "intro" },
   beats: {},
   runs: {},
@@ -186,6 +202,7 @@ const isIndexes = (v: unknown): v is number[] =>
   Array.isArray(v) && v.every((n) => Number.isInteger(n));
 
 const ACTS: readonly Act[] = ["build", "deploy", "buildDeploy", "run", "call"];
+const SKIP_VIAS: readonly SkipVia[] = ["button", "call_panel", "elsewhere"];
 
 const parseCursor = (v: unknown): Cursor | null => {
   if (!isRecord(v)) return null;
@@ -268,8 +285,8 @@ const parseResolution = (v: unknown): Resolution | null => {
     }
     case "skipped": {
       const resolved = parseResolved(v);
-      return resolved && (v.via === "button" || v.via === "call_panel")
-        ? { kind: "skipped", via: v.via, ...resolved }
+      return resolved && SKIP_VIAS.includes(v.via as SkipVia)
+        ? { kind: "skipped", via: v.via as SkipVia, ...resolved }
         : null;
     }
     default:
@@ -357,12 +374,14 @@ export const parseProgress = (saved: unknown): ConversationProgress | null => {
   const cursor = parseCursor(saved.cursor);
   if (!cursor) return null;
   if (!isMsOrNull(saved.startedAt)) return null;
+  const restartedAt = isMs(saved.restartedAt) ? saved.restartedAt : null;
 
   return {
     version: 1,
     passed: Array.from(new Set(saved.passed)),
     finishedAt: saved.finishedAt,
     startedAt: saved.startedAt,
+    restartedAt,
     cursor,
     beats: parseEach(saved.beats, parseResolution),
     runs: parseEach(saved.runs, parseRuns),
@@ -394,6 +413,7 @@ if (import.meta.vitest) {
       passed: opts.passed ?? ["write-program"],
       finishedAt: opts.finishedAt ?? null,
       startedAt: 1000,
+      restartedAt: null,
       cursor: { kind: "step" as const, stepId: "deploy", beat: 2, fail: false },
       beats: Object.assign(
         {

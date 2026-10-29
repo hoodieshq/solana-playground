@@ -17,6 +17,7 @@ import type {
   Resolution,
   RunRecord,
   RunResult,
+  SkipVia,
   Wrote,
 } from "./progress";
 import type { Judge, RunInput } from "./ports";
@@ -64,7 +65,7 @@ export type Action =
   | { type: "start"; at: number }
   | { type: "pick"; beatId: string; option: number; at: number }
   | { type: "hint"; beatId: string; at: number }
-  | { type: "skip"; beatId: string; via: "button" | "call_panel"; at: number }
+  | { type: "skip"; beatId: string; via: SkipVia; at: number }
   | { type: "typeIt"; beatId: string; at: number }
   /** The learner changed a file; `content` is the whole file now */
   | { type: "edit"; file: string; content: string; at: number }
@@ -139,7 +140,9 @@ export type Effect =
   /** Put the caret where the answer lands, or on the error's line */
   | { kind: "focus"; file: string; line: number | "landing" }
   /** An unplanned failure to explain through the live assistant (task 4.1) */
-  | { kind: "explain"; beatId: string; result: RunResult };
+  | { kind: "explain"; beatId: string; result: RunResult }
+  /** Whole files to put in the workspace: a step's start, or the preview */
+  | { kind: "restore"; files: Record<string, string> };
 
 export interface Reduced {
   state: EngineState;
@@ -320,7 +323,7 @@ const pass = (
         ? { kind: "typed", ...base }
         : {
             kind: "skipped",
-            via: via === "call_panel" ? "call_panel" : "button",
+            via: via === "call_panel" ? "call_panel" : "elsewhere",
             ...base,
           };
     }
@@ -387,6 +390,8 @@ export const reduce = (
       };
       const flowed = flow(ctx, started, action.at);
       return withProgress(state, flowed.progress, [
+        // The workspace swaps the preview for the first step's start files
+        { kind: "restore", files: first.start },
         {
           kind: "event",
           name: "tutorial_started",
@@ -740,7 +745,12 @@ export const reduce = (
     }
 
     case "startOver":
-      return { state: INITIAL_ENGINE_STATE, effects: [] };
+      // Never a no-op: on a failed load the intro shows too, and this is the
+      // learner's way out of it
+      return {
+        state: { progress: freshProgress(action.at), stage: null },
+        effects: [{ kind: "restore", files: definition.intro.files }],
+      };
   }
 };
 
@@ -848,6 +858,7 @@ if (import.meta.vitest) {
           wrong: [],
         });
         expect(effects).toEqual([
+          { kind: "restore", files: hello.steps[0].start },
           {
             kind: "event",
             name: "tutorial_started",
@@ -1678,8 +1689,11 @@ if (import.meta.vitest) {
       it("returns to the intro with nothing kept", () => {
         const midway = play([start, rightPick]).state;
         const r = reduce(ctx(), midway, { type: "startOver", at: 9000 });
-        expect(r.state).toBe(INITIAL_ENGINE_STATE);
-        expect(r.effects).toEqual([]);
+        expect(r.state.progress).toEqual(freshProgress(9000));
+        expect(r.state.stage).toBeNull();
+        expect(r.effects).toEqual([
+          { kind: "restore", files: hello.intro.files },
+        ]);
       });
     });
   });

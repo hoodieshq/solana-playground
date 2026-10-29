@@ -3,17 +3,22 @@ import type { TutorialDefinition } from "@/entities/tutorial";
 import { createLogger } from "@/shared/lib/logger";
 
 import { insertBlock, typedKey, withOwnText } from "./landing";
-import { failedResult } from "./ports";
+import { failedResult, passingJudge } from "./ports";
 import type { Judge, Runner, Workspace } from "./ports";
 import { freshProgress, parseProgress } from "./progress";
-import type { ConversationProgress, PassedVia, RunResult } from "./progress";
+import type {
+  ConversationProgress,
+  PassedVia,
+  RunResult,
+  SkipVia,
+} from "./progress";
 import { INITIAL_ENGINE_STATE, reduce, stepOfBeat } from "./reducer";
 import type { Action, Effect, EngineContext, EngineState } from "./reducer";
 import { tutorialTelemetry } from "./telemetry";
 import { view } from "./view";
 import type { ConversationView } from "./view";
 import { PgExplorer } from "../../../utils/explorer/explorer";
-import { PgTutorial } from "../../../utils/tutorial/tutorial";
+import { PgTutorial, storageDataPath } from "../../../utils/tutorial/tutorial";
 import type { Disposable } from "../../../utils/types";
 import { PgView } from "../../../utils/view";
 
@@ -55,9 +60,6 @@ const EMPTY_SAVE = Object.freeze({});
 const storageDefault = (): { [STORAGE_KEY]: unknown } => ({
   [STORAGE_KEY]: EMPTY_SAVE,
 });
-
-/** Mirrors the private path inside `PgTutorial.getStorage` */
-const STORAGE_PATH = ".workspace/tutorial-storage.json";
 
 export interface ConversationPorts {
   workspace: Workspace;
@@ -130,7 +132,7 @@ export class PgConversation {
     PgConversation._dispatch({ type: "hint", beatId, at: Date.now() });
   }
 
-  static skip(beatId: string, via: "button" | "call_panel" = "button") {
+  static skip(beatId: string, via: SkipVia = "button") {
     PgConversation._dispatch({ type: "skip", beatId, via, at: Date.now() });
   }
 
@@ -178,7 +180,7 @@ export class PgConversation {
     PgConversation._ports = {
       workspace: ports.workspace,
       runner: ports.runner,
-      judge: ports.judge ?? ((_goal, result) => result.ok),
+      judge: ports.judge ?? passingJudge,
     };
     // Once a session: `init` is called once from the frame
     PgConversation._toldSaveFailed = false;
@@ -209,14 +211,14 @@ export class PgConversation {
     const context: EngineContext = {
       definition,
       slug: slugOf(definition.name),
-      judge: ports?.judge ?? ((_goal, result) => result.ok),
+      judge: ports?.judge ?? passingJudge,
     };
 
     let progress: ConversationProgress = freshProgress();
     let loadFailed = false;
     try {
       const storage = PgTutorial.getStorage(storageDefault());
-      const hasFile = await PgExplorer.fs.exists(STORAGE_PATH);
+      const hasFile = await PgExplorer.fs.exists(storageDataPath());
       const loaded: unknown = await storage.getItem(STORAGE_KEY);
       // `getItem` swallows every read or parse error and returns the same
       // default a first visit produces. The file's existence tells them apart.
@@ -325,10 +327,14 @@ export class PgConversation {
         );
       }
       PgConversation._set({ ...s, engine, loadFailed });
-      // The tutorial's name is captured now: by the time the write lands, a
-      // workspace switch could have moved the state on
-      const name = s.context.definition.name;
-      void PgConversation._persist(name, engine.progress, loadFailed);
+      // Only the save is written, never a stage change: the file is synced,
+      // and an identical rewrite reads as a change on the other device
+      if (engine.progress !== s.engine.progress) {
+        // The tutorial's name is captured now: by the time the write lands,
+        // a workspace switch could have moved the state on
+        const name = s.context.definition.name;
+        void PgConversation._persist(name, engine.progress, loadFailed);
+      }
     }
     void PgConversation._drain(s.context, effects);
   }
@@ -392,6 +398,18 @@ export class PgConversation {
             cb({ beatId: effect.beatId, result: effect.result });
           }
           break;
+        case "restore": {
+          // Whole files, in order; a failure leaves the rest to the learner
+          for (const [path, content] of Object.entries(effect.files)) {
+            try {
+              if (!stillOpen()) break;
+              await ports.workspace.write(path, content, name);
+            } catch (e) {
+              log.error(e, { report: true });
+            }
+          }
+          break;
+        }
         case "create": {
           try {
             if (!stillOpen()) break;
@@ -523,12 +541,16 @@ export class PgConversation {
       log.error(e, { report: true });
       if (!PgConversation._toldSaveFailed) {
         PgConversation._toldSaveFailed = true;
-        const { default: SaveFailedToast } = await import(
-          "../ui/SaveFailedToast"
-        );
-        PgView.setToast(SaveFailedToast, {
-          options: { name: "tutorial-save-failed" },
-        });
+        try {
+          const { default: SaveFailedToast } = await import(
+            "../ui/SaveFailedToast"
+          );
+          PgView.setToast(SaveFailedToast, {
+            options: { name: "tutorial-save-failed" },
+          });
+        } catch (toastError) {
+          log.error(toastError, { report: true });
+        }
       }
     }
   }

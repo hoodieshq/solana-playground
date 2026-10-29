@@ -32,6 +32,8 @@ import type { EngineState, Stage } from "./reducer";
 export const STUCK = "I'm stuck";
 /** The learner's pill on Explain */
 export const EXPLAIN = "Explain the error";
+/** The act card's line after a reload interrupted its run */
+export const INTERRUPTED = "Interrupted by a reload. Run it again.";
 /** The assistant's line on Skip when the question has none of its own */
 export const SKIPPED_DEFAULT =
   "No problem. Here's the line, and I'll walk you through the rest.";
@@ -92,6 +94,8 @@ export type Turn = TurnBase &
         beatId: string;
         act: ActBeat;
         state: ActState;
+        /** The card's line when the run was interrupted, else null */
+        note: string | null;
         stage: Stage | null;
         /** ms, once the run ended */
         took: number | null;
@@ -398,6 +402,7 @@ export const view = (
               beatId: b.id,
               act: b,
               state: "live",
+              note: null,
               stage: null,
               took: null,
             });
@@ -413,6 +418,7 @@ export const view = (
               beatId: b.id,
               act: b,
               state: actStateOf(run),
+              note: run.status === "interrupted" ? INTERRUPTED : null,
               stage:
                 isLast && state.stage?.beatId === b.id ? state.stage : null,
               took:
@@ -870,6 +876,7 @@ if (import.meta.vitest) {
           passed: state.progress.passed,
           finishedAt: null,
           startedAt: state.progress.startedAt,
+          restartedAt: null,
           cursor: state.progress.cursor,
           beats: state.progress.beats,
           runs: { "s1.build": [{ status: "interrupted", at: 7000 }] },
@@ -878,7 +885,11 @@ if (import.meta.vitest) {
         stage: null,
       };
       const v = view(hello, interrupted, LATE);
-      expect(v.live).toMatchObject({ id: "s1.build", state: "interrupted" });
+      expect(v.live).toMatchObject({
+        id: "s1.build",
+        state: "interrupted",
+        note: INTERRUPTED,
+      });
     });
 
     it("next makes the win a record; the last win is live with no next and schedules the finish", () => {

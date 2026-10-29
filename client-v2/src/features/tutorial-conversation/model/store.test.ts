@@ -9,6 +9,7 @@ vi.mock("../../../utils/explorer/explorer", () => ({
 }));
 vi.mock("../../../utils/tutorial/tutorial", () => ({
   PgTutorial: { all: [] as unknown[], getStorage: vi.fn() },
+  storageDataPath: () => ".workspace/tutorial-storage.json",
 }));
 vi.mock("../../../utils/view", () => ({ PgView: { setToast: vi.fn() } }));
 // The entity's barrel loads UI that reads the build's globals on import;
@@ -344,7 +345,8 @@ describe("PgConversation", () => {
     expect(
       PgConversation.view(LATER)?.turns.find((t) => t.id === "wrote:s1.boil")
     ).toMatchObject({ failed: true });
-    expect(logged.entries.filter((e) => e.level === "error")).toHaveLength(1);
+    // One for the start files' restore, one for the block
+    expect(logged.entries.filter((e) => e.level === "error")).toHaveLength(2);
   });
 
   it("start over clears a failed load and writes a fresh save", async () => {
@@ -359,7 +361,7 @@ describe("PgConversation", () => {
     PgConversation.startOver();
     await settle();
     expect(PgConversation.state.loadFailed).toBe(false);
-    expect(file[STORAGE_KEY]).toEqual(freshProgress());
+    expect(file[STORAGE_KEY]).toMatchObject({ version: 1, passed: [] });
     PgConversation.start();
     await settle();
     const saved = file[STORAGE_KEY] as { startedAt: number | null };
@@ -593,7 +595,14 @@ describe("PgConversation", () => {
     await settle();
     PgConversation.startOver();
     await settle();
-    expect(file[STORAGE_KEY]).toEqual(freshProgress());
+    expect(file[STORAGE_KEY]).toMatchObject({
+      version: 1,
+      passed: [],
+      finishedAt: null,
+      startedAt: null,
+      restartedAt: expect.any(Number),
+      cursor: { kind: "intro" },
+    });
     expect(PgConversation.view(LATER)?.live?.kind).toBe("intro");
   });
 
