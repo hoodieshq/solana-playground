@@ -131,6 +131,18 @@ afterEach(() => {
 });
 
 describe("AssistantComposer, context chips", () => {
+  // Removing a chip focuses it first, and its tooltip watches its size
+  beforeEach(() => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+  });
+
   it("names each chip by what it sends", () => {
     render(<Harness />);
     expect(
@@ -179,6 +191,18 @@ describe("AssistantComposer, context chips", () => {
 });
 
 describe("AssistantComposer, a left-out file", () => {
+  // Removing a chip focuses it first, and its tooltip watches its size
+  beforeEach(() => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+  });
+
   it("shows the chip of a file the user switches to, and that file's goes back", async () => {
     const { PgExplorer } = await import("../../../utils/explorer/explorer");
     const explorer = PgExplorer as { currentFilePath: string };
