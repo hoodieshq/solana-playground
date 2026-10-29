@@ -236,7 +236,7 @@ const MainnetWarningBody = ({ p }: { p: BaseDeployProps }) => {
       {before}
       <Button
         variant="link"
-        className="h-auto p-0 text-[length:inherit]"
+        className="inline h-auto p-0 align-baseline text-[length:inherit] whitespace-normal"
         onClick={() => p.onOpenCliGuide("mainnet-warning")}
       >
         {MAINNET_DEPLOY_WARNING_GUIDE}

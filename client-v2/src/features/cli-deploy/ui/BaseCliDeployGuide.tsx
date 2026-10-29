@@ -146,7 +146,15 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
               </CodeBlockHeader>
               <CodeBlockContent>
                 {commands.map((line) => (
-                  <CodeBlockLine key={line}>{line}</CodeBlockLine>
+                  // A command wraps rather than scrolls: the dialog is narrow
+                  // on a phone, and a hidden tail is a wrong command copied
+                  // by eye
+                  <CodeBlockLine
+                    key={line}
+                    className="whitespace-pre-wrap [overflow-wrap:anywhere]"
+                  >
+                    {line}
+                  </CodeBlockLine>
                 ))}
               </CodeBlockContent>
             </CodeBlock>
