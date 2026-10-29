@@ -35,3 +35,14 @@ export type {
   Reduced,
   Stage,
 } from "./model/reducer";
+export { EXPLAIN, SKIPPED_DEFAULT, STUCK, view } from "./model/view";
+export type {
+  ActState,
+  AskOutcome,
+  ConversationView,
+  Placeholder,
+  StepBarItem,
+  StepBarState,
+  Turn,
+  ViewOptions,
+} from "./model/view";

@@ -19,8 +19,9 @@ export interface ConversationProgress extends ConversationSave {
   cursor: Cursor;
   /** Every beat the lesson has reached, by id */
   beats: Record<string, Resolution>;
-  /** Every act's run, by its beat id */
-  runs: Record<string, RunRecord>;
+  /** Every run of each act, by beat id, oldest first: a run again keeps
+   * the earlier run as its record in the feed */
+  runs: Record<string, RunRecord[]>;
   /** When each step started and passed, by step id, for the divider's time */
   times: Record<string, StepTime>;
 }
@@ -68,7 +69,10 @@ export type Resolution =
 
 /** What every resolved question carries */
 interface Resolved {
+  /** When it resolved */
   at: number;
+  /** When the question arrived, so its card keeps its place in the feed */
+  openedAt: number;
   wrong: number[];
   hintedAt?: number;
   /** The block the answer wrote, once it landed */
@@ -205,8 +209,8 @@ const parseWrote = (v: unknown): Wrote | null => {
 
 /** The fields every resolved question carries, or null when one is off */
 const parseResolved = (v: Record<string, unknown>): Resolved | null => {
-  if (!isMs(v.at) || !isIndexes(v.wrong)) return null;
-  const out: Resolved = { at: v.at, wrong: v.wrong };
+  if (!isMs(v.at) || !isMs(v.openedAt) || !isIndexes(v.wrong)) return null;
+  const out: Resolved = { at: v.at, openedAt: v.openedAt, wrong: v.wrong };
   if (isMs(v.hintedAt)) out.hintedAt = v.hintedAt;
   if (v.wrote !== undefined) {
     const wrote = parseWrote(v.wrote);
@@ -293,6 +297,13 @@ const parseRun = (v: unknown): RunRecord | null => {
   }
 };
 
+/** An act's runs, the unreadable ones dropped; none left drops the act */
+const parseRuns = (v: unknown): RunRecord[] | null => {
+  if (!Array.isArray(v)) return null;
+  const runs = v.map(parseRun).filter((r): r is RunRecord => r !== null);
+  return runs.length ? runs : null;
+};
+
 const parseEach = <T>(
   v: unknown,
   parse: (entry: unknown) => T | null
@@ -335,7 +346,7 @@ export const parseProgress = (saved: unknown): ConversationProgress | null => {
     startedAt: saved.startedAt,
     cursor,
     beats: parseEach(saved.beats, parseResolution),
-    runs: parseEach(saved.runs, parseRun),
+    runs: parseEach(saved.runs, parseRuns),
     times: parseEach(saved.times, parseTime),
   };
 };
@@ -376,6 +387,7 @@ if (import.meta.vitest) {
           "s1.q1": {
             kind: "picked",
             at: 1300,
+            openedAt: 1250,
             option: 1,
             attempts: 2,
             wrong: [0],
@@ -390,17 +402,31 @@ if (import.meta.vitest) {
       ),
       runs: Object.assign(
         {
-          "s1.build": {
-            status: "ok",
-            at: 1400,
-            took: 1600,
-            result: {
-              act: "build",
-              ok: true,
-              seconds: 1.6,
-              instructions: ["hello"],
+          "s1.build": [
+            {
+              status: "failed",
+              at: 1350,
+              took: 1000,
+              result: {
+                act: "build",
+                ok: false,
+                seconds: 1,
+                error: null,
+                log: "",
+              },
             },
-          },
+            {
+              status: "ok",
+              at: 1400,
+              took: 1600,
+              result: {
+                act: "build",
+                ok: true,
+                seconds: 1.6,
+                instructions: ["hello"],
+              },
+            },
+          ],
         },
         opts.runs
       ),
@@ -439,12 +465,11 @@ if (import.meta.vitest) {
 
     it("turns a started run into an interrupted one", () => {
       const saved = midway({
-        runs: { "s2.deploy": { status: "started", at: 2100 } },
+        runs: { "s2.deploy": [{ status: "started", at: 2100 }] },
       });
-      expect(reload(saved)?.runs["s2.deploy"]).toEqual({
-        status: "interrupted",
-        at: 2100,
-      });
+      expect(reload(saved)?.runs["s2.deploy"]).toEqual([
+        { status: "interrupted", at: 2100 },
+      ]);
     });
 
     it("drops the entries it cannot read and keeps the rest", () => {
@@ -454,7 +479,10 @@ if (import.meta.vitest) {
           "s2.q9": { kind: "picked", at: 1 },
         },
         runs: {
-          "s2.deploy": { status: "ok", at: 1, took: 1, result: { act: "fly" } },
+          "s2.deploy": [
+            { status: "ok", at: 1, took: 1, result: { act: "fly" } },
+          ],
+          "s3.run": { status: "ok", at: 1, took: 1 },
         },
         times: { broken: { from: "yesterday" } },
       });

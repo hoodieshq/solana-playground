@@ -163,9 +163,13 @@ const isLast = (definition: TutorialDefinition, step: Step) =>
 const passed = (p: ConversationProgress, step: Step) =>
   p.passed.includes(step.id);
 
-/** The one run in flight, if any: acts never run two at once */
+/** An act's latest run, the one its card shows */
+const lastRun = (p: ConversationProgress, beatId: string) =>
+  p.runs[beatId]?.at(-1);
+
+/** Whether a run is in flight: acts never run two at once */
 const running = (p: ConversationProgress) =>
-  Object.values(p.runs).some((r) => r.status === "started");
+  Object.values(p.runs).some((rs) => rs.at(-1)?.status === "started");
 
 const isAsk = (b: Beat): b is Ask => b.kind === "ask";
 const isAct = (b: Beat): b is ActBeat => b.kind === "act";
@@ -283,6 +287,7 @@ const pass = (
       if (!isAsk(b) || !r || r.kind !== "open") continue;
       const base = {
         at,
+        openedAt: r.at,
         wrong: r.wrong,
         ...(r.hintedAt ? { hintedAt: r.hintedAt } : {}),
       };
@@ -374,6 +379,7 @@ export const reduce = (
       const picked: Resolution = {
         kind: "picked",
         at: action.at,
+        openedAt: open.at,
         option: action.option,
         attempts: open.wrong.length + 1,
         wrong: open.wrong,
@@ -409,6 +415,7 @@ export const reduce = (
       const skipped: Resolution = {
         kind: "skipped",
         at: action.at,
+        openedAt: open.at,
         via: action.via,
         wrong: open.wrong,
         ...(open.hintedAt ? { hintedAt: open.hintedAt } : {}),
@@ -455,6 +462,7 @@ export const reduce = (
       const resolved: Resolution = {
         kind: "typed",
         at: action.at,
+        openedAt: open.at,
         wrong: open.wrong,
         ...(open.hintedAt ? { hintedAt: open.hintedAt } : {}),
       };
@@ -498,7 +506,7 @@ export const reduce = (
         return same(state);
       if (!p.beats[beat.id] || passed(p, step) || running(p))
         return same(state);
-      const run = p.runs[beat.id];
+      const run = lastRun(p, beat.id);
       if (run && run.status === "ok") return same(state);
       const input: RunInput = { beatId: beat.id };
       if (beat.act === "call") {
@@ -513,7 +521,10 @@ export const reduce = (
             ...p,
             runs: {
               ...p.runs,
-              [beat.id]: { status: "started", at: action.at },
+              [beat.id]: [
+                ...(p.runs[beat.id] ?? []),
+                { status: "started", at: action.at },
+              ],
             },
           },
           stage: null,
@@ -523,7 +534,7 @@ export const reduce = (
     }
 
     case "stage": {
-      const run = p.runs[action.beatId];
+      const run = lastRun(p, action.beatId);
       if (!run || run.status !== "started") return same(state);
       const { beatId, label, index, count } = action;
       return {
@@ -533,7 +544,7 @@ export const reduce = (
     }
 
     case "ended": {
-      const run = p.runs[action.beatId];
+      const run = lastRun(p, action.beatId);
       const found = locate(definition, action.beatId);
       if (!run || run.status !== "started" || !found || !isAct(found.beat)) {
         return same(state);
@@ -545,12 +556,10 @@ export const reduce = (
         ...p,
         runs: {
           ...p.runs,
-          [beat.id]: {
-            status: result.ok ? "ok" : "failed",
-            at: run.at,
-            took,
-            result,
-          },
+          [beat.id]: [
+            ...p.runs[beat.id].slice(0, -1),
+            { status: result.ok ? "ok" : "failed", at: run.at, took, result },
+          ],
         },
       };
       const cleared: EngineState = { progress: recorded, stage: null };
@@ -572,7 +581,7 @@ export const reduce = (
     }
 
     case "explain": {
-      const run = p.runs[action.beatId];
+      const run = lastRun(p, action.beatId);
       const found = locate(definition, action.beatId);
       if (!run || run.status !== "failed" || !found) return same(state);
       if (!isPlannedFailure(found.step, p.cursor, run.result)) {
@@ -595,7 +604,7 @@ export const reduce = (
     }
 
     case "fixMyself": {
-      const run = p.runs[action.beatId];
+      const run = lastRun(p, action.beatId);
       const found = locate(definition, action.beatId);
       if (!run || run.status !== "failed" || !found) return same(state);
       const focus: Effect = {
@@ -812,6 +821,7 @@ if (import.meta.vitest) {
         expect(progress.beats["s1.q1"]).toEqual({
           kind: "picked",
           at: 5000,
+          openedAt: 1000 + 2 * TICK_MS,
           option: 1,
           attempts: 2,
           wrong: [0],
@@ -879,6 +889,7 @@ if (import.meta.vitest) {
         expect(progress.beats["s1.q1"]).toEqual({
           kind: "skipped",
           at: 4000,
+          openedAt: 1000 + 2 * TICK_MS,
           via: "button",
           wrong: [],
           hintedAt: 3000,
@@ -918,6 +929,7 @@ if (import.meta.vitest) {
         expect(progress.beats["s1.q1"]).toEqual({
           kind: "typed",
           at: 6000,
+          openedAt: 1000 + 2 * TICK_MS,
           wrong: [],
         });
         expect(effects.at(-1)).toMatchObject({
@@ -942,6 +954,7 @@ if (import.meta.vitest) {
         expect(progress.beats["s1.q1"]).toEqual({
           kind: "typed",
           at: 6000,
+          openedAt: 1000 + 2 * TICK_MS,
           wrong: [],
         });
         expect(
@@ -1001,10 +1014,9 @@ if (import.meta.vitest) {
           rightPick,
           build(7000),
         ]);
-        expect(progress.runs["s1.build"]).toEqual({
-          status: "started",
-          at: 7000,
-        });
+        expect(progress.runs["s1.build"]).toEqual([
+          { status: "started", at: 7000 },
+        ]);
         expect(effects.at(-1)).toEqual({
           kind: "run",
           beatId: "s1.build",
@@ -1046,12 +1058,9 @@ if (import.meta.vitest) {
           at: 8600,
         });
         expect(ended.state.stage).toBeNull();
-        expect(ended.state.progress.runs["s1.build"]).toEqual({
-          status: "ok",
-          at: 7000,
-          took: 1600,
-          result: OK_BUILD,
-        });
+        expect(ended.state.progress.runs["s1.build"]).toEqual([
+          { status: "ok", at: 7000, took: 1600, result: OK_BUILD },
+        ]);
       });
 
       it("passes the step on an ok result the judge accepts, with the win's time", () => {
@@ -1088,10 +1097,9 @@ if (import.meta.vitest) {
           { type: "ended", beatId: "s1.build", result: FAILED_BUILD, at: 8200 },
         ]);
         expect(progress.passed).toEqual([]);
-        expect(progress.runs["s1.build"]).toMatchObject({
-          status: "failed",
-          took: 1200,
-        });
+        expect(progress.runs["s1.build"]).toMatchObject([
+          { status: "failed", took: 1200 },
+        ]);
       });
 
       it("flows on after an ok act that is not the goal", () => {
@@ -1278,6 +1286,11 @@ if (import.meta.vitest) {
           failed()
         ).progress;
         expect(again.cursor).toMatchObject({ fail: true });
+        // Both failed builds stay, the first as a record
+        expect(again.runs["s1.build"].map((r) => r.status)).toEqual([
+          "failed",
+          "failed",
+        ]);
       });
 
       it("an unplanned failure goes to the assistant", () => {
@@ -1339,6 +1352,7 @@ if (import.meta.vitest) {
         expect(progress.beats["s2.q2"]).toEqual({
           kind: "skipped",
           at: 9500,
+          openedAt: 9000 + TICK_MS,
           via: "call_panel",
           wrong: [],
         });
