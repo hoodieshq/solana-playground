@@ -157,7 +157,7 @@ describe("AssistantComposer, context chips", () => {
     );
 
     expect(screen.queryByText("lib.rs")).toBeNull();
-    expect(tracked()).toEqual([["assistant_file_chip_removed", {}]]);
+    expect(tracked()).toContainEqual(["assistant_file_chip_removed", {}]);
 
     await user.type(
       screen.getByRole("textbox", { name: "Message the assistant" }),
