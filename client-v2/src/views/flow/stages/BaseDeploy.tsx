@@ -150,12 +150,14 @@ const ExplorerLink = ({
   href,
   label,
   children,
+  className,
 }: {
   href: string;
   label: string;
   children: ReactNode;
+  className?: string;
 }) => (
-  <Button size="sm" variant="ghost" asChild>
+  <Button size="sm" variant="ghost" className={className} asChild>
     <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label}>
       {children}
       <ExternalLink data-icon="inline-end" />
@@ -274,6 +276,8 @@ const History = ({ p }: { p: BaseDeployProps }) => (
           </span>
           <ExplorerLink
             href={p.addressUrl(r.programId, r.cluster)}
+            // On a phone the link takes a row of its own, under the id
+            className="max-md:col-start-2 max-md:justify-self-start"
             label={`View deployment (${r.programId}) on Explorer (${networkName(
               r.cluster
             )})`}
