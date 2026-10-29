@@ -31,8 +31,8 @@ export const definitionTutorials = (others: TutorialData[]): TutorialData[] => {
     pageCount: d.steps.length,
     unixTimestamp: DEFINITION_FILES[slug].unixTimestamp,
     // TODO(tutorial-flow-v2 3.3): open the conversation. The engine
-    // (`features/tutorial-conversation`, task 3.1) and the frame (2.1) are
-    // in; the feed mounts them. Until then a definition opens its folder's
+    // (`features/tutorial-conversation`, task 3.1) is in; the feed mounts it
+    // once the frame (2.1) lands. Until then a definition opens its folder's
     // component, named as `createTutorial` names it, which only Hello Anchor
     // has
     importComponent: () => import(`./${slug}/${d.name.replaceAll(" ", "")}`),

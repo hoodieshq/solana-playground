@@ -13,7 +13,6 @@ import type {
 
 import { FINISH_DELAY_MS } from "./clock";
 import type {
-  ConversationProgress,
   PassedVia,
   Resolution,
   RunRecord,
@@ -72,7 +71,8 @@ export type Turn = TurnBase &
       }
     | { kind: "say"; beatId: string; text: Text; quote?: Quote }
     | { kind: "you"; text: string; code: boolean }
-    | { kind: "wrote"; beatId: string; wrote: Wrote }
+    /** A block landed (`wrote`), or could not (`failed`, with `wrote` null) */
+    | { kind: "wrote"; beatId: string; wrote: Wrote | null; failed: boolean }
     | {
         kind: "ask";
         beatId: string;
@@ -80,6 +80,8 @@ export type Turn = TurnBase &
         open: boolean;
         wrong: number[];
         hinted: boolean;
+        /** The answer's block could not be written */
+        writeFailed: boolean;
         /** Null while open */
         outcome: AskOutcome | null;
         attempts: number;
@@ -142,7 +144,8 @@ export type Placeholder =
 
 export interface ConversationView {
   turns: Turn[];
-  /** The one card that acts, or null after the finish's own card */
+  /** The one card that acts; null after the finish, and while the next
+   * turn is still on its way */
   live: Turn | null;
   steps: StepBarItem[];
   placeholder: Placeholder;
@@ -186,18 +189,6 @@ const actStateOf = (run: RunRecord | undefined): ActState => {
   return run.status;
 };
 
-/** Whether a failed build is the one the step plans (the reducer's rule) */
-const isPlanned = (
-  step: Step,
-  progress: ConversationProgress,
-  run: RunRecord
-) =>
-  run.status === "failed" &&
-  run.result.act === "build" &&
-  !!step.onFail &&
-  progress.cursor.kind === "step" &&
-  progress.cursor.stepId === step.id;
-
 export const view = (
   definition: TutorialDefinition,
   state: EngineState,
@@ -237,7 +228,7 @@ export const view = (
         // Entering the planned failure through Explain echoes the press
         if (fail && i === 0) {
           turn({
-            id: `you:${b.id}`,
+            id: `you:explain:${b.id}`,
             kind: "you",
             step: step.id,
             at: r.at,
@@ -272,6 +263,17 @@ export const view = (
               at: r.at,
               beatId: b.id,
               wrote: r.wrote,
+              failed: false,
+            });
+          } else if (r.kind === "said" && r.writeFailed) {
+            turn({
+              id: `wrote:${b.id}`,
+              kind: "wrote",
+              step: step.id,
+              at: r.at,
+              beatId: b.id,
+              wrote: null,
+              failed: true,
             });
           }
         } else if (b.kind === "ask") {
@@ -286,6 +288,7 @@ export const view = (
             open,
             wrong: "wrong" in r ? r.wrong : [],
             hinted: "hintedAt" in r && r.hintedAt !== undefined,
+            writeFailed: "writeFailed" in r && r.writeFailed === true,
             outcome: outcomeOf(r),
             attempts: attemptsOf(r),
           });
@@ -356,6 +359,22 @@ export const view = (
               at: r.at,
               beatId: b.id,
               wrote: r.wrote,
+              failed: false,
+            });
+          } else if (
+            (r.kind === "picked" ||
+              r.kind === "typed" ||
+              r.kind === "skipped") &&
+            r.writeFailed
+          ) {
+            turn({
+              id: `wrote:${b.id}`,
+              kind: "wrote",
+              step: step.id,
+              at: r.at,
+              beatId: b.id,
+              wrote: null,
+              failed: true,
             });
           }
         } else {
@@ -402,7 +421,7 @@ export const view = (
                   : null,
             });
             if (run.status === "ok" || run.status === "failed") {
-              const planned = isPlanned(step, p, run);
+              const planned = run.status === "failed" && run.planned === true;
               turn({
                 id: `result:${b.id}:${n}`,
                 kind: "result",
@@ -413,6 +432,9 @@ export const view = (
                 result: run.result,
                 took: run.took,
                 planned: planned ? step.planned ?? null : null,
+                // A planned failure closes once Explain or "I'll fix it
+                // myself" entered `onFail`; any other failure waits on this
+                // card while it is the act's latest run
                 open:
                   run.status === "failed" &&
                   isLast &&
@@ -754,17 +776,63 @@ if (import.meta.vitest) {
         LATE
       );
       expect(ids(explained).slice(-3)).toEqual([
-        "you:f1.explain",
+        "you:explain:f1.explain",
         "f1.explain",
         "f1.q2",
       ]);
       expect(
-        explained.turns.find((t) => t.id === "you:f1.explain")
+        explained.turns.find((t) => t.id === "you:explain:f1.explain")
       ).toMatchObject({ text: EXPLAIN });
       expect(explained.turns.find((t) => t.kind === "result")).toMatchObject({
         open: false,
       });
       expect(explained.live?.id).toBe("f1.q2");
+    });
+
+    it("a failed fix build is an ordinary failure with a live result card", () => {
+      const state = play(
+        toFailed().concat([
+          { type: "explain", beatId: "s1.build", at: 9000 },
+          { type: "pick", beatId: "f1.q2", option: 2, at: 9500 },
+          { type: "act", beatId: "f1.build", at: 10000 },
+          {
+            type: "ended",
+            beatId: "f1.build",
+            result: FAILED_BUILD,
+            at: 11000,
+          },
+        ])
+      );
+      const v = view(hello, state, LATE);
+      const result = v.turns.find((t) => t.id === "result:f1.build:0");
+      expect(result).toMatchObject({ planned: null, open: true });
+      expect(v.live?.id).toBe("result:f1.build:0");
+      // The first, planned, failure stays closed
+      expect(v.turns.find((t) => t.id === "result:s1.build:0")).toMatchObject({
+        planned: hello.steps[0].planned,
+        open: false,
+      });
+    });
+
+    it("a write that could not land shows as a failed wrote card", () => {
+      const state = play([
+        { type: "start", at: 1000 },
+        { type: "writeFailed", beatId: "s1.boil", at: 1000 },
+        { type: "pick", beatId: "s1.q1", option: 1, at: 5000 },
+        { type: "writeFailed", beatId: "s1.q1", at: 5000 },
+      ]);
+      const v = view(hello, state, LATE);
+      expect(v.turns.find((t) => t.id === "wrote:s1.boil")).toMatchObject({
+        kind: "wrote",
+        wrote: null,
+        failed: true,
+      });
+      expect(v.turns.find((t) => t.id === "s1.q1")).toMatchObject({
+        writeFailed: true,
+      });
+      expect(v.turns.find((t) => t.id === "wrote:s1.q1")).toMatchObject({
+        failed: true,
+      });
     });
 
     it("a run again keeps the first result as a record and posts a second card", () => {

@@ -25,7 +25,7 @@ import { parseProgress } from "./progress";
 import type { RunResult } from "./progress";
 import { PgConversation, STORAGE_KEY } from "./store";
 import { view } from "./view";
-import type { ConversationView } from "./view";
+import type { ConversationView, Turn } from "./view";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
 import type { Disposable } from "../../../utils/types";
@@ -103,7 +103,7 @@ const called: RunResult = {
 
 const open = (
   workspace = memoryWorkspace({ "src/lib.rs": "" }),
-  runner?: Runner
+  runner: Runner = stubRunner([])
 ) => {
   setWorkspace(NAME);
   sub = PgConversation.init({ workspace, runner, judge: byKind });
@@ -114,6 +114,8 @@ const close = () => {
   sub?.dispose();
   sub = null;
 };
+
+const asWhole = (t: Turn): Turn => Object.assign({}, t, { whole: true });
 
 /** The feed as the live store sees it, every turn whole */
 const liveView = () => PgConversation.view(LATER) as ConversationView;
@@ -136,9 +138,10 @@ const step = async (act: () => void) => {
   await settle();
   const live = liveView();
   const reloaded = reloadedView();
-  expect(reloaded.turns).toEqual(
-    live.turns.map((t) => ({ ...t, whole: true }))
-  );
+  // The reloaded feed renders every turn whole; the live one only those
+  // from before its load. `asWhole` copies a turn field for field with
+  // `whole` set
+  expect(reloaded.turns).toEqual(live.turns.map(asWhole));
   expect(reloaded.live?.id).toBe(live.live?.id);
   expect(reloaded.steps).toEqual(live.steps);
   expect(reloaded.placeholder).toBe(live.placeholder);
@@ -168,7 +171,10 @@ beforeEach(() => {
 afterEach(async () => {
   close();
   setWorkspace(null);
-  sub = PgConversation.init({ workspace: memoryWorkspace() });
+  sub = PgConversation.init({
+    workspace: memoryWorkspace(),
+    runner: stubRunner([]),
+  });
   await settle();
   close();
   resetLogger();

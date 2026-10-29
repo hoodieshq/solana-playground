@@ -3,7 +3,7 @@ import type { TutorialDefinition } from "@/entities/tutorial";
 import { createLogger } from "@/shared/lib/logger";
 
 import { insertBlock, typedKey, withOwnText } from "./landing";
-import { failedResult, unwiredRunner } from "./ports";
+import { failedResult } from "./ports";
 import type { Judge, Runner, Workspace } from "./ports";
 import { freshProgress, parseProgress } from "./progress";
 import type { ConversationProgress, PassedVia, RunResult } from "./progress";
@@ -19,7 +19,7 @@ import { PgView } from "../../../utils/view";
 
 const log = createLogger("tutorial-conversation:store");
 
-/** Set when the open workspace is a conversation tutorial */
+/** The store's state: a context while the open workspace is a conversation tutorial */
 export interface ConversationState {
   /** Null whenever the open workspace is not a tutorial with a definition */
   context: EngineContext | null;
@@ -46,9 +46,10 @@ export const INITIAL_CONVERSATION_STATE: ConversationState = {
 export const STORAGE_KEY = "conversation";
 
 /**
- * The sentinel `getStorage` returns for a missing or unreadable file. Frozen
- * and fresh per call: the storage's `setItem` mutates the default it was
- * handed, so a shared object would leak one tutorial's save into the next.
+ * The sentinel `getStorage` returns for a missing or unreadable file, by
+ * identity. `storageDefault` is fresh per call: the storage's `setItem`
+ * writes into the default it was handed, so a shared container would leak
+ * one tutorial's save into the next.
  */
 const EMPTY_SAVE = Object.freeze({});
 const storageDefault = (): { [STORAGE_KEY]: unknown } => ({
@@ -60,7 +61,9 @@ const STORAGE_PATH = ".workspace/tutorial-storage.json";
 
 export interface ConversationPorts {
   workspace: Workspace;
-  runner?: Runner;
+  /** Required: a missing runner would fail every act, and a failed build
+   * reads as the step's planned failure */
+  runner: Runner;
   judge?: Judge;
 }
 
@@ -174,9 +177,12 @@ export class PgConversation {
   static init(ports: ConversationPorts): Disposable {
     PgConversation._ports = {
       workspace: ports.workspace,
-      runner: ports.runner ?? unwiredRunner,
+      runner: ports.runner,
       judge: ports.judge ?? ((_goal, result) => result.ok),
     };
+    // Once a session: `init` is called once from the frame
+    PgConversation._toldSaveFailed = false;
+    PgConversation._toldLoadFailed = false;
 
     const subs: Disposable[] = [
       PgExplorer.onDidSwitchWorkspace(() => {
@@ -220,12 +226,16 @@ export class PgConversation {
         progress = freshProgress();
       } else {
         const parsed = parseProgress(loaded);
-        if (parsed) {
-          progress = parsed;
-        } else {
+        if (!parsed) {
           // The file holds something this engine never wrote. Refusing to
           // write is cheaper than being wrong about it.
           loadFailed = true;
+        } else if (!PgConversation._knows(definition, parsed)) {
+          // A step or beat the definition no longer has: the engine could
+          // act on nothing, so the save reads as unreadable
+          loadFailed = true;
+        } else {
+          progress = parsed;
         }
       }
     } catch (e) {
@@ -246,6 +256,53 @@ export class PgConversation {
       loadFailed,
       loadedAt: Date.now(),
     });
+    if (loadFailed) void PgConversation._tellLoadFailed();
+  }
+
+  /** Whether every step and beat the save names is in the definition */
+  private static _knows(
+    definition: TutorialDefinition,
+    progress: ConversationProgress
+  ): boolean {
+    const steps = new Set(definition.steps.map((s) => s.id));
+    const beats = new Set(
+      definition.steps.flatMap((s) =>
+        s.beats.concat(s.onFail ?? []).map((b) => b.id)
+      )
+    );
+    const cursorStep =
+      progress.cursor.kind === "step" ? [progress.cursor.stepId] : [];
+    const orphan = [
+      ...cursorStep.filter((id) => !steps.has(id)),
+      ...Object.keys(progress.beats).filter((id) => !beats.has(id)),
+      ...Object.keys(progress.runs).filter((id) => !beats.has(id)),
+      ...Object.keys(progress.times).filter((id) => !steps.has(id)),
+      ...progress.passed.filter((id) => !steps.has(id)),
+    ];
+    if (orphan.length === 0) return true;
+    log.error(
+      `The saved progress of ${
+        definition.name
+      } names ids the definition does not have: ${orphan.join(", ")}`,
+      { report: true }
+    );
+    return false;
+  }
+
+  /** The learner hears once that this session is not being saved */
+  private static async _tellLoadFailed() {
+    if (PgConversation._toldLoadFailed) return;
+    PgConversation._toldLoadFailed = true;
+    try {
+      const { default: LoadFailedToast } = await import(
+        "../ui/LoadFailedToast"
+      );
+      PgView.setToast(LoadFailedToast, {
+        options: { name: "tutorial-load-failed" },
+      });
+    } catch (e) {
+      log.error(e, { report: true });
+    }
   }
 
   private static _definitionOf(name: string): TutorialDefinition | null {
@@ -259,11 +316,19 @@ export class PgConversation {
     if (engine === s.engine && effects.length === 0) return;
 
     if (engine !== s.engine) {
-      PgConversation._set({ ...s, engine });
+      // Start over is the one write allowed over a save that could not be
+      // read: it is the learner's "discard it", and the only way out
+      const loadFailed = action.type === "startOver" ? false : s.loadFailed;
+      if (s.loadFailed && !loadFailed) {
+        log.info(
+          `Start over replaces the unreadable saved progress of ${s.context.definition.name}`
+        );
+      }
+      PgConversation._set({ ...s, engine, loadFailed });
       // The tutorial's name is captured now: by the time the write lands, a
       // workspace switch could have moved the state on
       const name = s.context.definition.name;
-      void PgConversation._persist(name, engine.progress, s.loadFailed);
+      void PgConversation._persist(name, engine.progress, loadFailed);
     }
     void PgConversation._drain(s.context, effects);
   }
@@ -330,9 +395,10 @@ export class PgConversation {
         case "create": {
           try {
             if (!stillOpen()) break;
-            if ((await ports.workspace.read(effect.path)) === null) {
-              await ports.workspace.write(effect.path, "");
-            }
+            const exists =
+              (await ports.workspace.read(effect.path, name)) !== null;
+            if (!stillOpen()) break;
+            if (!exists) await ports.workspace.write(effect.path, "", name);
             if (!stillOpen()) break;
             PgConversation._dispatch({
               type: "written",
@@ -342,6 +408,7 @@ export class PgConversation {
             });
           } catch (e) {
             log.error(e, { report: true });
+            PgConversation._writeFailed(effect.beatId, name);
           }
           break;
         }
@@ -349,7 +416,9 @@ export class PgConversation {
           try {
             if (!stillOpen()) break;
             const step = stepOfBeat(context.definition, effect.beatId);
-            const before = (await ports.workspace.read(effect.file)) ?? "";
+            const before =
+              (await ports.workspace.read(effect.file, name)) ?? "";
+            if (!stillOpen()) break;
             // A key line the learner typed is replaced by the block around it,
             // keeping their own `msg!` words
             let base = before;
@@ -367,7 +436,7 @@ export class PgConversation {
               step?.target[effect.file],
               step?.start[effect.file] ?? ""
             );
-            await ports.workspace.write(effect.file, placed.code);
+            await ports.workspace.write(effect.file, placed.code, name);
             if (!stillOpen()) break;
             PgConversation._dispatch({
               type: "written",
@@ -376,9 +445,10 @@ export class PgConversation {
               at: effect.at,
             });
           } catch (e) {
-            // The question stays resolved; the block is not in the file, and
-            // the learner can type it or press the act again
+            // The question stays resolved and the block is not in the file:
+            // the card says so (`writeFailed`) and the learner types it
             log.error(e, { report: true });
+            PgConversation._writeFailed(effect.beatId, name);
           }
           break;
         }
@@ -389,6 +459,7 @@ export class PgConversation {
               PgConversation._dispatch({
                 type: "stage",
                 beatId: effect.beatId,
+                startedAt: effect.startedAt,
                 label: stage.label,
                 index: stage.index,
                 count: stage.count,
@@ -402,10 +473,19 @@ export class PgConversation {
               e instanceof Error ? e.message : String(e)
             );
           }
-          if (!stillOpen()) break;
+          if (!stillOpen()) {
+            // The result is lost with the switch: a landed deploy reads as
+            // interrupted and may be run again, so the team hears of it
+            log.warn(
+              `A ${effect.act} result for ${name} arrived after the workspace moved on (ok: ${result.ok})`,
+              { report: result.ok && effect.act !== "build" }
+            );
+            break;
+          }
           PgConversation._dispatch({
             type: "ended",
             beatId: effect.beatId,
+            startedAt: effect.startedAt,
             result,
             at: Date.now(),
           });
@@ -413,6 +493,12 @@ export class PgConversation {
         }
       }
     }
+  }
+
+  /** A write that did not land, told to the card unless the workspace moved */
+  private static _writeFailed(beatId: string, name: string) {
+    if (PgExplorer.currentWorkspaceName !== name) return;
+    PgConversation._dispatch({ type: "writeFailed", beatId, at: Date.now() });
   }
 
   /**
@@ -448,6 +534,7 @@ export class PgConversation {
   }
 
   private static _toldSaveFailed = false;
+  private static _toldLoadFailed = false;
   private static _state: ConversationState = INITIAL_CONVERSATION_STATE;
   private static _ports: Required<ConversationPorts> | null = null;
   private static _timer: ReturnType<typeof setTimeout> | null = null;

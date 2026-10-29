@@ -25,7 +25,7 @@ export type {
   Runner,
   Workspace,
 } from "./model/ports";
-export { realWorkspace } from "./model/real-workspace";
+export { WorkspaceMovedError, realWorkspace } from "./model/real-workspace";
 export {
   INITIAL_CONVERSATION_STATE,
   PgConversation,

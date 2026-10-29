@@ -21,7 +21,7 @@ vi.mock("@/entities/tutorial", async () => ({
 
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import { memoryWorkspace, stubRunner } from "./ports";
-import type { Workspace } from "./ports";
+import type { Runner, Workspace } from "./ports";
 import { freshProgress } from "./progress";
 import type { RunResult } from "./progress";
 import {
@@ -73,13 +73,13 @@ const open = (
   name: string | null,
   ports: {
     workspace?: Workspace;
-    runner?: ReturnType<typeof stubRunner>;
+    runner?: Runner;
   } = {}
 ) => {
   setWorkspace(name);
   sub = PgConversation.init({
     workspace: ports.workspace ?? memoryWorkspace(),
-    runner: ports.runner,
+    runner: ports.runner ?? stubRunner([]),
   });
 };
 
@@ -212,7 +212,7 @@ describe("PgConversation", () => {
     PgConversation.start();
     await settle();
     const typed = `${workspace.files["src/lib.rs"]}\n\n    msg!("Hi there");\n`;
-    await workspace.write("src/lib.rs", typed);
+    await workspace.write("src/lib.rs", typed, NAME);
     PgConversation.edit("src/lib.rs", typed);
     await settle();
     expect(PgConversation.state.engine.progress.beats["s1.q1"]).toMatchObject({
@@ -339,8 +339,204 @@ describe("PgConversation", () => {
     expect(PgConversation.state.engine.progress.beats["s1.boil"]).toEqual({
       kind: "said",
       at: expect.any(Number),
+      writeFailed: true,
     });
+    expect(
+      PgConversation.view(LATER)?.turns.find((t) => t.id === "wrote:s1.boil")
+    ).toMatchObject({ failed: true });
     expect(logged.entries.filter((e) => e.level === "error")).toHaveLength(1);
+  });
+
+  it("start over clears a failed load and writes a fresh save", async () => {
+    exists = true;
+    file = { [STORAGE_KEY]: { version: 7 } };
+    open(NAME);
+    await settle();
+    expect(PgConversation.state.loadFailed).toBe(true);
+    await vi.waitFor(() =>
+      expect(vi.mocked(PgView.setToast)).toHaveBeenCalledTimes(1)
+    );
+    PgConversation.startOver();
+    await settle();
+    expect(PgConversation.state.loadFailed).toBe(false);
+    expect(file[STORAGE_KEY]).toEqual(freshProgress());
+    PgConversation.start();
+    await settle();
+    const saved = file[STORAGE_KEY] as { startedAt: number | null };
+    expect(saved.startedAt).not.toBeNull();
+  });
+
+  it("treats a save naming a step the definition lacks as a failed load", async () => {
+    exists = true;
+    const saved = freshProgress();
+    saved.startedAt = 1000;
+    saved.cursor = { kind: "step", stepId: "renamed", beat: 0, fail: false };
+    saved.times = { renamed: { from: 1000, to: null } };
+    file = { [STORAGE_KEY]: saved };
+    open(NAME);
+    await settle();
+    expect(PgConversation.state.loadFailed).toBe(true);
+    expect(PgConversation.view(LATER)?.live?.kind).toBe("intro");
+    expect(
+      logged.entries.some((e) =>
+        `${e.message ?? ""}${e.error?.message ?? ""}`.includes("renamed")
+      )
+    ).toBe(true);
+  });
+
+  it("acts again on an interrupted run and keeps the first as a record", async () => {
+    exists = true;
+    const saved = freshProgress();
+    saved.startedAt = 1000;
+    saved.passed = ["write-program"];
+    saved.cursor = { kind: "step", stepId: "deploy", beat: 3, fail: false };
+    saved.beats = {
+      "s2.why": { kind: "said", at: 2000 },
+      "s2.q2": {
+        kind: "skipped",
+        at: 2800,
+        openedAt: 2700,
+        via: "button",
+        wrong: [],
+      },
+      "s2.deploy": { kind: "said", at: 3500 },
+    };
+    saved.runs = { "s2.deploy": [{ status: "started", at: 4000 }] };
+    saved.times = {
+      "write-program": { from: 1000, to: 1900, via: "chat" },
+      deploy: { from: 2000, to: null },
+    };
+    file = { [STORAGE_KEY]: saved };
+    const runner = stubRunner([
+      {
+        result: {
+          act: "deploy",
+          ok: true,
+          seconds: 3,
+          programId: "p",
+          signature: "s",
+          upgraded: false,
+          lamports: 1,
+          instructions: ["hello"],
+        },
+      },
+    ]);
+    open(NAME, { runner });
+    await settle();
+    expect(PgConversation.view(LATER)?.live).toMatchObject({
+      id: "s2.deploy",
+      state: "interrupted",
+    });
+    PgConversation.act("s2.deploy");
+    await settle();
+    expect(
+      PgConversation.state.engine.progress.runs["s2.deploy"]
+    ).toMatchObject([{ status: "interrupted", at: 4000 }, { status: "ok" }]);
+    expect(PgConversation.state.engine.progress.passed).toEqual([
+      "write-program",
+      "deploy",
+    ]);
+    const ids = PgConversation.view(LATER)?.turns.map((t) => t.id) ?? [];
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "s2.deploy",
+        "s2.deploy:1",
+        "result:s2.deploy:1",
+        "win:deploy",
+      ])
+    );
+  });
+
+  it("a load that lands after a workspace switch is dropped", async () => {
+    let release: (value: unknown) => void = () => {};
+    vi.mocked(PgTutorial.getStorage).mockImplementation(
+      () =>
+        ({
+          getItem: () =>
+            new Promise((r) => {
+              release = r;
+            }),
+          setItem: async () => {},
+        } as never)
+    );
+    open(NAME);
+    await settle();
+    setWorkspace("Other");
+    release(undefined);
+    await settle();
+    expect(PgConversation.state).toBe(INITIAL_CONVERSATION_STATE);
+  });
+
+  it("a reload inside the finish window still finishes", async () => {
+    exists = true;
+    const saved = freshProgress();
+    saved.startedAt = 1000;
+    saved.passed = ["write-program", "deploy", "call-client", "greet-by-name"];
+    saved.cursor = {
+      kind: "step",
+      stepId: "greet-by-name",
+      beat: 4,
+      fail: false,
+    };
+    saved.times = {
+      "write-program": { from: 1000, to: 1900, via: "chat" },
+      deploy: { from: 2000, to: 2900, via: "chat" },
+      "call-client": { from: 3000, to: 3900, via: "client" },
+      "greet-by-name": { from: 4000, to: 4900, via: "chat" },
+    };
+    file = { [STORAGE_KEY]: saved };
+    open(NAME);
+    await settle();
+    await vi.waitFor(() =>
+      expect(PgConversation.state.engine.progress.finishedAt).not.toBeNull()
+    );
+    expect(events.events.map((e) => e.name)).toEqual(["tutorial_finished"]);
+    expect(PgConversation.view(LATER)?.live).toBeNull();
+  });
+
+  it("a stale run's result cannot answer a new run of the same act", async () => {
+    let releaseFirst: (r: RunResult) => void = () => {};
+    let calls = 0;
+    const runner: Runner = {
+      run: () =>
+        new Promise<RunResult>((r) => {
+          calls++;
+          if (calls === 1) releaseFirst = r;
+          else r(OK_BUILD);
+        }),
+    };
+    open(NAME, { runner });
+    await settle();
+    PgConversation.start();
+    await settle();
+    PgConversation.pick("s1.q1", 1);
+    await settle();
+    PgConversation.act("s1.build");
+    await settle();
+    PgConversation.startOver();
+    await settle();
+    // A later start: the new run's start time must differ from the first's
+    await new Promise((r) => setTimeout(r, 5));
+    PgConversation.start();
+    await settle();
+    PgConversation.pick("s1.q1", 1);
+    await settle();
+    // The second run answers at once and passes the step
+    PgConversation.act("s1.build");
+    await settle();
+    expect(PgConversation.state.engine.progress.passed).toEqual([
+      "write-program",
+    ]);
+    const before = PgConversation.state;
+    releaseFirst({
+      act: "build",
+      ok: false,
+      seconds: 1,
+      error: null,
+      log: "stale",
+    });
+    await settle();
+    expect(PgConversation.state).toBe(before);
   });
 
   it("refuses to write while the load failed, and still shows the intro", async () => {

@@ -15,6 +15,7 @@ import type {
   Cursor,
   PassedVia,
   Resolution,
+  RunRecord,
   RunResult,
   Wrote,
 } from "./progress";
@@ -69,6 +70,8 @@ export type Action =
   | { type: "edit"; file: string; content: string; at: number }
   /** A queued write landed */
   | { type: "written"; beatId: string; wrote: Wrote; at: number }
+  /** A queued write could not land; the card says so */
+  | { type: "writeFailed"; beatId: string; at: number }
   /** An act card pressed, or its composer word */
   | {
       type: "act";
@@ -80,12 +83,21 @@ export type Action =
   | {
       type: "stage";
       beatId: string;
+      /** The run this stage belongs to, by its start; a stale run's is dropped */
+      startedAt?: number;
       label: string;
       index: number;
       count: number;
       at: number;
     }
-  | { type: "ended"; beatId: string; result: RunResult; at: number }
+  | {
+      type: "ended";
+      beatId: string;
+      /** The run this result belongs to, by its start; a stale run's is dropped */
+      startedAt?: number;
+      result: RunResult;
+      at: number;
+    }
   /** A step's goal met outside the feed: a Call panel call or a client run */
   | {
       type: "passed";
@@ -110,7 +122,14 @@ export type Effect =
       at: number;
     }
   | { kind: "create"; beatId: string; path: string; at: number }
-  | { kind: "run"; beatId: string; act: Act; input: RunInput }
+  | {
+      kind: "run";
+      beatId: string;
+      act: Act;
+      input: RunInput;
+      /** Echoed back on `stage` and `ended`, so a stale run cannot answer */
+      startedAt: number;
+    }
   | { kind: "event"; name: "tutorial_started"; params: { tutorial: string } }
   | {
       kind: "event";
@@ -316,10 +335,12 @@ const pass = (
 };
 
 /**
- * Whether a failed build is the one the step plans: the step has `onFail`,
- * the cursor has not entered it yet, and the step has not passed. Any
- * failed build in that position counts, so a learner who runs the build
- * again before pressing Explain meets the same explanation.
+ * Whether a failed build is the one the step plans: a compiler error (not a
+ * run that could not happen), on a step with `onFail`, before the cursor
+ * has entered it. Any such build counts, so a learner who runs the build
+ * again before pressing Explain meets the same explanation. Judged once,
+ * when the run ends, and kept on the run record: once the cursor is in
+ * `onFail`, a later failed build there is an ordinary failure.
  */
 const isPlannedFailure = (
   step: Step,
@@ -328,10 +349,17 @@ const isPlannedFailure = (
 ): boolean =>
   result.act === "build" &&
   !result.ok &&
+  result.error !== null &&
   !!step.onFail &&
   cursor.kind === "step" &&
   cursor.stepId === step.id &&
   !cursor.fail;
+
+/** The index of the fix question in `onFail`, past its leading explanation */
+const fixQuestionIndex = (step: Step): number => {
+  const i = (step.onFail ?? []).findIndex((b) => b.kind !== "say");
+  return i === -1 ? 0 : i;
+};
 
 const withProgress = (
   state: EngineState,
@@ -494,7 +522,8 @@ export const reduce = (
         r.kind === "typed" ||
         r.kind === "skipped"
       ) {
-        next = { ...r, wrote: action.wrote };
+        const { writeFailed: _failed, ...rest } = r;
+        next = { ...rest, wrote: action.wrote };
       } else {
         return same(state);
       }
@@ -535,13 +564,33 @@ export const reduce = (
           },
           stage: null,
         },
-        effects: [{ kind: "run", beatId: beat.id, act: beat.act, input }],
+        effects: [
+          {
+            kind: "run",
+            beatId: beat.id,
+            act: beat.act,
+            input,
+            startedAt: action.at,
+          },
+        ],
       };
+    }
+
+    case "writeFailed": {
+      const r = p.beats[action.beatId];
+      if (!r || r.kind === "open" || r.kind === "written") return same(state);
+      return withProgress(state, {
+        ...p,
+        beats: { ...p.beats, [action.beatId]: { ...r, writeFailed: true } },
+      });
     }
 
     case "stage": {
       const run = lastRun(p, action.beatId);
       if (!run || run.status !== "started") return same(state);
+      if (action.startedAt !== undefined && action.startedAt !== run.at) {
+        return same(state);
+      }
       const { beatId, label, index, count } = action;
       return {
         state: { ...state, stage: { beatId, label, index, count } },
@@ -555,17 +604,25 @@ export const reduce = (
       if (!run || run.status !== "started" || !found || !isAct(found.beat)) {
         return same(state);
       }
+      if (action.startedAt !== undefined && action.startedAt !== run.at) {
+        return same(state);
+      }
       const { step, beat } = found;
       const took = action.at - run.at;
       const result = action.result;
+      let record: RunRecord;
+      if (result.ok) {
+        record = { status: "ok", at: run.at, took, result };
+      } else if (isPlannedFailure(step, p.cursor, result)) {
+        record = { status: "failed", at: run.at, took, result, planned: true };
+      } else {
+        record = { status: "failed", at: run.at, took, result };
+      }
       const recorded: ConversationProgress = {
         ...p,
         runs: {
           ...p.runs,
-          [beat.id]: [
-            ...p.runs[beat.id].slice(0, -1),
-            { status: result.ok ? "ok" : "failed", at: run.at, took, result },
-          ],
+          [beat.id]: [...p.runs[beat.id].slice(0, -1), record],
         },
       };
       const cleared: EngineState = { progress: recorded, stage: null };
@@ -573,6 +630,11 @@ export const reduce = (
       if (!passed(recorded, step) && ctx.judge(step.goal, result)) {
         const via: PassedVia = beat.act === "run" ? "client" : "chat";
         return withProgress(cleared, pass(ctx, recorded, step, action.at, via));
+      }
+      // A run that outlived its step (passed from the Call panel, then Next)
+      // records its result and moves nothing on
+      if (p.cursor.kind !== "step" || p.cursor.stepId !== step.id) {
+        return same(cleared);
       }
       const flowed = flow(ctx, recorded, action.at + TICK_MS);
       return withProgress(cleared, flowed.progress, flowed.effects);
@@ -590,7 +652,7 @@ export const reduce = (
       const run = lastRun(p, action.beatId);
       const found = locate(definition, action.beatId);
       if (!run || run.status !== "failed" || !found) return same(state);
-      if (!isPlannedFailure(found.step, p.cursor, run.result)) {
+      if (!run.planned || p.cursor.kind !== "step" || p.cursor.fail) {
         return {
           state,
           effects: [
@@ -621,7 +683,7 @@ export const reduce = (
             ? run.result.error.line
             : "landing",
       };
-      if (!isPlannedFailure(found.step, p.cursor, run.result)) {
+      if (!run.planned || p.cursor.kind !== "step" || p.cursor.fail) {
         return { state, effects: [focus] };
       }
       // The fix question still follows; the explanation before it is skipped
@@ -629,7 +691,12 @@ export const reduce = (
         ctx,
         {
           ...p,
-          cursor: { kind: "step", stepId: found.step.id, beat: 1, fail: true },
+          cursor: {
+            kind: "step",
+            stepId: found.step.id,
+            beat: fixQuestionIndex(found.step),
+            fail: true,
+          },
         },
         action.at
       );
@@ -1013,6 +1080,44 @@ if (import.meta.vitest) {
       });
     });
 
+    describe("writeFailed", () => {
+      it("marks the resolution, and a later write clears it", () => {
+        const failedWrite = play([
+          start,
+          { type: "writeFailed", beatId: "s1.boil", at: 1000 },
+          rightPick,
+          { type: "writeFailed", beatId: "s1.q1", at: 5000 },
+        ]).state;
+        expect(failedWrite.progress.beats["s1.boil"]).toEqual({
+          kind: "said",
+          at: 1000,
+          writeFailed: true,
+        });
+        expect(failedWrite.progress.beats["s1.q1"]).toMatchObject({
+          kind: "picked",
+          writeFailed: true,
+        });
+        const landed = reduce(ctx(), failedWrite, {
+          type: "written",
+          beatId: "s1.q1",
+          wrote: { file: "src/lib.rs", lines: [5] },
+          at: 5100,
+        }).state;
+        expect(landed.progress.beats["s1.q1"]).not.toHaveProperty(
+          "writeFailed"
+        );
+        expect(landed.progress.beats["s1.q1"]).toMatchObject({
+          wrote: { lines: [5] },
+        });
+        // An open question or a landed write has nothing to mark
+        const open = play([start]).state;
+        expect(
+          reduce(ctx(), open, { type: "writeFailed", beatId: "s1.q1", at: 2 })
+            .state
+        ).toBe(open);
+      });
+    });
+
     describe("act and ended", () => {
       it("starts the run and queues it, once", () => {
         const { progress, effects, state } = play([
@@ -1028,6 +1133,7 @@ if (import.meta.vitest) {
           beatId: "s1.build",
           act: "build",
           input: { beatId: "s1.build" },
+          startedAt: 7000,
         });
         expect(reduce(ctx(), state, build(7100)).state).toBe(state);
       });
@@ -1082,6 +1188,74 @@ if (import.meta.vitest) {
           to: 8600,
           via: "chat",
         });
+      });
+
+      it("drops a result whose start is not the run's", () => {
+        const before = play([start, rightPick, build(7000)]).state;
+        const stale = reduce(ctx(), before, {
+          type: "ended",
+          beatId: "s1.build",
+          startedAt: 6000,
+          result: OK_BUILD,
+          at: 8600,
+        });
+        expect(stale.state).toBe(before);
+        const staleStage = reduce(ctx(), before, {
+          type: "stage",
+          beatId: "s1.build",
+          startedAt: 6000,
+          label: "Building",
+          index: 1,
+          count: 1,
+          at: 7100,
+        });
+        expect(staleStage.state).toBe(before);
+        const own = reduce(ctx(), before, {
+          type: "ended",
+          beatId: "s1.build",
+          startedAt: 7000,
+          result: OK_BUILD,
+          at: 8600,
+        });
+        expect(own.state.progress.passed).toEqual(["write-program"]);
+      });
+
+      it("a run that outlived its step records its result and moves nothing on", () => {
+        const left = play([
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+          { type: "next", at: 9000 },
+          { type: "skip", beatId: "s2.q2", via: "button", at: 9500 },
+          { type: "act", beatId: "s2.deploy", at: 10000 },
+          {
+            type: "passed",
+            via: "call_panel",
+            result: {
+              act: "call",
+              ok: true,
+              seconds: 1,
+              signatures: [],
+              line: null,
+            },
+            at: 10500,
+          },
+          { type: "next", at: 11000 },
+        ]).state;
+        expect(left.progress.beats["s3.q3"]).toMatchObject({ kind: "open" });
+        const r = reduce(ctx(), left, {
+          type: "ended",
+          beatId: "s2.deploy",
+          result: DEPLOYED,
+          at: 12000,
+        });
+        expect(r.state.progress.runs["s2.deploy"]).toMatchObject([
+          { status: "ok" },
+        ]);
+        expect(r.state.progress.beats["s3.q3"]).toMatchObject({ kind: "open" });
+        expect(r.state.progress.beats["s3.run"]).toBeUndefined();
+        expect(r.effects).toEqual([]);
       });
 
       it("drops a result for a run that is not in flight", () => {
@@ -1146,25 +1320,8 @@ if (import.meta.vitest) {
         expect(s4.progress.times["call-client"]).toMatchObject({
           via: "client",
         });
-        const shipped = reduce(ctx(), s4.state, {
-          type: "ended",
-          beatId: "s4.ship",
-          result: {
-            act: "buildDeploy",
-            ok: true,
-            seconds: 2,
-            programId: "p",
-            signature: "t",
-            upgraded: true,
-            lamports: 1,
-            instructions: ["hello"],
-          },
-          at: 19000,
-        });
-        // The judge passes any ok result, but the step's goal is the call: a
-        // real judge (3.2) refuses a deploy for a call goal. Here the stub
-        // passes it, so the test pins the flow with a judge of its own.
-        expect(shipped.state.progress.passed).toContain("greet-by-name");
+        // The step's goal is the call, so a judge that matches kinds (as
+        // 3.2's will) refuses the deploy and the lesson flows on to the call
         const strict: EngineContext = {
           definition: hello,
           slug: "hello-anchor",
@@ -1296,6 +1453,68 @@ if (import.meta.vitest) {
         expect(again.runs["s1.build"].map((r) => r.status)).toEqual([
           "failed",
           "failed",
+        ]);
+      });
+
+      it("marks the planned failure on its run, never a build that could not run", () => {
+        expect(failed().progress.runs["s1.build"]).toMatchObject([
+          { status: "failed", planned: true },
+        ]);
+        const noCompiler: RunResult = {
+          act: "build",
+          ok: false,
+          seconds: 0,
+          error: null,
+          log: "The build act is not wired yet.",
+        };
+        const notPlanned = play([
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: noCompiler, at: 7100 },
+        ]).state;
+        expect(notPlanned.progress.runs["s1.build"]).toEqual([
+          { status: "failed", at: 7000, took: 100, result: noCompiler },
+        ]);
+        const r = reduce(ctx(), notPlanned, {
+          type: "explain",
+          beatId: "s1.build",
+          at: 8000,
+        });
+        expect(r.state).toBe(notPlanned);
+        expect(r.effects).toEqual([
+          { kind: "explain", beatId: "s1.build", result: noCompiler },
+        ]);
+      });
+
+      it("a failed build inside onFail is not planned again", () => {
+        const inFail = play(
+          [
+            { type: "explain", beatId: "s1.build", at: 9000 },
+            { type: "pick", beatId: "f1.q2", option: 2, at: 9500 },
+            { type: "act", beatId: "f1.build", at: 10000 },
+            {
+              type: "ended",
+              beatId: "f1.build",
+              result: FAILED_BUILD,
+              at: 11000,
+            },
+          ],
+          failed()
+        ).state;
+        expect(inFail.progress.runs["f1.build"]).toMatchObject([
+          { status: "failed" },
+        ]);
+        expect(inFail.progress.runs["f1.build"][0]).not.toHaveProperty(
+          "planned"
+        );
+        const r = reduce(ctx(), inFail, {
+          type: "explain",
+          beatId: "f1.build",
+          at: 12000,
+        });
+        expect(r.effects).toEqual([
+          { kind: "explain", beatId: "f1.build", result: FAILED_BUILD },
         ]);
       });
 

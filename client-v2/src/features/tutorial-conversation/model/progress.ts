@@ -55,7 +55,7 @@ export type PassedVia = "chat" | "client" | "call_panel";
  * run living in `runs`.
  */
 export type Resolution =
-  | { kind: "said"; at: number }
+  | { kind: "said"; at: number; writeFailed?: true }
   | { kind: "written"; at: number; wrote: Wrote }
   | { kind: "open"; at: number; wrong: number[]; hintedAt?: number }
   | ({
@@ -69,6 +69,8 @@ export type Resolution =
 
 /** What every resolved question carries */
 interface Resolved {
+  /** The answer's block could not be written; the learner was told */
+  writeFailed?: true;
   /** When it resolved */
   at: number;
   /** When the question arrived, so its card keeps its place in the feed */
@@ -95,7 +97,14 @@ export type RunRecord =
   | { status: "started"; at: number }
   | { status: "interrupted"; at: number }
   | { status: "ok"; at: number; took: number; result: RunResult }
-  | { status: "failed"; at: number; took: number; result: RunResult };
+  | {
+      status: "failed";
+      at: number;
+      took: number;
+      result: RunResult;
+      /** The failure the step plans, judged once when the run ended */
+      planned?: true;
+    };
 
 /** The first compiler error of a failed build, as the server's log names it */
 export interface BuildError {
@@ -212,6 +221,7 @@ const parseResolved = (v: Record<string, unknown>): Resolved | null => {
   if (!isMs(v.at) || !isMs(v.openedAt) || !isIndexes(v.wrong)) return null;
   const out: Resolved = { at: v.at, openedAt: v.openedAt, wrong: v.wrong };
   if (isMs(v.hintedAt)) out.hintedAt = v.hintedAt;
+  if (v.writeFailed === true) out.writeFailed = true;
   if (v.wrote !== undefined) {
     const wrote = parseWrote(v.wrote);
     if (!wrote) return null;
@@ -226,7 +236,9 @@ const parseResolution = (v: unknown): Resolution | null => {
   const at = v.at;
   switch (v.kind) {
     case "said":
-      return { kind: "said", at };
+      return v.writeFailed === true
+        ? { kind: "said", at, writeFailed: true }
+        : { kind: "said", at };
     case "written": {
       const wrote = parseWrote(v.wrote);
       return wrote ? { kind: "written", at, wrote } : null;
@@ -285,12 +297,18 @@ const parseRun = (v: unknown): RunRecord | null => {
     case "started":
     case "interrupted":
       return { status: "interrupted", at };
-    case "ok":
-    case "failed": {
+    case "ok": {
       const result = parseResult(v.result);
       return result && isMs(v.took)
-        ? { status: v.status, at, took: v.took, result }
+        ? { status: "ok", at, took: v.took, result }
         : null;
+    }
+    case "failed": {
+      const result = parseResult(v.result);
+      if (!result || !isMs(v.took)) return null;
+      return v.planned === true
+        ? { status: "failed", at, took: v.took, result, planned: true }
+        : { status: "failed", at, took: v.took, result };
     }
     default:
       return null;
@@ -329,8 +347,9 @@ const parseTime = (v: unknown): StepTime | null => {
 /**
  * The saved `conversation`, or null when it is not a version 1 save. A null
  * opens the tutorial on the intro and, through the store's `loadFailed`
- * guard, keeps the file unwritten until the learner acts; it never overwrites
- * a save it could not read. Entries it cannot read are dropped one by one.
+ * guard, keeps the file unwritten for the rest of that load: the learner's
+ * actions live in memory only, and only Start over writes over a save that
+ * could not be read. Entries it cannot read are dropped one by one.
  */
 export const parseProgress = (saved: unknown): ConversationProgress | null => {
   if (!isRecord(saved) || saved.version !== 1) return null;

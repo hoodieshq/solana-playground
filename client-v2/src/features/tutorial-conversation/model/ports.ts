@@ -7,12 +7,17 @@ import type { Act, Goal } from "@/entities/tutorial";
  * in-memory ones below let the whole engine run in a unit test.
  */
 
-/** The tutorial workspace's files, by path relative to the workspace */
+/**
+ * The tutorial workspace's files, by path relative to the workspace.
+ * `workspace` names the workspace the effect was queued for: the real port
+ * refuses to touch any other, so a switch while a write is in flight
+ * never lands the block in the next project.
+ */
 export interface Workspace {
   /** @returns the file's content, or null when there is no such file */
-  read(path: string): Promise<string | null>;
+  read(path: string, workspace: string): Promise<string | null>;
   /** Writes the whole file, creating it when needed */
-  write(path: string, content: string): Promise<void>;
+  write(path: string, content: string, workspace: string): Promise<void>;
 }
 
 export interface RunInput {
@@ -62,7 +67,11 @@ export const failedResult = (
   }
 };
 
-/** The runner the store starts with until the run tickets wire the real one */
+/**
+ * A runner for a test or a storybook that has none: every act fails with a
+ * message that says so. Never the store's default: a failed build that
+ * never ran would read as the step's planned failure.
+ */
 export const unwiredRunner: Runner = {
   run: async (act) => failedResult(act, `The ${act} act is not wired yet.`),
 };
@@ -118,9 +127,9 @@ if (import.meta.vitest) {
   describe("features/tutorial-conversation/model/ports", () => {
     it("memoryWorkspace reads what was written and null otherwise", async () => {
       const ws = memoryWorkspace({ "src/lib.rs": "" });
-      expect(await ws.read("src/lib.rs")).toBe("");
-      expect(await ws.read("client/client.ts")).toBeNull();
-      await ws.write("client/client.ts", "// hi");
+      expect(await ws.read("src/lib.rs", "x")).toBe("");
+      expect(await ws.read("client/client.ts", "x")).toBeNull();
+      await ws.write("client/client.ts", "// hi", "x");
       expect(ws.files["client/client.ts"]).toBe("// hi");
     });
 
