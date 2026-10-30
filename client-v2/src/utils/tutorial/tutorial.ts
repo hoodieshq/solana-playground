@@ -65,6 +65,13 @@ const storage = {
   },
 };
 
+/** A tutorial workspace's storage file, relative to the workspace */
+const storageDataPath = () =>
+  PgCommon.joinPaths(
+    PgExplorer.PATHS.WORKSPACE_DIRNAME,
+    "tutorial-storage.json"
+  );
+
 const onDidInit = () => {
   let lastTutorialName: string | undefined;
   const disposables = [
@@ -174,6 +181,23 @@ class _PgTutorial {
   static async getMetadata(name: string) {
     return await PgExplorer.fs.readToJSON<TutorialMetadata>(
       PgCommon.joinPaths(PgExplorer.PATHS.ROOT_DIR_PATH, name, storage.PATH)
+    );
+  }
+
+  /**
+   * Get the given tutorial's storage data from file system: what
+   * `getStorage` keeps for the open tutorial, read for any started one.
+   *
+   * @param name tutorial name
+   * @returns the tutorial's storage data
+   */
+  static async getStorageData(name: string) {
+    return await PgExplorer.fs.readToJSON<TutorialStorageData>(
+      PgCommon.joinPaths(
+        PgExplorer.PATHS.ROOT_DIR_PATH,
+        name,
+        storageDataPath()
+      )
     );
   }
 
@@ -371,10 +395,7 @@ class _PgTutorial {
       }
 
       /** Relative path to the tutorial storage JSON file */
-      private static _PATH = PgCommon.joinPaths(
-        PgExplorer.PATHS.WORKSPACE_DIRNAME,
-        "tutorial-storage.json"
-      );
+      private static _PATH = storageDataPath();
     }
 
     return new PgTutorialStorage();
