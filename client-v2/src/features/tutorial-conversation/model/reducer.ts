@@ -1359,21 +1359,36 @@ if (import.meta.vitest) {
       it("a run again of an act the flow went past posts nothing, even when ok", () => {
         // A step whose act comes before its question: refused twice, the
         // second result must not post the beats past the open question
-        const definition = {
-          ...hello,
+        const s1 = hello.steps[0];
+        const definition: TutorialDefinition = {
+          version: hello.version,
+          name: hello.name,
+          description: hello.description,
+          authors: hello.authors,
+          level: hello.level,
+          framework: hello.framework,
+          languages: hello.languages,
+          thumbnail: hello.thumbnail,
+          minutes: hello.minutes,
+          intro: hello.intro,
           steps: [
             {
-              ...hello.steps[0],
-              beats: [
-                hello.steps[0].beats[3],
-                hello.steps[0].beats[1],
-                hello.steps[0].beats[2],
-              ],
-              onFail: undefined,
-              planned: undefined,
+              id: s1.id,
+              title: s1.title,
+              short: s1.short,
+              objective: s1.objective,
+              learned: s1.learned,
+              file: s1.file,
+              start: s1.start,
+              target: s1.target,
+              beats: [s1.beats[3], s1.beats[1], s1.beats[2]],
+              goal: s1.goal,
+              win: s1.win,
+              explain: s1.explain,
             },
           ],
-        } as unknown as TutorialDefinition;
+          finish: hello.finish,
+        };
         const refusing: EngineContext = {
           definition,
           slug: "x",

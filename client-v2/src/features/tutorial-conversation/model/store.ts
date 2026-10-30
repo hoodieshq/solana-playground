@@ -683,7 +683,9 @@ export class PgConversation {
   private static _persist(name: string, progress: ConversationProgress) {
     const previous = PgConversation._persisting.get(name) ?? Promise.resolve();
     const next = previous
-      .catch(() => {})
+      .catch(() => {
+        // `_write` reports its own failure; the chain only has to go on
+      })
       .then(() => PgConversation._write(name, progress));
     PgConversation._persisting.set(name, next);
   }
