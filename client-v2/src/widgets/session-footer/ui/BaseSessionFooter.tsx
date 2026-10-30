@@ -24,9 +24,11 @@ import type { AccountLine, AccountView } from "../model/account";
 import AccountAvatar from "./AccountAvatar";
 
 const LINE_STYLE: Record<AccountLine["kind"], string> = {
+  "saved-here": "text-muted-foreground",
   "signing-in": "text-muted-foreground",
   failed: "text-destructive",
-  wallet: "font-mono text-muted-foreground",
+  login: "text-muted-foreground",
+  offline: "text-muted-foreground",
 };
 
 export interface BaseSessionFooterProps {
@@ -55,7 +57,7 @@ const BaseSessionFooter = ({
   onMenuOpenChange,
   accountRef,
 }: BaseSessionFooterProps) => {
-  const { primary, lines } = accountLines(account);
+  const { primary, line } = accountLines(account);
   return (
     <SidebarMenu className="w-full">
       <SidebarMenuItem>
@@ -107,9 +109,8 @@ const BaseSessionFooter = ({
                 <span className="truncate font-medium text-foreground">
                   {primary}
                 </span>
-                {lines.map((line) => (
+                {line && (
                   <span
-                    key={line.kind}
                     // A failure is announced; its reason is in full in the menu
                     role={line.kind === "failed" ? "status" : undefined}
                     title={line.kind === "failed" ? line.message : undefined}
@@ -117,7 +118,7 @@ const BaseSessionFooter = ({
                   >
                     {lineText(line)}
                   </span>
-                ))}
+                )}
               </span>
               {account.sending ? (
                 <Spinner aria-label="Sending feedback" className="ml-auto" />
