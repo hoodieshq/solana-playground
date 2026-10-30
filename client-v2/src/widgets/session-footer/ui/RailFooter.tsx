@@ -9,19 +9,22 @@ interface RailFooterProps {
 
 /** `BaseRailFooter` on the live cluster, session, wallet and feedback */
 const RailFooter = ({ settingsOpen, onToggleSettings }: RailFooterProps) => {
-  const { account, menu, onMenuOpenChange, accountRef } = useAccount({
+  const { account, menu, dialog, onMenuOpenChange, accountRef } = useAccount({
     from: "rail",
     onToggleSettings,
   });
   return (
-    <BaseRailFooter
-      account={account}
-      settingsOpen={settingsOpen}
-      onOpenCluster={() => onToggleSettings({ from: "rail", focus: "network" })}
-      menu={menu}
-      onMenuOpenChange={onMenuOpenChange}
-      accountRef={accountRef}
-    />
+    <>
+      <BaseRailFooter
+        account={account}
+        settingsOpen={settingsOpen}
+        onOpenCluster={() => onToggleSettings({ from: "rail", focus: "network" })}
+        menu={menu}
+        onMenuOpenChange={onMenuOpenChange}
+        accountRef={accountRef}
+      />
+      {dialog}
+    </>
   );
 };
 

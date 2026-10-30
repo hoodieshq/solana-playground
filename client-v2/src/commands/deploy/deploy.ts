@@ -23,6 +23,7 @@ import type { StoppedBuffer } from "./stopped";
 import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("commands:deploy");
+import { MAINNET_DEPLOY_WARNING, warnsOnDeploy } from "./mainnet-warning";
 
 export const deploy = createCmd({
   name: "deploy",
@@ -45,6 +46,9 @@ export const deploy = createCmd({
     }
 
     PgView.setMainSecondaryProgress(0.1);
+    if (warnsOnDeploy(PgConnection.cluster)) {
+      PgTerminal.println(PgTerminal.warning(MAINNET_DEPLOY_WARNING));
+    }
     PgTerminal.println(
       `${PgTerminal.info(
         "Deploying..."
