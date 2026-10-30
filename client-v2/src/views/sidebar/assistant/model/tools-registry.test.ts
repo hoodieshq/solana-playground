@@ -21,6 +21,7 @@ const recordingBridge = () => {
     getProjectContext: () => ({ cluster: "devnet", buildError: null }),
     applyPatch: async () => void changes.push("applyPatch"),
     build: async () => void changes.push("build"),
+    quoteDeploy: async () => ({ network: "devnet", cost: null }),
     deploy: async () => void changes.push("deploy"),
   } as unknown as PlaygroundBridge;
   return { bridge, changes };
