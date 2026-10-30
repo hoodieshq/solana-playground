@@ -15,7 +15,8 @@ const target = process.env.VERCEL_ENV;
 const isIntegrationBranch = (branch) =>
   branch === "master" ||
   /^new-face-polish-\d+$/.test(branch) ||
-  branch.startsWith("scope/");
+  branch.startsWith("scope/") ||
+  branch.startsWith("demo/");
 
 const subject = `${ref || "a deployment with no Git ref"} (${
   target ?? "no VERCEL_ENV"
