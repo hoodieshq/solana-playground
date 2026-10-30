@@ -67,7 +67,7 @@ export const createProvider = (
     id: connection.id,
     label: profile.label,
 
-    async send(input, signal) {
+    async send(input, signal, context) {
       const ai = await loadAi();
       signal?.throwIfAborted();
       model ??= ai.createModel(profile.connection);
@@ -88,7 +88,10 @@ export const createProvider = (
             },
             {
               role: "system",
-              content: `Current project state:\n\n${describeProject()}`,
+              content: `Current project state:\n\n${describeProject(
+                undefined,
+                context
+              )}`,
             },
           ],
           // Built per turn, so MCP tools discovered since the last one are offered

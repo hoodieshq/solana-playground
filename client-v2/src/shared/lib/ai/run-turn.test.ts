@@ -1,3 +1,4 @@
+import { it } from "vitest";
 import {
   anthropicText,
   fakeFetch,
@@ -6,6 +7,8 @@ import {
   openAiToolCall,
   sse,
 } from "./__fixtures__/fake-provider";
+import { initLogger, memoryProvider, resetLogger } from "../logger";
+import type { LogEntry } from "../logger";
 import { createModel } from "./models";
 import { AiTurnError, runTurn } from "./run-turn";
 import { toSdkTools } from "./tools";
@@ -144,7 +147,17 @@ describe("runTurn", () => {
   });
 
   describe("a failed request reads as Spec 08 words, never its status or body", () => {
-    const failOn = async (response: Response) => {
+    let entries: LogEntry[];
+
+    beforeEach(() => {
+      const memory = memoryProvider();
+      entries = memory.entries;
+      initLogger({ providers: [memory] });
+    });
+
+    afterEach(() => resetLogger());
+
+    const failOn = async (response: Response | (() => Response)) => {
       const { fetch } = fakeFetch(response);
       return (await runTurn({
         model: openAi(fetch),
@@ -152,6 +165,8 @@ describe("runTurn", () => {
         apiKey: "test-key-123",
       }).catch((e: unknown) => e)) as AiTurnError;
     };
+
+    const reported = () => entries.filter((entry) => entry.report);
 
     it("keeps the status and the redacted body in the detail, not the message", async () => {
       const failure = await failOn(
@@ -169,6 +184,49 @@ describe("runTurn", () => {
       expect(failure.detail).toBe(
         '502 Bad Gateway — {"error":"Upstream 500: [your key] was not used."}'
       );
+      expect(reported()).toHaveLength(1);
+    });
+
+    it.each([
+      [404, "The model gpt-9 does not exist", "no-model"],
+      [403, "This key has no access to the model", "forbidden"],
+      [413, "Request too large", "too-long"],
+      [400, "prompt is too long: 210000 tokens > 200000 maximum", "too-long"],
+      [401, "Incorrect API key provided: test-key-123", "key-refused"],
+      [429, "Rate limit reached", "busy"],
+    ])(
+      "a %i (%s) is %s: no resend, nothing reported",
+      async (status, said, kind) => {
+        const failure = await failOn(openAiError(status, said));
+
+        expect(failure.kind).toBe(kind);
+        expect(failure.status).toBe(status);
+        expect(failure.message).not.toMatch(/Send your message again/);
+        expect(failure.message).not.toContain(String(status));
+        expect(failure.detail).toContain(
+          said.replace("test-key-123", "[your key]")
+        );
+        expect(reported()).toEqual([]);
+      }
+    );
+
+    it("a 400 the provider could not read is reported, and not resent", async () => {
+      const failure = await failOn(openAiError(400, "Invalid 'messages[0]'"));
+
+      expect(failure.kind).toBe("invalid");
+      expect(failure.message).not.toMatch(/Send your message again/);
+      expect(reported()).toHaveLength(1);
+    });
+
+    it("a programming error is reported, its text kept off screen", async () => {
+      const failure = await failOn(() => {
+        throw new TypeError("x.fetch is not a function");
+      });
+
+      expect(failure.kind).toBe("provider");
+      expect(failure.message).not.toContain("x.fetch");
+      expect(failure.detail).toContain("x.fetch is not a function");
+      expect(reported()).toHaveLength(1);
     });
 
     it("a 429 is busy, with the server's wait in seconds", async () => {
@@ -191,20 +249,6 @@ describe("runTurn", () => {
       expect(failure.kind).toBe("busy");
       expect(failure.retryAfter).toBeUndefined();
       expect(failure.detail).toContain("Rate limit reached");
-    });
-
-    it("a refused key says so, with no 401 in sight", async () => {
-      const failure = await failOn(
-        openAiError(401, "Incorrect API key provided: test-key-123")
-      );
-
-      expect(failure.kind).toBe("key-refused");
-      expect(failure.message).toBe(
-        "The model's provider did not accept this key. Check it in Settings, or use the hosted model."
-      );
-      expect(failure.detail).toContain(
-        "Incorrect API key provided: [your key]"
-      );
     });
   });
 
@@ -275,6 +319,58 @@ describe("runTurn", () => {
       "Could not get an answer from the model. Send your message again."
     );
     expect(failure.detail).toMatch(/overloaded/);
+  });
+
+  it("rejects a stream the connection drops after text as a network failure", async () => {
+    const encoder = new TextEncoder();
+    const dropped = () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  id: "1",
+                  created: 0,
+                  model: "m",
+                  choices: [{ index: 0, delta: { content: "The program" } }],
+                })}\n\n`
+              )
+            );
+          },
+          // Later, as a real drop: an error in `start` would drop the queue
+          async pull(controller) {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            controller.error(new TypeError("network error"));
+          },
+        }),
+        { headers: { "content-type": "text/event-stream" } }
+      );
+    const { fetch } = fakeFetch(dropped);
+    const text: string[] = [];
+
+    const failure = await runTurn({
+      model: openAi(fetch),
+      messages: USER,
+      onText: (delta) => text.push(delta),
+    }).catch((e: unknown) => e);
+
+    expect(text.join("")).toBe("The program");
+    expect(failure).toBeInstanceOf(AiTurnError);
+    expect((failure as AiTurnError).kind).toBe("network");
+  });
+
+  it("keeps a programming TypeError a provider failure", async () => {
+    const { fetch } = fakeFetch(() => {
+      throw new TypeError("x.fetch is not a function");
+    });
+
+    const failure = await runTurn({
+      model: openAi(fetch),
+      messages: USER,
+    }).catch((e: unknown) => e);
+
+    expect((failure as AiTurnError).kind).toBe("provider");
   });
 
   it("rejects a refusal with its category", async () => {
