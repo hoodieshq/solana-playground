@@ -93,6 +93,7 @@ const threadOf = (items: readonly ChatItem[], working: boolean) => (
     items={items}
     working={working}
     unsaved={false}
+    signIn={null}
     project="Counter"
     suggestions={SUGGESTIONS}
     onSuggestion={vi.fn()}

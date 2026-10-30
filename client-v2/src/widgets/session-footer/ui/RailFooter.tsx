@@ -18,7 +18,9 @@ const RailFooter = ({ settingsOpen, onToggleSettings }: RailFooterProps) => {
       <BaseRailFooter
         account={account}
         settingsOpen={settingsOpen}
-        onOpenCluster={() => onToggleSettings({ from: "rail", focus: "network" })}
+        onOpenCluster={() =>
+          onToggleSettings({ from: "rail", focus: "network" })
+        }
         menu={menu}
         onMenuOpenChange={onMenuOpenChange}
         accountRef={accountRef}

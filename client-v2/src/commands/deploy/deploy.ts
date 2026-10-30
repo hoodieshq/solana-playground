@@ -20,10 +20,10 @@ import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
 import { deployStoppedLine } from "./stopped";
 import type { StoppedBuffer } from "./stopped";
+import { MAINNET_DEPLOY_WARNING, warnsOnDeploy } from "./mainnet-warning";
 import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("commands:deploy");
-import { MAINNET_DEPLOY_WARNING, warnsOnDeploy } from "./mainnet-warning";
 
 export const deploy = createCmd({
   name: "deploy",

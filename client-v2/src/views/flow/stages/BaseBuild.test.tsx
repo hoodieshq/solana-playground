@@ -75,7 +75,7 @@ describe("BaseBuild", () => {
   it.each<BuildSurfaceView>([
     failed([]),
     { kind: "restored", failed: false },
-    { kind: "unreached" },
+    { kind: "unreached", failure: null },
     { kind: "empty" },
   ])("offers no downloads on the $kind surface", (surface) => {
     render(<BaseBuild {...withDownloads(surface)} />);

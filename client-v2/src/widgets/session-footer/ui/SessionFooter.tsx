@@ -18,12 +18,13 @@ const SessionFooter = ({
   page,
   closeSheet,
 }: SessionFooterProps) => {
-  const { account, pick, menu, dialog, onMenuOpenChange, accountRef } = useAccount({
-    from: "footer",
-    onToggleSettings,
-    page,
-    closeSheet,
-  });
+  const { account, pick, menu, dialog, onMenuOpenChange, accountRef } =
+    useAccount({
+      from: "footer",
+      onToggleSettings,
+      page,
+      closeSheet,
+    });
   return (
     <>
       <BaseSessionFooter
