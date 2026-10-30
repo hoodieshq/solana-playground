@@ -178,6 +178,7 @@ afterEach(async () => {
   sub = PgConversation.init({
     workspace: memoryWorkspace(),
     runner: stubRunner([]),
+    judge: byKind,
   });
   await settle();
   close();

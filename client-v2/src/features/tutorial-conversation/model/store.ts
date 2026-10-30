@@ -62,7 +62,9 @@ export interface ConversationPorts {
   /** Required: a frame that forgets it fails to compile, rather than ship a
    * lesson whose every act fails with "not wired" */
   runner: Runner;
-  judge?: Judge;
+  /** Required for the same reason: `passingJudge` would pass step 4 on the
+   * upgrade before any call; task 3.2's judge is the one to wire */
+  judge: Judge;
 }
 
 /**
@@ -178,7 +180,7 @@ export class PgConversation {
     PgConversation._ports = {
       workspace: ports.workspace,
       runner: ports.runner,
-      judge: ports.judge ?? passingJudge,
+      judge: ports.judge,
     };
     // Once a session: `init` is called once from the frame
     PgConversation._told.clear();
