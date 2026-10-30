@@ -1,4 +1,5 @@
 import { loadAi } from "@/shared/lib/ai";
+import { createLogger } from "@/shared/lib/logger";
 import { createTools } from "./tools";
 import { describeProject, systemPrompt } from "./prompt";
 import { PgAssistant } from "../store";
@@ -11,6 +12,8 @@ import type { ModelProvider } from "@/shared/lib/ai";
 import type { ReplayMessage } from "../../../../features/persistence/model/replay";
 import type { ModelProviderInput } from "./model-providers";
 import type { Provider } from "./types";
+
+const log = createLogger("assistant:provider");
 
 /** What a provider needs to be built: structurally the store's `Connection` */
 export interface ProviderConnection extends ModelProviderInput {
@@ -128,6 +131,12 @@ export const createProvider = (
         }
         const own = profile.ownRefusal?.(e);
         if (own) throw new Error(own, { cause: e });
+        if (ai.isOutage(e.status) && profile.reportsOutage?.(e)) {
+          log.warn("the backend we run is down", {
+            report: true,
+            context: { status: e.status, detail: e.detail },
+          });
+        }
         const refusal = profile.signedOutRefusal?.(e);
         // Spec 08's words, never the status or the server's text
         if (!refusal) throw e;

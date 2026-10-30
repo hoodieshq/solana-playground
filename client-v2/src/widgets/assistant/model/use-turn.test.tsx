@@ -381,7 +381,10 @@ describe("useTurn", () => {
     await waitFor(() => expect(result.current.busy).toBe(false));
   });
 
-  it("names the backend and offers its key again on a 401", async () => {
+  it.each([
+    ["a 401", 401],
+    ["Gemini's 400", 400],
+  ])("names the backend and offers its key again on %s", async (_, status) => {
     const own: Connection = {
       id: "openai",
       apiKey: "sk-test",
@@ -389,7 +392,7 @@ describe("useTurn", () => {
     };
     PgAssistant.connect(own);
     provider.send.mockRejectedValue(
-      new AiTurnError("Unauthorized", { status: 401 })
+      new AiTurnError("Unauthorized", { kind: "key-refused", status })
     );
     const { result } = renderHook(() => useTestTurn());
 
@@ -412,12 +415,12 @@ describe("useTurn", () => {
   });
 
   it.each([
-    ["a 403, which a valid key without access gets too", 403],
-    ["a 500", 500],
-  ])("keeps the provider's error for %s", async (_, status) => {
+    ["a 403, which a valid key without access gets too", "forbidden", 403],
+    ["a 500", "provider", 500],
+  ] as const)("shows the turn's own words for %s", async (_, kind, status) => {
     PgAssistant.connect({ id: "anthropic", apiKey: "sk-test" });
     provider.send.mockRejectedValue(
-      new AiTurnError("Provider says no", { status })
+      new AiTurnError("Provider says no", { kind, status })
     );
     const { result } = renderHook(() => useTestTurn());
 
@@ -434,7 +437,7 @@ describe("useTurn", () => {
   it("keeps the ordinary error for a 401 from the default", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     provider.send.mockRejectedValue(
-      new AiTurnError("Unauthorized", { status: 401 })
+      new AiTurnError("Unauthorized", { kind: "key-refused", status: 401 })
     );
     const { result } = renderHook(() => useTestTurn());
 

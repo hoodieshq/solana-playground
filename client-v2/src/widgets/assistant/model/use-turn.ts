@@ -94,16 +94,17 @@ interface BusyRetry {
 }
 
 /**
- * Whether a turn ended on the provider refusing the key: a 401. Not a 403,
- * which providers also answer for a valid key without access to the model, a
- * region or an organisation's policy; asking for the key again there loops,
- * so a 403 keeps the provider's own message. By name, since the slice entry
- * exports `AiTurnError` as a type only: the class loads with the SDK.
+ * Whether a turn ended on the provider refusing the key: kind `key-refused`,
+ * a 401 or Gemini's 400 (`failureKindOf`). Not a 403, which providers also
+ * answer for a valid key without access to the model, a region or an
+ * organisation's policy; asking for the key again there loops, so a 403 gets
+ * the `forbidden` words. By name, since the slice entry exports `AiTurnError`
+ * as a type only: the class loads with the SDK.
  */
 const isRejectedKey = (error: unknown) =>
   error instanceof Error &&
   error.name === "AiTurnError" &&
-  (error as AiTurnError).status === 401;
+  (error as AiTurnError).kind === "key-refused";
 
 /**
  * Whether the turn ended on the connection dropping: `runTurn` reports it as
@@ -529,7 +530,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
         !isDefaultBackend(current.id)
       ) {
         // The key-based backend refused the key: say which, and offer to enter
-        // it again on the same backend rather than leaving a bare 401
+        // it again on the same backend rather than leaving the generic words
         const { id } = current;
         const name = PROVIDERS.find((p) => p.id === id)?.name ?? id;
         PgAssistant.addError(

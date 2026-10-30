@@ -184,6 +184,14 @@ describe("runTurn", () => {
       expect(failure.detail).toBe(
         '502 Bad Gateway — {"error":"Upstream 500: [your key] was not used."}'
       );
+      // An outage: the provider's status page says so, and a resend repeats it
+      expect(reported()).toEqual([]);
+    });
+
+    it("a server error that is not an outage is reported", async () => {
+      const failure = await failOn(openAiError(500, "internal error"));
+
+      expect(failure.kind).toBe("provider");
       expect(reported()).toHaveLength(1);
     });
 
@@ -209,6 +217,25 @@ describe("runTurn", () => {
         expect(reported()).toEqual([]);
       }
     );
+
+    it("Gemini's 400 for a bad key is key-refused", async () => {
+      const failure = await failOn(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 400,
+              message: "API key not valid. Please pass a valid API key.",
+              status: "INVALID_ARGUMENT",
+              details: [{ reason: "API_KEY_INVALID" }],
+            },
+          }),
+          { status: 400, headers: { "content-type": "application/json" } }
+        )
+      );
+
+      expect(failure.kind).toBe("key-refused");
+      expect(reported()).toEqual([]);
+    });
 
     it("a 400 the provider could not read is reported, and not resent", async () => {
       const failure = await failOn(openAiError(400, "Invalid 'messages[0]'"));
