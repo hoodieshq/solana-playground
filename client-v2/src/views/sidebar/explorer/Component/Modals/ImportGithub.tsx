@@ -19,6 +19,7 @@ import {
   PgView,
 } from "../../../../../utils";
 import { AsyncButton } from "@/shared/ui/async-button";
+import { IMPORTED } from "./imported";
 import { Button } from "@/shared/ui/button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
@@ -38,6 +39,7 @@ export const ImportGithub = () => {
             await PgCommon.transition(
               isGistUrl(url) ? importGist(url, "dialog") : PgGithub.import(url)
             );
+            return IMPORTED;
           } catch (e) {
             // Closing the program choice is the user changing their mind,
             // not a failure: the import dialog stays, quietly
@@ -134,7 +136,7 @@ const Example: FC<React.PropsWithChildren<ExampleProps>> = ({ framework }) => {
               if (e instanceof ImportCancelledError) return;
               throw e;
             }
-            PgView.closeModal(null, id);
+            PgView.closeModal(IMPORTED, id);
           }}
           onError={reportButtonFailure("import the program")}
         >
@@ -147,7 +149,7 @@ const Example: FC<React.PropsWithChildren<ExampleProps>> = ({ framework }) => {
           variant="outline"
           onClick={() => {
             PgRouter.navigate("/" + framework.githubExample.url);
-            PgView.closeModal(null, id);
+            PgView.closeModal(IMPORTED, id);
           }}
         >
           Open

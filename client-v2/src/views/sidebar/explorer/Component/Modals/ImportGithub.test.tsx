@@ -58,6 +58,8 @@ const gist = vi.hoisted(() => ({
 }));
 vi.mock("@/features/gist", () => gist);
 
+import { IMPORTED } from "./imported";
+
 import { ImportGithub } from "./ImportGithub";
 
 let toast: MockInstance<typeof PgViewDirect.setToast>;
@@ -90,14 +92,18 @@ const importExample = () => {
   fireEvent.click(within(row).getByRole("button", { name: /^import$/i }));
 };
 
-it("closes the dialog once an example is imported", async () => {
+it("closes the dialog as imported once an example is imported", async () => {
   utils.PgGithub.import.mockResolvedValue(undefined);
   draw();
 
   importExample();
 
+  // The settings page closes on that answer, so the opened project shows
   await waitFor(() =>
-    expect(utils.PgView.closeModal).toHaveBeenCalledWith(null, "import-github")
+    expect(utils.PgView.closeModal).toHaveBeenCalledWith(
+      IMPORTED,
+      "import-github"
+    )
   );
   expect(toast).not.toHaveBeenCalled();
 });
@@ -184,4 +190,19 @@ it("shows why a gist could not be imported and stays open", async () => {
     await screen.findByText('Gist "0123abcd" was not found on GitHub.')
   ).toBeTruthy();
   expect(utils.PgView.closeModal).not.toHaveBeenCalled();
+});
+
+it("closes the dialog as imported when an example is opened", () => {
+  draw();
+  const row = screen.getByText("Anchor - Hello").closest("div")!.parentElement!;
+
+  fireEvent.click(within(row).getByRole("button", { name: /^open$/i }));
+
+  expect(utils.PgRouter.navigate).toHaveBeenCalledWith(
+    "/https://github.com/a/b"
+  );
+  expect(utils.PgView.closeModal).toHaveBeenCalledWith(
+    IMPORTED,
+    "import-github"
+  );
 });
