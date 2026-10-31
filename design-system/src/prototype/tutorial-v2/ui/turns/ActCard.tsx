@@ -166,12 +166,15 @@ export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolea
   }, [auto, done, refused, s.phase, dispatch, turn.act])
 
   if (turn.state === "done") {
+    const Mark = iconOf(turn)
     const record = (
       <div className="flex h-9 items-center gap-2 px-3 text-caption text-muted-foreground">
         {turn.faucet ? (
           <Droplets className="size-3.5 text-subtle" aria-hidden="true" />
-        ) : turn.failed ? (
-          <Hammer className="size-3.5 text-subtle" aria-hidden="true" />
+        ) : turn.failed || refused ? (
+          // A run that ended on a refusal, the planned out of memory among them, gets its own icon in grey, as a
+          // failed build does: a green check said it went through
+          <Mark className="size-3.5 text-subtle" aria-hidden="true" />
         ) : (
           <Check className="size-3.5 text-success" aria-hidden="true" />
         )}

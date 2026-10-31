@@ -329,7 +329,7 @@ Only existing tokens, from `styles/tokens.css` (`.dark`) and `styles/theme.css`:
   visible (3.6 : 1).
 * Meaning: `bg-primary` the one primary button and Send; `brand-purple` live and current; `success` written
   and passed; `error` failed; `warning` / `warning-ink` wrong pick and "deployed file changed".
-* Type: `HEADING` (16 / 500) for card titles, `font-heading text-display` (28) for win and finish
+* Type: `HEADING` (16 / 500) for card titles, 28/32 at 500 (`text-[1.75rem] leading-8 font-medium`) for win and finish
   headlines only, `text-caption` (13) meta, `text-[0.75rem]` small meta and chips, `font-mono text-code`
   editor and terminal, `font-mono text-[0.75rem]` code inside cards.
 * Radius: records and tool cards 8 (`rounded-control`), cards that ask something 12 (`rounded-panel`),

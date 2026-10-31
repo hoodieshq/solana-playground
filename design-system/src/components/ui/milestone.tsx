@@ -43,7 +43,7 @@ function MilestoneMark({ className, ...props }: React.ComponentProps<"svg">) {
 /* The display size on a 32 line: its own 1.15 left the line at 32.2 and
    every gap under it a fraction */
 function MilestoneTitle({ className, ...props }: React.ComponentProps<"h3">) {
-  return <h3 data-slot="milestone-title" className={cn("mt-4 font-heading text-display leading-8 text-foreground", className)} {...props} />
+  return <h3 data-slot="milestone-title" className={cn("mt-4 font-heading text-display leading-8 font-medium text-foreground", className)} {...props} />
 }
 
 function MilestoneDescription({ className, ...props }: React.ComponentProps<"p">) {

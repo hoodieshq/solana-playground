@@ -136,6 +136,9 @@ export function TerminalBody({ onPoint, lit, phone = false }: { onPoint?: (line:
         onPoint={onPoint}
         lit={lit}
         wrap={phone}
+        // On the phone the terminal is a card, and a band across it cut the card in two: there the msg! line
+        // is a plate. The desktop's is a whole panel, where the band reads as the editor's line highlight
+        inset={phone}
         empty="Nothing run yet. Builds, deploys and calls print here."
       />
       {r?.ok && (r.act === "deploy" || r.act === "buildDeploy") && <ProgramId className="mx-4 mb-3" phone={phone} />}

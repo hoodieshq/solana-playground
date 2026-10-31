@@ -55,7 +55,8 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
         {/* On a phone the badge's glow spilled past the feed's edge and was cut: it steps in a little */}
         <FinishBadge className={cn("mx-0 self-start", phone && "ml-2")} />
         <div>
-          <h3 className="font-heading text-display text-foreground">{LESSON.headline}</h3>
+          {/* 28/32 at the headings' 500, as the step wins: the display size's regular and 32.2 line set it apart */}
+          <h3 className="font-heading text-[1.75rem] leading-8 font-medium tracking-[-0.02em] text-foreground">{LESSON.headline}</h3>
           {/* Three tiers, each a step quieter and further off: the headline, what came back, then the facts
               about the run. At 8 apart in nearly one grey the last two read as one paragraph, so what came
               back takes the full text colour and the facts sit 16 under it */}

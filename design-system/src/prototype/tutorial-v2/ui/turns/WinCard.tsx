@@ -59,7 +59,9 @@ export function WinCard({ turn, phone = false }: { turn: WinTurn; phone?: boolea
       <PassMark className="size-8 text-success" />
       {/* 16 under the mark, a step more than the 9 from the headline to its line, so mark, headline and
           line read as one group top down. A heading carries no full stop, whatever the lesson wrote */}
-      <h3 className="mt-4 font-heading text-display text-foreground">{win.headline}</h3>
+      {/* 28/32 at the headings' 500: in the display size's own regular weight and 1.15 line (32.2) it was
+          the one heading of another weight, on a part pixel line */}
+      <h3 className="mt-4 font-heading text-[1.75rem] leading-8 font-medium tracking-[-0.02em] text-foreground">{win.headline}</h3>
       {/* 9 under the headline, as under any heading, so the line reads as its own; the actions 24 under
           it, the beat the intro card and the build failure keep before theirs */}
       <p className={`mt-[9px] ${READ}`}>

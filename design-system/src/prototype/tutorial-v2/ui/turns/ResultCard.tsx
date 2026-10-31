@@ -224,7 +224,8 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
       </button>
     </div>
   )
-  const logFold = log && <BuildLog log={turn.log} className="max-h-48 border-t border-border" />
+  // A msg! line lit as a plate inside this small well: a band across it split the record in two
+  const logFold = log && <BuildLog log={turn.log} inset className="max-h-48 border-t border-border" />
 
   // A first deploy the faucet stopped: what's short, the wallet to top up, and the faucet. The deploy
   // itself comes back under it as Try again, the one primary
@@ -306,8 +307,9 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
               <Prose text={turn.planned ? (STEPS[0].planned ?? f.reason) : f.reason} {...READ_CODE} />
             </p>
             {live && (
-              // The same buttons as the intro's Start: the heading face, one height, full width on a phone
-              <div className={cn("flex items-center gap-2", phone ? "flex-col items-stretch" : "flex-wrap")}>
+              // The same buttons as the intro's Start: the heading face, one height, full width on a phone. On a
+              // wide pane the two share one width, the longer label's, so the pair reads as one choice
+              <div className={cn("gap-2", phone ? "flex flex-col items-stretch" : "grid w-fit auto-cols-fr grid-flow-col")}>
                 <Button className={cn(ACTION, ACTION_FILL, phone && PHONE_CTA)} onClick={() => dispatch({ type: "explain" })}>
                   Explain the error
                 </Button>

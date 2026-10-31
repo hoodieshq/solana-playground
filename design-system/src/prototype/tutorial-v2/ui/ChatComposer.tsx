@@ -175,7 +175,8 @@ export function ChatComposer({ phone = false }: { phone?: boolean }) {
           aria-label={placeholder}
           enterKeyHint="send"
           // Four lines at most on a phone, then it scrolls
-          className={cn("placeholder:text-muted-foreground/80!", !open && "min-h-10 pt-2.5 pb-2.5", !open && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
+          // A 22 line, not 15 × 1.5: 22.5 made the box 44.5 tall, half a pixel off every edge under it
+          className={cn("leading-[22px] placeholder:text-muted-foreground/80!", !open && "min-h-10 pt-2.5 pb-2.5", !open && phone && "min-h-11", phone && "max-h-[calc(4lh+1.25rem)]")}
         />
         <ComposerToolbar className={cn(!open && "py-1 pr-1")}>
           <ComposerSend className="pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">
