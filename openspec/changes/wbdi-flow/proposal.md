@@ -35,11 +35,12 @@ Functions to add:
 - **IDL upload on chain**, to the Program Metadata program by default and to
   the Anchor IDL account as the legacy option, on the cluster the program was
   deployed to.
-- **A mainnet disclaimer**: every deploy or IDL upload to Mainnet Beta, by
-  the button, the terminal or the assistant and with any wallet, sends
-  nothing until the user ticks "I understand the risk" in a dialog shown each
-  time. The dialog recommends the local deploy scripts. The acceptance is
-  recorded in a cookie; a server-side record is a later step.
+- **No mainnet deploy from the playground**: a deploy or IDL upload started
+  on Mainnet Beta, by the button, the terminal or the assistant and with any
+  wallet, sends nothing. A mainnet guard explains why and sends the user to
+  the local deploy scripts, to deploy from their own machine. The terminal's
+  `solana program` and `anchor idl` commands that write to chain refuse on
+  Mainnet Beta too, whatever `-u` flag they carry.
 - **Local deploy scripts** in the export: one deploys the program binary, one
   uploads the IDL, both run with the user's own Solana CLI and keypair.
 - **Interact with any program**: the user enters a program id, the playground
@@ -68,8 +69,7 @@ its own event, so a user's path through the flow can be rebuilt. Events added
   `deploy_keypair_exported`, `deploy_keypair_import_started`,
   `deploy_keypair_imported`,
   `deploy_keypair_created`, `deploy_keypair_replace_warned`,
-  `deploy_mainnet_warned`, `deploy_mainnet_accept_toggled`,
-  `deploy_scripts_exported`.
+  `deploy_mainnet_warned`, `deploy_scripts_exported`.
 - IDL: `idl_loaded`, `idl_load_failed`, `idl_uploaded`, `idl_upload_failed`,
   `idl_source_selected`, `idl_file_picker_opened`, `idl_paste_opened`,
   `idl_local_cleared`, `idl_target_selected`, `idl_upload_started`.
@@ -91,7 +91,8 @@ settings slices, which own its events.
 - `client-v2-program-build`: what a build takes, what it produces, and where
   the binary and the IDL are kept.
 - `client-v2-program-deploy`: deploying and upgrading a program on a cluster,
-  who pays, the mainnet disclaimer, and the local deploy scripts.
+  who pays, the mainnet guard, the terminal's mainnet refusals, and the local
+  deploy scripts.
 - `client-v2-program-idl`: the IDL formats the playground reads, where an IDL
   comes from, choosing between sources, and uploading an IDL on chain.
 - `client-v2-program-interact`: calling a deployed program's instructions,
@@ -107,8 +108,9 @@ overlap.
 
 - Code in client-v2 only: `commands/build`, `commands/deploy`,
   `utils/program-info.ts`, `utils/program-interaction`, `effects/fetch-idl`,
-  `views/flow/stages`, `views/sidebar/test`, `frameworks/*/export.*`, and new
-  slices under `features/` for IDL sources, IDL upload and the mainnet disclaimer.
+  `views/flow/stages`, `views/sidebar/test`, `frameworks/*/export.*`,
+  `commands/solana`, `commands/anchor`, and new slices under `features/` for
+  IDL sources, IDL upload and the mainnet guard.
 - New dependencies: a client for the Program Metadata program, and Codama for
   reading Codama IDLs. The user sees IDLs that other tools published.
 - Depends on the Anchor 0.29 to 1.1.2 migration for the Anchor 0.30+ IDL
@@ -120,7 +122,12 @@ Out of scope:
   crates; `server/` is not modified. A framework is added by its own change.
 - Building an IDL for a program the user did not write.
 - Signing a deploy with an extension wallet end to end. The extension funds the
-  playground wallet, as it does today.
+  playground wallet, as it does today. Securing that wallet interaction is what
+  a later change needs before it can enable mainnet deploys from the
+  playground.
 - Running a local validator from the browser. Localnet means a validator the
   user runs on their machine; Playnet stays the in-browser one.
 - Verified builds and publishing the source for verification.
+- The `sugar` terminal command. It can create Candy Machine accounts on
+  Mainnet Beta with the playground key, but it deploys no program, and this
+  change leaves it as it is.

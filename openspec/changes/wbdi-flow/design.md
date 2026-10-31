@@ -110,74 +110,73 @@ flowchart TD
   picker -->|"default order: Program Metadata,<br/>Anchor IDL account, build;<br/>a loaded local IDL is selected"| form["Interact form"]
 ```
 
-### A mainnet deploy needs an explicit acceptance, every time
+### The playground does not deploy to mainnet
 
 The playground wallet is a keypair in localStorage. Funding it for a mainnet
 deploy means sending real SOL to a key any script on the page can read. The
-playground cannot make that safe, so a mainnet deploy stays possible only
-after the user accepts that risk, and the disclaimer recommends the
-alternative: the same program, with the same program id, deployed from the
-user's machine with the scripts in the export.
+playground cannot make that safe, so it does not deploy to Mainnet Beta and
+sends the user to the alternative: the same program, with the same program
+id, deployed from the user's machine with the scripts in the export.
 
-The disclaimer sits in front of the deploy itself, not in front of one
-button, so the terminal `deploy` command and the assistant's tools reach it
-too, and an extension wallet does not skip it: a deploy with an extension
-still moves the cost into the playground wallet, which signs the loader
-transactions. IDL uploads wait for it the same way. Sending an instruction
-from Interact keeps its own confirmation: it calls a program, it does not
-deploy one.
+The block sits in front of the deploy itself, not in front of one button, so
+the terminal `deploy` command and the assistant's tools reach it too. An
+extension wallet does not lift it, because a deploy with an extension still
+moves the cost into the playground wallet, which signs the loader
+transactions. IDL uploads are blocked the same way; the IDL upload script
+covers them. Sending an instruction from Interact stays allowed on Mainnet
+Beta: it calls a program, it does not deploy one.
 
-The acceptance is a checkbox in a dialog, not a tooltip: a tooltip opens on
-hover, so it never appears on a phone or for a keyboard user, and it cannot
-hold a required action. The checkbox starts unticked on every deploy, and a
-stored acceptance never skips the dialog, because a remembered yes would let
-a later deploy started by the assistant spend real SOL unasked.
-
-The cookie `pg_mainnet_disclaimer` records that this browser accepted the
-disclaimer, its version and when. It is a record kept by the playground, not
-proof: the user can edit or clear it, and the server never sees who ticked
-the box. The 182-day lifetime matches the Explorer's `idl_mainnet_accepted`
-cookie and was chosen while writing this change.
+The terminal is a second way in. The WASM `solana` CLI already lacks
+`program deploy` and `write-buffer` (commented out in
+`wasm/solana-cli/src/commands/program.rs`), but `program close` and
+`set-upgrade-authority` are live, and the WASM `anchor` CLI writes the Anchor
+IDL account with `idl init`, `upgrade` and the rest (`process_idl` in
+`wasm/anchor-cli/src/commands/idl.rs`). `solana` also takes `-u` on every
+command, so the selected cluster is not the cluster a command reaches. The
+refusal therefore lives in the `commands/solana` and `commands/anchor`
+wrappers and checks the cluster each command resolves to. `close` and
+`set-upgrade-authority` deploy nothing, but on mainnet they destroy a program
+or hand it to another key with the browser key, so they are refused too.
 
 ```mermaid
 sequenceDiagram
   actor User
   participant Start as Deploy button, terminal or assistant
-  participant Dialog as Mainnet disclaimer (mainnet-guard)
-  participant Cookie as pg_mainnet_disclaimer cookie
+  participant Guard as Mainnet guard (mainnet-guard)
   participant Chain as Mainnet Beta
   alt Program deploy
-    Start->>Dialog: deploy on Mainnet Beta (deploy_started)
+    Start->>Guard: deploy on Mainnet Beta (deploy_started)
   else IDL upload
-    Start->>Dialog: IDL upload on Mainnet Beta (idl_upload_started)
+    Start->>Guard: IDL upload on Mainnet Beta (idl_upload_started)
   end
-  Note over Dialog: shown every time, checkbox unticked
-  alt Cancel
-    User->>Dialog: Cancel
-    Dialog-->>Start: nothing sent (deploy_mainnet_warned: cancel)
-  else Download deploy scripts
-    User->>Dialog: Download deploy scripts
-    Dialog-->>User: export with scripts (deploy_mainnet_warned: scripts)
-  else Accept
-    User->>Dialog: tick "I understand the risk" (mainnet-guard-accept)
-    User->>Dialog: Deploy to mainnet (mainnet-guard-deploy)
-    Dialog->>Cookie: write disclaimer version and time
-    Dialog->>Chain: send deploy transactions (deploy_mainnet_warned: deploy)
+  Note over Guard,Chain: nothing is ever sent to Mainnet Beta
+  alt Download deploy scripts
+    User->>Guard: Download deploy scripts (mainnet-guard-scripts)
+    Guard-->>User: export with scripts (deploy_mainnet_warned: scripts)
+    User->>Chain: deploy from the user's machine with the Solana CLI
+  else Close
+    User->>Guard: Close
+    Guard-->>Start: nothing sent (deploy_mainnet_warned: close)
   end
 ```
 
-TODO(ticket to file): store each acceptance on the server for a signed-in
-user (account, disclaimer version, time), so the record can be checked
-later; the cookie stays as the browser-side record.
-
 Alternatives considered:
 
-- Block mainnet deploys from the playground. Rejected: the user may have a
-  reason to deploy from here, and the disclaimer plus the scripts leave the
-  choice with them.
-- Remember the acceptance and skip the dialog for a while, as the Explorer
-  does. Rejected: the assistant and the terminal can start a deploy, and each
-  mainnet deploy must have a click of its own.
+- A disclaimer with an "I understand the risk" checkbox, shown on every
+  mainnet deploy, with the acceptance recorded in a cookie. Rejected: a key
+  stored in the browser is not made safe by a dialog, and a cookie proves
+  nothing about who accepted. With deploys blocked, there is no acceptance to
+  record.
+- Allow mainnet with an extension wallet only. Rejected while the extension
+  only funds the playground wallet.
+
+Mainnet deploys from the playground may be enabled in a later change, once
+the wallet interaction is secured: the user's own wallet signs every deploy
+and IDL transaction end to end, and no key that pays for or signs a mainnet
+transaction is stored in the browser. Until then the guard and the terminal
+refusals stay, and enabling mainnet means a change that replaces the
+requirements "The playground never deploys to Mainnet Beta" and "The
+terminal sends no program transaction to Mainnet Beta".
 
 The Interact confirmation on the first mainnet send per session follows the
 Explorer's behaviour; it was chosen while writing this change, not requested. It is per
@@ -233,13 +232,14 @@ from the user's IDL.
 
 - [The Program Metadata program or its client changes format] → read and
   write through one client package, pinned, so a format change is one bump.
-- [A user accepts the disclaimer and the browser key leaks] → the disclaimer
-  names the risk and recommends the scripts; the playground cannot remove the
-  risk while it signs with a browser key.
-- [A deploy path skips the disclaimer] → the disclaimer guards the deploy
-  itself, and the scenarios for the terminal and the assistant test it.
-- [The cookie is cleared or edited] → it is a browser-side record only; the
-  server record in the TODO above is what makes an acceptance checkable.
+- [A path reaches Mainnet Beta around the guard] → the guard sits in front
+  of the deploy itself, the terminal wrappers check the resolved cluster, and
+  scenarios cover the button, the assistant, `anchor idl` and a `-u` flag.
+- [A later WASM CLI build enables `solana program deploy`] → the "Solana
+  program deploy is unavailable" scenario fails, so the change cannot land
+  silently.
+- [A user who wants mainnet finds the playground less convenient] → the guard
+  offers the scripts in one click, and they keep the program id.
 - [Two on-chain IDLs disagree] → the source picker shows which one is in use,
   and the default is the one the Explorer reads first.
 - [The Anchor migration slips] → the 0.30+ and Codama tasks for projects built

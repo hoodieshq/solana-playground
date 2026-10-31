@@ -2,19 +2,18 @@
 
 ## Purpose
 
-Puts a built program on one cluster at a time, from the playground or from the
-user's own machine, and lets a mainnet deploy from the playground happen only
-after the user accepts, each time, the risk of spending real SOL.
+Puts a built program on one cluster at a time from the playground, and sends
+every Mainnet Beta deploy to the user's own machine, so no real SOL is spent
+through a key stored in the browser.
 
 ```mermaid
 flowchart TD
   start["Deploy: button, terminal or assistant<br/>(deploy_started)"] --> net{"Mainnet Beta?"}
-  net -- yes --> dlg["Mainnet disclaimer (mainnet-guard),<br/>checkbox unticked"]
-  dlg -- Cancel --> stop["Nothing sent"]
-  dlg -- Download deploy scripts --> scripts["Export with scripts"]
-  dlg -- "ticked, Deploy to mainnet" --> cookie["Write pg_mainnet_disclaimer"] --> bal
+  net -- yes --> guard["Mainnet guard (mainnet-guard):<br/>nothing is sent"]
+  guard -- Download deploy scripts --> scripts["Export with scripts,<br/>run on the user's machine"]
+  guard -- Close --> stop["Nothing sent"]
   net -- no --> bal{"Enough SOL?"}
-  bal -- "no, off mainnet" --> air["Offer an airdrop"] --> bal
+  bal -- no --> air["Offer an airdrop"] --> bal
   bal -- yes --> exists{"Program at the keypair address?"}
   exists -- no --> buffer["Write the buffer<br/>(pause, resume, cancel)"] --> first["First deploy"]
   exists -- yes --> auth{"Wallet is the upgrade authority?"}
@@ -67,78 +66,88 @@ close the buffer and return its rent to the paying wallet.
 ### Requirement: A low balance offers an airdrop
 
 When the paying wallet holds less SOL than the deploy needs, the playground
-SHALL say how much is missing and, off Mainnet Beta, offer an airdrop of that
-amount. On Mainnet Beta it SHALL offer no airdrop.
+SHALL say how much is missing and offer an airdrop of that amount.
 
 #### Scenario: Short of SOL on devnet
 
 - **WHEN** the wallet is short of SOL for a deploy on Devnet
 - **THEN** the playground offers an airdrop of the missing amount
 
-### Requirement: A mainnet deploy waits for the disclaimer
+### Requirement: The playground never deploys to Mainnet Beta
 
-Every deploy or IDL upload to Mainnet Beta SHALL first open the mainnet
-disclaimer dialog (`data-testid="mainnet-guard"`) and send nothing until the
-user accepts it. This holds for every wallet and every way a deploy starts:
-the Deploy button, the terminal `deploy` command and the assistant. A stored
-acceptance never skips the dialog.
+The playground SHALL NOT send a deploy or an IDL upload transaction to Mainnet
+Beta, for any wallet and however the deploy starts: the Deploy button, the
+terminal `deploy` command or the assistant. A deploy started on Mainnet Beta
+SHALL open the mainnet guard (`data-testid="mainnet-guard"`) instead, and
+nothing is sent.
 
-#### Scenario: Deploy on mainnet opens the disclaimer
+#### Scenario: Deploy on mainnet opens the guard
 
 - **WHEN** the user clicks Deploy with Mainnet Beta selected
-- **THEN** the mainnet disclaimer dialog opens and no transaction is sent
+- **THEN** the mainnet guard dialog opens and no transaction is sent
 
-#### Scenario: An extension wallet waits too
+#### Scenario: An extension wallet is blocked too
 
 - **WHEN** the user deploys to Mainnet Beta with an extension wallet connected
-- **THEN** the disclaimer opens before the extension is asked to sign anything
+- **THEN** the mainnet guard dialog opens and the extension is asked to sign
+  nothing
 
-#### Scenario: The assistant and the terminal wait for the user
+#### Scenario: The assistant and the terminal are blocked
 
 - **WHEN** the assistant or the terminal `deploy` command starts a deploy
   while Mainnet Beta is selected
-- **THEN** the same disclaimer dialog opens and no transaction is sent until
-  the user accepts it in the dialog
+- **THEN** the same mainnet guard dialog opens and no transaction is sent
+- **AND** the terminal or the assistant says that a mainnet deploy runs from
+  the user's machine with the deploy scripts
 
-#### Scenario: The disclaimer is shown again
+### Requirement: The terminal sends no program transaction to Mainnet Beta
 
-- **WHEN** the user accepted the disclaimer for one mainnet deploy and starts
-  another
-- **THEN** the disclaimer opens again with its checkbox unticked
+The terminal SHALL NOT send a program deploy, an IDL write or a program
+management transaction to Mainnet Beta. `solana program deploy` and `solana
+program write-buffer` SHALL stay unavailable. `solana program close` and
+`set-upgrade-authority`, and `anchor idl` `init`, `upgrade`, `write-buffer`,
+`set-buffer`, `close`, `set-authority` and `erase-authority`, SHALL refuse on
+Mainnet Beta, print that mainnet runs from the user's machine with the deploy
+scripts, and send nothing.
 
-### Requirement: Acceptance is an explicit checkbox
+#### Scenario: An Anchor IDL write on mainnet is refused
 
-The disclaimer SHALL say that the deploy spends real SOL and, when the
-playground wallet pays, that the key is stored in this browser, and SHALL
-recommend the deploy scripts. Deploy to mainnet
-(`data-testid="mainnet-guard-deploy"`) SHALL stay disabled until the user
-ticks "I understand the risk" (`data-testid="mainnet-guard-accept"`), which
-starts unticked. It also offers Download deploy scripts and Cancel.
+- **WHEN** the user runs `anchor idl init` with Mainnet Beta selected
+- **THEN** the terminal refuses, names the deploy scripts, and no transaction
+  is sent
 
-#### Scenario: Deploy stays disabled until the box is ticked
+#### Scenario: Solana program deploy is unavailable
 
-- **WHEN** the disclaimer is open and the checkbox is unticked
-- **THEN** Deploy to mainnet is disabled
-- **AND** ticking the checkbox enables it
+- **WHEN** the user runs `solana program deploy` on any cluster
+- **THEN** the terminal says the command is unavailable and no transaction is
+  sent
 
-#### Scenario: Cancel sends nothing
+### Requirement: The terminal checks the cluster a command resolves to
 
-- **WHEN** the user picks Cancel in the disclaimer
-- **THEN** the dialog closes and no transaction is sent
+The terminal's Mainnet Beta check SHALL use the cluster each command
+resolves to, including a `-u` or `--url` flag on the command, not only the
+cluster selected in the settings.
 
-### Requirement: Acceptance is recorded in a cookie
+#### Scenario: A URL flag cannot reach mainnet
 
-When the user picks Deploy to mainnet, the playground SHALL write the cookie
-`pg_mainnet_disclaimer` with the disclaimer version and the acceptance time,
-`Max-Age` 182 days, `SameSite=Lax` and `Secure`, before any transaction is
-sent. The cookie holds no wallet address and no program id, and a later
-acceptance overwrites it.
+- **WHEN** the user runs `solana -um program close <program id>` with Devnet
+  selected
+- **THEN** the terminal refuses and no transaction is sent
 
-#### Scenario: The acceptance is written first
+### Requirement: The mainnet guard sends the user to their own machine
 
-- **WHEN** the user ticks the checkbox and picks Deploy to mainnet
-- **THEN** `pg_mainnet_disclaimer` holds the disclaimer version and the time
-  of this acceptance before the first deploy transaction is sent
+The mainnet guard SHALL say that the playground does not deploy to Mainnet
+Beta because real SOL would be spent through a key stored in this browser,
+SHALL say that a mainnet deploy runs from the user's machine with the deploy
+scripts, and SHALL offer Download deploy scripts
+(`data-testid="mainnet-guard-scripts"`) and Close. It offers no way to deploy
+from the playground.
+
+#### Scenario: The guard offers only the scripts
+
+- **WHEN** the mainnet guard dialog is open
+- **THEN** it offers Download deploy scripts and Close, and no deploy action
+- **AND** Close closes it with nothing sent
 
 ### Requirement: The export carries local deploy scripts
 
@@ -155,9 +164,9 @@ program keypair. The export README SHALL say how to run them.
   program keypair
 - **AND** the README gives the commands to deploy to Mainnet Beta with them
 
-#### Scenario: Scripts from the mainnet disclaimer
+#### Scenario: Scripts from the mainnet guard
 
-- **WHEN** the user picks Download deploy scripts in the mainnet disclaimer
+- **WHEN** the user picks Download deploy scripts in the mainnet guard
 - **THEN** the same export is downloaded and nothing is sent to the chain
 
 ### Requirement: The program keypair can be managed
@@ -175,10 +184,10 @@ SHALL first say that the project will point at a new program id.
 
 Deploy SHALL emit `deploy_started { cluster, kind }` whenever a deploy
 starts, from the button, the terminal or the assistant, and before the
-mainnet disclaimer; `deploy_succeeded { cluster, kind }` when the program is
-live; and `deploy_failed { cluster, kind, phase }` when it is not. `cluster`: `playnet`, `localnet`, `devnet`, `testnet`, `mainnet`,
-`custom`; `kind`: `first`, `upgrade`; `phase`: `buffer`, `write`, `deploy`,
-`authority`.
+mainnet guard; `deploy_succeeded { cluster, kind }` when the program is live;
+and `deploy_failed { cluster, kind, phase }` when it is not. `cluster`:
+`playnet`, `localnet`, `devnet`, `testnet`, `mainnet`, `custom`; `kind`:
+`first`, `upgrade`; `phase`: `buffer`, `write`, `deploy`, `authority`.
 
 #### Scenario: A failed write is tracked
 
@@ -186,19 +195,17 @@ live; and `deploy_failed { cluster, kind, phase }` when it is not. `cluster`: `p
 - **THEN** the memory provider records `deploy_failed` with
   `{ cluster: "devnet", kind: "first", phase: "write" }`
 
-### Requirement: Mainnet disclaimer telemetry
+### Requirement: Mainnet guard telemetry
 
-The disclaimer SHALL emit `deploy_mainnet_warned { choice }` when it closes,
-`choice` being `scripts`, `deploy` or `cancel`, and ticking or unticking its
-checkbox SHALL emit `deploy_mainnet_accept_toggled { on }`, `on` a boolean.
-Download deploy scripts SHALL also emit `deploy_scripts_exported` with no
-parameters.
+The mainnet guard SHALL emit `deploy_mainnet_warned { choice }` when it
+closes, `choice` being `scripts` or `close`. Download deploy scripts SHALL
+also emit `deploy_scripts_exported` with no parameters.
 
-#### Scenario: The disclaimer choice is tracked
+#### Scenario: The guard choice is tracked
 
-- **WHEN** the user cancels the mainnet disclaimer
+- **WHEN** the user closes the mainnet guard
 - **THEN** the memory provider records `deploy_mainnet_warned` with
-  `{ choice: "cancel" }`
+  `{ choice: "close" }`
 - **AND** records neither `deploy_succeeded` nor `deploy_failed`
 
 ### Requirement: Every Deploy action emits an event
@@ -208,9 +215,9 @@ and Cancel included, SHALL emit its own event when used, separate from the
 outcome events. A control without its event fails review. The requirements
 that follow name each control's event.
 
-#### Scenario: A deploy that stops at the disclaimer
+#### Scenario: A deploy that stops at the guard
 
-- **WHEN** the user clicks Deploy on Mainnet Beta and cancels the disclaimer
+- **WHEN** the user clicks Deploy on Mainnet Beta and closes the guard
 - **THEN** the memory provider records `deploy_started` then
   `deploy_mainnet_warned`, and no outcome event
 

@@ -106,20 +106,20 @@ at the same target and SHALL need the program's upgrade authority.
 
 ### Requirement: An IDL upload is per cluster
 
-An IDL uploaded on one cluster SHALL NOT be shown as uploaded on another. An
-upload started on Mainnet Beta SHALL open the mainnet disclaimer and send
-nothing until the user accepts it, as for a mainnet deploy.
+An IDL uploaded on one cluster SHALL NOT be shown as uploaded on another. The
+playground SHALL NOT upload an IDL to Mainnet Beta: an upload started there
+SHALL open the mainnet guard and send nothing, and the IDL upload script in
+the export publishes a mainnet IDL from the user's machine.
 
 #### Scenario: Devnet upload is not on mainnet
 
 - **WHEN** the user uploads the IDL on Devnet and selects Mainnet Beta
 - **THEN** the playground shows no IDL for the program on Mainnet Beta
 
-#### Scenario: Mainnet upload opens the disclaimer
+#### Scenario: Mainnet upload opens the guard
 
 - **WHEN** the user uploads the IDL with Mainnet Beta selected
-- **THEN** the mainnet disclaimer opens and no transaction is sent until the
-  user accepts it
+- **THEN** the mainnet guard dialog opens and no transaction is sent
 
 ### Requirement: IDL telemetry
 
