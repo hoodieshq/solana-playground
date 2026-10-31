@@ -1,14 +1,22 @@
 import * as React from "react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 /* An achievement as a profile shows it (profiles, v0.2, proposed): a disc
-   in a ring of the brand's gradient once earned, grey until then. */
+   in a ring of the brand's gradient once earned, grey until then. appear is
+   the moment it is earned (a lesson's finish): the disc pops in once with a
+   glow round it. */
 
-function Achievement({ className, earned = true, ...props }: React.ComponentProps<"div"> & { earned?: boolean }) {
+function Achievement({
+  className,
+  earned = true,
+  appear = false,
+  ...props
+}: React.ComponentProps<"div"> & { earned?: boolean; appear?: boolean }) {
   return (
     <div
       data-slot="achievement"
       data-state={earned ? "earned" : "locked"}
+      data-appear={appear || undefined}
       className={cn("group/achievement flex w-24 flex-col items-center gap-2 text-center", className)}
       {...props}
     />
@@ -21,6 +29,7 @@ function AchievementMedia({ className, children, ...props }: React.ComponentProp
       data-slot="achievement-media"
       className={cn(
         "grid size-16 place-items-center rounded-full bg-border-strong p-[2px] group-data-[state=earned]/achievement:bg-brand-fill",
+        "group-data-appear/achievement:shadow-glow group-data-appear/achievement:animate-in group-data-appear/achievement:fade-in group-data-appear/achievement:zoom-in-50 group-data-appear/achievement:duration-[440ms] group-data-appear/achievement:ease-pop motion-reduce:group-data-appear/achievement:animate-none",
         className
       )}
       {...props}

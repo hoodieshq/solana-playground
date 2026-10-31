@@ -1,6 +1,6 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Slot } from "radix-ui"
 
 const buttonVariants = cva(
@@ -18,6 +18,9 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        soft: "bg-foreground/10 text-foreground/90 hover:bg-foreground/15 hover:text-foreground aria-expanded:bg-foreground/15 aria-expanded:text-foreground",
+        quiet:
+          "text-muted-foreground hover:text-foreground aria-expanded:text-foreground [&_svg]:transition-transform [&_svg]:duration-150 [&_svg]:ease-standard hover:[&_svg[data-icon=inline-end]]:translate-x-0.5 motion-reduce:[&_svg]:transition-none",
       },
       size: {
         default:
@@ -31,8 +34,17 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        action:
+          "h-10 gap-2 px-4 font-heading text-control font-medium pointer-coarse:h-11 has-data-[icon=inline-end]:pr-3.5 has-data-[icon=inline-start]:pl-3.5",
+        cta: "h-12 w-full gap-2 px-4 font-heading text-control font-medium",
       },
     },
+    compoundVariants: [
+      {
+        variant: "quiet",
+        className: "-mx-2 px-2 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+      },
+    ],
     defaultVariants: {
       variant: "default",
       size: "default",

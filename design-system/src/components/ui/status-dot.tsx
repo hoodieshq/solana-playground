@@ -1,6 +1,6 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 /* The product's one vocabulary for state: a dot, in words as well where it
    matters. Running pulses; everything else sits still. */

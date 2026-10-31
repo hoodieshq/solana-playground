@@ -1,12 +1,13 @@
 import * as React from "react"
 import { Check, Copy } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 /* Copies one value: a program id, a signature, a command. Its tooltip turns
-   from Copy to Copied, in green, and back. */
+   from Copy to Copied and back; the check on the button says it in green.
+   The words keep the tip's own colour: green on the light tip was 1.34:1. */
 function CopyButton({
   value,
   label = "Copy",
@@ -36,7 +37,7 @@ function CopyButton({
         </Button>
       </TooltipTrigger>
       <TooltipContent>
-        <span className={copied ? "text-success" : undefined}>{copied ? "Copied" : label}</span>
+        <span>{copied ? "Copied" : label}</span>
       </TooltipContent>
     </Tooltip>
   )

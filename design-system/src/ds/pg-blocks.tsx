@@ -551,7 +551,7 @@ function PlaygroundComponents() {
         </AsyncButton>
       </Block>
 
-      <Block id="copy-button" title="Copy button and help tip" source="playground" registry="copy-button" note="Copy for one value, with a tooltip that turns to Copied in green. The help tip is a small question mark with a large place to press.">
+      <Block id="copy-button" title="Copy button and help tip" source="playground" registry="copy-button" note="Copy for one value, with a tooltip that turns to Copied, and a green check on the button. The help tip is a small question mark with a large place to press.">
         <div className="flex items-center gap-2 rounded-lg bg-surface-panel px-3 py-2">
           <code className="font-mono text-code text-foreground">7Hq5…Xk2P</code>
           <CopyButton value={PROGRAM_ID} label="Copy the program id" />

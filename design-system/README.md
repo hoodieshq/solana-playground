@@ -7,15 +7,16 @@ The product with Studio over it: https://solana-playground-ds.vercel.app/#app
 
 ## What is where
 
-| Path                         | What                                                                                                      |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `src/styles/tokens.css`      | The tokens. `:root` is paper, `.dark` is the product                                                      |
-| `src/styles/theme.css`       | The tokens as Tailwind utilities, and the product utilities: `frosted`, `gradient-stroke`, `brand-action` |
-| `src/components/ui/`         | 60 stock shadcn components, untouched, and 27 of ours                                                     |
-| `src/hooks/use-indicator.ts` | The measured thumb that Stepper and Segmented slide                                                       |
-| `src/ds/`                    | The page itself: foundations, one block per component, the migration map                                  |
-| `registry.json`              | Our components, for `npx shadcn add`                                                                      |
-| `studio/`                    | Studio's config for Playground, filled in from the `data-slot` names at build time                        |
+| Path                    | What                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/styles/tokens.css` | The tokens. `:root` is paper, `.dark` is the product                                                                                                                                                                                                                                 |
+| `src/styles/theme.css`  | The tokens as Tailwind utilities, and the product utilities: `frosted`, `gradient-stroke`, `brand-action`, `brand-beam`, `squiggle`, `fade-edges`, `edge-torn`                                                                                                                       |
+| `src/lib/utils.ts`      | `cn`, told about the theme's own sizes, weights, shadows and curves, so `text-caption` next to a text colour keeps its size. Every component imports it from here, and the registry ships it as `utils`                                                                              |
+| `src/components/ui/`    | 60 stock shadcn components and 57 of ours. The stock ones import `cn` from `@/lib/utils`; Button and Tooltip carry the tutorial's added variants, their defaults unchanged                                                                                                           |
+| `src/hooks/`            | `use-indicator`, the measured thumb that Stepper and Segmented slide; `use-scroll-edges`, the edges of a scroll box with more past them, for `fade-edges`; `use-coarse-pointer`, whether the pointer is a finger; `use-typewriter`, a reply typed out; `use-mobile`, for the sidebar |
+| `src/ds/`               | The page itself: foundations, one block per component, the tutorial's parts in `ds/tutorial`, the migration map                                                                                                                                                                      |
+| `registry.json`         | Our components, `utils` and the hooks, for `npx shadcn add`                                                                                                                                                                                                                          |
+| `studio/`               | Studio's config for Playground, filled in from the `data-slot` names at build time                                                                                                                                                                                                   |
 
 ## Running it
 
@@ -62,7 +63,7 @@ npx shadcn@latest add @playground/playground-tokens
 npx shadcn@latest add @playground/stepper
 ```
 
-`@playground/playground` installs the tokens and all of ours at once. The stock shadcn components ours build on (`button`, `spinner`, `tooltip`) are registry items too, and come along with ours, so an install reaches no registry outside the repo (npm packages still come from npm). The layout shell's stock parts are separate items, installed by name: `resizable`, and `sidebar`, which brings `button`, `input`, `separator`, `sheet`, `skeleton`, `tooltip` and the `use-mobile` hook. Then import `playground-tokens.css` and `playground-theme.css` after `tailwindcss` in the app's CSS, and put `dark` on `<html>`.
+`@playground/playground` installs the tokens, `utils` (the configured `cn`), the hooks and all of ours at once. The stock shadcn components ours build on (`button`, `spinner`, `tooltip`, `input`, `dropdown-menu`, `popover`, `kbd`) are registry items too, and come along with ours, so an install reaches no registry outside the repo (npm packages still come from npm). The layout shell's stock parts are separate items, installed by name: `resizable`, and `sidebar`, which brings `button`, `input`, `separator`, `sheet`, `skeleton`, `tooltip` and the `use-mobile` hook. Then import `playground-tokens.css` and `playground-theme.css` after `tailwindcss` in the app's CSS, and put `dark` on `<html>`.
 
 Current shadcn needs React 19: it passes `ref` as a plain prop, and React 17 drops it. So client-v2 moves to React 19 before the first component.
 

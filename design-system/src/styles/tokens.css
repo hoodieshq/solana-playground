@@ -63,6 +63,10 @@
   --text-secondary: #5c5c63;
   --text-tertiary: #8b8b93;
   --border-strong: #d4d4d8;
+  /* a card in the conversation, set into the column rather than raised */
+  --card-ground: #fafafa;
+  /* the ground under code you edit, a step off the chrome round it */
+  --code-ground: #fafafa;
 
   /* ── status ─────────────────────────────────────────────────────────── */
   --success: #00a36c;
@@ -78,6 +82,16 @@
   /* ── the two tracks ─────────────────────────────────────────────────── */
   --track-brand: #00a36c;
   --track-product: #9945ff;
+
+  /* ── syntax: the same six roles, a shade darker for paper, each at least
+     4.5:1 on every ground code sits on here (white to #f2f2f3) ───────── */
+  --syntax-keyword: #be185d;
+  --syntax-type: #0369a1;
+  --syntax-function: #047857;
+  --syntax-string: #ad4f08;
+  --syntax-number: #6d28d9;
+  --syntax-comment: #6b6b72;
+  --syntax-plain: #27272a;
 }
 
 .dark {
@@ -132,6 +146,10 @@
   --text-secondary: #a0a0a6;
   --text-tertiary: #6b6b72;
   --border-strong: #33333a;
+  /* a card in the conversation sits a shade under the column, above the
+     well; the code you edit sits on the panel's step */
+  --card-ground: #0d0d0e;
+  --code-ground: #161617;
 
   /* ── status: Solana's green for success, and nothing else uses them ── */
   --success: #14f195;
@@ -146,6 +164,15 @@
 
   --track-brand: #14f195;
   --track-product: #ae7bff;
+
+  /* ── syntax: VS Code's six roles, pulled into the product's palette ── */
+  --syntax-keyword: #ec4899;
+  --syntax-type: #38bdf8;
+  --syntax-function: #14f195;
+  --syntax-string: #f59e0b;
+  --syntax-number: #8b5cf6;
+  --syntax-comment: #6b6b72;
+  --syntax-plain: #f2f2f3;
 }
 
 /* Tokens that read the same on both grounds */
@@ -173,15 +200,6 @@
   --trail-3: #9945ff;
   --trail-4: #5a3fd9;
 
-  /* ── syntax: VS Code's six roles, pulled into the product's palette ── */
-  --syntax-keyword: #ec4899;
-  --syntax-type: #38bdf8;
-  --syntax-function: #14f195;
-  --syntax-string: #f59e0b;
-  --syntax-number: #8b5cf6;
-  --syntax-comment: #6b6b72;
-  --syntax-plain: #f2f2f3;
-
   /* ── type ───────────────────────────────────────────────────────────── */
   --font-headline: "Stack Sans Headline", "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-text: "Stack Sans Text", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -202,6 +220,8 @@
   --phone-head: 52px;
   --phone-row: 52px;
   --target: 48px;
+  /* the home indicator's strip, for anything pinned to a phone's foot */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   /* ── elevation ──────────────────────────────────────────────────────── */
   --shadow-panel-value: 0 8px 28px rgb(0 0 0 / 0.45);

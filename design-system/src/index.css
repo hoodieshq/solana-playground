@@ -18,6 +18,12 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Without a colour of our own the browser's selection drew near black on the dark grounds. Neutral,
+     not the brand's purple: colour is kept for code and states, a selection is just your cursor's trace */
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-foreground) 25%, transparent);
+    color: var(--color-foreground);
+  }
 }
 
 /* Studio's bar, while it shows, lies over the top 34px of the page */

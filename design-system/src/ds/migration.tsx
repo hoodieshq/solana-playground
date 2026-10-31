@@ -42,6 +42,16 @@ const OURS: Row[] = [
   { now: "Reader", next: "Dialog, not modal, inside the stage", keep: "Focus goes back where it was. Esc closes.", state: "stock" },
   { now: "Gallery card", next: "ActionCard", keep: "Media, eyebrow, clamped lines. The whole card is the target on a phone.", state: "built" },
   { now: "EmptyStage", next: "StageEmpty", keep: "The meta line, the notice, actions pinned on a phone.", state: "built" },
+  { now: "Tutorial: lesson opening, text", next: "LessonIntro, Prose, CheckList, StepHeading", keep: "The promise and proof line, code in backticks as chips, the green ticks, the step's goal with its time.", state: "built" },
+  { now: "Tutorial: question", next: "Quiz", keep: "The gradient ring while it waits, the reason on a wrong pick, keys 1 to 3, the one line record.", state: "built" },
+  { now: "Tutorial: Build, Deploy, Call", next: "RunCard, ResultCard, Milestone", keep: "The button that keeps its width, the timed bar, details in the same box, the check that draws itself.", state: "built" },
+  { now: "Tutorial: transaction", next: "Receipt, KeyRow", keep: "The printed slip with its torn foot, the key cut six and six with Copy and Explorer.", state: "built" },
+  { now: "Tutorial: code in the chat", next: "CodeQuote, FileChange, SourcePeek", keep: "The wavy mark under the token, Apply and Keep it, the peek of the file behind a log line.", state: "built" },
+  { now: "Tutorial: steps and files", next: "StepTrack, FileTree", keep: "One purple to green fill, reached steps a way back, the dot on the step's file.", state: "built" },
+  { now: "Tutorial: Call panel", next: "CallForm, Meter", keep: "The form drawn from the IDL, a switch to the IDL itself, the threshold tick that turns red.", state: "built" },
+  { now: "Tutorial: bars and search", next: "ToolButton, FilterButton, SearchField, CoachMark, ShortcutList", keep: "The lit tool with its key in a raised tip, the filter dot, Esc to clear, the hint shown once.", state: "built" },
+  { now: "Tutorial: gallery", next: "FeatureBanner, TutorialCover, Thumb, IsoVoxels, LitGround, BrandIcon", keep: "The dithered art behind the banner, a cover from the name's hash, the voxel mark, icons cut from the mark.", state: "built" },
+  { now: "Tutorial: phone", next: "PhoneBar, PhoneNav", keep: "The 44 px slots either side, the full screen menu with its X on the same spot.", state: "built" },
 ]
 
 const ONLY: Row[] = [

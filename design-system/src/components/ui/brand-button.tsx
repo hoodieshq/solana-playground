@@ -1,11 +1,13 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import { Slot } from "radix-ui"
 
 /* The one call to action a screen has. ring is the brand action: a hairline
    of Solana's two colours that fills with them on hover. accent is the flat
-   purple, for where the ring would be too loud. */
+   purple, for where the ring would be too loud. hover="beam" keeps the ring
+   from filling under the pointer: a beam of light runs once round it, and a
+   press still fills (the gallery's Start). */
 const brandButtonVariants = cva(
   "group/brand-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap text-white outline-none select-none transition-[transform,filter,opacity] duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)] focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
@@ -19,11 +21,16 @@ const brandButtonVariants = cva(
         sm: "h-[1.625rem] px-3 text-xs [&_svg:not([class*='size-'])]:size-3.5",
         icon: "size-8 [&_svg:not([class*='size-'])]:size-4",
       },
+      hover: {
+        fill: "",
+        beam: "brand-beam",
+      },
     },
     compoundVariants: [{ variant: "accent", size: "default", className: "rounded-lg px-4 font-sans text-sm" }],
     defaultVariants: {
       variant: "ring",
       size: "default",
+      hover: "fill",
     },
   }
 )
@@ -32,6 +39,7 @@ function BrandButton({
   className,
   variant = "ring",
   size = "default",
+  hover = "fill",
   asChild = false,
   ...props
 }: React.ComponentProps<"button"> & VariantProps<typeof brandButtonVariants> & { asChild?: boolean }) {
@@ -41,7 +49,8 @@ function BrandButton({
       data-slot="brand-button"
       data-variant={variant}
       data-size={size}
-      className={cn(brandButtonVariants({ variant, size }), className)}
+      data-hover={hover === "beam" ? hover : undefined}
+      className={cn(brandButtonVariants({ variant, size, hover }), className)}
       {...props}
     />
   )

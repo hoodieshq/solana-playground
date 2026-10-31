@@ -1,5 +1,5 @@
 import * as React from "react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 /* A build error, said the way a person would: what went wrong, where, and
    the line itself with the fault marked. The compiler's own words sit
@@ -79,6 +79,18 @@ function DiagnosticLine({
   )
 }
 
+/* The token the compiler named, under a wavy red line that draws in, so
+   the fault is marked where it is and not only by the line's edge */
+function DiagnosticMark({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="diagnostic-mark"
+      className={cn("squiggle animate-squiggle motion-reduce:animate-none", className)}
+      {...props}
+    />
+  )
+}
+
 function DiagnosticFooter({ className, ...props }: React.ComponentProps<"div">) {
   return <div data-slot="diagnostic-footer" className={cn("flex flex-wrap items-center gap-2 border-t border-border px-3.5 py-2", className)} {...props} />
 }
@@ -90,6 +102,7 @@ export {
   DiagnosticFooter,
   DiagnosticHeader,
   DiagnosticLine,
+  DiagnosticMark,
   DiagnosticSource,
   DiagnosticTitle,
 }

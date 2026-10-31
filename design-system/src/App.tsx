@@ -14,6 +14,7 @@ import { PlaygroundBlocks, PlaygroundComponents } from "./ds/pg-blocks"
 import { Actions, Conversation, Display, Feedback, Forms, Navigation, Overlays } from "./ds/shadcn-blocks"
 import { DisplayMore, FormsMore, NavigationMore } from "./ds/shadcn-more"
 import { SITE } from "./ds/site"
+import { TutorialComponents } from "./ds/tutorial"
 
 type NavEntry = { id: string; title: string }
 type NavGroup = { id: string; title: string; entries: NavEntry[] }
@@ -206,6 +207,10 @@ function App() {
 
             <Group id="playground" title="Playground components" note="What shadcn does not have, or where ours does more. Each is one file in components/ui, with compound parts, data-slot on every part and cva variants. Install one with the line under its name.">
               <PlaygroundComponents />
+            </Group>
+
+            <Group id="tutorial" title="From the tutorial" note="What the tutorial's lessons needed that the library did not have, built the same way and installed the same way, and what that work added to the components above.">
+              <TutorialComponents />
             </Group>
 
             <Group id="blocks" title="Playground blocks" note="Screens' worth of parts, put together from the components above and shadcn's. A block is a starting point to copy, not a component to configure.">
