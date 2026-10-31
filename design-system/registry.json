@@ -1192,11 +1192,12 @@
       "name": "call-form",
       "type": "registry:ui",
       "title": "Call form",
-      "description": "A program's instructions as a form drawn from its IDL: instruction chips, the signature, typed args and accounts, Call, the response, and Form | IDL with the JSON and Copy. Takes the IDL and onCall.",
+      "description": "A program's instructions as a form drawn from its IDL: instruction chips, the signature, typed args and accounts, Call, the response (status, the program's words, the account, then a quiet sentence with Copy, Explorer and Log), and Form | IDL with the JSON and Copy. Takes the IDL and onCall.",
       "registryDependencies": [
         "@playground/button",
         "@playground/copy-button",
         "@playground/input",
+        "@playground/result-details",
         "@playground/segmented",
         "@playground/spinner",
         "@playground/tag",

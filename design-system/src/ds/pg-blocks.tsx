@@ -1075,7 +1075,8 @@ function PlaygroundBlocks() {
             <SegmentedItem value="seahorse">Seahorse</SegmentedItem>
           </Segmented>
           <div className="flex flex-wrap gap-2">
-            <Input aria-label="Program name" defaultValue="my_program" className="w-48" />
+            {/* The field as tall as Start beside it, 40 */}
+            <Input aria-label="Program name" defaultValue="my_program" className="h-10 w-48" />
             <BrandButton variant="accent">Start</BrandButton>
           </div>
         </div>

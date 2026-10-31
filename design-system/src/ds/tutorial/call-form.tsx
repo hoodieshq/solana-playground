@@ -44,9 +44,19 @@ const GAME: CallFormIdlShape = {
 const CONFIRMED: CallFormResult = {
   status: "confirmed",
   log: "Program log: Hello, Ada",
-  meta: "Fee 0.000005 SOL from your wallet",
   explorerHref: "https://explorer.solana.com/?cluster=devnet",
   source: "lib.rs:9",
+  details: {
+    text: "The call used 1,128 compute units, and the fee was 0.000005 test SOL from your wallet.",
+    copy: { label: "Copy signature", value: "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW" },
+    log: [
+      "Program Hc3fP1…JdA6eG invoke [1]",
+      "Program log: Instruction: Hello",
+      "Program log: Hello, Ada",
+      "Program Hc3fP1…JdA6eG consumed 1,128 of 200,000 compute units",
+      "Program Hc3fP1…JdA6eG success",
+    ],
+  },
 }
 
 function CallFormMore() {
@@ -63,6 +73,7 @@ function CallFormMore() {
               status: "failed",
               log: "Error 6000: NotEnoughEnergy. Not enough energy.",
               explorerHref: "https://explorer.solana.com/?cluster=devnet",
+              details: { text: "The call used 2,906 compute units, and the fee was 0.000005 test SOL from your wallet.", log: ["Program log: AnchorError: NotEnoughEnergy"] },
               children: (
                 <Meter value={0} max={5} alertEmpty className="mt-1">
                   <MeterLabel>
@@ -104,7 +115,7 @@ function CallFormBlock() {
       registry="call-form"
       className="grid grid-cols-1 gap-3 lg:grid-cols-2"
       more={<CallFormMore />}
-      note="A program's instructions as a form drawn from its IDL. Form | IDL swaps the form for the JSON it is drawn from, with Copy. One instruction at a time, picked from chips; the signature heads the request in syntax colours, with the client line that makes the same call under it. A field per argument and per account the caller gives (a signer is your wallet, a fixed or derived address is only said), a note over Call when it can't go, and under it what came back: Sending, then Confirmed or Failed with the program's words. Pass the IDL and onCall; result, note and stale come from you. Under 30rem of its own width the client line takes two lines and Call the full width."
+      note="A program's instructions as a form drawn from its IDL. Form | IDL swaps the form for the JSON it is drawn from, with Copy. One instruction at a time, picked from chips; the signature heads the request in syntax colours, with the client line that makes the same call under it. A field per argument and per account the caller gives (a signer is your wallet, a fixed or derived address is only said), a note over Call when it can't go, and under it what came back: Sending, then Confirmed or Failed with the program's words and the account, and how it went in one quiet sentence with Copy, Explorer and Log in a row. Pass the IDL and onCall; result, note and stale come from you. Under 30rem of its own width the client line takes two lines and Call the full width."
     >
       <div className="h-[26rem] overflow-hidden rounded-xl border border-border bg-surface-base">
         <CallForm

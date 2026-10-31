@@ -21,20 +21,25 @@ import { useScrollEdges } from "@/hooks/use-scroll-edges"
    explorer the key on an explorer
    onOpenTerminal  the way to the whole output, at the well's top right.
             The terminal is a desktop panel, so it is not shown under a
-            finger */
+            finger
+   quiet    the sentence in the controls' own 14/20 and grey, for a tool
+            panel such as the Call form, where the account above it is the
+            answer and the cost a footnote. At reading size it was the
+            loudest text there */
 
 const QUIET =
   "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-[0.875rem] leading-[1.125rem] text-muted-foreground outline-none transition-colors duration-150 ease-standard hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:min-h-11 motion-reduce:transition-none"
 
 /* A line the program itself logged, other than Anchor's own "Instruction:"
-   line: what msg! said, in the text's ink */
+   line: what msg! said, in the text's ink on a plate inside the well. Run
+   edge to edge, a band near the panel's own colour cut the small well in two */
 const said = (line: string) =>
   line.startsWith("Program log: ") && !line.startsWith("Program log: Instruction:") && !line.startsWith("Program log: AnchorError")
 
 function tone(line: string) {
   if (line.startsWith("error")) return "text-error"
   if (/successful|finished$|success$/i.test(line)) return "text-success"
-  if (said(line)) return "text-foreground"
+  if (said(line)) return "-mx-1.5 rounded-[4px] bg-foreground/[0.08] px-1.5 text-foreground"
   return "text-muted-foreground"
 }
 
@@ -46,6 +51,7 @@ function ResultDetails({
   log,
   onOpenTerminal,
   defaultLogOpen = false,
+  quiet = false,
   ...props
 }: Omit<React.ComponentProps<"div">, "children"> & {
   text: string
@@ -54,6 +60,7 @@ function ResultDetails({
   log: string[]
   onOpenTerminal?: () => void
   defaultLogOpen?: boolean
+  quiet?: boolean
 }) {
   const [logOpen, setLogOpen] = React.useState(defaultLogOpen)
   const [copied, setCopied] = React.useState(false)
@@ -92,7 +99,7 @@ function ResultDetails({
   return (
     // Under a finger the last row is already a thumb's height, so it gives back some of the card's 12 under it
     <div data-slot="result-details" className={cn("pointer-coarse:-mb-2", className)} {...props}>
-      <p className="text-[1rem] leading-[1.5rem] font-read text-pretty text-foreground/80">
+      <p className={quiet ? "text-[0.875rem] leading-5 text-pretty text-muted-foreground" : "text-[1rem] leading-[1.5rem] font-read text-pretty text-foreground/80"}>
         <Prose text={text} />
       </p>
 

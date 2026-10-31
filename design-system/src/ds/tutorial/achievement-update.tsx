@@ -25,7 +25,8 @@ function AchievementUpdateBlock() {
         </AchievementMedia>
         <AchievementLabel>Hello, Anchor</AchievementLabel>
       </Achievement>
-      <Achievement appear role="img" aria-label="Badge earned: Hello, Anchor" className="w-auto">
+      {/* To the row's top, with its discs: without a label it is shorter, and the row's centring slid it down */}
+      <Achievement appear role="img" aria-label="Badge earned: Hello, Anchor" className="w-auto self-start">
         <AchievementMedia>
           <Anchor />
         </AchievementMedia>

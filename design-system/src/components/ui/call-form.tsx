@@ -1,10 +1,11 @@
 import * as React from "react"
-import { Check, CircleX, ExternalLink, Play } from "lucide-react"
+import { Check, CircleX, Play } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
 import { CopyButton } from "@/components/ui/copy-button"
 import { Input } from "@/components/ui/input"
+import { ResultDetails } from "@/components/ui/result-details"
 import { Segmented, SegmentedItem } from "@/components/ui/segmented"
 import { Spinner } from "@/components/ui/spinner"
 import { Tag } from "@/components/ui/tag"
@@ -52,14 +53,16 @@ type CallFormResult = {
   status: "sending" | "confirmed" | "failed"
   /** the program's words: "Program log: Hello, Ada" */
   log?: string
-  /** after the status: "Fee 0.000005 SOL from your wallet" */
-  meta?: React.ReactNode
-  /** the transaction on an explorer */
+  /** the transaction on an explorer, in the details' row */
   explorerHref?: string
   /** beside the log: where in the program the words came from */
   source?: React.ReactNode
   /** under the log: the account as it is now, say */
   children?: React.ReactNode
+  /** how the call went, in one quiet sentence with the signature to copy and
+      the raw log behind a toggle: "The call used 7,342 compute units, and the
+      fee was 0.000005 test SOL from your wallet." */
+  details?: { text: string; copy?: { label: string; value: string }; log?: string[] }
 }
 
 type CallFormMessages = {
@@ -220,9 +223,13 @@ function CallFormNote({ className, ...props }: React.ComponentProps<"p">) {
   return <p data-slot="call-form-note" className={cn("max-w-[64ch] text-caption text-muted-foreground", className)} {...props} />
 }
 
-/* What came back from the latest call: on its way, or confirmed or failed
-   with the program's words on a well, its source beside them. Time, compute
-   units and the signature are the terminal's; a learner can't act on them here */
+/* What came back from the latest call: on its way, or confirmed or failed,
+   set as the lesson's result cards are so a result reads the same anywhere.
+   The status alone, with no instruction beside it (the request right above
+   names it); the program's words on a well, their source beside them; the
+   account; then how it went in one quiet sentence with Copy, Explorer and the
+   log in one row (ResultDetails). Explorer used to sit at the status line's
+   end in the grey of the fee beside it, and read as more of that note */
 function CallFormResponse({
   className,
   result,
@@ -240,39 +247,28 @@ function CallFormResponse({
       </div>
     )
   return (
-    <div data-slot="call-form-response" data-status={result.status} className={cn("flex flex-col gap-2", className)} {...props}>
-      <div {...row(0)}>
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          {failed ? (
-            <CircleX className="size-4 shrink-0 self-center text-error" aria-hidden="true" />
-          ) : (
-            <Check className="size-4 shrink-0 self-center text-success" aria-hidden="true" />
-          )}
-          <span className="font-heading text-control font-medium text-foreground">{failed ? say.failed : say.confirmed}</span>
-          {result.meta && <span className="text-caption text-muted-foreground">· {result.meta}</span>}
-          {result.explorerHref && (
-            <a
-              href={result.explorerHref}
-              target="_blank"
-              rel="noreferrer"
-              className="ml-auto flex items-center gap-1 self-center rounded-sm text-caption text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:-my-3 pointer-coarse:min-h-11"
-            >
-              {say.explorer}
-              <ExternalLink className="size-3" aria-hidden="true" />
-            </a>
-          )}
-        </div>
+    <div data-slot="call-form-response" data-status={result.status} className={cn("flex flex-col gap-3", className)} {...props}>
+      {/* The status row of the lesson's cards: 16/24 at 500 */}
+      <div {...row(0)} className={cn(row(0).className, "flex items-center gap-2")}>
+        {failed ? <CircleX className="size-4 shrink-0 text-error" aria-hidden="true" /> : <Check className="size-4 shrink-0 text-success" aria-hidden="true" />}
+        <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{failed ? say.failed : say.confirmed}</span>
       </div>
-      {result.log && (
-        <div
-          {...row(1)}
-          className={cn(row(1).className, "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-control bg-surface-well px-3 py-2.5")}
-        >
-          <p className={cn("min-w-0 font-mono text-code break-words", failed ? "text-error" : "text-foreground")}>{result.log}</p>
-          {result.source && <span className="text-caption text-muted-foreground">{result.source}</span>}
+      {(result.log || result.children) && (
+        <div {...row(1)} className={cn(row(1).className, "flex flex-col gap-1")}>
+          {result.log && (
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-control bg-surface-well px-3 py-2.5">
+              <p className={cn("min-w-0 font-mono text-code break-words", failed ? "text-error" : "text-foreground")}>{result.log}</p>
+              {result.source && <span className="text-caption text-muted-foreground">{result.source}</span>}
+            </div>
+          )}
+          {result.children}
         </div>
       )}
-      {result.children}
+      {result.details && (
+        <div {...row(2)}>
+          <ResultDetails quiet text={result.details.text} copy={result.details.copy} explorer={result.explorerHref} log={result.details.log ?? []} />
+        </div>
+      )}
     </div>
   )
 }
