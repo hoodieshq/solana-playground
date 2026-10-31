@@ -14,7 +14,7 @@ import { NameField } from "../NameField"
 import { LiveMemory, MemoryCard } from "../MemoryCard"
 import { clock, LivePlayer } from "../PlayerCard"
 import { Prose } from "../Prose"
-import { ACTION_SOFT, PHONE_CTA, READ_CODE, secs } from "../type"
+import { ACTION, ACTION_SOFT, PHONE_CTA, READ_CODE, secs } from "../type"
 
 type ActTurn = Extract<Turn, { kind: "act" }>
 
@@ -227,16 +227,15 @@ export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolea
   ) : call && empty ? (
     "Type any name"
   ) : (
-    <Prose text={words.context} {...READ_CODE} />
+    <Prose text={words.context} {...READ_CODE} small />
   )
 
   const button = (
     <Button
-      size="lg"
       disabled={disabled || !!run}
       onClick={go}
       aria-busy={!!run || undefined}
-      className={cn("relative shrink-0 px-3", phone ? cn(PHONE_CTA, "text-[0.9375rem]") : chop ? "self-start" : !call && "grow")}
+      className={cn("relative shrink-0", ACTION, phone ? cn(PHONE_CTA, "text-[0.9375rem]") : chop ? "self-start" : !call && "grow")}
     >
       {/* Running, the label holds the width and a spinner sits over it */}
       <span className={cn(run && "invisible")}>{words.button}</span>
@@ -247,16 +246,22 @@ export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolea
   return (
     // The button sits beside the text while the text keeps 15rem, and wraps under it, full width, once
     // it wouldn't: a long label (Build and deploy) in the desktop chat squeezed the title and the program
-    // id into a word a line. The text grows first, so the button only fills a line of its own
+    // id into a word a line. The text grows first, so the button only fills a line of its own. Like the
+    // quiz, a card that waits on you steps out past the text column to 8px from the panel's edges (the feed
+    // is inset 16 on a phone, 20 on a desktop), stands 40 under the text over it (the reply's 15 and 25 of
+    // its own) and sets its words as a result's status row does, 16 at 500 over 14 in grey, with the
+    // cards' 40 button; listings, quotes and results stay in the column
     <div
       data-live-card
       className={cn(
-        "relative flex gap-3 overflow-hidden rounded-panel border border-border bg-(--card-ground) p-3",
+        "relative mt-[25px] flex gap-3 overflow-hidden rounded-panel border border-border bg-(--card-ground) p-4",
         call || chop || phone ? "flex-col items-stretch" : "flex-wrap items-center",
-        phone && "gap-4 p-4"
+        phone ? "-mx-2 gap-4" : "-mx-3"
       )}
     >
-      <div className={cn("flex min-w-0 items-center gap-3", call || chop || phone ? "flex-1" : "grow-[999] basis-60")}>
+      {/* The icon's top on the title's: centred on the block, it slid down between title and words as soon
+          as the words took a second line, and held on to neither */}
+      <div className={cn("flex min-w-0 items-start gap-3", call || chop || phone ? "flex-1" : "grow-[999] basis-60")}>
         <span
           aria-hidden="true"
           className={cn(
@@ -267,8 +272,8 @@ export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolea
           <Icon />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className={cn("text-[0.875rem] font-label text-foreground", phone && "text-[0.9375rem]")}>{words.title}</span>
-          <span role={run ? "status" : undefined} className="text-caption text-muted-foreground">
+          <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{words.title}</span>
+          <span role={run ? "status" : undefined} className="text-[0.875rem] leading-5 text-muted-foreground">
             {context}
           </span>
         </span>

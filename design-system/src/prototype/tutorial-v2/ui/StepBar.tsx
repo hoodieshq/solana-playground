@@ -29,11 +29,12 @@ const quarter = (i: number): CSSProperties => ({
 const SWEEP_AFTER = 140
 const SWEEP_STAGGER = 180
 
-/** A segment's fill, revealed left to right by its clip, so the gradient stays put while it shows.
- * `delay` holds it while the check pops */
+/** A segment as Practicum draws its lesson progress: a 4px rounded bar on a 12% white track, its fill
+ * revealed left to right by its clip, so the gradient stays put while it shows. `delay` holds it while
+ * the check pops */
 function Segment({ i, lit, delay }: { i: number; lit: boolean; delay: number }) {
   return (
-    <span aria-hidden="true" className="relative block h-0.5 overflow-hidden bg-foreground/[0.1]">
+    <span aria-hidden="true" className="relative block h-1 w-full overflow-hidden rounded-[4px] bg-foreground/[0.12]">
       <span
         style={{ ...quarter(i), clipPath: lit ? "inset(0 0 0 0)" : "inset(0 100% 0 0)", transitionDelay: lit ? `${delay}ms` : "0ms" }}
         className="absolute inset-0 transition-[clip-path] duration-(--duration-slow) ease-out motion-reduce:transition-none"
@@ -52,89 +53,19 @@ function useSweep(lit: number) {
   return (i: number) => (i >= from ? SWEEP_AFTER + (i - from) * SWEEP_STAGGER : 0)
 }
 
-/** True once the first paint is behind us: checks that arrive later pop, the ones a reload finds don't */
-function useMounted() {
-  const mounted = useRef(false)
-  useEffect(() => {
-    mounted.current = true
-  }, [])
-  return mounted.current
-}
-
 /** How many segments are lit: a step is lit whole as you enter it, a segment filling by beats read as
  * nothing happening */
 const litCount = (started: boolean, step: number, finished: boolean) => (!started ? 0 : finished ? STEPS.length : step + 1)
 
 type BarProps = { viewing: number | null; onPick: (step: number) => void }
 
-/** The tutorial's steps across the top of the chat, the desktop twin of the phone header's track.
- * A chat column narrower than 24rem can't hold four labels with their checks, so it says where you are
- * in one line over the same track and keeps the steps in a menu. The column's own width decides */
-export function StepBar(props: BarProps) {
-  return (
-    <div className="@container shrink-0">
-      <FullBar {...props} />
-      <CompactBar {...props} />
-    </div>
-  )
-}
-
-/** A label over each segment, the fill the gallery's purple to green, the words grey. A done or current
- * step scrolls the conversation back to its divider, nothing resets; the step you're reading back,
- * when it isn't the live one, gets a quiet pill while the live step keeps its fill */
-function FullBar({ viewing, onPick }: BarProps) {
-  const { s } = useStore()
-  const finished = s.passed.every(Boolean)
-  const lit = litCount(s.started, s.step, finished)
-  const delayFor = useSweep(lit)
-  const mounted = useMounted()
-
-  return (
-    <nav aria-label="Tutorial steps" className="grid h-12 items-end gap-[3px] px-5 @max-[24rem]:hidden" style={columns()}>
-      {STEPS.map((step, i) => {
-        const done = s.passed[i]
-        const current = s.started && !finished && i === s.step && !done
-        const reached = s.started && (done || i <= s.step)
-        const looking = s.started && viewing === i && (finished || viewing !== s.step)
-        return (
-          <button
-            key={step.id}
-            type="button"
-            disabled={!reached}
-            onClick={() => onPick(i)}
-            aria-current={looking ? "location" : current ? "step" : undefined}
-            aria-label={`Step ${i + 1} of ${STEPS.length}, ${step.title}${done ? ", done" : current ? ", current" : ""}`}
-            className={cn("group flex h-11 min-w-0 flex-col justify-end gap-[7px] pb-1.5 text-left disabled:cursor-default", FOCUS)}
-          >
-            <span
-              className={cn(
-                "-mx-1 flex h-6 max-w-[calc(100%+0.5rem)] items-center gap-1.5 self-start rounded-md px-1 text-[0.8125rem] leading-none font-label transition-colors duration-200 motion-reduce:transition-none",
-                looking && "bg-surface-hover",
-                looking || current ? "text-foreground" : done ? "text-muted-foreground group-hover:text-foreground" : "text-muted-foreground/75",
-                current && "font-medium"
-              )}
-            >
-              {done ? (
-                <span key="check" className={cn("flex size-3 shrink-0 [&>svg]:size-full", mounted && "animate-pop motion-reduce:animate-none")}>
-                  {NAV_ICONS.check}
-                </span>
-              ) : (
-                <span className={cn("shrink-0 font-act tabular-nums lining-nums", current || looking ? "text-muted-foreground" : "text-subtle")}>{i + 1}</span>
-              )}
-              <span className="truncate">{step.short}</span>
-            </span>
-            <Segment i={i} lit={i < lit} delay={delayFor(i)} />
-          </button>
-        )
-      })}
-    </nav>
-  )
-}
-
-/** The narrow column's bar: "Step 2 of 4 · Deploy" over the same track, the line opening the four
- * steps as the phone's drawer lists them. It stands as tall as the full bar, its segments on the same
- * line, so the chat doesn't move when the column crosses 24rem */
-function CompactBar({ viewing, onPick }: BarProps) {
+/** The tutorial's steps across the top of the chat, the desktop twin of the phone header's track. As in
+ * Practicum's lesson, one line of text says where you are, 14/18, and the segments sit 12px under it,
+ * each a 12px tall target round a 4px bar, 4px apart. The line opens the steps as the phone's drawer
+ * lists them; a reached segment takes you to its step too. A label over each segment split one
+ * sentence into three. The line sits 12 under the head's rule, the same 12 as down to the segments,
+ * so the line belongs to neither edge: at 8 it hung off the head and the bar read as two pieces */
+export function StepBar({ viewing, onPick }: BarProps) {
   const { s } = useStore()
   const finished = s.passed.every(Boolean)
   const lit = litCount(s.started, s.step, finished)
@@ -143,12 +74,12 @@ function CompactBar({ viewing, onPick }: BarProps) {
   const name = s.started && !finished ? STEPS[s.step].short : null
 
   return (
-    <nav aria-label="Tutorial steps" className="hidden h-12 px-5 pt-1.5 pb-1.5 @max-[24rem]:block">
+    <nav aria-label="Tutorial steps" className="shrink-0 px-5 pt-3 pb-1">
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={!s.started}
           className={cn(
-            "group -mx-1.5 flex h-7 items-center gap-1.5 rounded-md px-1.5 text-[0.8125rem] font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
+            "group -mx-1.5 flex h-[1.125rem] items-center gap-1.5 rounded-md px-1.5 text-[0.875rem] leading-[1.125rem] font-label outline-none hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
             FOCUS
           )}
         >
@@ -170,7 +101,10 @@ function CompactBar({ viewing, onPick }: BarProps) {
             </span>
           )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-64">
+        {/* A row keeps 10 at its sides, as above and below its 20 line: at 6 the number and Now touched the
+            lit row's edges. The menu sits 8 to the left, so the numbers stand under the trigger's "Step"
+            (the menu's 4 and the row's 10 against the trigger's 6) */}
+        <DropdownMenuContent align="start" alignOffset={-8} className="w-64">
           {STEPS.map((step, i) => {
             const done = s.passed[i]
             const current = !finished && i === s.step && !done
@@ -182,7 +116,7 @@ function CompactBar({ viewing, onPick }: BarProps) {
                 disabled={!reached}
                 onSelect={() => onPick(i)}
                 aria-current={looking ? "location" : current ? "step" : undefined}
-                className={cn("min-h-10 gap-3", (current || looking) && "bg-foreground/[0.06]")}
+                className={cn("min-h-10 gap-3 px-2.5", (current || looking) && "bg-foreground/[0.06]")}
               >
                 <StepGlyph i={i} done={done} current={current} className={current ? undefined : "bg-foreground/10"} />
                 <span className="min-w-0 flex-1 truncate">{step.title}</span>
@@ -192,24 +126,37 @@ function CompactBar({ viewing, onPick }: BarProps) {
           })}
         </DropdownMenuContent>
       </DropdownMenu>
-      <span aria-hidden="true" className="mt-1.5 grid gap-[3px]" style={columns()}>
-        {STEPS.map((step, i) => (
-          <Segment key={step.id} i={i} lit={i < lit} delay={delayFor(i)} />
-        ))}
+      <span className="mt-2 grid gap-1" style={columns()}>
+        {STEPS.map((step, i) => {
+          const reached = s.started && (s.passed[i] || i <= s.step)
+          return (
+            <button
+              key={step.id}
+              type="button"
+              disabled={!reached}
+              onClick={() => onPick(i)}
+              aria-label={`Step ${i + 1} of ${STEPS.length}, ${step.title}`}
+              className={cn("flex h-3 items-center disabled:cursor-default", FOCUS)}
+            >
+              <Segment i={i} lit={i < lit} delay={delayFor(i)} />
+            </button>
+          )
+        })}
       </span>
     </nav>
   )
 }
 
-/** The phone header's bottom edge: the same segments in the same purple to green. Before Start
- * nothing is under way, and empty segments read as a broken rule: one hairline instead */
+/** The phone header's progress: the same 4px segments, 4px apart, inset 16px as Practicum's bar is,
+ * under the header's "Step 1 of 3" line. Before Start nothing is under way, and empty segments read as
+ * a broken rule: one hairline instead */
 export function StepTrack({ done }: { done: boolean }) {
   const { s } = useStore()
   const lit = litCount(s.started, s.step, done)
   const delayFor = useSweep(lit)
   if (!s.started) return <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-border" />
   return (
-    <span aria-hidden="true" className="absolute inset-x-0 bottom-0 grid gap-[3px]" style={columns()}>
+    <span aria-hidden="true" className="absolute inset-x-4 bottom-2 grid gap-1" style={columns()}>
       {STEPS.map((step, i) => (
         <Segment key={step.id} i={i} lit={i < lit} delay={delayFor(i)} />
       ))}

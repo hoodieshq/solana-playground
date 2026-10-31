@@ -48,14 +48,14 @@ export function enterFor(s: State): Action | null {
 }
 
 /** Every shortcut, for the Keyboard shortcuts dialog (spec 9.4) */
-export const SHORTCUTS: { keys: string; what: string }[] = [
-  { keys: PRIMARY_KEYS, what: "Run the live action" },
-  { keys: "↵", what: "Start, or go to the next step" },
-  { keys: "1 2 3", what: "Pick an answer" },
-  { keys: "S", what: "Skip the question" },
-  { keys: "H", what: "Get a hint" },
-  { keys: MENU_KEYS, what: "Menu" },
-  { keys: FILES_KEYS, what: "Files" },
-  { keys: TERMINAL_KEYS, what: "Terminal" },
-  { keys: STEP_KEYS, what: "Previous and next step" },
+export const SHORTCUTS: { keys: string; what: string; group: "In the lesson" | "Panels" | "Steps" }[] = [
+  { keys: PRIMARY_KEYS, what: "Run the live action", group: "In the lesson" },
+  { keys: "↵", what: "Start, or go to the next step", group: "In the lesson" },
+  { keys: "1 2 3", what: "Pick an answer", group: "In the lesson" },
+  { keys: "S", what: "Skip the question", group: "In the lesson" },
+  { keys: "H", what: "Get a hint", group: "In the lesson" },
+  { keys: MENU_KEYS, what: "Menu", group: "Panels" },
+  { keys: FILES_KEYS, what: "Files", group: "Panels" },
+  { keys: TERMINAL_KEYS, what: "Terminal", group: "Panels" },
+  { keys: STEP_KEYS, what: "Previous and next step", group: "Steps" },
 ]

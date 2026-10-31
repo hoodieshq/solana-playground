@@ -1,4 +1,3 @@
-import { ArrowUpRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -57,13 +56,13 @@ export function QuoteBox({ quote, quiet = false, phone = false }: { quote: Quote
           onClick={() => dispatch({ type: "reveal", file: quote.file, lines: [quote.line] })}
           className={cn("ml-auto flex items-center gap-1 text-muted-foreground underline-offset-[3px] hover:text-foreground hover:underline", phone && "h-11 px-2")}
         >
-          <ArrowUpRight className="size-[13px]" aria-hidden="true" />
+          {/* Words alone, no corner arrow: the listings dropped theirs, and "Show in lib.rs" says it */}
           Show in {baseName(quote.file)}
         </button>
       </div>
       <div
         className={cn(
-          "border-l-2 px-3 py-1.5 font-mono text-[0.75rem] leading-[1.6] break-words whitespace-pre-wrap text-syntax-plain",
+          "border-l-2 px-3 py-1.5 font-mono text-[0.75rem] leading-5 break-words whitespace-pre-wrap text-syntax-plain",
           error ? "border-error bg-error/10" : quote.tone === "error" ? "border-border-strong" : "border-border-strong bg-(--card-ground)"
         )}
       >
@@ -111,7 +110,8 @@ export function FollowButton({ turn, phone = false }: { turn: SayTurn; phone?: b
 export function Say({ turn, typing, onTyped, passed, phone = false }: { turn: SayTurn; typing: boolean; onTyped: () => void; passed: boolean; phone?: boolean }) {
   const text = (phone && PHONE_SAY[turn.text]) || turn.text
   return (
-    <div className="flex flex-col gap-3">
+    // The text to the code it quotes 9, as Practicum sets a paragraph over its listing
+    <div className="flex flex-col gap-[9px]">
       <p className={cn(READ, "max-w-[66ch]", turn.nudge && "border-l-2 border-warning/60 pl-3")}>
         {typing ? <Typed key={turn.id} text={text} code={READ_CODE} onDone={onTyped} /> : <Prose text={text} {...READ_CODE} />}
       </p>

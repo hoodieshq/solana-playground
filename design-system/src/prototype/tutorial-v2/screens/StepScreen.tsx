@@ -141,9 +141,10 @@ export function StepScreen() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* 64, not the app's 56: two lines of title and a 36 button need 14 above and below, or the button
-          sits on the progress edge */}
-      <header className="relative flex h-16 shrink-0 items-center gap-1 pr-4 pl-1">
+      {/* 76, not the app's 56: two lines of title and a 36 button, then the progress under them as
+          Practicum sets it, 15px under the "Step 1 of 3" line and 8px off the bottom. With the feed's
+          26 that puts the first heading 34 under the segments, as on the desktop */}
+      <header className="relative flex h-[4.75rem] shrink-0 items-center gap-1 pr-4 pb-4 pl-1">
         <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Back to tutorials" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
           <ChevronLeft className="size-6" />
         </Button>
@@ -154,8 +155,10 @@ export function StepScreen() {
           aria-label={`${LESSON.card.name}, ${where}. Show the steps`}
           className="flex h-11 min-w-0 flex-1 flex-col items-start justify-center rounded-lg px-1.5 text-left outline-none active:bg-surface-hover focus-visible:outline-2 focus-visible:outline-brand-purple"
         >
-          <span className="max-w-full truncate font-heading text-[0.9375rem] leading-[1.3] font-medium text-foreground">{LESSON.card.name}</span>
-          <span className="max-w-full truncate text-caption text-muted-foreground">{where}</span>
+          {/* Whole pixel lines, 20 and 18 as Practicum sets its progress line: the caption's own 1.45
+              left the line's foot at 49.2 and the gap to the segments a fraction */}
+          <span className="max-w-full truncate font-heading text-[0.9375rem] leading-5 font-medium text-foreground">{LESSON.card.name}</span>
+          <span className="max-w-full truncate text-caption leading-[1.125rem] text-muted-foreground">{where}</span>
         </button>
         {/* The one way across besides the swipe: it names the space it takes you to. Drawn as the desktop's
             workspace tools, 36 tall, so it sits clear of the progress edge and under the title in weight;

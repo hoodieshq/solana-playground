@@ -311,7 +311,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s1.win",
-      headline: "The board fits.",
+      headline: "The board fits",
       line: "On the stack it's a 16 byte pointer now; the board itself is on the heap, which has 32 KB.",
       stats: [],
     },
@@ -445,7 +445,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s2.win",
-      headline: "Out of memory at 40 KB.",
+      headline: "Out of memory at 40 KB",
       line: "The account could grow. The program couldn't read it: `Account` copies the whole map into the heap, and a 40 KB copy doesn't fit in 32.",
       stats: [],
     },
@@ -561,7 +561,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s3.win",
-      headline: "40 KB, read in place.",
+      headline: "40 KB, read in place",
       line: "The map is bigger than the heap, and `paint` wrote into it without copying a byte of it. The same way goes up to 10 MB.",
       stats: [],
     },
@@ -794,7 +794,7 @@ export const ZERO_COPY: Lesson = {
   intro: "You'll grow a game's accounts past every memory limit a program has: 4 KB of stack, 10 KB to create an account, 32 KB of heap. Then you'll grow a map past the heap without copying it.",
   proof: `Program log: Painted 2 bytes at ${PAINT_AT}`,
   badge: "Big accounts",
-  headline: "You read 40 KB without copying it.",
+  headline: "You read 40 KB without copying it",
   // Where the last paint landed: step 3's, or one the learner sent from the Call panel
   proofLine: (_tx, s) => `Your big map is ${kb(BIG)} on devnet, more than the heap holds, and \`paint\` wrote into it at byte ${(s.memory?.painted ?? PAINT_AT).toLocaleString("en-US")}.`,
   // The only Advanced tutorial: there is no next one of its level

@@ -1,4 +1,4 @@
-import { ArrowUpRight, FileCode, FilePlus2 } from "lucide-react"
+import { FilePlus2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tag } from "@/components/ui/tag"
@@ -58,34 +58,48 @@ export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: bo
         aria-label={`Show ${range(turn.lines)} in ${name}`}
         className="w-full overflow-hidden rounded-control border border-border bg-(--card-ground) text-left transition-colors duration-100 hover:border-border-strong motion-reduce:transition-none"
       >
-        <span className="flex h-8 items-center gap-2 px-3">
-          <FileCode className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="font-mono text-[0.75rem] text-foreground">{turn.file}</span>
-          <span className="truncate text-[0.75rem] text-muted-foreground">{range(turn.lines)}</span>
-          {/* The whole card opens the lines: the arrow says so, without a footer of its own */}
-          <ArrowUpRight className="ml-auto size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        {/* The file's name alone: the numbers under it already say which lines, and the whole card opens
+            them, so the corner arrow went: it was a second sign for what the card already does */}
+        <span className="flex h-8 items-center px-3">
+          <span className="min-w-0 truncate font-mono text-[0.75rem] text-foreground">{turn.file}</span>
         </span>
         {turn.appended && <span className="block border-t border-border px-3 py-1.5 text-[0.75rem] text-warning-ink">I put it at the end: your own lines are kept.</span>}
-        {/* The code on the card's own ground, one shade for the whole card */}
-        <span className="block pb-2 font-mono text-[0.75rem] leading-[1.6]">
-          {shown.map((n) => {
-            const k = turn.lines.indexOf(n)
-            return (
-              // Two columns that line up with the head: the numbers centred in the file icon's 14 px (from
-              // 12 px in), and the code starting where the file name does, 8 px on
-              <span key={n} className="flex pr-3">
-                <span className="w-[1.625rem] shrink-0 pl-3 text-center text-subtle tabular-nums select-none">{n}</span>
-                {/* Wrapped, not cut: the program id is the point of declare_id! */}
-                <span className="min-w-0 flex-1 pl-2 whitespace-pre-wrap text-syntax-plain [overflow-wrap:anywhere]">{k === -1 ? (rows[n - 1] ?? "") : highlight(text(n, k))}</span>
+        {/* The code on the card's own ground, one shade for the whole card. Two columns: the numbers start
+            12 in, under the file's name, and hold still; only the code beside them scrolls sideways, as
+            Practicum's listings do, instead of breaking (declare_id!'s id wrapped under the line's start).
+            Numbers kept still by sticking inside the scroller painted over the card's edge by a hair */}
+        <span className="flex pb-2 font-mono text-[0.75rem] leading-5">
+          <span aria-hidden="true" className="w-[1.625rem] shrink-0 pl-3 text-left text-subtle tabular-nums select-none">
+            {shown.map((n) => (
+              <span key={n} className="block">
+                {n}
               </span>
-            )
-          })}
-          {more > 0 && (
-            <span className="block pl-[2.125rem] text-subtle">
+            ))}
+          </span>
+          <span className="block min-w-0 flex-1 overflow-x-auto pr-3 pl-2">
+            {shown.map((n) => {
+              const k = turn.lines.indexOf(n)
+              return (
+                <span key={n} className="block whitespace-pre text-syntax-plain">
+                  {k === -1 ? (rows[n - 1] ?? "") : highlight(text(n, k))}
+                </span>
+              )
+            })}
+          </span>
+        </span>
+        {/* What's left of the run, as the listing's last row, 4 under the code: an ellipsis in the numbers'
+            column holds the left edge, and the words sit on the code's in the interface face. In mono on the
+            numbers' edge "8 more lines" read as line 8; indented alone to the code it floated off */}
+        {more > 0 && (
+          <span className="-mt-1 flex pb-2 text-[0.75rem] leading-5 text-subtle">
+            <span aria-hidden="true" className="w-[1.625rem] shrink-0 pl-3 font-mono select-none">
+              ⋯
+            </span>
+            <span className="pl-2">
               {more} more {more === 1 ? "line" : "lines"}
             </span>
-          )}
-        </span>
+          </span>
+        )}
       </button>
       {turn.appended && (
         <Button variant="ghost" size="xs" className={cn("w-fit text-muted-foreground", phone && "h-11 px-3")} onClick={() => dispatch({ type: "resetFile" })}>

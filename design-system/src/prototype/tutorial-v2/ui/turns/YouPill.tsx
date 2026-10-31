@@ -2,7 +2,6 @@ import { useLayoutEffect, useRef } from "react"
 
 import { cn } from "@/lib/utils"
 
-import { highlight } from "../CodeView"
 import { Prose } from "../Prose"
 import { READ_CODE, reducedMotion } from "../type"
 
@@ -44,11 +43,13 @@ export function YouPill({ text, code = false }: { text: string; code?: boolean }
       ref={ref}
       className={cn(
         "ml-auto w-fit max-w-[85%] origin-top-left rounded-panel bg-surface-raised px-3 py-2",
-        code ? "font-mono text-[0.8125rem] leading-[1.5] break-words text-syntax-plain" : "text-[0.9375rem] leading-[1.6]"
+        code ? "font-mono text-[14px] leading-6 break-words" : "text-[1rem] leading-[1.5rem]"
       )}
     >
-      {/* A prose answer keeps its code in chips, as the option it came from showed it, not in raw backticks */}
-      {code ? highlight(text) : <Prose text={text} {...READ_CODE} />}
+      {/* Code you typed or picked stays one colour: syntax colour is kept for the assistant's code, and
+          what you sent reads as your own words. A prose answer keeps its code in chips, as the option it
+          came from showed it, not in raw backticks */}
+      {code ? text : <Prose text={text} {...READ_CODE} />}
     </p>
   )
 }

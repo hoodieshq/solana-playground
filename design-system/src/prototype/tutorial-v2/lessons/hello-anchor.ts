@@ -144,7 +144,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s1.win",
-      headline: "Your program compiles.",
+      headline: "Your program compiles",
       line: "The build also made its IDL: one instruction, `hello`. That's what clients will call.",
       stats: [
         { icon: "hammer", text: "Built in 1.6 s" },
@@ -238,7 +238,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s2.win",
-      headline: "Your program is live on devnet.",
+      headline: "Your program is live on devnet",
       line: "Its IDL also gave you the Call panel: a form for every instruction. You'll use it in a moment.",
       stats: [
         { icon: "rocket", text: "Live on devnet" },
@@ -316,7 +316,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s3.win",
-      headline: "Your program answered from devnet.",
+      headline: "Your program answered from devnet",
       line: "That `Hello, World!` is the `msg!` line from lib.rs, coming back in the transaction's logs. The Call panel makes the same call without code.",
       stats: [
         { icon: "cpu", text: "1,042 CU" },
@@ -410,7 +410,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s4.win",
-      headline: "hello knows your name.",
+      headline: "hello knows your name",
       line: "You changed an instruction, shipped the new version and called it with an argument.",
       stats: [
         { icon: "cpu", text: "1,187 CU" },
@@ -509,7 +509,7 @@ export const HELLO_ANCHOR: Lesson = {
   intro: "You'll write a small Solana program, put it live on devnet and call it with your name.",
   proof: "Program log: Hello, your name!",
   badge: "First Anchor program",
-  headline: "You built and called your first Solana program.",
+  headline: "You built and called your first Solana program",
   proofLine: (tx) => `\`${tx.said}\` came back from devnet, in a transaction your wallet signed.`,
   next: "counter-pda-tutorial",
   nextLine: "Counter PDA Tutorial is a good next one: it stores a number on chain and changes it, so you meet accounts for real.",

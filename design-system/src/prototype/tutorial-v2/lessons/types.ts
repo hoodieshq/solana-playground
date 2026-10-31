@@ -104,6 +104,7 @@ export type Beat =
  * step's own time. `extra` is the quiet link beside Next */
 export type Win = {
   id: string
+  /** A heading, so no period at the end */
   headline: string
   line: string
   stats: { icon: StatIcon; text: string }[]
@@ -174,6 +175,7 @@ export type Lesson = {
   proof: string
   /** The finish card's badge, headline and the line under it */
   badge: string
+  /** A heading, so no period at the end */
   headline: string
   proofLine: (tx: Tx, s: State) => string
   /** The tutorial the finish points to, by slug: the next one of its level. None for the last */

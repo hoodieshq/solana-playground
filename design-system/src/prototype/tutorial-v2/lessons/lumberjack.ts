@@ -245,7 +245,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s1.win",
-      headline: "Your program can make players.",
+      headline: "Your program can make players",
       line: "The build wrote its IDL: one instruction, `init_player`, and the shape of `PlayerData`.",
       stats: [
         { icon: "hammer", text: "Built in 1.6 s" },
@@ -352,7 +352,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s2.win",
-      headline: "Your player is on devnet.",
+      headline: "Your player is on devnet",
       line: "That's your account, read back from devnet: 5 energy, 0 wood. The client found it from the seeds alone.",
       stats: [
         { icon: "rocket", text: "Live on devnet" },
@@ -469,7 +469,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s3.win",
-      headline: "Out of energy, and the program said so.",
+      headline: "Out of energy, and the program said so",
       line: "Five chops, five wood, then `NotEnoughEnergy` came back from devnet as error 6000. A client turns that into a refill timer.",
       stats: [
         { icon: "trees", text: "5 wood" },
@@ -562,7 +562,7 @@ const STEPS: Step[] = [
     ],
     win: {
       id: "s4.win",
-      headline: "Energy comes back on its own.",
+      headline: "Energy comes back on its own",
       line: "Nothing ran while you were away: the chop counted the time since `last_login` and added the energy. The timer on your player is the client doing the same math, with no transaction.",
       stats: [
         { icon: "zap", text: "1 energy / 30 s" },
@@ -717,7 +717,7 @@ export const LUMBERJACK: Lesson = {
   intro: "You'll build a small game on chain: each player gets an account with wood and energy, chopping a tree spends energy, and the energy comes back over time.",
   proof: "Program log: You chopped a tree. 1 wood, 4 energy left.",
   badge: "Energy system",
-  headline: "You built an energy system on chain.",
+  headline: "You built an energy system on chain",
   proofLine: (_tx, s) => `Your player has ${s.player?.wood ?? 0} wood on devnet, and its energy comes back every 30 seconds with no transaction to do it.`,
   // The next Intermediate one. Battle Coins goes where the original Lumberjack points: a game that gives
   // its players a token of its own

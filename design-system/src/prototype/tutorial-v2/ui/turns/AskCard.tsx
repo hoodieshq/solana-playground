@@ -7,9 +7,8 @@ import { cn } from "@/lib/utils"
 import { sameCode } from "../../check"
 import { BEATS, LIB, type Ask } from "../../data"
 import { useStore, type Turn } from "../../store"
-import { highlight } from "../CodeView"
 import { Prose } from "../Prose"
-import { ACTION_SOFT, HEADING, READ_CODE } from "../type"
+import { ACTION_SOFT, HEADING, LISTING, READ_CODE } from "../type"
 
 type AskTurn = Extract<Turn, { kind: "ask" }>
 
@@ -32,24 +31,69 @@ function chained(nodes: ReactNode[]): ReactNode[] {
   )
 }
 
-/** An option as its row shows it. `line` keeps it to one line, for the record's ellipsis. `ruled`
- * draws a ruled out option in one grey, code or words alike: its strings' orange would read as the
- * warning, and full white words would outshine the reason under them */
-function OptionText({ ask, i, line = false, ruled = false }: { ask: Ask; i: number; line?: boolean; ruled?: boolean }) {
-  if (ask.code && line) return <code className="font-mono text-[0.8125rem] leading-[1.5] whitespace-pre text-syntax-plain">{highlight(ask.options[i])}</code>
+/** An option as its row shows it. Code is set
+ * in the text's one colour, as Practicum sets its options: syntax colours picked out some answers over
+ * others (println! and msg! both green) and read as hints. `ruled` draws a ruled out option in one
+ * grey, code or words alike, so full white doesn't outshine the reason under it */
+function OptionText({ ask, i, ruled = false }: { ask: Ask; i: number; ruled?: boolean }) {
   return ask.code ? (
     <code
       // An option is one statement to read, not a file: its second line starts on the option's own edge,
       // where the editor's hang read as a misaligned line
-      className={cn("block font-mono text-[0.8125rem] leading-[1.5] break-words whitespace-pre-wrap", ruled ? "text-muted-foreground" : "text-syntax-plain")}
+      className={cn("block break-words whitespace-pre-wrap", LISTING, ruled ? "text-muted-foreground" : "text-foreground")}
     >
-      {chained(ruled ? [ask.options[i]] : highlight(ask.options[i]))}
+      {chained([ask.options[i]])}
     </code>
   ) : (
-    // A plain string: cn would drop the size token next to a text colour. A button's words set a little
-    // tighter than prose
-    <span className={ruled ? "text-control leading-[1.375rem] text-muted-foreground" : "text-control leading-[1.375rem] text-foreground"}>
+    // A plain string: cn would drop the size token next to a text colour. Set as the text is, 16/24
+    <span className={ruled ? "text-[1rem] leading-[1.5rem] text-muted-foreground" : "text-[1rem] leading-[1.5rem] text-foreground"}>
       <Prose text={ask.options[i]} {...READ_CODE} />
+    </span>
+  )
+}
+
+/** Words split on the spaces between them, a `code` chip kept whole however many spaces it holds */
+function tokens(text: string): string[] {
+  const out: string[] = []
+  let word = ""
+  let inCode = false
+  for (const ch of text) {
+    if (ch === "`") inCode = !inCode
+    if (ch === " " && !inCode) {
+      if (word) out.push(word)
+      word = ""
+    } else word += ch
+  }
+  if (word) out.push(word)
+  return out
+}
+
+/** The answer on the record's one line, whole words only: each word or chip is an item of a wrapping
+ * row exactly one line tall, so one that doesn't fit wraps to the hidden second line and is dropped
+ * whole. An ellipsis cut it mid word, or mid chip ("#[deriv…"), which read as broken code. No JS
+ * measuring: the clip is the layout's own. Code is split on spaces too, never inside a token */
+function Clipped({ ask }: { ask: Ask }) {
+  const option = ask.options[ask.answer]
+  return (
+    <span
+      className={cn(
+        "flex min-w-0 shrink flex-wrap items-center overflow-hidden",
+        ask.code ? "h-6 font-mono text-[14px] leading-6 text-foreground" : "h-6 gap-x-[0.25em] text-[1rem] leading-[1.5rem] text-foreground"
+      )}
+    >
+      {/* Code keeps its spaces at the ends of its pieces and also breaks before a `.`, as the options
+          do: split on spaces alone, `await pg.program...` showed only await */}
+      {ask.code
+        ? option.split(/(?<= )|(?=\.)/).map((t, i) => (
+            <code key={i} className="whitespace-pre">
+              {t}
+            </code>
+          ))
+        : tokens(option).map((t, i) => (
+            <span key={i} className="whitespace-nowrap">
+              <Prose text={t} {...READ_CODE} />
+            </span>
+          ))}
     </span>
   )
 }
@@ -58,26 +102,40 @@ function OptionText({ ask, i, line = false, ruled = false }: { ask: Ask; i: numb
 function Settled({ ask, t }: { ask: Ask; t: AskTurn }) {
   return (
     <div className="mt-2 flex flex-col gap-1.5">
-      <p className="px-0.5 text-caption text-muted-foreground">
+      {/* 12 under the question, as the live card has it, so it heads the rows instead of reading as one more */}
+      <p className="mb-1.5 px-0.5 text-caption text-muted-foreground">
         <Prose text={ask.question} {...READ_CODE} />
       </p>
       {ask.options.map((_, i) => {
         const right = i === ask.answer
         const wrong = t.picks.includes(i)
+        const why = ask.why[i]
         return (
           <div
             key={i}
             className={cn(
-              "flex min-h-10 items-start gap-3 rounded-lg border px-3 py-2",
+              // 10 over the option's 24px line and 12 under the reason's 20px one, so the ink sits as far
+              // from the top edge as from the bottom: the reason's line has less leading to spare
+              "flex items-start gap-3 rounded-lg border px-3 pt-2.5",
+              why ? "pb-3" : "pb-2.5",
               right ? "border-success/40 bg-success/5" : wrong ? "border-error/25 bg-error/[0.05]" : "border-border"
             )}
           >
-            <span className="mt-px grid size-6 shrink-0 place-items-center rounded-sm bg-muted text-[0.75rem] font-act text-muted-foreground tabular-nums">{i + 1}</span>
+            {/* The badge in a slot one line of the option tall (24, code's or words'), so it centres on the first line */}
+            <span className="grid h-6 shrink-0 place-items-center">
+              <span className="grid size-6 place-items-center rounded-sm bg-muted text-[0.75rem] font-act text-muted-foreground tabular-nums">{i + 1}</span>
+            </span>
             <span className="min-w-0 flex-1">
-              <OptionText ask={ask} i={i} ruled={wrong} />
-              {ask.why[i] && (
-                <span className="mt-1 block text-caption text-muted-foreground">
-                  <Prose text={ask.why[i]!} {...READ_CODE} />
+              <span className="block leading-[1.5rem]">
+                <OptionText ask={ask} i={i} ruled={wrong} />
+              </span>
+              {/* 4 under the option, on a 20px line: the ink gap comes to about the reason's own line gap, so
+                  the reason reads as the option's, not a block of its own as it did at 6. Size and grey keep it
+                  from reading as the option's second line. A plain string: cn would drop text-caption next to
+                  the colour */}
+              {why && (
+                <span className="mt-1 block text-caption leading-[1.25rem] text-muted-foreground">
+                  <Prose text={why} {...READ_CODE} small />
                 </span>
               )}
             </span>
@@ -110,13 +168,14 @@ function AskRecord({ ask, t, phone }: { ask: Ask; t: AskTurn; phone: boolean }) 
         ) : (
           <SkipForward strokeWidth={2} className="size-3.5 shrink-0 text-subtle" aria-hidden="true" />
         )}
-        <span className="min-w-0 truncate">
-          <OptionText ask={ask} i={ask.answer} line />
-        </span>
-        <span className="shrink-0 text-subtle">· {qualifier(t, phone)}</span>
+        <Clipped ask={ask} />
+
+        {/* At the far end by the chevron: a clipped answer keeps the width it was squeezed to, so a
+            qualifier right after it stood a ragged distance off the last word shown */}
+        <span className="ml-auto shrink-0 text-subtle">· {qualifier(t, phone)}</span>
         <ChevronRight
           className={cn(
-            "ml-auto size-3.5 shrink-0 text-subtle transition-transform duration-150 group-hover/rec:text-foreground motion-reduce:transition-none",
+            "size-3.5 shrink-0 text-subtle transition-transform duration-150 group-hover/rec:text-foreground motion-reduce:transition-none",
             open && "rotate-90"
           )}
           aria-hidden="true"
@@ -216,13 +275,16 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
       aria-labelledby={titleId}
       // The one colour in the interface: Solana's gradient rings the card that waits on you, and only
       // while it waits. Answered, it's a grey record like the rest
-      // Room as the intro card has it: the same inset, a clear gap under the question, rows apart
-      className={cn("rounded-panel gradient-stroke shadow-[0_8px_24px_rgb(0_0_0/0.3)] outline-none [--stroke-fill:var(--card-ground)]", phone ? "p-4 pb-2.5" : "p-5 pb-3")}
+      // Room as the intro card has it: the same inset, a clear gap under the question, rows apart.
+      // As Practicum's quiz, the card steps out past the text column to 8px from the panel's edges
+      // (the feed is inset 16px on a phone, 20px on a desktop), so the task reads apart from the reading,
+      // and stands 40 under the text over it (15 of the reply's gap and 25 of its own)
+      className={cn("rounded-panel gradient-stroke shadow-[0_8px_24px_rgb(0_0_0/0.3)] outline-none [--stroke-fill:var(--card-ground)]", "mt-[25px]", phone ? "-mx-2 p-4 pb-[19px]" : "-mx-3 p-5 pb-[19px]")}
     >
-      {/* A step over the 16px headings and the 15px text before it: the question is what you answer,
-          so it reads as the card's own title, not one more line of the explanation */}
-      <h3 id={titleId} className={cn(HEADING, "mb-4 text-[1.125rem] leading-[1.35]")}>
-        <Prose text={ask.question} {...READ_CODE} />
+      {/* Practicum's quiz question, 18/26, a step over the 16px text before it: the question is what you
+          answer, so it reads as the card's own title, not one more line of the explanation */}
+      <h3 id={titleId} className={cn(HEADING, "mb-3 text-[1.125rem] leading-[1.625rem]")}>
+        <Prose text={ask.question} {...READ_CODE} large />
       </h3>
       <div role="group" aria-labelledby={titleId} className={cn("flex flex-col gap-2", busy && "pointer-events-none opacity-50")}>
         {ask.options.map((_, i) => {
@@ -259,9 +321,8 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
               <span
                 className={cn(
                   // One line of the option tall, code's or words', so the mark sits on the first line's middle
-                  // whether it wraps or not. As wide as the right pick's square, the ring 1px inside it
-                  "grid w-[1.125rem] shrink-0 place-items-center rounded-sm text-[0.75rem] font-act lining-nums tabular-nums",
-                  ask.code ? "h-[1.21875rem]" : "h-[1.375rem]",
+                  // whether it wraps or not: 24 for both now. As wide as the right pick's square, the ring 1px inside it
+                  "grid h-6 w-[1.125rem] shrink-0 place-items-center rounded-sm text-[0.75rem] font-act lining-nums tabular-nums",
                   isRight ? "text-success-foreground" : wrong ? "text-error" : "text-muted-foreground group-hover/opt:text-foreground group-focus-visible/opt:text-foreground"
                 )}
               >
@@ -282,8 +343,9 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
               </span>
               <span className="min-w-0 flex-1">
                 {/* The words' line height on the block as well, or its own taller strut sets the lines apart.
-                    Words that wrap break into even lines, so no word is left alone on the second */}
-                <span className={cn("block leading-[1.375rem]", !ask.code && "text-balance")}>
+                    Words fill the line to the edge: balanced, "An import of Hello" broke early with room to spare.
+                    Words in the lesson's own weight, 320: at 400 the options read denser than the text around them */}
+                <span className={cn("block leading-[1.5rem]", !ask.code && "font-read")}>
                   <OptionText ask={ask} i={i} ruled={wrong} />
                 </span>
                 {wrong && ask.why[i] && (
@@ -293,9 +355,9 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
                     aria-hidden="true"
                     // The reason keeps the option's own left edge and opens on a verdict, so it reads as the
                     // tutor's word on the option, not more of it. A plain string: cn would drop text-caption
-                    className={`${phone ? "mt-2.5" : "mt-2"} block animate-in text-caption text-foreground/80 duration-150 fade-in slide-in-from-top-1 motion-reduce:animate-none`}
+                    className={`${phone ? "mt-2.5" : "mt-2"} block animate-in text-caption leading-5 text-foreground/80 duration-150 fade-in slide-in-from-top-1 motion-reduce:animate-none`}
                   >
-                    <span className="font-medium text-foreground">Not quite.</span> <Prose text={ask.why[i]!} {...READ_CODE} />
+                    <span className="font-medium text-foreground">Not quite.</span> <Prose text={ask.why[i]!} {...READ_CODE} small />
                   </span>
                 )}
               </span>
@@ -319,8 +381,9 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
       )}
       {/* Ghost buttons pulled out by their own padding, so the labels stand on the options' edge. Type
           it myself only where a pick writes code; Hint and Skip are the quieter pair, and Hint goes once
-          it has been given, since the answer stays in the chat above */}
-      <div className="-mx-2.5 mt-3 flex items-center gap-1">
+          it has been given, since the answer stays in the chat above. 20 over the row (27 to the icons),
+          so it sits with the card's bottom edge as its footer rather than halfway between it and the options */}
+      <div className="-mx-2.5 mt-5 flex items-center gap-1">
         {/* A phone has no editor to type in, so it offers no way to: the pick, Hint and Skip are the honest set there */}
         {ask.writes && !phone && (
           <Button variant="ghost" size="sm" className="text-muted-foreground pointer-coarse:h-11" onClick={typeIt}>

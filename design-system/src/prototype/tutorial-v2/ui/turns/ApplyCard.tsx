@@ -63,7 +63,7 @@ export function ApplyCard({ turn }: { turn: ApplyTurn }) {
       <div className="flex h-7 items-center border-b border-border px-3 font-mono text-[0.75rem] text-muted-foreground">
         {turn.file}:{turn.line}
       </div>
-      <div className="bg-surface-well py-1.5 font-mono text-[0.75rem] leading-[1.6]">{shown.map(row)}</div>
+      <div className="bg-surface-well py-1.5 font-mono text-[0.75rem] leading-5">{shown.map(row)}</div>
       <div className="flex items-center gap-2 border-t border-border px-3 py-2">
         <Button variant="outline" size="sm" onClick={() => dispatch({ type: "apply", turn: turn.id })}>
           Apply to {name}

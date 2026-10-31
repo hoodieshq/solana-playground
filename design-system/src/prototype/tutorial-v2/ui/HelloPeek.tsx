@@ -124,13 +124,19 @@ export function HelloSource({ before, className, inline = false, said }: { befor
 }
 
 /** The line the program logged, lit in the terminal's log, with where it came from under it */
-export function HelloLine({ text }: { text: string }) {
+export function HelloLine({ text, inset = false }: { text: string; inset?: boolean }) {
   return (
     <HelloSource
       said={text.replace(/^Program log: /, "")}
       before={
-        // Lit, with a purple edge: your hello, back from the network
-        <div className="relative -mx-4 bg-brand-purple/12 px-4 text-foreground before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-brand-purple">{text}</div>
+        inset ? (
+          // In a result's small well the line is lit as a plate inside it, clear of its edges: run edge to
+          // edge, a band near the panel's own colour cut the well in two and read as a gap through it
+          <div className="-mx-1.5 rounded-[4px] bg-foreground/[0.08] px-1.5 text-foreground">{text}</div>
+        ) : (
+          // Lit, with a purple edge: your hello, back from the network
+          <div className="relative -mx-4 bg-brand-purple/12 px-4 text-foreground before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-brand-purple">{text}</div>
+        )
       }
     />
   )

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { Check, ChevronDown, CircleX, Copy, ExternalLink, Eye } from "lucide-react"
 import { toast } from "sonner"
 
@@ -6,23 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 
-import { CLIENT, DEPLOY_COST, FAUCET_URL, LESSON, LIB, PROGRAM_ID, STEPS, TX_CONFIRMED, TX_FEE, UPGRADE_COST, WALLET, programLog, shortKey, type Tx } from "../../data"
+import { CLIENT, DEPLOY_COST, FAUCET_URL, LESSON, LIB, PROGRAM_ID, STEPS, TX_FEE, WALLET, programLog, shortKey, type Tx } from "../../data"
 import { idlLine } from "../../idl"
 import { useStore, type Turn } from "../../store"
-import { arriving } from "../../tx"
 import { BuildLog } from "../BuildLog"
-import { openExplorer } from "../explorer"
+import { DeployDetails, PlainDetails } from "../DeployDetails"
 import { HelloSource } from "../HelloPeek"
 import { MemoryCard } from "../MemoryCard"
 import { PlayerCard } from "../PlayerCard"
-import { ProgramId } from "../ProgramId"
 import { Prose } from "../Prose"
-import { ACTION, ACTION_FILL, ACTION_SOFT, FOCUS, HEADING, PHONE_CTA, READ, READ_CODE, secs } from "../type"
+import { ACTION, ACTION_FILL, ACTION_SOFT, FOCUS, PHONE_CTA, READ, READ_CODE, secs } from "../type"
 
 type ResultTurn = Extract<Turn, { kind: "result" }>
 
-// Receipts already printed this session: each prints once, as its transaction arrives
-const printed = new Set<number>()
 
 const FROM: Record<NonNullable<ResultTurn["from"]>, string> = { client: "from client.ts", chat: "from the chat", test: "from the Call panel" }
 
@@ -55,35 +51,12 @@ const copy = (text: string, what: string) =>
     .then(() => toast(`${what} copied`))
     .catch(() => toast(`Couldn't copy the ${what.toLowerCase()}`))
 
-/** The transaction's proof under a hairline, last: the signature with Copy and Explorer as icons, then
- * who paid. One line when the card has the room, two when it doesn't. Compute and time wait in the
- * details. It prints in, once, as the transaction comes back */
-function CompactReceipt({ tx, print, phone }: { tx: Tx; print: boolean; phone: boolean }) {
-  // On a phone Copy and Explorer are 44px squares, pulled in by their own padding so the line keeps its height
-  const icon = cn("grid size-6 shrink-0 place-items-center rounded-md hover:bg-surface-hover hover:text-foreground", FOCUS, phone && "-my-2.5 size-11")
-  return (
-    // A plain string, not cn: cn would read text-caption next to the colour as one and drop it
-    <div
-      className={`flex flex-col gap-1 border-t border-border pt-3 text-caption text-muted-foreground @[25rem]:flex-row @[25rem]:items-center @[25rem]:justify-between @[25rem]:gap-3 ${print ? "pg-print" : ""}`}
-    >
-      <div data-print="" style={{ "--i": 0 } as CSSProperties} className="flex min-w-0 items-center gap-1">
-        {/* Muted: the signature is the proof, not the result */}
-        <code title={tx.signature} className="mr-1 min-w-0 truncate font-mono text-[0.75rem]">
-          {shortKey(tx.signature)}
-        </code>
-        <button type="button" aria-label="Copy signature" title="Copy signature" onClick={() => copy(tx.signature, "Signature")} className={icon}>
-          <Copy className="size-3.5" aria-hidden="true" />
-        </button>
-        <button type="button" aria-label="Open in Explorer" title="Open in Explorer" onClick={openExplorer} className={icon}>
-          <ExternalLink className="size-3.5" aria-hidden="true" />
-        </button>
-      </div>
-      <span data-print="" style={{ "--i": 1 } as CSSProperties} className="whitespace-nowrap tabular-nums">
-        fee {TX_FEE} from your wallet
-      </span>
-    </div>
-  )
-}
+/** A status row's words: the title 16/24 at 500, the meta 14/18 in grey, on one baseline. At 20 against
+ * 13, centred, the two read nearly one size and their baselines missed each other. The row centres the
+ * icon on the title's 24px line. Plain strings: cn would drop the sizes next to a colour */
+const STATUS_PAIR = "flex min-w-0 flex-1 items-baseline gap-2"
+const STATUS_TITLE = "shrink-0 font-heading text-[1rem] leading-[1.5rem] font-medium text-foreground"
+const STATUS_META = "min-w-0 truncate text-[0.875rem] leading-[1.125rem] text-muted-foreground"
 
 /** An instruction as the learner wrote it, without its arguments: `hello(name)` is hello */
 const ixName = (tx: Tx) => tx.instruction.replace(/\(.*$/, "")
@@ -119,20 +92,23 @@ function Shell({
   details,
   latest,
   phone,
+  headToggle = false,
 }: {
   icon: ReactNode
   title: string
-  meta: ReactNode
+  meta?: ReactNode
   body?: ReactNode
   details: ReactNode
   latest: boolean
   phone: boolean
+  /** The head opens the details even while the result shows under it, with no foot of its own */
+  headToggle?: boolean
 }) {
   const [open, setOpen] = useState(false)
   // A card showing its result opens its details from the foot, where they appear: a chevron in the
   // head opened the card's far end, past everything between. A folded card, or one with no body,
   // opens right under its head, so there the head is the toggle
-  const foot = latest && !!body
+  const foot = latest && !!body && !headToggle
   const chevron = (
     <ChevronDown
       aria-hidden="true"
@@ -145,8 +121,10 @@ function Shell({
   const status = (
     <>
       {icon}
-      <span className="shrink-0 text-[0.8125rem] font-label text-foreground">{title}</span>
-      <span className="min-w-0 flex-1 truncate text-caption text-muted-foreground">{meta}</span>
+      <span className={STATUS_PAIR}>
+        <span className={STATUS_TITLE}>{title}</span>
+        {meta && <span className={STATUS_META}>{meta}</span>}
+      </span>
     </>
   )
   const row = cn("flex h-9 w-full items-center gap-2 px-3 text-left", phone && "h-11")
@@ -202,21 +180,22 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
   // A failure that's no longer live goes quiet: its head, and the log on request
   // A check of a fix typed by hand opens on the compiler's words: that's what the learner built it for
   const [openFail, setOpenFail] = useState(!!turn.checked)
-  const [print] = useState(() => !!turn.tx && !printed.has(turn.id) && arriving(turn.at) !== null)
-  if (turn.tx) printed.add(turn.id)
 
   const showLog = () => {
     setLog(!log)
     if (!log) dispatch({ type: "terminal", open: true })
   }
-  // `big` is the live failure's head: the card's title, so it reads over the message under it, at the
-  // question card's inset. Every other result keeps the compact status row
+  // `big` is the live failure's head, 48 tall at the question card's inset, so it reads as the card's
+  // head over the message under it. Every other result keeps the compact status row. The words are the
+  // status row's either way: the size of the head is what says it's live
   const head = (icon: ReactNode, title: string, meta: string, extra?: ReactNode, big = false) => (
     <div className={cn("flex items-center gap-2", big ? "h-12 px-4" : "h-9 px-3", phone && !big && "h-11", !turn.ok && "bg-error/[0.08]")}>
       {icon}
-      <span className={cn("shrink-0 text-foreground", big ? HEADING : "text-[0.8125rem] font-label")}>{title}</span>
-      {extra}
-      <span className="min-w-0 truncate text-caption text-muted-foreground">{meta}</span>
+      <span className={STATUS_PAIR}>
+        <span className={STATUS_TITLE}>{title}</span>
+        {extra}
+        <span className={STATUS_META}>{meta}</span>
+      </span>
       <button
         type="button"
         aria-label={log ? "Hide log" : "Show log"}
@@ -254,7 +233,7 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
       <div role="status" className="overflow-hidden rounded-panel border border-error/40 bg-(--card-ground)">
         <div className="flex h-12 items-center gap-2 bg-error/[0.08] px-4">
           <CircleX className="size-4 shrink-0 text-error" />
-          <span className={cn("shrink-0 text-foreground", HEADING)}>Not enough devnet SOL</span>
+          <span className={STATUS_TITLE}>Not enough devnet SOL</span>
         </div>
         <div className="flex flex-col gap-4 border-t border-error/20 px-4 py-4">
           <p className={READ}>
@@ -306,7 +285,9 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
           )}
         </div>
         {(live || openFail) && f && (
-          <div className={cn("flex flex-col gap-4 border-t border-error/20", live ? "px-4 py-4" : "px-3 py-3")}>
+          // Live, 24 between its blocks, as after a listing and before a card's actions elsewhere: at 16 the
+          // compiler's words, the tutor's and the buttons ran together. Folded, it keeps a record's 16
+          <div className={cn("flex flex-col border-t border-error/20", live ? "gap-6 px-4 py-4" : "gap-4 px-3 py-3")}>
             {/* The compiler's words on a red rule, set off as a quote of its output: no well, so its first
                 letter lines up with the message under it instead of sitting a box further in */}
             <div className="border-l-2 border-error/40 pl-3 font-mono text-[0.8125rem] leading-[1.6]">
@@ -370,27 +351,13 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
 
   if (turn.act === "deploy" || turn.act === "buildDeploy")
     return (
+      // One row, as the other successful results: the status and the chevron. Where the program lives,
+      // what it took and the log wait in the details, said in one sentence
       <Shell
         {...shell}
-        // A deploy keeps its program id in view, old or new: it's the address the rest of the lesson uses
-        latest
         icon={ok}
-        title={turn.upgrade ? `Upgraded ${shortKey(PROGRAM_ID)}` : "Deployed"}
-        meta={`${(turn.upgrade ? UPGRADE_COST : DEPLOY_COST).replace(" SOL", " devnet SOL")} from your wallet`}
-        body={
-          turn.upgrade ? (
-            <p className="font-mono text-[0.75rem] text-muted-foreground">{idlLine(turn.src ?? "")}</p>
-          ) : (
-            <ProgramId phone={phone} flat />
-          )
-        }
-        details={
-          <>
-            {timing(`${turn.act === "buildDeploy" ? "Built and " : ""}${turn.upgrade ? "upgraded" : "deployed"} in ${took}`.replace(/^./, (c) => c.toUpperCase()))}
-            <LogHead label="Deploy log" phone={phone} />
-            <BuildLog log={turn.log} bare />
-          </>
-        }
+        title={turn.upgrade ? `Upgraded ${shortKey(PROGRAM_ID)}` : "Deployed to devnet"}
+        details={<DeployDetails log={turn.log} took={took} upgrade={turn.upgrade} built={turn.act === "buildDeploy"} phone={phone} />}
       />
     )
 
@@ -440,46 +407,41 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
   // A transaction: the instruction and where it came from in the head, what came back under it (the
   // account, or what the program said), then the receipt
   const tx = turn.tx
-  // Foreground: the thin mono face in the muted grey read fainter than the words beside it
-  const ix = <code className="font-mono text-[0.875em] text-foreground">{ixName(tx)}</code>
+  // The instruction as meta, grey like the rest of it, mono a pixel under the meta's 14 so it doesn't look bigger
+  const ix = <code className="font-mono text-[13px]">{ixName(tx)}</code>
   const said = !account && tx.said ? `“${tx.said}”` : null
   return (
     <Shell
       {...shell}
       icon={ok}
       title="Confirmed"
-      meta={
-        <>
-          {ix} {latest ? FROM[turn.from ?? "client"] : `· ${summary ?? said ?? FROM[turn.from ?? "client"]}`}
-        </>
-      }
+      // The instruction alone beside Confirmed: "from client.ts" ran it past the card's edge
+      meta={<>{latest ? ix : <>{ix} · {summary ?? said ?? FROM[turn.from ?? "client"]}</>}</>}
+      // What came back stays in view; how it went waits behind the head's chevron, said in one sentence
+      // as the deploy's is, with no foot strip or receipt lines of its own
+      headToggle
       body={
-        <>
-          {account ??
-            (tx.said && (
-              <HelloSource
-                said={tx.said}
-                className="border-l-2 border-success pl-3"
-                before={
-                  <p className="font-mono text-code break-words">
-                    <span className="text-muted-foreground">Program log: </span>
-                    <span className="text-foreground">{tx.said}</span>
-                  </p>
-                }
-              />
-            ))}
-          <CompactReceipt tx={tx} print={print && latest} phone={phone} />
-        </>
+        account ??
+        (tx.said && (
+          <HelloSource
+            said={tx.said}
+            className="border-l-2 border-success pl-3"
+            before={
+              <p className="font-mono text-code break-words">
+                <span className="text-muted-foreground">Program log: </span>
+                <span className="text-foreground">{tx.said}</span>
+              </p>
+            }
+          />
+        ))
       }
       details={
-        <>
-          <p className="text-caption text-muted-foreground tabular-nums">
-            {took && `${turn.from === "client" ? "Ran client.ts" : "Sent"} in ${took} · `}
-            {tx.compute.toLocaleString("en-US")} CU · confirmed in {TX_CONFIRMED}
-          </p>
-          <LogHead label="Program log" phone={phone} />
-          <BuildLog log={programLog(tx)} bare />
-        </>
+        <PlainDetails
+          text={`${turn.from === "client" ? "client.ts" : "The Call panel"} ${took ? `ran in ${took} and ` : ""}called \`${ixName(tx)}\`. It used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} test SOL from your wallet.`}
+          copy={{ label: "Copy signature", value: tx.signature }}
+          log={programLog(tx)}
+          phone={phone}
+        />
       }
     />
   )

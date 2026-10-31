@@ -24,7 +24,7 @@ function span(from: number | null, to: number | null) {
 }
 
 /* The intro card's scale, so the tutorial opens and closes in one voice: the display headline, headings
-   at 16, the reading text at 15 and one grey note at 13. NOTE is joined as a plain string, never
+   at 20, the reading text at 16 and one grey note at 13. NOTE is joined as a plain string, never
    through cn, which would drop text-caption next to a colour */
 const NOTE = "text-caption text-muted-foreground tabular-nums"
 
@@ -60,7 +60,8 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
               about the run. At 8 apart in nearly one grey the last two read as one paragraph, so what came
               back takes the full text colour and the facts sit 16 under it */}
           {/* The reading text's size and face in the full text colour: at READ's 80% it was the note's grey */}
-          <p className="mt-2 font-read text-[0.9375rem] leading-[1.6] text-foreground">
+          {/* 9 under the headline, as under any heading */}
+          <p className="mt-[9px] font-read text-[1rem] leading-[1.5rem] text-foreground">
             <Prose text={LESSON.proofLine(tx, s)} {...READ_CODE} />
           </p>
           <p className={`mt-4 ${NOTE}`}>
@@ -70,12 +71,14 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
         {/* A game's proof is its player, live: the energy ticking back with no transaction */}
         {LESSON.game && <LivePlayer phone={phone} />}
         {LESSON.memory && <LiveBigMemory phone={phone} />}
-        <section aria-labelledby="learned-title">
+        {/* A heading has 30 over it: the column's 24 and 6 of its own. 9 under it, to the list it heads */}
+        <section aria-labelledby="learned-title" className="mt-1.5">
           <h4 id="learned-title" className={HEADING}>
             What you learned
           </h4>
-          {/* The reading text, as the intro's How it goes: the list is the lesson's summary, not a side note */}
-          <LearnedList className="mt-2 gap-1.5 [&>li]:text-[0.9375rem] [&>li]:leading-[1.6] [&>li]:text-foreground/80 [&>li>svg]:mt-[0.3rem]" />
+          {/* The reading text, as the intro's How it goes: the list is the lesson's summary, not a side note.
+              The tick on the first line's middle: (24 - 16) / 2 */}
+          <LearnedList className="mt-[9px] gap-1.5 [&>li]:text-[1rem] [&>li]:leading-[1.5rem] [&>li]:text-foreground/80 [&>li>svg]:mt-1" />
         </section>
         {/* One way on, filled, and one way back beside it, as Claude Code pairs them */}
         <div className={cn("flex gap-2", phone ? "flex-col items-stretch" : "flex-wrap")}>

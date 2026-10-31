@@ -15,7 +15,8 @@ const said = (line: string) => line.startsWith("Program log: ") && !line.startsW
  * `wrapErrors` lets the compiler's `error[...]` line wrap, for a phone, where it would run far past the edge.
  * `wrap` wraps every line, for the phone's terminal, where a program id cut at the edge can't be read.
  * `bare` is the log inside a card's details: no well, smaller, every line wrapped under a hanging
- * indent, and msg! lines lit without a second peek (the card has one) */
+ * indent, and msg! lines lit without a second peek (the card has one).
+ * `inset` lights a msg! line as a plate inside a small well rather than a band across it */
 export function BuildLog({
   log,
   empty = "Nothing built yet. The build runs after you apply a patch.",
@@ -25,6 +26,7 @@ export function BuildLog({
   wrapErrors = false,
   wrap = false,
   bare = false,
+  inset = false,
   className,
 }: {
   log: string[]
@@ -35,6 +37,7 @@ export function BuildLog({
   wrapErrors?: boolean
   wrap?: boolean
   bare?: boolean
+  inset?: boolean
   className?: string
 }) {
   if (log.length === 0) return <p className="flex-1 px-4 py-6 text-caption text-muted-foreground">{empty}</p>
@@ -69,7 +72,7 @@ export function BuildLog({
               {line}
             </div>
           ) : (
-            <HelloLine key={i} text={line} />
+            <HelloLine key={i} text={line} inset={inset} />
           )
         const to = onJump && line.match(POINTER)
         return to ? (

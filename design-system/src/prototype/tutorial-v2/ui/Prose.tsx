@@ -5,6 +5,9 @@ import type { ReactNode } from "react"
 // brackets and address never flash on screen
 const LINK = /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s`]*[^\s`.,;:!?)])|(?<!#)\[([^\]]*)\]?\(?[^)\s]*$/
 
+/** The code chip's ground: darker than the surface under it, with a 1px ring inside */
+export const CHIP = "bg-black/35 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.18)]"
+
 const linkClass =
   "text-foreground underline decoration-foreground/40 underline-offset-[3px] transition-colors hover:decoration-foreground"
 
@@ -36,27 +39,54 @@ function words(text: string, key: string): ReactNode[] {
   return out
 }
 
-/** Text with `ticks` around code. No colour of its own, as on GitHub: the chip is a 10%
- * white fill over whatever it sits on, so it shows on any dark surface. SF Mono's lowercase
- * stands as tall as Stack Sans's (0.55 and 0.56 of the size), so at 87.5% the code's x height sits
- * close to the text's (13 in 15) without its wide letters taking over, and a lighter 350 matches the
- * text's 320 in colour. 0.8em read a size too small. The padding only keeps the glyphs off the
- * ground's edge: before a period or a comma the chip gives a little of it back, or "hello ." reads
- * as a spaced stop (3.3px from the glyph, not 5.5). A word joiner keeps #[
- * together in plain text too. Links are written as [words](address). `ink` is the code's colour:
- * near white by default, the text's own where it shouldn't outshine the headings, as in the lesson */
-export function Prose({ text, chip = "bg-foreground/10", ink = "text-foreground" }: { text: string; chip?: string; ink?: string }) {
-  const parts: ReactNode[] = text.split("`").map((part, i, all) =>
-    i % 2 ? (
+/** Text with `ticks` around code, and links written as [words](address). A word joiner keeps #[
+ * together in plain text too.
+ *
+ * The chip, as in Practicum's lessons: a ground darker than whatever it sits on, ringed by a faint white
+ * line drawn as an inset shadow so it adds no size, with no colour of its own. `ink` is the code's colour:
+ * near white by default, the text's own where it shouldn't outshine the headings, as in the lesson.
+ * Its sizes are whole pixels, not a share of the text, so it is the same in a 16px line and in the quiz's
+ * 18 (at .875em it came out 15.75 in a question and 11.4 in a note). SF Mono at 14 sets its x height
+ * close to the text's (7.7 against 9), and weight 350 matches the text's 320 in colour.
+ * It is an inline block on a 16px line, so its height is exact: inline, SF Mono's 16.5 content box made
+ * it 23.5. Default is 3 above and 3 below and 4 a side, 22 tall, a balance of two centres: even over the
+ * text's capitals and under its baseline, code like system_program (no capitals) sat low in its chip and
+ * a j's tail all but touched the ring; 3 and 3 give the tail 3.6. `large` is for the quiz's 18px
+ * question, whose capitals stand higher: 5 above and 2 below, 23 tall. `small` is 12 on 16 with 1 above
+ * and 2 below, 19 tall, for the 13px and 14px notes on a 20 line. Practicum's 8 a side made a chip of
+ * one short word read as a button.
+ *
+ * A stop right after the chip is glued to it in one unbreakable run: an inline block lets the line break
+ * after it, and ". It used" started the next line with its period. The chip keeps 2px clear of the stop,
+ * which pulled in stuck to the ring */
+export function Prose({ text, chip = CHIP, ink = "text-foreground", small = false, large = false }: { text: string; chip?: string; ink?: string; small?: boolean; large?: boolean }) {
+  const all = text.split("`")
+  const parts: ReactNode[] = []
+  for (let i = 0; i < all.length; i++) {
+    if (i % 2 === 0) {
+      parts.push(...words(all[i], String(i)))
+      continue
+    }
+    const stop = (all[i + 1] ?? "").match(/^[.,;:!?)\]]+/)?.[0] ?? ""
+    const code = (
       <code
         key={i}
-        className={`rounded-[5px] ${chip} px-[0.25em] py-[0.1em] font-mono text-[0.875em] font-[350] whitespace-nowrap ${ink} ${/^[.,;:!?)\]]/.test(all[i + 1] ?? "") ? "-mr-[0.07em]" : ""}`}
+        className={`inline-block rounded-[4px] ${chip} ${small ? "px-[3px] pt-px pb-[2px] font-mono text-[12px] leading-4" : large ? "px-1 pt-[5px] pb-[2px] font-mono text-[14px] leading-4" : "px-1 pt-[3px] pb-[3px] font-mono text-[14px] leading-4"} font-[350] whitespace-nowrap ${ink} ${stop ? "mr-[2px]" : ""}`}
       >
-        {part}
+        {all[i]}
       </code>
-    ) : (
-      words(part, String(i))
     )
-  )
+    if (!stop) {
+      parts.push(code)
+      continue
+    }
+    parts.push(
+      <span key={`${i}-stop`} className="whitespace-nowrap">
+        {code}
+        {stop}
+      </span>
+    )
+    all[i + 1] = all[i + 1].slice(stop.length)
+  }
   return <>{parts}</>
 }

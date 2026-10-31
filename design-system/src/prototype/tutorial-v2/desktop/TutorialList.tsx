@@ -6,8 +6,9 @@ import { cn } from "@/lib/utils"
 
 import { useOpenTutorial, useProgress } from "../host"
 import { LESSONS } from "../lessons"
-import { FRAMEWORKS, byLevel, productMeta, shownName, upstreamName, type Entry, type FrameworkFilter } from "../ui/catalog"
+import { FRAMEWORKS, byLevel, shownName, upstreamName, type Entry, type FrameworkFilter } from "../ui/catalog"
 import { NAV_ICONS } from "../ui/navIcons"
+import { PixelCover, hasPixelCover } from "../ui/PixelCover"
 import { TutorialCover } from "../ui/TutorialCover"
 
 /* The desktop tutorials list, as client-v2's tutorials page draws it (views/flow/gallery/TutorialsTab.tsx
@@ -107,32 +108,55 @@ function Card({ t }: { t: Entry }) {
   const press = () => open(t.slug)
 
   return (
-    <div className="group/card relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-panel border border-border bg-surface-panel p-3.5 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none">
-      <TutorialCover name={upstreamName(t)} framework={t.framework} className="h-[2.625rem] w-14 rounded-lg" />
+    // 16 at the sides and 16 above and below: every vertical gap in the card is four fifths of what it was
+    // (20, 6 and 12), so it reads as compact as the list wants without changing its proportions. Its rows
+    // keep to the top: a card stretched to its neighbour's height shared the extra between them and pushed
+    // the description 10 further down
+    <div className="group/card relative grid grid-cols-[auto_minmax(0,1fr)_auto] content-start items-start gap-x-3.5 rounded-panel border border-border bg-surface-panel px-4 py-4 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] motion-reduce:transition-none">
+      {/* Laid out as Claude's connector cards: a 44 square at the top of the text, its top on the head's,
+          and all the words in one column beside it. The cover takes both rows, so the description keeps to
+          the text's edge instead of running under it. A pixel cover is drawn to whole pixels at 56 by
+          42 and has no 44 square in it, so the picture sits whole in a 44 frame, its sides cropped, with the
+          1px left over above filled in its sky and below in its ground, the colours of its own edge rows */}
+      {hasPixelCover(t.slug) ? (
+        <span
+          aria-hidden="true"
+          className="relative row-span-2 size-11 shrink-0 overflow-hidden rounded-[9px] bg-[linear-gradient(#b8a6f5_50%,#101011_50%)]"
+        >
+          <PixelCover slug={t.slug} className="absolute top-px -left-1.5" />
+        </span>
+      ) : (
+        <TutorialCover name={upstreamName(t)} framework={t.framework} className="row-span-2 size-11 rounded-[9px]" />
+      )}
+      {/* Set as the Continue banner over the list is: a word in regular grey, the name in the headline face
+          at regular weight and tight tracking, then what it teaches in the text's 78%. All of it about seven
+          eighths of the banner's (12, 18 and 13 against 13, 24 and 15), so a card reads as a list item, not
+          a second banner */}
       <div className="min-w-0">
-        <div className="line-clamp-1 text-[0.9375rem] leading-5 font-medium text-foreground">
+        {/* The framework alone: the author and the progress beside it made the line a list of facts */}
+        <p className="text-[0.75rem] leading-4 text-muted-foreground">{t.framework}</p>
+        <h3 className="mt-1 line-clamp-2 font-heading text-[1.125rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
           {name}
-          {/* How far a lesson under way is, beside its name */}
+          {/* How far a lesson under way is, beside its name, a tier under it */}
           {started && done > 0 && (
-            <span className="ml-2 inline-flex items-center align-middle text-[0.75rem] font-normal text-muted-foreground tabular-nums">
+            <span className="ml-2 align-baseline font-sans text-[0.75rem] leading-none tracking-normal text-muted-foreground tabular-nums">
               {done} of {steps}
             </span>
           )}
-        </div>
-        <p className="mt-0.5 line-clamp-2 text-[0.8125rem] leading-[1.125rem] font-[350] text-muted-foreground">{t.description}</p>
-        <p className="mt-2 text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">{productMeta(t)}</p>
+        </h3>
       </div>
       <button
         type="button"
         onClick={press}
         aria-label={finished ? `${name} completed. Open it` : `${started ? "Continue" : "Open"} ${name}`}
         className={cn(
-          "flex size-8 items-center justify-center rounded-lg after:absolute after:inset-0 after:rounded-panel after:content-['']",
+          "flex size-7 items-center justify-center rounded-lg after:absolute after:inset-0 after:rounded-panel after:content-['']",
           FOCUS,
-          // The arrow at rest a step under the card's meta line, so the names lead; it lights with the card
+          // A 28 square under the arrow, as the action on Claude's connector cards, a shade paler than
+          // theirs so it doesn't pull from the name; the arrow and the square light with the card
           finished
             ? "bg-brand-green/12 text-brand-green"
-            : "bg-surface-hover text-muted-foreground/70 transition-colors duration-100 group-hover/card:text-foreground focus-visible:text-foreground motion-reduce:transition-none"
+            : "bg-foreground/[0.06] text-muted-foreground/70 transition-colors duration-100 group-hover/card:bg-foreground/[0.1] group-hover/card:text-foreground focus-visible:text-foreground motion-reduce:transition-none"
         )}
       >
         {finished ? (
@@ -145,6 +169,12 @@ function Card({ t }: { t: Entry }) {
           </svg>
         )}
       </button>
+      {/* What it teaches, under the name in the text's column and on under the arrow too, which only the
+          head row needs: between the cover and the arrow it had 180px on a phone and broke after three words.
+          6 under the name. Lines fill to the edge, plain wrapping: balanced, a line broke in half at the
+          card's width, and pretty pulled a second word down to keep "framework." company, leaving the first
+          line short with room beside it */}
+      <p className="col-span-2 col-start-2 mt-1.5 line-clamp-2 text-[0.8125rem] leading-[1.4] text-foreground/78">{t.description}</p>
     </div>
   )
 }
@@ -163,12 +193,16 @@ export function TutorialLevels({ list, searching }: { list: Entry[]; searching: 
         const id = `level-${g.level.toLowerCase()}`
         return (
           <section key={g.level} aria-labelledby={id}>
-            <div className="mb-2.5 flex min-h-9 items-center gap-2">
-              {/* A section's name at reading size: one step over the cards' names */}
-              <h2 id={id} className="text-[1rem] leading-5 font-medium text-foreground">
+            <div className="mb-2.5 flex min-h-9 items-baseline gap-2">
+              {/* A step under the banner's lesson name and over the cards': page 28, banner 24, section 20,
+                  card 18. At 24 and 500 it stood as tall as the banner and nearly as the page's title */}
+              <h2 id={id} className="font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground">
                 {g.level}
               </h2>
-              <span className="rounded-full bg-surface-hover px-2 text-[0.75rem] leading-5 text-muted-foreground tabular-nums">{g.items.length}</span>
+              {/* The count as most lists set one beside a group's name (Linear, Plane, hilos, Evernote): plain text,
+                  no pill, regular weight in a quiet grey, on the heading's baseline, and a step under a large
+                  heading. 16 against 20: at 14 it read as a footnote, at 20 it took as much eye as the word */}
+              <span className="text-[1rem] text-subtle tabular-nums">{g.items.length}</span>
               {/* Opens in place, so it points down, not on to another page */}
               {more && (
                 <button

@@ -129,6 +129,13 @@ a[href] {
     transform: translate3d(0, -0.25rem, 0);
   }
 }
+/* A new turn's arrival with reduced motion: the rise's fade without its lift (Conversation's Rise) */
+@keyframes pg-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pg-print [data-print] {
     animation: none;

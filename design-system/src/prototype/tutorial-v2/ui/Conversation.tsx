@@ -44,6 +44,18 @@ function groups(thread: Turn[]): Group[] {
   return out
 }
 
+/** Whether a turn stands 24 off the one before it in a reply, as text does after a listing. A listing
+ * or a quoted line closes its text; a card closes its own, so text resuming after one starts a new
+ * thought. Text into a card, and cards stacked as records, keep the reply's 15 */
+const afterBlock = (prev: Turn | undefined, t: Turn) => {
+  if (!prev) return false
+  // An open quiz keeps its own 40 above (AskCard), counted from the 15
+  if (t.kind === "ask" && t.done === null) return false
+  if (prev.kind === "wrote") return true
+  if (prev.kind === "say") return !!prev.quote && !prev.follow
+  return t.kind === "say"
+}
+
 /** One turn's box. Whether it's new is read once, as it mounts, so a render a moment later doesn't
  * cut its rise or its typing short */
 function Rise({ turn, className, children }: { turn: Turn; className?: string; children: (fresh: boolean) => ReactNode }) {
@@ -51,7 +63,9 @@ function Rise({ turn, className, children }: { turn: Turn; className?: string; c
   useEffect(() => {
     shown.add(turn.id)
   }, [turn.id])
-  return <div className={cn(className, fresh && "animate-rise motion-reduce:animate-none")}>{children(fresh)}</div>
+  // With reduced motion a new turn still fades in, only nothing moves and nothing types: shown whole at
+  // once, a reply landed with no sign it was new, and a fade is no motion to anyone who asked for less
+  return <div className={cn(className, fresh && "animate-rise motion-reduce:animate-[pg-fade_240ms_var(--ease-out-value)_both]")}>{children(fresh)}</div>
 }
 
 /** The live card: the last one, since a finish stays live above a later nudge */
@@ -89,7 +103,7 @@ function glide(el: HTMLElement, top: number) {
 /** How far up the learner may read before the feed stops following new turns */
 const FOLLOW_PX = 120
 
-/** A step the bar asked to show: its divider lands 12px under the bar and lights once */
+/** A step the bar asked to show: its heading lands 22px under the feed's top, as the first one sits and lights once */
 export type Jump = { step: number; n: number } | null
 
 /** The conversation, which is the lesson: the intro, a divider per step and the assistant's turns
@@ -213,7 +227,8 @@ export function Conversation({
     if (!jump || !el) return
     const anchor = el.querySelector<HTMLElement>(`[data-step-anchor="${jump.step}"]`)
     if (!anchor) return
-    const top = anchor.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12
+    // The feed's own top padding, so a jumped to heading sits where the first one does on load
+    const top = anchor.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 22
     near.current = false
     glide(el, top)
     anchor.classList.remove("pg-anchor-flash")
@@ -309,7 +324,7 @@ export function Conversation({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <div ref={scroller} data-feed data-feed-scroller className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-3.5 pb-3", className)}>
+      <div ref={scroller} data-feed data-feed-scroller className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-[22px] pb-3", className)}>
         <div ref={content} role="log" aria-live="polite" aria-label="Conversation" className="flex flex-col gap-6">
           {groups(feed).map((g) =>
             g.kind === "you" ? (
@@ -317,15 +332,20 @@ export function Conversation({
                 {() => g.turn.kind === "you" && <YouPill text={g.turn.text} code={g.turn.code} />}
               </Rise>
             ) : g.kind === "anchor" ? (
-              // A step's heading belongs to the text under it: the 12 inside a reply, not the 24 between turns
-              // On the phone 8: the reading text's own leading already adds about 5 above its first line
-              <Rise key={g.turn.id} turn={g.turn} className={cn(phone ? "-mb-4" : "-mb-3", g.turn.step > 0 && "mt-4")}>
+              // A step's heading belongs to the text under it, as Practicum's do: 30 above, 9 under,
+              // where the turns around it stand 24 apart
+              <Rise key={g.turn.id} turn={g.turn} className={cn("-mb-[15px]", g.turn.step > 0 && "mt-1.5")}>
                 {() => <StepDivider step={g.turn.step} />}
               </Rise>
             ) : (
-              <div key={g.turns[0].id} className="flex flex-col gap-3">
-                {g.turns.map((t) => (
-                  <Rise key={t.id} turn={t}>
+              // Paragraph to paragraph 15, Practicum's rhythm at 400px
+              <div key={g.turns[0].id} className="flex flex-col gap-[15px]">
+                {/* A file the assistant wrote out is the reply's listing: 9 under the text it follows, 24 over
+                    what comes after it, as Practicum sets its code blocks. A quote or a card closes its text
+                    the same way: at 15 a card under a quote read as stacked on it, and text after a card as
+                    a caption to it */}
+                {g.turns.map((t, i) => (
+                  <Rise key={t.id} turn={t} className={cn(t.kind === "wrote" && i > 0 && "-mt-1.5", afterBlock(g.turns[i - 1], t) && "mt-[9px]")}>
                     {(fresh) => render(t, fresh)}
                   </Rise>
                 ))}

@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react"
-import { Check, CircleX, ExternalLink, Play, Send } from "lucide-react"
+import { Check, CircleX, Play, Send } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { CopyButton } from "@/components/ui/copy-button"
@@ -9,12 +9,12 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tag } from "@/components/ui/tag"
 import { cn } from "@/lib/utils"
 
-import { LESSON, NAME_MAX, TX_FEE } from "../data"
+import { LESSON, NAME_MAX, TX_FEE, programLog } from "../data"
 import { idlOf, signature } from "../idl"
 import { useStore, type Turn } from "../store"
 import { arriving } from "../tx"
 import { highlight } from "./CodeView"
-import { openExplorer } from "./explorer"
+import { PlainDetails } from "./DeployDetails"
 import { HelloSource } from "./HelloPeek"
 import { MemoryCard } from "./MemoryCard"
 import { LivePlayer } from "./PlayerCard"
@@ -62,9 +62,9 @@ function IdlView({ json, phone }: { json: string; phone: boolean }) {
 }
 
 /** The account under the program's words, Lumberjack's player or Zero Copy's map: the log's well
- * exactly, with no border at all, a step under it. One answer, not two components; a border, even a
- * transparent one, set its text a pixel in from the log's and read as a mistake */
-const UNDER_LOG = "mt-1 border-0"
+ * exactly, with no border at all, 4 under it (the answer's own gap). One answer, not two components; a
+ * border, even a transparent one, set its text a pixel in from the log's and read as a mistake */
+const UNDER_LOG = "border-0"
 
 /** The map a memory lesson's call acted on, as it is now: the board has no card, the map shows its
  * size, the zero copy map its size and what was painted in it */
@@ -98,14 +98,19 @@ function CallResponse({ result, sending, phone }: { result: ResultTurn | undefin
   return result?.tx ? <Confirmed key={result.id} turn={result} phone={phone} /> : null
 }
 
-/** A confirmed call in two lines: the status with who paid and the way to Explorer, then the program's
- * words on a well with the line of lib.rs they came from beside them. Time, compute units, the fee in
- * lamports and the signature are the terminal's: a learner can't act on them here. It prints in as the
- * transaction arrives, as the chat's receipt does, and is simply there when you come back to it */
+/** A finished call, set as the chat's result cards are, so a result reads the same wherever it shows:
+ * the status, then what came back (the account the call acted on,
+ * what the program said, or its error), then how it went in one sentence with one row of quiet controls
+ * under it (Copy signature, Explorer, the log). Explorer used to sit at the status line's end in the grey
+ * of the fee beside it, and read as more of that note rather than a way out. The bare "Program log:
+ * Instruction: …" line is left to the log when an account answers: it only named the call again. It
+ * prints in as the transaction arrives, as the chat's receipt did, and is simply there when you come back */
 function Confirmed({ turn, phone }: { turn: ResultTurn; phone: boolean }) {
   const tx = turn.tx!
   const [print] = useState(() => arriving(turn.at) !== null)
   const row = (i: number) => ({ "data-print": "", style: { "--i": i } as CSSProperties })
+  // The account shows on a refusal too: "not enough energy" reads best beside the empty meter
+  const account = LESSON.game ? <LivePlayer phone={phone} className="border-0" /> : LESSON.memory ? <PanelMemory ix={tx.instruction} /> : null
   // A game's call can fail on purpose: the program's own error, by name, is the answer
   const words = tx.error
     ? tx.error.number
@@ -115,49 +120,41 @@ function Confirmed({ turn, phone }: { turn: ResultTurn; phone: boolean }) {
       ? `Program log: ${tx.said}`
       : `Program log: Instruction: ${tx.instruction.replace(/(^|_)(\w)/g, (_, __, c: string) => c.toUpperCase())}`
   return (
-    <div className={cn("flex flex-col gap-2", print && "pg-print")}>
-      {/* On the baseline, so the 13px words sit on the status's line rather than centred against it */}
-      <div {...row(0)} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        {tx.error ? (
-          <CircleX className="size-4 shrink-0 self-center text-error" aria-hidden="true" />
-        ) : (
-          <Check className="size-4 shrink-0 self-center text-success" aria-hidden="true" />
-        )}
-        <span className="font-heading text-[0.9375rem] font-medium text-foreground">{tx.error ? "Failed" : "Confirmed"}</span>
-        {!phone && <span className={NOTE}>· Fee {TX_FEE} from your wallet</span>}
-        {/* Reaching past the line by its own padding on a phone, so the link is a thumb's height. There it
-            stands at the row's far end, and who paid takes a line of its own under the status: the three
-            didn't fit one row and left a dot hanging */}
-        <button
-          type="button"
-          onClick={openExplorer}
-          title={tx.signature}
-          className={`ml-auto flex items-center gap-1 self-center hover:text-foreground ${NOTE}${phone ? " -my-3 min-h-11 py-3" : ""}`}
-        >
-          Explorer
-          <ExternalLink className="size-3" aria-hidden="true" />
-        </button>
+    <div className={cn("flex flex-col gap-3", print && "pg-print")}>
+      {/* The status row of the chat's cards, 16/24 at 500. No instruction beside it: the request right
+          above already names the call, and here it was its fifth mention on one sheet */}
+      <div {...row(0)} className="flex items-center gap-2">
+        {tx.error ? <CircleX className="size-4 shrink-0 text-error" aria-hidden="true" /> : <Check className="size-4 shrink-0 text-success" aria-hidden="true" />}
+        <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{tx.error ? "Failed" : "Confirmed"}</span>
       </div>
-      {phone && <p className={`-mt-2 pl-6 ${NOTE}`}>Fee {TX_FEE} from your wallet</p>}
-      {/* No border: the fill sets the line apart, and the source sits on it, beside the words it explains */}
-      {tx.said ? (
-        <HelloSource
-          said={tx.said}
-          inline
-          className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-control bg-surface-well px-3 py-2.5"
-          before={
-            <p {...row(1)} className="min-w-0 font-mono text-code break-words text-foreground">
-              {words}
-            </p>
-          }
+      {/* What came back. No border: the fill sets the program's words apart, and the source of a msg! line
+          sits beside the words it explains */}
+      <div {...row(1)} className="flex flex-col gap-1">
+        {tx.said ? (
+          <HelloSource
+            said={tx.said}
+            inline
+            className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-control bg-surface-well px-3 py-2.5"
+            before={<p className="min-w-0 font-mono text-code break-words text-foreground">{words}</p>}
+          />
+        ) : (
+          (tx.error || !account) && (
+            <p className={`rounded-control bg-surface-well px-3 py-2.5 font-mono text-code break-words ${tx.error ? "text-error" : "text-foreground"}`}>{words}</p>
+          )
+        )}
+        {account}
+      </div>
+      <div {...row(2)}>
+        {/* The cost in the controls' own size and grey, one quiet group with them: at reading size it was
+            the loudest text on the sheet for the least of what it says */}
+        <PlainDetails
+          quiet
+          text={`The call used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} test SOL from your wallet.`}
+          copy={{ label: "Copy signature", value: tx.signature }}
+          log={programLog(tx)}
+          phone={phone}
         />
-      ) : (
-        <p {...row(1)} className={`rounded-control bg-surface-well px-3 py-2.5 font-mono text-code break-words ${tx.error ? "text-error" : "text-foreground"}`}>
-          {words}
-        </p>
-      )}
-      {LESSON.game && <LivePlayer phone={phone} className={UNDER_LOG} />}
-      {LESSON.memory && <PanelMemory ix={tx.instruction} />}
+      </div>
     </div>
   )
 }
@@ -234,7 +231,15 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
   const method = ix.name.replace(/_(\w)/g, (_, c: string) => c.toUpperCase())
   const line = `pg.program.methods.${method}(${args.map((a) => a.name).join(", ")}).rpc()`
   const callButton = (
-    <Button disabled={busy || empty || made} onClick={send} className={cn(ACTION, ACTION_FILL, phone && "h-12 w-full pointer-coarse:h-12")}>
+    // On a phone a call that can't go is a faint fill with dim words: grey at full strength it drew more
+    // eye than the answer above it, and an outline read as a live second action. The reason over it is
+    // read with it
+    <Button
+      disabled={busy || empty || made}
+      onClick={send}
+      aria-describedby={made ? "call-note" : undefined}
+      className={cn(ACTION, ACTION_FILL, phone && "h-12 w-full pointer-coarse:h-12", phone && made && "border-0 bg-foreground/[0.06] text-foreground/40 disabled:opacity-100")}
+    >
       {sending ? <Spinner /> : <Play className="size-3 fill-current" />}
       {sending ? "Calling" : `Call ${ix.name}`}
     </Button>
@@ -280,7 +285,12 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
         role="tabpanel"
         id="call-panel"
         aria-labelledby={`call-tab-${view}`}
-        className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain", phone && view === "idl" && "pb-[max(var(--safe-bottom),16px)]")}
+        // On a phone the bands fade out under Form | IDL instead of being cut at its edge
+        className={cn(
+          "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain",
+          phone && "[mask-image:linear-gradient(to_bottom,transparent,#000_12px)]",
+          phone && view === "idl" && "pb-[max(var(--safe-bottom),16px)]"
+        )}
       >
         {view === "idl" ? (
           <div className={cn("flex min-h-0 flex-1 flex-col gap-2.5 py-4", pad)}>
@@ -290,9 +300,11 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
           </div>
         ) : (
           // One rhythm: 4 in the heading, 8 inside a unit, 16 between rows, 24 between the request's
-          // groups, 32 between request and response. Two sizes: 15 for the heading and the button, 13 for
-          // all else, the picker included, so nothing that only chooses is louder than what it chose
-          <div className={cn("flex flex-col gap-8 pt-4 pb-8", pad)}>
+          // groups, 32 between request and response (24 on a phone, where 32 and the 44 down to the pinned
+          // button left the sheet in loose bands; there 16 under the last line, then the foot's hairline).
+          // Two sizes: 15 for the heading and the button, 13 for all else, the picker included, so
+          // nothing that only chooses is louder than what it chose
+          <div className={cn("flex flex-col", phone ? "gap-6 pt-4 pb-4" : "gap-8 pt-4 pb-8", pad)}>
             <section aria-label="Request" className={`flex flex-col gap-4 ${CAP}`}>
               {/* Several instructions: one at a time, picked here, as Explorer lists them */}
               {idl.instructions.length > 1 && (
@@ -322,18 +334,31 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
               {/* The signature is the request's heading, with the program it belongs to, and under it the
                   same call as client.ts writes it: it describes the call, so it sits with it, not under
                   the button as fine print. The empty parens already say there are no arguments */}
-              <div className="mb-2 flex flex-col gap-1">
-                <h3 className="font-mono text-[0.9375rem] leading-[1.35] font-medium break-words">
+              {/* On the phone the request is one object in a quiet well, so it reads as what you send and the
+                  answer under it, on the bare sheet, as what came back. Loose on the sheet, the signature, its
+                  label and the line ran into the result in one column of mono */}
+              <div className={cn("flex flex-col", phone ? "gap-2 rounded-[12px] bg-foreground/[0.04] p-3" : "mb-2 gap-1")}>
+                <h3 className={cn("font-mono font-medium break-words", phone ? "text-[0.875rem] leading-5" : "text-[0.9375rem] leading-[1.35]")}>
                   <span className="font-normal text-muted-foreground">{LESSON.program}.</span>
-                  <span className="text-syntax-function">{ix.name}</span>
+                  {/* No syntax colour on the phone: a green name at the top competed with the result's green check */}
+                  <span className={phone ? "text-foreground" : "text-syntax-function"}>{ix.name}</span>
                   <span className="text-foreground">{signature(args)}</span>
                 </h3>
                 {phone ? (
-                  // Two lines on purpose on a narrow sheet: a label, then the line itself in the code face. As one
-                  // sentence the chip broke off onto its own line anyway, in a third style
-                  <div className="flex flex-col gap-0.5">
-                    <p className={NOTE}>In code</p>
-                    <code className="font-mono text-code break-all text-muted-foreground">{line}</code>
+                  // Two lines on purpose on a narrow sheet: a label, then the line itself in the code face, under a
+                  // hairline that keeps them apart from the signature they explain
+                  <div className="flex flex-col gap-0.5 border-t border-border pt-2">
+                    <p className="text-[0.75rem] leading-4 text-muted-foreground">In code</p>
+                    {/* It breaks after a dot, never inside a name: anywhere left ".rpc(" on one line and ")" alone on the next */}
+                    <code className="font-mono text-[0.8125rem] leading-5 break-words text-foreground/60">
+                      {line.split(".").map((part, i) => (
+                        <span key={i}>
+                          {i > 0 && "."}
+                          {i > 0 && <wbr />}
+                          {part}
+                        </span>
+                      ))}
+                    </code>
                   </div>
                 ) : (
                   // The line itself in the code face, no chip: a chip read as a field, brighter than the real ones
@@ -381,10 +406,10 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
               {/* Why the call can't go, right over the button it keeps off: one unit, 24 under the fields. The
                   button on the same left edge as the call it sends, and nothing under it. On the phone it
                   stands at the sheet's foot instead, under the thumb (below) */}
-              {(made || !phone) && (
+              {!phone && (
                 <div className="mt-2 flex flex-col items-start gap-2">
                   {made && (
-                    <p className={`${NOTE} max-w-[64ch]`}>
+                    <p id="call-note" className={`${NOTE} max-w-[64ch]`}>
                       <Prose text={note ?? ""} {...READ_CODE} />
                     </p>
                   )}
@@ -409,7 +434,19 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
         )}
       </div>
       {/* The phone's Call at the sheet's foot, as Start is at the screen's: what came back shows above it */}
-      {phone && view === "form" && <div className="shrink-0 px-4 pt-3 pb-[max(var(--safe-bottom),16px)]">{callButton}</div>}
+      {/* Why the call can't go stands right over the button it keeps off, at the foot with it: up in the
+          request it was a whole answer away from the button it explained */}
+      {/* A hairline sets the pinned foot off from what scrolls, so the reason doesn't run on from the result */}
+      {phone && view === "form" && (
+        <div className="flex shrink-0 flex-col gap-2 border-t border-border px-4 pt-3 pb-[max(var(--safe-bottom),16px)]">
+          {made && (
+            <p id="call-note" className={`${NOTE} leading-5`}>
+              <Prose text={note ?? ""} {...READ_CODE} small />
+            </p>
+          )}
+          {callButton}
+        </div>
+      )}
     </div>
   )
 }

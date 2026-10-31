@@ -45,7 +45,7 @@ export function WinCard({ turn, phone = false }: { turn: WinTurn; phone?: boolea
       <div className="flex h-9 items-center gap-2 rounded-control border border-border bg-(--card-ground) px-3 text-caption">
         <Check className="size-3.5 shrink-0 text-success" aria-hidden="true" />
         <span className="min-w-0 truncate text-muted-foreground">
-          <span className="text-foreground">Step {turn.step + 1} done</span> · {win.headline.replace(/\.$/, "")}
+          <span className="text-foreground">Step {turn.step + 1} done</span> · {win.headline}
         </span>
         <span className="ml-auto shrink-0 text-subtle tabular-nums">{took(turn.took)}</span>
       </div>
@@ -57,12 +57,16 @@ export function WinCard({ turn, phone = false }: { turn: WinTurn; phone?: boolea
   return (
     <section data-live-card aria-label={`Step ${turn.step + 1} done`} className="animate-pop py-6">
       <PassMark className="size-8 text-success" />
-      <h3 className="mt-3 font-heading text-display text-foreground">{win.headline}</h3>
-      <p className={`mt-2 ${READ}`}>
+      {/* 16 under the mark, a step more than the 9 from the headline to its line, so mark, headline and
+          line read as one group top down. A heading carries no full stop, whatever the lesson wrote */}
+      <h3 className="mt-4 font-heading text-display text-foreground">{win.headline}</h3>
+      {/* 9 under the headline, as under any heading, so the line reads as its own; the actions 24 under
+          it, the beat the intro card and the build failure keep before theirs */}
+      <p className={`mt-[9px] ${READ}`}>
         <Prose text={viaTest && step.testWin ? step.testWin : win.line} {...READ_CODE} />
       </p>
       {(next || openCall || (viaTest && openAsk)) && (
-        <div className={cn("mt-5 flex gap-2", phone ? "mt-6 flex-col items-stretch" : "flex-wrap items-center")}>
+        <div className={cn("mt-6 flex gap-2", phone ? "flex-col items-stretch" : "flex-wrap items-center")}>
           {next && (
             <Button className={cn(ACTION, ACTION_FILL, phone && PHONE_CTA)} onClick={() => dispatch({ type: "next" })}>
               Next: {next.title}

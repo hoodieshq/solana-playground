@@ -15,26 +15,37 @@ import { StepBar } from "../ui/StepBar"
 import { Column } from "./Column"
 import { SHORTCUTS } from "./keys"
 
-/** Every shortcut in one list, from the ⋯ menu */
+/** Every shortcut, from the ⋯ menu, in three groups: what you do in the lesson, the panels, and moving
+ * between steps. Without rules nine alike rows ran together; the groups give the eye a place to rest,
+ * 16 apart, each under a small grey name. Rows are 32, the words in the text's colour and size so they
+ * lead the key caps, and the dialog is 320 wide so a short name isn't far from its keys */
+const GROUPS = ["In the lesson", "Panels", "Steps"] as const
 function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm!">
+      <DialogContent className="max-w-80!">
         <DialogHeader>
           <DialogTitle>Keyboard shortcuts</DialogTitle>
         </DialogHeader>
-        <dl className="flex flex-col">
-          {SHORTCUTS.map((k) => (
-            <div key={k.what} className="flex h-9 items-center justify-between gap-4 border-t border-border text-caption first:border-t-0">
-              <dt className="text-muted-foreground">{k.what}</dt>
-              <dd className="flex gap-1">
-                {k.keys.split(" ").map((key) => (
-                  <Kbd key={key}>{key}</Kbd>
+        <div className="flex flex-col gap-4">
+          {GROUPS.map((group) => (
+            <section key={group} aria-label={group}>
+              <h3 className="mb-1 text-[0.75rem] leading-4 text-subtle">{group}</h3>
+              <dl className="flex flex-col">
+                {SHORTCUTS.filter((k) => k.group === group).map((k) => (
+                  <div key={k.what} className="flex h-8 items-center justify-between gap-4">
+                    <dt className="text-[0.875rem] leading-[1.125rem] text-foreground/80">{k.what}</dt>
+                    <dd className="flex gap-1">
+                      {k.keys.split(" ").map((key) => (
+                        <Kbd key={key}>{key}</Kbd>
+                      ))}
+                    </dd>
+                  </div>
                 ))}
-              </dd>
-            </div>
+              </dl>
+            </section>
           ))}
-        </dl>
+        </div>
       </DialogContent>
     </Dialog>
   )

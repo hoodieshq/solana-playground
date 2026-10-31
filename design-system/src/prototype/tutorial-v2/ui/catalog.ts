@@ -67,10 +67,6 @@ export const shownName = (t: Entry) => SHOWN[t.slug] ?? t.name
 const UPSTREAM: Record<string, string> = { "spl-token-vault": "Spl Token Vault" }
 export const upstreamName = (t: Entry) => UPSTREAM[t.slug] ?? t.name
 
-/** The desktop card's line, as the product's tutorials page has it: the level is the section's
- * heading, so the line names the framework and the first author */
-export const productMeta = (t: Entry) => [t.framework, t.by && `by ${t.by.split(" and ")[0]}`].filter(Boolean).join(" \u00b7 ")
-
 /** Search reads the name, the description and the framework. The filter narrows by framework */
 export function filterCatalog(query: string, framework: FrameworkFilter) {
   const q = query.trim().toLowerCase()
