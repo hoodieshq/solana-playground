@@ -653,9 +653,12 @@ if (import.meta.vitest) {
         },
       });
       const calledOf = (called: unknown) => {
-        const run = reload(midway({ runs: { "s4.call": [ok(called)] } }))
-          ?.runs["s4.call"][0];
-        return run?.status === "ok" && run.result.act === "call" && run.result.ok
+        const run = reload(midway({ runs: { "s4.call": [ok(called)] } }))?.runs[
+          "s4.call"
+        ][0];
+        return run?.status === "ok" &&
+          run.result.act === "call" &&
+          run.result.ok
           ? run.result.called
           : "not read";
       };
@@ -666,7 +669,11 @@ if (import.meta.vitest) {
       expect(calledOf({})).toEqual([]);
       // Only the entries that read as calls are kept
       expect(
-        calledOf([hello, { instruction: "hello" }, { instruction: "x", args: { n: 1 } }])
+        calledOf([
+          hello,
+          { instruction: "hello" },
+          { instruction: "x", args: { n: 1 } },
+        ])
       ).toEqual([hello]);
     });
 

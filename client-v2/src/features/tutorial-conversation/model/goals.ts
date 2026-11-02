@@ -88,8 +88,8 @@ const logMatches = (pattern: string, line: string | null): boolean => {
 };
 
 if (import.meta.vitest) {
-  const { describe, it, expect, beforeAll, beforeEach, afterEach } =
-    import.meta.vitest;
+  const { describe, it, expect, beforeAll, beforeEach, afterEach } = import.meta
+    .vitest;
 
   // Hello Anchor's four goals, as its `tutorial.json` writes them
   const BUILD_HELLO: Goal = { kind: "build", instructions: ["hello"] };

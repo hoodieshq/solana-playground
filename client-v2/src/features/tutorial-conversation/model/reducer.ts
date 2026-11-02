@@ -1616,7 +1616,11 @@ if (import.meta.vitest) {
 
         // A call the deployed program decodes with no `name` (before the
         // upgrade) logs a line step 4's pattern also matches, and passes nothing
-        const call = (state: EngineState, at: number, args: Record<string, string>) => {
+        const call = (
+          state: EngineState,
+          at: number,
+          args: Record<string, string>
+        ) => {
           const acted = reduce(strict, state, {
             type: "act",
             beatId: "s4.call",
