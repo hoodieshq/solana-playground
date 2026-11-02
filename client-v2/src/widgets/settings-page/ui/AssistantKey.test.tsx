@@ -8,9 +8,11 @@ import {
   resetTelemetry,
 } from "@/shared/lib/telemetry";
 import { storedValues } from "../../../test-utils/stored-values";
-import { PgAssistant } from "../../../views/sidebar/assistant/store";
+import {
+  KEY_NOT_FORGOTTEN,
+  PgAssistant,
+} from "../../../views/sidebar/assistant/store";
 import AssistantKey from "./AssistantKey";
-import { KEY_LEFT_IN_STORAGE } from "./BaseAssistantKey";
 
 const KEY = "sk-test-settings-0123456789";
 
@@ -104,6 +106,6 @@ it("says so when the key an older build kept cannot be removed", async () => {
   await userEvent.click(button());
   vi.restoreAllMocks();
 
-  expect(screen.getByText(KEY_LEFT_IN_STORAGE)).toBeTruthy();
+  expect(screen.getByText(KEY_NOT_FORGOTTEN)).toBeTruthy();
   expect(PgAssistant.connection).toBeNull();
 });

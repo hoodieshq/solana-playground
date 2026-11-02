@@ -1,4 +1,5 @@
 import type { KeyHold } from "../../../views/sidebar/assistant/model/types";
+import { KEY_NOT_FORGOTTEN } from "../../../views/sidebar/assistant/store";
 import { Button } from "@/shared/ui/button";
 import BaseSettingRow from "./BaseSettingRow";
 
@@ -23,10 +24,6 @@ const DESCRIPTIONS: Record<AssistantKeyState, string> = {
   busy: "In use by the reply being written. Delete it once that ends.",
 };
 
-/** Shown in place of the description when the last delete left a key behind */
-export const KEY_LEFT_IN_STORAGE =
-  "Your key could not be removed from this tab's storage. Close this tab to remove it.";
-
 /** The row that deletes the user's own model key */
 const BaseAssistantKey = ({
   state,
@@ -36,7 +33,7 @@ const BaseAssistantKey = ({
 }: BaseAssistantKeyProps) => (
   <BaseSettingRow
     name="Your model key"
-    description={stuck ? KEY_LEFT_IN_STORAGE : DESCRIPTIONS[state]}
+    description={stuck ? KEY_NOT_FORGOTTEN : DESCRIPTIONS[state]}
     phone={phone}
     control={
       <Button

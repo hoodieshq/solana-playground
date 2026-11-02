@@ -48,8 +48,12 @@ while a backend holding the user's key is connected, and disabled when no
 key is entered or while a turn is using the key. The assistant head's More
 menu SHALL offer the same action under the same name while such a backend
 is connected. Pressing either SHALL drop the key from memory and from any
-storage an older build wrote, disconnect the backend, and leave the panel
-unconnected, so the next send opens Connect a model. Connecting to a backend
+storage an older build wrote, disconnect the backend, forget the remembered
+choice, and leave the panel unconnected, so the next send goes where a send
+with nothing chosen goes: the keyless default when the deployment serves it
+to this user, else Connect a model. If the key an older build kept cannot be
+removed, Settings SHALL say so in the row, since its notice in the panel is
+hidden under Settings. Connecting to a backend
 that needs no key SHALL drop the key too.
 
 Pressing it in Settings SHALL fire `settings_key_deleted` with no
