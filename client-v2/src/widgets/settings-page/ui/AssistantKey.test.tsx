@@ -1,0 +1,72 @@
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, expect, it } from "vitest";
+
+import {
+  initTelemetry,
+  memoryProvider as memoryTelemetry,
+  resetTelemetry,
+} from "@/shared/lib/telemetry";
+import { storedValues } from "../../../test-utils/stored-values";
+import { PgAssistant } from "../../../views/sidebar/assistant/store";
+import AssistantKey from "./AssistantKey";
+
+const KEY = "sk-test-settings-0123456789";
+
+let events: ReturnType<typeof memoryTelemetry>;
+
+beforeEach(() => {
+  events = memoryTelemetry();
+  initTelemetry({ providers: [events] });
+  localStorage.clear();
+  sessionStorage.clear();
+  PgAssistant.disconnect();
+});
+
+afterEach(() => {
+  act(() => PgAssistant.disconnect());
+  resetTelemetry();
+});
+
+const button = () =>
+  screen.getByRole<HTMLButtonElement>("button", { name: "Delete my key" });
+
+it("deletes the user's key, disconnects and says so", async () => {
+  PgAssistant.connect({ id: "anthropic", apiKey: KEY });
+  render(<AssistantKey phone={false} />);
+  expect(button().disabled).toBe(false);
+
+  await userEvent.click(button());
+
+  expect(PgAssistant.connection).toBeNull();
+  expect(button().disabled).toBe(true);
+  expect(screen.getByText(/No key entered/)).toBeTruthy();
+  expect(JSON.stringify(storedValues(sessionStorage))).not.toContain(KEY);
+  expect(JSON.stringify(storedValues(localStorage))).not.toContain(KEY);
+  expect(events.events.map((e) => [e.name, e.params])).toEqual([
+    ["settings_key_deleted", {}],
+  ]);
+});
+
+it("has nothing to delete for the keyless default", () => {
+  PgAssistant.connect({ id: "default", apiKey: "" });
+  render(<AssistantKey phone={false} />);
+  expect(button().disabled).toBe(true);
+});
+
+it("has nothing to delete with nothing connected", () => {
+  render(<AssistantKey phone={false} />);
+  expect(button().disabled).toBe(true);
+});
+
+it("waits while a turn is using the key", () => {
+  PgAssistant.connect({ id: "anthropic", apiKey: KEY });
+  render(<AssistantKey phone={false} />);
+
+  act(() => PgAssistant.setStatus("running"));
+  expect(button().disabled).toBe(true);
+  expect(screen.getByText(/In use by the reply/)).toBeTruthy();
+
+  act(() => PgAssistant.setStatus("idle"));
+  expect(button().disabled).toBe(false);
+});

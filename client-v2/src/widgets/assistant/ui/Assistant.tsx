@@ -12,18 +12,19 @@ import { modelShown } from "../model/choice";
 import { connectLabel } from "../model/connection";
 import { useDefaultBackend } from "../model/default-backend";
 import { headLabel } from "../model/head-label";
+import { assistantTelemetry } from "../model/telemetry";
 import { useTurn } from "../model/use-turn";
 import type { ConnectOpener } from "../model/use-turn";
 import { AssistantComposer } from "./AssistantComposer";
 import { Thread } from "./Thread";
 import { BaseAssistantHead } from "./BaseAssistantHead";
-import type { ForgetKey } from "./BaseAssistantHead";
+import type { DeleteKey } from "./BaseAssistantHead";
 
 /** What the panel shows under its head */
 type View = "chat" | "sources";
 
-/** Whether More offers Forget key, and whether it can be pressed now */
-const forgetKeyOf = (busy: boolean): ForgetKey => {
+/** Whether More offers Delete my key, and whether it can be pressed now */
+const deleteKeyOf = (busy: boolean): DeleteKey => {
   const id = PgAssistant.connection?.id;
   const holdsKey = !!PROVIDERS.find((p) => p.id === id)?.needsKey;
   if (!holdsKey) return "none";
@@ -153,8 +154,11 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
         onHide={onHide}
         canWiden={canWiden}
         // Read on every render `useTurn` makes for a change in the store
-        forgetKey={forgetKeyOf(turn.busy)}
-        onForgetKey={() => PgAssistant.disconnect()}
+        deleteKey={deleteKeyOf(turn.busy)}
+        onDeleteKey={() => {
+          assistantTelemetry.track("assistant_key_deleted", {});
+          PgAssistant.disconnect();
+        }}
       />
       {view === "chat" && (
         <>

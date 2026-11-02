@@ -1,4 +1,5 @@
 import { createTracker } from "@/shared/lib/telemetry";
+import type { NoParams } from "@/shared/lib/telemetry";
 import type {
   SettingsEntry,
   SettingsExit,
@@ -11,6 +12,8 @@ type SettingsEvents = {
   settings_closed: { via: SettingsExit };
   /** A user picked a section in the page's section list. */
   settings_section_picked: { section: string };
+  /** A user pressed Delete my key in the Assistant section: the key and the backend are dropped. Never the key or the provider. */
+  settings_key_deleted: NoParams;
 };
 
 export const settingsTelemetry = createTracker<SettingsEvents>();

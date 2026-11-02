@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { BaseAssistantHead } from "./BaseAssistantHead";
-import type { ForgetKey } from "./BaseAssistantHead";
+import type { DeleteKey } from "./BaseAssistantHead";
 import type { HeadLabel } from "../model/head-label";
 
 interface HeadChoice {
@@ -12,7 +12,7 @@ interface HeadChoice {
   canWiden?: boolean;
   /** What the caller's `focusPicked` does; takes focus by default */
   focusPicked?: () => boolean;
-  forgetKey?: ForgetKey;
+  deleteKey?: DeleteKey;
   label?: HeadLabel;
 }
 
@@ -46,7 +46,7 @@ const setup = (choice: HeadChoice = {}) => {
   const focusPicked = vi.fn(() => choice.focusPicked?.() ?? true);
   const onWiden = vi.fn();
   const onHide = vi.fn();
-  const onForgetKey = vi.fn();
+  const onDeleteKey = vi.fn();
   render(
     <TooltipProvider>
       <BaseAssistantHead
@@ -59,8 +59,8 @@ const setup = (choice: HeadChoice = {}) => {
         onWiden={onWiden}
         onHide={onHide}
         canWiden={choice.canWiden ?? true}
-        forgetKey={choice.forgetKey ?? "none"}
-        onForgetKey={onForgetKey}
+        deleteKey={choice.deleteKey ?? "none"}
+        onDeleteKey={onDeleteKey}
       />
     </TooltipProvider>
   );
@@ -70,7 +70,7 @@ const setup = (choice: HeadChoice = {}) => {
     focusPicked,
     onWiden,
     onHide,
-    onForgetKey,
+    onDeleteKey,
     user: userEvent.setup(),
   };
 };
@@ -153,32 +153,32 @@ describe("BaseAssistantHead", () => {
     );
   });
 
-  it("offers Forget key only while a key is held, and forgets it", async () => {
-    const { user, onForgetKey } = setup({ forgetKey: "ready" });
+  it("offers Delete my key only while a key is held, and forgets it", async () => {
+    const { user, onDeleteKey } = setup({ deleteKey: "ready" });
     await user.click(more());
     expect(
       screen.getAllByRole("menuitem").map((item) => item.textContent)
     ).toEqual([
       "Sources and toolsS",
       "Connect a model…K",
-      "Forget key",
+      "Delete my key",
       "Clear conversation",
     ]);
-    await user.click(screen.getByRole("menuitem", { name: "Forget key" }));
-    expect(onForgetKey).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("menuitem", { name: "Delete my key" }));
+    expect(onDeleteKey).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps Forget key disabled during a turn, and says why", async () => {
-    const { user, onForgetKey } = setup({ forgetKey: "busy" });
+  it("keeps Delete my key disabled during a turn, and says why", async () => {
+    const { user, onDeleteKey } = setup({ deleteKey: "busy" });
     await user.click(more());
-    const item = screen.getByRole("menuitem", { name: "Forget key" });
+    const item = screen.getByRole("menuitem", { name: "Delete my key" });
     expect(item.getAttribute("aria-disabled")).toBe("true");
     // The item takes no pointer events while disabled; its wrapper does
     await user.hover(item.parentElement!);
     expect((await screen.findByRole("tooltip")).textContent).toBe(
       "Finish this turn first"
     );
-    expect(onForgetKey).not.toHaveBeenCalled();
+    expect(onDeleteKey).not.toHaveBeenCalled();
   });
 
   it("opens Sources and tools and Connect a model from their items", async () => {

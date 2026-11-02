@@ -10,9 +10,9 @@ import { report, toReplayMessages } from "@/features/persistence";
 import { createProvider } from "../../../views/sidebar/assistant/model";
 import { ModelBusyError } from "../../../views/sidebar/assistant/model/model-busy";
 import {
+  dropKeptKey,
   isDefaultBackendRemembered,
   rememberedChoice,
-  rememberedConnection,
 } from "../../../views/sidebar/assistant/model/remembered-backend";
 import { threadBackend } from "../../../views/sidebar/assistant/model/thread-backend";
 import {
@@ -356,32 +356,26 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   }, [connection]);
 
   /**
-   * Reconnect what this tab was using before a reload, without asking again.
+   * Reconnect the keyless default this browser chose before, without asking
+   * again: only once the probe confirms this deployment still serves it, and
+   * only for a signed-in user, tried again when a user arrives, since the
+   * session is read after this mounts and a sign-in can come later.
    *
-   * First the key-based backend kept in this tab's `sessionStorage` by
-   * `rememberBackend` (a new tab has none; a tab the browser duplicates or
-   * restores carries it). It needs no probe, so it is connected on mount,
-   * before the probe can answer, and the default's reconnect then finds a
-   * connection and stands down: a kept key wins over a remembered default.
-   *
-   * Then the keyless default, only if the user picked it before, only once
-   * the probe confirms this deployment still serves it, and only for a
-   * signed-in user: tried again when a user arrives, since the session is
-   * read after this mounts and a sign-in can come later.
+   * A key-based backend is never reconnected: its key lives in memory only,
+   * so a reload asks for it again, and the next send opens Connect a model
+   * preset to it (`resolveSendBackend`). A key an older build kept in this
+   * tab's `sessionStorage` is removed here, on the first mount (HOO-2423).
    *
    * `probeDefaultBackend` is shared with the composer and Connect a model, so
    * the page asks once (again only after a failure).
    *
-   * Neither overrules a live connection or a choice in progress in Connect a
-   * model. A default reconnected here never answers a thread a key-based
-   * backend answered (`restored`). A Forget key stays forgotten because `forgetBackend` drops what
-   * both would read.
+   * It never overrules a live connection or a choice in progress in Connect a
+   * model, and a default reconnected here never answers a thread a key-based
+   * backend answered (`restored`). A Delete my key stays deleted because
+   * `forgetBackend` drops the remembered choice it reads.
    */
   useEffect(() => {
-    if (!PgAssistant.connection && !PgAssistant.isPickingBackend) {
-      const kept = rememberedConnection();
-      if (kept) PgAssistant.connect(kept);
-    }
+    dropKeptKey();
 
     let live = true;
     const reconnectDefault = () =>

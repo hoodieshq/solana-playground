@@ -237,7 +237,7 @@ export const CONNECTION_LOST =
 export const isConnectionLost = (item: ChatItem) =>
   item.kind === "error" && item.text === CONNECTION_LOST;
 
-/** Shown when disconnecting could not remove the key from this tab */
+/** Shown when disconnecting could not remove a key an older build kept in this tab */
 export const KEY_NOT_FORGOTTEN =
   "Your key could not be removed from this tab's storage. Close this tab to " +
   "remove it.";
@@ -347,9 +347,9 @@ const holdsNewer = (
 /**
  * Everything the panel renders.
  *
- * The API key is held in memory and in this tab's `sessionStorage`, so a
- * reload keeps it; it is never written anywhere durable. See
- * `remembered-backend` and the spec `openspec/specs/assistant-own-key/spec.md`.
+ * The API key is held in memory only, so a reload asks for it again; it is
+ * never written to browser storage (HOO-2423). See `remembered-backend` and
+ * the spec `openspec/specs/assistant-own-key/spec.md`.
  * Conversation items are durable: the open thread is mirrored to IndexedDB on
  * every change under its own thread id, which `PgThreadIndex` maps from the
  * workspace, so a reload and a project switch both come back to the right
@@ -365,8 +365,8 @@ export class PgAssistant {
   }
 
   /**
-   * Which backend is selected, and its key. Held in memory; a key-based one is
-   * also kept in this tab's `sessionStorage` by `rememberBackend`.
+   * Which backend is selected, and its key. Held in memory only;
+   * `rememberBackend` keeps the backend's parameters, never the key.
    */
   static get connection() {
     return PgAssistant._connection;
@@ -407,9 +407,8 @@ export class PgAssistant {
     if (!isSame(PgAssistant._connection, next)) PgAssistant._cutTurn();
     PgAssistant._connection = next;
     PgAssistant._pickingBackend = false;
-    // So a reload reconnects without asking again: the backend's parameters
-    // for every tab, a key-based backend's key for this tab only. See
-    // `remembered-backend`.
+    // So a later load can offer this backend again: its parameters, never
+    // its key. See `remembered-backend`.
     rememberBackend(next);
 
     // `_emitOnly`, because nothing here is the user writing to the
@@ -424,8 +423,8 @@ export class PgAssistant {
    * rebuilt from what is rendered (`useTurn` compares connection identity),
    * so the new settings apply to the next turn and the transcript on screen
    * stays the history it works from.
-   * Remembered as `connect` remembers, so a reload of this tab keeps the new
-   * model and effort. `_emitOnly` for the same reason as `connect`: nothing
+   * Remembered as `connect` remembers, so the next Connect a model is preset
+   * to the new model and effort. `_emitOnly` for the same reason as `connect`: nothing
    * here is the user writing to the conversation.
    *
    * @throws when `canTune(next)` is false
@@ -471,8 +470,9 @@ export class PgAssistant {
   /**
    * Drop the backend and the key, and clear the conversation with it.
    *
-   * What Forget key in the assistant head's More does. If the key could not be
-   * removed from this tab's storage, a notice says how to get rid of it.
+   * What Delete my key does, in Settings and in the assistant head's More. If
+   * a key an older build kept could not be removed from this tab's storage, a
+   * notice says how to get rid of it.
    */
   static disconnect() {
     PgAssistant._connection = null;
@@ -1893,7 +1893,7 @@ if (import.meta.vitest) {
     let MIN_REDACTED_KEY_LENGTH: typeof import("@/shared/lib/ai").MIN_REDACTED_KEY_LENGTH;
     let REDACTED_KEY: typeof import("@/shared/lib/ai").REDACTED_KEY;
     let isDefaultBackendRemembered: typeof import("./model/remembered-backend").isDefaultBackendRemembered;
-    let rememberedConnection: typeof import("./model/remembered-backend").rememberedConnection;
+    let rememberedChoice: typeof import("./model/remembered-backend").rememberedChoice;
     let truncationNoticeId: typeof import("../../../features/persistence/model/chat-storage").truncationNoticeId;
     let PgFs: typeof import("@/utils/explorer/fs").PgFs;
     let storedValues: typeof import("../../../test-utils/stored-values").storedValues;
@@ -1901,7 +1901,7 @@ if (import.meta.vitest) {
       ({ MIN_REDACTED_KEY_LENGTH, REDACTED_KEY } = await import(
         "@/shared/lib/ai"
       ));
-      ({ isDefaultBackendRemembered, rememberedConnection } = await import(
+      ({ isDefaultBackendRemembered, rememberedChoice } = await import(
         "./model/remembered-backend"
       ));
       ({ truncationNoticeId } = await import(
@@ -3798,12 +3798,13 @@ if (import.meta.vitest) {
           item.kind === "error" ? [item.text] : []
         );
 
-      it("is kept for this tab and nowhere durable", async () => {
+      it("is held in memory and written to no storage", async () => {
         PgAssistant.connect(openai);
         PgAssistant.addUserMessage("hello");
         await settled();
 
-        expect(sessionStorage.getItem("assistant.connection")).toContain(KEY);
+        expect(PgAssistant.connection?.apiKey).toBe(KEY);
+        expect(JSON.stringify(storedValues(sessionStorage))).not.toContain(KEY);
         expect(JSON.stringify(storedValues(localStorage))).not.toContain(KEY);
         expect(
           JSON.stringify(await PgChatStorage.read("own-key"))
@@ -3846,17 +3847,21 @@ if (import.meta.vitest) {
         expect(errorTexts()).toEqual([`rejected ${apiKey} here`]);
       });
 
-      it("is forgotten on disconnect", () => {
+      it("is forgotten on disconnect, with what an older build kept", () => {
         PgAssistant.connect(openai);
+        sessionStorage.setItem("assistant.connection", JSON.stringify(openai));
         PgAssistant.disconnect();
+        expect(PgAssistant.connection).toBeNull();
         expect(sessionStorage.getItem("assistant.connection")).toBeNull();
         expect(PgAssistant.items).toEqual([]);
       });
 
-      it("tells the user to close the tab when disconnecting cannot remove it", async () => {
+      it("tells the user to close the tab when disconnecting cannot remove a kept key", async () => {
         PgAssistant.connect(openai);
         PgAssistant.addUserMessage("hello");
         await settled();
+        // What a build before HOO-2423 kept for the tab
+        sessionStorage.setItem("assistant.connection", JSON.stringify(openai));
         // Neither the removal nor its blanking fallback goes through
         for (const method of ["removeItem", "setItem"] as const) {
           const original = Storage.prototype[method] as (
@@ -3914,7 +3919,7 @@ if (import.meta.vitest) {
         });
       });
 
-      it("keeps the tuned model and effort for a reload of this tab", () => {
+      it("remembers the tuned model and effort, without the key", () => {
         PgAssistant.connect({
           id: "anthropic",
           apiKey: "sk-test",
@@ -3927,11 +3932,12 @@ if (import.meta.vitest) {
           settings: { model: "claude-sonnet-5-5", effort: "high" },
         });
 
-        expect(rememberedConnection()).toEqual({
-          id: "anthropic",
-          apiKey: "sk-test",
-          settings: { model: "claude-sonnet-5-5", effort: "high" },
+        expect(rememberedChoice()).toEqual({
+          provider: "anthropic",
+          model: "claude-sonnet-5-5",
+          effort: "high",
         });
+        expect(sessionStorage.length).toBe(0);
       });
 
       it("refuses another backend and leaves the connection", () => {

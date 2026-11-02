@@ -25,6 +25,7 @@ import {
 import { groupSettings, sectionTitle } from "../model/sections";
 import type { SectionId } from "../model/sections";
 import { settingsTelemetry } from "../model/telemetry";
+import AssistantKey from "./AssistantKey";
 import BaseNetworkChoice from "./BaseNetworkChoice";
 import BaseSettingRow from "./BaseSettingRow";
 import BaseSettingsPage from "./BaseSettingsPage";
@@ -35,6 +36,7 @@ import { SettingControl } from "./SettingControl";
 // The sections the page draws itself, typed so a rename in `SECTION_ORDER`
 // fails to compile here
 const NETWORK: SectionId = "network";
+const ASSISTANT: SectionId = "assistant";
 const PROJECT: SectionId = "project";
 const BLOCK_EXPLORER: SectionId = "blockExplorer";
 
@@ -48,9 +50,9 @@ const subscribeToModals = (onChange: () => void) =>
   PgView.onDidChangeModals(onChange).dispose;
 
 /**
- * `BaseSettingsPage` on the live settings: the network chips, the project's
- * export and imports, then every group of `PgSettings.all`. Mounted only
- * while the settings are open.
+ * `BaseSettingsPage` on the live settings: the network chips, Delete my key,
+ * the project's export and imports, then every group of `PgSettings.all`.
+ * Mounted only while the settings are open.
  */
 const LiveSettingsPage = ({ focus, onClose }: SettingsPageProps) => {
   const phone = useViewport() === "phone";
@@ -77,6 +79,11 @@ const LiveSettingsPage = ({ focus, onClose }: SettingsPageProps) => {
           onPick={(endpoint) => (PgSettings.connection.endpoint = endpoint)}
         />
       ),
+    },
+    {
+      id: ASSISTANT,
+      title: "Assistant",
+      content: <AssistantKey phone={phone} />,
     },
     {
       id: PROJECT,
