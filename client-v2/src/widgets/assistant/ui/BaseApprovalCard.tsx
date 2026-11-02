@@ -37,6 +37,13 @@ const STATUS_LABEL: Record<ApprovalStatus, string> = {
   unanswered: "Not answered",
 };
 
+/** A patch's words for the same statuses (Spec 04): it is discarded, not declined */
+const PATCH_STATUS_LABEL: Record<ApprovalStatus, string> = {
+  ...STATUS_LABEL,
+  denied: "Discarded",
+  unanswered: "Not applied",
+};
+
 /** What a card no longer pending says when the tool reported no outcome of its own */
 const OUTCOME: Record<Exclude<ApprovalStatus, "pending">, string> = {
   allowed: "done",
@@ -96,7 +103,9 @@ export const BaseApprovalCard = ({
           variant={pending ? "default" : "outline"}
           className={cn(status === "allowed" && !undone && "text-success")}
         >
-          {undone ? "Undone" : STATUS_LABEL[status]}
+          {undone
+            ? "Undone"
+            : (patch ? PATCH_STATUS_LABEL : STATUS_LABEL)[status]}
         </Badge>
       </DiffHeader>
 
@@ -131,7 +140,7 @@ export const BaseApprovalCard = ({
               className={ANSWER}
               onClick={() => onAnswer("deny")}
             >
-              {patch ? "Reject" : "Deny"}
+              {patch ? "Discard" : "Deny"}
             </Button>
           </>
         ) : (
