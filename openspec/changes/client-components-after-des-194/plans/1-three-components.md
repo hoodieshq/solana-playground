@@ -30,9 +30,11 @@ edge. A started lesson in the project list shows its progress.
    wrapper at the toast's foot, clipped to its radius, holding a
    `bg-primary` bar animated by `pg-toast-progress` (keyframe `scaleX(1)` to
    `scaleX(0)`, origin left, linear, forwards), paused in
-   `[data-expanded=true]`, hidden under `motion-reduce`. Keyframe in
+   `[data-expanded=true]` and while the page is hidden (`visibilitychange`),
+   hidden under `motion-reduce`. Keyframe in
    `src/index.css` beside the other `pg-*` ones.
-4. `ToastHost.show` renders it after the content when the duration is finite.
+4. `ToastHost.show` renders it after the content when the duration is
+   finite, keyed per show so a toast shown again by its id starts from full.
 5. Tests green; look in the browser.
 
 ## 2.1 Name field
@@ -42,8 +44,8 @@ edge. A started lesson in the project list shows its progress.
    input `data-state="valid"`; empty gives no `data-state`; an invalid start
    gives `aria-invalid` and no `valid`.
 2. Fail, then: a `valid` prop (computed by `StartFromScratch` with
-   `PgExplorer.isWorkspaceNameValid(name.trim())` when the name is non-empty
-   and the state is not invalid), `data-state="valid"` +
+   `PgExplorer.isWorkspaceNameValid(name.trim())` when the name is non-empty;
+   the field shows it only while no error is shown), `data-state="valid"` +
    `data-[state=valid]:border-success` on the Input; `FieldError` moved
    above the input row.
 3. `StartFromScratch` test if one exists; else covered by the base test plus
@@ -62,6 +64,11 @@ edge. A started lesson in the project list shows its progress.
 4. `BaseProjectList`: the marker slot shows when `pinned || marker ||
    progress`; the progress span carries its own id for `aria-describedby`
    (joined with the marker's).
+
+5. `useTutorialProgress` (found in the browser: the row stayed on "1/4"
+   after a page turn): re-read on `PgTutorial.onDidChangePageNumber` and
+   `onDidChangeCompleted`, the open lesson's page from memory while the
+   explorer holds its workspace, the file otherwise.
 
 ## Gate
 

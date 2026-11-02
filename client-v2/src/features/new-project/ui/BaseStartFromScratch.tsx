@@ -47,11 +47,11 @@ export interface BaseStartFromScratchProps {
 }
 
 /**
- * A new project in three choices, as the prototype draws it: a framework
- * (the choice that matters, so it gets the gradient ring), a name, then
- * Start, with what is wrong with the name before the field. One row from
- * `md`, stacked below it, where every choice is a
- * fingertip tall in the phone's type, as the prototype's phone draws it.
+ * A new project in three choices, as the prototype draws it: a framework (the
+ * choice that matters, so it gets the gradient ring), a name, then Start, with
+ * what is wrong with the name before the field. One row from `md`, stacked
+ * below it, where every choice is a fingertip tall in the phone's type, as the
+ * prototype's phone draws it.
  */
 const BaseStartFromScratch = ({
   frameworks,

@@ -15,13 +15,14 @@ const NEW: TutorialProgress = { state: "new" };
 
 /**
  * Every registered tutorial's progress, by name, read on mount and again
- * whenever the explorer initialises or its workspace list changes (a start,
- * a delete, a sync import), and whenever the open lesson turns a page or is
+ * whenever the explorer initialises or its workspace list changes (a start, a
+ * delete, a sync import), and whenever the open lesson turns a page or is
  * finished. The open lesson's progress is taken from memory: its file is
  * written after the change is announced, so a read then would lag a page.
- * Before the explorer knows its workspaces every tutorial reads as new. A started tutorial whose saved progress cannot be
- * read shows as started on page 1: a missing file is logged as a warning, any
- * other failure is reported, and none is thrown into the render.
+ * Before the explorer knows its workspaces every tutorial reads as new. A
+ * started tutorial whose saved progress cannot be read shows as started on page
+ * 1: a missing file is logged as a warning, any other failure is reported, and
+ * none is thrown into the render.
  */
 export const useTutorialProgress = (): ((name: string) => TutorialProgress) => {
   const [progress, setProgress] = useState<Map<string, TutorialProgress>>(

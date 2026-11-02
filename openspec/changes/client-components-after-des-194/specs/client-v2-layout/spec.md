@@ -12,18 +12,18 @@ marked invalid with a red edge. A typed name that passes the format check
 have neither edge. Whether a name is taken SHALL still be checked on Start
 only, and typing SHALL clear the message.
 
-#### Scenario: An invalid name
+#### Scenario: An invalid name (manual)
 
 - **WHEN** a user types `my.project` and presses Start
 - **THEN** the message shows before the name field, the field is
   `aria-invalid` and described by the message, and no project is created
 
-#### Scenario: A valid name
+#### Scenario: A valid name (manual)
 
 - **WHEN** a user types `my-project`
 - **THEN** the name field has the success edge and no message shows
 
-#### Scenario: An empty name
+#### Scenario: An empty name (manual)
 
 - **WHEN** the name field is empty
 - **THEN** it has neither the success nor the invalid edge
@@ -40,22 +40,22 @@ no progress. Progress whose saved page cannot be read SHALL show as page 1.
 The open lesson's row, and its card in the tutorials list, SHALL follow its
 page as the user turns it, without waiting for the page to be saved.
 
-#### Scenario: A lesson part way through
+#### Scenario: A lesson part way through (manual)
 
 - **WHEN** a user on page 3 of the 5 pages of Hello Anchor looks at the list
 - **THEN** the Hello Anchor row shows "3/5" and is described as "Page 3 of 5"
 
-#### Scenario: A finished lesson
+#### Scenario: A finished lesson (manual)
 
 - **WHEN** a user has finished Hello Anchor
 - **THEN** its row shows a check and is described as "Completed"
 
-#### Scenario: The open lesson's row follows its page
+#### Scenario: The open lesson's row follows its page (manual)
 
 - **WHEN** a user on page 2 of Hello Anchor goes on to page 3
 - **THEN** the Hello Anchor row shows "3/<pages>" without a reload
 
-#### Scenario: A project has no progress
+#### Scenario: A project has no progress (manual)
 
 - **WHEN** a user looks at the row of a project that is not a lesson
 - **THEN** it shows no page count and no check

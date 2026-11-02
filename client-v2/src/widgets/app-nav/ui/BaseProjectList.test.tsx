@@ -223,6 +223,22 @@ describe("BaseProjectList", () => {
     ]);
   });
 
+  it("keeps a long name clear of the marker, the page and the pin together", () => {
+    const crowded: ProjectEntry = {
+      name: "A lesson with a long name",
+      id: "id-crowded",
+      isLesson: true,
+      pinned: true,
+      marker: "not-synced",
+      progress: { state: "started", page: 12, pages: 12 },
+    };
+    draw({ projects: [crowded] });
+    expect(
+      screen.getByRole("button", { name: "A lesson with a long name" })
+        .className
+    ).toContain("pr-40");
+  });
+
   it("draws Not synced with a warning dot, beside the pin", () => {
     draw({ projects: [behind] });
     const marker = screen.getByText("Not synced").closest("[data-sync-marker]");

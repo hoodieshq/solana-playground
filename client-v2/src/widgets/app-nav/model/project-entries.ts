@@ -20,13 +20,13 @@ export interface ProjectEntry {
 }
 
 /**
- * The navigation's one list, as the prototype draws it: a started lesson is
- * a row among the projects, drawn like one. `isLesson` changes only how it
- * opens and what its menu offers: opening a lesson has to go through
- * `PgTutorial.open`, which restores its route and page, and a lesson cannot
- * be renamed, since it is recognised by its workspace name. A lesson also
- * carries its progress, which its row shows at its end. Pinned entries lead; otherwise the
- * explorer's order stands.
+ * The navigation's one list, as the prototype draws it: a started lesson is a
+ * row among the projects, drawn like one. `isLesson` changes only how it opens
+ * and what its menu offers: opening a lesson has to go through
+ * `PgTutorial.open`, which restores its route and page, and a lesson cannot be
+ * renamed, since it is recognised by its workspace name. A lesson also carries
+ * its progress, which its row shows at its end. Pinned entries lead; otherwise
+ * the explorer's order stands.
  */
 export const listProjects = (
   names: readonly string[],
