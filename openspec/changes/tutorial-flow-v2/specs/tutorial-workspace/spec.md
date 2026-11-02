@@ -21,7 +21,8 @@ window W px wide, to `400 − (1280 − W) × 0.3125` under 1280 and
 1152, 400 at 1280, 421 at 1440). It SHALL be resizable from 340 to 560 px by a
 handle on its right edge, never leaving the workspace under 560 px; the
 focused handle takes the arrow keys (16 px, 64 with Shift), Home and End, and
-a double click resets it. The column order SHALL not be swappable.
+a double click resets it. A picked width SHALL be kept on the device until
+it is reset. The column order SHALL not be swappable.
 
 #### Scenario: Widths at 1440
 
@@ -33,7 +34,8 @@ a double click resets it. The column order SHALL not be swappable.
 ### Requirement: The navigation folds to its rail in a tutorial
 
 Entering a tutorial (Start, Continue or a card) SHALL fold the navigation to
-its icon rail, whatever was saved. In a tutorial:
+its icon rail, whatever was saved. Until the intro card replaces the About
+page, entering is Start, or opening a tutorial already started. In a tutorial:
 
 - **Open:** the mark's button or ⌘B SHALL open the navigation as an overlay
   over the chat with a scrim. The chat SHALL stay where it was: the overlay

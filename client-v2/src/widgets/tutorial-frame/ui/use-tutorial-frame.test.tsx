@@ -130,10 +130,22 @@ describe("useTutorialFrame", () => {
     const { result } = draw();
     go({ name: "Hello Anchor", definition: {} });
     act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "b" }));
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "b", metaKey: true })
+      );
       result.current.frame?.nav.onOpenChange(true);
     });
     expect(events("tutorial_frame_menu_opened")).toEqual([{ via: "key" }]);
+  });
+
+  it("names the button when Enter pressed the rail's opener", () => {
+    const { result } = draw();
+    go({ name: "Hello Anchor", definition: {} });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      result.current.frame?.nav.onOpenChange(true);
+    });
+    expect(events("tutorial_frame_menu_opened")).toEqual([{ via: "button" }]);
   });
 
   it("stays pinned when the pin's click also reads as a pick that closes", () => {

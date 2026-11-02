@@ -90,7 +90,11 @@ export const useTutorialFrame = ({
   // says whether ⌘B or a button opened it
   const lastInput = useRef<MenuSource>("button");
   useEffect(() => {
-    const onKey = () => (lastInput.current = "key");
+    // Only ⌘B (Ctrl+B) is the key: Enter on the rail's button is a button
+    const onKey = (e: KeyboardEvent) => {
+      const toggle = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b";
+      lastInput.current = toggle ? "key" : "button";
+    };
     const onPointer = () => (lastInput.current = "button");
     document.addEventListener("keydown", onKey, true);
     document.addEventListener("pointerdown", onPointer, true);
