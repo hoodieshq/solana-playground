@@ -23,3 +23,25 @@ None.
 ## Actions
 - Create the build ticket for "Open in Playground", checking DES-203 and the TS import work first -> Lead, pending.
 - Almaz's "can we build it" question: estimate and place in the plan before Breakpoint -> planner.
+
+## Update 2026-11-02 19:05: Cat's answers from the customer chat
+Raw: `.claude/intake/raw/2026-11-02-slack-cat-open-in-playground-answers.md`. Slack thread of 30 Oct in ext-solana-playground.
+
+### Decided (Cat, customer)
+- It opens through an "Open in Playground" button on the docs page that loads the code.
+- It runs as one script, not step by step like the docs.
+- A SOL-funded wallet is enough to start ("SOL is probably fine"); no devnet USDC needed.
+- Scope for Breakpoint: the quickstart only.
+
+### Requirements changed
+- Scope after Breakpoint: other docs pages too (payments, assets); Cat wants something repeatable, not a one-off for the quickstart.
+
+### Facts learned
+- The quickstart uses the Token-2022 program and sends test USDC; it is on a preview site reachable through the Solana Foundation Vercel.
+- Cat said "SOL is probably fine" (hedged), so the funding answer is soft.
+
+### Open questions
+- How the repeatable mechanism should work for other docs pages (not specified).
+
+### Actions
+- Cat's answers go into the "Open in Playground" ticket and its estimate -> Lead and planner.
