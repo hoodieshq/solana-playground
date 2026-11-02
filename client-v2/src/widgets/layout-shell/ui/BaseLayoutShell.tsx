@@ -684,8 +684,11 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           <Sidebar
             collapsible="icon"
             className="absolute inset-y-0 left-0 h-auto border-border [&>[data-slot=sidebar-inner]]:bg-background"
-            // A pick in the overlay closes it, before the pick's own handler
-            onClickCapture={
+            // A pick in the overlay closes it, after the pick's own handler:
+            // closed in the capture phase, a trusted click's close flushed
+            // between React's capture and bubble listeners and unmounted the
+            // pin before its own click ran
+            onClick={
               overlay
                 ? (e) => {
                     const target = e.target as Element;

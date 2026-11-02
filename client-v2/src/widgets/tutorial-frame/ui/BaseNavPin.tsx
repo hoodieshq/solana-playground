@@ -15,8 +15,8 @@ export const pinLabel = (pinned: boolean) =>
 /**
  * The pin in the navigation's open head in a tutorial: docks the overlay
  * open beside the chat until the learner leaves, and folds it back. The
- * shell reads its click as a pick that closes the overlay first, so pinning
- * goes from the rail (`foldNav`), and lands pinned all the same.
+ * shell reads its click as a pick that closes the overlay after it, which
+ * leaves a pinned navigation pinned (`foldNav`).
  */
 const BaseNavPin = ({ pinned, onPinnedChange }: BaseNavPinProps) => (
   <Tooltip>

@@ -59,7 +59,7 @@ test.describe("tutorial-workspace", () => {
           page.getByRole("button", { name: "Collapse assistant" })
         ).toHaveCount(0);
         await expect(
-          chat(page).getByRole("heading", { name: "Hello Anchor" })
+          chat(page).getByRole("heading", { name: "Hello Anchor", exact: true })
         ).toBeVisible();
       }
     );
@@ -114,7 +114,10 @@ test.describe("tutorial-workspace", () => {
     await expect(scrim(page)).toHaveCount(0);
     await expect(navColumn(page)).toHaveJSProperty("offsetWidth", 232);
     // Docked, the chat moves over beside it
-    expect((await chat(page).boundingBox())?.x).toBe(232);
+    // The column's gap widens over 200 ms
+    await expect
+      .poll(async () => (await chat(page).boundingBox())?.x)
+      .toBe(232);
     await expect(
       page.getByRole("button", { name: "Fold while I learn" })
     ).toBeVisible();

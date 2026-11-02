@@ -50,9 +50,7 @@ vi.mock("../../../utils/explorer", () => ({
 vi.mock("../../../hooks", async () => {
   const { useEffect, useReducer } = await import("react");
   return {
-    useRenderOnChange: (
-      on: (cb: () => void) => { dispose: () => void }
-    ) => {
+    useRenderOnChange: (on: (cb: () => void) => { dispose: () => void }) => {
       const [, render] = useReducer((n: number) => n + 1, 0);
       useEffect(() => on(render).dispose, [on]);
     },

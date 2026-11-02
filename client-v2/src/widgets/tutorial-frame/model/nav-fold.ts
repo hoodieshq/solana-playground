@@ -77,7 +77,8 @@ if (import.meta.vitest) {
 
     it("pins from the overlay, and fold or unpin folds it", () => {
       expect(foldNav("overlay", { type: "pin" })).toBe("pinned");
-      // A pick-close lands before the pin's own click: pinning still wins
+      // The shell's pick-close lands after the pin's own click
+      expect(foldNav("pinned", { type: "close" })).toBe("pinned");
       expect(foldNav("rail", { type: "pin" })).toBe("pinned");
       expect(foldNav("pinned", { type: "fold" })).toBe("rail");
       expect(foldNav("pinned", { type: "unpin" })).toBe("rail");
