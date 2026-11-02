@@ -3,7 +3,7 @@ import { createLogger } from "@/shared/lib/logger";
 import { sameIdlName } from "@/shared/lib/idl-name";
 
 import type { Judge } from "./ports";
-import type { Called, Refusal, RunResult } from "./progress";
+import type { Called, RunResult } from "./progress";
 
 const log = createLogger("tutorial-conversation:goals");
 
@@ -115,6 +115,7 @@ const logMatches = (pattern: string, line: string | null): boolean => {
 if (import.meta.vitest) {
   const { describe, it, expect, beforeAll, beforeEach, afterEach } = import.meta
     .vitest;
+  type Refusal = import("./progress").Refusal;
 
   // Hello Anchor's four goals, as its `tutorial.json` writes them
   const BUILD_HELLO: Goal = { kind: "build", instructions: ["hello"] };

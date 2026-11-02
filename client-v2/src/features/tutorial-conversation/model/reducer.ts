@@ -7,7 +7,6 @@ import type {
   Step,
   TutorialDefinition,
 } from "@/entities/tutorial";
-import { sameIdlName } from "@/shared/lib/idl-name";
 
 import { TICK_MS } from "./clock";
 import { holds, keyOf, typedKey } from "./landing";
@@ -388,12 +387,13 @@ const callArgs = (
 ): Record<string, string> => {
   const landed = (p.runs[beatId] ?? []).filter((r) => r.status === "ok").length;
   const out: Record<string, string> = {};
+  // The card's fields are named by `args`, so names compare exactly, as
+  // `checkDefinition`'s duplicate rule does
+  const fixed = new Set(
+    args.flatMap((arg) => (typeof arg === "string" ? [] : [arg.name]))
+  );
   for (const [name, value] of Object.entries(given)) {
-    // The definition's value wins, under whichever spelling the learner sent
-    const fixed = args.some(
-      (arg) => typeof arg !== "string" && sameIdlName(arg.name, name)
-    );
-    if (!fixed) out[name] = value;
+    if (!fixed.has(name)) out[name] = value;
   }
   for (const arg of args) {
     if (typeof arg === "string") continue;
