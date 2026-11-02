@@ -478,6 +478,18 @@ export class PgJsRuntime {
             },
           });
         }
+      } else if (PgProgramInfo.readIdl()?.kind === "refused") {
+        // Any `anchor.workspace.<Name>` reports why there is no program;
+        // `then` stays readable so awaiting the namespace does not throw
+        pkg.workspace = new Proxy(
+          {},
+          {
+            get: (_, prop) => {
+              if (typeof prop !== "string" || prop === "then") return;
+              throw new Error(PgProgramInfo.noCallableIdlMessage());
+            },
+          }
+        );
       }
     }
 
@@ -525,6 +537,14 @@ export class PgJsRuntime {
     // Anchor Program
     if (pg.wallet && PgProgramInfo.callableIdl()) {
       pg.program = PgProgramInteraction.getAnchorProgram();
+    } else if (PgProgramInfo.readIdl()?.kind === "refused") {
+      // A script that reaches for the program learns why there is none;
+      // not enumerable, so code that walks `pg` does not trip on it
+      Object.defineProperty(pg, "program", {
+        get: () => {
+          throw new Error(PgProgramInfo.noCallableIdlMessage());
+        },
+      });
     }
 
     return pg;

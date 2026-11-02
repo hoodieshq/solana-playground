@@ -19,6 +19,8 @@ export interface IdlSummary {
   name: string;
   instructions: string[];
   accounts: string[];
+  /** Why the Playground cannot call this IDL; absent when it can */
+  refused?: string;
 }
 
 /** What the assistant is allowed to know about the project without asking */
@@ -89,6 +91,20 @@ const toRelative = (fullPath: string) => {
 };
 
 const summarizeIdl = (): IdlSummary | null => {
+  const reading = PgProgramInfo.readIdl();
+  if (reading?.kind === "refused") {
+    const raw = PgProgramInfo.idl as {
+      name?: unknown;
+      metadata?: { name?: unknown };
+    };
+    const name = raw.metadata?.name ?? raw.name;
+    return {
+      name: typeof name === "string" ? name : "unknown",
+      instructions: [],
+      accounts: [],
+      refused: reading.reason,
+    };
+  }
   const idl = PgProgramInfo.callableIdl();
   if (!idl) return null;
 
