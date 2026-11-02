@@ -4,11 +4,7 @@
 import { Endpoint, NETWORKS } from "../constants/connection";
 import type { Network } from "../constants/connection";
 import { SERVER_URL } from "../shared/config/client-env";
-import {
-  FOUNDATION_ENDPOINT,
-  LOCAL_ENDPOINT,
-  SOLPG_ENDPOINT,
-} from "./server/default-endpoint";
+import { FOUNDATION_ENDPOINT, LOCAL_ENDPOINT } from "./server/default-endpoint";
 
 /** The settings whose value is an address */
 const ENDPOINT_SETTINGS = ["connection.endpoint", "server.endpoint"] as const;
@@ -69,7 +65,8 @@ export const buildEndpointOptions = (
     ...(configuredServer ? [{ key: "configured", url: configuredServer }] : []),
     { key: "foundation", url: FOUNDATION_ENDPOINT },
     { key: "local", url: LOCAL_ENDPOINT },
-    { key: "solpg", url: SOLPG_ENDPOINT },
+    // `solpg` (api.solpg.io) was offered until HOO-2497; a profile stored
+    // under it reads as the default, like any key whose option is gone
   ],
 });
 
@@ -239,7 +236,7 @@ if (import.meta.vitest) {
       it("resolves a stored option to the address the env provides now", () => {
         const stored = JSON.parse(
           JSON.stringify(
-            toStoredEndpoints(state(PLATFORM_DEVNET, SOLPG_ENDPOINT), options)
+            toStoredEndpoints(state(PLATFORM_DEVNET, LOCAL_ENDPOINT), options)
           )
         );
         const rotated = buildEndpointOptions(
@@ -345,6 +342,27 @@ if (import.meta.vitest) {
         const read = fromStoredEndpoints(stored, defaults, options);
         expect(read.connection.endpoint).toBe(defaults.connection.endpoint);
         expect(read.server.endpoint).toBe(LOCAL_ENDPOINT);
+      });
+
+      it("reads the dropped SolPg build server as the default", () => {
+        // Offered until HOO-2497; a profile that picked it lands on ours
+        const stored = { server: { endpoint: { option: "solpg" } } };
+
+        expect(
+          fromStoredEndpoints(stored, defaults, options).server.endpoint
+        ).toBe(defaults.server.endpoint);
+      });
+
+      it("stores api.solpg.io as a custom address", () => {
+        expect(
+          at(
+            toStoredEndpoints(
+              state(Endpoint.DEVNET, "https://api.solpg.io"),
+              options
+            ),
+            "server.endpoint"
+          )
+        ).toEqual({ option: "custom", url: "https://api.solpg.io" });
       });
 
       it.each([
