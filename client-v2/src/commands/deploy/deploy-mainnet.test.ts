@@ -35,10 +35,13 @@ const runOn = async (cluster: string | null) => {
     configurable: true,
   });
   if (!deploy.handle) throw new Error("deploy has no handler");
-  await deploy.handle({} as never).catch(() => {
-    // `processDeploy` has nothing to deploy here; the lines before it are
-    // what these tests read
-  });
+  // `processDeploy` has nothing to deploy here, so the run fails; the lines
+  // printed before it are what these tests read
+  const run = deploy.handle({
+    signal: new AbortController().signal,
+    lockStop: () => {},
+  } as never);
+  await expect(run).rejects.toThrow();
 };
 
 describe("deploy", () => {

@@ -148,7 +148,7 @@ describe("entities/idl/model/read", () => {
           cix.args.map((a) => [a.name, sample(a.type, conv)])
         );
         const data = coder.instruction.encode(cix.name, args);
-        expect([...data.subarray(0, 8)]).toEqual(ix.discriminator);
+        expect(Array.from(data.subarray(0, 8))).toEqual(ix.discriminator);
         const decoded = coder.instruction.decode(data);
         expect(decoded?.name).toBe(cix.name);
         expect(coder.instruction.encode(cix.name, decoded!.data)).toEqual(data);
@@ -169,12 +169,12 @@ describe("entities/idl/model/read", () => {
       ]);
       for (const a of raw.accounts ?? []) expect(kept).toContain(a.name);
       for (const a of raw.accounts ?? []) {
-        expect([...BorshAccountsCoder.accountDiscriminator(a.name)]).toEqual(
-          a.discriminator
-        );
+        expect(
+          Array.from(BorshAccountsCoder.accountDiscriminator(a.name))
+        ).toEqual(a.discriminator);
       }
       for (const e of raw.events ?? []) {
-        expect([...eventDiscriminator(e.name)]).toEqual(e.discriminator);
+        expect(Array.from(eventDiscriminator(e.name))).toEqual(e.discriminator);
         expect(conv.events?.find((c) => c.name === e.name)).toBeDefined();
       }
       // A new coder accepts the whole IDL, accounts and events included
@@ -371,7 +371,7 @@ describe("entities/idl/model/read", () => {
       );
       const name = conv.instructions[0].name;
       const data = new BorshCoder(conv).instruction.encode(name, {});
-      expect([...data.subarray(0, 8)]).toEqual(sighash);
+      expect(Array.from(data.subarray(0, 8))).toEqual(sighash);
     });
 
     it("refuses two instructions that meet under one method name", () => {

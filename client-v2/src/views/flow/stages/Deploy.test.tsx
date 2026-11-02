@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   report: vi.fn(),
   markShown: vi.fn(),
   flow: { build: "done", deploy: "active" },
+  programInfo: { onChain: null, pk: null, uuid: null as string | null },
   deployState: "ready",
   history: [] as unknown[],
   update: vi.fn(),
@@ -74,7 +75,7 @@ vi.mock("../../../hooks", () => ({
     getTxUrl: (sig: string) => `https://explorer.test/tx/${sig}`,
     opens: () => true,
   }),
-  useProgramInfo: () => ({ onChain: null, pk: null }),
+  useProgramInfo: () => mocks.programInfo,
   useWallet: () => mocks.wallet.current,
   useBalance: () => 4.2,
   useRenderOnChange: (event: string) =>
@@ -126,6 +127,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   mocks.flow = { build: "done", deploy: "active" };
+  mocks.programInfo = { onChain: null, pk: null, uuid: null };
   mocks.deployState = "ready";
   mocks.history = [];
   mocks.wallet.current = null;
@@ -143,6 +145,25 @@ const pressDeploy = async () =>
   );
 
 describe("Deploy stage", () => {
+  // The server keeps the last good binary after a failed build, and the
+  // stage's "Your last build failed" question is how the user opts into it
+  it("keeps Deploy enabled after a failed build when a binary exists", () => {
+    mocks.flow = { build: "failed", deploy: "active" };
+    mocks.programInfo = { onChain: null, pk: null, uuid: "previous-build" };
+    render(<Deploy />);
+
+    const button = screen.getByRole("button", { name: "Deploy to Devnet" });
+    expect(button).toHaveProperty("disabled", false);
+  });
+
+  it("holds Deploy after a failed build when no binary exists", () => {
+    mocks.flow = { build: "failed", deploy: "active" };
+    render(<Deploy />);
+
+    const button = screen.getByRole("button", { name: "Deploy to Devnet" });
+    expect(button).toHaveProperty("disabled", true);
+  });
+
   it("reports a deploy that fails", async () => {
     const failure = new Error("insufficient balance");
     mocks.execute.mockRejectedValue(failure);

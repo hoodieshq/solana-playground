@@ -1,15 +1,35 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 // The utils barrel reads build-time globals jsdom lacks, and the inputs need
 // a connected program; the form under test needs none of it.
 vi.mock("../../../../../utils", () => ({
   PgCommon: { debounce: (fn: () => void) => fn },
 }));
+// What the store holds for an instruction: a filled form the user left and
+// came back to, or an empty custom field, or a field with a parse error
+const stored = vi.hoisted(() => ({
+  amount: { value: "5", error: false },
+}));
 vi.mock("../../../../../utils/program-interaction", () => ({
   PgProgramInteraction: {
     getOrCreateInstruction: (ix: { name: string }) => ({
       name: ix.name,
-      values: { args: [{ name: "amount" }], accounts: [{ name: "owner" }] },
+      values: {
+        args: [
+          {
+            name: "amount",
+            error: stored.amount.error,
+            generator: { type: "Custom", value: stored.amount.value },
+          },
+        ],
+        accounts: [
+          {
+            name: "owner",
+            error: false,
+            generator: { type: "Custom", value: "owner-key" },
+          },
+        ],
+      },
     }),
     saveInstruction: vi.fn(),
   },
@@ -104,4 +124,44 @@ it("reads Calling… and locks the form until the call settles", async () => {
     ).disabled
   ).toBe(false);
   expect(container.querySelector("fieldset")?.disabled).toBe(false);
+});
+
+const FORM_IX = {
+  name: "deposit",
+  args: [{ name: "amount" }],
+  accounts: [{ name: "owner" }],
+} as unknown as Props["idlInstruction"];
+
+const callButton = () =>
+  screen.getByRole("button", { name: "Call deposit" }) as HTMLButtonElement;
+
+afterEach(() => {
+  stored.amount = { value: "5", error: false };
+});
+
+// The chip row remounts the form per instruction, and the inputs report
+// nothing on mount, so the form has to read its restored values itself
+it("enables Call for a valid form restored after leaving and returning", () => {
+  const first = render(
+    <Instruction idlInstruction={FORM_IX} onCall={vi.fn()} />
+  );
+  first.unmount();
+
+  render(<Instruction idlInstruction={FORM_IX} onCall={vi.fn()} />);
+
+  expect(callButton().disabled).toBe(false);
+});
+
+it("keeps Call off for a restored form with an empty custom field", () => {
+  stored.amount = { value: "", error: false };
+  render(<Instruction idlInstruction={FORM_IX} onCall={vi.fn()} />);
+
+  expect(callButton().disabled).toBe(true);
+});
+
+it("keeps Call off for a restored form with a field in error", () => {
+  stored.amount = { value: "x", error: true };
+  render(<Instruction idlInstruction={FORM_IX} onCall={vi.fn()} />);
+
+  expect(callButton().disabled).toBe(true);
 });

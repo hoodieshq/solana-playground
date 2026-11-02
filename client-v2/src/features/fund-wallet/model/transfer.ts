@@ -1,4 +1,4 @@
-import { PgTx, PgWeb3 } from "@/utils";
+import { PgConnection, PgTx, PgWeb3 } from "@/utils";
 import type { StandardWallet } from "@/utils/wallet/types";
 
 /**
@@ -50,10 +50,13 @@ export const sendFunds = async ({
     toPubkey: new PgWeb3.PublicKey(to),
     lamports,
   });
-  const signature = await PgTx.send(transfer, { wallet: payer });
+  // Read once: a cluster change while the wallet asks for approval must not
+  // send on one cluster and look for the transfer on another
+  const connection = PgConnection.current;
+  const signature = await PgTx.send(transfer, { wallet: payer, connection });
   let result: Awaited<ReturnType<typeof PgTx.confirm>>;
   try {
-    result = await PgTx.confirm(signature);
+    result = await PgTx.confirm(signature, { connection });
   } catch (error: unknown) {
     throw new TransferNotConfirmedError(signature, error);
   }

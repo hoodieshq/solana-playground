@@ -5,9 +5,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Keypair, SystemInstruction, SystemProgram } from "@solana/web3.js";
 
 const tx = vi.hoisted(() => ({ send: vi.fn(), confirm: vi.fn() }));
+// Each read of `current` is a new connection, as after a cluster change
+const conn = vi.hoisted(() => ({
+  reads: 0,
+  get current() {
+    return { read: ++conn.reads };
+  },
+}));
 vi.mock("@/utils", async () => {
   const web3 = await import("@solana/web3.js");
-  return { PgTx: tx, PgWeb3: web3 };
+  return { PgTx: tx, PgWeb3: web3, PgConnection: conn };
 });
 
 import { sendFunds } from "./transfer";
@@ -38,7 +45,7 @@ describe("features/fund-wallet/model/transfer", () => {
     expect(transfer.fromPubkey.equals(payerKey)).toBe(true);
     expect(transfer.toPubkey.toBase58()).toBe(to);
     expect(Number(transfer.lamports)).toBe(250_000_000);
-    expect(opts).toEqual({ wallet: payer });
+    expect(opts).toEqual({ wallet: payer, connection: expect.anything() });
   });
 
   it("names a transfer the cluster refused as failed, with nothing moved", async () => {
@@ -67,5 +74,17 @@ describe("features/fund-wallet/model/transfer", () => {
       "User rejected the request."
     );
     expect(tx.confirm).not.toHaveBeenCalled();
+  });
+
+  it("confirms on the connection it sent on, even if the cluster changed meanwhile", async () => {
+    tx.send.mockResolvedValue("sig");
+    tx.confirm.mockResolvedValue(undefined);
+
+    await sendFunds({ payer, to, lamports: 1 });
+
+    const sentOn = tx.send.mock.calls[0][1].connection;
+    const confirmedOn = tx.confirm.mock.calls[0][1].connection;
+    expect(sentOn).toBeDefined();
+    expect(confirmedOn).toBe(sentOn);
   });
 });

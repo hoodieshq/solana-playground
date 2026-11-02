@@ -150,7 +150,11 @@ const Deploy = () => {
   const linkTo = (cluster: string, url: (c: Cluster) => string) =>
     explorer.opens(cluster as Cluster) ? url(cluster as Cluster) : null;
 
-  const built = flow.build === "done";
+  // A failed build leaves the server's last binary in place, so Deploy stays
+  // available when one exists; the stage then asks before using it
+  const built =
+    flow.build === "done" ||
+    (flow.build === "failed" && Boolean(programInfo.uuid));
   const programId = programInfo.pk?.toBase58() ?? null;
 
   return (
