@@ -32,7 +32,7 @@ export type ModalSubmit = {
   disabled?: boolean;
   /** `brand` for the view's one call to action; see `SubmitVariant` */
   variant?: SubmitVariant;
-  /** Drawn before the label, as a brand's mark beside "Sign in with GitHub" */
+  /** Drawn before the label, at the button's icon size; the spinner takes its place while busy */
   icon?: ReactNode;
 };
 

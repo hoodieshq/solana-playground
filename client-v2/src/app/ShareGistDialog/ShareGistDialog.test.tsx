@@ -175,6 +175,65 @@ describe("app/ShareGistDialog", () => {
     expect(reported()).toHaveLength(1);
   });
 
+  it("reports a sign-in that could not start, beside saying so", async () => {
+    // The server could not hand out an authorize URL: ours to fix, not the user's
+    fetchSpy.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    } as Response);
+    await open();
+
+    await press("Sign in with GitHub");
+
+    expect(screen.getByText("Could not start sign-in")).toBeTruthy();
+    expect(reported()).toHaveLength(1);
+  });
+
+  it("clears a failure when the next sign-in succeeds", async () => {
+    // First a popup the user closed
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: "https://x/" }),
+    } as Response);
+    PgSession.setOpenChannel(() => ({
+      receive: async () => ({
+        delivered: false as const,
+        reason: "cancelled" as const,
+      }),
+      cancel: () => {},
+    }));
+    await open();
+    await press("Sign in with GitHub");
+    expect(screen.getByText("Sign-in cancelled.")).toBeTruthy();
+
+    vi.spyOn(PgSession, "signIn").mockImplementation(() =>
+      PgSession.refreshWith(USER)
+    );
+    await press("Sign in with GitHub");
+
+    expect(screen.queryByText("Sign-in cancelled.")).toBe(null);
+    expect(
+      screen.getByRole("heading", { name: "Share counter as a gist" })
+    ).toBeTruthy();
+  });
+
+  it("keeps the share dialog when the session ends while it is open", async () => {
+    await PgSession.refreshWith(USER);
+    await open();
+
+    await act(async () => {
+      await PgSession.refreshWith(null);
+    });
+
+    expect(
+      screen.getByRole("heading", { name: "Share counter as a gist" })
+    ).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Sign in to share" })).toBe(
+      null
+    );
+  });
+
   it("moves on to sharing when a sign-in finishes elsewhere", async () => {
     await open();
 

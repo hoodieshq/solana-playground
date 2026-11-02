@@ -171,6 +171,7 @@ test("gist-sharing: Signed out, then signed in", async ({ page }) => {
   await expect(
     dialog(page).getByRole("button", { name: "Create public gist" })
   ).toBeVisible(LONG);
+  await expect(prompt(page)).toHaveCount(0);
   expect(requests).toHaveLength(0);
   expect(signIns).toHaveLength(1);
   expect(signIns[0].scopes).toBeUndefined();
@@ -187,6 +188,7 @@ test("gist-sharing: Signed in, no prompt", async ({ page }) => {
 
 test("gist-sharing: Cancel leaves without signing in", async ({ page }) => {
   const signIns = await stubAuth(page, { signedIn: false });
+  const requests = await stubGists(page);
   await seedWorkspace(page);
   await openSignedOut(page);
 
@@ -194,6 +196,7 @@ test("gist-sharing: Cancel leaves without signing in", async ({ page }) => {
 
   await expect(prompt(page)).toHaveCount(0);
   expect(signIns).toHaveLength(0);
+  expect(requests).toHaveLength(0);
 });
 
 test("gist-sharing: A session without gist access", async ({ page }) => {

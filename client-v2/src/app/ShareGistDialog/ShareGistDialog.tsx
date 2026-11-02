@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TriangleAlert } from "lucide-react";
 
 import { isSignInFailure, PgSession } from "@/features/auth";
@@ -18,14 +18,14 @@ interface ShareGistDialogProps {
 }
 
 /**
- * What a signed-out Share shows first (Spec 05, "Sign-in prompt"): why
- * sharing needs GitHub, and the sign-in. Signing in is a popup, so the
- * project stays as it is; the session it brings turns the dialog into the
- * share dialog, which sends nothing until its own button is pressed.
+ * What a signed-out Share shows first (the `gist-sharing` spec, "Sign in to
+ * share"): why sharing needs GitHub, and the sign-in. Signing in is a popup,
+ * so the project stays as it is; the session it brings turns the dialog into
+ * the share dialog, which sends nothing until its own button is pressed.
  */
 const SignInToShare = () => {
-  // A known failure (a closed or blocked popup) is the user's to see, not
-  // the team's: thrown, the frame would report it
+  // A sign-in the user ended (a closed or blocked popup, a timeout) is theirs
+  // to see, not the team's: thrown, the frame would report it
   const [failure, setFailure] = useState<string>();
 
   const signIn = async () => {
@@ -33,12 +33,21 @@ const SignInToShare = () => {
     try {
       await PgSession.signIn();
     } catch (error) {
-      if (!isSignInFailure(error)) throw error;
+      // `PgSession` holds why its last sign-in failed; one that could not
+      // start is ours to hear of, so the frame shows and reports it
+      const state = PgSession.signInState();
+      if (
+        !isSignInFailure(error) ||
+        state.status !== "failed" ||
+        state.reason === "request-failed"
+      ) {
+        throw error;
+      }
       // `auth_sign_in_failed` has counted it with its reason
       log.info("sign-in to share ended without a session", {
-        context: { error: String(error) },
+        context: { reason: state.reason },
       });
-      setFailure(error instanceof Error ? error.message : String(error));
+      setFailure(state.message);
     }
   };
 
@@ -70,21 +79,27 @@ const SignInToShare = () => {
 
 /**
  * Share a project as a gist: the gist feature's body in a dialog of
- * `PgView`'s stack, with sign-in from the auth feature. Here, in the app,
- * because neither feature may import the other, nor a widget the frame.
- * Signed out, the sign-in prompt stands in its place.
+ * `PgView`'s stack, with sign-in from the auth feature. It lives in the app
+ * layer because the two features may not import each other. Signed out, the
+ * sign-in prompt stands in its place until a session arrives.
  */
 const ShareGistDialog = ({ name, readFiles }: ShareGistDialogProps) => {
   // The first session read may still be on its way when the dialog opens,
   // and a sign-in, from the prompt or elsewhere, moves the dialog on
   useRenderOnChange(PgSession.onDidChange);
-  if (!PgSession.get()) return <SignInToShare />;
+  const signedIn = !!PgSession.get();
+  // Once sharing shows, a session that ends is mended inside it (the share
+  // body offers to sign in again), never by going back to the prompt, which
+  // would drop the share under way
+  const shared = useRef(signedIn);
+  if (signedIn) shared.current = true;
+  if (!shared.current) return <SignInToShare />;
   return (
     <ModalFrame name="share-gist" title={`Share ${name} as a gist`}>
       <ShareGist
         name={name}
         readFiles={readFiles}
-        signedIn
+        signedIn={signedIn}
         signIn={(options) => PgSession.signIn(options)}
       />
     </ModalFrame>
