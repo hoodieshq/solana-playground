@@ -64,9 +64,9 @@ const BaseFinishCard = ({
     className="flex flex-col gap-4 rounded-card border border-border bg-surface-panel p-5"
   >
     <div className="flex flex-col gap-1.5">
-      <p className="font-heading text-title text-foreground">
+      <h2 className="font-heading text-title text-foreground">
         <Prose text={headline} />
-      </p>
+      </h2>
       <p className={READ}>
         <Prose text={line} />
       </p>
@@ -134,3 +134,18 @@ const BaseFinishCard = ({
 );
 
 export default BaseFinishCard;
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  describe("widgets/tutorial-conversation/ui/BaseFinishCard", () => {
+    it("says the meta line in the wallet copy's words", () => {
+      expect(finishMeta(4, 45)).toBe(
+        "4 steps · 45 s · devnet only, nothing real spent"
+      );
+      expect(finishMeta(4, 252)).toBe(
+        "4 steps · 4 min 12 s · devnet only, nothing real spent"
+      );
+    });
+  });
+}

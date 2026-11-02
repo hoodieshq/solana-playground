@@ -35,14 +35,22 @@ import type { EngineState, Stage } from "./reducer";
 export type LandedCall = Extract<RunResult, { act: "run" | "call"; ok: true }>;
 
 /**
- * The latest landed `run` or `call` act of the lesson's run records, or
- * null. Only the act cards record runs: a step passed from the Call panel or
- * a client run outside the feed leaves none, so its transaction is not here.
+ * The last step's latest landed `run` or `call` act, or null: the spec's
+ * "last call's receipt". Only the act cards record runs, so a last step
+ * passed from the Call panel or a client run outside the feed leaves none,
+ * and an earlier step's transaction is never shown in its place.
  */
-const lastLandedCall = (p: ConversationProgress): LandedCall | null => {
+const lastLandedCall = (
+  definition: TutorialDefinition,
+  p: ConversationProgress
+): LandedCall | null => {
+  const last = definition.steps[definition.steps.length - 1];
+  const acts = [...last.beats, ...(last.onFail ?? [])]
+    .filter((b) => b.kind === "act")
+    .map((b) => b.id);
   let latest: { at: number; result: LandedCall } | null = null;
-  for (const runs of Object.values(p.runs)) {
-    for (const run of runs) {
+  for (const id of acts) {
+    for (const run of p.runs[id] ?? []) {
       const r = run.status === "ok" ? run.result : null;
       if (!r || (r.act !== "run" && r.act !== "call") || !r.ok) continue;
       if (!latest || run.at >= latest.at) latest = { at: run.at, result: r };
@@ -527,7 +535,7 @@ export const view = (
       seconds: Math.round(
         (p.finishedAt - (p.startedAt ?? p.finishedAt)) / 1000
       ),
-      receipt: lastLandedCall(p),
+      receipt: lastLandedCall(definition, p),
     });
   }
 
@@ -1081,7 +1089,7 @@ if (import.meta.vitest) {
       });
     });
 
-    it("the finish reads its receipt from the last landed call", () => {
+    it("the finish reads its receipt from the last step's landed call", () => {
       const ran = (at: number, signature: string): RunRecord => ({
         status: "ok",
         at,
@@ -1132,6 +1140,27 @@ if (import.meta.vitest) {
         kind: "finish",
         seconds: 59,
         receipt: { signatures: ["last"] },
+      });
+
+      // The last step passed with no run of its own: an earlier step's
+      // transaction is not its receipt
+      const earlierOnly: EngineState = {
+        progress: {
+          version: 1,
+          passed: hello.steps.map((s) => s.id),
+          finishedAt: 60000,
+          startedAt: 1000,
+          restartedAt: null,
+          cursor: { kind: "finished" },
+          beats: {},
+          runs: { "s3.run": [ran(30000, "first")] },
+          times: {},
+        },
+        stage: null,
+      };
+      expect(view(hello, earlierOnly, LATE).turns.at(-1)).toMatchObject({
+        kind: "finish",
+        receipt: null,
       });
     });
 

@@ -443,7 +443,8 @@ export const TutorialConversation = ({
   }, []);
 
   const next = context?.definition.finish.next ?? null;
-  const nextTutorial = useMemo(() => nextTutorialOf(next), [next]);
+  // Read each render: the tutorial list is the app's, not this component's
+  const nextTutorial = nextTutorialOf(next);
   const on = useMemo<TurnHandlers>(
     () => ({
       ...handlers,

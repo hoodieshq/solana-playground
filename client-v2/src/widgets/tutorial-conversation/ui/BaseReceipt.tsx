@@ -45,6 +45,9 @@ const rowsOf = (call: LandedCall): Row[] => {
   return rows;
 };
 
+/** The receipt's fee row, the wallet copy of `tutorial-runs` ("Finish receipt") */
+const feeLine = (lamports: number) => `Fee ${solOf(lamports)} devnet SOL`;
+
 /** The log the receipt shows: the transaction's, or the line the definition picked */
 const logOf = (call: LandedCall): string[] => {
   if (call.receipt?.log?.length) return call.receipt.log;
@@ -55,7 +58,7 @@ const logOf = (call: LandedCall): string[] => {
 export const receiptText = (call: LandedCall): string => {
   const lines = rowsOf(call).map((r) => `${r.label}: ${r.key}`);
   if (call.receipt?.fee !== undefined) {
-    lines.push(`Fee ${solOf(call.receipt.fee)} devnet SOL`);
+    lines.push(feeLine(call.receipt.fee));
   }
   return lines.concat(logOf(call)).join("\n");
 };
@@ -106,7 +109,7 @@ const BaseReceipt = ({ call, onCopyError }: BaseReceiptProps) => {
       </ul>
       {call.receipt?.fee !== undefined && (
         <p className="text-muted-foreground tabular-nums">
-          Fee {solOf(call.receipt.fee)} devnet SOL
+          {feeLine(call.receipt.fee)}
         </p>
       )}
       {log.length > 0 && (
@@ -119,3 +122,56 @@ const BaseReceipt = ({ call, onCopyError }: BaseReceiptProps) => {
 };
 
 export default BaseReceipt;
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  describe("widgets/tutorial-conversation/ui/BaseReceipt", () => {
+    const bare = (signatures: string[], line: string | null): LandedCall => ({
+      act: "call",
+      ok: true,
+      seconds: 0.9,
+      signatures,
+      line,
+      called: [],
+    });
+
+    it("copies the last signature and the picked line while the runner fills nothing", () => {
+      expect(
+        receiptText(bare(["5igFirst", "5igLast"], "Program log: Hello, Alex!"))
+      ).toBe("Signature: 5igLast\nProgram log: Hello, Alex!");
+      expect(receiptText(bare([], null))).toBe("");
+    });
+
+    it("copies every row, the fee and the whole log once the runner fills them", () => {
+      expect(
+        receiptText({
+          act: "call",
+          ok: true,
+          seconds: 0.9,
+          signatures: ["5ig"],
+          line: "Program log: Hello, Alex!",
+          called: [],
+          receipt: {
+            fee: 5000,
+            signer: "Wa11et",
+            accounts: [{ name: "program", address: "Pr0g" }],
+            log: [
+              "Program log: Instruction: Hello",
+              "Program log: Hello, Alex!",
+            ],
+          },
+        })
+      ).toBe(
+        [
+          "Signature: 5ig",
+          "Your wallet · signer: Wa11et",
+          "program: Pr0g",
+          "Fee 0.000005 devnet SOL",
+          "Program log: Instruction: Hello",
+          "Program log: Hello, Alex!",
+        ].join("\n")
+      );
+    });
+  });
+}

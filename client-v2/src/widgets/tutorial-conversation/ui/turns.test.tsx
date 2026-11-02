@@ -6,8 +6,7 @@ import type { ActBeat, Ask, TutorialDefinition } from "@/entities/tutorial";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import BaseActCard from "./BaseActCard";
-import BaseFinishCard, { finishMeta } from "./BaseFinishCard";
-import { receiptText } from "./BaseReceipt";
+import BaseFinishCard from "./BaseFinishCard";
 import BaseIntroCard, { HOW_IT_GOES, INTRO_NOTE } from "./BaseIntroCard";
 import BaseResultCard from "./BaseResultCard";
 import BaseStepDivider from "./BaseStepDivider";
@@ -802,6 +801,14 @@ describe("BaseWinCard", () => {
     expect(onNext).not.toHaveBeenCalled();
   });
 
+  it("keeps Open Call on the record, as a navigation link", async () => {
+    const i = steps.findIndex((s) => s.win.extra === "openTest");
+    const onOpenCall = vi.fn();
+    win(i, { live: false, onOpenCall });
+    await userEvent.click(screen.getByRole("button", { name: "Open Call" }));
+    expect(onOpenCall).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps no Next once it is a record, but keeps client.ts as a button", () => {
     win(0, { live: false, via: "call_panel" });
     expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
@@ -927,22 +934,6 @@ describe("BaseFinishCard", () => {
     expect(screen.queryByText(/See summary/)).toBeNull();
   });
 
-  it("copies the receipt's rows, fee and log, and nothing else", () => {
-    expect(receiptText(alex)).toBe(
-      "Signature: 5igLastOfTheCall\nProgram log: Hello, Alex!"
-    );
-    expect(
-      receiptText({
-        act: "call",
-        ok: true,
-        seconds: 0.9,
-        signatures: [],
-        line: null,
-        called: [],
-      })
-    ).toBe("");
-  });
-
   it("has no Transaction details for a call that left nothing to show", () => {
     finish({
       receipt: {
@@ -968,12 +959,6 @@ describe("BaseFinishCard", () => {
     expect(screen.queryByText("Transaction details")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
     expect(screen.getByRole("button", { name: "All tutorials" })).toBeTruthy();
-  });
-
-  it("says the meta line in the wallet copy's words", () => {
-    expect(finishMeta(4, 45)).toBe(
-      "4 steps · 45 s · devnet only, nothing real spent"
-    );
   });
 });
 

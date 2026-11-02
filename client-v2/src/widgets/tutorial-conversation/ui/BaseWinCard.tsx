@@ -82,7 +82,8 @@ const DrawnCheck = ({ draw }: { draw: boolean }) => {
  * offers "Write it in client.ts"; a win that asks for it offers "Open Call".
  * The last step's win has no Next: the finish follows it. Once Next is
  * pressed the card is a record: the check, the tag and the headline, with
- * "Write it in client.ts" kept as a small button, since it only navigates.
+ * "Open Call" and "Write it in client.ts" kept as small buttons, since they
+ * only navigate (spec: navigation links in a record stay live).
  */
 const BaseWinCard = ({
   win,
@@ -96,7 +97,8 @@ const BaseWinCard = ({
 }: BaseWinCardProps) => {
   const fromPanel = via === "call_panel";
   const canNext = live && next !== null;
-  const openCall = live && win.extra === "openTest" ? onOpenCall : undefined;
+  // A navigation link: it stays on the record, as "Write it in client.ts" does
+  const openCall = win.extra === "openTest" ? onOpenCall : undefined;
 
   useEffect(() => {
     if (!canNext) return;
@@ -154,7 +156,11 @@ const BaseWinCard = ({
             </Button>
           )}
           {openCall && (
-            <Button variant="outline" onClick={openCall}>
+            <Button
+              variant="outline"
+              size={live ? "default" : "xs"}
+              onClick={openCall}
+            >
               <Send aria-hidden="true" />
               Open Call
             </Button>
