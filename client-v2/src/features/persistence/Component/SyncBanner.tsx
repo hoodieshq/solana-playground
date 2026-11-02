@@ -1,6 +1,7 @@
 import { CircleAlertIcon, TriangleAlertIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { limitBannerText } from "@/entities/project";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
@@ -27,9 +28,12 @@ const describePaths = (paths: string[]) =>
  * A divergent conflict's files, by whether they still conflict (`open`) or
  * were raised again only because a refused answer was about them, and now
  * merge on their own (`settled`; see `refusedOf` in `project-sync.ts`). A
- * conflict that names no files counts every path as open.
+ * conflict that names no files counts every path as open; any other kind has
+ * none.
  */
-const splitPaths = ({ paths = [], files }: Conflict) => {
+const splitPaths = (conflict: Conflict) => {
+  if (conflict.kind !== "divergent") return { open: [], settled: [] };
+  const { paths = [], files } = conflict;
   if (!files) return { open: paths, settled: [] };
   const settled = files.filter((f) => f.kind === "settled").map((f) => f.path);
   const open = files.filter((f) => f.kind !== "settled").map((f) => f.path);
@@ -141,11 +145,14 @@ const PROMPTS: Record<
       { label: "Try again", kind: "answer", resolution: "retry" },
     ],
   },
+  // A limit names itself and what is over it; the body cap names no limit
   "too-large": {
     title: "Too large to sync",
     variant: "error",
-    message: () =>
-      `This project is over ${MAX_PROJECT_BODY_LABEL}. Remove or shrink its largest files, then try again.`,
+    message: (conflict) =>
+      conflict.kind === "too-large" && conflict.limit
+        ? limitBannerText(conflict.limit)
+        : `This project is over ${MAX_PROJECT_BODY_LABEL}. Remove or shrink its largest files, then try again.`,
     actions: [
       {
         label: "Try again",
@@ -249,7 +256,7 @@ const SyncBanner = () => {
       prompt.variant === "error" ? CircleAlertIcon : TriangleAlertIcon;
 
     return (
-      <Callout variant={prompt.variant}>
+      <Callout variant={prompt.variant} data-testid="sync-banner">
         <Icon />
         <CalloutTitle>{prompt.title}</CalloutTitle>
         {/* Message left, buttons right; the buttons drop below when it gets

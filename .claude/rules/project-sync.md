@@ -187,8 +187,8 @@ when a session reads a file matching the `paths` in the frontmatter.
 - **Only a visible tab pushes.** Tabs share IndexedDB but hold the _current_
   workspace in memory separately, so a backgrounded tab's snapshot goes stale.
   A tab flushes on `visibilitychange` -> `hidden` (not `beforeunload`, which is
-  too late, and not `keepalive`, which caps at ~64 KB against a 4 MB limit)
-  and reconciles before it may push again.
+  too late, and not `keepalive`, which caps at ~64 KB against a 1 MiB body
+  limit) and reconciles before it may push again.
 - **Tabs agree through the store and one Web Lock.** Uploads are built from
   disk (`snapshotOf`), never from a tab's memory, which can be behind another
   tab's write. Reconcile passes, pushes, merges, adopts and banner answers all

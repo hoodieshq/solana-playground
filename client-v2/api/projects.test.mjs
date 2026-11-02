@@ -48,7 +48,11 @@ describe("/api/projects", () => {
   };
 
   /** Enough of the platform's request object for a body-less call */
-  const makeReq = (over) => ({ method: "GET", url: "/", headers: {}, ...over });
+  const makeReq = ({ method = "GET", url = "/", headers = {} }) => ({
+    method,
+    url,
+    headers,
+  });
 
   it("503s while the sync kill switch is off", async () => {
     const mod = await load();
@@ -184,15 +188,25 @@ describe("/api/projects", () => {
       });
     });
 
-    it("refuses a body the platform would refuse first", async () => {
-      // Vercel answers a body over 4.5 MB with its own 413 before the handler
-      // runs. Under that, a refusal is ours and says what to do about it.
+    it("refuses a body of 1,048,577 bytes", async () => {
       const mod = await load();
-      const mb = Buffer.alloc(1_000_000);
-      const chunks = Array.from({ length: 5 }, () => mb);
-      assert.deepEqual(await mod.readBody(streamOf(...chunks)), {
-        error: "too-large",
-      });
+      assert.deepEqual(
+        await mod.readBody(streamOf(Buffer.alloc(1_048_576), Buffer.alloc(1))),
+        { error: "too-large" }
+      );
+    });
+
+    it("reads a full upload of a project at the size limit", async () => {
+      // 524,288 bytes of ordinary source escape to about the same in JSON
+      const files = Object.fromEntries(
+        [0, 1, 2, 3].map((i) => [`src/f${i}.rs`, "fn x() {}\n".repeat(13_107)])
+      );
+      const body = Buffer.from(
+        JSON.stringify({ id: "p", name: "p", kind: "project", files })
+      );
+      assert.ok(body.length < 1_048_576);
+      const mod = await load();
+      assert.deepEqual((await mod.readBody(streamOf(body))).body.files, files);
     });
   });
 
@@ -336,7 +350,7 @@ describe("/api/projects", () => {
   });
 
   describe("describeWrite", () => {
-    const token = { baseUpdatedAt: "2026-01-01T00:00:00.000Z" };
+    const baseUpdatedAt = "2026-01-01T00:00:00.000Z";
 
     it("takes a whole file set", async () => {
       const mod = await load();
@@ -353,7 +367,11 @@ describe("/api/projects", () => {
     it("takes a patch that carries a token", async () => {
       const mod = await load();
       assert.deepEqual(
-        mod.describeWrite({ changed: { a: "2" }, removed: ["b"], ...token }),
+        mod.describeWrite({
+          changed: { a: "2" },
+          removed: ["b"],
+          baseUpdatedAt,
+        }),
         { changed: { a: "2" }, removed: ["b"] }
       );
     });
@@ -370,7 +388,7 @@ describe("/api/projects", () => {
         changed: {},
         removed: [],
         force: true,
-        baseUpdatedAt: token.baseUpdatedAt,
+        baseUpdatedAt,
       });
       assert.ok(patch.error);
       assert.equal(patch.status, 409);
@@ -409,7 +427,7 @@ describe("/api/projects", () => {
           name: "one",
           kind: "project",
           snapshot: { files: { "src/lib.rs": "fn main() {}" } },
-          baseUpdatedAt: token.baseUpdatedAt,
+          baseUpdatedAt,
           force: false,
         })
       );
@@ -438,7 +456,7 @@ describe("/api/projects", () => {
         mod.describeWrite({
           snapshot: { files: { a: "1" } },
           changed: {},
-          baseUpdatedAt: token.baseUpdatedAt,
+          baseUpdatedAt,
         }).error
       );
     });
@@ -446,7 +464,8 @@ describe("/api/projects", () => {
     it("refuses both shapes at once, and neither", async () => {
       const mod = await load();
       assert.ok(
-        mod.describeWrite({ files: { a: "1" }, changed: {}, ...token }).error
+        mod.describeWrite({ files: { a: "1" }, changed: {}, baseUpdatedAt })
+          .error
       );
       assert.ok(mod.describeWrite({}).error);
     });
@@ -454,8 +473,80 @@ describe("/api/projects", () => {
     it("refuses a path that is both changed and removed", async () => {
       const mod = await load();
       assert.ok(
-        mod.describeWrite({ changed: { a: "1" }, removed: ["a"], ...token })
-          .error
+        mod.describeWrite({
+          changed: { a: "1" },
+          removed: ["a"],
+          baseUpdatedAt,
+        }).error
+      );
+    });
+
+    it("names a file over the size limit before touching the database", async () => {
+      const mod = await load();
+      const big = "a".repeat(200_000);
+      assert.deepEqual(
+        mod.describeWrite({ files: { "src/big.rs": big, "src/lib.rs": "" } }),
+        {
+          limit: {
+            reason: "file-too-large",
+            limit: 131_072,
+            paths: ["src/big.rs"],
+            sizes: { "src/big.rs": 200_000 },
+          },
+        }
+      );
+      assert.equal(
+        mod.describeWrite({
+          changed: { "src/big.rs": big },
+          removed: [],
+          baseUpdatedAt,
+        }).limit.reason,
+        "file-too-large"
+      );
+    });
+
+    it("refuses a path over 256 characters", async () => {
+      const mod = await load();
+      const path = "p".repeat(257);
+      assert.deepEqual(mod.describeWrite({ files: { [path]: "" } }), {
+        limit: { reason: "path-too-long", limit: 256, paths: [path] },
+      });
+    });
+
+    it("refuses a full write of 51 files on its own", async () => {
+      const mod = await load();
+      const files = Object.fromEntries(
+        Array.from({ length: 51 }, (_, i) => [`f${i}`, ""])
+      );
+      assert.deepEqual(mod.describeWrite({ files }).limit, {
+        reason: "too-many-files",
+        limit: 50,
+        count: 51,
+      });
+    });
+
+    it("refuses a .workspace/ file sync does not carry, but lets one be removed", async () => {
+      const mod = await load();
+      const local = ".workspace/metadata.json";
+      assert.ok(mod.describeWrite({ files: { [local]: "{}" } }).error);
+      assert.ok(
+        mod.describeWrite({
+          changed: { [local]: "{}" },
+          removed: [],
+          baseUpdatedAt,
+        }).error
+      );
+      assert.deepEqual(
+        mod.describeWrite({
+          changed: {},
+          removed: [local],
+          baseUpdatedAt,
+        }),
+        { changed: {}, removed: [local] }
+      );
+      assert.deepEqual(
+        mod.describeWrite({ files: { ".workspace/program-info.json": "{}" } }),
+        { files: { ".workspace/program-info.json": "{}" } }
       );
     });
 
@@ -465,7 +556,7 @@ describe("/api/projects", () => {
         mod.describeWrite({
           snapshot: { files: { a: "1" } },
           removed: ["b"],
-          baseUpdatedAt: token.baseUpdatedAt,
+          baseUpdatedAt,
         }).error
       );
     });
@@ -475,8 +566,51 @@ describe("/api/projects", () => {
       assert.ok(mod.describeWrite({ files: { a: 1 } }).error);
       assert.ok(mod.describeWrite({ files: { "": "x" } }).error);
       assert.ok(
-        mod.describeWrite({ changed: {}, removed: [7], ...token }).error
+        mod.describeWrite({ changed: {}, removed: [7], baseUpdatedAt }).error
       );
+    });
+  });
+
+  describe("answerWrite", () => {
+    const limit = { reason: "too-many-files", limit: 50, count: 51 };
+
+    it("answers a limit from describeWrite 413, its measure at the top level", async () => {
+      const mod = await load();
+      const files = Object.fromEntries(
+        Array.from({ length: 51 }, (_, i) => [`f${i}`, ""])
+      );
+      assert.deepEqual(mod.answerWrite(mod.describeWrite({ files })), {
+        status: 413,
+        body: {
+          error: "The project is over a sync limit",
+          reason: limit.reason,
+          limit: limit.limit,
+          count: limit.count,
+        },
+      });
+    });
+
+    it("answers a limit from saveProject 413, not 200", async () => {
+      const mod = await load();
+      assert.deepEqual(mod.answerWrite({ limit }), {
+        status: 413,
+        body: {
+          error: "The project is over a sync limit",
+          reason: limit.reason,
+          limit: limit.limit,
+          count: limit.count,
+        },
+      });
+    });
+
+    it("answers a missed swap 409 and a write 200", async () => {
+      const mod = await load();
+      const missed = { conflict: true, updatedAt: null };
+      assert.deepEqual(mod.answerWrite(missed), { status: 409, body: missed });
+      assert.deepEqual(mod.answerWrite({ updatedAt: "t" }), {
+        status: 200,
+        body: { updatedAt: "t" },
+      });
     });
   });
 

@@ -6,6 +6,11 @@
  * That is the difference between "your other device won" and "your other
  * device's work is gone".
  */
+import {
+  limitExceeded,
+  PROJECT_LIMITS,
+  SYNCED_WORKSPACE_FILES,
+} from "../../../entities/project/server.mjs";
 import { query, transaction } from "./db.mjs";
 import { DELETED_REASON } from "./deleted.mjs";
 import { NO_FILES_REASON } from "./project-write.mjs";
@@ -192,6 +197,44 @@ class WriteRefused extends Error {
   }
 }
 
+/**
+ * The project a write produced, measured after its writes inside the same
+ * transaction: the counted files (the generated workspace files left out) and
+ * the bytes of every file, both over the files sync carries (`isSyncedPath`),
+ * so a `.workspace/` row stored before the route refused them weighs nothing
+ * the client cannot see. `octet_length` of a `text` column is its UTF-8 byte
+ * count, the measure `checkProjectLimits` takes on the client.
+ *
+ * Measured rather than predicted: computing the result in JavaScript from the
+ * stored rows and the patch would be a second model of `DELETE_OTHERS` and
+ * `UPSERT_FILES` that could disagree with the statements themselves.
+ */
+const MEASURE = `
+  select count(*) filter (where not (path = any($3::text[])))::int as files,
+         coalesce(sum(octet_length(content)), 0)::bigint as bytes
+    from project_files
+   where user_id = $1 and project_id = $2
+     and (path = any($3::text[]) or not starts_with(path, '.workspace/'))`;
+
+/**
+ * Throw `WriteRefused` with `{limit}` when the project as written is over the
+ * file count or size limit, so that the writes roll back. Count before size,
+ * the order `checkProjectLimits` reports them in; the path and per-file checks
+ * need only the request and run in `api/projects.mjs`.
+ */
+const refuseOverLimit = async (q, userId, id) => {
+  const { rows } = await q(MEASURE, [userId, id, SYNCED_WORKSPACE_FILES]);
+  const files = rows[0].files;
+  const bytes = Number(rows[0].bytes);
+  let limit = null;
+  if (files > PROJECT_LIMITS.files) {
+    limit = limitExceeded.tooManyFiles(files);
+  } else if (bytes > PROJECT_LIMITS.projectBytes) {
+    limit = limitExceeded.projectTooLarge(bytes);
+  }
+  if (limit) throw new WriteRefused({ limit });
+};
+
 const DELETE_NAMED = `
   delete from project_files
    where user_id = $1 and project_id = $2 and path = any($3::text[])`;
@@ -244,6 +287,10 @@ const DELETE_OTHERS = `
  * A patch is only ever accepted together with a token, so "what it differs
  * from" is always the row the caller read.
  *
+ * A write that leaves the project over the file count or size limit is rolled
+ * back and answered `{limit}`, the body of the route's 413. A patch is small
+ * even when its project is not, so the project it produces is what counts.
+ *
  * A patch after which the row holds no files is refused and rolled back
  * (`refused: "no-files"`). Such a row reads back as no snapshot, so no device
  * can merge with it or take it, and `CREATE` lets any device that never read
@@ -257,7 +304,8 @@ const DELETE_OTHERS = `
  *          changed?: Record<string, string>, removed?: string[]}} input
  * @returns {Promise<{updatedAt: string} |
  *   {conflict: true, updatedAt: string | null, reason?: "deleted"} |
- *   {refused: typeof NO_FILES_REASON}>}
+ *   {refused: typeof NO_FILES_REASON} |
+ *   {limit: import("../../../entities/project/limits.mjs").LimitExceeded}>}
  */
 export const saveProject = async (userId, input) => {
   try {
@@ -273,8 +321,9 @@ export const saveProject = async (userId, input) => {
  *
  * A constant number of statements whatever the file count: every file of a
  * write travels as one `jsonb` parameter and is expanded by
- * `jsonb_each_text` inside a single upsert. A project created from a template
- * is two statements, not one per file. Exported so a test can count them.
+ * `jsonb_each_text` inside a single upsert, and one more measures the result.
+ * A project created from a template is three statements, not one per file.
+ * Exported so a test can count them.
  *
  * @param {(text: string, params?: unknown[]) => Promise<import("pg").QueryResult>} q
  */
@@ -323,6 +372,7 @@ export const writeProject = async (q, userId, input) => {
       }
     }
   }
+  await refuseOverLimit(q, userId, id);
   return outcome;
 };
 

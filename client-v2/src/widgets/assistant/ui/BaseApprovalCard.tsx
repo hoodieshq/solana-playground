@@ -34,6 +34,7 @@ const STATUS_LABEL: Record<ApprovalStatus, string> = {
   allowed: "Applied",
   denied: "Declined",
   unanswered: "Not answered",
+  failed: "Failed",
 };
 
 /** What a card no longer pending says when the tool reported no outcome of its own */
@@ -41,6 +42,21 @@ const OUTCOME: Record<Exclude<ApprovalStatus, "pending">, string> = {
   allowed: "done",
   denied: "not applied",
   unanswered: "not applied -- the session ended before you answered",
+  failed: "failed",
+};
+
+/** The badge's colour, for the statuses that have one */
+const BADGE_TONE: Partial<Record<ApprovalStatus, string>> = {
+  allowed: "text-success",
+  failed: "text-destructive",
+};
+
+/** The outcome line's colour */
+const OUTCOME_TONE: Record<Exclude<ApprovalStatus, "pending">, string> = {
+  allowed: "text-success",
+  failed: "text-destructive",
+  denied: "text-muted-foreground",
+  unanswered: "text-muted-foreground",
 };
 
 // The answers sit in one row of thumb-sized targets on a phone, where the
@@ -84,7 +100,7 @@ export const BaseApprovalCard = ({
         {patch ? <PatchStat request={request} /> : <span className="ml-auto" />}
         <Badge
           variant={pending ? "default" : "outline"}
-          className={cn(status === "allowed" && "text-success")}
+          className={BADGE_TONE[status]}
         >
           {STATUS_LABEL[status]}
         </Badge>
@@ -125,12 +141,7 @@ export const BaseApprovalCard = ({
             </Button>
           </>
         ) : (
-          <span
-            className={cn(
-              "text-xs",
-              status === "allowed" ? "text-success" : "text-muted-foreground"
-            )}
-          >
+          <span className={cn("text-xs", OUTCOME_TONE[status])}>
             {item.outcome ?? OUTCOME[status]}
           </span>
         )}

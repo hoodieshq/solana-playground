@@ -9,6 +9,10 @@
  * long.
  */
 import {
+  checkProjectLimits,
+  isSyncedPath,
+} from "../src/entities/project/server.mjs";
+import {
   warnAboutMissingObservabilityIds,
   withObservability,
 } from "../src/features/api/server.mjs";
@@ -26,6 +30,9 @@ import {
 import { createServerLogger } from "../src/shared/lib/logger/server.mjs";
 
 const log = createServerLogger("api:projects");
+
+/** `describeWrite`'s refusal of a file sync does not carry */
+const UNSYNCED_ERROR = "A path under .workspace/ is not synced";
 
 /** Matches `projects_kind_check`, so a bad kind is a 400 and not a 500 */
 const KINDS = ["project", "tutorial"];
@@ -91,6 +98,17 @@ const refuse = (error, status = 400) => ({ error, status });
  * two devices' copies are merged on the client, so every write is either a
  * create or a swap against the row the caller read.
  *
+ * A body whose own files are over a limit is refused as `limit`, before the
+ * database is touched: whatever is stored, the project those files land in is
+ * over it too. The count and the total size of a patch's result depend on
+ * rows already stored, so `writeProject` measures those after its writes.
+ *
+ * A file sync does not carry (`.workspace/metadata.json` and the rest of
+ * `.workspace/` but `SYNCED_WORKSPACE_FILES`) is refused as a bad request:
+ * the client never sends one, the limits do not measure one, and stored it
+ * would sit in the project unchecked. Removing one is allowed, so a row stored
+ * before this check can still go.
+ *
  * A tab left open across the #40 deploy still runs the client from before it,
  * and keeps doing so until reloaded. That client sends `{snapshot: {files},
  * baseUpdatedAt, force: false}` on every push and files every refusal except
@@ -106,6 +124,7 @@ const refuse = (error, status = 400) => ({ error, status });
  *
  * @returns {{files: Record<string, string>}
  *   | {changed: Record<string, string>, removed: string[]}
+ *   | {limit: import("../src/entities/project/limits.mjs").LimitExceeded}
  *   | {error: string, status: 400 | 409}}
  */
 export const describeWrite = (body) => {
@@ -124,9 +143,12 @@ export const describeWrite = (body) => {
 
   if (old || full) {
     const files = old ? body.snapshot?.files : body.files;
-    return isFileMap(files) && Object.keys(files).length
-      ? { files }
-      : refuse("files must be a non-empty map of paths to strings");
+    if (!isFileMap(files) || !Object.keys(files).length) {
+      return refuse("files must be a non-empty map of paths to strings");
+    }
+    if (!Object.keys(files).every(isSyncedPath)) return refuse(UNSYNCED_ERROR);
+    const limit = checkProjectLimits(files);
+    return limit ? { limit } : { files };
   }
 
   if (!body.baseUpdatedAt) {
@@ -146,7 +168,13 @@ export const describeWrite = (body) => {
   if (removed.some((path) => path in changed)) {
     return refuse("A path cannot be both changed and removed");
   }
-  return { changed, removed };
+  if (!Object.keys(changed).every(isSyncedPath)) {
+    return refuse(UNSYNCED_ERROR);
+  }
+  // Every changed file is in the project the patch produces, so their count
+  // and size are a floor under its own
+  const limit = checkProjectLimits(changed);
+  return limit ? { limit } : { changed, removed };
 };
 
 /**
@@ -182,6 +210,29 @@ const sendJson = (res, status, body) => {
   res.setHeader("content-type", "application/json");
   res.setHeader("cache-control", "no-store");
   res.end(JSON.stringify(body));
+};
+
+/**
+ * The status and body a write is answered with, from `describeWrite`'s limit
+ * or `saveProject`'s outcome. A limit is 413 with its `reason` and measure at
+ * the top level, so the client raises the same banner from this body as from
+ * its own check; every other outcome is `describeSaved`'s. Both sources come
+ * through here so neither can reach a 200 with a limit.
+ *
+ * Exported for `api/projects.test.mjs`: the handler is behind the auth gate.
+ *
+ * @param {{limit: import("../src/entities/project/limits.mjs").LimitExceeded}
+ *   | {refused: string} | {conflict: true} | {updatedAt: string}} outcome
+ * @returns {{status: number, body: object}}
+ */
+export const answerWrite = (outcome) => {
+  if ("limit" in outcome) {
+    return {
+      status: 413,
+      body: { error: "The project is over a sync limit", ...outcome.limit },
+    };
+  }
+  return describeSaved(outcome);
 };
 
 /**
@@ -312,6 +363,10 @@ async function handler(req, res) {
       if (write.error) {
         return sendJson(res, write.status, { error: write.error });
       }
+      if (write.limit) {
+        const answer = answerWrite(write);
+        return sendJson(res, answer.status, answer.body);
+      }
 
       // Reaches SQL as a timestamptz. Unchecked, a malformed one is a cast
       // error from the driver, which is a 500 for what is really a bad request.
@@ -332,7 +387,7 @@ async function handler(req, res) {
         baseUpdatedAt: body.baseUpdatedAt,
         ...write,
       });
-      const answer = describeSaved(result);
+      const answer = answerWrite(result);
       // The one refusal that says something reached a state it should not
       // have: a row already empty, or a client building patches wrongly. Ids
       // only; file contents never travel to the logs.
