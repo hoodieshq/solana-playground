@@ -163,10 +163,11 @@ describe("entities/idl/model/read", () => {
       const conv = legacy(raw);
       // An account type an argument reaches and another type holds is kept
       // in `types` only (see `toLegacyIdl`); every other one is an account
-      const kept = new Set([
-        ...(conv.accounts ?? []).map((a) => a.name),
-        ...(conv.types ?? []).map((t) => t.name),
-      ]);
+      const kept = new Set(
+        (conv.accounts ?? [])
+          .map((a) => a.name)
+          .concat((conv.types ?? []).map((t) => t.name))
+      );
       for (const a of raw.accounts ?? []) expect(kept).toContain(a.name);
       for (const a of raw.accounts ?? []) {
         expect(
@@ -360,12 +361,12 @@ describe("entities/idl/model/read", () => {
     });
 
     it("keeps a name whose camelCase does not hash back", () => {
-      const sighash = [
-        ...createHash("sha256")
+      const sighash = Array.from(
+        createHash("sha256")
           .update("global:add_2_things")
           .digest()
-          .subarray(0, 8),
-      ];
+          .subarray(0, 8)
+      );
       const conv = legacy(
         one({ name: "add_2_things", discriminator: sighash })
       );
@@ -375,12 +376,10 @@ describe("entities/idl/model/read", () => {
     });
 
     it("refuses two instructions that meet under one method name", () => {
-      const sighash = (name: string) => [
-        ...createHash("sha256")
-          .update(`global:${name}`)
-          .digest()
-          .subarray(0, 8),
-      ];
+      const sighash = (name: string) =>
+        Array.from(
+          createHash("sha256").update(`global:${name}`).digest().subarray(0, 8)
+        );
       const raw = one({ name: "add_2", discriminator: sighash("add_2") });
       raw.instructions.push({
         name: "add2",
