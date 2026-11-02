@@ -8,8 +8,8 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useTheme } from "styled-components";
 
+import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
 import { Button } from "@/shared/ui/button";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import {
@@ -164,7 +164,7 @@ export const BaseConflictResolver = ({
   const [root, setRoot] = useState<HTMLElement | null>(null);
   const single = useSingle(root);
   const [showAll, setShowAll] = useState(false);
-  const theme = useTheme() as
+  const theme = usePgTheme() as
     | { components?: { editor?: { default?: { fontFamily?: string } } } }
     | undefined;
   const fontFamily = theme?.components?.editor?.default?.fontFamily;
