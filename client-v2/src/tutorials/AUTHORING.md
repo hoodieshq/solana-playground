@@ -36,7 +36,7 @@ Ask the person, and write the answers down before any JSON:
    one log line the finished program prints. That line is the tutorial's
    signature moment: the learner sees it come back from devnet, so the last
    step's goal is the call that prints it. If no step calls the instruction
-   that prints it, change the steps or the line.
+   that prints it, add that call to the last step rather than drop the line.
 3. **What are the steps?** One idea a step, from one to six steps; a
    published tutorial has four to six. Check that no step carries two ideas
    and no step is only a button.
@@ -48,6 +48,8 @@ Ask the person, and write the answers down before any JSON:
    and asks a "Fix it" question.
 6. **Which tutorial comes next,** and which few doc pages (at most eight) the
    learner may want open beside the code.
+7. **Who are the authors, and is there a thumbnail?** The pull request
+   carries the image.
 
 ## The shape of a definition
 
@@ -142,8 +144,10 @@ rules that follow from it:
 
 For the planned failure, the beats before the first build write a file that
 really fails with the error you want, and the fix question's block is what
-makes it build. Try that file in Playground before you write the failure's
-copy around it.
+makes it build. The failure must be a compiler error with a file and a
+line (`error[E0412]: ...`, `--> src/lib.rs:9:32`): a build that fails any
+other way is treated as unplanned. Try that file in Playground before you
+write the failure's copy around it.
 
 ## The four beats
 
@@ -370,12 +374,17 @@ purpose..."). `onFail` holds the beats after the learner presses Explain: a
   `Hello, World!` matches `Program log: Hello, World!`. Write it against what
   your own `msg!` prints, and use `.+` where the learner's input goes. Leave
   `log` out when the instruction prints nothing; Anchor's automatic
-  `Instruction: ...` lines are not a goal. `args` is optional too.
+  `Instruction: ...` lines are not a goal. `$` and `^` anchor to the line's
+  end and start (`Count: 1$` refuses `Count: 10`). `args` is optional too.
+  A step with several calls passes on the first one that meets its goal, in
+  whatever order they run.
 
 `win` closes the step: `headline` says what is now true ("Your program
 compiles."), `line` says what that means. `callPanelLine` replaces `line`
 when the learner passed the step from the Call panel; `"extra": "openTest"`
-adds an "Open Call" button. No numbers that only a live run knows.
+adds an "Open Call" button. No values that only a live run knows (a program
+id, a fee, a time); a value the program always gives, like `Count: 1`, is
+fine.
 
 `explain` answers "Explain this step": what the step does and how, in two to
 four sentences.
