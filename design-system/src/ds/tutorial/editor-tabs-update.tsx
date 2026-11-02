@@ -1,7 +1,7 @@
 import { ChevronDown, Send, Terminal } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { EditorTab, EditorTabLabel, EditorTabs, EditorTabsActions, EditorTabsBar, EditorTabTrigger } from "@/components/ui/editor-tabs"
+import { ToolButton } from "@/components/ui/tool-button"
 
 import { Block } from "../parts"
 
@@ -38,12 +38,13 @@ function EditorTabsUpdateBlock() {
             ))}
           </EditorTabs>
           <EditorTabsActions>
-            <Button variant="ghost" size="icon" aria-label="Call" className="text-muted-foreground hover:text-foreground">
+            <ToolButton label="Call">
               <Send />
-            </Button>
-            <Button variant="ghost" size="icon" aria-label="Terminal" className="text-muted-foreground hover:text-foreground">
-              <Terminal />
-            </Button>
+            </ToolButton>
+            {/* Lucide draws >_ in the lower part of its box, so it rides a pixel up to sit level with Send */}
+            <ToolButton label="Terminal" shortcut="⌘J">
+              <Terminal className="-translate-y-px" />
+            </ToolButton>
           </EditorTabsActions>
         </EditorTabsBar>
         <div className="h-16 bg-code-ground" />

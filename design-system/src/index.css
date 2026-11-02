@@ -50,9 +50,29 @@ html:has([data-ds-aside]) {
 html.dark:has([data-ds-aside]) {
   color-scheme: dark;
 }
-html:has([data-ds-aside]) body *:not([data-ds-aside]) {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
+@supports (scrollbar-color: auto) {
+  html:has([data-ds-aside]) body *:not([data-ds-aside]) {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
+  }
+}
+/* Safari reads neither scrollbar-color nor, before 18.2, scrollbar-width, and drew its light bar: the
+   same thin thumb through its own scrollbar parts */
+@supports not (scrollbar-color: auto) {
+  html:has([data-ds-aside]) body *:not([data-ds-aside])::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent;
+  }
+  html:has([data-ds-aside]) body *:not([data-ds-aside])::-webkit-scrollbar-track,
+  html:has([data-ds-aside]) body *:not([data-ds-aside])::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  html:has([data-ds-aside]) body *:not([data-ds-aside])::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--color-foreground) 22%, transparent) padding-box;
+  }
 }
 @media (prefers-reduced-motion: no-preference) {
   html:has([data-ds-aside]) {

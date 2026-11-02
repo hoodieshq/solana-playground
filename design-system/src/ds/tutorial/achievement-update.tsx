@@ -11,6 +11,7 @@ function AchievementUpdateBlock() {
       title="Achievement: appear"
       source="playground"
       registry="achievement"
+      className="gap-x-6"
       note="appear is the moment a badge is earned, at a lesson's finish: the disc pops in once, with a glow round it. Nothing moves with reduced motion. Alone, without a label, give it role=img and an aria-label with the badge's name, and w-auto."
     >
       <Achievement>
@@ -25,8 +26,9 @@ function AchievementUpdateBlock() {
         </AchievementMedia>
         <AchievementLabel>Hello, Anchor</AchievementLabel>
       </Achievement>
-      {/* To the row's top, with its discs: without a label it is shorter, and the row's centring slid it down */}
-      <Achievement appear role="img" aria-label="Badge earned: Hello, Anchor" className="w-auto self-start">
+      {/* To the row's top, with its discs: without a label it is shorter, and the row's centring slid it down.
+          It keeps the badges' own width here, so the three sit at even steps; alone it would take w-auto */}
+      <Achievement appear role="img" aria-label="Badge earned: Hello, Anchor" className="self-start">
         <AchievementMedia>
           <Anchor />
         </AchievementMedia>
