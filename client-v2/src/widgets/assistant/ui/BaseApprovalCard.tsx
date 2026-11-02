@@ -92,6 +92,9 @@ export const BaseApprovalCard = ({
   const undone = item.undo === "done";
   const stranded = item.undo === "stranded";
 
+  // A patch is discarded, a command declined (Spec 04)
+  const labels = patch ? PATCH_STATUS_LABEL : STATUS_LABEL;
+
   return (
     <Diff data-status={status} className={cn(pending && "border-primary")}>
       <DiffHeader>
@@ -103,9 +106,7 @@ export const BaseApprovalCard = ({
           variant={pending ? "default" : "outline"}
           className={cn(status === "allowed" && !undone && "text-success")}
         >
-          {undone
-            ? "Undone"
-            : (patch ? PATCH_STATUS_LABEL : STATUS_LABEL)[status]}
+          {undone ? "Undone" : labels[status]}
         </Badge>
       </DiffHeader>
 
