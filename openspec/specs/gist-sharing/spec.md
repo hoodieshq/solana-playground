@@ -80,6 +80,12 @@ inside the dialog, which offers to sign in again and then creates the gist.
   "Waiting for GitHub…", presses Cancel
 - **THEN** the sign-in stops, the dialog closes, and no gist is created
 
+#### Scenario: A sign-in that ends without a session
+
+- **WHEN** the user presses "Sign in with GitHub" and sign-in cannot start
+- **THEN** the prompt stays open and says "Could not start sign-in", and no
+  gist is created
+
 #### Scenario: Cancel leaves without signing in
 
 - **WHEN** the user presses Cancel in the prompt

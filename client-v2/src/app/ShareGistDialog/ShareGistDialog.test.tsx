@@ -105,8 +105,10 @@ describe("app/ShareGistDialog", () => {
       .mockImplementation(() => PgSession.refreshWith(USER));
     await open();
 
+    const cancel = vi.spyOn(PgSession, "cancelSignIn");
     await press("Sign in with GitHub");
 
+    expect(cancel).not.toHaveBeenCalled();
     expect(signIn).toHaveBeenCalledTimes(1);
     expect(
       screen.getByRole("heading", { name: "Share counter as a gist" })
@@ -189,6 +191,26 @@ describe("app/ShareGistDialog", () => {
     expect(PgView.getOpenModals()).toEqual([]);
     expect(reported()).toEqual([]);
     expect(gistRequests()).toEqual([]);
+  });
+
+  it("leaves alone a sign-in it did not start", async () => {
+    // A sign-in from the account menu, still waiting when Share opens
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: "https://x/" }),
+    } as Response);
+    const cancel = vi.fn();
+    PgSession.setOpenChannel(() => ({
+      receive: () => new Promise(() => {}),
+      cancel,
+    }));
+    void PgSession.signIn().catch(() => {});
+    await open();
+
+    await press("Cancel");
+
+    expect(PgView.getOpenModals()).toEqual([]);
+    expect(cancel).not.toHaveBeenCalled();
   });
 
   it("gist-sharing: Cancel leaves without signing in", async () => {

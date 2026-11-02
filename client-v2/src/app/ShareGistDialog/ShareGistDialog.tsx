@@ -38,38 +38,45 @@ const SignInToShare = () => {
   const [failure, setFailure] = useState<string>();
   // The sign-in settles after a Cancel has closed the dialog
   const mounted = useRef(true);
+  // Whether the sign-in under way is this prompt's: one started from the
+  // account menu is the user's to end there, not by closing Share
+  const ownSignIn = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
-      // Closed while the popup is still open: the user gave up on sharing
-      if (PgSession.signInState().status === "pending") {
-        PgSession.cancelSignIn();
-      }
+      // Closed while its popup is still open: the user gave up on sharing.
+      // Unmounted by a session that arrived, nothing is left to cancel
+      if (ownSignIn.current && !PgSession.get()) PgSession.cancelSignIn();
     };
   }, []);
 
   const signIn = () => {
     setFailure(undefined);
-    PgSession.signIn().catch((error: unknown) => {
-      // `PgSession` holds why its last sign-in failed. One the user ended
-      // (cancelled, a blocked popup, a timeout) is theirs to see; one that
-      // could not start, or any other error, the team hears of too
-      const state = PgSession.signInState();
-      const userEnded =
-        isSignInFailure(error) &&
-        state.status === "failed" &&
-        state.reason !== "request-failed";
-      if (userEnded) {
-        // `auth_sign_in_failed` has counted it with its reason
-        log.info("sign-in to share ended without a session", {
-          context: { reason: state.reason },
-        });
-      } else {
-        log.error(error, { report: true, context: { item: "sign-in" } });
-      }
-      if (mounted.current) setFailure(messageOf(error));
-    });
+    ownSignIn.current = true;
+    PgSession.signIn()
+      .catch((error: unknown) => {
+        // `PgSession` holds why its last sign-in failed. One the user ended
+        // (cancelled, a blocked popup, a timeout) is theirs to see; one that
+        // could not start, or any other error, the team hears of too
+        const state = PgSession.signInState();
+        const userEnded =
+          isSignInFailure(error) &&
+          state.status === "failed" &&
+          state.reason !== "request-failed";
+        if (userEnded) {
+          // `auth_sign_in_failed` has counted it with its reason
+          log.info("sign-in to share ended without a session", {
+            context: { reason: state.reason },
+          });
+        } else {
+          log.error(error, { report: true, context: { item: "sign-in" } });
+        }
+        if (mounted.current) setFailure(messageOf(error));
+      })
+      .finally(() => {
+        ownSignIn.current = false;
+      });
   };
 
   return (

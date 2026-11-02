@@ -208,6 +208,25 @@ test("gist-sharing: Sign-in cancelled", async ({ page }) => {
   expect(requests).toHaveLength(0);
 });
 
+test("gist-sharing: A sign-in that ends without a session", async ({
+  page,
+}) => {
+  await stubAuth(page, { signedIn: false });
+  await page.route("**/api/auth/sign-in/social", (r) =>
+    r.fulfill({ status: 500, contentType: "application/json", body: "{}" })
+  );
+  const requests = await stubGists(page);
+  await seedWorkspace(page);
+  await openSignedOut(page);
+
+  await prompt(page)
+    .getByRole("button", { name: "Sign in with GitHub" })
+    .click();
+
+  await expect(prompt(page).getByText("Could not start sign-in")).toBeVisible();
+  expect(requests).toHaveLength(0);
+});
+
 test("gist-sharing: Cancel leaves without signing in", async ({ page }) => {
   const signIns = await stubAuth(page, { signedIn: false });
   const requests = await stubGists(page);
