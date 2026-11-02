@@ -42,8 +42,12 @@ export const readIdl = (raw: unknown): IdlReading => {
   const reading = read(raw);
   memo.set(raw, reading);
   if (reading.kind === "refused" && reading.version) {
-    log.warn("Refused an Anchor IDL of spec 0.1.0", {
-      context: { reason: reading.reason, program: programName(raw) },
+    log.warn("Refused an Anchor IDL", {
+      context: {
+        reason: reading.reason,
+        program: programName(raw),
+        spec: isObject(raw.metadata) ? raw.metadata.spec : null,
+      },
     });
   }
   return reading;

@@ -24,7 +24,9 @@ Anchor IDL".
 ### Requirement: A 1.x IDL calls with the program's own bytes
 For a 1.x IDL, an instruction's data SHALL be its IDL `discriminator` followed
 by the borsh encoding of its arguments, accounts and events SHALL decode by
-their IDL discriminators, and defined types (structs with named or tuple
+their IDL discriminators (except an account type that another type holds and
+an argument reaches, which the 0.29 coder can keep in one place only, and
+which is kept as a type), and defined types (structs with named or tuple
 fields, enums, aliases, generic types with their type and const arguments)
 SHALL encode as the program defines them.
 

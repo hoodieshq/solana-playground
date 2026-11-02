@@ -6,6 +6,7 @@ import type {
   IdlAccountItem,
   IdlField,
   IdlType,
+  IdlTypeDef,
 } from "@coral-xyz/anchor/dist/cjs/idl";
 import { PublicKey } from "@solana/web3.js";
 import { createHash } from "crypto";
@@ -66,9 +67,9 @@ const sample = (type: IdlType, idl: Idl): unknown => {
       sample(type.array[0], idl)
     );
   }
-  const def = [...(idl.accounts ?? []), ...(idl.types ?? [])].find(
-    (t) => t.name === type.defined
-  );
+  const def = (idl.types ?? [])
+    .concat((idl.accounts ?? []) as IdlTypeDef[])
+    .find((t) => t.name === type.defined);
   if (!def) throw new Error(`missing type ${type.defined}`);
   if (def.type.kind === "struct") {
     return Object.fromEntries(
@@ -291,20 +292,23 @@ describe("entities/idl/model/read", () => {
 
   describe("edge cases", () => {
     /** A one-instruction 1.x IDL; `ix` overrides the instruction */
-    const one = (ix: Record<string, unknown>, types: unknown[] = []) =>
+    /** A one-instruction 1.x IDL; every field of the instruction is named */
+    const one = ({
+      name = "initialize",
+      discriminator = [175, 175, 109, 31, 13, 152, 155, 237],
+      accounts = [],
+      args = [],
+    }: {
+      name?: string;
+      discriminator?: number[];
+      accounts?: unknown[];
+      args?: unknown[];
+    }) =>
       ({
         address: "11111111111111111111111111111111",
         metadata: { name: "edge", version: "0.1.0", spec: "0.1.0" },
-        instructions: [
-          {
-            name: "initialize",
-            discriminator: [175, 175, 109, 31, 13, 152, 155, 237],
-            accounts: [],
-            args: [],
-            ...ix,
-          },
-        ],
-        types,
+        instructions: [{ name, discriminator, accounts, args }],
+        types: [],
       } as unknown as IdlV1);
 
     const pdaOf = (seeds: unknown[], args: unknown[] = []) => {
@@ -368,6 +372,27 @@ describe("entities/idl/model/read", () => {
       const name = conv.instructions[0].name;
       const data = new BorshCoder(conv).instruction.encode(name, {});
       expect([...data.subarray(0, 8)]).toEqual(sighash);
+    });
+
+    it("refuses two instructions that meet under one method name", () => {
+      const sighash = (name: string) => [
+        ...createHash("sha256")
+          .update(`global:${name}`)
+          .digest()
+          .subarray(0, 8),
+      ];
+      const raw = one({ name: "add_2", discriminator: sighash("add_2") });
+      raw.instructions.push({
+        name: "add2",
+        discriminator: sighash("add2"),
+        accounts: [],
+        args: [],
+      });
+      expect(readIdl(raw)).toEqual({
+        kind: "refused",
+        version: "1",
+        reason: "two instructions named add2",
+      });
     });
 
     it("reads a spec 0.1.0 IDL that has no address", () => {

@@ -143,3 +143,28 @@ test.describe("client-v2-interact", () => {
     ).toHaveCount(0);
   });
 });
+
+test.describe("client-v2-idl, 0.29", () => {
+  test("client-v2-idl: A 0.29 IDL", async ({ seededPage: page }) => {
+    const panel = await buildThenInteract(page, {
+      version: "0.1.0",
+      name: "e2e_project",
+      instructions: [
+        {
+          name: "incrementBy",
+          accounts: [{ name: "counter", isMut: true, isSigner: false }],
+          args: [{ name: "amount", type: "u64" }],
+        },
+      ],
+    });
+
+    await expect(
+      panel
+        .getByRole("radiogroup", { name: "Instruction" })
+        .getByRole("radio", { name: "incrementBy" })
+    ).toBeChecked(LONG);
+    await expect(
+      panel.getByRole("button", { name: "Call incrementBy" })
+    ).toBeVisible();
+  });
+});

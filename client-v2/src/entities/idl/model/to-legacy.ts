@@ -41,7 +41,6 @@ const camel = (s: string) =>
 const sameBytes = (a: ArrayLike<number>, b: ArrayLike<number>) =>
   a.length === b.length && Array.from(a).every((x, i) => x === b[i]);
 
-/** The 8 bytes the 0.29 coder puts in front of an instruction named `name` */
 /** The primitive types the 0.29 coder encodes */
 const PRIMITIVES = new Set([
   "bool",
@@ -63,6 +62,7 @@ const PRIMITIVES = new Set([
   "string",
 ]);
 
+/** The 8 bytes the 0.29 coder puts in front of an instruction named `name` */
 const sighash029 = (name: string) =>
   new BorshInstructionCoder({
     version: "0.0.0",
@@ -387,6 +387,11 @@ const checkDiscriminators = (src: IdlV1) => {
       sameBytes(sighash029(n), ix.discriminator)
     );
     if (!name) throw new IdlRefusal(`a custom discriminator on ${ix.name}`);
+    // 0.29 keys `program.methods` by camelCase: two names that meet there
+    // would leave one instruction unreachable
+    if ([...names.values()].some((n) => camel(n) === camel(name))) {
+      throw new IdlRefusal(`two instructions named ${camel(name)}`);
+    }
     names.set(ix.name, name);
   }
   for (const a of src.accounts ?? []) {
