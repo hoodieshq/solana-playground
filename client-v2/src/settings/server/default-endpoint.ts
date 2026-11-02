@@ -11,7 +11,7 @@ export const FOUNDATION_ENDPOINT =
  *
  * Upstream's own backend, `api.solpg.io`, is not offered: it is Acheron's
  * capacity, not Solana's (D30), and whoever needs it enters it as a
- * custom server (HOO-2497).
+ * custom server.
  */
 export const SERVER_ENDPOINT_OPTIONS: ReadonlyArray<{
   name: string;
@@ -58,8 +58,6 @@ if (import.meta.vitest) {
       });
 
       it("does not offer upstream's api.solpg.io", () => {
-        // Sergey, demo-build review 2026-10-30 (HOO-2497): whoever needs
-        // it enters it as a custom server
         expect(SERVER_ENDPOINT_OPTIONS).toEqual([
           { name: "Solana Foundation", value: FOUNDATION_ENDPOINT },
           { name: "Local", value: LOCAL_ENDPOINT },

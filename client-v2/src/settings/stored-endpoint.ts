@@ -65,8 +65,8 @@ export const buildEndpointOptions = (
     ...(configuredServer ? [{ key: "configured", url: configuredServer }] : []),
     { key: "foundation", url: FOUNDATION_ENDPOINT },
     { key: "local", url: LOCAL_ENDPOINT },
-    // `solpg` (api.solpg.io) was offered until HOO-2497; a profile stored
-    // under it reads as the default, like any key whose option is gone
+    // No `solpg` (api.solpg.io): a profile stored under that key reads as
+    // the default, like any key whose option is gone (`fromStoredEndpoints`)
   ],
 });
 
@@ -345,7 +345,7 @@ if (import.meta.vitest) {
       });
 
       it("reads the dropped SolPg build server as the default", () => {
-        // Offered until HOO-2497; a profile that picked it lands on ours
+        // A profile that picked upstream's server when the picker offered it
         const stored = { server: { endpoint: { option: "solpg" } } };
 
         expect(
@@ -353,16 +353,23 @@ if (import.meta.vitest) {
         ).toBe(defaults.server.endpoint);
       });
 
-      it("stores api.solpg.io as a custom address", () => {
+      it("keeps api.solpg.io as a custom address, legacy string included", () => {
+        const solpg = "https://api.solpg.io";
+
         expect(
           at(
-            toStoredEndpoints(
-              state(Endpoint.DEVNET, "https://api.solpg.io"),
-              options
-            ),
+            toStoredEndpoints(state(Endpoint.DEVNET, solpg), options),
             "server.endpoint"
           )
-        ).toEqual({ option: "custom", url: "https://api.solpg.io" });
+        ).toEqual({ option: "custom", url: solpg });
+        expect(roundTrip(state(Endpoint.DEVNET, solpg)).server.endpoint).toBe(
+          solpg
+        );
+        // Written as a plain string before endpoints were stored as keys
+        expect(
+          fromStoredEndpoints(state(Endpoint.DEVNET, solpg), defaults, options)
+            .server.endpoint
+        ).toBe(solpg);
       });
 
       it.each([
