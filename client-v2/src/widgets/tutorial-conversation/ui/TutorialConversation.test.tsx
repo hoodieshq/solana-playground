@@ -44,13 +44,12 @@ vi.mock("@/utils/explorer", () => ({
     onDidCreateItem: vi.fn(),
   },
 }));
-vi.mock("@/shared/lib/report-button-failure", () => {
-  const refuse = vi.fn();
-  return {
-    reportButtonFailure: vi.fn(() => refuse),
-    markUnavailableHere: vi.fn(),
-  };
-});
+/** The handler `reportButtonFailure` hands back: calling it is what raises the toast */
+const { refuse } = vi.hoisted(() => ({ refuse: vi.fn() }));
+vi.mock("@/shared/lib/report-button-failure", () => ({
+  reportButtonFailure: vi.fn(() => refuse),
+  markUnavailableHere: vi.fn(),
+}));
 vi.mock("@/utils/editor", () => ({
   PgEditor: { revealLine: vi.fn() },
 }));
@@ -379,6 +378,11 @@ describe("TutorialConversation", () => {
       expect.any(Error),
       "it is not in this project"
     );
+    expect(refuse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "src/lib.rs is not in this workspace",
+      })
+    );
   });
 
   it("leaves the editor as it is when a jumped-to step's file is gone, and says nothing", async () => {
@@ -388,7 +392,7 @@ describe("TutorialConversation", () => {
       screen.getByRole("button", { name: `Step 1 of 4, ${step1.title}, done` })
     );
     expect(PgExplorer.openFile).not.toHaveBeenCalled();
-    expect(reportButtonFailure).not.toHaveBeenCalled();
+    expect(refuse).not.toHaveBeenCalled();
   });
 
   it("presses the live act on ⌘↵", () => {

@@ -109,8 +109,17 @@ const showLine = (file: string, line: number) => {
  * start) leaves the editor as it is rather than raising a failure for it.
  */
 const showStepFile = (file: string) => {
-  if (!PgExplorer.currentWorkspaceName) return;
-  if (!PgExplorer.getFile(PgExplorer.convertToFullPath(file))) {
+  let there: boolean;
+  try {
+    there = !!PgExplorer.getFile(PgExplorer.convertToFullPath(file));
+  } catch (e) {
+    // No workspace current, one switching: the feed moved; the editor waits
+    log.debug("no workspace to open a jumped-to step's file in", {
+      context: { file, error: e instanceof Error ? e.message : String(e) },
+    });
+    return;
+  }
+  if (!there) {
     log.debug("a jumped-to step's file is not in the workspace", {
       context: { file },
     });
