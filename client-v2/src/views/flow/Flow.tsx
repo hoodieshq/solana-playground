@@ -359,15 +359,12 @@ const FlowFrame = () => {
           )}
           stage={() => (
             <Center>
-              {/* The frame's chat holds the lesson; the band is the old one */}
-              {!tutorial.frame && (
-                <ObjectiveBand
-                  state={lesson}
-                  onRead={read}
-                  onOpenGallery={openGallery}
-                  phone={phone}
-                />
-              )}
+              <ObjectiveBand
+                state={lesson}
+                onRead={read}
+                onOpenGallery={openGallery}
+                phone={phone}
+              />
               <Stage>
                 <StageRouter stage={state.stage} />
                 {reading && described && (

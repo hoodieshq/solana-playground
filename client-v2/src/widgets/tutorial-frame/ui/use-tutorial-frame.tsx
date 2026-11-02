@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef } from "react";
 import type { ReactNode } from "react";
 
 import { useRenderOnChange } from "../../../hooks";
+import { PgExplorer } from "../../../utils/explorer";
 import { PgTutorial } from "../../../utils/tutorial";
 import { NAV_FOLD_ON_ENTRY, foldNav, navOpenOf } from "../model/nav-fold";
 import { tutorialFrameTelemetry } from "../model/telemetry";
@@ -43,11 +44,22 @@ export interface UseTutorialFrame {
   pin?: ReactNode;
 }
 
-/** The open tutorial, from the route, while it has a definition */
+/**
+ * The open tutorial, from the route, while it has a definition and has been
+ * started. Before Start its About page keeps today's layout: the feed's
+ * intro card (`tutorial-flow-v2` 3.3) is what replaces it.
+ */
 const useDefinitionTutorial = () => {
   useRenderOnChange(PgTutorial.onDidChangeCurrent);
+  // Start creates the workspace well after the route has changed, and on a
+  // cold load the explorer initialises after the first render
+  useRenderOnChange(PgTutorial.onDidChange);
+  useRenderOnChange(PgExplorer.onDidInit);
   const current = PgTutorial.current;
-  return current?.definition ? current : null;
+  if (!current?.definition) return null;
+  // `isStarted` throws until the explorer knows its workspaces
+  if (!PgExplorer.allWorkspaceNames) return null;
+  return PgTutorial.isStarted(current.name) ? current : null;
 };
 
 /**

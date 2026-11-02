@@ -10,6 +10,8 @@ import {
 // The route decides the open tutorial; the test stands in for it
 const route = vi.hoisted(() => ({
   current: null as { name: string; definition?: object } | null,
+  started: true,
+  explorerReady: true,
   listeners: new Set<() => void>(),
 }));
 vi.mock("../../../utils/tutorial", () => ({
@@ -18,6 +20,28 @@ vi.mock("../../../utils/tutorial", () => ({
       return route.current;
     },
     onDidChangeCurrent: (cb: () => void) => {
+      route.listeners.add(cb);
+      return { dispose: () => route.listeners.delete(cb) };
+    },
+    onDidChange: (cb: () => void) => {
+      route.listeners.add(cb);
+      return { dispose: () => route.listeners.delete(cb) };
+    },
+    isStarted: () => {
+      if (!route.explorerReady) throw new Error("Explorer not initialized");
+      return route.started;
+    },
+  },
+}));
+vi.mock("../../../utils/explorer", () => ({
+  PgExplorer: {
+    // `isStarted` reads the workspace names, which exist only once it has
+    // initialised
+    get allWorkspaceNames() {
+      if (!route.explorerReady) return null;
+      return route.started && route.current ? [route.current.name] : [];
+    },
+    onDidInit: (cb: () => void) => {
       route.listeners.add(cb);
       return { dispose: () => route.listeners.delete(cb) };
     },
@@ -46,6 +70,8 @@ const go = (tutorial: typeof route.current) =>
 let sent: ReturnType<typeof memoryProvider>;
 beforeEach(() => {
   route.current = null;
+  route.started = true;
+  route.explorerReady = true;
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
 });
@@ -65,6 +91,26 @@ describe("useTutorialFrame", () => {
     expect(result.current.frame).toBeUndefined();
     go({ name: "Counter PDA Tutorial" });
     expect(result.current.frame).toBeUndefined();
+  });
+
+  it("keeps the About page's layout until the tutorial is started", () => {
+    const { result } = draw();
+    route.started = false;
+    go({ name: "Hello Anchor", definition: {} });
+    expect(result.current.frame).toBeUndefined();
+    route.started = true;
+    go({ name: "Hello Anchor", definition: {} });
+    expect(result.current.frame).toBeDefined();
+  });
+
+  it("waits for the explorer before it asks whether the tutorial is started", () => {
+    const { result } = draw();
+    route.explorerReady = false;
+    go({ name: "Hello Anchor", definition: {} });
+    expect(result.current.frame).toBeUndefined();
+    route.explorerReady = true;
+    go({ name: "Hello Anchor", definition: {} });
+    expect(result.current.frame).toBeDefined();
   });
 
   it("folds the navigation on entry and opens it over the chat", () => {
