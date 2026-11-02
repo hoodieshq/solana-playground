@@ -453,8 +453,8 @@ if (import.meta.vitest) {
         ).toBe("http://10.0.0.5:8080");
       });
 
-      it("reads an address stored as a plain string as a custom one", () => {
-        // What a profile written before this change holds; not migrated
+      it("reads an address of ours stored as a plain string as its key's address", () => {
+        // What a profile written before endpoints were stored as keys holds
         const legacy = state(PLATFORM_DEVNET, LOCAL_ENDPOINT);
 
         const read = fromStoredEndpoints(legacy, defaults, options);
