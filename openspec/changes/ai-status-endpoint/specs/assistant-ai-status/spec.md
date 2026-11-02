@@ -12,8 +12,10 @@ deployment and whose it is, so AI surfaces appear only when they can work.
 `GET /api/ai/status` SHALL answer `200` with a JSON body holding `available`
 (boolean), `key` (`"hosted"` or `"own"`), `reason` (`"signed-out"`,
 `"unavailable"` or `null`) and `model` (a string or `null`). `key` is
-`"hosted"` only when the deployment has a hosted key and sign-in configured;
-otherwise it is `"own"` and the user supplies a key in settings.
+`"hosted"` only when the deployment has a hosted key and sign-in configured,
+and `model` is then the hosted model's id; otherwise `key` is `"own"`, `model`
+is `null`, and the user supplies a key in settings. `available` speaks for the
+hosted key only.
 
 #### Scenario: No key configured
 
@@ -33,7 +35,12 @@ otherwise it is `"own"` and the user supplies a key in settings.
 #### Scenario: The session lookup fails
 
 - **WHEN** the deployment has a hosted key and sign-in, and reading the caller's session fails
-- **THEN** the route answers `available: false`, `key: "hosted"`, `reason: "unavailable"`
+- **THEN** the route answers `available: false`, `key: "hosted"`, `reason: "unavailable"` and the hosted model's id
+
+#### Scenario: Sign-in reads as unconfigured at lookup
+
+- **WHEN** the deployment's hosted key and sign-in settings are present, but reading the session reports sign-in as unconfigured
+- **THEN** the route answers `{ "available": false, "key": "own", "reason": null, "model": null }` and logs a warning
 
 ### Requirement: The status answer never discloses the key
 
@@ -43,8 +50,8 @@ newcomer key, or any substring of either, and the answer SHALL carry
 
 #### Scenario: A configured key stays on the server
 
-- **WHEN** the deployment has a hosted key and the caller is signed in
-- **THEN** no part of the key appears in the response, and `Cache-Control` is `no-store`
+- **WHEN** the deployment has a hosted key, and the caller is signed in, signed out, or their session lookup fails, or sends a `POST`
+- **THEN** no part of either key appears in the response, and `Cache-Control` is `no-store`
 
 ### Requirement: The status route is read-only
 

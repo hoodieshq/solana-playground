@@ -21,23 +21,36 @@ import { missingConfig, readSession } from "../src/features/auth/server.mjs";
 import { agentEnv } from "../src/shared/config/server-env.mjs";
 
 /**
- * @typedef {{
- *   available: boolean;
- *   key: "hosted" | "own";
- *   reason: "signed-out" | "unavailable" | null;
- *   model: string | null;
- * }} AiStatus
+ * The answer, one variant per state the client acts on. `available` is about
+ * the hosted key only: a key the user brings is the client's to know.
+ *
+ * @typedef {(
+ *   | { available: false; key: "own"; reason: null; model: null }
+ *   | { available: true; key: "hosted"; reason: null; model: string }
+ *   | {
+ *       available: false;
+ *       key: "hosted";
+ *       reason: "signed-out" | "unavailable";
+ *       model: string;
+ *     }
+ * )} AiStatus
  */
 
-/** No hosted key here: the user supplies their own in settings */
+/**
+ * No hosted key here: the user supplies their own in settings
+ *
+ * @type {AiStatus}
+ */
 const OWN = { available: false, key: "own", reason: null, model: null };
 
 /**
  * The hosted model's id, or `null` when this deployment offers no hosted key.
  *
- * The same rule as `api/agent.mjs`'s `GET`: a key alone is not enough,
- * because without sign-in that route refuses every turn. Settings only, not
- * `getAuth`: building auth opens the pool, which can throw.
+ * The rule of `api/agent.mjs`'s `GET`, written again here: a key alone is not
+ * enough, because without sign-in that route refuses every turn. A case in
+ * `ai.test.mjs` holds the two routes to the same answer until that `GET` is
+ * retired. Settings only, not `getAuth`: building auth opens the pool, which
+ * can throw.
  */
 const hostedModel = () => {
   const agent = agentEnv();
@@ -64,8 +77,12 @@ const hostedStatus = (model, session) => {
     case "unavailable":
       return { available: false, key: "hosted", reason: "unavailable", model };
     default:
-      // `unconfigured`: the settings read as complete, yet auth would not
-      // build from them, so no turn could be taken
+      // Defensive: `hostedModel` has just found the sign-in settings
+      // complete, so `unconfigured` means they changed under us or the two
+      // checks drifted apart. No turn could be taken, so no hosted key
+      console.warn("ai/status: hosted key offered, yet sign-in reads as", {
+        status: session.status,
+      });
       return OWN;
   }
 };

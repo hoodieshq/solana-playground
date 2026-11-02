@@ -120,6 +120,20 @@ describe("GET /api/ai/status", () => {
     assert.equal(asked, 0);
   });
 
+  it("answers key: own with sign-in but no key", async () => {
+    Object.assign(process.env, SIGN_IN);
+
+    const { res, asked } = await call();
+
+    assert.deepEqual(body(res), {
+      available: false,
+      key: "own",
+      reason: null,
+      model: null,
+    });
+    assert.equal(asked, 0);
+  });
+
   it("answers signed-out with the hosted key and a signed-out caller", async () => {
     configureHostedKey();
 
@@ -161,8 +175,9 @@ describe("GET /api/ai/status", () => {
     });
   });
 
-  it("answers key: own when sign-in turns out unconfigured at lookup", async () => {
+  it("answers key: own, and says why, when sign-in turns out unconfigured at lookup", async (t) => {
     configureHostedKey();
+    const warn = t.mock.method(console, "warn", () => {});
 
     const { res } = await call({ session: { status: "unconfigured" } });
 
@@ -172,27 +187,69 @@ describe("GET /api/ai/status", () => {
       reason: null,
       model: null,
     });
+    assert.equal(warn.mock.callCount(), 1);
   });
 
-  it("never sends any part of either key, and is never cached", async () => {
+  it("never sends any part of either key in any answer, and is never cached", async () => {
     configureHostedKey();
 
-    const { res } = await call({
-      session: { status: "signed-in", user: { id: "u1" } },
-    });
+    const answers = [
+      { session: { status: "signed-in", user: { id: "u1" } } },
+      { session: { status: "signed-out" } },
+      { session: { status: "unavailable" } },
+      { method: "POST" },
+    ];
+    for (const options of answers) {
+      const { res } = await call(options);
 
-    const sent = res.body + JSON.stringify(res.headers);
-    for (const key of [KEY, NEWCOMER_KEY]) {
-      // Any run of 8 characters from the key is a leak
-      for (let i = 0; i + 8 <= key.length; i += 1) {
-        assert.ok(
-          !sent.includes(key.slice(i, i + 8)),
-          `the answer holds part of a key: ${key.slice(i, i + 8)}`
-        );
+      const sent = res.body + JSON.stringify(res.headers);
+      for (const key of [KEY, NEWCOMER_KEY]) {
+        // Any run of 8 characters from the key is a leak
+        for (let i = 0; i + 8 <= key.length; i += 1) {
+          assert.ok(
+            !sent.includes(key.slice(i, i + 8)),
+            `the answer holds part of a key: ${key.slice(i, i + 8)}`
+          );
+        }
       }
+      assert.equal(res.headers["cache-control"], "no-store");
+      assert.equal(res.headers["content-type"], "application/json");
     }
-    assert.equal(res.headers["cache-control"], "no-store");
-    assert.equal(res.headers["content-type"], "application/json");
+  });
+
+  it("offers the hosted key exactly where GET /api/agent serves it", async () => {
+    // The two routes write the rule twice; this holds them together until
+    // the client reads only this one
+    const setups = {
+      "nothing configured": () => {},
+      "a key only": () => {
+        process.env.AGENT_API_KEY = KEY;
+      },
+      "sign-in only": () => Object.assign(process.env, SIGN_IN),
+      "a key and sign-in": configureHostedKey,
+    };
+    const agentUrl = new URL("./agent.mjs", import.meta.url);
+
+    for (const [name, setup] of Object.entries(setups)) {
+      for (const varName of VARS) delete process.env[varName];
+      setup();
+
+      const { res } = await call({
+        session: { status: "signed-in", user: { id: "u1" } },
+      });
+      agentUrl.searchParams.set("t", String(Math.random()));
+      const agent = await import(agentUrl.href);
+      const agentRes = makeRes();
+      await agent.default(
+        { method: "GET", url: "/api/agent", headers: {} },
+        agentRes
+      );
+      const served = JSON.parse(agentRes.body);
+      const status = body(res);
+
+      assert.equal(status.key === "hosted", served.configured, name);
+      assert.equal(status.model, served.model, name);
+    }
   });
 
   it("answers HEAD with the GET's status and headers, and no body", async () => {

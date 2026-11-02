@@ -45,7 +45,9 @@ key never leaves the server.
 ## Risks / Trade-offs
 
 - [Two probes say overlapping things until HOO-1747 lands] -> the hosted rule
-  is the same expression in both routes; HOO-1747 moves the client to this
-  route, after which `GET /api/agent` can be retired in its own ticket.
+  is written in both routes, and a case in `ai.test.mjs` holds them to the
+  same answer for every combination of key and sign-in; HOO-1747 moves the
+  client to this route, after which `GET /api/agent` can be retired in its
+  own ticket.
 - [A capped user reads `available: true` and their turn then gets 429] ->
   deliberate: the cap resets daily and the turn's refusal already explains it.
