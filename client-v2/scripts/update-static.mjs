@@ -8,6 +8,9 @@
  * the *primary* checkout's `client/public`, even when run from a worktree —
  * a worktree copies files in and never touches a submodule of its own.
  *
+ * Files under `client-v2/static` then replace their upstream copies
+ * (`static-overlay.mjs`).
+ *
  * Run via `make update-static` after cloning, after creating a worktree, or
  * after bumping the submodule.
  */
@@ -15,6 +18,7 @@ import fs from "fs/promises";
 import path from "path";
 import { execFileSync } from "child_process";
 
+import { overlayStatic } from "./static-overlay.mjs";
 import { CLIENT_PATH, exists } from "./utils.mjs";
 
 const TIMESTAMPS_FILE = "tutorial-timestamps.json";
@@ -29,7 +33,10 @@ const git = (args, cwd) =>
 // `--git-common-dir` resolves to the primary checkout's `.git` from a linked
 // worktree as well as from the primary itself, which is what makes this work.
 const primaryRoot = path.dirname(
-  git(["rev-parse", "--path-format=absolute", "--git-common-dir"], CLIENT_PATH).trim()
+  git(
+    ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+    CLIENT_PATH
+  ).trim()
 );
 
 const SOURCE_PATH = path.join(primaryRoot, "client", "public");
@@ -44,13 +51,21 @@ if (!(await exists(path.join(SOURCE_PATH, "index.html")))) {
 }
 
 /** Tracked paths only, so generated `crates`/`packages`/`content.json` never copy */
-const sourceFiles = git(["ls-files", "-z"], SOURCE_PATH).split("\0").filter(Boolean);
+const sourceFiles = git(["ls-files", "-z"], SOURCE_PATH)
+  .split("\0")
+  .filter(Boolean);
 
 for (const file of sourceFiles) {
   const to = path.join(DEST_PATH, file);
   await fs.mkdir(path.dirname(to), { recursive: true });
   await fs.copyFile(path.join(SOURCE_PATH, file), to);
 }
+
+// The fork's own copies of upstream files, e.g. the curated program gallery
+const overlaid = await overlayStatic(
+  path.join(CLIENT_PATH, "static"),
+  DEST_PATH
+);
 
 // craco derives each tutorial's date from git history. The destination is not a
 // git repo of its own, so capture the real dates from the source while we can.
@@ -78,6 +93,10 @@ await fs.writeFile(
 
 const commit = git(["rev-parse", "--short", "HEAD"], SOURCE_PATH).trim();
 console.log(
-  `Synced ${sourceFiles.length} files from ${path.relative(primaryRoot, SOURCE_PATH)}@${commit}` +
-    `, dated ${Object.keys(timestamps).length} tutorials`
+  `Synced ${sourceFiles.length} files from ${path.relative(
+    primaryRoot,
+    SOURCE_PATH
+  )}@${commit}` +
+    `, dated ${Object.keys(timestamps).length} tutorials` +
+    `, overlaid ${overlaid.join(", ")} from client-v2/static`
 );
