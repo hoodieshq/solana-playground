@@ -10,7 +10,11 @@ reconnects on mount. `PgAssistant.disconnect` (Forget key) drops both and
 clears the on-screen thread. The send path already handles "nothing
 connected, a key-based backend remembered": `resolveSendBackend` opens
 Connect a model preset to the thread's backend or the remembered choice
-(HOO-1719). So taking the key out of storage needs no new reconnect logic.
+(HOO-1719). So taking the key out of storage needs no new reconnect logic,
+only one addition: Connect a model opened from the composer or the head with
+nothing connected starts on that same backend, since a send is disabled
+until something is connected and that button is how a reload asks for the
+key.
 
 ## Goals / Non-Goals
 

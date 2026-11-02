@@ -757,6 +757,23 @@ describe("useTurn", () => {
     expect(provider.send).not.toHaveBeenCalled();
   });
 
+  it("opens Connect a model on the remembered backend while nothing is connected", () => {
+    rememberBackend({
+      id: "openai",
+      apiKey: "sk-test-turn-0123456789",
+      endpoint: { baseUrl: "https://api.example.test/v1", model: "gpt-x" },
+    });
+    const { result } = renderHook(() => useTestTurn());
+
+    act(() => result.current.openConnect("menu"));
+
+    expect(open).toHaveBeenCalledWith("menu", {
+      provider: "openai",
+      model: "gpt-x",
+      baseUrl: "https://api.example.test/v1",
+    });
+  });
+
   it("does not connect the default for a send while Connect a model is open", async () => {
     defaultBackend(true);
     const { result } = renderHook(() => useTestTurn());

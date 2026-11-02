@@ -7,17 +7,18 @@ the key in the page's memory only and SHALL NOT write it, or any value
 containing it, to `sessionStorage`, `localStorage` or IndexedDB. A reload, a
 new tab, or a tab the browser duplicates or restores SHALL start with no
 key-based connection. The backend's parameters without the key (provider,
-model, base URL, effort) stay remembered, so Connect a model opens preset to
-them with the key field `#assistant-api-key` empty. A key-based connection
+model, base URL, effort) stay remembered, so Connect a model, opened with
+nothing connected, starts on them with the key field `#assistant-api-key`
+empty. A key-based connection
 an older build left in `sessionStorage` SHALL be removed on the first load.
 
 #### Scenario: A reload asks for the key again
 
 - **WHEN** the user connects to a key-based backend with a key, reloads the
-  tab and sends a message
+  tab and presses **Connect a model** in the composer
 - **THEN** the panel was not connected after the reload, Connect a model
-  opens with the same provider and model selected and an empty
-  `#assistant-api-key`, and no storage holds the key string
+  opens on the same provider and model with an empty `#assistant-api-key`,
+  and no storage holds the key string
 
 #### Scenario: A new tab asks again
 

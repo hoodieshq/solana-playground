@@ -285,6 +285,17 @@ const resolveSendBackend = (): SendBackend => {
 };
 
 /**
+ * The backend Connect a model starts on when it is opened with nothing
+ * connected and no preset of its own: the one a send would ask for, or none
+ * (the default) when a send would take the default
+ */
+const unconnectedPreset = (): ConnectPreset | undefined => {
+  if (PgAssistant.connection) return undefined;
+  const backend = resolveSendBackend();
+  return backend.kind === "ask" ? backend.preset : undefined;
+};
+
+/**
  * Connections the page made on its own, reconnecting a remembered default:
  * nobody chose them for the thread now open. A send treats one as nothing
  * connected when that thread was last answered by a key-based backend, so
@@ -414,8 +425,11 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   // render's `open`; the ref hands it the latest
   const opener = useRef(open);
   opener.current = open;
+  // With nothing connected, Connect a model starts on the backend a send
+  // would ask for: the user's own key lives in memory only, so after a reload
+  // this is how they are asked for it again (HOO-2423)
   const openConnect = (via: ConnectVia, preset?: ConnectPreset) =>
-    opener.current(via, preset);
+    opener.current(via, preset ?? unconnectedPreset());
 
   const addKey = () => {
     const backend = resolveSendBackend();
