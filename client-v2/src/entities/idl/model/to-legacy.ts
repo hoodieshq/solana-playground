@@ -1,9 +1,9 @@
 import {
   BorshAccountsCoder,
   BorshInstructionCoder,
+  eventDiscriminator,
   type Idl,
 } from "@coral-xyz/anchor";
-import { eventDiscriminator } from "@coral-xyz/anchor/dist/cjs/coder/borsh/event";
 import type {
   IdlAccountItem,
   IdlEnumVariant,
