@@ -57,7 +57,7 @@ for; tasks with "after nothing" start at once.
       Verify: unit tests per goal, including a call before the upgrade that
       does not pass the argument goal (HOO-1790; fleet; S 1; after 1.1;
       plan: [plans/3.2-step-goals.md](plans/3.2-step-goals.md))
-- [ ] 3.3 The feed: intro card, dividers, step bar with its states and keys,
+- [x] 3.3 The feed: intro card, dividers, step bar with its states and keys,
       say and quote, wrote card, the act card (stages, "n of m", the stage
       bar, disabling, call-act fields) and the result card shell, records,
       the back pill, `role="log"`, `tutorial_step_jumped` and
