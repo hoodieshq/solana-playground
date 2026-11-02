@@ -91,7 +91,9 @@ export const isSatisfied = (
       if (flow.build !== "done") return false;
       if (!idl) return false;
 
-      const ix = idl.instructions.find((i) => sameIdlName(i.name, c.instruction));
+      const ix = idl.instructions.find((i) =>
+        sameIdlName(i.name, c.instruction)
+      );
       if (!ix) return false;
 
       if (c.arg && !ix.args.some((a) => sameIdlName(a.name, c.arg!))) {

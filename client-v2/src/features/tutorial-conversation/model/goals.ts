@@ -54,11 +54,11 @@ const callMeets = (goal: CallGoal, called: Called): boolean =>
     )
   );
 
-/** Unanchored, as the definition's check reads a pattern */
+/** Unanchored and case-blind, as `tutorial.schema.json`'s `pattern` and the check read it */
 const logMatches = (pattern: string, line: string | null): boolean => {
   if (line === null) return false;
   try {
-    return new RegExp(pattern).test(line);
+    return new RegExp(pattern, "i").test(line);
   } catch (e) {
     // `tutorial:check` rejects such a pattern, so one here is a definition
     // that skipped the check: the step cannot pass, and the team must hear
@@ -179,9 +179,7 @@ if (import.meta.vitest) {
     describe("call", () => {
       it("passes step 3 from a client run, a call act and the Call panel alike", () => {
         const line = "Program log: Hello, World!";
-        expect(judgeGoal(CALL_HELLO, ran("run", [hello({})], line))).toBe(
-          true
-        );
+        expect(judgeGoal(CALL_HELLO, ran("run", [hello({})], line))).toBe(true);
         expect(judgeGoal(CALL_HELLO, ran("call", [hello({})], line))).toBe(
           true
         );
@@ -264,6 +262,15 @@ if (import.meta.vitest) {
           line: "Program log: Hello, World!",
         } as unknown as RunResult;
         expect(judgeGoal(CALL_HELLO, old)).toBe(false);
+      });
+
+      it("matches the log pattern without regard to case, as the schema says", () => {
+        expect(
+          judgeGoal(
+            CALL_HELLO,
+            ran("run", [hello({})], "Program log: hello, world!")
+          )
+        ).toBe(true);
       });
 
       it("fails, without throwing, a pattern that is not a regular expression", () => {
