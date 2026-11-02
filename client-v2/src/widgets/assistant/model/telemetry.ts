@@ -2,9 +2,10 @@ import type { ModelProvider } from "@/shared/lib/ai";
 import { createTracker } from "@/shared/lib/telemetry";
 import type { NoParams } from "@/shared/lib/telemetry";
 import type { Effort } from "../../../views/sidebar/assistant/model";
+import type { TurnFailureReason } from "../../../views/sidebar/assistant/model/types";
 
-/** Why a turn failed, as `assistant_turn_failed` reports it */
-export type TurnFailedReason = "provider" | "refusal" | "paused" | "other";
+/** Why a turn failed, as `assistant_turn_failed` reports it: the provider's reasons but the cap, which is its own event, and `other` for a failure raised on this side */
+export type TurnFailedReason = Exclude<TurnFailureReason, "capped"> | "other";
 
 export type AssistantEvents = {
   /** The user picked a model; `via` says whether from the composer's menu or the Connect dialog, where re-picking the connection it opened over is not a pick. */
@@ -24,9 +25,9 @@ export type AssistantEvents = {
   };
   /** The user stopped a turn with the stop button, while it ran or while it counted down to sending a busy message again; it is then the turn's only outcome. */
   assistant_turn_stopped: NoParams;
-  /** A message went to the backend as a new turn: once per message, not again when a busy model's resend sends it a second time. Never the prompt. */
+  /** A message went to the backend as a new turn: once per message, not again when a busy model's resend sends it a second time. Never the prompt. It ends with one outcome (answered, failed, capped or stopped), except a turn the store cuts off (its thread closed, the backend changed, a sign-out) or a busy message dropped because the conversation changed, which end with none. */
   assistant_turn_sent: { provider: ModelProvider };
-  /** The turn's answer completed; one of the four outcomes of a sent turn. */
+  /** The turn's answer completed, including one whose answer was empty (the thread then says so as an error: the backend did answer); one of the four outcomes of a sent turn. */
   assistant_turn_answered: { provider: ModelProvider };
   /** The turn ended without an answer and was not stopped or capped. `reason`: the backend answered with an error or did not answer (`provider`), the model refused (`refusal`), it kept pausing (`paused`), or this side ended it (`other`). `status` is the backend's HTTP status, absent when there was none. Never the error's text. */
   assistant_turn_failed: {

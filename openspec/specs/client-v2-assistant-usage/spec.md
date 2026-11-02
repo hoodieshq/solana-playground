@@ -22,7 +22,22 @@ when that turn ends. `provider` is `default`, `anthropic`, `openai`,
 `openrouter` or `gemini`. A send that finds no backend, or is refused
 because another turn runs, sends nothing. A message the assistant sends again
 after the model answered busy is the same turn: it is reported as sent once,
-and ends with one outcome once the waiting is over.
+and ends with one outcome once the waiting is over. Two endings send no
+outcome and are accepted: a turn the panel cuts off without a Stop (its
+thread closed, the backend changed, the user signed out), and a busy message
+dropped because the conversation changed while it waited. A turn whose
+backend answered with nothing at all is answered, though the thread shows it
+as an error.
+
+#### Scenario: A stop that lands as the answer completes (manual)
+
+- **WHEN** a user presses Stop and the backend's answer completes anyway
+- **THEN** `assistant_turn_stopped` is the turn's only outcome
+
+#### Scenario: A turn cut off by a backend change (manual)
+
+- **WHEN** the user connects another backend before the turn ends
+- **THEN** `assistant_turn_sent` is sent and no outcome follows
 
 #### Scenario: A busy model answers on the resend (manual)
 
@@ -34,9 +49,17 @@ and ends with one outcome once the waiting is over.
 #### Scenario: A busy model the assistant gives up on (manual)
 
 - **WHEN** the model keeps answering busy with a 429 until the assistant
-  stops sending the message again
+  stops sending the message again, or asks to wait longer than the assistant
+  counts down
 - **THEN** `assistant_turn_sent` is sent once and `assistant_turn_failed`
-  once, with reason `provider` and status `429`
+  once, with reason `provider` and the busy answer's status, `429`
+
+#### Scenario: The model changes during a busy countdown (manual)
+
+- **WHEN** the user picks another model while a busy message waits to be
+  sent again
+- **THEN** `assistant_turn_failed` is sent with reason `other` and the
+  provider the turn was sent to
 
 #### Scenario: A stop during a busy countdown (manual)
 

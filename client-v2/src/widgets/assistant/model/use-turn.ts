@@ -92,6 +92,8 @@ interface BusyRetry {
   conversation: number;
   /** What went with the message the first time, sent with it again */
   context: TurnContext;
+  /** The backend the turn was sent to, which its outcome is reported under */
+  provider: ModelProvider;
 }
 
 /**
@@ -128,7 +130,8 @@ const isDroppedConnection = (error: unknown) =>
  * gate's refusal, otherwise failed with the `TurnFailure`'s reason and status.
  * A dropped connection is the backend not answering (`provider`); anything
  * else raised on this side is `other`. Never the error's text, which can
- * quote the prompt.
+ * quote the prompt. `runTurn` calls it for every failure but a busy model's,
+ * which `waitOnBusy` reports once it gives up.
  */
 const trackTurnFailure = (provider: ModelProvider, error: unknown) => {
   if (!(error instanceof TurnFailure)) {
@@ -552,9 +555,12 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
 
     try {
       await instance.send(text, controller.signal, context);
-      assistantTelemetry.track("assistant_turn_answered", {
-        provider: current.id,
-      });
+      // A provider can still resolve after an abort; the turn's outcome is then the stop's, or none for a cut-off
+      if (!controller.signal.aborted) {
+        assistantTelemetry.track("assistant_turn_answered", {
+          provider: current.id,
+        });
+      }
     } catch (e) {
       const cutReply = isDroppedConnection(e)
         ? PgAssistant.turnReplyWithText()
@@ -635,19 +641,22 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
    * A busy model: count down and send the message again, up to
    * `BUSY_RETRIES` times, then say so in the thread. The wait is the
    * server's when it names one, and Try now is off until it ends; a wait past
-   * `BUSY_WAIT_MAX_SECONDS` is not counted down at all.
+   * `BUSY_WAIT_MAX_SECONDS` is not counted down at all; giving up reports the
+   * turn as failed.
+   *
+   * @param backend the backend the turn was sent to
    */
   const waitOnBusy = (
     text: string,
     attempt: number,
     busy: ModelBusyError,
     context: TurnContext,
-    provider: ModelProvider
+    backend: ModelProvider
   ) => {
     const seconds = Math.max(1, busy.waitSeconds ?? BUSY_WAIT_SECONDS);
     if (attempt >= BUSY_RETRIES || seconds > BUSY_WAIT_MAX_SECONDS) {
       PgAssistant.addError(`${busy.message} ${COME_BACK_LATER}`);
-      trackTurnFailure(provider, busy);
+      trackTurnFailure(backend, busy);
       return;
     }
     const at = Date.now();
@@ -660,6 +669,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
       threadId: PgAssistant.threadId,
       conversation: PgAssistant.conversation,
       context,
+      provider: backend,
     });
   };
 
@@ -700,12 +710,10 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     if (!current || provider.current?.connection !== current) {
       PgAssistant.addError(NOT_RESENT);
       // The turn ends here, on this side: no backend saw the resend
-      if (provider.current) {
-        assistantTelemetry.track("assistant_turn_failed", {
-          provider: provider.current.connection.id,
-          reason: "other",
-        });
-      }
+      assistantTelemetry.track("assistant_turn_failed", {
+        provider: held.provider,
+        reason: "other",
+      });
       return;
     }
     await runTurn(held.text, held.attempt, held.context);

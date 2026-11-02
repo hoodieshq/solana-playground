@@ -1628,7 +1628,7 @@ describe("useTurn's turn events", () => {
 
     await act(() => result.current.send(PROMPT));
 
-    expect(turnEvents()).toEqual([
+    expect(turnEvents()).toStrictEqual([
       sent,
       ["assistant_turn_answered", { provider: "default" }],
     ]);
@@ -1640,7 +1640,7 @@ describe("useTurn's turn events", () => {
 
     await act(() => result.current.send(PROMPT));
 
-    expect(turnEvents()).toEqual([
+    expect(turnEvents()).toStrictEqual([
       ["assistant_turn_sent", { provider: "anthropic" }],
       ["assistant_turn_answered", { provider: "anthropic" }],
     ]);
@@ -1653,7 +1653,7 @@ describe("useTurn's turn events", () => {
     await act(() => result.current.send(PROMPT));
 
     expect(provider.send).not.toHaveBeenCalled();
-    expect(turnEvents()).toEqual([]);
+    expect(turnEvents()).toStrictEqual([]);
   });
 
   it("reports nothing for a send refused while a turn runs", async () => {
@@ -1665,7 +1665,7 @@ describe("useTurn's turn events", () => {
 
     await act(() => result.current.send("second"));
 
-    expect(turnEvents()).toEqual([sent]);
+    expect(turnEvents()).toStrictEqual([sent]);
   });
 
   it("ends a stopped turn with stopped alone", async () => {
@@ -1678,7 +1678,7 @@ describe("useTurn's turn events", () => {
     act(() => result.current.stop());
     await waitFor(() => expect(result.current.busy).toBe(false));
 
-    expect(turnEvents()).toEqual([sent, ["assistant_turn_stopped", {}]]);
+    expect(turnEvents()).toStrictEqual([sent, ["assistant_turn_stopped", {}]]);
   });
 
   it.each([
@@ -1730,37 +1730,129 @@ describe("useTurn's turn events", () => {
 
     await act(() => result.current.send(PROMPT));
 
-    expect(turnEvents()).toEqual([sent, expected]);
+    expect(turnEvents()).toStrictEqual([sent, expected]);
   });
 
-  it("reports a cost-gate refusal as capped, not failed", async () => {
+  it.each([
+    ["the daily cap's 429", 429],
+    ["the exhausted pool's 503", 503],
+  ])(
+    "reports the cost gate's refusal by %s as capped, not failed",
+    async (_, status) => {
+      provider.send.mockRejectedValue(
+        new TurnFailure("You have used today's messages.", {
+          reason: "capped",
+          status,
+        })
+      );
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send(PROMPT));
+
+      expect(turnEvents()).toStrictEqual([
+        sent,
+        ["assistant_turn_capped", { provider: "default" }],
+      ]);
+    }
+  );
+
+  it("reports a key a key-based backend rejects once as failed, beside key_rejected", async () => {
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-test" });
     provider.send.mockRejectedValue(
-      new TurnFailure("You have used today's messages.", {
-        reason: "capped",
-        status: 429,
+      new TurnFailure("Unauthorized", {
+        reason: "provider",
+        status: 401,
+        cause: new AiTurnError("Unauthorized", {
+          kind: "key-refused",
+          status: 401,
+        }),
       })
     );
     const { result } = renderHook(() => useTestTurn());
 
     await act(() => result.current.send(PROMPT));
 
-    expect(turnEvents()).toEqual([
-      sent,
-      ["assistant_turn_capped", { provider: "default" }],
+    expect(turnEvents()).toStrictEqual([
+      ["assistant_turn_sent", { provider: "anthropic" }],
+      [
+        "assistant_turn_failed",
+        { provider: "anthropic", reason: "provider", status: 401 },
+      ],
+    ]);
+    expect(eventNames()).toContainEqual([
+      "assistant_key_rejected",
+      { provider: "anthropic" },
     ]);
   });
 
-  it("puts no part of the prompt in any event, even when the failure quotes it", async () => {
-    provider.send.mockRejectedValue(
-      new TurnFailure(`The model refused: "${PROMPT}"`, {
-        reason: "refusal",
-      })
+  it("reports a turn that resolves after a Stop as stopped alone", async () => {
+    let finish!: () => void;
+    // A provider that ignores the abort and completes anyway
+    provider.send.mockImplementation(
+      () => new Promise<void>((resolve) => (finish = resolve))
     );
+    const { result } = renderHook(() => useTestTurn());
+    act(() => {
+      void result.current.send(PROMPT);
+    });
+
+    act(() => result.current.stop());
+    await act(async () => finish());
+    await waitFor(() => expect(result.current.busy).toBe(false));
+
+    expect(turnEvents()).toStrictEqual([sent, ["assistant_turn_stopped", {}]]);
+  });
+
+  it("reports nothing more for a turn a backend change cuts off", async () => {
+    provider.send.mockImplementation(untilAborted);
+    const { result } = renderHook(() => useTestTurn());
+    act(() => {
+      void result.current.send(PROMPT);
+    });
+
+    act(() => PgAssistant.connect({ id: "anthropic", apiKey: "sk-test" }));
+    await waitFor(() => expect(result.current.busy).toBe(false));
+
+    expect(turnEvents()).toStrictEqual([sent]);
+  });
+
+  it.each([
+    [
+      "an answer",
+      () => {
+        // answered: the default stub resolves
+      },
+    ],
+    [
+      "a failure that quotes the prompt",
+      () =>
+        provider.send.mockRejectedValue(
+          new TurnFailure(`The model refused: "${PROMPT}"`, {
+            reason: "refusal",
+          })
+        ),
+    ],
+  ])("puts no part of the prompt in any event after %s", async (_, arrange) => {
+    arrange();
     const { result } = renderHook(() => useTestTurn());
 
     await act(() => result.current.send(PROMPT));
 
-    expect(turnEvents()).not.toEqual([]);
+    expect(turnEvents()).toHaveLength(2);
+    expect(JSON.stringify(events.events)).not.toContain("secret-sauce");
+  });
+
+  it("puts no part of the prompt in any event after a Stop", async () => {
+    provider.send.mockImplementation(untilAborted);
+    const { result } = renderHook(() => useTestTurn());
+    act(() => {
+      void result.current.send(PROMPT);
+    });
+
+    act(() => result.current.stop());
+    await waitFor(() => expect(result.current.busy).toBe(false));
+
+    expect(turnEvents()).toHaveLength(2);
     expect(JSON.stringify(events.events)).not.toContain("secret-sauce");
   });
 
@@ -1783,7 +1875,7 @@ describe("useTurn's turn events", () => {
       await waitFor(() => expect(provider.send).toHaveBeenCalledTimes(2));
       await waitFor(() => expect(result.current.busy).toBe(false));
 
-      expect(turnEvents()).toEqual([
+      expect(turnEvents()).toStrictEqual([
         sent,
         ["assistant_turn_answered", { provider: "default" }],
       ]);
@@ -1800,7 +1892,7 @@ describe("useTurn's turn events", () => {
       await waitFor(() => expect(provider.send).toHaveBeenCalledTimes(4));
       await waitFor(() => expect(result.current.busy).toBe(false));
 
-      expect(turnEvents()).toEqual([sent, failed("provider", 429)]);
+      expect(turnEvents()).toStrictEqual([sent, failed("provider", 429)]);
     });
 
     it("reports a Stop during the countdown as stopped", async () => {
@@ -1811,7 +1903,10 @@ describe("useTurn's turn events", () => {
       act(() => result.current.stop());
       await act(() => vi.advanceTimersByTimeAsync(5_000));
 
-      expect(turnEvents()).toEqual([sent, ["assistant_turn_stopped", {}]]);
+      expect(turnEvents()).toStrictEqual([
+        sent,
+        ["assistant_turn_stopped", {}],
+      ]);
     });
 
     it("reports a resend refused for a changed model as failed, other", async () => {
@@ -1824,7 +1919,48 @@ describe("useTurn's turn events", () => {
       await waitFor(() => expect(result.current.retry).toBeNull());
 
       expect(provider.send).toHaveBeenCalledTimes(1);
-      expect(turnEvents()).toEqual([sent, failed("other")]);
+      // Named after the backend the turn was sent to, not the one picked since
+      expect(turnEvents()).toStrictEqual([sent, failed("other")]);
+    });
+
+    it("reports nothing more for a wait a sign-out drops", async () => {
+      provider.send.mockRejectedValueOnce(busy());
+      const { result } = renderHook(() => useTestTurn());
+      await act(() => result.current.send(PROMPT));
+
+      act(() => PgAssistant.disconnect());
+      await act(() => vi.advanceTimersByTimeAsync(1_000));
+      await waitFor(() => expect(result.current.retry).toBeNull());
+
+      expect(turnEvents()).toStrictEqual([sent]);
+    });
+
+    it("reports a resend that fails for another reason once, with one sent", async () => {
+      provider.send.mockRejectedValueOnce(busy()).mockRejectedValueOnce(
+        new TurnFailure("Provider says no", {
+          reason: "provider",
+          status: 500,
+        })
+      );
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send(PROMPT));
+      await act(() => vi.advanceTimersByTimeAsync(1_000));
+      await waitFor(() => expect(provider.send).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(result.current.busy).toBe(false));
+
+      expect(turnEvents()).toStrictEqual([sent, failed("provider", 500)]);
+    });
+
+    it("reports a wait longer than it counts down as failed at once", async () => {
+      provider.send.mockRejectedValueOnce(
+        new ModelBusyError(3600, BUSY, { status: 429 })
+      );
+      const { result } = renderHook(() => useTestTurn());
+
+      await act(() => result.current.send(PROMPT));
+
+      expect(turnEvents()).toStrictEqual([sent, failed("provider", 429)]);
     });
   });
 });
