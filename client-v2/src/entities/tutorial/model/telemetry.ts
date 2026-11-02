@@ -30,10 +30,29 @@ type TutorialEvents = {
     via: "chat" | "client" | "call_panel";
     seconds: number;
   };
+  /**
+   * The feed moved to a step's divider: a step bar segment, an item of the
+   * bar's narrow menu, or ⌥↑ / ⌥↓. `step` is the divider's step and `from`
+   * the live step, both 1-based. Not sent for the back pill, which sends
+   * `tutorial_step_back`.
+   */
+  tutorial_step_jumped: {
+    tutorial: string;
+    step: number;
+    from: number;
+    via: "bar" | "menu" | "key";
+  };
+  /**
+   * The back pill took the learner from an earlier step back to the live
+   * card. `step` is the live step, or 0 before Start.
+   */
+  tutorial_step_back: { tutorial: string; step: number };
 };
 
 /**
- * Also the conversation engine's tracker (`features/tutorial-conversation`):
- * the spec names its events `tutorial_*`, and the prefix is this slice's.
+ * Also the tracker of the conversation engine
+ * (`features/tutorial-conversation`) and of its feed
+ * (`widgets/tutorial-conversation`): the spec names their events
+ * `tutorial_*`, and the prefix is this slice's.
  */
 export const tutorialTelemetry = createTracker<TutorialEvents>();
