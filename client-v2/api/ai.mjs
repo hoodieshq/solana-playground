@@ -51,6 +51,9 @@ const OWN = { available: false, key: "own", reason: null, model: null };
  * `ai.test.mjs` holds the two routes to the same answer until that `GET` is
  * retired. Settings only, not `getAuth`: building auth opens the pool, which
  * can throw.
+ *
+ * TODO(HOO-1747): once the client reads only this route, retire the `GET` of
+ * `api/agent.mjs` and with it the second copy of this rule.
  */
 const hostedModel = () => {
   const agent = agentEnv();
