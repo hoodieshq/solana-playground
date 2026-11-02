@@ -1257,6 +1257,85 @@ describe("POST /api/agent spend gate", () => {
     });
   });
 
+  describe("The hosted keys never leave the route", () => {
+    const KEY = "vck_live_9fA2bQ7xLm4pZr8TuW1yN6cK";
+    const NEWCOMER_KEY = "vck_new_3Hs8kD2mQp7vRt5Wz1Lc";
+
+    /** Every console line the route writes, as one text */
+    const consoleText = (...spies: Array<{ mock: { calls: unknown[][] } }>) =>
+      spies
+        .flatMap((spy) => spy.mock.calls)
+        .map((args) => JSON.stringify(args))
+        .join("\n");
+
+    /** Whether `text` holds a key, or the first or last eight characters of one */
+    const leaks = (text: string) =>
+      [KEY, NEWCOMER_KEY].some(
+        (key) =>
+          text.includes(key) ||
+          text.includes(key.slice(0, 8)) ||
+          text.includes(key.slice(-8))
+      );
+
+    beforeEach(() => {
+      vi.stubEnv("AGENT_API_KEY", KEY);
+      vi.stubEnv("AGENT_NEWCOMER_API_KEY", NEWCOMER_KEY);
+    });
+
+    const failing = async (answer: Answer) => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      network(answer);
+      const res = await postJson(handler, TURN);
+      return { res, logged: consoleText(error, warn) };
+    };
+
+    it.each([
+      [500, `{"error":{"message":"bad key ${KEY}"}}`],
+      [401, `Incorrect API key provided: ${KEY.slice(0, 12)}****${KEY.slice(-10)}`],
+      [403, `{"error":{"type":"forbidden","message":"key ${KEY} restricted"}}`],
+      [402, `Payment required for ${KEY}`],
+      [429, `rate limited: ${NEWCOMER_KEY}`],
+    ])("keeps the key out of an upstream %i", async (status, body) => {
+      const { res, logged } = await failing(
+        () => new Response(body, { status })
+      );
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+      expect(leaks(res.body())).toBe(false);
+      expect(leaks(logged)).toBe(false);
+    });
+
+    it("keeps the key out of an upstream that cannot be reached", async () => {
+      const { res, logged } = await failing(() => {
+        throw new Error(`getaddrinfo failed for Bearer ${KEY}`);
+      });
+
+      expect(res.statusCode).toBe(502);
+      expect(jsonBody(res).error).toMatch(/^Upstream unreachable: /);
+      expect(leaks(res.body())).toBe(false);
+      expect(leaks(logged)).toBe(false);
+    });
+
+    it("keeps the key out of a stream that breaks", async () => {
+      const { res, logged } = await failing(
+        () =>
+          new Response(
+            new ReadableStream({
+              pull(controller) {
+                controller.error(new Error(`reset, key ${KEY}`));
+              },
+            }),
+            { status: 200 }
+          )
+      );
+
+      expect(res.body()).toMatch(/Upstream stream failed: /);
+      expect(leaks(res.body())).toBe(false);
+      expect(leaks(logged)).toBe(false);
+    });
+  });
+
   describe("Every turn that reaches the ledger is recorded", () => {
     it("records a completed turn with its tokens and charge", async () => {
       network();

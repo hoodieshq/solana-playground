@@ -41,6 +41,7 @@ import {
   POOL_EXHAUSTED_REASON,
   readBoundedBody,
   recordCapped,
+  redactSecrets,
   REFUSAL_MESSAGES,
   REFUSAL_STATUS,
   reserve,
@@ -134,10 +135,12 @@ const sendJson = (res, status, body) => {
  * @param body the upstream's web stream
  * @param {(chunk: Uint8Array) => void} observe sees every chunk as it is
  *   forwarded, for the usage the ledger charges
+ * @param {(text: string) => string} redact keeps the keys out of the error
+ *   frame, whose message the route did not write
  * @returns {Promise<boolean>} whether the upstream's stream ended with the
  *   caller still there; false when the caller left or the stream broke
  */
-const pipeStream = async (res, body, observe) => {
+const pipeStream = async (res, body, observe, redact) => {
   const reader = body.getReader();
   let finished = false;
 
@@ -172,7 +175,7 @@ const pipeStream = async (res, body, observe) => {
   } catch (e) {
     if (!res.writableEnded && !res.destroyed) {
       // The error frame `@ai-sdk/openai-compatible` reads; `runTurn` (shared/lib/ai) raises it as `AiTurnError`
-      const message = `Upstream stream failed: ${e.message}`;
+      const message = redact(`Upstream stream failed: ${e.message}`);
       // The leading blank line closes whatever frame the upstream left
       // unfinished; glued onto it, the error would be one malformed line
       // the panel skips
@@ -374,6 +377,10 @@ const relay = async (res, configured, body, tier, now) => {
   // nothing has been sent, and the reservation goes back
   if (res.destroyed) return { kind: "abandoned" };
 
+  // Every text below that the upstream or a thrown error wrote passes through
+  // this before it is relayed or logged: an upstream may quote the key
+  const redact = (text) => redactSecrets(text, Object.values(configured.keys));
+
   let response;
   try {
     response = await fetch(configured.url, {
@@ -411,12 +418,14 @@ const relay = async (res, configured, body, tier, now) => {
     // the upstream may already have taken the request: charging nothing here
     // would let a caller that hangs up early spend past the cap
     if (abortUpstream.signal.aborted) return { kind: "unfinished" };
-    sendJson(res, 502, { error: `Upstream unreachable: ${e.message}` });
+    sendJson(res, 502, {
+      error: redact(`Upstream unreachable: ${e.message}`),
+    });
     return { kind: "refused" };
   }
 
   if (!response.ok) {
-    const text = await response.text().catch(() => "");
+    const text = redact(await response.text().catch(() => ""));
     // Our request was refused: relayed, it would read as this route refusing
     // the caller
     if (response.status === 401 || response.status === 403) {
@@ -466,7 +475,7 @@ const relay = async (res, configured, body, tier, now) => {
   res.setHeader("content-type", "text/event-stream");
   res.setHeader("cache-control", "no-cache, no-transform");
   const usage = usageReader();
-  const finished = await pipeStream(res, response.body, usage.push);
+  const finished = await pipeStream(res, response.body, usage.push, redact);
   const reported = usage.usage();
   // Usage seen on a turn that did not finish may be a running total, not the
   // turn's: only a stream read to its end is charged what it reported
