@@ -154,8 +154,13 @@ separate PRs against fixtures.
 - calls the deploy command with the tutorial workspace's program keypair, so
   a redeploy is an upgrade;
 - funding is the deploy's own airdrop top-up, reported as a stage;
-- after a reload, a deploy is recognised by reading the program account's
-  last deploy slot against the saved start time.
+- after a reload, a deploy is recognised by the program's newest signature
+  (`getSignaturesForAddress`): one that landed at or after the saved start
+  time is that run's, and an older one beside it makes it an upgrade;
+- the top-up needs no sign-in, unlike the editor's `airdrop` command, and the
+  IDL does not go on chain yet: Anchor 1.x publishes it through the Program
+  Metadata Program, which Playground does not call (Slava, 3 Nov, HOO-2356's
+  spike; a follow-up ticket).
 
 **Run and calls:**
 
