@@ -21,7 +21,7 @@ for; tasks with "after nothing" start at once.
 
 ## 2. Frame
 
-- [ ] 2.1 The tutorial frame: rail, chat column and workspace slot, the
+- [x] 2.1 The tutorial frame: rail, chat column and workspace slot, the
       navigation folding to its rail with overlay, pin and the first-time hint,
       the chat head with back, name and ⋯ menu, column width and handle,
       opened for a tutorial with a definition. Verify: unit tests for the fold
