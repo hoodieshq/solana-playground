@@ -815,6 +815,29 @@ describe("useConversationStartOver", () => {
       expect(PgTutorial.open).toHaveBeenCalledWith("Counter PDA Tutorial");
     });
 
+    it("counts no next tutorial when its open fails, and says so", async () => {
+      store.view.mockReturnValue(finished);
+      const track = vi.spyOn(tutorialTelemetry, "track");
+      const failed = new Error("Explorer not initialized");
+      vi.mocked(PgTutorial.open).mockRejectedValueOnce(failed);
+      render(
+        <TooltipProvider>
+          <TutorialConversation onAllTutorials={vi.fn()} />
+        </TooltipProvider>
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Next: Counter PDA Tutorial" })
+      );
+      expect(reportButtonFailure).toHaveBeenCalledWith(
+        "open Counter PDA Tutorial"
+      );
+      expect(refuse).toHaveBeenCalledWith(failed);
+      expect(track).not.toHaveBeenCalledWith(
+        "tutorial_next_opened",
+        expect.anything()
+      );
+    });
+
     it("hands All tutorials to the frame, and counts Copy receipt", async () => {
       store.view.mockReturnValue(finished);
       const track = vi.spyOn(tutorialTelemetry, "track");

@@ -43,7 +43,8 @@ export interface BaseFinishCardProps {
  * call's receipt folded under "Transaction details" with Copy receipt on its
  * row, "What you learned", the meta line, and "Next: <tutorial>" with "All
  * tutorials". No stat pills and no "See summary" (Almaz, 3.14 and 3.15).
- * Without a landed call there is no receipt to show, and no row for it.
+ * Without a landed call, or with one that left nothing to show (no
+ * signature, line or receipt field), there is no "Transaction details".
  */
 const BaseFinishCard = ({
   headline,
@@ -71,7 +72,7 @@ const BaseFinishCard = ({
       </p>
     </div>
 
-    {receipt && (
+    {receipt && receiptText(receipt) && (
       <Collapsible className="flex flex-col gap-2 rounded-control border border-border bg-surface-well/50 px-3 py-2">
         <div className="flex items-center gap-2">
           <CollapsibleHeading className="text-caption">

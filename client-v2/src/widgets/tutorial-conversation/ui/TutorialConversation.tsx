@@ -329,7 +329,11 @@ export interface TutorialConversationProps {
   onAllTutorials: () => void;
 }
 
-/** The handlers that need nothing of the component; the finish's are added there */
+/**
+ * The handlers that read no prop and no definition; `TutorialConversation`
+ * adds the ones that do (the next tutorial, All tutorials) and Copy
+ * receipt's count
+ */
 const handlers: Omit<
   TurnHandlers,
   "openNextTutorial" | "allTutorials" | "copyReceipt"
@@ -354,7 +358,8 @@ const handlers: Omit<
 /**
  * The tutorial a definition's `finish.next` names, by its slug among the
  * listed ones, or null. The loader drops a definition whose `next` names no
- * listed tutorial, so a set `next` always finds one there.
+ * known tutorial, so a set `next` almost always finds one; it finds none
+ * when it names a definition that was itself left out.
  */
 const nextTutorialOf = (next: string | null): string | null =>
   next === null
@@ -444,14 +449,24 @@ export const TutorialConversation = ({
       ...handlers,
       openNextTutorial: () => {
         const slug = PgConversation.state.context?.slug;
-        if (!nextTutorial || !next || !slug) return;
-        tutorialTelemetry.track("tutorial_next_opened", {
-          tutorial: slug,
-          next,
-        });
-        PgTutorial.open(nextTutorial).catch(
-          reportButtonFailure(`open ${nextTutorial}`)
-        );
+        if (!nextTutorial || !next || !slug) {
+          // The button only shows with a next tutorial; a context gone
+          // mid-switch is the one way here
+          log.warn("Next on the finish card had nothing to open", {
+            context: { next, slug: slug ?? null },
+          });
+          return;
+        }
+        // Counted once it opened: a failed open is the toast's, not a learner
+        // going on
+        PgTutorial.open(nextTutorial)
+          .then(() =>
+            tutorialTelemetry.track("tutorial_next_opened", {
+              tutorial: slug,
+              next,
+            })
+          )
+          .catch(reportButtonFailure(`open ${nextTutorial}`));
       },
       allTutorials: onAllTutorials,
       copyReceipt: () => {

@@ -57,8 +57,8 @@ export type TutorialEvents = {
   };
   /**
    * "Next: <tutorial>" on the finish card opened the tutorial the definition
-   * names next. `tutorial` is the one finished, `next` the one opened, both
-   * slugs.
+   * names next; sent once the open resolved, so a failed one is not counted.
+   * `tutorial` is the one finished, `next` the one opened, both slugs.
    */
   tutorial_next_opened: { tutorial: string; next: string };
   /**

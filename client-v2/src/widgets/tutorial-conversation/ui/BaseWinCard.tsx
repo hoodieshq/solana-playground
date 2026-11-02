@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { FileCode, Send } from "lucide-react";
 
 import type { Win } from "@/entities/tutorial";
@@ -37,10 +37,14 @@ const reducedMotion = () =>
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** A check in a circle that draws its stroke once, when the win arrives */
+/**
+ * A check in a circle that draws its stroke when it mounts on a live win;
+ * static under reduced motion. The animation starts before the first paint,
+ * so the finished check never shows for a frame first.
+ */
 const DrawnCheck = ({ draw }: { draw: boolean }) => {
   const path = useRef<SVGPathElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!draw || reducedMotion()) return;
     path.current?.animate?.(
       [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }],
@@ -78,7 +82,7 @@ const DrawnCheck = ({ draw }: { draw: boolean }) => {
  * offers "Write it in client.ts"; a win that asks for it offers "Open Call".
  * The last step's win has no Next: the finish follows it. Once Next is
  * pressed the card is a record: the check, the tag and the headline, with
- * "Write it in client.ts" kept as a link.
+ * "Write it in client.ts" kept as a small button, since it only navigates.
  */
 const BaseWinCard = ({
   win,

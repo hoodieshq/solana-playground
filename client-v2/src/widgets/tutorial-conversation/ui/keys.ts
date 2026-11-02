@@ -9,7 +9,7 @@ export const typing = (target: EventTarget | null) =>
 
 /**
  * Whether a key press reached the page with no control of its own holding
- * focus: the intro's Start and the win's Next take Enter only then.
+ * focus, so Enter on the page can press the live card's primary action
  */
 export const nothingFocused = () => {
   const active = document.activeElement;

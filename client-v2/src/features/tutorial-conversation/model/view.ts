@@ -31,10 +31,14 @@ import type { EngineState, Stage } from "./reducer";
  * else; the cards dispatch actions and never compute state of their own.
  */
 
-/** A call or client run that landed: the result a receipt is read from */
+/** A `run` or `call` act that landed: the result a receipt is read from */
 export type LandedCall = Extract<RunResult, { act: "run" | "call"; ok: true }>;
 
-/** The latest landed call or client run of the whole lesson, or null */
+/**
+ * The latest landed `run` or `call` act of the lesson's run records, or
+ * null. Only the act cards record runs: a step passed from the Call panel or
+ * a client run outside the feed leaves none, so its transaction is not here.
+ */
 const lastLandedCall = (p: ConversationProgress): LandedCall | null => {
   let latest: { at: number; result: LandedCall } | null = null;
   for (const runs of Object.values(p.runs)) {
@@ -150,7 +154,7 @@ export type Turn = TurnBase &
         chips: Chip[];
         /** Whole seconds from Start to the finish */
         seconds: number;
-        /** The last landed call or client run, whose receipt the card shows */
+        /** The last landed `run` or `call` act, whose receipt the card shows (`lastLandedCall`) */
         receipt: LandedCall | null;
       }
   );
@@ -1102,7 +1106,22 @@ if (import.meta.vitest) {
           beats: {},
           runs: {
             "s3.run": [ran(30000, "first")],
-            "s4.call": [ran(50000, "last")],
+            // A later call the program refused is no receipt
+            "s4.call": [
+              ran(50000, "last"),
+              {
+                status: "failed",
+                at: 55000,
+                took: 900,
+                result: {
+                  act: "call",
+                  ok: false,
+                  seconds: 0.9,
+                  message: "refused",
+                  log: "",
+                },
+              },
+            ],
           },
           times: {},
         },

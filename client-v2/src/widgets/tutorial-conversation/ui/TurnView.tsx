@@ -80,8 +80,8 @@ const questionLabel = (definition: TutorialDefinition, ask: Ask) => {
 /**
  * One turn of the feed as its card: the intro, a divider, the assistant's
  * line, the learner's pill, a wrote card, a question, an act or its result,
- * a win or the finish. Only the live turn gets the
- * buttons that act; navigation links stay live on every record.
+ * the win and finish cards. Only the live turn gets the buttons that act;
+ * navigation links stay live on every record.
  */
 const TurnView = ({
   turn,

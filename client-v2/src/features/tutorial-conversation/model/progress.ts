@@ -427,8 +427,10 @@ const isRefusal = (v: unknown): v is Refusal =>
  * exceptions are what `judgeGoal` reads: a call's `called`, which comes back
  * as no call when it is missing or does not read as one, and a failed call's
  * `refused`, dropped when it does not read as a refusal, so the judge can
- * trust the type. A landed call's `receipt` keeps only the fields that read
- * as theirs, so the finish card can trust it too.
+ * trust the type. A landed run's or call's `signatures` and `line`, which
+ * the finish card draws, come back empty when they do not read as theirs,
+ * and its `receipt` keeps only the fields that do, so the card can trust
+ * them too.
  */
 const parseResult = (v: unknown): RunResult | null => {
   if (
@@ -441,11 +443,13 @@ const parseResult = (v: unknown): RunResult | null => {
   }
   if ((v.act === "run" || v.act === "call") && v.ok) {
     const called = Array.isArray(v.called) ? v.called.filter(isCalled) : [];
+    const signatures = isStrings(v.signatures) ? v.signatures : [];
+    const line = typeof v.line === "string" ? v.line : null;
     const { receipt, ...rest } = v;
     const kept = parseReceipt(receipt);
     return (kept
-      ? { ...rest, called, receipt: kept }
-      : { ...rest, called }) as unknown as RunResult;
+      ? { ...rest, signatures, line, called, receipt: kept }
+      : { ...rest, signatures, line, called }) as unknown as RunResult;
   }
   if ((v.act === "run" || v.act === "call") && "refused" in v) {
     const { refused, ...rest } = v;
@@ -459,7 +463,10 @@ const parseResult = (v: unknown): RunResult | null => {
 const isAccount = (v: unknown): v is ReceiptAccount =>
   isRecord(v) && typeof v.name === "string" && typeof v.address === "string";
 
-/** The receipt fields that read as theirs, or null when none does */
+/**
+ * The receipt fields that read as theirs, entry by entry for the lists, or
+ * null when it is not a record or none of them is left
+ */
 const parseReceipt = (v: unknown): Receipt | null => {
   if (!isRecord(v)) return null;
   const out: Receipt = {};
@@ -467,8 +474,14 @@ const parseReceipt = (v: unknown): Receipt | null => {
     out.fee = v.fee;
   }
   if (typeof v.signer === "string") out.signer = v.signer;
-  if (Array.isArray(v.accounts)) out.accounts = v.accounts.filter(isAccount);
-  if (isStrings(v.log)) out.log = v.log;
+  const accounts = Array.isArray(v.accounts)
+    ? v.accounts.filter(isAccount)
+    : [];
+  if (accounts.length) out.accounts = accounts;
+  const log = Array.isArray(v.log)
+    ? v.log.filter((l): l is string => typeof l === "string")
+    : [];
+  if (log.length) out.log = log;
   return Object.keys(out).length ? out : null;
 };
 
@@ -944,6 +957,54 @@ if (import.meta.vitest) {
           { instruction: "x", args: { n: 1 } },
         ])
       ).toEqual([hello]);
+    });
+
+    it("reads back only what a landed call's receipt rows can draw", () => {
+      /** The landed call `s4.call` saved with these result fields, read back */
+      const landed = (fields: Record<string, unknown>) =>
+        reload(
+          midway({
+            runs: {
+              "s4.call": [
+                {
+                  status: "ok",
+                  at: 1,
+                  took: 1,
+                  result: Object.assign(
+                    { act: "call", ok: true, seconds: 1, called: [] },
+                    fields
+                  ),
+                },
+              ],
+            },
+          })
+        )?.runs["s4.call"][0];
+
+      // A corrupt signature list or line would throw in the finish card
+      expect(landed({ signatures: "5ig", line: 7 })).toMatchObject({
+        result: { signatures: [], line: null },
+      });
+      expect(landed({})).toMatchObject({
+        result: { signatures: [], line: null },
+      });
+      // Nothing of the receipt reads as its own: no receipt at all
+      const bare = landed({
+        signatures: ["5ig"],
+        line: null,
+        receipt: { fee: -1, accounts: [7], log: [1] },
+      });
+      expect(bare?.status).toBe("ok");
+      expect(bare?.status === "ok" && "receipt" in bare.result).toBe(false);
+      // One bad log line costs only itself
+      expect(
+        landed({
+          signatures: ["5ig"],
+          line: null,
+          receipt: { fee: 0.5, log: ["Program log: Hello, Alex!", 3] },
+        })
+      ).toMatchObject({
+        result: { receipt: { log: ["Program log: Hello, Alex!"] } },
+      });
     });
 
     it("keeps a passed step once", () => {

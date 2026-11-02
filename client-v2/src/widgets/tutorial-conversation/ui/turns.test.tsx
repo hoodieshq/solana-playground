@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import BaseActCard from "./BaseActCard";
 import BaseFinishCard, { finishMeta } from "./BaseFinishCard";
+import { receiptText } from "./BaseReceipt";
 import BaseIntroCard, { HOW_IT_GOES, INTRO_NOTE } from "./BaseIntroCard";
 import BaseResultCard from "./BaseResultCard";
 import BaseStepDivider from "./BaseStepDivider";
@@ -761,7 +762,7 @@ describe("BaseWinCard", () => {
     expect(onWriteInClient).toHaveBeenCalledTimes(1);
   });
 
-  it("offers Open Call only when its win asks for it and the panel can open", () => {
+  it("shows no Open Call without an opener", () => {
     const i = steps.findIndex((s) => s.win.extra === "openTest");
     win(i);
     expect(screen.queryByRole("button", { name: "Open Call" })).toBeNull();
@@ -775,7 +776,33 @@ describe("BaseWinCard", () => {
     expect(onOpenCall).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps no Next once it is a record, but keeps client.ts as a link", () => {
+  it("reads its own line after a chat pass, and offers no client.ts", () => {
+    const i = steps.findIndex((s) => s.win.callPanelLine);
+    win(i, { via: "chat" });
+    const line = textOf(steps[i].win.line).replace(/`/g, "");
+    expect(
+      screen.getByText(
+        (_, el) => el?.tagName === "P" && el.textContent === line
+      )
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Write it in client.ts" })
+    ).toBeNull();
+  });
+
+  it("shows no Open Call on a win that does not ask for it", () => {
+    const i = steps.findIndex((s) => !s.win.extra);
+    win(i, { onOpenCall: vi.fn() });
+    expect(screen.queryByRole("button", { name: "Open Call" })).toBeNull();
+  });
+
+  it("takes no Enter once it is a record", () => {
+    const { onNext } = win(0, { live: false });
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it("keeps no Next once it is a record, but keeps client.ts as a button", () => {
     win(0, { live: false, via: "call_panel" });
     expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
     expect(
@@ -900,6 +927,36 @@ describe("BaseFinishCard", () => {
     expect(screen.queryByText(/See summary/)).toBeNull();
   });
 
+  it("copies the receipt's rows, fee and log, and nothing else", () => {
+    expect(receiptText(alex)).toBe(
+      "Signature: 5igLastOfTheCall\nProgram log: Hello, Alex!"
+    );
+    expect(
+      receiptText({
+        act: "call",
+        ok: true,
+        seconds: 0.9,
+        signatures: [],
+        line: null,
+        called: [],
+      })
+    ).toBe("");
+  });
+
+  it("has no Transaction details for a call that left nothing to show", () => {
+    finish({
+      receipt: {
+        act: "call",
+        ok: true,
+        seconds: 0.9,
+        signatures: [],
+        line: null,
+        called: [],
+      },
+    });
+    expect(screen.queryByText("Transaction details")).toBeNull();
+  });
+
   it("counts Copy receipt", async () => {
     const { onCopyReceipt } = finish();
     await userEvent.click(screen.getByRole("button", { name: "Copy receipt" }));
@@ -917,5 +974,53 @@ describe("BaseFinishCard", () => {
     expect(finishMeta(4, 45)).toBe(
       "4 steps · 45 s · devnet only, nothing real spent"
     );
+  });
+});
+
+describe("TurnView's last win", () => {
+  it("reads the last step's headline with no Next, as Hello Anchor finishes", () => {
+    const last = definition.steps.at(-1)!;
+    const turn: Turn = {
+      id: `win:${last.id}`,
+      kind: "win",
+      step: last.id,
+      at: 1,
+      whole: true,
+      stepId: last.id,
+      win: last.win,
+      done: false,
+      took: 1000,
+      via: "chat",
+      last: true,
+    };
+    render(
+      <TurnView
+        turn={turn}
+        definition={definition}
+        live
+        running={false}
+        passed={[]}
+        read={() => null}
+        nextTutorial={null}
+        on={{
+          start: vi.fn(),
+          pick: vi.fn(),
+          hint: vi.fn(),
+          skip: vi.fn(),
+          act: vi.fn(),
+          explain: vi.fn(),
+          fixMyself: vi.fn(),
+          next: vi.fn(),
+          restartStep: vi.fn(),
+          openNextTutorial: vi.fn(),
+          allTutorials: vi.fn(),
+          copyReceipt: vi.fn(),
+          copyFailed: vi.fn(),
+          showLine: vi.fn(),
+        }}
+      />
+    );
+    expect(screen.getByText("hello knows your name.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
   });
 });
