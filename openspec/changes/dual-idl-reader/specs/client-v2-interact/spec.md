@@ -10,6 +10,6 @@ imported an Anchor IDL." For an Anchor 1.x IDL the client cannot call, the
 notice SHALL read "This Anchor 1.x IDL uses <reason>, which Interact cannot
 call yet." and the instruction form SHALL not render.
 
-#### Scenario: A 1.x IDL with a custom discriminator (manual)
-- **WHEN** the person uploads a 1.x IDL whose instruction `initialize` has a custom discriminator
+#### Scenario: A 1.x IDL with a custom discriminator
+- **WHEN** the build returns a 1.x IDL whose instruction `initialize` has a custom discriminator, and the program is deployed
 - **THEN** Interact shows "This IDL can't be read" with the notice "This Anchor 1.x IDL uses a custom discriminator on initialize, which Interact cannot call yet." and no instruction chips
