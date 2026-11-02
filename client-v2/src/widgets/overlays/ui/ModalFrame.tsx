@@ -32,6 +32,8 @@ export type ModalSubmit = {
   disabled?: boolean;
   /** `brand` for the view's one call to action; see `SubmitVariant` */
   variant?: SubmitVariant;
+  /** Drawn before the label, as a brand's mark beside "Sign in with GitHub" */
+  icon?: ReactNode;
 };
 
 export type ModalFrameProps = {
@@ -199,6 +201,7 @@ export const ModalFrame = ({
           text: buttonProps.text,
           status,
           variant: buttonProps.variant ?? "default",
+          icon: buttonProps.icon,
           onSubmit: submit,
           onCancel: buttonProps.onSubmit
             ? () => PgView.closeModal(null, id)
