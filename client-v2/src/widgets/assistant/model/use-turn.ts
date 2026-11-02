@@ -41,7 +41,7 @@ import { PgExplorer } from "../../../utils/explorer/explorer";
 import { DEFAULT_CONNECTION } from "./connection";
 import { probeDefaultBackend } from "./default-backend";
 import { assistantTelemetry } from "./telemetry";
-import type { AssistantEvents, TurnFailedReason } from "./telemetry";
+import type { AssistantEvents } from "./telemetry";
 
 export type { ConnectPreset };
 
@@ -131,14 +131,16 @@ const isDroppedConnection = (error: unknown) =>
  * quote the prompt.
  */
 const trackTurnFailure = (provider: ModelProvider, error: unknown) => {
-  if (error instanceof TurnFailure && error.reason === "capped") {
+  if (!(error instanceof TurnFailure)) {
+    const reason = isDroppedConnection(error) ? "provider" : "other";
+    assistantTelemetry.track("assistant_turn_failed", { provider, reason });
+    return;
+  }
+  const { reason, status } = error;
+  if (reason === "capped") {
     assistantTelemetry.track("assistant_turn_capped", { provider });
     return;
   }
-  let reason: TurnFailedReason = "other";
-  if (error instanceof TurnFailure) reason = error.reason;
-  else if (isDroppedConnection(error)) reason = "provider";
-  const status = error instanceof TurnFailure ? error.status : undefined;
   assistantTelemetry.track(
     "assistant_turn_failed",
     status === undefined ? { provider, reason } : { provider, reason, status }

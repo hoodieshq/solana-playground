@@ -1610,7 +1610,9 @@ describe("useTurn's turn events", () => {
   const BUSY = "The model is busy.";
   /** The `assistant_turn_*` events, in order, with their parameters */
   const turnEvents = () =>
-    eventNames().filter(([name]) => name.startsWith("assistant_turn_"));
+    events.events
+      .filter((e) => e.name.startsWith("assistant_turn_"))
+      .map((e) => [e.name, e.params]);
   const sent = ["assistant_turn_sent", { provider: "default" }];
   const failed = (reason: string, status?: number) => [
     "assistant_turn_failed",
