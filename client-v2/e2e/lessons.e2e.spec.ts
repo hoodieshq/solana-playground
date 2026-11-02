@@ -284,6 +284,10 @@ test.describe("client-v2-lessons", () => {
   });
 
   test("client-v2-lessons: Suggestions in a lesson", async ({ page }) => {
+    test.fixme(
+      true,
+      "the assistant left the frame's chat for the conversation (tutorial-flow-v2 3.3); it returns under the feed with the composer (3.6), and task 7.1 retires the v1 lesson's assistant"
+    );
     await page.setViewportSize({ width: 1440, height: 900 });
     await startHelloAnchor(page);
     for (const name of [

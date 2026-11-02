@@ -59,8 +59,13 @@ test.describe("tutorial-workspace", () => {
         await expect(
           page.getByRole("button", { name: "Collapse assistant" })
         ).toHaveCount(0);
+        // The head's name: the intro card in the feed names it too
         await expect(
-          chat(page).getByRole("heading", { name: "Hello Anchor", exact: true })
+          chat(page).getByRole("heading", {
+            level: 1,
+            name: "Hello Anchor",
+            exact: true,
+          })
         ).toBeVisible();
       }
     );

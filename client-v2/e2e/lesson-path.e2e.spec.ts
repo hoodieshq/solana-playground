@@ -50,6 +50,11 @@ test("opens an unstarted tutorial from an active project", async ({ page }) => {
 test("a lesson step is finished by the toolchain, not by a click", async ({
   page,
 }) => {
+  test.fixme(
+    true,
+    "the assistant left the frame's chat for the conversation (tutorial-flow-v2 3.3); it returns under the feed with the composer (3.6), and task 7.1 retires the v1 lesson's assistant"
+  );
+
   // Opening the gallery, opening a tutorial and letting the assistant
   // panel mount are each their own async settle; well past the 30s
   // default.
