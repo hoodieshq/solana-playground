@@ -22,6 +22,8 @@ import type { DeployRunState } from "@/commands/deploy/run";
 const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 
 const SHORT_ID = "6PNd…AVkj";
+/** 3 PM on 2 Nov 2026, local time: the board's clock for the question */
+const NOW = new Date(2026, 10, 2, 15, 0).getTime();
 const WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 
 const record = (
@@ -63,6 +65,12 @@ const props = (state: {
   funding?: BaseDeployProps["funding"];
   backup?: boolean;
   payer?: BaseDeployProps["payer"];
+  /** The failed build question, closed unless the test is about it */
+  stale?: {
+    lastGoodBuildAt: number | null;
+    failure?: BaseDeployProps["staleBuildFailure"];
+    goodBuildDeployed?: boolean;
+  };
 }): BaseDeployProps => ({
   cluster: state.cluster === undefined ? "devnet" : state.cluster,
   built: state.built,
@@ -77,7 +85,11 @@ const props = (state: {
   run: state.run ?? IDLE_RUN,
   funding: state.funding ?? null,
   backup: state.backup ?? false,
-  staleBuild: false,
+  staleBuild: state.stale !== undefined,
+  lastGoodBuildAt: state.stale?.lastGoodBuildAt ?? null,
+  staleBuildFailure: state.stale?.failure ?? null,
+  goodBuildDeployed: state.stale?.goodBuildDeployed ?? false,
+  now: NOW,
   addressUrl: (id, cluster) => `https://explorer.test/${cluster}/address/${id}`,
   txUrl: (sig, cluster) => `https://explorer.test/${cluster}/tx/${sig}`,
   onDeploy: vi.fn(),
@@ -85,6 +97,7 @@ const props = (state: {
   onSaveKeypair: vi.fn(),
   onDismissBackup: vi.fn(),
   onStaleBuildAnswer: vi.fn(),
+  onStaleBuildShowError: vi.fn(),
   onInteract: vi.fn(),
   idlUpload: <button>Upload IDL</button>,
   onOpenCliGuide: state.onOpenCliGuide ?? vi.fn(),
@@ -247,7 +260,10 @@ describe("BaseDeploy", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }));
     expect(p.onDeploy).toHaveBeenCalled();
-    expect(screen.getByText(PROGRAM_ID)).toBeTruthy();
+    expect(screen.getByText(SHORT_ID).getAttribute("title")).toBe(PROGRAM_ID);
+    expect(
+      screen.getByRole("button", { name: "Copy the program id" })
+    ).toBeTruthy();
     expect(brandButtons(container)).toHaveLength(1);
   });
 
@@ -281,7 +297,7 @@ describe("BaseDeploy", () => {
     );
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "Deploy failed — see the terminal."
+      "Deploy failed. The terminal has the details."
     );
   });
 
@@ -300,7 +316,7 @@ describe("BaseDeploy", () => {
     const explorer = within(result).getByRole("link", {
       name: `View latest deployment (${PROGRAM_ID}) on Explorer (devnet)`,
     });
-    expect(explorer.textContent).toBe("View on Explorer (devnet)");
+    expect(explorer.textContent).toBe("Explorer");
     expect(explorer.getAttribute("href")).toBe(
       `https://explorer.test/devnet/address/${PROGRAM_ID}`
     );
@@ -308,7 +324,7 @@ describe("BaseDeploy", () => {
       within(result).getByRole("link", {
         name: "View latest deployment transaction (5sig) on Explorer (devnet)",
       }).textContent
-    ).toBe("Transaction (devnet)");
+    ).toBe("Transaction");
 
     fireEvent.click(within(result).getByRole("button", { name: "Interact" }));
     expect(p.onInteract).toHaveBeenCalled();
@@ -386,8 +402,8 @@ describe("BaseDeploy", () => {
     const history = screen.getByRole("region", { name: "History" });
     const links = within(history).getAllByRole("link");
     expect(links.map((l) => l.textContent)).toEqual([
-      "Explorer (testnet)",
-      "Explorer (devnet)",
+      "Explorer",
+      "Explorer",
     ]);
     expect(links[1].getAttribute("href")).toBe(
       `https://explorer.test/devnet/address/${PROGRAM_ID}`
@@ -436,7 +452,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
     );
     expect(screen.getByLabelText("Who pays").textContent).toBe(
-      "Deploys from your Playground wallet · 7xKX…gAsU · 4.20 SOL"
+      "Playground wallet · 7xKX…gAsU · 4.20 SOL"
     );
 
     rerender(
@@ -445,7 +461,7 @@ describe("BaseDeploy", () => {
       />
     );
     expect(screen.getByLabelText("Who pays").textContent).toBe(
-      "Deploys from a Playground wallet created on your first deploy."
+      "A Playground wallet, made on your first deploy"
     );
     expect(
       screen.getByRole("button", { name: "Deploy to devnet" })
@@ -547,14 +563,14 @@ describe("BaseDeploy", () => {
     ).toBeTruthy();
   });
 
-  it("writes a dash, not two hyphens", () => {
+  it("asks for a build before deploying, in two sentences", () => {
     render(
       <BaseDeploy {...props({ built: false, deploy: "idle", history: [] })} />
     );
 
     expect(
       screen.getByText(
-        "Build the program first \u2014 the stepper unlocks Deploy once it compiles cleanly."
+        "Build the program first. Deploy unlocks once it compiles cleanly."
       )
     ).toBeTruthy();
   });
@@ -584,5 +600,132 @@ describe("BaseDeploy", () => {
         .getByRole("button", { name: "Interact" })
         .getAttribute("data-variant")
     ).toBe("outline");
+  });
+  describe("the failed build question", () => {
+    const actionsOf = (container: HTMLElement) =>
+      container.querySelector<HTMLElement>(
+        '[data-slot="stage-empty-actions"]'
+      )!;
+    const labelsIn = (el: HTMLElement) =>
+      [...el.querySelectorAll("button")]
+        .filter((b) => !b.closest(".hidden"))
+        .map((b) => b.textContent);
+    const FAILURE = {
+      file: "programs/counter/src/lib.rs",
+      line: 14,
+      message: "cannot find type `Initialize` in this scope",
+    };
+
+    it("before a deploy fills the stage, and only its buttons sit in the foot", () => {
+      const p = props({
+        built: true,
+        deploy: "running",
+        history: [],
+        stale: { lastGoodBuildAt: new Date(2026, 10, 2, 9, 10).getTime() },
+      });
+      const { container } = render(<BaseDeploy {...p} />);
+
+      const question = screen.getByRole("alert", {
+        name: "The last build failed",
+      });
+      expect(actionsOf(container).contains(question)).toBe(false);
+      expect(question.textContent).toContain(
+        "Last good build · 9:10 AM · 5 h ago"
+      );
+      expect(labelsIn(actionsOf(container))).toEqual([
+        "Show the error",
+        "Deploy build from 9:10 AM",
+      ]);
+      expect(brandButtons(container)).toHaveLength(0);
+      expect(
+        screen.queryByRole("heading", { name: "Nothing deployed yet" })
+      ).toBeNull();
+      expect(document.activeElement?.textContent).toBe("The last build failed");
+
+      fireEvent.click(screen.getByRole("button", { name: "Show the error" }));
+      expect(p.onStaleBuildShowError).toHaveBeenCalledOnce();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Deploy build from 9:10 AM" })
+      );
+      expect(p.onStaleBuildAnswer).toHaveBeenCalledWith(true);
+    });
+
+    it("cancels on Esc", () => {
+      const p = props({
+        built: true,
+        deploy: "running",
+        history: [],
+        stale: { lastGoodBuildAt: null },
+      });
+      render(<BaseDeploy {...p} />);
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(p.onStaleBuildAnswer).toHaveBeenCalledWith(false);
+    });
+
+    it("without the time leaves the chip out and names the build in words", () => {
+      render(
+        <BaseDeploy
+          {...props({
+            built: true,
+            deploy: "running",
+            history: [],
+            stale: { lastGoodBuildAt: null, failure: FAILURE },
+          })}
+        />
+      );
+
+      const question = screen.getByRole("alert", {
+        name: "The last build failed",
+      });
+      expect(question.textContent).not.toContain("Last good build ·");
+      expect(question.textContent).toContain(
+        "Failed at lib.rs:14: cannot find type Initialize in this scope."
+      );
+      expect(
+        screen.getByRole("button", { name: "Deploy last good build" })
+      ).toBeTruthy();
+    });
+
+    it("after a deploy comes first, above the result and the history", () => {
+      const { container } = render(
+        <BaseDeploy
+          {...props({
+            built: true,
+            deploy: "running",
+            history: [record("a", null)],
+            stale: { lastGoodBuildAt: null },
+          })}
+        />
+      );
+
+      const history = screen.getByRole("region", { name: "History" });
+      const question = screen.getByRole("alert", {
+        name: "The last build failed",
+      });
+      expect(
+        history.compareDocumentPosition(question) &
+          Node.DOCUMENT_POSITION_PRECEDING
+      ).toBeTruthy();
+      expect(actionsOf(container).contains(question)).toBe(false);
+    });
+
+    it("offers no deploy when the good build is the deployed one", () => {
+      const { container } = render(
+        <BaseDeploy
+          {...props({
+            built: true,
+            deploy: "running",
+            history: [record("a", null)],
+            stale: { lastGoodBuildAt: NOW - 60_000, goodBuildDeployed: true },
+          })}
+        />
+      );
+
+      expect(
+        screen.getByText("The deployed program is already that build.")
+      ).toBeTruthy();
+      expect(labelsIn(actionsOf(container))).toEqual(["Show the error"]);
+    });
   });
 });

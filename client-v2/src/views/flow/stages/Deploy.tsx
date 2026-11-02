@@ -13,7 +13,13 @@ import {
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
-import { PgConnection, PgExplorer, PgGlobal, PgWallet } from "../../../utils";
+import {
+  PgConnection,
+  PgExplorer,
+  PgGlobal,
+  PgProgramInfo,
+  PgWallet,
+} from "../../../utils";
 import type { Cluster } from "../../../utils";
 import { isSignInFailure, PgSession } from "@/features/auth";
 import { PgStageDeploy, useDeployRun, useStageDeploy } from "@/features/deploy";
@@ -21,6 +27,11 @@ import type { StageDeployState } from "@/features/deploy";
 import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { markIfToldByStage } from "./stage-failure";
+import { ownOutput } from "./build-surface";
+import { parseBuildReport } from "./build-report";
+import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
+import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
+import type { StaleBuildFailure } from "@/features/deploy";
 import { PgDeployHistory } from "../state/deploy-history";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
@@ -82,6 +93,16 @@ const signInThenDeploy = async () => {
   await PgStageDeploy.start((error) => markIfToldByStage("deploy", error));
 };
 
+/** The failed build's first diagnostic, for the question's mono line */
+const firstDiagnostic = (out: BuildOutput | null): StaleBuildFailure | null => {
+  const own = ownOutput(out, PgExplorer.currentWorkspaceName ?? null);
+  if (!own?.failed) return null;
+  const first = parseBuildReport(own.stderr).diagnostics[0];
+  return first
+    ? { file: first.file, line: first.line, message: first.title }
+    : null;
+};
+
 /** The Deploy stage, connected: the flow, the history, the chain, commands */
 const Deploy = () => {
   const [flow, setFlow] = useState<FlowState>(PgFlow.state);
@@ -96,6 +117,8 @@ const Deploy = () => {
   const wallet = useWallet();
   const balance = useBalance();
   const deployState = useRenderOnChange(PgGlobal.onDidChangeDeployState);
+  const [buildOut, setBuildOut] = useState<BuildOutput | null>(null);
+  useEffect(() => PgBuildOutput.onDidChange(setBuildOut).dispose, []);
   useRenderOnChange(PgConnection.onDidChangeCluster);
 
   useEffect(() => {
@@ -146,13 +169,17 @@ const Deploy = () => {
     explorer.opens(cluster as Cluster) ? url(cluster as Cluster) : null;
 
   const built = flow.build === "done";
+  // Spec 03, DEP-08: after a failed build Deploy stays pressable while an
+  // earlier build is on the server, and asks before sending it
+  const hasEarlierBuild =
+    flow.build === "failed" && Boolean(PgProgramInfo.uuid);
   const programId = programInfo.pk?.toBase58() ?? null;
 
   return (
     <>
       <BaseDeploy
         cluster={PgConnection.cluster}
-        built={built}
+        built={built || hasEarlierBuild}
         deploy={deployStatus(deployState, flow, stage)}
         programId={programId}
         details={details}
@@ -166,6 +193,15 @@ const Deploy = () => {
           stage.backupFor === wallet?.publicKey.toBase58()
         }
         staleBuild={stage.phase === "running" && stage.askingStaleBuild}
+        // TODO(DES-195 dev ticket 2): keep the last good build's time, per
+        // workspace and across reloads (localStorage); nothing stores it yet
+        lastGoodBuildAt={null}
+        staleBuildFailure={
+          flow.build === "failed" ? firstDiagnostic(buildOut) : null
+        }
+        // TODO(DES-195 dev ticket: store the build id on DeployRecord): tell
+        // when the last good build is the deployed one; until then always asks
+        goodBuildDeployed={false}
         addressUrl={(id, cluster) =>
           linkTo(cluster, (c) => explorer.getAddressUrl(id, c))
         }
@@ -181,8 +217,12 @@ const Deploy = () => {
         onSaveKeypair={saveKeypair}
         onDismissBackup={() => PgStageDeploy.answerBackup(false)}
         onStaleBuildAnswer={(answer) => PgStageDeploy.answerStaleBuild(answer)}
+        onStaleBuildShowError={() => {
+          PgStageDeploy.answerStaleBuild(false);
+          PgFlow.setStage("build");
+        }}
         onInteract={() => PgFlow.setStage("interact")}
-        idlUpload={<IdlActions mode="upload" />}
+        idlUpload={<IdlActions mode="upload" variant="ghost" />}
         onOpenCliGuide={setGuide}
       />
       <CliDeployGuide

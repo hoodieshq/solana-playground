@@ -19,6 +19,7 @@ vi.mock("../../sidebar/test/Component/Instruction", () => ({
     idlInstruction: { name: string };
     onCall: (ix: { name: string }) => Promise<unknown>;
     feePayer: ReactNode;
+    result?: ReactNode;
   }) => (
     <div>
       <p>form {p.idlInstruction.name}</p>
@@ -26,6 +27,7 @@ vi.mock("../../sidebar/test/Component/Instruction", () => ({
       <button onClick={() => p.onCall({ name: p.idlInstruction.name })}>
         Call {p.idlInstruction.name}
       </button>
+      {p.result}
     </div>
   ),
 }));
@@ -135,7 +137,7 @@ describe("InteractBody", () => {
     });
     expect(
       screen.getByRole("region", { name: "Call result" }).textContent
-    ).toContain("Succeeded");
+    ).toContain("Called initialize");
 
     rerender(
       wrap(

@@ -29,17 +29,29 @@ const IX = {
   accounts: [],
 } as unknown as Props["idlInstruction"];
 
-it("starts with the Args and Accounts folds open", () => {
+it("heads the desk form with plain Arguments and Accounts labels", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} />);
 
+  expect(screen.getByRole("heading", { name: "Arguments" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Accounts" })).toBeTruthy();
+  // Nothing folds any more
+  expect(screen.queryByRole("button", { name: "Arguments" })).toBeNull();
   expect(
-    screen.getByRole("button", { name: "Args" }).getAttribute("aria-expanded")
-  ).toBe("true");
-  expect(
-    screen
-      .getByRole("button", { name: "Accounts" })
-      .getAttribute("aria-expanded")
-  ).toBe("true");
+    screen.getByRole("button", { name: "Fill sample values" })
+  ).toBeTruthy();
+});
+
+it("on the desk says why Call is off beside it, with Reset in the same row", () => {
+  render(<Instruction idlInstruction={IX} onCall={vi.fn()} callBlocked />);
+
+  const call = screen.getByRole("button", { name: "Call increment" });
+  expect((call as HTMLButtonElement).disabled).toBe(true);
+  const reason = screen.getByText("Not enough SOL for the fee");
+  expect(call.getAttribute("aria-describedby")).toBe(reason.id);
+  expect(call.parentElement).toBe(reason.parentElement);
+  expect(screen.getByRole("button", { name: "Reset" }).parentElement).toBe(
+    call.parentElement
+  );
 });
 
 it("calls the instruction through onCall from a button named after it", () => {
@@ -91,7 +103,11 @@ it("reads Calling… and locks the form until the call settles", async () => {
   expect((busy as HTMLButtonElement).disabled).toBe(true);
   expect(container.querySelector("fieldset")?.disabled).toBe(true);
   expect(
-    (screen.getByRole("button", { name: "Fill" }) as HTMLButtonElement).disabled
+    (
+      screen.getByRole("button", {
+        name: "Fill sample values",
+      }) as HTMLButtonElement
+    ).disabled
   ).toBe(true);
 
   await act(async () => settle());
@@ -103,4 +119,28 @@ it("reads Calling… and locks the form until the call settles", async () => {
     ).disabled
   ).toBe(false);
   expect(container.querySelector("fieldset")?.disabled).toBe(false);
+});
+
+it("on the phone page keeps only Call in the foot, off with its reason", () => {
+  render(
+    <Instruction
+      idlInstruction={IX}
+      onCall={vi.fn()}
+      layout="page"
+      callBlocked
+      actionsClassName="foot"
+    />
+  );
+
+  const call = screen.getByRole("button", { name: "Call increment" });
+  expect((call as HTMLButtonElement).disabled).toBe(true);
+  expect(call.getAttribute("aria-describedby")).toBeTruthy();
+  expect(screen.getByText("Not enough SOL for the fee")).toBeTruthy();
+  const foot = call.closest(".foot")!;
+  expect(foot.querySelectorAll("button")).toHaveLength(1);
+  expect(screen.getByRole("heading", { name: "Arguments" })).toBeTruthy();
+  expect(
+    screen.getByRole("button", { name: "Fill sample values" })
+  ).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
 });

@@ -19,24 +19,88 @@ const ERROR_LINE =
   "Program log: AnchorError caused by account: counter. Error Code: AccountNotInitialized.";
 
 describe("BaseCallResult", () => {
+  it("on the phone page names the call in Spec 03's words, with its time", () => {
+    const outcome: CallOutcome = {
+      instruction: "increment",
+      ok: false,
+      signature: "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9Co",
+      logs: ["Program X invoke [1]", ERROR_LINE],
+      failingLine: ERROR_LINE,
+    };
+    render(
+      <BaseCallResult
+        layout="page"
+        outcome={outcome}
+        at={1_000_000 - 120_000}
+        now={1_000_000}
+        cluster="devnet"
+        txUrl={txUrl}
+      />
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Call to increment failed" })
+    ).toBeTruthy();
+    expect(screen.getByText("2 min ago")).toBeTruthy();
+    expect(screen.getByText(ERROR_LINE)).toBeTruthy();
+    expect(screen.getByText("5VER…z9Co")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "View on Explorer (devnet)" })
+    ).toBeTruthy();
+    expect(screen.queryByText(/Program X invoke/)).toBeNull();
+  });
+
+  it("on the phone page reads Called for a success", () => {
+    const outcome: CallOutcome = {
+      instruction: "increment",
+      ok: true,
+      signature: "5sig",
+      logs: [],
+      failingLine: null,
+    };
+    render(
+      <BaseCallResult
+        layout="page"
+        outcome={outcome}
+        cluster="devnet"
+        txUrl={txUrl}
+      />
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Called increment" })
+    ).toBeTruthy();
+  });
+
   it("shows a success with its signature and an Explorer link naming the network", () => {
     const outcome: CallOutcome = {
       instruction: "increment",
       ok: true,
       signature: "5sig",
-      logs: ["Program log: Instruction: Increment"],
+      logs: [
+        "Program log: Instruction: Increment",
+        "Program log: Counter is 1",
+      ],
       failingLine: null,
     };
     render(<BaseCallResult outcome={outcome} cluster="devnet" txUrl={txUrl} />);
 
+    // The program's own line, under the title
+    expect(screen.getByText("Program log: Counter is 1")).toBeTruthy();
+
     const region = screen.getByRole("region", { name: "Call result" });
-    expect(region.textContent).toContain("Succeeded");
-    expect(region.textContent).toContain("increment");
+    // The desk reads the same words as the phone, no status dot
+    expect(
+      screen.getByRole("heading", { name: "Called increment" })
+    ).toBeTruthy();
+    expect(region.textContent).not.toContain("Succeeded");
     expect(screen.getByRole("button", { name: "Copy signature" })).toBeTruthy();
     const link = screen.getByRole("link", {
       name: "View on Explorer (devnet)",
     });
     expect(link.getAttribute("href")).toBe("https://explorer/tx/5sig");
+    // The network lives in the name, not in the short label
+    expect(link.textContent).toBe("Explorer");
   });
 
   it("shows a failure's line, and every log only behind Show all logs", () => {
@@ -50,7 +114,7 @@ describe("BaseCallResult", () => {
     render(<BaseCallResult outcome={outcome} cluster="devnet" txUrl={txUrl} />);
 
     const region = screen.getByRole("region", { name: "Call result" });
-    expect(region.textContent).toContain("Failed");
+    expect(region.textContent).toContain("Call to increment failed");
     expect(screen.getByText(ERROR_LINE)).toBeTruthy();
     expect(screen.queryByText(/Program X invoke/)).toBeNull();
 
@@ -68,6 +132,9 @@ describe("BaseCallResult", () => {
     };
     render(<BaseCallResult outcome={outcome} cluster="devnet" txUrl={txUrl} />);
 
+    expect(
+      screen.getByRole("heading", { name: "increment was not sent" })
+    ).toBeTruthy();
     expect(screen.getByText("Wallet not connected")).toBeTruthy();
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.queryByRole("button", { name: "Show all logs" })).toBeNull();

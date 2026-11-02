@@ -21,11 +21,15 @@ import {
   BaseBackupLine,
   BaseDeployProgress,
   BaseNotEnoughSol,
-  BaseStaleBuildDialog,
+  BaseStaleBuildActions,
+  BaseStaleBuildQuestion,
+  clockTime,
   formatSol,
   networkName,
   shortKey,
+  timeAgo,
 } from "@/features/deploy";
+import type { StaleBuildFailure } from "@/features/deploy";
 import type { DeployRunState, DeployFundingError } from "@/commands/deploy/run";
 import {
   MAINNET_DEPLOY_WARNING_BODY,
@@ -91,6 +95,17 @@ export interface BaseDeployProps {
   backup: boolean;
   /** Ask whether to deploy the last successful build */
   staleBuild: boolean;
+  /** When the last successful build finished, for the question; `null` when unknown */
+  lastGoodBuildAt?: number | null;
+  /** Where the latest build failed, for the question's mono line; `null` when unknown */
+  staleBuildFailure?: StaleBuildFailure | null;
+  /**
+   * The last good build is the deployed one, so the question offers no deploy,
+   * only the error
+   */
+  goodBuildDeployed?: boolean;
+  /** The clock the question's times are read against; the board pins it */
+  now?: number;
   /**
    * An Explorer link that opens `cluster`, whatever network is selected;
    * `null` when the explorer cannot open it, and the link is left out
@@ -102,6 +117,8 @@ export interface BaseDeployProps {
   onSaveKeypair: () => void;
   onDismissBackup: () => void;
   onStaleBuildAnswer: (deploy: boolean) => void;
+  /** Cancels the deploy and opens the Build stage, where the error is */
+  onStaleBuildShowError: () => void;
   onInteract: () => void;
   /** The secondary "Upload IDL" action (`IdlActions mode="upload"`) */
   idlUpload: ReactNode;
@@ -128,7 +145,10 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
  */
 const clusterName = (p: BaseDeployProps) => networkName(p.cluster);
 
-/** Who pays, before a deploy */
+/**
+ * Who pays, before a deploy. The key and the balance never break apart: on a
+ * phone the line wraps before the key, not inside it.
+ */
 const payerLine = (payer: DeployPayer | null) => {
   if (!payer) {
     return "Deploys from a Playground wallet created on your first deploy.";
@@ -136,17 +156,37 @@ const payerLine = (payer: DeployPayer | null) => {
   const balance =
     payer.balance === null ? "" : ` · ${payer.balance.toFixed(2)} SOL`;
   const which = payer.playground ? "your Playground wallet" : "your wallet";
-  return `Deploys from ${which} · ${shortKey(payer.address)}${balance}`;
+  return (
+    <>
+      Deploys from {which} ·{" "}
+      <span className="whitespace-nowrap">
+        {shortKey(payer.address)}
+        {balance}
+      </span>
+    </>
+  );
 };
 
 const description = (p: BaseDeployProps, latest: DeployRecord | null) => {
   if (!p.built) {
-    return "Build the program first \u2014 the stepper unlocks Deploy once it compiles cleanly.";
+    return "Build the program first. Deploy unlocks once it compiles cleanly.";
   }
   if (latest) {
-    return "The program id stays constant across deploys; redeploying upgrades it in place.";
+    return "Redeploying upgrades the program in place.";
   }
-  return `Deploying sends the compiled program to ${clusterName(p)}.`;
+  return "Puts your program on chain, ready to call.";
+};
+
+/** Who pays, as the facts block's value: words in the text face, the key in code */
+const payerValue = (payer: DeployPayer | null) => {
+  if (!payer) return "A Playground wallet, made on your first deploy";
+  const which = payer.playground ? "Playground wallet" : "Your wallet";
+  return (
+    <>
+      {which} · <span className="font-mono">{shortKey(payer.address)}</span>
+      {payer.balance === null ? null : ` · ${payer.balance.toFixed(2)} SOL`}
+    </>
+  );
 };
 
 /** An Explorer link whose text names the network it opens */
@@ -173,7 +213,9 @@ const ExplorerLink = ({
 const Fact = ({ name, children }: { name: string; children: ReactNode }) => (
   <>
     <dt className="text-subtle">{name}</dt>
-    <dd className="min-w-0 font-mono break-all text-foreground">{children}</dd>
+    <dd className="min-w-0 font-mono [overflow-wrap:anywhere] text-foreground">
+      {children}
+    </dd>
   </>
 );
 
@@ -216,22 +258,33 @@ const DeployResult = ({
           onError={reportButtonFailure("copy the program id")}
         />
       </div>
-      <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-caption">
+      <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-caption max-md:grid-cols-[6rem_1fr]">
         {latest.cost !== undefined && (
           <Fact name="Cost">{formatSol(latest.cost)} SOL</Fact>
         )}
         {upgradable !== null && (
           <Fact name="Upgradable">{upgradable ? "Yes" : "No"}</Fact>
         )}
-        {authority && <Fact name="Authority">{authority}</Fact>}
+        {authority && (
+          <Fact name="Authority">
+            <span title={authority}>{shortKey(authority)}</span>
+          </Fact>
+        )}
         {programSize !== null && (
           <Fact name="Program size">
             {programSize.toLocaleString("en-US")} bytes
           </Fact>
         )}
-        <Fact name="When">{new Date(latest.at).toLocaleString()}</Fact>
+        {/* The same clock as the question's chip: "11:03 AM · 40 min ago" */}
+        <Fact name="When">
+          {[clockTime(latest.at, p.now), timeAgo(latest.at, p.now)]
+            .filter(Boolean)
+            .join(" · ")}
+        </Fact>
       </dl>
-      <div className="flex flex-wrap gap-2">
+      {/* The card's title already names the network, so the links keep to a
+          word each and the row stays one line on a phone too */}
+      <div className="flex flex-wrap items-center gap-2 max-md:gap-1">
         <Button size="sm" variant="outline" onClick={p.onInteract}>
           Interact
         </Button>
@@ -240,7 +293,7 @@ const DeployResult = ({
             href={programUrl}
             label={`View latest deployment (${latest.programId}) on Explorer (${network})`}
           >
-            View on Explorer ({network})
+            Explorer
           </ExplorerLink>
         )}
         {txUrl && (
@@ -248,7 +301,7 @@ const DeployResult = ({
             href={txUrl}
             label={`View latest deployment transaction (${latest.signature}) on Explorer (${network})`}
           >
-            Transaction ({network})
+            Transaction
           </ExplorerLink>
         )}
       </div>
@@ -275,7 +328,7 @@ const HistoryLink = ({ p, r }: { p: BaseDeployProps; r: DeployRecord }) => {
       className="max-md:col-start-2 max-md:justify-self-start"
       label={`View deployment (${r.programId}) on Explorer (${network})`}
     >
-      Explorer ({network})
+      Explorer
     </ExplorerLink>
   );
 };
@@ -295,9 +348,7 @@ const History = ({ p }: { p: BaseDeployProps }) => (
           </Badge>
           <span className="min-w-0 truncate font-mono" title={r.programId}>
             {r.programId.slice(0, 8)}&hellip;{r.programId.slice(-4)}
-            <span className="ml-3 text-subtle">
-              {new Date(r.at).toLocaleString()}
-            </span>
+            <span className="ml-3 text-subtle">{clockTime(r.at, p.now)}</span>
           </span>
           <HistoryLink p={p} r={r} />
         </li>
@@ -343,6 +394,22 @@ const BaseDeploy = (p: BaseDeployProps) => {
     .filter(Boolean)
     .join(" · ");
   const running = p.deploy === "running";
+  const asking = p.staleBuild;
+  const question = {
+    lastGoodAt: p.lastGoodBuildAt ?? null,
+    failure: p.staleBuildFailure ?? null,
+    goodBuildDeployed: p.goodBuildDeployed ?? false,
+    now: p.now,
+  };
+  const answers = asking ? (
+    <BaseStaleBuildActions
+      lastGoodAt={question.lastGoodAt}
+      goodBuildDeployed={question.goodBuildDeployed}
+      now={question.now}
+      onAnswer={p.onStaleBuildAnswer}
+      onShowError={p.onStaleBuildShowError}
+    />
+  ) : null;
 
   return (
     <div className={STAGE_FRAME}>
@@ -352,17 +419,60 @@ const BaseDeploy = (p: BaseDeployProps) => {
             <Rocket />
           </StageEmptyMedia>
         )}
-        <StageEmptyTitle>
-          {latest ? "Deploy" : "Nothing deployed yet"}
-        </StageEmptyTitle>
-        {meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
-        <StageEmptyDescription>{description(p, latest)}</StageEmptyDescription>
-        {p.built && !latest && p.programId && (
-          <p className="text-caption text-muted-foreground">
-            Program id <code className="font-mono">{p.programId}</code>
-          </p>
+        {/* Before the first deploy the question is the whole stage: the empty
+            state's title and lines would compete with the one decision */}
+        {asking && !latest ? (
+          <BaseStaleBuildQuestion
+            {...question}
+            size="stage"
+            onCancel={() => p.onStaleBuildAnswer(false)}
+          />
+        ) : (
+          <>
+            <StageEmptyTitle>
+              {latest ? "Deploy" : "Nothing deployed yet"}
+            </StageEmptyTitle>
+            {/* Before the first deploy the network is on the button; the meta
+                line only counts deploys once there are some */}
+            {latest && meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
+            <StageEmptyDescription>
+              {description(p, latest)}
+            </StageEmptyDescription>
+          </>
         )}
-        {p.built && !running && (
+        {/* Before the first deploy the two facts that matter read as one small
+            table, labels in grey, values in the code face, instead of two
+            centred lines in two styles */}
+        {p.built && !latest && !asking && (
+          <dl className="mt-1 inline-grid grid-cols-[auto_auto] items-center gap-x-4 gap-y-1.5 text-left text-caption">
+            {p.programId && (
+              <>
+                <dt className="text-muted-foreground">Program id</dt>
+                <dd className="m-0 flex items-center gap-1 font-mono text-foreground">
+                  <span title={p.programId}>{shortKey(p.programId)}</span>
+                  <CopyButton
+                    value={p.programId}
+                    label="Copy the program id"
+                    onError={reportButtonFailure("copy the program id")}
+                  />
+                </dd>
+              </>
+            )}
+            {!running && (
+              <>
+                <dt className="text-muted-foreground">Paid by</dt>
+                <dd
+                  aria-label="Who pays"
+                  className="m-0 text-foreground tabular-nums"
+                  title={p.payer?.address}
+                >
+                  {payerValue(p.payer)}
+                </dd>
+              </>
+            )}
+          </dl>
+        )}
+        {p.built && latest && !running && !asking && (
           <p
             aria-label="Who pays"
             className="text-caption text-muted-foreground"
@@ -385,7 +495,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
         {p.deploy === "failed" && !p.funding && (
           <Callout variant="error" role="alert">
             <CalloutDescription>
-              Deploy failed — see the terminal.
+              Deploy failed. The terminal has the details.
             </CalloutDescription>
           </Callout>
         )}
@@ -398,28 +508,55 @@ const BaseDeploy = (p: BaseDeployProps) => {
             </CalloutDescription>
           </Callout>
         )}
+        {/* Under a history the question comes first, above the result it would
+            replace: it is the one thing waiting on you. Its buttons sit in its
+            card on a desk and in the pinned foot on a phone */}
+        {asking && latest && (
+          <BaseStaleBuildQuestion
+            {...question}
+            onCancel={() => p.onStaleBuildAnswer(false)}
+            actions={answers}
+          />
+        )}
         {latest && <DeployResult latest={latest} p={p} />}
         {latest && <History p={p} />}
-        <BaseStaleBuildDialog
-          open={p.staleBuild}
-          onAnswer={p.onStaleBuildAnswer}
-        />
-        <StageEmptyActions className={cn(STAGE_FOOT, !latest && "flex-col")}>
-          {running && p.run.step && <BaseDeployProgress state={p.run} />}
-          <BrandButton
-            disabled={!p.built || running}
-            aria-busy={running || undefined}
-            title={deployBlockedReason(p)}
-            onClick={p.onDeploy}
-          >
-            {deployLabel(p, latest !== null)}
-            {!running && <BrandButtonIcon />}
-          </BrandButton>
+        <StageEmptyActions
+          className={cn(STAGE_FOOT, !latest && !asking && "flex-col")}
+        >
+          {/* The question's answers take the button's place: the deploy waits on them */}
+          {/* Under a history a desk shows them in the question's card; the
+              foot keeps them for a phone, where it is pinned */}
+          {asking && !latest && answers}
+          {asking && latest && (
+            <div className="contents md:hidden">{answers}</div>
+          )}
+          {running && !p.staleBuild && p.run.step && (
+            <BaseDeployProgress state={p.run} />
+          )}
+          {!p.staleBuild && (
+            <BrandButton
+              disabled={!p.built || running}
+              aria-busy={running || undefined}
+              title={deployBlockedReason(p)}
+              onClick={p.onDeploy}
+            >
+              {deployLabel(p, latest !== null)}
+              {!running && <BrandButtonIcon />}
+            </BrandButton>
+          )}
           {/* Upload IDL and the CLI guide: before the first deploy, centred
               under the pill on a desk and above it on a phone, where the row
               stretches the pill to the screen's width; after one, beside the
               pill */}
-          <div className="flex flex-wrap justify-center gap-2">
+          {/* While the question is open it is the stage's only decision */}
+          {/* Secondary to the pill: caption size and grey, so the one call
+              to action stays the only loud thing in the foot */}
+          <div
+            className={cn(
+              "flex flex-wrap justify-center gap-1 [&>*]:h-8 [&>*]:px-2.5 [&>*]:text-caption [&>*]:text-muted-foreground [&>*:hover]:text-foreground",
+              p.staleBuild && "hidden"
+            )}
+          >
             {p.idlUpload}
             <Button
               variant="ghost"

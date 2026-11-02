@@ -52,7 +52,7 @@ const DownloadIdl = () => {
 };
 
 /** Loads an IDL file into this browser, picked through a button */
-const UploadIdl = () => {
+const UploadIdl = ({ variant }: { variant: "outline" | "ghost" }) => {
   const [note, setNote] = useState<Note | null>(null);
 
   /** Refuses a file that is not an IDL; a throw after that is ours */
@@ -97,6 +97,7 @@ const UploadIdl = () => {
   return (
     <>
       <ImportButton
+        variant={variant}
         accept=".json"
         title={LOAD_HINT}
         onImport={(ev) => {
@@ -117,7 +118,11 @@ const UploadIdl = () => {
  * saves what the build already produced, "Upload IDL" replaces the IDL
  * this app uses -- neither touches the chain.
  */
-const IdlActions: FC<{ mode: IdlActionsMode }> = ({ mode }) =>
-  mode === "download" ? <DownloadIdl /> : <UploadIdl />;
+const IdlActions: FC<{
+  mode: IdlActionsMode;
+  /** Upload only: `ghost` where it sits beside another secondary action of the same weight */
+  variant?: "outline" | "ghost";
+}> = ({ mode, variant = "outline" }) =>
+  mode === "download" ? <DownloadIdl /> : <UploadIdl variant={variant} />;
 
 export default IdlActions;

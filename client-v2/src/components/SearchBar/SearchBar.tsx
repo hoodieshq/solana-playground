@@ -40,10 +40,16 @@ export interface SearchBarProps extends InputProps {
   showSearchOnMount?: boolean;
   labelToSelectOnPaste?: string;
   restoreIfNotSelected?: boolean;
-  /** Which side of the field the search icon sits on */
+  /**
+   * Which side of the field the search icon sits on; `hidden` leaves it out
+   * where the field takes a value rather than a search (an argument)
+   */
   searchButton?: {
     position?: "left" | "right";
+    hidden?: boolean;
   };
+  /** Drawn inside the field at its end: a unit or type suffix ("u64") */
+  end?: ReactNode;
   onSearch?: (ev: { input: InputProps["value"]; item: NormalizedItem }) => void;
   filter?: (args: {
     input: InputProps["value"];
@@ -90,6 +96,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
   labelToSelectOnPaste,
   restoreIfNotSelected,
   searchButton,
+  end,
   onSearch,
   filter,
   setSelectedItems: _setSelectedItems,
@@ -420,19 +427,23 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
       <Popover open={isOpen}>
         <PopoverAnchor>
           <InputGroup>
-            <InputGroupAddon
-              align={
-                searchButtonPosition === "left" ? "inline-start" : "inline-end"
-              }
-            >
-              <InputGroupButton
-                size="icon-xs"
-                aria-label="Search"
-                onClick={searchTopResult}
+            {!searchButton?.hidden && (
+              <InputGroupAddon
+                align={
+                  searchButtonPosition === "left"
+                    ? "inline-start"
+                    : "inline-end"
+                }
               >
-                <Search />
-              </InputGroupButton>
-            </InputGroupAddon>
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label="Search"
+                  onClick={searchTopResult}
+                >
+                  <Search />
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
 
             <InputGroupInput
               ref={inputRef}
@@ -505,6 +516,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                 </InputGroupButton>
               </InputGroupAddon>
             )}
+            {end && <InputGroupAddon align="inline-end">{end}</InputGroupAddon>}
           </InputGroup>
         </PopoverAnchor>
 

@@ -86,6 +86,7 @@ vi.mock("../state/stage", () => ({
       return mocks.flow;
     },
     onDidChange: mocks.noop,
+    setStage: vi.fn(),
   },
 }));
 vi.mock("../state/deploy-history", () => ({
@@ -248,7 +249,7 @@ describe("Deploy stage", () => {
     expect(walletAtDeploy).toBe(WALLET);
   });
 
-  it("asks about a failed build in the panel and stops on Cancel", async () => {
+  it("asks about a failed build in the panel and stops on Show the error", async () => {
     mocks.wallet.current = pgWallet();
     let answer: Promise<boolean> | undefined;
     mocks.execute.mockImplementation(async () => {
@@ -259,10 +260,10 @@ describe("Deploy stage", () => {
 
     await pressDeploy();
     expect(
-      screen.getByRole("dialog", { name: "Your last build failed" })
+      screen.getByRole("alert", { name: "The last build failed" })
     ).toBeTruthy();
     await act(async () =>
-      fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+      fireEvent.click(screen.getByRole("button", { name: "Show the error" }))
     );
 
     await expect(answer).resolves.toBe(false);
@@ -352,10 +353,12 @@ describe("Deploy stage", () => {
 
     render(<Deploy />);
     expect(
-      screen.getByRole("dialog", { name: "Your last build failed" })
+      screen.getByRole("alert", { name: "The last build failed" })
     ).toBeTruthy();
     await act(async () =>
-      fireEvent.click(screen.getByRole("button", { name: "Deploy last build" }))
+      fireEvent.click(
+        screen.getByRole("button", { name: "Deploy last good build" })
+      )
     );
 
     await expect(answer).resolves.toBe(true);

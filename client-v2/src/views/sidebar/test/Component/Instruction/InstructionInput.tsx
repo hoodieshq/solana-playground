@@ -7,6 +7,7 @@ import SearchBar, {
   SearchBarProps,
 } from "../../../../../components/SearchBar";
 import { PgCommon, PgWallet, PgWeb3 } from "../../../../../utils";
+import { Button } from "@/shared/ui/button";
 import { CopyButton } from "@/shared/ui/copy-button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import {
@@ -40,6 +41,15 @@ type InstructionInputProps = {
   }) => void;
   noLabel?: boolean;
   searchBarProps?: Omit<SearchBarProps, "value">;
+  /**
+   * `page` (the phone's page per instruction) and `desk` (the desk's form):
+   * the account roles read in words, and the field's end holds the type
+   * while empty, or Paste and My wallet on an account; once filled, only
+   * clear and copy. A program or sysvar the form fills by itself reads as a
+   * fixed value. `form` (a seed in From seed) keeps the tags and the copy
+   * button beside the field.
+   */
+  variant?: "form" | "page" | "desk";
 } & InstructionInputArg &
   Partial<InstructionInputAccount>;
 
@@ -51,6 +61,7 @@ const InstructionInput: FC<React.PropsWithChildren<InstructionInputProps>> = ({
   generator,
   searchBarProps,
   noLabel,
+  variant = "form",
   ...accountProps
 }) => {
   const { instruction, setInstruction } = useInstruction();
@@ -156,42 +167,201 @@ const InstructionInput: FC<React.PropsWithChildren<InstructionInputProps>> = ({
     });
   }, [value, error, selectedItems, updateInstruction, setInstruction]);
 
+  const id = instruction.name + prefix + name;
+  const page = variant === "page";
+  const desk = variant === "desk";
+  const plain = page || desk;
+  const isKey = typeName === "publicKey";
+  const isAccount = prefix === "accounts" && isKey;
+  // Typed into the field, as a paste or a pick would be
+  const put = (text: string) => {
+    const input = document.getElementById(id) as HTMLInputElement | null;
+    if (input) PgCommon.changeInputValue(input, text);
+  };
+  const paste = async () => put((await navigator.clipboard.readText()).trim());
+  const myWallet = PgWallet.current?.publicKey.toBase58() ?? null;
+  // A program or sysvar the form fills by itself: nothing to type
+  const fixed = plain && isAccount ? fixedNameOf(name, generator, value) : null;
+
+  /** The quiet text buttons an empty account field offers at its end */
+  const fillers = isAccount && (
+    <>
+      <Button
+        variant="ghost"
+        size={page ? "sm" : "xs"}
+        className={QUIET}
+        aria-label={`Paste ${name}`}
+        onClick={() => paste().catch(reportButtonFailure("paste"))}
+      >
+        Paste
+      </Button>
+      {myWallet && accountProps.isSigner && (
+        <Button
+          variant="ghost"
+          size={page ? "sm" : "xs"}
+          className={QUIET}
+          aria-label={`Use my wallet for ${name}`}
+          onClick={() => put(myWallet)}
+        >
+          My wallet
+        </Button>
+      )}
+    </>
+  );
+  // At the field's end: empty, Paste (an account) or the type (an argument);
+  // filled, only copy beside the field's own clear
+  const end = !plain ? undefined : value ? (
+    <CopyButton
+      value={value}
+      label={`Copy ${name}`}
+      onError={reportButtonFailure("copy")}
+    />
+  ) : (
+    fillers || (
+      <span className="pr-1 font-mono text-caption text-subtle">
+        {isKey ? "pubkey" : typeName}
+      </span>
+    )
+  );
+
   return (
     <div className="flex flex-col">
       {!noLabel && (
         <div className="flex">
-          <Label name={name} type={typeName} {...accountProps} />
+          <Label
+            name={name}
+            type={typeName}
+            variant={variant === "form" ? "form" : "page"}
+            {...accountProps}
+          />
         </div>
       )}
 
-      <div className="flex">
-        <div className="flex w-full items-center gap-1 [&>*:first-child]:flex-1">
-          <SearchBar
-            id={instruction.name + prefix + name}
+      {fixed ? (
+        <div
+          role="group"
+          aria-label={`${name}: ${fixed}, ${value}`}
+          className="flex h-8 w-full min-w-0 items-center gap-2 rounded-lg border border-input pr-1 pl-2.5 dark:bg-input/30"
+        >
+          {/* Kept for the fields that copy this one by its id */}
+          <input type="hidden" id={id} value={value} readOnly />
+          <span className="font-mono text-caption text-foreground">
+            {shortenMiddle(value)}
+          </span>
+          <span className="min-w-0 truncate text-caption text-muted-foreground">
+            {fixed}
+          </span>
+          <CopyButton
+            className="ml-auto"
             value={value}
-            onChange={(ev) => setValue(ev.target.value)}
-            error={error}
-            setError={setError}
-            setSelectedItems={setSelectedItems}
-            restoreIfNotSelected
-            labelToSelectOnPaste="Custom"
-            {...getSearchBarProps(
-              name,
-              type,
-              generator,
-              accountProps,
-              instruction,
-              idl
-            )}
-            {...searchBarProps}
+            label={`Copy ${name}`}
+            onError={reportButtonFailure("copy")}
           />
-          <div className="flex h-8 items-center">
-            <CopyButton value={value} onError={reportButtonFailure("copy")} />
+        </div>
+      ) : (
+        <div className="flex">
+          <div className="flex w-full items-center gap-1 [&>*:first-child]:flex-1">
+            <SearchBar
+              id={id}
+              searchButton={{ hidden: true }}
+              end={end}
+              {...inputModeOf(typeName)}
+              value={value}
+              onChange={(ev) => setValue(ev.target.value)}
+              error={error}
+              setError={setError}
+              setSelectedItems={setSelectedItems}
+              restoreIfNotSelected
+              labelToSelectOnPaste="Custom"
+              {...getSearchBarProps(
+                name,
+                type,
+                generator,
+                accountProps,
+                instruction,
+                idl
+              )}
+              {...searchBarProps}
+            />
+            {!plain && (
+              <div className="flex h-8 items-center">
+                <CopyButton
+                  value={value}
+                  onError={reportButtonFailure("copy")}
+                />
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
+};
+
+const QUIET = "text-muted-foreground hover:text-foreground";
+
+/** "9hJq…CvB": an address shortened in the middle */
+const shortenMiddle = (v: string) =>
+  v.length <= 12 ? v : `${v.slice(0, 4)}\u2026${v.slice(-4)}`;
+
+/** Sysvars the form fills by their account name */
+const SYSVARS: Record<
+  string,
+  { label: string; key: () => string | undefined }
+> = {
+  rent: {
+    label: "Rent sysvar",
+    key: () => PgWeb3.SYSVAR_RENT_PUBKEY?.toBase58(),
+  },
+  clock: {
+    label: "Clock sysvar",
+    key: () => PgWeb3.SYSVAR_CLOCK_PUBKEY?.toBase58(),
+  },
+};
+
+/**
+ * What a fixed account is, when the form filled it as a constant: a known
+ * program ("System Program") or a sysvar ("Rent sysvar"); null otherwise
+ */
+const fixedNameOf = (
+  name: string,
+  generator: InstructionValueGenerator & { name?: string },
+  value: string
+): string | null => {
+  if (!value) return null;
+  // Only a program the form picked by the account's name, not one picked
+  // by hand from the list
+  if (
+    generator.type === "All programs" &&
+    PgProgramInteraction.getPrograms().some(
+      (p) => p.name === generator.name && p.alias?.includes(name)
+    )
+  ) {
+    return `${generator.name} Program`;
+  }
+  const sysvar = SYSVARS[name];
+  if (generator.type === "Custom" && sysvar && sysvar.key() === value) {
+    return sysvar.label;
+  }
+  return null;
+};
+
+/**
+ * The phone keyboard a value needs: digits for an unsigned integer, the full
+ * keyboard for a signed one (the iOS number pad has no minus), and no
+ * autocorrect on an address
+ */
+const inputModeOf = (
+  typeName: string
+): Pick<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "inputMode" | "autoCapitalize" | "autoCorrect" | "spellCheck"
+> => {
+  if (/^u(8|16|32|64|128|256)$/.test(typeName)) return { inputMode: "numeric" };
+  if (typeName === "publicKey") {
+    return { autoCapitalize: "off", autoCorrect: "off", spellCheck: false };
+  }
+  return {};
 };
 
 const getSearchBarProps = (
