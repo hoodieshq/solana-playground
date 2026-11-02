@@ -238,7 +238,7 @@ const SHOTS: Shot[] = [
     id: "deploy-question-redeploy",
     group: "DES-195 · Deploy",
     title: "Last build failed, after a deploy",
-    note: "With a deploy on record the question is a neutral card under the history, icon on the title line, with its buttons inside on a desk, and scrolls into view when it opens. On a phone only the buttons go to the pinned foot, so nothing is drawn over the result card. The good build (12 min ago) is newer than the deploy (40 min ago).",
+    note: "With a deploy on record the question leads the stage, above the result and the history, with a thin amber edge: the title, the reason in caption grey, the buttons inside on a desk, one note on what the older build lacks. It scrolls into view when it opens. On a phone only the buttons go to the pinned foot, so nothing is drawn over the result card. The good build (12 min ago) is newer than the deploy (40 min ago).",
     render: () =>
       stage({
         deploy: "running",
@@ -280,7 +280,7 @@ const SHOTS: Shot[] = [
     id: "deploy-ready",
     group: "DES-195 · Deploy",
     title: "Before: ready to deploy",
-    note: "For comparison with the question. Program id shortened in the middle with copy; the payer line never breaks inside the key; Upload IDL and Deploy with the CLI are both ghost.",
+    note: "For comparison with the question. The network is said once, on the button; one line of description; program id and who pays as a small table, labels in grey, the key in code; Upload IDL and Deploy with the CLI small and quiet under the one call to action.",
     render: () => stage({}),
   },
   {
