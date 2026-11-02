@@ -190,7 +190,8 @@ const useBigNumberJson = () => {
 /** Sync the instruction storage. */
 const useSyncInstructionStorage = () => {
   useEffect(() => {
-    const { dispose } = PgProgramInfo.onDidChangeIdl((idl) => {
+    const { dispose } = PgProgramInfo.onDidChangeIdl(() => {
+      const idl = PgProgramInfo.callableIdl();
       if (idl) PgProgramInteraction.syncAllInstructions(idl.instructions);
     });
     return dispose;

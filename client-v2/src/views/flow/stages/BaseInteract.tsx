@@ -37,6 +37,11 @@ export interface BaseInteractProps {
   onGoTo: (stage: Extract<Stage, "build" | "deploy">) => void;
   /** The "Upload IDL" action (`IdlActions mode="upload"`) */
   idlLoad: ReactNode;
+  /**
+   * Why an Anchor 1.x IDL cannot be called (`readIdl`'s reason), shown on the
+   * `bad-idl` surface; null for any other IDL
+   */
+  idlRefusal?: string | null;
   /** The form, drawn only on the `ready` surface */
   form: ReactNode;
   /** The program the calls go to; null when there is none to name */
@@ -135,6 +140,10 @@ const Empty = ({
 }) => {
   const copy = COPY[surface];
   const act = action(p, surface);
+  const notice =
+    surface === "bad-idl" && p.idlRefusal
+      ? `This Anchor 1.x IDL uses ${p.idlRefusal}, which Interact cannot call yet.`
+      : copy.notice;
   return (
     <StageEmpty className={STAGE_BODY}>
       <StageEmptyTitle>{copy.title}</StageEmptyTitle>
@@ -143,10 +152,10 @@ const Empty = ({
           {copy.description(p.cluster ?? "the network")}
         </StageEmptyDescription>
       )}
-      {copy.notice && (
+      {notice && (
         <StageEmptyNotice>
           <Callout variant="error">
-            <CalloutDescription>{copy.notice}</CalloutDescription>
+            <CalloutDescription>{notice}</CalloutDescription>
           </Callout>
         </StageEmptyNotice>
       )}

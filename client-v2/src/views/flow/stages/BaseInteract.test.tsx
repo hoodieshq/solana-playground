@@ -42,6 +42,7 @@ const props = (
     programId?: string | null;
     builtAfterDeploy?: boolean;
     solNeeded?: BaseInteractProps["solNeeded"];
+    idlRefusal?: string | null;
   } = {}
 ): BaseInteractProps => ({
   meta: "no deployments yet",
@@ -56,6 +57,7 @@ const props = (
   programId: over.programId ?? null,
   builtAfterDeploy: over.builtAfterDeploy ?? false,
   solNeeded: over.solNeeded ?? null,
+  idlRefusal: over.idlRefusal ?? null,
 });
 
 const actions = (container: HTMLElement) =>
@@ -116,6 +118,20 @@ describe("BaseInteract", () => {
     expect(
       container.querySelector('[data-slot="callout"]')!.textContent
     ).toContain("corrupted IDL");
+  });
+
+  it("a refused Anchor 1.x IDL names the reason", () => {
+    const { container } = render(
+      <BaseInteract
+        {...props("bad-idl", {
+          idlRefusal: "a custom discriminator on initialize",
+        })}
+      />
+    );
+    expect(container.querySelector('[data-slot="callout"]')!.textContent).toBe(
+      "This Anchor 1.x IDL uses a custom discriminator on initialize, which Interact cannot call yet."
+    );
+    expect(screen.queryByText("FORM")).toBeNull();
   });
 
   it("ready draws the form and no empty state", () => {

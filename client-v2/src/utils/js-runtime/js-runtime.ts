@@ -387,7 +387,8 @@ export class PgJsRuntime {
     // TODO: Remove after adding general support for local imports.
     // Add a special case for Anchor's `target/types`
     if (path.includes("target/types")) {
-      if (PgProgramInfo.idl) return { IDL: PgProgramInfo.idl };
+      const idl = PgProgramInfo.callableIdl();
+      if (idl) return { IDL: idl };
       throw new Error("IDL not found, build the program to create the IDL.");
     }
 
@@ -453,8 +454,9 @@ export class PgJsRuntime {
       };
 
       // Add `anchor.workspace`
-      if (PgProgramInfo.idl) {
-        const snakeCaseName = PgProgramInfo.idl.name;
+      const idl = PgProgramInfo.callableIdl();
+      if (idl) {
+        const snakeCaseName = idl.name;
         const names = [
           PgCommon.toPascalFromSnake(snakeCaseName), // default before 0.29.0
           PgCommon.toCamelFromSnake(snakeCaseName),
@@ -521,7 +523,7 @@ export class PgJsRuntime {
     if (PgProgramInfo.pk) pg.PROGRAM_ID = PgProgramInfo.pk;
 
     // Anchor Program
-    if (pg.wallet && PgProgramInfo.idl) {
+    if (pg.wallet && PgProgramInfo.callableIdl()) {
       pg.program = PgProgramInteraction.getAnchorProgram();
     }
 

@@ -5,6 +5,7 @@ import IdlActions from "./IdlActions";
 import InteractBody from "./InteractBody";
 import { builtAfterDeploy, solNeeded } from "./interact-callouts";
 import { interactFacts, interactSurface } from "./interact-surface";
+import type { IdlReading } from "@/entities/idl";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { useAirdrop } from "../../../components/Wallet/hooks/useAirdrop";
@@ -90,6 +91,7 @@ const Interact = () => {
   };
 
   const programInfo = useProgramInfo();
+  const callable = PgProgramInfo.callableIdl();
   const explorer = useExplorer();
   const surface = interactSurface(interactFacts(explorer, programInfo));
   useRenderOnChange(PgConnection.onDidChangeCluster);
@@ -143,13 +145,14 @@ const Interact = () => {
       cluster={cluster}
       onGoTo={(stage) => PgFlow.setStage(stage)}
       idlLoad={<IdlActions mode="upload" />}
+      idlRefusal={idlRefusal(PgProgramInfo.readIdl())}
       programId={programId}
       builtAfterDeploy={builtAfterDeploy(buildAt, deployAt)}
       solNeeded={short}
       form={
-        programInfo.idl && (
+        callable && (
           <InteractBody
-            idl={programInfo.idl}
+            idl={callable}
             programId={programId}
             cluster={cluster}
             callBlocked={!!short}
@@ -159,6 +162,12 @@ const Interact = () => {
     />
   );
 };
+
+/** The reason a 1.x IDL was refused, for the bad-IDL notice */
+const idlRefusal = (reading: IdlReading | null) =>
+  reading?.kind === "refused" && reading.version === "1"
+    ? reading.reason
+    : null;
 
 /** The session's last build, kept current */
 const useLastBuild = () => {

@@ -89,7 +89,7 @@ const toRelative = (fullPath: string) => {
 };
 
 const summarizeIdl = (): IdlSummary | null => {
-  const idl = PgProgramInfo.idl;
+  const idl = PgProgramInfo.callableIdl();
   if (!idl) return null;
 
   return {
