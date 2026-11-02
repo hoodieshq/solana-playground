@@ -97,11 +97,10 @@ test("assistant-ai-gate: A prompt sent from outside the panel while the assistan
 
   // The entry every outside surface uses: Build's Ask, the server console,
   // a lesson's objective
-  await page.evaluate(
-    () =>
-      (window as AssistantWindow).__pgAssistant!.requestPrompt(
-        "Explain this build error"
-      ),
+  await page.evaluate(() =>
+    (window as AssistantWindow).__pgAssistant!.requestPrompt(
+      "Explain this build error"
+    )
   );
   await page.keyboard.press("Escape");
 

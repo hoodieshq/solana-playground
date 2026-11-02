@@ -184,6 +184,31 @@ export const json = (r: Route, body: unknown) =>
     body: JSON.stringify(body),
   });
 
+/**
+ * What `GET /api/ai/status` answers, whatever the dev server is configured
+ * with: the hosted model's id (a string, or `null` for one with no name), or
+ * `"own"` for a deployment with no hosted key. The client reads `key` and
+ * `model` only, and whether someone is signed in from the session, so the
+ * hosted answer always reads as signed out.
+ */
+export const stubAiStatus = (
+  target: Page | BrowserContext,
+  hosted: string | null | "own"
+) =>
+  target.route("**/api/ai/status", (r) =>
+    json(
+      r,
+      hosted === "own"
+        ? { available: false, key: "own", reason: null, model: null }
+        : {
+            available: false,
+            key: "hosted",
+            reason: "signed-out",
+            model: hosted,
+          }
+    )
+  );
+
 /** The user the session stubs sign in as */
 export const TEST_USER = { id: "u1", name: "Tester", image: null, login: "t" };
 

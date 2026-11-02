@@ -234,9 +234,9 @@ describe("useDefaultBackend", () => {
   });
 
   it("follows a retry's answer", async () => {
-    const spy = vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(
-      new Error("offline")
-    );
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new Error("offline"));
     const { result } = renderHook(() => useDefaultBackend());
     await waitFor(() =>
       expect(result.current).toEqual({ state: "unreachable" })

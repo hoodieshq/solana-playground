@@ -47,9 +47,9 @@ if (import.meta.vitest) {
       expect(
         aiOff({ connected: null, backend: { state: "absent" }, signedIn: true })
       ).toBe("no-key");
-      expect(aiOff({ connected: null, backend: present, signedIn: false })).toBe(
-        "signed-out"
-      );
+      expect(
+        aiOff({ connected: null, backend: present, signedIn: false })
+      ).toBe("signed-out");
       expect(
         aiOff({
           connected: null,

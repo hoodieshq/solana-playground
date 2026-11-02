@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
-// TODO(hoodieshq): move DEFAULT_BACKEND_URL into widgets/assistant; a widget must not import from a legacy view
-import { DEFAULT_BACKEND_URL } from "../../../views/sidebar/assistant/config";
 import { assistantTelemetry } from "./telemetry";
 import type { AssistantEvents } from "./telemetry";
 

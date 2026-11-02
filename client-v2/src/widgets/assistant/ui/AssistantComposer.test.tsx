@@ -112,7 +112,14 @@ beforeEach(() => {
   backend = { state: "present", model: "z-ai/glm-5.3-flash:US" };
   vi.spyOn(globalThis, "fetch").mockResolvedValue({
     ok: true,
-    json: async () => ({ configured: false }),
+    // `GET /api/ai/status` for a deployment with no hosted key; the session
+    // read finds no user in it
+    json: async () => ({
+      available: false,
+      key: "own",
+      reason: null,
+      model: null,
+    }),
   } as Response);
   PgAssistant.disconnect();
   PgAssistant.connect(anthropic);
@@ -412,6 +419,13 @@ describe("AssistantComposer, re-picking and busy", () => {
   });
 
   it("sends nothing for a re-pick of the connected default", async () => {
+    // Signed in, so the connected default answers and no off row is reported
+    await PgSession.refreshWith({
+      id: "u1",
+      name: null,
+      image: null,
+      login: null,
+    });
     PgAssistant.connect({ id: "default", apiKey: "" });
     const connect = vi.spyOn(PgAssistant, "connect");
     render(<Harness />);
@@ -582,6 +596,13 @@ describe("AssistantComposer, nothing connected", () => {
 
 describe("AssistantComposer, the off row", () => {
   const row = () => document.getElementById("assistant-ai-off");
+  /** The row, once the page's session read has answered */
+  const shownRow = () =>
+    waitFor(() => {
+      const found = row();
+      expect(found).not.toBeNull();
+      return found!;
+    });
 
   beforeEach(async () => {
     await PgSession.refreshWith(null);
@@ -608,7 +629,7 @@ describe("AssistantComposer, the off row", () => {
     backend = { state: "present", model: "m" };
     const signIn = vi.spyOn(PgSession, "signIn").mockResolvedValue(undefined);
     render(<Harness />);
-    expect(row()?.textContent).toContain(
+    expect((await shownRow()).textContent).toContain(
       "Sign in with GitHub to use the hosted model, or add a key of your own."
     );
     expect(screen.getByRole("button", { name: "Add a key" })).toBeTruthy();
@@ -625,6 +646,7 @@ describe("AssistantComposer, the off row", () => {
     backend = { state: "present", model: "m" };
     vi.spyOn(PgSession, "signIn").mockRejectedValue(new Error("boom"));
     render(<Harness />);
+    await shownRow();
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "Sign in with GitHub" }));
@@ -636,7 +658,7 @@ describe("AssistantComposer, the off row", () => {
   it("goes away once the user signs in", async () => {
     backend = { state: "present", model: "m" };
     render(<Harness />);
-    expect(row()).not.toBeNull();
+    await shownRow();
     await act(() =>
       PgSession.refreshWith({ id: "u1", name: null, image: null, login: null })
     );
