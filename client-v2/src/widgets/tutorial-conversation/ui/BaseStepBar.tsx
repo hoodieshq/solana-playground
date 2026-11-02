@@ -60,6 +60,10 @@ const Glyph = ({ step, index }: { step: StepBarItem; index: number }) => (
 );
 
 /**
+ * The segments are raw `button`s: a step segment, its glyph and its
+ * connector are the prototype's, and the design system has no segmented step
+ * control to install (`step-rail` is the v1 lesson's vertical rail).
+ *
  * The tutorial's steps under the chat head: one button per step, labelled
  * with its short label, and the progress hairline on the bar's bottom edge.
  * A step not reached is disabled; the live one is `aria-current="step"`, and

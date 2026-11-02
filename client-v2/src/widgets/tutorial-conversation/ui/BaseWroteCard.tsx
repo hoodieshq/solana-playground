@@ -26,6 +26,10 @@ export const rangeOf = (lines: readonly number[]) => {
 };
 
 /**
+ * The whole card is a raw `button`: the design system's `Button` draws a
+ * control, not a card, and has no card variant (the prototype's wrote card is
+ * one), so this keeps the card's own frame and takes the focus ring from it.
+ *
  * What a write put in a file: the path, the range, the first three lines and
  * "Show in <file>". The whole card is the button. A created file reads
  * "Created <path>" with "New file"; a write that failed says the block is not

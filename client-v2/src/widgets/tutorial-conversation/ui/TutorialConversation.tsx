@@ -11,6 +11,7 @@ import type { StepJumpVia } from "@/entities/tutorial";
 import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { Spinner } from "@/shared/ui/spinner";
+import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import { barProgress } from "../model/step-bar";
 import { tutorialTelemetry } from "../model/telemetry";
@@ -62,10 +63,11 @@ const read = (file: string): string | null => {
 };
 
 /**
- * Open a file in the editor with `line` near the top. The editor reads a
- * file's saved position when it opens it, so the position is set first.
- * TODO(tutorial-flow-v2 2.2): a third of the editor's height, the lines lit
- * again, and a file already open moved too, are the editor's (HOO-2349)
+ * Show a file's `line` in the editor. The file already open scrolls the line
+ * to a third of its height (`PgEditor.revealLine`); a file being opened reads
+ * its saved position, set first, with the line eight from the top.
+ * TODO(tutorial-flow-v2 2.2): lighting the lines again is the editor's
+ * (HOO-2349)
  */
 const showLine = (file: string, line: number) => {
   const path = PgExplorer.convertToFullPath(file);
@@ -75,6 +77,10 @@ const showLine = (file: string, line: number) => {
     reportButtonFailure(`open ${file}`)(
       new Error(`${file} is not in this workspace`)
     );
+    return;
+  }
+  if (PgExplorer.currentFilePath === path) {
+    PgEditor.revealLine(line);
     return;
   }
   PgExplorer.saveEditorPosition(path, {

@@ -42,6 +42,9 @@ vi.mock("@/utils/explorer", () => ({
     onDidCreateItem: vi.fn(),
   },
 }));
+vi.mock("@/utils/editor", () => ({
+  PgEditor: { revealLine: vi.fn() },
+}));
 vi.mock("@/entities/tutorial", async () => ({
   tutorialTelemetry: (await import("@/entities/tutorial/model/telemetry"))
     .tutorialTelemetry,
@@ -49,6 +52,7 @@ vi.mock("@/entities/tutorial", async () => ({
 
 import { PgConversation } from "@/features/tutorial-conversation";
 import { tutorialTelemetry } from "@/entities/tutorial/model/telemetry";
+import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import {
   TutorialConversation,
@@ -328,6 +332,18 @@ describe("TutorialConversation", () => {
     act(() => created.forEach((cb) => cb()));
     expect(PgExplorer.openFile).not.toHaveBeenCalled();
     expect(PgExplorer.onDidCreateItem).not.toHaveBeenCalled();
+  });
+
+  it("scrolls the file already open to the line, rather than reopening it", async () => {
+    (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
+      "/hello/src/lib.rs";
+    render(<TutorialConversation />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Show lines 5 to 6 in src/lib.rs" })
+    );
+    expect(PgEditor.revealLine).toHaveBeenCalledWith(5);
+    expect(PgExplorer.openFile).not.toHaveBeenCalled();
+    (PgExplorer as unknown as { currentFilePath: string }).currentFilePath = "";
   });
 
   it("refuses to open a file the workspace does not hold, and says so", async () => {

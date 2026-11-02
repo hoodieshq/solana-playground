@@ -137,15 +137,16 @@ const BaseResultCard = ({
             </p>
           )}
           {error?.file && error.line !== null && (
-            <button
-              type="button"
+            <Button
+              variant="link"
+              size="xs"
               onClick={() => onShowLine(error.file!, error.line!)}
-              className="w-fit font-mono text-[0.75rem] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
+              className="h-auto w-fit px-0 font-mono text-[0.75rem] text-muted-foreground"
             >
               {`--> ${error.file}:${error.line}${
                 error.column !== null ? `:${error.column}` : ""
               }`}
-            </button>
+            </Button>
           )}
           {planned && (
             <p className={READ}>

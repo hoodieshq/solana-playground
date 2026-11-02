@@ -36,7 +36,11 @@ const BaseStepDivider = ({
     </div>
     {done && (
       <p className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground tabular-nums">
-        <Check aria-label="Passed" className="size-3.5 text-success" />
+        <Check
+          role="img"
+          aria-label="Passed"
+          className="size-3.5 text-success"
+        />
         {took !== null && formatTook(took)}
       </p>
     )}

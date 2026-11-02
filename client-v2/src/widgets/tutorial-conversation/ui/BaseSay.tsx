@@ -2,6 +2,7 @@ import { ArrowUpRight } from "lucide-react";
 
 import type { Quote, Text } from "@/entities/tutorial";
 import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
 import { Prose, READ } from "./Prose";
 
 export interface BaseSayProps {
@@ -42,14 +43,15 @@ const BaseSay = ({
               {quote.file}
             </span>
             {onShowQuote && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={() => onShowQuote(quote)}
-                className="ml-auto flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                className="ml-auto h-6 gap-1 text-[0.75rem] text-muted-foreground"
               >
                 <ArrowUpRight aria-hidden="true" className="size-3.5" />
                 Show in {baseName(quote.file)}
-              </button>
+              </Button>
             )}
           </figcaption>
           <pre

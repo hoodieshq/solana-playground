@@ -481,9 +481,25 @@ const Monaco = () => {
       if (!editor.hasTextFocus()) editor.focus();
     };
 
+    // The line a third of the way down, as the tutorial's wrote card asks
+    const handleRevealLine = (e: Event) => {
+      const line = (e as CustomEvent<{ line: number }>).detail?.line;
+      if (!line) return;
+      const third = editor.getLayoutInfo().height / 3;
+      editor.setScrollTop(
+        Math.max(0, editor.getTopForLineNumber(line) - third)
+      );
+      editor.setPosition({ lineNumber: line, column: 1 });
+    };
+
     document.addEventListener(PgEditor.events.FOCUS, handleFocus);
+    document.addEventListener(PgEditor.events.REVEAL_LINE, handleRevealLine);
     return () => {
       document.removeEventListener(PgEditor.events.FOCUS, handleFocus);
+      document.removeEventListener(
+        PgEditor.events.REVEAL_LINE,
+        handleRevealLine
+      );
     };
   }, [editor]);
 
