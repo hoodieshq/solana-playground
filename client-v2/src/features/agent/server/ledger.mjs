@@ -164,18 +164,57 @@ export const reserve = async (query, turn) => {
 };
 
 /**
- * Replace a turn's reservation with its charge, on the day it was reserved.
+ * Replace a turn's reservation with its charge, on the day it was reserved,
+ * and record the turn in `agent_turn`, in one statement: the route makes one
+ * round trip after the response, and the day's sum and its turns never
+ * disagree. The turn is recorded even when the day has no row to settle.
  *
  * @param {Query} query
- * @param {{ userId: string; day: string; reserved: number; charge: number }} turn
- *   amounts in micro-USD; `day` the one {@link reserve} was given
+ * @param {{
+ *   userId: string;
+ *   day: string;
+ *   reserved: number;
+ *   charge: number;
+ *   tier: Tier;
+ *   outcome: TurnEnd["kind"];
+ *   usage: { prompt_tokens?: number; completion_tokens?: number } | null;
+ * }} turn amounts in micro-USD; `day` the one {@link reserve} was given;
+ *   `usage` what the upstream reported, for a `completed` turn only
  */
 export const settle = async (query, turn) => {
   await query(
-    `update agent_spend
-        set reserved = reserved - $3::bigint,
-            spent = spent + $4::bigint
-      where user_id = $1 and day = $2::date`,
-    [turn.userId, turn.day, turn.reserved, turn.charge]
+    `with settled as (
+       update agent_spend
+          set reserved = reserved - $3::bigint,
+              spent = spent + $4::bigint
+        where user_id = $1 and day = $2::date
+     )
+     insert into agent_turn
+       (user_id, tier, outcome, prompt_tokens, completion_tokens, charged)
+     values ($1, $5, $6, $7::integer, $8::integer, $4::bigint)`,
+    [
+      turn.userId,
+      turn.day,
+      turn.reserved,
+      turn.charge,
+      turn.tier,
+      turn.outcome,
+      turn.usage?.prompt_tokens ?? null,
+      turn.usage?.completion_tokens ?? null,
+    ]
+  );
+};
+
+/**
+ * Record a turn the daily cap refused. It reserved nothing, so there is
+ * nothing to settle; the row is what lets the quota's shape count refusals.
+ *
+ * @param {Query} query
+ * @param {{ userId: string; tier: Tier }} turn
+ */
+export const recordCapped = async (query, turn) => {
+  await query(
+    `insert into agent_turn (user_id, tier, outcome) values ($1, $2, 'capped')`,
+    [turn.userId, turn.tier]
   );
 };

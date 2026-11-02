@@ -40,6 +40,7 @@ import {
   learnAccountAge,
   POOL_EXHAUSTED_REASON,
   readBoundedBody,
+  recordCapped,
   REFUSAL_MESSAGES,
   REFUSAL_STATUS,
   reserve,
@@ -324,6 +325,9 @@ async function handler(req, res) {
         day: turn.day,
         reserved: turn.amount,
         charge: chargeFor(end, turn.amount, configured.prices),
+        tier: gate.tier,
+        outcome: end.kind,
+        usage: end.kind === "completed" ? end.usage : null,
       }).catch((e) =>
         // The reservation stays spent for the day: an overcharge, never an
         // undercharge
@@ -332,6 +336,15 @@ async function handler(req, res) {
           code: e?.code,
           end: end.kind,
         })
+      );
+    } else {
+      // Only the usage record is lost: the caller already has the 429
+      await recordCapped(query, { userId: turn.userId, tier: gate.tier }).catch(
+        (e) =>
+          console.error("agent: recording a capped turn failed", {
+            message: e?.message,
+            code: e?.code,
+          })
       );
     }
     if (!gate.dated) await learnAccountAge(query, turn.userId);

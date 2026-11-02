@@ -33,6 +33,15 @@ const db = vi.hoisted(() => {
     users: new Map<string, User>(),
     /** `${userId}|${day}` to the day's row, in micro-USD */
     spend: new Map<string, { reserved: number; spent: number }>(),
+    /** `agent_turn`, in insertion order */
+    turns: [] as {
+      userId: string;
+      tier: string;
+      outcome: string;
+      promptTokens: number | null;
+      completionTokens: number | null;
+      charged: number;
+    }[],
     /** Every query and upstream call, in order */
     log: [] as string[],
     down: false,
@@ -82,6 +91,38 @@ const db = vi.hoisted(() => {
         row.reserved -= reserved;
         row.spent += charge;
       }
+      // The same statement records the turn
+      const [, , , , tier, outcome, promptTokens, completionTokens] =
+        params as [
+          string,
+          string,
+          number,
+          number,
+          string,
+          string,
+          number | null,
+          number | null
+        ];
+      state.turns.push({
+        userId,
+        tier,
+        outcome,
+        promptTokens,
+        completionTokens,
+        charged: charge,
+      });
+      return { rows: [] };
+    }
+    if (text.includes("insert into agent_turn")) {
+      const [userId, tier] = params as [string, string];
+      state.turns.push({
+        userId,
+        tier,
+        outcome: "capped",
+        promptTokens: null,
+        completionTokens: null,
+        charged: 0,
+      });
       return { rows: [] };
     }
     if (text.includes('"accessToken"')) {
@@ -139,6 +180,7 @@ beforeEach(() => {
   session.userId = "user-1";
   db.state.users.clear();
   db.state.spend.clear();
+  db.state.turns.length = 0;
   db.state.log.length = 0;
   db.state.down = false;
   db.state.during = null;
@@ -1212,6 +1254,88 @@ describe("POST /api/agent spend gate", () => {
 
       expect(res.statusCode).toBe(503);
       expect(fetched).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Every turn that reaches the ledger is recorded", () => {
+    it("records a completed turn with its tokens and charge", async () => {
+      network();
+
+      await postJson(handler, TURN);
+
+      expect(db.state.turns).toEqual([
+        {
+          userId: "user-1",
+          tier: "established",
+          outcome: "completed",
+          promptTokens: 1000,
+          completionTokens: 100,
+          charged: USAGE_COST,
+        },
+      ]);
+    });
+
+    it("records a turn that ends without usage with no tokens", async () => {
+      network(() => streamed(null));
+
+      await postJson(handler, TURN);
+
+      expect(db.state.turns).toEqual([
+        {
+          userId: "user-1",
+          tier: "established",
+          outcome: "unfinished",
+          promptTokens: null,
+          completionTokens: null,
+          charged: RESERVED,
+        },
+      ]);
+    });
+
+    it("records a turn the cap refuses as capped, with no upstream call", async () => {
+      spendSoFar("user-1", CAP.established);
+      const fetched = network();
+
+      const res = await postJson(handler, TURN);
+
+      expect(res.statusCode).toBe(429);
+      expect(upstreamCalls(fetched)).toHaveLength(0);
+      expect(db.state.turns).toEqual([
+        {
+          userId: "user-1",
+          tier: "established",
+          outcome: "capped",
+          promptTokens: null,
+          completionTokens: null,
+          charged: 0,
+        },
+      ]);
+    });
+
+    it("still answers 429 when recording a capped turn fails", async () => {
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      spendSoFar("user-1", CAP.established);
+      network();
+      db.state.during = (text) => {
+        if (text.includes("insert into agent_turn")) db.state.down = true;
+      };
+
+      const res = await postJson(handler, TURN);
+
+      expect(res.statusCode).toBe(429);
+      expect(logged).toHaveBeenCalledWith(
+        "agent: recording a capped turn failed",
+        expect.objectContaining({ message: "connect ECONNREFUSED" })
+      );
+    });
+
+    it("records nothing for a turn refused before the ledger", async () => {
+      session.state = "signed-out";
+      network();
+
+      await postJson(handler, TURN);
+
+      expect(db.state.turns).toEqual([]);
     });
   });
 

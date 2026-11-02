@@ -16,6 +16,7 @@ export {
 } from "./server/bounds.mjs";
 export {
   chargeFor,
+  recordCapped,
   reserve,
   secondsToReset,
   settle,
