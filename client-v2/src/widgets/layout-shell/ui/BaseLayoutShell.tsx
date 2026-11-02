@@ -150,11 +150,11 @@ export interface TutorialNavState {
 
 /**
  * A tutorial with a definition (`tutorial-flow-v2`, task 2.1): the work area
- * becomes the chat column, then the stage over the console. The files
- * column, the stage bar, the stage tabs and the assistant are not drawn; the
- * stage and the console are the same outlets, so nothing remounts on the
- * way in or out. Only on the work screen from `LAYOUT_BREAKPOINTS.phone` up;
- * a phone keeps the pager.
+ * becomes the chat column, then the files column beside the stage over the
+ * console. The stage bar, the stage tabs and the assistant are not drawn;
+ * the stage and the console are the same outlets, so nothing remounts on the
+ * way in or out. Only on the work screen of a wide window; narrower windows
+ * keep today's layout.
  */
 export interface TutorialFrameSlot {
   /** The chat column, which holds its own width */
@@ -426,9 +426,11 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const workMounted = workInFrame || props.keepWork === true;
   const home = homeOf(screen);
   // The tutorial's layout holds under a page over the work too, which keeps
-  // the work laid out as it was; its navigation holds on the work screen only
+  // the work laid out as it was; its navigation holds on the work screen
+  // only. From `LAYOUT_BREAKPOINTS.compact` to wide no source draws it, so
+  // the frame keeps today's layout there, as the phone keeps its pager.
   const tutorialLayout =
-    props.tutorial !== undefined && workInFrame && props.viewport !== "phone";
+    props.tutorial !== undefined && workInFrame && props.viewport === "wide";
   const tutorialNav =
     tutorialLayout && screen.kind === "work" ? props.tutorial?.nav : undefined;
   const overlay = tutorialNav?.fold === "overlay";
@@ -628,6 +630,64 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     </ResizablePanelGroup>
   );
 
+  // The files column beside the stage over the console: under the stage bar
+  // in the frame, beside the chat in a tutorial
+  const workGroup = (
+    <ResizablePanelGroup
+      orientation="horizontal"
+      id="layout-work"
+      className="h-auto min-h-0 flex-1"
+      defaultLayout={filesShown ? props.work : undefined}
+      onLayoutChanged={
+        !filesShown
+          ? undefined
+          : (layout, meta) =>
+              settle(
+                {
+                  panel: filesRef.current,
+                  state: props.filesState,
+                  openSize: filesOpenSize.current,
+                  settledOnce: filesSettled,
+                  save: props.onWorkLayout,
+                },
+                layout,
+                meta
+              )
+      }
+    >
+      {filesShown && (
+        <ResizablePanel
+          id="files"
+          panelRef={filesRef}
+          collapsible
+          collapsedSize={PANEL_SIZES.files.folded}
+          defaultSize={filesOpenSize.current}
+          minSize={PANEL_SIZES.files.min}
+          groupResizeBehavior="preserve-pixel-size"
+          className="flex min-w-0 flex-col"
+          onResize={(size) => {
+            if (
+              foldedOf(filesRef.current) === false &&
+              size.inPixels > PANEL_SIZES.files.folded
+            ) {
+              filesOpenSize.current = size.inPixels;
+            }
+          }}
+        >
+          {props.files({ isMobile: false })}
+        </ResizablePanel>
+      )}
+      {filesShown && <ResizableHandle />}
+      <ResizablePanel
+        id="center"
+        minSize={PANEL_SIZES.stage.min}
+        className="flex min-w-0 flex-col"
+      >
+        {center}
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  );
+
   return (
     <>
       {/* Under Home only with `keepWork`, and then off the page: Home places
@@ -750,8 +810,11 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                       className="flex min-h-0 min-w-0 flex-1"
                     >
                       {props.tutorial?.chat}
+                      {/* The files column stays until the workspace's own tree
+                      (task 2.2) takes its place: it holds the lesson's steps
+                      and the files a later step opens */}
                       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                        {center}
+                        {workGroup}
                       </div>
                     </div>
                   ) : (
@@ -837,59 +900,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                           {/* Hidden, the group holds only the
                 stage and, like the horizontal group below `compact`, neither
                 takes nor saves its layout */}
-                          <ResizablePanelGroup
-                            orientation="horizontal"
-                            id="layout-work"
-                            className="h-auto min-h-0 flex-1"
-                            defaultLayout={filesShown ? props.work : undefined}
-                            onLayoutChanged={
-                              !filesShown
-                                ? undefined
-                                : (layout, meta) =>
-                                    settle(
-                                      {
-                                        panel: filesRef.current,
-                                        state: props.filesState,
-                                        openSize: filesOpenSize.current,
-                                        settledOnce: filesSettled,
-                                        save: props.onWorkLayout,
-                                      },
-                                      layout,
-                                      meta
-                                    )
-                            }
-                          >
-                            {filesShown && (
-                              <ResizablePanel
-                                id="files"
-                                panelRef={filesRef}
-                                collapsible
-                                collapsedSize={PANEL_SIZES.files.folded}
-                                defaultSize={filesOpenSize.current}
-                                minSize={PANEL_SIZES.files.min}
-                                groupResizeBehavior="preserve-pixel-size"
-                                className="flex min-w-0 flex-col"
-                                onResize={(size) => {
-                                  if (
-                                    foldedOf(filesRef.current) === false &&
-                                    size.inPixels > PANEL_SIZES.files.folded
-                                  ) {
-                                    filesOpenSize.current = size.inPixels;
-                                  }
-                                }}
-                              >
-                                {props.files({ isMobile: false })}
-                              </ResizablePanel>
-                            )}
-                            {filesShown && <ResizableHandle />}
-                            <ResizablePanel
-                              id="center"
-                              minSize={PANEL_SIZES.stage.min}
-                              className="flex min-w-0 flex-col"
-                            >
-                              {center}
-                            </ResizablePanel>
-                          </ResizablePanelGroup>
+                          {workGroup}
                         </ResizablePanel>
                       </ResizablePanelGroup>
                       {props.viewport !== "wide" && (

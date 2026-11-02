@@ -1317,26 +1317,40 @@ describe("in a tutorial", () => {
     };
   };
 
-  it.each(["wide", "compact"] as const)(
-    "lays out the rail, the chat, then the stage over the console, with no files, stage bar or assistant (%s)",
-    (viewport) => {
-      render(<BaseLayoutShell {...inTutorial(viewport)} />);
-      const order = ["nav slot", "chat slot", "stage slot", "console slot"].map(
-        (slot) => screen.getByText(slot)
-      );
-      order.slice(1).forEach((element, index) => {
-        expect(
-          order[index].compareDocumentPosition(element) &
-            Node.DOCUMENT_POSITION_FOLLOWING
-        ).toBeTruthy();
-      });
-      expect(screen.queryByText("files slot")).toBeNull();
-      expect(screen.queryByText("stage bar")).toBeNull();
-      expect(screen.queryByText("stage tabs")).toBeNull();
-      expect(screen.queryByText("assistant slot")).toBeNull();
-      expect(screen.getByText("hint slot")).toBeTruthy();
-    }
-  );
+  it("lays out the rail, the chat, the files, then the stage over the console, with no stage bar or assistant", () => {
+    render(<BaseLayoutShell {...inTutorial("wide")} />);
+    const order = [
+      "nav slot",
+      "chat slot",
+      "files slot",
+      "stage slot",
+      "console slot",
+    ].map((slot) => screen.getByText(slot));
+    order.slice(1).forEach((element, index) => {
+      expect(
+        order[index].compareDocumentPosition(element) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+    expect(screen.queryByText("stage bar")).toBeNull();
+    expect(screen.queryByText("stage tabs")).toBeNull();
+    expect(screen.queryByText("assistant slot")).toBeNull();
+    expect(screen.getByText("hint slot")).toBeTruthy();
+  });
+
+  it("keeps today's layout below a wide window, which no source draws", () => {
+    const nav = vi.fn(() => null);
+    render(
+      <BaseLayoutShell
+        {...inTutorial("compact", tutorialNav("rail"), { navOpen: true, nav })}
+      />
+    );
+    expect(screen.queryByText("chat slot")).toBeNull();
+    expect(screen.getByText("stage bar")).toBeTruthy();
+    expect(nav).toHaveBeenLastCalledWith(
+      expect.objectContaining({ collapsed: false })
+    );
+  });
 
   it("keeps the stage mounted on the way in and out", () => {
     const mounted = vi.fn();

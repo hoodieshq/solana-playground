@@ -94,11 +94,10 @@ export interface LayoutShellProps {
   /** While Home shows, keep the work mounted (`BaseLayoutShellProps.keepWork`) */
   keepWork?: boolean;
   /**
-   * A tutorial's frame (`BaseLayoutShellProps.tutorial`). From
-   * `LAYOUT_BREAKPOINTS.phone` up it has no assistant panel and no files
-   * column, so Ctrl+R, ⌘E and the assistant's own requests to open do
-   * nothing while it holds the work; the frame's navigation state is its own
-   * and never saved.
+   * A tutorial's frame (`BaseLayoutShellProps.tutorial`). On a wide window
+   * it has no assistant panel, so Ctrl+R and the assistant's own requests to
+   * open do nothing while it holds the work; the frame's navigation state is
+   * its own and never saved.
    */
   tutorial?: TutorialFrameSlot;
 }
@@ -157,10 +156,10 @@ const LayoutShell = ({
   // Read by the keys and the subscriptions, which outlive renders
   const screenNow = useRef(screen);
   screenNow.current = screen;
-  // The frame holds the work: no assistant panel or files column to toggle
+  // The frame holds the work: no assistant panel to toggle
   const tutorialNow = useRef(false);
   tutorialNow.current =
-    tutorial !== undefined && viewport !== "phone" && screen.kind === "work";
+    tutorial !== undefined && viewport === "wide" && screen.kind === "work";
   // The assistant's Sheet while Home shows: the visit's, never saved
   const [homeSheetOpen, setHomeSheetOpen] = useState(false);
   const homeSheetNow = useRef(false);
@@ -391,7 +390,7 @@ const LayoutShell = ({
     {
       handle: (ev) => {
         // Before `preventDefault`: under Home or a page the key is not the shell's
-        if (isCovered(screenNow.current) || tutorialNow.current) return;
+        if (isCovered(screenNow.current)) return;
         if (
           PgCommon.getOS() === "MacOS" &&
           ev.ctrlKey &&

@@ -206,7 +206,9 @@ started; its About page with Start stays as it is, since the intro card (3.3)
 is what replaces it. In the frame the chat holds the assistant's own thread,
 "Start over…" stays disabled (the engine's `init` and its ports are 3.3's),
 and the band stays over the editor. The files column, with the lesson's step
-rail, is not drawn in the frame, so the rail is out of reach for that span.
+rail and "Skip this step", stays beside the stage until the workspace's own
+tree (2.2) takes its place. The frame shows on a wide window only; from 768 to
+1023 px, which no source draws, a tutorial keeps today's layout.
 
 ### D8. The faucet's limit gets its own card, funding a stage
 
