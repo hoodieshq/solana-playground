@@ -86,8 +86,8 @@ interface ActBase {
 
 /**
  * One argument of a call act: a name is a field the learner fills; a value
- * is sent as given, with no field; with `add`, the value grows by it for
- * each run of the card that landed
+ * is sent as given, with no field; with `add` (a whole number, at least 1),
+ * the value grows by it for each run of the card that landed
  */
 export type CallArg =
   | string

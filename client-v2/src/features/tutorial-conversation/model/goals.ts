@@ -22,9 +22,10 @@ const log = createLogger("tutorial-conversation:goals");
  *   deployed program decoded, which is what keeps a call before the upgrade
  *   from passing step 4: its log `Hello, World!` matches `Hello, .+!` too.
  * - `refused`: a run or call the program refused in the goal's instruction,
- *   with the goal's error (each of its name and code) and a transaction log
- *   matching its pattern, whichever the goal gives. A failure that never
- *   reached the program carries no refusal and passes nothing.
+ *   matching the goal's error if it names one (each of its name and code
+ *   given) and the goal's log pattern over the whole transaction log if it
+ *   gives one; both when both are given. A failure that never reached the
+ *   program carries no refusal and passes nothing.
  */
 export const judgeGoal: Judge = (goal, result) => {
   if (goal.kind === "refused") return refusalMeets(goal, result);

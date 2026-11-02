@@ -542,6 +542,7 @@
               "type": "integer"
             },
             "add": {
+              "description": "Added for each run of this card that landed: a whole number, at least 1.",
               "type": "integer",
               "minimum": 1
             }
@@ -677,7 +678,7 @@
               }
             },
             "log": {
-              "description": "A pattern the refused transaction's log must match, for a refusal with no error code: a panic, running out of memory.",
+              "description": "A pattern the refused transaction's log must match: alone for a refusal with no error code (a panic, running out of memory), or beside `error`, when both must match.",
               "$ref": "#/definitions/pattern"
             }
           }

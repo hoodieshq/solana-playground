@@ -7,6 +7,7 @@ import type {
   Step,
   TutorialDefinition,
 } from "@/entities/tutorial";
+import { sameIdlName } from "@/shared/lib/idl-name";
 
 import { TICK_MS } from "./clock";
 import { holds, keyOf, typedKey } from "./landing";
@@ -374,10 +375,10 @@ const isPlannedFailure = (
   !cursor.fail;
 
 /**
- * The values a call act sends: the learner's for each field, and the
- * definition's for every argument it gives a value, which no learner value
- * overrides. A value with `add` grows by it for each run of this act that
- * landed, so a refused or failed run sends the same value again.
+ * The values a call act sends: what the learner gave, with the definition's
+ * value for every argument it gives one, which no learner value overrides. A
+ * value with `add` grows by it for each run of this act that landed, so a
+ * refused, failed or interrupted run sends the same value again.
  */
 const callArgs = (
   args: CallArg[],
@@ -387,14 +388,19 @@ const callArgs = (
 ): Record<string, string> => {
   const landed = (p.runs[beatId] ?? []).filter((r) => r.status === "ok").length;
   const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(given)) {
+    // The definition's value wins, under whichever spelling the learner sent
+    const fixed = args.some(
+      (arg) => typeof arg !== "string" && sameIdlName(arg.name, name)
+    );
+    if (!fixed) out[name] = value;
+  }
   for (const arg of args) {
-    if (typeof arg === "string") {
-      if (arg in given) out[arg] = given[arg];
-    } else if (arg.add === undefined) {
-      out[arg.name] = String(arg.value);
-    } else {
-      out[arg.name] = String(arg.value + arg.add * landed);
-    }
+    if (typeof arg === "string") continue;
+    out[arg.name] =
+      arg.add === undefined
+        ? String(arg.value)
+        : String(arg.value + arg.add * landed);
   }
   return out;
 };
@@ -2352,6 +2358,65 @@ if (import.meta.vitest) {
           "refused",
         ]);
         expect(progress.passed).toEqual(["chop"]);
+      });
+
+      it("a refusal the refused goal does not name stays failed and is explained", () => {
+        const other = refusal("chop_tree", { code: 6001, name: "NoTrees" });
+        const failed = run(
+          [press("s3.chop", 2000), ended("s3.chop", 2000, other)],
+          at(0)
+        );
+        expect(failed.progress.runs["s3.chop"]).toEqual([
+          { status: "failed", at: 2000, took: 900, result: other },
+        ]);
+        expect(failed.progress.passed).toEqual([]);
+        expect(
+          run([{ type: "explain", beatId: "s3.chop", at: 4000 }], failed.state)
+            .effects
+        ).toEqual([{ kind: "explain", beatId: "s3.chop", result: other }]);
+      });
+
+      it("a learner's value never moves a growing one, and an interrupted run does not count as landed", () => {
+        const interrupted: EngineState = {
+          progress: {
+            version: 1,
+            passed: at(2).progress.passed,
+            finishedAt: null,
+            startedAt: 1000,
+            restartedAt: null,
+            cursor: at(2).progress.cursor,
+            beats: at(2).progress.beats,
+            runs: {
+              "s2.grow": [
+                { status: "interrupted", at: 1500 },
+                {
+                  status: "ok",
+                  at: 1600,
+                  took: 100,
+                  result: landed("grow"),
+                },
+              ],
+            },
+            times: at(2).progress.times,
+          },
+          stage: null,
+        };
+        const { effects } = run(
+          [press("s2.grow", 2000, { len: "1" })],
+          interrupted
+        );
+        expect(effects).toEqual([
+          {
+            kind: "run",
+            beatId: "s2.grow",
+            act: "call",
+            input: {
+              beatId: "s2.grow",
+              call: { instruction: "grow", args: { len: "30720" } },
+            },
+            startedAt: 2000,
+          },
+        ]);
       });
 
       it("a refusal from the Call panel passes the same goal", () => {

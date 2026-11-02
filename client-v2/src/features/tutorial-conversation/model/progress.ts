@@ -110,7 +110,7 @@ export type RunRecord =
   | { status: "started"; at: number }
   | { status: "interrupted"; at: number }
   | { status: "ok"; at: number; took: number; result: RunResult }
-  /** A call the program refused, as the step's `refused` goal expected */
+  /** A run or call the program refused, as the step's `refused` goal expected */
   | { status: "refused"; at: number; took: number; result: RunResult }
   | {
       status: "failed";
@@ -205,7 +205,9 @@ export type RunResult =
       /**
        * What the program refused, when the transaction reached it; absent
        * when it never did (no wallet, a send that failed). A `refused` goal
-       * is judged on it and on `log`.
+       * is judged on it and on `log`. The runner fills it from the
+       * transaction's error (`tutorial-flow-v2` task 4.3); until then no real
+       * run carries it.
        */
       refused?: Refusal;
     };
@@ -389,8 +391,13 @@ const parseRun = (v: unknown): RunRecord | null => {
         : null;
     }
     case "refused": {
+      // Only a failed call that carries its refusal was ever recorded refused
       const result = parseResult(v.result);
-      return result && isMs(v.took)
+      return result &&
+        isMs(v.took) &&
+        !result.ok &&
+        (result.act === "run" || result.act === "call") &&
+        result.refused
         ? { status: "refused", at, took: v.took, result }
         : null;
     }
@@ -641,6 +648,27 @@ if (import.meta.vitest) {
       };
       const saved = midway({ runs: { "s3.chop": [refused, panicked] } });
       expect(reload(saved)?.runs["s3.chop"]).toEqual([refused, panicked]);
+
+      // A refused record holds a failed call with its refusal, or nothing
+      const notRefused = midway({
+        runs: {
+          "s3.chop": [
+            {
+              status: "refused",
+              at: 3000,
+              took: 900,
+              result: {
+                act: "call",
+                ok: false,
+                seconds: 1,
+                message: "x",
+                log: "",
+              },
+            },
+          ],
+        },
+      });
+      expect(reload(notRefused)?.runs["s3.chop"]).toBeUndefined();
 
       const garbled = midway({
         runs: {

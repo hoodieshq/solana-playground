@@ -356,8 +356,9 @@ An argument in `args` takes one of three forms:
   try other values.
 - `{ "name": "len", "value": 20480, "add": 10240 }`: the first press sends
   `value`, and each press that landed adds `add` for the next one, so the
-  card sends 20480, then 30720. A press the program refused, or one that
-  failed, sends the same value again.
+  card sends 20480, then 30720. `add` is a whole number, at least 1. A press
+  the program refused, or one that failed, sends the same value again, and
+  calls made from the Call panel are not counted.
 
 A card pressed again and again (chop until the energy runs out, grow until
 the memory does) is one `call` act: it stays pressable until the step's goal
@@ -643,10 +644,14 @@ copy. Given one, carry its copy over word for word, and map its fields:
   instruction its program's move sends, `chop_tree` for a chop) →
   `call.instruction`, its `button` and `record` kept; the values the move
   sends → `args` with a `value` (and `add` when it grows each press)
-- a goal `chop`, `send` or `grow` → what the lesson's `chopPasses`,
-  `growPasses` or `panelPasses` checks: a refusal (`chop_tree` refused with
-  `NotEnoughEnergy`, a grow out of memory) → `{ "kind": "refused", ... }`; a
-  call that lands → `{ "kind": "call", ... }`
+- a goal `chop`, `send` or `grow` → read the lesson's `chopPasses`,
+  `growPasses` or `panelPasses` for the step: a step that passes when the
+  program refuses (`!c.ok` or `!row.ok`: `chop_tree` refused with
+  `NotEnoughEnergy`, a grow out of memory) → `{ "kind": "refused", ... }`
+  with the error or log the lesson's refusal carries; a step that passes when
+  a call lands (`c.ok`, or `panelPasses` naming an instruction such as
+  `paint`) → `{ "kind": "call", "instruction": ... }`. When the function
+  checks anything else, stop and report.
 - beats, `planned`, `onFail` → the same, minus the fields below
 
 Drop, because Playground does it for real or the live assistant does it:
