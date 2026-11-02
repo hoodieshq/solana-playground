@@ -18,9 +18,12 @@ export interface BaseChatHeadProps {
   onBack: () => void;
   /**
    * Clears the tutorial's progress. Absent, "Start over…" shows disabled:
-   * the conversation engine owns what starting over resets (task 3.1).
+   * the conversation engine (`features/tutorial-conversation`) owns what
+   * starting over resets, and the feed (task 3.3) is what runs it.
    */
   onStartOver?: () => Promise<void>;
+  /** Steps passed so far, which Start over's question names */
+  passed?: number;
   /** Shows ⌘ and ⌥ in Keyboard shortcuts */
   mac: boolean;
 }
@@ -34,6 +37,7 @@ const BaseChatHead = ({
   name,
   onBack,
   onStartOver,
+  passed,
   mac,
 }: BaseChatHeadProps) => {
   const [startOver, setStartOver] = useState(false);
@@ -80,6 +84,7 @@ const BaseChatHead = ({
           open={startOver}
           onOpenChange={setStartOver}
           name={name}
+          passed={passed}
           onConfirm={onStartOver}
         />
       )}

@@ -23,7 +23,7 @@ import type { ToggleSource } from "../model/telemetry";
 import { useLayoutState } from "../model/use-layout-state";
 import BaseLayoutShell from "./BaseLayoutShell";
 import BaseStageBar from "./BaseStageBar";
-import type { AssistantWide } from "./BaseLayoutShell";
+import type { AssistantWide, TutorialFrameSlot } from "./BaseLayoutShell";
 
 export interface LayoutShellProps {
   /**
@@ -93,6 +93,14 @@ export interface LayoutShellProps {
   cover?: { title: string; content: ReactNode; onClose: () => void };
   /** While Home shows, keep the work mounted (`BaseLayoutShellProps.keepWork`) */
   keepWork?: boolean;
+  /**
+   * A tutorial's frame (`BaseLayoutShellProps.tutorial`). From
+   * `LAYOUT_BREAKPOINTS.phone` up it has no assistant panel and no files
+   * column, so Ctrl+R, ⌘E and the assistant's own requests to open do
+   * nothing while it holds the work; the frame's navigation state is its own
+   * and never saved.
+   */
+  tutorial?: TutorialFrameSlot;
 }
 
 /** Whether a key pressed on `target` is typed into something */
@@ -119,6 +127,7 @@ const LayoutShell = ({
   home,
   cover,
   keepWork,
+  tutorial,
 }: LayoutShellProps) => {
   const viewport = useViewport();
   const phone = viewport === "phone";
@@ -148,6 +157,10 @@ const LayoutShell = ({
   // Read by the keys and the subscriptions, which outlive renders
   const screenNow = useRef(screen);
   screenNow.current = screen;
+  // The frame holds the work: no assistant panel or files column to toggle
+  const tutorialNow = useRef(false);
+  tutorialNow.current =
+    tutorial !== undefined && viewport !== "phone" && screen.kind === "work";
   // The assistant's Sheet while Home shows: the visit's, never saved
   const [homeSheetOpen, setHomeSheetOpen] = useState(false);
   const homeSheetNow = useRef(false);
@@ -313,6 +326,7 @@ const LayoutShell = ({
   const pagerOrFrame = phone ? view === "chat" : wideOrSheet;
   const assistantShown = homeShown ? homeSheetOpen : pagerOrFrame;
   const setAssistant = (open: boolean, via: ToggleSource) => {
+    if (tutorialNow.current) return;
     const now = screenNow.current;
     // A page over the work covers the assistant: it makes way first
     if (open && now.kind === "page" && now.over === "work") now.cover.onClose();
@@ -343,7 +357,7 @@ const LayoutShell = ({
   useKeybind(
     "Ctrl+R",
     () => {
-      if (isCovered(screenNow.current)) return;
+      if (isCovered(screenNow.current) || tutorialNow.current) return;
       if (phone) {
         // The view is shown on Work: bring it into view first
         showPage("work", "key");
@@ -375,7 +389,7 @@ const LayoutShell = ({
     {
       handle: (ev) => {
         // Before `preventDefault`: under Home or a page the key is not the shell's
-        if (isCovered(screenNow.current)) return;
+        if (isCovered(screenNow.current) || tutorialNow.current) return;
         if (
           PgCommon.getOS() === "MacOS" &&
           ev.ctrlKey &&
@@ -494,6 +508,7 @@ const LayoutShell = ({
     <BaseLayoutShell
       viewport={viewport}
       keepWork={keepWork}
+      tutorial={tutorial}
       navOpen={navOpen}
       onNavOpenChange={onNavOpenChange}
       assistantState={{

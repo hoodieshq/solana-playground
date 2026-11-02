@@ -36,12 +36,13 @@ import { PgView } from "@/utils";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
 import { catalogPage, catalogSlot, useCatalogPage } from "@/widgets/catalog";
-import { Assistant } from "@/widgets/assistant";
+import { Assistant, AssistantConversation } from "@/widgets/assistant";
 import { homeSlot, useStartView } from "@/widgets/home";
 import { LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
 import { RailFooter, SessionFooter } from "@/widgets/session-footer";
 import { SettingsPage, settingsTelemetry } from "@/widgets/settings-page";
+import { useTutorialFrame } from "@/widgets/tutorial-frame";
 import { markNetworkChosen, SetupList } from "@/widgets/setup-list";
 
 /**
@@ -228,6 +229,16 @@ const FlowFrame = () => {
 
   const described = describeStep(lesson);
 
+  // A tutorial with a definition opens in its frame (`tutorial-flow-v2`
+  // 2.1). Until the feed lands (3.3) its chat holds the assistant's own
+  // thread, and Start over, which the engine runs, stays disabled.
+  const tutorial = useTutorialFrame({
+    // Back to the list the tutorial came from; the navigation's own way
+    // there, so it reads as `nav`
+    onBack: () => catalogPage.open("tutorials", "nav"),
+    body: <AssistantConversation openConnect={openConnectDialog} />,
+  });
+
   const read = () => setReading(true);
 
   // A learner who fixes the code while the page is open should come back
@@ -274,6 +285,7 @@ const FlowFrame = () => {
           )}
           keepWork={page.workKept}
           cover={catalogSlot(catalog)}
+          tutorial={tutorial.frame}
           nav={({ collapsed, toggle, closeSheet, phone: menuPage }) => {
             closeNavSheet.current = closeSheet;
             return (
@@ -302,6 +314,7 @@ const FlowFrame = () => {
                 phone={menuPage}
                 collapsed={collapsed}
                 onToggle={toggle}
+                pin={tutorial.pin}
                 logo={<LogoLockup aria-hidden="true" />}
                 projects={
                   <ProjectList
@@ -346,12 +359,15 @@ const FlowFrame = () => {
           )}
           stage={() => (
             <Center>
-              <ObjectiveBand
-                state={lesson}
-                onRead={read}
-                onOpenGallery={openGallery}
-                phone={phone}
-              />
+              {/* The frame's chat holds the lesson; the band is the old one */}
+              {!tutorial.frame && (
+                <ObjectiveBand
+                  state={lesson}
+                  onRead={read}
+                  onOpenGallery={openGallery}
+                  phone={phone}
+                />
+              )}
               <Stage>
                 <StageRouter stage={state.stage} />
                 {reading && described && (

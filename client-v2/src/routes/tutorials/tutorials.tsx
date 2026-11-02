@@ -94,8 +94,10 @@ const handleTutorial = (name: string, page: string) => {
       // (Start runs inside upstream's own component, well after this
       // callback has already returned), so `LessonRoute` makes that half
       // of the decision itself, reactively. See its own comment.
+      // A tutorial with a definition opens the same way: the frame
+      // (`widgets/tutorial-frame`) holds its conversation beside the editor
       const { getLessonPath } = await import("../../views/flow/lessons");
-      if (getLessonPath(tutorial.name)) {
+      if (getLessonPath(tutorial.name) || tutorial.definition) {
         const { default: LessonRoute } = await import(
           "../../views/flow/lessons/LessonRoute"
         );

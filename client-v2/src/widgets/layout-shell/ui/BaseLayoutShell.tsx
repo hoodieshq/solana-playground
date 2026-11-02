@@ -133,6 +133,37 @@ export interface AssistantWide {
   canWiden: boolean;
 }
 
+/**
+ * The navigation in a tutorial: what the frame's fold rules say
+ * (`widgets/tutorial-frame`), in place of the saved layout's
+ */
+export interface TutorialNavState {
+  /** Shown open, over the chat or pinned beside it */
+  open: boolean;
+  /** Open over the chat, under a scrim, rather than pinned beside it */
+  overlay: boolean;
+  /** The stock toggle or ⌘B asked it open or folded */
+  onOpenChange: (open: boolean) => void;
+  /** A pick in it, the scrim or Escape closed the overlay */
+  onClose: () => void;
+}
+
+/**
+ * A tutorial with a definition (`tutorial-flow-v2`, task 2.1): the work area
+ * becomes the chat column, then the stage over the console. The files
+ * column, the stage bar, the stage tabs and the assistant are not drawn; the
+ * stage and the console are the same outlets, so nothing remounts on the
+ * way in or out. Only on the work screen from `LAYOUT_BREAKPOINTS.phone` up;
+ * a phone keeps the pager.
+ */
+export interface TutorialFrameSlot {
+  /** The chat column, which holds its own width */
+  chat: ReactNode;
+  nav: TutorialNavState;
+  /** Drawn over the frame, from its top left: the first fold's hint */
+  overNav?: ReactNode;
+}
+
 export interface BaseLayoutShellProps {
   viewport: Viewport;
   /** The stock Sidebar's open state, from `LAYOUT_BREAKPOINTS.phone` up */
@@ -223,7 +254,12 @@ export interface BaseLayoutShellProps {
    * them as they were. On a phone it is the pager's work page.
    */
   cover?: { bar: ReactNode; content: ReactNode };
+  /** A tutorial's frame, given while a tutorial with a definition is open */
+  tutorial?: TutorialFrameSlot;
 }
+
+/** What a click in the navigation picks, and so closes its overlay with */
+const PICK = 'a[href], button, [role="menuitem"], [role="link"]';
 
 const log = createLogger("layout-shell:panels");
 
@@ -259,6 +295,40 @@ const createFoldedOf = (): FoldedOf => {
       return undefined;
     }
   };
+};
+
+/**
+ * While the navigation is an overlay in a tutorial, Escape closes it, and
+ * closing it gives focus back to where it was when the overlay opened, as a
+ * dialog would.
+ */
+const useOverlayFocus = (overlay: boolean, onClose?: () => void) => {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!overlay) return;
+    const before =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      closeRef.current?.();
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      // Only when focus is lost or left in the navigation: a pick that moved
+      // it somewhere on purpose keeps it there
+      const now = document.activeElement;
+      const lost =
+        now === null ||
+        now === document.body ||
+        now.closest('[data-slot="sidebar"]') !== null;
+      if (before?.isConnected && lost) before.focus();
+    };
+  }, [overlay]);
 };
 
 /** The assistant as a right Sheet, titled "Assistant" for its dialog */
@@ -333,6 +403,14 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const workInFrame = isWorkInFrame(screen);
   const workMounted = workInFrame || props.keepWork === true;
   const home = homeOf(screen);
+  // The tutorial's layout holds under a page over the work too, which keeps
+  // the work laid out as it was; its navigation holds on the work screen only
+  const tutorialLayout =
+    props.tutorial !== undefined && workInFrame && props.viewport !== "phone";
+  const tutorialNav =
+    tutorialLayout && screen.kind === "work" ? props.tutorial?.nav : undefined;
+  const overlay = tutorialNav?.overlay === true;
+  useOverlayFocus(overlay, tutorialNav?.onClose);
 
   // `open` props drive the panels; a drag that folds one reports back through
   // `settle` on release, so the two never disagree for long. A panel that
@@ -583,11 +661,19 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         </SidebarProvider>
       ) : (
         <SidebarProvider
-          open={props.navOpen}
-          onOpenChange={props.onNavOpenChange}
+          open={tutorialNav ? tutorialNav.open : props.navOpen}
+          onOpenChange={tutorialNav?.onOpenChange ?? props.onNavOpenChange}
           style={SIDEBAR_STYLE}
-          className="relative min-h-0 flex-1"
+          data-nav-overlay={overlay || undefined}
+          // Over the chat, the column keeps only the rail's width in the row,
+          // so the chat stays where it was under the open navigation
+          className={cn(
+            "relative min-h-0 flex-1",
+            overlay &&
+              "[&_[data-slot=sidebar-gap]]:w-(--sidebar-width-icon)! [&_[data-slot=sidebar-container]]:z-30"
+          )}
         >
+          {tutorialNav && props.tutorial?.overNav}
           {/* The stock Sidebar's container is fixed at the window's full height.
           Flow draws the sync banner above the provider, so the Sidebar sits
           inside the provider instead, where the banner pushes it down rather
@@ -598,6 +684,15 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           <Sidebar
             collapsible="icon"
             className="absolute inset-y-0 left-0 h-auto border-border [&>[data-slot=sidebar-inner]]:bg-background"
+            // A pick in the overlay closes it, before the pick's own handler
+            onClickCapture={
+              overlay
+                ? (e) => {
+                    const target = e.target as Element;
+                    if (target.closest(PICK)) tutorialNav?.onClose();
+                  }
+                : undefined
+            }
           >
             <div className="contents" style={props.sheetFont}>
               <NavSlot nav={props.nav} />
@@ -619,151 +714,173 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                 reach: `inert` keeps focus, clicks and the accessibility tree
                 off it */}
                 <div className="contents" inert={screen.kind === "page"}>
-                  {/* Between `LAYOUT_BREAKPOINTS.compact` and wide the tree is the
+                  {tutorialLayout ? (
+                    <div
+                      data-testid="tutorial-frame"
+                      className="flex min-h-0 min-w-0 flex-1"
+                    >
+                      {props.tutorial?.chat}
+                      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                        {center}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Between `LAYOUT_BREAKPOINTS.compact` and wide the tree is the
             same, so a rotate across it does not remount the stage, Monaco or
             the console's terminal; across `LAYOUT_BREAKPOINTS.phone` the
             frame swaps for the pager and they survive as outlets. Below
             `LAYOUT_BREAKPOINTS.compact` the group holds only the work
             area, so it neither takes nor saves the horizontal layout:
             crossing a breakpoint writes nothing. */}
-                  <ResizablePanelGroup
-                    orientation="horizontal"
-                    id="layout-horizontal"
-                    defaultLayout={wide ? props.horizontal : undefined}
-                    onLayoutChanged={
-                      wide
-                        ? (layout, meta) => {
-                            // A drag of the panel's edge takes over from Widen
-                            if (meta.isUserInteraction) setWideFrom(null);
-                            settle(
-                              {
-                                panel: assistantRef.current,
-                                state: props.assistantState,
-                                openSize: assistantOpenSize.current,
-                                settledOnce: assistantSettled,
-                                save: props.onHorizontalLayout,
-                              },
-                              layout,
-                              meta
-                            );
-                          }
-                        : undefined
-                    }
-                  >
-                    {wide && (
-                      <ResizablePanel
-                        id="assistant"
-                        panelRef={assistantRef}
-                        collapsible
-                        collapsedSize={PANEL_SIZES.assistant.folded}
-                        defaultSize={
-                          props.assistantState.open
-                            ? PANEL_SIZES.assistant.default
-                            : PANEL_SIZES.assistant.folded
-                        }
-                        minSize={PANEL_SIZES.assistant.min}
-                        maxSize={PANEL_SIZES.assistant.max}
-                        groupResizeBehavior="preserve-pixel-size"
-                        className="flex min-w-0 flex-col"
-                        onResize={(size) => {
-                          if (
-                            foldedOf(assistantRef.current) === false &&
-                            size.inPixels > PANEL_SIZES.assistant.folded
-                          ) {
-                            assistantOpenSize.current = size.inPixels;
-                          }
-                        }}
-                      >
-                        {assistant}
-                      </ResizablePanel>
-                    )}
-                    {/* Hidden, the assistant takes no width and its handle would double
-              the navigation's line; it stays a drag target, only unseen */}
-                    {wide && (
-                      <ResizableHandle
-                        className={
-                          props.assistantState.open
-                            ? undefined
-                            : "bg-transparent"
-                        }
-                      />
-                    )}
-                    <ResizablePanel
-                      id="work"
-                      minSize={PANEL_SIZES.work.min}
-                      className="flex min-w-0 flex-col"
-                    >
-                      {/* Over the files column and the stage both, as the prototype
-                draws them: the column bar, then the stage tabs */}
-                      {props.stageBar}
-                      {props.stageTabs}
-                      {/* Hidden, the group holds only the
-                stage and, like the horizontal group below `compact`, neither
-                takes nor saves its layout */}
                       <ResizablePanelGroup
                         orientation="horizontal"
-                        id="layout-work"
-                        className="h-auto min-h-0 flex-1"
-                        defaultLayout={filesShown ? props.work : undefined}
+                        id="layout-horizontal"
+                        defaultLayout={wide ? props.horizontal : undefined}
                         onLayoutChanged={
-                          !filesShown
-                            ? undefined
-                            : (layout, meta) =>
+                          wide
+                            ? (layout, meta) => {
+                                // A drag of the panel's edge takes over from Widen
+                                if (meta.isUserInteraction) setWideFrom(null);
                                 settle(
                                   {
-                                    panel: filesRef.current,
-                                    state: props.filesState,
-                                    openSize: filesOpenSize.current,
-                                    settledOnce: filesSettled,
-                                    save: props.onWorkLayout,
+                                    panel: assistantRef.current,
+                                    state: props.assistantState,
+                                    openSize: assistantOpenSize.current,
+                                    settledOnce: assistantSettled,
+                                    save: props.onHorizontalLayout,
                                   },
                                   layout,
                                   meta
-                                )
+                                );
+                              }
+                            : undefined
                         }
                       >
-                        {filesShown && (
+                        {wide && (
                           <ResizablePanel
-                            id="files"
-                            panelRef={filesRef}
+                            id="assistant"
+                            panelRef={assistantRef}
                             collapsible
-                            collapsedSize={PANEL_SIZES.files.folded}
-                            defaultSize={filesOpenSize.current}
-                            minSize={PANEL_SIZES.files.min}
+                            collapsedSize={PANEL_SIZES.assistant.folded}
+                            defaultSize={
+                              props.assistantState.open
+                                ? PANEL_SIZES.assistant.default
+                                : PANEL_SIZES.assistant.folded
+                            }
+                            minSize={PANEL_SIZES.assistant.min}
+                            maxSize={PANEL_SIZES.assistant.max}
                             groupResizeBehavior="preserve-pixel-size"
                             className="flex min-w-0 flex-col"
                             onResize={(size) => {
                               if (
-                                foldedOf(filesRef.current) === false &&
-                                size.inPixels > PANEL_SIZES.files.folded
+                                foldedOf(assistantRef.current) === false &&
+                                size.inPixels > PANEL_SIZES.assistant.folded
                               ) {
-                                filesOpenSize.current = size.inPixels;
+                                assistantOpenSize.current = size.inPixels;
                               }
                             }}
                           >
-                            {props.files({ isMobile: false })}
+                            {assistant}
                           </ResizablePanel>
                         )}
-                        {filesShown && <ResizableHandle />}
+                        {/* Hidden, the assistant takes no width and its handle would double
+              the navigation's line; it stays a drag target, only unseen */}
+                        {wide && (
+                          <ResizableHandle
+                            className={
+                              props.assistantState.open
+                                ? undefined
+                                : "bg-transparent"
+                            }
+                          />
+                        )}
                         <ResizablePanel
-                          id="center"
-                          minSize={PANEL_SIZES.stage.min}
+                          id="work"
+                          minSize={PANEL_SIZES.work.min}
                           className="flex min-w-0 flex-col"
                         >
-                          {center}
+                          {/* Over the files column and the stage both, as the prototype
+                draws them: the column bar, then the stage tabs */}
+                          {props.stageBar}
+                          {props.stageTabs}
+                          {/* Hidden, the group holds only the
+                stage and, like the horizontal group below `compact`, neither
+                takes nor saves its layout */}
+                          <ResizablePanelGroup
+                            orientation="horizontal"
+                            id="layout-work"
+                            className="h-auto min-h-0 flex-1"
+                            defaultLayout={filesShown ? props.work : undefined}
+                            onLayoutChanged={
+                              !filesShown
+                                ? undefined
+                                : (layout, meta) =>
+                                    settle(
+                                      {
+                                        panel: filesRef.current,
+                                        state: props.filesState,
+                                        openSize: filesOpenSize.current,
+                                        settledOnce: filesSettled,
+                                        save: props.onWorkLayout,
+                                      },
+                                      layout,
+                                      meta
+                                    )
+                            }
+                          >
+                            {filesShown && (
+                              <ResizablePanel
+                                id="files"
+                                panelRef={filesRef}
+                                collapsible
+                                collapsedSize={PANEL_SIZES.files.folded}
+                                defaultSize={filesOpenSize.current}
+                                minSize={PANEL_SIZES.files.min}
+                                groupResizeBehavior="preserve-pixel-size"
+                                className="flex min-w-0 flex-col"
+                                onResize={(size) => {
+                                  if (
+                                    foldedOf(filesRef.current) === false &&
+                                    size.inPixels > PANEL_SIZES.files.folded
+                                  ) {
+                                    filesOpenSize.current = size.inPixels;
+                                  }
+                                }}
+                              >
+                                {props.files({ isMobile: false })}
+                              </ResizablePanel>
+                            )}
+                            {filesShown && <ResizableHandle />}
+                            <ResizablePanel
+                              id="center"
+                              minSize={PANEL_SIZES.stage.min}
+                              className="flex min-w-0 flex-col"
+                            >
+                              {center}
+                            </ResizablePanel>
+                          </ResizablePanelGroup>
                         </ResizablePanel>
                       </ResizablePanelGroup>
-                    </ResizablePanel>
-                  </ResizablePanelGroup>
-                  {props.viewport !== "wide" && (
-                    <AssistantSheet
-                      state={props.assistantState}
-                      sheetFont={props.sheetFont}
-                    >
-                      {assistant}
-                    </AssistantSheet>
+                      {props.viewport !== "wide" && (
+                        <AssistantSheet
+                          state={props.assistantState}
+                          sheetFont={props.sheetFont}
+                        >
+                          {assistant}
+                        </AssistantSheet>
+                      )}
+                    </>
                   )}
                 </div>
+                {overlay && (
+                  <div
+                    data-testid="tutorial-nav-scrim"
+                    aria-hidden
+                    className="absolute inset-0 z-20 bg-black/40"
+                    onClick={tutorialNav?.onClose}
+                  />
+                )}
                 {screen.kind === "page" && (
                   <div
                     data-testid="layout-cover"

@@ -1269,3 +1269,220 @@ describe("with a page", () => {
     expect(within(work).getByText("page slot")).toBeTruthy();
   });
 });
+
+describe("in a tutorial", () => {
+  const tutorialNav = (
+    choice: { open?: boolean; overlay?: boolean } = {}
+  ): NonNullable<BaseLayoutShellProps["tutorial"]>["nav"] => ({
+    open: choice.open ?? false,
+    overlay: choice.overlay ?? false,
+    onOpenChange: vi.fn(),
+    onClose: vi.fn(),
+  });
+  const inTutorial = (
+    viewport: BaseLayoutShellProps["viewport"],
+    nav = tutorialNav(),
+    choice: PropsChoice = {}
+  ): BaseLayoutShellProps => {
+    const base = props(viewport, choice);
+    return {
+      viewport: base.viewport,
+      navOpen: base.navOpen,
+      onNavOpenChange: base.onNavOpenChange,
+      assistantState: base.assistantState,
+      filesState: base.filesState,
+      consoleState: base.consoleState,
+      horizontal: base.horizontal,
+      work: base.work,
+      vertical: base.vertical,
+      onHorizontalLayout: base.onHorizontalLayout,
+      onWorkLayout: base.onWorkLayout,
+      onVerticalLayout: base.onVerticalLayout,
+      nav: base.nav,
+      files: base.files,
+      stageBar: base.stageBar,
+      stageTabs: base.stageTabs,
+      stage: base.stage,
+      console: base.console,
+      assistant: base.assistant,
+      home: base.home,
+      keepWork: base.keepWork,
+      cover: base.cover,
+      phone: base.phone,
+      tutorial: {
+        chat: <section>chat slot</section>,
+        nav,
+        overNav: <div>hint slot</div>,
+      },
+    };
+  };
+
+  it.each(["wide", "compact"] as const)(
+    "lays out the rail, the chat, then the stage over the console, with no files, stage bar or assistant (%s)",
+    (viewport) => {
+      render(<BaseLayoutShell {...inTutorial(viewport)} />);
+      const order = ["nav slot", "chat slot", "stage slot", "console slot"].map(
+        (slot) => screen.getByText(slot)
+      );
+      order.slice(1).forEach((element, index) => {
+        expect(
+          order[index].compareDocumentPosition(element) &
+            Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+      });
+      expect(screen.queryByText("files slot")).toBeNull();
+      expect(screen.queryByText("stage bar")).toBeNull();
+      expect(screen.queryByText("stage tabs")).toBeNull();
+      expect(screen.queryByText("assistant slot")).toBeNull();
+      expect(screen.getByText("hint slot")).toBeTruthy();
+    }
+  );
+
+  it("keeps the stage mounted on the way in and out", () => {
+    const mounted = vi.fn();
+    const Probe = () => {
+      useEffect(() => {
+        mounted();
+      }, []);
+      return <div>probe</div>;
+    };
+    const { rerender } = render(
+      <BaseLayoutShell {...props("wide", { stage: <Probe /> })} />
+    );
+    rerender(
+      <BaseLayoutShell
+        {...inTutorial("wide", tutorialNav(), { stage: <Probe /> })}
+      />
+    );
+    rerender(<BaseLayoutShell {...props("wide", { stage: <Probe /> })} />);
+    expect(mounted).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the navigation's open state from the frame, not the saved layout", () => {
+    const nav = vi.fn(() => null);
+    const shell = inTutorial("wide", tutorialNav({ open: false }), {
+      navOpen: true,
+      nav,
+    });
+    render(<BaseLayoutShell {...shell} />);
+    expect(nav).toHaveBeenLastCalledWith(
+      expect.objectContaining({ collapsed: true })
+    );
+  });
+
+  it("reports the stock toggle to the frame, and writes nothing saved", () => {
+    let toggle: (() => void) | undefined;
+    const nav = vi.fn((stock: { toggle: () => void }) => {
+      toggle = stock.toggle;
+      return null;
+    });
+    const frameNav = tutorialNav({ open: false });
+    const shell = inTutorial("wide", frameNav, { nav });
+    render(<BaseLayoutShell {...shell} />);
+    act(() => toggle?.());
+    expect(frameNav.onOpenChange).toHaveBeenCalledWith(true);
+    expect(shell.onNavOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("covers the chat with a scrim while the navigation is an overlay, which closes it", () => {
+    const frameNav = tutorialNav({ open: true, overlay: true });
+    render(<BaseLayoutShell {...inTutorial("wide", frameNav)} />);
+    fireEvent.click(screen.getByTestId("tutorial-nav-scrim"));
+    expect(frameNav.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the overlay's column at the rail's width beside the chat", () => {
+    render(
+      <BaseLayoutShell
+        {...inTutorial("wide", tutorialNav({ open: true, overlay: true }))}
+      />
+    );
+    const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]')!;
+    expect(wrapper.getAttribute("data-nav-overlay")).toBe("true");
+  });
+
+  it("draws no scrim while the navigation is pinned", () => {
+    render(
+      <BaseLayoutShell
+        {...inTutorial("wide", tutorialNav({ open: true, overlay: false }))}
+      />
+    );
+    expect(screen.queryByTestId("tutorial-nav-scrim")).toBeNull();
+  });
+
+  it("closes the overlay on a pick in the navigation", () => {
+    const frameNav = tutorialNav({ open: true, overlay: true });
+    render(
+      <BaseLayoutShell
+        {...inTutorial("wide", frameNav, {
+          nav: () => <a href="#programs">Programs</a>,
+        })}
+      />
+    );
+    fireEvent.click(screen.getByText("Programs"));
+    expect(frameNav.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the overlay on Escape and gives focus back", () => {
+    const frameNav = tutorialNav();
+    const { rerender } = render(
+      <>
+        <button>before</button>
+        <BaseLayoutShell
+          {...inTutorial("wide", frameNav, {
+            nav: () => <a href="#programs">Programs</a>,
+          })}
+        />
+      </>
+    );
+    const before = screen.getByText("before");
+    before.focus();
+    const open = tutorialNav({ open: true, overlay: true });
+    rerender(
+      <>
+        <button>before</button>
+        <BaseLayoutShell
+          {...inTutorial("wide", open, {
+            nav: () => <a href="#programs">Programs</a>,
+          })}
+        />
+      </>
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(open.onClose).toHaveBeenCalledTimes(1);
+    rerender(
+      <>
+        <button>before</button>
+        <BaseLayoutShell
+          {...inTutorial("wide", frameNav, {
+            nav: () => <a href="#programs">Programs</a>,
+          })}
+        />
+      </>
+    );
+    expect(document.activeElement).toBe(before);
+  });
+
+  it("follows the saved layout under a page, where the frame does not show", () => {
+    const nav = vi.fn(() => null);
+    render(
+      <BaseLayoutShell
+        {...inTutorial("wide", tutorialNav({ open: false }), {
+          navOpen: true,
+          nav,
+          cover: <div>page slot</div>,
+        })}
+      />
+    );
+    expect(nav).toHaveBeenLastCalledWith(
+      expect.objectContaining({ collapsed: false })
+    );
+    expect(screen.queryByText("hint slot")).toBeNull();
+  });
+
+  it("keeps the phone's pager, with no chat column", () => {
+    render(<BaseLayoutShell {...inTutorial("phone")} />);
+    expect(screen.queryByText("chat slot")).toBeNull();
+    expect(screen.getByRole("region", { name: "Work" })).toBeTruthy();
+  });
+});
