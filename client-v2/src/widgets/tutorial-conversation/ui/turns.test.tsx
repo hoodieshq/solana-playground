@@ -512,6 +512,33 @@ describe("AskStandIn", () => {
     await userEvent.click(group.querySelectorAll("button")[ask.answer]);
     expect(onPick).toHaveBeenCalledWith(ask.answer);
   });
+
+  it("says Not quite. once a pick was wrong, and takes no second click on it", async () => {
+    const onPick = vi.fn();
+    const wrong = ask.answer === 0 ? 1 : 0;
+    const draw = (picked: number[]) => (
+      <AskStandIn
+        ask={ask}
+        open
+        wrong={picked}
+        outcome={null}
+        attempts={0}
+        disabled={false}
+        onPick={onPick}
+        onHint={vi.fn()}
+        onSkip={vi.fn()}
+      />
+    );
+    const { rerender } = render(draw([]));
+    expect(screen.getByRole("status").textContent).toBe("");
+
+    rerender(draw([wrong]));
+    expect(screen.getByRole("status").textContent).toBe("Not quite.");
+    const option = screen.getByRole("group").querySelectorAll("button")[wrong];
+    expect(option.getAttribute("aria-disabled")).toBe("true");
+    await userEvent.click(option);
+    expect(onPick).not.toHaveBeenCalled();
+  });
 });
 
 describe("TurnView", () => {

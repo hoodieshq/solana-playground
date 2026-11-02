@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 
 import type { Ask, Text, Win } from "@/entities/tutorial";
 import type { AskOutcome } from "@/features/tutorial-conversation";
+import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Prose, READ } from "./Prose";
 
@@ -35,7 +36,9 @@ export interface AskStandInProps {
 }
 
 // TODO(tutorial-flow-v2 3.5): HOO-2353's question card replaces this: the
-// keys, "Not quite." with its reason, Type it myself, the expandable record
+// keys, "Not quite." with its reason, Type it myself, the expandable record.
+// Until then a wrong pick only dims its option and says "Not quite.", so a
+// click is never silent
 export const AskStandIn = ({
   ask,
   open,
@@ -76,7 +79,10 @@ export const AskStandIn = ({
             disabled={disabled}
             aria-disabled={wrong.includes(i) || undefined}
             onClick={() => !wrong.includes(i) && onPick(i)}
-            className="h-auto justify-start whitespace-normal py-2 text-left"
+            className={cn(
+              "h-auto justify-start whitespace-normal py-2 text-left",
+              wrong.includes(i) && "cursor-default opacity-50 line-through"
+            )}
           >
             <Prose
               text={option}
@@ -85,6 +91,9 @@ export const AskStandIn = ({
           </Button>
         ))}
       </div>
+      <p role="status" className="text-caption text-error empty:hidden">
+        {wrong.length > 0 ? "Not quite." : ""}
+      </p>
       <div className="flex gap-2">
         <Button variant="ghost" size="sm" onClick={onHint}>
           Hint
