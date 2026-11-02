@@ -92,9 +92,7 @@ const StartFromScratch = ({
       }}
       placeholder={framework ? defaultName(framework) : "project name"}
       start={start}
-      valid={
-        name.trim() !== "" && PgExplorer.isWorkspaceNameValid(name.trim())
-      }
+      valid={name.trim() !== "" && PgExplorer.isWorkspaceNameValid(name.trim())}
       held={held}
       onStart={create}
     />
