@@ -25,11 +25,20 @@ export interface ProgramState {
   length: number | null;
 }
 
+/** The program on chain: deployed means the next deploy is an upgrade */
+export interface OnChain {
+  deployed: boolean;
+  /** The program data account's length; null when not deployed */
+  dataLen: number | null;
+}
+
 /**
  * Everything the deploy touches, so its order and its facts are tested with
  * no chain. The real one (`real-deploy.ts`) wraps the editor's loader calls.
  */
 export interface DeployPort {
+  /** Why the deploy cannot run here at all (a cluster other than devnet) */
+  refusal(): string | null;
   /** The Playground wallet's address, or null when there is none */
   wallet(): string | null;
   program(): ProgramState;
@@ -38,17 +47,17 @@ export interface DeployPort {
   /** The last build's binary */
   bytes(): Promise<Uint8Array>;
   /** Whether the program is on chain (an upgrade) and its data length */
-  onChain(id: string): Promise<{ deployed: boolean; dataLen: number | null }>;
+  onChain(id: string): Promise<OnChain>;
   /** Lamports a deploy of `length` bytes locks in rent, before fees */
-  rent(
-    length: number,
-    onChain: { deployed: boolean; dataLen: number | null }
-  ): Promise<number>;
+  rent(length: number, onChain: OnChain): Promise<number>;
   funding: FundingChain;
   /** The cluster's faucet amount in whole SOL */
   capSol: number;
-  /** Creates the buffer and writes the binary; returns the buffer address */
-  writeBuffer(bytes: Uint8Array, extendBy: number): Promise<string>;
+  /**
+   * Extends the program data when an upgrade outgrows it, then creates the
+   * buffer and writes the binary; returns the buffer address
+   */
+  writeBuffer(bytes: Uint8Array, onChain: OnChain): Promise<string>;
   /** First deploy from the buffer; returns the signature */
   deploy(buffer: string, length: number): Promise<string>;
   /** Upgrade from the buffer; returns the signature */
@@ -94,6 +103,8 @@ export const runDeploy = async (
   onStage: (stage: RunStage) => void
 ): Promise<RunResult> => {
   const started = port.now();
+  const refusal = port.refusal();
+  if (refusal) return failed(act, started, port.now(), "failed", refusal);
   const address = port.wallet();
   if (!address) {
     return failed(act, started, port.now(), "no_wallet", "No wallet");
@@ -104,7 +115,7 @@ export const runDeploy = async (
     const stale = act === "buildDeploy" || program.stale;
     const estimateLength = program.length ?? DEFAULT_LENGTH;
     const before = await port.funding.balance(address);
-    const knownOnChain = program.id
+    const knownOnChain: OnChain = program.id
       ? await port.onChain(program.id)
       : { deployed: false, dataLen: null };
     const estimate =
@@ -176,15 +187,10 @@ export const runDeploy = async (
       const refused = await fund(need);
       if (refused) return refused;
     }
-    const extendBy =
-      onChain.deployed && onChain.dataLen !== null
-        ? Math.max(0, bytes.length - onChain.dataLen)
-        : 0;
-
     stage(DEPLOY_STAGES.buffer);
     port.print(`Deploying from ${shortKey(address)} · about ${sol(need)} SOL`);
     const funded = await port.funding.balance(address);
-    const buffer = await port.writeBuffer(bytes, extendBy);
+    const buffer = await port.writeBuffer(bytes, onChain);
 
     stage(DEPLOY_STAGES.deploying);
     const signature = onChain.deployed
@@ -238,6 +244,7 @@ if (import.meta.vitest) {
       let id = fake.id;
       const lines: string[] = [];
       const port: DeployPort = {
+        refusal: () => null,
         wallet: () => WALLET,
         program: () => ({ id, stale: fake.stale, length: 100_000 }),
         build: vi.fn(
@@ -296,6 +303,22 @@ if (import.meta.vitest) {
       expect(port.funding.balance).not.toHaveBeenCalled();
     });
 
+    it("refuses off devnet before it reads the wallet", async () => {
+      const { port } = portOf({
+        balances: [0],
+        deployed: false,
+        stale: false,
+        id: PROGRAM,
+      });
+      port.refusal = () => "Tutorials deploy to devnet.";
+      await expect(runDeploy(port, "deploy", () => {})).resolves.toMatchObject({
+        ok: false,
+        reason: "failed",
+        message: "Tutorials deploy to devnet.",
+      });
+      expect(port.funding.balance).not.toHaveBeenCalled();
+    });
+
     it("funds an empty wallet as the first of five stages, then deploys", async () => {
       // first look, funding's look, after the airdrop, the post-build check,
       // before the buffer, after the deploy
@@ -351,11 +374,11 @@ if (import.meta.vitest) {
         upgraded: true,
       });
       expect(port.deploy).not.toHaveBeenCalled();
-      // The new binary is 20 000 bytes longer than the program data
-      expect(port.writeBuffer).toHaveBeenCalledWith(
-        expect.any(Uint8Array),
-        20_000
-      );
+      // The port extends the program data from what is on chain
+      expect(port.writeBuffer).toHaveBeenCalledWith(expect.any(Uint8Array), {
+        deployed: true,
+        dataLen: 100_000,
+      });
     });
 
     it("builds first for a build-and-deploy even when the build is fresh", async () => {
