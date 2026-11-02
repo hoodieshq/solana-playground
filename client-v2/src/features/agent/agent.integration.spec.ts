@@ -656,6 +656,28 @@ describe("POST /api/agent streaming", () => {
     });
   });
 
+  it("logs nothing when the read fails on the caller's own hang-up", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = makeRes();
+    const stream = upstream(["data: a\n\n"]);
+    const read = stream.body.getReader();
+    let reads = 0;
+    stream.body.getReader = () => ({
+      // The caller leaves, and the abort that follows ends the upstream read
+      read: async () => {
+        reads += 1;
+        if (reads === 1) return read.read();
+        res.destroyed = true;
+        throw new DOMException("This operation was aborted", "AbortError");
+      },
+      cancel: read.cancel,
+    });
+
+    await call(res, stream);
+
+    expect(warned).not.toHaveBeenCalled();
+  });
+
   it("reports a failure to relay as its own, not as the upstream's", async () => {
     const failed = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = makeRes({
@@ -1498,6 +1520,50 @@ describe("POST /api/agent spend gate", () => {
       await handler(makeReq(TURN), res as never);
 
       expect(db.state.turns).toEqual(recorded("abandoned", 0));
+    });
+
+    it("records a completed turn whose usage cannot be priced at its reservation", async () => {
+      network(() => streamed({ prompt_tokens: "x", completion_tokens: 5 }));
+
+      const res = await postJson(handler, TURN);
+
+      expect(res.statusCode).toBe(200);
+      expect(db.state.turns).toEqual([
+        {
+          userId: "user-1",
+          tier: "established",
+          outcome: "completed",
+          promptTokens: null,
+          completionTokens: 5,
+          charged: RESERVED,
+        },
+      ]);
+      expect(spend()).toEqual({ reserved: 0, spent: RESERVED });
+    });
+
+    it("logs a settle that fails, with what it would have charged", async () => {
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      network();
+      db.state.during = (text) => {
+        if (text.includes("insert into agent_turn")) db.state.down = true;
+      };
+
+      const res = await postJson(handler, TURN);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.ended).toBe(true);
+      expect(db.state.turns).toEqual([]);
+      expect(logged).toHaveBeenCalledWith(
+        "agent: settling a turn failed",
+        expect.objectContaining({
+          message: "connect ECONNREFUSED",
+          end: "completed",
+          tier: "established",
+          day: today(),
+          reserved: RESERVED,
+          charge: USAGE_COST,
+        })
+      );
     });
 
     it("counts a turn the cap refuses, with no turn row and no upstream call", async () => {

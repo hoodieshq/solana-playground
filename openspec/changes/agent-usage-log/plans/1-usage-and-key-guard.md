@@ -8,6 +8,15 @@
 
 **Tech Stack:** Node ESM (`.mjs`), Postgres via `query`, `node --test` (`yarn test-api`), vitest for `agent.integration.spec.ts`.
 
+> **Superseded in part by review (2026-11-03).** Where this plan and
+> `design.md` differ, `design.md` and the spec hold: a cap refusal adds one to
+> `agent_spend.capped` and writes no `agent_turn` row, so there is no `capped`
+> outcome; `agent_turn` carries the reserve's `day`; `settle` takes
+> `{ userId, day, reserved, charge, tier, end }` and `recordCapped` takes
+> `{ userId, day }`; upstream error text is cut to 300 characters before it is
+> redacted; `pipeStream` logs an upstream failure and a relay failure apart
+> (task 2.3); and the doc section is "Rotating the keys".
+
 **Spec:** `openspec/changes/agent-usage-log/specs/assistant-default-backend-usage/spec.md`, `design.md`.
 
 ## Global Constraints

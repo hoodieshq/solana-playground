@@ -80,8 +80,25 @@ export const costOf = (usage, prices) =>
  *   | { kind: "unfinished" }} TurnEnd
  */
 
+/** The largest count a Postgres `integer` holds */
+const MAX_TOKENS = 2 ** 31 - 1;
+
 /**
- * What a turn is charged, in micro-USD.
+ * A token count fit for `agent_turn`, or null. The usage comes from the
+ * upstream, and a count that is fractional, negative, out of range or not a
+ * number would fail the statement that also settles the turn's charge.
+ *
+ * @param {unknown} count
+ * @returns {number | null}
+ */
+const tokenCount = (count) =>
+  Number.isSafeInteger(count) && count >= 0 && count <= MAX_TOKENS
+    ? count
+    : null;
+
+/**
+ * What a turn is charged, in micro-USD. A completed turn whose usage cannot
+ * be priced is charged its reservation, as one that reported none.
  *
  * @param {TurnEnd} end
  * @param {number} reserved the turn's reservation, in micro-USD
@@ -89,9 +106,24 @@ export const costOf = (usage, prices) =>
  */
 export const chargeFor = (end, reserved, prices) => {
   if (end.kind === "refused" || end.kind === "abandoned") return 0;
-  if (end.kind === "completed") return costOf(end.usage, prices);
+  if (end.kind === "completed" && isPriceable(end.usage)) {
+    return costOf(end.usage, prices);
+  }
   return reserved;
 };
+
+/**
+ * Whether reported usage can be priced: each count the upstream gave is one
+ * {@link tokenCount} accepts. A missing count is priced as none, as
+ * {@link costOf} does; one that is NaN, negative, fractional or out of range
+ * would make the charge one the ledger cannot store.
+ *
+ * @param {{ prompt_tokens?: unknown; completion_tokens?: unknown }} usage
+ */
+const isPriceable = (usage) =>
+  [usage.prompt_tokens, usage.completion_tokens].every(
+    (count) => count === undefined || tokenCount(count) !== null
+  );
 
 /**
  * Decide the caller's tier and reserve `amount` against their cap, in one
@@ -162,22 +194,6 @@ export const reserve = async (query, turn) => {
   const [{ tier, dated, admitted }] = rows;
   return { tier, dated, admitted };
 };
-
-/** The largest count a Postgres `integer` holds */
-const MAX_TOKENS = 2 ** 31 - 1;
-
-/**
- * A token count fit for `agent_turn`, or null. The usage comes from the
- * upstream, and a count that is fractional, negative, out of range or not a
- * number would fail the statement that also settles the turn's charge.
- *
- * @param {unknown} count
- * @returns {number | null}
- */
-const tokenCount = (count) =>
-  Number.isSafeInteger(count) && count >= 0 && count <= MAX_TOKENS
-    ? count
-    : null;
 
 /**
  * Replace a turn's reservation with its charge, on the day it was reserved,

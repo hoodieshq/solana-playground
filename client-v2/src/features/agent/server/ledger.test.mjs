@@ -42,6 +42,22 @@ describe("ledger arithmetic", () => {
     assert.equal(chargeFor({ kind: "refused" }, 9999, PRICES), 0);
     assert.equal(chargeFor({ kind: "abandoned" }, 9999, PRICES), 0);
   });
+
+  // The upstream's usage is not ours: a count that cannot be priced charges
+  // the reservation, never NaN, a negative or an overflow
+  for (const bad of ["x", -1, 2.5, 2 ** 31, Number.NaN, null]) {
+    it(`charges the reservation for a completed turn reporting ${String(
+      bad
+    )} tokens`, () => {
+      const usage = { prompt_tokens: bad, completion_tokens: 100 };
+      assert.equal(chargeFor({ kind: "completed", usage }, 9999, PRICES), 9999);
+    });
+  }
+
+  it("prices a count the upstream left out as none", () => {
+    const usage = { completion_tokens: 100 };
+    assert.equal(chargeFor({ kind: "completed", usage }, 9999, PRICES), 50);
+  });
 });
 
 // `yarn test-api` loads `.env`; without a database this suite skips rather

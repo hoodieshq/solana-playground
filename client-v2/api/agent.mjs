@@ -139,7 +139,7 @@ const sendJson = (res, status, body) => {
  * @param {(chunk: Uint8Array) => void} observe sees every chunk as it is
  *   forwarded, for the usage the ledger charges
  * @param {(text: string) => string} redact keeps the keys out of the error
- *   frame, whose message the route did not write
+ *   frames and log lines this writes, whose messages the route did not write
  * @returns {Promise<boolean>} whether the upstream's stream ended with the
  *   caller still there; false when the caller left or the stream broke
  */
@@ -170,6 +170,9 @@ const pipeStream = async (res, body, observe, redact) => {
       try {
         chunk = await reader.read();
       } catch (e) {
+        // The caller left and the route aborted the upstream: the read failed
+        // because of us, which is no incident
+        if (res.destroyed && e?.name === "AbortError") break;
         // The upstream broke: logged whether or not the caller is still
         // there, since a caller who left gets no frame to read it from
         const message = redact(String(e?.message ?? e));
@@ -355,8 +358,9 @@ async function handler(req, res) {
     }
     end = await relay(res, configured, body, gate.tier, now);
   } finally {
-    // The response has ended on every path here, so none of this delays an
-    // answer. None of these steps throws: there is nobody left to tell.
+    // On every path that returns, the response has ended here, so none of
+    // this delays an answer. None of these steps throws: there is nobody left
+    // to tell.
     if (gate.admitted) {
       await settle(query, {
         userId: turn.userId,
@@ -374,6 +378,8 @@ async function handler(req, res) {
           end: end.kind,
           tier: gate.tier,
           day: turn.day,
+          reserved: turn.amount,
+          charge: chargeFor(end, turn.amount, configured.prices),
         })
       );
     } else {
@@ -417,10 +423,10 @@ const relay = async (res, configured, body, tier, now) => {
 
   // An error text the upstream or a thrown error wrote, as the route may relay
   // or log it: cut to `MAX_ERROR_TEXT`, then without the keys, since an
-  // upstream may quote the key it was sent. Cutting first bounds the work on
-  // an error body of any size; of a key the cut splits, at most seven
-  // characters survive, as of any key. The upstream's own 200 stream is forwarded as
-  // it comes, and is not this function's.
+  // upstream may quote the key it was sent. Cutting first bounds the
+  // redaction's work. A key the cut splits loses every run of eight or more
+  // of its characters, like any other. The upstream's own 200 stream is
+  // forwarded as it comes, and is not this function's.
   const redact = (text) =>
     redactSecrets(
       text.slice(0, MAX_ERROR_TEXT),
