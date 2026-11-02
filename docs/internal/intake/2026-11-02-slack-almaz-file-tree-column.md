@@ -20,5 +20,5 @@ None yet.
 - Whether it fits before Breakpoint (Sergey: unknown; Slava: it is polish-stage, after Breakpoint if not).
 
 ## Actions
-- Create the ticket, design from DES-205, polish-stage priority, end of the queue -> Lead, pending.
+- Create the ticket, design from DES-205, polish-stage priority, end of the queue -> lead, filed as [HOO-2508](https://linear.app/solana-fndn/issue/HOO-2508) Merge the file tree column into the project column (Medium, Slava, DES-205 cited).
 - Place it at the end of the plan, polish stage -> planner, pending.
