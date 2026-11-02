@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TriangleAlert } from "lucide-react";
 
 import { isSignInFailure, PgSession } from "@/features/auth";
@@ -17,38 +17,59 @@ interface ShareGistDialogProps {
   readFiles: () => Promise<Record<string, string>>;
 }
 
+/** What the prompt shows for a sign-in that ended without a session */
+const messageOf = (error: unknown) =>
+  error instanceof Error && error.message ? error.message : "Sign-in failed.";
+
 /**
  * What a signed-out Share shows first (the `gist-sharing` spec, "Sign in to
  * share"): why sharing needs GitHub, and the sign-in. Signing in is a popup,
  * so the project stays as it is; the session it brings turns the dialog into
  * the share dialog, which sends nothing until its own button is pressed.
+ *
+ * The sign-in runs beside the frame's submit, not inside it: the popup cannot
+ * say it was closed (`popup-channel`), so a submit that waited on it would
+ * hold the dialog busy, with Cancel off, until the flow expires. Here Cancel
+ * stays live, and closing the dialog while the sign-in waits cancels it.
  */
 const SignInToShare = () => {
-  // A sign-in the user ended (a closed or blocked popup, a timeout) is theirs
-  // to see, not the team's: thrown, the frame would report it
+  useRenderOnChange(PgSession.onDidChange);
+  const waiting = PgSession.signInState().status === "pending";
   const [failure, setFailure] = useState<string>();
-
-  const signIn = async () => {
-    setFailure(undefined);
-    try {
-      await PgSession.signIn();
-    } catch (error) {
-      // `PgSession` holds why its last sign-in failed; one that could not
-      // start is ours to hear of, so the frame shows and reports it
-      const state = PgSession.signInState();
-      if (
-        !isSignInFailure(error) ||
-        state.status !== "failed" ||
-        state.reason === "request-failed"
-      ) {
-        throw error;
+  // The sign-in settles after a Cancel has closed the dialog
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      // Closed while the popup is still open: the user gave up on sharing
+      if (PgSession.signInState().status === "pending") {
+        PgSession.cancelSignIn();
       }
-      // `auth_sign_in_failed` has counted it with its reason
-      log.info("sign-in to share ended without a session", {
-        context: { reason: state.reason },
-      });
-      setFailure(state.message);
-    }
+    };
+  }, []);
+
+  const signIn = () => {
+    setFailure(undefined);
+    PgSession.signIn().catch((error: unknown) => {
+      // `PgSession` holds why its last sign-in failed. One the user ended
+      // (cancelled, a blocked popup, a timeout) is theirs to see; one that
+      // could not start, or any other error, the team hears of too
+      const state = PgSession.signInState();
+      const userEnded =
+        isSignInFailure(error) &&
+        state.status === "failed" &&
+        state.reason !== "request-failed";
+      if (userEnded) {
+        // `auth_sign_in_failed` has counted it with its reason
+        log.info("sign-in to share ended without a session", {
+          context: { reason: state.reason },
+        });
+      } else {
+        log.error(error, { report: true, context: { item: "sign-in" } });
+      }
+      if (mounted.current) setFailure(messageOf(error));
+    });
   };
 
   return (
@@ -56,10 +77,11 @@ const SignInToShare = () => {
       name="share-gist-sign-in"
       title="Sign in to share"
       buttonProps={{
-        text: "Sign in with GitHub",
+        text: waiting ? "Waiting for GitHub…" : "Sign in with GitHub",
         icon: <GithubMark className="size-4" />,
         onSubmit: signIn,
         noCloseOnSubmit: true,
+        disabled: waiting,
       }}
     >
       <div className="flex max-w-md flex-col gap-3">

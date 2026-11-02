@@ -186,6 +186,28 @@ test("gist-sharing: Signed in, no prompt", async ({ page }) => {
   await expect(prompt(page)).toHaveCount(0);
 });
 
+test("gist-sharing: Sign-in cancelled", async ({ page }) => {
+  await stubAuth(page, { signedIn: false });
+  // A popup GitHub never sends back: the sign-in waits until it is cancelled
+  await page.route("**/api/auth/sign-in/social", (r) =>
+    json(r, { url: "about:blank", redirect: false })
+  );
+  const requests = await stubGists(page);
+  await seedWorkspace(page);
+  await openSignedOut(page);
+
+  await prompt(page)
+    .getByRole("button", { name: "Sign in with GitHub" })
+    .click();
+  await expect(
+    prompt(page).getByRole("button", { name: "Waiting for GitHub…" })
+  ).toBeDisabled();
+  await prompt(page).getByRole("button", { name: "Cancel" }).click();
+
+  await expect(prompt(page)).toHaveCount(0);
+  expect(requests).toHaveLength(0);
+});
+
 test("gist-sharing: Cancel leaves without signing in", async ({ page }) => {
   const signIns = await stubAuth(page, { signedIn: false });
   const requests = await stubGists(page);

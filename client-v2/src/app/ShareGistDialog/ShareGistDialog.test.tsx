@@ -130,8 +130,8 @@ describe("app/ShareGistDialog", () => {
     );
   });
 
-  it("gist-sharing: Sign-in cancelled", async () => {
-    // The authorize URL, then a popup the user closed
+  it("shows why a sign-in ended, and keeps the prompt", async () => {
+    // The authorize URL, then a popup that answers it was cancelled
     fetchSpy.mockResolvedValue({
       ok: true,
       json: async () => ({ url: "https://x/" }),
@@ -151,6 +151,42 @@ describe("app/ShareGistDialog", () => {
       screen.getByRole("heading", { name: "Sign in to share" })
     ).toBeTruthy();
     expect(screen.getByText("Sign-in cancelled.")).toBeTruthy();
+    expect(reported()).toEqual([]);
+    expect(gistRequests()).toEqual([]);
+  });
+
+  it("gist-sharing: Sign-in cancelled", async () => {
+    // A popup that answers only when the sign-in is cancelled: the channel
+    // cannot see a popup the user closed, so Cancel is the way out
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: "https://x/" }),
+    } as Response);
+    const cancel = vi.fn();
+    let answer: (receipt: {
+      delivered: false;
+      reason: "cancelled";
+    }) => void = () => {};
+    PgSession.setOpenChannel(() => ({
+      receive: () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      cancel: () => {
+        cancel();
+        answer({ delivered: false, reason: "cancelled" });
+      },
+    }));
+    await open();
+
+    await press("Sign in with GitHub");
+
+    const waiting = screen.getByRole("button", { name: "Waiting for GitHub…" });
+    expect((waiting as HTMLButtonElement).disabled).toBe(true);
+    await press("Cancel");
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(PgView.getOpenModals()).toEqual([]);
     expect(reported()).toEqual([]);
     expect(gistRequests()).toEqual([]);
   });

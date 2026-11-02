@@ -45,8 +45,10 @@ your GitHub account.", with a "Sign in with GitHub" button that shows the
 GitHub mark and a Cancel button (on a phone, the page's Close). Once the
 sign-in succeeds the same dialog SHALL become the share dialog for the same
 project, and nothing SHALL reach GitHub until the user presses its create
-button. A cancelled or failed sign-in SHALL keep the prompt open with the
-reason shown. A signed-in user SHALL go straight to the share dialog. A
+button. While the sign-in waits for GitHub the button SHALL read "Waiting for
+GitHub…" and Cancel SHALL stay available, closing the dialog and cancelling
+the sign-in. A sign-in that ends without a session SHALL keep the prompt open
+with the reason shown. A signed-in user SHALL go straight to the share dialog. A
 session that ends while the share dialog is open SHALL still be mended from
 inside the dialog, which offers to sign in again and then creates the gist.
 
@@ -74,9 +76,9 @@ inside the dialog, which offers to sign in again and then creates the gist.
 
 #### Scenario: Sign-in cancelled
 
-- **WHEN** the user closes the sign-in popup without finishing
-- **THEN** the prompt stays open, says sign-in was cancelled, and no gist is
-  created
+- **WHEN** the user presses "Sign in with GitHub" and, while the button reads
+  "Waiting for GitHub…", presses Cancel
+- **THEN** the sign-in stops, the dialog closes, and no gist is created
 
 #### Scenario: Cancel leaves without signing in
 
