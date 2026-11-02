@@ -867,8 +867,7 @@ describe("a turn's failure", () => {
       ],
       reason: "provider",
       status: undefined,
-      message:
-        /^Could not get an answer from the model\. Send your message again\.$/,
+      message: /Failed to fetch/,
     },
     {
       // The panel's own sentence for the limit, not the SDK's wrapper around the status

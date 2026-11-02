@@ -99,6 +99,10 @@ describe("Stepper", () => {
       buildErrorCount: 0,
       buildMs: null,
       buildStartedAt: null,
+      buildStartedBefore: null,
+      buildFailure: null,
+      deployBeforeRun: null,
+      stopped: null,
       hasProgram: false,
     };
     render(<Stepper state={noProgram} onSelect={vi.fn()} />);

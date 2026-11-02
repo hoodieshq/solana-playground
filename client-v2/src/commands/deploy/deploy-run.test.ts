@@ -157,7 +157,7 @@ describe("deploy run", () => {
       .mockResolvedValueOnce(10_000_000_000) // before the run spends
       .mockRejectedValueOnce(new Error("rpc down")); // after it
 
-    const result = await deploy.handle!({} as never);
+    const result = await deploy.handle!(noStop());
 
     expect(result).toEqual({
       signature: "sig-deploy",
