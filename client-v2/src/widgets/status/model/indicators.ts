@@ -105,6 +105,11 @@ export const networkIndicator = (
       "The cluster does not answer. Write and Build work; Deploy and Interact wait for it."
     );
   }
+  // Playnet is not asked until it has started (`PgConnection.getIsConnected`),
+  // so its `null` can last: grey, not a pulse that never ends
+  if (isConnected == null && name === "playnet") {
+    return view("idle", null, "Playnet starts when a command needs it.");
+  }
   if (isConnected == null) return view("working", "connecting", null);
   return view("ready", null, null);
 };
@@ -278,6 +283,18 @@ if (import.meta.vitest) {
           "working",
           "Devnet · Connecting",
           "Change cluster, currently devnet",
+        ]);
+      });
+
+      it("keeps a Playnet that has not started grey and plain", () => {
+        const n = networkIndicator(
+          { name: "playnet", isConnected: null, slotStalled: null },
+          true
+        );
+        expect([n.state, n.words, n.label]).toEqual([
+          "idle",
+          "Playnet",
+          "Change cluster, currently playnet",
         ]);
       });
 
