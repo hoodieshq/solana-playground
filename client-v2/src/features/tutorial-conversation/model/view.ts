@@ -57,7 +57,17 @@ export type AskOutcome =
   | "skipped"
   | "call_panel";
 
-export type ActState = "live" | "running" | "done" | "failed" | "interrupted";
+/**
+ * An act card's state. `refused` is a call the program refused as the step's
+ * `refused` goal expected: it passed the step, and is no failure to explain.
+ */
+export type ActState =
+  | "live"
+  | "running"
+  | "done"
+  | "refused"
+  | "failed"
+  | "interrupted";
 
 export type Turn = TurnBase &
   (
@@ -444,12 +454,9 @@ export const view = (
               note: run.status === "interrupted" ? INTERRUPTED : null,
               stage:
                 isLast && state.stage?.beatId === b.id ? state.stage : null,
-              took:
-                run.status === "ok" || run.status === "failed"
-                  ? run.took
-                  : null,
+              took: "took" in run ? run.took : null,
             });
-            if (run.status === "ok" || run.status === "failed") {
+            if ("took" in run) {
               const planned = run.status === "failed" && run.planned === true;
               turn({
                 id: `result:${b.id}:${n}`,
