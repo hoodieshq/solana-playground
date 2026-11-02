@@ -38,11 +38,12 @@ function CalloutTitle({ className, ...props }: React.ComponentProps<"div">) {
   return <div data-slot="callout-title" className={cn("font-act group-has-[>svg]/callout:col-start-2", className)} {...props} />
 }
 
+/* Quieter than the title so the two read as two lines; a warning keeps its ink, dimmed */
 function CalloutDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="callout-description"
-      className={cn("font-read text-pretty opacity-90 group-has-[>svg]/callout:col-start-2 [&_a]:underline [&_a]:underline-offset-3", className)}
+      className={cn("font-read text-pretty text-muted-foreground group-data-[variant=warning]/callout:text-current group-data-[variant=warning]/callout:opacity-75 group-has-[>svg]/callout:col-start-2 [&_a]:underline [&_a]:underline-offset-3", className)}
       {...props}
     />
   )

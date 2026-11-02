@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { useRenderOnChange } from "@/hooks";
+import { useBlockExplorer, useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgConnection, PgView, PgWallet, PgWeb3 } from "@/utils";
 import type { StandardWallet } from "@/utils/wallet/types";
@@ -102,6 +102,7 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
   useRenderOnChange(PgWallet.onDidChangeCurrent);
   // The balance, the check and the note follow a cluster change
   useRenderOnChange(PgConnection.onDidChangeCluster);
+  const explorer = useBlockExplorer();
   const [payerName, setPayerName] = useState<string | null>(null);
   const [balance, setBalance] = useState<FundPayer["balance"]>("loading");
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
@@ -227,6 +228,7 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
       onConnect={connect}
       onSend={send}
       failure={failure}
+      txUrl={(signature) => explorer.getTxUrl?.(signature) ?? null}
     />
   );
 };

@@ -52,7 +52,10 @@ const utils = vi.hoisted(() => ({
   },
 }));
 vi.mock("@/utils", () => utils);
-vi.mock("@/hooks", () => ({ useRenderOnChange: () => undefined }));
+vi.mock("@/hooks", () => ({
+  useRenderOnChange: () => undefined,
+  useBlockExplorer: () => ({ getTxUrl: () => "https://explorer.solana.com" }),
+}));
 
 const transfer = vi.hoisted(() => ({ sendFunds: vi.fn() }));
 vi.mock("../model/transfer", async () => {
@@ -148,9 +151,7 @@ describe("features/fund-wallet/ui/FundDialog", () => {
 
     await connectPhantom();
 
-    expect(screen.getByRole("alert").textContent).toContain(
-      "You declined in Phantom. Nothing was sent."
-    );
+    expect(screen.getByText("You declined in Phantom.")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Connect Phantom" })
     ).toBeTruthy();
@@ -187,7 +188,7 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     );
     const onOpenChange = await renderOpen();
     await connectPhantom();
-    fireEvent.change(screen.getByLabelText("Amount (SOL)"), {
+    fireEvent.change(screen.getByLabelText("Amount"), {
       target: { value: "0.5" },
     });
 
@@ -195,12 +196,10 @@ describe("features/fund-wallet/ui/FundDialog", () => {
       fireEvent.click(sendButton());
     });
 
-    expect(screen.getByRole("alert").textContent).toContain(
-      "You declined in Phantom. Nothing was sent."
+    expect(screen.getByText("You declined in Phantom.")).toBeTruthy();
+    expect((screen.getByLabelText("Amount") as HTMLInputElement).value).toBe(
+      "0.5"
     );
-    expect(
-      (screen.getByLabelText("Amount (SOL)") as HTMLInputElement).value
-    ).toBe("0.5");
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
     expect(events("fund_failed")).toEqual([
       expect.objectContaining({
@@ -221,12 +220,15 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     });
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "Couldn't send the SOL."
+      "Couldn't send 1 SOL"
     );
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
     expect(screen.getByRole("alert").textContent).toContain(
       "Blockhash not found"
     );
-    expect(sendButton().hasAttribute("disabled")).toBe(false);
+    expect(
+      screen.getByRole("button", { name: "Try again" }).hasAttribute("disabled")
+    ).toBe(false);
     expect(events("fund_failed")).toEqual([
       expect.objectContaining({ params: { stage: "send", reason: "network" } }),
     ]);
@@ -246,7 +248,9 @@ describe("features/fund-wallet/ui/FundDialog", () => {
       fireEvent.click(sendButton());
     });
 
-    expect(screen.getByRole("alert").textContent).toContain("5igNaTuRe");
+    expect(
+      screen.getByRole("link", { name: /^View 5igNaTuRe on Explorer/ })
+    ).toBeTruthy();
     expect(sendButton().hasAttribute("disabled")).toBe(true);
     expect(events("fund_failed")).toEqual([
       expect.objectContaining({
@@ -262,7 +266,7 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     await connectPhantom();
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "Couldn't connect the wallet."
+      "Couldn't connect the wallet"
     );
     expect(events("fund_wallet_connected")).toEqual([]);
   });
@@ -281,7 +285,7 @@ describe("features/fund-wallet/ui/FundDialog", () => {
   it("toasts a small amount without an exponent", async () => {
     await renderOpen();
     await connectPhantom();
-    fireEvent.change(screen.getByLabelText("Amount (SOL)"), {
+    fireEvent.change(screen.getByLabelText("Amount"), {
       target: { value: "0.0000001" },
     });
 

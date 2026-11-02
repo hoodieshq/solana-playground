@@ -31,6 +31,8 @@ const renderDialog = (props: Partial<BaseFundDialogProps>) =>
       onConnect={props.onConnect ?? vi.fn().mockResolvedValue(undefined)}
       onSend={props.onSend ?? vi.fn().mockResolvedValue(undefined)}
       failure={props.failure === undefined ? null : props.failure}
+      sending={props.sending}
+      sent={props.sent}
     />
   );
 
@@ -70,15 +72,15 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     expect(
       screen.getByText("No wallet extension found in this browser.")
     ).toBeTruthy();
-    expect(screen.queryByLabelText("Amount (SOL)")).toBeNull();
+    expect(screen.queryByLabelText("Amount")).toBeNull();
   });
 
   it("shows the connected payer's short address and balance", () => {
     renderDialog({ payer: PAYER });
 
     expect(screen.getByText("7Hq5…Xk2P")).toBeTruthy();
-    expect(screen.getByText(/· 2 SOL$/)).toBeTruthy();
-    expect(screen.getByLabelText("Amount (SOL)").id).toBe("fund-amount");
+    expect(screen.getByText("2 SOL available")).toBeTruthy();
+    expect(screen.getByLabelText("Amount").id).toBe("fund-amount");
     expect(sendButton().textContent).toContain("Send 1 SOL");
     expect(sendButton().hasAttribute("disabled")).toBe(false);
   });
@@ -88,8 +90,38 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
       payer: { name: "Phantom", address: PAYER.address, balance: 0.5 },
     });
 
-    expect(sendButton().hasAttribute("disabled")).toBe(true);
-    expect(screen.getByText("Phantom holds 0.5 SOL.")).toBeTruthy();
+    const button = screen.getByRole("button", { name: "Not enough SOL" });
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(
+      screen.getByText("Phantom has 0.5 SOL. You can send up to 0.499 SOL.")
+    ).toBeTruthy();
+  });
+
+  it("fills the balance less the fee on Max", () => {
+    const onAmountChange = vi.fn();
+    renderDialog({ payer: PAYER, onAmountChange });
+
+    fireEvent.click(screen.getByRole("button", { name: "Use max, 1.999 SOL" }));
+
+    expect(onAmountChange).toHaveBeenCalledWith("1.999");
+  });
+
+  it("offers no Max while the balance loads", () => {
+    renderDialog({
+      payer: { name: "Phantom", address: PAYER.address, balance: "loading" },
+    });
+
+    expect(screen.queryByRole("button", { name: /^Use max/ })).toBeNull();
+  });
+
+  it("asks for the approval in the send button while the wallet waits", () => {
+    renderDialog({ payer: PAYER, sending: true });
+
+    const button = screen.getByRole("button", { name: /Approve in Phantom…$/ });
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(
+      screen.getByText("Nothing is sent until you approve it in Phantom.")
+    ).toBeTruthy();
   });
 
   it.each(["abc", "0", "-1"])(
@@ -115,7 +147,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     const onAmountChange = vi.fn();
     renderDialog({ payer: PAYER, onAmountChange });
 
-    fireEvent.change(screen.getByLabelText("Amount (SOL)"), {
+    fireEvent.change(screen.getByLabelText("Amount"), {
       target: { value: "0.25" },
     });
 
@@ -125,16 +157,16 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
   it.each([
     [
       { kind: "connect-declined" as const, wallet: "Phantom" },
-      "You declined in Phantom. Nothing was sent.",
+      "You declined in Phantom.",
     ],
     [
       { kind: "send-declined" as const, wallet: "Phantom" },
-      "You declined in Phantom. Nothing was sent.",
+      "You declined in Phantom.",
     ],
   ])("says when %j", (failure, text) => {
     renderDialog({ payer: PAYER, failure });
 
-    expect(screen.getByRole("alert").textContent).toContain(text);
+    expect(screen.getByText(text)).toBeTruthy();
   });
 
   it("says the SOL could not be sent, with the reason, and allows a retry", () => {
@@ -144,18 +176,21 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     });
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "Couldn't send the SOL."
+      "Couldn't send 1 SOL"
     );
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
     expect(screen.getByRole("alert").textContent).toContain(
       "Blockhash not found"
     );
-    expect(sendButton().hasAttribute("disabled")).toBe(false);
+    expect(
+      screen.getByRole("button", { name: "Try again" }).hasAttribute("disabled")
+    ).toBe(false);
   });
 
-  it("names the cluster the SOL goes to", () => {
+  it("names the network the SOL goes to", () => {
     renderDialog({ payer: PAYER, cluster: "mainnet-beta" });
 
-    expect(screen.getByText("Sent on mainnet-beta.")).toBeTruthy();
+    expect(screen.getByText("mainnet")).toBeTruthy();
   });
 
   it("warns above Send on mainnet only", () => {
@@ -187,10 +222,19 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     });
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "The SOL was sent, but not confirmed yet."
+      "Sent, not confirmed yet"
     );
     expect(screen.getByRole("alert").textContent).toContain("5igNaTuRe");
     expect(sendButton().hasAttribute("disabled")).toBe(true);
+  });
+
+  it("shows a confirmed transfer in place of the form, with Done", () => {
+    renderDialog({ payer: PAYER, sent: { sol: 1, signature: "5igNaTuRe" } });
+
+    expect(screen.getByText("1 SOL sent to Wallet 1")).toBeTruthy();
+    expect(screen.queryByLabelText("Amount")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Send/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Done" })).toBeTruthy();
   });
 
   it("asks for at most 9 decimals", () => {

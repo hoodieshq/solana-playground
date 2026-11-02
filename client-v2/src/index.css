@@ -40,6 +40,18 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
+ * The design system's base border colour (design-system/src/index.css). Its
+ * components write a bare `border-t` and expect the token; without this,
+ * preflight leaves it at currentColor and a dialog footer, a drawer or a
+ * sheet edge draws in the text colour. Unlayered styled rules still win.
+ */
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+/*
  * The resolve view's hunk lines, and the lines a side changed on its own
  * (`changed`), in Monaco, which keeps only plain class
  * names on a decoration (`hunkLineClass` in features/persistence). Each is
