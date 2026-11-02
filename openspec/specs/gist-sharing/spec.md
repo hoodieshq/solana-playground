@@ -138,7 +138,20 @@ request did not complete.
 #### Scenario: Rate limited
 
 - **WHEN** `/api/gists` answers `429`
-- **THEN** the dialog says GitHub is limiting requests and to try again later
+- **THEN** the dialog says "GitHub is limiting requests from this browser. Try
+  again in a few minutes."
+
+#### Scenario: GitHub refused the gist
+
+- **WHEN** `/api/gists` answers `422` with reason `rejected`
+- **THEN** the dialog says "GitHub refused the gist. Nothing was published."
+
+#### Scenario: Request failed
+
+- **WHEN** `/api/gists` answers `502` with reason `request-failed`, or the
+  request does not complete
+- **THEN** the dialog says "Could not export to GitHub. Nothing was
+  published."
 
 #### Scenario: Authorization revoked
 

@@ -268,19 +268,19 @@ it.each([
   [
     429,
     { reason: "rate-limited" },
-    /GitHub is limiting requests from this browser\. Try again in a few minutes\./,
+    "GitHub is limiting requests from this browser. Try again in a few minutes.",
     "rate-limited",
   ],
   [
     422,
     { reason: "rejected" },
-    /Could not export to GitHub\. Nothing was published\./,
+    "GitHub refused the gist. Nothing was published.",
     "rejected",
   ],
   [
     502,
     { reason: "request-failed" },
-    /Could not export to GitHub\. Nothing was published\./,
+    "Could not export to GitHub. Nothing was published.",
     "request-failed",
   ],
 ])(
