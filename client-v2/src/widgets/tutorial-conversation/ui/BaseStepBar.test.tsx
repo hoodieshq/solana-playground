@@ -104,6 +104,26 @@ describe("BaseStepBar", () => {
     expect(onJump).toHaveBeenCalledWith(1, "menu");
   });
 
+  it("keeps the last step live after the finish, when no step is current", () => {
+    const finished = onStep3.map((s) => step(s.id, s.short, s.title, "done"));
+    const { unmount } = render(
+      <BaseStepBar {...props({ steps: finished, live: 3 })} />
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "Step 4 of 4, Name argument, done" })
+        .getAttribute("aria-current")
+    ).toBe("step");
+    unmount();
+
+    render(
+      <BaseStepBar {...props({ steps: finished, live: 3, narrow: true })} />
+    );
+    expect(
+      screen.getByRole("button", { name: /Step 4 of 4/ }).textContent
+    ).toBe("Step 4 of 4·Name");
+  });
+
   it("reads the step count before Start, with nothing to open", () => {
     const fresh = onStep3.map((s) =>
       step(s.id, s.short, s.title, "not_reached")

@@ -81,8 +81,9 @@ const headOf = (r: RunResult): { title: string; meta: string } => {
  *
  * TODO(tutorial-flow-v2 4.2): an open failed deploy, run or call draws no
  * button yet. Its card is the run tickets' (4.2: Try again and Open faucet;
- * 4.3: a failed transaction), and no step passes until a runner is wired, so
- * none of these results can reach the feed before then.
+ * 4.3: a failed transaction). In Hello Anchor, the one definition so far, no
+ * deploy, run or call act is reachable before step 1's build passes, which
+ * needs a wired runner.
  */
 const BaseResultCard = ({
   result,

@@ -1,6 +1,6 @@
 import { act, render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ActBeat, TutorialDefinition } from "@/entities/tutorial";
 import type {
@@ -36,12 +36,21 @@ vi.mock("@/utils/explorer", () => ({
   PgExplorer: {
     convertToFullPath: (p: string) => `/hello/${p}`,
     getFileContent: () => "a\nb\nc\nd\ne\nf\ng",
+    currentWorkspaceName: "hello",
+    currentFilePath: "",
     saveEditorPosition: vi.fn(),
     openFile: vi.fn(),
     getFile: vi.fn(),
     onDidCreateItem: vi.fn(),
   },
 }));
+vi.mock("@/shared/lib/report-button-failure", () => {
+  const refuse = vi.fn();
+  return {
+    reportButtonFailure: vi.fn(() => refuse),
+    markUnavailableHere: vi.fn(),
+  };
+});
 vi.mock("@/utils/editor", () => ({
   PgEditor: { revealLine: vi.fn() },
 }));
@@ -52,6 +61,10 @@ vi.mock("@/entities/tutorial", async () => ({
 
 import { PgConversation } from "@/features/tutorial-conversation";
 import { tutorialTelemetry } from "@/entities/tutorial/model/telemetry";
+import {
+  markUnavailableHere,
+  reportButtonFailure,
+} from "@/shared/lib/report-button-failure";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import {
@@ -144,10 +157,14 @@ const loaded = (): ConversationState => ({
     stage: null,
   },
   loadFailed: false,
-  loadedAt: 0,
+  loadedAt: 1000,
 });
 
 const dispose = vi.fn();
+
+afterEach(() => {
+  (PgExplorer as unknown as { currentFilePath: string }).currentFilePath = "";
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -315,10 +332,13 @@ describe("TutorialConversation", () => {
       notify = cb;
       return { dispose: vi.fn() };
     });
-    // The first render, before the store has read the save
+    // The first render, before the store has read the save: the store's
+    // initial state, its cursor on the intro (`INITIAL_CONVERSATION_STATE`)
+    const initial = loaded().engine;
+    initial.progress.cursor = { kind: "intro" };
     store.state = {
       context: null,
-      engine: loaded().engine,
+      engine: initial,
       loadFailed: false,
       loadedAt: 0,
     };
@@ -341,9 +361,9 @@ describe("TutorialConversation", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Show lines 5 to 6 in src/lib.rs" })
     );
-    expect(PgEditor.revealLine).toHaveBeenCalledWith(5);
+    expect(PgEditor.revealLine).toHaveBeenCalledWith("/hello/src/lib.rs", 5);
+    expect(PgExplorer.saveEditorPosition).toHaveBeenCalled();
     expect(PgExplorer.openFile).not.toHaveBeenCalled();
-    (PgExplorer as unknown as { currentFilePath: string }).currentFilePath = "";
   });
 
   it("refuses to open a file the workspace does not hold, and says so", async () => {
@@ -354,6 +374,21 @@ describe("TutorialConversation", () => {
     );
     expect(PgExplorer.saveEditorPosition).not.toHaveBeenCalled();
     expect(PgExplorer.openFile).not.toHaveBeenCalled();
+    expect(reportButtonFailure).toHaveBeenCalledWith("open src/lib.rs");
+    expect(markUnavailableHere).toHaveBeenCalledWith(
+      expect.any(Error),
+      "it is not in this project"
+    );
+  });
+
+  it("leaves the editor as it is when a jumped-to step's file is gone, and says nothing", async () => {
+    vi.mocked(PgExplorer.getFile).mockReturnValue(null);
+    render(<TutorialConversation />);
+    await userEvent.click(
+      screen.getByRole("button", { name: `Step 1 of 4, ${step1.title}, done` })
+    );
+    expect(PgExplorer.openFile).not.toHaveBeenCalled();
+    expect(reportButtonFailure).not.toHaveBeenCalled();
   });
 
   it("presses the live act on ⌘↵", () => {

@@ -14,6 +14,8 @@ export const UNDER_BAR = 12;
 const NARROW_PX = 24 * 16;
 const FLASH_MS = 700;
 const SCROLL_MS = 320;
+/** How long a jump's smooth scroll may take to settle before scrolling counts as the learner's */
+const JUMP_SETTLE_MS = 700;
 
 export interface BaseFeedProps {
   turns: readonly Turn[];
@@ -76,6 +78,8 @@ const BaseFeed = ({
   const dividers = useRef(new Map<string, HTMLElement>());
   const liveCard = useRef<HTMLDivElement | null>(null);
   const [viewing, setViewing] = useState<number | null>(null);
+  /** Until when the feed's scroll is a jump's, in ms since the epoch */
+  const jumping = useRef(0);
   const [liveOffScreen, setLiveOffScreen] = useState(false);
   const narrow = useNarrow(root);
   const liveIndex = liveStepIndex(steps);
@@ -100,6 +104,10 @@ const BaseFeed = ({
         { duration: FLASH_MS, easing: "ease-out" }
       );
     }
+    // The scroll this starts is the jump's, not the learner's: its events
+    // must not move "viewing" again, as the bottom rule in `onScroll` would
+    // when the target and everything after it fit on screen
+    jumping.current = Date.now() + (reducedMotion() ? 100 : JUMP_SETTLE_MS);
     setViewing(index === liveIndex ? null : index);
     onJump(index, liveIndex ?? index, via);
   };
@@ -132,7 +140,7 @@ const BaseFeed = ({
   // the step before it
   const onScroll = () => {
     const box = scroller.current;
-    if (!box) return;
+    if (!box || Date.now() < jumping.current) return;
     if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
       setViewing(null);
       return;

@@ -29,6 +29,7 @@ import {
 import { resolveColor, TRANSPARENT } from "../../../shared/lib/css-color";
 import { createMountOpen } from "./mount-open";
 import { leavesFocusElsewhere } from "./open-focus";
+import { revealAtThird } from "./reveal-line";
 import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("editor:monaco");
@@ -481,15 +482,13 @@ const Monaco = () => {
       if (!editor.hasTextFocus()) editor.focus();
     };
 
-    // The line a third of the way down, as the tutorial's wrote card asks
+    // A line asked for by name, as the tutorial's feed does: only when it is
+    // in the file this editor shows
     const handleRevealLine = (e: Event) => {
-      const line = (e as CustomEvent<{ line: number }>).detail?.line;
-      if (!line) return;
-      const third = editor.getLayoutInfo().height / 3;
-      editor.setScrollTop(
-        Math.max(0, editor.getTopForLineNumber(line) - third)
-      );
-      editor.setPosition({ lineNumber: line, column: 1 });
+      const { path, line } =
+        (e as CustomEvent<{ path: string; line: number }>).detail ?? {};
+      if (editor.getModel()?.uri.path !== path) return;
+      revealAtThird(editor, line);
     };
 
     document.addEventListener(PgEditor.events.FOCUS, handleFocus);

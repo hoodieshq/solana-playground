@@ -262,19 +262,66 @@ describe("BaseFeed", () => {
     field.remove();
   });
 
-  it("reads a feed scrolled to its bottom as on the live step", async () => {
-    const { container } = feed();
-    await userEvent.click(segment(/^Step 1 of 4, Program, done$/));
-    const box = container.querySelector("[role='log']")!
+  /** Lay the dividers out at 0, 300 and 900 px, and the feed at `scrollTop` */
+  const layout = (
+    container: HTMLElement,
+    box: { scrollTop: number; clientHeight: number; scrollHeight: number }
+  ) => {
+    container
+      .querySelectorAll("[data-turn='divider']")
+      .forEach((el, i) =>
+        Object.defineProperty(el, "offsetTop", { value: [0, 300, 900][i] })
+      );
+    const scroller = container.querySelector("[role='log']")!
       .parentElement as HTMLElement;
-    Object.defineProperty(box, "scrollTop", { value: 600 });
-    Object.defineProperty(box, "clientHeight", { value: 400 });
-    Object.defineProperty(box, "scrollHeight", { value: 1000 });
+    for (const [key, value] of Object.entries(box)) {
+      Object.defineProperty(scroller, key, { value, configurable: true });
+    }
+    return scroller;
+  };
+
+  it("reads a feed scrolled to its bottom as on the live step, though step 3's divider never reached the bar", () => {
+    const { container } = feed();
+    // Scrolled by hand to the bottom: step 3's divider (900) is below the
+    // bar (600 + 12), so the divider rule alone would name step 2
+    const box = layout(container, {
+      scrollTop: 600,
+      clientHeight: 400,
+      scrollHeight: 1000,
+    });
     fireEvent.scroll(box);
     expect(
-      segment(/^Step 1 of 4, Program, done$/).getAttribute("aria-current")
+      segment(/^Step 2 of 4, .*, done$/).getAttribute("aria-current")
     ).toBeNull();
     expect(screen.queryByRole("button", { name: /^Back to/ })).toBeNull();
+  });
+
+  it("reads a feed scrolled by hand above the bottom as on the step under the bar", () => {
+    const { container } = feed();
+    const box = layout(container, {
+      scrollTop: 600,
+      clientHeight: 400,
+      scrollHeight: 2000,
+    });
+    fireEvent.scroll(box);
+    expect(
+      segment(/^Step 2 of 4, .*, done$/).getAttribute("aria-current")
+    ).toBe("location");
+  });
+
+  it("keeps a jump's target as the location while the jump's own scroll lands at the bottom", async () => {
+    const { container } = feed();
+    const box = layout(container, {
+      scrollTop: 600,
+      clientHeight: 400,
+      scrollHeight: 1000,
+    });
+    await userEvent.click(segment(/^Step 2 of 4, .*, done$/));
+    fireEvent.scroll(box);
+    expect(
+      segment(/^Step 2 of 4, .*, done$/).getAttribute("aria-current")
+    ).toBe("location");
+    expect(screen.getByRole("button", { name: "Back to step 3" })).toBeTruthy();
   });
 
   it("reads Back to the start before Start, once the intro is off screen", () => {

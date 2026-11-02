@@ -9,7 +9,10 @@ import {
 import type { ConversationState } from "@/features/tutorial-conversation";
 import type { StepJumpVia } from "@/entities/tutorial";
 import { createLogger } from "@/shared/lib/logger";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import {
+  markUnavailableHere,
+  reportButtonFailure,
+} from "@/shared/lib/report-button-failure";
 import { Spinner } from "@/shared/ui/spinner";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
@@ -62,42 +65,69 @@ const read = (file: string): string | null => {
   }
 };
 
-/**
- * Show a file's `line` in the editor. The file already open scrolls the line
- * to a third of its height (`PgEditor.revealLine`); a file being opened reads
- * its saved position, set first, with the line eight from the top.
- * TODO(tutorial-flow-v2 2.2): lighting the lines again is the editor's
- * (HOO-2349)
- */
-const showLine = (file: string, line: number) => {
-  const path = PgExplorer.convertToFullPath(file);
-  // A compiler's location, or a quote, can name a file the workspace does not
-  // hold; saving a position for it would throw
-  if (!PgExplorer.getFile(path)) {
-    reportButtonFailure(`open ${file}`)(
-      new Error(`${file} is not in this workspace`)
-    );
-    return;
-  }
-  if (PgExplorer.currentFilePath === path) {
-    PgEditor.revealLine(line);
-    return;
-  }
+/** Where a file opens with a line in view, before the editor can scroll it */
+const savePosition = (path: string, line: number) =>
   PgExplorer.saveEditorPosition(path, {
     cursor: { from: 0, to: 0 },
     topLineNumber: Math.max(1, line - LINES_ABOVE),
   });
-  PgExplorer.openFile(path);
+
+/**
+ * Show a file's `line` in the editor. The file already open scrolls the line
+ * to a third of its height (`PgEditor.revealLine`); a file being opened reads
+ * its saved position, set first, with eight lines above the line. A file the
+ * workspace does not hold, or no workspace at all, is refused with a toast
+ * (`reportButtonFailure`), never a throw out of the click.
+ * TODO(tutorial-flow-v2 2.2): lighting the lines again is the editor's
+ * (HOO-2349)
+ */
+const showLine = (file: string, line: number) => {
+  const refuse = reportButtonFailure(`open ${file}`);
+  try {
+    const path = PgExplorer.convertToFullPath(file);
+    // A compiler's location, or a quote, can name a file the workspace does
+    // not hold; saving a position for it would throw
+    if (!PgExplorer.getFile(path)) {
+      const missing = new Error(`${file} is not in this workspace`);
+      markUnavailableHere(missing, "it is not in this project");
+      refuse(missing);
+      return;
+    }
+    // Saved too for the open file: an editor not mounted yet reads it later
+    savePosition(path, line);
+    if (PgExplorer.currentFilePath === path) PgEditor.revealLine(path, line);
+    else PgExplorer.openFile(path);
+  } catch (e) {
+    // No workspace current (one switching), or the explorer refused the open
+    refuse(e);
+  }
 };
 
 /**
- * Open `file` in the editor now, and again after the next item the workspace
- * creates. Entering a step writes its start files after the engine's state
- * has moved on (the store drains its effects), and on Start the preview's tab
- * did not survive that restore (seen in the browser, 2 Nov 2026), so opening
- * once at the move was not enough.
+ * A step's file at its top, after a jump to the step. The jump already moved
+ * the feed; a step whose file is gone (renamed, or replaced by a later step's
+ * start) leaves the editor as it is rather than raising a failure for it.
+ */
+const showStepFile = (file: string) => {
+  if (!PgExplorer.currentWorkspaceName) return;
+  if (!PgExplorer.getFile(PgExplorer.convertToFullPath(file))) {
+    log.debug("a jumped-to step's file is not in the workspace", {
+      context: { file },
+    });
+    return;
+  }
+  showLine(file, 1);
+};
+
+/**
+ * Open `file` in the editor now, and again once a later create in the
+ * workspace leaves it there. Entering a step writes its start files after
+ * the engine's state has moved on (the store drains its effects), and on
+ * Start the preview's tab did not survive step 1's start files being written
+ * over it (seen in the browser, 2 Nov 2026), so opening once at the move was
+ * not enough.
  *
- * @returns the subscription still waiting for that write
+ * @returns a disposer for the subscription
  */
 const openWhenWritten = (file: string): (() => void) => {
   const path = PgExplorer.convertToFullPath(file);
@@ -113,26 +143,24 @@ const openWhenWritten = (file: string): (() => void) => {
 /**
  * The step the lesson enters opens its main file, as the spec's "the
  * workspace swaps the preview for the step's start files" reads. The first
- * cursor of each loaded context is a load, not an entry: the store reads the
- * save after the first render, and a reload restores the workspace's own tabs.
+ * cursor of each load (`ConversationState.loadedAt`) is not an entry: the
+ * store reads the save after the first render, and a reload restores the
+ * workspace's own tabs.
  */
 const useOpenEnteredStep = (state: ConversationState) => {
   const cursor = state.engine.progress.cursor;
   const stepId = cursor.kind === "step" ? cursor.stepId : null;
-  const context = state.context;
-  const seen = useRef<{
-    context: ConversationState["context"];
-    stepId: string | null;
-  } | null>(null);
+  const { context, loadedAt } = state;
+  const seen = useRef<{ loadedAt: number; stepId: string | null } | null>(null);
   useEffect(() => {
     const before = seen.current;
-    seen.current = { context, stepId };
-    // No save yet, a load, or another workspace's load: nothing was entered
-    if (!context || !before || before.context !== context) return;
+    seen.current = { loadedAt, stepId };
+    // No save yet, or a load: nothing was entered
+    if (!context || !before || before.loadedAt !== loadedAt) return;
     if (!stepId || stepId === before.stepId) return;
     const step = context.definition.steps.find((s) => s.id === stepId);
     return step ? openWhenWritten(step.file) : undefined;
-  }, [stepId, context]);
+  }, [stepId, loadedAt, context]);
 };
 
 const handlers: TurnHandlers = {
@@ -203,7 +231,7 @@ export const TutorialConversation = () => {
         from: from + 1,
         via,
       });
-      showLine(definition.steps[index].file, 1);
+      showStepFile(definition.steps[index].file);
     },
     []
   );

@@ -15,7 +15,11 @@ export type JumpVia = Exclude<StepJumpVia, "key">;
 
 export interface BaseStepBarProps {
   steps: readonly StepBarItem[];
-  /** The live step's index (`liveStepIndex`): the current one, or the last passed after the finish; null before Start */
+  /**
+   * The live step's index, which must be `liveStepIndex(steps)`: the current
+   * one, or the last passed after the finish; null before Start. The feed
+   * passes it, so the bar and the feed agree on one live step.
+   */
   live: number | null;
   /** The step the feed is scrolled into, by index, when it is not the live one */
   viewing: number | null;
@@ -61,8 +65,10 @@ const Glyph = ({ step, index }: { step: StepBarItem; index: number }) => (
 
 /**
  * The segments are raw `button`s: a step segment, its glyph and its
- * connector are the prototype's, and the design system has no segmented step
- * control to install (`step-rail` is the v1 lesson's vertical rail).
+ * connector are the prototype's, and neither of the design system's step
+ * parts fits: `step-rail` is the v1 lesson's vertical rail, and `stepper` is
+ * a Tabs switch with one selection (the Write, Build, Deploy loop), where
+ * these are jump buttons marked with `aria-current`.
  *
  * The tutorial's steps under the chat head: one button per step, labelled
  * with its short label, and the progress hairline on the bar's bottom edge.

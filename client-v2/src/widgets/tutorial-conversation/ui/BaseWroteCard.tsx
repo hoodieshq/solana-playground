@@ -28,7 +28,7 @@ export const rangeOf = (lines: readonly number[]) => {
 /**
  * The whole card is a raw `button`: the design system's `Button` draws a
  * control, not a card, and has no card variant (the prototype's wrote card is
- * one), so this keeps the card's own frame and takes the focus ring from it.
+ * one), so this keeps the card's own frame and draws its own focus outline.
  *
  * What a write put in a file: the path, the range, the first three lines and
  * "Show in <file>". The whole card is the button. A created file reads
@@ -60,7 +60,7 @@ const BaseWroteCard = ({
         type="button"
         aria-label={`Show ${wrote.file}`}
         onClick={() => onShow(wrote.file, first)}
-        className="flex h-8 w-full items-center gap-2 rounded-control border border-border bg-surface-panel px-3 text-left hover:border-border-strong"
+        className="flex h-8 w-full items-center gap-2 rounded-control border border-border bg-surface-panel px-3 text-left outline-none hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand-purple"
       >
         <FilePlus2
           aria-hidden="true"
@@ -82,7 +82,7 @@ const BaseWroteCard = ({
       type="button"
       aria-label={`Show ${range} in ${wrote.file}`}
       onClick={() => onShow(wrote.file, first)}
-      className="w-full overflow-hidden rounded-control border border-border bg-surface-panel text-left hover:border-border-strong"
+      className="w-full overflow-hidden rounded-control border border-border bg-surface-panel text-left outline-none hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand-purple"
     >
       <span className="flex h-8 items-center gap-2 px-3">
         <FileCode

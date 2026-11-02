@@ -11,7 +11,8 @@ import { PgTutorial } from "../../../utils/tutorial/tutorial";
  * as it is: the engine's save says where the learner is.
  *
  * `PgTutorial.start` starts the current tutorial, which the route has set by
- * the time it calls this, and ends by navigating to `/tutorials/<slug>/1`.
+ * the time it calls this, and ends by opening its page: 1, unless the route
+ * named one.
  *
  * @param definition the definition of the tutorial the route opened
  */

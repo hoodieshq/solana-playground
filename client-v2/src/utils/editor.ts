@@ -14,14 +14,16 @@ export class PgEditor {
   }
 
   /**
-   * Scroll the open file so `line` sits a third of the way down the editor,
-   * with the caret at its start. Only the file already open moves: a file
-   * being opened reads its saved position instead.
+   * Scroll the editor so `line` sits a third of the way down, with the caret
+   * at its start, if the file open in it is `path`; another file stays where
+   * it is. A file being opened reads its saved position instead.
    *
+   * @param path full path of the file the line is in
    * @param line 1-based line number
    */
-  static revealLine(line: number) {
+  static revealLine(path: string, line: number) {
     PgCommon.createAndDispatchCustomEvent(PgEditor.events.REVEAL_LINE, {
+      path,
       line,
     });
   }
