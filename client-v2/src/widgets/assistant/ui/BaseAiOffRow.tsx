@@ -36,21 +36,25 @@ export interface BaseAiOffRowProps {
   signInError: string | null;
   /** A sign-in is under way, so a second press would only join it */
   signingIn: boolean;
+  /** A Try again is under way, so a second press would only join it */
+  retrying: boolean;
   onAddKey(): void;
   onSignIn(): void;
   onRetry(): void;
 }
 
 /**
- * The composer's top row while no model can answer this user (Spec 06: the
- * composer stays visible and its top row says the AI is off): why, and the
- * one way in. Above the composer, never in its place.
+ * The composer's top row while no model can answer this user: why, and the
+ * one way in. The designers' first-run spec keeps the composer on screen and
+ * puts the reason in its top row, so this sits above the composer, never in
+ * its place.
  */
 export function BaseAiOffRow({
   reason,
   promptWaiting,
   signInError,
   signingIn,
+  retrying,
   onAddKey,
   onSignIn,
   onRetry,
@@ -61,7 +65,9 @@ export function BaseAiOffRow({
       <CalloutDescription>
         {text}
         {promptWaiting && " Your prompt is waiting in the composer."}
-        {signInError && <span className="block">{signInError}</span>}
+        {action === "sign-in" && signInError && (
+          <span className="block">{signInError}</span>
+        )}
       </CalloutDescription>
       <div className="mt-2 flex flex-wrap gap-2">
         {action === "sign-in" && (
@@ -70,7 +76,7 @@ export function BaseAiOffRow({
           </Button>
         )}
         {action === "retry" && (
-          <Button size="sm" onClick={onRetry}>
+          <Button size="sm" onClick={onRetry} disabled={retrying}>
             Try again
           </Button>
         )}

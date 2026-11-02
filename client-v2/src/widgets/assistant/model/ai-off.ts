@@ -30,11 +30,21 @@ export const aiOff = ({
   signedIn,
 }: AiOffInput): AiOffReason | null => {
   if (connected !== null && !isDefaultBackend(connected)) return null;
-  if (backend.state === "checking") return null;
-  if (backend.state === "absent") return "no-key";
-  if (backend.state === "unreachable") return "unreachable";
-  if (signedIn === null) return null;
-  return signedIn ? null : "signed-out";
+  switch (backend.state) {
+    case "checking":
+      return null;
+    case "absent":
+      return "no-key";
+    case "unreachable":
+      return "unreachable";
+    case "present":
+      if (signedIn === null) return null;
+      return signedIn ? null : "signed-out";
+    default: {
+      const unknown: never = backend;
+      return unknown;
+    }
+  }
 };
 
 if (import.meta.vitest) {

@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -154,10 +154,15 @@ describe("probeDefaultBackend", () => {
     expectFailure("body");
   });
 
-  it("is unreachable and reported on a hosted key with an unknown reason", async () => {
+  it("offers a hosted key whose reason it does not know", async () => {
+    // A reason a later server adds still names a key the deployment holds;
+    // only `unavailable` says the server could not tell
     answer(hosted("m", "sleeping"));
-    expect(await probeDefaultBackend()).toEqual({ state: "unreachable" });
-    expectFailure("body");
+    expect(await probeDefaultBackend()).toEqual({
+      state: "present",
+      model: "m",
+    });
+    expect(logs.entries).toEqual([]);
   });
 
   it("is unreachable and reported when the body is not JSON", async () => {
@@ -220,6 +225,74 @@ describe("probeDefaultBackend", () => {
     expect(events.events.map((e) => e.name)).toEqual([
       "assistant_default_probe_retried",
     ]);
+  });
+});
+
+describe("retryDefaultBackend", () => {
+  /** A fetch whose answers the test hands out one by one, in any order */
+  const heldFetch = () => {
+    const pending: ((body: unknown) => void)[] = [];
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          pending.push((body) =>
+            resolve({
+              ok: true,
+              status: 200,
+              json: async () => body,
+            } as Response)
+          );
+        })
+    );
+    return { spy, pending };
+  };
+
+  it("lets no earlier answer overwrite the retry's", async () => {
+    const { pending } = heldFetch();
+    const { result } = renderHook(() => useDefaultBackend());
+    const retried = retryDefaultBackend();
+    await waitFor(() => expect(pending).toHaveLength(2));
+    // The retry answers first, then the page's first request, late
+    pending[1](hosted("m"));
+    await retried;
+    await waitFor(() =>
+      expect(result.current).toEqual({ state: "present", model: "m" })
+    );
+    await act(async () => {
+      pending[0](own);
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(result.current).toEqual({ state: "present", model: "m" });
+    expect(await probeDefaultBackend()).toEqual({
+      state: "present",
+      model: "m",
+    });
+  });
+
+  it("joins a retry already under way rather than asking twice", async () => {
+    const { spy, pending } = heldFetch();
+    const first = retryDefaultBackend();
+    const second = retryDefaultBackend();
+    expect(spy).toHaveBeenCalledTimes(1);
+    pending[0](own);
+    expect(await first).toEqual({ state: "absent" });
+    expect(await second).toEqual({ state: "absent" });
+  });
+
+  it("tells every reader the default is unreachable when the asking throws", async () => {
+    answer(own);
+    const { result } = renderHook(() => useDefaultBackend());
+    await waitFor(() => expect(result.current).toEqual({ state: "absent" }));
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+    vi.spyOn(assistantTelemetry, "track").mockImplementation((name) => {
+      if (name === "assistant_default_probe_failed") {
+        throw new Error("telemetry is broken");
+      }
+    });
+    await expect(retryDefaultBackend()).rejects.toThrow("telemetry is broken");
+    await waitFor(() =>
+      expect(result.current).toEqual({ state: "unreachable" })
+    );
   });
 });
 

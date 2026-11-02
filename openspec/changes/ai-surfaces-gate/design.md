@@ -39,9 +39,10 @@ probe later); the daily cap; retiring `GET /api/agent`'s probe.
    once-per-page cache would have to be keyed by session, and five readers
    would change for no visible gain; `PgSession` reads the same cookie the
    route does.
-2. **The off row is derived, not stored.** `aiOff(connection, backend,
-   signedIn)` in `widgets/assistant/model` returns `null | "no-key" |
-   "signed-out" | "unreachable"`; the composer renders the row and Send's
+2. **The off row is derived, not stored.** `aiOff({ connected, backend,
+   signedIn })` in `widgets/assistant/model`, with `connected` the connected
+   provider or `null`, returns `null | "no-key" | "signed-out" |
+   "unreachable"`; the composer renders the row and Send's
    tooltip from it. The row is a design-system `Callout` with buttons, in
    `AssistantComposer` (connected) over `BaseAssistantComposer`, which keeps
    taking `sendBlocked` as a string.
@@ -51,8 +52,10 @@ probe later); the daily cap; retiring `GET /api/agent`'s probe.
    So HOO-1719's rule (never continue a key-based thread on the hosted
    model) holds from the row too.
 4. **Try again resets the probe.** A `retryDefaultBackend()` drops the cached
-   answer and re-asks; `useDefaultBackend` subscribes to answers, so every
-   reader updates. Today the hook reads once on mount.
+   answer and re-asks; a second press joins the retry under way.
+   `useDefaultBackend` subscribes to answers, so every reader updates, and
+   only the latest request's answer is handed out: an earlier request that
+   settles after a retry never overwrites it.
 5. **Entry points outside the panel stay mounted.** They already place a
    prompt in the composer when it cannot be sent; the row now explains why.
    Hiding them would hide the one route to the explanation.

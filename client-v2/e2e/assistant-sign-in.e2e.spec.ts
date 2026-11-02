@@ -72,16 +72,17 @@ const send = async (page: Page, text: string) => {
 };
 
 /**
- * Asks once more after the session ended: Send, or, once the panel knows
- * nobody is signed in, the off row's Add a key, since Send then waits
+ * Asks once more after the session ended. The panel knows nobody is signed
+ * in by then (a sign-out, or the turn's 401 re-reading the session), so Send
+ * waits and the off row's Add a key is the way to Connect a model
  */
 const askAgain = async (page: Page, text: string) => {
   await composer(page).fill(text);
   const addKey = page
     .locator("#assistant-ai-off")
     .getByRole("button", { name: "Add a key" });
-  if (await addKey.isVisible()) await addKey.click();
-  else await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(addKey).toBeVisible(LONG);
+  await addKey.click();
 };
 
 /** Connect a model, open on the default backend and offering sign-in for it */

@@ -15,8 +15,9 @@ export type DefaultBackend =
   | { state: "absent" }
   /**
    * The asking failed, or the server could not read the caller's session, so
-   * whether there is a default is not known: nothing offers it, and a send
-   * asks again rather than taking the deployment for one without
+   * whether there is a default is not known: nothing offers it, and the off
+   * row's Try again, or any later probe, asks again rather than taking the
+   * deployment for one without
    */
   | { state: "unreachable" }
   | { state: "present"; model: string | null };
@@ -33,12 +34,37 @@ type Asked = { backend: DefaultBackend; failed: boolean };
 
 let probe: Promise<DefaultBackend> | undefined;
 
-/** Readers of every settled answer: `useDefaultBackend`, after a retry */
+/** The retry under way, which a second Try again joins */
+let retrying: Promise<DefaultBackend> | undefined;
+
+/**
+ * How many answers have been handed out, so a reader holding the promise of
+ * an earlier request can tell that a newer answer reached it already
+ */
+let answers = 0;
+
+/** Readers of every settled answer, a retry's included: each `useDefaultBackend` */
 const listeners = new Set<(backend: DefaultBackend) => void>();
+
+/**
+ * Hand an answer to every reader. One that throws is reported and skipped,
+ * so it neither keeps the answer from the rest nor fails the probe.
+ */
+const broadcast = (backend: DefaultBackend) => {
+  answers += 1;
+  listeners.forEach((listener) => {
+    try {
+      listener(backend);
+    } catch (error) {
+      log.error(error, { report: true, context: { reason: "listener" } });
+    }
+  });
+};
 
 /** Test-only: forget the cached answer so the next probe asks again */
 export const resetDefaultBackendProbe = () => {
   probe = undefined;
+  retrying = undefined;
 };
 
 const failed = (reason: ProbeFailure, error: unknown): Asked => {
@@ -54,9 +80,6 @@ const answered = (backend: DefaultBackend): Asked => ({
 
 /** `GET /api/ai/status`'s body, as far as the probe reads it */
 type StatusBody = { key?: unknown; reason?: unknown; model?: unknown };
-
-/** A hosted key's `reason`s the probe knows; `unavailable` is a failure */
-const HOSTED_REASONS: ReadonlySet<unknown> = new Set([null, "signed-out"]);
 
 const ask = async (): Promise<Asked> => {
   let res: Response;
@@ -98,9 +121,6 @@ const ask = async (): Promise<Asked> => {
     });
     return { backend: { state: "unreachable" }, failed: true };
   }
-  if (!HOSTED_REASONS.has(body.reason)) {
-    return failed("body", new Error("Unknown `reason` in the answer"));
-  }
   if (typeof body.model === "string") {
     return answered({ state: "present", model: body.model });
   }
@@ -121,14 +141,21 @@ const ask = async (): Promise<Asked> => {
  */
 export const probeDefaultBackend = (): Promise<DefaultBackend> => {
   if (probe) return probe;
+  // Only the latest request speaks to the readers: one a retry replaced
+  // answers its own callers, never over the retry's answer
   const current: Promise<DefaultBackend> = ask().then(
     ({ backend, failed }) => {
-      if (failed && probe === current) probe = undefined;
-      listeners.forEach((listener) => listener(backend));
+      if (probe !== current) return backend;
+      if (failed) probe = undefined;
+      broadcast(backend);
       return backend;
     },
     (error: unknown) => {
-      if (probe === current) probe = undefined;
+      if (probe !== current) throw error;
+      probe = undefined;
+      // A bug past the probe's own failures: without an answer the default
+      // is not offered, and every reader says so
+      broadcast({ state: "unreachable" });
       throw error;
     }
   );
@@ -141,9 +168,14 @@ export const probeDefaultBackend = (): Promise<DefaultBackend> => {
  * `useDefaultBackend` takes the new answer.
  */
 export const retryDefaultBackend = (): Promise<DefaultBackend> => {
+  if (retrying) return retrying;
   assistantTelemetry.track("assistant_default_probe_retried", {});
   probe = undefined;
-  return probeDefaultBackend();
+  const current = probeDefaultBackend().finally(() => {
+    if (retrying === current) retrying = undefined;
+  });
+  retrying = current;
+  return current;
 };
 
 export const useDefaultBackend = (): DefaultBackend => {
@@ -155,12 +187,20 @@ export const useDefaultBackend = (): DefaultBackend => {
       if (live) setBackend(answer);
     };
     listeners.add(take);
-    probeDefaultBackend().then(take, (error: unknown) => {
-      // The probe answers its own failures, so this is a bug past them;
-      // without an answer the default is not offered
-      log.error(error, { report: true, context: { reason: "hook" } });
-      take({ state: "unreachable" });
-    });
+    // A page that already holds an answer hands it out here; otherwise the
+    // broadcast does, and this one stands down for whatever it delivered
+    const seen = answers;
+    probeDefaultBackend().then(
+      (answer) => {
+        if (answers === seen) take(answer);
+      },
+      (error: unknown) => {
+        // The probe answers its own failures, so this is a bug past them;
+        // without an answer the default is not offered
+        log.error(error, { report: true, context: { reason: "hook" } });
+        take({ state: "unreachable" });
+      }
+    );
     return () => {
       live = false;
       listeners.delete(take);

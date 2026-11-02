@@ -25,7 +25,7 @@ export type AssistantEvents = {
       | "add"
       | "ai-off";
   };
-  /** The composer's off row appeared, once per reason while the panel is mounted; `reason` says whether the deployment has no hosted key, the user is signed out of the hosted model, or the hosted model could not be reached. */
+  /** The composer's off row appeared, once per reason while the composer stays mounted (Sources and tools unmounts it); `reason` says whether the deployment has no hosted key, the user is signed out of the hosted model, or the hosted model could not be reached. */
   assistant_ai_off_shown: { reason: AiOffReason };
   /** The user stopped a turn with the stop button, while it ran or while it counted down to sending a busy message again; it is then the turn's only outcome. */
   assistant_turn_stopped: NoParams;

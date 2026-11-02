@@ -187,9 +187,10 @@ export const json = (r: Route, body: unknown) =>
 /**
  * What `GET /api/ai/status` answers, whatever the dev server is configured
  * with: the hosted model's id (a string, or `null` for one with no name), or
- * `"own"` for a deployment with no hosted key. The client reads `key` and
- * `model` only, and whether someone is signed in from the session, so the
- * hosted answer always reads as signed out.
+ * `"own"` for a deployment with no hosted key. The client takes signed-in-ness
+ * from the session (`stubSession`), not from `reason`, so a hosted answer
+ * carries `reason: "signed-out"` either way; only `reason: "unavailable"`
+ * would change what the client reads.
  */
 export const stubAiStatus = (
   target: Page | BrowserContext,

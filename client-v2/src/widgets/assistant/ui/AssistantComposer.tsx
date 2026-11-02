@@ -13,7 +13,7 @@ import type { LessonState } from "../../../views/flow/lessons";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgProgramInfo } from "../../../utils/program-info";
 import { aiOff } from "../model/ai-off";
-import type { AiOffReason } from "../model/ai-off";
+import type { AiOffInput, AiOffReason } from "../model/ai-off";
 import { modelOptions, modelShown } from "../model/choice";
 import type { ModelOption } from "../model/choice";
 import { connectLabel, DEFAULT_CONNECTION } from "../model/connection";
@@ -152,7 +152,7 @@ const useSignedIn = (): boolean | null => {
  * Why the assistant is off, reported once per reason while the composer is
  * mounted, however often it redraws
  */
-const useAiOff = (input: Parameters<typeof aiOff>[0]) => {
+const useAiOff = (input: AiOffInput) => {
   const reason = aiOff(input);
   const reported = useRef(new Set<AiOffReason>());
   useEffect(() => {
@@ -195,6 +195,9 @@ export function AssistantComposer({
     signedIn,
   });
   const [signInError, setSignInError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  // A failed sign-in speaks for the row it was pressed in, never a later one
+  useEffect(() => setSignInError(null), [off]);
 
   /** The off row's sign-in: Connect a model's, which keeps the open project */
   const signIn = () => {
@@ -215,10 +218,14 @@ export function AssistantComposer({
   };
 
   const retry = () => {
-    retryDefaultBackend().catch((error: unknown) => {
-      // The probe answers its own failures, so this is a bug past them
-      log.error(error, { report: true, context: { from: "ai-off" } });
-    });
+    setRetrying(true);
+    retryDefaultBackend()
+      .catch((error: unknown) => {
+        // The probe answers its own failures and has told every reader the
+        // default is unreachable; this is the bug past them
+        log.error(error, { report: true, context: { from: "ai-off" } });
+      })
+      .finally(() => setRetrying(false));
   };
 
   /**
@@ -305,19 +312,19 @@ export function AssistantComposer({
           promptWaiting={turn.promptWaiting}
           signInError={signInError}
           signingIn={PgSession.signInState().status === "pending"}
+          retrying={retrying}
           onAddKey={turn.addKey}
           onSignIn={signIn}
           onRetry={retry}
         />
       )}
       {!off && turn.promptWaiting && (
+        // With no default at all the off row says it; this is the wait for a
+        // thread's own key, or for the deployment's answer
         <Callout variant="info" role="status">
           <CalloutDescription>
-            {/* No default to sign in for: the model is the one way in */}
-            {shown.kind === "none"
-              ? "Connect a model to send this to the assistant."
-              : "Connect a backend, or sign in for the default one, to send this to the assistant."}{" "}
-            Your prompt is waiting in the composer.
+            Connect a backend, or sign in for the default one, to send this to
+            the assistant. Your prompt is waiting in the composer.
           </CalloutDescription>
         </Callout>
       )}

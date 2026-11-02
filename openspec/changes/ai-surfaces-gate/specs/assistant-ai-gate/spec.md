@@ -10,7 +10,7 @@ so the assistant either works or says why not before anything is typed.
 
 ### Requirement: The panel reads hosted-model availability from the status route
 
-The assistant SHALL learn whether the deployment offers a hosted model, and that model's id, from `GET /api/ai/status` and from no other route. It SHALL read the hosted model as offered when the answer's `key` is `"hosted"` and its `reason` is not `"unavailable"`; as not offered when `key` is `"own"` or the route answers `404`; and as unknown (not offered, asked again by the next caller) when the request fails, the route answers any other non-`2xx` status, the body is not a status answer, or `reason` is `"unavailable"`. Whether someone is signed in SHALL come from the page's session, as before.
+The assistant SHALL learn whether the deployment offers a hosted model, and that model's id, from `GET /api/ai/status` and from no other route. It SHALL read the hosted model as offered when the answer's `key` is `"hosted"` and its `reason` is not `"unavailable"`, whatever other `reason` it carries; as not offered when `key` is `"own"` or the route answers `404`; and as unknown (not offered, asked again by the next caller) when the request fails, the route answers any other non-`2xx` status, the body is not a status answer, or `reason` is `"unavailable"`. Whether someone is signed in SHALL come from the page's session, as before.
 
 #### Scenario: A hosted key is offered (manual)
 
@@ -71,7 +71,7 @@ While nothing usable is connected and the hosted model cannot answer this user, 
 
 The assistant widget SHALL report, through its tracker:
 
-- `assistant_ai_off_shown` when `#assistant-ai-off` appears, with `reason` one of `"no-key"`, `"signed-out"` or `"unreachable"`, at most once per reason while the panel stays mounted;
+- `assistant_ai_off_shown` when `#assistant-ai-off` appears, with `reason` one of `"no-key"`, `"signed-out"` or `"unreachable"`, at most once per reason while the composer stays mounted;
 - `assistant_default_probe_retried` (no parameters) when **Try again** in the row asks the status route again;
 - `assistant_connect_opened` with `via` `"ai-off"` when the row's **Add a key** opens Connect a model;
 - `assistant_default_probe_failed` with `reason` `"session"` when the status route answers `reason: "unavailable"`, alongside its existing `"network"`, `"status"` and `"body"`.
