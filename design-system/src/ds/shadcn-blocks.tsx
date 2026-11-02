@@ -550,7 +550,7 @@ function Overlays() {
 function Navigation() {
   return (
     <>
-      <Block id="tabs" title="Tabs" note="Views of one thing. The line variant sits under a panel's head.">
+      <Block id="tabs" title="Tabs" note="Views of one thing. The line variant sits under a panel's head." className="items-start gap-x-10">
         <Tabs defaultValue="chat">
           <TabsList><TabsTrigger value="chat">Chat</TabsTrigger><TabsTrigger value="sources">Sources</TabsTrigger></TabsList>
           <TabsContent value="chat" className="text-caption text-muted-foreground">Ask about your program.</TabsContent>
