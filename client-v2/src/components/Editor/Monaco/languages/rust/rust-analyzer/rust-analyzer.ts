@@ -9,6 +9,7 @@ import {
   PgCommon,
   PgExplorer,
 } from "../../../../../../utils";
+import { PgAnalyzerStatus } from "./status";
 
 /** Monaco language id for Rust */
 const LANGUAGE_ID = "rust";
@@ -46,9 +47,25 @@ export const initRustAnalyzer = async (): Promise<Disposable> => {
   // retry below spawns another 9MB worker every interval, forever.
   if (!window.crossOriginIsolated) {
     console.warn("Rust Analyzer disabled: the page is not crossOriginIsolated");
+    PgAnalyzerStatus.set({ kind: "off" });
     return { dispose: () => {} };
   }
 
+  // The status indicator reads this; "taking longer" is its call, from `since`
+  PgAnalyzerStatus.set({ kind: "starting", since: Date.now() });
+  try {
+    const disposable = await startRustAnalyzer();
+    PgAnalyzerStatus.set({ kind: "ready" });
+    return disposable;
+  } catch (e) {
+    // Rethrown: `Monaco`'s language init reports it
+    PgAnalyzerStatus.set({ kind: "failed" });
+    throw e;
+  }
+};
+
+/** Everything `initRustAnalyzer` does once the page can run the analyzer */
+const startRustAnalyzer = async (): Promise<Disposable> => {
   // Creating thread pool with `wasm-bindgen-rayon` sometimes hangs forever for
   // unknown reasons. Retry until success in order to mitigate this problem.
   // The try interval should take into account the initial download time of the
