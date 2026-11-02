@@ -40,7 +40,12 @@ and log one warning per old name per process, naming the new variable. A
 #### Scenario: New name wins (manual)
 
 - **WHEN** both `PG_AI_MODEL` and `AGENT_MODEL` are set
-- **THEN** `agentEnv().MODEL` is the value of `PG_AI_MODEL`, and no warning is logged
+- **THEN** `agentEnv().MODEL` is the value of `PG_AI_MODEL`
+
+#### Scenario: A differing old value is reported as ignored (manual)
+
+- **WHEN** `PG_AI_API_KEY` and `AGENT_API_KEY` are set to different values and `agentEnv` is called twice
+- **THEN** `API_KEY` is the value of `PG_AI_API_KEY`, and one warning says `AGENT_API_KEY` is ignored, without either value
 
 #### Scenario: Empty new name does not fall back (manual)
 
@@ -50,13 +55,19 @@ and log one warning per old name per process, naming the new variable. A
 ### Requirement: The build check accepts either key name
 
 `check-agent-env` SHALL pass a Vercel build whose key is in `PG_AI_API_KEY`,
-or in `AGENT_API_KEY` with a warning naming the new variable, and SHALL fail
-it, naming `PG_AI_API_KEY`, when neither is set.
+or, when `PG_AI_API_KEY` is not set at all, in `AGENT_API_KEY`, and SHALL fail
+it, naming `PG_AI_API_KEY`, when the key it reads is unset or empty. It SHALL
+warn, listing them, whenever any deprecated `AGENT_*` name is set.
 
 #### Scenario: Old key name passes with a warning (manual)
 
 - **WHEN** a Vercel preview build sets `AGENT_API_KEY` and not `PG_AI_API_KEY`
-- **THEN** the check exits `0` and warns that `AGENT_API_KEY` is deprecated in favour of `PG_AI_API_KEY`
+- **THEN** the check exits `0` and its warning lists `AGENT_API_KEY` among the deprecated names still set
+
+#### Scenario: Every old name is listed (manual)
+
+- **WHEN** a Vercel build sets `PG_AI_API_KEY`, `AGENT_MODEL` and `AGENT_NEWCOMER_API_KEY`
+- **THEN** the check exits `0` and its warning names both old variables
 
 #### Scenario: No key fails with the new name (manual)
 

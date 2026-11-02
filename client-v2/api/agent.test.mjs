@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
 // The browser's probe (`probeDefaultBackend`) reads this answer: a boolean
 // `configured`, and the model by id or `null`. The key never leaves.
@@ -86,6 +86,18 @@ describe("GET /api/agent", () => {
 
     assert.deepEqual(body, { configured: true, model: "vendor/model-x" });
     assert.doesNotMatch(JSON.stringify(body), /sk-agent-test-key/);
+  });
+
+  it("still answers configured: true with only the deprecated AGENT_ names", async () => {
+    mock.method(console, "warn", () => {});
+    configureSignIn();
+    process.env.AGENT_API_KEY = "sk-agent-test-key";
+    process.env.AGENT_MODEL = "vendor/model-old";
+
+    assert.deepEqual(await get(), {
+      configured: true,
+      model: "vendor/model-old",
+    });
   });
 
   it("names the default model when none is set", async () => {

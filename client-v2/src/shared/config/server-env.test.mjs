@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
-import { agentEnv } from "./server-env.mjs";
+import { agentEnv, deprecatedAgentNames } from "./server-env.mjs";
 
 /** Every variable `agentEnv` reads, by suffix */
 const SUFFIXES = [
@@ -156,13 +156,12 @@ describe("agentEnv", () => {
     assert.match(first, /PG_AI_API_KEY/);
   });
 
-  it("prefers the PG_AI_ name over the old one, without a warning", async () => {
-    const warned = mock.method(console, "warn", () => {});
+  it("prefers the PG_AI_ name over the old one", async () => {
+    mock.method(console, "warn", () => {});
     process.env.PG_AI_MODEL = "new";
     process.env.AGENT_MODEL = "old";
 
     assert.equal((await freshAgentEnv())().MODEL, "new");
-    assert.equal(warned.mock.callCount(), 0);
   });
 
   it("does not fall back from an empty PG_AI_ name", async () => {
@@ -180,5 +179,46 @@ describe("agentEnv", () => {
     process.env.AGENT_PROVIDERS = "baseten";
 
     assert.deepEqual((await freshAgentEnv())().PROVIDERS, []);
+  });
+
+  it("reads old AGENT_ routing and limits, and warns under the old name", async () => {
+    const warned = mock.method(console, "warn", () => {});
+    process.env.AGENT_PROVIDERS = "baseten";
+    process.env.AGENT_PRICE_INPUT = "cheap";
+    process.env.AGENT_NEWCOMER_DAILY_CAP = "0.02";
+
+    const env = (await freshAgentEnv())();
+
+    assert.deepEqual(env.PROVIDERS, ["baseten"]);
+    assert.equal(env.PRICE_INPUT, 0.15);
+    assert.equal(env.NEWCOMER_DAILY_CAP, 0.02);
+    const messages = warned.mock.calls.map((call) => call.arguments[0]);
+    assert.ok(messages.some((m) => m.includes('AGENT_PRICE_INPUT="cheap"')));
+  });
+
+  it("says once when an old AGENT_ value differs from its PG_AI_ copy", async () => {
+    const warned = mock.method(console, "warn", () => {});
+    process.env.PG_AI_API_KEY = "rotated";
+    process.env.AGENT_API_KEY = "stale";
+    process.env.PG_AI_MODEL = "same";
+    process.env.AGENT_MODEL = "same";
+    const read = await freshAgentEnv();
+
+    read();
+    assert.equal(read().API_KEY, "rotated");
+    assert.equal(warned.mock.callCount(), 1);
+    const [message] = warned.mock.calls[0].arguments;
+    assert.match(message, /AGENT_API_KEY is ignored/);
+    assert.doesNotMatch(message, /stale|rotated/);
+  });
+
+  it("lists the old AGENT_ names still set", () => {
+    process.env.AGENT_API_KEY = "k";
+    process.env.AGENT_PROVIDERS = "";
+    process.env.PG_AI_MODEL = "m";
+    assert.deepEqual(deprecatedAgentNames(), [
+      "AGENT_API_KEY",
+      "AGENT_PROVIDERS",
+    ]);
   });
 });

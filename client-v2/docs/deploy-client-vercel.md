@@ -259,15 +259,21 @@ elsewhere usually means setting both as well.
 
 ### Renaming from `AGENT_*`
 
-These variables were named `AGENT_*` until HOO-1744 (`AGENT_API_KEY`,
-`AGENT_MODEL` and so on: the same suffixes). The old names still work: when a
-`PG_AI_*` variable is not set at all, the server reads its `AGENT_*` twin and
-logs `server-env: AGENT_<NAME> is deprecated; rename it PG_AI_<NAME>` once per
-name per instance, and the build check accepts `AGENT_API_KEY` with the same
-warning. A `PG_AI_*` set to an empty value does not fall back. To rename a
-project: add each `PG_AI_*` with the old value, for Production and Preview,
-redeploy, check the function logs show no deprecation warning, then delete the
-`AGENT_*` variables. The fallback is removed once no deployment sets them.
+`AGENT_*` (`AGENT_API_KEY`, `AGENT_MODEL` and so on, the same suffixes) is the
+deprecated spelling of these variables. When a `PG_AI_*` variable is not set at
+all, the server reads its `AGENT_*` twin and logs
+`server-env: AGENT_<NAME> is deprecated; rename it PG_AI_<NAME>` once per name
+per instance, on the first request that reads it; the build check accepts
+`AGENT_API_KEY` the same way. A `PG_AI_*` set to an empty value does not fall
+back, and an `AGENT_*` that differs from its set `PG_AI_*` twin is ignored, with
+`server-env: AGENT_<NAME> is ignored` in the log.
+
+To rename a project: add each `PG_AI_*` with the old value, for Production and
+Preview, and redeploy. Every build logs
+`check-agent-env: deprecated AGENT_* names still set: …`; delete the names it
+lists, redeploy, and the line is gone. Until then, any step below that sets,
+rotates or unsets a `PG_AI_*` variable applies to its `AGENT_*` twin too. The
+fallback is removed once no deployment sets them.
 
 Only a signed-in user spends the key. `POST /api/agent` refuses before it reads
 the body or calls the upstream:
@@ -390,7 +396,9 @@ it there first):
 A day after production traffic moves to the Gateway, revoke the Nous Research
 key, so nothing can spend outside the budgets.
 
-**Rollback**, before the Nous key is revoked: restore the previous
+**Rollback**, before the Nous key is revoked (on a project that still sets any
+`AGENT_*` twin, change or delete it alongside: an unset `PG_AI_*` falls back to
+it): restore the previous
 `PG_AI_API_KEY`, unset `PG_AI_NEWCOMER_API_KEY` (left set, newcomers' turns
 send its Gateway key to Nous and get `502`), and unset `PG_AI_BASE_URL` and
 `PG_AI_MODEL` (or set them back to the Nous values), then redeploy. Unset,

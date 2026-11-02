@@ -115,7 +115,7 @@ test("check-agent-env passes an old AGENT_API_KEY on Vercel, warning it is depre
     AUTH_SECRET: "s",
   });
   assert.equal(status, 0);
-  assert.match(stderr, /AGENT_API_KEY is deprecated; rename it PG_AI_API_KEY/);
+  assert.match(stderr, /deprecated AGENT_\* names still set: AGENT_API_KEY\b/);
 });
 
 test("check-agent-env fails with the new name when no key is set", () => {
@@ -132,4 +132,43 @@ test("check-agent-env does not fall back from an empty PG_AI_API_KEY on Vercel",
     AGENT_API_KEY: "k",
   });
   assert.equal(status, 1);
+});
+
+test("check-agent-env lists every old AGENT_ name still set", () => {
+  const { status, stderr } = run({
+    CI: "1",
+    VERCEL_ENV: "preview",
+    PG_AI_API_KEY: "k",
+    AGENT_MODEL: "m",
+    AGENT_NEWCOMER_API_KEY: "n",
+  });
+  assert.equal(status, 0);
+  assert.match(
+    stderr,
+    /AGENT_NEWCOMER_API_KEY, AGENT_MODEL|AGENT_MODEL, AGENT_NEWCOMER_API_KEY/
+  );
+});
+
+test("check-agent-env prefers PG_AI_API_KEY and is quiet without old names", () => {
+  const { status, stderr } = run({
+    CI: "1",
+    VERCEL_ENV: "preview",
+    PG_AI_API_KEY: "k",
+    DATABASE_URL: "s",
+    GITHUB_CLIENT_ID: "s",
+    GITHUB_CLIENT_SECRET: "s",
+    AUTH_SECRET: "s",
+  });
+  assert.equal(status, 0);
+  assert.doesNotMatch(stderr, /AGENT_/);
+});
+
+test("check-agent-env names PG_AI_API_KEY when only an empty old key is set", () => {
+  const { status, stderr } = run({
+    CI: "1",
+    VERCEL_ENV: "preview",
+    AGENT_API_KEY: "",
+  });
+  assert.equal(status, 1);
+  assert.match(stderr, /Set PG_AI_API_KEY/);
 });

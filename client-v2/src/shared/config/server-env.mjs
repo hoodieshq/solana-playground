@@ -59,17 +59,54 @@ const readChecked = (name, fallback, isValid, expected) => {
   return fallback;
 };
 
-/** Old names already warned about, so a warm instance logs each once */
-const warnedLegacy = new Set();
+/** Every variable `agentEnv` reads, by the suffix after its prefix */
+const AGENT_SUFFIXES = [
+  "API_KEY",
+  "NEWCOMER_API_KEY",
+  "BASE_URL",
+  "MODEL",
+  "REASONING_EFFORT",
+  "PROVIDERS",
+  "PRICE_INPUT",
+  "PRICE_OUTPUT",
+  "MAX_BODY_BYTES",
+  "MAX_OUTPUT_TOKENS",
+  "NEWCOMER_AGE_DAYS",
+  "NEWCOMER_DAILY_CAP",
+  "ESTABLISHED_DAILY_CAP",
+];
 
 /**
- * The assistant's variable `PG_AI_<suffix>`, as set (empty included). Only
- * when it is not set at all, the deprecated `AGENT_<suffix>`, with one warning
- * per name: every Vercel project carried the old names when they were
- * renamed, so a deployment keeps working until its variables follow. An empty
- * new name does not fall back, so `PG_AI_API_KEY=` on a command still turns
- * the backend off over a `.env` that sets the old one. Remove the fallback
- * once no deployment sets `AGENT_*`.
+ * The deprecated `AGENT_*` names set in this environment, empty included.
+ * The build check lists them, so a project shows in its build log what is
+ * left to rename; once it lists none anywhere, the fallback below can go.
+ *
+ * @returns {string[]}
+ */
+export const deprecatedAgentNames = () =>
+  AGENT_SUFFIXES.map((suffix) => `AGENT_${suffix}`).filter(
+    (name) => process.env[name] !== undefined
+  );
+
+/** Messages already logged, so a warm instance logs each once */
+const warned = new Set();
+
+/** @param {string} message */
+const warnOnce = (message) => {
+  if (warned.has(message)) return;
+  warned.add(message);
+  console.warn(message);
+};
+
+/**
+ * Which of `PG_AI_<suffix>` and its deprecated twin `AGENT_<suffix>` to read.
+ * The new name wins whenever it is set, even to an empty value, so
+ * `PG_AI_API_KEY=` on a command still turns the backend off over a `.env`
+ * that sets the old one. The old name is read only when the new one is not
+ * set at all: deployments that predate the rename keep working until their
+ * variables follow. Either case where the old name matters logs once:
+ * read in place of the new one, or set to a different value and ignored (a
+ * key rotated under the old name would otherwise never take effect).
  *
  * @param {string} suffix
  * @returns {{ name: string, value: string | undefined }} the variable read
@@ -77,14 +114,19 @@ const warnedLegacy = new Set();
 const resolveAgent = (suffix) => {
   const name = `PG_AI_${suffix}`;
   const legacy = `AGENT_${suffix}`;
-  if (process.env[name] !== undefined || process.env[legacy] === undefined) {
-    return { name, value: process.env[name] };
+  const value = process.env[name];
+  const legacyValue = process.env[legacy];
+  if (legacyValue === undefined) return { name, value };
+  if (value === undefined) {
+    warnOnce(`server-env: ${legacy} is deprecated; rename it ${name}`);
+    return { name: legacy, value: legacyValue };
   }
-  if (!warnedLegacy.has(legacy)) {
-    warnedLegacy.add(legacy);
-    console.warn(`server-env: ${legacy} is deprecated; rename it ${name}`);
+  if (value !== legacyValue) {
+    warnOnce(
+      `server-env: ${legacy} is ignored: ${name} is set; delete ${legacy}`
+    );
   }
-  return { name: legacy, value: process.env[legacy] };
+  return { name, value };
 };
 
 /**
