@@ -59,7 +59,43 @@ const readChecked = (name, fallback, isValid, expected) => {
   return fallback;
 };
 
-/** Where turns go without `AGENT_BASE_URL` */
+/** Old names already warned about, so a warm instance logs each once */
+const warnedLegacy = new Set();
+
+/**
+ * The assistant's variable `PG_AI_<suffix>`, as set (empty included). Only
+ * when it is not set at all, the deprecated `AGENT_<suffix>`, with one warning
+ * per name: every Vercel project carried the old names when they were
+ * renamed, so a deployment keeps working until its variables follow. An empty
+ * new name does not fall back, so `PG_AI_API_KEY=` on a command still turns
+ * the backend off over a `.env` that sets the old one. Remove the fallback
+ * once no deployment sets `AGENT_*`.
+ *
+ * @param {string} suffix
+ * @returns {{ name: string, value: string | undefined }} the variable read
+ */
+const resolveAgent = (suffix) => {
+  const name = `PG_AI_${suffix}`;
+  const legacy = `AGENT_${suffix}`;
+  if (process.env[name] !== undefined || process.env[legacy] === undefined) {
+    return { name, value: process.env[name] };
+  }
+  if (!warnedLegacy.has(legacy)) {
+    warnedLegacy.add(legacy);
+    console.warn(`server-env: ${legacy} is deprecated; rename it ${name}`);
+  }
+  return { name: legacy, value: process.env[legacy] };
+};
+
+/**
+ * The name of the assistant's variable to read for `suffix`; see
+ * {@link resolveAgent}.
+ *
+ * @param {string} suffix
+ */
+const agentName = (suffix) => resolveAgent(suffix).name;
+
+/** Where turns go without `PG_AI_BASE_URL` */
 const DEFAULT_AGENT_BASE_URL = "https://inference-api.nousresearch.com/v1";
 
 /** The Gateway's host */
@@ -75,7 +111,7 @@ const isGatewayUrl = (baseUrl) =>
   URL.canParse(baseUrl) && new URL(baseUrl).host === GATEWAY_HOST;
 
 /**
- * `AGENT_PROVIDERS`: the Gateway providers a turn may be served by.
+ * `PG_AI_PROVIDERS`: the Gateway providers a turn may be served by.
  *
  * The one variable where empty differs from unset: set but empty sends no
  * routing restriction. Unset, it defaults to the US-region, zero-retention
@@ -84,11 +120,11 @@ const isGatewayUrl = (baseUrl) =>
  * (Nous answers `400 unknown_parameter`), so a deployment that has not moved
  * yet, or has rolled back, needs no variable to keep working.
  *
- * @param {string} baseUrl the upstream `AGENT_BASE_URL` resolves to
+ * @param {string} baseUrl the upstream `PG_AI_BASE_URL` resolves to
  * @returns {string[]}
  */
 const readProviders = (baseUrl) => {
-  const raw = process.env.AGENT_PROVIDERS;
+  const raw = resolveAgent("PROVIDERS").value;
   if (raw !== undefined) {
     return raw
       .split(",")
@@ -99,7 +135,7 @@ const readProviders = (baseUrl) => {
 };
 
 /**
- * `AGENT_*`: the assistant's Default backend. Only `API_KEY` has no default:
+ * `PG_AI_*`: the assistant's Default backend. Only `API_KEY` has no default:
  * without it the backend is off. `NEWCOMER_API_KEY` has none either: without
  * it newcomers spend through `API_KEY`, still held to the newcomer cap.
  *
@@ -107,28 +143,28 @@ const readProviders = (baseUrl) => {
  */
 export const agentEnv = () => ({
   /** The `established` tier's key, and every tier's without `NEWCOMER_API_KEY` */
-  API_KEY: read("AGENT_API_KEY"),
-  NEWCOMER_API_KEY: read("AGENT_NEWCOMER_API_KEY"),
-  BASE_URL: read("AGENT_BASE_URL") || DEFAULT_AGENT_BASE_URL,
-  MODEL: read("AGENT_MODEL") || "z-ai/glm-5.3-flash:US",
+  API_KEY: read(agentName("API_KEY")),
+  NEWCOMER_API_KEY: read(agentName("NEWCOMER_API_KEY")),
+  BASE_URL: read(agentName("BASE_URL")) || DEFAULT_AGENT_BASE_URL,
+  MODEL: read(agentName("MODEL")) || "z-ai/glm-5.3-flash:US",
   // GLM always reasons and defaults to `max`; the panel shows none of it, so
   // a high effort reads as a stalled answer
-  REASONING_EFFORT: read("AGENT_REASONING_EFFORT") || "low",
-  PROVIDERS: readProviders(read("AGENT_BASE_URL") || DEFAULT_AGENT_BASE_URL),
+  REASONING_EFFORT: read(agentName("REASONING_EFFORT")) || "low",
+  PROVIDERS: readProviders(read(agentName("BASE_URL")) || DEFAULT_AGENT_BASE_URL),
   /** USD per million input tokens */
-  PRICE_INPUT: readNumber("AGENT_PRICE_INPUT", 0.15),
+  PRICE_INPUT: readNumber(agentName("PRICE_INPUT"), 0.15),
   /** USD per million output tokens */
-  PRICE_OUTPUT: readNumber("AGENT_PRICE_OUTPUT", 0.5),
+  PRICE_OUTPUT: readNumber(agentName("PRICE_OUTPUT"), 0.5),
   /** About 128k input tokens at 4 bytes per token */
-  MAX_BODY_BYTES: readCount("AGENT_MAX_BODY_BYTES", 524288),
+  MAX_BODY_BYTES: readCount(agentName("MAX_BODY_BYTES"), 524288),
   /** Sent as `max_completion_tokens` on every upstream request */
-  MAX_OUTPUT_TOKENS: readCount("AGENT_MAX_OUTPUT_TOKENS", 8192),
+  MAX_OUTPUT_TOKENS: readCount(agentName("MAX_OUTPUT_TOKENS"), 8192),
   /** A GitHub account younger than this many days is a `newcomer` */
-  NEWCOMER_AGE_DAYS: readNumber("AGENT_NEWCOMER_AGE_DAYS", 30),
+  NEWCOMER_AGE_DAYS: readNumber(agentName("NEWCOMER_AGE_DAYS"), 30),
   /** USD per user per UTC day */
-  NEWCOMER_DAILY_CAP: readNumber("AGENT_NEWCOMER_DAILY_CAP", 0.1),
+  NEWCOMER_DAILY_CAP: readNumber(agentName("NEWCOMER_DAILY_CAP"), 0.1),
   /** USD per user per UTC day */
-  ESTABLISHED_DAILY_CAP: readNumber("AGENT_ESTABLISHED_DAILY_CAP", 0.5),
+  ESTABLISHED_DAILY_CAP: readNumber(agentName("ESTABLISHED_DAILY_CAP"), 0.5),
 });
 
 /** `MCP_EXPLORER_*`: the Explorer MCP upstream; no `BYPASS` leaves it out */

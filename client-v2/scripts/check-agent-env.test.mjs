@@ -5,9 +5,11 @@ import { fileURLToPath } from "node:url";
 
 const script = fileURLToPath(new URL("./check-agent-env.mjs", import.meta.url));
 
-/** Exit code of the check under exactly `env`, nothing inherited; `undefined` values stay unset */
-const exitCode = (env) =>
-  spawnSync(process.execPath, [script], { env, encoding: "utf8" }).status;
+/** The check run under exactly `env`, nothing inherited; `undefined` values stay unset */
+const run = (env) => spawnSync(process.execPath, [script], { env, encoding: "utf8" });
+
+/** Exit code of the check under exactly `env` */
+const exitCode = (env) => run(env).status;
 
 /**
  * A build's environment. `ci` marks Vercel's own build machine; `signIn` fills
@@ -16,7 +18,7 @@ const exitCode = (env) =>
 const build = ({ ci, target, key, signIn, authSecret, baseUrl }) => ({
   CI: ci,
   VERCEL_ENV: target,
-  AGENT_API_KEY: key,
+  PG_AI_API_KEY: key,
   DATABASE_URL: signIn,
   GITHUB_CLIENT_ID: signIn,
   GITHUB_CLIENT_SECRET: signIn,
@@ -43,7 +45,7 @@ for (const [label, env, expected] of [
     "fails a production key without one of sign-in's variables",
     {
       VERCEL_ENV: "production",
-      AGENT_API_KEY: "k",
+      PG_AI_API_KEY: "k",
       DATABASE_URL: "",
       GITHUB_CLIENT_ID: "",
       GITHUB_CLIENT_SECRET: "",
@@ -92,7 +94,7 @@ for (const [label, env, expected] of [
   // A preview may run without sign-in; GET /api/agent then reports no backend
   [
     "passes a preview key without sign-in",
-    { VERCEL_ENV: "preview", AGENT_API_KEY: "k" },
+    { VERCEL_ENV: "preview", PG_AI_API_KEY: "k" },
     0,
   ],
 ]) {
@@ -100,3 +102,33 @@ for (const [label, env, expected] of [
     assert.equal(exitCode(env), expected);
   });
 }
+
+test("check-agent-env passes an old AGENT_API_KEY on Vercel, warning it is deprecated", () => {
+  const { status, stderr } = run({
+    CI: "1",
+    VERCEL_ENV: "preview",
+    AGENT_API_KEY: "k",
+    DATABASE_URL: "s",
+    GITHUB_CLIENT_ID: "s",
+    GITHUB_CLIENT_SECRET: "s",
+    AUTH_SECRET: "s",
+  });
+  assert.equal(status, 0);
+  assert.match(stderr, /AGENT_API_KEY is deprecated; rename it PG_AI_API_KEY/);
+});
+
+test("check-agent-env fails with the new name when no key is set", () => {
+  const { status, stderr } = run({ CI: "1", VERCEL_ENV: "preview" });
+  assert.equal(status, 1);
+  assert.match(stderr, /PG_AI_API_KEY is unset or empty/);
+});
+
+test("check-agent-env does not fall back from an empty PG_AI_API_KEY on Vercel", () => {
+  const { status } = run({
+    CI: "1",
+    VERCEL_ENV: "preview",
+    PG_AI_API_KEY: "",
+    AGENT_API_KEY: "k",
+  });
+  assert.equal(status, 1);
+});

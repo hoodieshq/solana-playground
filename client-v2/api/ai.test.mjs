@@ -36,6 +36,10 @@ const NEWCOMER_KEY = "sk-agent-newcomer-secret-9876543210";
 const MODEL = "vendor/model-x";
 
 const VARS = [
+  "PG_AI_API_KEY",
+  "PG_AI_NEWCOMER_API_KEY",
+  "PG_AI_MODEL",
+  // The deprecated names `agentEnv` falls back to, which an old `.env` may set
   "AGENT_API_KEY",
   "AGENT_NEWCOMER_API_KEY",
   "AGENT_MODEL",
@@ -46,9 +50,9 @@ const VARS = [
 
 const configureHostedKey = () => {
   Object.assign(process.env, SIGN_IN);
-  process.env.AGENT_API_KEY = KEY;
-  process.env.AGENT_NEWCOMER_API_KEY = NEWCOMER_KEY;
-  process.env.AGENT_MODEL = MODEL;
+  process.env.PG_AI_API_KEY = KEY;
+  process.env.PG_AI_NEWCOMER_API_KEY = NEWCOMER_KEY;
+  process.env.PG_AI_MODEL = MODEL;
 };
 
 describe("GET /api/ai/status", () => {
@@ -107,8 +111,8 @@ describe("GET /api/ai/status", () => {
   });
 
   it("assistant-ai-status: No key configured, a key without sign-in", async (t) => {
-    process.env.AGENT_API_KEY = KEY;
-    process.env.AGENT_MODEL = MODEL;
+    process.env.PG_AI_API_KEY = KEY;
+    process.env.PG_AI_MODEL = MODEL;
     const warn = t.mock.method(console, "warn", () => {});
 
     const { res, asked } = await call();
@@ -228,7 +232,7 @@ describe("GET /api/ai/status", () => {
     const setups = {
       "nothing configured": () => {},
       "a key only": () => {
-        process.env.AGENT_API_KEY = KEY;
+        process.env.PG_AI_API_KEY = KEY;
       },
       "sign-in only": () => Object.assign(process.env, SIGN_IN),
       "a key and sign-in": configureHostedKey,

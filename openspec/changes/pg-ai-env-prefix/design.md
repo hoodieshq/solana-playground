@@ -29,7 +29,7 @@ today.
 
 The fallback goes once no deployment sets `AGENT_*`: after the Vercel project
 is renamed (with HOO-1745) and each developer's `client-v2/.env` follows.
-Removing it is a one-line change to `readAgent` plus its tests; ticket to file
+Removing it is a one-line change to `resolveAgent` plus its tests; ticket to file
 when the rename is done.
 
 ## Risks

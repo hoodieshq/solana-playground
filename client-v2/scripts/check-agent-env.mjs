@@ -1,4 +1,4 @@
-// Fails a Vercel build that has no AGENT_API_KEY, so a deployment cannot ship
+// Fails a Vercel build that has no PG_AI_API_KEY, so a deployment cannot ship
 // with the assistant's default backend off, and a production build that has
 // the key without sign-in or without AUTH_BASE_URL, where /api/agent would
 // refuse every turn or check origins against a per-deployment hostname. A
@@ -15,14 +15,29 @@ const production = process.env.VERCEL_ENV === "production";
 const isSet = (name) =>
   onVercel ? !!process.env[name] : process.env[name] !== undefined;
 
+// The key's variable: the deprecated AGENT_API_KEY only when PG_AI_API_KEY is
+// not set at all, as `agentEnv` reads it (src/shared/config/server-env.mjs)
+const KEY =
+  process.env.PG_AI_API_KEY === undefined &&
+  process.env.AGENT_API_KEY !== undefined
+    ? "AGENT_API_KEY"
+    : "PG_AI_API_KEY";
+if (KEY === "AGENT_API_KEY") {
+  console.warn(
+    "check-agent-env: AGENT_API_KEY is deprecated; rename it PG_AI_API_KEY " +
+      "in the Vercel project environment."
+  );
+}
+
 const fail = (message) => {
   console.error(`check-agent-env: ${message}`);
   process.exit(1);
 };
 
-if (!isSet("AGENT_API_KEY")) {
+if (!isSet(KEY)) {
   fail(
-    "AGENT_API_KEY is unset or empty. Set it in the Vercel project " +
+    `${KEY} is unset or empty.` +
+      " Set it in the Vercel project " +
       "environment, or the assistant backend ships disabled."
   );
 }
@@ -30,7 +45,7 @@ if (!isSet("AGENT_API_KEY")) {
 const missing = SIGN_IN_ENV.filter((name) => !isSet(name));
 if (missing.length) {
   const message =
-    `AGENT_API_KEY is set but sign-in is not: ${missing.join(", ")} unset ` +
+    `${KEY} is set but sign-in is not: ${missing.join(", ")} unset ` +
     "or empty. /api/agent answers only signed-in users, so this deployment " +
     "serves no default backend.";
   if (production) fail(message);
@@ -55,7 +70,7 @@ if (production) {
   }
 }
 
-const empty = ["AGENT_API_KEY", ...SIGN_IN_ENV, "AUTH_BASE_URL"].filter(
+const empty = [KEY, ...SIGN_IN_ENV, "AUTH_BASE_URL"].filter(
   (name) => process.env[name] === ""
 );
 if (!onVercel && empty.length) {

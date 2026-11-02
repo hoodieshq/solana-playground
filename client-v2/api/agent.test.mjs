@@ -30,6 +30,9 @@ const SIGN_IN = {
 };
 
 const AGENT_VARS = [
+  "PG_AI_API_KEY",
+  "PG_AI_MODEL",
+  // The deprecated names `agentEnv` falls back to, which an old `.env` may set
   "AGENT_API_KEY",
   "AGENT_MODEL",
   "AUTH_OAUTH_PROXY_URL",
@@ -69,15 +72,15 @@ describe("GET /api/agent", () => {
   });
 
   it("answers configured: false with a key but no sign-in", async () => {
-    process.env.AGENT_API_KEY = "sk-agent-test-key";
+    process.env.PG_AI_API_KEY = "sk-agent-test-key";
 
     assert.deepEqual(await get(), { configured: false, model: null });
   });
 
   it("answers configured: true and the model id with a key, never the key", async () => {
     configureSignIn();
-    process.env.AGENT_API_KEY = "sk-agent-test-key";
-    process.env.AGENT_MODEL = "vendor/model-x";
+    process.env.PG_AI_API_KEY = "sk-agent-test-key";
+    process.env.PG_AI_MODEL = "vendor/model-x";
 
     const body = await get();
 
@@ -87,7 +90,7 @@ describe("GET /api/agent", () => {
 
   it("names the default model when none is set", async () => {
     configureSignIn();
-    process.env.AGENT_API_KEY = "sk-agent-test-key";
+    process.env.PG_AI_API_KEY = "sk-agent-test-key";
 
     const body = await get();
 
