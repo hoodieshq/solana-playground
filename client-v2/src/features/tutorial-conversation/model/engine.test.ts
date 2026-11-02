@@ -328,9 +328,26 @@ describe("Hello Anchor through the engine", () => {
     expect(saved.finishedAt).not.toBeNull();
     expect(events.events.map((e) => e.name)).toEqual([
       "tutorial_started",
+      "tutorial_step_passed",
+      "tutorial_step_passed",
+      "tutorial_step_passed",
+      "tutorial_step_passed",
       "tutorial_finished",
     ]);
-    expect(events.events[1].params).toMatchObject({
+    // Every step passed on its own act's real result, in the feed
+    expect(
+      events.events
+        .filter((e) => e.name === "tutorial_step_passed")
+        .map((e) => e.params)
+    ).toEqual(
+      [1, 2, 3, 4].map((n) => ({
+        tutorial: "hello-anchor",
+        step: n,
+        via: n === 3 ? "client" : "chat",
+        seconds: expect.any(Number),
+      }))
+    );
+    expect(events.events[5].params).toMatchObject({
       tutorial: "hello-anchor",
       seconds: expect.any(Number),
     });
