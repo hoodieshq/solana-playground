@@ -99,6 +99,21 @@ const warnOnce = (message) => {
 };
 
 /**
+ * The variable that holds the assistant's `suffix` setting: `PG_AI_<suffix>`,
+ * or its deprecated twin `AGENT_<suffix>` only when the new name is not set at
+ * all. The build check reads the key's name through it, so the two cannot
+ * disagree about which variable a deployment uses.
+ *
+ * @param {string} suffix
+ * @returns {string}
+ */
+export const agentVariableName = (suffix) =>
+  process.env[`PG_AI_${suffix}`] === undefined &&
+  process.env[`AGENT_${suffix}`] !== undefined
+    ? `AGENT_${suffix}`
+    : `PG_AI_${suffix}`;
+
+/**
  * Which of `PG_AI_<suffix>` and its deprecated twin `AGENT_<suffix>` to read.
  * The new name wins whenever it is set, even to an empty value, so
  * `PG_AI_API_KEY=` on a command still turns the backend off over a `.env`
@@ -117,7 +132,7 @@ const resolveAgent = (suffix) => {
   const value = process.env[name];
   const legacyValue = process.env[legacy];
   if (legacyValue === undefined) return { name, value };
-  if (value === undefined) {
+  if (agentVariableName(suffix) === legacy) {
     warnOnce(`server-env: ${legacy} is deprecated; rename it ${name}`);
     return { name: legacy, value: legacyValue };
   }

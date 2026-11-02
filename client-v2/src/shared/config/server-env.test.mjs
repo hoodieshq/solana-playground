@@ -31,9 +31,8 @@ const freshAgentEnv = async () =>
 describe("agentEnv", () => {
   // Cleared before each case, not after: `yarn test-api` loads `.env`
   beforeEach(() => {
-    for (const name of [...PG_AI_VARIABLES, ...AGENT_VARIABLES]) {
-      delete process.env[name];
-    }
+    for (const name of PG_AI_VARIABLES) delete process.env[name];
+    for (const name of AGENT_VARIABLES) delete process.env[name];
   });
 
   afterEach(() => mock.restoreAll());

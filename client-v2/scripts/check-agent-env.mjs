@@ -7,7 +7,10 @@
 // Only vercel.json's buildCommand runs it: local, CI and e2e builds need no key.
 // The constants file, not `server.mjs`: that one loads Better Auth and the pool
 import { SIGN_IN_ENV } from "../src/features/auth/config.mjs";
-import { deprecatedAgentNames } from "../src/shared/config/server-env.mjs";
+import {
+  agentVariableName,
+  deprecatedAgentNames,
+} from "../src/shared/config/server-env.mjs";
 
 // Vercel's build machine sets CI; a local `vercel build` does not, and pulls a Secret as ""
 const onVercel = !!process.env.CI;
@@ -17,13 +20,8 @@ const production = process.env.VERCEL_ENV === "production";
 const isSet = (name) =>
   onVercel ? !!process.env[name] : process.env[name] !== undefined;
 
-// The key's variable: the deprecated AGENT_API_KEY only when PG_AI_API_KEY is
-// not set at all, as `agentEnv` reads it (src/shared/config/server-env.mjs)
-const KEY =
-  process.env.PG_AI_API_KEY === undefined &&
-  process.env.AGENT_API_KEY !== undefined
-    ? "AGENT_API_KEY"
-    : "PG_AI_API_KEY";
+// The key's variable, chosen as `agentEnv` chooses it
+const KEY = agentVariableName("API_KEY");
 
 // Every old name, not only the key: the build log is where a project sees
 // what is left to rename before its AGENT_* variables can be deleted
