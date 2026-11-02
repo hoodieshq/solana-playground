@@ -43,7 +43,7 @@ const FILES_TOGGLE = "data-files-toggle";
 export interface BaseWorkspaceHeadProps {
   /** The tabs, in the project's order, by path */
   tabs: string[];
-  /** The open file's path; null while the Call panel holds the editor area */
+  /** The open file's path, or null when no file is open */
   active: string | null;
   onOpen: (path: string) => void;
   tree: {

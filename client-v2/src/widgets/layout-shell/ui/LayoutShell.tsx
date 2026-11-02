@@ -359,7 +359,8 @@ const LayoutShell = ({
   };
   /**
    * The console opening on its own: the visit's on a phone, else saved. Not
-   * under Home or a page, which show no console to open.
+   * under Home or a page, which show no console to open, and not in a
+   * tutorial's frame, whose workspace opens its drawer by its own rules.
    */
   const openConsole = () => {
     // A tutorial's workspace opens its drawer by its own rules (a failed

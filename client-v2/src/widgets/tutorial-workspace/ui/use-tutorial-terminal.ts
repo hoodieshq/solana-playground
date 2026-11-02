@@ -20,12 +20,13 @@ export interface TutorialTerminal {
  */
 export const useTutorialTerminal = (): TutorialTerminal => {
   useRenderOnChange(PgTutorial.onDidChange);
-  const definition = PgTutorial.current?.definition;
+  const tutorial = PgTutorial.current;
+  const definition = tutorial?.definition;
   const files = useMemo(
     () => (definition ? tutorialFiles(definition) : []),
     [definition]
   );
-  const facts = useTerminalFacts(files);
+  const facts = useTerminalFacts(tutorial?.name ?? "", files);
   return {
     status: terminalStatus(facts),
     empty: facts.last === null && facts.running === null ? NOTHING_RUN : null,

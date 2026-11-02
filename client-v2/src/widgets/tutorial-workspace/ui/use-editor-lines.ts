@@ -23,10 +23,15 @@ const useEditor = (root: Element | null) => {
     setEditor(editorIn(root));
     // A new editor's node is placed in the page after the event: look again
     // once it is
-    const created = monaco.editor.onDidCreateEditor(() =>
-      requestAnimationFrame(() => setEditor(editorIn(root)))
-    );
-    return () => created.dispose();
+    let frame = 0;
+    const created = monaco.editor.onDidCreateEditor(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => setEditor(editorIn(root)));
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      created.dispose();
+    };
   }, [root]);
   useEffect(() => {
     if (!editor) return;

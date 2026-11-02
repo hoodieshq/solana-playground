@@ -5,10 +5,11 @@ import { EditorTabsShown } from "@/components/EditorWithTabs";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommon, PgExplorer, PgTutorial } from "@/utils";
+import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
 import { PgFlow } from "@/views/flow/state/stage";
 import { NO_MARKS } from "../model/lines";
 import type { LineMarks } from "../model/lines";
-import { autoOpenReason } from "../model/terminal";
+import { autoOpenReason, resetsDeploys } from "../model/terminal";
 import { tutorialWorkspaceTelemetry } from "../model/telemetry";
 import type { TreeSource } from "../model/telemetry";
 import { createdIn, tabsOf, treeRows, tutorialFiles } from "../model/tree";
@@ -169,16 +170,27 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     tutorialWorkspaceTelemetry.track("tutorial_workspace_file_opened", { via });
   };
 
-  // ⌘E, even from the editor or a field: Monaco's own ⌘E (find with the
-  // selection) loses to it here, as the spec lists it among the keys that
-  // fire from a text field
+  // ⌘E (Ctrl E off a Mac), even from the editor or the composer: Monaco's own
+  // ⌘E (find with the selection) loses to it here, as the spec lists it among
+  // the keys that fire from a text field. Not from the terminal, where Ctrl E
+  // is the shell's end of line, nor from a dialog, nor while a page covers the
+  // work (the frame is inert under it); a Control on a Mac stays the field's
   const toggleNow = useRef(toggleTree);
   toggleNow.current = toggleTree;
   useEffect(() => {
     if (!active) return;
+    const mac = PgCommon.getOS() === "MacOS";
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
-      if (e.key.toLowerCase() !== "e") return;
+      const primary = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+      if (!primary || e.altKey || e.shiftKey || e.key.toLowerCase() !== "e") {
+        return;
+      }
+      if (e.repeat || e.isComposing) return;
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest(".xterm, [role='dialog'], [role='alertdialog']")) {
+        return;
+      }
+      if (box.current?.closest("[inert]")) return;
       e.preventDefault();
       e.stopPropagation();
       toggleNow.current("key");
@@ -188,7 +200,11 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
       window.removeEventListener("keydown", onKey, { capture: true });
   }, [active]);
 
-  // The drawer opens by itself on a failed build and the first deploy
+  // The drawer opens by itself on a failed build and the first deploy.
+  // TODO(tutorial-flow-v2 3.3): a component test over a stubbed PgFlow for
+  // this wiring and for the stage not remounting when `active` flips; the
+  // rules are tested in `model/terminal.ts`, and the feed's own tests will
+  // drive this component with a real engine
   const terminalNow = useRef(terminal);
   terminalNow.current = terminal;
   useEffect(() => {
@@ -196,20 +212,26 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     let prev = PgFlow.state;
     let deployedBefore = prev.deploy === "done";
     const sub = PgFlow.onDidChange((next) => {
-      const reason = autoOpenReason(prev, next, deployedBefore);
+      const reason = autoOpenReason({ prev, next, deployedBefore });
+      // Another workspace's record starts over: its first deploy is due
+      if (resetsDeploys(next)) deployedBefore = false;
       if (next.deploy === "done") deployedBefore = true;
       prev = next;
-      if (!reason) return;
+      // Behind a page the work is not on screen: nothing to open there
+      if (!reason || terminalNow.current.open) return;
+      if (box.current?.closest("[inert]")) return;
+      terminalNow.current.setOpen(true, "auto");
       tutorialWorkspaceTelemetry.track("tutorial_workspace_terminal_opened", {
         reason,
       });
-      if (!terminalNow.current.open) terminalNow.current.setOpen(true, "auto");
     });
     return () => sub.dispose();
   }, [active, name]);
 
-  // The line states of the open file
+  // The line states of the open file. A failed build's output lands a
+  // moment after its event, and the squiggle reads it
   useRenderOnChange(PgFlow.onDidChange);
+  useRenderOnChange(PgBuildOutput.onDidChange);
   const flow = PgFlow.state;
   const busy = flow.build === "running" || flow.deploy === "running";
   const diagnostic = flow.build === "failed" ? firstDiagnostic() : null;

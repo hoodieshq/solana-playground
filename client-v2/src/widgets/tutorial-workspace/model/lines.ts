@@ -2,7 +2,8 @@
  * The editor's line states (`tutorial-workspace`, "The editor shows written,
  * landing, error and busy lines") as Monaco decorations. Pure: the
  * connected hook hands it the model's line count and text and applies what
- * it returns. The CSS classes are in `ui/workspace.css`.
+ * it returns. The CSS classes (`pg-line-*`, `pg-arrive`, `pg-squiggle`) are in
+ * `src/index.css`, since Monaco takes plain class names only.
  */
 
 /** What marks the open file's lines */

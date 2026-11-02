@@ -163,7 +163,10 @@ export interface TutorialNavState {
 /**
  * A tutorial with a definition (`tutorial-flow-v2`, task 2.1): the work area
  * becomes the chat column, then the files column beside the stage over the
- * console. The stage bar, the stage tabs and the assistant are not drawn;
+ * console. In it the stage holds the tutorial's workspace (task 2.2: its
+ * head, tree and line states) and the console is its drawer, at its own
+ * height and never saved as the split. The stage bar, the stage tabs and the
+ * assistant are not drawn;
  * the stage and the console are the same outlets, so nothing remounts on the
  * way in or out. Only on the work screen of a wide window; narrower windows
  * keep today's layout.
@@ -521,8 +524,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   // assistant's edge reflowed the work area. Opening mounts it at the width it
   // last had.
   // In a tutorial's frame the column is held open whatever was saved: the
-  // frame has no stage bar, so nothing there could open it again (until the
-  // workspace's tree, task 2.2, replaces it). A fold there is not saved.
+  // frame has no stage bar, so nothing there could open it again. It stays
+  // until the feed (task 3.3) carries the steps and Skip it holds; the
+  // workspace's tree (2.2) carries the files only. A fold there is not saved.
   // A fresh object each render; read only by `.open` in the effects below
   const filesState: PanelState = tutorialLayout
     ? { open: true, onOpenChange: () => undefined }
@@ -853,9 +857,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                       className="flex min-h-0 min-w-0 flex-1"
                     >
                       {props.tutorial?.chat}
-                      {/* The files column stays until the workspace's own tree
-                      (task 2.2) takes its place: it holds the lesson's steps
-                      and the files a later step opens */}
+                      {/* The files column, held open (`filesState`), until the
+                      feed (task 3.3) carries the lesson's steps and Skip */}
                       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                         {workGroup}
                       </div>
