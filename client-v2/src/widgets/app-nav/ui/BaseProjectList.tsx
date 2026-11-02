@@ -8,6 +8,7 @@ import {
   Pencil,
   Pin,
   PinOff,
+  Share2,
   Trash2,
 } from "lucide-react";
 import type { ComponentType, KeyboardEvent } from "react";
@@ -65,6 +66,7 @@ const KEYS: Record<string, ProjectAction> = {
   r: "rename",
   d: "duplicate",
   e: "export",
+  g: "share-gist",
   Backspace: "delete",
   Delete: "delete",
 };
@@ -75,6 +77,7 @@ const LESSON_ACTIONS: ReadonlySet<ProjectAction> = new Set([
   "pin",
   "unpin",
   "export",
+  "share-gist",
   "delete",
 ]);
 
@@ -275,6 +278,14 @@ const Row = ({
             onSelect={() => run("export", "click")}
           >
             Export as zip
+          </Item>
+          <Item
+            icon={Share2}
+            hint="G"
+            label={`Share ${entry.name} as a gist`}
+            onSelect={() => run("share-gist", "click")}
+          >
+            Share as gist
           </Item>
           <DropdownMenuSeparator />
           <Item

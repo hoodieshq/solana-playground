@@ -32,6 +32,7 @@ import { LogoLockup } from "@/shared/ui/logo";
 import { Pattern } from "@/shared/ui/pattern";
 import { PgView } from "@/utils";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
+import { openShareGistDialog } from "@/app/ShareGistDialog";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
 import { catalogPage, catalogSlot, useCatalogPage } from "@/widgets/catalog";
 import { Assistant } from "@/widgets/assistant";
@@ -298,6 +299,7 @@ const FlowFrame = () => {
                 projects={
                   <ProjectList
                     onPicked={catalogPage.close}
+                    onShareGist={openShareGistDialog}
                     onPickCurrent={() => {
                       page.leaveHome("current-project");
                       closeSheet();

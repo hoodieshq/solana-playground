@@ -19,7 +19,11 @@ import type { ProjectAction } from "../model/project-action";
 import { listProjects } from "../model/project-entries";
 import type { ProjectEntry } from "../model/project-entries";
 import { navTelemetry } from "../model/telemetry";
-import { readWorkspaceFiles, rebaseFiles } from "../model/workspace-files";
+import {
+  readProjectFiles,
+  readWorkspaceFiles,
+  rebaseFiles,
+} from "../model/workspace-files";
 import BaseProjectList from "./BaseProjectList";
 import { useSyncMarkers } from "./use-sync-markers";
 
@@ -33,6 +37,7 @@ const VERB: Record<ProjectAction, string> = {
   rename: "rename",
   duplicate: "duplicate",
   export: "export",
+  "share-gist": "share",
   delete: "delete",
 };
 
@@ -80,6 +85,15 @@ export type ProjectListProps = {
    * a page over the work makes way for it
    */
   onPicked?: () => void;
+  /**
+   * Opens the share dialog for a project; settles when it closes. The
+   * dialog's frame and sign-in belong to slices a widget may not import, so
+   * the page hands the opener in.
+   */
+  onShareGist?: (
+    name: string,
+    readFiles: () => Promise<Record<string, string>>
+  ) => Promise<unknown>;
 };
 
 /**
@@ -87,7 +101,11 @@ export type ProjectListProps = {
  * device's pins, and what each menu item does. A failed action tells the
  * user, is logged for the team, and is counted.
  */
-const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
+const ProjectList = ({
+  onPickCurrent,
+  onPicked,
+  onShareGist,
+}: ProjectListProps) => {
   const [, refresh] = useReducer((n: number) => n + 1, 0);
   const [pins, setPins] = useState(readPins);
   const markers = useSyncMarkers();
@@ -226,6 +244,16 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
         // crashed (`ModalHost` reports that); the dialog reports its own
         // export's failures
         await PgView.setModal(<ExportWorkspace name={entry.name} />);
+        return;
+      case "share-gist":
+        if (!onShareGist) {
+          log.warn("share skipped: no share dialog was handed in");
+          return;
+        }
+        // The dialog reports and counts its own failures
+        await onShareGist(entry.name, () =>
+          readProjectFiles(entry.name, PgExplorer.fs)
+        );
         return;
       case "delete":
         await PgView.setModal(
