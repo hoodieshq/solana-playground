@@ -1,0 +1,237 @@
+import assert from "node:assert/strict";
+import { afterEach, beforeEach, describe, it } from "node:test";
+
+// `GET /api/ai/status` is the one answer the client gates AI surfaces on
+// (spec `assistant-ai-status`). The session is injected through
+// `statusHandler`, so every caller state is reachable without a database.
+const load = async () => {
+  const url = new URL("./ai.mjs", import.meta.url);
+  url.searchParams.set("t", String(Math.random()));
+  return import(url.href);
+};
+
+const makeRes = () => ({
+  statusCode: 0,
+  headers: {},
+  body: "",
+  setHeader(k, v) {
+    this.headers[k.toLowerCase()] = v;
+  },
+  end(b) {
+    this.body = b ?? "";
+  },
+});
+
+/** What sign-in needs: the hosted key counts only where it can sign a user in */
+const SIGN_IN = {
+  DATABASE_URL: "postgres://test@localhost/test",
+  GITHUB_CLIENT_ID: "test-client-id",
+  GITHUB_CLIENT_SECRET: "test-client-secret",
+  AUTH_SECRET: "test-auth-secret",
+};
+
+const KEY = "sk-agent-hosted-secret-0123456789";
+const NEWCOMER_KEY = "sk-agent-newcomer-secret-9876543210";
+const MODEL = "vendor/model-x";
+
+const VARS = [
+  "AGENT_API_KEY",
+  "AGENT_NEWCOMER_API_KEY",
+  "AGENT_MODEL",
+  "AUTH_OAUTH_PROXY_URL",
+  "AUTH_OAUTH_PROXY_SECRET",
+  ...Object.keys(SIGN_IN),
+];
+
+const configureHostedKey = () => {
+  Object.assign(process.env, SIGN_IN);
+  process.env.AGENT_API_KEY = KEY;
+  process.env.AGENT_NEWCOMER_API_KEY = NEWCOMER_KEY;
+  process.env.AGENT_MODEL = MODEL;
+};
+
+describe("GET /api/ai/status", () => {
+  /** What `yarn test-api` loaded from `.env`, put back after each case */
+  const saved = {};
+
+  beforeEach(() => {
+    for (const name of VARS) {
+      saved[name] = process.env[name];
+      delete process.env[name];
+    }
+  });
+
+  afterEach(() => {
+    for (const name of VARS) {
+      if (saved[name] === undefined) delete process.env[name];
+      else process.env[name] = saved[name];
+    }
+  });
+
+  /**
+   * Call the route with a session answer of our choosing.
+   *
+   * @param {{ session?: object; method?: string }} options
+   */
+  const call = async ({ session, method = "GET" } = {}) => {
+    const { statusHandler } = await load();
+    let asked = 0;
+    const handler = statusHandler({
+      readSession: async () => {
+        asked += 1;
+        if (!session) throw new Error("the session was read unexpectedly");
+        return session;
+      },
+    });
+    const res = makeRes();
+    await handler({ method, url: "/api/ai/status", headers: {} }, res);
+    return { res, asked };
+  };
+
+  const body = (res) => {
+    assert.equal(res.statusCode, 200);
+    return JSON.parse(res.body);
+  };
+
+  it("answers key: own without a hosted key, and never reads the session", async () => {
+    const { res, asked } = await call();
+
+    assert.deepEqual(body(res), {
+      available: false,
+      key: "own",
+      reason: null,
+      model: null,
+    });
+    assert.equal(asked, 0);
+  });
+
+  it("answers key: own with a key but no sign-in configured", async () => {
+    process.env.AGENT_API_KEY = KEY;
+    process.env.AGENT_MODEL = MODEL;
+
+    const { res, asked } = await call();
+
+    assert.deepEqual(body(res), {
+      available: false,
+      key: "own",
+      reason: null,
+      model: null,
+    });
+    assert.equal(asked, 0);
+  });
+
+  it("answers signed-out with the hosted key and a signed-out caller", async () => {
+    configureHostedKey();
+
+    const { res } = await call({ session: { status: "signed-out" } });
+
+    assert.deepEqual(body(res), {
+      available: false,
+      key: "hosted",
+      reason: "signed-out",
+      model: MODEL,
+    });
+  });
+
+  it("answers available with the hosted key and a signed-in caller", async () => {
+    configureHostedKey();
+
+    const { res } = await call({
+      session: { status: "signed-in", user: { id: "u1" } },
+    });
+
+    assert.deepEqual(body(res), {
+      available: true,
+      key: "hosted",
+      reason: null,
+      model: MODEL,
+    });
+  });
+
+  it("answers unavailable, not signed-out, when the session lookup fails", async () => {
+    configureHostedKey();
+
+    const { res } = await call({ session: { status: "unavailable" } });
+
+    assert.deepEqual(body(res), {
+      available: false,
+      key: "hosted",
+      reason: "unavailable",
+      model: MODEL,
+    });
+  });
+
+  it("answers key: own when sign-in turns out unconfigured at lookup", async () => {
+    configureHostedKey();
+
+    const { res } = await call({ session: { status: "unconfigured" } });
+
+    assert.deepEqual(body(res), {
+      available: false,
+      key: "own",
+      reason: null,
+      model: null,
+    });
+  });
+
+  it("never sends any part of either key, and is never cached", async () => {
+    configureHostedKey();
+
+    const { res } = await call({
+      session: { status: "signed-in", user: { id: "u1" } },
+    });
+
+    const sent = res.body + JSON.stringify(res.headers);
+    for (const key of [KEY, NEWCOMER_KEY]) {
+      // Any run of 8 characters from the key is a leak
+      for (let i = 0; i + 8 <= key.length; i += 1) {
+        assert.ok(
+          !sent.includes(key.slice(i, i + 8)),
+          `the answer holds part of a key: ${key.slice(i, i + 8)}`
+        );
+      }
+    }
+    assert.equal(res.headers["cache-control"], "no-store");
+    assert.equal(res.headers["content-type"], "application/json");
+  });
+
+  it("answers HEAD with the GET's status and headers, and no body", async () => {
+    configureHostedKey();
+
+    const { res } = await call({
+      method: "HEAD",
+      session: { status: "signed-out" },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers["cache-control"], "no-store");
+    assert.equal(res.body, "");
+  });
+
+  it("refuses POST with 405 and the methods it allows", async () => {
+    configureHostedKey();
+
+    const { res, asked } = await call({ method: "POST" });
+
+    assert.equal(res.statusCode, 405);
+    assert.equal(res.headers.allow, "GET, HEAD");
+    assert.equal(asked, 0);
+  });
+
+  it("serves the status through its default export", async () => {
+    const mod = await load();
+    const res = makeRes();
+
+    await mod.default(
+      { method: "GET", url: "/api/ai/status", headers: {} },
+      res
+    );
+
+    assert.deepEqual(body(res), {
+      available: false,
+      key: "own",
+      reason: null,
+      model: null,
+    });
+  });
+});
