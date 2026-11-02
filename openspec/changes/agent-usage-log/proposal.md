@@ -13,13 +13,13 @@ upstream that echoes the key would hand it out. This is HOO-2396.
 
 ## What Changes
 
-- New table `agent_turn`: one row per `/api/agent` turn that reached the
-  ledger, with its time, tier, outcome, reported tokens and charge.
-- `settle` writes the admitted turn's row in the statement it already runs,
-  so the route makes no extra round trip. A turn the cap refuses writes one
-  `capped` row.
-- Every text the route relays or logs about an upstream failure has the hosted
-  keys redacted: the error body passthrough, the 401/403 and 402 logs,
+- New table `agent_turn`: one row per admitted `/api/agent` turn, with its
+  day, time, tier, outcome, reported tokens and charge.
+- `settle` writes the row in the statement it already runs, so the route
+  makes no extra round trip. A turn the cap refuses adds one to a new
+  `agent_spend.capped` count instead of a row.
+- Every text the route relays or logs about an upstream failure is cut to
+  300 characters and has the hosted keys redacted: the error body passthrough, the 401/403 and 402 logs,
   `Upstream unreachable` and the stream's error frame.
 - `client-v2/docs/deploy-client-vercel.md` gains the procedure for rotating the
   hosted keys.

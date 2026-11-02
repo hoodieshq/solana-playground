@@ -400,8 +400,8 @@ A turn is charged its reported usage; a turn the caller abandoned, or one that
 ended without usage, its whole reservation; a turn the upstream refused,
 nothing. A function that dies between reserve and settle leaves the
 reservation spent for the day: the ledger may overcharge, never undercharge.
-Failures after the answer are logged as `agent: settling a turn failed` and
-`agent: account age lookup failed`.
+Failures after the answer are logged as `agent: settling a turn failed`,
+`agent: counting a capped turn failed` and `agent: account age lookup failed`.
 
 **After a week**, read:
 
@@ -417,20 +417,25 @@ Failures after the answer are logged as `agent: settling a turn failed` and
   from agent_spend group by day order by day desc`.
 
 - `agent_turn` for usage per account in any window (HOO-2396): one row per
-  turn that reached the ledger, `capped` for a cap refusal, e.g.
-  `select user_id, date_trunc('hour', at) as hour, count(*), sum(prompt_tokens),
-  sum(completion_tokens), sum(charged) / 1e6 as usd from agent_turn
-  group by 1, 2 order by 2 desc`. A day's `charged` sums to its
-  `agent_spend.spent`. The migration must run before the code that writes it
-  merges: until then every settle fails and leaves its reservation spent.
+  admitted turn, with its reserve `day`, its settle time `at`, tier, outcome,
+  reported tokens and charge, for example `select user_id,
+  date_trunc('hour', at) as hour, count(*), sum(prompt_tokens),
+  sum(completion_tokens), sum(charged) / 1e6 as usd from agent_turn group by
+  1, 2 order by 2 desc`. Grouped by `day`, `charged` sums to
+  `agent_spend.spent`, short of any turn whose settle failed. Turns the cap
+  refused are counted in `agent_spend.capped`, not logged. The migration that
+  adds both runs before the code that writes them merges: until then every
+  settle fails and leaves its reservation spent.
 
 Adjust the caps and budgets together: the sum of per-user caps a pool serves
 can exceed its budget, but the budget is what binds.
 
 **Rotating the keys.** `AGENT_API_KEY` and `AGENT_NEWCOMER_API_KEY` live only
-in Vercel's encrypted variables and are read only by `api/agent.mjs`; no
-`REACT_APP_*` variable carries them, and the route redacts every run of eight
-or more of their characters from what it relays or logs. To rotate one, or
+in Vercel's encrypted variables and are read only by server code, through
+`agentEnv` in `src/shared/config/server-env.mjs`, on behalf of
+`api/agent.mjs`. No `REACT_APP_*` variable carries them, and the route redacts
+every run of eight or more of their characters from the error text it relays
+or logs (the upstream's own successful stream is forwarded as it comes). To rotate one, or
 after a suspected leak:
 
 1. Create a new key in the Gateway with the same daily budget as the old one.

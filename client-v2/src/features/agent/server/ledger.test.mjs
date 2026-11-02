@@ -87,24 +87,33 @@ describe("ledger", { skip: !DB && "DATABASE_URL not set" }, () => {
   /** The turns recorded for `userId`, oldest first */
   const turns = async (userId) => {
     const { rows } = await query(
-      `select tier, outcome, prompt_tokens, completion_tokens, charged::int
-         from agent_turn where user_id = $1 order by id`,
+      `select to_char(day, 'YYYY-MM-DD') as day, tier, outcome, prompt_tokens,
+            completion_tokens, charged::int
+       from agent_turn where user_id = $1 order by id`,
       [userId]
     );
     return rows;
   };
 
   /** A settle of a newcomer's turn that ended `unfinished`, unless told otherwise */
-  const close = (userId, reserved, charge, end = {}, run = query) =>
+  const close = (userId, reserved, charge, turn = {}, run = query) =>
     settle(run, {
       userId,
       day: DAY,
       reserved,
       charge,
-      tier: end.tier ?? "newcomer",
-      outcome: end.outcome ?? "unfinished",
-      usage: end.usage ?? null,
+      tier: turn.tier ?? "newcomer",
+      end: turn.end ?? { kind: "unfinished" },
     });
+
+  /** The count of capped turns on `userId`'s day row */
+  const capped = async (userId) => {
+    const { rows } = await query(
+      `select capped from agent_spend where user_id = $1 and day = $2`,
+      [userId, DAY]
+    );
+    return rows[0]?.capped;
+  };
 
   /** A reservation of `amount` for `userId` on `day` */
   const take = (userId, amount, day = DAY, run = query) =>
@@ -198,11 +207,14 @@ describe("ledger", { skip: !DB && "DATABASE_URL not set" }, () => {
     await take(OLD, 5000);
     await close(OLD, 5000, 1200, {
       tier: "established",
-      outcome: "completed",
-      usage: { prompt_tokens: 100, completion_tokens: 20 },
+      end: {
+        kind: "completed",
+        usage: { prompt_tokens: 100, completion_tokens: 20 },
+      },
     });
     assert.deepEqual(await turns(OLD), [
       {
+        day: DAY,
         tier: "established",
         outcome: "completed",
         prompt_tokens: 100,
@@ -218,6 +230,7 @@ describe("ledger", { skip: !DB && "DATABASE_URL not set" }, () => {
     await close(NEW, 5000, 5000);
     assert.deepEqual(await turns(NEW), [
       {
+        day: DAY,
         tier: "newcomer",
         outcome: "unfinished",
         prompt_tokens: null,
@@ -228,22 +241,55 @@ describe("ledger", { skip: !DB && "DATABASE_URL not set" }, () => {
   });
 
   it("records the turn even when the day has no row to settle", async () => {
-    await close(NEW, 10, 0, { outcome: "refused" });
+    await close(NEW, 10, 0, { end: { kind: "refused" } });
     assert.equal((await turns(NEW)).length, 1);
     assert.equal(await row(NEW), undefined);
   });
 
-  it("records a turn the cap refused as capped, charged nothing", async () => {
-    await recordCapped(query, { userId: NEW, tier: "newcomer" });
-    assert.deepEqual(await turns(NEW), [
-      {
-        tier: "newcomer",
-        outcome: "capped",
-        prompt_tokens: null,
-        completion_tokens: null,
-        charged: 0,
-      },
-    ]);
+  // The upstream's usage is not ours: a count `agent_turn` cannot hold must not
+  // fail the statement that settles the charge
+  for (const bad of [2.5, "12", -1, 2 ** 31, Number.NaN]) {
+    it(`settles a turn whose upstream reported ${String(
+      bad
+    )} tokens`, async () => {
+      await take(NEW, 5000);
+      await close(NEW, 5000, 1200, {
+        end: {
+          kind: "completed",
+          usage: { prompt_tokens: bad, completion_tokens: 7 },
+        },
+      });
+      assert.deepEqual(await row(NEW), { reserved: 0, spent: 1200 });
+      const [turn] = await turns(NEW);
+      assert.equal(turn.prompt_tokens, null);
+      assert.equal(turn.completion_tokens, 7);
+    });
+  }
+
+  it("refuses tokens on a turn that did not complete", async () => {
+    await assert.rejects(
+      query(
+        `insert into agent_turn (user_id, day, tier, outcome, prompt_tokens)
+         values ($1, $2, 'newcomer', 'refused', 5)`,
+        [NEW, DAY]
+      ),
+      /agent_turn_tokens_check/
+    );
+  });
+
+  it("counts turns the cap refused on the day's row, without a turn row", async () => {
+    await take(NEW, CAPS.newcomer);
+    await recordCapped(query, { userId: NEW, day: DAY });
+    await recordCapped(query, { userId: NEW, day: DAY });
+    assert.equal(await capped(NEW), 2);
+    assert.deepEqual(await row(NEW), { reserved: CAPS.newcomer, spent: 0 });
+    assert.deepEqual(await turns(NEW), []);
+  });
+
+  it("counts a refusal on a day with no row yet", async () => {
+    await recordCapped(query, { userId: NEW, day: DAY });
+    assert.equal(await capped(NEW), 1);
+    assert.deepEqual(await row(NEW), { reserved: 0, spent: 0 });
   });
 
   it("counts settled spend against the cap", async () => {

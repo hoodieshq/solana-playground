@@ -54,6 +54,7 @@ CREATE TABLE public.agent_spend (
     day date NOT NULL,
     reserved bigint DEFAULT 0 NOT NULL,
     spent bigint DEFAULT 0 NOT NULL,
+    capped integer DEFAULT 0 NOT NULL,
     CONSTRAINT agent_spend_amounts_check CHECK (((reserved >= 0) AND (spent >= 0)))
 );
 
@@ -65,6 +66,7 @@ CREATE TABLE public.agent_spend (
 CREATE TABLE public.agent_turn (
     id bigint NOT NULL,
     user_id text NOT NULL,
+    day date NOT NULL,
     at timestamp with time zone DEFAULT now() NOT NULL,
     tier text NOT NULL,
     outcome text NOT NULL,
@@ -72,8 +74,9 @@ CREATE TABLE public.agent_turn (
     completion_tokens integer,
     charged bigint DEFAULT 0 NOT NULL,
     CONSTRAINT agent_turn_charged_check CHECK ((charged >= 0)),
-    CONSTRAINT agent_turn_outcome_check CHECK ((outcome = ANY (ARRAY['completed'::text, 'unfinished'::text, 'refused'::text, 'abandoned'::text, 'capped'::text]))),
-    CONSTRAINT agent_turn_tier_check CHECK ((tier = ANY (ARRAY['newcomer'::text, 'established'::text])))
+    CONSTRAINT agent_turn_outcome_check CHECK ((outcome = ANY (ARRAY['completed'::text, 'unfinished'::text, 'refused'::text, 'abandoned'::text]))),
+    CONSTRAINT agent_turn_tier_check CHECK ((tier = ANY (ARRAY['newcomer'::text, 'established'::text]))),
+    CONSTRAINT agent_turn_tokens_check CHECK ((((prompt_tokens IS NULL) OR (prompt_tokens >= 0)) AND ((completion_tokens IS NULL) OR (completion_tokens >= 0)) AND ((outcome = 'completed'::text) OR ((prompt_tokens IS NULL) AND (completion_tokens IS NULL)))))
 );
 
 

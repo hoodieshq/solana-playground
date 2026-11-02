@@ -33,6 +33,8 @@ const db = vi.hoisted(() => {
     users: new Map<string, User>(),
     /** `${userId}|${day}` to the day's row, in micro-USD */
     spend: new Map<string, { reserved: number; spent: number }>(),
+    /** `agent_spend.capped` by `${userId}|${day}`, kept apart so `spend` rows compare as before */
+    capped: new Map<string, number>(),
     /** `agent_turn`, in insertion order */
     turns: [] as {
       userId: string;
@@ -54,6 +56,11 @@ const db = vi.hoisted(() => {
     state.during?.(text);
     if (state.down) throw new Error("connect ECONNREFUSED");
 
+    if (text.includes("capped = s.capped + 1")) {
+      const key = `${params[0] as string}|${params[1] as string}`;
+      state.capped.set(key, (state.capped.get(key) ?? 0) + 1);
+      return { rows: [] };
+    }
     if (text.includes("insert into agent_spend")) {
       const [userId, day, ageDays, amount, newcomerCap, establishedCap] =
         params as [string, string, number, number, number, number];
@@ -113,18 +120,6 @@ const db = vi.hoisted(() => {
       });
       return { rows: [] };
     }
-    if (text.includes("insert into agent_turn")) {
-      const [userId, tier] = params as [string, string];
-      state.turns.push({
-        userId,
-        tier,
-        outcome: "capped",
-        promptTokens: null,
-        completionTokens: null,
-        charged: 0,
-      });
-      return { rows: [] };
-    }
     if (text.includes('"accessToken"')) {
       const token = state.users.get(params[0] as string)?.token;
       return { rows: token ? [{ accessToken: token }] : [] };
@@ -181,6 +176,7 @@ beforeEach(() => {
   db.state.users.clear();
   db.state.spend.clear();
   db.state.turns.length = 0;
+  db.state.capped.clear();
   db.state.log.length = 0;
   db.state.down = false;
   db.state.during = null;
@@ -1257,7 +1253,7 @@ describe("POST /api/agent spend gate", () => {
     });
   });
 
-  describe("The hosted keys never leave the route", () => {
+  describe("The hosted keys never leave the route's own text", () => {
     const KEY = "vck_live_9fA2bQ7xLm4pZr8TuW1yN6cK";
     const NEWCOMER_KEY = "vck_new_3Hs8kD2mQp7vRt5Wz1Lc";
 
@@ -1268,14 +1264,13 @@ describe("POST /api/agent spend gate", () => {
         .map((args) => JSON.stringify(args))
         .join("\n");
 
-    /** Whether `text` holds a key, or the first or last eight characters of one */
-    const leaks = (text: string) =>
-      [KEY, NEWCOMER_KEY].some(
-        (key) =>
-          text.includes(key) ||
-          text.includes(key.slice(0, 8)) ||
-          text.includes(key.slice(-8))
-      );
+    /** Every run of eight characters of either key */
+    const runs = [KEY, NEWCOMER_KEY].flatMap((key) =>
+      Array.from({ length: key.length - 7 }, (_, at) => key.slice(at, at + 8))
+    );
+
+    /** The first run of a key `text` holds, or undefined */
+    const leak = (text: string) => runs.find((run) => text.includes(run));
 
     beforeEach(() => {
       vi.stubEnv("AGENT_API_KEY", KEY);
@@ -1290,23 +1285,60 @@ describe("POST /api/agent spend gate", () => {
       return { res, logged: consoleText(error, warn) };
     };
 
+    /** An upstream that masks the key's middle when it quotes it */
+    const masked = (key: string) => `${key.slice(0, 12)}****${key.slice(-10)}`;
+
     it.each([
       [500, `{"error":{"message":"bad key ${KEY}"}}`],
-      [
-        401,
-        `Incorrect API key provided: ${KEY.slice(0, 12)}****${KEY.slice(-10)}`,
-      ],
+      [401, `Incorrect API key provided: ${masked(KEY)}`],
+      [401, `{"error":{"message":"invalid key ${KEY}"}}`],
       [403, `{"error":{"type":"forbidden","message":"key ${KEY} restricted"}}`],
       [402, `Payment required for ${KEY}`],
-      [429, `rate limited: ${NEWCOMER_KEY}`],
+      [429, `rate limited: ${masked(NEWCOMER_KEY)}`],
     ])("keeps the key out of an upstream %i", async (status, body) => {
       const { res, logged } = await failing(
         () => new Response(body, { status })
       );
 
       expect(res.statusCode).toBeGreaterThanOrEqual(400);
-      expect(leaks(res.body())).toBe(false);
-      expect(leaks(logged)).toBe(false);
+      expect(leak(res.body())).toBeUndefined();
+      expect(leak(logged)).toBeUndefined();
+    });
+
+    it("still reports an exhausted pool whose message quotes the key", async () => {
+      const { res, logged } = await failing(() =>
+        json(
+          {
+            error: {
+              type: "quota_for_entity_exceeded",
+              message: `budget spent for ${KEY}`,
+            },
+          },
+          { status: 402 }
+        )
+      );
+
+      expect(res.statusCode).toBe(503);
+      expect(jsonBody(res)).toMatchObject({ reason: "pool-exhausted" });
+      expect(leak(logged)).toBeUndefined();
+    });
+
+    it("still names a refusal's cause when its message quotes the key", async () => {
+      const { res, logged } = await failing(() =>
+        json(
+          {
+            error: {
+              type: "customer_verification_required",
+              message: `add a card for ${KEY}`,
+            },
+          },
+          { status: 403 }
+        )
+      );
+
+      expect(jsonBody(res).error).toMatch(/needs a payment method/);
+      expect(leak(res.body())).toBeUndefined();
+      expect(leak(logged)).toBeUndefined();
     });
 
     it("keeps the key out of an upstream that cannot be reached", async () => {
@@ -1316,8 +1348,19 @@ describe("POST /api/agent spend gate", () => {
 
       expect(res.statusCode).toBe(502);
       expect(jsonBody(res).error).toMatch(/^Upstream unreachable: /);
-      expect(leaks(res.body())).toBe(false);
-      expect(leaks(logged)).toBe(false);
+      expect(leak(res.body())).toBeUndefined();
+      expect(leak(logged)).toBeUndefined();
+    });
+
+    it("keeps the newcomer key out of a newcomer's failed turn", async () => {
+      db.state.users.set("user-1", { githubCreatedAt: null, token: "gho_1" });
+      const { res, logged } = await failing(() => {
+        throw new Error(`refused Bearer ${NEWCOMER_KEY}`);
+      });
+
+      expect(res.statusCode).toBe(502);
+      expect(leak(res.body())).toBeUndefined();
+      expect(leak(logged)).toBeUndefined();
     });
 
     it("keeps the key out of a stream that breaks", async () => {
@@ -1334,27 +1377,45 @@ describe("POST /api/agent spend gate", () => {
       );
 
       expect(res.body()).toMatch(/Upstream stream failed: /);
-      expect(leaks(res.body())).toBe(false);
-      expect(leaks(logged)).toBe(false);
+      expect(leak(res.body())).toBeUndefined();
+      expect(leak(logged)).toBeUndefined();
+    });
+
+    it("relays and logs no more than 300 characters of an upstream error", async () => {
+      const { res, logged } = await failing(
+        () => new Response("x".repeat(100_000), { status: 500 })
+      );
+
+      expect(jsonBody(res).error).toBe(`Upstream 500: ${"x".repeat(300)}`);
+      expect(logged).toBe("");
     });
   });
 
   describe("Every turn that reaches the ledger is recorded", () => {
+    /** The one turn recorded, for a turn by user-1 at the established tier */
+    const recorded = (
+      outcome: string,
+      charged: number,
+      tokens: [number, number] | null = null
+    ) => [
+      {
+        userId: "user-1",
+        tier: "established",
+        outcome,
+        promptTokens: tokens?.[0] ?? null,
+        completionTokens: tokens?.[1] ?? null,
+        charged,
+      },
+    ];
+
     it("records a completed turn with its tokens and charge", async () => {
       network();
 
       await postJson(handler, TURN);
 
-      expect(db.state.turns).toEqual([
-        {
-          userId: "user-1",
-          tier: "established",
-          outcome: "completed",
-          promptTokens: 1000,
-          completionTokens: 100,
-          charged: USAGE_COST,
-        },
-      ]);
+      expect(db.state.turns).toEqual(
+        recorded("completed", USAGE_COST, [1000, 100])
+      );
     });
 
     it("records a turn that ends without usage with no tokens", async () => {
@@ -1362,19 +1423,32 @@ describe("POST /api/agent spend gate", () => {
 
       await postJson(handler, TURN);
 
-      expect(db.state.turns).toEqual([
-        {
-          userId: "user-1",
-          tier: "established",
-          outcome: "unfinished",
-          promptTokens: null,
-          completionTokens: null,
-          charged: RESERVED,
-        },
-      ]);
+      expect(db.state.turns).toEqual(recorded("unfinished", RESERVED));
     });
 
-    it("records a turn the cap refuses as capped, with no upstream call", async () => {
+    it("records a turn the upstream refuses, charged nothing", async () => {
+      network(() => new Response("down", { status: 500 }));
+
+      await postJson(handler, TURN);
+
+      expect(db.state.turns).toEqual(recorded("refused", 0));
+    });
+
+    it("records a turn the caller abandons before the upstream is dialled", async () => {
+      const res = makeRes();
+      network();
+      db.state.during = (text) => {
+        if (!text.includes("insert into agent_spend")) return;
+        res.destroyed = true;
+        res.emit("close");
+      };
+
+      await handler(makeReq(TURN), res as never);
+
+      expect(db.state.turns).toEqual(recorded("abandoned", 0));
+    });
+
+    it("counts a turn the cap refuses, with no turn row and no upstream call", async () => {
       spendSoFar("user-1", CAP.established);
       const fetched = network();
 
@@ -1382,42 +1456,59 @@ describe("POST /api/agent spend gate", () => {
 
       expect(res.statusCode).toBe(429);
       expect(upstreamCalls(fetched)).toHaveLength(0);
-      expect(db.state.turns).toEqual([
-        {
-          userId: "user-1",
-          tier: "established",
-          outcome: "capped",
-          promptTokens: null,
-          completionTokens: null,
-          charged: 0,
-        },
-      ]);
+      expect(db.state.capped.get(`user-1|${today()}`)).toBe(1);
+      expect(db.state.turns).toEqual([]);
     });
 
-    it("still answers 429 when recording a capped turn fails", async () => {
+    it("still answers 429 when counting a capped turn fails", async () => {
       const logged = vi.spyOn(console, "error").mockImplementation(() => {});
       spendSoFar("user-1", CAP.established);
       network();
       db.state.during = (text) => {
-        if (text.includes("insert into agent_turn")) db.state.down = true;
+        if (text.includes("capped = s.capped + 1")) db.state.down = true;
       };
 
       const res = await postJson(handler, TURN);
 
       expect(res.statusCode).toBe(429);
       expect(logged).toHaveBeenCalledWith(
-        "agent: recording a capped turn failed",
-        expect.objectContaining({ message: "connect ECONNREFUSED" })
+        "agent: counting a capped turn failed",
+        expect.objectContaining({
+          message: "connect ECONNREFUSED",
+          tier: "established",
+          day: today(),
+        })
       );
     });
 
-    it("records nothing for a turn refused before the ledger", async () => {
-      session.state = "signed-out";
+    it.each([
+      [
+        "a signed-out caller",
+        () => {
+          session.state = "signed-out";
+        },
+      ],
+      [
+        "an oversized body",
+        () => {
+          vi.stubEnv("AGENT_MAX_BODY_BYTES", "16");
+        },
+      ],
+      [
+        "a ledger that cannot be read",
+        () => {
+          vi.spyOn(console, "error").mockImplementation(() => {});
+          db.state.down = true;
+        },
+      ],
+    ])("records nothing for %s", async (_, arrange) => {
+      arrange();
       network();
 
       await postJson(handler, TURN);
 
       expect(db.state.turns).toEqual([]);
+      expect(db.state.capped.size).toBe(0);
     });
   });
 

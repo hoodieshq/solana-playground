@@ -72,6 +72,9 @@ import { agentEnv } from "../src/shared/config/server-env.mjs";
  */
 const FORWARDED = ["messages", "tools", "tool_choice"];
 
+/** How much of an upstream error text the route relays or logs */
+const MAX_ERROR_TEXT = 300;
+
 /**
  * The `error.type` of a Gateway `402`: a budget in scope is spent, or the
  * team's credit balance is empty. Either way the tier's pool is out until a
@@ -321,7 +324,7 @@ async function handler(req, res) {
     end = await relay(res, configured, body, gate.tier, now);
   } finally {
     // The response has ended on every path here, so none of this delays an
-    // answer. Neither step throws: there is nobody left to tell.
+    // answer. None of these steps throws: there is nobody left to tell.
     if (gate.admitted) {
       await settle(query, {
         userId: turn.userId,
@@ -329,8 +332,7 @@ async function handler(req, res) {
         reserved: turn.amount,
         charge: chargeFor(end, turn.amount, configured.prices),
         tier: gate.tier,
-        outcome: end.kind,
-        usage: end.kind === "completed" ? end.usage : null,
+        end,
       }).catch((e) =>
         // The reservation stays spent for the day: an overcharge, never an
         // undercharge
@@ -338,15 +340,19 @@ async function handler(req, res) {
           message: e?.message,
           code: e?.code,
           end: end.kind,
+          tier: gate.tier,
+          day: turn.day,
         })
       );
     } else {
-      // Only the usage record is lost: the caller already has the 429
-      await recordCapped(query, { userId: turn.userId, tier: gate.tier }).catch(
+      // Only the count is lost: the caller already has the 429
+      await recordCapped(query, { userId: turn.userId, day: turn.day }).catch(
         (e) =>
-          console.error("agent: recording a capped turn failed", {
+          console.error("agent: counting a capped turn failed", {
             message: e?.message,
             code: e?.code,
+            tier: gate.tier,
+            day: turn.day,
           })
       );
     }
@@ -377,9 +383,17 @@ const relay = async (res, configured, body, tier, now) => {
   // nothing has been sent, and the reservation goes back
   if (res.destroyed) return { kind: "abandoned" };
 
-  // Every text below that the upstream or a thrown error wrote passes through
-  // this before it is relayed or logged: an upstream may quote the key
-  const redact = (text) => redactSecrets(text, Object.values(configured.keys));
+  // An error text the upstream or a thrown error wrote, as the route may relay
+  // or log it: cut to `MAX_ERROR_TEXT`, then without the keys, since an
+  // upstream may quote the key it was sent. Cutting first bounds the work on
+  // an error body of any size; of a key the cut splits, at most seven
+  // characters survive, as of any key. The upstream's own 200 stream is forwarded as
+  // it comes, and is not this function's.
+  const redact = (text) =>
+    redactSecrets(
+      text.slice(0, MAX_ERROR_TEXT),
+      Object.values(configured.keys)
+    );
 
   let response;
   try {
@@ -425,7 +439,9 @@ const relay = async (res, configured, body, tier, now) => {
   }
 
   if (!response.ok) {
-    const text = redact(await response.text().catch(() => ""));
+    // Classified as received, relayed and logged only redacted
+    const text = await response.text().catch(() => "");
+    const shown = redact(text);
     // Our request was refused: relayed, it would read as this route refusing
     // the caller
     if (response.status === 401 || response.status === 403) {
@@ -434,7 +450,7 @@ const relay = async (res, configured, body, tier, now) => {
         status: response.status,
         cause,
         tier,
-        body: text.slice(0, 300),
+        body: shown,
       });
       sendJson(res, 502, {
         error: `${REFUSAL_CAUSES[cause]} (${response.status}).`,
@@ -444,7 +460,7 @@ const relay = async (res, configured, body, tier, now) => {
     if (response.status === 402 && isPoolExhausted(text)) {
       console.warn("agent: tier pool exhausted", {
         tier,
-        body: text.slice(0, 300),
+        body: shown,
       });
       res.setHeader("retry-after", String(secondsToReset(now)));
       sendJson(res, REFUSAL_STATUS[POOL_EXHAUSTED_REASON], {
@@ -456,7 +472,7 @@ const relay = async (res, configured, body, tier, now) => {
     }
     // The upstream's own status, so a 429 still reads as a 429 in the panel
     sendJson(res, response.status, {
-      error: `Upstream ${response.status}: ${text.slice(0, 300)}`,
+      error: `Upstream ${response.status}: ${shown}`,
     });
     return { kind: "refused" };
   }

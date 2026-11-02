@@ -9,11 +9,11 @@ Plan: [plans/1-usage-and-key-guard.md](plans/1-usage-and-key-guard.md)
 - [x] 1.1 Migration `agent_turn` and regenerated `db/schema.sql`; verify with
       `yarn db-migrate` and `yarn db-status` (HOO-2396)
 - [x] 1.2 `settle` writes the turn's row in its statement; `recordCapped`
-      writes a `capped` row; verify with `yarn test-api` cases in
+      counts a capped turn on `agent_spend.capped`; verify with `yarn test-api` cases in
       `ledger.test.mjs` against Postgres (HOO-2396; after 1.1)
 - [x] 1.3 `api/agent.mjs` passes tier and outcome to `settle` and calls
       `recordCapped` on a cap refusal; verify with the integration spec's
-      completed, capped and query-count cases (HOO-2396; after 1.2)
+      outcome, capped and query-count cases (HOO-2396; after 1.2)
 
 ## 2. The keys
 
