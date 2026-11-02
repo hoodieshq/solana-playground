@@ -10,7 +10,7 @@
 
 ## 2. Name field (HOO-2057)
 
-- [ ] 2.1 `BaseStartFromScratch` shows the message above the field and a
+- [ ] 2.1 `BaseStartFromScratch` shows the message before the field and a
   success edge (`data-state="valid"`) on a valid typed name; unit tests cover
   invalid, valid and empty (independent of 1.1)
 

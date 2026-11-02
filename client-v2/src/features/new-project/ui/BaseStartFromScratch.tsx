@@ -122,9 +122,13 @@ const BaseStartFromScratch = ({
         ))}
       </Segmented>
 
-      <div className="flex flex-col gap-1.5">
-        {/* Above the field, as the prototype and the old client draw it */}
-        <FieldError id={errorId}>{error}</FieldError>
+      {/* The message comes before the field, as the prototype and the old
+          client draw it: on its left in the one row, so the field keeps the
+          chips' centre line, and above it when the row stacks */}
+      <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-2">
+        <FieldError id={errorId} className="md:whitespace-nowrap">
+          {error}
+        </FieldError>
         <div className="flex gap-2">
           <Input
             aria-label="Project name"

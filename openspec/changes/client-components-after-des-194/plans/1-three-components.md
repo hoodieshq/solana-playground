@@ -13,7 +13,8 @@ edge. A started lesson in the project list shows its progress.
 - Lesson progress in the list: prototype shows none, R60 removed it; Slava
   chose to show it (2 Nov). "3/5" muted in the pin/marker slot, a check when
   finished.
-- Name message above the field (prototype + DS note) over Spec 09/11 ("under").
+- Name message before the field, on its left in the row as the prototype
+  draws it (above when stacked), over Spec 09/11 ("under").
 - Success edge: on a typed name passing the format check; taken stays on Start.
 - Toast bar: 2 px, primary, at the foot, pauses with Sonner, none when
   persistent, none under reduced motion.

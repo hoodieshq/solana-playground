@@ -1,9 +1,11 @@
 ## ADDED Requirements
 
-### Requirement: The project name says what is wrong above it
+### Requirement: The project name says what is wrong before the field
 
-In Start from scratch, a message about the project name SHALL show above the
-name field, linked to it with `aria-describedby`, and the field SHALL be
+In Start from scratch, a message about the project name SHALL show before the
+name field (on its left while the controls share one row, above it when they
+stack), linked to it with `aria-describedby`, without moving the field off the
+row's centre line, and the field SHALL be
 marked invalid with a red edge. A typed name that passes the format check
 (letters, digits, spaces, `-` and `_`) SHALL give the field a success edge
 (`data-state="valid"`); an empty field, which takes the placeholder, SHALL
@@ -13,7 +15,7 @@ only, and typing SHALL clear the message.
 #### Scenario: An invalid name
 
 - **WHEN** a user types `my.project` and presses Start
-- **THEN** the message shows above the name field, the field is
+- **THEN** the message shows before the name field, the field is
   `aria-invalid` and described by the message, and no project is created
 
 #### Scenario: A valid name

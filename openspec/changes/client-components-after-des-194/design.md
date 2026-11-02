@@ -37,8 +37,10 @@ Sonner's timer; the rename field's error placement in the list.
   container, not re-implemented); taken is known only on Start (Spec 09).
   `data-state="valid"` drives `border-success` so tests read a state, not a
   colour.
-- **Message above the field.** `FieldError` moves above the input row; the
-  row's `aria-describedby` already links it.
+- **Message before the field.** `FieldError` moves ahead of the input: on
+  its left in the one row (the prototype's place; above would be clipped by
+  New project's scroll area and push the field off the chips' centre line),
+  above it when the row stacks. `aria-describedby` already links it.
 - **Lesson progress joins `ProjectEntry`.** `listProjects` takes a
   `progressOf(name)` dependency; `ProjectList` passes `useTutorialProgress`'s
   reader for lessons. `BaseProjectList` draws it in the marker slot with a

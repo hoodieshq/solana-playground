@@ -13,8 +13,9 @@ client-v2 from existing design-system parts.
 - A timed toast shows a thin accent bar along its foot that drains over the
   toast's duration and pauses while the toasts are hovered. A persistent toast
   has no bar; under reduced motion the bar is not drawn.
-- New project's name field shows its message above the field, and a typed
-  name that passes the format check gets a success edge. The taken-name check
+- New project's name field shows its message before the field (on its left
+  in the one row, above it on a phone), and a typed name that passes the
+  format check gets a success edge. The taken-name check
   stays on Start.
 - A started lesson's row in the project list shows its page as "3/5" at the
   row's end; a finished lesson shows a check. Both hide on hover and focus,
