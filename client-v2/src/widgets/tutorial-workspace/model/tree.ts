@@ -2,8 +2,9 @@ import type { TutorialDefinition } from "@/entities/tutorial";
 
 /**
  * The tutorial's files, by their path from the project root (`src/lib.rs`):
- * the starter files, then each file a step creates, in the order they first
- * come. A `tests` folder is never part of a tutorial's tree.
+ * the finished program's (the intro's), then any other file a step creates,
+ * in the order they first come. A `tests` folder is never part of a
+ * tutorial's tree.
  */
 export const tutorialFiles = (definition: TutorialDefinition): string[] => {
   const created = definition.steps.flatMap((step) =>
@@ -20,12 +21,15 @@ export const tutorialFiles = (definition: TutorialDefinition): string[] => {
 
 const isTests = (path: string) => path === "tests" || path.startsWith("tests/");
 
-/** The step, counted from 1, that first creates `path`; null for a starter file */
+/**
+ * The step, counted from 1, that first creates `path`; null for a file the
+ * project starts with. The intro's files are the finished program, so they
+ * say nothing about which file comes when.
+ */
 export const createdIn = (
   definition: TutorialDefinition,
   path: string
 ): number | null => {
-  if (path in definition.intro.files) return null;
   const at = definition.steps.findIndex((step) =>
     step.beats.some(
       (beat) =>
@@ -141,7 +145,10 @@ if (import.meta.vitest) {
 
     /** Hello Anchor's shape: lib.rs to start, client.ts made in step 3 */
     const definition = {
-      intro: { files: { [LIB]: "", "tests/anchor.test.ts": "" } },
+      // The intro's files are the finished program, client.ts included
+      intro: {
+        files: { [LIB]: "", [CLIENT]: "", "tests/anchor.test.ts": "" },
+      },
       steps: [
         { beats: [{ kind: "say" }] },
         { beats: [] },
