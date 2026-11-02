@@ -52,7 +52,7 @@ export interface UseTutorialFrame {
  */
 const useDefinitionTutorial = () => {
   useRenderOnChange(PgTutorial.onDidChangeCurrent);
-  // Start creates the workspace well after the route has changed, and on a
+  // The route creates the workspace (`openOnIntro`) after it has changed, and on a
   // cold load the explorer initialises after the first render
   useRenderOnChange(PgTutorial.onDidChange);
   useRenderOnChange(PgExplorer.onDidInit);

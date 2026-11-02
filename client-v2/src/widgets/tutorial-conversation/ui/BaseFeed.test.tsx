@@ -183,11 +183,17 @@ describe("BaseFeed", () => {
   it("jumps from step 3 to step 1, and keeps step 3 the live one", async () => {
     const onJump = vi.fn();
     const { container } = feed({ onJump });
+    // jsdom lays nothing out: give each divider a place of its own
+    container
+      .querySelectorAll("[data-turn='divider']")
+      .forEach((el, i) =>
+        Object.defineProperty(el, "offsetTop", { value: 100 + i * 400 })
+      );
+    vi.mocked(Element.prototype.scrollTo).mockClear();
     await userEvent.click(segment(/^Step 1 of 4, Program, done$/));
 
-    const first = container.querySelector("[data-turn='divider']");
     expect(Element.prototype.scrollTo).toHaveBeenCalledWith(
-      expect.objectContaining({ top: (first as HTMLElement).offsetTop - 12 })
+      expect.objectContaining({ top: 100 - 12 })
     );
     expect(onJump).toHaveBeenCalledWith(0, 2, "bar");
     expect(
@@ -226,15 +232,48 @@ describe("BaseFeed", () => {
     expect(onJump).not.toHaveBeenCalled();
   });
 
-  it("takes the learner back to the live card from the pill", async () => {
+  it("takes the learner back to the live card from the pill, and focuses its first control", async () => {
+    // Reduced motion: the focus follows at once rather than after the scroll
+    vi.stubGlobal("matchMedia", () => ({ matches: true }));
     const onBack = vi.fn();
     feed({ onBack });
     await userEvent.click(segment(/^Step 1 of 4, Program, done$/));
+    vi.mocked(Element.prototype.scrollIntoView).mockClear();
+
     await userEvent.click(
       screen.getByRole("button", { name: "Back to step 3" })
     );
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+    await act(() => new Promise((done) => setTimeout(done, 0)));
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /Run/ })
+    );
     expect(onBack).toHaveBeenCalledWith(2);
+    expect(screen.queryByRole("button", { name: /^Back to/ })).toBeNull();
+  });
+
+  it("leaves ⌥↑ to a field that has focus", () => {
+    const onJump = vi.fn();
+    feed({ onJump });
+    const field = document.createElement("input");
+    document.body.appendChild(field);
+    fireEvent.keyDown(field, { key: "ArrowUp", altKey: true });
+    expect(onJump).not.toHaveBeenCalled();
+    field.remove();
+  });
+
+  it("reads a feed scrolled to its bottom as on the live step", async () => {
+    const { container } = feed();
+    await userEvent.click(segment(/^Step 1 of 4, Program, done$/));
+    const box = container.querySelector("[role='log']")!
+      .parentElement as HTMLElement;
+    Object.defineProperty(box, "scrollTop", { value: 600 });
+    Object.defineProperty(box, "clientHeight", { value: 400 });
+    Object.defineProperty(box, "scrollHeight", { value: 1000 });
+    fireEvent.scroll(box);
+    expect(
+      segment(/^Step 1 of 4, Program, done$/).getAttribute("aria-current")
+    ).toBeNull();
     expect(screen.queryByRole("button", { name: /^Back to/ })).toBeNull();
   });
 

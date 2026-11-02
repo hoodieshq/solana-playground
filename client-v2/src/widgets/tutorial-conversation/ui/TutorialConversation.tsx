@@ -7,6 +7,9 @@ import {
   unwiredRunner,
 } from "@/features/tutorial-conversation";
 import type { ConversationState } from "@/features/tutorial-conversation";
+import type { StepJumpVia } from "@/entities/tutorial";
+import { createLogger } from "@/shared/lib/logger";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { Spinner } from "@/shared/ui/spinner";
 import { PgExplorer } from "@/utils/explorer";
 import { barProgress } from "../model/step-bar";
@@ -14,6 +17,9 @@ import { tutorialTelemetry } from "../model/telemetry";
 import BaseFeed from "./BaseFeed";
 import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
+import { typing } from "./keys";
+
+const log = createLogger("tutorial-conversation:feed");
 
 /** How many lines sit above a line the feed shows in the editor */
 const LINES_ABOVE = 8;
@@ -30,14 +36,27 @@ const useConversationState = (): ConversationState => {
   return PgConversation.state;
 };
 
-/** A workspace file's content as the explorer holds it, or null */
+/** Files whose read failed, so a card re-rendering logs it once, not per render */
+const unreadable = new Set<string>();
+
+/**
+ * A workspace file's content as the explorer holds it, or null when there is
+ * no such file or no workspace yet. Called while rendering, so it never
+ * throws: a read that fails anyway is logged once per file and draws no lines.
+ */
 const read = (file: string): string | null => {
+  if (!PgExplorer.currentWorkspaceName) return null;
   try {
     return (
       PgExplorer.getFileContent(PgExplorer.convertToFullPath(file)) ?? null
     );
-  } catch {
-    // No workspace open yet, or one switching: the card shows no lines
+  } catch (e) {
+    if (!unreadable.has(file)) {
+      unreadable.add(file);
+      log.warn("could not read a file a card shows", {
+        context: { file, error: e instanceof Error ? e.message : String(e) },
+      });
+    }
     return null;
   }
 };
@@ -50,6 +69,14 @@ const read = (file: string): string | null => {
  */
 const showLine = (file: string, line: number) => {
   const path = PgExplorer.convertToFullPath(file);
+  // A compiler's location, or a quote, can name a file the workspace does not
+  // hold; saving a position for it would throw
+  if (!PgExplorer.getFile(path)) {
+    reportButtonFailure(`open ${file}`)(
+      new Error(`${file} is not in this workspace`)
+    );
+    return;
+  }
   PgExplorer.saveEditorPosition(path, {
     cursor: { from: 0, to: 0 },
     topLineNumber: Math.max(1, line - LINES_ABOVE),
@@ -58,11 +85,11 @@ const showLine = (file: string, line: number) => {
 };
 
 /**
- * Open `file` in the editor now, and again on its first write after this
- * call. Entering a step writes its start files after the engine's state has
- * moved on (the store drains its effects), and overwriting the open file
- * closes its tab (`PgExplorer.createItem` with `override`), so the file
- * that exists at the move is not yet the one that stays.
+ * Open `file` in the editor now, and again after the next item the workspace
+ * creates. Entering a step writes its start files after the engine's state
+ * has moved on (the store drains its effects), and on Start the preview's tab
+ * did not survive that restore (seen in the browser, 2 Nov 2026), so opening
+ * once at the move was not enough.
  *
  * @returns the subscription still waiting for that write
  */
@@ -80,20 +107,26 @@ const openWhenWritten = (file: string): (() => void) => {
 /**
  * The step the lesson enters opens its main file, as the spec's "the
  * workspace swaps the preview for the step's start files" reads. The first
- * render is a load, where the workspace restores its own tabs.
+ * cursor of each loaded context is a load, not an entry: the store reads the
+ * save after the first render, and a reload restores the workspace's own tabs.
  */
 const useOpenEnteredStep = (state: ConversationState) => {
   const cursor = state.engine.progress.cursor;
   const stepId = cursor.kind === "step" ? cursor.stepId : null;
-  const definition = state.context?.definition;
-  const seen = useRef<{ stepId: string | null } | null>(null);
+  const context = state.context;
+  const seen = useRef<{
+    context: ConversationState["context"];
+    stepId: string | null;
+  } | null>(null);
   useEffect(() => {
     const before = seen.current;
-    seen.current = { stepId };
-    if (!before || !stepId || stepId === before.stepId) return;
-    const step = definition?.steps.find((s) => s.id === stepId);
+    seen.current = { context, stepId };
+    // No save yet, a load, or another workspace's load: nothing was entered
+    if (!context || !before || before.context !== context) return;
+    if (!stepId || stepId === before.stepId) return;
+    const step = context.definition.steps.find((s) => s.id === stepId);
     return step ? openWhenWritten(step.file) : undefined;
-  }, [stepId, definition]);
+  }, [stepId, context]);
 };
 
 const handlers: TurnHandlers = {
@@ -108,17 +141,12 @@ const handlers: TurnHandlers = {
   showLine,
 };
 
-/** Whether a key press came from a field the learner types in */
-const typing = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
-
 /**
  * The tutorial conversation in the frame's chat: it starts the engine for the
  * open workspace, draws the feed from the engine's view, and turns each
  * card's press into the engine's action. ⌘↵ presses the live act, or Explain
- * on an open failure, unless the learner is typing.
+ * on an open failure, unless the learner is typing; a call act with arguments
+ * waits for its own fields, where Enter sends.
  */
 export const TutorialConversation = () => {
   useEffect(
@@ -159,17 +187,17 @@ export const TutorialConversation = () => {
   }, []);
 
   const onJump = useCallback(
-    (index: number, from: number, via: "bar" | "menu" | "key") => {
+    (index: number, from: number, via: StepJumpVia) => {
       const definition = PgConversation.state.context?.definition;
       const slug = PgConversation.state.context?.slug;
       if (!definition || !slug) return;
-      showLine(definition.steps[index].file, 1);
       tutorialTelemetry.track("tutorial_step_jumped", {
         tutorial: slug,
         step: index + 1,
         from: from + 1,
         via,
       });
+      showLine(definition.steps[index].file, 1);
     },
     []
   );

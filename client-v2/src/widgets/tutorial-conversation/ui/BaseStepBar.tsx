@@ -1,5 +1,6 @@
 import { Check, ChevronDown } from "lucide-react";
 
+import type { StepJumpVia } from "@/entities/tutorial";
 import type { StepBarItem } from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -9,10 +10,13 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 
-export type JumpVia = "bar" | "menu";
+/** The ways the bar itself jumps; the feed adds the keys */
+export type JumpVia = Exclude<StepJumpVia, "key">;
 
 export interface BaseStepBarProps {
   steps: readonly StepBarItem[];
+  /** The live step's index (`liveStepIndex`): the current one, or the last passed after the finish; null before Start */
+  live: number | null;
   /** The step the feed is scrolled into, by index, when it is not the live one */
   viewing: number | null;
   /** How far the hairline reaches, from 0 to 1 (`barProgress`) */
@@ -30,9 +34,9 @@ const labelOf = (step: StepBarItem, index: number, count: number) => {
   return where;
 };
 
-const currentOf = (step: StepBarItem, looking: boolean) => {
+const currentOf = (looking: boolean, isLive: boolean) => {
   if (looking) return "location" as const;
-  return step.state === "current" ? ("step" as const) : undefined;
+  return isLive ? ("step" as const) : undefined;
 };
 
 /** The glyph a segment and a menu row start with: the number, or a check once done */
@@ -61,17 +65,18 @@ const Glyph = ({ step, index }: { step: StepBarItem; index: number }) => (
  * A step not reached is disabled; the live one is `aria-current="step"`, and
  * the one the feed is scrolled into, when it is another, is
  * `aria-current="location"`. Narrow, the bar is one button, "Step n of m ·
- * <short>", whose menu lists the steps with Done and Now.
+ * <short>" ("m steps" before Start), whose menu lists the steps with Done
+ * and Now.
  */
 const BaseStepBar = ({
   steps,
+  live,
   viewing,
   progress,
   narrow,
   onJump,
 }: BaseStepBarProps) => {
   const count = steps.length;
-  const live = steps.findIndex((s) => s.state === "current");
   const hairline = (
     <span
       aria-hidden="true"
@@ -82,7 +87,7 @@ const BaseStepBar = ({
   );
 
   if (narrow) {
-    const at = live === -1 ? null : steps[live];
+    const at = live === null ? null : steps[live];
     return (
       <nav
         aria-label="Tutorial steps"
@@ -93,7 +98,7 @@ const BaseStepBar = ({
             disabled={!steps.some((s) => s.state !== "not_reached")}
             className="flex h-7 items-center gap-1.5 rounded-[6px] px-2 text-[0.8125rem] font-label outline-none hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-brand-purple disabled:hover:bg-transparent"
           >
-            {at ? (
+            {at && live !== null ? (
               <>
                 <span className="text-muted-foreground tabular-nums">
                   Step {live + 1} of {count}
@@ -115,7 +120,7 @@ const BaseStepBar = ({
               <DropdownMenuItem
                 key={step.id}
                 disabled={step.state === "not_reached"}
-                aria-current={currentOf(step, viewing === index)}
+                aria-current={currentOf(viewing === index, live === index)}
                 onSelect={() => onJump(index, "menu")}
                 className="min-h-10 gap-3 px-2.5"
               >
@@ -157,7 +162,7 @@ const BaseStepBar = ({
             type="button"
             disabled={step.state === "not_reached"}
             aria-label={labelOf(step, index, count)}
-            aria-current={currentOf(step, viewing === index)}
+            aria-current={currentOf(viewing === index, live === index)}
             onClick={() => onJump(index, "bar")}
             className={cn(
               "flex h-7 min-w-0 items-center gap-1.5 rounded-[6px] px-2 text-[0.8125rem] font-label outline-none focus-visible:outline-2 focus-visible:outline-brand-purple disabled:cursor-default",

@@ -70,7 +70,7 @@ test.describe("on a desktop window", () => {
       .click();
 
     // Hello Anchor has a definition: opening it creates its workspace and
-    // opens it in the work on its code, with no About page
+    // opens it on its code, with no About page
     await expect(page).toHaveURL(/\/tutorials\/hello-anchor\/1$/, LONG);
     await expect(home(page)).toBeHidden();
     await expect(page.locator(".monaco-editor .view-lines")).toBeVisible(LONG);

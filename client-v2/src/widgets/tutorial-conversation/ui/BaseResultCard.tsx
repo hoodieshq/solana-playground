@@ -78,6 +78,11 @@ const headOf = (r: RunResult): { title: string; meta: string } => {
  * location as a link, the definition's line when it plans the failure, and
  * Explain and "I'll fix it myself" while it is open. The run tickets (4.1 to
  * 4.3) fill the bodies each result carries.
+ *
+ * TODO(tutorial-flow-v2 4.2): an open failed deploy, run or call draws no
+ * button yet. Its card is the run tickets' (4.2: Try again and Open faucet;
+ * 4.3: a failed transaction), and no step passes until a runner is wired, so
+ * none of these results can reach the feed before then.
  */
 const BaseResultCard = ({
   result,

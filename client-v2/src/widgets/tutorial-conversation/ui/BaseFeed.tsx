@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
+import type { StepJumpVia } from "@/entities/tutorial";
 import type { StepBarItem, Turn } from "@/features/tutorial-conversation";
 import { liveStepIndex, stepBeside } from "../model/step-bar";
 import BaseBackPill from "./BaseBackPill";
 import BaseStepBar from "./BaseStepBar";
-import type { JumpVia } from "./BaseStepBar";
+import { typing } from "./keys";
 
 /** A jumped-to divider lands this far under the step bar, in px */
 export const UNDER_BAR = 12;
@@ -24,7 +25,7 @@ export interface BaseFeedProps {
   /** Draw one turn; `live` says whether it is the card that acts */
   renderTurn: (turn: Turn, live: boolean) => ReactNode;
   /** The feed moved to step `index`'s divider, from the live step `from` */
-  onJump: (index: number, from: number, via: JumpVia | "key") => void;
+  onJump: (index: number, from: number, via: StepJumpVia) => void;
   /** The back pill took the learner to the live card; `step` is its index, null before Start */
   onBack: (step: number | null) => void;
 }
@@ -54,10 +55,12 @@ const useNarrow = (ref: RefObject<HTMLElement | null>) => {
 
 /**
  * The lesson as one feed: the step bar, then the turns in a `role="log"`,
- * then the back pill while the live card is off screen. A step bar segment,
- * an item of its narrow menu or ⌥↑ / ⌥↓ scrolls a divider to 12 px under the
- * bar and flashes it once; nothing resets. The step the feed is scrolled into
- * is the bar's "viewing" one. Turns older than the page load render whole.
+ * then the back pill while the live card is off screen or the feed is on
+ * another step. A step bar segment, an item of its narrow menu or ⌥↑ / ⌥↓
+ * (unless a field has focus) scrolls a divider to 12 px under the bar and
+ * flashes it once; the lesson's progress is untouched. The step the feed is
+ * scrolled into is the bar's "viewing" one. Turns older than the page load
+ * render whole.
  */
 const BaseFeed = ({
   turns,
@@ -77,7 +80,7 @@ const BaseFeed = ({
   const narrow = useNarrow(root);
   const liveIndex = liveStepIndex(steps);
 
-  const jump = (index: number, via: JumpVia | "key") => {
+  const jump = (index: number, via: StepJumpVia) => {
     const divider = dividers.current.get(steps[index]?.id ?? "");
     const box = scroller.current;
     if (!divider || !box) return;
@@ -110,6 +113,8 @@ const BaseFeed = ({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+      // In a field ⌥↑ and ⌥↓ move the caret
+      if (typing(e.target)) return;
       const from = position.current;
       if (from === null) return;
       const to = stepBeside(steps, from, e.key === "ArrowUp" ? -1 : 1);
@@ -121,10 +126,17 @@ const BaseFeed = ({
     return () => document.removeEventListener("keydown", onKey);
   }, [steps]);
 
-  // Scrolling by hand moves "viewing" to the divider under the bar
+  // Scrolling by hand moves "viewing" to the divider under the bar. A feed
+  // scrolled to its bottom is on the live step: a short live step never
+  // brings its divider up to the bar, so the divider test alone would name
+  // the step before it
   const onScroll = () => {
     const box = scroller.current;
     if (!box) return;
+    if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
+      setViewing(null);
+      return;
+    }
     let under: number | null = null;
     steps.forEach((step, index) => {
       const divider = dividers.current.get(step.id);
@@ -199,6 +211,7 @@ const BaseFeed = ({
     <div ref={root} className="relative flex min-h-0 flex-1 flex-col">
       <BaseStepBar
         steps={steps}
+        live={liveIndex}
         viewing={viewing}
         progress={progress}
         narrow={narrow}

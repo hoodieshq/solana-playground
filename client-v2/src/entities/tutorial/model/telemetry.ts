@@ -1,5 +1,8 @@
 import { createTracker } from "@/shared/lib/telemetry";
 
+/** How the feed moved to a step's divider: a bar segment, its narrow menu, or ⌥↑ / ⌥↓ */
+export type StepJumpVia = "bar" | "menu" | "key";
+
 type TutorialEvents = {
   /**
    * The loader dropped a tutorial definition that failed its check, so the
@@ -40,11 +43,12 @@ type TutorialEvents = {
     tutorial: string;
     step: number;
     from: number;
-    via: "bar" | "menu" | "key";
+    via: StepJumpVia;
   };
   /**
-   * The back pill took the learner from an earlier step back to the live
-   * card. `step` is the live step, or 0 before Start.
+   * The back pill took the learner back to the live card, after a jump to
+   * another step or a scroll away from the card. `step` is the live step, or
+   * 0 before Start.
    */
   tutorial_step_back: { tutorial: string; step: number };
 };

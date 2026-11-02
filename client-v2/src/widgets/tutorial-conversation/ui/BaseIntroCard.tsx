@@ -35,6 +35,9 @@ const nothingFocused = () => {
  * The card a conversation tutorial opens on: what it builds, how it goes, and
  * "Start step 1". It is the live card before Start, so Enter starts too while
  * nothing else holds focus. It leaves the feed on Start; it has no record.
+ *
+ * TODO(tutorial-flow-v2 2.2): the spec shows the finished program read only
+ * beside this card; locking the editor is the workspace's (HOO-2349).
  */
 const BaseIntroCard = ({
   name,

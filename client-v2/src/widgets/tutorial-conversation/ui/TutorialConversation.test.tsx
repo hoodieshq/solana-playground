@@ -151,6 +151,7 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
   store.state = loaded();
   store.view.mockReturnValue(onStep2);
+  vi.mocked(PgExplorer.getFile).mockReturnValue({ path: "p", content: "" });
   store.init.mockReturnValue({ dispose });
   store.onDidChange.mockReturnValue({ dispose: vi.fn() });
 });
@@ -217,6 +218,7 @@ describe("TutorialConversation", () => {
     });
     vi.mocked(PgExplorer.getFile).mockReturnValue(null);
     let notify: (s: ConversationState) => void = () => {};
+    const context = store.state!.context;
     store.onDidChange.mockImplementation((cb) => {
       notify = cb;
       return { dispose: vi.fn() };
@@ -226,6 +228,8 @@ describe("TutorialConversation", () => {
     expect(PgExplorer.openFile).not.toHaveBeenCalled();
 
     const entered = loaded();
+    // The same loaded tutorial: only the cursor moved
+    entered.context = context;
     entered.engine.progress.cursor = {
       kind: "step",
       stepId: definition.steps[2].id,
@@ -261,8 +265,10 @@ describe("TutorialConversation", () => {
     store.state = intro;
     render(<TutorialConversation />);
 
-    store.state = loaded();
-    act(() => notify(store.state!));
+    const started = loaded();
+    started.context = intro.context;
+    store.state = started;
+    act(() => notify(started));
     expect(PgExplorer.openFile).toHaveBeenCalledTimes(1);
     // The restore writes it over the open one, which closes the tab
     act(() => created.forEach((cb) => cb()));
@@ -294,6 +300,46 @@ describe("TutorialConversation", () => {
     ).toBeTruthy();
   });
 
+  it("opens nothing when a reload's save arrives with the cursor already on a step", () => {
+    const created: (() => void)[] = [];
+    vi.mocked(PgExplorer.onDidCreateItem).mockImplementation((cb) => {
+      created.push(cb as () => void);
+      return { dispose: vi.fn() };
+    });
+    let notify: (s: ConversationState) => void = () => {};
+    store.onDidChange.mockImplementation((cb) => {
+      notify = cb;
+      return { dispose: vi.fn() };
+    });
+    // The first render, before the store has read the save
+    store.state = {
+      context: null,
+      engine: loaded().engine,
+      loadFailed: false,
+      loadedAt: 0,
+    };
+    store.view.mockReturnValue(null);
+    render(<TutorialConversation />);
+
+    // The save lands, on step 2
+    store.state = loaded();
+    store.view.mockReturnValue(onStep2);
+    act(() => notify(store.state!));
+    act(() => created.forEach((cb) => cb()));
+    expect(PgExplorer.openFile).not.toHaveBeenCalled();
+    expect(PgExplorer.onDidCreateItem).not.toHaveBeenCalled();
+  });
+
+  it("refuses to open a file the workspace does not hold, and says so", async () => {
+    vi.mocked(PgExplorer.getFile).mockReturnValue(null);
+    render(<TutorialConversation />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Show lines 5 to 6 in src/lib.rs" })
+    );
+    expect(PgExplorer.saveEditorPosition).not.toHaveBeenCalled();
+    expect(PgExplorer.openFile).not.toHaveBeenCalled();
+  });
+
   it("presses the live act on ⌘↵", () => {
     render(<TutorialConversation />);
     act(() => {
@@ -302,6 +348,100 @@ describe("TutorialConversation", () => {
       );
     });
     expect(PgConversation.act).toHaveBeenCalledWith("s2.deploy");
+  });
+});
+
+describe("TutorialConversation keys and the pill", () => {
+  const press = (target: EventTarget = document) =>
+    act(() => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          metaKey: true,
+          bubbles: true,
+        })
+      );
+    });
+
+  it("leaves ⌘↵ to a field that has focus", () => {
+    render(<TutorialConversation />);
+    const field = document.createElement("input");
+    document.body.appendChild(field);
+    press(field);
+    expect(PgConversation.act).not.toHaveBeenCalled();
+    field.remove();
+  });
+
+  it("leaves ⌘↵ to a call act's own fields, where Enter sends its arguments", () => {
+    const callAct = definition.steps[3].beats.find(
+      (b): b is ActBeat => b.kind === "act" && b.act === "call"
+    )!;
+    const callTurn: Turn = {
+      id: callAct.id,
+      kind: "act",
+      step: definition.steps[3].id,
+      at: 3,
+      whole: true,
+      beatId: callAct.id,
+      act: callAct,
+      state: "live",
+      note: null,
+      stage: null,
+      took: null,
+    };
+    store.view.mockReturnValue({
+      turns: [callTurn],
+      live: callTurn,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: null,
+      finishAt: null,
+    });
+    render(<TutorialConversation />);
+    press();
+    expect(PgConversation.act).not.toHaveBeenCalled();
+  });
+
+  it("presses Explain on ⌘↵ while a failure waits", () => {
+    const failure: Turn = {
+      id: "result:s2.deploy:0",
+      kind: "result",
+      step: definition.steps[1].id,
+      at: 4,
+      whole: true,
+      beatId: "s2.deploy",
+      act: "build",
+      result: { act: "build", ok: false, seconds: 1, error: null, log: "" },
+      took: 1000,
+      planned: null,
+      open: true,
+    };
+    store.view.mockReturnValue({
+      turns: [divider, failure],
+      live: failure,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: null,
+      finishAt: null,
+    });
+    render(<TutorialConversation />);
+    press();
+    expect(PgConversation.explain).toHaveBeenCalledWith("s2.deploy");
+  });
+
+  it("counts the pill's way back to the live step", async () => {
+    const track = vi.spyOn(tutorialTelemetry, "track");
+    render(<TutorialConversation />);
+    await userEvent.click(
+      screen.getByRole("button", { name: `Step 1 of 4, ${step1.title}, done` })
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Back to step 2" })
+    );
+    expect(track).toHaveBeenLastCalledWith("tutorial_step_back", {
+      tutorial: "hello-anchor",
+      step: 2,
+    });
   });
 });
 

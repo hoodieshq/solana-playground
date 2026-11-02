@@ -10,6 +10,9 @@ import BaseResultCard from "./BaseResultCard";
 import BaseStepDivider from "./BaseStepDivider";
 import BaseWroteCard from "./BaseWroteCard";
 import { AskStandIn } from "./stand-ins";
+import TurnView from "./TurnView";
+import type { TurnHandlers } from "./TurnView";
+import type { Turn } from "@/features/tutorial-conversation";
 
 const definition = hello as unknown as TutorialDefinition;
 const actOf = (id: string) =>
@@ -54,6 +57,17 @@ describe("BaseIntroCard", () => {
     (document.activeElement as HTMLElement | null)?.blur();
     fireEvent.keyDown(document, { key: "Enter" });
     expect(onStart).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves Enter to a field that has focus", () => {
+    const onStart = vi.fn();
+    intro(onStart);
+    const field = document.createElement("textarea");
+    document.body.appendChild(field);
+    field.focus();
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onStart).not.toHaveBeenCalled();
+    field.remove();
   });
 });
 
@@ -361,5 +375,93 @@ describe("AskStandIn", () => {
     const group = screen.getByRole("group");
     await userEvent.click(group.querySelectorAll("button")[ask.answer]);
     expect(onPick).toHaveBeenCalledWith(ask.answer);
+  });
+});
+
+describe("TurnView", () => {
+  const step = definition.steps[0];
+  const ask = step.beats.find((b): b is Ask => b.kind === "ask")!;
+  const on = (): TurnHandlers => ({
+    start: vi.fn(),
+    pick: vi.fn(),
+    hint: vi.fn(),
+    skip: vi.fn(),
+    act: vi.fn(),
+    explain: vi.fn(),
+    fixMyself: vi.fn(),
+    next: vi.fn(),
+    showLine: vi.fn(),
+  });
+  const draw = (turn: Turn, live: boolean) =>
+    render(
+      <TurnView
+        turn={turn}
+        definition={definition}
+        live={live}
+        running={false}
+        passed={[]}
+        read={() => null}
+        on={on()}
+      />
+    );
+
+  const openAsk: Turn = {
+    id: ask.id,
+    kind: "ask",
+    step: step.id,
+    at: 1,
+    whole: true,
+    beatId: ask.id,
+    ask,
+    open: true,
+    wrong: [],
+    hinted: false,
+    writeFailed: false,
+    outcome: null,
+    attempts: 0,
+  };
+  const openFailure: Turn = {
+    id: "result:s1.build:0",
+    kind: "result",
+    step: step.id,
+    at: 2,
+    whole: true,
+    beatId: "s1.build",
+    act: "build",
+    result: { act: "build", ok: false, seconds: 1, error: null, log: "" },
+    took: 1000,
+    planned: null,
+    open: true,
+  };
+  const liveWin: Turn = {
+    id: `win:${step.id}`,
+    kind: "win",
+    step: step.id,
+    at: 3,
+    whole: true,
+    stepId: step.id,
+    win: step.win,
+    done: false,
+    took: 41_000,
+    via: "chat",
+    last: false,
+  };
+
+  it.each([
+    ["a question", openAsk],
+    ["a failed build", openFailure],
+    ["a win", liveWin],
+  ])("draws %s with its buttons while it is the live card", (_, turn) => {
+    draw(turn, true);
+    expect(screen.queryAllByRole("button").length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ["a question", openAsk],
+    ["a failed build", openFailure],
+    ["a win", liveWin],
+  ])("draws %s with no button once another card is live", (_, turn) => {
+    draw(turn, false);
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 });

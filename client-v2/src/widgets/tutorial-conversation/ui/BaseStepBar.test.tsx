@@ -23,6 +23,7 @@ const onStep3 = [
 
 const props = (over: Partial<BaseStepBarProps> = {}): BaseStepBarProps => ({
   steps: over.steps ?? onStep3,
+  live: over.live === undefined ? 2 : over.live,
   viewing: over.viewing ?? null,
   progress: over.progress ?? 0.5,
   narrow: over.narrow ?? false,
@@ -107,7 +108,9 @@ describe("BaseStepBar", () => {
     const fresh = onStep3.map((s) =>
       step(s.id, s.short, s.title, "not_reached")
     );
-    render(<BaseStepBar {...props({ steps: fresh, narrow: true })} />);
+    render(
+      <BaseStepBar {...props({ steps: fresh, live: null, narrow: true })} />
+    );
     const trigger = screen.getByRole("button", {
       name: "4 steps",
     }) as HTMLButtonElement;

@@ -6,7 +6,7 @@ export interface BaseBackPillProps {
   onClick: () => void;
 }
 
-/** Floats above the feed's foot while the live card is off screen */
+/** Floats above the feed's foot while the live card is off screen, or the feed is on another step */
 const BaseBackPill = ({ label, onClick }: BaseBackPillProps) => (
   <button
     type="button"

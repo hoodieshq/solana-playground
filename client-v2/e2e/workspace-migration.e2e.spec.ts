@@ -245,7 +245,7 @@ test("every project in a migrated config still opens", async ({ page }) => {
  *
  * A tutorial workspace is named after the tutorial, and `PgTutorial.start()`
  * is what calls `PgExplorer.createWorkspace()`. Hello Anchor has a
- * definition, so opening its card starts it, with no About page, and lands
+ * definition, so opening its card creates its workspace, with no About page, and lands
  * on its first page once the workspace exists. An empty profile opens it
  * from Home; a profile with a project, through the gallery the navigation
  * opens.

@@ -10,7 +10,10 @@ import { PgTutorial } from "../../../utils/tutorial/tutorial";
  * never shows without one. A tutorial that already has its workspace is left
  * as it is: the engine's save says where the learner is.
  *
- * @param definition the tutorial the route opened
+ * `PgTutorial.start` starts the current tutorial, which the route has set by
+ * the time it calls this, and ends by navigating to `/tutorials/<slug>/1`.
+ *
+ * @param definition the definition of the tutorial the route opened
  */
 export const openOnIntro = async (definition: TutorialDefinition) => {
   if (PgTutorial.isStarted(definition.name)) return;

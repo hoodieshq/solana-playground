@@ -42,7 +42,7 @@ export interface BaseActCardProps {
   took: number | null;
   /** Another act runs: this one waits */
   disabled: boolean;
-  /** Press the button (or ⌘↵); a call act passes its arguments by name */
+  /** Press the button, or Enter in a call act's field, which passes the arguments by name */
   onRun: (args?: Record<string, string>) => void;
 }
 

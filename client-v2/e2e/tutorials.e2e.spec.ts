@@ -10,8 +10,8 @@ const startButton = (page: Page) =>
 const assistantHead = (page: Page, name: string) =>
   page.getByRole("heading", { level: 2, name, exact: true });
 
-// Hello Seahorse: a tutorial with a definition, such as Hello Anchor, has no
-// About page, since it opens on its intro card
+// These open Hello Seahorse, which has no definition: a tutorial with one,
+// such as Hello Anchor, opens on its intro card and has no About page
 
 test("client-v2-tutorials: The assistant beside Hello Seahorse", async ({
   page,
