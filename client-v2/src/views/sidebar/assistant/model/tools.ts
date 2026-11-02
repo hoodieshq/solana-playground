@@ -203,7 +203,11 @@ export const createTools = (
       const cost =
         quote.cost === null
           ? ""
-          : ` It costs about ${formatSol(quote.cost)} SOL.`;
+          : ` It costs about ${formatSol(quote.cost)} ${
+              quote.network
+            } SOL from ${
+              quote.playground ? "your Playground wallet" : "your wallet"
+            }.`;
       const { id: approvalId, allowed } = await PgAssistant.requestApproval({
         type: "command",
         name: "deploy",

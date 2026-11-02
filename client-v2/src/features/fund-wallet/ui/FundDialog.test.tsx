@@ -220,9 +220,7 @@ describe("features/fund-wallet/ui/FundDialog", () => {
       fireEvent.click(sendButton());
     });
 
-    expect(screen.getByRole("alert").textContent).toContain(
-      "Couldn't send the SOL."
-    );
+    expect(screen.getByRole("alert").textContent).toContain("Could not send.");
     expect(screen.getByRole("alert").textContent).toContain(
       "Blockhash not found"
     );

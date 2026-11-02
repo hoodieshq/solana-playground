@@ -85,9 +85,8 @@ const COPY: Record<EmptySurface, EmptyCopy> = {
   // Deploy then asks for the build
   "not-built": NOTHING_TO_CALL,
   "no-idl": {
-    title: "No IDL yet",
-    description: () =>
-      "This program's Anchor IDL was not found. Upload the IDL file to call its instructions.",
+    title: "This program has no IDL",
+    description: () => "Upload its IDL to call it from a form.",
   },
   "no-program-id": {
     title: "No program id",

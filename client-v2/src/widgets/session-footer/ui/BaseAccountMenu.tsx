@@ -292,7 +292,7 @@ const BaseAccountMenu = ({
       )}
       {account.canFund && (
         <DropdownMenuItem onSelect={() => pick("fund-wallet")}>
-          <HandCoins /> Fund from a wallet
+          <HandCoins /> Fund from a wallet…
         </DropdownMenuItem>
       )}
     </>

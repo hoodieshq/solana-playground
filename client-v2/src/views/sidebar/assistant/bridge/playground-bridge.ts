@@ -11,7 +11,7 @@ import {
   PgWallet,
 } from "../../../../utils";
 import { estimateDeployCostWithin } from "../../../../commands/deploy/estimate";
-import { networkName } from "@/features/deploy";
+import { networkInSentence } from "@/features/deploy";
 import { PgLesson } from "../../../flow/lessons";
 
 /** A condensed view of the program's interface, cheaper than the whole IDL */
@@ -76,10 +76,15 @@ export interface PlaygroundBridge {
   /** @returns where the deployed program can be seen, when that is known */
   deploy(): Promise<{ programId: string; explorerUrl: string } | null>;
   /**
-   * @returns the network a deploy would go to, by name, and its estimated
-   * cost in lamports (`null` when it cannot be estimated)
+   * @returns the network a deploy would go to, named as a sentence writes it
+   * ("devnet"), its estimated cost in lamports (`null` when it cannot be
+   * estimated), and whether the Playground wallet pays
    */
-  quoteDeploy(): Promise<{ network: string; cost: number | null }>;
+  quoteDeploy(): Promise<{
+    network: string;
+    cost: number | null;
+    playground: boolean;
+  }>;
 }
 
 const toRelative = (fullPath: string) => {
@@ -194,8 +199,9 @@ export const realBridge: PlaygroundBridge = {
   async quoteDeploy() {
     const cluster = PgConnection.cluster;
     return {
-      network: networkName(cluster),
+      network: networkInSentence(cluster),
       cost: await estimateDeployCostWithin(),
+      playground: PgWallet.current?.isPg === true,
     };
   },
 

@@ -70,6 +70,11 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     expect(
       screen.getByText("No wallet extension found in this browser.")
     ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Install Phantom, Backpack or Solflare, then reload. Or keep using the Playground wallet."
+      )
+    ).toBeTruthy();
     expect(screen.queryByLabelText("Amount (SOL)")).toBeNull();
   });
 
@@ -143,9 +148,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
       failure: { kind: "send-failed", detail: "Blockhash not found" },
     });
 
-    expect(screen.getByRole("alert").textContent).toContain(
-      "Couldn't send the SOL."
-    );
+    expect(screen.getByRole("alert").textContent).toContain("Could not send.");
     expect(screen.getByRole("alert").textContent).toContain(
       "Blockhash not found"
     );
@@ -187,9 +190,11 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     });
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "The SOL was sent, but not confirmed yet."
+      "Sent, not confirmed yet."
     );
-    expect(screen.getByRole("alert").textContent).toContain("5igNaTuRe");
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Check it in Explorer before you send again."
+    );
     expect(sendButton().hasAttribute("disabled")).toBe(true);
   });
 

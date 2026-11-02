@@ -21,6 +21,25 @@ export const shortKey = (key: string): string =>
 export const networkName = (cluster: string | null): string =>
   clusterName(cluster) ?? "the network";
 
+/** Our clusters, written lowercase mid-sentence: "Deploy to devnet" */
+const LOWERCASE_IN_SENTENCE = new Set([
+  "devnet",
+  "testnet",
+  "localnet",
+  "mainnet",
+]);
+
+/**
+ * The network as a sentence names it: our clusters lowercase ("Not enough
+ * devnet SOL"), any other name (Surfpool) as it is. Standalone labels such as
+ * pickers and chips keep `networkName`.
+ */
+export const networkInSentence = (cluster: string | null): string => {
+  const name = networkName(cluster);
+  const lower = name.toLowerCase();
+  return LOWERCASE_IN_SENTENCE.has(lower) ? lower : name;
+};
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -40,6 +59,15 @@ if (import.meta.vitest) {
       expect(networkName("mainnet-beta")).toBe("Mainnet");
       expect(networkName("devnet")).toBe("Devnet");
       expect(networkName(null)).toBe("the network");
+    });
+
+    it("networkInSentence lowercases the cluster mid-sentence, other names as they are", () => {
+      expect(networkInSentence("devnet")).toBe("devnet");
+      expect(networkInSentence("mainnet-beta")).toBe("mainnet");
+      expect(networkInSentence("testnet")).toBe("testnet");
+      expect(networkInSentence("localnet")).toBe("localnet");
+      expect(networkInSentence("Surfpool")).toBe("Surfpool");
+      expect(networkInSentence(null)).toBe("the network");
     });
   });
 }

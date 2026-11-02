@@ -214,7 +214,7 @@ it("offers funding in the wallet group once a Playground wallet exists", async (
   const onPick = await open(view({ wallet: WALLET, canFund: true }));
 
   await userEvent.click(
-    screen.getByRole("menuitem", { name: "Fund from a wallet" })
+    screen.getByRole("menuitem", { name: "Fund from a wallet…" })
   );
 
   expect(onPick).toHaveBeenCalledExactlyOnceWith("fund-wallet");
@@ -224,7 +224,7 @@ it("offers no funding before the Playground wallet is set up", async () => {
   await open(view({ canFund: false }));
 
   expect(
-    screen.queryByRole("menuitem", { name: "Fund from a wallet" })
+    screen.queryByRole("menuitem", { name: "Fund from a wallet…" })
   ).toBeNull();
 });
 
