@@ -103,6 +103,18 @@ it("gives a valid typed name the success edge", () => {
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
+it("gives a well-formed name that Start refused the invalid edge only", () => {
+  draw({
+    name: "my-project",
+    valid: true,
+    start: { state: "failed", error: "A project named my-project exists" },
+  });
+
+  const field = screen.getByLabelText("Project name");
+  expect(field.getAttribute("data-state")).toBeNull();
+  expect(field.getAttribute("aria-invalid")).toBe("true");
+});
+
 it("gives an empty name neither edge", () => {
   draw();
 

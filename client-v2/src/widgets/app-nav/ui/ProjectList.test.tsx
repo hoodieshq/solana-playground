@@ -155,6 +155,7 @@ beforeEach(() => {
   initLogger({ providers: [logged] });
 });
 afterEach(() => {
+  progress.clear();
   localStorage.clear();
   resetTelemetry();
   resetLogger();
@@ -347,7 +348,6 @@ describe("ProjectList", () => {
     draw();
     expect(screen.getByText("3/5")).toBeTruthy();
     expect(document.querySelectorAll("[data-lesson-progress]")).toHaveLength(1);
-    progress.clear();
   });
 
   it("opens a project by switching, a lesson through the tutorial", async () => {

@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
   held: [] as Promise<void>[],
   // The lesson open now, and its page and completion held in memory
   current: null as { name: string } | null,
+  // The workspace the explorer has open, whose files the memory came from
+  workspace: null as string | null,
   pageNumber: null as number | null,
   completed: null as boolean | null,
 }));
@@ -66,6 +68,9 @@ vi.mock("../../../utils/explorer/explorer", () => ({
     get allWorkspaceNames() {
       return state.workspaces;
     },
+    get currentWorkspaceName() {
+      return state.workspace;
+    },
     onDidInit: on("init"),
     onDidCreateWorkspace: on("create"),
     onDidDeleteWorkspace: on("delete"),
@@ -85,6 +90,7 @@ describe("useTutorialProgress", () => {
     state.listeners.clear();
     state.held = [];
     state.current = null;
+    state.workspace = null;
     state.pageNumber = null;
     state.completed = null;
     state.unreadable = new Error("ENOENT: no such file");
@@ -115,6 +121,7 @@ describe("useTutorialProgress", () => {
     // The file lags behind: the page is written after the change is announced
     state.metadata.set("Hello Anchor", { pageNumber: 1, completed: false });
     state.current = { name: "Hello Anchor" };
+    state.workspace = "Hello Anchor";
     state.pageNumber = 2;
     state.completed = false;
     const { result } = renderHook(() => useTutorialProgress());
@@ -141,6 +148,75 @@ describe("useTutorialProgress", () => {
     await waitFor(() =>
       expect(result.current("Hello Anchor")).toEqual({ state: "completed" })
     );
+  });
+
+  it("reads the file of a lesson other than the open one", async () => {
+    state.workspaces = ["Hello Anchor", "Hello Solana"];
+    state.metadata.set("Hello Anchor", { pageNumber: 1, completed: false });
+    state.metadata.set("Hello Solana", { pageNumber: 2, completed: false });
+    state.current = { name: "Hello Anchor" };
+    state.workspace = "Hello Anchor";
+    state.pageNumber = 3;
+    state.completed = false;
+    const { result } = renderHook(() => useTutorialProgress());
+
+    await waitFor(() =>
+      expect(result.current("Hello Solana")).toEqual({
+        state: "started",
+        page: 2,
+        pages: 4,
+      })
+    );
+    expect(result.current("Hello Anchor")).toEqual({
+      state: "started",
+      page: 3,
+      pages: 6,
+    });
+  });
+
+  it("reads the file while the memory still holds the last workspace's lesson", async () => {
+    // Hello Solana's route is open, but the explorer still holds Hello
+    // Anchor's workspace, whose page is what memory has
+    state.workspaces = ["Hello Anchor", "Hello Solana"];
+    state.metadata.set("Hello Solana", { pageNumber: 2, completed: false });
+    state.current = { name: "Hello Solana" };
+    state.workspace = "Hello Anchor";
+    state.pageNumber = 4;
+    state.completed = true;
+    const { result } = renderHook(() => useTutorialProgress());
+
+    await waitFor(() =>
+      expect(result.current("Hello Solana")).toEqual({
+        state: "started",
+        page: 2,
+        pages: 4,
+      })
+    );
+  });
+
+  it("reads the file while the open lesson's memory is not loaded yet", async () => {
+    state.workspaces = ["Hello Anchor"];
+    state.metadata.set("Hello Anchor", { pageNumber: 5, completed: false });
+    state.current = { name: "Hello Anchor" };
+    state.workspace = "Hello Anchor";
+    const { result } = renderHook(() => useTutorialProgress());
+
+    await waitFor(() =>
+      expect(result.current("Hello Anchor")).toEqual({
+        state: "started",
+        page: 5,
+        pages: 6,
+      })
+    );
+  });
+
+  it("stops following the open lesson once unmounted", async () => {
+    state.workspaces = [];
+    const { unmount } = renderHook(() => useTutorialProgress());
+    await waitFor(() => expect(state.listeners.get("page")?.size).toBe(1));
+    unmount();
+    expect(state.listeners.get("page")?.size).toBe(0);
+    expect(state.listeners.get("completed")?.size).toBe(0);
   });
 
   it("reads a tutorial it does not know as new", async () => {

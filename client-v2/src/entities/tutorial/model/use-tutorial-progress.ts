@@ -18,8 +18,8 @@ const NEW: TutorialProgress = { state: "new" };
  * whenever the explorer initialises or its workspace list changes (a start,
  * a delete, a sync import), and whenever the open lesson turns a page or is
  * finished. The open lesson's progress is taken from memory: its file is
- * written after the change is announced, so a read then would lag a page. Before the explorer knows its workspaces every
- * tutorial reads as new. A started tutorial whose saved progress cannot be
+ * written after the change is announced, so a read then would lag a page.
+ * Before the explorer knows its workspaces every tutorial reads as new. A started tutorial whose saved progress cannot be
  * read shows as started on page 1: a missing file is logged as a warning, any
  * other failure is reported, and none is thrown into the render.
  */
@@ -62,9 +62,15 @@ export const useTutorialProgress = (): ((name: string) => TutorialProgress) => {
   return useCallback((name) => progress.get(name) ?? NEW, [progress]);
 };
 
-/** The open lesson's page and completion as held in memory, once both are set */
+/**
+ * The open lesson's page and completion as held in memory, once both are
+ * set. Memory holds the open workspace's lesson, so a route that has moved
+ * on to another lesson before the explorer switched reads its file instead,
+ * the guard `PgTutorial`'s own storage keeps
+ */
 const liveMetadata = (name: string): TutorialMetadata | null => {
   if (PgTutorial.current?.name !== name) return null;
+  if (PgExplorer.currentWorkspaceName !== name) return null;
   const { pageNumber, completed } = PgTutorial;
   if (pageNumber === null || completed === null) return null;
   return { pageNumber, completed };

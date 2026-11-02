@@ -209,8 +209,10 @@ const Row = ({
         <span
           className={cn(
             "pointer-events-none absolute top-1.5 right-7 flex items-center gap-1.5 text-xs text-muted-foreground group-focus-within/menu-item:hidden group-hover/menu-item:hidden",
-            // On a phone's taller rows the marker sits on the name's line
-            entry.marker && "max-md:top-1/2 max-md:-translate-y-1/2"
+            // On a phone's taller rows what sits at the row's end keeps to
+            // the name's line
+            (entry.marker || entry.progress) &&
+              "max-md:top-1/2 max-md:-translate-y-1/2"
           )}
         >
           {entry.marker && <Marker id={markerId} marker={entry.marker} />}
@@ -325,9 +327,9 @@ const Marker = ({ id, marker }: { id: string; marker: SyncMarker }) => (
 );
 
 /**
- * A lesson's page as "3/5", or a check once it is finished, as the old
- * client's list showed it. Read aloud in words through its own id, which
- * describes the row
+ * A lesson's page as "3/5", or a check once it is finished. The digits and
+ * the check are for the eye and hidden from screen readers; the words beside
+ * them carry the id that describes the row, so the row keeps its name
  */
 const Progress = ({
   id,
@@ -359,7 +361,8 @@ const Progress = ({
 /** Right padding for what sits at the row's end, so the name stops short */
 const roomFor = (entry: ProjectEntry) => {
   if (entry.marker) return "pr-24";
-  if (entry.progress) return "pr-16";
+  // "12/12" and a pin need more than a count alone
+  if (entry.progress) return entry.pinned ? "pr-20" : "pr-16";
   return undefined;
 };
 

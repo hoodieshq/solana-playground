@@ -86,7 +86,8 @@ export type ProjectListProps = {
 
 /**
  * The navigation's project list, connected: the explorer's workspaces, the
- * device's pins, and what each menu item does. A failed action tells the
+ * device's pins, each project's sync marker, each lesson's progress, and what
+ * each menu item does. A failed action tells the
  * user, is logged for the team, and is counted.
  */
 const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {

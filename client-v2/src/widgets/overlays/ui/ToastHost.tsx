@@ -111,7 +111,11 @@ export const ToastHost = () => {
     toast(
       <ToastBoundary id={id} name={name}>
         {PgView.normalizeElement(elementable, { ...props?.componentProps, id })}
-        {Number.isFinite(duration) && <ToastProgress duration={duration} />}
+        {/* Keyed per show: a toast shown again by its id restarts Sonner's
+            timer, so its bar starts again from full */}
+        {Number.isFinite(duration) && (
+          <ToastProgress key={uuid()} duration={duration} />
+        )}
       </ToastBoundary>,
       { id, duration }
     );

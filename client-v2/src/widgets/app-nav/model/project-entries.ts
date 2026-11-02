@@ -12,7 +12,10 @@ export interface ProjectEntry {
   pinned: boolean;
   /** Where its work lives, when not in the account (`syncMarkerOf`) */
   marker: SyncMarker | null;
-  /** A lesson's page or its completion; `null` for a project, or not read yet */
+  /**
+   * A lesson's page or its completion. `null` means show nothing: a project,
+   * or a lesson whose progress is not read yet
+   */
   progress: LessonProgress | null;
 }
 
@@ -21,7 +24,8 @@ export interface ProjectEntry {
  * a row among the projects, drawn like one. `isLesson` changes only how it
  * opens and what its menu offers: opening a lesson has to go through
  * `PgTutorial.open`, which restores its route and page, and a lesson cannot
- * be renamed, since it is recognised by its workspace name. Pinned entries lead; otherwise the
+ * be renamed, since it is recognised by its workspace name. A lesson also
+ * carries its progress, which its row shows at its end. Pinned entries lead; otherwise the
  * explorer's order stands.
  */
 export const listProjects = (

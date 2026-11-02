@@ -126,7 +126,8 @@ const BaseStartFromScratch = ({
           client draw it: on its left in the one row, so the field keeps the
           chips' centre line, and above it when the row stacks */}
       <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-2">
-        <FieldError id={errorId} className="md:whitespace-nowrap">
+        {/* A failed start's message can be long: it wraps in its own column */}
+        <FieldError id={errorId} className="md:max-w-56">
           {error}
         </FieldError>
         <div className="flex gap-2">
