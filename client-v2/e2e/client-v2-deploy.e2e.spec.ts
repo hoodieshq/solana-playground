@@ -45,8 +45,8 @@ test("client-v2-deploy: A devnet record viewed on testnet", async ({
     .locator("#flow-stage-panel-deploy")
     .getByRole("region", { name: "History" });
   const link = history.getByRole("link", {
-    name: `View deployment (${PROGRAM_ID}) on Explorer (devnet)`,
+    name: `View deployment (${PROGRAM_ID}) on Explorer (Devnet)`,
   });
-  await expect(link).toHaveText("Explorer (devnet)", LONG);
+  await expect(link).toHaveText("Explorer (Devnet)", LONG);
   await expect(link).toHaveAttribute("href", /[?&]cluster=devnet(&|$)/);
 });

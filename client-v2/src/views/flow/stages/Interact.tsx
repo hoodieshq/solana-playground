@@ -1,3 +1,4 @@
+import { clusterName } from "../../../constants";
 import { useEffect, useRef, useState } from "react";
 
 import BaseInteract from "./BaseInteract";
@@ -113,7 +114,7 @@ const Interact = () => {
     wallet && typeof balance === "number" && solNeeded(balance) && cluster
       ? {
           balance: +balance.toFixed(4),
-          cluster,
+          cluster: clusterName(cluster),
           airdrop: faucet === "available" ? airdrop : null,
         }
       : null;
@@ -123,7 +124,7 @@ const Interact = () => {
   const meta = selectedRecord
     ? [
         selectedIndex === 0 ? "latest" : null,
-        selectedRecord.cluster,
+        clusterName(selectedRecord.cluster),
         `${selectedRecord.programId.slice(0, 4)}...`,
       ]
         .filter(Boolean)
@@ -140,7 +141,7 @@ const Interact = () => {
       selected={selected}
       onPick={pick}
       surface={surface}
-      cluster={cluster}
+      cluster={clusterName(cluster)}
       onGoTo={(stage) => PgFlow.setStage(stage)}
       idlLoad={<IdlActions mode="upload" />}
       programId={programId}
@@ -169,9 +170,10 @@ const useLastBuild = () => {
 
 /** A deployment as the picker lists it: newest first, marked "latest" */
 const deploymentLabel = (r: DeployRecord, i: number) =>
-  `${i === 0 ? "latest \u00b7 " : ""}${r.cluster} \u00b7 ${r.programId.slice(
-    0,
-    6
-  )}\u2026 \u00b7 ${new Date(r.at).toLocaleTimeString()}`;
+  `${i === 0 ? "latest \u00b7 " : ""}${clusterName(
+    r.cluster
+  )} \u00b7 ${r.programId.slice(0, 6)}\u2026 \u00b7 ${new Date(
+    r.at
+  ).toLocaleTimeString()}`;
 
 export default Interact;

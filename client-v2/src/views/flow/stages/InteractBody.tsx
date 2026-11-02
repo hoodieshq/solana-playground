@@ -1,3 +1,4 @@
+import { clusterName } from "../../../constants";
 import { useEffect, useState } from "react";
 import BN from "bn.js";
 
@@ -55,7 +56,7 @@ const InteractBody = ({
   } | null>(null);
   const outcome = last?.target === target ? last.outcome : null;
   const history = useCallHistory(programId, cluster);
-  const network = cluster ?? "the network";
+  const network = clusterName(cluster) ?? "the network";
   const explorer = useBlockExplorer();
   const txUrl = (sig: string) => explorer.getTxUrl?.(sig) ?? "";
 

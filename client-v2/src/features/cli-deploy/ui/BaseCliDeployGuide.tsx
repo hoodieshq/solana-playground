@@ -52,7 +52,7 @@ const CLUSTERS: Record<CliCluster, string> = {
 
 const PAYER: Record<CliCluster, string> = {
   devnet:
-    "It pays from your CLI wallet (solana config get). On devnet, solana airdrop 2 --url devnet funds it.",
+    "It pays from your CLI wallet (solana config get). On Devnet, solana airdrop 2 --url devnet funds it.",
   mainnet: "It pays real SOL from your CLI wallet (solana config get).",
 };
 

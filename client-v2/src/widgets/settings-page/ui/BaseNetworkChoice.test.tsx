@@ -31,9 +31,9 @@ describe("BaseNetworkChoice", () => {
     render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />);
     act(() => screen.getByRole("radio", { name: "Devnet" }).focus());
     await userEvent.keyboard("{ArrowRight}");
-    expect(onPick).toHaveBeenCalledWith(Endpoint.TESTNET);
+    expect(onPick).toHaveBeenCalledWith(Endpoint.MAINNET_BETA);
     expect(document.activeElement).toBe(
-      screen.getByRole("radio", { name: "Testnet" })
+      screen.getByRole("radio", { name: "Mainnet" })
     );
   });
 
@@ -61,8 +61,8 @@ describe("BaseNetworkChoice", () => {
         onChoose={onChoose}
       />
     );
-    await userEvent.click(screen.getByRole("radio", { name: "Testnet" }));
-    expect(onChoose).toHaveBeenCalledExactlyOnceWith(Endpoint.TESTNET);
+    await userEvent.click(screen.getByRole("radio", { name: "Mainnet" }));
+    expect(onChoose).toHaveBeenCalledExactlyOnceWith(Endpoint.MAINNET_BETA);
   });
 
   it("leaves every chip unchecked for an endpoint it does not list, and Tab still enters the group", async () => {
@@ -92,23 +92,31 @@ describe("BaseNetworkChoice", () => {
       </>
     );
     // Radix keeps the last focused chip as the group's tab stop, not the
-    // checked one, so coming back lands on Testnet.
-    act(() => screen.getByRole("radio", { name: "Testnet" }).focus());
+    // checked one, so coming back lands on Mainnet.
+    act(() => screen.getByRole("radio", { name: "Mainnet" }).focus());
     await userEvent.tab();
     await userEvent.tab({ shift: true });
     expect(document.activeElement).toBe(
-      screen.getByRole("radio", { name: "Testnet" })
+      screen.getByRole("radio", { name: "Mainnet" })
     );
     expect(onPick).not.toHaveBeenCalled();
   });
 
-  it("offers Mainnet Beta, described as deploying with real SOL", () => {
+  it("offers exactly Devnet and Mainnet", () => {
+    render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={() => {}} />);
+    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual([
+      "Devnet",
+      "Mainnet",
+    ]);
+  });
+
+  it("offers Mainnet, described as deploying with real SOL", () => {
     render(
       <BaseNetworkChoice endpoint={Endpoint.MAINNET_BETA} onPick={() => {}} />
     );
     expect(
       screen
-        .getByRole("radio", { name: "Mainnet Beta" })
+        .getByRole("radio", { name: "Mainnet" })
         .getAttribute("aria-checked")
     ).toBe("true");
     expect(
@@ -127,8 +135,8 @@ describe("BaseNetworkChoice", () => {
   it("picks once on a click", async () => {
     const onPick = vi.fn();
     render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />);
-    await userEvent.click(screen.getByRole("radio", { name: "Testnet" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Mainnet" }));
     expect(onPick).toHaveBeenCalledTimes(1);
-    expect(onPick).toHaveBeenCalledWith(Endpoint.TESTNET);
+    expect(onPick).toHaveBeenCalledWith(Endpoint.MAINNET_BETA);
   });
 });

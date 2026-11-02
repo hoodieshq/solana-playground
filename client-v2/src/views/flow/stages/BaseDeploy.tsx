@@ -123,7 +123,7 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
 };
 
 /**
- * The cluster in the deploy button's label and the stage's prose: "mainnet"
+ * The cluster in the deploy button's label and the stage's prose: "Mainnet"
  * for mainnet-beta; "the network" until the endpoint has been read
  */
 const clusterName = (p: BaseDeployProps) => networkName(p.cluster);
@@ -290,8 +290,8 @@ const History = ({ p }: { p: BaseDeployProps }) => (
           key={r.id}
           className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-3 py-1.5 text-caption max-md:grid-cols-[5.5rem_1fr]"
         >
-          <Badge variant="outline" className="font-mono lowercase">
-            {r.cluster}
+          <Badge variant="outline" className="font-mono">
+            {networkName(r.cluster)}
           </Badge>
           <span className="min-w-0 truncate font-mono" title={r.programId}>
             {r.programId.slice(0, 8)}&hellip;{r.programId.slice(-4)}
@@ -339,7 +339,10 @@ const MainnetWarningBody = ({ p }: { p: BaseDeployProps }) => {
 const BaseDeploy = (p: BaseDeployProps) => {
   const latest = p.history[0] ?? null;
   const n = p.history.length;
-  const meta = [p.cluster, latest && `${n} deployment${n === 1 ? "" : "s"}`]
+  const meta = [
+    p.cluster && networkName(p.cluster),
+    latest && `${n} deployment${n === 1 ? "" : "s"}`,
+  ]
     .filter(Boolean)
     .join(" · ");
   const running = p.deploy === "running";

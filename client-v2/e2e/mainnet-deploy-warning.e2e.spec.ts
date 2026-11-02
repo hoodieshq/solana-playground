@@ -44,7 +44,7 @@ test("mainnet-deploy-warning: Deploy stage on mainnet shows the warning", async 
   await expect(warning).toContainText("Playground wallet");
   await expect(warning).toContainText("your own machine");
   await expect(
-    panel.getByRole("button", { name: "Deploy to mainnet" })
+    panel.getByRole("button", { name: "Deploy to Mainnet" })
   ).toBeVisible();
 });
 
@@ -56,14 +56,14 @@ test("mainnet-deploy-warning: Deploy stage on devnet shows no warning", async ({
   // The stage names its cluster once the endpoint is read; only then is
   // the warning's absence an answer
   await expect(
-    panel.getByRole("button", { name: "Deploy to devnet" })
+    panel.getByRole("button", { name: "Deploy to Devnet" })
   ).toBeVisible(LONG);
   await expect(
     panel.getByRole("alert", { name: "Mainnet deploy warning" })
   ).toHaveCount(0);
 });
 
-test("mainnet-deploy-warning: Mainnet Beta picked in Settings", async ({
+test("mainnet-deploy-warning: Mainnet picked in Settings", async ({
   seededPage: page,
 }) => {
   await page.route("https://api.mainnet-beta.solana.com/**", (route) =>
@@ -78,7 +78,7 @@ test("mainnet-deploy-warning: Mainnet Beta picked in Settings", async ({
       .click();
   };
 
-  await pick("Mainnet Beta");
+  await pick("Mainnet");
   await expect(
     settings.getByRole("radiogroup", {
       name: "Network",
@@ -94,11 +94,21 @@ test("mainnet-deploy-warning: Mainnet Beta picked in Settings", async ({
   await pick("Devnet");
   await settings.getByRole("button", { name: "Back to app" }).click();
   await expect(
-    panel.getByRole("button", { name: "Deploy to devnet" })
+    panel.getByRole("button", { name: "Deploy to Devnet" })
   ).toBeVisible(LONG);
   await expect(
     panel.getByRole("alert", { name: "Mainnet deploy warning" })
   ).toHaveCount(0);
+});
+
+test("mainnet-deploy-warning: Only Devnet and Mainnet are offered", async ({
+  seededPage: page,
+}) => {
+  await page.getByRole("button", { name: /^Change cluster/ }).click();
+  const network = page
+    .getByRole("region", { name: "Settings" })
+    .getByRole("radiogroup", { name: "Network" });
+  await expect(network.getByRole("radio")).toHaveText(["Devnet", "Mainnet"]);
 });
 
 test("mainnet-deploy-warning: Guide from the mainnet warning", async ({

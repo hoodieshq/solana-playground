@@ -133,7 +133,7 @@ const events = () => sent.events.map((e) => e.name);
 
 const pressDeploy = async () =>
   act(async () =>
-    fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
+    fireEvent.click(screen.getByRole("button", { name: "Deploy to Devnet" }))
   );
 
 describe("Deploy stage", () => {
@@ -143,7 +143,7 @@ describe("Deploy stage", () => {
     render(<Deploy />);
 
     await act(async () =>
-      fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
+      fireEvent.click(screen.getByRole("button", { name: "Deploy to Devnet" }))
     );
 
     expect(mocks.report).toHaveBeenCalledWith(failure);
@@ -176,9 +176,9 @@ describe("Deploy stage", () => {
 
     expect(
       screen.getByRole("status", { name: "Deploy result" }).textContent
-    ).toContain("Deployed to devnet");
+    ).toContain("Deployed to Devnet");
     expect(
-      screen.getByRole("button", { name: "Redeploy to devnet" })
+      screen.getByRole("button", { name: "Redeploy to Devnet" })
     ).toBeTruthy();
   });
 
@@ -188,7 +188,7 @@ describe("Deploy stage", () => {
     render(<Deploy />);
 
     await act(async () =>
-      fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
+      fireEvent.click(screen.getByRole("button", { name: "Deploy to Devnet" }))
     );
 
     expect(mocks.update).toHaveBeenCalledWith({ customPk: null });
@@ -281,7 +281,7 @@ describe("Deploy stage", () => {
 
     await act(async () =>
       fireEvent.click(
-        screen.getByRole("button", { name: "Redeploy to devnet" })
+        screen.getByRole("button", { name: "Redeploy to Devnet" })
       )
     );
     await act(async () =>
@@ -298,7 +298,7 @@ describe("Deploy stage", () => {
 
     await act(async () =>
       fireEvent.click(
-        screen.getByRole("button", { name: "Redeploy to devnet" })
+        screen.getByRole("button", { name: "Redeploy to Devnet" })
       )
     );
     expect(screen.queryByLabelText("Keypair backup")).toBeNull();
@@ -382,7 +382,7 @@ describe("Deploy stage", () => {
     render(<Deploy />);
     await act(async () =>
       fireEvent.click(
-        screen.getByRole("button", { name: "Redeploy to devnet" })
+        screen.getByRole("button", { name: "Redeploy to Devnet" })
       )
     );
 

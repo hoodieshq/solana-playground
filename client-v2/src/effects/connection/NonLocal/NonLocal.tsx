@@ -38,7 +38,7 @@ export const NonLocal: FC<React.PropsWithChildren<ToastChildProps>> = ({
   return (
     <Wrapper>
       <HelpTextWrapper>
-        <HelpTextTitle>Switch to localnet?</HelpTextTitle>
+        <HelpTextTitle>Switch to Localnet?</HelpTextTitle>
         <HelpTextDescription>
           Current endpoint is not responsive.
         </HelpTextDescription>

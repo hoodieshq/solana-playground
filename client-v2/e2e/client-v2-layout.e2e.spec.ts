@@ -608,9 +608,13 @@ test.describe("on a phone", () => {
     const settings = page.getByRole("region", { name: "Settings" });
     const network = settings.getByRole("radiogroup", { name: "Network" });
     await expect(network.getByRole("radio", { checked: true })).toBeFocused();
-    await network.getByRole("radio", { name: "Localnet" }).click();
+    // Mainnet's requests are refused, so CI never reaches it
+    await page.route("https://api.mainnet-beta.solana.com/**", (route) =>
+      route.abort("connectionrefused")
+    );
+    await network.getByRole("radio", { name: "Mainnet" }).click();
     await expect(
-      network.getByRole("radio", { name: "Localnet" })
+      network.getByRole("radio", { name: "Mainnet" })
     ).toHaveAttribute("aria-checked", "true");
     await network.getByRole("radio", { name: "Devnet", exact: true }).click();
     await expect(
@@ -1681,7 +1685,7 @@ test("the wallet asks about the validator when localnet does not answer", async 
   // and the open dialog hides the page from role queries: the account's
   // label is read once it is closed, never in a race with it
   await createWallet(page);
-  const howTo = page.getByRole("dialog", { name: "Connect to localnet" });
+  const howTo = page.getByRole("dialog", { name: "Connect to Localnet" });
   await expect(howTo).toBeVisible({ timeout: 15_000 });
   await page.keyboard.press("Escape");
   await expect(howTo).toBeHidden();

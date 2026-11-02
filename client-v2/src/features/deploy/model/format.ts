@@ -1,3 +1,5 @@
+import { clusterName } from "@/constants";
+
 /** Lamports in one SOL */
 const LAMPORTS_PER_SOL = 1_000_000_000;
 
@@ -15,9 +17,9 @@ export const formatSol = (lamports: number): string => {
 export const shortKey = (key: string): string =>
   key.length <= 12 ? key : `${key.slice(0, 4)}…${key.slice(-4)}`;
 
-/** The network's name in prose: "mainnet" for mainnet-beta */
+/** The network's name in prose: "Mainnet" for mainnet-beta, "the network" while unknown */
 export const networkName = (cluster: string | null): string =>
-  cluster === "mainnet-beta" ? "mainnet" : cluster ?? "the network";
+  clusterName(cluster) ?? "the network";
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
@@ -34,9 +36,9 @@ if (import.meta.vitest) {
       expect(shortKey("short")).toBe("short");
     });
 
-    it("networkName says mainnet for mainnet-beta", () => {
-      expect(networkName("mainnet-beta")).toBe("mainnet");
-      expect(networkName("devnet")).toBe("devnet");
+    it("networkName names the cluster capitalised, Mainnet for mainnet-beta", () => {
+      expect(networkName("mainnet-beta")).toBe("Mainnet");
+      expect(networkName("devnet")).toBe("Devnet");
       expect(networkName(null)).toBe("the network");
     });
   });

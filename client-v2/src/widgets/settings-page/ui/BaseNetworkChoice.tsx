@@ -1,31 +1,25 @@
 import { useId } from "react";
 
-import { Endpoint, PLATFORM_ENDPOINTS } from "@/constants";
+import { NETWORKS as OFFERED } from "@/constants";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 
 const REAL_SOL = "Deploys with real SOL";
 
-// `string`, not `Endpoint`: platform endpoints are build-time URLs, not enum
-// members. `line` says how a network deploys; only mainnet has one so far.
+// `line` says how a network deploys; only Mainnet has one so far.
 const NETWORKS: ReadonlyArray<{
   label: string;
   endpoint: string;
   line?: string;
-}> = [
-  { label: "Devnet", endpoint: Endpoint.DEVNET },
-  { label: "Testnet", endpoint: Endpoint.TESTNET },
-  { label: "Localnet", endpoint: Endpoint.LOCALNET },
-  ...PLATFORM_ENDPOINTS.map(({ name, value, cluster }) => ({
-    label: name,
-    endpoint: value,
-    line: cluster === "mainnet-beta" ? REAL_SOL : undefined,
-  })),
-  { label: "Mainnet Beta", endpoint: Endpoint.MAINNET_BETA, line: REAL_SOL },
-];
+}> = OFFERED.map(({ name, value, cluster }) => ({
+  label: name,
+  endpoint: value,
+  line: cluster === "mainnet-beta" ? REAL_SOL : undefined,
+}));
 
 /**
- * The network chips, with the checked network's line under them. An endpoint
- * no chip lists (Playnet, a custom URL) leaves none checked.
+ * The network chips, Devnet and Mainnet, with the checked network's line
+ * under them. An endpoint no chip lists (Localnet, Testnet, Playnet, a custom
+ * URL) leaves none checked.
  */
 const BaseNetworkChoice = ({
   endpoint,

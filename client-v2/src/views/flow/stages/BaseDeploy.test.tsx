@@ -131,7 +131,7 @@ describe("BaseDeploy", () => {
     expect(warning?.textContent).toContain("Playground wallet");
     expect(warning?.textContent).toContain("your own machine");
     const deploy = screen.getByRole("button", {
-      name: "Deploy to mainnet",
+      name: "Deploy to Mainnet",
     });
     expect(deploy).toHaveProperty("disabled", false);
     expect(lastIsActions(container)).toBe("stage-empty-actions");
@@ -235,7 +235,7 @@ describe("BaseDeploy", () => {
     expect(
       screen.getByRole("heading", { name: "Nothing deployed yet" })
     ).toBeTruthy();
-    const deploy = screen.getByRole("button", { name: "Deploy to devnet" });
+    const deploy = screen.getByRole("button", { name: "Deploy to Devnet" });
     expect(deploy).toHaveProperty("disabled", true);
     expect(deploy.getAttribute("title")).toBe("Build successfully first");
     expect(lastIsActions(container)).toBe("stage-empty-actions");
@@ -245,7 +245,7 @@ describe("BaseDeploy", () => {
     const p = props({ built: true, deploy: "idle", history: [] });
     const { container } = render(<BaseDeploy {...p} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }));
+    fireEvent.click(screen.getByRole("button", { name: "Deploy to Devnet" }));
     expect(p.onDeploy).toHaveBeenCalled();
     expect(screen.getByText(PROGRAM_ID)).toBeTruthy();
     expect(brandButtons(container)).toHaveLength(1);
@@ -294,28 +294,28 @@ describe("BaseDeploy", () => {
     const { container } = render(<BaseDeploy {...p} />);
 
     const result = screen.getByRole("status", { name: "Deploy result" });
-    expect(result.textContent).toContain("Deployed to devnet");
+    expect(result.textContent).toContain("Deployed to Devnet");
     expect(result.querySelector("code")?.textContent).toBe(SHORT_ID);
     expect(result.querySelector('[data-slot="copy-button"]')).toBeTruthy();
     const explorer = within(result).getByRole("link", {
-      name: `View latest deployment (${PROGRAM_ID}) on Explorer (devnet)`,
+      name: `View latest deployment (${PROGRAM_ID}) on Explorer (Devnet)`,
     });
-    expect(explorer.textContent).toBe("View on Explorer (devnet)");
+    expect(explorer.textContent).toBe("View on Explorer (Devnet)");
     expect(explorer.getAttribute("href")).toBe(
       `https://explorer.test/devnet/address/${PROGRAM_ID}`
     );
     expect(
       within(result).getByRole("link", {
-        name: "View latest deployment transaction (5sig) on Explorer (devnet)",
+        name: "View latest deployment transaction (5sig) on Explorer (Devnet)",
       }).textContent
-    ).toBe("Transaction (devnet)");
+    ).toBe("Transaction (Devnet)");
 
     fireEvent.click(within(result).getByRole("button", { name: "Interact" }));
     expect(p.onInteract).toHaveBeenCalled();
 
     expect(brandButtons(container)).toHaveLength(1);
     expect(
-      screen.getByRole("button", { name: "Redeploy to devnet" })
+      screen.getByRole("button", { name: "Redeploy to Devnet" })
     ).toBeTruthy();
     expect(lastIsActions(container)).toBe("stage-empty-actions");
   });
@@ -366,7 +366,7 @@ describe("BaseDeploy", () => {
     const history = screen.getByRole("region", { name: "History" });
     expect(
       within(history).getAllByRole("link", {
-        name: `View deployment (${PROGRAM_ID}) on Explorer (devnet)`,
+        name: `View deployment (${PROGRAM_ID}) on Explorer (Devnet)`,
       })
     ).toHaveLength(2);
   });
@@ -386,8 +386,8 @@ describe("BaseDeploy", () => {
     const history = screen.getByRole("region", { name: "History" });
     const links = within(history).getAllByRole("link");
     expect(links.map((l) => l.textContent)).toEqual([
-      "Explorer (testnet)",
-      "Explorer (devnet)",
+      "Explorer (Testnet)",
+      "Explorer (Devnet)",
     ]);
     expect(links[1].getAttribute("href")).toBe(
       `https://explorer.test/devnet/address/${PROGRAM_ID}`
@@ -448,7 +448,7 @@ describe("BaseDeploy", () => {
       "Deploys from a Playground wallet created on your first deploy."
     );
     expect(
-      screen.getByRole("button", { name: "Deploy to devnet" })
+      screen.getByRole("button", { name: "Deploy to Devnet" })
     ).toHaveProperty("disabled", false);
   });
 
@@ -486,7 +486,7 @@ describe("BaseDeploy", () => {
     render(<BaseDeploy {...p} />);
 
     const card = screen.getByRole("alert", { name: "Not enough SOL" });
-    expect(card.textContent).toContain("Not enough devnet SOL");
+    expect(card.textContent).toContain("Not enough Devnet SOL");
     expect(screen.queryByText("Deploy failed - see the console.")).toBeNull();
     fireEvent.click(within(card).getByRole("button", { name: "Try again" }));
     expect(p.onDeploy).toHaveBeenCalledOnce();
@@ -520,7 +520,7 @@ describe("BaseDeploy", () => {
       (b) => b.textContent
     );
     expect(labels).toEqual([
-      "Deploy to devnet",
+      "Deploy to Devnet",
       "Upload IDL",
       "Deploy with the CLI",
     ]);

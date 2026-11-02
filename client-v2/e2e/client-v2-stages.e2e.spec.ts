@@ -156,7 +156,7 @@ test.describe("client-v2-stages", () => {
       .locator("#flow-stage-panel-deploy")
       .getByRole("status")
       .filter({ hasText: "Deployed to" });
-    await expect(result).toContainText("Deployed to devnet", LONG);
+    await expect(result).toContainText("Deployed to Devnet", LONG);
     // Shortened in the middle, whole in its title
     await expect(result.locator("code")).toHaveText("6PNd…AVkj");
     await expect(result.locator("code")).toHaveAttribute("title", PROGRAM_ID);
@@ -258,7 +258,7 @@ test.describe("client-v2-stages on a phone", () => {
     const panel = page.locator("#flow-stage-panel-deploy");
     const actions = panel.locator('[data-slot="stage-empty-actions"]');
     await expect(
-      actions.getByRole("button", { name: /Redeploy to devnet/ })
+      actions.getByRole("button", { name: /Redeploy to Devnet/ })
     ).toBeVisible(LONG);
 
     const panelBox = (await panel.boundingBox())!;

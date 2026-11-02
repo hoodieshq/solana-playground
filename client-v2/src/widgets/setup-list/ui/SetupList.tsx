@@ -1,3 +1,4 @@
+import { clusterName } from "@/constants";
 import { useEffect } from "react";
 
 import { isSetupRejected } from "@/commands/connect/setup-rejected";
@@ -55,7 +56,10 @@ const SetupList = ({
   // Keyed by step, so a new step without a state does not compile
   const states: Record<SetupStep, Omit<StepView, "step">> = {
     assistant: { done: PgAssistant.isConnected },
-    network: { done: marks.networkChosen, value: cluster ?? undefined },
+    network: {
+      done: marks.networkChosen,
+      value: clusterName(cluster) ?? undefined,
+    },
     github: { done: !!user, value: user?.login ?? undefined },
     wallet: {
       done: !!wallet,

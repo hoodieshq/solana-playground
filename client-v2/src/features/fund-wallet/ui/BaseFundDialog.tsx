@@ -1,3 +1,4 @@
+import { clusterName } from "@/constants";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
@@ -96,7 +97,7 @@ const amountNote = (
       ok: true,
       error: false,
       text: cluster
-        ? `Sent on ${cluster}.`
+        ? `Sent on ${clusterName(cluster)}.`
         : "Sent on the Playground's cluster.",
     };
   }
