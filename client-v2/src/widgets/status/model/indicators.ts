@@ -189,7 +189,13 @@ export const analyzerIndicator = (
         null
       );
     case "ready":
-      return view("ready", "Ready", "ready", null, null);
+      return view(
+        "ready",
+        "Ready",
+        "ready",
+        "Hints and errors show in the editor as you type.",
+        null
+      );
     case "failed":
       return view(
         "not-ready",

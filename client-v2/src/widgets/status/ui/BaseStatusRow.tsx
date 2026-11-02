@@ -46,7 +46,7 @@ const BaseStatusRow = ({
   <SidebarMenu className="w-full">
     <SidebarMenuItem
       data-testid="status-row"
-      className="flex flex-wrap items-center gap-x-0.5"
+      className="flex flex-wrap items-center"
     >
       {indicators.map((indicator) => {
         const button = (props: ComponentProps<typeof SidebarMenuButton>) => (
@@ -56,7 +56,8 @@ const BaseStatusRow = ({
             title={indicator.label}
             data-status={indicator.id}
             data-state-kind={indicator.state}
-            className="w-auto max-w-full min-w-0"
+            // Tight enough for "Devnet", the AI and "Rust" on one 232 px line
+            className="w-auto max-w-full min-w-0 gap-1.5 px-1"
             {...props}
           >
             <IndicatorDot state={indicator.state} />
