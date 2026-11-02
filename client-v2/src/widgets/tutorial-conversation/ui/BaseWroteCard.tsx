@@ -1,6 +1,7 @@
 import { ArrowUpRight, FileCode, FilePlus2, TriangleAlert } from "lucide-react";
 
 import type { Wrote } from "@/features/tutorial-conversation";
+import { Button } from "@/shared/ui/button";
 import { Tag } from "@/shared/ui/tag";
 
 export interface BaseWroteCardProps {
@@ -11,6 +12,14 @@ export interface BaseWroteCardProps {
   preview: readonly string[];
   /** Open the file and bring the first written line into view */
   onShow: (file: string, line: number) => void;
+  /**
+   * Put the step back as it was entered, for a block that went to the end
+   * of the file. Absent once the step has passed, where the card is a
+   * record and offers no Reset.
+   */
+  onReset?: () => void;
+  /** An act runs: Reset waits for it */
+  resetDisabled?: boolean;
 }
 
 /** How many written lines the card shows before "N more lines" */
@@ -33,13 +42,17 @@ export const rangeOf = (lines: readonly number[]) => {
  * What a write put in a file: the path, the range, the first three lines and
  * "Show in <file>". The whole card is the button. A created file reads
  * "Created <path>" with "New file"; a write that failed says the block is not
- * in the file. It stays a link once it is a record.
+ * in the file. It stays a link once it is a record. A block the learner's own
+ * lines kept from its place went to the end of the file: the card says so
+ * under it and offers Reset beside the note, outside the card's button.
  */
 const BaseWroteCard = ({
   wrote,
   failed,
   preview,
   onShow,
+  onReset,
+  resetDisabled = false,
 }: BaseWroteCardProps) => {
   if (failed || !wrote) {
     return (
@@ -77,7 +90,7 @@ const BaseWroteCard = ({
   const range = rangeOf(wrote.lines);
   const shown = preview.slice(0, PREVIEW_LINES);
   const more = wrote.lines.length - shown.length;
-  return (
+  const card = (
     <button
       type="button"
       aria-label={`Show ${range} in ${wrote.file}`}
@@ -118,6 +131,27 @@ const BaseWroteCard = ({
         Show in {baseName(wrote.file)}
       </span>
     </button>
+  );
+  if (!wrote.appended) return card;
+  return (
+    <div className="grid gap-2">
+      {card}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <p className="text-caption text-muted-foreground">
+          I put it at the end: your own lines are kept.
+        </p>
+        {onReset && (
+          <Button
+            variant="outline"
+            size="xs"
+            disabled={resetDisabled}
+            onClick={onReset}
+          >
+            Reset {baseName(wrote.file)} to this step&apos;s start
+          </Button>
+        )}
+      </div>
+    </div>
   );
 };
 

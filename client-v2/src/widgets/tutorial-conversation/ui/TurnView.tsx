@@ -19,6 +19,8 @@ export interface TurnHandlers {
   explain: (beatId: string) => void;
   fixMyself: (beatId: string) => void;
   next: () => void;
+  /** The live step back to how it was entered (an appended wrote card's Reset) */
+  restartStep: () => void;
   /** Open a file in the editor with a line in view */
   showLine: (file: string, line: number) => void;
 }
@@ -112,6 +114,12 @@ const TurnView = ({
           failed={turn.failed}
           preview={preview}
           onShow={on.showLine}
+          onReset={
+            turn.step !== null && !passed.includes(turn.step)
+              ? on.restartStep
+              : undefined
+          }
+          resetDisabled={running}
         />
       );
     }

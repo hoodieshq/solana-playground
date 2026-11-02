@@ -155,6 +155,42 @@ describe("BaseWroteCard", () => {
     expect(screen.getByText("New file")).toBeTruthy();
   });
 
+  it("says a block it put at the end keeps the learner's lines, and offers Reset", async () => {
+    const onReset = vi.fn();
+    render(
+      <BaseWroteCard
+        wrote={{ file: "src/lib.rs", lines: [9, 10], appended: true }}
+        failed={false}
+        preview={["#[program]", "mod hello_anchor {"]}
+        onShow={vi.fn()}
+        onReset={onReset}
+      />
+    );
+    expect(
+      screen.getByText("I put it at the end: your own lines are kept.")
+    ).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reset lib.rs to this step's start" })
+    );
+    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Show lines 9 to 10 in src/lib.rs" })
+    ).toBeTruthy();
+  });
+
+  it("keeps the note but offers no Reset once its step is a record", () => {
+    render(
+      <BaseWroteCard
+        wrote={{ file: "src/lib.rs", lines: [9], appended: true }}
+        failed={false}
+        preview={["x"]}
+        onShow={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/I put it at the end/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Reset/ })).toBeNull();
+  });
+
   it("says the block is not in the file when the write failed", () => {
     render(<BaseWroteCard wrote={null} failed preview={[]} onShow={vi.fn()} />);
     expect(screen.getByRole("status").textContent).toContain(
@@ -390,6 +426,7 @@ describe("TurnView", () => {
     explain: vi.fn(),
     fixMyself: vi.fn(),
     next: vi.fn(),
+    restartStep: vi.fn(),
     showLine: vi.fn(),
   });
   const draw = (turn: Turn, live: boolean) =>
@@ -463,5 +500,50 @@ describe("TurnView", () => {
   ])("draws %s with no button once another card is live", (_, turn) => {
     draw(turn, false);
     expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
+  const appended: Turn = {
+    id: "wrote:s1.q1",
+    kind: "wrote",
+    step: step.id,
+    at: 3,
+    whole: true,
+    beatId: "s1.q1",
+    wrote: { file: "src/lib.rs", lines: [9], appended: true },
+    failed: false,
+  };
+  const drawWrote = (passed: string[], running: boolean) => {
+    const handlers = on();
+    render(
+      <TurnView
+        turn={appended}
+        definition={definition}
+        live={false}
+        running={running}
+        passed={passed}
+        read={() => null}
+        on={handlers}
+      />
+    );
+    return handlers;
+  };
+
+  it("restarts the step from an appended block's Reset while the step is on", async () => {
+    const handlers = drawWrote([], false);
+    await userEvent.click(screen.getByRole("button", { name: /^Reset/ }));
+    expect(handlers.restartStep).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds Reset while an act runs", () => {
+    drawWrote([], true);
+    expect(
+      (screen.getByRole("button", { name: /^Reset/ }) as HTMLButtonElement)
+        .disabled
+    ).toBe(true);
+  });
+
+  it("offers no Reset once the block's step has passed", () => {
+    drawWrote([step.id], false);
+    expect(screen.queryByRole("button", { name: /^Reset/ })).toBeNull();
   });
 });

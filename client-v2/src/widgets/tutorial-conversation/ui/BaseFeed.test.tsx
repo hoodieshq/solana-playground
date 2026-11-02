@@ -111,6 +111,7 @@ const handlers = (): TurnHandlers => ({
   explain: vi.fn(),
   fixMyself: vi.fn(),
   next: vi.fn(),
+  restartStep: vi.fn(),
   showLine: vi.fn(),
 });
 

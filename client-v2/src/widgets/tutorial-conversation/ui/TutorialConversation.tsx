@@ -197,6 +197,7 @@ const handlers: TurnHandlers = {
   explain: (beatId) => PgConversation.explain(beatId),
   fixMyself: (beatId) => PgConversation.fixMyself(beatId),
   next: () => PgConversation.next(),
+  restartStep: () => PgConversation.restartStep(),
   showLine,
 };
 
