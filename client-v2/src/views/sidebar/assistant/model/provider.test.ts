@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 
 import {
   anthropicText,
@@ -8,6 +16,11 @@ import {
   openAiToolCall,
   sse,
 } from "@/shared/lib/ai/__fixtures__/fake-provider";
+import {
+  initLogger,
+  memoryProvider as memoryLog,
+  resetLogger,
+} from "@/shared/lib/logger";
 import {
   initTelemetry,
   memoryProvider,
@@ -394,6 +407,112 @@ describe("the assistant's provider", () => {
     });
   });
 
+  describe("an outage", () => {
+    let entries: ReturnType<typeof memoryLog>["entries"];
+
+    beforeEach(() => {
+      const memory = memoryLog();
+      entries = memory.entries;
+      initLogger({ providers: [memory] });
+    });
+
+    afterEach(() => resetLogger());
+
+    const reported = () => entries.filter((entry) => entry.report);
+
+    it("of the default backend is reported: it is ours", async () => {
+      respond(
+        new Response(
+          JSON.stringify({
+            error: "The default backend's key was refused upstream (401).",
+          }),
+          {
+            status: 502,
+            statusText: "Bad Gateway",
+            headers: { "content-type": "application/json" },
+          }
+        )
+      );
+
+      await defaultBackend()
+        .send("hi")
+        .catch((e: unknown) => e);
+
+      expect(reported()).toHaveLength(1);
+    });
+
+    it("is not reported for the default backend's own refusal", async () => {
+      respond(
+        new Response(
+          JSON.stringify({ error: "Sign-in is unavailable right now." }),
+          {
+            status: 503,
+            statusText: "Service Unavailable",
+            headers: { "content-type": "application/json" },
+          }
+        )
+      );
+
+      await defaultBackend()
+        .send("hi")
+        .catch((e: unknown) => e);
+
+      expect(reported()).toEqual([]);
+    });
+
+    it("of the default backend with nothing to stream is reported", async () => {
+      respond(
+        new Response(
+          JSON.stringify({ error: "Upstream 200 with no body to stream." }),
+          {
+            status: 502,
+            statusText: "Bad Gateway",
+            headers: { "content-type": "application/json" },
+          }
+        )
+      );
+
+      await defaultBackend()
+        .send("hi")
+        .catch((e: unknown) => e);
+
+      expect(reported()).toHaveLength(1);
+    });
+
+    it("relayed by the default backend from its upstream is not reported", async () => {
+      respond(
+        new Response(
+          JSON.stringify({
+            error: 'Upstream 529: {"type":"overloaded_error"}',
+          }),
+          {
+            status: 529,
+            headers: { "content-type": "application/json" },
+          }
+        )
+      );
+
+      await defaultBackend()
+        .send("hi")
+        .catch((e: unknown) => e);
+
+      expect(reported()).toEqual([]);
+    });
+
+    it("of a third-party provider is not reported", async () => {
+      respond(openAiError(503, "overloaded"));
+      const provider = createProvider({
+        id: "openai",
+        apiKey: KEY,
+        endpoint: { baseUrl: "https://llm.test/v1", model: "m" },
+      });
+
+      await provider.send("hi").catch((e: unknown) => e);
+
+      expect(reported()).toEqual([]);
+    });
+  });
+
   it("never shows the default backend's relay of an upstream failure", async () => {
     respond(
       new Response(
@@ -424,6 +543,7 @@ describe("the assistant's provider", () => {
 
     // Its own refusal, written for people: shown whole, with no status
     await expect(defaultBackend().send("hi")).rejects.toMatchObject({
+      name: "TurnFailure",
       message: sentence,
       reason: "provider",
     });
@@ -619,6 +739,10 @@ describe("the assistant's provider", () => {
     });
 
     it("shows the pool-exhausted sentence and tracks it once", async () => {
+      // A cap of ours, not an outage: the team does not hear of each one
+      const log = memoryLog();
+      initLogger({ providers: [log] });
+      onTestFinished(() => resetLogger());
       refuses(503, {
         error: "server text",
         reason: "pool-exhausted",
@@ -634,6 +758,7 @@ describe("the assistant's provider", () => {
           params: { reason: "pool-exhausted", tier: "established" },
         },
       ]);
+      expect(log.entries.filter((entry) => entry.report)).toEqual([]);
     });
 
     it("tracks a refusal without a tier as unknown", async () => {
@@ -680,8 +805,8 @@ describe("the assistant's provider", () => {
         .send("hi")
         .catch((e: Error) => e.message);
 
-      expect(failure).toMatch(
-        /^Could not get an answer from the model\. Send your message again\.$/
+      expect(failure).toBe(
+        "Could not get an answer from the model. Send your message again."
       );
       expect(refused()).toEqual([]);
     });
