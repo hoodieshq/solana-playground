@@ -282,7 +282,7 @@ it.each([
   [
     502,
     { reason: "request-failed" },
-    "Could not export to GitHub. Nothing was published.",
+    "Could not export to GitHub. Check your gists on GitHub before you try again.",
     "request-failed",
     true,
   ],

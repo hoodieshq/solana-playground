@@ -33,7 +33,12 @@ export interface BaseShareGistProps {
   onGrant: () => Promise<unknown>;
 }
 
-// A refused gist (422) fails the same on retry; a failed request may not
+/**
+ * A refused gist (422) fails the same on every retry, so it offers none.
+ * `request-failed` also covers a gist GitHub may have created (a 201 whose
+ * body did not parse, a drop after GitHub accepted), so its text sends the
+ * user to their gists before a retry that could publish a second copy.
+ */
 const FAILURE: Record<ShareFailure, (name: string) => string> = {
   "too-large": (name) =>
     `${name} is too large to share as a gist: over 4 MB or 300 files.`,
@@ -42,7 +47,8 @@ const FAILURE: Record<ShareFailure, (name: string) => string> = {
   "rate-limited": () =>
     "GitHub is limiting requests from this browser. Try again in a few minutes.",
   rejected: () => "GitHub refused the gist. Nothing was published.",
-  "request-failed": () => "Could not export to GitHub. Nothing was published.",
+  "request-failed": () =>
+    "Could not export to GitHub. Check your gists on GitHub before you try again.",
   "scope-not-granted": () =>
     "GitHub did not grant gist access, so the gist was not created.",
 };

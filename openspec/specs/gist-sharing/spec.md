@@ -151,9 +151,11 @@ request did not complete.
 #### Scenario: Request failed
 
 - **WHEN** `/api/gists` answers `502` with reason `request-failed`, or the
-  request does not complete
-- **THEN** the dialog says "Could not export to GitHub. Nothing was
-  published."
+  request does not complete, or GitHub answers `201` with a body that does
+  not parse
+- **THEN** the dialog says "Could not export to GitHub. Check your gists on
+  GitHub before you try again." and offers to try again, since the gist may
+  exist
 
 #### Scenario: Authorization revoked
 
