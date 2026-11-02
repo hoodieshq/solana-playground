@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, FC, ReactNode, RefObject } from "react";
-import { Check, ChevronDown, Ellipsis, Folder, Pin, Terminal } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Ellipsis,
+  Folder,
+  Pin,
+  Terminal,
+} from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
@@ -276,7 +283,9 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
                     <Pin />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Dock beside the editor</TooltipContent>
+                <TooltipContent side="bottom">
+                  Dock beside the editor
+                </TooltipContent>
               </Tooltip>
             </div>
           )}

@@ -53,6 +53,11 @@ export const PANEL_SIZES = {
   files: FILES,
   stage: STAGE,
   console: { default: 256, min: 120, folded: BOTTOM_BAR_PX },
+  /**
+   * The console in a tutorial's frame: the prototype's terminal drawer,
+   * 240 open and never over 60 % of the workspace's height
+   */
+  tutorialConsole: { default: 240, max: "60%" },
   handle: HANDLE_PX,
   work: { min: FILES.min + HANDLE_PX + STAGE.min },
 } as const;
@@ -549,6 +554,13 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     filesSettled.current = false;
     consoleSettled.current = false;
   }, [tutorialLayout]);
+  // The drawer reopens at its own height in the frame, the console at its
+  // own outside it; a drag inside either keeps its own from then on
+  useEffect(() => {
+    consoleOpenSize.current = tutorialLayout
+      ? PANEL_SIZES.tutorialConsole.default
+      : PANEL_SIZES.console.default;
+  }, [tutorialLayout]);
 
   useEffect(() => {
     const panel = consoleRef.current;
@@ -603,11 +615,15 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
       ? { bar: screen.cover.bar, content: screen.cover.content }
       : { bar: props.stageBar, content: home?.content };
 
+  const consoleDefault = tutorialLayout
+    ? PANEL_SIZES.tutorialConsole.default
+    : PANEL_SIZES.console.default;
   const center = (
     <ResizablePanelGroup
       orientation="vertical"
       id="layout-vertical"
-      defaultLayout={props.vertical}
+      // The frame's drawer has its own height, never the saved split's
+      defaultLayout={tutorialLayout ? undefined : props.vertical}
       onLayoutChanged={(layout, meta) =>
         settle(
           {
@@ -615,7 +631,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             state: props.consoleState,
             openSize: consoleOpenSize.current,
             settledOnce: consoleSettled,
-            save: props.onVerticalLayout,
+            // A drag of the frame's drawer is the visit's, not the saved split
+            save: tutorialLayout ? () => undefined : props.onVerticalLayout,
           },
           layout,
           meta
@@ -632,11 +649,10 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         collapsible
         collapsedSize={PANEL_SIZES.console.folded}
         defaultSize={
-          props.consoleState.open
-            ? PANEL_SIZES.console.default
-            : PANEL_SIZES.console.folded
+          props.consoleState.open ? consoleDefault : PANEL_SIZES.console.folded
         }
         minSize={PANEL_SIZES.console.min}
+        maxSize={tutorialLayout ? PANEL_SIZES.tutorialConsole.max : undefined}
         groupResizeBehavior="preserve-pixel-size"
         className="flex min-h-0 flex-col"
         onResize={(size) => {

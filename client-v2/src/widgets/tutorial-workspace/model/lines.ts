@@ -169,7 +169,9 @@ if (import.meta.vitest) {
     const classes = (p: LinePlan) =>
       p.decorations.map((d) => [
         d.range.startLineNumber,
-        d.options.className ?? d.options.inlineClassName ?? d.options.after?.content,
+        d.options.className ??
+          d.options.inlineClassName ??
+          d.options.after?.content,
       ]);
 
     it("draws nothing with no marks", () => {
@@ -212,7 +214,9 @@ if (import.meta.vitest) {
     });
 
     it("tints the lines a landing replaces, with no ghost", () => {
-      expect(classes(plan({ landing: { lines: [3, 4], ghost: false } }))).toEqual([
+      expect(
+        classes(plan({ landing: { lines: [3, 4], ghost: false } }))
+      ).toEqual([
         [3, "pg-line-landing"],
         [4, "pg-line-landing"],
       ]);

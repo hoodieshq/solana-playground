@@ -83,26 +83,36 @@ describe("BaseWorkspaceHead", () => {
   it("holds Files and Terminal only at its end, pressed while open", () => {
     render(<Harness terminalOpen />);
     expect(
-      screen.getByRole("button", { name: "Terminal" }).getAttribute("aria-pressed")
+      screen
+        .getByRole("button", { name: "Terminal" })
+        .getAttribute("aria-pressed")
     ).toBe("true");
     expect(
       screen
         .getAllByRole("button", { name: "Files" })
-        .map((b) => b.getAttribute("aria-pressed") ?? b.getAttribute("aria-expanded"))
+        .map(
+          (b) =>
+            b.getAttribute("aria-pressed") ?? b.getAttribute("aria-expanded")
+        )
     ).toEqual(["false", "false"]);
-    expect(screen.queryByRole("button", { name: /build|deploy|run/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /build|deploy|run/i })
+    ).toBeNull();
   });
 
   it("opens the tree from the active tab and picks lib.rs from client.ts", async () => {
     const onPick = vi.fn();
     render(<Harness onPick={onPick} />);
     const chevron = within(
-      screen.getByRole("tab", { name: "client.ts" }).parentElement as HTMLElement
+      screen.getByRole("tab", { name: "client.ts" })
+        .parentElement as HTMLElement
     ).getByRole("button", { name: "Files" });
     await userEvent.click(chevron);
     expect(chevron.getAttribute("aria-expanded")).toBe("true");
     const tree = await screen.findByRole("tree", { name: "Files" });
-    await userEvent.click(within(tree).getByRole("treeitem", { name: /lib\.rs/ }));
+    await userEvent.click(
+      within(tree).getByRole("treeitem", { name: /lib\.rs/ })
+    );
     expect(onPick).toHaveBeenCalledWith(LIB);
     expect(screen.queryByRole("tree")).toBeNull();
     // client.ts is still one click away
@@ -140,13 +150,19 @@ describe("BaseWorkspaceHead", () => {
   it("offers the pin only when the workspace is wide enough to dock", async () => {
     const onDock = vi.fn();
     const { unmount } = render(<Harness />);
-    await userEvent.click(screen.getByRole("button", { name: "Files", pressed: false }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Files", pressed: false })
+    );
     await screen.findByRole("tree");
-    expect(screen.queryByRole("button", { name: "Dock beside the editor" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Dock beside the editor" })
+    ).toBeNull();
     unmount();
 
     render(<Harness canDock onDock={onDock} />);
-    await userEvent.click(screen.getByRole("button", { name: "Files", pressed: false }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Files", pressed: false })
+    );
     await userEvent.click(
       await screen.findByRole("button", { name: "Dock beside the editor" })
     );

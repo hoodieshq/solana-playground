@@ -18,8 +18,7 @@ export const tutorialFiles = (definition: TutorialDefinition): string[] => {
   ].filter((path) => !isTests(path));
 };
 
-const isTests = (path: string) =>
-  path === "tests" || path.startsWith("tests/");
+const isTests = (path: string) => path === "tests" || path.startsWith("tests/");
 
 /** The step, counted from 1, that first creates `path`; null for a starter file */
 export const createdIn = (

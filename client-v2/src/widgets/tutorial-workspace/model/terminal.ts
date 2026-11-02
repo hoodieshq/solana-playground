@@ -27,7 +27,8 @@ export interface TerminalStatus {
 }
 
 /** The drawer's line before anything ran */
-export const NOTHING_RUN = "Nothing run yet. Builds, deploys and calls print here.";
+export const NOTHING_RUN =
+  "Nothing run yet. Builds, deploys and calls print here.";
 
 /** "IDL: 1 instruction · hello", the way a good build names what it made */
 const idlLine = (instructions: string[]) => {
@@ -46,7 +47,9 @@ const lastText = (last: LastRun): TerminalStatus => {
   if (!last.ok) {
     return {
       text:
-        last.line === null ? "Build failed" : `Build failed · line ${last.line}`,
+        last.line === null
+          ? "Build failed"
+          : `Build failed · line ${last.line}`,
       tone: "error",
     };
   }
@@ -130,7 +133,9 @@ if (import.meta.vitest) {
 
     it("names the IDL a good build made", () => {
       expect(
-        terminalStatus(facts({ kind: "build", ok: true, instructions: ["hello"] }))
+        terminalStatus(
+          facts({ kind: "build", ok: true, instructions: ["hello"] })
+        )
       ).toEqual({
         text: "Build successful · IDL: 1 instruction · hello",
         tone: "success",
@@ -154,7 +159,10 @@ if (import.meta.vitest) {
     it("reads amber once a file changed past a good deploy", () => {
       expect(
         terminalStatus(facts({ kind: "deploy", ok: true }, null, "lib.rs"))
-      ).toEqual({ text: "lib.rs changed since the last deploy", tone: "warning" });
+      ).toEqual({
+        text: "lib.rs changed since the last deploy",
+        tone: "warning",
+      });
       // A failed deploy never spoke for the code
       expect(
         terminalStatus(facts({ kind: "deploy", ok: false }, null, "lib.rs"))
@@ -165,7 +173,11 @@ if (import.meta.vitest) {
     it("opens on a failed build and on the first deploy only", () => {
       const at = (build: string, deploy: string) => ({ build, deploy });
       expect(
-        autoOpenReason(at("running", "upcoming"), at("failed", "upcoming"), false)
+        autoOpenReason(
+          at("running", "upcoming"),
+          at("failed", "upcoming"),
+          false
+        )
       ).toBe("build_failed");
       expect(
         autoOpenReason(at("running", "upcoming"), at("done", "active"), false)
