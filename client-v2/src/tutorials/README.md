@@ -4,8 +4,8 @@ Playground now supports [tutorials](https://beta.solpg.io/tutorials) natively wi
 
 > **Conversation tutorials**
 >
-> A tutorial on the conversation flow is one `tutorial.json`, written by an
-> agent from [`AUTHORING.md`](AUTHORING.md) and
+> A tutorial on the conversation flow is one `tutorial.json`, which an agent
+> can write from [`AUTHORING.md`](AUTHORING.md) and
 > [`tutorial.schema.json`](tutorial.schema.json). This page covers the
 > Markdown and React tutorials only.
 

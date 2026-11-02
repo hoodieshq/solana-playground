@@ -32,6 +32,8 @@ import { PgExplorer } from "../../../utils/explorer/explorer";
 import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
 import type { Disposable } from "../../../utils/types";
+import { PgView } from "../../../utils/view";
+import { checkDefinition } from "@/entities/tutorial/model/definition/check";
 import type {
   ActBeat,
   Goal,
@@ -40,11 +42,14 @@ import type {
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
 
 /**
- * Task 1.2's proof that a definition written from `AUTHORING.md` runs with
- * no code change: a walker that knows nothing of any one tutorial answers
- * every question right, presses every card and Next, and reaches the finish.
- * Hello Anchor walks too, so the walker is not shaped to the fixture. Runs
- * are stubbed; their results come from the step's goal.
+ * The proof that a definition written from `AUTHORING.md` runs with no code
+ * change: it passes the check, and a walker that knows nothing of any one
+ * tutorial answers every question right, presses every card and Next, and
+ * reaches the finish, each step's files landing as its target. Hello Anchor
+ * walks too, so the walker is not shaped to the fixture, and it alone covers
+ * the planned failure, which the blind-written fixture does not have. Runs
+ * are stubbed and the judge matches a result's kind to the goal's, so a
+ * goal's `log` and `args` are not judged here: that is `goals.ts`'s job.
  */
 
 let file: Record<string, unknown>;
@@ -143,6 +148,20 @@ const goalRunner = (d: TutorialDefinition): Runner => {
   };
 };
 
+/** Each file of a step's target, as the workspace holds it at the step's win */
+const expectTarget = (
+  d: TutorialDefinition,
+  stepId: string,
+  files: Record<string, string>
+) => {
+  const step = d.steps.find((s) => s.id === stepId);
+  for (const [path, content] of Object.entries(step?.target ?? {})) {
+    expect(files[path]?.trimEnd(), `${stepId}: ${path}`).toBe(
+      content.trimEnd()
+    );
+  }
+};
+
 /** Answers whatever the conversation waits on, until the finish */
 const walk = async (d: TutorialDefinition) => {
   const workspace = memoryWorkspace(
@@ -171,8 +190,10 @@ const walk = async (d: TutorialDefinition) => {
       PgConversation.act(live.beatId, args);
     } else if (live.kind === "result" && live.open)
       PgConversation.explain(live.beatId);
-    else if (live.kind === "win") PgConversation.next();
-    else throw new Error(`the walk cannot answer a live ${live.kind}`);
+    else if (live.kind === "win") {
+      expectTarget(d, live.stepId, workspace.files);
+      PgConversation.next();
+    } else throw new Error(`the walk cannot answer a live ${live.kind}`);
     await settle();
   }
   await vi.waitFor(
@@ -197,9 +218,10 @@ beforeEach(() => {
   });
   logged = memoryProvider();
   initLogger({ providers: [logged] });
+  vi.mocked(PgView.setToast).mockClear();
 });
 
-afterEach(async () => {
+afterEach(() => {
   sub?.dispose();
   sub = null;
   (PgExplorer as { currentWorkspaceName: string | null }).currentWorkspaceName =
@@ -211,16 +233,21 @@ describe.each([
   ["Counter Anchor, written from AUTHORING.md alone", counter],
   ["Hello Anchor", hello],
 ])("%s through the engine", (_name, json) => {
+  it("passes the check", () => {
+    const d = json as unknown as TutorialDefinition;
+    // Hello Anchor's next is upstream's Counter PDA Tutorial, which only the
+    // catalog knows
+    const known = new Set(d.finish.next === null ? [] : [d.finish.next]);
+    expect(checkDefinition(d, known, { docs: {} })).toEqual([]);
+  });
+
   it("walks from the intro to the finish", async () => {
     const d = json as unknown as TutorialDefinition;
-    const workspace = await walk(d);
+    await walk(d);
 
     const saved = file[STORAGE_KEY] as { passed: string[] };
     expect(saved.passed).toEqual(d.steps.map((s) => s.id));
-    const last = d.steps[d.steps.length - 1];
-    for (const [path, content] of Object.entries(last.target)) {
-      expect(workspace.files[path]?.trimEnd(), path).toBe(content.trimEnd());
-    }
     expect(logged.entries.filter((e) => e.level === "error")).toEqual([]);
+    expect(PgView.setToast).not.toHaveBeenCalled();
   });
 });

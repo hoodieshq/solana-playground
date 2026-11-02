@@ -67,8 +67,9 @@ tutorial.json
 The schema describes every field. The parts that need judgement:
 
 - `name` is the card's title, and its slug is the folder's name: "Hello
-  Anchor" lives in `hello-anchor/`. The slug is the name in lower case,
-  words joined by `-`, other characters dropped.
+  Anchor" lives in `hello-anchor/`. Write the name in letters, digits and
+  single spaces; the slug is then the name in lower case with each space a
+  `-`.
 - `description` is one line on the card; only 72 characters show.
 - `authors` are the people who wrote it, each with an optional `link`.
   `languages` are the languages of the files the learner sees: `Rust` for
@@ -76,18 +77,22 @@ The schema describes every field. The parts that need judgement:
 - `categories` is optional: up to three from the schema's list, left out
   when none fits.
 - `thumbnail` is a 4:3 image next to `tutorial.json` (`thumbnail.jpg`),
-  under 1 MB; the card shows it at 278 by 216 pixels. Ask the person for
+  under 1 MB. Ask the person for
   it. The check does not look for the file, but the card shows a broken
   image without it, so the pull request must carry it.
 - `intro.promise` says what the learner ends with. `intro.log` is the log
   line from question 2. `intro.files` is the finished program, shown read
   only before Start, usually the last step's `target`.
-- Ids never change once published: saved progress names them. A step's id
+- Ids never change once published: saved progress names them. They are
+  lower case letters, digits, `.` and `-`. A step's id
   is a short kebab-case name for what it does (`write-program`, `deploy`).
   A beat's id is `s<step>.<word>` (`s1.boil`, `s1.what`, `s1.q1`,
   `s1.build`), and `f<step>.<word>` for a planned failure's beats
   (`f1.explain`); a win's is `s<step>.win`. Steps' ids are unique among
   steps, beats' among all beats of the tutorial.
+- The examples below come from Hello Anchor, Playground's first
+  conversation tutorial: four steps that write, deploy, call and change a
+  program that logs a greeting.
 - Text fields take inline Markdown only: `code`, _emphasis_, links. A text
   can be `{ "text": "...", "phone": "..." }` when a shorter line reads
   better on a phone.
@@ -106,30 +111,34 @@ Every step carries whole files, never edits:
 - `file`: the step's main file, the one the editor shows.
 - `readOnly`: files the learner cannot edit in this step. A step that only
   deploys and calls changes no file: its `target` equals its `start`, and
-  its files are usually read only.
-
-End every file with a newline, as an editor saves it.
+  its files may be read only.
 
 How a block lands: Playground finds the block's lines in the target and
 rebuilds the file from the target, keeping the lines the file already has.
 So blocks land in their place whatever order the beats write them in. The
-rules that follow from it:
+check does not test rules 1 and 3; break them and the check still passes,
+but blocks land in the wrong place. The rules:
 
 1. **A step's `start` is the previous step's `target`, copied exactly.** A
    line the learner's file has that neither the start nor the target knows
    makes the block go to the end of the file instead.
-2. **Write each block with the indentation it has in the target.**
-   Matching ignores indentation and blank lines; what lands is the block's
-   own text.
+2. **Copy each block out of the target, never retype it.** The check
+   compares the block's lines with the target's after trimming each line and
+   dropping blank ones: any other difference, a space inside a line, a
+   comment, the text in a `msg!`, is refused. Keep the target's indentation
+   in the block, since what lands is the block's own text.
 3. **Make each block, as a run of lines, unique in the target.** A block
    lands at the first place its lines appear in a row, so a block of only
-   `}` lines lands at the first `}`. Single lines may repeat
-   (`#[account(mut)]` in two structs is fine); start the block from a line
-   that names something.
+   `}` lines lands at the first `}`. Start the block from a line that names
+   something. Single lines may repeat, with one catch: a line the file
+   already has (`Ok(())`, `}`, `#[account(mut)]`) can show early in a part
+   of the target not written yet. Write look-alike pieces, two instructions
+   or two account structs of the same shape, in one block.
 4. **Leave `declare_id!("11111111111111111111111111111111")` as it is.**
    Playground writes the learner's program id into it.
-5. **What `msg!` says may differ** between a block and the target: the text
-   inside `msg!("...")` is the writer's, as long as it fills as many `{}`.
+5. **The learner's own words survive.** When the learner types the key
+   line by hand, the text inside their `msg!("...")` is kept, as long as it
+   fills as many `{}`; the rest of the block is the target's.
 6. **A client file is TypeScript run by Playground**, with `pg.program`
    (the deployed program, from its IDL), `pg.wallet`, `pg.connection` and
    `web3` in scope.
@@ -144,10 +153,12 @@ rules that follow from it:
 
 For the planned failure, the beats before the first build write a file that
 really fails with the error you want, and the fix question's block is what
-makes it build. The failure must be a compiler error with a file and a
-line (`error[E0412]: ...`, `--> src/lib.rs:9:32`): a build that fails any
-other way is treated as unplanned. Try that file in Playground before you
-write the failure's copy around it.
+makes it build. The failure must be a compiler error Playground can read,
+with a code, a file and a line (`error[E0412]: ...`,
+`--> src/lib.rs:9:32`): a build that fails any other way is treated as
+unplanned. Any such error in that step before the fix counts as the planned
+one, so keep the step free of other errors. Ask the person to build that
+file in Playground before you write the failure's copy around it.
 
 ## The four beats
 
@@ -374,9 +385,11 @@ purpose..."). `onFail` holds the beats after the learner presses Explain: a
   `Hello, World!` matches `Program log: Hello, World!`. Write it against what
   your own `msg!` prints, and use `.+` where the learner's input goes. Leave
   `log` out when the instruction prints nothing; Anchor's automatic
-  `Instruction: ...` lines are not a goal. `$` and `^` anchor to the line's
-  end and start (`Count: 1$` refuses `Count: 10`). `args` is optional too.
-  A step with several calls passes on the first one that meets its goal, in
+  `Instruction: ...` lines are not a goal. `$` anchors to the line's end
+  (`Count: 1$` refuses `Count: 10`); the line starts with `Program log:`,
+  so `^` needs it (`^Program log: Count`) or is better left out. `args` is
+  optional too; each named argument needs a value that is not blank. A step
+  with several calls passes on the first one that meets its goal, in
   whatever order they run.
 
 `win` closes the step: `headline` says what is now true ("Your program
@@ -393,8 +406,10 @@ four sentences.
 
 `finish.headline` and `finish.line` close the tutorial. `learned` lists one
 item a step, usually each step's `learned`. `chips` are buttons that post
-their `answer` with no model call; `follow` adds a quiet button after it
-(`nextTutorial` opens `next`). `next` is the slug of a tutorial that exists,
+their `answer` with no model call. Each has a `label` and an `answer`, and
+may have a `follow`, a quiet button after the answer: `nextTutorial` opens
+`next`, and `openTest` opens the Call panel. The schema lists the others;
+use them only when the person asks for them. `next` is the slug of a tutorial that exists,
 or `null`.
 
 `docs` lists the pages the tutorial needs, each with a `title`, its `url` on
@@ -576,9 +591,9 @@ call it. It passes the check as it stands.
 
 ## From a prototype script
 
-The design prototype writes its tutorials as TypeScript lesson modules
-(`lessons/hello-anchor.ts`, `lumberjack.ts`, `zero-copy.ts`). Given one,
-carry its copy over word for word, and map its fields:
+The person may hand you a script from Playground's design prototype: a
+TypeScript lesson module that exports a `Lesson` with `card`, `steps` and
+copy. Given one, carry its copy over word for word, and map its fields:
 
 - `card.name`, `card.level`, `card.framework` → `name`, `level`, `framework`
 - `by` → `authors[0].name`
@@ -602,9 +617,9 @@ and the lesson's `checks`, `game`, `memory`, `runTx`, `callTx`, `programId`,
 an act other than the five above (`chop`, `grow`, `send`), or a goal that
 passes on a refused transaction or an account's size. Do not invent a field:
 the check refuses any field the schema does not name. Tell the person which
-step needs what, so the format can grow first. Playground's team tracks
-these as HOO-2502 (goals on a refused call and on an account's size, and
-acts named for what the learner does).
+step needs what, and ask the Playground team: the format change that adds
+these is tracked as HOO-2502 (goals on a refused call and on an account's
+size, and acts named for what the learner does).
 
 ## Running the check
 
@@ -620,32 +635,33 @@ run it again; never hand in a definition the check refuses.
 ## Reading the check's errors
 
 Each error is a JSON path into `tutorial.json`, what was expected there, and
-what was found. `steps[1].beats[3]` is the fourth beat of the second step;
-counting starts at 0. The ones you will meet:
+what was found. `steps[0].beats[2]` is the third beat of the first step;
+counting starts at 0. These are the lines the check prints for the worked
+example above, broken one way each:
 
-- `steps[1].beats[3].why[2]: a wrong option needs a reason, found null`
+- `steps[0].beats[2].why[2]: a wrong option needs a reason, found null`
   Option 2 is wrong (`answer` is not 2) and has no reason. Write one sentence
   on why it is wrong, or fix `answer` if option 2 is the right one.
-- `steps[1].beats[3].why[0]: null at the right option, found "Right, but why?"`
+- `steps[0].beats[2].why[0]: null at the right option, found "Right, but why?"`
   The right option's reason must be `null`; its words go in `right`.
-- `steps[1].beats[3].answer: the right option is 0, 1 or 2, found 3`
+- `steps[0].beats[2].answer: the right option is 0, 1 or 2, found 3`
   `answer` counts from 0.
-- `steps[1].beats[3].writes.block: a block in the step's target src/lib.rs, found "pub fn goodbye() {}"`
+- `steps[0].beats[1].writes.block: a block in the step's target src/lib.rs, found "pub struct Other {}"`
   The block's lines are not in the target's file in a row; the found value is
-  its first line. Add the block to the target, or fix a line that differs.
+  its first line. Copy the block out of the target again.
 - `steps[0].beats[0].writes.file: a file in the step's target, found "src/other.rs"`
   A block or a `create` names a file the step's target does not have.
-- `steps[1].goal.instruction: an instruction a step's target defines, found "goodbye"`
-  No step's target has `fn goodbye`. Check the spelling, in snake case as in
+- `steps[1].goal.instruction: an instruction a step's target defines, found "shout"`
+  No step's target has `fn shout`. Check the spelling, in snake case as in
   Rust.
 - `finish.next: the slug of a tutorial, found "nowhere"`
   `next` names no tutorial. Use an existing slug, or `null`.
 - `steps[1].beats[0].id: an id no other beat has, found "s1.boil", also at steps[0].beats[0].id`
   Two beats share an id.
 - `steps[1].goal.log: a regular expression, found "("`
-  `log` is a regular expression; escape `(`, `)`, `.`, `?` and `*` with `\\`
-  when you mean them literally.
-- `name: a name whose slug is the folder's, "other", found "Minimal"`
+  `log` is a regular expression. Escape `( ) [ ] { } . * + ? | ^ $` when you
+  mean the character itself, written `\\(` inside JSON.
+- `name: a name whose slug is the folder's, "echo-anchor", found "Echo Program"`
   The folder and the name disagree. Rename one.
 - `steps[0]: needs "title", found none`
   A required field is missing.
@@ -653,13 +669,13 @@ counting starts at 0. The ones you will meet:
   A field the schema does not name. Remove it; there is no place for it.
 - `steps[1].beats[0].kind: one of "say", "write", "ask", "act", found "shout"`
   A beat kind that does not exist.
-- `steps[0].beats[1]: needs "call", found none`
+- `steps[1].beats[1]: needs "call", found none`
   A `call` act without its `call`. Only a `call` act may have one.
 - `steps[0]: needs "planned", found none`
   `onFail` and `planned` come together.
-- `steps[0].readOnly[1]: a file in the step's start or target, found "Anchor.toml"`
+- `steps[1].readOnly[1]: a file in the step's start or target, found "Anchor.toml"`
   A read-only file the step does not have.
-- `docs[1].file: a Markdown file in the tutorial's docs folder, found no "programs.md" there`
+- `docs[0].file: a Markdown file in the tutorial's docs folder, found no "programs.md" there`
   Add the page under `docs/`.
 - `docs[0].file: https links only, found "http://solana.com" in idl.md`
   Links in a doc page are `https`.
@@ -668,19 +684,24 @@ counting starts at 0. The ones you will meet:
 
 ## Trying it locally
 
-In a clone, from `client-v2/` (Node as pinned in the repository, Yarn 1):
+In a clone, from `client-v2/` (Node as pinned in the repository, Yarn 1).
+The check reads the other tutorials' names from `client/public`, a
+submodule that `yarn generate-fast` copies in:
 
 ```sh
+git submodule update --init ../client/public
 ../wasm/stub-packages.sh
 yarn install --frozen-lockfile
+yarn generate-fast
 yarn tutorial:check <slug>
 yarn dev
 ```
 
 Open `http://localhost:3000/tutorials`: the card shows under its level with
 its thumbnail and its level and framework. Opening it runs the conversation
-once the conversation view is part of the build; until then, the check and
-the pull request's review are the gate.
+once the conversation view is in the branch you run (it is being built in
+November 2026); until then, the check and the pull request's review are the
+gate.
 
 ## The pull request
 
