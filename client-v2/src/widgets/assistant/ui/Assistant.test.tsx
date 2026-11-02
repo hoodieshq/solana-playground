@@ -337,7 +337,9 @@ describe("Assistant", () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     const { user } = setup();
     await user.click(screen.getByRole("button", { name: "More" }));
-    expect(screen.queryByRole("menuitem", { name: "Delete my key" })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "Delete my key" })
+    ).toBeNull();
   });
 
   it("widens through the shell, and hides through it", async () => {

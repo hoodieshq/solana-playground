@@ -213,7 +213,10 @@ if (import.meta.vitest) {
 
     /** Every value in both stores, to look for the key in */
     const everything = () =>
-      JSON.stringify([storedValues(localStorage), storedValues(sessionStorage)]);
+      JSON.stringify([
+        storedValues(localStorage),
+        storedValues(sessionStorage),
+      ]);
 
     describe("remembered backend", () => {
       beforeEach(() => {

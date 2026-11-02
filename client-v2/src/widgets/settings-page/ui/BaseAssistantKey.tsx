@@ -20,7 +20,11 @@ const DESCRIPTIONS: Record<AssistantKeyState, string> = {
 };
 
 /** The row that deletes the user's own model key */
-const BaseAssistantKey = ({ state, onDelete, phone }: BaseAssistantKeyProps) => (
+const BaseAssistantKey = ({
+  state,
+  onDelete,
+  phone,
+}: BaseAssistantKeyProps) => (
   <BaseSettingRow
     name="Your model key"
     description={DESCRIPTIONS[state]}
