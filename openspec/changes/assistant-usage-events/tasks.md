@@ -19,7 +19,7 @@ Both tasks are HOO-2078, one PR each, in this order.
 
 ## 2. The events
 
-- [ ] 2.1 Declare `assistant_turn_sent`, `assistant_turn_answered`,
+- [ ] 2.1 ([plan](plans/2.1-turn-events.md)) Declare `assistant_turn_sent`, `assistant_turn_answered`,
       `assistant_turn_failed` and `assistant_turn_capped` in
       `widgets/assistant/model/telemetry.ts` with a TSDoc comment each, and
       send them from `use-turn.ts` around the provider's send as
@@ -30,8 +30,11 @@ Both tasks are HOO-2078, one PR each, in this order.
       [specs/client-v2-assistant-usage/spec.md](specs/client-v2-assistant-usage/spec.md):
       sent then answered, nothing for a send with no backend or one refused
       while a turn runs, sent and stopped only for a Stop, failed with reason and status for a provider
-      error, a refusal and a step-limit error, capped and not failed for
-      reason `capped`, failed `provider` `429` for a plain 429, and no event
+      error, a refusal, a dropped connection and a step-limit error, capped
+      and not failed for reason `capped`, failed `provider` `429` for a plain
+      429, one sent and one answered across a busy resend, failed `provider`
+      `429` for a busy wait that gives up, sent and stopped for a Stop during
+      the countdown, and no event
       carrying the prompt when the failure message quotes it; and that
       `src/app/slice-structure.test.ts`, `yarn test-types` and
       `yarn run check` pass
