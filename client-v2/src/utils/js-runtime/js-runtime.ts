@@ -389,7 +389,7 @@ export class PgJsRuntime {
     if (path.includes("target/types")) {
       const idl = PgProgramInfo.callableIdl();
       if (idl) return { IDL: idl };
-      throw new Error("IDL not found, build the program to create the IDL.");
+      throw new Error(PgProgramInfo.noCallableIdlMessage());
     }
 
     throw new Error("File imports are not yet supported.");

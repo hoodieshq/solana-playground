@@ -8,6 +8,7 @@ import type {
   IdlType,
 } from "@coral-xyz/anchor/dist/cjs/idl";
 import { PublicKey } from "@solana/web3.js";
+import { createHash } from "crypto";
 import { describe, expect, it } from "vitest";
 
 import { readIdl } from "./read";
@@ -285,6 +286,118 @@ describe("entities/idl/model/read", () => {
     expect(readIdl(raw)).toMatchObject({
       kind: "refused",
       reason: `a custom discriminator on ${raw.accounts![0].name}`,
+    });
+  });
+
+  describe("edge cases", () => {
+    /** A one-instruction 1.x IDL; `ix` overrides the instruction */
+    const one = (ix: Record<string, unknown>, types: unknown[] = []) =>
+      ({
+        address: "11111111111111111111111111111111",
+        metadata: { name: "edge", version: "0.1.0", spec: "0.1.0" },
+        instructions: [
+          {
+            name: "initialize",
+            discriminator: [175, 175, 109, 31, 13, 152, 155, 237],
+            accounts: [],
+            args: [],
+            ...ix,
+          },
+        ],
+        types,
+      } as unknown as IdlV1);
+
+    const pdaOf = (seeds: unknown[], args: unknown[] = []) => {
+      const conv = legacy(
+        one({ accounts: [{ name: "vault", pda: { seeds } }], args })
+      );
+      return accountsOf(conv.instructions[0].accounts)[0].pda;
+    };
+
+    it.each([
+      [[104, 105], { kind: "const", type: "string", value: "hi" }],
+      // `string.parse` drops quotes: such text goes as bytes
+      [[105, 39, 115], { kind: "const", type: "bytes", value: "[105,39,115]" }],
+      [[32, 104], { kind: "const", type: "bytes", value: "[32,104]" }],
+      [[0, 1], { kind: "const", type: "bytes", value: "[0,1]" }],
+      [[255], { kind: "const", type: "bytes", value: "[255]" }],
+      [
+        Array.from({ length: 32 }, (_, i) => i),
+        {
+          kind: "const",
+          type: "publicKey",
+          value: new PublicKey(
+            Uint8Array.from({ length: 32 }, (_, i) => i)
+          ).toBase58(),
+        },
+      ],
+    ])("const seed %j", (value, expected) => {
+      expect(pdaOf([{ kind: "const", value }])?.seeds).toEqual([expected]);
+    });
+
+    it("types an argument seed from the argument and camelCases its path", () => {
+      expect(
+        pdaOf(
+          [{ kind: "arg", path: "max_amount" }],
+          [{ name: "max_amount", type: "u32" }]
+        )?.seeds
+      ).toEqual([{ kind: "arg", type: "u32", path: "maxAmount" }]);
+    });
+
+    it.each([
+      ["an unknown argument", [{ kind: "arg", path: "missing" }]],
+      ["a dotted path", [{ kind: "account", path: "pool.config" }]],
+      [
+        "another account's data",
+        [{ kind: "account", path: "pool", account: "Pool" }],
+      ],
+    ])("leaves the account to the person for %s", (_, seeds) => {
+      expect(pdaOf(seeds)).toBeUndefined();
+    });
+
+    it("keeps a name whose camelCase does not hash back", () => {
+      const sighash = [
+        ...createHash("sha256")
+          .update("global:add_2_things")
+          .digest()
+          .subarray(0, 8),
+      ];
+      const conv = legacy(
+        one({ name: "add_2_things", discriminator: sighash })
+      );
+      const name = conv.instructions[0].name;
+      const data = new BorshCoder(conv).instruction.encode(name, {});
+      expect([...data.subarray(0, 8)]).toEqual(sighash);
+    });
+
+    it("reads a spec 0.1.0 IDL that has no address", () => {
+      const raw = JSON.parse(JSON.stringify(pda));
+      delete raw.address;
+      expect(readIdl(raw).kind).toBe("v1");
+    });
+
+    it.each([
+      [
+        "an unknown primitive",
+        { name: "x", type: "u512" },
+        "an unknown type u512",
+      ],
+      [
+        "an unbound generic",
+        { name: "x", type: { generic: "T" } },
+        "an unbound generic T",
+      ],
+      [
+        "an unknown defined type",
+        { name: "x", type: { defined: { name: "Nope" } } },
+        "an unknown type Nope",
+      ],
+    ])("refuses %s", (_, arg, reason) => {
+      expect(readIdl(one({ args: [arg] }))).toEqual({
+        kind: "refused",
+        version: "1",
+        reason,
+      });
     });
   });
 });

@@ -16,7 +16,7 @@ export type InteractSurface =
 export interface InteractFacts {
   /** A workspace is open, or the explorer is temporary */
   hasProject: boolean;
-  /** `PgProgramInfo.idl`; only `instructions` is read */
+  /** `PgProgramInfo.idl` as stored; `instructions` is read here, the rest by `readIdl` */
   idl: { instructions?: unknown } | null;
   /** `readIdl` refused the IDL: it cannot be called, whatever it holds */
   refused?: boolean;

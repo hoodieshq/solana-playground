@@ -27,7 +27,7 @@ export const getAnchorProgram = (params?: {
 
   if (!wallet) throw new Error("Not connected");
   if (!programId) throw new Error("Program ID not found");
-  if (!idl) throw new Error("Anchor IDL not found");
+  if (!idl) throw new Error(PgProgramInfo.noCallableIdlMessage());
 
   const provider = new AnchorProvider(
     connection,

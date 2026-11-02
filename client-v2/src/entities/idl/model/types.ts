@@ -1,13 +1,15 @@
 import type { Idl } from "@coral-xyz/anchor";
 
 /**
- * The Anchor 1.x IDL (spec `0.1.0`), as `anchor idl build` writes it.
+ * The Anchor IDL of spec `0.1.0`, as `anchor idl build` writes it from Anchor
+ * 0.30 on, 1.x included.
  *
  * Declared here instead of taken from `@anchor-lang/core`, which the client
- * does not depend on; field for field it follows that package's `idl.ts`.
+ * does not depend on; field for field it follows that package's `idl.ts` (1.2.2).
  */
 export interface IdlV1 {
-  address: string;
+  /** Written from `declare_id!`; absent from an IDL edited by hand */
+  address?: string;
   metadata: {
     name: string;
     version: string;

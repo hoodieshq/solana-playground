@@ -178,6 +178,15 @@ class _PgProgramInfo {
     return reading && reading.kind !== "refused" ? reading.idl : null;
   }
 
+  /** Why `callableIdl()` is null, worded for the person who hit it */
+  static noCallableIdlMessage() {
+    const reading = _PgProgramInfo.readIdl();
+    if (reading?.kind === "refused") {
+      return `The program's IDL can't be called: ${reading.reason}.`;
+    }
+    return "IDL not found, build the program to create the IDL.";
+  }
+
   /** Get the JSON.stringified IDL from state. */
   static getIdlStr() {
     if (PgProgramInfo.idl) return JSON.stringify(PgProgramInfo.idl);

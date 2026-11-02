@@ -42,6 +42,27 @@ const sameBytes = (a: ArrayLike<number>, b: ArrayLike<number>) =>
   a.length === b.length && Array.from(a).every((x, i) => x === b[i]);
 
 /** The 8 bytes the 0.29 coder puts in front of an instruction named `name` */
+/** The primitive types the 0.29 coder encodes */
+const PRIMITIVES = new Set([
+  "bool",
+  "u8",
+  "i8",
+  "u16",
+  "i16",
+  "u32",
+  "i32",
+  "f32",
+  "u64",
+  "i64",
+  "f64",
+  "u128",
+  "i128",
+  "u256",
+  "i256",
+  "bytes",
+  "string",
+]);
+
 const sighash029 = (name: string) =>
   new BorshInstructionCoder({
     version: "0.0.0",
@@ -122,7 +143,9 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
 
   const convertType = (t: IdlV1Type, env: Env): IdlType => {
     if (typeof t === "string") {
-      return (t === "pubkey" ? "publicKey" : t) as IdlType;
+      if (t === "pubkey") return "publicKey";
+      if (!PRIMITIVES.has(t)) throw new IdlRefusal(`an unknown type ${t}`);
+      return t as IdlType;
     }
     if ("generic" in t) {
       const value = lookup(t.generic, env);
@@ -211,7 +234,7 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
   };
 
   // Discriminators first: a custom one refuses the IDL before any mapping
-  checkDiscriminators(src);
+  const ixNames = checkDiscriminators(src);
 
   // Every type that takes no parameters is emitted in IDL order; a generic
   // one only where it is used, once per argument list
@@ -230,7 +253,7 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
       type: convertType(a.type, {}),
     }));
     return {
-      name: camel(ix.name),
+      name: ixNames.get(ix.name)!,
       ...(ix.docs && { docs: ix.docs }),
       accounts: ix.accounts.map((a) => convertAccount(a, ix)),
       args,
@@ -243,6 +266,9 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
   /** A seed typed from the instruction, or `null` when it cannot be */
   function convertSeed(seed: IdlV1Seed, ix: IdlV1Instruction): IdlSeed | null {
     if (seed.kind === "const") return constSeed(seed.value);
+    // `account` names the type whose data the path reads: the generator
+    // fills a seed from an account's address only
+    if (seed.kind === "account" && seed.account) return null;
     // The generator fills a seed from an argument or an account by name;
     // a path into an argument's or an account's data it cannot follow
     if (seed.path.includes(".")) return null;
@@ -343,16 +369,25 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
         value: c.value,
       })),
     }),
-    metadata: { address: src.address },
+    ...(src.address && { metadata: { address: src.address } }),
   } as Idl;
 };
 
-/** Refuses an IDL whose discriminators the 0.29 coder would not reproduce */
+/**
+ * Refuses an IDL whose discriminators the 0.29 coder would not reproduce.
+ *
+ * @returns each instruction's 0.29 name: camelCase as `anchor-syn` 0.29 wrote
+ * it, or the name as written when camelCase does not hash back to the same
+ * bytes (`add_2_things` -> `add2Things` -> `add2_things`)
+ */
 const checkDiscriminators = (src: IdlV1) => {
+  const names = new Map<string, string>();
   for (const ix of src.instructions) {
-    if (!sameBytes(sighash029(camel(ix.name)), ix.discriminator)) {
-      throw new IdlRefusal(`a custom discriminator on ${ix.name}`);
-    }
+    const name = [camel(ix.name), ix.name].find((n) =>
+      sameBytes(sighash029(n), ix.discriminator)
+    );
+    if (!name) throw new IdlRefusal(`a custom discriminator on ${ix.name}`);
+    names.set(ix.name, name);
   }
   for (const a of src.accounts ?? []) {
     const own = BorshAccountsCoder.accountDiscriminator(a.name);
@@ -365,12 +400,17 @@ const checkDiscriminators = (src: IdlV1) => {
       throw new IdlRefusal(`a custom discriminator on ${e.name}`);
     }
   }
+  return names;
 };
 
 /** A const seed as the generator shows it: text, an address, or bytes */
 const constSeed = (bytes: number[]): IdlSeed => {
   const text = printable(bytes);
-  if (text !== null) return { kind: "const", type: "string", value: text };
+  // Text the generator's `string` parse would change (it drops quotes) goes
+  // as bytes, so the PDA derives from the program's own bytes
+  if (text !== null && !/["']/.test(text) && text.trim() === text) {
+    return { kind: "const", type: "string", value: text };
+  }
   if (bytes.length === 32) {
     return {
       kind: "const",

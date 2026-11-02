@@ -65,7 +65,9 @@ what every 0.29 reader calls.
 
 - Names: instruction, account-meta, argument and field names to camelCase
   (as `anchor-syn` 0.29 wrote them; the 0.29 coder snake-cases them back for
-  the sighash); type, account and event names unchanged.
+  the sighash). An instruction whose camelCase does not hash back
+  (`add_2_things`) keeps its name as written. Type, account and event names
+  unchanged.
 - Accounts: `writable`→`isMut`, `signer`→`isSigner`, `optional`→`isOptional`,
   `relations` camelCased; composite accounts recurse. A fixed `address` is
   kept on the account meta and the form pre-fills it.
@@ -73,29 +75,36 @@ what every 0.29 reader calls.
   aliases inlined at every use; tuple struct fields named `0`, `1`, ...;
   a generic type is instantiated per distinct argument list (`GenericType<u32, u64, 10>`),
   substituting type and const arguments, nested ones included.
-- Account and event types move out of `types` into `accounts` and `events`
-  (events' fields get `index: false`), as 0.29 laid them out; the 0.29 coder
-  looks an argument's type up across `accounts` and `types` and fails on two
-  matches.
+- Account types move out of `types` into `accounts`, as 0.29 laid them out,
+  unless another type holds one: the 0.29 accounts, types and events coders
+  look only in `types`. The instruction coder looks across `accounts` and
+  `types` and fails on two matches, so an account type that another type holds
+  and an argument reaches stays in `types` only, and is not decoded by name.
+  Event types stay in `types` (an argument may name one); `events` repeats
+  their fields with `index: false`.
 - Seeds: a `const` seed becomes `string` with its text when the bytes are
-  printable UTF-8, else `bytes` with the JSON array; an `arg` seed takes the
-  argument's type, walking `a.b` into a defined struct; an `account` seed is
-  `publicKey`, or the field's type when the path walks into an account's data
-  (`account` names its type). `pda.program` becomes `programId`: a const
-  seed's 32 bytes as a base58 `publicKey`, or an `arg`/`account` seed.
-- `metadata.address` is set from `address`, as 0.29 wrote it for deployed
-  programs.
+  printable UTF-8 with no quote and no edge space (the form's `string` parse
+  drops quotes), `publicKey` when it is 32 other bytes, else `bytes` with the
+  JSON array; an `arg` seed takes the argument's type; an `account` seed is
+  `publicKey`. A seed whose path reads into an argument or an account's data
+  (a dotted path, or `account` set) is not followed: the account's PDA is
+  dropped and the person fills the address. `pda.program` becomes
+  `programId` by the same rules.
+- `metadata.address` is set from `address` when there is one, as 0.29 wrote
+  it for deployed programs.
+- A primitive type the 0.29 coder does not encode refuses the IDL.
 
 ### Refusal
 
 `readIdl` never throws. A refused reading carries a short reason ("a custom
-discriminator on initialize") that Interact shows
+discriminator on initialize", "an unknown type u512") that Interact shows
 in the bad-IDL notice, and is logged once per IDL under `idl:reader` at `warn`.
 
 ## Risks / Trade-offs
 
 - A 1.x feature added later that the mapping does not know -> it is refused
-  only if it touches discriminators; anything else passes through
+  when it touches discriminators or types, and any other throw in the mapping
+  refuses the IDL and is reported; anything else passes through
   and may fail at call time. Mitigated by mapping from the published 1.x type
   definitions, field by field, and testing on a real 1.1.2 IDL.
 - Zero-copy (`serialization: bytemuck`) accounts decode with borsh in 0.29 too;

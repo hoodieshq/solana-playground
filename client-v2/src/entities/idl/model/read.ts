@@ -12,7 +12,6 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
 const isV1 = (
   v: Record<string, unknown>
 ): v is Record<string, unknown> & IdlV1 =>
-  typeof v.address === "string" &&
   isObject(v.metadata) &&
   typeof v.metadata.spec === "string" &&
   Array.isArray(v.instructions);
@@ -26,7 +25,10 @@ const NOT_AN_IDL: IdlReading = {
   reason: "not an Anchor IDL",
 };
 
-/** One reading per IDL object, so every render gets the same conversion */
+/**
+ * One reading per IDL object, so every render gets the same conversion. Holds
+ * because `PgProgramInfo.update` replaces the IDL, never edits it in place.
+ */
 const memo = new WeakMap<object, IdlReading>();
 
 /**
@@ -40,12 +42,15 @@ export const readIdl = (raw: unknown): IdlReading => {
   const reading = read(raw);
   memo.set(raw, reading);
   if (reading.kind === "refused" && reading.version) {
-    log.warn("Refused an Anchor 1.x IDL", {
-      context: { reason: reading.reason },
+    log.warn("Refused an Anchor IDL of spec 0.1.0", {
+      context: { reason: reading.reason, program: programName(raw) },
     });
   }
   return reading;
 };
+
+const programName = (raw: Record<string, unknown>) =>
+  isObject(raw.metadata) ? raw.metadata.name : raw.name;
 
 const read = (raw: Record<string, unknown>): IdlReading => {
   if (isV1(raw)) {
@@ -57,7 +62,10 @@ const read = (raw: Record<string, unknown>): IdlReading => {
       }
       // A shape the mapping does not know: refused, and reported so the
       // mapping learns it
-      log.error(e, { report: true });
+      log.error(e, {
+        report: true,
+        context: { program: programName(raw) },
+      });
       return {
         kind: "refused",
         version: "1",

@@ -109,7 +109,8 @@ const createAccountGenerator = (acc: IdlAccount): InstructionValueGenerator => {
     };
   }
 
-  // An account the IDL fixes (Anchor 1.x `address`, e.g. a program)
+  // An account the IDL fixes (`address`, e.g. a program); a PDA above wins,
+  // since its seeds name the address, and the guesses below are only guesses
   const address = (acc as IdlAccount & { address?: string }).address;
   if (address) return { type: "Custom", value: address };
 
@@ -128,9 +129,10 @@ const createAccountGenerator = (acc: IdlAccount): InstructionValueGenerator => {
 
 /**
  * The generator that fills one PDA seed (or the seed program) of an IDL.
+ * The 0.29 package types seeds as `any`; a `const` seed carries `value`, an
+ * `arg` or `account` seed carries `path`.
  *
  * @param seed IDL seed: a constant, or an argument or account by name
- * @returns the generator
  */
 const seedGenerator = (seed: {
   kind: string;
@@ -138,10 +140,7 @@ const seedGenerator = (seed: {
   path?: string;
 }):
   | { type: "Custom"; value: string }
-  | {
-      type: "Arguments" | "Accounts";
-      name: string;
-    } => {
+  | { type: "Arguments" | "Accounts"; name: string } => {
   switch (seed.kind) {
     case "const":
       return { type: "Custom", value: seed.value! };

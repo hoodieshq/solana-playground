@@ -38,8 +38,9 @@ export interface BaseInteractProps {
   /** The "Upload IDL" action (`IdlActions mode="upload"`) */
   idlLoad: ReactNode;
   /**
-   * Why an Anchor 1.x IDL cannot be called (`readIdl`'s reason), shown on the
-   * `bad-idl` surface; null for any other IDL
+   * Why an Anchor IDL of spec 0.1.0 (Anchor 0.30 on) cannot be called
+   * (`readIdl`'s reason), shown on the `bad-idl` surface; absent or null for
+   * any other IDL
    */
   idlRefusal?: string | null;
   /** The form, drawn only on the `ready` surface */
@@ -142,7 +143,7 @@ const Empty = ({
   const act = action(p, surface);
   const notice =
     surface === "bad-idl" && p.idlRefusal
-      ? `This Anchor 1.x IDL uses ${p.idlRefusal}, which Interact cannot call yet.`
+      ? `This IDL uses ${p.idlRefusal}, which Interact cannot call yet.`
       : copy.notice;
   return (
     <StageEmpty className={STAGE_BODY}>

@@ -129,7 +129,7 @@ describe("BaseInteract", () => {
       />
     );
     expect(container.querySelector('[data-slot="callout"]')!.textContent).toBe(
-      "This Anchor 1.x IDL uses a custom discriminator on initialize, which Interact cannot call yet."
+      "This IDL uses a custom discriminator on initialize, which Interact cannot call yet."
     );
     expect(screen.queryByText("FORM")).toBeNull();
   });

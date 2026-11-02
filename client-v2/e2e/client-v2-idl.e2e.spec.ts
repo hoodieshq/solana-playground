@@ -136,7 +136,7 @@ test.describe("client-v2-interact", () => {
       panel.getByRole("heading", { name: "This IDL can't be read" })
     ).toBeVisible(LONG);
     await expect(panel.locator('[data-slot="callout"]')).toHaveText(
-      "This Anchor 1.x IDL uses a custom discriminator on initialize, which Interact cannot call yet."
+      "This IDL uses a custom discriminator on initialize, which Interact cannot call yet."
     );
     await expect(
       panel.getByRole("radiogroup", { name: "Instruction" })
