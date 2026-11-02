@@ -1352,6 +1352,19 @@ describe("in a tutorial", () => {
     );
   });
 
+  it("saves no files width from a drag in the frame, where the group is narrower", () => {
+    const shell = inTutorial("wide");
+    render(<BaseLayoutShell {...shell} />);
+    act(() =>
+      panelSpies.groups["layout-work"].onLayoutChanged?.(
+        { files: 30, center: 70 },
+        { isUserInteraction: true }
+      )
+    );
+    expect(shell.onWorkLayout).not.toHaveBeenCalled();
+    expect(panelSpies.groups["layout-work"].defaultLayout).toBeUndefined();
+  });
+
   it("keeps the stage mounted on the way in and out", () => {
     const mounted = vi.fn();
     const Probe = () => {

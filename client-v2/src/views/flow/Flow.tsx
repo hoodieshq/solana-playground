@@ -314,7 +314,8 @@ const FlowFrame = () => {
                 phone={menuPage}
                 collapsed={collapsed}
                 onToggle={toggle}
-                pin={tutorial.pin}
+                // The frame, and so its pin, shows on a wide window only
+                pin={viewport === "wide" ? tutorial.pin : undefined}
                 logo={<LogoLockup aria-hidden="true" />}
                 projects={
                   <ProjectList

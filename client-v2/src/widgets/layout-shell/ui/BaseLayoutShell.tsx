@@ -526,6 +526,15 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     // and settles again
     if (!filesShown) filesSettled.current = false;
   }, [filesShown]);
+  // Entering or leaving a tutorial's frame mounts the files column and the
+  // stage over the console again, in the other branch, and they settle again
+  const tutorialSeen = useRef(tutorialLayout);
+  useEffect(() => {
+    if (tutorialSeen.current === tutorialLayout) return;
+    tutorialSeen.current = tutorialLayout;
+    filesSettled.current = false;
+    consoleSettled.current = false;
+  }, [tutorialLayout]);
 
   useEffect(() => {
     const panel = consoleRef.current;
@@ -637,7 +646,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
       orientation="horizontal"
       id="layout-work"
       className="h-auto min-h-0 flex-1"
-      defaultLayout={filesShown ? props.work : undefined}
+      defaultLayout={filesShown && !tutorialLayout ? props.work : undefined}
       onLayoutChanged={
         !filesShown
           ? undefined
@@ -648,7 +657,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                   state: props.filesState,
                   openSize: filesOpenSize.current,
                   settledOnce: filesSettled,
-                  save: props.onWorkLayout,
+                  // Beside the chat the group is narrower, so its share is not the
+                  // frame's to save: a drag there would resize the column outside it
+                  save: tutorialLayout ? () => undefined : props.onWorkLayout,
                 },
                 layout,
                 meta
