@@ -52,3 +52,27 @@ test("mirrored files the fork does not own are left alone", async () => {
     "upstream"
   );
 });
+
+test("a nested file lands in a folder the mirror lacks", async () => {
+  const from = await tempDir();
+  const to = await tempDir();
+  await write(path.join(from, "a", "b", "c.json"), "{}");
+
+  await overlayStatic(from, to);
+
+  assert.equal(
+    await fs.readFile(path.join(to, "a", "b", "c.json"), "utf8"),
+    "{}"
+  );
+});
+
+test("dotfiles stay out of the served files", async () => {
+  const from = await tempDir();
+  const to = await tempDir();
+  await write(path.join(from, "programs", ".DS_Store"), "x");
+  await write(path.join(from, "programs", "programs.json"), "[]");
+
+  const copied = await overlayStatic(from, to);
+
+  assert.deepEqual(copied, [path.join("programs", "programs.json")]);
+});

@@ -26,7 +26,9 @@ test("every entry carries the fields the gallery reads", () => {
       assert.notEqual(p[field], "", `${p.name}: ${field}`);
     }
     assert.ok(
-      Array.isArray(p.categories) && p.categories.length > 0,
+      Array.isArray(p.categories) &&
+        p.categories.length > 0 &&
+        p.categories.every((c) => typeof c === "string" && c !== ""),
       `${p.name}: categories`
     );
   }

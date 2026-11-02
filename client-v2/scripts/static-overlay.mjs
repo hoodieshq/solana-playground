@@ -5,10 +5,19 @@
  * Upstream's assets submodule stays byte-identical; a file the fork curates
  * differently (the program gallery's `programs/programs.json`) lives under
  * `static/` at the path it is served from and wins over upstream's copy.
- * Markdown there documents the files beside it and is never served.
+ * Markdown and dotfiles there are never served (`isServed`).
  */
 import fs from "fs/promises";
 import path from "path";
+
+/**
+ * A regular file that is not Markdown (it documents the files beside it) and
+ * not a dotfile (`.DS_Store`, editor swap files)
+ *
+ * @param {import("fs").Dirent} entry
+ */
+const isServed = (entry) =>
+  entry.isFile() && !entry.name.startsWith(".") && !entry.name.endsWith(".md");
 
 /**
  * @param {string} from the fork's static directory
@@ -22,7 +31,7 @@ export const overlayStatic = async (from, to) => {
   });
   const copied = [];
   for (const entry of entries) {
-    if (!entry.isFile() || entry.name.endsWith(".md")) continue;
+    if (!isServed(entry)) continue;
     const source = path.join(entry.parentPath, entry.name);
     const relative = path.relative(from, source);
     const target = path.join(to, relative);
