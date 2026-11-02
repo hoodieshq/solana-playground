@@ -134,14 +134,14 @@ export interface AssistantWide {
 }
 
 /**
- * The navigation in a tutorial: what the frame's fold rules say
- * (`widgets/tutorial-frame`), in place of the saved layout's
+ * The navigation in a tutorial: on its rail, open over the chat under a
+ * scrim, or pinned open beside it. The frame's fold rules
+ * (`widgets/tutorial-frame`) decide it, in place of the saved layout.
  */
+export type TutorialNavFold = "rail" | "overlay" | "pinned";
+
 export interface TutorialNavState {
-  /** Shown open, over the chat or pinned beside it */
-  open: boolean;
-  /** Open over the chat, under a scrim, rather than pinned beside it */
-  overlay: boolean;
+  fold: TutorialNavFold;
   /** The stock toggle or ⌘B asked it open or folded */
   onOpenChange: (open: boolean) => void;
   /** A pick in it, the scrim or Escape closed the overlay */
@@ -258,8 +258,18 @@ export interface BaseLayoutShellProps {
   tutorial?: TutorialFrameSlot;
 }
 
+/** Where an Escape belongs to something open over the navigation */
+const OWNS_ESCAPE =
+  '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
+
 /** What a click in the navigation picks, and so closes its overlay with */
 const PICK = 'a[href], button, [role="menuitem"], [role="link"]';
+/**
+ * What opens something in place rather than going somewhere: a menu's
+ * trigger, a group that unfolds. Folding the overlay on it would take away
+ * the anchor of what it just opened.
+ */
+const OPENS_IN_PLACE = "[aria-haspopup], [aria-expanded]";
 
 const log = createLogger("layout-shell:panels");
 
@@ -299,12 +309,19 @@ const createFoldedOf = (): FoldedOf => {
 
 /**
  * While the navigation is an overlay in a tutorial, Escape closes it, and
- * closing it gives focus back to where it was when the overlay opened, as a
- * dialog would.
+ * folding it back to the rail gives focus back to where it was when the
+ * overlay opened, as a dialog would. Pinning it keeps focus where it is.
  */
-const useOverlayFocus = (overlay: boolean, onClose?: () => void) => {
+const useOverlayFocus = (
+  fold: TutorialNavFold | undefined,
+  onClose?: () => void
+) => {
+  const overlay = fold === "overlay";
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  // Read by the cleanup, which runs once the next fold has rendered
+  const foldRef = useRef(fold);
+  foldRef.current = fold;
   useEffect(() => {
     if (!overlay) return;
     const before =
@@ -312,13 +329,18 @@ const useOverlayFocus = (overlay: boolean, onClose?: () => void) => {
         ? document.activeElement
         : null;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      // A menu or dialog opened from the navigation takes its own Escape
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest(OWNS_ESCAPE)) return;
       e.preventDefault();
       closeRef.current?.();
     };
     document.addEventListener("keydown", onKey, true);
     return () => {
       document.removeEventListener("keydown", onKey, true);
+      // Pinned, the navigation stays, and so does focus on the pin
+      if (foldRef.current === "pinned") return;
       // Only when focus is lost or left in the navigation: a pick that moved
       // it somewhere on purpose keeps it there
       const now = document.activeElement;
@@ -409,8 +431,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     props.tutorial !== undefined && workInFrame && props.viewport !== "phone";
   const tutorialNav =
     tutorialLayout && screen.kind === "work" ? props.tutorial?.nav : undefined;
-  const overlay = tutorialNav?.overlay === true;
-  useOverlayFocus(overlay, tutorialNav?.onClose);
+  const overlay = tutorialNav?.fold === "overlay";
+  useOverlayFocus(tutorialNav?.fold, tutorialNav?.onClose);
 
   // `open` props drive the panels; a drag that folds one reports back through
   // `settle` on release, so the two never disagree for long. A panel that
@@ -661,7 +683,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         </SidebarProvider>
       ) : (
         <SidebarProvider
-          open={tutorialNav ? tutorialNav.open : props.navOpen}
+          open={tutorialNav ? tutorialNav.fold !== "rail" : props.navOpen}
           onOpenChange={tutorialNav?.onOpenChange ?? props.onNavOpenChange}
           style={SIDEBAR_STYLE}
           data-nav-overlay={overlay || undefined}
@@ -684,15 +706,20 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
           <Sidebar
             collapsible="icon"
             className="absolute inset-y-0 left-0 h-auto border-border [&>[data-slot=sidebar-inner]]:bg-background"
-            // A pick in the overlay closes it, after the pick's own handler:
-            // closed in the capture phase, a trusted click's close flushed
-            // between React's capture and bubble listeners and unmounted the
-            // pin before its own click ran
+            // A pick in the overlay closes it. Bubble phase, so the pick's
+            // own click (the pin's) runs before the close unmounts it. Only
+            // a pick in the column itself: React bubbles a click in a menu or
+            // dialog the navigation opened, portaled elsewhere, through here
             onClick={
               overlay
                 ? (e) => {
-                    const target = e.target as Element;
-                    if (target.closest(PICK)) tutorialNav?.onClose();
+                    const target = e.target;
+                    if (!(target instanceof Element)) return;
+                    if (!e.currentTarget.contains(target)) return;
+                    const pick = target.closest(PICK);
+                    if (pick && !pick.matches(OPENS_IN_PLACE)) {
+                      tutorialNav?.onClose();
+                    }
                   }
                 : undefined
             }

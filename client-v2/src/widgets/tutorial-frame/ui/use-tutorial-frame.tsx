@@ -1,10 +1,11 @@
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import { useRenderOnChange } from "../../../hooks";
-import { PgExplorer } from "../../../utils/explorer";
-import { PgTutorial } from "../../../utils/tutorial";
-import { NAV_FOLD_ON_ENTRY, foldNav, navOpenOf } from "../model/nav-fold";
+import { useRenderOnChange } from "@/hooks";
+import { PgExplorer } from "@/utils/explorer";
+import { PgTutorial } from "@/utils/tutorial";
+import { NAV_FOLD_ON_ENTRY, foldNav } from "../model/nav-fold";
+import type { NavFold } from "../model/nav-fold";
 import { tutorialFrameTelemetry } from "../model/telemetry";
 import type { MenuSource } from "../model/telemetry";
 import BaseNavPin from "./BaseNavPin";
@@ -29,12 +30,11 @@ export interface UseTutorialFrameOptions {
 export interface TutorialFrame {
   chat: ReactNode;
   nav: {
-    open: boolean;
-    overlay: boolean;
+    fold: NavFold;
     onOpenChange: (open: boolean) => void;
     onClose: () => void;
   };
-  overNav: ReactNode;
+  overNav?: ReactNode;
 }
 
 export interface UseTutorialFrame {
@@ -77,11 +77,14 @@ export const useTutorialFrame = ({
   const tutorial = useDefinitionTutorial();
   const [fold, dispatch] = useReducer(foldNav, NAV_FOLD_ON_ENTRY);
 
-  // Each tutorial entered starts folded
+  // Each tutorial entered starts folded, from its first render: reset in an
+  // effect, the previous visit's pinned navigation drew for one frame
   const name = tutorial?.name ?? null;
-  useEffect(() => {
+  const [entered, setEntered] = useState<string | null>(null);
+  if (name !== entered) {
+    setEntered(name);
     if (name) dispatch({ type: "enter" });
-  }, [name]);
+  }
 
   // The stock toggle reports only the state it asks for, so the last input
   // says whether ⌘B or a button opened it
@@ -117,8 +120,7 @@ export const useTutorialFrame = ({
         </ChatColumn>
       ),
       nav: {
-        open: navOpenOf(fold),
-        overlay: fold === "overlay",
+        fold,
         onOpenChange: (open) => {
           if (open && fold === "rail") {
             tutorialFrameTelemetry.track("tutorial_frame_menu_opened", {

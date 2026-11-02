@@ -38,8 +38,9 @@ export const readChatWidth = (storage?: Storage): number | null => {
   const raw = read(FRAME_KEYS.chatWidth, storage);
   if (raw === null) return null;
   const width = Number(raw);
-  if (Number.isFinite(width)) return width;
-  log.warn("chat width unreadable: not a number");
+  // `Number("")` is 0, which is no width either
+  if (Number.isFinite(width) && width > 0) return width;
+  log.warn("chat width unreadable", { context: { raw } });
   return null;
 };
 
@@ -83,6 +84,9 @@ if (import.meta.vitest) {
     it("reads a width that is not a number as none", () => {
       const s = memory();
       s.setItem(FRAME_KEYS.chatWidth, "wide");
+      expect(readChatWidth(s)).toBeNull();
+      // `Number("")` is 0
+      s.setItem(FRAME_KEYS.chatWidth, "");
       expect(readChatWidth(s)).toBeNull();
     });
 

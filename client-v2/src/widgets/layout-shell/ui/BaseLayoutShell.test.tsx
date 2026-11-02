@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { createElement, useContext, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 
 import { KeybindsActive } from "@/shared/lib/keybinds-active";
@@ -1272,10 +1273,9 @@ describe("with a page", () => {
 
 describe("in a tutorial", () => {
   const tutorialNav = (
-    choice: { open?: boolean; overlay?: boolean } = {}
+    fold: NonNullable<BaseLayoutShellProps["tutorial"]>["nav"]["fold"] = "rail"
   ): NonNullable<BaseLayoutShellProps["tutorial"]>["nav"] => ({
-    open: choice.open ?? false,
-    overlay: choice.overlay ?? false,
+    fold,
     onOpenChange: vi.fn(),
     onClose: vi.fn(),
   });
@@ -1360,7 +1360,7 @@ describe("in a tutorial", () => {
 
   it("takes the navigation's open state from the frame, not the saved layout", () => {
     const nav = vi.fn(() => null);
-    const shell = inTutorial("wide", tutorialNav({ open: false }), {
+    const shell = inTutorial("wide", tutorialNav("rail"), {
       navOpen: true,
       nav,
     });
@@ -1376,7 +1376,7 @@ describe("in a tutorial", () => {
       toggle = stock.toggle;
       return null;
     });
-    const frameNav = tutorialNav({ open: false });
+    const frameNav = tutorialNav("rail");
     const shell = inTutorial("wide", frameNav, { nav });
     render(<BaseLayoutShell {...shell} />);
     act(() => toggle?.());
@@ -1385,33 +1385,25 @@ describe("in a tutorial", () => {
   });
 
   it("covers the chat with a scrim while the navigation is an overlay, which closes it", () => {
-    const frameNav = tutorialNav({ open: true, overlay: true });
+    const frameNav = tutorialNav("overlay");
     render(<BaseLayoutShell {...inTutorial("wide", frameNav)} />);
     fireEvent.click(screen.getByTestId("tutorial-nav-scrim"));
     expect(frameNav.onClose).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the overlay's column at the rail's width beside the chat", () => {
-    render(
-      <BaseLayoutShell
-        {...inTutorial("wide", tutorialNav({ open: true, overlay: true }))}
-      />
-    );
+    render(<BaseLayoutShell {...inTutorial("wide", tutorialNav("overlay"))} />);
     const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]')!;
     expect(wrapper.getAttribute("data-nav-overlay")).toBe("true");
   });
 
   it("draws no scrim while the navigation is pinned", () => {
-    render(
-      <BaseLayoutShell
-        {...inTutorial("wide", tutorialNav({ open: true, overlay: false }))}
-      />
-    );
+    render(<BaseLayoutShell {...inTutorial("wide", tutorialNav("pinned"))} />);
     expect(screen.queryByTestId("tutorial-nav-scrim")).toBeNull();
   });
 
   it("closes the overlay on a pick in the navigation", () => {
-    const frameNav = tutorialNav({ open: true, overlay: true });
+    const frameNav = tutorialNav("overlay");
     render(
       <BaseLayoutShell
         {...inTutorial("wide", frameNav, {
@@ -1437,7 +1429,7 @@ describe("in a tutorial", () => {
     );
     const before = screen.getByText("before");
     before.focus();
-    const open = tutorialNav({ open: true, overlay: true });
+    const open = tutorialNav("overlay");
     rerender(
       <>
         <button>before</button>
@@ -1463,11 +1455,86 @@ describe("in a tutorial", () => {
     expect(document.activeElement).toBe(before);
   });
 
+  it("leaves the overlay open for a click in a menu the navigation portaled elsewhere", () => {
+    const frameNav = tutorialNav("overlay");
+    const Portaled = () => createPortal(<button>Rename</button>, document.body);
+    render(
+      <BaseLayoutShell
+        {...inTutorial("wide", frameNav, { nav: () => <Portaled /> })}
+      />
+    );
+    fireEvent.click(screen.getByText("Rename"));
+    expect(frameNav.onClose).not.toHaveBeenCalled();
+  });
+
+  it("leaves the overlay open for a menu's trigger, which opens in place", () => {
+    const frameNav = tutorialNav("overlay");
+    render(
+      <BaseLayoutShell
+        {...inTutorial("wide", frameNav, {
+          nav: () => <button aria-haspopup="menu">Account</button>,
+        })}
+      />
+    );
+    fireEvent.click(screen.getByText("Account"));
+    expect(frameNav.onClose).not.toHaveBeenCalled();
+  });
+
+  it("keeps focus on the pin when the overlay is pinned", () => {
+    const Pin = () => <button>Keep open</button>;
+    const { rerender } = render(
+      <>
+        <button>before</button>
+        <BaseLayoutShell
+          {...inTutorial("wide", tutorialNav("rail"), { nav: () => <Pin /> })}
+        />
+      </>
+    );
+    screen.getByText("before").focus();
+    rerender(
+      <>
+        <button>before</button>
+        <BaseLayoutShell
+          {...inTutorial("wide", tutorialNav("overlay"), {
+            nav: () => <Pin />,
+          })}
+        />
+      </>
+    );
+    screen.getByText("Keep open").focus();
+    rerender(
+      <>
+        <button>before</button>
+        <BaseLayoutShell
+          {...inTutorial("wide", tutorialNav("pinned"), { nav: () => <Pin /> })}
+        />
+      </>
+    );
+    expect(document.activeElement).toBe(screen.getByText("Keep open"));
+  });
+
+  it("leaves Escape to a menu open over the navigation", () => {
+    const frameNav = tutorialNav("overlay");
+    render(
+      <BaseLayoutShell
+        {...inTutorial("wide", frameNav, {
+          nav: () => (
+            <div role="menu">
+              <button>Rename</button>
+            </div>
+          ),
+        })}
+      />
+    );
+    fireEvent.keyDown(screen.getByText("Rename"), { key: "Escape" });
+    expect(frameNav.onClose).not.toHaveBeenCalled();
+  });
+
   it("follows the saved layout under a page, where the frame does not show", () => {
     const nav = vi.fn(() => null);
     render(
       <BaseLayoutShell
-        {...inTutorial("wide", tutorialNav({ open: false }), {
+        {...inTutorial("wide", tutorialNav("rail"), {
           navOpen: true,
           nav,
           cover: <div>page slot</div>,

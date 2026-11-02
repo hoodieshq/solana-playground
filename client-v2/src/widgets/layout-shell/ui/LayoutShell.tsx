@@ -326,6 +326,8 @@ const LayoutShell = ({
   const pagerOrFrame = phone ? view === "chat" : wideOrSheet;
   const assistantShown = homeShown ? homeSheetOpen : pagerOrFrame;
   const setAssistant = (open: boolean, via: ToggleSource) => {
+    // The frame has no assistant panel: its chat holds the assistant's
+    // thread, whose `useTurn` takes a requested prompt itself
     if (tutorialNow.current) return;
     const now = screenNow.current;
     // A page over the work covers the assistant: it makes way first

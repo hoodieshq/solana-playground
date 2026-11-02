@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
-import { PgCommon } from "../../../utils/common";
+import { PgCommon } from "@/utils/common";
 import {
   CHAT_WIDTH,
   chatDefaultWidth,
@@ -69,12 +69,17 @@ const ChatColumn = ({
       max={max}
       onWidthChange={setDragging}
       onWidthPick={(next, via) => {
-        const kept = clampChatWidth(next, windowWidth);
         setDragging(null);
+        // Kept as picked, within the column's own range: the window holds it
+        // only at render, so a window that widens again gives it back
+        const kept = Math.min(CHAT_WIDTH.max, Math.max(CHAT_WIDTH.min, next));
+        const shown = clampChatWidth(kept, windowWidth);
+        // A key at either end, or a drag back to where it began, changes nothing
+        if (shown === width && kept === (picked ?? width)) return;
         setPicked(kept);
         writeChatWidth(kept);
         tutorialFrameTelemetry.track("tutorial_frame_chat_resized", {
-          width: kept,
+          width: shown,
           via,
         });
       }}

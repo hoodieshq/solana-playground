@@ -14,7 +14,7 @@ const route = vi.hoisted(() => ({
   explorerReady: true,
   listeners: new Set<() => void>(),
 }));
-vi.mock("../../../utils/tutorial", () => ({
+vi.mock("@/utils/tutorial", () => ({
   PgTutorial: {
     get current() {
       return route.current;
@@ -33,7 +33,7 @@ vi.mock("../../../utils/tutorial", () => ({
     },
   },
 }));
-vi.mock("../../../utils/explorer", () => ({
+vi.mock("@/utils/explorer", () => ({
   PgExplorer: {
     // `isStarted` reads the workspace names, which exist only once it has
     // initialised
@@ -47,7 +47,7 @@ vi.mock("../../../utils/explorer", () => ({
     },
   },
 }));
-vi.mock("../../../hooks", async () => {
+vi.mock("@/hooks", async () => {
   const { useEffect, useReducer } = await import("react");
   return {
     useRenderOnChange: (on: (cb: () => void) => { dispose: () => void }) => {
@@ -114,22 +114,42 @@ describe("useTutorialFrame", () => {
   it("folds the navigation on entry and opens it over the chat", () => {
     const { result } = draw();
     go({ name: "Hello Anchor", definition: {} });
-    expect(result.current.frame?.nav).toMatchObject({
-      open: false,
-      overlay: false,
-    });
+    expect(result.current.frame?.nav.fold).toBe("rail");
     expect(result.current.pin).toBeUndefined();
 
     act(() => result.current.frame?.nav.onOpenChange(true));
-    expect(result.current.frame?.nav).toMatchObject({
-      open: true,
-      overlay: true,
-    });
+    expect(result.current.frame?.nav.fold).toBe("overlay");
     expect(result.current.pin).toBeDefined();
     expect(events("tutorial_frame_menu_opened")).toHaveLength(1);
 
     act(() => result.current.frame?.nav.onClose());
-    expect(result.current.frame?.nav.open).toBe(false);
+    expect(result.current.frame?.nav.fold).toBe("rail");
+  });
+
+  it("names ⌘B as the menu's opener when a key came last", () => {
+    const { result } = draw();
+    go({ name: "Hello Anchor", definition: {} });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "b" }));
+      result.current.frame?.nav.onOpenChange(true);
+    });
+    expect(events("tutorial_frame_menu_opened")).toEqual([{ via: "key" }]);
+  });
+
+  it("stays pinned when the pin's click also reads as a pick that closes", () => {
+    const { result } = draw();
+    go({ name: "Hello Anchor", definition: {} });
+    act(() => result.current.frame?.nav.onOpenChange(true));
+    // The shell closes on the bubble phase, after the pin's own click
+    act(() => {
+      const pin = result.current.pin as {
+        props: { onPinnedChange: (p: boolean) => void };
+      };
+      pin.props.onPinnedChange(true);
+      result.current.frame?.nav.onClose();
+    });
+    expect(result.current.frame?.nav.fold).toBe("pinned");
+    expect(events("tutorial_frame_menu_pinned")).toEqual([{ pinned: true }]);
   });
 
   it("drops the frame on leaving, and folds again on the next entry", () => {
@@ -139,6 +159,6 @@ describe("useTutorialFrame", () => {
     go(null);
     expect(result.current.frame).toBeUndefined();
     go({ name: "Hello Anchor", definition: {} });
-    expect(result.current.frame?.nav.open).toBe(false);
+    expect(result.current.frame?.nav.fold).toBe("rail");
   });
 });

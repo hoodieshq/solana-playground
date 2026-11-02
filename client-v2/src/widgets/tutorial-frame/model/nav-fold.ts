@@ -44,9 +44,6 @@ export const foldNav = (fold: NavFold, event: NavFoldEvent): NavFold => {
   }
 };
 
-/** Whether the navigation shows open, over the chat or beside it */
-export const navOpenOf = (fold: NavFold): boolean => fold !== "rail";
-
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -86,12 +83,6 @@ if (import.meta.vitest) {
 
     it("unpin does nothing to a navigation that is not pinned", () => {
       expect(foldNav("overlay", { type: "unpin" })).toBe("overlay");
-    });
-
-    it("reads open while over the chat or pinned", () => {
-      expect(navOpenOf("rail")).toBe(false);
-      expect(navOpenOf("overlay")).toBe(true);
-      expect(navOpenOf("pinned")).toBe(true);
     });
   });
 }
