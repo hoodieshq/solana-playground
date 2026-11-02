@@ -1,9 +1,7 @@
 import type { ModelMessage } from "ai";
 
-import {
-  isToolCallRecord,
-  type ChatItem,
-} from "../../../views/sidebar/assistant/store";
+import type { ChatItem } from "../../../views/sidebar/assistant/store";
+import { isToolCallRecord } from "../../../views/sidebar/assistant/model/tool-call";
 
 /** One message of a rehydrated conversation, as the SDK sends it to any backend */
 export type ReplayMessage = ModelMessage;
