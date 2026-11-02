@@ -347,6 +347,34 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     expect(sendButton().hasAttribute("disabled")).toBe(true);
   });
 
+  it("holds Send while a send from an earlier opening is still pending", async () => {
+    let settle: () => void = () => undefined;
+    transfer.sendFunds.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        settle = resolve;
+      })
+    );
+    const view = render(<FundDialog open={true} onOpenChange={vi.fn()} />);
+    await act(async () => undefined);
+    await connectPhantom();
+    await act(async () => {
+      fireEvent.click(sendButton());
+    });
+
+    view.rerender(<FundDialog open={false} onOpenChange={vi.fn()} />);
+    view.rerender(<FundDialog open={true} onOpenChange={vi.fn()} />);
+    await act(async () => undefined);
+    await connectPhantom();
+
+    expect(screen.getByRole("alert").textContent).toContain("still waiting");
+    expect(sendButton().hasAttribute("disabled")).toBe(true);
+
+    await act(async () => {
+      settle();
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("says when a wallet answers without connecting", async () => {
     phantom.connect.mockImplementationOnce(async () => undefined);
     await renderOpen();
