@@ -11,6 +11,7 @@ import {
   PgWallet,
 } from "../../../../utils";
 import { PgLesson } from "../../../flow/lessons";
+import { contextPaths, PgAssistantContext } from "@/entities/assistant-context";
 
 /** A condensed view of the program's interface, cheaper than the whole IDL */
 export interface IdlSummary {
@@ -24,12 +25,12 @@ export interface ProjectContext {
   workspaceName: string | null;
   /** Relative path of the file the user is looking at */
   currentFilePath: string | null;
-  /** Content of that file */
-  currentFileContent: string | null;
-  /** Relative paths of every open editor tab, the current one included */
-  openFilePaths: string[];
-  /** Relative paths of every file in the project */
-  filePaths: string[];
+  /**
+   * The files in the conversation's context, in full: the open tabs and the
+   * files the user added, minus the ones they removed. No other file of the
+   * project is named here (HOO-2424, the 29 Oct security review)
+   */
+  contextFiles: { path: string; content: string }[];
   /** Compiler output from the last failed build, noise removed */
   buildError: string | null;
   /** Program interface, available only after a successful Anchor build */
@@ -63,9 +64,14 @@ export interface Patch {
  */
 export interface PlaygroundBridge {
   getProjectContext(): ProjectContext;
+  /** Every file of the project; for the + menu, never sent to the model */
   listFiles(): string[];
   /** Relative paths of the editor's open tabs, in tab order */
   listOpenFiles(): string[];
+  /** Relative paths of the files in the conversation's context */
+  listContextFiles(): string[];
+  /** A path the model wrote (`/src/lib.rs`, `./src/lib.rs`) as `src/lib.rs` */
+  toProjectPath(path: string): string;
   readFile(path: string): string | null;
   applyPatch(patch: Patch): Promise<void>;
   /** Removes a file; what Undo patch does to a file the patch created */
@@ -103,11 +109,10 @@ export const realBridge: PlaygroundBridge = {
     return {
       workspaceName: PgExplorer.currentWorkspaceName ?? null,
       currentFilePath: currentFullPath ? toRelative(currentFullPath) : null,
-      currentFileContent: currentFullPath
-        ? PgExplorer.getFileContent(currentFullPath) ?? null
-        : null,
-      openFilePaths: this.listOpenFiles(),
-      filePaths: this.listFiles(),
+      contextFiles: this.listContextFiles().map((path) => ({
+        path,
+        content: this.readFile(path) ?? "",
+      })),
       buildError: build && build.failed ? stripKnownNoise(build.stderr) : null,
       idl: summarizeIdl(),
       programId: PgProgramInfo.getPkStr() ?? null,
@@ -129,6 +134,24 @@ export const realBridge: PlaygroundBridge = {
 
   listOpenFiles() {
     return PgExplorer.tabs.map(toRelative);
+  },
+
+  listContextFiles() {
+    const files = new Set(this.listFiles());
+    return contextPaths(
+      this.listOpenFiles(),
+      PgAssistantContext.choice(PgExplorer.currentWorkspaceName ?? null),
+      (path) => files.has(path)
+    );
+  },
+
+  toProjectPath(path) {
+    // A leading `/` reads as absolute to the explorer and would miss the
+    // workspace prefix, so it is stripped after the conversion, not before
+    const relative = toRelative(
+      PgExplorer.convertToFullPath(path.replace(/^\.\//, ""))
+    );
+    return relative.replace(/^\/+/, "");
   },
 
   readFile(path) {

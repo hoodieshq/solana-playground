@@ -13,6 +13,16 @@ const str = (input: ToolInput, key: string) => {
 };
 
 /**
+ * What `read_file` answers for a file outside the conversation's context.
+ *
+ * @param path the relative path the model asked for
+ * @returns the refusal, with no content of the file
+ */
+export const notInContext = (path: string) =>
+  `${path} is not in this conversation's context, so you cannot read it. ` +
+  `Ask the user to add it with + in the composer (Add a file), then read it.`;
+
+/**
  * What the assistant can do to the project.
  *
  * Reads run unattended. Everything that changes state — writing a file,
@@ -37,15 +47,12 @@ export const createTools = (
   ...createSkillTools(),
   ...createMcpTools(),
 
-  bindTool("list_files", () => {
-    PgAssistant.addToolCall("listed the project");
-    const paths = bridge.listFiles();
-    return paths.length ? paths.join("\n") : "The project has no files.";
-  }),
-
   bindTool("read_file", (input) => {
-    const path = str(input, "path");
+    const path = bridge.toProjectPath(str(input, "path"));
     PgAssistant.addToolCall(`read ${path}`);
+    // The context is the user's decision (HOO-2424): a file they did not open
+    // or add stays on this side, whatever the model asks
+    if (!bridge.listContextFiles().includes(path)) return notInContext(path);
     const content = bridge.readFile(path);
     return content === null ? `There is no file at ${path}.` : content;
   }),

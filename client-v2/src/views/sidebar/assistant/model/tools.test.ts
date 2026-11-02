@@ -1,4 +1,4 @@
-import { createTools } from "./tools";
+import { createTools, notInContext } from "./tools";
 import { PgAssistant } from "../store";
 import { PgPatchUndo } from "../patch-undo";
 import type { PlaygroundBridge } from "../bridge/playground-bridge";
@@ -104,5 +104,43 @@ describe("write_file", () => {
     expect(
       failedItem?.kind === "approval" && PgPatchUndo.can(failedItem, b)
     ).toBe(false);
+  });
+});
+
+describe("read_file", () => {
+  const files: Record<string, string> = {
+    "src/lib.rs": "pub fn in_context() {}",
+    "secret/other.rs": "pub fn secret() {}",
+  };
+  const contextBridge = {
+    readFile: (path: string) => files[path] ?? null,
+    listContextFiles: () => ["src/lib.rs"],
+    toProjectPath: (path: string) => path.replace(/^\.?\/+/, ""),
+  } as unknown as PlaygroundBridge;
+  const readFile = (path: string) =>
+    createTools(contextBridge)
+      .find((tool) => tool.name === "read_file")!
+      .run({ path });
+
+  it("reads a file in the context", async () => {
+    expect(await readFile("src/lib.rs")).toBe("pub fn in_context() {}");
+  });
+
+  it("reads a file in the context however the model spells its path", async () => {
+    expect(await readFile("/src/lib.rs")).toBe("pub fn in_context() {}");
+    expect(await readFile("./src/lib.rs")).toBe("pub fn in_context() {}");
+  });
+
+  it("refuses a file outside the context without its content", async () => {
+    const result = await readFile("secret/other.rs");
+    expect(result).toBe(notInContext("secret/other.rs"));
+    expect(result).not.toContain("pub fn secret");
+    expect(result).toContain("+ in the composer");
+  });
+
+  it("offers no tool that lists the project", () => {
+    expect(createTools(contextBridge).map((tool) => tool.name)).not.toContain(
+      "list_files"
+    );
   });
 });
