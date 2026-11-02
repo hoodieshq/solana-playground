@@ -3,7 +3,7 @@ import { createTracker } from "@/shared/lib/telemetry";
 /** How the feed moved to a step's divider: a bar segment, its narrow menu, or ⌥↑ / ⌥↓ */
 export type StepJumpVia = "bar" | "menu" | "key";
 
-type TutorialEvents = {
+export type TutorialEvents = {
   /**
    * The loader dropped a tutorial definition that failed its check, so the
    * catalog does not list it. Fires once per definition per page load.
@@ -64,11 +64,14 @@ type TutorialEvents = {
    */
   tutorial_step_back: { tutorial: string; step: number };
   /**
-   * An act or a Call panel call ended, or a reload interrupted one. `action`
-   * is `build`, `deploy`, `build_deploy`, `run`, `call` (the call act) or
-   * `call_panel`; `outcome` is `ok`, `failed`, `interrupted`, `no_wallet`
-   * or `no_funds` (the deploy's airdrop was refused); `step` is 1-based and
-   * `seconds` the run's whole seconds.
+   * An act or a Call panel call ended, or a reload interrupted one; the
+   * engine fires it from its reducer. `action` is `build`, `deploy`,
+   * `build_deploy`, `run`, `call` (the call act) or `call_panel`. `outcome`
+   * is `ok`, `failed`, `interrupted`, `no_wallet` or `no_funds` (the deploy's
+   * airdrop was refused, failed, or never reached the wallet). `step` is
+   * 1-based. `seconds` is the run's whole seconds: from the press to the
+   * result, from the press to the block for a deploy recognised after a
+   * reload, and 0 for an interrupted run, whose length is not known.
    */
   tutorial_action_run: {
     tutorial: string;

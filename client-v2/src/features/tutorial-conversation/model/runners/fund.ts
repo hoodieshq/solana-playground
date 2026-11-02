@@ -3,8 +3,8 @@ import { airdropTopUp } from "../../../../commands/deploy/airdrop-top-up";
 const LAMPORTS_PER_SOL = 1_000_000_000;
 
 /**
- * What funding needs from devnet, by address. The real one wraps the
- * connection (`chain.ts`); a test answers from a script.
+ * What funding needs from devnet, by address. The real one is
+ * `devnetFunding`; a test answers from a script.
  */
 export interface FundingChain {
   /** Lamports the address holds */
@@ -22,7 +22,7 @@ export type FundingResult =
 export interface FundingInput {
   chain: FundingChain;
   address: string;
-  /** Lamports the deploy needs before fees */
+  /** Lamports the wallet must hold for the deploy, fee headroom included */
   need: number;
   /** The cluster's faucet amount in whole SOL */
   capSol: number;
@@ -67,10 +67,10 @@ export const fundForDeploy = async ({
       message: e instanceof Error ? e.message : String(e),
     };
   }
-  if (!(await chain.confirm(signature))) {
-    return { ok: false, balance: before, message: "The airdrop failed" };
-  }
-  // A confirmed airdrop can still read as the old balance for a slot or two
+  // An unconfirmed airdrop (a timeout) may still have landed, so the
+  // balance decides either way; a confirmed one can read as the old balance
+  // for a slot or two
+  const confirmed = await chain.confirm(signature);
   for (let i = 0; i < BALANCE_READS; i++) {
     const after = await chain.balance(address);
     if (after >= need) {
@@ -81,7 +81,9 @@ export const fundForDeploy = async ({
   return {
     ok: false,
     balance: await chain.balance(address),
-    message: "The airdrop did not reach the wallet",
+    message: confirmed
+      ? "The airdrop did not reach the wallet"
+      : "The airdrop failed",
   };
 };
 
@@ -163,6 +165,36 @@ if (import.meta.vitest) {
       });
     });
 
+    it("waits a slot between reads for a confirmed airdrop to show", async () => {
+      const chain = chainOf([0, 0, 0, 2 * SOL]);
+      const wait = vi.fn(async () => {});
+      await expect(
+        fundForDeploy({
+          chain,
+          address: ADDRESS,
+          need: SOL,
+          capSol: 5,
+          onShort: () => {},
+          wait,
+        })
+      ).resolves.toEqual({ ok: true, balance: 2 * SOL, airdropped: 2 * SOL });
+      expect(wait).toHaveBeenCalledTimes(2);
+    });
+
+    it("counts an unconfirmed airdrop that still reached the wallet", async () => {
+      const chain = chainOf([0, 2 * SOL], async () => "sig", false);
+      await expect(
+        fundForDeploy({
+          chain,
+          address: ADDRESS,
+          need: SOL,
+          capSol: 5,
+          onShort: () => {},
+          wait: noWait,
+        })
+      ).resolves.toMatchObject({ ok: true, balance: 2 * SOL });
+    });
+
     it("answers an airdrop that failed on chain", async () => {
       const chain = chainOf([0], async () => "sig", false);
       await expect(
@@ -174,7 +206,11 @@ if (import.meta.vitest) {
           onShort: () => {},
           wait: noWait,
         })
-      ).resolves.toMatchObject({ ok: false, balance: 0 });
+      ).resolves.toEqual({
+        ok: false,
+        balance: 0,
+        message: "The airdrop failed",
+      });
     });
 
     it("answers a confirmed airdrop whose balance never moved", async () => {

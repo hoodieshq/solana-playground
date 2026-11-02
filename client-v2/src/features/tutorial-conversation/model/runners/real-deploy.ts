@@ -51,9 +51,15 @@ export const devnetFunding: FundingChain = {
 
 const onChainOf = async (id: string): Promise<OnChain> => {
   const info = await PgProgramInfo.fetch(pk(id));
+  if (!info.deployed) return { deployed: false };
+  if (!info.upgradable) return { deployed: true, dataLen: 0, authority: null };
+  if (!("programDataLen" in info) || info.programDataLen === undefined) {
+    throw new Error("Could not read the program's data account");
+  }
   return {
-    deployed: info.deployed,
-    dataLen: "programDataLen" in info ? info.programDataLen ?? null : null,
+    deployed: true,
+    dataLen: info.programDataLen,
+    authority: info.authority?.toBase58() ?? null,
   };
 };
 
@@ -75,6 +81,7 @@ export const realDeployPort = (): DeployPort => {
     },
     program: () => ({
       id: PgProgramInfo.pk?.toBase58() ?? null,
+      keypair: !!PgProgramInfo.kp,
       stale: !PgProgramInfo.uuid || !!PgProgramInfo.lastBuildFailed,
       length: null,
     }),
@@ -111,7 +118,7 @@ export const realDeployPort = (): DeployPort => {
       const extra = additionalProgramLen({
         programLen: length,
         deployed: true,
-        onChainLen: onChain.dataLen ?? undefined,
+        onChainLen: onChain.deployed ? onChain.dataLen : undefined,
       });
       return extra > 0
         ? buffer + (await conn.getMinimumBalanceForRentExemption(extra))
@@ -126,7 +133,7 @@ export const realDeployPort = (): DeployPort => {
       const extra = additionalProgramLen({
         programLen: bytes.length,
         deployed: onChain.deployed,
-        onChainLen: onChain.dataLen ?? undefined,
+        onChainLen: onChain.deployed ? onChain.dataLen : undefined,
       });
       // Before the buffer, not beside the upgrade: an extend in the upgrade's
       // block fails with "Program was deployed in this block already"
@@ -139,10 +146,11 @@ export const realDeployPort = (): DeployPort => {
           async () => {
             const now = await onChainOf(programPk.toBase58());
             return (
+              now.deployed &&
               additionalProgramLen({
                 programLen: bytes.length,
                 deployed: true,
-                onChainLen: now.dataLen ?? undefined,
+                onChainLen: now.dataLen,
               }) <= 0
             );
           }
@@ -200,6 +208,8 @@ export const realDeployPort = (): DeployPort => {
     instructions: () =>
       (PgProgramInfo.idl?.instructions ?? []).map((ix) => ix.name),
     print: (line) => PgTerminal.println(line),
+    report: (error, stage) =>
+      log.error(error, { report: true, context: { stage } }),
     now: () => Date.now(),
   };
 };
@@ -211,7 +221,8 @@ export const runDeployOnDevnet: ActRun = async (act, _input, onStage) => {
     act === "buildDeploy" ? "buildDeploy" : "deploy",
     onStage
   );
-  // The reason and the chain's message only: never a key or the wallet
+  // The reason and the chain's message only: never a key or the wallet.
+  // `runDeploy` answers only deploy results, so every failure has a reason
   if (!result.ok && "reason" in result) {
     log.warn(`A tutorial ${act} stopped: ${result.reason}`, {
       context: { message: result.message },
@@ -229,23 +240,33 @@ export const tutorialRunner = actRunner(
     deploy: runDeployOnDevnet,
     buildDeploy: runDeployOnDevnet,
   },
-  async (act, startedAt) => {
+  async (act, startedAtMs) => {
     if (act !== "deploy" && act !== "buildDeploy") return null;
     if (PgConnection.cluster !== "devnet") return null;
+    const conn = PgConnection.current;
     return recogniseDeploy({
       act,
       programId: PgProgramInfo.pk?.toBase58() ?? null,
-      startedAt,
+      startedAtMs,
+      deploySlot: async (programId) => {
+        const program = await conn.getAccountInfo(pk(programId));
+        if (!program) return null;
+        // The program account names its ProgramData account after a u32 tag
+        const data = await conn.getAccountInfo(
+          new PgWeb3.PublicKey(program.data.subarray(4, 36))
+        );
+        // ProgramData: a u32 tag, then the u64 slot of the last deploy
+        return data ? Number(data.data.readBigUInt64LE(4)) : null;
+      },
+      blockTime: (slot) => conn.getBlockTime(slot),
       signatures: async (programId) =>
-        (
-          await PgConnection.current.getSignaturesForAddress(pk(programId), {
-            limit: 2,
+        (await conn.getSignaturesForAddress(pk(programId), { limit: 20 })).map(
+          (s) => ({
+            signature: s.signature,
+            slot: s.slot,
+            failed: s.err !== null,
           })
-        ).map((s) => ({
-          signature: s.signature,
-          blockTime: s.blockTime ?? null,
-          failed: s.err !== null,
-        })),
+        ),
       instructions: (PgProgramInfo.idl?.instructions ?? []).map(
         (ix) => ix.name
       ),

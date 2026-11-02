@@ -795,6 +795,52 @@ describe("PgConversation", () => {
     ]);
   });
 
+  it("measures a deploy as interrupted when the chain cannot be read", async () => {
+    exists = true;
+    file = { [STORAGE_KEY]: deployInFlight() };
+    const runner: Runner = {
+      run: stubRunner([]).run,
+      recognise: async () => {
+        throw new Error("fetch failed");
+      },
+    };
+    open(NAME, { runner });
+    await settle();
+    expect(PgConversation.state.engine.progress.runs["s2.deploy"]).toEqual([
+      { status: "interrupted", at: 4000 },
+    ]);
+    expect(actionRuns().map((e) => e.params)).toEqual([
+      expect.objectContaining({ action: "deploy", outcome: "interrupted" }),
+    ]);
+  });
+
+  it("posts nothing into another workspace when the learner leaves mid-lookup", async () => {
+    exists = true;
+    file = { [STORAGE_KEY]: deployInFlight() };
+    let answer: (r: RunResult | null) => void = () => {};
+    const runner: Runner = {
+      run: stubRunner([]).run,
+      recognise: () => new Promise((r) => (answer = r)),
+    };
+    open(NAME, { runner });
+    await settle();
+    switchWorkspace(null);
+    await settle();
+    answer({
+      act: "deploy",
+      ok: true,
+      seconds: 9,
+      programId: "p",
+      signature: "late",
+      upgraded: false,
+      lamports: null,
+      instructions: ["hello"],
+    });
+    await settle();
+    expect(PgConversation.state.context).toBeNull();
+    expect(actionRuns()).toEqual([]);
+  });
+
   it("measures a run the reload interrupted once, and writes it back interrupted", async () => {
     exists = true;
     file = { [STORAGE_KEY]: deployInFlight() };

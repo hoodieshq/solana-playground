@@ -315,7 +315,11 @@ export class PgConversation {
     } else {
       // A later failed load of this tutorial is told again
       PgConversation._told.delete(`load:${name}`);
-      if (inFlight.length) void PgConversation._afterReload(name, inFlight);
+      if (inFlight.length) {
+        PgConversation._afterReload(name, inFlight).catch((e) =>
+          log.error(e, { report: true, context: { name, inFlight } })
+        );
+      }
     }
   }
 
@@ -358,14 +362,21 @@ export class PgConversation {
         try {
           result = await runner.recognise(act, run.at);
         } catch (e) {
-          // The chain could not be read: the card stays interrupted, and the
-          // learner runs it again, which upgrades the same program
+          // The chain could not be read: the card stays interrupted, and
+          // running it again deploys or upgrades the same program id
           log.warn(`Could not look up an interrupted ${act} of ${name}`, {
-            context: { reason: String(e) },
+            context: { reason: e instanceof Error ? e.message : String(e) },
           });
         }
       }
-      if (PgExplorer.currentWorkspaceName !== name) return;
+      // The learner left while the chain was read: what is collected belongs
+      // to this tutorial, and the store now holds another one
+      if (PgExplorer.currentWorkspaceName !== name) {
+        log.info(
+          `Left ${name} while looking up its interrupted runs; they stay unmeasured`
+        );
+        return;
+      }
       if (result) {
         PgConversation._dispatch({
           type: "recognised",

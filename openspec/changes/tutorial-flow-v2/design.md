@@ -151,12 +151,19 @@ separate PRs against fixtures.
 
 **Deploy:**
 
-- calls the deploy command with the tutorial workspace's program keypair, so
-  a redeploy is an upgrade;
+- reuses the editor deploy's parts (the upgradeable loader calls, the
+  extend arithmetic, the airdrop top-up), not the command itself, which asks
+  in the terminal and reports no stages; the workspace keeps the program
+  keypair, so a redeploy is an upgrade;
 - funding is the deploy's own airdrop top-up, reported as a stage;
-- after a reload, a deploy is recognised by the program's newest signature
-  (`getSignaturesForAddress`): one that landed at or after the saved start
-  time is that run's, and an older one beside it makes it an upgrade;
+- before any SOL is locked in a buffer, a program whose upgrade authority is
+  another wallet, an immutable one, or a first deploy without the keypair
+  stops with a failed card;
+- after a reload, a deploy is recognised by the program's ProgramData deploy
+  slot, which only a deploy or an upgrade moves (an extend or a call does
+  not): a slot whose block came after the saved start time, within a minute
+  of clock skew, is that run's, its signature is the one in that slot, and a
+  successful signature in an earlier slot makes it an upgrade;
 - the top-up needs no sign-in, unlike the editor's `airdrop` command, and the
   IDL does not go on chain yet: Anchor 1.x publishes it through the Program
   Metadata Program, which Playground does not call (Slava, 3 Nov, HOO-2356's

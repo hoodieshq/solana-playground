@@ -3,42 +3,64 @@ import type { RunResult } from "../progress";
 /** One signature that touched the program, newest first, as the RPC lists it */
 export interface ProgramSignature {
   signature: string;
-  /** Unix seconds; null when the RPC does not know it */
-  blockTime: number | null;
+  slot: number;
   failed: boolean;
 }
 
 export interface RecogniseInput {
   act: "deploy" | "buildDeploy";
   programId: string | null;
-  /** When the interrupted run started, in ms */
-  startedAt: number;
-  /** The program's two newest signatures */
+  /** When the interrupted run started, by the device's clock, in ms */
+  startedAtMs: number;
+  /**
+   * The slot of the program's last deploy or upgrade, from its ProgramData
+   * account; null when the program is not on chain
+   */
+  deploySlot(programId: string): Promise<number | null>;
+  /** A slot's time by the chain, in unix seconds; null when unknown */
+  blockTime(slot: number): Promise<number | null>;
+  /** The program's newest signatures, enough to reach the deploy's */
   signatures(programId: string): Promise<ProgramSignature[]>;
   instructions: string[];
 }
 
 /**
- * A deploy a reload interrupted, recognised from the chain: the program's
- * newest transaction landed at or after the run started, so that run put it
- * there. Its result then posts instead of the interrupted card, and Deploy is
- * not pressed again for nothing. An older transaction before it means the
- * program was already on chain: an upgrade. The cost is not known (null).
+ * How far the device's clock may run ahead of the chain's and still own a
+ * deploy: `startedAtMs` is the device's, a block time the chain's
+ */
+export const CLOCK_SKEW_MS = 60_000;
+
+/**
+ * A deploy a reload interrupted, recognised from the chain. Only a deploy or
+ * an upgrade moves the ProgramData account's deploy slot: an extend, a
+ * buffer write or a call does not, so a newest signature alone could be any
+ * of those. A deploy slot whose block came after the run started (within
+ * `CLOCK_SKEW_MS`) is that run's; its signature is the one in that slot, and
+ * a successful signature in an earlier slot means the program was already
+ * there: an upgrade. The cost is not known (null).
  */
 export const recogniseDeploy = async (
   input: RecogniseInput
 ): Promise<RunResult | null> => {
   if (!input.programId) return null;
-  const [newest, older] = await input.signatures(input.programId);
-  if (!newest || newest.failed || newest.blockTime === null) return null;
-  if (newest.blockTime * 1000 < input.startedAt) return null;
+  const slot = await input.deploySlot(input.programId);
+  if (slot === null) return null;
+  const time = await input.blockTime(slot);
+  if (time === null || time * 1000 < input.startedAtMs - CLOCK_SKEW_MS) {
+    return null;
+  }
+  const landed = (await input.signatures(input.programId)).filter(
+    (s) => !s.failed
+  );
+  const deploy = landed.find((s) => s.slot === slot);
+  if (!deploy) return null;
   return {
     act: input.act,
     ok: true,
-    seconds: Math.max(0, newest.blockTime - input.startedAt / 1000),
+    seconds: Math.max(0, time - input.startedAtMs / 1000),
     programId: input.programId,
-    signature: newest.signature,
-    upgraded: !!older,
+    signature: deploy.signature,
+    upgraded: landed.some((s) => s.slot < slot),
     lamports: null,
     instructions: input.instructions,
   };
@@ -50,25 +72,33 @@ if (import.meta.vitest) {
   describe("features/tutorial-conversation/model/runners/recognise", () => {
     const PROGRAM = "Prog111111111111111111111111111111111111111";
     const STARTED = 1_700_000_000_000;
+    const DEPLOY_SLOT = 500;
+
+    /** A chain whose program was last deployed in `DEPLOY_SLOT`, at `secondsAfter` */
     const input = (
       signatures: ProgramSignature[],
-      programId: string | null = PROGRAM
-    ) => ({
-      act: "deploy" as const,
+      secondsAfter: number | null = 12,
+      programId: string | null = PROGRAM,
+      slot: number | null = DEPLOY_SLOT
+    ): RecogniseInput => ({
+      act: "deploy",
       programId,
-      startedAt: STARTED,
+      startedAtMs: STARTED,
+      deploySlot: async () => slot,
+      blockTime: async () =>
+        secondsAfter === null ? null : STARTED / 1000 + secondsAfter,
       signatures: async () => signatures,
       instructions: ["hello"],
     });
-    const at = (seconds: number, signature = "sig", failed = false) => ({
+    const sig = (signature: string, slot: number, failed = false) => ({
       signature,
-      blockTime: STARTED / 1000 + seconds,
+      slot,
       failed,
     });
 
     it("recognises a first deploy that landed after the run started", async () => {
       await expect(
-        recogniseDeploy(input([at(12, "deploySig")]))
+        recogniseDeploy(input([sig("deploySig", DEPLOY_SLOT)]))
       ).resolves.toEqual({
         act: "deploy",
         ok: true,
@@ -81,22 +111,51 @@ if (import.meta.vitest) {
       });
     });
 
-    it("reads an older transaction as an upgrade", async () => {
+    it("takes the deploy slot's signature, never a newer extend or call", async () => {
       await expect(
-        recogniseDeploy(input([at(12, "upSig"), at(-600, "firstSig")]))
-      ).resolves.toMatchObject({ signature: "upSig", upgraded: true });
+        recogniseDeploy(
+          input([
+            sig("callSig", DEPLOY_SLOT + 9),
+            sig("upgradeSig", DEPLOY_SLOT),
+            sig("extendSig", DEPLOY_SLOT - 3),
+            sig("firstSig", 100),
+          ])
+        )
+      ).resolves.toMatchObject({ signature: "upgradeSig", upgraded: true });
     });
 
-    it("leaves a deploy that landed before the run started alone", async () => {
-      await expect(recogniseDeploy(input([at(-5)]))).resolves.toBeNull();
+    it("reads a failed earlier attempt as no upgrade", async () => {
+      await expect(
+        recogniseDeploy(
+          input([sig("deploySig", DEPLOY_SLOT), sig("failedSig", 90, true)])
+        )
+      ).resolves.toMatchObject({ upgraded: false });
     });
 
-    it("leaves a program with no transaction, a failed one, or no id alone", async () => {
-      await expect(recogniseDeploy(input([]))).resolves.toBeNull();
+    it("leaves a deploy from before the run alone, past the clock allowance", async () => {
       await expect(
-        recogniseDeploy(input([at(3, "sig", true)]))
+        recogniseDeploy(input([sig("old", DEPLOY_SLOT)], -61))
       ).resolves.toBeNull();
-      await expect(recogniseDeploy(input([at(3)], null))).resolves.toBeNull();
+      // A device clock a little ahead of the chain still owns its deploy
+      await expect(
+        recogniseDeploy(input([sig("mine", DEPLOY_SLOT)], -20))
+      ).resolves.toMatchObject({ signature: "mine", seconds: 0 });
+    });
+
+    it("leaves a program it cannot place alone", async () => {
+      // Not on chain, no id, an unknown block time, no signature in the slot
+      await expect(
+        recogniseDeploy(input([], 12, PROGRAM, null))
+      ).resolves.toBeNull();
+      await expect(
+        recogniseDeploy(input([sig("s", DEPLOY_SLOT)], 12, null))
+      ).resolves.toBeNull();
+      await expect(
+        recogniseDeploy(input([sig("s", DEPLOY_SLOT)], null))
+      ).resolves.toBeNull();
+      await expect(
+        recogniseDeploy(input([sig("other", DEPLOY_SLOT + 1)]))
+      ).resolves.toBeNull();
     });
   });
 }

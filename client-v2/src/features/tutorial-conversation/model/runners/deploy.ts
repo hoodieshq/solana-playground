@@ -19,34 +19,44 @@ export const FEE_HEADROOM = 20_000_000;
 export interface ProgramState {
   /** The program id the workspace's keypair gives; null before any build */
   id: string | null;
-  /** Whether a build must run first: none yet, failed, or a `buildDeploy` */
+  /** Whether the workspace holds the program's keypair, which a first deploy signs with */
+  keypair: boolean;
+  /** Whether a build must run first: none yet, or the last one failed */
   stale: boolean;
-  /** Bytes of the last build's binary, for the funding estimate; null if none */
+  /**
+   * Bytes of the last build's binary, for the funding estimate; null when
+   * unknown, which the real port always answers (only the server holds it)
+   */
   length: number | null;
 }
 
 /** The program on chain: deployed means the next deploy is an upgrade */
-export interface OnChain {
-  deployed: boolean;
-  /** The program data account's length; null when not deployed */
-  dataLen: number | null;
-}
+export type OnChain =
+  | { deployed: false }
+  | {
+      deployed: true;
+      /** The program data account's length */
+      dataLen: number;
+      /** The upgrade authority; null when the program is immutable */
+      authority: string | null;
+    };
 
 /**
  * Everything the deploy touches, so its order and its facts are tested with
- * no chain. The real one (`real-deploy.ts`) wraps the editor's loader calls.
+ * no chain. The real one (`realDeployPort`) wraps the editor's loader calls.
  */
 export interface DeployPort {
   /** Why the deploy cannot run here at all (a cluster other than devnet) */
   refusal(): string | null;
   /** The Playground wallet's address, or null when there is none */
   wallet(): string | null;
+  /** Read twice, before and after the build, so it answers live */
   program(): ProgramState;
   /** Runs the build; a failure stops the deploy with its message */
   build(): Promise<{ ok: true } | { ok: false; message: string }>;
   /** The last build's binary */
   bytes(): Promise<Uint8Array>;
-  /** Whether the program is on chain (an upgrade) and its data length */
+  /** Whether the program is on chain (an upgrade), its length and authority */
   onChain(id: string): Promise<OnChain>;
   /** Lamports a deploy of `length` bytes locks in rent, before fees */
   rent(length: number, onChain: OnChain): Promise<number>;
@@ -66,11 +76,17 @@ export interface DeployPort {
   instructions(): string[];
   /** One line in the terminal */
   print(line: string): void;
+  /** An unexpected throw, with the stage it stopped in, for the team */
+  report(error: unknown, stage: string | null): void;
   now(): number;
 }
 
-/** The binary length a deploy estimates with before a build has run */
-const DEFAULT_LENGTH = 200_000;
+/**
+ * The binary length the funding estimate assumes when the last one is not
+ * known: above a tutorial's Anchor program, so the one announced airdrop
+ * covers the deploy and a second, unannounced one is rare
+ */
+const DEFAULT_LENGTH = 400_000;
 
 const shortKey = (key: string) => `${key.slice(0, 4)}…${key.slice(-4)}`;
 const sol = (lamports: number) =>
@@ -90,12 +106,33 @@ const failed = (
   message,
 });
 
+/** Why the wallet cannot deploy this program, before any SOL is locked */
+const blocker = (
+  onChain: OnChain,
+  program: ProgramState,
+  address: string
+): string | null => {
+  if (!onChain.deployed) {
+    return program.keypair
+      ? null
+      : "This workspace has only the program's id, not its keypair, so it cannot deploy it.";
+  }
+  if (onChain.authority === null) return "This program is not upgradable.";
+  if (onChain.authority !== address) {
+    return `This program's upgrade authority is ${shortKey(
+      onChain.authority
+    )}, not your wallet, so it cannot be upgraded from here.`;
+  }
+  return null;
+};
+
 /**
  * Deploys the workspace's program from the Playground wallet. Stages: Funding
- * your wallet (only when short), Building (only when stale), Writing buffer,
- * Deploying, Confirming; "n of m" counts what shows. A program on chain is
- * upgraded in place, since the workspace keeps its keypair. Every way it can
- * stop is a result, never a throw; a throw from the port is a failed deploy.
+ * your wallet (only when short), Building (only when stale or a
+ * build-and-deploy), Writing buffer, Deploying, Confirming; "n of m" counts
+ * what shows. A program on chain is upgraded in place, since the workspace
+ * keeps its keypair. Every way it can stop is a result, never a throw: a
+ * throw from the port is a failed deploy, and reported.
  */
 export const runDeploy = async (
   port: DeployPort,
@@ -103,21 +140,22 @@ export const runDeploy = async (
   onStage: (stage: RunStage) => void
 ): Promise<RunResult> => {
   const started = port.now();
-  const refusal = port.refusal();
-  if (refusal) return failed(act, started, port.now(), "failed", refusal);
-  const address = port.wallet();
-  if (!address) {
-    return failed(act, started, port.now(), "no_wallet", "No wallet");
-  }
-
+  let current: string | null = null;
   try {
+    const refusal = port.refusal();
+    if (refusal) return failed(act, started, port.now(), "failed", refusal);
+    const address = port.wallet();
+    if (!address) {
+      return failed(act, started, port.now(), "no_wallet", "No wallet");
+    }
+
     const program = port.program();
     const stale = act === "buildDeploy" || program.stale;
     const estimateLength = program.length ?? DEFAULT_LENGTH;
     const before = await port.funding.balance(address);
     const knownOnChain: OnChain = program.id
       ? await port.onChain(program.id)
-      : { deployed: false, dataLen: null };
+      : { deployed: false };
     const estimate =
       (await port.rent(estimateLength, knownOnChain)) + FEE_HEADROOM;
     const short = before < estimate;
@@ -131,8 +169,10 @@ export const runDeploy = async (
       DEPLOY_STAGES.confirming
     );
     let index = 0;
-    const stage = (label: string) =>
+    const stage = (label: string) => {
+      current = label;
       onStage({ label, index: ++index, count: labels.length });
+    };
 
     const fund = async (need: number) => {
       const funded = await fundForDeploy({
@@ -169,8 +209,8 @@ export const runDeploy = async (
       }
     }
 
-    const id = port.program().id;
-    if (!id) {
+    const built = port.program();
+    if (!built.id) {
       return failed(
         act,
         started,
@@ -179,10 +219,15 @@ export const runDeploy = async (
         "The build gave no program id"
       );
     }
+    const id = built.id;
     const bytes = await port.bytes();
     const onChain = await port.onChain(id);
+    const blocked = blocker(onChain, built, address);
+    if (blocked) return failed(act, started, port.now(), "failed", blocked);
     const need = (await port.rent(bytes.length, onChain)) + FEE_HEADROOM;
-    // The estimate ran on the last binary; a build can grow it past what came
+    // The estimate ran on an assumed length; when the binary outgrew it, or
+    // nothing was funded, the balance is checked against the real need
+    // (`fundForDeploy` airdrops only when it is still short)
     if (need > estimate || !short) {
       const refused = await fund(need);
       if (refused) return refused;
@@ -206,10 +251,12 @@ export const runDeploy = async (
       programId: id,
       signature,
       upgraded: onChain.deployed,
+      // An airdrop landing mid-deploy can make the difference negative
       lamports: Math.max(0, funded - after),
       instructions: port.instructions(),
     };
   } catch (e) {
+    port.report(e, current);
     return failed(
       act,
       started,
@@ -236,6 +283,12 @@ if (import.meta.vitest) {
       airdrop?: FundingChain["airdrop"];
       build?: DeployPort["build"];
       deployThrows?: string;
+      writeThrows?: string;
+      /** The on-chain upgrade authority; the wallet when left out */
+      authority?: string | null;
+      keypair?: boolean;
+      /** Bytes of the built binary; 120 000 when left out */
+      built?: number;
     }
 
     /** A port over a scripted chain: balances are read in order, the last repeating */
@@ -246,7 +299,12 @@ if (import.meta.vitest) {
       const port: DeployPort = {
         refusal: () => null,
         wallet: () => WALLET,
-        program: () => ({ id, stale: fake.stale, length: 100_000 }),
+        program: () => ({
+          id,
+          keypair: fake.keypair ?? true,
+          stale: fake.stale,
+          length: 100_000,
+        }),
         build: vi.fn(
           fake.build ??
             (async () => {
@@ -254,11 +312,16 @@ if (import.meta.vitest) {
               return { ok: true as const };
             })
         ),
-        bytes: async () => new Uint8Array(120_000),
-        onChain: async () => ({
-          deployed: fake.deployed,
-          dataLen: fake.deployed ? 100_000 : null,
-        }),
+        bytes: async () => new Uint8Array(fake.built ?? 120_000),
+        onChain: async (): Promise<OnChain> =>
+          fake.deployed
+            ? {
+                deployed: true,
+                dataLen: 100_000,
+                authority:
+                  fake.authority === undefined ? WALLET : fake.authority,
+              }
+            : { deployed: false },
         rent: async (length) => length * 10_000,
         funding: {
           balance: vi.fn(async () =>
@@ -268,7 +331,10 @@ if (import.meta.vitest) {
           confirm: async () => true,
         },
         capSol: 5,
-        writeBuffer: vi.fn(async () => "Buffer1111"),
+        writeBuffer: vi.fn(async () => {
+          if (fake.writeThrows) throw new Error(fake.writeThrows);
+          return "Buffer1111";
+        }),
         deploy: vi.fn(async () => {
           if (fake.deployThrows) throw new Error(fake.deployThrows);
           return "deploySig";
@@ -276,6 +342,7 @@ if (import.meta.vitest) {
         upgrade: vi.fn(async () => "upgradeSig"),
         instructions: () => ["hello"],
         print: (line) => lines.push(line),
+        report: vi.fn(),
         now: () => 1_000,
       };
       return { port, lines };
@@ -378,6 +445,7 @@ if (import.meta.vitest) {
       expect(port.writeBuffer).toHaveBeenCalledWith(expect.any(Uint8Array), {
         deployed: true,
         dataLen: 100_000,
+        authority: WALLET,
       });
     });
 
@@ -448,6 +516,111 @@ if (import.meta.vitest) {
         reason: "failed",
         message: "Exceeded maximum amount of retries",
       });
+    });
+
+    it("funds again when the built binary outgrew the estimate, and stops when refused", async () => {
+      // Covers the 400 000-byte estimate, not the 600 000-byte binary
+      const { port } = portOf({
+        balances: [4.1 * SOL],
+        deployed: false,
+        stale: false,
+        id: PROGRAM,
+        built: 600_000,
+        airdrop: async () => {
+          throw new Error("429 Too Many Requests");
+        },
+      });
+      port.program = () => ({
+        id: PROGRAM,
+        keypair: true,
+        stale: false,
+        length: null,
+      });
+      await expect(runDeploy(port, "deploy", () => {})).resolves.toMatchObject({
+        ok: false,
+        reason: "no_funds",
+        balance: 4.1 * SOL,
+        cost: 600_000 * 10_000 + FEE_HEADROOM,
+      });
+      expect(port.writeBuffer).not.toHaveBeenCalled();
+    });
+
+    it("stops when the build leaves no program id", async () => {
+      const { port } = portOf({
+        balances: [5 * SOL],
+        deployed: false,
+        stale: true,
+        id: null,
+        build: async () => ({ ok: true }),
+      });
+      await expect(runDeploy(port, "deploy", () => {})).resolves.toMatchObject({
+        ok: false,
+        reason: "failed",
+        message: "The build gave no program id",
+      });
+      expect(port.writeBuffer).not.toHaveBeenCalled();
+    });
+
+    it("refuses before any SOL is locked when another wallet holds the upgrade authority", async () => {
+      const { port } = portOf({
+        balances: [5 * SOL],
+        deployed: true,
+        stale: false,
+        id: PROGRAM,
+        authority: "Other11111111111111111111111111111111111111",
+      });
+      await expect(runDeploy(port, "deploy", () => {})).resolves.toMatchObject({
+        ok: false,
+        reason: "failed",
+        message: expect.stringMatching(/upgrade authority is Othe…1111/),
+      });
+      expect(port.writeBuffer).not.toHaveBeenCalled();
+    });
+
+    it("refuses an immutable program, and a first deploy without the keypair", async () => {
+      const immutable = portOf({
+        balances: [5 * SOL],
+        deployed: true,
+        stale: false,
+        id: PROGRAM,
+        authority: null,
+      }).port;
+      await expect(
+        runDeploy(immutable, "deploy", () => {})
+      ).resolves.toMatchObject({ message: "This program is not upgradable." });
+      const idOnly = portOf({
+        balances: [5 * SOL],
+        deployed: false,
+        stale: false,
+        id: PROGRAM,
+        keypair: false,
+      }).port;
+      await expect(
+        runDeploy(idOnly, "deploy", () => {})
+      ).resolves.toMatchObject({
+        ok: false,
+        message: expect.stringMatching(/not its keypair/),
+      });
+      expect(idOnly.writeBuffer).not.toHaveBeenCalled();
+    });
+
+    it("reports a throw with the stage it stopped in", async () => {
+      const { port } = portOf({
+        balances: [5 * SOL],
+        deployed: false,
+        stale: false,
+        id: PROGRAM,
+        writeThrows: "Blockhash not found",
+      });
+      await expect(runDeploy(port, "deploy", () => {})).resolves.toMatchObject({
+        ok: false,
+        reason: "failed",
+        message: "Blockhash not found",
+      });
+      expect(port.report).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Blockhash not found" }),
+        "Writing buffer"
+      );
     });
   });
 }

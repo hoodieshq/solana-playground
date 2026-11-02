@@ -6,6 +6,7 @@ import type {
   CallArg,
   Step,
   TutorialDefinition,
+  TutorialEvents,
 } from "@/entities/tutorial";
 
 import { TICK_MS } from "./clock";
@@ -189,15 +190,8 @@ export interface Reduced {
 
 const same = (state: EngineState): Reduced => ({ state, effects: [] });
 
-/** `tutorial_action_run`'s parameters, as the spec's "Runs are measured" names them */
-export interface ActionRunParams {
-  tutorial: string;
-  /** 1-based */
-  step: number;
-  action: "build" | "deploy" | "build_deploy" | "run" | "call" | "call_panel";
-  outcome: "ok" | "failed" | "interrupted" | "no_wallet" | "no_funds";
-  seconds: number;
-}
+/** `tutorial_action_run`'s parameters, declared once on the tutorial tracker */
+export type ActionRunParams = TutorialEvents["tutorial_action_run"];
 
 const ACTION_OF: Record<Act, ActionRunParams["action"]> = {
   build: "build",
@@ -892,6 +886,10 @@ export const reduce = (
     case "recognised": {
       const run = lastRun(p, action.beatId);
       if (!run || run.status !== "interrupted") return same(state);
+      // A result of another act cannot stand for this beat's run
+      if (actOf(definition, action.beatId) !== action.result.act) {
+        return same(state);
+      }
       // Back to in flight, so the result goes through `ended`'s one path:
       // the record, the judge, the flow and the measure
       const resumed: EngineState = {
@@ -912,7 +910,9 @@ export const reduce = (
         beatId: action.beatId,
         startedAt: run.at,
         result: action.result,
-        at: action.at,
+        // The run ended when the chain says, not when the reload found it:
+        // its record and its measure take the run's own time, not the gap
+        at: run.at + Math.round(action.result.seconds * 1000),
       });
       // `ended` refused it (not an act, or gone from the definition)
       return ended.state === resumed ? same(state) : ended;
