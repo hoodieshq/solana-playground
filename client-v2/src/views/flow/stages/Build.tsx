@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useElapsed } from "@/shared/lib/hooks/use-elapsed";
+import { DownloadProgram } from "@/features/cli-deploy";
 
 import BaseBuild from "./BaseBuild";
 import IdlActions from "./IdlActions";
@@ -76,7 +77,12 @@ const Build = () => {
       onExport={() => PgFramework.exportWorkspace()}
       onAsk={(prompt) => PgAssistant.requestPrompt(prompt)}
       onOpenFile={(path) => PgExplorer.openFile(path)}
-      idlActions={<IdlActions mode="download" />}
+      idlActions={
+        <>
+          <IdlActions mode="download" />
+          <DownloadProgram from="build-stage" />
+        </>
+      }
     />
   );
 };

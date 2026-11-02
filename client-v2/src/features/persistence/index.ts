@@ -6,3 +6,4 @@ export { PgAccountList } from "./model/account-list";
 export type { AccountList } from "./model/account-list";
 export { onDidChangeSyncMarkers, syncMarkerOf } from "./model/sync-marker";
 export type { SyncMarker } from "./model/sync-marker";
+export { PgSyncClient } from "./model/sync-client";
