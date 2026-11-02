@@ -39,9 +39,9 @@ const FAILURE: Record<ShareFailure, (name: string) => string> = {
   "github-unauthorized": () =>
     "GitHub no longer accepts this sign-in. Sign in again to share.",
   "rate-limited": () =>
-    "GitHub is limiting requests right now. Try again in a few minutes.",
-  rejected: () => "GitHub refused the gist.",
-  "request-failed": () => "Could not reach GitHub. Try again.",
+    "GitHub is limiting requests from this browser. Try again in a few minutes.",
+  rejected: () => "Could not export to GitHub. Nothing was published.",
+  "request-failed": () => "Could not export to GitHub. Nothing was published.",
   "scope-not-granted": () =>
     "GitHub did not grant gist access, so the gist was not created.",
 };
@@ -52,7 +52,7 @@ const ACTION: Record<
   { label: string; run: "create" | "sign-in" | "grant" }
 > = {
   ready: { label: "Create public gist", run: "create" },
-  "sign-in": { label: "Sign in with GitHub to share", run: "sign-in" },
+  "sign-in": { label: "Sign in with GitHub", run: "sign-in" },
   grant: { label: "Allow gists on GitHub", run: "grant" },
   failed: { label: "Try again", run: "create" },
 };

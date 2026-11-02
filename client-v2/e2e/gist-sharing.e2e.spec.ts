@@ -273,7 +273,9 @@ test("gist-sharing: Rate limited", async ({ page }) => {
     .click();
 
   await expect(
-    dialog(page).getByText(/GitHub is limiting requests/)
+    dialog(page).getByText(
+      "GitHub is limiting requests from this browser. Try again in a few minutes."
+    )
   ).toBeVisible(LONG);
   await expect(
     dialog(page).getByRole("button", { name: "Try again" })
