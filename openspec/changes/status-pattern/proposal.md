@@ -30,7 +30,8 @@ put it in the Breakpoint scope on 2 Nov (HOO-2483).
   "Starting", "<n> not ready"); a tap opens a sheet with the three rows, each
   with its words and its action.
 - Telemetry, new slice `widgets/status`: `status_indicator_picked` and
-  `status_sheet_opened`. No event of another slice is renamed or removed.
+  `status_sheet_opened`. The assistant's `assistant_connect_opened` gains
+  `via: "status"`. No event is renamed or removed.
 
 ## Capabilities
 

@@ -39,6 +39,7 @@ import { homeSlot, useStartView } from "@/widgets/home";
 import { LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
 import { RailFooter, SessionFooter } from "@/widgets/session-footer";
+import { StatusChip, StatusRail, StatusRow } from "@/widgets/status";
 import { SettingsPage, settingsTelemetry } from "@/widgets/settings-page";
 import { SetupList } from "@/widgets/setup-list";
 
@@ -258,6 +259,17 @@ const FlowFrame = () => {
           <SyncBanner />
         </div>
         <LayoutShell
+          phoneStatus={
+            <StatusChip
+              onOpenNetwork={() =>
+                toggleSettings(closeNavSheet.current)({
+                  from: "cluster",
+                  focus: "network",
+                })
+              }
+              onConnectAi={() => openConnectDialog("status")}
+            />
+          }
           home={homeSlot(
             page.view,
             viewport,
@@ -308,13 +320,35 @@ const FlowFrame = () => {
                   <SessionFooter
                     page={menuPage}
                     closeSheet={closeSheet}
-                    settingsOpen={settingsOpen}
+                    status={
+                      <StatusRow
+                        settingsOpen={settingsOpen}
+                        onOpenNetwork={() =>
+                          toggleSettings(closeSheet)({
+                            from: "cluster",
+                            focus: "network",
+                          })
+                        }
+                        onConnectAi={() => openConnectDialog("status")}
+                      />
+                    }
                     onToggleSettings={toggleSettings(closeSheet)}
                   />
                 }
                 railFooter={
                   <RailFooter
-                    settingsOpen={settingsOpen}
+                    status={
+                      <StatusRail
+                        settingsOpen={settingsOpen}
+                        onOpenNetwork={() =>
+                          toggleSettings(closeSheet)({
+                            from: "rail",
+                            focus: "network",
+                          })
+                        }
+                        onConnectAi={() => openConnectDialog("status")}
+                      />
+                    }
                     onToggleSettings={toggleSettings(closeSheet)}
                   />
                 }

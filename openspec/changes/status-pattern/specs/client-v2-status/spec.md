@@ -27,15 +27,15 @@ state; colour SHALL never be the only sign.
 ### Requirement: The network indicator
 
 The network indicator SHALL show the cluster's name. While the connection
-has not answered yet it SHALL be working and read "<name> · connecting";
-when the cluster does not answer it SHALL be not ready, read "<name> · not
+has not answered yet it SHALL be working and read "<Name> · Connecting";
+when the cluster does not answer it SHALL be not ready, read "<Name> · Not
 answering" and be named "Change cluster, currently <name>, not answering".
 A click SHALL open the settings on the cluster, as the cluster row did.
 
 #### Scenario: A cluster that stops answering
 
 - **WHEN** the cluster stops answering
-- **THEN** the network indicator's dot is red, it reads "<name> · not
+- **THEN** the network indicator's dot is red, it reads "<Name> · Not
   answering", and a click opens the settings on the cluster
 
 ### Requirement: The AI indicator
@@ -77,7 +77,7 @@ starting, slow or failed, offers "Reload".
 ### Requirement: Offline reads on every indicator
 
 While the browser reports no connection, all three indicators SHALL be not
-ready and read "<name> · Offline", and their panels and sheet rows SHALL say
+ready and read "<Name> · Offline" ("AI · Offline", "Rust · Offline"), and their panels and sheet rows SHALL say
 "You're offline. You can keep editing. Building needs a connection." They
 SHALL return to their own state when the connection comes back.
 
@@ -123,7 +123,9 @@ The slice SHALL send `status_indicator_picked` each time a user clicks an
 indicator or a sheet row's action, with `indicator` (`network`, `ai`, `rust`),
 `state` (`ready`, `working`, `not-ready`) and `from` (`row`, `rail`,
 `sheet`); and `status_sheet_opened` each time the phone's sheet opens, with
-`worst` (`ready`, `working`, `not-ready`).
+`worst` (`ready`, `working`, `not-ready`). Connect a model opened from the AI
+indicator SHALL send the assistant's `assistant_connect_opened` with `via:
+"status"`, a new value of that event's `via`.
 
 #### Scenario: Picking an indicator is measured
 
