@@ -38,6 +38,8 @@ vi.mock("@/utils/explorer", () => ({
     getFileContent: () => "a\nb\nc\nd\ne\nf\ng",
     saveEditorPosition: vi.fn(),
     openFile: vi.fn(),
+    getFile: vi.fn(),
+    onDidCreateItem: vi.fn(),
   },
 }));
 vi.mock("@/entities/tutorial", async () => ({
@@ -205,6 +207,91 @@ describe("TutorialConversation", () => {
       from: 2,
       via: "bar",
     });
+  });
+
+  it("opens a step's file when the lesson enters it, once the file is written", () => {
+    const created: (() => void)[] = [];
+    vi.mocked(PgExplorer.onDidCreateItem).mockImplementation((cb) => {
+      created.push(cb as () => void);
+      return { dispose: vi.fn() };
+    });
+    vi.mocked(PgExplorer.getFile).mockReturnValue(null);
+    let notify: (s: ConversationState) => void = () => {};
+    store.onDidChange.mockImplementation((cb) => {
+      notify = cb;
+      return { dispose: vi.fn() };
+    });
+    render(<TutorialConversation />);
+    // The first render is a load: the workspace keeps its own tabs
+    expect(PgExplorer.openFile).not.toHaveBeenCalled();
+
+    const entered = loaded();
+    entered.engine.progress.cursor = {
+      kind: "step",
+      stepId: definition.steps[2].id,
+      beat: 0,
+      fail: false,
+    };
+    store.state = entered;
+    act(() => notify(entered));
+    expect(PgExplorer.openFile).not.toHaveBeenCalled();
+
+    vi.mocked(PgExplorer.getFile).mockReturnValue({ path: "p", content: "" });
+    act(() => created.forEach((cb) => cb()));
+    expect(PgExplorer.openFile).toHaveBeenCalledWith(
+      `/hello/${definition.steps[2].file}`
+    );
+  });
+
+  it("opens the step's file again once Start's restore has overwritten it", () => {
+    const created: (() => void)[] = [];
+    vi.mocked(PgExplorer.onDidCreateItem).mockImplementation((cb) => {
+      created.push(cb as () => void);
+      return { dispose: vi.fn() };
+    });
+    // The preview's lib.rs is still there when the cursor moves
+    vi.mocked(PgExplorer.getFile).mockReturnValue({ path: "p", content: "" });
+    let notify: (s: ConversationState) => void = () => {};
+    store.onDidChange.mockImplementation((cb) => {
+      notify = cb;
+      return { dispose: vi.fn() };
+    });
+    const intro = loaded();
+    intro.engine.progress.cursor = { kind: "intro" };
+    store.state = intro;
+    render(<TutorialConversation />);
+
+    store.state = loaded();
+    act(() => notify(store.state!));
+    expect(PgExplorer.openFile).toHaveBeenCalledTimes(1);
+    // The restore writes it over the open one, which closes the tab
+    act(() => created.forEach((cb) => cb()));
+    expect(PgExplorer.openFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("draws a turn that arrives on its own, when the store re-announces the same state", () => {
+    let notify: (s: ConversationState) => void = () => {};
+    store.onDidChange.mockImplementation((cb) => {
+      notify = cb;
+      return { dispose: vi.fn() };
+    });
+    store.view.mockReturnValue({
+      turns: [divider],
+      live: null,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: 5,
+      finishAt: null,
+    });
+    render(<TutorialConversation />);
+    expect(screen.queryByRole("button", { name: /Show lines/ })).toBeNull();
+
+    // The store's timer: the same state object, a view with the turn now due
+    store.view.mockReturnValue(onStep2);
+    act(() => notify(store.state!));
+    expect(
+      screen.getByRole("button", { name: "Show lines 5 to 6 in src/lib.rs" })
+    ).toBeTruthy();
   });
 
   it("presses the live act on ⌘↵", () => {

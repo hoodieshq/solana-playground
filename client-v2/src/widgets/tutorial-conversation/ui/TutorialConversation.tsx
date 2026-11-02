@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import {
   PgConversation,
@@ -18,11 +18,16 @@ import type { TurnHandlers } from "./TurnView";
 /** How many lines sit above a line the feed shows in the editor */
 const LINES_ABOVE = 8;
 
-/** The engine's state, re-rendering on every change */
+/**
+ * The engine's state, re-rendering on every notification. Counted rather
+ * than stored: when a turn falls due, the store's timer announces the same
+ * state object (`_set` in `PgConversation`), and the view it then answers is
+ * what moved; React would skip a `setState` of an object it already holds.
+ */
 const useConversationState = (): ConversationState => {
-  const [state, setState] = useState(PgConversation.state);
-  useEffect(() => PgConversation.onDidChange(setState).dispose, []);
-  return state;
+  const [, render] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => PgConversation.onDidChange(render).dispose, []);
+  return PgConversation.state;
 };
 
 /** A workspace file's content as the explorer holds it, or null */
@@ -50,6 +55,45 @@ const showLine = (file: string, line: number) => {
     topLineNumber: Math.max(1, line - LINES_ABOVE),
   });
   PgExplorer.openFile(path);
+};
+
+/**
+ * Open `file` in the editor now, and again on its first write after this
+ * call. Entering a step writes its start files after the engine's state has
+ * moved on (the store drains its effects), and overwriting the open file
+ * closes its tab (`PgExplorer.createItem` with `override`), so the file
+ * that exists at the move is not yet the one that stays.
+ *
+ * @returns the subscription still waiting for that write
+ */
+const openWhenWritten = (file: string): (() => void) => {
+  const path = PgExplorer.convertToFullPath(file);
+  if (PgExplorer.getFile(path)) PgExplorer.openFile(path);
+  const created = PgExplorer.onDidCreateItem(() => {
+    if (!PgExplorer.getFile(path)) return;
+    created.dispose();
+    PgExplorer.openFile(path);
+  });
+  return () => created.dispose();
+};
+
+/**
+ * The step the lesson enters opens its main file, as the spec's "the
+ * workspace swaps the preview for the step's start files" reads. The first
+ * render is a load, where the workspace restores its own tabs.
+ */
+const useOpenEnteredStep = (state: ConversationState) => {
+  const cursor = state.engine.progress.cursor;
+  const stepId = cursor.kind === "step" ? cursor.stepId : null;
+  const definition = state.context?.definition;
+  const seen = useRef<{ stepId: string | null } | null>(null);
+  useEffect(() => {
+    const before = seen.current;
+    seen.current = { stepId };
+    if (!before || !stepId || stepId === before.stepId) return;
+    const step = definition?.steps.find((s) => s.id === stepId);
+    return step ? openWhenWritten(step.file) : undefined;
+  }, [stepId, definition]);
 };
 
 const handlers: TurnHandlers = {
@@ -90,6 +134,7 @@ export const TutorialConversation = () => {
   );
   const state = useConversationState();
   const context = state.context;
+  useOpenEnteredStep(state);
   const view = PgConversation.view();
 
   useEffect(() => {

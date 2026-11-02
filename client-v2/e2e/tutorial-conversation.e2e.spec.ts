@@ -26,11 +26,16 @@ test("tutorial-conversation: Starting Hello Anchor", async ({ page }) => {
 
   await intro.getByRole("button", { name: /Start step 1/ }).click();
 
-  // The intro leaves the feed, the first divider arrives, and lib.rs holds
-  // step 1's start, which is empty
+  // The intro leaves the feed, the first divider arrives, and lib.rs opens on
+  // step 1's start: empty, then the import and the id the step writes first
   await expect(feed(page).getByText("Step 1 of 4")).toBeVisible(LONG);
   await expect(intro).toHaveCount(0);
-  await expect(editor(page)).not.toContainText("msg!", LONG);
+  await expect(editor(page)).toContainText("declare_id!", LONG);
+  await expect(editor(page)).not.toContainText("msg!");
+  // The step's turns keep arriving on their own, up to its first question
+  await expect(
+    feed(page).getByRole("button", { name: "Hint", exact: true })
+  ).toBeVisible(LONG);
   await expect(
     chat(page)
       .getByRole("navigation", { name: "Tutorial steps" })
