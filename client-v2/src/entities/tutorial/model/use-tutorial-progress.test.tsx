@@ -15,6 +15,10 @@ const state = vi.hoisted(() => ({
   listeners: new Map<string, Set<() => void>>(),
   // Reads of saved progress that wait to be released, oldest first
   held: [] as Promise<void>[],
+  // The lesson open now, and its page and completion held in memory
+  current: null as { name: string } | null,
+  pageNumber: null as number | null,
+  completed: null as boolean | null,
 }));
 const warn = vi.hoisted(() => vi.fn());
 const error = vi.hoisted(() => vi.fn());
@@ -37,6 +41,17 @@ vi.mock("../../../utils/tutorial/tutorial", () => ({
       if (!state.workspaces) throw new Error("Explorer not initialized");
       return state.workspaces.includes(name);
     },
+    get current() {
+      return state.current;
+    },
+    get pageNumber() {
+      return state.pageNumber;
+    },
+    get completed() {
+      return state.completed;
+    },
+    onDidChangePageNumber: on("page"),
+    onDidChangeCompleted: on("completed"),
     getMetadata: async (name: string) => {
       const meta = state.metadata.get(name);
       const hold = state.held.shift();
@@ -69,6 +84,9 @@ describe("useTutorialProgress", () => {
     state.metadata.clear();
     state.listeners.clear();
     state.held = [];
+    state.current = null;
+    state.pageNumber = null;
+    state.completed = null;
     state.unreadable = new Error("ENOENT: no such file");
     warn.mockClear();
     error.mockClear();
@@ -90,6 +108,39 @@ describe("useTutorialProgress", () => {
       })
     );
     expect(result.current("Hello Solana")).toEqual({ state: "new" });
+  });
+
+  it("takes the open lesson's page from memory and follows it page by page", async () => {
+    state.workspaces = ["Hello Anchor"];
+    // The file lags behind: the page is written after the change is announced
+    state.metadata.set("Hello Anchor", { pageNumber: 1, completed: false });
+    state.current = { name: "Hello Anchor" };
+    state.pageNumber = 2;
+    state.completed = false;
+    const { result } = renderHook(() => useTutorialProgress());
+    await waitFor(() =>
+      expect(result.current("Hello Anchor")).toEqual({
+        state: "started",
+        page: 2,
+        pages: 6,
+      })
+    );
+
+    state.pageNumber = 3;
+    fire("page");
+    await waitFor(() =>
+      expect(result.current("Hello Anchor")).toEqual({
+        state: "started",
+        page: 3,
+        pages: 6,
+      })
+    );
+
+    state.completed = true;
+    fire("completed");
+    await waitFor(() =>
+      expect(result.current("Hello Anchor")).toEqual({ state: "completed" })
+    );
   });
 
   it("reads a tutorial it does not know as new", async () => {
