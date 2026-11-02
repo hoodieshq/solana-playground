@@ -183,7 +183,28 @@ const isStoredItem = (value: unknown): value is StoredItem => {
  */
 export const decodeItem = (stored: unknown): ChatItem | null => {
   if (!isStoredItem(stored)) return null;
-  return withValidUndo(withValidVersion(stored));
+  return withValidCall(withValidUndo(withValidVersion(stored)));
+};
+
+/**
+ * A tool item keeps its stored call only when the call can be replayed: a
+ * string name and output, and `failed` absent or `true`. Otherwise the call is
+ * dropped and the item stays a marker, so one hand-edited record costs its
+ * replay rather than the thread.
+ */
+const withValidCall = (item: ChatItem): ChatItem => {
+  if (item.kind !== "tool" || item.call === undefined) return item;
+  const call = item.call as Partial<NonNullable<typeof item.call>> | null;
+  const valid =
+    !!call &&
+    typeof call === "object" &&
+    typeof call.name === "string" &&
+    typeof call.output === "string" &&
+    (call.failed === undefined || call.failed === true);
+  if (valid) return item;
+  const marker = { ...item };
+  delete marker.call;
+  return marker;
 };
 
 /**
@@ -507,6 +528,44 @@ if (import.meta.vitest) {
         ];
 
         expect(decodeThread(encodeThread(items))).toHaveLength(items.length);
+      });
+
+      it("keeps a tool item's stored call", () => {
+        const items: ChatItem[] = [
+          {
+            id: base.id,
+            createdAt: base.createdAt,
+            kind: "tool",
+            label: "read_file",
+            call: {
+              name: "read_file",
+              input: { path: "src/lib.rs" },
+              output: "fn main() {}",
+              failed: true,
+            },
+          },
+        ];
+
+        expect(decodeThread(encodeThread(items))).toEqual(items);
+      });
+
+      it("drops a malformed stored call and keeps the marker", () => {
+        const stored = {
+          id: base.id,
+          createdAt: base.createdAt,
+          kind: "tool",
+          label: "read_file",
+          call: { name: 1, output: "x" },
+        };
+
+        expect(decodeThread([stored])).toEqual([
+          {
+            id: base.id,
+            createdAt: base.createdAt,
+            kind: "tool",
+            label: "read_file",
+          },
+        ]);
       });
 
       it("drops hand-edited junk rather than throwing", () => {

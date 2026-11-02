@@ -62,6 +62,62 @@ export interface ApprovalAnswer {
  */
 export type ApprovalStatus = "pending" | "allowed" | "denied" | "unanswered";
 
+/**
+ * One tool call as a later turn needs it: name, input and result, cut to
+ * `RESULT_CAP` and `INPUT_STRING_CAP`. The SDK's call id is not kept: a
+ * replay mints its own, since one backend's ids are not valid on another.
+ */
+export interface ToolCallRecord {
+  name: string;
+  input: unknown;
+  /** What the model read: the tool's text, or its message when it threw */
+  output: string;
+  failed?: true;
+}
+
+/** Whether an item is a stored call rather than a marker the thread draws */
+export const isToolCallRecord = (
+  item: ChatItem
+): item is ChatItem & { kind: "tool"; call: ToolCallRecord } =>
+  item.kind === "tool" && item.call !== undefined;
+
+/**
+ * Caps on what a stored call keeps. The server takes at most 2 MB a batch and
+ * a thread keeps its newest 200 items, so 200 records at their caps still fit
+ * beside the text. A file the model read is sent again with every turn
+ * (`describeProject`), so a cut result costs little.
+ */
+const RESULT_CAP = 4_000;
+const INPUT_STRING_CAP = 1_000;
+const INPUT_CAP = 4_000;
+
+/** `text` cut to `cap`, ending with how much was cut, so the model knows */
+const cut = (text: string, cap: number) =>
+  text.length <= cap
+    ? text
+    : `${text.slice(0, cap)} … [${text.length - cap} characters cut]`;
+
+/** Every string in a call's input, redacted and cut; the shape is kept */
+const capInputValue = (value: unknown, apiKey?: string): unknown => {
+  if (typeof value === "string") {
+    return cut(redactKey(value, apiKey), INPUT_STRING_CAP);
+  }
+  if (Array.isArray(value)) return value.map((v) => capInputValue(v, apiKey));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, capInputValue(v, apiKey)])
+    );
+  }
+  return value;
+};
+
+/** A call's input as stored: its strings cut, or a note when still too long */
+const capInput = (input: unknown, apiKey?: string): unknown => {
+  const capped = capInputValue(input, apiKey);
+  const size = JSON.stringify(capped)?.length ?? 0;
+  return size > INPUT_CAP ? { omitted: `${size} characters of input` } : capped;
+};
+
 /** What every rendered item carries, whatever its kind */
 interface ChatItemBase {
   /**
@@ -104,7 +160,17 @@ export type ChatItem =
        */
       state?: "streaming" | "cut-off";
     })
-  | (ChatItemBase & { kind: "tool"; label: string })
+  | (ChatItemBase & {
+      kind: "tool";
+      label: string;
+      /**
+       * Present on the item `addToolResult` writes when a tool returns: the
+       * call as the model made it and what it read back, so a provider built
+       * for this thread later replays it (`toReplayMessages`). The thread
+       * draws nothing for such an item; the marker the tool wrote is drawn.
+       */
+      call?: ToolCallRecord;
+    })
   | (ChatItemBase & {
       kind: "approval";
       request: ApprovalRequest;
@@ -936,6 +1002,36 @@ export class PgAssistant {
       id: makeId(),
       createdAt: created(),
       label,
+    });
+    PgAssistant._emit();
+  }
+
+  /**
+   * Store a tool call that finished, so a provider built for this thread later
+   * replays it. Its label is the tool's name, which a tab on the code before
+   * records draws as a plain marker. A cut turn writes none, as it writes no
+   * marker (`_dropsCut`).
+   */
+  static addToolResult(result: {
+    toolName: string;
+    input: unknown;
+    output: string;
+    failed: boolean;
+  }) {
+    if (PgAssistant._dropsCut("tool", result.toolName)) return;
+    const apiKey = PgAssistant._connection?.apiKey;
+    const call: ToolCallRecord = {
+      name: result.toolName,
+      input: capInput(result.input, apiKey),
+      output: cut(redactKey(result.output, apiKey), RESULT_CAP),
+    };
+    if (result.failed) call.failed = true;
+    PgAssistant._items.push({
+      kind: "tool",
+      id: makeId(),
+      createdAt: created(),
+      label: result.toolName,
+      call,
     });
     PgAssistant._emit();
   }
@@ -3376,6 +3472,139 @@ if (import.meta.vitest) {
         await expect(approval).resolves.toMatchObject({ allowed: false });
         expect(PgAssistant.items.map((i) => i.kind)).toEqual(["approval"]);
         expect(PgAssistant.endTurn(turn)).toBe(false);
+      });
+    });
+
+    describe("PgAssistant.addToolResult", () => {
+      const KEY = "sk-test-record-0123456789";
+
+      beforeEach(async () => {
+        (PgFs as unknown as { __files: Map<string, string> }).__files.clear();
+        PgAssistant.disconnect();
+        PgAssistant.closeThread();
+        PgAssistant.clear();
+        await PgAssistant.loadThread("records");
+      });
+
+      afterEach(async () => {
+        await settled();
+        PgAssistant.disconnect();
+        PgAssistant.closeThread();
+      });
+
+      const records = () =>
+        PgAssistant.items.flatMap((item) =>
+          isToolCallRecord(item) ? [item.call] : []
+        );
+
+      it("stores a tool's result as a record on a tool item", () => {
+        PgAssistant.addToolResult({
+          toolName: "read_file",
+          input: { path: "src/lib.rs" },
+          output: "fn main() {}",
+          failed: false,
+        });
+
+        const [item] = PgAssistant.items;
+        expect(item.kind).toBe("tool");
+        expect((item as { label: string }).label).toBe("read_file");
+        expect(records()).toEqual([
+          {
+            name: "read_file",
+            input: { path: "src/lib.rs" },
+            output: "fn main() {}",
+          },
+        ]);
+      });
+
+      it("marks a failed call", () => {
+        PgAssistant.addToolResult({
+          toolName: "read_file",
+          input: { path: "nope" },
+          output: "Not found",
+          failed: true,
+        });
+
+        expect(records()).toEqual([
+          {
+            name: "read_file",
+            input: { path: "nope" },
+            output: "Not found",
+            failed: true,
+          },
+        ]);
+      });
+
+      it("cuts a 10,000-character result to 4,000 and says 6,000 were cut", () => {
+        PgAssistant.addToolResult({
+          toolName: "read_file",
+          input: {},
+          output: "x".repeat(10_000),
+          failed: false,
+        });
+
+        expect(records()[0].output).toBe(
+          `${"x".repeat(4_000)} … [6000 characters cut]`
+        );
+      });
+
+      it("cuts a long input value and keeps the other fields whole", () => {
+        PgAssistant.addToolResult({
+          toolName: "write_file",
+          input: { path: "src/lib.rs", content: "y".repeat(3_000) },
+          output: "wrote src/lib.rs",
+          failed: false,
+        });
+
+        expect(records()[0].input).toEqual({
+          path: "src/lib.rs",
+          content: `${"y".repeat(1_000)} … [2000 characters cut]`,
+        });
+      });
+
+      it("replaces an input still over 4,000 characters with a note of its size", () => {
+        const input = { lines: Array.from({ length: 1_000 }, () => "abcdef") };
+
+        PgAssistant.addToolResult({
+          toolName: "probe",
+          input,
+          output: "ok",
+          failed: false,
+        });
+
+        expect(records()[0].input).toEqual({
+          omitted: `${JSON.stringify(input).length} characters of input`,
+        });
+      });
+
+      it("redacts the connection's key from a stored call", () => {
+        PgAssistant.connect({ id: "anthropic", apiKey: KEY });
+
+        PgAssistant.addToolResult({
+          toolName: "probe",
+          input: { token: KEY },
+          output: `echoed ${KEY}`,
+          failed: false,
+        });
+
+        expect(JSON.stringify(PgAssistant.items)).not.toContain(KEY);
+        expect(records()[0].output).toBe(`echoed ${REDACTED_KEY}`);
+      });
+
+      it("writes no record while a cut turn unwinds", () => {
+        const turn = new AbortController();
+        PgAssistant.beginTurn(turn);
+        PgAssistant.stopTurn();
+
+        PgAssistant.addToolResult({
+          toolName: "probe",
+          input: {},
+          output: "late",
+          failed: false,
+        });
+
+        expect(records()).toEqual([]);
+        PgAssistant.endTurn(turn);
       });
     });
 
