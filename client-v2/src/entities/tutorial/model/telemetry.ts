@@ -10,6 +10,13 @@ type TutorialEvents = {
    */
   tutorial_definition_rejected: { tutorial: string; errors: number };
   /**
+   * Opening a conversation tutorial created its workspace, so its intro card
+   * showed beside the finished program. Fires once per workspace: opening it
+   * again, or coming back to the intro through Start over, does not. Start
+   * itself is `tutorial_started`. `tutorial` is the slug.
+   */
+  tutorial_opened: { tutorial: string };
+  /**
    * The engine's `start` action: the intro card's Start, or, once the
    * composer lands (task 3.6), a start word. Fires once per start; Start
    * over then Start fires it again. `tutorial` is the slug.
