@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils"
    centre, not a resize. Tutorials without one keep the brand tile (TutorialCover) */
 const PIXEL = new Set(["hello-anchor", "lumberjack", "zero-copy"])
 
-export const hasPixelCover = (slug: string) => PIXEL.has(slug)
+// Off for now, at Almaz's ask (2 Nov): every tutorial shows its earlier cover again. The sprites stay
+// in PIXEL to bring back
+export const hasPixelCover = (slug: string) => false && PIXEL.has(slug)
 
 const src = (slug: string) => `${import.meta.env.BASE_URL}prototype/covers-v2/${slug}.png`
 
