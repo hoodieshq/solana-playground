@@ -10,18 +10,19 @@ the panel, and keeps a history whose links open each record's network.
 ### Requirement: The stage names who pays
 
 Before a deploy, the Deploy stage SHALL show one line naming the wallet that
-pays: "Deploys from your Playground wallet · {short address} · {balance} SOL",
+pays: "From your Playground wallet · {short address} · {balance} SOL",
 the address shortened in the middle. With no Playground wallet yet, the line
 SHALL read "Deploys from a Playground wallet created on your first deploy."
 The deploy action SHALL stay pressable without a wallet once the program is
-built. The deploy action and every line of the stage SHALL name the network
-capitalised ("Deploy to Devnet", "Deployed to Mainnet").
+built. Inside a sentence the deploy action and every line of the stage SHALL
+name the network in lower case ("Deploy to devnet", "Deployed to mainnet");
+standalone labels (pickers, chips, Explorer links) keep it capitalised.
 
 #### Scenario: No wallet yet (manual)
 
 - **WHEN** a browser with no Playground wallet opens the built Deploy stage
 - **THEN** the who-pays line says a wallet is created on the first deploy and
-  "Deploy to Devnet" is pressable
+  "Deploy to devnet" is pressable
 
 ### Requirement: A deploy from the stage creates the wallet it needs
 
@@ -33,7 +34,7 @@ terminal SHALL keep the terminal's connect question.
 
 #### Scenario: First deploy in a fresh browser (manual)
 
-- **WHEN** a fresh browser builds the program and presses "Deploy to Devnet"
+- **WHEN** a fresh browser builds the program and presses "Deploy to devnet"
 - **THEN** a Playground wallet exists afterwards and no wallet dialog or
   terminal question appeared
 
@@ -65,8 +66,8 @@ the stage SHALL show a "Not enough devnet SOL" card (`role="alert"`,
 balance, the amount needed, the wallet address with copy, the airdrop's
 reason, "Try again" (runs the deploy again) and "Open faucet" (opens
 `https://faucet.solana.com` in a new tab, devnet and testnet only). When the
-reason is that the user is signed out, the card SHALL offer "Sign in with
-GitHub" in place of "Try again". A deploy typed in the terminal SHALL keep
+reason is that the user is signed out, the card SHALL say "Sign in with GitHub
+to request devnet SOL." and offer "Sign in" in place of "Try again". A deploy typed in the terminal SHALL keep
 its airdrop question.
 
 #### Scenario: Airdrop refused (manual)
@@ -79,10 +80,10 @@ its airdrop question.
 ### Requirement: A failed last build asks in the panel
 
 When the last build failed and a deploy is started from the stage, the stage
-SHALL ask in a dialog titled "Your last build failed", with "Deploy last
+SHALL ask in a dialog titled "The last build failed", with "Deploy last
 build" and "Cancel", before anything is sent. "Cancel" SHALL stop the deploy
 with nothing sent and no failure shown; "Deploy last build" SHALL deploy the
-last successful build. The terminal SHALL NOT ask the same question for that
+last good build. The terminal SHALL NOT ask the same question for that
 run.
 
 #### Scenario: Cancel the stale deploy (manual)

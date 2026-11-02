@@ -195,6 +195,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     expect(screen.getByRole("alert").textContent).toContain(
       "Check it in Explorer before you send again."
     );
+    expect(screen.getByRole("alert").textContent).toContain("5igNaTuRe");
     expect(sendButton().hasAttribute("disabled")).toBe(true);
   });
 
