@@ -1292,7 +1292,10 @@ describe("POST /api/agent spend gate", () => {
 
     it.each([
       [500, `{"error":{"message":"bad key ${KEY}"}}`],
-      [401, `Incorrect API key provided: ${KEY.slice(0, 12)}****${KEY.slice(-10)}`],
+      [
+        401,
+        `Incorrect API key provided: ${KEY.slice(0, 12)}****${KEY.slice(-10)}`,
+      ],
       [403, `{"error":{"type":"forbidden","message":"key ${KEY} restricted"}}`],
       [402, `Payment required for ${KEY}`],
       [429, `rate limited: ${NEWCOMER_KEY}`],
