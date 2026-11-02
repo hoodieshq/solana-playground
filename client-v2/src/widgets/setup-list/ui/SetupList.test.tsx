@@ -135,7 +135,7 @@ it("ticks the wallet step with the short address", () => {
 it("ticks the network step with the cluster once a network was chosen", () => {
   setupMarks.mark("networkChosen");
   draw();
-  expect(screen.getByText("devnet")).toBeTruthy();
+  expect(screen.getByText("Devnet")).toBeTruthy();
 });
 
 it("starts a sign-in from its step", async () => {
