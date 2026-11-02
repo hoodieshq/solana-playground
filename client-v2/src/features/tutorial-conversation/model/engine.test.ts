@@ -23,8 +23,9 @@ vi.mock("@/entities/tutorial", async () => ({
 }));
 
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
+import { judgeGoal } from "./goals";
 import { memoryWorkspace, stubRunner } from "./ports";
-import type { Judge, Runner } from "./ports";
+import type { Runner } from "./ports";
 import { FINISH_DELAY_MS } from "./clock";
 import { parseProgress } from "./progress";
 import type { RunResult } from "./progress";
@@ -67,15 +68,6 @@ const setWorkspace = (name: string | null) => {
     name;
 };
 
-/** A goal passes on a result of its own kind, as 3.2's checks will insist */
-const byKind: Judge = (goal, result) => {
-  if (!result.ok) return false;
-  if (goal.kind === "build") return result.act === "build";
-  if (goal.kind === "deploy")
-    return result.act === "deploy" || result.act === "buildDeploy";
-  return result.act === "run" || result.act === "call";
-};
-
 const built: RunResult = {
   act: "build",
   ok: true,
@@ -98,6 +90,7 @@ const ran: RunResult = {
   seconds: 1.6,
   signatures: ["sigRun"],
   line: "Program log: Hello, World!",
+  called: [{ instruction: "hello", args: {} }],
 };
 const called: RunResult = {
   act: "call",
@@ -105,6 +98,7 @@ const called: RunResult = {
   seconds: 1.6,
   signatures: ["sigCall"],
   line: "Program log: Hello, Alex!",
+  called: [{ instruction: "hello", args: { name: "Alex" } }],
 };
 
 const open = (
@@ -112,7 +106,7 @@ const open = (
   runner: Runner = stubRunner([])
 ) => {
   setWorkspace(NAME);
-  sub = PgConversation.init({ workspace, runner, judge: byKind });
+  sub = PgConversation.init({ workspace, runner, judge: judgeGoal });
   return workspace;
 };
 
@@ -178,7 +172,7 @@ afterEach(async () => {
   sub = PgConversation.init({
     workspace: memoryWorkspace(),
     runner: stubRunner([]),
-    judge: byKind,
+    judge: judgeGoal,
   });
   await settle();
   close();

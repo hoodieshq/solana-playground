@@ -128,6 +128,12 @@ export interface BuildError {
   message: string;
 }
 
+/** One instruction a run invoked, with its argument values by name */
+export interface Called {
+  instruction: string;
+  args: Record<string, string>;
+}
+
 /**
  * The facts a run leaves behind, by act. These are the fields the spec's
  * result cards read; the run tickets (4.1 to 4.3) add to them, never rename.
@@ -165,6 +171,13 @@ export type RunResult =
       signatures: string[];
       /** The program log line the definition's pattern picked, if any */
       line: string | null;
+      /**
+       * Each instruction the run's transactions invoked on the tutorial's
+       * program, with its arguments as the deployed IDL decodes them. A call
+       * goal's arguments are checked here, not in the log: before the
+       * upgrade the deployed `hello` takes no `name`, so none is sent.
+       */
+      called: Called[];
     }
   | {
       act: "run" | "call";
