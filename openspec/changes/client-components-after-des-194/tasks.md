@@ -17,7 +17,8 @@
 ## 3. Lesson progress in the list (HOO-2057)
 
 - [x] 3.1 `ProjectEntry` carries lesson progress, `ProjectList` feeds it from
-  `useTutorialProgress`, and `BaseProjectList` draws "3/5" or a check with
+  `useTutorialProgress` (which now follows the open lesson's page from
+  memory), and `BaseProjectList` draws "3/5" or a check with
   its description; unit tests in `project-entries.ts`,
   `BaseProjectList.test.tsx` and `ProjectList.test.tsx` (independent of 1.1
   and 2.1)

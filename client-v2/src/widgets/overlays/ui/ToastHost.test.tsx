@@ -323,6 +323,23 @@ describe("the progress bar", () => {
     );
   });
 
+  it("should stop while the page is hidden, as Sonner's timer does", () => {
+    render(<ToastHost />);
+    show({ name: "demo", id: "h" });
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(barOf("message h")?.style.animationPlayState).toBe("paused");
+
+    hidden.mockReturnValue(false);
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(barOf("message h")?.style.animationPlayState).toBe("");
+  });
+
   it("should not show on a persistent toast", () => {
     render(<ToastHost />);
     show({ name: "demo", id: "p", duration: "persistent" });

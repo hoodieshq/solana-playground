@@ -6,7 +6,8 @@ A toast that closes by itself SHALL show a thin bar in the accent colour
 along its foot (`data-slot="toast-progress"`), full when the toast opens and
 empty when it closes, draining at an even pace over the toast's duration. The
 bar SHALL stop while the toast's timer is paused (the pointer over the
-toasts) and go on from there. A persistent toast SHALL show no bar. Under
+toasts, or the page hidden) and go on from there. A toast shown again by its
+id SHALL start its bar again from full, as its timer starts again. A persistent toast SHALL show no bar. Under
 reduced motion the bar SHALL NOT be drawn. The bar SHALL be hidden from
 assistive technology.
 
@@ -27,6 +28,11 @@ assistive technology.
   duration, then moves it away
 - **THEN** the bar stops at about half while the pointer rests and the toast
   closes when the bar runs out, not before
+
+#### Scenario: A toast shown again starts its bar again
+
+- **WHEN** the product shows a toast, then shows it again by the same id
+- **THEN** the toast's `toast-progress` bar is drawn anew, from full width
 
 #### Scenario: Reduced motion
 

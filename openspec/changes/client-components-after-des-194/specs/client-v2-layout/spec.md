@@ -37,6 +37,8 @@ marker sit, hidden with them on hover and focus. The row SHALL be described
 to assistive technology as "Page <page> of <pages>" or "Completed", and its
 name SHALL stay its accessible name. A project that is not a lesson SHALL show
 no progress. Progress whose saved page cannot be read SHALL show as page 1.
+The open lesson's row, and its card in the tutorials list, SHALL follow its
+page as the user turns it, without waiting for the page to be saved.
 
 #### Scenario: A lesson part way through
 
@@ -47,6 +49,11 @@ no progress. Progress whose saved page cannot be read SHALL show as page 1.
 
 - **WHEN** a user has finished Hello Anchor
 - **THEN** its row shows a check and is described as "Completed"
+
+#### Scenario: The open lesson's row follows its page
+
+- **WHEN** a user on page 2 of Hello Anchor goes on to page 3
+- **THEN** the Hello Anchor row shows "3/<pages>" without a reload
 
 #### Scenario: A project has no progress
 
