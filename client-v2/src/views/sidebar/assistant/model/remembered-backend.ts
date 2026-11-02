@@ -110,10 +110,12 @@ export const rememberBackend = (connection: Connection) => {
 };
 
 /**
- * Drop both. Disconnecting is the user saying not to reconnect.
+ * Drop the remembered choice and any connection an older build kept for this
+ * tab. Disconnecting is the user saying not to reconnect. The key in memory
+ * is dropped by `PgAssistant.disconnect`, which calls this.
  *
- * @returns whether the key is gone, so the caller can tell the user when it
- * is not
+ * @returns whether no key is left in this tab's storage, so the caller can
+ * tell the user when one is
  */
 export const forgetBackend = () => {
   attempt("forget the backend", () =>

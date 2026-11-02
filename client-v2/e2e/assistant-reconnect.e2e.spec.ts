@@ -291,6 +291,7 @@ test.describe("assistant-own-key", () => {
     page,
   }) => {
     await seedWorkspace(page, "own-key-change");
+    await connectOwn(page);
     await page.getByRole("button", { name: "More", exact: true }).click();
     await page
       .getByRole("menuitem", { name: /Connect a model…|Connection and key…/ })
@@ -298,24 +299,19 @@ test.describe("assistant-own-key", () => {
     const dialog = page.getByRole("dialog", { name: "Connect a model" });
     await expect(dialog.locator("#assistant-api-key")).toBeVisible(LONG);
 
-    // A key an older build kept for this tab, with nothing connected: the
-    // panel's mount must drop it, never reconnect it
-    await page.evaluate(
-      (c) => sessionStorage.setItem("assistant.connection", JSON.stringify(c)),
-      OWN
-    );
     // Folding the panel unmounts it and opening it mounts it again, and with
-    // it the reconnect; the dialog stays, since it lives outside the panel
+    // it the cleanup on mount; the dialog stays, since it lives outside the
+    // panel, and the live connection must stay with it
     const expand = page.locator('[aria-label="Expand assistant"]');
     await page.keyboard.press("ControlOrMeta+r");
     await expect(expand).toHaveCount(1);
     await page.keyboard.press("ControlOrMeta+r");
     await expect(expand).toHaveCount(0);
 
-    // A reconnect would be asynchronous, so give one a window to show itself
+    // A change would be asynchronous, so give one a window to show itself
     await page.waitForTimeout(QUIET_WINDOW_MS);
 
-    expect(await connected(page)).toBeNull();
+    expect(await connected(page)).toMatchObject({ id: "openai", apiKey: KEY });
     expect(
       await page.evaluate(
         () => (window as OwnWindow).__pgAssistant!.isPickingBackend

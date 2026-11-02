@@ -10,6 +10,13 @@ export const isDefaultBackend = (id: ModelProvider | undefined) =>
  * A provider owns its own message history and streams text into the store as it
  * arrives, so the UI does not need to know anything about the wire format.
  */
+/**
+ * Whether Delete my key can act, wherever it is offered (Settings, the
+ * assistant head's More): `none` while no backend holding the user's key is
+ * connected, `busy` while a turn is using the key, else `ready`
+ */
+export type KeyHold = "none" | "ready" | "busy";
+
 export interface Provider {
   readonly id: ModelProvider;
   /** Shown in the panel footer */

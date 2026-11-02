@@ -349,7 +349,8 @@ const holdsNewer = (
  *
  * The API key is held in memory only, so a reload asks for it again; it is
  * never written to browser storage (HOO-2423). See `remembered-backend` and
- * the spec `openspec/specs/assistant-own-key/spec.md`.
+ * the spec `assistant-own-key` (`openspec/specs/`, or the change
+ * `assistant-key-in-memory` until it is archived).
  * Conversation items are durable: the open thread is mirrored to IndexedDB on
  * every change under its own thread id, which `PgThreadIndex` maps from the
  * workspace, so a reload and a project switch both come back to the right
@@ -472,7 +473,10 @@ export class PgAssistant {
    *
    * What Delete my key does, in Settings and in the assistant head's More. If
    * a key an older build kept could not be removed from this tab's storage, a
-   * notice says how to get rid of it.
+   * notice in the panel says how to get rid of it.
+   *
+   * @returns whether no key is left in this tab's storage; Settings, which
+   * covers the panel and its notice, says so in its own row when it is not
    */
   static disconnect() {
     PgAssistant._connection = null;
@@ -481,7 +485,7 @@ export class PgAssistant {
     // next load would quietly undo it
     const forgotten = forgetBackend();
     PgAssistant.clear();
-    if (forgotten) return;
+    if (forgotten) return true;
 
     // `_emitOnly`, like `clear`: the notice is about this tab, and `_emit`
     // would write it over the stored conversation `clear` just left alone
@@ -492,6 +496,7 @@ export class PgAssistant {
       text: KEY_NOT_FORGOTTEN,
     });
     PgAssistant._emitOnly();
+    return false;
   }
 
   /** Every skill the server listed, on or off, in its order */

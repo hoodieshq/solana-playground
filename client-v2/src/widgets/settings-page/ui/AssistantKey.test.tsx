@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
   initTelemetry,
@@ -10,6 +10,7 @@ import {
 import { storedValues } from "../../../test-utils/stored-values";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import AssistantKey from "./AssistantKey";
+import { KEY_LEFT_IN_STORAGE } from "./BaseAssistantKey";
 
 const KEY = "sk-test-settings-0123456789";
 
@@ -69,4 +70,40 @@ it("waits while a turn is using the key", () => {
 
   act(() => PgAssistant.setStatus("idle"));
   expect(button().disabled).toBe(false);
+});
+
+it("drops a key an older build kept, as soon as the row shows", () => {
+  sessionStorage.setItem(
+    "assistant.connection",
+    JSON.stringify({ id: "anthropic", apiKey: KEY })
+  );
+  render(<AssistantKey phone={false} />);
+  expect(sessionStorage.getItem("assistant.connection")).toBeNull();
+  expect(screen.getByText(/No key entered/)).toBeTruthy();
+});
+
+it("says so when the key an older build kept cannot be removed", async () => {
+  PgAssistant.connect({ id: "anthropic", apiKey: KEY });
+  render(<AssistantKey phone={false} />);
+  sessionStorage.setItem(
+    "assistant.connection",
+    JSON.stringify({ id: "anthropic", apiKey: KEY })
+  );
+  // Neither the removal nor its blanking fallback goes through
+  for (const method of ["removeItem", "setItem"] as const) {
+    const original = Storage.prototype[method] as (...args: string[]) => void;
+    vi.spyOn(Storage.prototype, method).mockImplementation(function (
+      this: Storage,
+      ...args: string[]
+    ) {
+      if (this === sessionStorage) throw new Error("blocked");
+      original.apply(this, args);
+    } as never);
+  }
+
+  await userEvent.click(button());
+  vi.restoreAllMocks();
+
+  expect(screen.getByText(KEY_LEFT_IN_STORAGE)).toBeTruthy();
+  expect(PgAssistant.connection).toBeNull();
 });

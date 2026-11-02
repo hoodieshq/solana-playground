@@ -16,16 +16,16 @@ import {
 import { MenuItemText } from "@/shared/ui/menu-extras";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { headText } from "../model/head-label";
+import type { KeyHold } from "../../../views/sidebar/assistant/model/types";
 import type { HeadLabel } from "../model/head-label";
 import { OverflowTooltip } from "./OverflowTooltip";
 import { usePickedMenu } from "./use-picked-menu";
 
 /**
- * Delete my key in More: `none` while no backend holding the user's key is
- * connected (the item is not shown), `busy` while a turn runs (shown
- * disabled, since the turn is using the key)
+ * Delete my key in More, by `KeyHold`: not shown at `none`, shown disabled at
+ * `busy`, since the turn is using the key
  */
-export type DeleteKey = "none" | "ready" | "busy";
+export type DeleteKey = KeyHold;
 
 export interface BaseAssistantHeadProps {
   /** The model in use, in the head's words (`headLabel`) */
