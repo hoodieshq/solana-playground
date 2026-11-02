@@ -79,7 +79,9 @@ const press = async (name: string | RegExp) => {
 };
 
 const gistRequests = () =>
-  fetchSpy.mock.calls.filter(([url]) => String(url).includes("/api/gists"));
+  fetchSpy.mock.calls.filter(([url]: unknown[]) =>
+    String(url).includes("/api/gists")
+  );
 
 const reported = () => logs.entries.filter((entry) => entry.report);
 
