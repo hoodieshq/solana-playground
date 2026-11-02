@@ -643,3 +643,35 @@ function generateRandomInt(len: number) {
   const max = BigInt(new BN(new Array(len).fill(0xff)).toString()) / 2n;
   return PgCommon.generateRandomBigInt(-(max + 1n), max).toString();
 }
+
+if (import.meta.vitest) {
+  const { describe, expect, it } = import.meta.vitest;
+
+  describe("utils/program-interaction/idl-types", () => {
+    // Anchor's seed bytes, written out: little-endian two's complement
+    const SIGNED_SEEDS: Array<[string, string, string]> = [
+      ["i8", "-5", "fb"],
+      ["i8", "-128", "80"],
+      ["i8", "127", "7f"],
+      ["i16", "-5", "fbff"],
+      ["i16", "-1", "ffff"],
+      ["i16", "-32768", "0080"],
+      ["i16", "32767", "ff7f"],
+      ["i32", "0", "00000000"],
+      ["i32", "7", "07000000"],
+      ["i32", "-5", "fbffffff"],
+      ["i32", "-2147483648", "00000080"],
+      ["i64", "-5", "fb" + "ff".repeat(7)],
+      ["i64", "-9223372036854775808", "00".repeat(7) + "80"],
+      ["i64", "9223372036854775807", "ff".repeat(7) + "7f"],
+      ["i128", "-5", "fb" + "ff".repeat(15)],
+      ["i128", "-1", "ff".repeat(16)],
+      ["i128", "7", "07" + "00".repeat(15)],
+    ];
+
+    it.each(SIGNED_SEEDS)("writes %s %s as %s", (type, value, hex) => {
+      const { parse, toBuffer } = getIdlType(type as IdlType);
+      expect(toBuffer(parse(value)).toString("hex")).toBe(hex);
+    });
+  });
+}
