@@ -170,11 +170,12 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     tutorialWorkspaceTelemetry.track("tutorial_workspace_file_opened", { via });
   };
 
-  // ⌘E (Ctrl E off a Mac), even from the editor or the composer: Monaco's own
-  // ⌘E (find with the selection) loses to it here, as the spec lists it among
-  // the keys that fire from a text field. Not from the terminal, where Ctrl E
-  // is the shell's end of line, nor from a dialog, nor while a page covers the
-  // work (the frame is inert under it); a Control on a Mac stays the field's
+  // ⌘E (Ctrl E off a Mac), even from the editor, the composer or the tree's
+  // own popover: Monaco's own ⌘E (find with the selection) loses to it here,
+  // as the spec lists it among the keys that fire from a text field. Not from
+  // another dialog, nor while a page covers the work (the frame is inert
+  // under it), nor from the terminal off a Mac, where Ctrl E is the shell's
+  // end of line; a Control on a Mac stays the field's
   const toggleNow = useRef(toggleTree);
   toggleNow.current = toggleTree;
   useEffect(() => {
@@ -187,9 +188,9 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
       }
       if (e.repeat || e.isComposing) return;
       const target = e.target instanceof Element ? e.target : null;
-      if (target?.closest(".xterm, [role='dialog'], [role='alertdialog']")) {
-        return;
-      }
+      const dialog = target?.closest("[role='dialog'], [role='alertdialog']");
+      if (dialog && !dialog.querySelector("[role='tree']")) return;
+      if (!mac && target?.closest(".xterm")) return;
       if (box.current?.closest("[inert]")) return;
       e.preventDefault();
       e.stopPropagation();

@@ -127,7 +127,7 @@ describe("BaseWorkspaceHead", () => {
         .getAllByRole("button", { name: "Files" })
         .find((b) => b.hasAttribute("aria-expanded")) as HTMLElement;
     await userEvent.click(chevron());
-    const tree = await screen.findByRole("tree");
+    await screen.findByRole("tree");
     // Focus lands on the open file
     expect(document.activeElement?.textContent).toContain("client.ts");
     await userEvent.keyboard("{ArrowUp}");
@@ -138,7 +138,6 @@ describe("BaseWorkspaceHead", () => {
     expect(screen.queryByRole("tree")).toBeNull();
     expect(document.activeElement).toBe(chevron());
     expect(onPick).not.toHaveBeenCalled();
-    expect(tree).toBeTruthy();
 
     await userEvent.click(chevron());
     await screen.findByRole("tree");

@@ -171,10 +171,10 @@ the tree as a 220 px column left of the editor. The pin is hidden under
 
 A 28 px terminal bar SHALL stay at the workspace's foot with:
 
-- a status dot: idle, busy, ok or failed;
+- a status dot: idle, busy, ok, failed, or amber for a changed file;
 - the last status text: "Ready", "Build successful · IDL: 1 instruction ·
-  hello", "Deploying · <stage>", or in amber "<file> changed since the last
-  deploy";
+  hello", "Deploying" (with " · <stage>" once the deploy reports its
+  stages), or in amber "<file> changed since the last deploy";
 - ⌘J.
 
 Before anything has run, the drawer SHALL read "Nothing run yet. Builds,
@@ -265,7 +265,7 @@ Call button.
 - ⌥↑ ⌥↓ the previous and next step.
 
 None of them SHALL fire while focus is in a text field, except ⌘B, ⌘E and
-⌘J.
+⌘J. Off a Mac, Ctrl E in the terminal SHALL stay the shell's end of line.
 
 #### Scenario: Typing a digit in the composer
 

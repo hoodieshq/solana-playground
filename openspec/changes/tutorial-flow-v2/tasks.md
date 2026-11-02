@@ -76,7 +76,10 @@ for; tasks with "after nothing" start at once.
 - [ ] 3.5 The question card: picks, keys (1-3, H, S), "Not quite." and
       reasons, two-wrong outline, Hint (no model needed), Skip, Type it
       myself, the key line typed by hand, the right pick's write with its
-      wrote card, the expandable record, `tutorial_question_answered`.
+      wrote card, the written, arriving and landing lines passed to the
+      workspace (`TutorialWorkspace`'s `marks`, from the engine's `Wrote` and
+      `landingFor`; 3.3 landed without them), the expandable
+      record, `tutorial_question_answered`.
       Verify: component tests for the spec's wrong-then-right scenario and
       the typed-by-hand path (HOO-2353; fleet; M 1.5; after 2.2, 3.1)
 - [ ] 3.6 Composer and the live assistant in one thread: action words (and
