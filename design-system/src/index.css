@@ -26,6 +26,26 @@
   }
 }
 
+/* The page and its nav scroll natively but draw no bar: the nav marks where you are, and a bar beside
+   it read as a second rail. Anchors from the nav glide there, except with reduced motion. Scoped to
+   this page, so the prototypes that share this stylesheet keep their own scrolling */
+html:has([data-ds-aside]),
+[data-ds-aside] {
+  scrollbar-width: none;
+}
+html:has([data-ds-aside])::-webkit-scrollbar,
+[data-ds-aside]::-webkit-scrollbar {
+  display: none;
+}
+[data-ds-aside] {
+  overscroll-behavior: contain;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:has([data-ds-aside]) {
+    scroll-behavior: smooth;
+  }
+}
+
 /* Studio's bar, while it shows, lies over the top 34px of the page */
 html:has(.ribbon.studio-built):not(.studio-rib-off) body {
   padding-top: 34px;
