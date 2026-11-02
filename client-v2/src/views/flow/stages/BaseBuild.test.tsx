@@ -140,11 +140,7 @@ describe("BaseBuild", () => {
     expect(
       screen.getByText("First builds take longer. This one is running.")
     ).toBeTruthy();
-    expect(
-      screen.queryByText(
-        "This build is taking longer than usual. The server may be busy. It keeps running."
-      )
-    ).toBeNull();
+    expect(screen.queryByText(/taking longer than usual/)).toBeNull();
   });
 
   it("offers Deploy as the one brand button after a build", () => {

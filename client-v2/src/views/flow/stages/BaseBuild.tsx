@@ -220,6 +220,7 @@ const Unreached = (p: BaseBuildProps & { failure: BuildFailure | null }) => {
   return (
     <Surface
       icon={<CircleX className="text-error" />}
+      // Spec 08 ANY-00 ends the title with a full stop
       title={noAnswer ? "Build did not start" : "Could not build."}
       meta={msLabel(p.ms)}
       actions={<BuildButton p={p} label="Try again" />}
