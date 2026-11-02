@@ -63,8 +63,10 @@ export interface ConversationPorts {
   /** Required: a frame that forgets it fails to compile, rather than ship a
    * lesson whose every act fails with "not wired" */
   runner: Runner;
-  /** Required for the same reason: a judge that passed any ok result would
-   * pass step 4 on the upgrade before any call; `judgeGoal` is the one to wire */
+  /** Required, so a frame or a test says which judge it means. `judgeGoal`
+   * is the real one, and the store's fallback when a tutorial opens before
+   * `init`: a judge that passed any ok result would pass step 4 on the
+   * upgrade before any call */
   judge: Judge;
 }
 

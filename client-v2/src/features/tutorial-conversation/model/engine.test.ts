@@ -334,7 +334,8 @@ describe("Hello Anchor through the engine", () => {
       "tutorial_step_passed",
       "tutorial_finished",
     ]);
-    // Every step passed on its own act's real result, in the feed
+    // Every step passed on the real result of its own act; step 3's act is a
+    // client run, so its `via` is `client`
     expect(
       events.events
         .filter((e) => e.name === "tutorial_step_passed")
@@ -347,7 +348,9 @@ describe("Hello Anchor through the engine", () => {
         seconds: expect.any(Number),
       }))
     );
-    expect(events.events[5].params).toMatchObject({
+    expect(
+      events.events.find((e) => e.name === "tutorial_finished")?.params
+    ).toMatchObject({
       tutorial: "hello-anchor",
       seconds: expect.any(Number),
     });

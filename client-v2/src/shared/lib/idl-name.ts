@@ -1,7 +1,8 @@
 /**
  * Whether two IDL names (an instruction, an argument, an account) name the
- * same thing. Case- and underscore-blind: Anchor 0.30+ writes `greet_by_name`
- * as `greetByName` in the IDL it generates, while a lesson or a tutorial
+ * same thing. Case- and underscore-blind: an IDL spells `greet_by_name` in
+ * snake_case or camelCase depending on the Anchor version that wrote it, and
+ * a decoded call names it as the client does, while a lesson or a tutorial
  * definition names it as the Rust source does.
  */
 export const sameIdlName = (a: string, b: string): boolean =>

@@ -429,7 +429,8 @@ const passStep = (
         tutorial: ctx.slug,
         step: ctx.definition.steps.indexOf(step) + 1,
         via,
-        seconds: Math.round((at - from) / 1000),
+        // Two devices' clocks can disagree; a pass never takes negative time
+        seconds: Math.max(0, Math.round((at - from) / 1000)),
       },
     },
   ]);
@@ -853,9 +854,11 @@ if (import.meta.vitest) {
 
   describe("features/tutorial-conversation/model/reducer", () => {
     let hello: TutorialDefinition;
+    let judgeGoal: typeof import("./goals").judgeGoal;
     beforeAll(async () => {
       hello = (await import("../../../tutorials/hello-anchor/tutorial.json"))
         .default as unknown as TutorialDefinition;
+      judgeGoal = (await import("./goals")).judgeGoal;
     });
 
     const ctx = (): EngineContext => ({
@@ -1572,12 +1575,12 @@ if (import.meta.vitest) {
         expect(s4.progress.times["call-client"]).toMatchObject({
           via: "client",
         });
-        // The step's goal is the call, so a judge that matches kinds (as
-        // `judgeGoal` does) refuses the deploy and the lesson flows on to the call
+        // The step's goal is the call, so the real judge refuses the deploy
+        // and the lesson flows on to the call
         const strict: EngineContext = {
           definition: hello,
           slug: "hello-anchor",
-          judge: (goal, result) => result.ok && goal.kind === result.act,
+          judge: judgeGoal,
         };
         const flowed = reduce(strict, s4.state, {
           type: "ended",
@@ -1605,6 +1608,57 @@ if (import.meta.vitest) {
           beat: 4,
           fail: false,
         });
+        expect(
+          flowed.effects.filter(
+            (e) => e.kind === "event" && e.name === "tutorial_step_passed"
+          )
+        ).toEqual([]);
+
+        // A call the deployed program decodes with no `name` (before the
+        // upgrade) logs a line step 4's pattern also matches, and passes nothing
+        const call = (state: EngineState, at: number, args: Record<string, string>) => {
+          const acted = reduce(strict, state, {
+            type: "act",
+            beatId: "s4.call",
+            args,
+            at,
+          }).state;
+          return reduce(strict, acted, {
+            type: "ended",
+            beatId: "s4.call",
+            result: {
+              act: "call",
+              ok: true,
+              seconds: 1,
+              signatures: ["x"],
+              line: `Program log: Hello, ${args.name ?? "World"}!`,
+              called: [{ instruction: "hello", args }],
+            },
+            at: at + 1000,
+          });
+        };
+        const early = call(flowed.state, 20000, {});
+        expect(early.state.progress.passed).not.toContain("greet-by-name");
+        expect(early.effects).toEqual([]);
+
+        const named = call(early.state, 22000, { name: "Alex" });
+        expect(named.state.progress.passed).toContain("greet-by-name");
+        expect(
+          named.effects.filter(
+            (e) => e.kind === "event" && e.name === "tutorial_step_passed"
+          )
+        ).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_step_passed",
+            params: {
+              tutorial: "hello-anchor",
+              step: 4,
+              via: "chat",
+              seconds: 7,
+            },
+          },
+        ]);
       });
     });
 

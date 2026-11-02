@@ -16,8 +16,9 @@ const log = createLogger("tutorial-conversation:goals");
  *   whose IDL holds every instruction the goal names.
  * - `deploy`: a deploy that landed.
  * - `call`: a confirmed call of the goal's instruction carrying every
- *   argument the goal requires, each with a non-blank value, whose picked
- *   log line matches the goal's pattern. Arguments are read from what the
+ *   argument the goal requires, each with a non-blank value, and, when the
+ *   goal has a `log` pattern, a picked log line that matches it (no line
+ *   fails). Arguments are read from what the
  *   deployed program decoded, which is what keeps a call before the upgrade
  *   from passing step 4: its log `Hello, World!` matches `Hello, .+!` too.
  */
@@ -36,10 +37,19 @@ export const judgeGoal: Judge = (goal, result) => {
     case "call":
       return (
         (result.act === "run" || result.act === "call") &&
-        // A result saved before `called` existed has none, and passes nothing
-        (result.called ?? []).some((c) => callMeets(goal, c)) &&
+        result.called.some((c) => callMeets(goal, c)) &&
         (goal.log === undefined || logMatches(goal.log, result.line))
       );
+    default: {
+      // The loader drops a definition that fails `tutorial:check`, so a kind
+      // this client does not know is a definition that skipped it
+      const unknown: never = goal;
+      log.error("a step goal of a kind this client does not judge", {
+        report: true,
+        context: { goal: unknown },
+      });
+      return false;
+    }
   }
 };
 
@@ -54,7 +64,13 @@ const callMeets = (goal: CallGoal, called: Called): boolean =>
     )
   );
 
-/** Unanchored and case-blind, as `tutorial.schema.json`'s `pattern` and the check read it */
+/** Patterns already reported as broken, so a learner's retries report once */
+const reported = new Set<string>();
+
+/**
+ * Unanchored and case-blind, as `tutorial.schema.json`'s `pattern` says and
+ * `compiles` in the definition check reads it
+ */
 const logMatches = (pattern: string, line: string | null): boolean => {
   if (line === null) return false;
   try {
@@ -62,13 +78,18 @@ const logMatches = (pattern: string, line: string | null): boolean => {
   } catch (e) {
     // `tutorial:check` rejects such a pattern, so one here is a definition
     // that skipped the check: the step cannot pass, and the team must hear
-    log.error(e, { report: true, context: { pattern } });
+    // of it once
+    if (!reported.has(pattern)) {
+      reported.add(pattern);
+      log.error(e, { report: true, context: { pattern } });
+    }
     return false;
   }
 };
 
 if (import.meta.vitest) {
-  const { describe, it, expect } = import.meta.vitest;
+  const { describe, it, expect, beforeAll, beforeEach, afterEach } =
+    import.meta.vitest;
 
   // Hello Anchor's four goals, as its `tutorial.json` writes them
   const BUILD_HELLO: Goal = { kind: "build", instructions: ["hello"] };
@@ -119,6 +140,19 @@ if (import.meta.vitest) {
   });
 
   describe("features/tutorial-conversation/model/goals", () => {
+    let logger: typeof import("@/shared/lib/logger");
+    let logged: ReturnType<typeof import("@/shared/lib/logger").memoryProvider>;
+    const errors = () => logged.entries.filter((e) => e.level === "error");
+
+    beforeAll(async () => {
+      logger = await import("@/shared/lib/logger");
+    });
+    beforeEach(() => {
+      logged = logger.memoryProvider();
+      logger.initLogger({ providers: [logged] });
+    });
+    afterEach(() => logger.resetLogger());
+
     describe("build", () => {
       it("passes a build whose IDL holds the goal's instructions", () => {
         expect(judgeGoal(BUILD_HELLO, built(["hello"]))).toBe(true);
@@ -146,7 +180,13 @@ if (import.meta.vitest) {
         ).toBe(false);
       });
 
-      it("matches an instruction across the IDL's camelCase", () => {
+      it("needs every instruction the goal names", () => {
+        const goal: Goal = { kind: "build", instructions: ["hello", "bye"] };
+        expect(judgeGoal(goal, built(["hello"]))).toBe(false);
+        expect(judgeGoal(goal, built(["bye", "hello"]))).toBe(true);
+      });
+
+      it("matches an instruction across snake and camel spelling", () => {
         expect(
           judgeGoal(
             { kind: "build", instructions: ["greet_by_name"] },
@@ -253,15 +293,45 @@ if (import.meta.vitest) {
         ).toBe(true);
       });
 
-      it("fails, without throwing, a result saved before `called` existed", () => {
-        const old = {
-          act: "call",
-          ok: true,
-          seconds: 1,
-          signatures: ["sig"],
-          line: "Program log: Hello, World!",
-        } as unknown as RunResult;
-        expect(judgeGoal(CALL_HELLO, old)).toBe(false);
+      it("needs every required argument, each non-blank", () => {
+        const goal: Goal = {
+          kind: "call",
+          instruction: "hello",
+          args: ["name", "greeting"],
+        };
+        expect(
+          judgeGoal(goal, ran("call", [hello({ name: "Alex" })], null))
+        ).toBe(false);
+        expect(
+          judgeGoal(
+            goal,
+            ran("call", [hello({ name: "Alex", greeting: "" })], null)
+          )
+        ).toBe(false);
+        expect(
+          judgeGoal(
+            goal,
+            ran("call", [hello({ name: "Alex", greeting: "Hi" })], null)
+          )
+        ).toBe(true);
+      });
+
+      it("anchors `^` to the whole picked line, its `Program log: ` included", () => {
+        const line = "Program log: Hello, World!";
+        const anchored = (log: string): Goal => ({
+          kind: "call",
+          instruction: "hello",
+          log,
+        });
+        expect(
+          judgeGoal(anchored("^Hello"), ran("run", [hello({})], line))
+        ).toBe(false);
+        expect(
+          judgeGoal(
+            anchored("^Program log: Hello, World!$"),
+            ran("run", [hello({})], line)
+          )
+        ).toBe(true);
       });
 
       it("matches the log pattern without regard to case, as the schema says", () => {
@@ -273,14 +343,18 @@ if (import.meta.vitest) {
         ).toBe(true);
       });
 
-      it("fails, without throwing, a pattern that is not a regular expression", () => {
-        expect(
-          judgeGoal(
-            { kind: "call", instruction: "hello", log: "(" },
-            ran("call", [hello({})], "(")
-          )
-        ).toBe(false);
+      it("fails, without throwing, a pattern that is not a regular expression, and reports it once", () => {
+        const goal: Goal = { kind: "call", instruction: "hello", log: "(" };
+        expect(judgeGoal(goal, ran("call", [hello({})], "("))).toBe(false);
+        expect(judgeGoal(goal, ran("call", [hello({})], "("))).toBe(false);
+        expect(errors()).toHaveLength(1);
       });
+    });
+
+    it("fails, and reports, a goal of a kind it does not know", () => {
+      const unknown = { kind: "read" } as unknown as Goal;
+      expect(judgeGoal(unknown, built(["hello"]))).toBe(false);
+      expect(errors()).toHaveLength(1);
     });
   });
 }
