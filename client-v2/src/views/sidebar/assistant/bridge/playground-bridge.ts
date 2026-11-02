@@ -92,6 +92,8 @@ const toRelative = (fullPath: string) => {
 
 const summarizeIdl = (): IdlSummary | null => {
   const reading = PgProgramInfo.readIdl();
+  // TODO(HOO-1765 task 1.4): the refused branch has no unit test (the bridge
+  // reads the whole playground); `describeProject`'s test pins its wording
   if (reading?.kind === "refused") {
     const raw = PgProgramInfo.idl as {
       name?: unknown;

@@ -479,17 +479,29 @@ export class PgJsRuntime {
           });
         }
       } else if (PgProgramInfo.readIdl()?.kind === "refused") {
-        // Any `anchor.workspace.<Name>` reports why there is no program;
-        // `then` stays readable so awaiting the namespace does not throw
-        pkg.workspace = new Proxy(
-          {},
-          {
-            get: (_, prop) => {
-              if (typeof prop !== "string" || prop === "then") return;
-              throw new Error(PgProgramInfo.noCallableIdlMessage());
-            },
+        // The program's names under `anchor.workspace` report why there is no
+        // program; every other key reads as on a plain object.
+        // TODO(HOO-1765 task 1.4): no unit test drives `_overridePackage`
+        // (it needs the iframe runtime); the manual check on the preview runs
+        // a script against a refused IDL
+        const raw = PgProgramInfo.idl as { metadata?: { name?: unknown } };
+        const snakeCaseName = raw.metadata?.name;
+        if (typeof snakeCaseName === "string") {
+          pkg.workspace = {};
+          const names = new Set([
+            PgCommon.toPascalFromSnake(snakeCaseName),
+            PgCommon.toCamelFromSnake(snakeCaseName),
+            PgCommon.toKebabFromSnake(snakeCaseName),
+            snakeCaseName,
+          ]);
+          for (const name of names) {
+            Object.defineProperty(pkg.workspace, name, {
+              get: () => {
+                throw new Error(PgProgramInfo.noCallableIdlMessage());
+              },
+            });
           }
-        );
+        }
       }
     }
 
