@@ -76,8 +76,8 @@ const BaseSessionFooter = ({
               size="lg"
             />
           </span>
-          {/* "Devnet", as the prototype writes it; the name stays lower case
-              in the label the screen reader reads */}
+          {/* Already "Devnet", as the prototype writes it (`clusterName`);
+              the screen reader's label reads the same name */}
           <span className="truncate">{account.cluster.name}</span>
         </SidebarMenuButton>
       </SidebarMenuItem>

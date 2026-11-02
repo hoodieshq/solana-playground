@@ -376,6 +376,16 @@ if (import.meta.vitest) {
         }
       });
 
+      it("moves a profile on a public URL to the offered network", () => {
+        expect(
+          roundTrip(state(Endpoint.DEVNET, LOCAL_ENDPOINT)).connection.endpoint
+        ).toBe(PLATFORM_DEVNET);
+        expect(
+          roundTrip(state(Endpoint.MAINNET_BETA, LOCAL_ENDPOINT)).connection
+            .endpoint
+        ).toBe(PLATFORM_MAINNET);
+      });
+
       it("keeps Testnet, Localnet and Playnet on their own addresses", () => {
         for (const url of [
           Endpoint.TESTNET,

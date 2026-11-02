@@ -118,7 +118,7 @@ const deployBlockedReason = (p: BaseDeployProps) => {
 
 const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
   if (p.deploy === "running") return redeploy ? "Upgrading..." : "Deploying...";
-  const where = clusterName(p);
+  const where = deployNetwork(p);
   return redeploy ? `Redeploy to ${where}` : `Deploy to ${where}`;
 };
 
@@ -126,7 +126,7 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
  * The cluster in the deploy button's label and the stage's prose: "Mainnet"
  * for mainnet-beta; "the network" until the endpoint has been read
  */
-const clusterName = (p: BaseDeployProps) => networkName(p.cluster);
+const deployNetwork = (p: BaseDeployProps) => networkName(p.cluster);
 
 /** Who pays, before a deploy */
 const payerLine = (payer: DeployPayer | null) => {
@@ -146,7 +146,7 @@ const description = (p: BaseDeployProps, latest: DeployRecord | null) => {
   if (latest) {
     return "The program id stays constant across deploys; redeploying upgrades it in place.";
   }
-  return `Deploying sends the compiled program to ${clusterName(p)}.`;
+  return `Deploying sends the compiled program to ${deployNetwork(p)}.`;
 };
 
 /** An Explorer link whose text names the network it opens */
