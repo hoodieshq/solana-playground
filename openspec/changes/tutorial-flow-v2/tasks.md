@@ -53,7 +53,8 @@ for; tasks with "after nothing" start at once.
       `verify.ts` rather than extending the lessons type, `read` dropped,
       `tutorial_step_passed`.
       Verify: unit tests per goal, including a call before the upgrade that
-      does not pass the argument goal (HOO-1790; fleet; S 1; after 1.1)
+      does not pass the argument goal (HOO-1790; fleet; S 1; after 1.1;
+      plan: [plans/3.2-step-goals.md](plans/3.2-step-goals.md))
 - [ ] 3.3 The feed: intro card, dividers, step bar with its states and keys,
       say and quote, wrote card, the act card (stages, "n of m", the stage
       bar, disabling, call-act fields) and the result card shell, records,
