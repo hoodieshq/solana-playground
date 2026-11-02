@@ -69,7 +69,10 @@ export type FundingStop = DeployFundingError["detail"];
 export interface BaseDeployProps {
   /** The cluster's name, `null` until the endpoint has been read */
   cluster: string | null;
-  /** The last build succeeded, so there is something to deploy */
+  /**
+   * There is a binary to deploy: the last build succeeded, or it failed and
+   * an earlier one exists (the stage asks before deploying that one)
+   */
   built: boolean;
   /**
    * The last deploy's state. While one runs, a second press would pause it,

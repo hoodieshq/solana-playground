@@ -15,6 +15,8 @@ import type {
 } from "@coral-xyz/anchor/dist/cjs/idl";
 import { PublicKey } from "@solana/web3.js";
 
+import { createLogger } from "@/shared/lib/logger";
+
 import type {
   IdlV1,
   IdlV1AccountItem,
@@ -26,6 +28,8 @@ import type {
   IdlV1Type,
   IdlV1TypeDef,
 } from "./types";
+
+const log = createLogger("idl:to-legacy");
 
 /** A 1.x IDL the 0.29 client cannot call faithfully; `message` is the reason */
 export class IdlRefusal extends Error {}
@@ -434,8 +438,11 @@ const printable = (bytes: number[]): string | null => {
       Uint8Array.from(bytes)
     );
     return /^[^\p{Cc}\p{Cf}]+$/u.test(text) ? text : null;
-  } catch {
+  } catch (e) {
     // `fatal` throws on bytes that are not UTF-8: they are shown as bytes
+    log.debug("seed bytes are not UTF-8, shown as bytes", {
+      context: { error: String(e) },
+    });
     return null;
   }
 };

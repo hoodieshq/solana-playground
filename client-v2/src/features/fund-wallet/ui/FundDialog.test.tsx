@@ -12,9 +12,11 @@ import {
 
 const RECEIVER_ADDRESS = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";
 const PAYER_ADDRESS = "7Hq5aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789Xk2P";
+const OTHER_ADDRESS = "4Zr8aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789Mn3Q";
 
 /** A bridged wallet as `PgWallet.standardWallets` holds it */
 const makeWallet = (name: string) => {
+  const listeners = new Map<string, Set<() => void>>();
   const wallet = {
     name,
     icon: "data:image/svg+xml;base64,PHN2Zy8+",
@@ -24,6 +26,14 @@ const makeWallet = (name: string) => {
       wallet.connected = true;
       wallet.publicKey = { toBase58: () => PAYER_ADDRESS };
     }),
+    on: vi.fn((event: string, fn: () => void) => {
+      if (!listeners.has(event)) listeners.set(event, new Set());
+      listeners.get(event)?.add(fn);
+    }),
+    off: vi.fn((event: string, fn: () => void) => {
+      listeners.get(event)?.delete(fn);
+    }),
+    emit: (event: string) => listeners.get(event)?.forEach((fn) => fn()),
   };
   return wallet;
 };
@@ -253,6 +263,88 @@ describe("features/fund-wallet/ui/FundDialog", () => {
         params: { stage: "send", reason: "unconfirmed" },
       }),
     ]);
+  });
+
+  it("follows the payer's account when the wallet switches it", async () => {
+    await renderOpen();
+    await connectPhantom();
+    expect(screen.getByText("7Hq5…Xk2P")).toBeTruthy();
+
+    await act(async () => {
+      phantom.publicKey = { toBase58: () => OTHER_ADDRESS };
+      phantom.emit("connect");
+    });
+
+    expect(screen.getByText("4Zr8…Mn3Q")).toBeTruthy();
+    expect(screen.queryByText("7Hq5…Xk2P")).toBeNull();
+    expect(utils.PgConnection.current.getBalance).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not send from an account the user never saw", async () => {
+    await renderOpen();
+    await connectPhantom();
+    phantom.publicKey = { toBase58: () => OTHER_ADDRESS };
+
+    await act(async () => {
+      fireEvent.click(sendButton());
+    });
+
+    expect(transfer.sendFunds).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toContain(
+      "The wallet account changed"
+    );
+  });
+
+  it("keeps a send that was not confirmed across closing and reopening", async () => {
+    const { TransferNotConfirmedError } = await vi.importActual<
+      typeof import("../model/transfer")
+    >("../model/transfer");
+    transfer.sendFunds.mockRejectedValueOnce(
+      new TransferNotConfirmedError("5igNaTuRe", new Error("timed out"))
+    );
+    const view = render(<FundDialog open={true} onOpenChange={vi.fn()} />);
+    await act(async () => undefined);
+    await connectPhantom();
+    await act(async () => {
+      fireEvent.click(sendButton());
+    });
+
+    view.rerender(<FundDialog open={false} onOpenChange={vi.fn()} />);
+    view.rerender(<FundDialog open={true} onOpenChange={vi.fn()} />);
+    await act(async () => undefined);
+    await connectPhantom();
+
+    expect(screen.getByRole("alert").textContent).toContain("5igNaTuRe");
+    expect(sendButton().hasAttribute("disabled")).toBe(true);
+  });
+
+  it("keeps a send that settles as unconfirmed after the dialog was closed", async () => {
+    const { TransferNotConfirmedError } = await vi.importActual<
+      typeof import("../model/transfer")
+    >("../model/transfer");
+    let settle: (error: unknown) => void = () => undefined;
+    transfer.sendFunds.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        settle = reject;
+      })
+    );
+    const view = render(<FundDialog open={true} onOpenChange={vi.fn()} />);
+    await act(async () => undefined);
+    await connectPhantom();
+    await act(async () => {
+      fireEvent.click(sendButton());
+    });
+
+    view.rerender(<FundDialog open={false} onOpenChange={vi.fn()} />);
+    await act(async () => {
+      settle(new TransferNotConfirmedError("5igNaTuRe", new Error("late")));
+    });
+    view.rerender(<FundDialog open={true} onOpenChange={vi.fn()} />);
+    await act(async () => undefined);
+    await connectPhantom();
+
+    expect(screen.getByRole("alert").textContent).toContain("5igNaTuRe");
+    expect(sendButton().hasAttribute("disabled")).toBe(true);
   });
 
   it("says when a wallet answers without connecting", async () => {

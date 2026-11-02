@@ -16,6 +16,7 @@ import {
   InstructionValueGenerator,
   PgProgramInteraction,
 } from "../../../../../utils/program-interaction";
+import { hasInstructionErrors } from "./instruction-errors";
 import { useInstruction } from "./InstructionProvider";
 import { useIdl } from "../IdlProvider";
 
@@ -137,19 +138,7 @@ const InstructionInput: FC<React.PropsWithChildren<InstructionInputProps>> = ({
             }
           }
         },
-        checkErrors: () => {
-          return Object.values(instruction.values).reduce((acc, value) => {
-            if (Array.isArray(value)) {
-              acc ||= value.some(
-                (v) =>
-                  v.error ||
-                  (v.generator.type === "Custom" && v.generator.value === "")
-              );
-            }
-
-            return acc;
-          }, false);
-        },
+        checkErrors: () => hasInstructionErrors(instruction.values),
       });
 
       return instruction;

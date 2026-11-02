@@ -122,9 +122,10 @@ export const toStoredEndpoints = (
  * address again.
  *
  * A key resolves to the address the env provides now; a key whose option
- * is gone falls back to the default. A custom address, and a plain string
- * written before endpoints were stored as keys, come back untouched -- a
- * custom address may carry the user's own API token.
+ * is gone falls back to the default. A plain string written before
+ * endpoints were stored as keys resolves the same way when it is one of our
+ * addresses; a custom address comes back untouched -- it may carry the
+ * user's own API token.
  *
  * @param stored the settings `localStorage` holds
  * @param defaults the default settings
@@ -138,7 +139,14 @@ export const fromStoredEndpoints = <T extends State>(
   ENDPOINT_SETTINGS.reduce(
     (acc, id) =>
       mapSetting(acc, id, (value) => {
-        if (typeof value === "string") return value;
+        if (typeof value === "string") {
+          // A plain string is either one of our addresses, read back as its
+          // key resolves now (a public URL moves to the offered network), or
+          // a custom one, kept as is
+          const ours = options[id].find((o) => o.url === value);
+          if (!ours) return value;
+          return options[id].find((o) => o.key === ours.key)!.url;
+        }
 
         const { option, url } = (value ?? {}) as {
           option?: string;
@@ -384,6 +392,15 @@ if (import.meta.vitest) {
           roundTrip(state(Endpoint.MAINNET_BETA, LOCAL_ENDPOINT)).connection
             .endpoint
         ).toBe(PLATFORM_MAINNET);
+      });
+
+      it("moves a profile that stored a public URL as a plain string to the offered network", () => {
+        // Written before endpoints were stored as keys, and never saved since
+        const legacy = state(Endpoint.DEVNET, LOCAL_ENDPOINT);
+
+        const read = fromStoredEndpoints(legacy, defaults, options);
+        expect(read.connection.endpoint).toBe(PLATFORM_DEVNET);
+        expect(read.server.endpoint).toBe(LOCAL_ENDPOINT);
       });
 
       it("keeps Testnet, Localnet and Playnet on their own addresses", () => {

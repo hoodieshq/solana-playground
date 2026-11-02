@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 
+import { hasInstructionErrors } from "./instruction-errors";
 import InstructionInput from "./InstructionInput";
 import InstructionProvider from "./InstructionProvider";
 import {
@@ -65,6 +66,15 @@ const Instruction: FC<InstructionProps> = ({
       setDisabled(false);
     }
   }, [idlInstruction]);
+
+  // Check the values the instruction was restored with. The inputs report
+  // only what the user edits, so a valid form that comes back after a switch
+  // to another instruction would otherwise keep Call off until a field changes.
+  useEffect(() => {
+    setDisabled(hasInstructionErrors(instruction.values));
+    // Once, for the values the form mounted with
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Refresh instruction in order to pass the latest generators to
   // `InstructionInput`, otherwise the initial values are being generated

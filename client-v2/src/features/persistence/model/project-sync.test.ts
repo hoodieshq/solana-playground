@@ -788,7 +788,7 @@ describe("resolving a conflict", () => {
     // `{files: {}}` is a well-formed file map, and taking it is the same
     // deletion as a malformed one: the server refuses a full write of one,
     // but an older row, or a patch that removed every file, can hold one.
-    global.fetch = vi.fn().mockImplementation((url: string) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(((url: string) => {
       if (url === "/api/sync") return Promise.resolve(okProbe);
       return Promise.resolve({
         ok: true,
@@ -802,7 +802,7 @@ describe("resolving a conflict", () => {
           },
         }),
       });
-    }) as unknown as typeof fetch;
+    }) as unknown as typeof fetch);
     await signedIn();
     asWorkspace("p1", "mine");
     // Clean against an agreement, so the snapshot is the only thing that can
