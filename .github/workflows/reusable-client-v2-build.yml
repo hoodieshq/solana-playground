@@ -1,11 +1,24 @@
 name: client-v2 build
 
 # Asserts what the build configuration must emit, so a craco, webpack or minifier change that breaks it fails here.
+# Called by `client-v2-reusable.yml` after its `wasm` job.
 on:
   workflow_call:
+    inputs:
+      # `true` writes the wasm stubs (`USE_WASM_STUBS=true`) and leaves out the
+      # bundle check; `false` builds over the `wasm-pkg` artifact the calling
+      # workflow's `wasm` job uploaded.
+      use-wasm-stubs:
+        type: boolean
+        required: true
 
 permissions:
   contents: read
+
+# The exact string `true` opts in (`client-v2/scripts/wasm-stubs.sh`); an
+# empty value means the real packages.
+env:
+  USE_WASM_STUBS: ${{ inputs.use-wasm-stubs && 'true' || '' }}
 
 jobs:
   build:
@@ -32,11 +45,23 @@ jobs:
           cache: "yarn"
           cache-dependency-path: "client-v2/yarn.lock"
 
-      - name: Stub the unbuilt WASM packages
-        run: ../wasm/stub-packages.sh
+      # `yarn setup:with-stubs` without its `generate`, which compiles crates
+      # with cargo; `build-fast` runs the cheaper `generate-fast`.
+      - name: Stub the WASM packages and install
+        if: inputs.use-wasm-stubs
+        run: bash scripts/setup-wasm.sh
 
+      # The upload's root is `wasm/`, so the artifact holds `<pkg>/pkg/...`.
+      - uses: actions/download-artifact@v7
+        if: ${{ !inputs.use-wasm-stubs }}
+        with:
+          name: wasm-pkg
+          path: wasm
+
+      # A fresh runner has no `node_modules`, so nothing stale can survive.
       - name: Install
-        run: yarn install --frozen-lockfile
+        if: ${{ !inputs.use-wasm-stubs }}
+        run: yarn install --frozen-lockfile --check-files
 
       - name: Production build
         run: yarn build-fast
@@ -61,6 +86,11 @@ jobs:
               exit 1
             }
           done
+
+      # The deploy's own post-build check (`buildCommand` in `vercel.json`).
+      - name: Check the bundle carries the real wasm packages
+        if: ${{ !inputs.use-wasm-stubs }}
+        run: node scripts/wasm-stubs.mjs check-build build
 
       # `*.build-test.mjs` reads `build/`, so it runs here rather than in `test-api`.
       - name: Build tests
