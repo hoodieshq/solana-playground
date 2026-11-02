@@ -267,6 +267,39 @@ const toasterTheme = () =>
     .querySelector("[data-sonner-toaster]")!
     .getAttribute("data-sonner-theme");
 
+describe("the progress bar", () => {
+  const barOf = (text: string) =>
+    screen
+      .getByText(text)
+      .closest("[data-sonner-toast]")
+      ?.querySelector<HTMLElement>('[data-slot="toast-progress"]') ?? null;
+
+  it("should drain over the default duration, hidden from assistive technology", () => {
+    render(<ToastHost />);
+    show({ name: "demo", id: "d" });
+
+    const bar = barOf("message d");
+    expect(bar).toBeTruthy();
+    expect(bar?.style.animationDuration).toBe(`${DEFAULT_TOAST_DURATION}ms`);
+    expect(bar?.closest('[aria-hidden="true"]')).toBeTruthy();
+  });
+
+  it("should drain over a toast's own duration", () => {
+    render(<ToastHost />);
+    show({ name: "demo", id: "t", duration: 3000 });
+
+    expect(barOf("message t")?.style.animationDuration).toBe("3000ms");
+  });
+
+  it("should not show on a persistent toast", () => {
+    render(<ToastHost />);
+    show({ name: "demo", id: "p", duration: "persistent" });
+
+    expect(screen.getByText("message p")).toBeTruthy();
+    expect(barOf("message p")).toBeNull();
+  });
+});
+
 describe("the toaster's theme", () => {
   // The host is still mounted here and its observer reports in a microtask
   afterEach(async () => {

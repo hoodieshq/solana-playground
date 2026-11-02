@@ -14,6 +14,7 @@ import { PgView } from "@/utils/view";
 import { DEFAULT_TOAST_DURATION } from "@/utils/view";
 import type { ToastId, ToastOptions, ToastRequest } from "@/utils/view";
 import { overlayTelemetry } from "../model/telemetry";
+import { ToastProgress } from "./ToastProgress";
 
 const log = createLogger("overlays:toast-host");
 
@@ -105,12 +106,14 @@ export const ToastHost = () => {
     // A random small int could repeat and silently replace a live toast
     const id = options?.id ?? uuid();
 
+    const duration = durationOf(name, options?.duration);
     // The component gets the toast's id, so it can close itself
     toast(
       <ToastBoundary id={id} name={name}>
         {PgView.normalizeElement(elementable, { ...props?.componentProps, id })}
+        {Number.isFinite(duration) && <ToastProgress duration={duration} />}
       </ToastBoundary>,
-      { id, duration: durationOf(name, options?.duration) }
+      { id, duration }
     );
     overlayTelemetry.track("overlay_toast_shown", { name });
   }, []);
