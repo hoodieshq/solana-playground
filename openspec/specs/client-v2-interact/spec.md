@@ -11,11 +11,11 @@ before on the same network.
 When the Interact stage has a program to call, its head SHALL show the program
 id shortened in the middle (first four and last four characters joined by
 "…") with a copy button labelled "Copy program id" that copies the full id,
-and the network name.
+and the network name, capitalised ("Devnet", "Mainnet" for mainnet-beta).
 
 #### Scenario: A deployed program (manual)
 - **WHEN** a program is deployed on devnet and the person opens Interact
-- **THEN** the head shows "Program", the shortened id, a "Copy program id" button and "devnet"
+- **THEN** the head shows "Program", the shortened id, a "Copy program id" button and "Devnet"
 
 ### Requirement: Instruction chips pick one form
 The stage SHALL show one chip per IDL instruction, in IDL order, as a
