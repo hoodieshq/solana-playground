@@ -15,10 +15,16 @@ import {
 // A session the test moves by hand: who is signed in, and its listeners
 const session = vi.hoisted(() => {
   const listeners = new Set<() => void>();
+  const state: { user: { login: string } | null } = { user: null };
   return {
-    user: null as { login: string } | null,
+    get user() {
+      return state.user;
+    },
+    set user(user: { login: string } | null) {
+      state.user = user;
+    },
     listeners,
-    get: vi.fn(() => session.user),
+    get: vi.fn(() => state.user),
     signIn: vi.fn(() => Promise.resolve()),
     signInState: vi.fn(() => ({ status: "idle" })),
     onDidChange: vi.fn((cb: () => void) => {
