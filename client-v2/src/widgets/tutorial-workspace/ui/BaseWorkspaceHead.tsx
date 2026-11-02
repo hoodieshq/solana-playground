@@ -94,12 +94,17 @@ const useEdges = (strip: RefObject<HTMLDivElement | null>, count: number) => {
   return edges;
 };
 
-/** A fade over the last 2rem at each edge that hides tabs */
+/**
+ * A fade over the last 2rem at each edge that hides tabs. A mask reads only
+ * alpha, so the opaque stops take the text colour: any opaque colour would do
+ */
 const fade = (edges: { left: boolean; right: boolean }) => {
   if (!edges.left && !edges.right) return undefined;
   const mask = `linear-gradient(to right, ${
-    edges.left ? "transparent, #000 2rem" : "#000"
-  }, ${edges.right ? "#000 calc(100% - 2rem), transparent" : "#000"})`;
+    edges.left ? "transparent, currentColor 2rem" : "currentColor"
+  }, ${
+    edges.right ? "currentColor calc(100% - 2rem), transparent" : "currentColor"
+  })`;
   return { maskImage: mask, WebkitMaskImage: mask } as CSSProperties;
 };
 

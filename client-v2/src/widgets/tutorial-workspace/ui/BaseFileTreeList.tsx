@@ -70,6 +70,8 @@ const BaseFileTreeList: FC<BaseFileTreeListProps> = ({ rows, onPick }) => {
             data-file={row.path}
             aria-selected={row.open}
             disabled={waiting}
+            // The docked tree is narrow enough to cut the note short
+            title={waiting ? `Created in step ${row.waiting}` : undefined}
             onClick={() => onPick(row.path)}
             style={indent}
             className={cn(
@@ -84,10 +86,11 @@ const BaseFileTreeList: FC<BaseFileTreeListProps> = ({ rows, onPick }) => {
               aria-hidden="true"
               className="size-[15px] shrink-0 text-subtle"
             />
-            <span className="truncate">{row.name}</span>
+            {/* The name keeps its letters; the note beside it gives way */}
+            <span className="max-w-[60%] shrink-0 truncate">{row.name}</span>
             {/* Not there yet, said once in words: no fade, no lock */}
             {waiting && (
-              <span className="ml-auto pl-3 text-caption text-muted-foreground">
+              <span className="ml-auto min-w-0 truncate pl-3 text-caption text-muted-foreground">
                 Created in step {row.waiting}
               </span>
             )}

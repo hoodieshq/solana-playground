@@ -105,7 +105,11 @@
 }
 @keyframes pg-arrive {
   from {
-    background-color: rgb(20 241 149 / 0.18);
+    background-color: color-mix(
+      in oklab,
+      var(--color-success) 18%,
+      transparent
+    );
   }
 }
 .pg-arrive-0 {
