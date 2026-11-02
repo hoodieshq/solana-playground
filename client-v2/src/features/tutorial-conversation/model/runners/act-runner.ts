@@ -12,7 +12,11 @@ export type ActRun = Runner["run"];
  * call HOO-2357). An act with none yet answers a failed result that says so,
  * so a lesson reaching it shows a failed card rather than hang.
  */
-export const actRunner = (runs: Partial<Record<Act, ActRun>>): Runner => ({
+export const actRunner = (
+  runs: Partial<Record<Act, ActRun>>,
+  recognise?: Runner["recognise"]
+): Runner => ({
+  recognise,
   run: (act, input, onStage) => {
     const run = runs[act];
     if (!run) {

@@ -9,7 +9,7 @@ import type { Judge, Runner, Workspace } from "./ports";
 import { WorkspaceMovedError } from "./real-workspace";
 import { freshProgress, parseProgress } from "./progress";
 import type { ConversationProgress, PassedVia, RunResult } from "./progress";
-import { INITIAL_ENGINE_STATE, reduce, stepOfBeat } from "./reducer";
+import { INITIAL_ENGINE_STATE, actOf, reduce, stepOfBeat } from "./reducer";
 import type { Action, Effect, EngineContext, EngineState } from "./reducer";
 import { tutorialTelemetry } from "./telemetry";
 import { view } from "./view";
@@ -246,6 +246,8 @@ export class PgConversation {
     await PgConversation._persisting.get(name);
 
     let progress: ConversationProgress = freshProgress();
+    /** Acts the save holds in flight: this load interrupts them */
+    let inFlight: string[] = [];
     let loadFailed = false;
     let reason: string | null = null;
     const path = storagePath(name);
@@ -286,6 +288,7 @@ export class PgConversation {
             loadFailed = true;
           } else {
             progress = parsed;
+            inFlight = PgConversation._inFlight(loaded);
           }
         }
       }
@@ -312,6 +315,74 @@ export class PgConversation {
     } else {
       // A later failed load of this tutorial is told again
       PgConversation._told.delete(`load:${name}`);
+      if (inFlight.length) void PgConversation._afterReload(name, inFlight);
+    }
+  }
+
+  /** Beat ids whose last saved run is still `started`, read from the raw save */
+  private static _inFlight(loaded: unknown): string[] {
+    const runs =
+      typeof loaded === "object" && loaded !== null
+        ? (loaded as { runs?: unknown }).runs
+        : undefined;
+    if (typeof runs !== "object" || runs === null) return [];
+    return Object.entries(runs as Record<string, unknown>)
+      .filter(([, rs]) => {
+        const last = Array.isArray(rs) ? rs.at(-1) : undefined;
+        return (
+          typeof last === "object" &&
+          last !== null &&
+          (last as { status?: unknown }).status === "started"
+        );
+      })
+      .map(([beatId]) => beatId);
+  }
+
+  /**
+   * The runs a reload interrupted: the save is written back at once, so they
+   * read as interrupted (and are measured) once, not on every load. A deploy
+   * that landed before the reload is recognised from the chain and posts its
+   * result; every other run is measured as interrupted.
+   */
+  private static async _afterReload(name: string, beatIds: string[]) {
+    PgConversation._persist(name, PgConversation._state.engine.progress);
+    const runner = PgConversation._ports?.runner;
+    const interrupted: string[] = [];
+    for (const beatId of beatIds) {
+      const run = PgConversation._state.engine.progress.runs[beatId]?.at(-1);
+      const act = PgConversation._state.context
+        ? actOf(PgConversation._state.context.definition, beatId)
+        : null;
+      let result: RunResult | null = null;
+      if (run?.status === "interrupted" && act && runner?.recognise) {
+        try {
+          result = await runner.recognise(act, run.at);
+        } catch (e) {
+          // The chain could not be read: the card stays interrupted, and the
+          // learner runs it again, which upgrades the same program
+          log.warn(`Could not look up an interrupted ${act} of ${name}`, {
+            context: { reason: String(e) },
+          });
+        }
+      }
+      if (PgExplorer.currentWorkspaceName !== name) return;
+      if (result) {
+        PgConversation._dispatch({
+          type: "recognised",
+          beatId,
+          result,
+          at: Date.now(),
+        });
+      } else {
+        interrupted.push(beatId);
+      }
+    }
+    if (interrupted.length) {
+      PgConversation._dispatch({
+        type: "interrupted",
+        beatIds: interrupted,
+        at: Date.now(),
+      });
     }
   }
 

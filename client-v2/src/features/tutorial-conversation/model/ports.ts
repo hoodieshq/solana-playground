@@ -49,6 +49,12 @@ export interface Runner {
     input: RunInput,
     onStage: (stage: RunStage) => void
   ): Promise<RunResult>;
+  /**
+   * A run a reload interrupted, looked up where it would have landed: the
+   * result it had, or null when it did not land or the act cannot tell
+   * (only a deploy can, from the chain). `startedAt` is the run's start, ms
+   */
+  recognise?(act: Act, startedAt: number): Promise<RunResult | null>;
 }
 
 /** A run that could not happen, as that act's failed result */

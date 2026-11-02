@@ -102,6 +102,12 @@ export type Action =
       at: number;
     }
   /**
+   * A load found these acts' runs in flight in the save: a reload
+   * interrupted them (`parseProgress`). Only measured; the cards read the
+   * interrupted records themselves
+   */
+  | { type: "interrupted"; beatIds: string[]; at: number }
+  /**
    * A run a reload interrupted, found landed on the chain after the load:
    * its result posts as if the run had ended, rather than the interrupted card
    */
@@ -201,32 +207,34 @@ const ACTION_OF: Record<Act, ActionRunParams["action"]> = {
   call: "call",
 };
 
-/** The `tutorial_action_run` event of a run that ended with `result` */
-export const actionRunOf = (
-  run: { slug: string; step: number; act: Act; took: number },
-  result: RunResult
-): Effect => {
-  let outcome: ActionRunParams["outcome"] = result.ok ? "ok" : "failed";
+/** A run's outcome as `tutorial_action_run` names it */
+const outcomeOf = (result: RunResult): ActionRunParams["outcome"] => {
+  if (result.ok) return "ok";
   if (
-    !result.ok &&
     (result.act === "deploy" || result.act === "buildDeploy") &&
     result.reason !== "failed"
   ) {
-    outcome = result.reason;
+    return result.reason;
   }
-  return {
-    kind: "event",
-    name: "tutorial_action_run",
-    params: {
-      tutorial: run.slug,
-      step: run.step,
-      action: ACTION_OF[run.act],
-      outcome,
-      // Two devices' clocks can disagree; a run never takes negative time
-      seconds: Math.max(0, Math.round(run.took / 1000)),
-    },
-  };
+  return "failed";
 };
+
+/** The `tutorial_action_run` event of one run */
+export const actionRunOf = (
+  run: { slug: string; step: number; act: Act; took: number },
+  outcome: ActionRunParams["outcome"]
+): Effect => ({
+  kind: "event",
+  name: "tutorial_action_run",
+  params: {
+    tutorial: run.slug,
+    step: run.step,
+    action: ACTION_OF[run.act],
+    outcome,
+    // Two devices' clocks can disagree; a run never takes negative time
+    seconds: Math.max(0, Math.round(run.took / 1000)),
+  },
+});
 
 /** The reduction with one more effect after its own */
 const withEffect = (reduced: Reduced, effect: Effect): Reduced => ({
@@ -262,6 +270,15 @@ export const stepOfBeat = (
   definition: TutorialDefinition,
   beatId: string
 ): Step | null => locate(definition, beatId)?.step ?? null;
+
+/** The act a beat runs, or null when the beat is not an act */
+export const actOf = (
+  definition: TutorialDefinition,
+  beatId: string
+): Act | null => {
+  const found = locate(definition, beatId);
+  return found && isAct(found.beat) ? found.beat.act : null;
+};
 
 const stepAt = (definition: TutorialDefinition, cursor: Cursor): Step | null =>
   cursor.kind === "step"
@@ -800,7 +817,7 @@ export const reduce = (
           act: beat.act,
           took,
         },
-        result
+        outcomeOf(result)
       );
       let record: RunRecord;
       if (result.ok) {
@@ -851,6 +868,25 @@ export const reduce = (
         withProgress(cleared, flowed.progress, flowed.effects),
         measured
       );
+    }
+
+    case "interrupted": {
+      const effects = action.beatIds.flatMap((beatId): Effect[] => {
+        const found = locate(definition, beatId);
+        if (!found || !isAct(found.beat)) return [];
+        return [
+          actionRunOf(
+            {
+              slug: ctx.slug,
+              step: definition.steps.indexOf(found.step) + 1,
+              act: found.beat.act,
+              took: 0,
+            },
+            "interrupted"
+          ),
+        ];
+      });
+      return { state, effects };
     }
 
     case "recognised": {
@@ -1552,30 +1588,49 @@ if (import.meta.vitest) {
 
       it("names a deploy's outcome by its reason", () => {
         expect(
-          actionRunOf(
-            { slug: "hello-anchor", step: 2, act: "buildDeploy", took: 4400 },
-            {
-              act: "buildDeploy",
-              ok: false,
-              seconds: 4,
-              reason: "no_funds",
-              message: "429",
-              balance: 0,
-              cost: 1,
-              address: "w",
-            }
-          )
-        ).toEqual({
-          kind: "event",
-          name: "tutorial_action_run",
-          params: {
-            tutorial: "hello-anchor",
-            step: 2,
-            action: "build_deploy",
-            outcome: "no_funds",
+          outcomeOf({
+            act: "buildDeploy",
+            ok: false,
             seconds: 4,
-          },
+            reason: "no_funds",
+            message: "429",
+            balance: 0,
+            cost: 1,
+            address: "w",
+          })
+        ).toBe("no_funds");
+        expect(
+          outcomeOf({
+            act: "deploy",
+            ok: false,
+            seconds: 0,
+            reason: "no_wallet",
+            message: "No wallet",
+          })
+        ).toBe("no_wallet");
+        expect(outcomeOf(DEPLOYED)).toBe("ok");
+      });
+
+      it("measures acts a reload interrupted, and nothing else", () => {
+        const r = reduce(ctx(), INITIAL_ENGINE_STATE, {
+          type: "interrupted",
+          beatIds: ["s2.deploy", "s1.q1", "gone"],
+          at: 1,
         });
+        expect(r.state).toBe(INITIAL_ENGINE_STATE);
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_action_run",
+            params: {
+              tutorial: "hello-anchor",
+              step: 2,
+              action: "deploy",
+              outcome: "interrupted",
+              seconds: 0,
+            },
+          },
+        ]);
       });
 
       it("emits tutorial_step_passed once per step, with how and how long", () => {

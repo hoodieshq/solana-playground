@@ -12,11 +12,15 @@ import {
   PgWeb3,
 } from "../../../../utils";
 import type { Wallet } from "../../../../utils";
+import { createLogger } from "@/shared/lib/logger";
 import { actRunner } from "./act-runner";
 import type { ActRun } from "./act-runner";
 import { runDeploy } from "./deploy";
+import { recogniseDeploy } from "./recognise";
 import type { DeployPort, OnChain } from "./deploy";
 import type { FundingChain } from "./fund";
+
+const log = createLogger("tutorial-conversation:deploy");
 
 /** The faucet amount on devnet, in whole SOL (`PgConnection.getAirdropAmount`) */
 const DEVNET_FAUCET_SOL = 5;
@@ -201,18 +205,50 @@ export const realDeployPort = (): DeployPort => {
 };
 
 /** The deploy act and the build-and-deploy act, on devnet */
-export const runDeployOnDevnet: ActRun = (act, _input, onStage) =>
-  runDeploy(
+export const runDeployOnDevnet: ActRun = async (act, _input, onStage) => {
+  const result = await runDeploy(
     realDeployPort(),
     act === "buildDeploy" ? "buildDeploy" : "deploy",
     onStage
   );
+  // The reason and the chain's message only: never a key or the wallet
+  if (!result.ok && "reason" in result) {
+    log.warn(`A tutorial ${act} stopped: ${result.reason}`, {
+      context: { message: result.message },
+    });
+  }
+  return result;
+};
 
 /**
  * The runner the tutorial frame passes to `PgConversation.init`. The acts
  * whose tickets have not landed answer "not wired yet".
  */
-export const tutorialRunner = actRunner({
-  deploy: runDeployOnDevnet,
-  buildDeploy: runDeployOnDevnet,
-});
+export const tutorialRunner = actRunner(
+  {
+    deploy: runDeployOnDevnet,
+    buildDeploy: runDeployOnDevnet,
+  },
+  async (act, startedAt) => {
+    if (act !== "deploy" && act !== "buildDeploy") return null;
+    if (PgConnection.cluster !== "devnet") return null;
+    return recogniseDeploy({
+      act,
+      programId: PgProgramInfo.pk?.toBase58() ?? null,
+      startedAt,
+      signatures: async (programId) =>
+        (
+          await PgConnection.current.getSignaturesForAddress(pk(programId), {
+            limit: 2,
+          })
+        ).map((s) => ({
+          signature: s.signature,
+          blockTime: s.blockTime ?? null,
+          failed: s.err !== null,
+        })),
+      instructions: (PgProgramInfo.idl?.instructions ?? []).map(
+        (ix) => ix.name
+      ),
+    });
+  }
+);
