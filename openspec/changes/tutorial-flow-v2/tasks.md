@@ -33,7 +33,8 @@ for; tasks with "after nothing" start at once.
       bar and drawer with its states and auto-open rules, the editor's
       written, arriving, landing, error and busy lines. Verify: unit tests
       for the line states and the tree keys (HOO-2349; fleet; M 1.5;
-      after nothing; mounts in 2.1's slot)
+      after nothing; mounts in 2.1's slot;
+      plan: [plans/2.2-tutorial-workspace.md](plans/2.2-tutorial-workspace.md))
 - [ ] 2.3 Docs as read-only tabs: the definition's docs list and its
       Markdown, the tree's `Docs` folder, the closable doc tab with its link
       to the source page, assistant links that open it, docs in the phone's
