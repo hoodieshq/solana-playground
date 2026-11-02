@@ -70,13 +70,9 @@ test("a lesson step is finished by the toolchain, not by a click", async ({
     .click();
   await expect(home(page)).toBeHidden();
 
-  // Open lands on upstream's own About/Start screen for a lesson tutorial
-  // that has never been started -- Start is what creates the workspace
-  // (`PgTutorial.start()` -> `PgExplorer.createWorkspace()`) and is what
-  // flips `LessonRoute` over to the lesson chrome. `exact` keeps the
-  // locator off any other name holding "Start", such as Connect a model's
-  // own Start while that dialog is open.
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  // Opening creates the workspace (`openOnIntro` -> `PgTutorial.start()` ->
+  // `PgExplorer.createWorkspace()`): Hello Anchor has a definition, so it has
+  // no About page, and `LessonRoute` shows the lesson chrome at once.
 
   // The rail switches to the lesson's steps, and the band names step 1.
   // `hello-anchor.ts` has four steps, so this is also a count check.

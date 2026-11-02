@@ -12,8 +12,9 @@ const rows = (page: Page) =>
   page.locator('[data-slot="step-rail"] [data-slot="step-rail-item"]');
 
 /**
- * Home -> Open Hello Anchor -> Start, as `lesson-path` does.
- * `Start` creates the workspace and flips the route to the lesson chrome.
+ * Home -> Open Hello Anchor, as `lesson-path` does. Opening creates the
+ * workspace (Hello Anchor has a definition, so no About page) and the route
+ * shows the lesson chrome.
  */
 const startHelloAnchor = async (page: Page) => {
   // No default backend, whatever the dev server is configured with
@@ -30,7 +31,6 @@ const startHelloAnchor = async (page: Page) => {
     })
     .click();
   await expect(home(page)).toBeHidden();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
   await expect(bandOrFold(page)).toBeVisible();
 };
 
@@ -295,7 +295,9 @@ test.describe("client-v2-lessons", () => {
     }
     // Each chip is its tooltip's trigger, which takes over its data-slot
     const chips = page.locator('[data-slot="composer-context"] > *');
-    await expect(chips).toHaveText(["Step 1 of 4", "lib.rs", "1 file"]);
+    // Two files: the workspace opens on the intro's preview, the finished
+    // program with its client
+    await expect(chips).toHaveText(["Step 1 of 4", "lib.rs", "2 files"]);
   });
 
   test("client-v2-lessons: The band and the bar on a phone", async ({
