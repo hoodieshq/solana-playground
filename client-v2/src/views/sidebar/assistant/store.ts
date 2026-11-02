@@ -349,8 +349,7 @@ const holdsNewer = (
  *
  * The API key is held in memory only, so a reload asks for it again; it is
  * never written to browser storage (HOO-2423). See `remembered-backend` and
- * the spec `assistant-own-key` (`openspec/specs/`, or the change
- * `assistant-key-in-memory` until it is archived).
+ * the spec `openspec/specs/assistant-own-key/spec.md`.
  * Conversation items are durable: the open thread is mirrored to IndexedDB on
  * every change under its own thread id, which `PgThreadIndex` maps from the
  * workspace, so a reload and a project switch both come back to the right
