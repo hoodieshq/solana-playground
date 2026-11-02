@@ -14,7 +14,7 @@ export const server = [
     name: "Build server",
     description: "Build server URL",
     // The list lives beside the default so it cannot offer the upstream
-    // host the default avoids (D30)
+    // host the default avoids
     values: [...SERVER_ENDPOINT_OPTIONS],
     default: defaultServerEndpoint({
       REACT_APP_SERVER_URL: SERVER_URL,

@@ -10,7 +10,7 @@ export const FOUNDATION_ENDPOINT =
  * URL field comes after these, from the setting itself.
  *
  * Upstream's own backend, `api.solpg.io`, is not offered: it is Acheron's
- * capacity, not Solana's (D30), and whoever needs it enters it as a
+ * capacity, not Solana's, and whoever needs it enters it as a
  * custom server.
  */
 export const SERVER_ENDPOINT_OPTIONS: ReadonlyArray<{
