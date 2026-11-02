@@ -1556,7 +1556,7 @@ test("client-v2-layout: A cluster that is down", async ({
   await page.reload();
 
   const row = nav(page).getByRole("button", {
-    name: "Change cluster, currently devnet, down",
+    name: "Change cluster, currently Devnet, down",
   });
   await expect(row).toBeVisible({ timeout: 15_000 });
   await account(page).click();
@@ -1564,7 +1564,7 @@ test("client-v2-layout: A cluster that is down", async ({
     .getByRole("menu", { name: "Account" })
     .getByRole("menuitem")
     .first();
-  await expect(first).toContainText("devnet is not answering");
+  await expect(first).toContainText("Devnet is not answering");
   await first.click();
   const network = page
     .getByRole("region", { name: "Settings" })
@@ -1610,7 +1610,7 @@ test("a cluster that does not answer is down", async ({ seededPage: page }) => {
 
   await expect(
     nav(page).getByRole("button", {
-      name: "Change cluster, currently devnet, down",
+      name: "Change cluster, currently Devnet, down",
     })
   ).toBeVisible({ timeout: 15_000 });
 });
@@ -1633,13 +1633,13 @@ test("a stalled cluster that moves again is not down", async ({
   });
   await page.reload();
   await expect(clusterRow(page)).toHaveAccessibleName(
-    "Change cluster, currently devnet, down",
+    "Change cluster, currently Devnet, down",
     { timeout: 15_000 }
   );
 
   moving = true;
   await expect(clusterRow(page)).toHaveAccessibleName(
-    "Change cluster, currently devnet",
+    "Change cluster, currently Devnet",
     { timeout: 20_000 }
   );
 });
@@ -1650,13 +1650,13 @@ test("a cluster that answers again is not down", async ({
   await refuseCluster(page);
   await page.reload();
   await expect(clusterRow(page)).toHaveAccessibleName(
-    "Change cluster, currently devnet, down",
+    "Change cluster, currently Devnet, down",
     { timeout: 15_000 }
   );
 
   await page.unrouteAll();
   await expect(clusterRow(page)).toHaveAccessibleName(
-    "Change cluster, currently devnet",
+    "Change cluster, currently Devnet",
     { timeout: 20_000 }
   );
 });
@@ -1709,7 +1709,7 @@ test("playnet is not down while it starts", async ({ seededPage: page }) => {
   // recovers must fail here, not be waited out
   for (let i = 0; i < 12; i++) {
     expect(await clusterRow(page).getAttribute("aria-label")).toBe(
-      "Change cluster, currently playnet"
+      "Change cluster, currently Playnet"
     );
     await page.waitForTimeout(500);
   }
