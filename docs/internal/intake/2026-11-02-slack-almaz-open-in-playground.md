@@ -21,8 +21,8 @@ None.
 - How it relates to the TypeScript project import already in scope.
 
 ## Actions
-- Create the build ticket for "Open in Playground", checking DES-203 and the TS import work first -> Lead, pending.
-- Almaz's "can we build it" question: estimate and place in the plan before Breakpoint -> planner.
+- Create the build ticket for "Open in Playground", checking DES-203 and the TS import work first -> lead, filed as [HOO-2507](https://linear.app/solana-fndn/issue/HOO-2507) Open the docs quickstart in Playground from a link and run it (High, Slava).
+- Almaz's "can we build it" question: estimate and place in the plan before Breakpoint -> planner, placed as D-docsopen, 1.5 bd.
 
 ## Update 2026-11-02 19:05: Cat's answers from the customer chat
 Raw: `.claude/intake/raw/2026-11-02-slack-cat-open-in-playground-answers.md`. Slack thread of 30 Oct in ext-solana-playground.
