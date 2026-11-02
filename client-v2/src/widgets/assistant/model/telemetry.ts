@@ -8,7 +8,7 @@ export type AssistantEvents = {
   assistant_model_picked: { provider: ModelProvider; via: "menu" | "dialog" };
   /** The user changed the reasoning effort in the composer's menu. */
   assistant_effort_changed: { effort: Effort };
-  /** The Connect dialog opened; `via` says whether from the head's More, the model chip, a send with nothing connected or the Get set up checklist. */
+  /** The Connect dialog opened; `via` says whether from the head's More, the model chip, a send with nothing connected, the Get set up checklist or the status indicators' Connect a model (`widgets/status`). */
   assistant_connect_opened: {
     via: "menu" | "model" | "send" | "setup" | "status";
   };
