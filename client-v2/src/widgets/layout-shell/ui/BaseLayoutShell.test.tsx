@@ -271,10 +271,10 @@ it("should hand the files column no toggle in the work group, from 768 px up", (
   const { rerender } = render(
     <BaseLayoutShell {...props("wide", { files })} />
   );
-  expect(files).toHaveBeenLastCalledWith({ isMobile: false });
+  expect(files).toHaveBeenLastCalledWith({ isMobile: false, pinned: false });
   files.mockClear();
   rerender(<BaseLayoutShell {...props("compact", { files })} />);
-  expect(files).toHaveBeenLastCalledWith({ isMobile: false });
+  expect(files).toHaveBeenLastCalledWith({ isMobile: false, pinned: false });
 });
 
 it("should keep a folded console mounted", () => {
@@ -1336,6 +1336,17 @@ describe("in a tutorial", () => {
     expect(screen.queryByText("stage tabs")).toBeNull();
     expect(screen.queryByText("assistant slot")).toBeNull();
     expect(screen.getByText("hint slot")).toBeTruthy();
+  });
+
+  it("holds the files column open in the frame, whatever was saved, and pins it", () => {
+    const files = vi.fn(() => <aside>files slot</aside>);
+    const shell = inTutorial("wide", tutorialNav("rail"), {
+      filesOpen: false,
+      files,
+    });
+    render(<BaseLayoutShell {...shell} />);
+    expect(screen.getByText("files slot")).toBeTruthy();
+    expect(files).toHaveBeenLastCalledWith({ isMobile: false, pinned: true });
   });
 
   it("keeps today's layout below a wide window, which no source draws", () => {

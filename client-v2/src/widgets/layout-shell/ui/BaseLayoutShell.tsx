@@ -112,7 +112,14 @@ export type NavStock =
  */
 export type FilesStock =
   | { isMobile: true; toggle: () => void }
-  | { isMobile: false };
+  | {
+      isMobile: false;
+      /**
+       * Held open by a tutorial's frame, which has no stage bar to reopen it
+       * from: the column draws no fold control of its own then
+       */
+      pinned: boolean;
+    };
 
 /**
  * What the assistant is handed to widen itself: the panel sized to
@@ -508,19 +515,25 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   // layout, which snapped it open to its minimum when a drag of the
   // assistant's edge reflowed the work area. Opening mounts it at the width it
   // last had.
-  const filesShown = props.filesState.open;
+  // In a tutorial's frame the column is held open whatever was saved: the
+  // frame has no stage bar, so nothing there could open it again (until the
+  // workspace's tree, task 2.2, replaces it). A fold there is not saved.
+  const filesState: PanelState = tutorialLayout
+    ? { open: true, onOpenChange: () => undefined }
+    : props.filesState;
+  const filesShown = filesState.open;
   // A drag that folds the open column is the one fold left to the library
   useEffect(() => {
     if (!filesShown) return;
     const panel = filesRef.current;
     const folded = foldedOf(panel);
     if (!panel || folded === undefined) return;
-    if (folded === !props.filesState.open) return;
-    if (props.filesState.open) panel.resize(filesOpenSize.current);
+    if (folded === !filesState.open) return;
+    if (filesState.open) panel.resize(filesOpenSize.current);
     else panel.collapse();
     // The width is read, not a trigger, as the assistant's viewport above
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.filesState.open, filesRef, foldedOf]);
+  }, [filesState.open, filesRef, foldedOf]);
   useEffect(() => {
     // The column mounts again when shown, or on the way back from the Sheet,
     // and settles again
@@ -654,7 +667,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
               settle(
                 {
                   panel: filesRef.current,
-                  state: props.filesState,
+                  state: filesState,
                   openSize: filesOpenSize.current,
                   settledOnce: filesSettled,
                   // Beside the chat the group is narrower, so its share is not the
@@ -685,7 +698,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             }
           }}
         >
-          {props.files({ isMobile: false })}
+          {props.files({ isMobile: false, pinned: tutorialLayout })}
         </ResizablePanel>
       )}
       {filesShown && <ResizableHandle />}

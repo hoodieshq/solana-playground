@@ -351,7 +351,7 @@ it("should go back to the saved navigation on a wide screen", () => {
   expect(toggled()).toEqual([]);
 });
 
-it("should leave the assistant alone on Ctrl+R in a tutorial's frame, and fold the files column on Cmd+E", () => {
+it("should leave the saved layout alone on Ctrl+R and Cmd+E in a tutorial's frame, which holds the files column open", () => {
   render(
     shellTree(undefined, {}, undefined, {
       chat: <section>chat</section>,
@@ -359,9 +359,9 @@ it("should leave the assistant alone on Ctrl+R in a tutorial's frame, and fold t
     })
   );
   press({ key: "r", ctrlKey: true });
-  expect(toggled()).toEqual([]);
   press({ key: "e", metaKey: true });
-  expect(toggled()).toEqual([{ panel: "files", open: false, via: "key" }]);
+  expect(toggled()).toEqual([]);
+  expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
 });
 
 it("should toggle the assistant by Ctrl+R", () => {
