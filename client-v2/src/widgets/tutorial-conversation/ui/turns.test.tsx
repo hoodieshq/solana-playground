@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -172,10 +172,36 @@ describe("BaseWroteCard", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Reset lib.rs to this step's start" })
     );
+    // Asked first: nothing restarts until the dialog's Reset
+    expect(onReset).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", {
+      name: "Reset lib.rs to this step's start?",
+    });
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Reset" })
+    );
     expect(onReset).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(
       screen.getByRole("button", { name: "Show lines 9 to 10 in src/lib.rs" })
     ).toBeTruthy();
+  });
+
+  it("restarts nothing when the Reset is cancelled", async () => {
+    const onReset = vi.fn();
+    render(
+      <BaseWroteCard
+        wrote={{ file: "src/lib.rs", lines: [9], appended: true }}
+        failed={false}
+        preview={["x"]}
+        onShow={vi.fn()}
+        onReset={onReset}
+      />
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^Reset lib/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onReset).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("keeps the note but offers no Reset once its step is a record", () => {
@@ -528,9 +554,10 @@ describe("TurnView", () => {
     return handlers;
   };
 
-  it("restarts the step from an appended block's Reset while the step is on", async () => {
+  it("restarts the step from an appended block's confirmed Reset while the step is on", async () => {
     const handlers = drawWrote([], false);
     await userEvent.click(screen.getByRole("button", { name: /^Reset/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Reset" }));
     expect(handlers.restartStep).toHaveBeenCalledTimes(1);
   });
 

@@ -162,7 +162,9 @@ light the lines again. A write that creates a file SHALL show "Created
 <path>" with a "New file" tag. A block that cannot land in place (the learner
 changed the code around it) SHALL be appended at the end. Its card then reads
 "I put it at the end: your own lines are kept." and offers "Reset <file> to
-this step's start" while the step has not passed. Reset SHALL put the step
+this step's start" while the step has not passed. Reset SHALL ask first
+("Reset <file> to this step's start?", Cancel or Reset). A confirmed Reset
+SHALL put the step
 back as it was entered: its files as the step starts them, a file the step
 creates taken away, and its beats played again from the first, so the
 learner sees what they saw on entering it.
@@ -383,6 +385,10 @@ The tutorial slice SHALL emit:
   - `step`;
   - `source`: `typed`, or `chip` when a finish chip is pressed (the event
     fires for chips too, though their answer needs no model).
+- `tutorial_step_reset` when a confirmed Reset on an appended wrote card
+  puts the live step back as it was entered, with:
+  - `tutorial`;
+  - `step`: 1 to 6.
 - `tutorial_step_jumped` when a step bar segment, an item of its narrow
   menu, or ⌥↑ / ⌥↓ moves the feed to a step's divider, with:
   - `tutorial`;

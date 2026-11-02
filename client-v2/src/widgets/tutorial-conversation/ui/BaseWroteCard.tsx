@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { ArrowUpRight, FileCode, FilePlus2, TriangleAlert } from "lucide-react";
 
 import type { Wrote } from "@/features/tutorial-conversation";
 import { Button } from "@/shared/ui/button";
 import { Tag } from "@/shared/ui/tag";
+import BaseResetStepDialog from "./BaseResetStepDialog";
 
 export interface BaseWroteCardProps {
   /** Null when the block could not be written (`failed`) */
@@ -14,8 +16,8 @@ export interface BaseWroteCardProps {
   onShow: (file: string, line: number) => void;
   /**
    * Put the step back as it was entered, for a block that went to the end
-   * of the file. Absent once the step has passed, where the card is a
-   * record and offers no Reset.
+   * of the file, once the learner confirms. Absent once the step has passed,
+   * where the card is a record and offers no Reset.
    */
   onReset?: () => void;
   /** An act runs: Reset waits for it */
@@ -44,7 +46,8 @@ export const rangeOf = (lines: readonly number[]) => {
  * "Created <path>" with "New file"; a write that failed says the block is not
  * in the file. It stays a link once it is a record. A block the learner's own
  * lines kept from its place went to the end of the file: the card says so
- * under it and offers Reset beside the note, outside the card's button.
+ * under it and offers Reset beside the note, outside the card's button;
+ * Reset asks before it restarts the step.
  */
 const BaseWroteCard = ({
   wrote,
@@ -54,6 +57,7 @@ const BaseWroteCard = ({
   onReset,
   resetDisabled = false,
 }: BaseWroteCardProps) => {
+  const [confirming, setConfirming] = useState(false);
   if (failed || !wrote) {
     return (
       <p
@@ -145,12 +149,20 @@ const BaseWroteCard = ({
             variant="outline"
             size="xs"
             disabled={resetDisabled}
-            onClick={onReset}
+            onClick={() => setConfirming(true)}
           >
             Reset {baseName(wrote.file)} to this step&apos;s start
           </Button>
         )}
       </div>
+      {onReset && (
+        <BaseResetStepDialog
+          open={confirming}
+          onOpenChange={setConfirming}
+          file={baseName(wrote.file)}
+          onConfirm={onReset}
+        />
+      )}
     </div>
   );
 };

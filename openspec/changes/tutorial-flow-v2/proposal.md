@@ -78,7 +78,7 @@ wallet. A step passes on what actually happened.
   - tutorials without a definition keep upstream's pages, unchanged.
 - **Telemetry:** the tutorial slice adds the events in the `tutorial-conversation`
   and `tutorial-runs` specs (open, start, question answered, question asked,
-  action run, step passed, step jumped, step back, finish, definition
+  action run, step passed, step reset, step jumped, step back, finish, definition
   rejected). It renames or removes none.
 
 ## Capabilities

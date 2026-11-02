@@ -137,6 +137,12 @@ export type Effect =
   | { kind: "event"; name: "tutorial_started"; params: { tutorial: string } }
   | {
       kind: "event";
+      name: "tutorial_step_reset";
+      /** `step` is 1-based */
+      params: { tutorial: string; step: number };
+    }
+  | {
+      kind: "event";
       name: "tutorial_finished";
       params: { tutorial: string; seconds: number };
     }
@@ -906,6 +912,14 @@ export const reduce = (
           // A file the step creates, such as client.ts, goes until its
           // write comes round again
           remove: Object.keys(step.target).filter((f) => !(f in step.start)),
+        },
+        {
+          kind: "event",
+          name: "tutorial_step_reset",
+          params: {
+            tutorial: ctx.slug,
+            step: definition.steps.findIndex((s) => s.id === step.id) + 1,
+          },
         },
         ...flowed.effects,
       ]);
@@ -2190,6 +2204,11 @@ if (import.meta.vitest) {
           kind: "restore",
           files: step1.start,
           remove: [],
+        });
+        expect(r.effects[1]).toEqual({
+          kind: "event",
+          name: "tutorial_step_reset",
+          params: { tutorial: "hello-anchor", step: 1 },
         });
         // Its first beat, the boilerplate's write, comes round again
         expect(r.effects).toContainEqual(

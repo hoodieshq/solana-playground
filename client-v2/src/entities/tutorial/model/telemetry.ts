@@ -41,6 +41,11 @@ type TutorialEvents = {
     seconds: number;
   };
   /**
+   * Reset on an appended wrote card put the live step back as it was
+   * entered: its start files, its beats played again. `step` is 1-based.
+   */
+  tutorial_step_reset: { tutorial: string; step: number };
+  /**
    * The feed moved to a step's divider: a step bar segment, an item of the
    * bar's narrow menu, or ⌥↑ / ⌥↓. `step` is the divider's step and `from`
    * the live step, both 1-based. Not sent for the back pill, which sends
