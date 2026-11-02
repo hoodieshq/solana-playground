@@ -174,7 +174,11 @@ export type RunResult =
       programId: string;
       signature: string;
       upgraded: boolean;
-      lamports: number;
+      /**
+       * Lamports the deploy took from the wallet; null for a deploy
+       * recognised from the chain after a reload, whose cost is not known
+       */
+      lamports: number | null;
       instructions: string[];
     }
   | {

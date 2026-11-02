@@ -240,7 +240,7 @@ if (import.meta.vitest) {
 
     /** A port over a scripted chain: balances are read in order, the last repeating */
     const portOf = (fake: Fake) => {
-      const reads = [...fake.balances];
+      const reads = fake.balances.slice();
       let id = fake.id;
       const lines: string[] = [];
       const port: DeployPort = {

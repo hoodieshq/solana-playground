@@ -98,7 +98,7 @@ if (import.meta.vitest) {
       airdrop: FundingChain["airdrop"] = async () => "sig",
       confirmed = true
     ) => {
-      const reads = [...balances];
+      const reads = balances.slice();
       return {
         balance: vi.fn(async () =>
           reads.length > 1 ? reads.shift()! : reads[0]

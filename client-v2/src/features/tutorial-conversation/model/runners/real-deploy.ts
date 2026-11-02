@@ -12,6 +12,9 @@ import {
   PgWeb3,
 } from "../../../../utils";
 import type { Wallet } from "../../../../utils";
+import { actRunner } from "./act-runner";
+import type { ActRun } from "./act-runner";
+import { runDeploy } from "./deploy";
 import type { DeployPort, OnChain } from "./deploy";
 import type { FundingChain } from "./fund";
 
@@ -196,3 +199,20 @@ export const realDeployPort = (): DeployPort => {
     now: () => Date.now(),
   };
 };
+
+/** The deploy act and the build-and-deploy act, on devnet */
+export const runDeployOnDevnet: ActRun = (act, _input, onStage) =>
+  runDeploy(
+    realDeployPort(),
+    act === "buildDeploy" ? "buildDeploy" : "deploy",
+    onStage
+  );
+
+/**
+ * The runner the tutorial frame passes to `PgConversation.init`. The acts
+ * whose tickets have not landed answer "not wired yet".
+ */
+export const tutorialRunner = actRunner({
+  deploy: runDeployOnDevnet,
+  buildDeploy: runDeployOnDevnet,
+});

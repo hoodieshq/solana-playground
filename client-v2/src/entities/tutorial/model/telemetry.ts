@@ -63,6 +63,20 @@ type TutorialEvents = {
    * 0 before Start.
    */
   tutorial_step_back: { tutorial: string; step: number };
+  /**
+   * An act or a Call panel call ended, or a reload interrupted one. `action`
+   * is `build`, `deploy`, `build_deploy`, `run`, `call` (the call act) or
+   * `call_panel`; `outcome` is `ok`, `failed`, `interrupted`, `no_wallet`
+   * or `no_funds` (the deploy's airdrop was refused); `step` is 1-based and
+   * `seconds` the run's whole seconds.
+   */
+  tutorial_action_run: {
+    tutorial: string;
+    step: number;
+    action: "build" | "deploy" | "build_deploy" | "run" | "call" | "call_panel";
+    outcome: "ok" | "failed" | "interrupted" | "no_wallet" | "no_funds";
+    seconds: number;
+  };
 };
 
 /**
