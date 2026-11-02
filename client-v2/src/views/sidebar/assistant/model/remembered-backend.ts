@@ -20,7 +20,7 @@ export { REMEMBERED_BACKEND_KEY } from "./remembered-backend-key";
  * for it again (HOO-2423, the 29 Oct security review). Builds before that
  * kept the whole connection, key included, in `sessionStorage` under
  * `CONNECTION_KEY`; `dropKeptKey` removes what they left. See the change
- * `openspec/changes/assistant-key-in-memory/design.md`.
+ * `openspec/changes/archive/2026-11-03-assistant-key-in-memory/design.md`.
  *
  * Every access is guarded. Storage throws rather than returning `null` with
  * site data blocked, and the panel has to open either way. A failure is

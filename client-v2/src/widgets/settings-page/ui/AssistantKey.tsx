@@ -3,7 +3,10 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { dropKeptKey } from "../../../views/sidebar/assistant/model/remembered-backend";
 import { PROVIDERS } from "../../../views/sidebar/assistant/model/types";
 import type { KeyHold } from "../../../views/sidebar/assistant/model/types";
-import { PgAssistant } from "../../../views/sidebar/assistant/store";
+import {
+  KEY_NOT_FORGOTTEN,
+  PgAssistant,
+} from "../../../views/sidebar/assistant/store";
 import { settingsTelemetry } from "../model/telemetry";
 import BaseAssistantKey from "./BaseAssistantKey";
 
@@ -36,7 +39,7 @@ const AssistantKey = ({ phone }: { phone: boolean }) => {
   return (
     <BaseAssistantKey
       state={state}
-      stuck={stuck}
+      stuck={stuck ? KEY_NOT_FORGOTTEN : null}
       phone={phone}
       onDelete={() => {
         setStuck(!PgAssistant.disconnect());

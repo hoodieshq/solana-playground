@@ -1,5 +1,4 @@
 import type { KeyHold } from "../../../views/sidebar/assistant/model/types";
-import { KEY_NOT_FORGOTTEN } from "../../../views/sidebar/assistant/store";
 import { Button } from "@/shared/ui/button";
 import BaseSettingRow from "./BaseSettingRow";
 
@@ -9,10 +8,11 @@ export type AssistantKeyState = KeyHold;
 interface BaseAssistantKeyProps {
   state: AssistantKeyState;
   /**
-   * The last delete left a key an older build kept in this tab's storage:
-   * the row says so, since the panel's notice sits under Settings
+   * Set when the last delete left a key an older build kept in this tab's
+   * storage: what the row says in place of its description, since the
+   * panel's notice sits under Settings
    */
-  stuck: boolean;
+  stuck: string | null;
   onDelete: () => void;
   phone: boolean;
 }
@@ -33,7 +33,7 @@ const BaseAssistantKey = ({
 }: BaseAssistantKeyProps) => (
   <BaseSettingRow
     name="Your model key"
-    description={stuck ? KEY_NOT_FORGOTTEN : DESCRIPTIONS[state]}
+    description={stuck ?? DESCRIPTIONS[state]}
     phone={phone}
     control={
       <Button
