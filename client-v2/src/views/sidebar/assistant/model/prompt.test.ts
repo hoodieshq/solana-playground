@@ -5,7 +5,8 @@ const store = vi.hoisted(() => ({
 vi.mock("../store", () => store);
 vi.mock("../bridge/playground-bridge", () => ({ realBridge: {} }));
 
-import { systemPrompt } from "./prompt";
+import { describeProject, systemPrompt } from "./prompt";
+import type { PlaygroundBridge } from "../bridge/playground-bridge";
 
 // `prompt.ts` imports the assistant context as `.md`: webpack hands it over
 // as text, and so must the test runner (`markdownAsText` in vitest.config.ts)
@@ -29,5 +30,46 @@ describe("systemPrompt", () => {
       "- playground-env (Playground build environment): What compiles here."
     );
     expect(systemPrompt()).not.toContain("- solana-dev (");
+  });
+});
+
+describe("describeProject", () => {
+  const bridge = (idl: unknown) =>
+    ({
+      getProjectContext: () => ({
+        workspaceName: "p",
+        currentFilePath: null,
+        filePaths: [],
+        openFilePaths: [],
+        idl,
+        programId: null,
+        deployState: "ready",
+        cluster: "devnet",
+        walletConnected: false,
+        lesson: null,
+      }),
+    } as unknown as PlaygroundBridge);
+
+  it("names why the Playground cannot call a refused IDL", () => {
+    expect(
+      describeProject(
+        bridge({
+          name: "counter",
+          instructions: [],
+          accounts: [],
+          refused: "a custom discriminator on initialize",
+        })
+      )
+    ).toContain(
+      "Program interface: counter — the Playground cannot call it: a custom discriminator on initialize"
+    );
+  });
+
+  it("lists a callable IDL's instructions", () => {
+    expect(
+      describeProject(
+        bridge({ name: "counter", instructions: ["increment"], accounts: [] })
+      )
+    ).toContain("Program interface: counter — instructions: increment");
   });
 });
