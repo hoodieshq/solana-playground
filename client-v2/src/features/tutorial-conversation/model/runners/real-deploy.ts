@@ -205,6 +205,13 @@ export const realDeployPort = (): DeployPort => {
       if (!signature) throw new Error("The upgrade sent no transaction");
       return signature;
     },
+    closeBuffer: async (buffer) => {
+      const conn = PgConnection.current;
+      await sendAndConfirmTxWithRetries(
+        () => BpfLoaderUpgradeable.closeBuffer(pk(buffer), { wallet: wallet! }),
+        async () => !(await conn.getAccountInfo(pk(buffer)))
+      );
+    },
     instructions: () =>
       (PgProgramInfo.idl?.instructions ?? []).map((ix) => ix.name),
     print: (line) => PgTerminal.println(line),

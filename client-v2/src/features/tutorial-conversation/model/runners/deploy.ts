@@ -72,6 +72,8 @@ export interface DeployPort {
   deploy(buffer: string, length: number): Promise<string>;
   /** Upgrade from the buffer; returns the signature */
   upgrade(buffer: string): Promise<string>;
+  /** Closes a buffer a failed deploy left, returning its rent to the wallet */
+  closeBuffer(buffer: string): Promise<void>;
   /** Instruction names of the IDL the build produced */
   instructions(): string[];
   /** One line in the terminal */
@@ -238,9 +240,19 @@ export const runDeploy = async (
     const buffer = await port.writeBuffer(bytes, onChain);
 
     stage(DEPLOY_STAGES.deploying);
-    const signature = onChain.deployed
-      ? await port.upgrade(buffer)
-      : await port.deploy(buffer, bytes.length);
+    let signature: string;
+    try {
+      signature = onChain.deployed
+        ? await port.upgrade(buffer)
+        : await port.deploy(buffer, bytes.length);
+    } catch (e) {
+      // The buffer holds most of the deploy's SOL: give it back before the
+      // failure stands, so a retry does not pay for a second one
+      await port
+        .closeBuffer(buffer)
+        .catch((closing) => port.report(closing, "Closing the buffer"));
+      throw e;
+    }
 
     stage(DEPLOY_STAGES.confirming);
     const after = await port.funding.balance(address);
@@ -340,6 +352,7 @@ if (import.meta.vitest) {
           return "deploySig";
         }),
         upgrade: vi.fn(async () => "upgradeSig"),
+        closeBuffer: vi.fn(async () => {}),
         instructions: () => ["hello"],
         print: (line) => lines.push(line),
         report: vi.fn(),
@@ -602,6 +615,22 @@ if (import.meta.vitest) {
         message: expect.stringMatching(/not its keypair/),
       });
       expect(idOnly.writeBuffer).not.toHaveBeenCalled();
+    });
+
+    it("closes the buffer when the deploy fails after writing it", async () => {
+      const { port } = portOf({
+        balances: [5 * SOL],
+        deployed: false,
+        stale: false,
+        id: PROGRAM,
+        deployThrows: "Exceeded maximum amount of retries",
+      });
+      await expect(runDeploy(port, "deploy", () => {})).resolves.toMatchObject({
+        ok: false,
+        reason: "failed",
+      });
+      expect(port.closeBuffer).toHaveBeenCalledWith("Buffer1111");
+      expect(port.report).toHaveBeenCalledWith(expect.any(Error), "Deploying");
     });
 
     it("reports a throw with the stage it stopped in", async () => {

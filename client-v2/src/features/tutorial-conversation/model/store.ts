@@ -348,6 +348,11 @@ export class PgConversation {
    * that landed before the reload is recognised from the chain and posts its
    * result; every other run is measured as interrupted.
    */
+  // TODO(HOO-2356 cards PR): the runner reads the program id from
+  // `PgProgramInfo`, which loads with the workspace on its own schedule; a
+  // lookup that runs first finds no id and the run stays interrupted, which
+  // costs the learner one more press (an upgrade of the same id), not a
+  // second program. The frame that wires the runner awaits it there.
   private static async _afterReload(name: string, beatIds: string[]) {
     PgConversation._persist(name, PgConversation._state.engine.progress);
     const runner = PgConversation._ports?.runner;
