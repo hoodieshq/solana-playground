@@ -77,7 +77,7 @@ vi.mock(
         listContextFiles: () =>
           contextPaths(
             ["src/lib.rs"],
-            PgAssistantContext.choice(PgExplorer.currentWorkspaceName),
+            PgAssistantContext.choice(PgExplorer.currentWorkspaceName ?? null),
             (path) => FILES.includes(path)
           ),
       },
