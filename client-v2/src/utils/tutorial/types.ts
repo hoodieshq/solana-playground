@@ -7,6 +7,8 @@ import type { Nullable, RequiredKey } from "../types";
 
 import type { JSX } from "react";
 
+import type { TutorialDefinition } from "../../entities/tutorial/model/definition/types";
+
 type Author = {
   /** Author's name that will be displayed as one of the creators of the tutorial */
   name: string;
@@ -70,6 +72,11 @@ export interface TutorialDataParam {
   importComponent?: () => Promise<{
     default: (props: Omit<TutorialData, "importComponent">) => JSX.Element;
   }>;
+  /**
+   * The conversation tutorial's definition, from its `tutorial.json`. A
+   * tutorial without one opens upstream's pages.
+   */
+  definition?: TutorialDefinition;
 }
 
 /** Tutorial data with optional fields filled with defaults. */

@@ -5,7 +5,7 @@ import { createLogger } from "@/shared/lib/logger";
 // By module, not the utils barrel, which reads the build's globals on import
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
-import { progressOf } from "./progress";
+import { conversationProgressOf, progressOf } from "./progress";
 import type { TutorialProgress } from "./progress";
 
 const log = createLogger("tutorial:progress");
@@ -18,7 +18,9 @@ const NEW: TutorialProgress = { state: "new" };
  * a delete, a sync import). Before the explorer knows its workspaces every
  * tutorial reads as new. A started tutorial whose saved progress cannot be
  * read shows as started on page 1: a missing file is logged as a warning, any
- * other failure is reported, and none is thrown into the render.
+ * other failure is reported, and none is thrown into the render. A tutorial
+ * with a definition counts the steps its conversation passed, and falls back
+ * to its page while it has saved no conversation.
  */
 export const useTutorialProgress = (): ((name: string) => TutorialProgress) => {
   const [progress, setProgress] = useState<Map<string, TutorialProgress>>(
@@ -65,6 +67,17 @@ const read = async (): Promise<Map<string, TutorialProgress>> => {
   const entries = await Promise.all(
     PgTutorial.all.map(async (t) => {
       if (!PgTutorial.isStarted(t.name)) return [t.name, NEW] as const;
+      if (t.definition) {
+        const steps = t.definition.steps.map((s) => s.id);
+        const saved = await readConversation(t.name);
+        const progress = conversationProgressOf(saved, steps);
+        if (progress) return [t.name, progress] as const;
+        if (saved !== undefined) {
+          log.warn(`saved conversation of ${t.name} is unreadable`, {
+            context: { tutorial: t.name },
+          });
+        }
+      }
       let meta = null;
       try {
         meta = await PgTutorial.getMetadata(t.name);
@@ -79,4 +92,20 @@ const read = async (): Promise<Map<string, TutorialProgress>> => {
     })
   );
   return new Map(entries);
+};
+
+/**
+ * What a conversation tutorial saved under `conversation`, or undefined. A
+ * missing file is a tutorial still on its old lesson pages and is silent;
+ * any other failure is reported, and the card falls back to the page.
+ */
+const readConversation = async (name: string): Promise<unknown> => {
+  try {
+    return (await PgTutorial.getStorageData(name)).conversation;
+  } catch (e) {
+    if (!isMissing(e)) {
+      log.error(e, { report: true, context: { tutorial: name } });
+    }
+    return undefined;
+  }
 };

@@ -1,6 +1,8 @@
 import * as customTutorials from "./generated";
 import { markdownTutorials } from "./create";
+import { definitionTutorials } from "./definitions";
 
-/** All visible tutorials at `/tutorials` */
-export const TUTORIALS =
-  Object.values(customTutorials).concat(markdownTutorials);
+const others = Object.values(customTutorials).concat(markdownTutorials);
+
+/** All visible tutorials at `/tutorials`: the conversation ones first */
+export const TUTORIALS = definitionTutorials(others).concat(others);
