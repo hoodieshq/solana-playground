@@ -10,7 +10,7 @@ import {
 
 export interface BaseStaleBuildDialogProps {
   open: boolean;
-  /** `true` deploys the last successful build; closing the dialog is `false` */
+  /** `true` deploys the last good build; closing the dialog is `false` */
   onAnswer: (deploy: boolean) => void;
 }
 

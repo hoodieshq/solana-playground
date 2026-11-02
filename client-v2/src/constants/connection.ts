@@ -31,6 +31,29 @@ export function clusterName(cluster: string | null): string | null {
     : cluster;
 }
 
+/** Our clusters, written lowercase mid-sentence: "Deploy to devnet" */
+const LOWERCASE_IN_SENTENCE = new Set([
+  "devnet",
+  "testnet",
+  "localnet",
+  "mainnet",
+  "playnet",
+]);
+
+/**
+ * The network as a sentence names it: our clusters lowercase ("Not enough
+ * devnet SOL"), any other name (Surfpool) as it is, `null` while the cluster
+ * is unknown, so a caller can drop the word ("Not enough SOL") rather than
+ * print "the network SOL". Standalone labels such as pickers and chips keep
+ * `networkName`.
+ */
+export const networkInSentence = (cluster: string | null): string | null => {
+  const name = clusterName(cluster);
+  if (name === null) return null;
+  const lower = name.toLowerCase();
+  return LOWERCASE_IN_SENTENCE.has(lower) ? lower : name;
+};
+
 /** Cluster moniker an offered network talks to */
 type NetworkCluster = "devnet" | "mainnet-beta";
 

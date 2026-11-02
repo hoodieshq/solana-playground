@@ -77,7 +77,8 @@ describe("write_file", () => {
 describe("build and deploy approvals", () => {
   const commandBridge = (
     cost: number | null,
-    playground = true
+    playground = true,
+    network: string | null = "devnet"
   ): PlaygroundBridge =>
     ({
       getProjectContext: () => ({
@@ -85,7 +86,7 @@ describe("build and deploy approvals", () => {
         cluster: "https://api.devnet.solana.com",
         buildError: null,
       }),
-      quoteDeploy: async () => ({ network: "devnet", cost, playground }),
+      quoteDeploy: async () => ({ network, cost, playground }),
       build: vi.fn(async () => {}),
       deploy: vi.fn(async () => null),
     } as unknown as PlaygroundBridge);
@@ -113,6 +114,14 @@ describe("build and deploy approvals", () => {
   it("names a connected wallet as the payer when it is not the Playground's", async () => {
     expect(await askedWith("deploy", commandBridge(1_420_000_000, false))).toBe(
       "Deploy hello_anchor to devnet? It costs about 1.42 devnet SOL from your wallet."
+    );
+  });
+
+  it("names no network in the cost while the cluster is unknown", async () => {
+    expect(
+      await askedWith("deploy", commandBridge(1_420_000_000, true, null))
+    ).toBe(
+      "Deploy hello_anchor to the network? It costs about 1.42 SOL from your Playground wallet."
     );
   });
 

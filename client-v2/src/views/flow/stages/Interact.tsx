@@ -117,7 +117,7 @@ const Interact = () => {
     wallet && typeof balance === "number" && solNeeded(balance) && cluster
       ? {
           balance: +balance.toFixed(4),
-          cluster: networkInSentence(cluster),
+          cluster: networkInSentence(cluster) ?? "the network",
           airdrop: faucet === "available" ? airdrop : null,
         }
       : null;
@@ -145,6 +145,7 @@ const Interact = () => {
       onPick={pick}
       surface={surface}
       cluster={clusterName(cluster)}
+      network={networkInSentence(cluster)}
       onGoTo={(stage) => PgFlow.setStage(stage)}
       idlLoad={<IdlActions mode="upload" />}
       idlRefusal={idlRefusal(PgProgramInfo.readIdl())}

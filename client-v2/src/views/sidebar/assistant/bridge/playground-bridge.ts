@@ -77,11 +77,11 @@ export interface PlaygroundBridge {
   deploy(): Promise<{ programId: string; explorerUrl: string } | null>;
   /**
    * @returns the network a deploy would go to, named as a sentence writes it
-   * ("devnet"), its estimated cost in lamports (`null` when it cannot be
-   * estimated), and whether the Playground wallet pays
+   * ("devnet", `null` while unknown), its estimated cost in lamports (`null`
+   * when it cannot be estimated), and whether the Playground wallet pays
    */
   quoteDeploy(): Promise<{
-    network: string;
+    network: string | null;
     cost: number | null;
     playground: boolean;
   }>;
@@ -201,7 +201,8 @@ export const realBridge: PlaygroundBridge = {
     return {
       network: networkInSentence(cluster),
       cost: await estimateDeployCostWithin(),
-      playground: PgWallet.current?.isPg === true,
+      // No wallet yet: the Playground wallet is made on the deploy and pays
+      playground: !PgWallet.current || PgWallet.current.isPg === true,
     };
   },
 

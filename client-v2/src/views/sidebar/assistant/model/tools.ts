@@ -204,15 +204,17 @@ export const createTools = (
         quote.cost === null
           ? ""
           : ` It costs about ${formatSol(quote.cost)} ${
-              quote.network
-            } SOL from ${
+              quote.network === null ? "SOL" : `${quote.network} SOL`
+            } from ${
               quote.playground ? "your Playground wallet" : "your wallet"
             }.`;
       const { id: approvalId, allowed } = await PgAssistant.requestApproval({
         type: "command",
         name: "deploy",
         effect: `Sends a transaction to ${cluster} and spends SOL from the connected wallet.`,
-        question: `Deploy ${programName(bridge)} to ${quote.network}?${cost}`,
+        question: `Deploy ${programName(bridge)} to ${
+          quote.network ?? "the network"
+        }?${cost}`,
       });
       if (!allowed) return "The user declined to deploy.";
 

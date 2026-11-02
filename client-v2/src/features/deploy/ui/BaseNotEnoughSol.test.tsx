@@ -14,7 +14,7 @@ const renderCard = (props: Partial<BaseNotEnoughSolProps>) => {
   render(
     <TooltipProvider>
       <BaseNotEnoughSol
-        cluster={props.cluster ?? "devnet"}
+        cluster={props.cluster === undefined ? "devnet" : props.cluster}
         reason={props.reason ?? "airdrop_failed"}
         balance={props.balance ?? 0}
         needed={props.needed ?? 1_420_000_000}
@@ -65,5 +65,14 @@ describe("BaseNotEnoughSol", () => {
 
     expect(screen.getByText("Not enough mainnet SOL")).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Open faucet" })).toBeNull();
+  });
+
+  it("names no network while the cluster is unknown", () => {
+    renderCard({ cluster: null, reason: "signed_out" });
+
+    expect(screen.getByText("Not enough SOL")).toBeTruthy();
+    expect(
+      screen.getByText("Sign in with GitHub to request SOL.")
+    ).toBeTruthy();
   });
 });

@@ -32,8 +32,10 @@ export interface BaseInteractProps {
   selected: string | null;
   onPick: (id: string) => void;
   surface: InteractSurface;
-  /** The cluster for prose; null until the endpoint has been read */
+  /** The cluster's name for the program chip; null until the endpoint has been read */
   cluster: string | null;
+  /** The cluster as a sentence names it ("devnet"); null until the endpoint has been read */
+  network: string | null;
   onGoTo: (stage: Extract<Stage, "build" | "deploy">) => void;
   /** The "Upload IDL" action (`IdlActions mode="upload"`) */
   idlLoad: ReactNode;
@@ -151,7 +153,7 @@ const Empty = ({
       <StageEmptyTitle>{copy.title}</StageEmptyTitle>
       {copy.description && (
         <StageEmptyDescription>
-          {copy.description(p.cluster ?? "the network")}
+          {copy.description(p.network ?? "the network")}
         </StageEmptyDescription>
       )}
       {notice && (

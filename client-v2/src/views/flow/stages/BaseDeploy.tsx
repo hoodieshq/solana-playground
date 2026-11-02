@@ -90,7 +90,7 @@ export interface BaseDeployProps {
   funding: FundingStop | null;
   /** Show the keypair backup line under the result */
   backup: boolean;
-  /** Ask whether to deploy the last successful build */
+  /** Ask whether to deploy the last good build */
   staleBuild: boolean;
   /**
    * An Explorer link that opens `cluster`, whatever network is selected;
@@ -128,7 +128,8 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
  * mid-sentence: "mainnet" for mainnet-beta; "the network" until the endpoint
  * has been read
  */
-const deployNetwork = (p: BaseDeployProps) => networkInSentence(p.cluster);
+const deployNetwork = (p: BaseDeployProps) =>
+  networkInSentence(p.cluster) ?? "the network";
 
 /** Who pays, before a deploy */
 const payerLine = (payer: DeployPayer | null) => {
@@ -201,7 +202,7 @@ const DeployResult = ({
         <StatusDot variant="success" size="lg" />
         {latest.upgraded
           ? "Upgraded. The program id stays the same."
-          : `Deployed to ${networkInSentence(latest.cluster)}`}
+          : `Deployed to ${networkInSentence(latest.cluster) ?? "the network"}`}
       </div>
       <div className="flex items-center gap-2 rounded-lg bg-surface-base px-3 py-2">
         <span className="shrink-0 text-caption text-subtle">Program id</span>

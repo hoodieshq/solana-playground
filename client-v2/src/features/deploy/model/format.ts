@@ -1,4 +1,6 @@
-import { clusterName } from "@/constants";
+import { clusterName, networkInSentence } from "@/constants";
+
+export { networkInSentence };
 
 /** Lamports in one SOL */
 const LAMPORTS_PER_SOL = 1_000_000_000;
@@ -20,25 +22,6 @@ export const shortKey = (key: string): string =>
 /** The network's name in prose: "Mainnet" for mainnet-beta, "the network" while unknown */
 export const networkName = (cluster: string | null): string =>
   clusterName(cluster) ?? "the network";
-
-/** Our clusters, written lowercase mid-sentence: "Deploy to devnet" */
-const LOWERCASE_IN_SENTENCE = new Set([
-  "devnet",
-  "testnet",
-  "localnet",
-  "mainnet",
-]);
-
-/**
- * The network as a sentence names it: our clusters lowercase ("Not enough
- * devnet SOL"), any other name (Surfpool) as it is. Standalone labels such as
- * pickers and chips keep `networkName`.
- */
-export const networkInSentence = (cluster: string | null): string => {
-  const name = networkName(cluster);
-  const lower = name.toLowerCase();
-  return LOWERCASE_IN_SENTENCE.has(lower) ? lower : name;
-};
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
@@ -66,8 +49,9 @@ if (import.meta.vitest) {
       expect(networkInSentence("mainnet-beta")).toBe("mainnet");
       expect(networkInSentence("testnet")).toBe("testnet");
       expect(networkInSentence("localnet")).toBe("localnet");
+      expect(networkInSentence("playnet")).toBe("playnet");
       expect(networkInSentence("Surfpool")).toBe("Surfpool");
-      expect(networkInSentence(null)).toBe("the network");
+      expect(networkInSentence(null)).toBeNull();
     });
   });
 }

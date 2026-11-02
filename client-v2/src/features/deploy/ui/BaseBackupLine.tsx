@@ -20,9 +20,9 @@ const BaseBackupLine = ({
     <KeyRound />
     <CalloutDescription className="flex flex-col gap-2">
       <span>
-        Your program on {networkInSentence(cluster)} is tied to this browser's
-        Playground wallet. Save the keypair so you can update it from another
-        browser.
+        Your program on {networkInSentence(cluster) ?? "the network"} is tied to
+        this browser's Playground wallet. Save the keypair so you can update it
+        from another browser.
       </span>
       <span className="flex gap-2">
         <Button size="sm" onClick={onSave}>

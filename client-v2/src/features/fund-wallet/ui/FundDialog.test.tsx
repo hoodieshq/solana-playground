@@ -260,7 +260,7 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     await connectPhantom();
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "Couldn't connect the wallet."
+      "Could not connect the wallet."
     );
     expect(events("fund_wallet_connected")).toEqual([]);
   });

@@ -50,7 +50,8 @@ const props = (
   selected: over.deployments?.[0]?.id ?? null,
   onPick: over.onPick ?? vi.fn(),
   surface,
-  cluster: over.cluster === undefined ? "devnet" : over.cluster,
+  cluster: over.cluster === undefined ? "Devnet" : over.cluster,
+  network: over.cluster === undefined ? "devnet" : over.cluster,
   onGoTo: over.onGoTo ?? vi.fn(),
   idlLoad: <button>Upload IDL</button>,
   form: <div>FORM</div>,
@@ -231,7 +232,7 @@ describe("BaseInteract", () => {
       screen.getByRole("button", { name: "Copy program id" })
     ).toBeTruthy();
     expect(screen.getByText("Program").parentElement?.textContent).toContain(
-      "devnet"
+      "Devnet"
     );
   });
 

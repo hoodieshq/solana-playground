@@ -258,7 +258,7 @@ it("as a phone's page, signed out, pins Sign in with GitHub at its foot with wha
   const onPick = await openPage(view({}));
   expect(
     screen.getByText(
-      "Keep your projects and conversations on every device, and request Devnet SOL."
+      "Keep your projects and conversations on every device, and request devnet SOL."
     )
   ).toBeTruthy();
   const signIns = screen.getAllByRole("menuitem", {

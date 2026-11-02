@@ -158,7 +158,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
   it("names the cluster the SOL goes to", () => {
     renderDialog({ payer: PAYER, cluster: "mainnet-beta" });
 
-    expect(screen.getByText("Sent on Mainnet.")).toBeTruthy();
+    expect(screen.getByText("Sent on mainnet.")).toBeTruthy();
   });
 
   it("warns above Send on mainnet only", () => {

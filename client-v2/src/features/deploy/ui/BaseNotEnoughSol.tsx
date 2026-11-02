@@ -24,9 +24,13 @@ export interface BaseNotEnoughSolProps {
   onSignIn: () => void;
 }
 
-const reasonLine = (reason: FundingFailure, network: string) => {
+/** "devnet SOL", or plain "SOL" while the network is unknown */
+const solOf = (network: string | null) =>
+  network === null ? "SOL" : `${network} SOL`;
+
+const reasonLine = (reason: FundingFailure, network: string | null) => {
   const lines: Record<FundingFailure, string> = {
-    signed_out: `Sign in with GitHub to request ${network} SOL.`,
+    signed_out: `Sign in with GitHub to request ${solOf(network)}.`,
     no_faucet: "This network has no faucet. Send SOL to the wallet below.",
     airdrop_failed: "The faucet did not send SOL.",
   };
@@ -41,7 +45,7 @@ const BaseNotEnoughSol = (p: BaseNotEnoughSolProps) => {
   return (
     <Callout variant="error" role="alert" aria-label="Not enough SOL">
       <CircleAlert />
-      <CalloutTitle>Not enough {network} SOL</CalloutTitle>
+      <CalloutTitle>Not enough {solOf(network)}</CalloutTitle>
       <CalloutDescription className="flex flex-col gap-2">
         <span>
           Your wallet has {formatSol(p.balance)} SOL, this deploy needs about{" "}
