@@ -108,14 +108,19 @@ const BaseShareGist = ({
     );
   }
 
-  let action = ACTION[state.step];
+  let action: typeof ACTION[keyof typeof ACTION] | undefined =
+    ACTION[state.step];
   // A revoked grant is mended by signing in again, not by the same request
   if (state.step === "failed" && state.reason === "github-unauthorized") {
     action = { label: "Sign in with GitHub again", run: "sign-in" };
   }
-  const run = { create: onCreate, "sign-in": onSignIn, grant: onGrant }[
-    action.run
-  ];
+  // A refused gist fails the same on every retry, so only Close is left
+  if (state.step === "failed" && state.reason === "rejected") {
+    action = undefined;
+  }
+  const run = action
+    ? { create: onCreate, "sign-in": onSignIn, grant: onGrant }[action.run]
+    : undefined;
 
   let problem: string | undefined;
   if (state.step === "failed") problem = FAILURE[state.reason](name);
@@ -148,14 +153,16 @@ const BaseShareGist = ({
         </Callout>
       )}
 
-      <AsyncButton
-        type="button"
-        className="self-start"
-        onClick={run}
-        onError={onError}
-      >
-        {action.label}
-      </AsyncButton>
+      {action && run && (
+        <AsyncButton
+          type="button"
+          className="self-start"
+          onClick={run}
+          onError={onError}
+        >
+          {action.label}
+        </AsyncButton>
+      )}
     </div>
   );
 };

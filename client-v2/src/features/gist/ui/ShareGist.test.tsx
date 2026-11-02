@@ -270,29 +270,32 @@ it.each([
     { reason: "rate-limited" },
     "GitHub is limiting requests from this browser. Try again in a few minutes.",
     "rate-limited",
+    true,
   ],
   [
     422,
     { reason: "rejected" },
     "GitHub refused the gist. Nothing was published.",
     "rejected",
+    false,
   ],
   [
     502,
     { reason: "request-failed" },
     "Could not export to GitHub. Nothing was published.",
     "request-failed",
+    true,
   ],
 ])(
-  "tells a %i apart and offers to try again",
-  async (status, body, message, reason) => {
+  "tells a %i apart, offering a retry unless GitHub refused the gist",
+  async (status, body, message, reason, retry) => {
     answers([status, body]);
     renderShare();
 
     await press(/Create public gist/);
 
     expect(screen.getByText(message)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(!!screen.queryByRole("button", { name: "Try again" })).toBe(retry);
     expect(sent.events.at(-1)).toEqual({
       name: "gist_export_failed",
       params: { reason },

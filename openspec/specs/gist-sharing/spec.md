@@ -124,7 +124,8 @@ button that copies it, and an "Open on GitHub" link that opens it in a new tab.
 ### Requirement: Tell failures apart
 
 The dialog SHALL say which of these happened, keep the user's place, and
-offer to try again: the project is too large to share (over 4 MB in total or
+offer to try again (except when GitHub refused the gist, which fails the same
+on every retry): the project is too large to share (over 4 MB in total or
 over 300 files), GitHub is rate-limiting the user, GitHub refused the gist,
 the user's GitHub authorization was revoked (offer sign-in again), or the
 request did not complete.
@@ -145,6 +146,7 @@ request did not complete.
 
 - **WHEN** `/api/gists` answers `422` with reason `rejected`
 - **THEN** the dialog says "GitHub refused the gist. Nothing was published."
+  and offers no retry: Close is the only way out
 
 #### Scenario: Request failed
 
