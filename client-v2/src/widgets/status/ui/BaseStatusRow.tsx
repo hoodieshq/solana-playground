@@ -56,7 +56,7 @@ const BaseStatusRow = ({
             title={indicator.label}
             data-status={indicator.id}
             data-state-kind={indicator.state}
-            // Tight enough for "Devnet", the AI and "Rust" on one 232 px line
+            // Tight, so a row of ready states fits the navigation on one line
             className="w-auto max-w-full min-w-0 gap-1.5 px-1"
             {...props}
           >

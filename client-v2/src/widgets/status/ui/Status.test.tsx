@@ -1,6 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import {
   initTelemetry,
@@ -15,6 +23,16 @@ import {
   networkIndicator,
 } from "../model/indicators";
 import { StatusChip, StatusRail, StatusRow } from "./Status";
+
+class NoopResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+// The rail's tooltips measure themselves, and jsdom has no `ResizeObserver`
+beforeAll(() => vi.stubGlobal("ResizeObserver", NoopResizeObserver));
+afterAll(() => vi.unstubAllGlobals());
 
 const INDICATORS = [
   networkIndicator(

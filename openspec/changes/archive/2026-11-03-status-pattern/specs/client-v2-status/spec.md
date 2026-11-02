@@ -59,18 +59,20 @@ Rust file starts the analyzer; "Rust · Starting <n> s" while it starts;
 answers; "Rust · Failed" when the start throws; and "Rust · Off" where the
 browser cannot run it (the page is not cross-origin isolated). Its name SHALL
 say the same, as "Rust analyzer, starting, 12 seconds". A click SHALL open a
-panel that says what the analyzer does, its state in words, and, when
-starting, slow or failed, offers "Reload".
+panel that says what the analyzer does, its state in words, and, once it
+takes longer or has failed, offers "Reload"; a start in its first minute
+offers nothing to press.
 
-#### Scenario: Analyzer state in words
+#### Scenario: Analyzer state in words (manual)
 
 - **WHEN** the analyzer start has run 12 s, then 60 s, then answers
 - **THEN** the indicator reads "Rust · Starting 12 s", then "Rust · Taking
   longer", then "Rust · Ready"
 
-#### Scenario: The analyzer's panel
+#### Scenario: The analyzer's panel (manual)
 
-- **WHEN** a user clicks the Rust analyzer indicator while it is starting
+- **WHEN** a user clicks the Rust analyzer indicator once its start has
+  taken longer than 60 s
 - **THEN** a panel says that code builds as normal and hints return when it
   is ready, and offers "Reload"
 

@@ -11,7 +11,7 @@ import BaseStatusRow from "./BaseStatusRow";
 
 /** Where the indicators' actions lead; `Flow` owns both places */
 export interface StatusActions {
-  /** Opens the settings on the cluster, as the cluster row did */
+  /** Opens the settings on the network */
   onOpenNetwork: () => void;
   /** Opens Connect a model */
   onConnectAi: () => void;
@@ -44,6 +44,11 @@ const act = (indicator: StatusIndicator, actions: StatusActions) => {
       return;
     case undefined:
       return;
+    default: {
+      // A new action kind fails to compile here instead of doing nothing
+      const unhandled: never = indicator.action;
+      return unhandled;
+    }
   }
 };
 
@@ -59,7 +64,10 @@ export const StatusRow = ({ settingsOpen, ...actions }: StatusProps) => {
         // The analyzer's click only opens its panel
         if (indicator.id !== "rust") act(indicator, actions);
       }}
-      onAction={(indicator) => act(indicator, actions)}
+      onAction={(indicator) => {
+        track(indicator, "row");
+        act(indicator, actions);
+      }}
     />
   );
 };
@@ -75,7 +83,10 @@ export const StatusRail = ({ settingsOpen, ...actions }: StatusProps) => {
         track(indicator, "rail");
         if (indicator.id !== "rust") act(indicator, actions);
       }}
-      onAction={(indicator) => act(indicator, actions)}
+      onAction={(indicator) => {
+        track(indicator, "rail");
+        act(indicator, actions);
+      }}
     />
   );
 };

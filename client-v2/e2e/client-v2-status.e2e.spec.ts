@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { expect, json, seedWorkspace, test } from "./fixtures";
+import { lineOf, linesOn } from "./telemetry";
 
 /** The stock Sidebar, which holds the navigation and its foot */
 const nav = (page: Page) => page.locator('[data-slot="sidebar"]');
@@ -29,11 +30,25 @@ test.describe("on a 1440 px window", () => {
   });
 
   test("client-v2-status: No model connected", async ({ seededPage: page }) => {
+    const lines = linesOn(page);
     await expect(ai(page)).toHaveText("AI · Off");
     await ai(page).click();
     await expect(
       page.getByRole("dialog", { name: "Connect a model" })
     ).toBeVisible();
+    await expect
+      .poll(() => lineOf(lines, "assistant_connect_opened"))
+      .toContain("{via: status}");
+  });
+
+  test("client-v2-status: Picking an indicator is measured", async ({
+    seededPage: page,
+  }) => {
+    const lines = linesOn(page);
+    await ai(page).click();
+    await expect
+      .poll(() => lineOf(lines, "status_indicator_picked"))
+      .toContain("{indicator: ai, state: not-ready, from: row}");
   });
 
   test("client-v2-status: A cluster that stops answering", async ({
@@ -61,7 +76,11 @@ test.describe("on a 1440 px window", () => {
       "data-variant",
       "error"
     );
+    const lines = linesOn(page);
     await down.click();
+    await expect
+      .poll(() => lineOf(lines, "settings_opened"))
+      .toContain("{from: cluster}");
     await expect(
       page
         .getByRole("region", { name: "Settings" })
@@ -97,6 +116,11 @@ test("client-v2-status: The rail's dots", async ({ page }) => {
   await expect(
     rail.getByRole("button", { name: /^Rust analyzer/ })
   ).toBeVisible();
+  const lines = linesOn(page);
+  await rail.getByRole("button", { name: /^Cluster: devnet/ }).click();
+  await expect
+    .poll(() => lineOf(lines, "settings_opened"))
+    .toContain("{from: rail}");
 });
 
 test.describe("on a phone", () => {

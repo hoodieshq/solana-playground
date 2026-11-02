@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it, vi } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
 import { SidebarProvider } from "@/shared/ui/sidebar";
 import { TooltipProvider } from "@/shared/ui/tooltip";
@@ -14,6 +14,16 @@ import type { StatusIndicator } from "../model/indicators";
 import BaseStatusChip from "./BaseStatusChip";
 import BaseStatusRail from "./BaseStatusRail";
 import BaseStatusRow from "./BaseStatusRow";
+
+class NoopResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+// The rail's tooltips measure themselves, and jsdom has no `ResizeObserver`
+beforeAll(() => vi.stubGlobal("ResizeObserver", NoopResizeObserver));
+afterAll(() => vi.unstubAllGlobals());
 
 const UP = networkIndicator(
   { name: "devnet", isConnected: true, slotStalled: false },
@@ -29,6 +39,7 @@ const STARTING = analyzerIndicator(
   12_000,
   true
 );
+const SLOW = analyzerIndicator({ kind: "starting", since: 0 }, 61_000, true);
 
 const dotOf = (el: HTMLElement) =>
   el.querySelector('[data-slot="status-dot"]')?.getAttribute("data-variant");
@@ -72,7 +83,7 @@ it("draws the three indicators as buttons with a dot and words", () => {
   ]);
 });
 
-it("keeps the cluster row's settings mark and click on the network", async () => {
+it("marks the network indicator as a settings trigger that opens the settings", async () => {
   const { onPick } = drawRow([UP, AI_OFF, STARTING]);
   const network = screen.getByRole("button", {
     name: "Change cluster, currently devnet",
@@ -98,19 +109,48 @@ it("goes straight to Connect a model from the AI", async () => {
   expect(onPick).toHaveBeenCalledExactlyOnceWith(AI_OFF);
 });
 
-it("opens the analyzer's panel, whose Reload is its action", async () => {
-  const { onPick, onAction } = drawRow([UP, AI_OFF, STARTING]);
+it("opens the analyzer's panel, whose Reload is its action once slow", async () => {
+  const { onPick, onAction } = drawRow([UP, AI_OFF, SLOW]);
   await userEvent.click(
-    screen.getByRole("button", { name: /^Rust analyzer, starting/ })
+    screen.getByRole("button", { name: /^Rust analyzer, taking longer/ })
   );
   const panel = await screen.findByRole("dialog");
   expect(within(panel).getByText("Rust analyzer")).toBeTruthy();
   expect(
     within(panel).getByText(/hints and errors in the editor/i)
   ).toBeTruthy();
-  expect(onPick).toHaveBeenCalledExactlyOnceWith(STARTING);
+  expect(onPick).toHaveBeenCalledExactlyOnceWith(SLOW);
   await userEvent.click(within(panel).getByRole("button", { name: "Reload" }));
-  expect(onAction).toHaveBeenCalledExactlyOnceWith(STARTING);
+  expect(onAction).toHaveBeenCalledExactlyOnceWith(SLOW);
+});
+
+it("offers nothing to press in a start's first minute", async () => {
+  drawRow([UP, AI_OFF, STARTING]);
+  await userEvent.click(
+    screen.getByRole("button", { name: /^Rust analyzer, starting/ })
+  );
+  const panel = await screen.findByRole("dialog");
+  expect(within(panel).queryByRole("button")).toBeNull();
+});
+
+it("says the open settings on the network indicator", () => {
+  render(
+    <TooltipProvider>
+      <SidebarProvider>
+        <BaseStatusRow
+          indicators={[UP, AI_OFF, STARTING]}
+          onPick={vi.fn()}
+          onAction={vi.fn()}
+          settingsOpen
+        />
+      </SidebarProvider>
+    </TooltipProvider>
+  );
+  expect(
+    screen
+      .getByRole("button", { name: "Change cluster, currently devnet" })
+      .getAttribute("aria-expanded")
+  ).toBe("true");
 });
 
 it("draws three dots on the rail, named as their indicators", async () => {

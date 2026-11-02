@@ -9,7 +9,7 @@ import {
   PgCommon,
   PgExplorer,
 } from "../../../../../../utils";
-import { PgAnalyzerStatus } from "./status";
+import { trackStart } from "./status";
 
 /** Monaco language id for Rust */
 const LANGUAGE_ID = "rust";
@@ -40,28 +40,18 @@ let transitiveCrates: string[] = [];
  *
  * @returns a disposable to dispose all events
  */
-export const initRustAnalyzer = async (): Promise<Disposable> => {
+export const initRustAnalyzer = (): Promise<Disposable> => {
   // The thread pool shares memory with its workers, which the browser only
   // allows on a cross-origin isolated page (COOP + COEP, see `vercel.json`).
   // Without it the worker fails every attempt, never reports ready, and the
   // retry below spawns another 9MB worker every interval, forever.
   if (!window.crossOriginIsolated) {
     console.warn("Rust Analyzer disabled: the page is not crossOriginIsolated");
-    PgAnalyzerStatus.set({ kind: "off" });
-    return { dispose: () => {} };
   }
-
-  // The status indicator reads this; "taking longer" is its call, from `since`
-  PgAnalyzerStatus.set({ kind: "starting", since: Date.now() });
-  try {
-    const disposable = await startRustAnalyzer();
-    PgAnalyzerStatus.set({ kind: "ready" });
-    return disposable;
-  } catch (e) {
-    // Rethrown: `Monaco`'s language init reports it
-    PgAnalyzerStatus.set({ kind: "failed" });
-    throw e;
-  }
+  // TODO(HOO-2483): a start that throws after the worker came up leaves the
+  // worker and the listeners made so far running; the indicator's Reload is
+  // the recovery until the start can be torn down step by step
+  return trackStart(window.crossOriginIsolated, startRustAnalyzer);
 };
 
 /** Everything `initRustAnalyzer` does once the page can run the analyzer */

@@ -76,18 +76,24 @@ export const networkIndicator = (
     state: StatusState,
     suffix: string | null,
     detail: string | null
-  ): StatusIndicator => ({
-    id: "network",
-    name: "Network",
-    state,
-    words: suffix ? `${shown} · ${capitalize(suffix)}` : shown,
-    // The cluster row's names, kept: the settings' focus return and its
-    // tests find the row by them
-    label: `Change cluster, currently ${name}${suffix ? `, ${suffix}` : ""}`,
-    railLabel: `Cluster: ${name}${suffix ? `, ${suffix}` : ""}`,
-    detail,
-    action: NETWORK_ACTION,
-  });
+  ): StatusIndicator => {
+    // Only a state that is not ready joins the name: "connecting" is every
+    // first load, and the settings' focus return and its tests look the
+    // trigger up by its plain name meanwhile
+    const spoken = suffix && state === "not-ready" ? `, ${suffix}` : "";
+    return {
+      id: "network",
+      name: "Network",
+      state,
+      words: suffix ? `${shown} · ${capitalize(suffix)}` : shown,
+      // The names the settings' focus return and its tests look up; the rail's
+      // dot keeps its own shorter one
+      label: `Change cluster, currently ${name}${spoken}`,
+      railLabel: `Cluster: ${name}${spoken}`,
+      detail,
+      action: NETWORK_ACTION,
+    };
+  };
 
   if (!online) return view("not-ready", "offline", OFFLINE_LINE);
   // The same reading as the account menu's warning (`clusterIsDown` in
@@ -216,12 +222,14 @@ export const analyzerIndicator = (
         );
       }
       const seconds = Math.floor(elapsed / 1000);
+      // No Reload yet: a slow download is normal in its first minute, and a
+      // reload would throw away a build or a deploy under way
       return view(
         "working",
         `Starting ${seconds} s`,
         `starting, ${seconds} seconds`,
         ANALYZER_WAITING,
-        RELOAD
+        null
       );
     }
   }
@@ -251,7 +259,7 @@ if (import.meta.vitest) {
     };
 
     describe("networkIndicator", () => {
-      it("names the cluster when it answers, under the cluster row's name", () => {
+      it("names the cluster when it answers, under the settings trigger's name", () => {
         const n = networkIndicator(UP, true);
         expect([n.state, n.words, n.label, n.railLabel]).toEqual([
           "ready",
@@ -266,7 +274,11 @@ if (import.meta.vitest) {
           { name: "devnet", isConnected: null, slotStalled: null },
           true
         );
-        expect([n.state, n.words]).toEqual(["working", "Devnet · Connecting"]);
+        expect([n.state, n.words, n.label]).toEqual([
+          "working",
+          "Devnet · Connecting",
+          "Change cluster, currently devnet",
+        ]);
       });
 
       it("says not answering when down, or when the slot stalls", () => {
@@ -338,11 +350,11 @@ if (import.meta.vitest) {
           13_500,
           true
         );
-        expect([r.state, r.words, r.label, r.action?.text]).toEqual([
+        expect([r.state, r.words, r.label, r.action]).toEqual([
           "working",
           "Rust · Starting 12 s",
           "Rust analyzer, starting, 12 seconds",
-          "Reload",
+          null,
         ]);
       });
 
@@ -352,11 +364,21 @@ if (import.meta.vitest) {
           SLOW_AFTER_MS,
           true
         );
-        expect([r.state, r.words, r.label]).toEqual([
+        expect([r.state, r.words, r.label, r.action?.text]).toEqual([
           "not-ready",
           "Rust · Taking longer",
           "Rust analyzer, taking longer than usual",
+          "Reload",
         ]);
+      });
+
+      it("still starts a moment before 60 s", () => {
+        const r = analyzerIndicator(
+          { kind: "starting", since: 0 },
+          SLOW_AFTER_MS - 1,
+          true
+        );
+        expect(r.words).toBe("Rust · Starting 59 s");
       });
 
       it("reads ready, failed, off and not started in words", () => {

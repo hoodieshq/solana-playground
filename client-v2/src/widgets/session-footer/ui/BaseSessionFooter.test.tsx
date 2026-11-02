@@ -62,8 +62,7 @@ const draw = (props: {
     </TooltipProvider>
   );
 
-// The cluster row is the status row's network indicator now
-// (`widgets/status`, `BaseStatus.test.tsx`)
+// The network indicator is tested in `widgets/status` (`BaseStatus.test.tsx`)
 it("draws the status row over the account row", () => {
   draw({ account: view({}) });
   const status = screen.getByText("status row");
