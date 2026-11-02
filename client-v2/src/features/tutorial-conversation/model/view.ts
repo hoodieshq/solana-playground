@@ -31,6 +31,22 @@ import type { EngineState, Stage } from "./reducer";
  * else; the cards dispatch actions and never compute state of their own.
  */
 
+/** A call or client run that landed: the result a receipt is read from */
+export type LandedCall = Extract<RunResult, { act: "run" | "call"; ok: true }>;
+
+/** The latest landed call or client run of the whole lesson, or null */
+const lastLandedCall = (p: ConversationProgress): LandedCall | null => {
+  let latest: { at: number; result: LandedCall } | null = null;
+  for (const runs of Object.values(p.runs)) {
+    for (const run of runs) {
+      const r = run.status === "ok" ? run.result : null;
+      if (!r || (r.act !== "run" && r.act !== "call") || !r.ok) continue;
+      if (!latest || run.at >= latest.at) latest = { at: run.at, result: r };
+    }
+  }
+  return latest?.result ?? null;
+};
+
 /** The learner's pill when they ask for the hint */
 export const STUCK = "I'm stuck";
 /** The learner's pill on Explain */
@@ -129,7 +145,14 @@ export type Turn = TurnBase &
         via: PassedVia;
         last: boolean;
       }
-    | { kind: "finish"; chips: Chip[] }
+    | {
+        kind: "finish";
+        chips: Chip[];
+        /** Whole seconds from Start to the finish */
+        seconds: number;
+        /** The last landed call or client run, whose receipt the card shows */
+        receipt: LandedCall | null;
+      }
   );
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
@@ -497,6 +520,10 @@ export const view = (
       step: null,
       at: p.finishedAt,
       chips: definition.finish.chips,
+      seconds: Math.round(
+        (p.finishedAt - (p.startedAt ?? p.finishedAt)) / 1000
+      ),
+      receipt: lastLandedCall(p),
     });
   }
 
@@ -1050,6 +1077,45 @@ if (import.meta.vitest) {
       });
     });
 
+    it("the finish reads its receipt from the last landed call", () => {
+      const ran = (at: number, signature: string): RunRecord => ({
+        status: "ok",
+        at,
+        took: 900,
+        result: {
+          act: "call",
+          ok: true,
+          seconds: 0.9,
+          signatures: [signature],
+          line: "Program log: Hello, Alex!",
+          called: [],
+        },
+      });
+      const done: EngineState = {
+        progress: {
+          version: 1,
+          passed: hello.steps.map((s) => s.id),
+          finishedAt: 60000,
+          startedAt: 1000,
+          restartedAt: null,
+          cursor: { kind: "finished" },
+          beats: {},
+          runs: {
+            "s3.run": [ran(30000, "first")],
+            "s4.call": [ran(50000, "last")],
+          },
+          times: {},
+        },
+        stage: null,
+      };
+      const finish = view(hello, done, LATE).turns.at(-1);
+      expect(finish).toMatchObject({
+        kind: "finish",
+        seconds: 59,
+        receipt: { signatures: ["last"] },
+      });
+    });
+
     it("next makes the win a record; the last win is live with no next and schedules the finish", () => {
       const steps: Action[] = toFailed()
         .slice(0, 3)
@@ -1094,6 +1160,10 @@ if (import.meta.vitest) {
         kind: "finish",
         at: 11900,
         chips: hello.finish.chips,
+        // From Start at 1000 to the finish
+        seconds: 11,
+        // Every pass here came from the Call panel, which leaves no run
+        receipt: null,
       });
       expect(
         finished.turns.find((t) => t.id === "win:greet-by-name")
