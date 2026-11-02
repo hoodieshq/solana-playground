@@ -102,8 +102,8 @@ the browser, behind the same approval gates.
   provider to call on its side; a configuration that still names
   `"executor": "server"` loads, and that server is called from the browser like
   any other.
-- The tools map onto the playground: read and list files, read the last build
-  error, write a file, build, deploy. The gate lives inside each
+- The tools map onto the playground: read a file in the context, read the
+  last build error, write a file, build, deploy. The gate lives inside each
   state-changing tool's own `run` — `write_file`, `build` and `deploy` each
   `await PgAssistant.requestApproval(...)` and do not return until the user
   clicks, which holds the agent loop open. That is how "propose automatically,
@@ -111,9 +111,12 @@ the browser, behind the same approval gates.
   provider, rather than by the transport inspecting a call before it runs.
 - Project context comes from what the client already holds: `PgExplorer` for
   files and the open tab, `PgProgramInfo` for the IDL and program ID,
-  `PgGlobal` for build and deploy state. Every turn carries the whole file
-  list, the open tabs by name, and the active tab in full; any other file is a
-  `read_file` away. The row above the composer names exactly that.
+  `PgGlobal` for build and deploy state. Every turn carries the
+  conversation's context in full: the open tabs plus the files the user added
+  with + › Add a file, minus the ones they removed from it. No other path of
+  the project is sent, and `read_file` refuses any file outside the context,
+  telling the model to ask for it (the 29 Oct security review). The chips
+  above the composer name exactly that, one per file.
 - The panel is a new sidebar page, so it sits beside the editor without covering
   it, and it is the page the app opens on.
 - You stay in control of a turn: the backend is named above the chat and can be
