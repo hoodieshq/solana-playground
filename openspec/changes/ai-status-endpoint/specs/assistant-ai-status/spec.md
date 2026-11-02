@@ -15,12 +15,15 @@ deployment and whose it is, so AI surfaces appear only when they can work.
 `"hosted"` only when the deployment has a hosted key and sign-in configured,
 and `model` is then the hosted model's id; otherwise `key` is `"own"`, `model`
 is `null`, and the user supplies a key in settings. `available` speaks for the
-hosted key only.
+hosted key only: `key` is what the deployment offers and says nothing about a
+key the user has, and `available` means a hosted key and sign-in are present,
+not that the model answers. `reason` is non-null exactly when `key` is
+`"hosted"` and `available` is `false`.
 
 #### Scenario: No key configured
 
 - **WHEN** the deployment has no hosted key, or has one but sign-in is not configured
-- **THEN** the route answers `{ "available": false, "key": "own", "reason": null, "model": null }`
+- **THEN** the route answers `{ "available": false, "key": "own", "reason": null, "model": null }`, and a deployment with a key but incomplete sign-in settings logs the missing settings' names
 
 #### Scenario: Signed out with the hosted key
 
@@ -61,7 +64,7 @@ with `405` and an `Allow: GET, HEAD` header.
 #### Scenario: A POST is refused
 
 - **WHEN** a client sends `POST /api/ai/status`
-- **THEN** the route answers `405` with `Allow: GET, HEAD`
+- **THEN** the route answers `405` with `Allow: GET, HEAD` and a body `{ "error": string }`, which is not a status answer
 
 ### Requirement: The deployed path reaches the status route
 

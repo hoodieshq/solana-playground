@@ -52,12 +52,20 @@ const OWN = { available: false, key: "own", reason: null, model: null };
  * retired. Settings only, not `getAuth`: building auth opens the pool, which
  * can throw.
  *
- * TODO(HOO-1747): once the client reads only this route, retire the `GET` of
- * `api/agent.mjs` and with it the second copy of this rule.
+ * TODO: once HOO-1747 has moved the client to this route, retire the `GET` of
+ * `api/agent.mjs`, and with it the second copy of this rule, in a ticket of
+ * its own.
  */
 const hostedModel = () => {
   const agent = agentEnv();
-  if (!agent.API_KEY || missingConfig().length > 0) return null;
+  if (!agent.API_KEY) return null;
+  const missing = missingConfig();
+  if (missing.length > 0) {
+    // A key with sign-in half set up is a deployment mistake, not a choice:
+    // say which settings are missing (names only, see `missingConfig`)
+    console.warn("ai/status: a hosted key is set, but sign-in lacks", missing);
+    return null;
+  }
   return agent.MODEL;
 };
 
@@ -81,9 +89,10 @@ const hostedStatus = (model, session) => {
       return { available: false, key: "hosted", reason: "unavailable", model };
     default:
       // Defensive: `hostedModel` has just found the sign-in settings
-      // complete, so `unconfigured` means they changed under us or the two
-      // checks drifted apart. No turn could be taken, so no hosted key
-      console.warn("ai/status: hosted key offered, yet sign-in reads as", {
+      // complete, so `unconfigured` (or a status `readSession` gains later)
+      // means the two checks drifted apart. No turn could be taken, so no
+      // hosted key
+      console.warn("ai/status: unexpected session status for a hosted key", {
         status: session.status,
       });
       return OWN;

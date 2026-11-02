@@ -35,7 +35,8 @@ None.
 
 ## Impact
 
-- Code: `client-v2/api/ai.mjs` and its `node --test` cases, `client-v2/vercel.json`.
+- Code: `client-v2/api/ai.mjs` and its `node --test` cases, `client-v2/vercel.json`,
+  and `client-v2/api-routing.test.mjs`.
 - API: one new read-only route. `GET /api/agent` is unchanged and keeps
   serving the current probe until HOO-1747 moves the client over.
 - User-visible: nothing until HOO-1747 reads the answer; then AI surfaces

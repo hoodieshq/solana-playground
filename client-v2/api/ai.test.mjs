@@ -93,7 +93,7 @@ describe("GET /api/ai/status", () => {
     return JSON.parse(res.body);
   };
 
-  it("answers key: own without a hosted key, and never reads the session", async () => {
+  it("assistant-ai-status: No key configured", async () => {
     const { res, asked } = await call();
 
     assert.deepEqual(body(res), {
@@ -105,9 +105,10 @@ describe("GET /api/ai/status", () => {
     assert.equal(asked, 0);
   });
 
-  it("answers key: own with a key but no sign-in configured", async () => {
+  it("assistant-ai-status: No key configured, a key without sign-in", async (t) => {
     process.env.AGENT_API_KEY = KEY;
     process.env.AGENT_MODEL = MODEL;
+    const warn = t.mock.method(console, "warn", () => {});
 
     const { res, asked } = await call();
 
@@ -118,9 +119,12 @@ describe("GET /api/ai/status", () => {
       model: null,
     });
     assert.equal(asked, 0);
+    // Names only: the warning lists what is missing, never a value
+    assert.equal(warn.mock.callCount(), 1);
+    assert.ok(!JSON.stringify(warn.mock.calls[0].arguments).includes(KEY));
   });
 
-  it("answers key: own with sign-in but no key", async () => {
+  it("assistant-ai-status: No key configured, sign-in without a key", async () => {
     Object.assign(process.env, SIGN_IN);
 
     const { res, asked } = await call();
@@ -134,7 +138,7 @@ describe("GET /api/ai/status", () => {
     assert.equal(asked, 0);
   });
 
-  it("answers signed-out with the hosted key and a signed-out caller", async () => {
+  it("assistant-ai-status: Signed out with the hosted key", async () => {
     configureHostedKey();
 
     const { res } = await call({ session: { status: "signed-out" } });
@@ -147,7 +151,7 @@ describe("GET /api/ai/status", () => {
     });
   });
 
-  it("answers available with the hosted key and a signed-in caller", async () => {
+  it("assistant-ai-status: Signed in with the hosted key", async () => {
     configureHostedKey();
 
     const { res } = await call({
@@ -162,7 +166,7 @@ describe("GET /api/ai/status", () => {
     });
   });
 
-  it("answers unavailable, not signed-out, when the session lookup fails", async () => {
+  it("assistant-ai-status: The session lookup fails", async () => {
     configureHostedKey();
 
     const { res } = await call({ session: { status: "unavailable" } });
@@ -175,7 +179,7 @@ describe("GET /api/ai/status", () => {
     });
   });
 
-  it("answers key: own, and says why, when sign-in turns out unconfigured at lookup", async (t) => {
+  it("assistant-ai-status: Sign-in reads as unconfigured at lookup", async (t) => {
     configureHostedKey();
     const warn = t.mock.method(console, "warn", () => {});
 
@@ -190,7 +194,7 @@ describe("GET /api/ai/status", () => {
     assert.equal(warn.mock.callCount(), 1);
   });
 
-  it("never sends any part of either key in any answer, and is never cached", async () => {
+  it("assistant-ai-status: A configured key stays on the server", async () => {
     configureHostedKey();
 
     const answers = [
@@ -265,7 +269,7 @@ describe("GET /api/ai/status", () => {
     assert.equal(res.body, "");
   });
 
-  it("refuses POST with 405 and the methods it allows", async () => {
+  it("assistant-ai-status: A POST is refused", async () => {
     configureHostedKey();
 
     const { res, asked } = await call({ method: "POST" });
