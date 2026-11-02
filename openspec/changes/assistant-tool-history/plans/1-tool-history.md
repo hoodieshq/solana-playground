@@ -53,7 +53,7 @@ the messages the next request sends.
 
 ### Task 2: the `call` record on a `tool` item
 
-**Files:** Modify `src/views/sidebar/assistant/store.ts` (type, `addToolResult`, in-source or `store.test.ts` tests), `src/features/persistence/model/chat-codec.ts` (decode + its block).
+**Files:** Create `src/views/sidebar/assistant/model/tool-call.ts` (type, caps, `isToolCallRecord`, `toToolCallRecord`: a leaf, so replay can import it without a cycle through the store). Modify `src/views/sidebar/assistant/store.ts` (`addToolResult`, in-source tests), `src/features/persistence/model/chat-codec.ts` (decode + its block).
 
 **Produces:**
 - `export interface ToolCallRecord { name: string; input: unknown; output: string; failed?: true }`.

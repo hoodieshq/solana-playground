@@ -45,6 +45,11 @@ written by the provider when the SDK reports the tool's result.
   guess. A record of its own is written where the result is known.
 - `label` is the tool's name, so a tab still running the previous code draws
   a plain marker rather than an empty one.
+- The record's type, its caps and `isToolCallRecord` live in a leaf module,
+  `views/sidebar/assistant/model/tool-call.ts`. Replay in `features/persistence`
+  needs the predicate at runtime, and the store imports persistence, so taking
+  it from the store would close an import cycle that the dev build's
+  `CircularDependencyPlugin` refuses.
 
 ### `runTurn` reports results through `onToolResult`
 
