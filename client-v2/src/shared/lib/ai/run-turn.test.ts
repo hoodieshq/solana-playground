@@ -471,6 +471,23 @@ describe("runTurn", () => {
       ]);
     });
 
+    it("reports only a streaming tool's final result", async () => {
+      const results = await resultsOf(
+        toolReturning(async function* () {
+          yield "half";
+          yield "whole";
+        })
+      );
+
+      expect(results.map(({ output }) => output)).toEqual(["whole"]);
+    });
+
+    it("reports a tool that returned nothing as empty text", async () => {
+      const results = await resultsOf(toolReturning(() => undefined));
+
+      expect(results.map(({ output }) => output)).toEqual([""]);
+    });
+
     it("reports a result that is not text as JSON", async () => {
       const results = await resultsOf(toolReturning(() => ({ a: 1 })));
 

@@ -502,7 +502,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     // or the model would carry the last project's turns. `conversation`
     // catches what is dropped with no thread change: sign-out with no thread
     // open would otherwise hand the next account the last one's history. A
-    // rebuild is harmless: the new provider is seeded from the stored thread.
+    // rebuild is harmless: the new provider is seeded from the open thread.
     if (
       provider.current?.connection !== current ||
       provider.current.threadId !== PgAssistant.threadId ||
@@ -512,8 +512,9 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
         connection: current,
         threadId: PgAssistant.threadId,
         conversation: PgAssistant.conversation,
-        // Seeded from the stored thread, its tool calls included, so reopening
-        // it gives the model the conversation and what its tools returned
+        // Seeded from the open thread, its stored tool calls included, so
+        // reopening it gives the model the conversation and what its tools
+        // returned
         instance: createProvider(current, toReplayMessages(PgAssistant.items)),
       };
     }

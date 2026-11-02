@@ -86,9 +86,9 @@ export interface ToolCallEvent {
 }
 
 /**
- * A tool's answer, reported once it is final. `output` is what the model
- * reads, as text: a tool that returned anything else is given as JSON, and a
- * tool that threw as its message.
+ * A tool's answer, reported once it is final. `output` is always text: the
+ * tool's own, anything else it returned as JSON (or its string form when JSON
+ * cannot write it), nothing as `""`, and a tool that threw as its message.
  */
 export interface ToolResultEvent {
   toolCallId: string;
@@ -140,8 +140,21 @@ const messageOf = (error: unknown): string => {
   return String(error);
 };
 
-const textOf = (output: unknown) =>
-  typeof output === "string" ? output : JSON.stringify(output);
+/**
+ * A tool's output as the text the model reads. Total, since it runs inside the
+ * stream after the tool already ran: nothing is `""`, and a value JSON cannot
+ * write (a cycle, a BigInt) falls back to `String`.
+ */
+const textOf = (output: unknown): string => {
+  if (typeof output === "string") return output;
+  if (output === undefined) return "";
+  try {
+    return JSON.stringify(output) ?? String(output);
+  } catch {
+    // Not JSON: its own string form is still a truthful answer for the model
+    return String(output);
+  }
+};
 
 /** Characters of an unparsed error body kept in the detail */
 const BODY_IN_DETAIL = 300;

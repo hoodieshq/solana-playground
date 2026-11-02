@@ -1,14 +1,39 @@
 import type { ModelMessage } from "ai";
 
 import type { ChatItem } from "../../../views/sidebar/assistant/store";
-import { isToolCallRecord } from "../../../views/sidebar/assistant/model/tool-call";
-
-/** One message of a rehydrated conversation, as the SDK sends it to any backend */
-export type ReplayMessage = ModelMessage;
+import { isToolCallRecord, type ToolCallRecord } from "./tool-call";
 
 /**
- * Rebuild the model's history from a stored thread: what was said, and every
- * tool call that finished with what it returned (HOO-2425), each in its place.
+ * Characters of stored calls one replay sends, newest first. The default
+ * backend refuses a body over 512 KB (`AGENT_MAX_BODY_BYTES`), which also
+ * carries the prompt, the project and the conversation's text; a thread keeps
+ * up to 200 items, so its records alone could reach about 800 KB at their
+ * caps. Older calls past the budget are left out, as before HOO-2425: the
+ * conversation's text still says what they did.
+ */
+const REPLAY_CALL_BUDGET = 96_000;
+
+const sizeOf = (call: ToolCallRecord) =>
+  call.name.length + JSON.stringify(call.input).length + call.output.length;
+
+/** The ids of the records a replay sends: the newest that fit the budget */
+const recordsInBudget = (items: readonly ChatItem[]) => {
+  const kept = new Set<string>();
+  let left = REPLAY_CALL_BUDGET;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (!isToolCallRecord(item)) continue;
+    left -= sizeOf(item.call);
+    if (left < 0) break;
+    kept.add(item.id);
+  }
+  return kept;
+};
+
+/**
+ * Rebuild the model's history from a stored thread: what was said, and the
+ * tool calls that finished with what they returned (HOO-2425), each in its
+ * place, the newest within `REPLAY_CALL_BUDGET`.
  *
  * A call is replayed from its stored record (`ToolCallRecord`), never from
  * the marker a tool draws, and only with its result: a model shown a call
@@ -20,15 +45,17 @@ export type ReplayMessage = ModelMessage;
  *
  * Provider-only parts (reasoning signatures, Gemini's thought signatures)
  * were never stored, so a restored thread is honest history rather than a
- * resumed session. Results are cut (`RESULT_CAP` in the store); the live
+ * resumed session. Results are cut when stored (`toToolCallRecord`); the live
  * project goes with every turn anyway (`describeProject`), so a file the model
  * read is in front of it again.
  */
 export const toReplayMessages = (
   items: readonly ChatItem[]
-): ReplayMessage[] => {
+): ModelMessage[] => {
+  const replayed = recordsInBudget(items);
   let calls = 0;
-  return items.flatMap((item): ReplayMessage[] => {
+  return items.flatMap((item): ModelMessage[] => {
+    if (isToolCallRecord(item) && !replayed.has(item.id)) return [];
     if (isToolCallRecord(item)) {
       const toolCallId = `call_${++calls}`;
       const { name: toolName, input, output, failed } = item.call;
@@ -225,6 +252,24 @@ if (import.meta.vitest) {
         );
 
         expect(ids).toEqual(["call_1", "call_1", "call_2", "call_2"]);
+      });
+
+      it("sends only the newest calls that fit its budget", () => {
+        const items = Array.from({ length: 30 }, (_, n) =>
+          record(n, "read_file", "x".repeat(4_000))
+        );
+
+        const names = toReplayMessages(items).flatMap((message) =>
+          message.role === "tool" ? [message] : []
+        );
+
+        // 96,000 characters hold 23 records of about 4,030 each
+        expect(names).toHaveLength(23);
+        const ids = names.map(
+          (m) => (m.content as { toolCallId: string }[])[0].toolCallId
+        );
+        expect(ids[0]).toBe("call_1");
+        expect(ids[22]).toBe("call_23");
       });
 
       it("is empty for an empty thread", () => {

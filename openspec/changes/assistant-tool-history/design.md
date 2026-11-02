@@ -20,7 +20,9 @@ See proposal.md, Why. Three facts shape the approach:
 **Goals:**
 
 - The model's history after a rebuild is the history it had before, minus
-  provider-only parts and with long values cut.
+  provider-only parts, with long values cut and the oldest calls past the
+  budget left out. It also holds the calls of a turn that failed after its
+  tools ran, which the live provider's history does not.
 - No change that has to ship in a set order with a migration.
 
 **Non-Goals:**
@@ -45,11 +47,12 @@ written by the provider when the SDK reports the tool's result.
   guess. A record of its own is written where the result is known.
 - `label` is the tool's name, so a tab still running the previous code draws
   a plain marker rather than an empty one.
-- The record's type, its caps and `isToolCallRecord` live in a leaf module,
-  `views/sidebar/assistant/model/tool-call.ts`. Replay in `features/persistence`
-  needs the predicate at runtime, and the store imports persistence, so taking
-  it from the store would close an import cycle that the dev build's
-  `CircularDependencyPlugin` refuses.
+- The record's type, its caps, `isToolCallRecord` and `toToolCallRecord` live
+  in `features/persistence/model/tool-call.ts`, which imports the store by type
+  only. Replay needs the predicate at runtime and the store imports
+  persistence, so taking it from the store would close an import cycle that
+  the dev build's `CircularDependencyPlugin` refuses; and storage is where the
+  caps belong.
 
 ### `runTurn` reports results through `onToolResult`
 
@@ -82,11 +85,23 @@ The seed gains tool messages, so the replay's type becomes the SDK's
 
 ### Caps: 4,000 characters per result, 1,000 per input string
 
-The server takes at most 2 MB per batch, and a thread keeps its newest 200
-items. 200 records at their cap stay under the limit together with the text.
 `describeProject` sends the live project with every turn, so a file the model
-read is in front of it again anyway, and a cut result loses little. The caps
-are constants beside the writer.
+read is in front of it again anyway, and a cut result loses little. An input
+that is not an object (the raw text of arguments the model got wrong) is
+wrapped as `{ value }`, because Anthropic refuses a `tool_use` whose input is
+not an object, and an empty result is stored as `(no output)`, because it
+refuses an empty text block. The decoder drops a record that breaks either
+rule, so a foreign or hand-edited record costs its replay, not the thread.
+Storing never throws: the tool has already run.
+
+### A replay sends the newest calls within 96,000 characters
+
+The default backend refuses a body over 512 KB (`AGENT_MAX_BODY_BYTES`), and a
+thread of 200 items could hold records worth about 800 KB. A replay walks the
+thread from the newest record back and stops at the budget; older calls are
+left out, as all were before this change, and the text still tells of them.
+The sync batch (2 MB per push) is far from that: each record comes with its
+tool's marker, so a thread holds about 100 at most.
 
 ## Risks / Trade-offs
 

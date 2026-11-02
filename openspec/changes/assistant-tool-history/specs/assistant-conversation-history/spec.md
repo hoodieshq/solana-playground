@@ -10,6 +10,9 @@ backend switch.
 Its scenarios are checked by unit tests, not in the browser, so they carry the
 `(manual)` mark: `src/features/persistence/model/replay.ts`,
 `src/features/persistence/model/chat-codec.ts`,
+`src/features/persistence/model/tool-call.ts`,
+`src/views/sidebar/assistant/store.ts`,
+`src/widgets/assistant/ui/BaseThreadItem.test.tsx`,
 `src/shared/lib/ai/run-turn.test.ts` and
 `src/views/sidebar/assistant/model/provider.test.ts`, all under `client-v2/`.
 
@@ -49,7 +52,9 @@ Before a call is stored, each text value in its input longer than 1,000
 characters, and a result longer than 4,000 characters, SHALL be cut to that
 length and end with a marker giving the number of characters cut. An input
 still longer than 4,000 characters once serialised SHALL be replaced by a note
-giving its size. The connection's key SHALL NOT appear in a stored call.
+giving its size. An input that is not an object SHALL be stored wrapped in
+one, and an empty result as `(no output)`. The connection's key SHALL NOT
+appear in a stored call. Failing to store a call SHALL NOT fail its turn.
 
 #### Scenario: A long result is cut with a marker (manual)
 
@@ -61,6 +66,16 @@ giving its size. The connection's key SHALL NOT appear in a stored call.
 - **WHEN** `write_file` is called with a 3,000-character `content`
 - **THEN** the stored input keeps `path` whole and holds the first 1,000 characters of `content` with a marker
 
+#### Scenario: Arguments the model got wrong are stored as an object (manual)
+
+- **WHEN** a call's input is the text `{"path": "src/li`
+- **THEN** the stored input is `{ "value": "{\"path\": \"src/li" }`
+
+#### Scenario: A call that cannot be stored is reported (manual)
+
+- **WHEN** storing a call fails
+- **THEN** the failure is logged for reporting, nothing is stored for it, and the turn goes on
+
 #### Scenario: The key is redacted (manual)
 
 - **WHEN** a tool's result contains the connection's key
@@ -70,7 +85,8 @@ giving its size. The connection's key SHALL NOT appear in a stored call.
 
 A provider built for a thread that is already stored SHALL send the model, in
 place, each stored call as a tool call followed by its tool result, between the
-text that came before and after it. A tool item that carries no stored call
+text that came before and after it, for the newest calls that fit 96,000
+characters together; older calls SHALL be left out. A tool item that carries no stored call
 SHALL be left out, as today. A thread holding no stored calls SHALL replay as
 text only, as before.
 
@@ -88,6 +104,11 @@ text only, as before.
 
 - **WHEN** a turn stored two calls before its reply
 - **THEN** the replay sends each call followed by its own result, in the order they finished, and each result names its own call
+
+#### Scenario: A long thread replays its newest calls (manual)
+
+- **WHEN** a thread holds 30 stored calls of about 4,000 characters each
+- **THEN** the replay sends the newest 23 and leaves the 7 oldest out
 
 #### Scenario: A thread from before replays as text (manual)
 

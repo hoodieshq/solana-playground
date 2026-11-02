@@ -321,6 +321,56 @@ describe("the assistant's provider", () => {
       ]);
     });
 
+    it("replays a stored call to Anthropic as tool_use and tool_result", async () => {
+      PgAssistant.addToolResult(
+        {
+          toolName: "read_file",
+          input: { path: "src/lib.rs" },
+          output: "Not found",
+          failed: true,
+        },
+        undefined
+      );
+      const asked: ChatItem = {
+        id: "u-1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        kind: "user",
+        text: "read lib.rs",
+      };
+      const seed = toReplayMessages(
+        Array.of<ChatItem>(asked).concat(PgAssistant.items)
+      );
+      const sent = respond(anthropicText("It is missing.", "end_turn"));
+
+      await createProvider({ id: "anthropic", apiKey: KEY }, seed).send("why?");
+
+      expect(messagesOf(sent[0].body).slice(0, 3)).toEqual([
+        { role: "user", content: [{ type: "text", text: "read lib.rs" }] },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              id: "call_1",
+              name: "read_file",
+              input: { path: "src/lib.rs" },
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            expect.objectContaining({
+              type: "tool_result",
+              tool_use_id: "call_1",
+              is_error: true,
+            }),
+            expect.objectContaining({ type: "text", text: "why?" }),
+          ],
+        },
+      ]);
+    });
+
     it("survives storage and a pull from another device, and goes with the next request", async () => {
       writeTurn();
       await defaultBackend().send("make the change");

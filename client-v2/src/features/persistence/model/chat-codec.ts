@@ -179,7 +179,8 @@ const isStoredItem = (value: unknown): value is StoredItem => {
  * the item falls back to `createdAt` as its version. Kept, it would be
  * uploaded with every push of the thread, and the server refuses a whole
  * thread over one item it cannot cast. An approval card's `undo` that the
- * card cannot have is dropped too (`withValidUndo`).
+ * card cannot have is dropped too (`withValidUndo`), and so is a tool item's
+ * stored call that a replay could not send (`withValidCall`).
  */
 export const decodeItem = (stored: unknown): ChatItem | null => {
   if (!isStoredItem(stored)) return null;
@@ -188,9 +189,11 @@ export const decodeItem = (stored: unknown): ChatItem | null => {
 
 /**
  * A tool item keeps its stored call only when the call can be replayed: a
- * string name and output, and `failed` absent or `true`. Otherwise the call is
- * dropped and the item stays a marker, so one hand-edited record costs its
- * replay rather than the thread.
+ * string name and output, an input that is a plain object (Anthropic refuses
+ * any other), and `failed` absent or `true`. Otherwise the call is dropped,
+ * so one hand-edited or foreign record costs its replay, not every later turn
+ * of the thread. The item left behind is drawn as a plain marker named after
+ * the tool.
  */
 const withValidCall = (item: ChatItem): ChatItem => {
   if (item.kind !== "tool" || item.call === undefined) return item;
@@ -200,6 +203,9 @@ const withValidCall = (item: ChatItem): ChatItem => {
     typeof call === "object" &&
     typeof call.name === "string" &&
     typeof call.output === "string" &&
+    typeof call.input === "object" &&
+    call.input !== null &&
+    !Array.isArray(call.input) &&
     (call.failed === undefined || call.failed === true);
   if (valid) return item;
   const marker = { ...item };
@@ -549,13 +555,33 @@ if (import.meta.vitest) {
         expect(decodeThread(encodeThread(items))).toEqual(items);
       });
 
-      it("drops a malformed stored call and keeps the marker", () => {
+      it.each([
+        ["a name that is not text", { name: 1, input: {}, output: "x" }],
+        ["no input", { name: "read_file", output: "x" }],
+        [
+          "an input that is text",
+          { name: "read_file", input: "{", output: "x" },
+        ],
+        [
+          "an input that is a list",
+          { name: "read_file", input: [], output: "x" },
+        ],
+        [
+          "an output that is not text",
+          { name: "read_file", input: {}, output: null },
+        ],
+        [
+          "failed: false",
+          { name: "read_file", input: {}, output: "x", failed: false },
+        ],
+        ["no call at all", null],
+      ])("drops a stored call with %s and keeps the marker", (_, call) => {
         const stored = {
           id: base.id,
           createdAt: base.createdAt,
           kind: "tool",
           label: "read_file",
-          call: { name: 1, output: "x" },
+          call,
         };
 
         expect(decodeThread([stored])).toEqual([

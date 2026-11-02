@@ -53,6 +53,8 @@ const createReplies = () => {
 /**
  * One conversation with any model provider, on `runTurn`. The history keeps the SDK's messages, so
  * tool calls and Gemini's thought signatures go back as sent; a failed turn leaves it unchanged.
+ * The thread still stores each call that turn finished (`PgAssistant.addToolResult`), so a provider
+ * rebuilt later replays them: they ran, and the model must not run them again.
  */
 export const createProvider = (
   connection: ProviderConnection,
@@ -111,7 +113,8 @@ export const createProvider = (
             replies.close();
           },
           // Stored with the thread, so a provider built for it later replays the call
-          onToolResult: (result) => PgAssistant.addToolResult(result),
+          onToolResult: (result) =>
+            PgAssistant.addToolResult(result, connection.apiKey),
         });
       } catch (e) {
         if (!(e instanceof ai.AiTurnError)) throw e;

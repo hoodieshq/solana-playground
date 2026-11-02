@@ -1,5 +1,6 @@
 import { CheckIcon } from "lucide-react";
 
+import { isToolCallRecord } from "@/features/persistence";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Bubble, BubbleContent } from "@/shared/ui/bubble";
@@ -141,8 +142,9 @@ export const BaseThreadItem = ({
       );
 
     case "tool":
-      // A stored call is for the model's replay; the tool drew its own marker
-      if (item.call) return null;
+      // A stored call is for the model's replay; any marker the tool drew is
+      // an item of its own
+      if (isToolCallRecord(item)) return null;
       return (
         <Marker>
           <MarkerIcon>

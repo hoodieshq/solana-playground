@@ -19,7 +19,6 @@ import {
   MAX_MESSAGES_PER_THREAD,
   PgChatStorage,
 } from "../../../features/persistence/model/chat-storage";
-import { report } from "../../../features/persistence";
 import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "@/features/mcp";
@@ -28,11 +27,13 @@ import { isDefaultBackend, type Effort } from "./model/types";
 import { paramsOf, type BackendParams } from "./model/backend-params";
 import {
   isToolCallRecord,
+  report,
   toToolCallRecord,
   type ToolCallRecord,
-} from "./model/tool-call";
+} from "../../../features/persistence";
+import type { ToolResultEvent } from "@/shared/lib/ai";
 
-export { isToolCallRecord, type ToolCallRecord } from "./model/tool-call";
+export { isToolCallRecord, type ToolCallRecord };
 
 const log = createLogger("assistant:store");
 
@@ -115,10 +116,11 @@ export type ChatItem =
       kind: "tool";
       label: string;
       /**
-       * Present on the item `addToolResult` writes when a tool returns: the
-       * call as the model made it and what it read back, so a provider built
-       * for this thread later replays it (`toReplayMessages`). The thread
-       * draws nothing for such an item; the marker the tool wrote is drawn.
+       * Present on the item `addToolResult` writes when a tool returns or
+       * throws: the call as the model made it and what it read back, so a
+       * provider built for this thread later replays it (`toReplayMessages`).
+       * The thread draws nothing for such an item; any marker the tool wrote
+       * (`addToolCall`) is drawn as before.
        */
       call?: ToolCallRecord;
     })
@@ -958,19 +960,32 @@ export class PgAssistant {
   }
 
   /**
-   * Store a tool call that finished, so a provider built for this thread later
-   * replays it. Its label is the tool's name, which a tab on the code before
-   * records draws as a plain marker. A cut turn writes none, as it writes no
-   * marker (`_dropsCut`).
+   * Store a tool call that finished (returned or threw), so a provider built
+   * for this thread later replays it. Its label is the tool's name, so a tab
+   * still on the code before this record draws it as one more plain marker.
+   * A cut turn stores none, as it writes no marker (`_dropsCut`).
+   *
+   * Never throws: the tool has already run, and a record that cannot be
+   * stored must not fail the turn that ran it. Such a call is reported and
+   * left out of the replay.
+   *
+   * @param apiKey the key of the connection whose turn ran the tool, redacted
    */
-  static addToolResult(result: {
-    toolName: string;
-    input: unknown;
-    output: string;
-    failed: boolean;
-  }) {
+  static addToolResult(
+    result: Pick<ToolResultEvent, "toolName" | "input" | "output" | "failed">,
+    apiKey = PgAssistant._connection?.apiKey
+  ) {
     if (PgAssistant._dropsCut("tool", result.toolName)) return;
-    const call = toToolCallRecord(result, PgAssistant._connection?.apiKey);
+    let call: ToolCallRecord;
+    try {
+      call = toToolCallRecord(result, apiKey);
+    } catch (error) {
+      log.error(error, {
+        report: true,
+        context: { what: "store a tool call", tool: result.toolName },
+      });
+      return;
+    }
     PgAssistant._items.push({
       kind: "tool",
       id: makeId(),
@@ -3534,6 +3549,32 @@ if (import.meta.vitest) {
 
         expect(JSON.stringify(PgAssistant.items)).not.toContain(KEY);
         expect(records()[0].output).toBe(`echoed ${REDACTED_KEY}`);
+      });
+
+      it("reports a call it cannot store and lets the turn go on", async () => {
+        const logger = await import("../../../shared/lib/logger");
+        const logged = logger.memoryProvider();
+        logger.initLogger({ providers: [logged] });
+
+        expect(() =>
+          PgAssistant.addToolResult({
+            toolName: "probe",
+            input: {},
+            // What a broken tool event could carry, against its type
+            output: undefined as unknown as string,
+            failed: false,
+          })
+        ).not.toThrow();
+
+        expect(records()).toEqual([]);
+        expect(logged.entries).toEqual([
+          expect.objectContaining({
+            ns: "assistant:store",
+            level: "error",
+            report: true,
+          }),
+        ]);
+        logger.resetLogger();
       });
 
       it("writes no record while a cut turn unwinds", () => {
