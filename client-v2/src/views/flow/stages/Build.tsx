@@ -1,5 +1,18 @@
 import { useEffect, useState } from "react";
 
+import { DownloadProgram } from "@/features/cli-deploy";
+
+import BaseBuild from "./BaseBuild";
+import IdlActions from "./IdlActions";
+import { useSlowBuild } from "./use-slow-build";
+import { buildSurface, ownOutput } from "./build-surface";
+import { toldByStage } from "./stage-failure";
+import { failedView } from "./build-view";
+import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
+import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
+import { PgAssistant } from "../../sidebar/assistant/store";
+import { PgFlow } from "../state/stage";
+import type { FlowState } from "../state/stage";
 import { PgCommand, PgExplorer, PgFramework, PgSettings } from "../../../utils";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
@@ -72,7 +85,12 @@ const Build = () => {
       onExport={() => PgFramework.exportWorkspace()}
       onAsk={(prompt) => PgAssistant.requestPrompt(prompt)}
       onOpenFile={(path) => PgExplorer.openFile(path)}
-      idlActions={<IdlActions mode="download" />}
+      idlActions={
+        <>
+          <IdlActions mode="download" />
+          <DownloadProgram from="build-stage" />
+        </>
+      }
     />
   );
 };

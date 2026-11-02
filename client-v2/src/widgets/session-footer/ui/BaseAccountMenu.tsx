@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   BookOpen,
+  HandCoins,
   LogOut,
   Settings,
   TriangleAlert,
@@ -172,7 +173,7 @@ const SignInFoot = ({ onPick }: Pick<BaseAccountMenuProps, "onPick">) => {
       className="flex shrink-0 flex-col gap-3 border-t border-border px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
     >
       <p className="text-control font-read text-muted-foreground">
-        Keep your projects and conversations on every device, and request devnet
+        Keep your projects and conversations on every device, and request Devnet
         SOL.
       </p>
       <DropdownMenuItem
@@ -288,6 +289,11 @@ const BaseAccountMenu = ({
       ) : (
         <DropdownMenuItem onSelect={() => pick("connect-wallet")}>
           <Wallet /> Connect wallet
+        </DropdownMenuItem>
+      )}
+      {account.canFund && (
+        <DropdownMenuItem onSelect={() => pick("fund-wallet")}>
+          <HandCoins /> Fund from a wallet
         </DropdownMenuItem>
       )}
     </>

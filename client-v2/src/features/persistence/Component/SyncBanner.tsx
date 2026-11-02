@@ -5,7 +5,10 @@ import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
-
+import { ConflictResolver } from "../ui/ConflictResolver";
+import { PgProjectSync } from "../model/project-sync";
+import { MAX_PROJECT_BODY_LABEL } from "../model/project-write.mjs";
+import { persistenceTelemetry } from "../model/telemetry";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Conflict, Resolution } from "../model/project-sync";
 import { PgProjectSync } from "../model/project-sync";
@@ -108,7 +111,7 @@ const PROMPTS: Record<
   },
   "too-large": {
     message: () =>
-      "This project is too large to sync. Remove or shrink its largest files, then try again.",
+      `This project is over the ${MAX_PROJECT_BODY_LABEL} sync limit. Remove or shrink its largest files, then try again.`,
     actions: [{ label: "Try again", resolution: "retry", primary: true }],
   },
 };
