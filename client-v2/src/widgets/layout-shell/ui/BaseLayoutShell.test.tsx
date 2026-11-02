@@ -1349,6 +1349,13 @@ describe("in a tutorial", () => {
     expect(files).toHaveBeenLastCalledWith({ isMobile: false, pinned: true });
   });
 
+  it("lets no drag fold the held column in the frame", () => {
+    render(<BaseLayoutShell {...inTutorial("wide")} />);
+    expect(
+      (panelSpies.panels.files as { collapsible?: boolean }).collapsible
+    ).toBeFalsy();
+  });
+
   it("keeps today's layout below a wide window, which no source draws", () => {
     const nav = vi.fn(() => null);
     render(

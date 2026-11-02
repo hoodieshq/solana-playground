@@ -518,6 +518,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   // In a tutorial's frame the column is held open whatever was saved: the
   // frame has no stage bar, so nothing there could open it again (until the
   // workspace's tree, task 2.2, replaces it). A fold there is not saved.
+  // A fresh object each render; read only by `.open` in the effects below
   const filesState: PanelState = tutorialLayout
     ? { open: true, onOpenChange: () => undefined }
     : props.filesState;
@@ -683,7 +684,9 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         <ResizablePanel
           id="files"
           panelRef={filesRef}
-          collapsible
+          // Held open in the frame: a drag past the fold point would fold it
+          // where nothing could open it again
+          collapsible={!tutorialLayout}
           collapsedSize={PANEL_SIZES.files.folded}
           defaultSize={filesOpenSize.current}
           minSize={PANEL_SIZES.files.min}
