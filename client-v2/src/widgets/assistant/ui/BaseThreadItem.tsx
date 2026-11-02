@@ -141,6 +141,8 @@ export const BaseThreadItem = ({
       );
 
     case "tool":
+      // A stored call is for the model's replay; the tool drew its own marker
+      if (item.call) return null;
       return (
         <Marker>
           <MarkerIcon>

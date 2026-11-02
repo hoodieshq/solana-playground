@@ -34,7 +34,14 @@ import {
   POOL_EXHAUSTED_REASON,
   REFUSAL_MESSAGES,
 } from "@/features/agent";
-import { PgAssistant, type ChatItem } from "../store";
+import { PgAssistant, isToolCallRecord, type ChatItem } from "../store";
+import { toReplayMessages } from "@/features/persistence";
+import {
+  decodeThread,
+  encodeThread,
+  mergeThreads,
+} from "@/features/persistence/model/chat-codec";
+import { PgChatStorage } from "@/features/persistence/model/chat-storage";
 import { PgSession } from "../../../../features/auth";
 import { DEFAULT_BACKEND_URL, MAX_RESUMES, MAX_STEPS } from "../config";
 
@@ -158,14 +165,17 @@ const anthropicThinkingThenText = (thinking: string, text: string) =>
 const defaultBackend = () => createProvider({ id: "default", apiKey: "" });
 const anthropic = () => createProvider({ id: "anthropic", apiKey: KEY });
 
+/** What the thread draws: a stored call is for the replay, not the thread */
 const rendered = () =>
-  PgAssistant.items.map((item: ChatItem) => {
-    if (item.kind === "tool") return `tool: ${item.label}`;
-    if (item.kind === "assistant" || item.kind === "error") {
-      return `${item.kind}: ${item.text}`;
-    }
-    return item.kind;
-  });
+  PgAssistant.items
+    .filter((item) => !isToolCallRecord(item))
+    .map((item: ChatItem) => {
+      if (item.kind === "tool") return `tool: ${item.label}`;
+      if (item.kind === "assistant" || item.kind === "error") {
+        return `${item.kind}: ${item.text}`;
+      }
+      return item.kind;
+    });
 
 const messagesOf = (body: Record<string, unknown>) =>
   body.messages as Array<Record<string, unknown>>;
@@ -260,6 +270,98 @@ describe("the assistant's provider", () => {
       "tool: wrote src/lib.rs",
       "assistant: Done.",
     ]);
+  });
+
+  describe("tool calls kept in the history", () => {
+    /** A turn that calls write_file once, then answers */
+    const writeTurn = () =>
+      respond(
+        chatStream(
+          [
+            {
+              role: "assistant",
+              tool_calls: [
+                {
+                  index: 0,
+                  id: "sdk-id-1",
+                  type: "function",
+                  function: {
+                    name: "write_file",
+                    arguments: '{"path":"src/lib.rs"}',
+                  },
+                },
+              ],
+            },
+          ],
+          "tool_calls"
+        ),
+        openAiText("Done.")
+      );
+
+    const toolMessages = (body: Record<string, unknown>) =>
+      messagesOf(body).filter(
+        (m) => m.role === "tool" || (m.role === "assistant" && m.tool_calls)
+      );
+
+    it("stores the tool's result after the tool's own marker", async () => {
+      writeTurn();
+
+      await defaultBackend().send("make the change");
+
+      expect(
+        PgAssistant.items.map((item) =>
+          isToolCallRecord(item)
+            ? `call: ${item.call.name} -> ${item.call.output}`
+            : item.kind
+        )
+      ).toEqual(["tool", "call: write_file -> Wrote src/lib.rs.", "assistant"]);
+      expect(rendered()).toEqual([
+        "tool: wrote src/lib.rs",
+        "assistant: Done.",
+      ]);
+    });
+
+    it("survives storage and a pull from another device, and goes with the next request", async () => {
+      writeTurn();
+      await defaultBackend().send("make the change");
+      vi.restoreAllMocks();
+
+      // This device's storage, then the account's copy as another device reads it
+      await PgChatStorage.write("round-trip", PgAssistant.items);
+      const local = (await PgChatStorage.read("round-trip")) ?? [];
+      const pulled = decodeThread(
+        JSON.parse(JSON.stringify(encodeThread(local)))
+      );
+      const thread = mergeThreads([], pulled);
+
+      const sent = respond(openAiText("It is written."));
+      await createProvider(
+        { id: "default", apiKey: "" },
+        toReplayMessages(thread)
+      ).send("is it written?");
+
+      expect(toolMessages(sent[0].body)).toEqual([
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [
+            {
+              id: "call_1",
+              type: "function",
+              function: {
+                name: "write_file",
+                arguments: '{"path":"src/lib.rs"}',
+              },
+            },
+          ],
+        },
+        {
+          role: "tool",
+          tool_call_id: "call_1",
+          content: "Wrote src/lib.rs.",
+        },
+      ]);
+    });
   });
 
   it("reports an empty response when the turn did nothing at all", async () => {

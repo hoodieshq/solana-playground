@@ -10,7 +10,6 @@ import { MODEL_PROVIDER_PROFILES } from "./model-providers";
 import { ModelBusyError } from "./model-busy";
 import type { LanguageModel, ModelMessage } from "ai";
 import type { ModelProvider } from "@/shared/lib/ai";
-import type { ReplayMessage } from "../../../../features/persistence/model/replay";
 import type { ModelProviderInput } from "./model-providers";
 import { TurnFailure, type Provider } from "./types";
 
@@ -57,14 +56,11 @@ const createReplies = () => {
  */
 export const createProvider = (
   connection: ProviderConnection,
-  /** Prior turns, text only, when reopening a stored thread (`toReplayMessages`) */
-  seed: readonly ReplayMessage[] = []
+  /** Prior turns, their stored tool calls included, when reopening a thread (`toReplayMessages`) */
+  seed: readonly ModelMessage[] = []
 ): Provider => {
   const profile = MODEL_PROVIDER_PROFILES[connection.id].profile(connection);
-  let history: ModelMessage[] = seed.map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
+  let history: ModelMessage[] = Array.from(seed);
   let model: LanguageModel | undefined;
 
   return {
@@ -114,6 +110,8 @@ export const createProvider = (
             calledTool = true;
             replies.close();
           },
+          // Stored with the thread, so a provider built for it later replays the call
+          onToolResult: (result) => PgAssistant.addToolResult(result),
         });
       } catch (e) {
         if (!(e instanceof ai.AiTurnError)) throw e;
