@@ -75,8 +75,10 @@ runs against the newer schema; revisit this once one is not.
 | Plan / Build Machine | Enterprise + **Enhanced** |
 | Framework Preset | Other |
 | Root Directory | `client-v2` |
-| Production Branch | `master-2.0`; switch to `master` once `master-2.0` is merged into `master` |
+| Production Branch | `master` |
 | Ignored Build Step | Automatic |
+
+The Production Branch row was confirmed on 2026-10-19.
 
 ## How long a function may run
 
@@ -160,7 +162,7 @@ Three caches, one per part of the install:
 
 | What | Where | Why there |
 | --- | --- | --- |
-| `node_modules` | Vercel's [build cache](https://vercel.com/docs/deployments/troubleshoot-a-build) | Vercel restores it before the install. `yarn install` is skipped when the restored copy was installed from the same `yarn.lock`, `package.json`, wasm packages, and Node version (`node_modules/.cache/install-key`). |
+| `node_modules` | Vercel's [build cache](https://vercel.com/docs/deployments/troubleshoot-a-build) | Vercel restores it before the install. `yarn install` is skipped when the restored copy was installed from the same `yarn.lock`, `package.json`, wasm packages, and Node version (`node_modules/.cache/install-key`). Otherwise everything but `node_modules/.cache` is removed first: a build whose `yarn install` ran over a restored tree from another install key failed to resolve `@noble/hashes/sha3`, and a clean install of the same commit built. Why the restored tree broke is unverified. |
 | The built `wasm/*/pkg` directories | Vercel [Remote Cache](https://vercel.com/docs/monorepos/remote-caching), with a copy in `node_modules/.cache/wasm-pkg` | The build cache is saved only by a successful build, and a build that compiles the wasm packages does not finish in time. Remote Cache takes the upload mid-build. |
 | The default crates in `public/crates` (`DEFAULT_CRATE_FILES` in `scripts/vercel-install.sh`) | Vercel Remote Cache, with a copy in `node_modules/.cache/default-crates` | Generating them installs a Rust toolchain and compiles `syn-file-expand-cli`. A hit needs no Rust. |
 

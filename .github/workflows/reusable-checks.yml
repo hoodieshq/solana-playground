@@ -1,22 +1,21 @@
 name: Checks
 
-# Reusable workflow shared by ci.yml (PR validation) and cicd.yml (master
-# deploy gate). Single source of truth for format/clippy/build steps so the
-# two trigger workflows can't drift apart.
+# Reusable workflow shared by ci.yml (PR and master-push validation) and
+# cicd.yml (master deploy gate). Holds the format, clippy, and build steps
+# once, so ci.yml and cicd.yml run the same checks.
 on:
   workflow_call:
     inputs:
       # The `build` job: `yarn setup` (the WASM compile), then type check,
       # unit tests and production build of upstream's `client/`, 20+ minutes.
-      # ci.yml turns it off, so nothing on master-2.0 checks `client/`, which
-      # this fork does not edit. The WASM still compiles for every preview,
-      # in vercel-install.sh on a cache miss. cicd.yml's deploy gate keeps it.
+      # ci.yml turns the `build` job off, so PRs and untagged pushes to master
+      # never check `client/`, which this fork does not edit. cicd.yml runs the
+      # `build` job on a tagged push to master and on a manual dispatch. The
+      # WASM still compiles for a preview, in vercel-install.sh, when the wasm
+      # packages miss both the Build Cache and the Remote Cache.
       build:
         type: boolean
         default: true
-
-permissions:
-  contents: read
 
 permissions:
   contents: read

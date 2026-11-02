@@ -139,7 +139,8 @@ Expect: every command exits 0; `git status --porcelain` prints nothing (generate
 ### B-3. client-v2: CI parity
 
 Mirrors the `checks` job in [client-v2-reusable.yml](../.github/workflows/client-v2-reusable.yml), which
-[client-v2.yml](../.github/workflows/client-v2.yml) runs on the real packages.
+[client-v2.yml](../.github/workflows/client-v2.yml) runs on the real packages, and the `build` job in
+[reusable-client-v2-build.yml](../.github/workflows/reusable-client-v2-build.yml).
 
 Precondition: B-7. `yarn --cwd client-v2 setup:with-stubs` (`USE_WASM_STUBS=true`) mirrors
 [client-v2-with-stubs.yml](../.github/workflows/client-v2-with-stubs.yml) instead: the stubs skip the Rust build but
@@ -152,11 +153,15 @@ yarn --cwd client-v2 build-fast
 (cd client-v2 && node scripts/wasm-stubs.mjs check-build build)
 grep -q '\.flex{display:flex}' client-v2/build/static/css/main.*.css && echo tailwind ok
 grep -q '"_PgConnection"' client-v2/build/static/js/*.js && grep -q '"_PgProgramInfo"' client-v2/build/static/js/*.js && echo names ok
+yarn --cwd client-v2 test-build
 ```
 
-Expect: exit code 0; `client-v2/build/index.html` exists; the two `grep` lines print `tailwind ok` and `names ok`, as the
-post-build steps "Check Tailwind is in the built CSS" and "Check decorator class names survive minification" in
-`client-v2-reusable.yml` require; `check-build` prints `carries the real packages`. Tests that need a database require `DATABASE_URL` and `yarn --cwd client-v2 db-migrate`.
+Expect: exit code 0; `client-v2/build/index.html` exists; the two `grep` lines print `tailwind ok` and `names ok`, and
+`test-build` passes, as the post-build steps "Check Tailwind is in the built CSS", "Check decorator class names survive
+minification", and "Build tests" in `reusable-client-v2-build.yml` require; `check-build` prints `carries the real
+packages`, as its step "Check the bundle carries the real wasm packages" requires. `run check` covers the in-source
+collection test (`scripts/in-source-collection.test.mjs`, under `test-api`) and `test-build` the bundle check
+(`scripts/in-source-tests.build-test.mjs`). Tests that need a database require `DATABASE_URL` and `yarn --cwd client-v2 db-migrate`.
 
 ### B-4. server: format, lint, release build
 
@@ -722,7 +727,7 @@ Expect: one image per directory in `server/templates/`.
 
 The production build minifies with esbuild through `terser-webpack-plugin`'s `esbuildMinify`; the Terser library does
 not run. It also leaves the type check and ESLint to CI and `yarn run check`. The requirements are the spec
-`openspec/specs/client-v2-build/spec.md`; M-1 to M-4 walk its manual scenarios.
+`openspec/specs/client-v2-build/spec.md`; M-1 to M-6 walk its manual scenarios.
 The bundle is about 15% larger than Terser's, accepted on purpose; shrinking it is a postponed improvement.
 
 ### M-1. the build fits Vercel's standard machine
@@ -749,7 +754,7 @@ grep -l '"_PgProgramInfo"' client-v2/build/static/js/*.js
 Expect:
 
 - [ ] each `grep` lists a file. CI runs the same check after `build-fast` ("Check decorator class names survive
-      minification" in `client-v2.yml`) and fails without them.
+      minification" in `reusable-client-v2-build.yml`) and fails without them.
 - [ ] on a production build (a preview, or `serve -s client-v2/build`), change the endpoint in Settings from Devnet to
       Testnet: the cluster label in the bottom bar changes to Testnet, and the tab does not freeze (the terminal still
       answers `help`). Decorators name change events after
@@ -784,6 +789,45 @@ Expect:
 - [ ] `yarn --cwd client-v2 dev` shows the error in the overlay.
 
 Remove the type error.
+
+### M-5. chunks declare nothing at the top level
+
+```sh
+yarn --cwd client-v2 build-fast
+yarn --cwd client-v2 test-build
+```
+
+`test-build` runs `chunk-scope.build-test.mjs` over `client-v2/build/static/js`, the chunks that ship; CI runs it
+after the production build, in `reusable-client-v2-build.yml`. `top-level-declaration.test.mjs`, in `test-api`, covers
+the parser it uses.
+
+Expect:
+
+- [ ] `test-build` passes.
+- [ ] with `format: "iife"` removed from `esbuildMinifyOptions` in `client-v2/scripts/esbuild-minify.mjs`, a rebuild
+      and `test-build` fail and name the identifier a chunk declares at the top level. Chunks load as classic scripts,
+      so their top-level helpers are globals and a later chunk's same-named helper overwrites them. Restore the option.
+- [ ] `test-build` without a `client-v2/build/` fails instead of passing.
+
+### M-6. in-source tests stay out of the bundle
+
+```sh
+yarn --cwd client-v2 build-fast
+yarn --cwd client-v2 test-build
+```
+
+Expect:
+
+- [ ] `test-build` passes: `scripts/in-source-tests.build-test.mjs` collects every `it` title from the in-source
+      blocks under `client-v2/src` (`client-v2/AGENTS.md`, "Tests: a module's unit tests live in the module") and
+      finds none of them in `client-v2/build/static/js`. webpack drops the block on its own, with no setting of ours,
+      which is why the outcome is checked.
+- [ ] a planted leak makes it fail naming the chunk and the title: add a static
+      `import "../../test-utils/stored-values";` to a module with a block, or copy a block's title into a production
+      string, rebuild, and run `test-build` again; the failure reads `<chunk> holds "<title>" from <module>`. Revert the
+      plant.
+- [ ] with `yarn --cwd client-v2 dev` running, the served `static/js/bundle.js` holds none of that module's test
+      titles either.
 
 ## 8. Parallel runs
 

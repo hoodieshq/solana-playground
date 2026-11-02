@@ -2,12 +2,15 @@ name: client-v2
 
 # Guards `client-v2/` on the real wasm packages, the ones every deployment
 # ships. The jobs live in `client-v2-reusable.yml`; `client-v2-with-stubs.yml`
-# runs the same jobs on the stubs, by hand.
+# runs the same jobs on the stubs, by hand. ci.yml checks formatting and
+# clippy, not `client/`'s build or tests. Keep the push branch list identical
+# on master and new-face, so a merge in either direction leaves it unchanged.
+# A pull_request run reads this file from the PR's merge commit (CLAUDE.md,
+# "This is a fork").
 on:
   push:
-    branches: ["master", "master-2.0"]
+    branches: ["master", "new-face"]
   pull_request:
-    branches: ["master", "master-2.0"]
 
   workflow_dispatch:
 
@@ -23,3 +26,22 @@ jobs:
     uses: ./.github/workflows/client-v2-reusable.yml
     with:
       use-wasm-stubs: false
+
+  # The status context the default branch's ruleset names (`client-v2`), so
+  # a job added to or renamed in `client-v2-reusable.yml` needs no ruleset
+  # edit: the called workflow fails when any of its jobs does. `always()`
+  # because a job whose `needs` failed is skipped, and GitHub reads a skipped
+  # required check as passing.
+  gate:
+    name: client-v2
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [client-v2]
+    if: always()
+    steps:
+      - name: Every job succeeded
+        env:
+          RESULT: ${{ needs.client-v2.result }}
+        run: |
+          echo "Result: $RESULT"
+          [ "$RESULT" = success ]
