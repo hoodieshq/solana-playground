@@ -48,7 +48,9 @@ export type FundFailure =
   | { kind: "send-declined"; wallet: string }
   | { kind: "send-failed"; detail: string }
   /** Sent, possibly landed: sending again could pay twice, so Send stays off */
-  | { kind: "send-unconfirmed"; signature: string };
+  | { kind: "send-unconfirmed"; signature: string }
+  /** A send from an earlier opening has not settled: Send stays off */
+  | { kind: "send-pending" };
 
 export interface BaseFundDialogProps {
   open: boolean;
@@ -135,6 +137,11 @@ const failureText = (failure: FundFailure) => {
         title: "The SOL was sent, but not confirmed yet.",
         detail: `Look up ${failure.signature} in an explorer before sending again.`,
       };
+    case "send-pending":
+      return {
+        title: "An earlier transfer is still waiting.",
+        detail: "Answer it in your wallet, or wait until it settles.",
+      };
   }
 };
 
@@ -163,7 +170,8 @@ const BaseFundDialog = ({
   failure,
 }: BaseFundDialogProps) => {
   const note = payer ? amountNote(amount, payer, cluster) : null;
-  const unconfirmed = failure?.kind === "send-unconfirmed";
+  const unconfirmed =
+    failure?.kind === "send-unconfirmed" || failure?.kind === "send-pending";
   const shown = failure ? failureText(failure) : null;
 
   return (

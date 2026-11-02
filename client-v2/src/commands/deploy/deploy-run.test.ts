@@ -300,9 +300,11 @@ describe("deploy run", () => {
     await PgDeployRun.withAnswers(answers(), async () => undefined);
     expect(PgDeployRun.answers).toBeNull();
 
-    await PgDeployRun.withAnswers(answers(), async () => {
-      throw new Error("failed");
-    }).catch(() => undefined);
+    await expect(
+      PgDeployRun.withAnswers(answers(), async () => {
+        throw new Error("failed");
+      })
+    ).rejects.toThrow("failed");
     expect(PgDeployRun.answers).toBeNull();
   });
 

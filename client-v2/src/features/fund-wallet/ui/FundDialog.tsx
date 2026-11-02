@@ -113,10 +113,19 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
   // outlives closing the dialog and holds Send off until a send confirms
   const unconfirmed = useRef<{ signature: string } | null>(null);
   const [, rerender] = useState(0);
-  const unconfirmedFailure = (): FundFailure | null =>
-    unconfirmed.current
+  // A send still in flight, from this opening or an earlier one: a reopened
+  // dialog must not offer a second payment before the first one settles
+  const pending = useRef(false);
+  const unconfirmedFailure = (): FundFailure | null => {
+    if (pending.current) return { kind: "send-pending" };
+    return unconfirmed.current
       ? { kind: "send-unconfirmed", signature: unconfirmed.current.signature }
       : null;
+  };
+  // A later opening showed the pending notice; once the send settles it
+  // shows what is left of it (an unconfirmed signature, or nothing)
+  const settledElsewhere = (shown: FundFailure | null) =>
+    shown?.kind === "send-pending" ? unconfirmedFailure() : shown;
 
   const wallets = PgWallet.standardWallets;
   const payer = pickedWallet(wallets, payerName);
@@ -216,6 +225,7 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
     // Read once, so the toast and the event name the cluster the send used
     const sentOn = PgConnection.cluster;
     setFailure(null);
+    pending.current = true;
     try {
       await sendFunds({
         payer: payer as StandardWallet<true>,
@@ -223,6 +233,7 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
         lamports: parsed.lamports,
       });
     } catch (error: unknown) {
+      pending.current = false;
       const reason = classify(error);
       fundTelemetry.track("fund_failed", { stage: "send", reason });
       logFailure("send", reason, error);
@@ -231,9 +242,12 @@ const FundDialog = ({ open, onOpenChange }: FundDialogProps) => {
       }
       if (attempt.current === mine)
         setFailure(failureOf("send", reason, error, payer.name));
+      else setFailure(settledElsewhere);
       return;
     }
+    pending.current = false;
     unconfirmed.current = null;
+    if (attempt.current !== mine) setFailure(settledElsewhere);
     // `PgConnection.cluster` is null only before the first endpoint is read
     if (sentOn)
       fundTelemetry.track("fund_sent", { cluster: sentOn as FundCluster });
