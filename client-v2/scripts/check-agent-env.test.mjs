@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 const script = fileURLToPath(new URL("./check-agent-env.mjs", import.meta.url));
 
 /** The check run under exactly `env`, nothing inherited; `undefined` values stay unset */
-const run = (env) => spawnSync(process.execPath, [script], { env, encoding: "utf8" });
+const run = (env) =>
+  spawnSync(process.execPath, [script], { env, encoding: "utf8" });
 
 /** Exit code of the check under exactly `env` */
 const exitCode = (env) => run(env).status;

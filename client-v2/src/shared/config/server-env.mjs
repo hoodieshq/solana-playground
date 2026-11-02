@@ -150,7 +150,9 @@ export const agentEnv = () => ({
   // GLM always reasons and defaults to `max`; the panel shows none of it, so
   // a high effort reads as a stalled answer
   REASONING_EFFORT: read(agentName("REASONING_EFFORT")) || "low",
-  PROVIDERS: readProviders(read(agentName("BASE_URL")) || DEFAULT_AGENT_BASE_URL),
+  PROVIDERS: readProviders(
+    read(agentName("BASE_URL")) || DEFAULT_AGENT_BASE_URL
+  ),
   /** USD per million input tokens */
   PRICE_INPUT: readNumber(agentName("PRICE_INPUT"), 0.15),
   /** USD per million output tokens */
