@@ -17,27 +17,37 @@ export const HANDOFF_TITLE = "Continue on a computer";
 /** How long "Copied" stays before the button reads "Copy link" again */
 const COPIED_MS = 2000;
 
+/** Who the sheet speaks to: what moves to the computer depends on it */
+export type HandoffAccount =
+  | { status: "signed-in"; login: string }
+  | {
+      status: "signed-out";
+      /** A sign-in is under way: its button waits */
+      signingIn: boolean;
+      /** Why the last sign-in failed, in the user's words; null if it did not */
+      error: string | null;
+    };
+
 export interface BaseHandoffProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** The address to open on the computer, whole */
   link: string;
-  /** The GitHub login signed in here; null when nobody is */
-  login: string | null;
-  /** A sign-in is under way: its button waits */
-  signingIn: boolean;
+  account: HandoffAccount;
   onSignIn: () => void;
-  /** The browser has a share sheet (`navigator.share`) */
-  canShare: boolean;
   /**
    * Puts the link on the clipboard: true once it is there, false when the
    * clipboard refused (and the caller has told the user)
    */
   onCopy: () => Promise<boolean>;
-  onShare: () => Promise<void>;
+  /** Hands the link to the browser's share sheet; null where there is none */
+  onShare: (() => Promise<void>) | null;
 }
 
-/** The link whole, with a break offered after each slash and never a cut */
+/**
+ * The link whole, with a break offered after each slash; the well's
+ * `wrap-anywhere` breaks a part longer than the line only as a last resort
+ */
 const Wrapped = ({ link }: { link: string }) => (
   <>
     {link.split("/").map((part, i) => (
@@ -64,14 +74,16 @@ const BaseHandoff = ({
   open,
   onOpenChange,
   link,
-  login,
-  signingIn,
+  account,
   onSignIn,
-  canShare,
   onCopy,
   onShare,
 }: BaseHandoffProps) => {
   const [copied, setCopied] = useState(false);
+  // A sheet opened again starts from "Copy link", whatever the last one said
+  useEffect(() => {
+    if (!open) setCopied(false);
+  }, [open]);
   useEffect(() => {
     if (!copied) return;
     const timer = window.setTimeout(() => setCopied(false), COPIED_MS);
@@ -105,18 +117,28 @@ const BaseHandoff = ({
               {/* text-body needs the ! here: cn drops it next to a colour
                   class and the stock 14 px comes back */}
               <DrawerDescription className="text-body! font-read text-muted-foreground">
-                {login
-                  ? `Your projects are saved to your account. Open this link on a computer and sign in with GitHub as @${login}: this project is in your list there.`
+                {account.status === "signed-in"
+                  ? `Your projects are saved to your account. Open this link on a computer and sign in with GitHub as @${account.login}: this project is in your list there.`
                   : "This project is saved on this phone only. Sign in with GitHub to keep it in your account, then open this link on a computer and sign in there too."}
               </DrawerDescription>
-              {!login && (
-                <BrandButton
-                  className="mt-4 h-12 w-full"
-                  disabled={signingIn}
-                  onClick={onSignIn}
-                >
-                  Sign in with GitHub
-                </BrandButton>
+              {account.status === "signed-out" && (
+                <>
+                  <BrandButton
+                    className="mt-4 h-12 w-full"
+                    disabled={account.signingIn}
+                    onClick={onSignIn}
+                  >
+                    Sign in with GitHub
+                  </BrandButton>
+                  {account.error && (
+                    <p
+                      role="alert"
+                      className="mt-2 text-caption font-read text-destructive"
+                    >
+                      {account.error}
+                    </p>
+                  )}
+                </>
               )}
               <p
                 data-testid="handoff-link"
@@ -144,7 +166,7 @@ const BaseHandoff = ({
                     {copied ? "Copied" : "Copy link"}
                   </span>
                 </Button>
-                {canShare && (
+                {onShare && (
                   <Button
                     variant="secondary"
                     className="h-12 flex-1 gap-2"

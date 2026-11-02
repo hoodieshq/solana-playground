@@ -5,21 +5,33 @@ import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { navTelemetry } from "../model/telemetry";
 import BaseHandoff, { HANDOFF_TITLE } from "./BaseHandoff";
+import type { HandoffAccount } from "./BaseHandoff";
 
 const log = createLogger("app-nav:handoff");
 
 const subscribe = (onChange: () => void) =>
   PgSession.onDidChange(onChange).dispose;
 
-/** The login signed in now, re-read when the session moves */
-const useLogin = () =>
-  useSyncExternalStore(subscribe, () => PgSession.get()?.login ?? null);
+/**
+ * The session as one snapshot string, so the login and the sign-in's state
+ * are read together and a render never mixes two moments of it
+ */
+const snapshot = () => {
+  const login = PgSession.get()?.login ?? null;
+  const state = PgSession.signInState();
+  const message = state.status === "failed" ? state.message : null;
+  return JSON.stringify([login, state.status === "pending", message]);
+};
 
-const useSigningIn = () =>
-  useSyncExternalStore(
-    subscribe,
-    () => PgSession.signInState().status === "pending"
-  );
+/** Who the sheet speaks to, re-read when the session moves */
+const useAccount = (): HandoffAccount => {
+  const [login, signingIn, error] = JSON.parse(
+    useSyncExternalStore(subscribe, snapshot)
+  ) as [string | null, boolean, string | null];
+  return login === null
+    ? { status: "signed-out", signingIn, error }
+    : { status: "signed-in", login };
+};
 
 /**
  * This page's address: the app's origin and the current path. A project has
@@ -34,19 +46,21 @@ const isCancelledShare = (error: unknown) =>
 
 const reportCopy = reportButtonFailure("copy the link");
 const reportShare = reportButtonFailure("share the link");
+const reportSignIn = reportButtonFailure("sign in with GitHub");
 
 /** `BaseHandoff` with the session, the clipboard and the share sheet */
 const Handoff = () => {
   const [open, setOpen] = useState(false);
-  const login = useLogin();
-  const signingIn = useSigningIn();
+  const account = useAccount();
   // Read on opening, not on every render: the sheet shows the page it was opened on
   const [link, setLink] = useState(linkHere);
 
   const onOpenChange = (next: boolean) => {
     if (next) {
       setLink(linkHere());
-      navTelemetry.track("nav_handoff_opened", { signedIn: login !== null });
+      navTelemetry.track("nav_handoff_opened", {
+        signedIn: account.status === "signed-in",
+      });
     }
     setOpen(next);
   };
@@ -65,6 +79,7 @@ const Handoff = () => {
 
   const onShare = async () => {
     try {
+      // `onShare` is offered only where `navigator.share` exists
       await navigator.share({ title: HANDOFF_TITLE, url: link });
     } catch (error) {
       if (isCancelledShare(error)) return;
@@ -77,13 +92,14 @@ const Handoff = () => {
   const onSignIn = () => {
     PgSession.signIn().catch((error: unknown) => {
       // A known failure (the popup closed, GitHub refused) is in
-      // `PgSession.signInState`, which the account row shows, and `auth`
-      // telemetry has its reason; the button here is offered again
+      // `PgSession.signInState`, whose message the sheet shows under the
+      // button, and `auth` telemetry has its reason
       if (isSignInFailure(error)) {
         log.info("sign-in failed", { context: { error: String(error) } });
         return;
       }
       log.error(error, { report: true, context: { from: "handoff" } });
+      reportSignIn(error);
     });
   };
 
@@ -92,12 +108,10 @@ const Handoff = () => {
       open={open}
       onOpenChange={onOpenChange}
       link={link}
-      login={login}
-      signingIn={signingIn}
+      account={account}
       onSignIn={onSignIn}
-      canShare={typeof navigator.share === "function"}
       onCopy={onCopy}
-      onShare={onShare}
+      onShare={typeof navigator.share === "function" ? onShare : null}
     />
   );
 };

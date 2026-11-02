@@ -52,7 +52,7 @@ test.describe("on a phone", () => {
       .poll(() => lineOf(lines, "nav_handoff_link_copied"))
       .toBeTruthy();
 
-    // The well wraps the link: nothing on the page scrolls sideways
+    // The sheet fits the phone: nothing on the page scrolls sideways
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth)
     ).toBeLessThanOrEqual(390);

@@ -123,7 +123,7 @@ const BaseAppNav = ({
           })}
         </SidebarMenu>
         {!collapsed && projects}
-        {phone && <div className="mt-2">{handoff}</div>}
+        {phone && handoff && <div className="mt-2">{handoff}</div>}
       </SidebarGroup>
       {!collapsed && <div className="mt-auto">{setup}</div>}
     </SidebarContent>
