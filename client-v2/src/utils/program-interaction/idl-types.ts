@@ -483,6 +483,13 @@ const u128 = createIdlType({
   generateRandom: () => generateRandomUint(16),
 });
 
+/**
+ * A signed integer as Anchor writes it into a seed: little-endian two's
+ * complement. `toArrayLike` alone writes the magnitude, so -5 became 5.
+ */
+const signedLe = (value: number | BN, bytes: number) =>
+  new BN(value).toTwos(bytes * 8).toArrayLike(Buffer, "le", bytes);
+
 const i8 = createIdlType({
   name: "i8",
   parse: (value) => {
@@ -499,7 +506,7 @@ const i16 = createIdlType({
     assertInt(value, 2);
     return parseInt(value);
   },
-  toBuffer: (value) => new BN(value).toArrayLike(Buffer, "le", 2),
+  toBuffer: (value) => signedLe(value, 2),
   generateRandom: () => generateRandomInt(2),
 });
 
@@ -509,7 +516,7 @@ const i32 = createIdlType({
     assertInt(value, 4);
     return parseInt(value);
   },
-  toBuffer: (value) => new BN(value).toArrayLike(Buffer, "le", 4),
+  toBuffer: (value) => signedLe(value, 4),
   generateRandom: () => generateRandomInt(4),
 });
 
@@ -519,7 +526,7 @@ const i64 = createIdlType({
     assertInt(value, 8);
     return new BN(value);
   },
-  toBuffer: (value) => value.toArrayLike(Buffer, "le", 8),
+  toBuffer: (value) => signedLe(value, 8),
   generateRandom: () => generateRandomInt(8),
 });
 
@@ -529,7 +536,7 @@ const i128 = createIdlType({
     assertInt(value, 16);
     return new BN(value);
   },
-  toBuffer: (value) => value.toArrayLike(Buffer, "le", 16),
+  toBuffer: (value) => signedLe(value, 16),
   generateRandom: () => generateRandomInt(16),
 });
 
