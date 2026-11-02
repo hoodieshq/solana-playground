@@ -6,3 +6,12 @@ export const typing = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable ||
     ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
+/**
+ * Whether a key press reached the page with no control of its own holding
+ * focus: the intro's Start and the win's Next take Enter only then.
+ */
+export const nothingFocused = () => {
+  const active = document.activeElement;
+  return !active || active === document.body;
+};

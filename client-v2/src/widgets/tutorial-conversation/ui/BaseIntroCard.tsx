@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import type { Text } from "@/entities/tutorial";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
+import { nothingFocused } from "./keys";
 import { Prose, READ } from "./Prose";
 
 /** The wallet copy of `tutorial-runs`, Almaz's of 28 Oct, verbatim */
@@ -24,12 +25,6 @@ export interface BaseIntroCardProps {
   log: string;
   onStart: () => void;
 }
-
-/** Whether a key press reached the page with no control of its own holding focus */
-const nothingFocused = () => {
-  const active = document.activeElement;
-  return !active || active === document.body;
-};
 
 /**
  * The card a conversation tutorial opens on: what it builds, how it goes, and

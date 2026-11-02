@@ -380,6 +380,12 @@ The tutorial slice SHALL emit:
 - `tutorial_finished` when the finish card shows, with:
   - `tutorial`;
   - `seconds`: the time from Start.
+- `tutorial_next_opened` when the finish card's "Next: <tutorial>" opens the
+  next tutorial, with:
+  - `tutorial`: the one finished;
+  - `next`: the one opened, by slug.
+- `tutorial_receipt_copied` when Copy receipt is pressed on the finish card,
+  with `tutorial`.
 - `tutorial_question_asked` when a composer message goes to the live
   assistant or a finish chip is pressed, with:
   - `tutorial`;

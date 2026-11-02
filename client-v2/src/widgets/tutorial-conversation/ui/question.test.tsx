@@ -143,6 +143,7 @@ const Lesson = ({ world }: { world: World }) => {
           live={v.live?.id === turn.id}
           running={false}
           passed={ref.current.engine.progress.passed}
+          nextTutorial={null}
           read={(file) => ref.current.files[file] ?? null}
           on={{
             start: () => send({ type: "start", at: now() }),
@@ -156,6 +157,10 @@ const Lesson = ({ world }: { world: World }) => {
             fixMyself: vi.fn(),
             next: vi.fn(),
             restartStep: vi.fn(),
+            openNextTutorial: vi.fn(),
+            allTutorials: vi.fn(),
+            copyReceipt: vi.fn(),
+            copyFailed: vi.fn(),
             showLine: vi.fn(),
           }}
         />

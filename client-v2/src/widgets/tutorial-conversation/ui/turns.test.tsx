@@ -1,18 +1,22 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ActBeat, Ask, TutorialDefinition } from "@/entities/tutorial";
+import { TooltipProvider } from "@/shared/ui/tooltip";
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import BaseActCard from "./BaseActCard";
+import BaseFinishCard, { finishMeta } from "./BaseFinishCard";
 import BaseIntroCard, { HOW_IT_GOES, INTRO_NOTE } from "./BaseIntroCard";
 import BaseResultCard from "./BaseResultCard";
 import BaseStepDivider from "./BaseStepDivider";
+import BaseWinCard from "./BaseWinCard";
 import BaseWroteCard from "./BaseWroteCard";
 import { BaseQuestionRecord } from "./BaseQuestionCard";
+import { textOf } from "./Prose";
 import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
-import type { Turn } from "@/features/tutorial-conversation";
+import type { LandedCall, Turn } from "@/features/tutorial-conversation";
 
 const definition = hello as unknown as TutorialDefinition;
 const actOf = (id: string) =>
@@ -558,6 +562,10 @@ describe("TurnView", () => {
     fixMyself: vi.fn(),
     next: vi.fn(),
     restartStep: vi.fn(),
+    openNextTutorial: vi.fn(),
+    allTutorials: vi.fn(),
+    copyReceipt: vi.fn(),
+    copyFailed: vi.fn(),
     showLine: vi.fn(),
   });
   const draw = (turn: Turn, live: boolean) =>
@@ -569,6 +577,7 @@ describe("TurnView", () => {
         running={false}
         passed={[]}
         read={() => null}
+        nextTutorial={null}
         on={on()}
       />
     );
@@ -653,6 +662,7 @@ describe("TurnView", () => {
         running={running}
         passed={passed}
         read={() => null}
+        nextTutorial={null}
         on={handlers}
       />
     );
@@ -677,5 +687,235 @@ describe("TurnView", () => {
   it("offers no Reset once the block's step has passed", () => {
     drawWrote([step.id], false);
     expect(screen.queryByRole("button", { name: /^Reset/ })).toBeNull();
+  });
+});
+
+describe("BaseWinCard", () => {
+  const steps = definition.steps;
+  const win = (
+    i: number,
+    over: Partial<Parameters<typeof BaseWinCard>[0]> = {}
+  ) => {
+    const onNext = over.onNext ?? vi.fn();
+    const onWriteInClient = over.onWriteInClient ?? vi.fn();
+    render(
+      <BaseWinCard
+        win={steps[i].win}
+        index={i + 1}
+        next={over.next === undefined ? steps[i + 1]?.title ?? null : over.next}
+        via={over.via ?? "chat"}
+        live={over.live ?? true}
+        onNext={onNext}
+        onOpenCall={over.onOpenCall}
+        onWriteInClient={onWriteInClient}
+      />
+    );
+    return { onNext, onWriteInClient };
+  };
+
+  it("draws the check, the tag, the headline and line, and Next with ↵", async () => {
+    const { onNext } = win(0);
+    const card = screen.getByRole("region", { name: "Step 1 done" });
+    expect(within(card).getByRole("img", { name: "Passed" })).toBeTruthy();
+    expect(within(card).getByText("Step 1 done")).toBeTruthy();
+    const next = within(card).getByRole("button", {
+      name: `Next: ${steps[1].title}`,
+    });
+    await userEvent.click(next);
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes Next on Enter while nothing holds focus, and not while typing", () => {
+    const { onNext } = win(0);
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(onNext).toHaveBeenCalledTimes(1);
+
+    const field = document.createElement("input");
+    document.body.append(field);
+    field.focus();
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onNext).toHaveBeenCalledTimes(1);
+    field.remove();
+  });
+
+  it("has no Next on the last step's win", () => {
+    const { onNext } = win(steps.length - 1, { next: null });
+    expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it("reads the Call panel line after a pass from the panel, and offers client.ts", async () => {
+    const i = steps.findIndex((s) => s.win.callPanelLine);
+    const { onWriteInClient } = win(i, { via: "call_panel" });
+    // Prose draws `code` spans without their backticks
+    const panelLine = textOf(steps[i].win.callPanelLine!).replace(/`/g, "");
+    expect(
+      screen.getByText(
+        (_, el) => el?.tagName === "P" && el.textContent === panelLine
+      )
+    ).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Write it in client.ts" })
+    );
+    expect(onWriteInClient).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Open Call only when its win asks for it and the panel can open", () => {
+    const i = steps.findIndex((s) => s.win.extra === "openTest");
+    win(i);
+    expect(screen.queryByRole("button", { name: "Open Call" })).toBeNull();
+  });
+
+  it("opens the Call panel from Open Call once an opener is given", async () => {
+    const i = steps.findIndex((s) => s.win.extra === "openTest");
+    const onOpenCall = vi.fn();
+    win(i, { onOpenCall });
+    await userEvent.click(screen.getByRole("button", { name: "Open Call" }));
+    expect(onOpenCall).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps no Next once it is a record, but keeps client.ts as a link", () => {
+    win(0, { live: false, via: "call_panel" });
+    expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Write it in client.ts" })
+    ).toBeTruthy();
+  });
+});
+
+describe("BaseFinishCard", () => {
+  // Copy's tooltip positions itself with a `ResizeObserver`, which jsdom lacks
+  beforeEach(() => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const alex: LandedCall = {
+    act: "call",
+    ok: true,
+    seconds: 0.9,
+    signatures: ["5igFirst", "5igLastOfTheCall"],
+    line: "Program log: Hello, Alex!",
+    called: [],
+  };
+  const finish = (over: Partial<Parameters<typeof BaseFinishCard>[0]> = {}) => {
+    const handlers = {
+      onNext: vi.fn(),
+      onAllTutorials: vi.fn(),
+      onCopyReceipt: vi.fn(),
+      onCopyError: vi.fn(),
+    };
+    render(
+      <TooltipProvider>
+        <BaseFinishCard
+          headline={definition.finish.headline}
+          line={definition.finish.line}
+          learned={definition.finish.learned}
+          steps={definition.steps.length}
+          seconds={over.seconds ?? 252}
+          receipt={over.receipt === undefined ? alex : over.receipt}
+          next={over.next === undefined ? "Counter PDA Tutorial" : over.next}
+          onNext={handlers.onNext}
+          onAllTutorials={handlers.onAllTutorials}
+          onCopyReceipt={handlers.onCopyReceipt}
+          onCopyError={handlers.onCopyError}
+        />
+      </TooltipProvider>
+    );
+    return handlers;
+  };
+
+  it("finishes Hello Anchor with the receipt whose log reads Hello, Alex!", async () => {
+    finish();
+    const card = screen.getByRole("region", { name: "Finished" });
+    await userEvent.click(
+      within(card).getByRole("button", { name: /Transaction details/ })
+    );
+    expect(within(card).getByText("Program log: Hello, Alex!")).toBeTruthy();
+    const explorer = within(card).getByRole("link", {
+      name: "Signature in Explorer",
+    });
+    expect(explorer.getAttribute("href")).toBe(
+      "https://explorer.solana.com/tx/5igLastOfTheCall?cluster=devnet"
+    );
+    expect(explorer.getAttribute("target")).toBe("_blank");
+  });
+
+  it("draws the fee, the signer and each account once the runner fills them", async () => {
+    finish({
+      receipt: {
+        act: "call",
+        ok: true,
+        seconds: 0.9,
+        signatures: ["5ig"],
+        line: null,
+        called: [],
+        receipt: {
+          fee: 5000,
+          signer: "Wa11etAddressThatIsLong",
+          accounts: [{ name: "program", address: "Pr0gramAddressLong" }],
+          log: ["Program log: Hello, Alex!", "Program consumed 1200 units"],
+        },
+      },
+    });
+    await userEvent.click(
+      screen.getByRole("button", { name: /Transaction details/ })
+    );
+    expect(screen.getByText("Your wallet · signer")).toBeTruthy();
+    expect(screen.getByText("Fee 0.000005 devnet SOL")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "program in Explorer" })
+        .getAttribute("href")
+    ).toBe(
+      "https://explorer.solana.com/address/Pr0gramAddressLong?cluster=devnet"
+    );
+    expect(screen.getByText(/Program consumed 1200 units/)).toBeTruthy();
+  });
+
+  it("reads what was learned, the meta line, and its two ways on", async () => {
+    const { onNext, onAllTutorials } = finish();
+    for (const item of definition.finish.learned) {
+      expect(screen.getByText(item)).toBeTruthy();
+    }
+    expect(
+      screen.getByText("4 steps · 4 min 12 s · devnet only, nothing real spent")
+    ).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Next: Counter PDA Tutorial" })
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "All tutorials" })
+    );
+    expect(onNext).toHaveBeenCalledTimes(1);
+    expect(onAllTutorials).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/See summary/)).toBeNull();
+  });
+
+  it("counts Copy receipt", async () => {
+    const { onCopyReceipt } = finish();
+    await userEvent.click(screen.getByRole("button", { name: "Copy receipt" }));
+    expect(onCopyReceipt).toHaveBeenCalledTimes(1);
+  });
+
+  it("has no Transaction details without a landed call, and no Next without a next", () => {
+    finish({ receipt: null, next: null });
+    expect(screen.queryByText("Transaction details")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "All tutorials" })).toBeTruthy();
+  });
+
+  it("says the meta line in the wallet copy's words", () => {
+    expect(finishMeta(4, 45)).toBe(
+      "4 steps · 45 s · devnet only, nothing real spent"
+    );
   });
 });

@@ -249,7 +249,11 @@ const FlowFrame = () => {
     onBack: () => catalogPage.open("tutorials", "nav"),
     onStartOver: conversation.onStartOver,
     passed: conversation.passed,
-    body: <TutorialConversation />,
+    body: (
+      <TutorialConversation
+        onAllTutorials={() => catalogPage.open("tutorials", "nav")}
+      />
+    ),
   });
 
   // The frame's workspace (2.2): its head and tree over the stage, and its
