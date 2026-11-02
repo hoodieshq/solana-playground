@@ -41,7 +41,8 @@ A click SHALL open the settings on the cluster, as the cluster row did.
 ### Requirement: The AI indicator
 
 The AI indicator SHALL be ready while a model is connected and usable, show
-the model's name and be named "AI, <model>, ready". With no model connected,
+the model's name and be named "AI, ready" (not the model's name, which the
+composer's model button is named by). With no model connected,
 or the default backend while nobody is signed in, it SHALL be not ready, read
 "AI · Off" and be named "AI, off". A click SHALL open Connect a model.
 

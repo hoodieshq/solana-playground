@@ -132,8 +132,10 @@ export const aiIndicator = (ai: AiInput, online: boolean): StatusIndicator => {
       ...base,
       state: "ready",
       words: ai.model,
-      label: `AI, ${ai.model}, ready`,
-      railLabel: `AI, ${ai.model}, ready`,
+      // Not the model's name: the composer's model button is found by it,
+      // and a second button holding it would make that lookup ambiguous
+      label: "AI, ready",
+      railLabel: "AI, ready",
       detail: null,
       action: { kind: "ai", text: "Change model" },
     };
@@ -335,7 +337,7 @@ if (import.meta.vitest) {
         expect([a.state, a.words, a.label]).toEqual([
           "ready",
           "Opus 5.5",
-          "AI, Opus 5.5, ready",
+          "AI, ready",
         ]);
       });
 
