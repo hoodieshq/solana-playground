@@ -42,8 +42,10 @@ const fail = (message) => {
 
 if (!isSet(KEY)) {
   fail(
-    `${KEY} is unset or empty. Set PG_AI_API_KEY in the Vercel project ` +
-      "environment, or the assistant backend ships disabled."
+    (KEY === "PG_AI_API_KEY"
+      ? "PG_AI_API_KEY is unset or empty. Set it"
+      : `${KEY} is empty. Set PG_AI_API_KEY`) +
+      " in the Vercel project environment, or the assistant backend ships disabled."
   );
 }
 

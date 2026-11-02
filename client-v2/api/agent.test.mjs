@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
+import { AGENT_SUFFIXES } from "../src/shared/config/server-env.mjs";
+
 // The browser's probe (`probeDefaultBackend`) reads this answer: a boolean
 // `configured`, and the model by id or `null`. The key never leaves.
 const load = async () => {
@@ -29,12 +31,12 @@ const SIGN_IN = {
   AUTH_SECRET: "test-auth-secret",
 };
 
+/** Every deprecated name `agentEnv` falls back to, which an old `.env` may set */
+const DEPRECATED_VARS = AGENT_SUFFIXES.map((suffix) => `AGENT_${suffix}`);
+
 const AGENT_VARS = [
   "PG_AI_API_KEY",
   "PG_AI_MODEL",
-  // The deprecated names `agentEnv` falls back to, which an old `.env` may set
-  "AGENT_API_KEY",
-  "AGENT_MODEL",
   "AUTH_OAUTH_PROXY_URL",
   ...Object.keys(SIGN_IN),
 ];
@@ -46,16 +48,21 @@ describe("GET /api/agent", () => {
   const saved = {};
 
   beforeEach(() => {
-    for (const name of AGENT_VARS) {
-      saved[name] = process.env[name];
-      delete process.env[name];
+    for (const list of [AGENT_VARS, DEPRECATED_VARS]) {
+      for (const name of list) {
+        saved[name] = process.env[name];
+        delete process.env[name];
+      }
     }
   });
 
   afterEach(() => {
-    for (const name of AGENT_VARS) {
-      if (saved[name] === undefined) delete process.env[name];
-      else process.env[name] = saved[name];
+    mock.restoreAll();
+    for (const list of [AGENT_VARS, DEPRECATED_VARS]) {
+      for (const name of list) {
+        if (saved[name] === undefined) delete process.env[name];
+        else process.env[name] = saved[name];
+      }
     }
   });
 

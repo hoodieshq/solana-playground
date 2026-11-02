@@ -1,27 +1,15 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
-import { agentEnv, deprecatedAgentNames } from "./server-env.mjs";
+import {
+  AGENT_SUFFIXES,
+  agentEnv,
+  deprecatedAgentNames,
+} from "./server-env.mjs";
 
-/** Every variable `agentEnv` reads, by suffix */
-const SUFFIXES = [
-  "API_KEY",
-  "NEWCOMER_API_KEY",
-  "BASE_URL",
-  "MODEL",
-  "REASONING_EFFORT",
-  "PROVIDERS",
-  "PRICE_INPUT",
-  "PRICE_OUTPUT",
-  "MAX_BODY_BYTES",
-  "MAX_OUTPUT_TOKENS",
-  "NEWCOMER_AGE_DAYS",
-  "NEWCOMER_DAILY_CAP",
-  "ESTABLISHED_DAILY_CAP",
-];
-const PG_AI_VARIABLES = SUFFIXES.map((suffix) => `PG_AI_${suffix}`);
+const PG_AI_VARIABLES = AGENT_SUFFIXES.map((suffix) => `PG_AI_${suffix}`);
 /** The deprecated names, cleared too: a developer's `.env` may still set them */
-const AGENT_VARIABLES = SUFFIXES.map((suffix) => `AGENT_${suffix}`);
+const AGENT_VARIABLES = AGENT_SUFFIXES.map((suffix) => `AGENT_${suffix}`);
 
 /** A fresh copy of the module, so its warned-about names start empty */
 let fresh = 0;
@@ -219,5 +207,9 @@ describe("agentEnv", () => {
       "AGENT_API_KEY",
       "AGENT_PROVIDERS",
     ]);
+  });
+
+  it("names each setting after a suffix the deprecated names are listed by", () => {
+    assert.deepEqual(Object.keys(agentEnv()), AGENT_SUFFIXES);
   });
 });

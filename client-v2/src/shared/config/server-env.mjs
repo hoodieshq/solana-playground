@@ -59,8 +59,11 @@ const readChecked = (name, fallback, isValid, expected) => {
   return fallback;
 };
 
-/** Every variable `agentEnv` reads, by the suffix after its prefix */
-const AGENT_SUFFIXES = [
+/**
+ * Every variable `agentEnv` reads, by the suffix after its prefix: its field
+ * names. Tests pin the two together, so a setting added to one is in the other.
+ */
+export const AGENT_SUFFIXES = [
   "API_KEY",
   "NEWCOMER_API_KEY",
   "BASE_URL",
