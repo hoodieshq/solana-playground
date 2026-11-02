@@ -14,6 +14,7 @@ import {
 import {
   probeDefaultBackend,
   resetDefaultBackendProbe,
+  retryDefaultBackend,
   useDefaultBackend,
 } from "./default-backend";
 import { assistantTelemetry } from "./telemetry";
@@ -35,6 +36,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** `GET /api/ai/status`'s answer for a deployment that offers a hosted key */
+const hosted = (model: unknown, reason: string | null = "signed-out") => ({
+  available: reason === null,
+  key: "hosted",
+  reason,
+  model,
+});
+
+/** `GET /api/ai/status`'s answer for a deployment with no hosted key */
+const own = { available: false, key: "own", reason: null, model: null };
+
 /** The probe's answer: this body, with this status */
 const answer = (body: unknown, status = 200) =>
   vi.spyOn(globalThis, "fetch").mockResolvedValue({
@@ -53,8 +65,14 @@ const expectFailure = (reason: string) => {
 };
 
 describe("probeDefaultBackend", () => {
-  it("is present with the deployment's model", async () => {
-    answer({ configured: true, model: "z-ai/glm-5.3-flash:US" });
+  it("asks the status route, and nothing else", async () => {
+    const spy = answer(hosted(null));
+    await probeDefaultBackend();
+    expect(spy.mock.calls.map(([url]) => url)).toEqual(["/api/ai/status"]);
+  });
+
+  it("is present with the deployment's model, signed out", async () => {
+    answer(hosted("z-ai/glm-5.3-flash:US"));
     expect(await probeDefaultBackend()).toEqual({
       state: "present",
       model: "z-ai/glm-5.3-flash:US",
@@ -62,10 +80,45 @@ describe("probeDefaultBackend", () => {
     expect(logs.entries).toEqual([]);
   });
 
-  it("is absent when the server has no key", async () => {
-    answer({ configured: false, model: null });
+  it("is present with the deployment's model, signed in", async () => {
+    answer(hosted("z-ai/glm-5.3-flash:US", null));
+    expect(await probeDefaultBackend()).toEqual({
+      state: "present",
+      model: "z-ai/glm-5.3-flash:US",
+    });
+  });
+
+  it("is absent when the server has no hosted key", async () => {
+    answer(own);
     expect(await probeDefaultBackend()).toEqual({ state: "absent" });
     expect(logs.entries).toEqual([]);
+  });
+
+  it("is unreachable, warned of and counted when the server could not read the session", async () => {
+    answer(hosted("m", "unavailable"));
+    expect(await probeDefaultBackend()).toEqual({ state: "unreachable" });
+    // The route has logged its own failure; this is the client's view of it
+    expect(logs.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
+      ["assistant:connect", "warn", false],
+    ]);
+    expect(events.events.map((e) => [e.name, e.params])).toEqual([
+      ["assistant_default_probe_failed", { reason: "session" }],
+    ]);
+  });
+
+  it("asks again after the server could not read the session", async () => {
+    const spy = answer(hosted("m", "unavailable"));
+    await probeDefaultBackend();
+    spy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => hosted("m", null),
+    } as Response);
+    expect(await probeDefaultBackend()).toEqual({
+      state: "present",
+      model: "m",
+    });
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 
   it("is unreachable and reported when the request fails", async () => {
@@ -74,13 +127,13 @@ describe("probeDefaultBackend", () => {
     expectFailure("network");
   });
 
-  it("is unreachable and reported when the agent answers a 5xx", async () => {
+  it("is unreachable and reported when the route answers a 5xx", async () => {
     answer({}, 503);
     expect(await probeDefaultBackend()).toEqual({ state: "unreachable" });
     expectFailure("status");
   });
 
-  it("is absent, warned of and not reported on a deployment without the agent", async () => {
+  it("is absent, warned of and not reported on a deployment without the route", async () => {
     answer({}, 404);
     expect(await probeDefaultBackend()).toEqual({ state: "absent" });
     expect(logs.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
@@ -95,8 +148,14 @@ describe("probeDefaultBackend", () => {
     expectFailure("body");
   });
 
-  it("is unreachable and reported on a body without configured", async () => {
+  it("is unreachable and reported on a body without a known key", async () => {
     answer({ model: "x" });
+    expect(await probeDefaultBackend()).toEqual({ state: "unreachable" });
+    expectFailure("body");
+  });
+
+  it("is unreachable and reported on a hosted key with an unknown reason", async () => {
+    answer(hosted("m", "sleeping"));
     expect(await probeDefaultBackend()).toEqual({ state: "unreachable" });
     expectFailure("body");
   });
@@ -112,7 +171,7 @@ describe("probeDefaultBackend", () => {
   });
 
   it("is present with no model, and warned of, when the model is not a string", async () => {
-    answer({ configured: true, model: 42 });
+    answer(hosted(42));
     expect(await probeDefaultBackend()).toEqual({
       state: "present",
       model: null,
@@ -129,7 +188,7 @@ describe("probeDefaultBackend", () => {
       .mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ configured: true, model: null }),
+        json: async () => hosted(null),
       } as Response);
     expect(await probeDefaultBackend()).toEqual({ state: "unreachable" });
     expect(await probeDefaultBackend()).toEqual({
@@ -139,7 +198,7 @@ describe("probeDefaultBackend", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps a deployment without the agent for the page", async () => {
+  it("keeps a deployment without the route for the page", async () => {
     const spy = answer({}, 404);
     await probeDefaultBackend();
     await probeDefaultBackend();
@@ -147,20 +206,49 @@ describe("probeDefaultBackend", () => {
   });
 
   it("asks once per page", async () => {
-    const spy = answer({ configured: true, model: null });
+    const spy = answer(hosted(null));
     await probeDefaultBackend();
     await probeDefaultBackend();
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks again on a retry, and counts it", async () => {
+    const spy = answer(own);
+    await probeDefaultBackend();
+    expect(await retryDefaultBackend()).toEqual({ state: "absent" });
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(events.events.map((e) => e.name)).toEqual([
+      "assistant_default_probe_retried",
+    ]);
   });
 });
 
 describe("useDefaultBackend", () => {
   it("starts checking, then settles", async () => {
-    answer({ configured: true, model: null });
+    answer(hosted(null));
     const { result } = renderHook(() => useDefaultBackend());
     expect(result.current).toEqual({ state: "checking" });
     await waitFor(() =>
       expect(result.current).toEqual({ state: "present", model: null })
+    );
+  });
+
+  it("follows a retry's answer", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(
+      new Error("offline")
+    );
+    const { result } = renderHook(() => useDefaultBackend());
+    await waitFor(() =>
+      expect(result.current).toEqual({ state: "unreachable" })
+    );
+    spy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => hosted("m"),
+    } as Response);
+    void retryDefaultBackend();
+    await waitFor(() =>
+      expect(result.current).toEqual({ state: "present", model: "m" })
     );
   });
 
