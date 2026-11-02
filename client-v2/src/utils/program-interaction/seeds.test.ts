@@ -4,15 +4,14 @@
 // reads another account's data is not filled. Node, because web3's address
 // search rejects jsdom's Uint8Array
 import { createHash } from "crypto";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { readIdl } from "@/entities/idl";
+import { readIdl, type IdlV1 } from "@/entities/idl";
 import amm from "@/entities/idl/model/__fixtures__/amm_v3.json";
 import generics from "@/entities/idl/model/__fixtures__/generics.json";
 import idlJson from "@/entities/idl/model/__fixtures__/idl.json";
 import pda from "@/entities/idl/model/__fixtures__/pda.json";
 import relations from "@/entities/idl/model/__fixtures__/relations.json";
-import type { IdlV1 } from "@/entities/idl";
 import { generateValue } from "./generator";
 import type { Idl, IdlInstruction } from "./idl-types";
 import { createGeneratableInstruction } from "./instruction";
@@ -80,12 +79,16 @@ const FIXTURES = {
   widths,
 } as unknown as Record<string, RawIdl>;
 
-/** A value per argument type; a signed width gets its most negative value */
+/**
+ * A value per argument type. A signed width gets a small negative: its
+ * magnitude bytes differ from its two's complement, where a width's minimum
+ * (`00 80`) reads the same either way and would hide the bug
+ */
 const ARG_VALUES: Record<string, string> = {
-  i8: "-128",
-  i16: "-32768",
+  i8: "-2",
+  i16: "-2",
   i32: "-7",
-  i64: "-9223372036854775808",
+  i64: "-2",
   i128: "-5",
   u8: "200",
   u16: "300",
@@ -95,7 +98,10 @@ const ARG_VALUES: Record<string, string> = {
 };
 
 /** Anchor's bytes for an argument seed, built without the code under test */
-const argBytes = (type: string, value: string): Buffer => {
+const argBytes = (type: unknown, value: string): Buffer => {
+  if (typeof type !== "string") {
+    throw new Error(`no seed rule in this test for ${JSON.stringify(type)}`);
+  }
   const int = type.match(/^[iu](8|16|32|64|128)$/);
   if (int) {
     const bits = Number(int[1]);
@@ -116,7 +122,8 @@ const argBytes = (type: string, value: string): Buffer => {
 /** A fixed key per name, so a failing case replays with the same keys */
 const keyOf = (name: string) => new PgWeb3.PublicKey(sha256(name));
 
-const ran = { filled: 0, signed: 0, left: [] as string[] };
+/** What the fixtures hold, counted as the cases are collected */
+const covered = { filled: 0, signed: 0, left: [] as string[] };
 
 describe("utils/program-interaction seeds on Anchor 1.x IDLs", () => {
   for (const [file, raw] of Object.entries(FIXTURES)) {
@@ -137,6 +144,21 @@ describe("utils/program-interaction seeds on Anchor 1.x IDLs", () => {
         if (!rawAcc.pda) return;
         const seeds = rawAcc.pda.seeds;
         const label = `${file} ${rawIx.name}.${rawAcc.name}`;
+        const typeOf = (s: RawSeed) =>
+          rawIx.args.find((a) => a.name === s.path)?.type;
+        // The rule the reader follows, restated; `covered.left` below pins
+        // its outcome by name, so the two copies cannot agree on a wrong rule
+        const fillable = seeds.every(
+          (s) =>
+            s.kind === "const" ||
+            (!s.path!.includes(".") && !(s.kind === "account" && s.account))
+        );
+        if (!fillable) covered.left.push(label);
+        else covered.filled++;
+        const signed = seeds.some(
+          (s) => s.kind === "arg" && /^i/.test(String(typeOf(s)))
+        );
+        if (fillable && signed) covered.signed++;
 
         it(label, () => {
           const { values } = createGeneratableInstruction(ixIdl);
@@ -145,14 +167,8 @@ describe("utils/program-interaction seeds on Anchor 1.x IDLs", () => {
             : keyOf(file);
           current.pk = program.toBase58();
 
-          const fillable = seeds.every(
-            (s) =>
-              s.kind === "const" ||
-              (!s.path!.includes(".") && !(s.kind === "account" && s.account))
-          );
           if (!fillable) {
             expect(values.accounts[j].generator.type).not.toBe("From seed");
-            ran.left.push(label);
             return;
           }
           expect(values.accounts[j].generator.type).toBe("From seed");
@@ -168,12 +184,10 @@ describe("utils/program-interaction seeds on Anchor 1.x IDLs", () => {
             a.generator = { type: "Custom", value };
           });
 
-          const typeOf = (s: RawSeed) =>
-            rawIx.args.find((a) => a.name === s.path)!.type as string;
           const bytesOf = (s: RawSeed): Buffer => {
             if (s.kind === "const") return Buffer.from(s.value!);
             if (s.kind === "account") return keyOf(s.path!).toBuffer();
-            return argBytes(typeOf(s), ARG_VALUES[typeOf(s)]);
+            return argBytes(typeOf(s), ARG_VALUES[String(typeOf(s))]);
           };
           const seedProgram = rawAcc.pda!.program
             ? new PgWeb3.PublicKey(bytesOf(rawAcc.pda!.program))
@@ -186,19 +200,17 @@ describe("utils/program-interaction seeds on Anchor 1.x IDLs", () => {
           expect(generateValue(values.accounts[j].generator, values)).toBe(
             expected.toBase58()
           );
-          ran.filled++;
-          if (seeds.some((s) => s.kind === "arg" && /^i/.test(typeOf(s)))) {
-            ran.signed++;
-          }
         });
       });
     });
   }
 
-  // A fixture that stops reading or loses its PDAs must fail here, not pass
-  // by running fewer cases
-  afterAll(() => {
-    expect(ran).toEqual({
+  // Counted at collection, so a filter or a failing case changes nothing:
+  // amm_v3 has 27 fillable PDAs (9 with an i32 seed) and 4 that read account
+  // data; idl.json has 2, pda.json 1, relations.json 1 (its composite
+  // instruction is skipped) and widths 7 (5 signed)
+  it("covers every PDA the fixtures hold", () => {
+    expect(covered).toEqual({
       filled: 38,
       signed: 14,
       left: [

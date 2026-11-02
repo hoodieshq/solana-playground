@@ -490,6 +490,7 @@ const u128 = createIdlType({
 const signedLe = (value: number | BN, bytes: number) =>
   new BN(value).toTwos(bytes * 8).toArrayLike(Buffer, "le", bytes);
 
+// `Buffer.from` wraps a negative byte (-5 -> 0xfb), so i8 needs no `signedLe`
 const i8 = createIdlType({
   name: "i8",
   parse: (value) => {
@@ -661,12 +662,23 @@ if (import.meta.vitest) {
       ["i32", "7", "07000000"],
       ["i32", "-5", "fbffffff"],
       ["i32", "-2147483648", "00000080"],
+      ["i32", "2147483647", "ffffff7f"],
       ["i64", "-5", "fb" + "ff".repeat(7)],
       ["i64", "-9223372036854775808", "00".repeat(7) + "80"],
       ["i64", "9223372036854775807", "ff".repeat(7) + "7f"],
       ["i128", "-5", "fb" + "ff".repeat(15)],
       ["i128", "-1", "ff".repeat(16)],
       ["i128", "7", "07" + "00".repeat(15)],
+      [
+        "i128",
+        "-170141183460469231731687303715884105728",
+        "00".repeat(15) + "80",
+      ],
+      [
+        "i128",
+        "170141183460469231731687303715884105727",
+        "ff".repeat(15) + "7f",
+      ],
     ];
 
     it.each(SIGNED_SEEDS)("writes %s %s as %s", (type, value, hex) => {
