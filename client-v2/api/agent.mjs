@@ -147,9 +147,40 @@ const pipeStream = async (res, body, observe, redact) => {
   const reader = body.getReader();
   let finished = false;
 
+  /**
+   * Tell a caller still there that the answer stopped short, in the error
+   * frame `@ai-sdk/openai-compatible` reads; `runTurn` (shared/lib/ai) raises
+   * it as `AiTurnError`. The leading blank line closes whatever frame the
+   * upstream left unfinished; glued onto it, the error would be one malformed
+   * line the panel skips. A socket that already failed may throw again here,
+   * and there is nobody left to tell.
+   */
+  const sayCutShort = (message) => {
+    if (res.writableEnded || res.destroyed) return;
+    try {
+      res.write(`\n\ndata: ${JSON.stringify({ error: { message } })}\n\n`);
+    } catch {
+      // The failure is already logged by the caller of this function
+    }
+  };
+
   try {
     for (;;) {
-      const { done, value } = await reader.read();
+      let chunk;
+      try {
+        chunk = await reader.read();
+      } catch (e) {
+        // The upstream broke: logged whether or not the caller is still
+        // there, since a caller who left gets no frame to read it from
+        const message = redact(String(e?.message ?? e));
+        console.warn("agent: upstream stream failed", {
+          message,
+          callerLeft: res.destroyed,
+        });
+        sayCutShort(`Upstream stream failed: ${message}`);
+        break;
+      }
+      const { done, value } = chunk;
       if (done) {
         finished = !res.destroyed;
         break;
@@ -176,15 +207,16 @@ const pipeStream = async (res, body, observe, redact) => {
       }
     }
   } catch (e) {
-    if (!res.writableEnded && !res.destroyed) {
-      // The error frame `@ai-sdk/openai-compatible` reads; `runTurn` (shared/lib/ai) raises it as `AiTurnError`
-      const message = redact(`Upstream stream failed: ${e.message}`);
-      // The leading blank line closes whatever frame the upstream left
-      // unfinished; glued onto it, the error would be one malformed line
-      // the panel skips
-      res.write(`\n\ndata: ${JSON.stringify({ error: { message } })}\n\n`);
-    }
+    // Ours, not the upstream's: the usage reader or the write to the caller
+    // threw. Named as such, so a bug here is not chased upstream.
+    console.error("agent: relaying the stream failed", {
+      error: e instanceof Error ? e.name : typeof e,
+      message: redact(String(e?.message ?? e)),
+    });
+    sayCutShort("The default backend failed while relaying the answer.");
   } finally {
+    // The upstream is finished with either way; a cancel that fails has
+    // nothing left to release
     await reader.cancel().catch(() => {});
     if (!res.writableEnded) res.end();
   }

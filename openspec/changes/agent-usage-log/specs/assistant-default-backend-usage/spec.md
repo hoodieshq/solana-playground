@@ -63,3 +63,22 @@ outside this requirement.
   whose message contains the key
 - **THEN** the `Upstream unreachable` answer or the stream's error frame does
   not contain it
+
+### Requirement: A stream that stops short is logged by its cause
+
+When the upstream's stream breaks, `/api/agent` SHALL log
+`agent: upstream stream failed` with the redacted message and whether the
+caller had already left, and SHALL tell a caller still there with an
+`Upstream stream failed` error frame. When the route itself fails while
+relaying (the usage reader or the write to the caller throws), it SHALL log
+`agent: relaying the stream failed` with the error's name and redacted
+message, and SHALL NOT describe the failure as the upstream's.
+
+#### Scenario: The upstream drops after the caller left
+- **WHEN** the caller has gone and the upstream's stream then breaks
+- **THEN** the failure is still logged, with `callerLeft: true`
+
+#### Scenario: Writing to the caller fails
+- **WHEN** a write to the caller throws
+- **THEN** `agent: relaying the stream failed` is logged, no frame says
+  `Upstream stream failed`, and the response is ended

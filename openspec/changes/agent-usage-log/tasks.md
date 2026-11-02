@@ -23,3 +23,7 @@ Plan: [plans/1-usage-and-key-guard.md](plans/1-usage-and-key-guard.md)
       broken stream, asserting response and `console` (HOO-2396)
 - [x] 2.2 Key rotation procedure in `docs/deploy-client-vercel.md`, and the
       key-protection check posted on HOO-2396 (HOO-2396)
+- [x] 2.3 `pipeStream` logs an upstream stream failure server-side, also
+      after the caller left, and reports a relay failure (usage reader or
+      write) as its own; verify with integration cases for both (HOO-2396,
+      from review)

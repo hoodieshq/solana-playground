@@ -622,6 +622,58 @@ describe("POST /api/agent streaming", () => {
     expect(res.ended).toBe(true);
   });
 
+  it("logs an upstream that drops mid-answer, without the key", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await call(makeRes(), upstream(["data: a\n\n"], "fail"));
+
+    expect(warned).toHaveBeenCalledWith("agent: upstream stream failed", {
+      message: "connection reset",
+      callerLeft: false,
+    });
+  });
+
+  it("logs an upstream that drops after the caller left", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = makeRes();
+    const dropping = upstream(["data: a\n\n"], "fail");
+    const read = dropping.body.getReader();
+    let reads = 0;
+    dropping.body.getReader = () => ({
+      // The caller goes away between the first chunk and the failure
+      read: async () => {
+        reads += 1;
+        if (reads === 2) res.destroyed = true;
+        return read.read();
+      },
+      cancel: read.cancel,
+    });
+
+    await call(res, dropping);
+
+    expect(warned).toHaveBeenCalledWith("agent: upstream stream failed", {
+      message: "connection reset",
+      callerLeft: true,
+    });
+  });
+
+  it("reports a failure to relay as its own, not as the upstream's", async () => {
+    const failed = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = makeRes({
+      write: () => {
+        throw new Error("write EPIPE");
+      },
+    });
+
+    await call(res, upstream(["data: a\n\n"]));
+
+    expect(failed).toHaveBeenCalledWith("agent: relaying the stream failed", {
+      error: "Error",
+      message: "write EPIPE",
+    });
+    expect(res.body()).not.toContain("Upstream stream failed");
+    expect(res.ended).toBe(true);
+  });
+
   it("stops waiting for drain once the client is gone", async () => {
     // A full write buffer, so the loop parks on `drain` -- and a client
     // that leaves instead. Without `close` ending that wait the
