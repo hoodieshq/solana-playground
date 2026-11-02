@@ -66,6 +66,15 @@ const headOf = (r: RunResult): { title: string; meta: string } => {
       meta: r.act === "run" ? "from client.ts" : "from the chat",
     };
   }
+  if ((r.act === "run" || r.act === "call") && r.refused) {
+    const { instruction, error } = r.refused;
+    return {
+      title: `${instruction} refused`,
+      meta: error
+        ? [error.name, String(error.code)].filter(Boolean).join(" · ")
+        : r.message,
+    };
+  }
   return {
     title: r.act === "run" ? "Run failed" : "Call failed",
     meta: r.message,

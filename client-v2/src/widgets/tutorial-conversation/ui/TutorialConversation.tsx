@@ -232,10 +232,12 @@ export const TutorialConversation = () => {
         return;
       }
       const live = PgConversation.view()?.live;
-      if (
-        live?.kind === "act" &&
-        !(live.act.act === "call" && live.act.call.args?.length)
-      ) {
+      // A call with a field to fill waits for it, where Enter sends
+      const fields =
+        live?.kind === "act" && live.act.act === "call"
+          ? (live.act.call.args ?? []).filter((a) => typeof a === "string")
+          : [];
+      if (live?.kind === "act" && !fields.length) {
         e.preventDefault();
         PgConversation.act(live.beatId);
       } else if (live?.kind === "result" && live.open) {

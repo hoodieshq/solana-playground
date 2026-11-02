@@ -303,9 +303,83 @@ describe("BaseActCard", () => {
     expect(screen.getByText("Built in 1.6 s")).toBeTruthy();
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  /** A call on `paint` with one argument to fill and one the definition gives */
+  const paint = (): ActBeat => ({
+    kind: "act",
+    id: "s1.paint",
+    title: "Paint a pixel",
+    context: "Sends paint to your program",
+    button: "Paint",
+    act: "call",
+    call: {
+      instruction: "paint",
+      args: ["name", { name: "at", value: 35000 }],
+    },
+  });
+
+  it("asks only for the arguments the definition gives no value", async () => {
+    const onRun = vi.fn();
+    card({ act: paint(), onRun });
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "name" }),
+      "Alex{Enter}"
+    );
+    expect(onRun).toHaveBeenCalledWith({ name: "Alex" });
+  });
+
+  it("reads the act's own record line before its time", () => {
+    card({
+      act: {
+        kind: "act",
+        id: "s1.init",
+        title: "Create your map",
+        context: "Calls init_map",
+        button: "Create",
+        record: "Created your map · 10 KB",
+        act: "build",
+      },
+      state: "done",
+      took: 900,
+    });
+    expect(screen.getByText("Created your map · 10 KB · 0.9 s")).toBeTruthy();
+  });
+
+  it("reads a refusal that passed the step as refused, with no button", () => {
+    card({ act: paint(), state: "refused", took: 900 });
+    expect(screen.getByText("Paint a pixel refused in 0.9 s")).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
 });
 
 describe("BaseResultCard", () => {
+  it("heads a refused call with its instruction and error", () => {
+    render(
+      <BaseResultCard
+        result={{
+          act: "call",
+          ok: false,
+          seconds: 0.9,
+          message: "Not enough energy",
+          log: "",
+          refused: {
+            instruction: "chop_tree",
+            error: { code: 6000, name: "NotEnoughEnergy" },
+          },
+        }}
+        planned={null}
+        open={false}
+        onExplain={vi.fn()}
+        onFixMyself={vi.fn()}
+        onShowLine={vi.fn()}
+      />
+    );
+    expect(screen.getByText("chop_tree refused")).toBeTruthy();
+    expect(screen.getByText("NotEnoughEnergy · 6000")).toBeTruthy();
+  });
+
   const failed = {
     act: "build" as const,
     ok: false as const,

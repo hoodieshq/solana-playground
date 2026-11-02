@@ -1,6 +1,14 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { CircleCheck, CircleX, Hammer, Play, Rocket, Send } from "lucide-react";
+import {
+  Ban,
+  CircleCheck,
+  CircleX,
+  Hammer,
+  Play,
+  Rocket,
+  Send,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import type { Act, ActBeat } from "@/entities/tutorial";
@@ -32,6 +40,35 @@ const DONE: Record<Act, string> = {
   call: "Called",
 };
 
+/** "Built in 1.6 s", or the act's own record line before its time */
+const doneLine = (act: ActBeat, seconds: string) => {
+  const line = act.record ?? DONE[act.act];
+  if (!seconds) return line;
+  return act.record ? `${line} · ${seconds}` : `${line} in ${seconds}`;
+};
+
+/** How each ended run reads as its record */
+const RECORDS: Record<
+  "done" | "refused" | "failed",
+  {
+    Icon: LucideIcon;
+    tone: string;
+    line: (act: ActBeat, seconds: string) => string;
+  }
+> = {
+  done: { Icon: CircleCheck, tone: "text-success", line: doneLine },
+  refused: {
+    Icon: Ban,
+    tone: "text-muted-foreground",
+    line: (act, s) => `${act.title} refused${s ? ` in ${s}` : ""}`,
+  },
+  failed: {
+    Icon: CircleX,
+    tone: "text-error",
+    line: (act, s) => `${act.title} failed${s ? ` in ${s}` : ""}`,
+  },
+};
+
 export interface BaseActCardProps {
   act: ActBeat;
   state: ActState;
@@ -49,9 +86,12 @@ export interface BaseActCardProps {
 /**
  * One thing to run: an icon tile, the title, the context line and the button
  * with ⌘↵. While the act runs, the button gives way to the stage, "n of m"
- * and a bar on the card's bottom edge. A call act with arguments has one
- * field each and waits for every one. Once the run ended the card is its
- * record: one line, no button, ever.
+ * and a bar on the card's bottom edge. A call act has one field for each
+ * argument given by name alone, and waits for every one; an argument with a
+ * value is the definition's, sent as given, with no field. Once the run
+ * ended the card is its record, one line with no button, ever: the act's own
+ * `record` when it landed and names one, and a refusal that passed the step
+ * reads as refused, not failed.
  */
 const BaseActCard = ({
   act,
@@ -62,21 +102,20 @@ const BaseActCard = ({
   disabled,
   onRun,
 }: BaseActCardProps) => {
-  const names = act.act === "call" ? act.call.args ?? [] : [];
+  const names =
+    act.act === "call"
+      ? (act.call.args ?? []).filter((a): a is string => typeof a === "string")
+      : [];
   const [values, setValues] = useState<Record<string, string>>({});
   const Icon = ICONS[act.act];
 
-  if (state === "done" || state === "failed") {
-    const ok = state === "done";
-    const StateIcon = ok ? CircleCheck : CircleX;
-    const seconds = took === null ? "" : ` in ${formatSeconds(took / 1000)}`;
+  if (state === "done" || state === "refused" || state === "failed") {
+    const record = RECORDS[state];
+    const seconds = took === null ? "" : formatSeconds(took / 1000);
     return (
       <p className="flex h-9 items-center gap-2 text-caption text-muted-foreground">
-        <StateIcon
-          aria-hidden="true"
-          className={cn("size-4", ok ? "text-success" : "text-error")}
-        />
-        {ok ? `${DONE[act.act]}${seconds}` : `${act.title} failed${seconds}`}
+        <record.Icon aria-hidden="true" className={cn("size-4", record.tone)} />
+        {record.line(act, seconds)}
       </p>
     );
   }
