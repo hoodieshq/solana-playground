@@ -208,9 +208,7 @@ test("gist-sharing: Sign-in cancelled", async ({ page }) => {
   expect(requests).toHaveLength(0);
 });
 
-test("gist-sharing: A sign-in that ends without a session", async ({
-  page,
-}) => {
+test("gist-sharing: A sign-in that cannot start", async ({ page }) => {
   await stubAuth(page, { signedIn: false });
   await page.route("**/api/auth/sign-in/social", (r) =>
     r.fulfill({ status: 500, contentType: "application/json", body: "{}" })

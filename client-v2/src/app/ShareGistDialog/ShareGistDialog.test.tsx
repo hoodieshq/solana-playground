@@ -204,7 +204,10 @@ describe("app/ShareGistDialog", () => {
       receive: () => new Promise(() => {}),
       cancel,
     }));
-    void PgSession.signIn().catch(() => {});
+    void PgSession.signIn().catch(() => {
+      // Never answered: the popup waits for the whole test, and the reset
+      // after it drops the flow; nothing here may reject it
+    });
     await open();
 
     await press("Cancel");

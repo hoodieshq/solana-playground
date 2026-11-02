@@ -1,6 +1,7 @@
 # gist-sharing Specification
 
 ## Purpose
+
 Lets a user put a project on their own GitHub account as a public gist, and
 defines the gist format that lets the same project be opened again exactly.
 
@@ -80,7 +81,7 @@ inside the dialog, which offers to sign in again and then creates the gist.
   "Waiting for GitHub…", presses Cancel
 - **THEN** the sign-in stops, the dialog closes, and no gist is created
 
-#### Scenario: A sign-in that ends without a session
+#### Scenario: A sign-in that cannot start
 
 - **WHEN** the user presses "Sign in with GitHub" and sign-in cannot start
 - **THEN** the prompt stays open and says "Could not start sign-in", and no
@@ -170,7 +171,7 @@ project always gives the same names.
 
 - **WHEN** a project holding `src/lib.rs` and `client/client.ts` is flattened
 - **THEN** the gist holds `src__lib.rs` and `client__client.ts`
-- Pinned by client-v2/src/features/gist/lib/format.ts: "nested paths become __
+- Pinned by client-v2/src/features/gist/lib/format.ts: "nested paths become \_\_
   names"
 
 #### Scenario: A clash (manual)
@@ -184,8 +185,7 @@ project always gives the same names.
 ### Requirement: Carry a manifest that reverses the flattening
 
 Every exported gist SHALL hold `.playground.json`:
-`{"version": 1, "name": <project name>, "files": {<gist name>: <path>},
-"empty": [<path>]}`. Empty files, which a gist cannot hold, SHALL be listed in
+`{"version": 1, "name": <project name>, "files": {<gist name>: <path>}, "empty": [<path>]}`. Empty files, which a gist cannot hold, SHALL be listed in
 `empty` and not uploaded. Opening the gist SHALL give back exactly the
 exported paths and contents.
 
@@ -319,10 +319,12 @@ and `https://gist.github.com/<id>`, either with a `#file-...` anchor,
 other URL is not a gist URL.
 
 #### Scenario: Owner, id and revision are read from the URL
+
 - **WHEN** the URL is `https://gist.github.com/alice/0123abcd/9f8e7d`
 - **THEN** it is a gist URL with owner `alice`, id `0123abcd` and revision `9f8e7d`
 
 #### Scenario: A repository URL is not a gist URL
+
 - **WHEN** the URL is `https://github.com/alice/repo`
 - **THEN** it is not a gist URL, and repository import handles it as today
 
@@ -336,14 +338,17 @@ exists, it SHALL open that project and create none, and when the URL names
 the owner it SHALL do so without a request to GitHub.
 
 #### Scenario: Importing a gist from the dialog
+
 - **WHEN** a signed-out user enters a public gist URL in the import dialog and presses Import
 - **THEN** a project named `gist-<owner>/<id>` is created with the gist's files and opened
 
 #### Scenario: Saving a gist opened from a link
+
 - **WHEN** a user who opened a gist link imports the same gist URL from the dialog
 - **THEN** a project named `gist-<owner>/<id>` is created and opened, beside the user's other projects
 
 #### Scenario: Importing the same gist twice
+
 - **WHEN** the user imports a gist whose project already exists
 - **THEN** that project opens and no new project is created
 
@@ -354,6 +359,7 @@ gist URL, as an unsaved view of the gist's files, the way `/{githubUrl}`
 opens a repository.
 
 #### Scenario: Opening a gist link signed out
+
 - **WHEN** a signed-out user opens `/gist/<id>` for a public gist
 - **THEN** the gist's files show in the explorer as an unsaved view and no project is created
 
@@ -367,14 +373,17 @@ answer that is not a gist, and any other failed request with its status. A file 
 downloaded whole rather than imported cut.
 
 #### Scenario: A missing gist
+
 - **WHEN** the gist id does not exist, in the dialog or behind a link
 - **THEN** the import fails with a message that the gist was not found and the link may be out of date, shown in the dialog or in place of the view
 
 #### Scenario: GitHub's hourly limit is reached
+
 - **WHEN** GitHub answers 403 with no requests remaining
 - **THEN** the import fails with a message to try again later
 
 #### Scenario: A large file in a gist
+
 - **WHEN** the gist API marks a file as truncated
 - **THEN** the file's whole content is downloaded and imported
 
@@ -390,6 +399,7 @@ carries `layout`: `manifest` or `loose`. `gist_import_failed` carries
 or `request-failed`.
 
 #### Scenario: A failed import is counted with its reason
+
 - **WHEN** an import from the dialog fails because the gist does not exist
 - **THEN** `gist_import_failed` is sent with `from: dialog` and `reason: not-found`
 
@@ -403,6 +413,7 @@ behind a link alike. A gist with neither SHALL be refused with reason
 TypeScript or JavaScript to open."
 
 #### Scenario: A hand-made gist of TypeScript
+
 - **WHEN** the user imports a gist without `.playground.json` that holds
   `client.ts` and `client.test.ts`
 - **THEN** a project is created holding `client/client.ts` and
@@ -410,10 +421,12 @@ TypeScript or JavaScript to open."
   `layout: loose`
 
 #### Scenario: A hand-made gist of TypeScript behind a link
+
 - **WHEN** the user opens `/gist/<id>` for a gist that holds only `client.ts`
 - **THEN** the view shows `client.ts` and the stepper offers only Write
 
 #### Scenario: A gist with nothing to open
+
 - **WHEN** the user imports a gist that holds only `notes.md`
 - **THEN** the import fails, and `gist_import_failed` is sent with
   `reason: no-program`
