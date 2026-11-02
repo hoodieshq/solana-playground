@@ -1,4 +1,4 @@
-import { it } from "vitest";
+import { it, vi } from "vitest";
 import {
   anthropicText,
   fakeFetch,
@@ -410,5 +410,71 @@ describe("runTurn", () => {
     await expect(turn).rejects.toThrow(AiTurnError);
     await expect(turn).rejects.toThrow(/cyber/);
     await expect(turn).rejects.toMatchObject({ kind: "refusal" });
+  });
+  describe("tool results", () => {
+    const toolReturning = (run: () => unknown) =>
+      toSdkTools([
+        {
+          name: "probe",
+          description: "Probe",
+          schema: {
+            type: "object",
+            properties: {},
+            additionalProperties: false,
+          },
+          run: run as () => string,
+        },
+      ]);
+
+    const resultsOf = async (tools: ReturnType<typeof toSdkTools>) => {
+      const { fetch } = fakeFetch(
+        openAiToolCall("c1", "probe", { path: "src/lib.rs" }),
+        openAiText("ok")
+      );
+      const onToolResult = vi.fn();
+      await runTurn({
+        model: openAi(fetch),
+        messages: USER,
+        tools,
+        onToolResult,
+      });
+      return onToolResult.mock.calls.map(([result]) => result);
+    };
+
+    it("reports each tool's result after it runs", async () => {
+      expect(await resultsOf(toolReturning(() => "echoed"))).toEqual([
+        {
+          toolCallId: "c1",
+          toolName: "probe",
+          input: { path: "src/lib.rs" },
+          output: "echoed",
+          failed: false,
+        },
+      ]);
+    });
+
+    it("reports a tool that throws as failed, with its message", async () => {
+      const results = await resultsOf(
+        toolReturning(() => {
+          throw new Error("Not found");
+        })
+      );
+
+      expect(results).toEqual([
+        {
+          toolCallId: "c1",
+          toolName: "probe",
+          input: { path: "src/lib.rs" },
+          output: "Not found",
+          failed: true,
+        },
+      ]);
+    });
+
+    it("reports a result that is not text as JSON", async () => {
+      const results = await resultsOf(toolReturning(() => ({ a: 1 })));
+
+      expect(results.map(({ output }) => output)).toEqual(['{"a":1}']);
+    });
   });
 });

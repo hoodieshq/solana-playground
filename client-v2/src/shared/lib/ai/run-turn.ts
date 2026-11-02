@@ -85,6 +85,20 @@ export interface ToolCallEvent {
   input: unknown;
 }
 
+/**
+ * A tool's answer, reported once it is final. `output` is what the model
+ * reads, as text: a tool that returned anything else is given as JSON, and a
+ * tool that threw as its message.
+ */
+export interface ToolResultEvent {
+  toolCallId: string;
+  toolName: string;
+  input: unknown;
+  output: string;
+  /** The tool threw; `output` is its message */
+  failed: boolean;
+}
+
 export interface RunTurnOptions {
   model: LanguageModel;
   /** The conversation so far, ending with the user's message */
@@ -105,6 +119,7 @@ export interface RunTurnOptions {
   onText?: (delta: string) => void;
   onReasoning?: (delta: string) => void;
   onToolCall?: (call: ToolCallEvent) => void;
+  onToolResult?: (result: ToolResultEvent) => void;
 }
 
 export interface TurnResult {
@@ -124,6 +139,9 @@ const messageOf = (error: unknown): string => {
   }
   return String(error);
 };
+
+const textOf = (output: unknown) =>
+  typeof output === "string" ? output : JSON.stringify(output);
 
 /** Characters of an unparsed error body kept in the detail */
 const BODY_IN_DETAIL = 300;
@@ -224,6 +242,7 @@ export const runTurn = async ({
   onText,
   onReasoning,
   onToolCall,
+  onToolResult,
 }: RunTurnOptions): Promise<TurnResult> => {
   const history = Array.from(messages);
   let stepsTaken = 0;
@@ -262,6 +281,26 @@ export const runTurn = async ({
               toolCallId: part.toolCallId,
               toolName: part.toolName,
               input: part.input,
+            });
+            break;
+          case "tool-result":
+            // A streaming tool's partial results are followed by its final one
+            if (part.preliminary) break;
+            onToolResult?.({
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              input: part.input,
+              output: textOf(part.output),
+              failed: false,
+            });
+            break;
+          case "tool-error":
+            onToolResult?.({
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              input: part.input,
+              output: messageOf(part.error),
+              failed: true,
             });
             break;
           case "error":
