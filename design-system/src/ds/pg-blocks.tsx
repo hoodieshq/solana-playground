@@ -584,7 +584,7 @@ function PlaygroundComponents() {
             <ComposerAdd />
             <ComposerModel>Claude Sonnet</ComposerModel>
             <ComposerEffort value={2} />
-            <ComposerSend><LogoMark className="size-4" /></ComposerSend>
+            <ComposerSend><LogoMark className="h-3" /></ComposerSend>
           </ComposerToolbar>
         </Composer>
       </Block>
@@ -983,7 +983,7 @@ function PlaygroundComponents() {
           <LogoText>Playground</LogoText>
         </Logo>
         <Logo className="text-brand-purple">
-          <LogoMark className="size-8" />
+          <LogoMark className="h-8" />
         </Logo>
       </Block>
     </>

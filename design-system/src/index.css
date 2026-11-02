@@ -40,6 +40,20 @@ html:has([data-ds-aside])::-webkit-scrollbar,
 [data-ds-aside] {
   overscroll-behavior: contain;
 }
+/* Scrolling inside a specimen, a terminal's long line for one, keeps a native bar, but a thin one: no
+   track, a thumb in the text's own colour at low strength. Without it the dark page drew the
+   browser's light default bar, a white slab under the code. The theme's colour-scheme is set here
+   too, so any other native control follows the ground */
+html:has([data-ds-aside]) {
+  color-scheme: light;
+}
+html.dark:has([data-ds-aside]) {
+  color-scheme: dark;
+}
+html:has([data-ds-aside]) body *:not([data-ds-aside]) {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
+}
 @media (prefers-reduced-motion: no-preference) {
   html:has([data-ds-aside]) {
     scroll-behavior: smooth;

@@ -18,7 +18,7 @@ function BrandIconBlock() {
       title="Brand icon"
       source="playground"
       registry="brand-icon"
-      note="The product's own icons, each cut from the mark's shapes: home, new, tutorial, programs, search and profile. They are client-v2's, drawn from its newer mark (the play triangle folded from Solana's three bars, with the O beside it), not from LogoMark. Each keeps its own aspect inside a square box, so a row of them sits on one line. The colour comes from the text around it; the label beside it names it, so the icon is hidden from a screen reader."
+      note="The product's own icons, each cut from the mark's shapes: home, new, tutorial, programs, search and profile. They are client-v2's, drawn from the brand's mark, the one LogoMark draws (the play triangle folded from Solana's three bars, with the O beside it). Each keeps its own aspect inside a square box, so a row of them sits on one line. The colour comes from the text around it; the label beside it names it, so the icon is hidden from a screen reader."
       more={
         <More label="In a nav row, at 16px and 20px">
           <div className="flex flex-col gap-1 text-[0.8125rem] text-muted-foreground">

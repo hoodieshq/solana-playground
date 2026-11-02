@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils"
    search and profile, each built from the mark's own shapes. They are
    client-v2's (components/BrandIcon.tsx), point for point, and so is the
    mark they are cut from (PlaygroundMarkNext.tsx): the play triangle folded
-   from Solana's three bars with the O beside it. That mark is not LogoMark,
-   the ring the product ships today; it is the one the icons, the tutorial
-   covers and the voxel sculpture are drawn from. Fill is currentColor, so
+   from Solana's three bars with the O beside it. It is the brand's mark, the
+   one LogoMark draws, and the icons, the tutorial covers and the voxel
+   sculpture are drawn from it too. Fill is currentColor, so
    the row around an icon decides its colour. */
 
 /** The mark the icons are cut from, as one path in its own 970 by 574 box */

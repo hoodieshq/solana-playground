@@ -359,7 +359,8 @@
       "description": "The Playground mark beside its name. The mark takes the colour of its text.",
       "registryDependencies": [
         "@playground/playground-tokens",
-        "@playground/utils"
+        "@playground/utils",
+        "@playground/brand-icon"
       ],
       "files": [
         {
