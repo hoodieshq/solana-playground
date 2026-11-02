@@ -13,7 +13,6 @@ import {
   SidebarMenuItem,
 } from "@/shared/ui/sidebar";
 import { StatusDot } from "@/shared/ui/status-dot";
-import type { StatusIndicator } from "../model/indicators";
 import { DOT, StatusDetail } from "./parts";
 import type { BaseStatusRowProps } from "./BaseStatusRow";
 
