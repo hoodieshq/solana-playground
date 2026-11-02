@@ -60,7 +60,8 @@ for; tasks with "after nothing" start at once.
 - [ ] 3.3 The feed: intro card, dividers, step bar with its states and keys,
       say and quote, wrote card, the act card (stages, "n of m", the stage
       bar, disabling, call-act fields) and the result card shell, records,
-      the back pill, `role="log"`.
+      the back pill, `role="log"`, `tutorial_step_jumped` and
+      `tutorial_step_back`.
       Verify: component tests for every record line in the spec and the jump
       from step 3 to step 1 (HOO-2351; fleet; M 1.5; after 2.1, 3.1;
       plan: [plans/3.3-feed.md](plans/3.3-feed.md))

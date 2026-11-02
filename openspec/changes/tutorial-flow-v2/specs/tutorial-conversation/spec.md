@@ -375,6 +375,16 @@ The tutorial slice SHALL emit:
   - `step`;
   - `source`: `typed`, or `chip` when a finish chip is pressed (the event
     fires for chips too, though their answer needs no model).
+- `tutorial_step_jumped` when a step bar segment, an item of its narrow
+  menu, or ⌥↑ / ⌥↓ moves the feed to a step's divider, with:
+  - `tutorial`;
+  - `step`: the divider's step, 1 to 6;
+  - `from`: the live step;
+  - `via`: `bar`, `menu` or `key`.
+- `tutorial_step_back` when the back pill takes the learner back to the
+  live card, with:
+  - `tutorial`;
+  - `step`: the live step, or 0 before Start.
 
 The text of the question is never sent.
 
@@ -383,3 +393,11 @@ The text of the question is never sent.
 - **WHEN** the learner picks a wrong option, then the right one
 - **THEN** one `tutorial_question_answered` reaches the memory provider with
   `result: "retry"` and `attempts: 2`
+
+#### Scenario: Counting a jump back
+
+- **WHEN** on step 3 the learner clicks the step bar's first segment, then
+  the "Back to step 3" pill
+- **THEN** `tutorial_step_jumped` reaches the memory provider with
+  `step: 1`, `from: 3` and `via: "bar"`, then `tutorial_step_back` with
+  `step: 3`
