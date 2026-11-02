@@ -3,6 +3,9 @@ import { createTracker } from "@/shared/lib/telemetry";
 import type { NoParams } from "@/shared/lib/telemetry";
 import type { Effort } from "../../../views/sidebar/assistant/model";
 
+/** Why a turn failed, as `assistant_turn_failed` reports it */
+export type TurnFailedReason = "provider" | "refusal" | "paused" | "other";
+
 export type AssistantEvents = {
   /** The user picked a model; `via` says whether from the composer's menu or the Connect dialog, where re-picking the connection it opened over is not a pick. */
   assistant_model_picked: { provider: ModelProvider; via: "menu" | "dialog" };
@@ -19,8 +22,20 @@ export type AssistantEvents = {
       | "key-rejected"
       | "add";
   };
-  /** The user stopped a turn in progress with the stop button. */
+  /** The user stopped a turn with the stop button, while it ran or while it counted down to sending a busy message again; it is then the turn's only outcome. */
   assistant_turn_stopped: NoParams;
+  /** A message went to the backend as a new turn: once per message, not again when a busy model's resend sends it a second time. Never the prompt. */
+  assistant_turn_sent: { provider: ModelProvider };
+  /** The turn's answer completed; one of the four outcomes of a sent turn. */
+  assistant_turn_answered: { provider: ModelProvider };
+  /** The turn ended without an answer and was not stopped or capped. `reason`: the backend answered with an error or did not answer (`provider`), the model refused (`refusal`), it kept pausing (`paused`), or this side ended it (`other`). `status` is the backend's HTTP status, absent when there was none. Never the error's text. */
+  assistant_turn_failed: {
+    provider: ModelProvider;
+    reason: TurnFailedReason;
+    status?: number;
+  };
+  /** The default backend's cost gate refused the turn (daily cap or exhausted pool); the kind and tier are on `agent_refused`. */
+  assistant_turn_capped: { provider: ModelProvider };
   /** A turn on a key-based backend ended on the provider refusing the key with a 401. Never the key, the model or the base URL. */
   assistant_key_rejected: { provider: ModelProvider };
   /** The default backend's probe failed and the default was treated as absent; `reason` says whether the request, the status (not a 404, which is a deployment without the agent) or the body. */
