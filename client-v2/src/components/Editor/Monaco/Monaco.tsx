@@ -276,6 +276,17 @@ const Monaco = () => {
     }
   }, [editor, keybinding]);
 
+  // Refuse typing while a caller asks, as the tutorial's intro card does
+  // for its preview of the finished program
+  useEffect(() => {
+    if (!editor) return;
+
+    const apply = () => editor.updateOptions({ readOnly: PgEditor.readOnly });
+    apply();
+    document.addEventListener(PgEditor.events.READ_ONLY, apply);
+    return () => document.removeEventListener(PgEditor.events.READ_ONLY, apply);
+  }, [editor]);
+
   // Set other settings
   useEffect(() => {
     if (!editor) return;

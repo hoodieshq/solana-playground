@@ -172,6 +172,22 @@ const useOpenEnteredStep = (state: ConversationState) => {
   }, [stepId, loadedAt, context]);
 };
 
+/**
+ * The finished program beside the intro card is a preview, read only as the
+ * spec's "A tutorial opens on its intro card" has it: the editor refuses
+ * typing until Start, and again after Start over. Leaving the tutorial
+ * unlocks it.
+ */
+const useLockedPreview = (state: ConversationState) => {
+  const onIntro =
+    !!state.context && state.engine.progress.cursor.kind === "intro";
+  useEffect(() => {
+    if (!onIntro) return;
+    PgEditor.setReadOnly(true);
+    return () => PgEditor.setReadOnly(false);
+  }, [onIntro]);
+};
+
 const handlers: TurnHandlers = {
   start: () => PgConversation.start(),
   pick: (beatId, option) => PgConversation.pick(beatId, option),
@@ -206,6 +222,7 @@ export const TutorialConversation = () => {
   const state = useConversationState();
   const context = state.context;
   useOpenEnteredStep(state);
+  useLockedPreview(state);
   const view = PgConversation.view();
 
   useEffect(() => {

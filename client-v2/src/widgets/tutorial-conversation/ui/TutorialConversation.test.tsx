@@ -51,7 +51,7 @@ vi.mock("@/shared/lib/report-button-failure", () => ({
   markUnavailableHere: vi.fn(),
 }));
 vi.mock("@/utils/editor", () => ({
-  PgEditor: { revealLine: vi.fn() },
+  PgEditor: { revealLine: vi.fn(), setReadOnly: vi.fn() },
 }));
 vi.mock("@/entities/tutorial", async () => ({
   tutorialTelemetry: (await import("@/entities/tutorial/model/telemetry"))
@@ -293,6 +293,40 @@ describe("TutorialConversation", () => {
     // The restore writes it over the open one, which closes the tab
     act(() => created.forEach((cb) => cb()));
     expect(PgExplorer.openFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the editor read only while the intro card shows, and frees it on Start", () => {
+    vi.mocked(PgExplorer.onDidCreateItem).mockReturnValue({ dispose: vi.fn() });
+    let notify: (s: ConversationState) => void = () => {};
+    store.onDidChange.mockImplementation((cb) => {
+      notify = cb;
+      return { dispose: vi.fn() };
+    });
+    const intro = loaded();
+    intro.engine.progress.cursor = { kind: "intro" };
+    store.state = intro;
+    render(<TutorialConversation />);
+    expect(PgEditor.setReadOnly).toHaveBeenLastCalledWith(true);
+
+    const started = loaded();
+    started.context = intro.context;
+    store.state = started;
+    act(() => notify(started));
+    expect(PgEditor.setReadOnly).toHaveBeenLastCalledWith(false);
+  });
+
+  it("frees the editor when the tutorial closes on its intro card", () => {
+    const intro = loaded();
+    intro.engine.progress.cursor = { kind: "intro" };
+    store.state = intro;
+    const { unmount } = render(<TutorialConversation />);
+    unmount();
+    expect(PgEditor.setReadOnly).toHaveBeenLastCalledWith(false);
+  });
+
+  it("never locks the editor on a step", () => {
+    render(<TutorialConversation />);
+    expect(PgEditor.setReadOnly).not.toHaveBeenCalled();
   });
 
   it("draws a turn that arrives on its own, when the store re-announces the same state", () => {
