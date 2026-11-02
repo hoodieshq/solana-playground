@@ -94,6 +94,8 @@ export interface LayoutShellProps {
   cover?: { title: string; content: ReactNode; onClose: () => void };
   /** While Home shows, keep the work mounted (`BaseLayoutShellProps.keepWork`) */
   keepWork?: boolean;
+  /** The phone's status chip, in the work page's bar */
+  phoneStatus?: ReactNode;
 }
 
 /** Whether a key pressed on `target` is typed into something */
@@ -120,6 +122,7 @@ const LayoutShell = ({
   home,
   cover,
   keepWork,
+  phoneStatus,
 }: LayoutShellProps) => {
   const viewport = useViewport();
   const phone = viewport === "phone";
@@ -508,6 +511,7 @@ const LayoutShell = ({
     <BaseLayoutShell
       viewport={viewport}
       keepWork={keepWork}
+      phoneStatus={phoneStatus}
       navOpen={navOpen}
       onNavOpenChange={onNavOpenChange}
       assistantState={{
