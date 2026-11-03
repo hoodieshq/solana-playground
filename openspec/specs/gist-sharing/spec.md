@@ -131,8 +131,8 @@ access is granted SHALL retry the export once by itself.
 #### Scenario: Access still missing after the popup
 
 - **WHEN** the retry after granting access answers `needs-gist-scope` again
-- **THEN** the dialog says "Playground can't write to your GitHub without
-  permission." and offers no automatic retry
+- **THEN** the dialog says GitHub did not grant gist access and offers no
+  automatic retry
 
 ### Requirement: Show the gist when it is made
 

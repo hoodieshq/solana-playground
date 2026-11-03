@@ -381,9 +381,7 @@ test("gist-sharing: Access still missing after the popup", async ({ page }) => {
     .click(LONG);
 
   await expect(
-    dialog(page).getByText(
-      /Playground can't write to your GitHub without permission/
-    )
+    dialog(page).getByText(/GitHub did not grant gist access/)
   ).toBeVisible(LONG);
   expect(requests).toHaveLength(2);
 });

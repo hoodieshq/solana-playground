@@ -69,14 +69,14 @@ const FAILURE: Record<ShareFailure, (name: string) => string> = {
   "too-large": (name) =>
     `${name} is too large to share as a gist: over 4 MB or 300 files.`,
   "github-unauthorized": () =>
-    "GitHub access was removed. Sign in again to share.",
+    "GitHub no longer accepts this sign-in. Sign in again to share.",
   "rate-limited": () =>
     "GitHub is limiting requests from this browser. Try again in a few minutes.",
   rejected: () => "GitHub refused the gist. Nothing was published.",
   "request-failed": () =>
     "Could not export to GitHub. Check your gists on GitHub before you try again.",
   "scope-not-granted": () =>
-    "Playground can't write to your GitHub without permission.",
+    "GitHub did not grant gist access, so the gist was not created.",
 };
 
 /** The one action each step offers, with its label */

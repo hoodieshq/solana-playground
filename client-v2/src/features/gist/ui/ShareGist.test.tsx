@@ -430,11 +430,7 @@ it("stops when GitHub still lacks gist access after the grant", async () => {
   await press(/^Share to GitHub$/);
   await press(/Allow gists on GitHub/);
 
-  expect(
-    screen.getByText(
-      /^Playground can't write to your GitHub without permission\.$/
-    )
-  ).toBeTruthy();
+  expect(screen.getByText(/GitHub did not grant gist access/)).toBeTruthy();
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(sent.events.at(-1)).toEqual({
     name: "gist_export_failed",
@@ -448,7 +444,7 @@ it("offers sign-in again when GitHub revoked the grant", async () => {
 
   await press(/^Share to GitHub$/);
   expect(
-    screen.getByText(/^GitHub access was removed\. Sign in again to share\.$/)
+    screen.getByText(/GitHub no longer accepts this sign-in/)
   ).toBeTruthy();
 
   await press(/Sign in with GitHub again/);
