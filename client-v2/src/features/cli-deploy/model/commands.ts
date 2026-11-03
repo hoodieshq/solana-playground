@@ -46,6 +46,64 @@ export const deployCommands = (p: {
   ];
 };
 
+/**
+ * The RPC the Program Metadata CLI writes to. Its `--rpc` takes a URL, not a
+ * cluster name, and without it the CLI uses the Solana config's, which may
+ * not be the cluster step 3 deployed to.
+ */
+const RPC_URL: Record<CliCluster, string> = {
+  devnet: "https://api.devnet.solana.com",
+  mainnet: "https://api.mainnet-beta.solana.com",
+};
+
+/** What a command block of step 3.1 is for */
+export type IdlCommandKind = "program-metadata" | "anchor";
+
+/** One command block of step 3.1 */
+export interface IdlCommand {
+  kind: IdlCommandKind;
+  lines: string[];
+}
+
+/** What a command shows in place of a program id the project does not have */
+export const PROGRAM_ID_PLACEHOLDER = "<program-id>";
+
+/**
+ * The commands that upload `<name>.json` as the program's IDL, run from the
+ * folder it was saved to. Program Metadata's canonical IDL, the one Explorer
+ * reads, comes first for every tool; Anchor adds `anchor idl init`, which
+ * before Anchor 1.0 writes the legacy Anchor IDL account. Both sign with the
+ * CLI wallet, the program's upgrade authority after step 3.
+ */
+export const idlCommands = (p: {
+  tool: CliTool;
+  cluster: CliCluster;
+  name: string;
+  programId: string | null;
+}): IdlCommand[] => {
+  const idl = `${p.name}.json`;
+  const id = p.programId ?? PROGRAM_ID_PLACEHOLDER;
+  const commands: IdlCommand[] = [
+    {
+      kind: "program-metadata",
+      lines: [
+        `npx @solana-program/program-metadata@latest write idl ${id} ${idl} --rpc ${
+          RPC_URL[p.cluster]
+        }`,
+      ],
+    },
+  ];
+  if (p.tool === "anchor") {
+    commands.push({
+      kind: "anchor",
+      lines: [
+        `anchor idl init -f ${idl} ${id} --provider.cluster ${p.cluster}`,
+      ],
+    });
+  }
+  return commands;
+};
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -70,6 +128,60 @@ if (import.meta.vitest) {
         "mkdir -p target/deploy && cp hello.so hello-keypair.json target/deploy/",
         "anchor deploy --provider.cluster mainnet",
       ]);
+    });
+
+    it("uploads the IDL through Program Metadata on both clusters", () => {
+      const id = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
+      expect(
+        idlCommands({
+          tool: "solana",
+          cluster: "devnet",
+          name: "hello",
+          programId: id,
+        })
+      ).toEqual([
+        {
+          kind: "program-metadata",
+          lines: [
+            `npx @solana-program/program-metadata@latest write idl ${id} hello.json --rpc https://api.devnet.solana.com`,
+          ],
+        },
+      ]);
+      expect(
+        idlCommands({
+          tool: "solana",
+          cluster: "mainnet",
+          name: "hello",
+          programId: id,
+        })[0].lines
+      ).toEqual([
+        `npx @solana-program/program-metadata@latest write idl ${id} hello.json --rpc https://api.mainnet-beta.solana.com`,
+      ]);
+    });
+
+    it("adds anchor idl init below Program Metadata for Anchor", () => {
+      const id = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
+      const anchor = idlCommands({
+        tool: "anchor",
+        cluster: "mainnet",
+        name: "hello",
+        programId: id,
+      });
+      expect(anchor.map((c) => c.kind)).toEqual(["program-metadata", "anchor"]);
+      expect(anchor[1].lines).toEqual([
+        `anchor idl init -f hello.json ${id} --provider.cluster mainnet`,
+      ]);
+    });
+
+    it("leaves a placeholder without a program id", () => {
+      const lines = idlCommands({
+        tool: "anchor",
+        cluster: "devnet",
+        name: "hello",
+        // eslint-disable-next-line unicorn/no-null -- a project never deployed
+        programId: null,
+      }).flatMap((c) => c.lines);
+      expect(lines.every((l) => l.includes(" <program-id> "))).toBe(true);
     });
 
     it("maps only devnet and mainnet-beta to a guide cluster", () => {

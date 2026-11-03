@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgProgramInfo, PgServer } from "@/utils";
+import { saveFile } from "../lib/save-file";
 import { downloadFailure, programName } from "../model/program";
 import type { DownloadFailure } from "../model/program";
 import { cliDeployTelemetry } from "../model/telemetry";
@@ -12,37 +13,19 @@ import type { DownloadNote } from "./BaseDownloadProgram";
 
 const log = createLogger("cli-deploy:download");
 
-/**
- * How long the binary's object URL outlives the click. Safari starts reading
- * a blob download after the click returns, so a revoke on the next task can
- * cut it off; a few seconds is past any start.
- */
-const REVOKE_AFTER_MS = 10_000;
-
-/** Hands `bytes` to the browser to save as `name`, keeping no copy */
-const save = (name: string, bytes: Uint8Array) => {
-  const url = URL.createObjectURL(
-    new Blob([bytes], { type: "application/octet-stream" })
-  );
-  const a = document.createElement("a");
-  a.download = name;
-  a.href = url;
-  try {
-    a.click();
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), REVOKE_AFTER_MS);
-  }
-};
+/** The IDL Playground holds for the program, built or loaded; `null` without one */
+export const useIdl = () =>
+  useRenderOnChange(PgProgramInfo.onDidChangeIdl) as {
+    name?: string;
+    metadata?: { name?: string };
+  } | null;
 
 /**
  * The program's file name: the project's IDL names it (built or loaded), else
  * the workspace (`programName`)
  */
 export const useProgramName = () => {
-  const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl) as {
-    name?: string;
-    metadata?: { name?: string };
-  } | null;
+  const idl = useIdl();
   return programName({
     idlName: idl?.metadata?.name ?? idl?.name,
     workspace: PgExplorer.currentWorkspaceName,
@@ -102,7 +85,10 @@ const DownloadProgram = ({ from }: { from: DownloadFrom }) => {
     }
 
     try {
-      save(fileName, bytes);
+      saveFile(
+        fileName,
+        new Blob([bytes], { type: "application/octet-stream" })
+      );
     } catch (e) {
       failed("save");
       throw e;

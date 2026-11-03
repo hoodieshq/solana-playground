@@ -20,8 +20,10 @@ vi.mock("@/utils", () => ({
   },
   PgServer: { deploy: vi.fn() },
 }));
+// The IDL Playground holds; a test without one sets it to `null`
+let idl: { name: string; instructions: unknown[] } | null;
 vi.mock("@/hooks", () => ({
-  useRenderOnChange: () => ({ name: "hello_anchor", instructions: [] }),
+  useRenderOnChange: () => idl,
 }));
 
 import CliDeployGuide from "./CliDeployGuide";
@@ -40,6 +42,7 @@ beforeEach(() => {
       disconnect() {}
     }
   );
+  idl = { name: "hello_anchor", instructions: [] };
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
   Object.assign(navigator, {
@@ -66,10 +69,19 @@ const props = (p: {
 const renderGuide = (ui: ReactElement) =>
   render(<TooltipProvider>{ui}</TooltipProvider>);
 
-const commands = () =>
-  Array.from(document.querySelectorAll('[data-slot="code-block-line"]')).map(
-    (line) => line.textContent
-  );
+/** The command lines of the step titled `title` */
+const linesOf = (title: string) =>
+  Array.from(
+    screen
+      .getByRole("heading", { name: title })
+      .closest("li")
+      ?.querySelectorAll('[data-slot="code-block-line"]') ?? []
+  ).map((line) => line.textContent);
+
+const commands = () => linesOf("3. Run the deploy");
+const idlLines = () => linesOf("3.1 Upload the IDL");
+
+const PMP = "npx @solana-program/program-metadata@latest write idl";
 
 const pick = (name: string) =>
   fireEvent.click(screen.getByRole("radio", { name }));
@@ -210,6 +222,7 @@ describe("features/cli-deploy/ui/CliDeployGuide", () => {
     expect(sent.events[1].params).toEqual({
       tool: "solana",
       cluster: "devnet",
+      step: "deploy",
     });
   });
 
@@ -232,7 +245,97 @@ describe("features/cli-deploy/ui/CliDeployGuide", () => {
     expect(sent.events[1].params).toEqual({
       tool: "anchor",
       cluster: "mainnet",
+      step: "deploy",
     });
+  });
+
+  it("gives the Program Metadata IDL upload for the picked cluster", () => {
+    renderGuide(
+      <CliDeployGuide
+        {...props({ from: "mainnet-warning", cluster: "devnet", built: true })}
+      />
+    );
+
+    expect(idlLines()).toEqual([
+      `${PMP} ${PROGRAM_ID} hello_anchor.json --rpc https://api.mainnet-beta.solana.com`,
+    ]);
+  });
+
+  it("adds anchor idl init below Program Metadata for Anchor", () => {
+    renderGuide(
+      <CliDeployGuide
+        {...props({ from: "deploy-stage", cluster: "devnet", built: true })}
+      />
+    );
+    pick("Anchor");
+
+    expect(idlLines()).toEqual([
+      `${PMP} ${PROGRAM_ID} hello_anchor.json --rpc https://api.devnet.solana.com`,
+      `anchor idl init -f hello_anchor.json ${PROGRAM_ID} --provider.cluster devnet`,
+    ]);
+  });
+
+  it("counts a copy of the IDL upload as step idl", async () => {
+    renderGuide(
+      <CliDeployGuide
+        {...props({ from: "deploy-stage", cluster: "devnet", built: true })}
+      />
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Copy the IDL upload command" })
+      );
+    });
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      `${PMP} ${PROGRAM_ID} hello_anchor.json --rpc https://api.devnet.solana.com`
+    );
+    expect(sent.events[1].params).toEqual({
+      tool: "solana",
+      cluster: "devnet",
+      step: "idl",
+    });
+  });
+
+  it("offers Download IDL beside Download .so and saves <program>.json", () => {
+    const createObjectURL = vi.fn(() => "blob:idl");
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL: vi.fn() });
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        expect(this.download).toBe("hello_anchor.json");
+      });
+    renderGuide(
+      <CliDeployGuide
+        {...props({ from: "deploy-stage", cluster: "devnet", built: true })}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Download IDL" }));
+
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(sent.events.map((e) => e.name)).toContain("cli_idl_downloaded");
+    click.mockRestore();
+  });
+
+  it("offers no IDL upload and no IDL download without an IDL", () => {
+    // eslint-disable-next-line unicorn/no-null -- the hook's value with no IDL
+    idl = null;
+    renderGuide(
+      <CliDeployGuide
+        {...props({ from: "deploy-stage", cluster: "devnet", built: true })}
+      />
+    );
+
+    expect(idlLines()).toEqual([]);
+    expect(screen.getByText("This program has no IDL to upload.")).toBeTruthy();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Download IDL",
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
   });
 
   it("renders nothing while closed", () => {

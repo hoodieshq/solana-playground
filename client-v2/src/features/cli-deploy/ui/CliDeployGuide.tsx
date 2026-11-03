@@ -5,7 +5,8 @@ import type { CliCluster, CliTool } from "../model/commands";
 import { cliDeployTelemetry } from "../model/telemetry";
 import type { GuideFrom } from "../model/telemetry";
 import BaseCliDeployGuide from "./BaseCliDeployGuide";
-import DownloadProgram, { useProgramName } from "./DownloadProgram";
+import DownloadIdl from "./DownloadIdl";
+import DownloadProgram, { useIdl, useProgramName } from "./DownloadProgram";
 
 export interface CliDeployGuideProps {
   /** The control that opened the guide; `null` while it is closed */
@@ -30,6 +31,7 @@ const openingCluster = (from: GuideFrom, cluster: string | null): CliCluster =>
 /** The CLI deploy guide, connected: the program's name, the download, events */
 const CliDeployGuide = (p: CliDeployGuideProps) => {
   const name = useProgramName();
+  const hasIdl = Boolean(useIdl());
   // The tool is the user's habit and stays across openings; the cluster is
   // the situation's, so each opening picks it again
   const [tool, setTool] = useState<CliTool>("solana");
@@ -65,8 +67,10 @@ const CliDeployGuide = (p: CliDeployGuideProps) => {
       programId={p.programId}
       built={p.built}
       download={<DownloadProgram from="guide" />}
-      onCopy={() =>
-        cliDeployTelemetry.track("cli_command_copied", { tool, cluster })
+      hasIdl={hasIdl}
+      downloadIdl={<DownloadIdl />}
+      onCopy={(step) =>
+        cliDeployTelemetry.track("cli_command_copied", { tool, cluster, step })
       }
     />
   );
