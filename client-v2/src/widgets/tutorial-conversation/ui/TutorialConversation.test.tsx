@@ -38,7 +38,7 @@ vi.mock("@/features/tutorial-conversation", async () => ({
   },
   judgeGoal: "judgeGoal",
   realWorkspace: "realWorkspace",
-  unwiredRunner: "unwiredRunner",
+  tutorialRunner: "tutorialRunner",
 }));
 vi.mock("@/utils/explorer", () => ({
   PgExplorer: {
@@ -235,7 +235,7 @@ beforeEach(() => {
 });
 
 describe("TutorialConversation", () => {
-  it("starts the engine once with the real workspace, the unwired runner and 3.2's judge, and stops it on leaving", () => {
+  it("starts the engine once with the real workspace, the tutorial's runner and 3.2's judge, and stops it on leaving", () => {
     const { rerender, unmount } = render(
       <TutorialConversation onAllTutorials={vi.fn()} />
     );
@@ -243,7 +243,7 @@ describe("TutorialConversation", () => {
     expect(store.init).toHaveBeenCalledTimes(1);
     expect(store.init).toHaveBeenCalledWith({
       workspace: "realWorkspace",
-      runner: "unwiredRunner",
+      runner: "tutorialRunner",
       judge: "judgeGoal",
     });
     unmount();

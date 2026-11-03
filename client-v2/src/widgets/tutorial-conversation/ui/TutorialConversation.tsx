@@ -4,7 +4,7 @@ import {
   PgConversation,
   judgeGoal,
   realWorkspace,
-  unwiredRunner,
+  tutorialRunner,
 } from "@/features/tutorial-conversation";
 import type { ConversationState } from "@/features/tutorial-conversation";
 import { slugOf } from "@/entities/tutorial";
@@ -381,9 +381,9 @@ export const TutorialConversation = ({
     () =>
       PgConversation.init({
         workspace: realWorkspace,
-        // TODO(tutorial-flow-v2 4.1): the run tickets (4.1 to 4.3) replace
-        // the unwired runner; until then every act ends in its failed card
-        runner: unwiredRunner,
+        // TODO(tutorial-flow-v2 4.1): the build act answers "not wired yet"
+        // until its runner lands; deploy, run and call are real
+        runner: tutorialRunner,
         judge: judgeGoal,
       }).dispose,
     []
