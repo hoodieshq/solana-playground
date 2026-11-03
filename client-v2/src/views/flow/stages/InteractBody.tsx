@@ -2,6 +2,7 @@ import { clusterName } from "../../../constants";
 import { useEffect, useState } from "react";
 import BN from "bn.js";
 
+import { cn } from "@/shared/lib/utils";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import BaseCallHistory from "./BaseCallHistory";
 import BaseCallResult from "./BaseCallResult";
@@ -28,8 +29,9 @@ export interface InteractBodyProps {
 }
 
 /**
- * A deployed program's instructions as chips, the picked one's form, the last
- * call's result and the calls before it, then the account and event lookups.
+ * A deployed program's instructions as chips, the picked one's form and the
+ * last call's result, with the calls before it in a column beside them on a
+ * wide stage (under them on a narrow one), then the account and event lookups.
  */
 const InteractBody = ({
   idl,
@@ -62,66 +64,92 @@ const InteractBody = ({
 
   return (
     <IdlProvider idl={idl}>
-      <div className="flex max-w-[42rem] flex-col gap-6 px-6 py-6">
-        {names.length > 0 && (
-          <Segmented
-            variant="chips"
-            aria-label="Instruction"
-            value={current}
-            onValueChange={setPicked}
+      {/* The stage's own width decides the columns: the chat and Files panels
+          beside it change that width, the viewport does not */}
+      <div className="@container">
+        <div className="flex max-w-[64rem] flex-col gap-6 px-6 py-6">
+          <div
+            data-slot="interact-columns"
+            className="grid grid-cols-1 gap-6 @min-[40rem]:grid-cols-[minmax(0,42rem)_18rem]"
           >
-            {names.map((name) => (
-              <SegmentedItem key={name} value={name} className="font-mono">
-                {name}
-              </SegmentedItem>
-            ))}
-          </Segmented>
-        )}
+            <div className="flex min-w-0 flex-col gap-6">
+              {names.length > 0 && (
+                <Segmented
+                  variant="chips"
+                  aria-label="Instruction"
+                  value={current}
+                  onValueChange={setPicked}
+                >
+                  {names.map((name) => (
+                    <SegmentedItem
+                      key={name}
+                      value={name}
+                      className="font-mono"
+                    >
+                      {name}
+                    </SegmentedItem>
+                  ))}
+                </Segmented>
+              )}
 
-        {idlInstruction && (
-          <section
-            aria-label={`${idlInstruction.name} form`}
-            className="rounded-xl border border-border bg-surface-panel p-4"
-          >
-            <Instruction
-              key={JSON.stringify(idlInstruction)}
-              idlInstruction={idlInstruction}
-              callBlocked={callBlocked}
-              feePayer={<FeePayer />}
-              onCall={async (ix) =>
-                setLast({ target, outcome: await runCall(ix) })
-              }
+              {idlInstruction && (
+                <section
+                  aria-label={`${idlInstruction.name} form`}
+                  className="rounded-xl border border-border bg-surface-panel p-4"
+                >
+                  <Instruction
+                    key={JSON.stringify(idlInstruction)}
+                    idlInstruction={idlInstruction}
+                    callBlocked={callBlocked}
+                    feePayer={<FeePayer />}
+                    onCall={async (ix) =>
+                      setLast({ target, outcome: await runCall(ix) })
+                    }
+                  />
+                </section>
+              )}
+
+              {outcome && (
+                <BaseCallResult
+                  outcome={outcome}
+                  cluster={network}
+                  txUrl={txUrl}
+                />
+              )}
+            </div>
+
+            <BaseCallHistory
+              records={history}
+              cluster={network}
+              txUrl={txUrl}
+              // A row of an instruction a rebuild removed leaves the form alone
+              onOpen={(name) => names.includes(name) && setPicked(name)}
+              // The wide layout holds the column before the first call, so the
+              // form keeps its width; one column shows no history until then
+              showEmpty
+              className={cn(
+                "@min-[40rem]:sticky @min-[40rem]:top-6 @min-[40rem]:self-start",
+                history.length === 0 && "@max-[40rem]:hidden"
+              )}
             />
-          </section>
-        )}
+          </div>
 
-        {outcome && (
-          <BaseCallResult outcome={outcome} cluster={network} txUrl={txUrl} />
-        )}
+          {idl.accounts && (
+            <Section title="Accounts">
+              {idl.accounts.map((acc) => (
+                <Account key={acc.name} accountName={acc.name} />
+              ))}
+            </Section>
+          )}
 
-        <BaseCallHistory
-          records={history}
-          cluster={network}
-          txUrl={txUrl}
-          // A row of an instruction a rebuild removed leaves the form alone
-          onOpen={(name) => names.includes(name) && setPicked(name)}
-        />
-
-        {idl.accounts && (
-          <Section title="Accounts">
-            {idl.accounts.map((acc) => (
-              <Account key={acc.name} accountName={acc.name} />
-            ))}
-          </Section>
-        )}
-
-        {idl.events && (
-          <Section title="Events">
-            {idl.events.map((event) => (
-              <Event key={event.name} eventName={event.name} />
-            ))}
-          </Section>
-        )}
+          {idl.events && (
+            <Section title="Events">
+              {idl.events.map((event) => (
+                <Event key={event.name} eventName={event.name} />
+              ))}
+            </Section>
+          )}
+        </div>
       </div>
     </IdlProvider>
   );

@@ -147,6 +147,39 @@ describe("InteractBody", () => {
     expect(screen.queryByRole("region", { name: "Call result" })).toBeNull();
   });
 
+  it("keeps a Call history column beside the form before the first call", () => {
+    render(
+      wrap(
+        <InteractBody idl={idl("initialize")} programId="P" cluster="devnet" />
+      )
+    );
+    const history = screen.getByRole("region", { name: "Call history" });
+    expect(history.textContent).toContain("Calls you send show up here.");
+    const columns = history.closest("[data-slot='interact-columns']");
+    expect(columns).not.toBeNull();
+    expect(columns?.contains(screen.getByText("form initialize"))).toBe(true);
+  });
+
+  it("puts Accounts and Events below the columns, full width", () => {
+    const withAccounts = {
+      version: "0.1.0",
+      name: "counter",
+      instructions: [{ name: "initialize", accounts: [], args: [] }],
+      accounts: [{ name: "Counter" }],
+      events: [{ name: "Bumped" }],
+    } as unknown as Idl;
+    render(
+      wrap(<InteractBody idl={withAccounts} programId="P" cluster="devnet" />)
+    );
+    const columns = screen
+      .getByRole("region", { name: "Call history" })
+      .closest("[data-slot='interact-columns']");
+    for (const title of ["Accounts", "Events"]) {
+      const heading = screen.getByRole("heading", { name: title });
+      expect(columns?.contains(heading)).toBe(false);
+    }
+  });
+
   it("a history row of an instruction the IDL lost leaves the form alone", () => {
     localStorage.setItem(
       "flow.calls",
