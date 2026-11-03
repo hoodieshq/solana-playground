@@ -359,10 +359,10 @@ const FlowFrame = () => {
             );
           }}
           stageTabs={stagesOffered ? <StageBar /> : null}
-          files={({ collapsed, toggle, phone, pinned }) => (
+          files={({ collapsed, toggle, phone }) => (
             <LeftPanel
               collapsed={collapsed}
-              onHide={phone || pinned ? undefined : toggle}
+              onHide={phone ? undefined : toggle}
               sheet={phone}
             />
           )}
@@ -377,8 +377,15 @@ const FlowFrame = () => {
               }}
             >
               <Center>
+                {/* A tutorial's frame shows the editor alone: its steps,
+                    builds and deploys are the chat's (`tutorial-frame-2nov`).
+                    The router stays mounted on the Write stage, whose editor
+                    must never unmount */}
                 <Stage>
-                  <StageRouter stage={stagesOffered ? state.stage : "write"} />
+                  <StageRouter
+                    stage={inFrame || !stagesOffered ? "write" : state.stage}
+                    tabs={!inFrame}
+                  />
                 </Stage>
               </Center>
             </TutorialWorkspace>
