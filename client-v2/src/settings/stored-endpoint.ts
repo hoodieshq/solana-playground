@@ -209,21 +209,29 @@ export const parseStoredSettings = (raw: string): State | Error => {
 };
 
 /**
- * Stored settings without the groups that should be objects and are not.
- * Such a group would throw where the settings are merged with the defaults
- * (`setMissingDefaults` in `updatable` writes into it); without it, the
- * whole group loads its defaults, Devnet included.
+ * Stored settings without the values that would break the merge with the
+ * defaults: anything the defaults hold as an object that is not one, at any
+ * depth, and a `null` where the default is not `null`. `setMissingDefaults`
+ * in `updatable` recurses into both and throws writing into a primitive or
+ * `null`; without them, those settings load their defaults, Devnet included.
  *
  * @param defaults the default settings
  * @param stored the settings `localStorage` holds
  */
-export const dropBrokenGroupsFor =
+export const dropBrokenSettingsFor =
   (defaults: State) =>
   (stored: State): State =>
     Object.fromEntries(
-      Object.entries(stored).filter(
-        ([group, value]) => !isRecord(defaults[group]) || isRecord(value)
-      )
+      Object.entries(stored).flatMap(([key, value]) => {
+        const fallback = defaults[key];
+        if (isRecord(fallback)) {
+          return isRecord(value)
+            ? [[key, dropBrokenSettingsFor(fallback)(value)]]
+            : [];
+        }
+        // eslint-disable-next-line unicorn/no-null -- `null` is what parsed JSON holds
+        return value === null && fallback !== null ? [] : [[key, value]];
+      })
     );
 
 if (import.meta.vitest) {
@@ -477,22 +485,50 @@ if (import.meta.vitest) {
       ])("drops a stored group that is %s", (_, group) => {
         const stored = { connection: group, ui: { theme: "Dark" } };
 
-        expect(dropBrokenGroupsFor(defaults)(stored)).toEqual({
+        expect(dropBrokenSettingsFor(defaults)(stored)).toEqual({
           ui: { theme: "Dark" },
         });
       });
 
       it("reads a connection group that is not an object without throwing", () => {
-        // `dropBrokenGroupsFor` drops it first; this pins the second guard
+        // `dropBrokenSettingsFor` drops it first; this pins the second guard
         expect(
           fromStoredEndpoints({ connection: "x" }, defaults, options)
         ).toEqual({ connection: "x" });
       });
 
+      describe("below the top level", () => {
+        const nested = {
+          build: { flags: { noDocs: true } },
+          ui: { theme: "Solana" },
+        };
+
+        it("drops a nested value that should be an object and is not", () => {
+          expect(
+            dropBrokenSettingsFor(nested)({ build: { flags: "x" } })
+          ).toEqual({ build: {} });
+        });
+
+        it("drops a stored null whose default is not null", () => {
+          const stored = JSON.parse('{"ui":{"theme":null}}');
+
+          expect(dropBrokenSettingsFor(nested)(stored)).toEqual({ ui: {} });
+        });
+
+        it("keeps nested values that fit the defaults", () => {
+          const stored = {
+            build: { flags: { noDocs: false } },
+            ui: { theme: "Dark" },
+          };
+
+          expect(dropBrokenSettingsFor(nested)(stored)).toEqual(stored);
+        });
+      });
+
       it("keeps groups the defaults do not hold as objects", () => {
         const stored = { connection: { endpoint: "x" }, extra: 5 };
 
-        expect(dropBrokenGroupsFor(defaults)(stored)).toEqual(stored);
+        expect(dropBrokenSettingsFor(defaults)(stored)).toEqual(stored);
       });
 
       it.each([

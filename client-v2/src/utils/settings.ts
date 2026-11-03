@@ -3,7 +3,7 @@ import {
   fromStoredEndpoints,
   parseStoredSettings,
   toStoredEndpoints,
-  dropBrokenGroupsFor,
+  dropBrokenSettingsFor,
 } from "../settings/stored-endpoint";
 import type {
   Arrayable,
@@ -161,7 +161,7 @@ const storage = {
 
     // Endpoints are stored as the option picked, not its address
     return fromStoredEndpoints(
-      dropBrokenGroupsFor(defaultState)(stored),
+      dropBrokenSettingsFor(defaultState)(stored),
       defaultState
     ) as Settings;
   },
