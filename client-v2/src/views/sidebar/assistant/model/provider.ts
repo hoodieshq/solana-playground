@@ -11,7 +11,7 @@ import { ModelBusyError } from "./model-busy";
 import type { LanguageModel, ModelMessage } from "ai";
 import type { ModelProvider } from "@/shared/lib/ai";
 import type { ModelProviderInput } from "./model-providers";
-import { EVERYTHING, TurnFailure, type Provider } from "./types";
+import { TurnFailure, type Provider } from "./types";
 
 const log = createLogger("assistant:provider");
 
@@ -92,9 +92,7 @@ export const createProvider = (
             },
             {
               role: "system",
-              content: `Current project state:\n\n${describeProject(
-                turn?.context ?? EVERYTHING
-              )}`,
+              content: `Current project state:\n\n${describeProject()}`,
             },
           ],
           // Built per turn, so MCP tools discovered since the last one are offered
