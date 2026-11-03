@@ -80,7 +80,7 @@ export interface LayoutShellProps {
   /**
    * Home, in place of the assistant and the work: the navigation stays, the
    * stage, its tabs and the console are not rendered, the column bar over
-   * Home reads "Home" with no files toggle, and the phone's work page shows
+   * Home reads "Home", and the phone's work page shows
    * Home under the title "Home". A slot that renders nothing (the start is
    * still pending) holds Home's place with no title. `openAssistant`, like
    * the bar's assistant toggle, opens the assistant as a right Sheet, at

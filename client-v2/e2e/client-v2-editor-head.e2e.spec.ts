@@ -223,5 +223,12 @@ test.describe("on a phone", () => {
     await page.getByRole("button", { name: /^Files, .* open$/ }).click();
     const files = page.getByRole("dialog", { name: "Files" });
     await expect(files.locator("#root-dir")).toBeVisible(LONG);
+    await page.keyboard.press("Escape");
+    await expect(files).toBeHidden();
+
+    // Back over the phone's line, a new head takes the tab row again
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(head(page).locator("#tabs")).toBeVisible(LONG);
+    await expect(head(page).locator("#tabs")).toContainText("lib.rs");
   });
 });

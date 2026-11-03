@@ -260,8 +260,8 @@ const shell = (
 ) => render(shellTree(home, work, cover));
 
 /**
- * A visitor who left the files column open: a first visit now opens it
- * closed (DES-205), and these cases start from an open column
+ * A visitor who left the files column open: a first visit opens it closed
+ * (DES-205), and these cases start from an open column
  */
 const savedFilesOpen = () =>
   localStorage.setItem(

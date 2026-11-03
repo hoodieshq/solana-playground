@@ -176,10 +176,12 @@ Done:
   opens a sheet), the
   assistant, then the work area. Across the top of the work area runs the
   stage bar, with the stepper (Write → Build → Deploy →
-  Interact, state derived from real build/deploy events); under it sit the
-  Files column (Cmd+E folds it; on a Mac not while the editor has focus,
-  where the editor takes the key; the column's own button always works)
-  and the stage, with the terminal in a console
+  Interact, state derived from real build/deploy events); under it runs the
+  editor head, with the open files' tabs on the left and two toggles on the
+  right, Files and Terminal; under the head sit the Files column (closed on
+  a first visit; Files in the head opens and closes it and always works,
+  Cmd+E too, on a Mac not while the editor has focus, where the editor takes
+  the key) and the stage, with the terminal in a console
   drawer under the stage (Cmd+J). The assistant is a resizable panel on
   screens 1024 px and wider and a side Sheet from 768 to 1023 px, where the
   navigation starts as a rail. Below 768 px the app is three swiped
