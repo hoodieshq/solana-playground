@@ -33,4 +33,4 @@ export const STAGE_REPORT =
  * below `md`.
  */
 export const STAGE_FOOT =
-  "max-md:mt-auto max-md:[&_button]:h-12 max-md:[&_button]:text-base";
+  "max-md:mt-auto max-md:[&_a]:h-12 max-md:[&_a]:text-base max-md:[&_button]:h-12 max-md:[&_button]:text-base";
