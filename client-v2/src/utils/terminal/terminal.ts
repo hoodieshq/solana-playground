@@ -8,6 +8,8 @@ import { PgShell } from "./shell";
 import { PgTty } from "./tty";
 import { PgCommon } from "../common";
 import { isStopped } from "../stopped";
+import { confirmAnswer, confirmSuffix } from "./confirm";
+import { processErrorLine } from "./line-error";
 import { createLogger } from "@/shared/lib/logger";
 import {
   markFailureShown,
@@ -549,14 +551,16 @@ export class PgTerm {
         )
       );
     } else if (opts?.confirm) {
-      // Confirm is a special case choice
-      convertedMsg += PgTerminal.secondaryText(` [yes/no]`);
+      // Confirm is a special case choice; the default shows in capitals
+      convertedMsg += PgTerminal.secondaryText(
+        ` ${confirmSuffix(opts.default)}`
+      );
       disposables.push(
         this._autocomplete.temporarilySetHandlers(["yes", "no"])
       );
     }
 
-    if (opts?.default) {
+    if (opts?.default && !opts.confirm) {
       const value = opts.default;
       convertedMsg += ` (default: ${value})`;
       disposables.push(
@@ -573,6 +577,7 @@ export class PgTerm {
 
     // Set the input to the default if it exists on empty input
     if (!userInput && opts?.default) userInput = opts.default;
+    if (opts?.confirm && userInput) userInput = confirmAnswer(userInput);
 
     // Default validators
     if (opts && !opts.validator) {
@@ -681,10 +686,8 @@ export class PgTerm {
       // The previous line is not available until the next event loop
       await PgCommon.sleep(0);
 
-      // A stop says what it stopped and what it left, as a plain line
-      const msg = isStopped(e)
-        ? e.message
-        : `Process error: ${e?.message ? e.message : e}`;
+      // A stop, and a failure that is its own line, print with no prefix
+      const msg = processErrorLine(e);
       const previousLine = this._tty.getLine(1)?.translateToString().trim();
       if (previousLine !== msg) this.println(msg);
 
@@ -692,6 +695,16 @@ export class PgTerm {
     } finally {
       this.enable();
     }
+  }
+
+  /**
+   * Offer a command as the next Up at the prompt, as if it had been typed:
+   * the terminal's answer to a typo suggests it (Spec 13, "Not found").
+   *
+   * @param command the command line to offer
+   */
+  offerFromHistory(command: string) {
+    this._shell.history.push(command);
   }
 
   /**

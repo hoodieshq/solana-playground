@@ -1,5 +1,5 @@
 import { PgCommon } from "./common";
-import { PgTerminal } from "./terminal";
+import { PgTerminal, TerminalLineError, unknownCommand } from "./terminal";
 import type { Arrayable, Disposable, Getable, SyncOrAsync } from "./types";
 
 /**
@@ -329,9 +329,16 @@ export class PgCommandManager {
         (cmd) => cmd.name === inputCmdName
       );
       if (!topCmd) {
-        throw new Error(
-          `Command \`${PgTerminal.italic(inputCmdName)}\` not found.`
+        const answer = unknownCommand(
+          inputCmdName,
+          PgCommandManager.getNames()
         );
+        if (answer.kind === "suggestion") {
+          // Up then Enter runs the suggestion (Spec 13, "Not found")
+          const term = await PgTerminal.get();
+          term.offerFromHistory(answer.suggestion);
+        }
+        throw new TerminalLineError(answer.line);
       }
 
       const input = tokens.join(" ");
