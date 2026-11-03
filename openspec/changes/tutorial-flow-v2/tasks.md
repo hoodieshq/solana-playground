@@ -105,9 +105,9 @@ for; tasks with "after nothing" start at once.
       plan: [plans/4.1-build-act.md](plans/4.1-build-act.md))
 - [ ] 4.2 Deploy from the wallet: no-wallet path, "Funding your wallet" as
       an extra first stage, the red "Not enough devnet SOL" card with its
-      address row, Try again and Open faucet, the program keypair kept,
+      address row and Open faucet, Try again as the act card under it, the program keypair kept,
       upgrade in place, the result with devnet SOL spent and the program id
-      and signature as Explorer links on its meta line, the wallet copy, the redeploy nudge,
+      and signature as Explorer and Transaction links in its details, the wallet copy, the redeploy nudge (split into its own PR, 3 Nov),
       a deploy recognised after a reload, `tutorial_action_run` for deploys.
       Verify: unit tests with a stubbed connection for funding and
       recognition, and `outcome: "no_funds"` on a refused airdrop; one devnet deploy and upgrade
