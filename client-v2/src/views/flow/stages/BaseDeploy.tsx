@@ -23,9 +23,11 @@ import {
   BaseNotEnoughSol,
   BaseStaleBuildDialog,
   formatSol,
+  networkInSentence,
   networkName,
   shortKey,
 } from "@/features/deploy";
+import { UNKNOWN_NETWORK } from "@/constants";
 import type { DeployRunState, DeployFundingError } from "@/commands/deploy/run";
 import {
   MAINNET_DEPLOY_WARNING_BODY,
@@ -92,7 +94,7 @@ export interface BaseDeployProps {
   funding: FundingStop | undefined;
   /** Show the keypair backup line under the result */
   backup: boolean;
-  /** Ask whether to deploy the last successful build */
+  /** Ask whether to deploy the last good build */
   staleBuild: boolean;
   /**
    * An Explorer link that opens `cluster`, whatever network is selected;
@@ -126,10 +128,12 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
 };
 
 /**
- * The cluster in the deploy button's label and the stage's prose: "Mainnet"
- * for mainnet-beta; "the network" until the endpoint has been read
+ * The cluster in the deploy button's label and the stage's prose, lowercase
+ * mid-sentence: "mainnet" for mainnet-beta; "the network" until the endpoint
+ * has been read
  */
-const deployNetwork = (p: BaseDeployProps) => networkName(p.cluster);
+const deployNetwork = (p: BaseDeployProps) =>
+  networkInSentence(p.cluster) ?? UNKNOWN_NETWORK;
 
 /** Who pays, before a deploy */
 const payerLine = (payer: DeployPayer | undefined) => {
@@ -139,7 +143,7 @@ const payerLine = (payer: DeployPayer | undefined) => {
   const balance =
     payer.balance === undefined ? "" : ` · ${payer.balance.toFixed(2)} SOL`;
   const which = payer.playground ? "your Playground wallet" : "your wallet";
-  return `Deploys from ${which} · ${shortKey(payer.address)}${balance}`;
+  return `From ${which} · ${shortKey(payer.address)}${balance}`;
 };
 
 const description = (p: BaseDeployProps, latest: DeployRecord | null) => {
@@ -202,7 +206,9 @@ const DeployResult = ({
         <StatusDot variant="success" size="lg" />
         {latest.upgraded
           ? "Upgraded. The program id stays the same."
-          : `Deployed to ${network}`}
+          : `Deployed to ${
+              networkInSentence(latest.cluster) ?? UNKNOWN_NETWORK
+            }`}
       </div>
       <div className="flex items-center gap-2 rounded-lg bg-surface-base px-3 py-2">
         <span className="shrink-0 text-caption text-subtle">Program id</span>

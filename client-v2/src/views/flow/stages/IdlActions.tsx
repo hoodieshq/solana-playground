@@ -90,7 +90,7 @@ const UploadIdl = () => {
           : "font-mono text-xs text-muted-foreground"
       }
     >
-      {note.kind === "refused" ? "Not an Anchor IDL JSON file" : note.text}
+      {note.kind === "refused" ? "That file is not an Anchor IDL." : note.text}
     </span>
   );
 

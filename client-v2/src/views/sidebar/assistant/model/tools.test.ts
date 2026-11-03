@@ -79,7 +79,11 @@ describe("write_file", () => {
 });
 
 describe("build and deploy approvals", () => {
-  const commandBridge = (cost: number | null): PlaygroundBridge =>
+  const commandBridge = (
+    cost: number | null,
+    playground = true,
+    network: string | null = "devnet"
+  ): PlaygroundBridge =>
     ({
       getProjectContext: () => ({
         workspaceName: "hello_anchor",
@@ -87,7 +91,7 @@ describe("build and deploy approvals", () => {
         // eslint-disable-next-line unicorn/no-null -- `ProjectContext.buildError` is `string | null`
         buildError: null,
       }),
-      quoteDeploy: async () => ({ network: "devnet", cost }),
+      quoteDeploy: async () => ({ network, cost, playground }),
       build: vi.fn(async () => {}),
       // eslint-disable-next-line unicorn/no-null -- `deploy()` answers `null` without a program id
       deploy: vi.fn(async () => null),
@@ -109,7 +113,21 @@ describe("build and deploy approvals", () => {
 
   it("asks whether to deploy the program to the network, naming the cost", async () => {
     expect(await askedWith("deploy", commandBridge(1_420_000_000))).toBe(
-      "Deploy hello_anchor to devnet? It costs about 1.42 SOL."
+      "Deploy hello_anchor to devnet? It costs about 1.42 devnet SOL from your Playground wallet."
+    );
+  });
+
+  it("names a connected wallet as the payer when it is not the Playground's", async () => {
+    expect(await askedWith("deploy", commandBridge(1_420_000_000, false))).toBe(
+      "Deploy hello_anchor to devnet? It costs about 1.42 devnet SOL from your wallet."
+    );
+  });
+
+  it("names no network in the cost while the cluster is unknown", async () => {
+    expect(
+      await askedWith("deploy", commandBridge(1_420_000_000, true, null))
+    ).toBe(
+      "Deploy hello_anchor to the network? It costs about 1.42 SOL from your Playground wallet."
     );
   });
 
@@ -117,6 +135,12 @@ describe("build and deploy approvals", () => {
     // eslint-disable-next-line unicorn/no-null -- `quoteDeploy().cost` is `number | null`, null meaning no estimate
     expect(await askedWith("deploy", commandBridge(null))).toBe(
       "Deploy hello_anchor to devnet?"
+    );
+  });
+
+  it("names the network and leaves the cost out when neither is known", async () => {
+    expect(await askedWith("deploy", commandBridge(null, true, null))).toBe(
+      "Deploy hello_anchor to the network?"
     );
   });
 

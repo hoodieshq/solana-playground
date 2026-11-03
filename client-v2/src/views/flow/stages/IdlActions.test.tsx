@@ -75,7 +75,9 @@ describe("IdlActions", () => {
 
     pick(container, jsonFile("not json", "notes.txt"));
 
-    expect(await screen.findByText("Not an Anchor IDL JSON file")).toBeTruthy();
+    expect(
+      await screen.findByText("That file is not an Anchor IDL.")
+    ).toBeTruthy();
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.warn).toHaveBeenCalled();
   });
@@ -85,7 +87,9 @@ describe("IdlActions", () => {
 
     pick(container, jsonFile(JSON.stringify({ name: "x" })));
 
-    expect(await screen.findByText("Not an Anchor IDL JSON file")).toBeTruthy();
+    expect(
+      await screen.findByText("That file is not an Anchor IDL.")
+    ).toBeTruthy();
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.warn).toHaveBeenCalled();
   });
@@ -119,7 +123,7 @@ describe("IdlActions", () => {
     await vi.waitFor(() =>
       expect(mocks.error).toHaveBeenCalledWith(expect.any(Error))
     );
-    expect(screen.queryByText("Not an Anchor IDL JSON file")).toBeNull();
+    expect(screen.queryByText("That file is not an Anchor IDL.")).toBeNull();
     expect(mocks.warn).not.toHaveBeenCalled();
   });
 
@@ -142,7 +146,9 @@ describe("IdlActions", () => {
 
     fireEvent.change(input, { target: { files: [jsonFile("not json")] } });
 
-    expect(await screen.findByText("Not an Anchor IDL JSON file")).toBeTruthy();
+    expect(
+      await screen.findByText("That file is not an Anchor IDL.")
+    ).toBeTruthy();
     expect(cleared).toHaveBeenCalledWith("");
   });
 });
