@@ -2,10 +2,11 @@
 import type { Mock } from "vitest";
 import { describe, it } from "vitest";
 
+import { UPSTREAM_DROPPED } from "@/shared/lib/ai/config.mjs";
+
 import handler from "../../../api/agent.mjs";
 import { jsonBody, makeReq, makeRes, postJson } from "../../test/api-handler";
 import { toMicro, worstCaseCost } from "./server.mjs";
-import { UPSTREAM_DROPPED } from "@/shared/lib/ai/config.mjs";
 
 /**
  * What the auth slice reports for the caller. A case runs signed in unless it
