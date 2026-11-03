@@ -14,12 +14,15 @@ vi.mock("@/utils/explorer", () => ({
   PgExplorer: {
     tabs: [],
     currentFilePath: null,
-    getRelativePath: (path: string) => path,
-    convertToFullPath: (path: string) => path,
-    getFileContent: (path: string) =>
-      path === "programs/hello/src/lib.rs"
+    // The explorer's own forms: a full path under the workspace's folder
+    getRelativePath: (path: string) => path.replace(/^\/hello\//, ""),
+    convertToFullPath: (path: string) => `/hello/${path.replace(/^\.?\//, "")}`,
+    getFileContent: (path: string) => {
+      if (path === "/hello/boom.rs") throw new Error("explorer not ready");
+      return path === "/hello/programs/hello/src/lib.rs"
         ? 'use anchor_lang::prelude::*;\n        msg!("Hello, {}!", name);'
-        : undefined,
+        : undefined;
+    },
   },
 }));
 vi.mock("@/views/sidebar/assistant/store", () => ({
@@ -29,10 +32,11 @@ vi.mock("@/views/sidebar/assistant/store", () => ({
 const conversation = vi.mocked(PgConversation);
 
 /** The live card the view reports: an open question, or nothing */
-const liveIs = (open: boolean) =>
+/** The live card the view reports: an open question (writing `writes`, if given), or nothing */
+const liveIs = (open: boolean, writes?: { file: string; block: string }) =>
   conversation.view.mockReturnValue({
     live: open
-      ? { kind: "ask", open: true, beatId: "s1.q1" }
+      ? { kind: "ask", open: true, beatId: "s1.q1", ask: { writes } }
       : { kind: "intro" },
   } as unknown as ReturnType<typeof PgConversation.view>);
 
@@ -78,10 +82,16 @@ describe("the tutorial's assistant mode", () => {
     expect(conversation.skip).not.toHaveBeenCalled();
   });
 
-  it("skips the open question as its button does", async () => {
-    liveIs(true);
-    await toolOf("skip").run({});
+  it("skips the open question as its button does, and says what the lesson writes", async () => {
+    liveIs(true, { file: "src/lib.rs", block: 'msg!("Hello");' });
+    expect(await toolOf("skip").run({})).toContain(
+      "writing the answer's code into src/lib.rs"
+    );
     expect(conversation.skip).toHaveBeenCalledWith("s1.q1");
+    liveIs(true);
+    expect(await toolOf("skip").run({})).toBe(
+      "Skipped. This question writes no code."
+    );
   });
 
   it("opens the menu through the frame", async () => {
@@ -95,7 +105,8 @@ describe("the tutorial's assistant mode", () => {
 
   it("proposes one line with the line as it reads now, and writes nothing", async () => {
     const result = await toolOf("propose_change").run({
-      file: "programs/hello/src/lib.rs",
+      // The model's own form of the path; the card keeps the workspace's
+      file: "./programs/hello/src/lib.rs",
       line: 2,
       after: '        msg!("Once upon a time on devnet");',
     });
@@ -135,6 +146,17 @@ describe("the tutorial's assistant mode", () => {
         after: '        msg!("a");\n        msg!("b");',
       })
     ).toContain("one line at a time");
+    expect(conversation.propose).not.toHaveBeenCalled();
+  });
+
+  it("tells a file the explorer could not read from a missing one", async () => {
+    expect(
+      await toolOf("propose_change").run({
+        file: "boom.rs",
+        line: 1,
+        after: "x",
+      })
+    ).toBe("Could not read boom.rs: the project's files could not be read.");
     expect(conversation.propose).not.toHaveBeenCalled();
   });
 });

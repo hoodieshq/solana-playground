@@ -218,7 +218,7 @@ export class PgConversation {
         if (PgConversation._state !== before) return "lesson";
         // The view showed the action live and the engine refused it: the
         // message goes to the assistant rather than vanishing
-        log.info("A typed word's action did not run; asking the assistant", {
+        log.info("A typed word's action did not run; routed to the assistant", {
           context: { word: routed.word },
         });
         return "assistant";

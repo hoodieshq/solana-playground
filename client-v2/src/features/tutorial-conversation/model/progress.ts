@@ -80,7 +80,7 @@ export interface Proposal {
   /**
    * Why the last Apply did not land; the card stays open. After `write` a
    * retry can land; after `moved` it lands only once the line reads `before`
-   * again.
+   * again, and after `gone` only once the file is back with that line.
    */
   applyFailed?: ApplyFailure;
 }

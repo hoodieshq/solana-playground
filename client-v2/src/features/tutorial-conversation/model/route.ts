@@ -72,8 +72,15 @@ export const route = (text: string, live: Turn | null, at: number): Route => {
   return action ? { kind: "word", word, action } : { kind: "assistant" };
 };
 
-/** The fields a call act asks the learner to fill: its string arguments */
-const fieldsOf = (act: ActBeat): string[] =>
+/**
+ * The fields a call act asks the learner to fill: its string arguments.
+ * The same rule stands in `BaseActCard` (one field each) and the feed's ⌘↵
+ * handler (`TutorialConversation`), which wait for them as this does. It is
+ * not shared: the entity's entry, its one home all three could import,
+ * loads UI that needs the build's globals, and the props-only card cannot
+ * import the engine.
+ */
+const callFields = (act: ActBeat): string[] =>
   act.act === "call"
     ? (act.call.args ?? []).filter((a): a is string => typeof a === "string")
     : [];
@@ -96,7 +103,7 @@ const actionFor = (word: Word, live: Turn, at: number): WordAction | null => {
       if (!ACTS[word].includes(live.act.act)) return null;
       // A call with a field for the learner to fill waits for its own
       // fields, as ⌘↵ does: the word is the assistant's to answer
-      if (fieldsOf(live.act).length) return null;
+      if (callFields(live.act).length) return null;
       return { type: "act", beatId: live.beatId, at };
     }
     default: {
@@ -194,24 +201,27 @@ if (import.meta.vitest) {
       });
     });
 
-    const call = (args: import("@/entities/tutorial").CallArg[]): Turn =>
-      Object.assign(turnOf("s4.call"), {
-        kind: "act" as const,
-        beatId: "s4.call",
-        act: {
-          kind: "act" as const,
-          id: "s4.call",
-          title: "Call",
-          context: "",
-          button: "Call",
-          act: "call" as const,
-          call: { instruction: "hello", args },
-        },
-        state: "live" as const,
-        note: null,
-        stage: null,
-        took: null,
-      }) as Turn;
+    const call = (args: import("@/entities/tutorial").CallArg[]): Turn => ({
+      id: "s4.call",
+      step: "write-program",
+      at: 1,
+      whole: false,
+      kind: "act",
+      beatId: "s4.call",
+      act: {
+        kind: "act",
+        id: "s4.call",
+        title: "Call",
+        context: "",
+        button: "Call",
+        act: "call",
+        call: { instruction: "hello", args },
+      },
+      state: "live",
+      note: null,
+      stage: null,
+      took: null,
+    });
 
     it("runs a typed call only when the act has no field left to fill", () => {
       expect(

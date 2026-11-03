@@ -202,7 +202,19 @@ if (import.meta.vitest) {
         outcome: null,
         attempts: 0,
       };
-      const withDocs: TutorialDefinition = Object.assign({}, hello, {
+      const withDocs: TutorialDefinition = {
+        version: hello.version,
+        name: hello.name,
+        description: hello.description,
+        authors: hello.authors,
+        level: hello.level,
+        framework: hello.framework,
+        languages: hello.languages,
+        thumbnail: hello.thumbnail,
+        minutes: hello.minutes,
+        intro: hello.intro,
+        steps: hello.steps,
+        finish: hello.finish,
         docs: [
           {
             title: "The program log",
@@ -210,7 +222,7 @@ if (import.meta.vitest) {
             file: "log.md",
           },
         ],
-      });
+      };
       const text = describeTutorial({
         definition: withDocs,
         progress: freshProgress(),

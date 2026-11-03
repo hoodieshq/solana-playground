@@ -22,7 +22,7 @@ const baseName = (path: string) => path.split("/").pop() ?? path;
 const FAILED: Record<NonNullable<Proposal["applyFailed"]>, string> = {
   moved:
     "Could not apply it: the line changed since. Ask again for a fresh change.",
-  gone: "Could not apply it: the file is not there any more.",
+  gone: "Could not apply it: the file is not there any more. Press Keep it to close this, or ask for a change to another file.",
   write:
     "Could not write the file. Try Apply again, or make the change yourself.",
 };
@@ -38,7 +38,7 @@ const SETTLED: Record<"applied" | "kept", string> = {
  * buttons, "Apply to <file>" and "Keep it". It never applies by itself
  * (spec "One composer; free questions go to the live assistant"). An Apply
  * that did not land leaves the card open and says why: the line changed
- * since, or the file could not be written.
+ * since, the file is gone, or it could not be written.
  */
 const BaseApplyCard = ({ proposal, onApply, onKeep }: BaseApplyCardProps) => {
   const file = baseName(proposal.file);

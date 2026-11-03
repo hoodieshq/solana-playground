@@ -356,6 +356,32 @@ const useAssistantMode = (onOpenMenu: () => void) => {
         .dispose,
     []
   );
+  // A turn begun before the tutorial opened keeps the tools it started with,
+  // and may still ask to write: a tutorial never allows it, and the feed
+  // draws no approval card, so it is declined at once and the model answers
+  useEffect(() => {
+    let scheduled = false;
+    const decline = () => {
+      scheduled = false;
+      const pending = PgAssistant.items.some(
+        (i) => i.kind === "approval" && i.status === "pending"
+      );
+      if (!pending) return;
+      log.info(
+        "declined an approval a turn begun before the tutorial asked for"
+      );
+      PgAssistant.cancelPending();
+    };
+    // After the change that announced it: `requestApproval` announces the
+    // card before it registers the answer that `cancelPending` gives
+    const schedule = () => {
+      if (scheduled) return;
+      scheduled = true;
+      queueMicrotask(decline);
+    };
+    schedule();
+    return PgAssistant.onDidChange(schedule).dispose;
+  }, []);
 };
 
 /**

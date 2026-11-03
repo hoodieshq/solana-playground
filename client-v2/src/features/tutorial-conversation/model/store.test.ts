@@ -1120,6 +1120,7 @@ describe("PgConversation's composer", () => {
     PgConversation.apply("p1");
     await settle();
     expect(proposal()).toMatchObject({ state: "open", applyFailed: "gone" });
+    expect(named("tutorial_change_applied")).toHaveLength(0);
   });
 
   it("says a write failed as a write, not as a moved line", async () => {
@@ -1177,6 +1178,34 @@ describe("PgConversation's composer", () => {
     await settle();
     expect(proposal()).toMatchObject({ state: "applied" });
     expect(proposal().applyFailed).toBeUndefined();
+  });
+
+  it("sends a typed word to the assistant when the engine does not act on it", async () => {
+    open(NAME);
+    await settle();
+    PgConversation.start();
+    await settle();
+    const before = PgConversation.state.engine.progress.said;
+    // The view and the engine disagree: the view still shows the intro
+    const intro = {
+      id: "intro",
+      kind: "intro",
+      step: null,
+      at: 0,
+      whole: true,
+    };
+    const view = vi
+      .spyOn(PgConversation, "view")
+      .mockReturnValue({ live: intro } as unknown as ReturnType<
+        typeof PgConversation.view
+      >);
+    try {
+      expect(PgConversation.say("go")).toBe("assistant");
+    } finally {
+      view.mockRestore();
+    }
+    expect(PgConversation.state.engine.progress.said).toBe(before);
+    expect(named("tutorial_word_sent")).toHaveLength(0);
   });
 
   it("routes a typed word to the lesson, a refused one to its refusal, and the rest to the assistant", async () => {

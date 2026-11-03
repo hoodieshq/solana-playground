@@ -105,11 +105,15 @@ export const tutorialMode = ({
       run: () => {
         const beatId = openQuestion();
         if (!beatId) return "No question is open, so there is nothing to skip.";
+        // Read before the skip: once it resolves, the question is not live
+        const live = PgConversation.view()?.live;
+        const writes = live?.kind === "ask" ? live.ask.writes : undefined;
         PgAssistant.addToolCall("skipped the question");
         PgConversation.skip(beatId);
+        if (!writes) return "Skipped. This question writes no code.";
         return (
-          "Skipped: the lesson is writing the answer's code into the file, " +
-          "and its card says if the write fails."
+          "Skipped: the lesson is writing the answer's code into " +
+          `${writes.file}, and its card says if the write fails.`
         );
       },
     },
@@ -142,7 +146,7 @@ export const tutorialMode = ({
         const read = readFile(file);
         if (read.kind === "missing") return `There is no file at ${file}.`;
         if (read.kind === "failed") {
-          return `Could not read ${file} just now; try again in a moment.`;
+          return `Could not read ${file}: the project's files could not be read.`;
         }
         const before = read.content.split("\n")[line - 1];
         if (before === undefined) return `${file} has no line ${line}.`;

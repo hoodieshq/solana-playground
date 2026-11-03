@@ -270,6 +270,28 @@ describe("TutorialConversation", () => {
     expect(PgAssistant.mode).toBeNull();
   });
 
+  it("declines an approval a turn begun before the tutorial asks for, at once", async () => {
+    PgAssistant.clear();
+    store.view.mockReturnValue(null);
+    try {
+      render(
+        <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+      );
+      let answer: Promise<{ allowed: boolean }> | undefined;
+      act(() => {
+        answer = PgAssistant.requestApproval({
+          type: "patch",
+          path: "src/lib.rs",
+          before: "a",
+          after: "b",
+        });
+      });
+      await expect(answer).resolves.toMatchObject({ allowed: false });
+    } finally {
+      PgAssistant.clear();
+    }
+  });
+
   it("shows one spinner while the engine has no view", () => {
     store.state = {
       context: null,

@@ -59,8 +59,8 @@ export const mergeFeed = (
 
 /** What a pending approval reads as in the tutorial feed */
 export const APPROVAL_WAITING =
-  "The assistant asked to change the project, which a tutorial does not do. " +
-  "Press Stop to go on.";
+  "The assistant asked to change the project, which a tutorial does not " +
+  "allow, so it is declined.";
 
 const atOf = (entry: FeedEntry) =>
   entry.kind === "lesson" ? entry.turn.at : entry.at;
@@ -97,9 +97,8 @@ const entryOf = (
     case "tool":
       return null;
     case "approval":
-      // A turn begun before the tutorial opened keeps the tools it started
-      // with, so it can still wait on an approval the feed draws no card for:
-      // say so while it waits, rather than leave Stop unexplained
+      // A turn begun before the tutorial opened can still ask to write; the
+      // feed declines it at once (`useAssistantMode`), and says so meanwhile
       return item.status === "pending"
         ? {
             kind: "answer",
@@ -222,7 +221,7 @@ if (import.meta.vitest) {
       ]);
     });
 
-    it("hides tool calls, approvals and a reply with no words yet", () => {
+    it("hides tool calls and a reply with no words yet", () => {
       const tool: ChatItem = {
         id: "t",
         createdAt: iso(2000),
