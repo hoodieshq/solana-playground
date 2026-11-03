@@ -517,6 +517,7 @@ describe("BaseDeploy", () => {
     ).toHaveProperty("disabled", false);
   });
 
+  // eslint-disable-next-line unicorn/no-null -- `BaseDeployProps.cluster` is `null` until the endpoint has been read
   it.each(["mainnet-beta", "testnet", null])(
     "promises no free SOL before the first deploy on %s",
     (cluster) => {
