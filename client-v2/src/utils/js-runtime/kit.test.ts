@@ -14,12 +14,18 @@ import {
   TRANSPILE_OPTIONS,
   wrapScript,
 } from "./kit";
-import { missingPackageOf } from "./missing-package";
+import { missingPackageMessage, missingPackageOf } from "./missing-package";
 
 describe("missingPackageOf", () => {
   it("names the package a failed import asked for", () => {
     expect(
       missingPackageOf("Package `@solana-program/memo` is not available.")
+    ).toBe("@solana-program/memo");
+  });
+
+  it("reads back the message the runtime throws", () => {
+    expect(
+      missingPackageOf(missingPackageMessage("@solana-program/memo"))
     ).toBe("@solana-program/memo");
   });
 

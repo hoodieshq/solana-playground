@@ -32,13 +32,26 @@ vi.mock("../../utils", () => ({
   PgTerminal: { println: vi.fn(), info: (text: string) => text },
 }));
 
-import { run } from "./run-and-test";
+import { run, test } from "./run-and-test";
 
 const execute = (...paths: string[]) =>
   run.handle?.({ args: { paths: paths.length ? paths : undefined } } as never);
 
 beforeEach(() => {
   runtime.execute.mockReset();
+});
+
+const executeTests = () =>
+  test.handle?.({ args: { paths: undefined } } as never);
+
+describe("test", () => {
+  it("runs every test file, and reports the first that fails", async () => {
+    runtime.execute
+      .mockResolvedValueOnce({ ok: false, error: "boom" })
+      .mockResolvedValueOnce({ ok: true });
+    expect(await executeTests()).toEqual({ ok: false, error: "boom" });
+    expect(runtime.execute).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("run", () => {

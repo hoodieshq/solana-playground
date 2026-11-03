@@ -27,6 +27,8 @@ export type RunState =
       startedAt: number;
       /** Whether a docs link opened the project, taken when the run starts */
       source: RunSource;
+      /** What the callout keeps showing while the run goes */
+      previous: RestingState;
     }
   | {
       kind: "funding";
@@ -63,8 +65,9 @@ const reset = () => {
 
 /** @returns what Not now should return to from the current state */
 const restingOf = (current: RunState): RestingState => {
-  if (current.kind === "funding") return current.previous;
-  if (current.kind === "running") return { kind: "idle" };
+  if (current.kind === "funding" || current.kind === "running") {
+    return current.previous;
+  }
   return current;
 };
 
@@ -115,7 +118,12 @@ const listen = () => {
     started++;
     const source = currentSource();
     docsLinkTelemetry.track("docs_link_run_started", { source });
-    set({ kind: "running", startedAt: Date.now(), source });
+    set({
+      kind: "running",
+      startedAt: Date.now(),
+      source,
+      previous: restingOf(state),
+    });
   });
   PgCommand.run.onDidFinish((result) => {
     // A run that started before anything listened has no start to read
@@ -183,8 +191,9 @@ const funded = async (wallet: WalletOrigin) => {
  * Connect the wallet when Run finds none: the setup for a first visit, the
  * Playground wallet again after a disconnect.
  *
- * @returns how the wallet came to be, or `undefined` when the user closed
- * the setup
+ * @returns how the wallet came to be, or `undefined` when there is nothing
+ * to run with: the user closed the setup (the state is left alone), or
+ * connect ended with no wallet (shown as `failed`)
  */
 const connectWallet = async (): Promise<WalletOrigin | undefined> => {
   if (PgWallet.state !== "setup" && PgWallet.state !== "disconnected") {
@@ -213,6 +222,9 @@ const connectWallet = async (): Promise<WalletOrigin | undefined> => {
  * reaches `onDidFinish` (another run in progress, say), so it is shown here.
  */
 const runScripts = async () => {
+  // A `run` typed in the terminal while Run read the wallet is the run: this
+  // one would be refused, and its refusal would cover the running one
+  if (state.kind === "running") return;
   const before = started;
   try {
     await PgCommand.run.execute();
@@ -234,6 +246,15 @@ const runScripts = async () => {
 export const PgClientRun = {
   get state() {
     return state;
+  },
+
+  /**
+   * Start following `run`, so every run is shown and measured, typed in the
+   * terminal or not. The stage row calls it once it mounts; it is safe to
+   * call again.
+   */
+  follow() {
+    listen();
   },
 
   /**
@@ -260,9 +281,6 @@ export const PgClientRun = {
     } finally {
       starting = false;
     }
-    // A `run` typed in the terminal meanwhile is the run: this one would be
-    // refused, and its refusal would cover the running one
-    if (PgClientRun.state.kind === "running") return;
     await runScripts();
   },
 

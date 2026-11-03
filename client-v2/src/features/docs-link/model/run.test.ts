@@ -300,6 +300,47 @@ describe("PgClientRun", () => {
     expect(PgClientRun.state.kind).toBe("idle");
   });
 
+  it("says so when connect ends with no wallet", async () => {
+    const { PgClientRun } = await load();
+    utils.PgWallet.state = "disconnected";
+    const wallet = utils.PgWallet.current;
+    utils.PgWallet.current = undefined;
+
+    await PgClientRun.start();
+
+    utils.PgWallet.current = wallet;
+    expect(PgClientRun.state).toMatchObject({ kind: "failed" });
+    expect(utils.PgCommand.run.execute).not.toHaveBeenCalled();
+  });
+
+  it("leaves a run typed in the terminal while Run read the balance", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.open(QUICKSTART);
+    utils.lamports = 0.5e9;
+    // The terminal's run starts while the balance read is in flight
+    utils.PgCommand.connect.execute.mockImplementationOnce(async () => {
+      startRun();
+      return undefined;
+    });
+    utils.PgWallet.state = "disconnected";
+
+    await PgClientRun.start();
+
+    expect(utils.PgCommand.run.execute).not.toHaveBeenCalled();
+    expect(PgClientRun.state.kind).toBe("running");
+  });
+
+  it("keeps the last run's end showing while it runs again", async () => {
+    const { PgClientRun } = await load();
+    startRun();
+    finishRun({ ok: { ok: false, error: "fetch failed" } });
+    startRun();
+    expect(PgClientRun.state).toMatchObject({
+      kind: "running",
+      previous: { kind: "failed", message: "fetch failed" },
+    });
+  });
+
   it("connects a disconnected wallet before checking its SOL", async () => {
     const { PgClientRun, PgDocsLink } = await load();
     PgDocsLink.open(QUICKSTART);

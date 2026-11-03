@@ -2,7 +2,7 @@ import type { FC } from "react";
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import { RunButton } from "@/features/docs-link";
+import { PgClientRun, RunButton } from "@/features/docs-link";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { Badge } from "@/shared/ui/badge";
 
@@ -35,6 +35,8 @@ import Stepper from "./Stepper";
 const StageBar: FC = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   useEffect(() => PgFlow.onDidChange(setState).dispose, []);
+  // Every run is shown and measured, in a project with a program too
+  useEffect(() => PgClientRun.follow(), []);
 
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);

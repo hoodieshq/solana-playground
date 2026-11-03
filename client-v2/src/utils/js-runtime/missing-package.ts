@@ -1,7 +1,15 @@
 // Kept apart from `kit.ts` so the UI can read a failed run without loading
 // the TypeScript compiler that `kit.ts` imports.
 
-/** The message `PgJsRuntimePackage.import` throws for a package it lacks */
+/**
+ * The message `PgJsRuntimePackage.import` throws for a package it lacks
+ *
+ * @param name the package
+ * @returns the message, which `missingPackageOf` reads back
+ */
+export const missingPackageMessage = (name: string) =>
+  `Package \`${name}\` is not available.`;
+
 const MISSING_PACKAGE_REGEX = /^Package `(.+)` is not available\.$/;
 
 /**

@@ -78,6 +78,7 @@ const processCommon = async (params: {
 
   const { PgJsRuntime } = await PgJsRuntimeImporter.import();
 
+  let ended: RunResult = { ok: true };
   const folderPath = isTest
     ? PgExplorer.PATHS.TESTS_DIRNAME
     : PgExplorer.PATHS.CLIENT_DIRNAME;
@@ -98,10 +99,11 @@ const processCommon = async (params: {
       }
 
       const result = await PgJsRuntime.execute({ fileName, code, isTest });
-      if (!result.ok) return result;
+      if (!result.ok && !isTest) return result;
+      if (!result.ok && ended.ok) ended = result;
     }
 
-    return { ok: true };
+    return ended;
   }
 
   // Create default client/test if the folder is empty
@@ -121,16 +123,19 @@ const processCommon = async (params: {
     return await PgJsRuntime.execute({ fileName, code, isTest });
   }
 
-  // Run all files inside the folder; the first that fails ends the run
+  // Run all files inside the folder. A script that fails ends `run`, since
+  // the next one may need what it did; `test` runs every file, as it always
+  // has, and reports the first failure
   for (const fileName of folder.files.filter(PgLanguage.getIsPathJsLike)) {
     const code = PgExplorer.getFileContent(
       PgCommon.joinPaths(folderPath, fileName)
     )!;
     const result = await PgJsRuntime.execute({ fileName, code, isTest });
-    if (!result.ok) return result;
+    if (!result.ok && !isTest) return result;
+    if (!result.ok && ended.ok) ended = result;
   }
 
-  return { ok: true };
+  return ended;
 };
 
 /** Default client files*/

@@ -83,9 +83,10 @@ const BaseRunCallout: FC<BaseRunCalloutProps> = ({
     </Button>
   );
 
-  switch (state.kind) {
-    case "idle":
-    case "running": {
+  // A run in progress keeps showing what was there before it
+  const shown = state.kind === "running" ? state.previous : state;
+  switch (shown.kind) {
+    case "idle": {
       // eslint-disable-next-line unicorn/no-null -- a component that draws nothing returns `null`; React's types refuse `undefined`
       if (!source) return null;
       const where = source.from ? hostOf(source.from) : "a docs link";
@@ -117,7 +118,7 @@ const BaseRunCallout: FC<BaseRunCalloutProps> = ({
           state="done"
           variant="success"
           icon={<CircleCheck />}
-          title={`Ran in ${Math.round(state.ms / 1000)} s`}
+          title={`Ran in ${Math.round(shown.ms / 1000)} s`}
           actions={again}
         >
           Signatures and Explorer links are in the terminal.
@@ -133,7 +134,7 @@ const BaseRunCallout: FC<BaseRunCalloutProps> = ({
           title="Run failed"
           actions={again}
         >
-          {state.message}
+          {shown.message}
         </Note>
       );
 
@@ -145,7 +146,7 @@ const BaseRunCallout: FC<BaseRunCalloutProps> = ({
           icon={<CircleAlert />}
           title={
             <>
-              Playground can't load <code>{state.pkg}</code> yet
+              Playground can't load <code>{shown.pkg}</code> yet
             </>
           }
         >
@@ -167,15 +168,15 @@ const BaseRunCallout: FC<BaseRunCalloutProps> = ({
             <div id="client-run-funding">
               <p>
                 This script pays a few small fees. Your Playground wallet needs
-                about {sol(state.needed)}.
+                about {sol(shown.needed)}.
               </p>
               <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 font-mono text-xs">
                 <dt>Wallet</dt>
-                <dd className="truncate">{state.address}</dd>
+                <dd className="truncate">{shown.address}</dd>
                 <dt>Balance</dt>
-                <dd>{sol(state.balance)}</dd>
+                <dd>{sol(shown.balance)}</dd>
                 <dt>Needed</dt>
-                <dd>{sol(state.needed)}</dd>
+                <dd>{sol(shown.needed)}</dd>
               </dl>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button size="xs" asChild>
@@ -188,7 +189,7 @@ const BaseRunCallout: FC<BaseRunCalloutProps> = ({
                   </a>
                 </Button>
                 <CopyButton
-                  value={state.address}
+                  value={shown.address}
                   label="Copy address"
                   onError={onCopyError}
                 />

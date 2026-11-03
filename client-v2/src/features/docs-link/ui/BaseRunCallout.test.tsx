@@ -81,6 +81,16 @@ describe("BaseRunCallout", () => {
     expect(node).toBeNull();
   });
 
+  it("keeps the last run's end while the next one runs", () => {
+    const { node } = callout({
+      kind: "running",
+      startedAt: 0,
+      source: "link",
+      previous: { kind: "done", ms: 2_000 },
+    });
+    expect(node?.getAttribute("data-state")).toBe("done");
+  });
+
   it("says how long a good run took, and runs again", () => {
     const { node, handlers } = callout({ kind: "done", ms: 12_400 });
     expect(node?.getAttribute("data-state")).toBe("done");
