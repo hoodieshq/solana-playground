@@ -1806,6 +1806,7 @@ const sectionList = (page: Page) =>
   settingsPage(page).getByRole("navigation", { name: "Settings sections" });
 const SECTIONS = [
   "Network",
+  "Assistant",
   "Project",
   "Block Explorer",
   "Build",
