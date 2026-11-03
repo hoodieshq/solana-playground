@@ -35,7 +35,7 @@ export const DeleteWorkspace: FC<
           <Main>
             Are you sure you want to delete workspace '{workspaceName}'?
           </Main>
-          <Desc>This action is irreversable!</Desc>
+          <Desc>This action is irreversible!</Desc>
           <Desc>- All files and folders will be deleted.</Desc>
           <Desc>- Program credentials will be deleted.</Desc>
           {/* Progress lives in `.workspace/tutorial-storage.json`, inside the
@@ -68,7 +68,9 @@ const ContentText = styled.div`
 
 const Main = styled.span`
   font-weight: bold;
-  word-break: break-all;
+  /* Breaks inside a word only when it cannot fit a line of its own, such as
+     a long workspace name with no spaces */
+  overflow-wrap: anywhere;
 `;
 
 const Desc = styled.span`
