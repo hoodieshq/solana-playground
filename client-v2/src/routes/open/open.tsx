@@ -9,6 +9,18 @@ import { PgExplorer, PgRouter } from "../../utils";
 import { handleRoute } from "../common";
 
 /**
+ * Open a link pasted over the one open: only the fragment changes, which
+ * loads no page and runs no route, so the project would stay the old one.
+ *
+ * @returns a disposable that stops listening
+ */
+const followNewLinks = () => {
+  const reload = () => window.location.reload();
+  window.addEventListener("hashchange", reload);
+  return { dispose: () => window.removeEventListener("hashchange", reload) };
+};
+
+/**
  * `/open#v=1&name=…&code=…`: the docs' "Open in Playground". The file opens
  * as an unsaved client project, as a gist link does; a fragment that does
  * not decode shows "This link is broken" instead.
@@ -16,13 +28,14 @@ import { handleRoute } from "../common";
 export const open = PgRouter.create({
   path: "/open",
   handle: () => {
+    const reopen = followNewLinks();
     const decoded = decodeDocsLink(window.location.hash);
 
     if (!decoded.ok) {
       docsLinkTelemetry.track("docs_link_failed", { reason: decoded.reason });
       PgDocsLink.set(null);
       const backHref = backToDocsHref(decoded.from, document.referrer);
-      return handleRoute({
+      const route = handleRoute({
         main: async () => (
           <BaseBrokenLink
             backHref={backHref}
@@ -30,6 +43,12 @@ export const open = PgRouter.create({
           />
         ),
       });
+      return {
+        dispose: () => {
+          route.dispose();
+          reopen.dispose();
+        },
+      };
     }
 
     const { link } = decoded;
@@ -51,6 +70,7 @@ export const open = PgRouter.create({
     return {
       dispose: () => {
         route.dispose();
+        reopen.dispose();
         // Another route took over: its project did not come from this link
         PgDocsLink.set(null);
       },

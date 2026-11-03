@@ -9,8 +9,7 @@ both; 4 needs 3.
 - [ ] 1.1 Scripts load `@solana/kit`, `@solana/kit-plugin-rpc`,
       `@solana/kit-plugin-signer`, `@solana-program/system` and
       `@solana-program/token-2022` from `client-v2/supported-packages.json`,
-      merged by `generate-packages.mjs` and `craco.config.js`; recorded in
-      `docs/upstream-divergences.md` (HOO-2507)
+      merged by `generate-packages.mjs` and `craco.config.js` (HOO-2507)
 - [ ] 1.2 `signerFromFile` resolves to the Playground wallet; scripts
       transpile to ES2020; `PgJsRuntime.execute` reports how a run ended
       (HOO-2507)

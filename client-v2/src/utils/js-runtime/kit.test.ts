@@ -10,6 +10,7 @@ import {
   pgSignerFromFile,
   SIGNER_NEEDS_PG_WALLET,
   TRANSPILE_OPTIONS,
+  wrapScript,
 } from "./kit";
 
 describe("missingPackageOf", () => {
@@ -42,6 +43,40 @@ describe("TRANSPILE_OPTIONS", () => {
     // eslint-disable-next-line no-new-func
     new Function("out", code)(out);
     expect(out).toEqual([2000n]);
+  });
+});
+
+describe("wrapScript", () => {
+  /** Run a wrapped script; resolves with what it logged once it ends */
+  const run = (script: string) =>
+    new Promise<unknown[]>((resolve) => {
+      const logged: unknown[] = [];
+      const code = transpile(wrapScript(script, "__end()"), TRANSPILE_OPTIONS);
+      // eslint-disable-next-line no-new-func
+      new Function("console", "__fail", "__end", code)(
+        { log: (...args: unknown[]) => logged.push(args.join(" ")) },
+        (error: string) => logged.push(`fail: ${error}`),
+        () => resolve(logged)
+      );
+    });
+
+  it("runs a script with top-level await", async () => {
+    expect(
+      await run("const x = await Promise.resolve(2); console.log(x);")
+    ).toEqual(["2"]);
+  });
+
+  it("hides eval and Function from the script", async () => {
+    expect(await run("console.log(typeof eval, typeof Function);")).toEqual([
+      "undefined undefined",
+    ]);
+  });
+
+  it("reports an uncaught error", async () => {
+    expect(await run('throw new Error("boom");')).toEqual([
+      "fail: boom",
+      "Uncaught error: boom",
+    ]);
   });
 });
 

@@ -11,6 +11,35 @@ export const TRANSPILE_OPTIONS: CompilerOptions = {
   removeComments: true,
 };
 
+/** Globals a script must not reach, hidden behind parameters of its wrapper */
+const HIDDEN_GLOBALS = ["eval", "Function"];
+
+/**
+ * Wrap a script so that it:
+ * - runs inside a class method, so `this` never reaches the window;
+ * - may use top-level `await`;
+ * - reports an uncaught error through `__fail`, then ends with `endCode`.
+ *
+ * `eval` and `Function` are shadowed by the outer function's parameters.
+ * Assigning to them inside the method would be a syntax error: a class body
+ * is strict code, and ES5 output only hid that by turning the class into a
+ * plain function.
+ *
+ * @param code the script, imports already taken out
+ * @param endCode what signals the end of the run
+ * @returns the code to transpile
+ */
+export const wrapScript = (
+  code: string,
+  endCode: string
+) => `(async function (${HIDDEN_GLOBALS.join(", ")}) {
+  class __Pg { async __run() {\n${code}\n} }
+  const __pg = new __Pg();
+  try { await __pg.__run(); }
+  catch (e) { __fail(String(e?.message ?? e)); console.log("Uncaught error:", e?.message ?? e); }
+  finally { ${endCode} }
+})()`;
+
 /** What `signerFromFile` says when the current wallet has no keypair to read */
 export const SIGNER_NEEDS_PG_WALLET =
   "signerFromFile uses your Playground wallet. Switch to it to run this script.";

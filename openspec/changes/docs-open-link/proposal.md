@@ -58,8 +58,7 @@ program has nothing to run from the stage row. The script runtime cannot import
 - The five packages go in a new `client-v2/supported-packages.json`. Its
   `importable` list is added to the root file's by `generate-packages.mjs` and
   `craco.config.js`. The root file stays upstream's: the upstream client reads
-  it, and would fail to build on imports it does not install. The overlay is
-  recorded in `docs/upstream-divergences.md`.
+  it, and would fail to build on imports it does not install.
 - Out of scope:
   - the button on the docs site;
   - the assistant's turn after a run;

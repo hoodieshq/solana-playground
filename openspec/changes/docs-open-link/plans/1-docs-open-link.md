@@ -60,7 +60,7 @@ Playwright.
 - Modify: `client-v2/scripts/generate-packages.mjs`, `client-v2/craco.config.js` (merge `importable`)
 - Modify: `client-v2/src/utils/js-runtime/js-runtime.ts` (`execute` result, `__fail`, ES2020, `_overridePackage` for `@solana/kit-plugin-signer`)
 - Modify: `client-v2/src/commands/run-and-test/run-and-test.ts` (`run` returns the first failure)
-- Create: `docs/upstream-divergences.md` entry (create the file if absent)
+- Create: `docs/open-in-playground-link.md`, the format for the docs team
 - Test: `client-v2/src/utils/js-runtime/js-runtime.test.ts`
 
 **Interfaces:**

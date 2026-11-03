@@ -29,11 +29,16 @@ const QUICKSTART = {
 
 let sent: ReturnType<typeof memoryProvider>;
 
+/** Routes a test opened, closed after it so no listener outlives it */
+const opened: Array<{ dispose: () => void }> = [];
+
 const visit = (fragment: string) => {
   window.location.hash = fragment;
   // The route reads the fragment, not its path parameters, and answers
   // synchronously with its disposable
-  return open.handle({} as never) as { dispose: () => void };
+  const route = open.handle({} as never) as { dispose: () => void };
+  opened.push(route);
+  return route;
 };
 
 /** What the route asked `handleRoute` for */
@@ -54,6 +59,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  opened.splice(0).forEach((route) => route.dispose());
   resetTelemetry();
   PgDocsLink.set(null);
   window.location.hash = "";
@@ -83,6 +89,22 @@ describe("/open", () => {
     expect(sent.events).toEqual([
       { name: "docs_link_failed", params: { reason: "missing" } },
     ]);
+  });
+
+  it("reloads when a new link replaces the fragment", () => {
+    const reload = vi.fn();
+    vi.spyOn(window, "location", "get").mockReturnValue({
+      hash: `#${encodeDocsLink(QUICKSTART)}`,
+      reload,
+    } as unknown as Location);
+    const route = open.handle({} as never) as { dispose: () => void };
+
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    route.dispose();
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
   });
 
   it("forgets the link once another route takes over", () => {

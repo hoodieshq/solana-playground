@@ -11,7 +11,7 @@ import { PgTerminal } from "../terminal";
 import type { MergeUnion, OrString } from "../types";
 import { PgWallet, Wallet } from "../wallet";
 import type { PgWeb3 } from "../web3";
-import { pgSignerFromFile, TRANSPILE_OPTIONS } from "./kit";
+import { pgSignerFromFile, TRANSPILE_OPTIONS, wrapScript } from "./kit";
 import { JsRuntimePackageName, PgJsRuntimePackage } from "./package";
 
 /** Options to use when running a script/test */
@@ -112,22 +112,7 @@ export class PgJsRuntime {
           }
         }
 
-        // Handle globals to set `undefined` to
-        for (const keyword of UNDEFINED_GLOBALS) {
-          code = `${keyword} = undefined;` + code;
-        }
-
-        // This approach:
-        // 1- Wraps the code in a class to block window access from `this`
-        // 2- Allows top-level async
-        // 3- Helps detecting when tests finish
-        code = `(async () => {
-  class __Pg { async __run() {\n${code}\n} }
-  const __pg = new __Pg();
-  try { await __pg.__run(); }
-  catch (e) { __fail(String(e?.message ?? e)); console.log("Uncaught error:", e?.message ?? e); }
-  finally { ${endCode} }
-})()`;
+        code = wrapScript(code, endCode);
 
         // Transpile the code
         code = transpile(code, TRANSPILE_OPTIONS);
@@ -596,9 +581,6 @@ const BLACKLISTED_GLOBALS = [
   "top",
   "chrome",
 ];
-
-/** Globals that will be set to `undefined` */
-const UNDEFINED_GLOBALS = ["eval", "Function"];
 
 /** Event name that will be dispatched when client code completes executing */
 const CLIENT_ON_DID_FINISH_RUNNING = "clientondidfinishrunning";
