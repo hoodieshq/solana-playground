@@ -117,6 +117,8 @@ const handlers = (): TurnHandlers => ({
   allTutorials: vi.fn(),
   copyReceipt: vi.fn(),
   copyFailed: vi.fn(),
+  apply: vi.fn(),
+  keep: vi.fn(),
   showLine: vi.fn(),
 });
 

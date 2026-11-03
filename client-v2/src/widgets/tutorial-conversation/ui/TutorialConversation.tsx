@@ -21,10 +21,13 @@ import { marksOf } from "../model/marks";
 import type { FeedMarks } from "../model/marks";
 import { PgTutorial } from "@/utils/tutorial";
 import { barProgress } from "../model/step-bar";
+import { mergeFeed } from "../model/merge";
 import { tutorialMode } from "../model/mode";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { tutorialTelemetry } from "../model/telemetry";
+import BaseAnswer from "./BaseAnswer";
 import BaseFeed from "./BaseFeed";
+import BaseYouPill from "./BaseYouPill";
 import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
 import { typing } from "./keys";
@@ -340,6 +343,9 @@ export interface TutorialConversationProps {
  * mode reads the latest.
  */
 const useAssistantMode = (onOpenMenu: () => void) => {
+  // The thread's exchanges are part of the feed: a reply streaming in redraws it
+  const [, render] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => PgAssistant.onDidChange(render).dispose, []);
   const openMenu = useRef(onOpenMenu);
   useEffect(() => {
     openMenu.current = onOpenMenu;
@@ -376,6 +382,8 @@ const handlers: Omit<
   // win card shows no "Open Call"
   openCall: undefined,
   copyFailed: (error) => copyFailed(error),
+  apply: (id) => PgConversation.apply(id),
+  keep: (id) => PgConversation.keep(id),
 };
 
 /**
@@ -522,6 +530,19 @@ export const TutorialConversation = ({
   return (
     <BaseFeed
       turns={view.turns}
+      entries={mergeFeed(
+        view.turns,
+        PgAssistant.items,
+        progress.restartedAt,
+        state.loadedAt
+      )}
+      renderExchange={(entry) =>
+        entry.kind === "asked" ? (
+          <BaseYouPill text={entry.text} code={false} />
+        ) : (
+          <BaseAnswer text={entry.text} tone={entry.tone} />
+        )
+      }
       live={view.live}
       steps={view.steps}
       progress={barProgress(context.definition, progress)}

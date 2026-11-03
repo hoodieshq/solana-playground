@@ -1,0 +1,203 @@
+import type { Turn } from "@/features/tutorial-conversation";
+import type { ChatItem } from "@/views/sidebar/assistant/store";
+
+/**
+ * One entry of the feed: a lesson turn, or an exchange with the live
+ * assistant from the workspace's thread (design D2: the two sources merge
+ * by time, at render only).
+ */
+export type FeedEntry =
+  | { kind: "lesson"; turn: Turn }
+  /** What the learner typed to the assistant; `whole` as a turn's */
+  | { kind: "asked"; id: string; at: number; whole: boolean; text: string }
+  /** The assistant's answer, or what stopped it */
+  | {
+      kind: "answer";
+      id: string;
+      at: number;
+      whole: boolean;
+      text: string;
+      tone: "reply" | "error" | "notice";
+    };
+
+/**
+ * The lesson's turns and the thread's exchanges after `since` (the last
+ * Start over; null shows the whole thread), in one order by time. A lesson
+ * turn goes first on a tie, and the thread keeps its own order. Tool calls
+ * and approvals do not show: in a tutorial the assistant's only actions are
+ * the lesson's own (`tutorialMode`), which draw their own cards. A reply
+ * still empty while its first words stream has nothing to show yet.
+ */
+export const mergeFeed = (
+  turns: readonly Turn[],
+  items: readonly ChatItem[],
+  since: number | null,
+  /** When the save loaded: an exchange from before it renders whole */
+  loadedAt = 0
+): FeedEntry[] => {
+  const exchanges: FeedEntry[] = [];
+  for (const item of items) {
+    const at = Date.parse(item.createdAt);
+    if (!Number.isFinite(at) || (since !== null && at <= since)) continue;
+    const entry = entryOf(item, at, at < loadedAt);
+    if (entry) exchanges.push(entry);
+  }
+
+  const out: FeedEntry[] = [];
+  let next = 0;
+  for (const turn of turns) {
+    while (next < exchanges.length && atOf(exchanges[next]) < turn.at) {
+      out.push(exchanges[next]);
+      next += 1;
+    }
+    out.push({ kind: "lesson", turn });
+  }
+  return out.concat(exchanges.slice(next));
+};
+
+const atOf = (entry: FeedEntry) =>
+  entry.kind === "lesson" ? entry.turn.at : entry.at;
+
+const entryOf = (
+  item: ChatItem,
+  at: number,
+  whole: boolean
+): FeedEntry | null => {
+  switch (item.kind) {
+    case "user":
+      return { kind: "asked", id: item.id, at, whole, text: item.text };
+    case "assistant":
+      return item.text.trim()
+        ? {
+            kind: "answer",
+            id: item.id,
+            at,
+            whole,
+            text: item.text,
+            tone: "reply",
+          }
+        : null;
+    case "error":
+    case "notice":
+      return {
+        kind: "answer",
+        id: item.id,
+        at,
+        whole,
+        text: item.text,
+        tone: item.kind,
+      };
+    case "tool":
+    case "approval":
+      return null;
+    default: {
+      const never: never = item;
+      return never;
+    }
+  }
+};
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  describe("widgets/tutorial-conversation/model/merge", () => {
+    const say = (id: string, at: number): Turn => ({
+      id,
+      kind: "say",
+      step: "write-program",
+      at,
+      whole: false,
+      beatId: id,
+      text: id,
+    });
+    const iso = (at: number) => new Date(at).toISOString();
+    const user = (id: string, at: number, text: string): ChatItem => ({
+      id,
+      createdAt: iso(at),
+      kind: "user",
+      text,
+    });
+    const reply = (id: string, at: number, text: string): ChatItem => ({
+      id,
+      createdAt: iso(at),
+      kind: "assistant",
+      text,
+    });
+    const ids = (entries: FeedEntry[]) =>
+      entries.map((e) => (e.kind === "lesson" ? e.turn.id : e.id));
+
+    it("puts the exchanges between the lesson's turns by time", () => {
+      expect(
+        ids(
+          mergeFeed(
+            [say("a", 1000), say("b", 3000), say("c", 5000)],
+            [user("q", 2000, "what?"), reply("r", 2500, "This.")],
+            null
+          )
+        )
+      ).toEqual(["a", "q", "r", "b", "c"]);
+    });
+
+    it("puts the lesson first on a tie, and keeps late exchanges at the end", () => {
+      expect(
+        ids(
+          mergeFeed(
+            [say("a", 1000)],
+            [user("q", 1000, "now?"), reply("r", 9000, "Yes.")],
+            null
+          )
+        )
+      ).toEqual(["a", "q", "r"]);
+    });
+
+    it("shows only the exchanges after Start over", () => {
+      expect(
+        ids(
+          mergeFeed(
+            [say("a", 6000)],
+            [user("old", 2000, "before"), user("new", 7000, "after")],
+            5000
+          )
+        )
+      ).toEqual(["a", "new"]);
+    });
+
+    it("renders an exchange from before the load whole", () => {
+      const [before, after] = mergeFeed(
+        [],
+        [user("q", 1000, "old"), user("r", 3000, "new")],
+        null,
+        2000
+      );
+      expect(before).toMatchObject({ id: "q", whole: true });
+      expect(after).toMatchObject({ id: "r", whole: false });
+    });
+
+    it("hides tool calls, approvals and a reply with no words yet", () => {
+      const tool: ChatItem = {
+        id: "t",
+        createdAt: iso(2000),
+        kind: "tool",
+        label: "read lib.rs",
+      };
+      const failed: ChatItem = {
+        id: "e",
+        createdAt: iso(4000),
+        kind: "error",
+        text: "The model refused.",
+      };
+      expect(
+        mergeFeed([], [tool, reply("empty", 3000, " "), failed], null)
+      ).toEqual([
+        {
+          kind: "answer",
+          id: "e",
+          at: 4000,
+          whole: false,
+          text: "The model refused.",
+          tone: "error",
+        },
+      ]);
+    });
+  });
+}

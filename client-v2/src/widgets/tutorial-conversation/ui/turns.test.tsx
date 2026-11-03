@@ -6,6 +6,7 @@ import type { ActBeat, Ask, TutorialDefinition } from "@/entities/tutorial";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import BaseActCard from "./BaseActCard";
+import BaseApplyCard from "./BaseApplyCard";
 import BaseFinishCard from "./BaseFinishCard";
 import BaseIntroCard, { HOW_IT_GOES, INTRO_NOTE } from "./BaseIntroCard";
 import BaseResultCard from "./BaseResultCard";
@@ -16,7 +17,11 @@ import { BaseQuestionRecord } from "./BaseQuestionCard";
 import { textOf } from "./Prose";
 import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
-import type { LandedCall, Turn } from "@/features/tutorial-conversation";
+import type {
+  LandedCall,
+  Proposal,
+  Turn,
+} from "@/features/tutorial-conversation";
 
 const definition = hello as unknown as TutorialDefinition;
 const actOf = (id: string) =>
@@ -566,6 +571,8 @@ describe("TurnView", () => {
     allTutorials: vi.fn(),
     copyReceipt: vi.fn(),
     copyFailed: vi.fn(),
+    apply: vi.fn(),
+    keep: vi.fn(),
     showLine: vi.fn(),
   });
   const draw = (turn: Turn, live: boolean) =>
@@ -1007,11 +1014,91 @@ describe("TurnView's last win", () => {
           allTutorials: vi.fn(),
           copyReceipt: vi.fn(),
           copyFailed: vi.fn(),
+          apply: vi.fn(),
+          keep: vi.fn(),
           showLine: vi.fn(),
         }}
       />
     );
     expect(screen.getByText("hello knows your name.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
+  });
+});
+
+describe("BaseApplyCard", () => {
+  const proposal = (
+    state: "open" | "applied" | "kept",
+    applyFailed?: true
+  ): Proposal => {
+    const p: Proposal = {
+      id: "p1",
+      file: "programs/hello/src/lib.rs",
+      line: 10,
+      before: '        msg!("Hello, {}!", name);',
+      after: '        msg!("Once upon a time on devnet");',
+      at: 1,
+      state,
+    };
+    if (applyFailed) p.applyFailed = true;
+    return p;
+  };
+
+  it("shows the line's diff with Apply to lib.rs and Keep it, and applies nothing itself", async () => {
+    const onApply = vi.fn();
+    const onKeep = vi.fn();
+    render(
+      <BaseApplyCard
+        proposal={proposal("open")}
+        onApply={onApply}
+        onKeep={onKeep}
+      />
+    );
+    expect(screen.getByText("programs/hello/src/lib.rs:10")).toBeTruthy();
+    expect(
+      screen.getByText('msg!("Once upon a time on devnet");', { exact: false })
+    ).toBeTruthy();
+    expect(onApply).not.toHaveBeenCalled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Apply to lib.rs" })
+    );
+    expect(onApply).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole("button", { name: "Keep it" }));
+    expect(onKeep).toHaveBeenCalledTimes(1);
+  });
+
+  it("says why an Apply did not land and keeps its buttons", () => {
+    render(
+      <BaseApplyCard
+        proposal={proposal("open", true)}
+        onApply={vi.fn()}
+        onKeep={vi.fn()}
+      />
+    );
+    expect(screen.getByRole("status").textContent).toContain(
+      "the line changed since"
+    );
+    expect(
+      screen.getByRole("button", { name: "Apply to lib.rs" })
+    ).toBeTruthy();
+  });
+
+  it("ends a settled card with what happened, and no buttons", () => {
+    const { rerender } = render(
+      <BaseApplyCard
+        proposal={proposal("applied")}
+        onApply={vi.fn()}
+        onKeep={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Applied.")).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
+    rerender(
+      <BaseApplyCard
+        proposal={proposal("kept")}
+        onApply={vi.fn()}
+        onKeep={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Kept yours.")).toBeTruthy();
   });
 });

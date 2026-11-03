@@ -683,7 +683,8 @@ const wordSent = (
 /** A proposal once Apply landed, failed, or Keep it was pressed */
 const settle = (
   proposal: Proposal,
-  how: "applied" | "applyFailed" | "keep"
+  how: "applied" | "applyFailed" | "keep",
+  at: number
 ): Proposal => {
   const base: Proposal = {
     id: proposal.id,
@@ -694,8 +695,8 @@ const settle = (
     at: proposal.at,
     state: proposal.state,
   };
-  if (how === "applied") return { ...base, state: "applied" };
-  if (how === "keep") return { ...base, state: "kept" };
+  if (how === "applied") return { ...base, state: "applied", settledAt: at };
+  if (how === "keep") return { ...base, state: "kept", settledAt: at };
   return { ...base, applyFailed: true };
 };
 
@@ -1360,7 +1361,7 @@ const reduceAction = (
     case "keep": {
       const proposal = p.proposals.find((x) => x.id === action.id);
       if (!proposal || proposal.state !== "open") return same(state);
-      const settled = settle(proposal, action.type);
+      const settled = settle(proposal, action.type, action.at);
       return withProgress(
         state,
         {

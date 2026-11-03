@@ -6,6 +6,7 @@ export type {
   ConversationProgress,
   Cursor,
   PassedVia,
+  Proposal,
   Receipt,
   ReceiptAccount,
   Resolution,

@@ -60,6 +60,10 @@ vi.mock("@/shared/lib/report-button-failure", () => ({
   reportButtonFailure: vi.fn(() => refuse),
   markUnavailableHere: vi.fn(),
 }));
+// The real one pulls in the editor's globals; the reply's text is what counts
+vi.mock("@/components/Markdown", () => ({
+  default: ({ children }: { children: string }) => <p>{children}</p>,
+}));
 vi.mock("@/utils/editor", () => ({
   PgEditor: { revealLine: vi.fn(), setReadOnly: vi.fn(), focus: vi.fn() },
 }));
@@ -279,6 +283,24 @@ describe("TutorialConversation", () => {
     );
     expect(screen.getAllByRole("status")).toHaveLength(1);
     expect(screen.queryByRole("log")).toBeNull();
+  });
+
+  it("shows the live assistant's exchanges in the feed as they arrive", () => {
+    PgAssistant.clear();
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    act(() => PgAssistant.addUserMessage("what does declare_id do?"));
+    expect(screen.getByText("what does declare_id do?")).toBeTruthy();
+    act(() => {
+      const reply = PgAssistant.startAssistantMessage();
+      PgAssistant.appendToAssistantMessage(
+        reply,
+        "It names the program's address."
+      );
+    });
+    expect(screen.getByText("It names the program's address.")).toBeTruthy();
+    PgAssistant.clear();
   });
 
   it("opens a wrote card's file with its first line in view", async () => {

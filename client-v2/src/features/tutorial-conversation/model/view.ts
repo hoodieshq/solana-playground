@@ -4,6 +4,7 @@ import type {
   Ask,
   Beat,
   Chip,
+  Follow,
   QuestionResult,
   Quote,
   Step,
@@ -17,6 +18,7 @@ import { answerOf } from "./progress";
 import type {
   ConversationProgress,
   PassedVia,
+  Proposal,
   Resolution,
   RunRecord,
   RunResult,
@@ -58,6 +60,105 @@ const lastLandedCall = (
   }
   return latest?.result ?? null;
 };
+
+/** The step a moment belongs to: the last one entered by then, or null */
+const stepAt = (
+  definition: TutorialDefinition,
+  p: ConversationProgress,
+  at: number
+): string | null => {
+  let found: { id: string; from: number } | null = null;
+  for (const step of definition.steps) {
+    const time = p.times[step.id];
+    if (time && time.from <= at && (!found || time.from >= found.from)) {
+      found = { id: step.id, from: time.from };
+    }
+  }
+  return found?.id ?? null;
+};
+
+/**
+ * The composer's records as turns: a word's pill (the act it ran draws its
+ * own card), a refused word's pill and the lesson's answer, a finish chip's
+ * label and answer, and each proposal's apply card, with a wrote card once
+ * it was applied
+ */
+const composerTurns = (
+  definition: TutorialDefinition,
+  p: ConversationProgress
+): Posted[] => {
+  const out: Posted[] = [];
+  p.said.forEach((said, i) => {
+    const step = stepAt(definition, p, said.at);
+    if (said.kind === "chip") {
+      const chip = definition.finish.chips[said.index];
+      if (!chip) return;
+      out.push(
+        {
+          id: `said:${i}`,
+          kind: "you",
+          step: null,
+          at: said.at,
+          text: chip.label,
+          code: false,
+        },
+        {
+          id: `reply:${i}`,
+          kind: "reply",
+          step: null,
+          at: said.at,
+          text: chip.answer,
+          follow: chip.follow ?? null,
+        }
+      );
+      return;
+    }
+    out.push({
+      id: `said:${i}`,
+      kind: "you",
+      step,
+      at: said.at,
+      text: said.text,
+      code: false,
+    });
+    if (said.kind === "refused") {
+      out.push({
+        id: `reply:${i}`,
+        kind: "reply",
+        step,
+        at: said.at,
+        text: PICK_FIRST,
+        follow: null,
+      });
+    }
+  });
+  for (const proposal of p.proposals) {
+    const step = stepAt(definition, p, proposal.at);
+    out.push({
+      id: `apply:${proposal.id}`,
+      kind: "apply",
+      step,
+      at: proposal.at,
+      proposal,
+    });
+    if (proposal.state === "applied") {
+      out.push({
+        id: `wrote:${proposal.id}`,
+        kind: "wrote",
+        step,
+        at: proposal.settledAt ?? proposal.at,
+        beatId: proposal.id,
+        wrote: { file: proposal.file, lines: [proposal.line] },
+        failed: false,
+      });
+    }
+  }
+  return out;
+};
+
+/** The lesson's answer to an action word typed while a question is open */
+export const PICK_FIRST =
+  "Pick an answer above first, or press Skip. Then the button's yours.";
 
 /** The learner's pill when they ask for the hint */
 export const STUCK = "I'm stuck";
@@ -109,6 +210,11 @@ export type Turn = TurnBase &
       }
     | { kind: "say"; beatId: string; text: Text; quote?: Quote }
     | { kind: "you"; text: string; code: boolean }
+    /** The lesson's own answer to the composer: a refused word, or a finish
+     * chip's answer with its quiet button */
+    | { kind: "reply"; text: Text; follow: Follow | null }
+    /** A change the live assistant proposed, waiting for Apply or Keep it */
+    | { kind: "apply"; proposal: Proposal }
     /** A block landed (`wrote`), or could not (`failed`, with `wrote` null) */
     | { kind: "wrote"; beatId: string; wrote: Wrote | null; failed: boolean }
     | {
@@ -543,6 +649,8 @@ export const view = (
     });
   }
 
+  composerTurns(definition, p).forEach(turn);
+
   // Construction order is the lesson's order; time only moves a turn that
   // genuinely came later, such as a hint after its question
   const ordered = all
@@ -766,6 +874,80 @@ if (import.meta.vitest) {
         kind: "act",
         state: "live",
       });
+    });
+
+    it("the composer's records post as pills, the lesson's replies and apply cards, in their step", () => {
+      const v = view(
+        hello,
+        play([
+          { type: "start", at: 1000 },
+          { type: "refuseWord", text: "build", at: 3000 },
+          {
+            type: "propose",
+            proposal: {
+              id: "p1",
+              file: "programs/hello/src/lib.rs",
+              line: 10,
+              before: "old",
+              after: "new",
+            },
+            at: 4000,
+          },
+          { type: "applied", id: "p1", at: 6000 },
+        ]),
+        LATE
+      );
+      const byId = (id: string) => v.turns.find((t) => t.id === id);
+      expect(byId("said:0")).toMatchObject({
+        kind: "you",
+        text: "build",
+        step: "write-program",
+      });
+      expect(byId("reply:0")).toMatchObject({
+        kind: "reply",
+        text: PICK_FIRST,
+      });
+      expect(byId("apply:p1")).toMatchObject({
+        kind: "apply",
+        at: 4000,
+        proposal: { state: "applied", settledAt: 6000 },
+      });
+      // The wrote card sits where Apply landed, not where the card was posted
+      expect(byId("wrote:p1")).toMatchObject({
+        kind: "wrote",
+        at: 6000,
+        wrote: { file: "programs/hello/src/lib.rs", lines: [10] },
+      });
+    });
+
+    it("a finish chip posts its label and the definition's answer, with its quiet button", () => {
+      const done: EngineState = {
+        progress: {
+          version: 1,
+          passed: hello.steps.map((s) => s.id),
+          finishedAt: 60000,
+          startedAt: 1000,
+          restartedAt: null,
+          cursor: { kind: "finished" },
+          beats: {},
+          runs: {},
+          times: {},
+          said: [{ kind: "chip", index: 0, at: 61000 }],
+          proposals: [],
+        },
+        stage: null,
+      };
+      const v = view(hello, done, LATE);
+      const chip = hello.finish.chips[0];
+      expect(v.turns.slice(-2)).toMatchObject([
+        { id: "said:0", kind: "you", text: chip.label, step: null },
+        {
+          id: "reply:0",
+          kind: "reply",
+          text: chip.answer,
+          follow: chip.follow ?? null,
+        },
+      ]);
     });
 
     it("a hint the assistant asked for posts with no I'm stuck pill", () => {

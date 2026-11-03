@@ -7,6 +7,7 @@ import BaseQuestionCard, {
   BaseQuestionWaiting,
 } from "./BaseQuestionCard";
 import BaseResultCard from "./BaseResultCard";
+import BaseApplyCard from "./BaseApplyCard";
 import BaseSay from "./BaseSay";
 import BaseStepDivider from "./BaseStepDivider";
 import BaseWroteCard from "./BaseWroteCard";
@@ -40,6 +41,10 @@ export interface TurnHandlers {
   copyReceipt: () => void;
   /** A copy the clipboard refused */
   copyFailed: (error: unknown) => void;
+  /** The apply card's "Apply to <file>", by proposal id */
+  apply: (id: string) => void;
+  /** The apply card's "Keep it", by proposal id */
+  keep: (id: string) => void;
 }
 
 export interface TurnViewProps {
@@ -135,6 +140,18 @@ const TurnView = ({
       );
     case "hint":
       return <BaseSay text={turn.text} />;
+    case "reply":
+      // TODO(tutorial-flow-v2 3.6): a finish chip's `follow`, the quiet
+      // button after its answer, lands with the composer's chips
+      return <BaseSay text={turn.text} />;
+    case "apply":
+      return (
+        <BaseApplyCard
+          proposal={turn.proposal}
+          onApply={() => on.apply(turn.proposal.id)}
+          onKeep={() => on.keep(turn.proposal.id)}
+        />
+      );
     case "you":
       return <BaseYouPill text={turn.text} code={turn.code} />;
     case "wrote": {

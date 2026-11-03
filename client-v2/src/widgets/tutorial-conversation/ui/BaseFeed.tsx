@@ -3,6 +3,7 @@ import type { ReactNode, RefObject } from "react";
 
 import type { StepJumpVia } from "@/entities/tutorial";
 import type { StepBarItem, Turn } from "@/features/tutorial-conversation";
+import type { FeedEntry } from "../model/merge";
 import { liveStepIndex, stepBeside } from "../model/step-bar";
 import BaseBackPill from "./BaseBackPill";
 import BaseStepBar from "./BaseStepBar";
@@ -26,6 +27,13 @@ export interface BaseFeedProps {
   progress: number;
   /** Draw one turn; `live` says whether it is the card that acts */
   renderTurn: (turn: Turn, live: boolean) => ReactNode;
+  /**
+   * The turns merged with the live assistant's exchanges, by time
+   * (`mergeFeed`); without it the feed shows the turns alone
+   */
+  entries?: readonly FeedEntry[];
+  /** Draw one exchange with the assistant */
+  renderExchange?: (entry: Exclude<FeedEntry, { kind: "lesson" }>) => ReactNode;
   /** The feed moved to step `index`'s divider, from the live step `from` */
   onJump: (index: number, from: number, via: StepJumpVia) => void;
   /** The back pill took the learner to the live card; `step` is its index, null before Start */
@@ -70,9 +78,13 @@ const BaseFeed = ({
   steps,
   progress,
   renderTurn,
+  entries,
+  renderExchange,
   onJump,
   onBack,
 }: BaseFeedProps) => {
+  const shown: readonly FeedEntry[] =
+    entries ?? turns.map((turn) => ({ kind: "lesson", turn }));
   const root = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const dividers = useRef(new Map<string, HTMLElement>());
@@ -171,7 +183,8 @@ const BaseFeed = ({
   // A reload opens on the live card; a new turn scrolls into view unless the
   // learner is reading another step
   const opened = useRef(false);
-  const count = turns.length;
+  // An answer arriving scrolls like a turn does
+  const count = shown.length;
   useLayoutEffect(() => {
     const box = scroller.current;
     if (!box) return;
@@ -186,7 +199,7 @@ const BaseFeed = ({
         behavior: reducedMotion() ? "auto" : "smooth",
       });
     }
-    // Only a change in the number of turns scrolls; reading elsewhere holds
+    // Only a change in the number of entries scrolls; reading elsewhere holds
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count]);
 
@@ -236,7 +249,23 @@ const BaseFeed = ({
           aria-label="Tutorial"
           className="flex flex-col gap-5 px-5 pt-4 pb-4"
         >
-          {turns.map((turn) => {
+          {shown.map((entry) => {
+            if (entry.kind !== "lesson") {
+              return (
+                <div
+                  key={entry.id}
+                  data-turn={entry.kind}
+                  className={
+                    entry.whole
+                      ? "rounded-control"
+                      : "rounded-control motion-safe:animate-rise"
+                  }
+                >
+                  {renderExchange?.(entry)}
+                </div>
+              );
+            }
+            const { turn } = entry;
             const isLive = turn.id === live?.id;
             return (
               <div

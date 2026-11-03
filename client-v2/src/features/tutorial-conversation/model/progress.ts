@@ -74,6 +74,8 @@ export interface Proposal {
   after: string;
   at: number;
   state: "open" | "applied" | "kept";
+  /** When Apply landed or Keep it was pressed */
+  settledAt?: number;
   /** The last Apply could not write; the card stays open to try again */
   applyFailed?: true;
 }
@@ -708,6 +710,7 @@ const proposalSchema = z.object({
   after: z.string(),
   at: z.number(),
   state: z.enum(["open", "applied", "kept"]),
+  settledAt: z.number().optional(),
   applyFailed: z.boolean().optional(),
 });
 
