@@ -4,7 +4,7 @@ import { TriangleAlert } from "lucide-react";
 import { isSignInFailure, PgSession } from "@/features/auth";
 import { useRenderOnChange } from "@/hooks";
 import { ShareGist } from "@/features/gist";
-import type { GistShareSource } from "@/features/gist";
+import type { GistShareSource, SignInEnding } from "@/features/gist";
 import { createLogger } from "@/shared/lib/logger";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { PgView } from "@/utils/view";
@@ -19,6 +19,19 @@ interface ShareGistDialogProps {
   /** Where the dialog was opened, for the share's telemetry */
   source: GistShareSource;
 }
+
+/**
+ * Whether a sign-in ended because the user cancelled it: by a Cancel here,
+ * or on GitHub. `PgSession` holds why its last sign-in failed
+ */
+const isCancel = (error: unknown) => {
+  const state = PgSession.signInState();
+  return (
+    isSignInFailure(error) &&
+    state.status === "failed" &&
+    state.reason === "cancelled"
+  );
+};
 
 /** What the prompt shows for a sign-in that ended without a session */
 const messageOf = (error: unknown) =>
@@ -48,7 +61,7 @@ const SignInToShare = () => {
   useRenderOnChange(PgSession.onDidChange);
   const waiting = PgSession.signInState().status === "pending";
   // A sign-in the user cancelled is said quietly; a real failure in red
-  const [ended, setEnded] = useState<{ message: string; cancelled: boolean }>();
+  const [ended, setEnded] = useState<SignInEnding>();
   // The sign-in settles after a Cancel has closed the dialog
   const mounted = useRef(true);
   // Whether the sign-in under way is this prompt's: one started from the
@@ -96,11 +109,8 @@ const SignInToShare = () => {
         }
         if (mounted.current) {
           setEnded({
+            kind: isCancel(error) ? "cancelled" : "failed",
             message: messageOf(error),
-            cancelled:
-              userEnded &&
-              state.status === "failed" &&
-              state.reason === "cancelled",
           });
         }
       })
@@ -125,12 +135,15 @@ const SignInToShare = () => {
         <p className="text-body font-read text-muted-foreground">
           Your project goes to a gist on your GitHub account.
         </p>
-        {ended?.cancelled && (
-          <p className="text-body font-read text-muted-foreground">
+        {ended?.kind === "cancelled" && (
+          <p
+            role="status"
+            className="text-body font-read text-muted-foreground"
+          >
             {ended.message}
           </p>
         )}
-        {ended && !ended.cancelled && (
+        {ended?.kind === "failed" && (
           <Callout variant="error">
             <TriangleAlert />
             <CalloutDescription>{ended.message}</CalloutDescription>
@@ -165,7 +178,15 @@ const ShareGistDialog = ({ name, readFiles, source }: ShareGistDialogProps) => {
         readFiles={readFiles}
         source={source}
         signedIn={signedIn}
-        signIn={(options) => PgSession.signIn(options)}
+        signIn={(options) =>
+          PgSession.signIn(options).then(
+            () => "signed-in" as const,
+            (error: unknown) => {
+              if (isCancel(error)) return "cancelled" as const;
+              throw error;
+            }
+          )
+        }
         cancelSignIn={() => PgSession.cancelSignIn()}
       />
     </ModalFrame>

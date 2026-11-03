@@ -32,18 +32,24 @@ export interface ShareGistProps {
   signedIn: boolean;
   /**
    * Sign in with GitHub, asking for `scopes` on top of sign-in's own. Passed
-   * in because this feature may not import `auth`. Rejects when the user
-   * cancels or the sign-in fails, with a message fit to show.
+   * in because this feature may not import `auth`. Answers `"cancelled"`
+   * when the user ended it (here or on GitHub), and rejects, with a message
+   * fit to show, when it failed.
    */
-  signIn: (options?: { scopes?: string[] }) => Promise<void>;
+  signIn: (options?: {
+    scopes?: string[];
+  }) => Promise<"signed-in" | "cancelled">;
   /**
-   * Stop the sign-in under way, so the `signIn` it started rejects as
-   * cancelled. Passed in for the same reason as `signIn`.
+   * Stop the sign-in under way, so the `signIn` it started answers
+   * `"cancelled"`. Passed in for the same reason as `signIn`.
    */
   cancelSignIn: () => void;
   /** The page's origin, which the Playground link opens under */
   origin?: string;
 }
+
+/** What the dialog says after a sign-in the user ended */
+const SIGN_IN_CANCELLED = "Sign-in cancelled.";
 
 const messageOf = (error: unknown) =>
   error instanceof Error && error.message ? error.message : "Sign-in failed.";
@@ -81,8 +87,6 @@ const ShareGist = ({
       mounted.current = false;
     };
   }, []);
-  // Whether the sign-in under way ended by this dialog's own Cancel
-  const cancelled = useRef(false);
   const show = (next: ShareStep) => {
     if (mounted.current) setState(next);
   };
@@ -141,22 +145,21 @@ const ShareGist = ({
     scopes: string[] | undefined,
     retry: (ended: SignInEnding) => ShareStep
   ) => {
-    cancelled.current = false;
     show({ step: "waiting", for: scopes ? "grant" : "sign-in" });
+    let ended: SignInEnding | null = null;
     try {
-      await signIn(scopes ? { scopes } : undefined);
+      if ((await signIn(scopes ? { scopes } : undefined)) === "cancelled") {
+        // The user's own doing, said quietly
+        ended = { kind: "cancelled", message: SIGN_IN_CANCELLED };
+      }
     } catch (e) {
-      // `signIn` counted its own failure (`auth_sign_in_failed`); this one is
-      // the share's. A cancel, from here or elsewhere, lands here too
+      ended = { kind: "failed", message: messageOf(e) };
+    }
+    if (ended) {
+      // `signIn` counted its own ending (`auth_sign_in_failed`); this one is
+      // the share's, a cancel included
       failed("sign-in-failed");
-      const message = messageOf(e);
-      show(
-        retry(
-          cancelled.current
-            ? { kind: "cancelled", message }
-            : { kind: "failed", message }
-        )
-      );
+      show(retry(ended));
       return;
     }
     show({ step: "ready" });
@@ -205,11 +208,7 @@ const ShareGist = ({
       onGrant={() =>
         signInThen([GIST_SCOPE], (ended) => ({ step: "grant", ended }))
       }
-      onCancelSignIn={() => {
-        // The rejection it brings is the user's own doing, said quietly
-        cancelled.current = true;
-        cancelSignIn();
-      }}
+      onCancelSignIn={cancelSignIn}
       onCopy={copy}
       copyFailed={copyFailed}
     />

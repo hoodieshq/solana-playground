@@ -287,7 +287,9 @@ const BaseShareGist = ({
       )}
 
       {notice && (
-        <p className="text-body font-read text-muted-foreground">{notice}</p>
+        <p role="status" className="text-body font-read text-muted-foreground">
+          {notice}
+        </p>
       )}
 
       {problem && (

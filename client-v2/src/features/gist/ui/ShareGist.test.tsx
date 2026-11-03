@@ -53,7 +53,7 @@ const answers = (...replies: Array<[number, unknown]>) => {
 
 const renderShare = ({
   signedIn = true,
-  signIn = vi.fn<ShareGistProps["signIn"]>().mockResolvedValue(undefined),
+  signIn = vi.fn<ShareGistProps["signIn"]>().mockResolvedValue("signed-in"),
   cancelSignIn = vi.fn<ShareGistProps["cancelSignIn"]>(),
   readFiles = async () => FILES,
 }: {
@@ -82,16 +82,16 @@ const renderShare = ({
   return { signIn, cancelSignIn };
 };
 
-/** A sign-in whose popup stays open until the test settles it */
+/** A sign-in whose popup stays open until the test cancels it */
 const pendingSignIn = () => {
-  let reject: (error: Error) => void = () => {};
+  let answer: (outcome: "signed-in" | "cancelled") => void = () => {};
   const signIn = vi.fn<ShareGistProps["signIn"]>(
     () =>
-      new Promise<void>((_, no) => {
-        reject = no;
+      new Promise((resolve) => {
+        answer = resolve;
       })
   );
-  return { signIn, reject: (error: Error) => reject(error) };
+  return { signIn, cancel: () => answer("cancelled") };
 };
 
 /** What a body posted to `/api/gists` said about visibility */
@@ -243,9 +243,7 @@ it("signs a signed-out user in, then shares without a second press", async () =>
 it("offers Cancel sign-in while the popup waits, and stays on sign-in after it", async () => {
   const fetch = vi.spyOn(globalThis, "fetch");
   const popup = pendingSignIn();
-  const cancelSignIn = vi.fn(() =>
-    popup.reject(new Error("Sign-in cancelled."))
-  );
+  const cancelSignIn = vi.fn(() => popup.cancel());
   renderShare({ signedIn: false, signIn: popup.signIn, cancelSignIn });
 
   await press(/^Sign in with GitHub$/);
@@ -276,7 +274,7 @@ it("returns to Allow gists after a cancelled grant", async () => {
   const popup = pendingSignIn();
   renderShare({
     signIn: popup.signIn,
-    cancelSignIn: vi.fn(() => popup.reject(new Error("Sign-in cancelled."))),
+    cancelSignIn: vi.fn(() => popup.cancel()),
   });
   await press(/^Share to GitHub$/);
 
@@ -464,3 +462,19 @@ it.each([
     });
   }
 );
+
+it("says a sign-in the user ended on GitHub quietly too, and a failure in red", async () => {
+  const signIn = vi
+    .fn<ShareGistProps["signIn"]>()
+    .mockResolvedValueOnce("cancelled")
+    .mockRejectedValueOnce(new Error("Allow popups for this site to sign in."));
+  renderShare({ signedIn: false, signIn });
+
+  await press(/^Sign in with GitHub$/);
+  expectQuietCancel();
+
+  await press(/^Sign in with GitHub$/);
+  const failure = screen.getByText("Allow popups for this site to sign in.");
+  expect(failure.closest('[data-slot="callout"]')).not.toBe(null);
+  expect(screen.queryByText("Sign-in cancelled.")).toBe(null);
+});
