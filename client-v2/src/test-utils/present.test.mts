@@ -1,4 +1,4 @@
-// Kept out of `present.ts`: `e2e/` imports that module, and Playwright compiles it as CommonJS, where `import.meta` is a syntax error.
+// A test file of its own, not an in-source block in `present.ts`: `e2e/` imports that module, and Playwright compiles it as CommonJS, where the block's `import.meta` is a syntax error.
 
 import { present } from "./present";
 

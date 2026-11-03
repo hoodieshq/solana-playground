@@ -433,12 +433,10 @@ test.describe("assistant-own-key", () => {
     // against a regression that would send the key to our own origin on load
     // or reconnect
     const leaks: string[] = [];
+    // Resolved here: a throw inside the listener would not fail the test
+    const origin = new URL(present("the base URL")(baseURL)).origin;
     page.on("request", (req) => {
-      if (
-        new URL(req.url()).origin !==
-        new URL(present("the base URL")(baseURL)).origin
-      )
-        return;
+      if (new URL(req.url()).origin !== origin) return;
       if (carriesKey(req)) leaks.push(req.url());
     });
 
@@ -471,12 +469,10 @@ test.describe("assistant-own-key", () => {
       });
     });
     const leaks: string[] = [];
+    // Resolved here: a throw inside the listener would not fail the test
+    const origin = new URL(present("the base URL")(baseURL)).origin;
     page.on("request", (req) => {
-      if (
-        new URL(req.url()).origin !==
-        new URL(present("the base URL")(baseURL)).origin
-      )
-        return;
+      if (new URL(req.url()).origin !== origin) return;
       if (carriesKey(req)) leaks.push(req.url());
     });
 

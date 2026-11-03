@@ -539,7 +539,7 @@ it("should take and save the horizontal layout on a wide screen", () => {
   render(<BaseLayoutShell {...wide} />);
   const group = panelSpies.groups["layout-horizontal"];
   expect(group.defaultLayout).toEqual({ assistant: 30, work: 70 });
-  present("group.onLayoutChanged")(group.onLayoutChanged)(
+  present("the group's onLayoutChanged")(group.onLayoutChanged)(
     { assistant: 40, work: 60 },
     { isUserInteraction: true }
   );
@@ -554,13 +554,13 @@ it("should not save a layout the library settled on its own", () => {
   // saving that would pin the sizes of a window the user has since left
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
-  present("panelSpies.groups['layout-horizontal'].onLayoutChanged")(
+  present("the onLayoutChanged of group layout-horizontal")(
     panelSpies.groups["layout-horizontal"].onLayoutChanged
   )({ assistant: 40, work: 60 }, { isUserInteraction: false });
-  present("panelSpies.groups['layout-work'].onLayoutChanged")(
+  present("the onLayoutChanged of group layout-work")(
     panelSpies.groups["layout-work"].onLayoutChanged
   )({ files: 20, center: 80 }, { isUserInteraction: false });
-  present("panelSpies.groups['layout-vertical'].onLayoutChanged")(
+  present("the onLayoutChanged of group layout-vertical")(
     panelSpies.groups["layout-vertical"].onLayoutChanged
   )({ stage: 60, console: 40 }, { isUserInteraction: false });
   expect(wide.onHorizontalLayout).not.toHaveBeenCalled();
@@ -571,7 +571,7 @@ it("should not save a layout the library settled on its own", () => {
 it("should save a vertical layout the user dragged", () => {
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
-  present("panelSpies.groups['layout-vertical'].onLayoutChanged")(
+  present("the onLayoutChanged of group layout-vertical")(
     panelSpies.groups["layout-vertical"].onLayoutChanged
   )({ stage: 60, console: 40 }, { isUserInteraction: true });
   expect(wide.onVerticalLayout).toHaveBeenCalledWith({
@@ -606,7 +606,7 @@ const settled = (
   isUserInteraction: boolean
 ) =>
   act(() =>
-    present("panelSpies.groups[id].onLayoutChanged")(
+    present("the group's onLayoutChanged")(
       panelSpies.groups[id].onLayoutChanged
     )(layout, { isUserInteraction })
   );
@@ -758,9 +758,9 @@ it("should open a reopened files column at the width it was dragged to", () => {
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
   // Dragged to 300 px while open
   act(() =>
-    present("panelSpies.panels['files'].onResize")(
-      panelSpies.panels["files"].onResize
-    )({ inPixels: 300 })
+    present("the onResize of panel files")(panelSpies.panels["files"].onResize)(
+      { inPixels: 300 }
+    )
   );
   rerender(<BaseLayoutShell {...props("wide", { filesOpen: false })} />);
   rerender(<BaseLayoutShell {...props("wide", { filesOpen: true })} />);
@@ -851,7 +851,7 @@ describe("widening the assistant", () => {
     const { seen, assistant } = slot();
     render(<BaseLayoutShell {...props("wide", { assistant })} />);
     act(() =>
-      present("panelSpies.panels.assistant.onResize")(
+      present("the assistant panel's onResize")(
         panelSpies.panels.assistant.onResize
       )({ inPixels: 400 })
     );
@@ -862,7 +862,7 @@ describe("widening the assistant", () => {
     expect(panel.resize).toHaveBeenLastCalledWith(PANEL_SIZES.assistant.max);
     expect(lastOf(seen).wide).toBe(true);
     act(() =>
-      present("panelSpies.panels.assistant.onResize")(
+      present("the assistant panel's onResize")(
         panelSpies.panels.assistant.onResize
       )({
         inPixels: PANEL_SIZES.assistant.max,
@@ -907,7 +907,7 @@ describe("widening the assistant", () => {
     render(<BaseLayoutShell {...wide} />);
     act(() => lastOf(seen).setWide(true));
     act(() =>
-      present("panelSpies.groups['layout-horizontal'].onLayoutChanged")(
+      present("the onLayoutChanged of group layout-horizontal")(
         panelSpies.groups["layout-horizontal"].onLayoutChanged
       )({ assistant: 40, work: 60 }, { isUserInteraction: false })
     );
@@ -923,7 +923,7 @@ describe("widening the assistant", () => {
     act(() => lastOf(seen).setWide(true));
     panel.resize.mockClear();
     act(() =>
-      present("panelSpies.groups['layout-horizontal'].onLayoutChanged")(
+      present("the onLayoutChanged of group layout-horizontal")(
         panelSpies.groups["layout-horizontal"].onLayoutChanged
       )({ assistant: 30, work: 70 }, { isUserInteraction: true })
     );
@@ -971,7 +971,7 @@ describe("widening the assistant", () => {
     );
     act(() => lastOf(seen).setWide(true));
     act(() =>
-      present("panelSpies.panels.assistant.onResize")(
+      present("the assistant panel's onResize")(
         panelSpies.panels.assistant.onResize
       )({
         inPixels: PANEL_SIZES.assistant.max,

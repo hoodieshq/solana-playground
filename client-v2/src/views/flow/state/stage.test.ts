@@ -364,15 +364,23 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    present("buildStart.cb")(buildStart.cb)(null);
-    present("buildFinish.cb")(buildFinish.cb)({
-      err: new StoppedError("Stopped."),
-    });
+    present("the build start listener PgFlow.init subscribed")(buildStart.cb)(
+      null
+    );
+    present("the build finish listener PgFlow.init subscribed")(buildFinish.cb)(
+      {
+        err: new StoppedError("Stopped."),
+      }
+    );
     expect(PgFlow.state.build).toBe(PgFlow.state.buildSettled);
     expect(PgFlow.state.stopped).toBe("build");
 
-    present("deployStart.cb")(deployStart.cb)(null);
-    present("deployFinish.cb")(deployFinish.cb)({
+    present("the deploy start listener PgFlow.init subscribed")(deployStart.cb)(
+      null
+    );
+    present("the deploy finish listener PgFlow.init subscribed")(
+      deployFinish.cb
+    )({
       err: new StoppedError("Stopped."),
     });
     expect(PgFlow.state.deploy).toBe(PgFlow.state.deployBeforeRun);
@@ -423,14 +431,14 @@ describe("PgFlow.init wiring", () => {
     expect(deployCallback).toBeDefined();
 
     // Test error case
-    present("deployCallback")(deployCallback)({
+    present("the deploy listener")(deployCallback)({
       err: new Error("deploy failed"),
     });
     expect(PgFlow.state.deploy).toBe("failed");
     expect(PgFlow.state.stage).toBe("deploy");
 
     // Test success case
-    present("deployCallback")(deployCallback)({ ok: undefined });
+    present("the deploy listener")(deployCallback)({ ok: undefined });
     expect(PgFlow.state.deploy).toBe("done");
     expect(PgFlow.state.interact).toBe("active");
     expect(PgFlow.state.stage).toBe("deploy");
@@ -471,25 +479,31 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    present("deployStartCallback")(deployStartCallback)(null);
+    present("the deploy start listener")(deployStartCallback)(null);
     expect(PgFlow.state.deploy).toBe("running");
 
     // A second click while loading flips `deployState` to "paused" and
     // resolves with `ok: undefined` -- not a real completion.
     PgGlobal.deployState = "paused";
-    present("deployFinishCallback")(deployFinishCallback)({ ok: undefined });
+    present("the deploy finish listener")(deployFinishCallback)({
+      ok: undefined,
+    });
     expect(PgFlow.state.deploy).toBe("running");
 
     // Clicking again to resume flips it to "loading" and also resolves
     // immediately -- still not a real completion.
     PgGlobal.deployState = "loading";
-    present("deployFinishCallback")(deployFinishCallback)({ ok: undefined });
+    present("the deploy finish listener")(deployFinishCallback)({
+      ok: undefined,
+    });
     expect(PgFlow.state.deploy).toBe("running");
 
     // The deploy command itself always settles back to "ready" before its
     // own real finish event fires, success or failure.
     PgGlobal.deployState = "ready";
-    present("deployFinishCallback")(deployFinishCallback)({ ok: undefined });
+    present("the deploy finish listener")(deployFinishCallback)({
+      ok: undefined,
+    });
     expect(PgFlow.state.deploy).toBe("done");
 
     sub.dispose();
@@ -531,13 +545,13 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    present("buildStartCallback")(buildStartCallback)(null);
+    present("the build start listener")(buildStartCallback)(null);
     expect(PgFlow.state.build).toBe("running");
 
     // The build server was unreachable: the `build` command rejects and
     // `PgBuildOutput` never received a value for this run.
     // As `PgServer` throws it for a server that never replied
-    present("buildFinishCallback")(buildFinishCallback)({
+    present("the build finish listener")(buildFinishCallback)({
       err: Object.assign(new Error("Server request failed (x): boom"), {
         answered: false,
       }),
@@ -589,11 +603,11 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    present("buildStartCallback")(buildStartCallback)(null);
+    present("the build start listener")(buildStartCallback)(null);
     expect(PgFlow.state.build).toBe("running");
 
     // As the `build` command throws it before any request
-    present("buildFinishCallback")(buildFinishCallback)({
+    present("the build finish listener")(buildFinishCallback)({
       err: Object.assign(new Error("lib.rs is empty."), {
         emptyFile: "src/lib.rs",
       }),
@@ -644,7 +658,7 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    present("buildStartCallback")(buildStartCallback)(null);
+    present("the build start listener")(buildStartCallback)(null);
     // The real build output for this run already arrived and was handled.
     buildOutputModule.PgBuildOutput.latest = {
       stderr: "error: could not compile `hello`",
@@ -652,7 +666,7 @@ describe("PgFlow.init wiring", () => {
       at: Date.now() + 1000,
     };
 
-    present("buildFinishCallback")(buildFinishCallback)({
+    present("the build finish listener")(buildFinishCallback)({
       err: new Error("build command threw"),
     });
     // Still "running" -- the onDidFinish handler declined to dispatch a
@@ -792,8 +806,9 @@ describe("PgFlow.init, seeding a reloaded page", () => {
     const sub = PgFlow.init();
     return {
       sub,
-      reset: () => present("workspaceChange")(workspaceChange)(),
-      onChainArrived: () => present("onChainChange")(onChainChange)(),
+      reset: () => present("the workspace change listener")(workspaceChange)(),
+      onChainArrived: () =>
+        present("the on-chain change listener")(onChainChange)(),
     };
   };
 

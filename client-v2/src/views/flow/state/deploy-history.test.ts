@@ -101,13 +101,13 @@ describe("PgDeployHistory.init wiring", () => {
     expect(deployCallback).toBeDefined();
 
     // Test error case: should not record
-    present("deployCallback")(deployCallback)({
+    present("the deploy listener")(deployCallback)({
       err: new Error("deploy failed"),
     });
     expect(PgDeployHistory.list("w")).toHaveLength(0);
 
     // Test success case: should record with null signature
-    present("deployCallback")(deployCallback)({ ok: undefined });
+    present("the deploy listener")(deployCallback)({ ok: undefined });
     const list = PgDeployHistory.list("w");
     expect(list).toHaveLength(1);
     expect(list[0].programId).toBe("Prog111");
@@ -139,17 +139,17 @@ describe("PgDeployHistory.init wiring", () => {
     // A second click while a deploy is running pauses it and resolves the
     // command promise with `ok: undefined` -- not a real completion.
     PgGlobal.deployState = "paused";
-    present("deployCallback")(deployCallback)({ ok: undefined });
+    present("the deploy listener")(deployCallback)({ ok: undefined });
     expect(PgDeployHistory.list("w")).toHaveLength(0);
 
     // Resuming does the same: the resume click itself resolves immediately.
     PgGlobal.deployState = "loading";
-    present("deployCallback")(deployCallback)({ ok: undefined });
+    present("the deploy listener")(deployCallback)({ ok: undefined });
     expect(PgDeployHistory.list("w")).toHaveLength(0);
 
     // The real completion, once the deploy command actually finishes.
     PgGlobal.deployState = "ready";
-    present("deployCallback")(deployCallback)({ ok: undefined });
+    present("the deploy listener")(deployCallback)({ ok: undefined });
     expect(PgDeployHistory.list("w")).toHaveLength(1);
 
     sub.dispose();

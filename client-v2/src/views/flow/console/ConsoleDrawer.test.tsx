@@ -165,7 +165,11 @@ it("should show the flow's status as it changes", () => {
   render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
   expect(screen.queryByText(/Building/)).toBeNull();
 
-  act(() => present("flow.listener")(flow.listener)(flowState("running")));
+  act(() =>
+    present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
+      flowState("running")
+    )
+  );
 
   expect(screen.getByText(/^Building…/)).toBeTruthy();
 });
@@ -187,7 +191,7 @@ describe("the strip's clock", () => {
     render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
     // Mounted 5 s into the run, as after a remount
     act(() =>
-      present("flow.listener")(flow.listener)(
+      present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
         flowState("running", { buildStartedAt: Date.now() - 5_000 })
       )
     );
@@ -200,7 +204,7 @@ describe("the strip's clock", () => {
   it("should count a deploy from when the strip saw it start", () => {
     render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
     act(() =>
-      present("flow.listener")(flow.listener)(
+      present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
         flowState("done", { deploy: "running" })
       )
     );
@@ -212,12 +216,12 @@ describe("the strip's clock", () => {
   it("should stop counting once the run is over", () => {
     render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
     act(() =>
-      present("flow.listener")(flow.listener)(
+      present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
         flowState("done", { deploy: "running" })
       )
     );
     act(() =>
-      present("flow.listener")(flow.listener)(
+      present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
         flowState("done", { deploy: "done" })
       )
     );
