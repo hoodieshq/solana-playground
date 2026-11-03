@@ -168,9 +168,11 @@ const CopyText = ({
     const t = setTimeout(() => setCopied(false), 1600);
     return () => clearTimeout(t);
   }, [copied]);
+  // Through a promise from the start, so a browser with no clipboard (an
+  // insecure context) is reported too rather than throwing in the click
   const onCopy = () =>
-    navigator.clipboard
-      .writeText(value)
+    Promise.resolve()
+      .then(() => navigator.clipboard.writeText(value))
       .then(() => setCopied(true))
       .catch(reportButtonFailure(what));
   return (
