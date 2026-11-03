@@ -262,9 +262,10 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
                   {p.tool === "anchor" && (
                     <>
                       {" "}
-                      anchor idl init signs with the wallet in Anchor.toml; on
-                      Anchor 1.0 and later it writes the same Program Metadata
-                      account, so the first command is enough.
+                      <code className="font-mono">anchor idl init</code> signs
+                      with the wallet in Anchor.toml; on Anchor 1.0 and later it
+                      writes the same Program Metadata account, so the first
+                      command is enough.
                     </>
                   )}
                   {!p.programId && (

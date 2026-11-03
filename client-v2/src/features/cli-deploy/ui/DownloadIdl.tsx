@@ -14,7 +14,7 @@ const DownloadIdl = ({ describedBy }: { describedBy: string }) => {
   const idl = useIdl();
   const fileName = `${useProgramName()}.json`;
 
-  const onDownload = () => {
+  const handleDownload = () => {
     if (!idl) return;
     try {
       saveFile(
@@ -34,7 +34,7 @@ const DownloadIdl = ({ describedBy }: { describedBy: string }) => {
     <BaseDownloadIdl
       fileName={fileName}
       hasIdl={Boolean(idl)}
-      onDownload={onDownload}
+      onDownload={handleDownload}
       describedBy={describedBy}
     />
   );

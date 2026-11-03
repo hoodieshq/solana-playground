@@ -37,7 +37,7 @@ current cluster when that is devnet or mainnet-beta, else on Devnet.
   hello_anchor-keypair.json target/deploy/` and `anchor deploy
   --provider.cluster mainnet`
 
-#### Scenario: IDL upload on mainnet
+#### Scenario: IDL upload on mainnet (manual)
 
 - **WHEN** the guide is open for `hello_anchor` with program id `<id>`, an
   IDL, Solana CLI and Mainnet
@@ -45,13 +45,13 @@ current cluster when that is devnet or mainnet-beta, else on Devnet.
   idl <id> hello_anchor.json --rpc https://api.mainnet-beta.solana.com` with
   a copy button, and no `anchor idl init`
 
-#### Scenario: IDL upload with Anchor
+#### Scenario: IDL upload with Anchor (manual)
 
 - **WHEN** the user picks Anchor and Devnet
 - **THEN** step 3.1 shows the Program Metadata command and below it
   `anchor idl init -f hello_anchor.json <id> --provider.cluster devnet`
 
-#### Scenario: No IDL
+#### Scenario: No IDL (manual)
 
 - **WHEN** the project has no IDL
 - **THEN** "Download IDL" is off and step 3.1 shows no command
@@ -66,7 +66,8 @@ content:
   "no-build" | "not-built" | "server" | "save" }`: no binary was saved;
   `no-build` with no build id in the browser, `not-built` when the server no
   longer holds the build, `save` when the browser refused the file;
-- `cli_idl_downloaded` `{}`: the guide's "Download IDL" was pressed;
+- `cli_idl_downloaded` `{}`: the guide's "Download IDL" handed the IDL to
+  the browser to save;
 - `cli_guide_opened` `{ from: "mainnet-warning" | "deploy-stage" }`;
 - `cli_command_copied` `{ tool: "solana" | "anchor", cluster: "devnet" |
   "mainnet", step: "deploy" | "idl" }`: a command's copy button was pressed,
