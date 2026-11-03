@@ -378,6 +378,74 @@ describe("components/SearchBar", () => {
     expect(failures.actions).toEqual([]);
   });
 
+  it("Enter on a nested match picks it with its group", async () => {
+    const setSelectedItems = vi.fn();
+    render(
+      <Harness
+        items={[
+          "Token",
+          { label: "All programs", items: ["System", "Token Metadata"] },
+        ]}
+        setSelectedItems={setSelectedItems}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.type(input(), "token");
+    expect(optionNames()).toEqual(["Token", "Token Metadata"]);
+
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+    expect(input().value).toBe("Token Metadata");
+    expect(lastLabels(setSelectedItems)).toEqual([
+      "All programs",
+      "Token Metadata",
+    ]);
+  });
+
+  it("lists nested matches alone, with no empty-list line", async () => {
+    render(
+      <Harness
+        items={["Random", { label: "Pyth", items: ["Crypto.BTC/USD"] }]}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.type(input(), "btc");
+    expect(optionNames()).toEqual(["Crypto.BTC/USD"]);
+    expect(screen.queryByText("No match")).toBeNull();
+  });
+
+  it("leaves out a group's entry that opens a list of its own", async () => {
+    render(
+      <Harness
+        items={[
+          {
+            label: "Signers",
+            items: [{ label: "wallet list", items: ["inner"] }, "wallet one"],
+          },
+        ]}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.type(input(), "wallet");
+    expect(optionNames()).toEqual(["wallet one"]);
+  });
+
+  it("loads a group's list again once the list was closed", async () => {
+    const load = vi.fn(() =>
+      Promise.resolve([{ label: "Crypto.SOL/USD", value: "sol-feed" }])
+    );
+    render(<Harness items={[{ label: "Pyth", items: load }]} />);
+    await userEvent.click(input());
+    await userEvent.type(input(), "sol");
+    await screen.findByRole("option", { name: "Crypto.SOL/USD" });
+
+    await userEvent.keyboard("{Escape}");
+    await userEvent.clear(input());
+    await userEvent.click(input());
+    await userEvent.type(input(), "sol");
+    await screen.findByRole("option", { name: "Crypto.SOL/USD" });
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
   it("the search button opens the list", async () => {
     render(<Harness items={["a"]} />);
     await userEvent.click(screen.getByRole("button", { name: "Search" }));

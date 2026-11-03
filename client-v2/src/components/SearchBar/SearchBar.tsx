@@ -226,8 +226,10 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
     : undefined;
 
   // Typing on the top level also searches inside the groups, so an entry
-  // need not be found by opening each group in turn. Not with a caller's own
-  // `filter`, nor once the input is a valid value (every item shows then).
+  // need not be found by opening each group in turn. Not inside an opened
+  // group (its entries are the list already), not on an empty input (nothing
+  // to search for, and no group list is loaded for it), not with a caller's
+  // own `filter`, and not once the input is a valid value (every item shows).
   const isSearchingGroups =
     !!normalizedItems &&
     !filter &&
@@ -243,13 +245,19 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
           const children = groupLists.get(group.label) ?? [];
           return children
             .map(normalizeItem)
+            .map((child, index) => ({ child, index }))
             .filter(
-              (child) =>
+              ({ child }) =>
+                // Only an entry a pick completes: one that opens a list or a
+                // page of its own is reached through its group
+                !child.items &&
+                !child.DropdownComponent &&
                 !child.onlyShowIfValid &&
                 matchesQuery(props.value)(withValueMatch(child))
             )
-            .map((child) => ({
-              key: `${group.label}›${child.label}`,
+            .map(({ child, index }) => ({
+              // Two entries of a group can share a label (feeds of one name)
+              key: `${group.label}›${index}›${child.label}`,
               group,
               item: {
                 ...child,
@@ -323,7 +331,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
       reportButtonFailure(`pick ${normalizeItem(item).label}`)
     );
   };
-  /** Pick a row; a nested one as if its group were opened first */
+  /** Pick a row; a nested one with its group recorded as the pending parent */
   const pickRow = (row: Row) => {
     const { group } = row;
     if (group) setSelectedItems((items) => ({ ...items, pending: [group] }));
@@ -662,8 +670,9 @@ const matchesQuery = (query: string) => (item: NormalizedItem) => {
 };
 
 /**
- * `item` also matched by its value, so an entry found inside a group (a
- * program, a Pyth feed) is found by its address as well as its name
+ * `item` with a string `value` added to its `matches` (its label by default),
+ * so an entry found inside a group (a program, a Pyth feed) is found by its
+ * address as well as its name. A function `matches` decides alone.
  */
 const withValueMatch = (item: NormalizedItem): NormalizedItem => {
   if (typeof item.value !== "string" || typeof item.matches === "function") {
@@ -672,7 +681,7 @@ const withValueMatch = (item: NormalizedItem): NormalizedItem => {
   return { ...item, matches: [...(item.matches ?? [item.label]), item.value] };
 };
 
-/** Consecutive nested rows of one group, for a heading each */
+/** Consecutive nested rows of one group, for a heading each; top rows drop */
 const groupRowsOf = (rows: Row[]) =>
   rows.reduce<Array<{ group: NormalizedItem; rows: Row[] }>>((acc, row) => {
     const last = acc.at(-1);
@@ -683,46 +692,63 @@ const groupRowsOf = (rows: Row[]) =>
   }, []);
 
 /**
- * The lists of the groups among `items`, by group label, loaded the first
- * time they are asked for and kept until `clear`. `items` is rebuilt on every
- * render of most callers, so a group is known by its label, not its identity.
- * A group whose list fails to load is left out of the search: its own page
- * reports the failure when the user opens it.
+ * The lists of the groups among `items`, by group label. A list given as an
+ * array is read as it is; one behind a function (Pyth, token and mint
+ * accounts) is loaded the first time a search asks for it and kept until
+ * `clear`, which the list's closing calls, so a reopened list loads afresh.
+ * `items` is rebuilt on every render of most callers, so a group is known by
+ * its label, not its identity. A list that fails to load is left out of the
+ * search until then, not retried on every keystroke: its own page reports the
+ * failure when the user opens it. A load that settles after a `clear` is
+ * dropped by its generation.
  */
 const useGroupLists = (items: Item[] | null | undefined) => {
-  const lists = useRef(new Map<string, Item[]>());
+  const loaded = useRef(new Map<string, Item[]>());
   const requested = useRef(new Set<string>());
+  const generation = useRef(0);
   const [, setLoaded] = useState(0);
 
   useEffect(() => {
     for (const item of items ?? []) {
-      if (typeof item !== "object" || !item.items) continue;
-      const { label, items: source } = item;
+      if (typeof item !== "object" || typeof item.items !== "function") {
+        continue;
+      }
+      const { label, items: load } = item;
       if (requested.current.has(label)) continue;
       requested.current.add(label);
 
+      const asked = generation.current;
       Promise.resolve()
-        .then(() => PgCommon.callIfNeeded(source))
-        .then((list) => {
-          if (!requested.current.has(label)) return;
-          lists.current.set(label, list);
-          setLoaded((n) => n + 1);
-        })
-        .catch((e) => {
-          log.debug("A group's list did not load for the search; skipped", {
-            context: {
-              group: label,
-              message: e instanceof Error ? e.message : String(e),
-            },
-          });
-        });
+        .then(load)
+        .then(
+          (list) => {
+            if (asked !== generation.current) return;
+            loaded.current.set(label, list);
+            setLoaded((n) => n + 1);
+          },
+          (e: unknown) => {
+            log.debug("A group's list did not load for the search; skipped", {
+              context: {
+                group: label,
+                message: e instanceof Error ? e.message : String(e),
+              },
+            });
+          }
+        );
     }
   }, [items]);
 
   return {
-    get: (label: string) => lists.current.get(label),
+    get: (label: string) => {
+      const item = items?.find(
+        (item) => typeof item === "object" && item.label === label
+      );
+      if (typeof item !== "object") return undefined;
+      return Array.isArray(item.items) ? item.items : loaded.current.get(label);
+    },
     clear: () => {
-      lists.current.clear();
+      generation.current += 1;
+      loaded.current.clear();
       requested.current.clear();
     },
   };

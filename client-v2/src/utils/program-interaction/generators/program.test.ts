@@ -1,18 +1,17 @@
-// Stubs the build's settings and mocks the wasm packages before the
-// playground's utils load, so a file of its own (AGENTS.md, "a module's unit
-// tests live in the module")
+// Calls `vi.mock` of its own, so a file of its own rather than an in-source
+// block (AGENTS.md, "a module's unit tests live in the module")
 import { describe, expect, it, vi } from "vitest";
 
 import { getPrograms } from "./program";
 import { PgWeb3 } from "../../web3";
 
-// `utils` reads the settings the build injects, which only exist once the
-// app has booted
+// `utils` reads `GLOBAL_SETTINGS`, a global only webpack defines, absent
+// under vitest
 vi.hoisted(() => {
   vi.stubGlobal("GLOBAL_SETTINGS", { default: {} });
 });
 
-// The wasm packages are built separately and absent from a plain checkout
+// The real wasm packages need a Rust build; the mock keeps the test off them
 vi.mock("../../package", () => ({ PgPackage: {} }));
 
 describe("utils/program-interaction/generators/program", () => {
