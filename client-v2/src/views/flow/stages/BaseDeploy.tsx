@@ -81,10 +81,10 @@ export interface BaseDeployProps {
    * so the button is held.
    */
   deploy: DeployStatus;
-  /** The project's own program id, shown before the first deployment */
+  /** The project's own program id, shown until it has a deployment on the network picked */
   programId: string | null;
   details: DeployDetails;
-  /** Every deployment of the project, newest first */
+  /** Every deployment of the project on any network, newest first; the stage reads the network picked from it */
   history: DeployRecord[];
   /** The wallet that pays, Playground or connected; absent while none is current */
   payer: DeployPayer | undefined;
@@ -306,7 +306,11 @@ const HistoryLink = ({ p, r }: { p: BaseDeployProps; r: DeployRecord }) => {
   );
 };
 
-/** Every deployment, newest first; drawn once there is one */
+/**
+ * Every deployment on any network, newest first, each row under its own
+ * network; drawn whenever one exists, even while the network picked has none,
+ * so a deployment elsewhere is never hidden
+ */
 const History = ({ p }: { p: BaseDeployProps }) => (
   <section aria-label="History" className="flex w-full flex-col gap-2">
     <h3 className="text-caption font-act text-muted-foreground">History</h3>
@@ -451,7 +455,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
             {deployLabel(p, latest !== undefined)}
             {!running && <BrandButtonIcon />}
           </BrandButton>
-          {/* Upload IDL and the CLI guide: before the first deploy, centred
+          {/* Upload IDL and the CLI guide: before the first deploy on this network, centred
               under the pill on a desk and above it on a phone, where the row
               stretches the pill to the screen's width; after one, beside the
               pill */}
