@@ -60,14 +60,16 @@ that tutorial's saved progress:
   "Write, deploy and call your first program", Lumberjack "Keep a player's
   state on chain and refill energy over time", Zero Copy "Make accounts
   bigger than a program's memory"), a meta line ("<minutes> min · <m> steps
-  · <level> · <framework> · by <author>"; "<m> pages" and no minutes for a
-  tutorial without a definition) and **Start**.
+  · <level> · <framework> · by <author>", or on a phone "<level> · <m> steps
+  · <minutes> min"; "<m> pages" and no minutes for a tutorial without a
+  definition) and **Start**.
 - Started: the label "Continue · Step <n> of <m>", `n` the first step not
   passed (the last step once every step passed and the finish has not shown) ("Continue · Page <n> of <m>" for a tutorial without a definition),
   the line "Next: <that step's objective>" (the description without a
   definition), a meter with "<passed> of <m>", and **Continue**.
 - Completed (all three done): the label "Completed" with a tick, the
-  definition's finish headline (the description without one), and
+  lesson's headline without its full stop (Zero Copy "You read 40 KB
+  without copying it"), and
   **Open again**; no tutorial after Zero Copy is offered.
 
 The banner's action SHALL open its tutorial as its card does (a definition

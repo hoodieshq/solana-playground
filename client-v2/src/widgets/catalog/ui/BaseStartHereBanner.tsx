@@ -114,7 +114,10 @@ const BaseStartHereBanner = ({
           ) : null}
           {b.state === "fresh" ? (
             <p className="mt-3 text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">
-              {b.meta}
+              <span className="max-md:hidden">{b.meta}</span>
+              {/* A phone's column takes the facts that decide a start; the
+                  framework and the author are on the card below */}
+              <span className="md:hidden">{b.phoneMeta}</span>
             </p>
           ) : null}
           <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">

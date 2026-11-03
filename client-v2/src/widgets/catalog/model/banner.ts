@@ -16,6 +16,8 @@ export type Banner = {
       state: "fresh";
       /** The facts that decide a start */
       meta: string;
+      /** The same on a phone, level first; the card below names the rest */
+      phoneMeta: string;
       action: "Start";
     }
   | {
@@ -58,8 +60,8 @@ export const featuredOf = <T extends Pick<TutorialItem, "progress">>(
  */
 export const bannerOf = (
   t: BannerItem,
-  /** What it says of the tutorial before a start: the ladder's line */
-  intro?: string
+  /** What the ladder says of it before a start and once done */
+  ladder?: { line: string; done: string }
 ): Banner => {
   const head = { id: t.id, title: t.title };
   const author = t.authors[0] && `by ${t.authors[0].name}`;
@@ -70,8 +72,9 @@ export const bannerOf = (
       ...head,
       state: "completed",
       label: "Completed",
-      // The headline without its full stop, as the prototype sets a banner line
-      line: t.lesson?.finish.replace(/\.$/, "") || t.description,
+      // The ladder's headline, else the definition's without its full stop
+      line:
+        ladder?.done ?? (t.lesson?.finish.replace(/\.$/, "") || t.description),
       action: "Open again",
     };
   }
@@ -103,12 +106,16 @@ export const bannerOf = (
   const size = t.lesson
     ? [`${t.lesson.minutes} min`, `${t.pages} steps`]
     : [`${t.pages} pages`];
+  const phoneSize = t.lesson
+    ? [`${t.pages} steps`, `${t.lesson.minutes} min`]
+    : [`${t.pages} pages`];
   return {
     ...head,
     state: "fresh",
     label: "Start here",
-    line: intro ?? t.description,
+    line: ladder?.line ?? t.description,
     meta: [...size, t.level, t.framework, author].filter(Boolean).join(" · "),
+    phoneMeta: [t.level, ...phoneSize].join(" · "),
     action: "Start",
   };
 };
@@ -152,7 +159,10 @@ if (import.meta.vitest) {
 
     it("invites a first start of Hello Anchor", () => {
       expect(
-        bannerOf(helloAnchor(NEW), "Write, deploy and call your first program")
+        bannerOf(helloAnchor(NEW), {
+          line: "Write, deploy and call your first program",
+          done: "You built and called your first Solana program",
+        })
       ).toEqual({
         id: "Hello Anchor",
         title: "Hello Anchor",
@@ -160,6 +170,7 @@ if (import.meta.vitest) {
         label: "Start here",
         line: "Write, deploy and call your first program",
         meta: "10 min · 4 steps · Beginner · Anchor · by acheron",
+        phoneMeta: "Beginner · 4 steps · 10 min",
         action: "Start",
       });
     });
@@ -193,6 +204,15 @@ if (import.meta.vitest) {
       expect(b.line).toBe("You built and called your first Solana program");
       expect(b.action).toBe("Open again");
       expect(b.state).toBe("completed");
+    });
+
+    it("says the ladder's headline once a lesson without a definition is done", () => {
+      expect(
+        bannerOf(lumberjack(DONE), {
+          line: "Keep a player's state on chain and refill energy over time",
+          done: "You built an energy system on chain",
+        }).line
+      ).toBe("You built an energy system on chain");
     });
 
     it("falls back to the description where the definition says nothing", () => {

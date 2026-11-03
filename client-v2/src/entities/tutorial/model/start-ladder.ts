@@ -2,22 +2,34 @@
  * The tutorials the start offers, in the order a new developer takes them:
  * one per level, all Anchor. Home and the Tutorials page list
  * only these; every other tutorial stays registered, so its link and New
- * project's list keep it. `line` is what the Start here banner says of a
- * lesson not yet started, as the tutorial-v2 prototype's lessons write it
- * (`lessons/<slug>.ts`, `line`); a definition has no such field.
+ * project's list keep it. What the Start here banner says of a lesson, as the
+ * tutorial-v2 prototype's lessons write it (`lessons/<slug>.ts`): `line`
+ * before a start, `done` once finished (its `headline`, no full stop); a
+ * definition has neither, and two of the three are not definitions yet.
  */
 export const START_LADDER = [
-  { name: "Hello Anchor", line: "Write, deploy and call your first program" },
+  {
+    name: "Hello Anchor",
+    line: "Write, deploy and call your first program",
+    done: "You built and called your first Solana program",
+  },
   {
     name: "Lumberjack",
     line: "Keep a player's state on chain and refill energy over time",
+    done: "You built an energy system on chain",
   },
-  { name: "Zero Copy", line: "Make accounts bigger than a program's memory" },
+  {
+    name: "Zero Copy",
+    line: "Make accounts bigger than a program's memory",
+    done: "You read 40 KB without copying it",
+  },
 ] as const;
 
-/** The banner's line for a tutorial of the ladder, or undefined */
-export const ladderLine = (name: string): string | undefined =>
-  START_LADDER.find((l) => l.name === name)?.line;
+/** What the banner says of a ladder tutorial before a start and once done */
+export const ladderLine = (
+  name: string
+): { line: string; done: string } | undefined =>
+  START_LADDER.find((l) => l.name === name);
 
 /**
  * The registered tutorials of the ladder, in its order. One that is not
@@ -48,8 +60,11 @@ if (import.meta.vitest) {
     });
 
     it("names each lesson's line", () => {
-      expect(ladderLine("Hello Anchor")).toBe(
-        "Write, deploy and call your first program"
+      expect(ladderLine("Zero Copy")?.line).toBe(
+        "Make accounts bigger than a program's memory"
+      );
+      expect(ladderLine("Zero Copy")?.done).toBe(
+        "You read 40 KB without copying it"
       );
       expect(ladderLine("Hello Seahorse")).toBeUndefined();
     });
