@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 
-import { expect, seedWorkspace, test } from "./fixtures";
+import { consoleTrigger, expect, seedWorkspace, test } from "./fixtures";
 
 type AssistantWindow = Window & {
   __pgAssistant?: {
@@ -153,7 +153,7 @@ test.describe("client-v2-buttons", () => {
     const logged: string[] = [];
     page.on("console", (message) => logged.push(message.text()));
 
-    const drawer = page.getByRole("button", { name: "Terminal", exact: true });
+    const drawer = consoleTrigger(page);
     if ((await drawer.getAttribute("aria-expanded")) !== "true") {
       await drawer.click();
     }
@@ -182,7 +182,7 @@ test.describe("client-v2-buttons", () => {
     // The build server never answers: Spec 08's BUILD-04
     await page.route("**/build", (route) => route.abort("connectionrefused"));
 
-    const drawer = page.getByRole("button", { name: "Terminal", exact: true });
+    const drawer = consoleTrigger(page);
     if ((await drawer.getAttribute("aria-expanded")) === "true") {
       await drawer.click();
     }
