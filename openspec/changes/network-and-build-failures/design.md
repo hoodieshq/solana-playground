@@ -27,6 +27,10 @@ the indicators.
   terminal has no run markers, and the failed build is its last output.
 - Disabling Deploy and Interact while the cluster is down (Spec 06 RUN-27):
   those stages belong to the users'-work scope.
+- Gating the other ways a build starts offline (the explorer's context menu,
+  Deploy's build first, the assistant): only the Build stage's buttons wait.
+  A build started another way offline fails as before, under the offline
+  line.
 
 ## Decisions
 

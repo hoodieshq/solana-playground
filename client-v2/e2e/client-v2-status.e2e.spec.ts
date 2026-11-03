@@ -133,6 +133,25 @@ test.describe("on a 1440 px window", () => {
     await expect(build).toBeEnabled();
   });
 
+  test("client-v2-status: A notice is measured once per onset", async ({
+    seededPage: page,
+  }) => {
+    const lines = linesOn(page);
+    const shown = () =>
+      lines.filter((line) =>
+        line.startsWith("[telemetry:event] status_notice_shown ")
+      );
+    await page.locator("#flow-stage-tab-build").click();
+    await page.context().setOffline(true);
+    await expect(notice(page)).toBeVisible();
+    await page.locator("#flow-stage-tab-deploy").click();
+    await page.locator("#flow-stage-tab-build").click();
+    await expect(notice(page)).toBeVisible();
+    await expect.poll(() => shown().length).toBe(1);
+    expect(shown()[0]).toContain("{notice: offline}");
+    await page.context().setOffline(false);
+  });
+
   test("client-v2-status: A cluster that does not answer on Deploy", async ({
     seededPage: page,
   }) => {
