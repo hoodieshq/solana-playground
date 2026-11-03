@@ -39,8 +39,9 @@ ghost): the Deploy button stays the stage's only accent action.
 ### Requirement: New keypair asks before replacing one
 
 "New keypair" SHALL generate a keypair at once when the project has neither
-a keypair nor a custom id. Otherwise it SHALL open a dialog titled "Are you
-sure you want to create a new program keypair?" with the text "This will
+a keypair nor a custom id. Otherwise it SHALL open a dialog titled "Create a
+new program keypair?" (the legacy "Are you sure you want to…" title ran
+under the dialog's close button) with the text "This will
 create a brand new keypair for your program." (followed by "It also removes
 the custom program id." while one is set), the warning "The old keypair will
 be lost if you don't save it.", a "Save keypair" button that downloads the
@@ -86,7 +87,8 @@ JSON the Solana CLI writes."
 
 Editing the field SHALL show a "Change program id" button. Pressing it
 SHALL set the custom id when the text is a valid public key and say
-"Program id changed"; otherwise it SHALL leave the id unchanged and say "Not
+"Program id changed" (left out while the mismatch warning shows, which it
+would contradict); otherwise it SHALL leave the id unchanged and say "Not
 a valid public key". While a custom id is set, a "Remove custom id" button
 SHALL show; pressing it SHALL remove the custom id, so the keypair's id
 applies again, and say "Custom id removed".

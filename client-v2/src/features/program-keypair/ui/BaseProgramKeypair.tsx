@@ -79,11 +79,19 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
   // text, as the legacy field did; typing alone does not
   useEffect(() => setText(p.programId ?? ""), [p.programId]);
   const edited = text.trim() !== (p.programId ?? "");
+  // A green "changed" beside the mismatch warning would contradict it
   const fieldNote =
-    p.note && p.note !== "refused" ? FIELD_NOTES[p.note] : undefined;
+    p.note && p.note !== "refused" && !(p.note === "changed" && p.mismatch)
+      ? FIELD_NOTES[p.note]
+      : undefined;
 
   return (
-    <section aria-label="Program id" className="flex w-full flex-col gap-3">
+    // The bottom gap keeps the stage's own actions, sticky on a phone, off
+    // the drop zone once the page is scrolled to its end
+    <section
+      aria-label="Program id"
+      className="flex w-full flex-col gap-3 pb-3"
+    >
       <Collapsible open={p.open} onOpenChange={p.onOpenChange}>
         <CollapsibleHeading className="text-caption">
           <CollapsibleChevron />
@@ -131,30 +139,24 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
                 {fieldNote.text}
               </p>
             )}
-            {(edited || p.customId) && (
-              <div className="flex flex-wrap gap-2">
-                {edited && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => p.onChangeId(text.trim())}
-                  >
-                    Change program id
-                  </Button>
-                )}
-                {p.customId && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={p.onRemoveCustomId}
-                  >
-                    Remove custom id
-                  </Button>
-                )}
-              </div>
+            {edited && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="self-start"
+                onClick={() => p.onChangeId(text.trim())}
+              >
+                Change program id
+              </Button>
             )}
           </div>
+          {/* The actions on the id itself, one row, one quiet variant */}
           <div className="flex flex-wrap gap-2">
+            {p.customId && (
+              <Button size="sm" variant="outline" onClick={p.onRemoveCustomId}>
+                Remove custom id
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={p.onNew}>
               New keypair
             </Button>
@@ -191,9 +193,7 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              Are you sure you want to create a new program keypair?
-            </DialogTitle>
+            <DialogTitle>Create a new program keypair?</DialogTitle>
             <DialogDescription>
               This will create a brand new keypair for your program.
               {p.customId && " It also removes the custom program id."}

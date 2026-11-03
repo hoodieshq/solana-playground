@@ -47,7 +47,7 @@ const newKeypair = async (page: Page) => {
   const before = await field(page).inputValue();
   await button(page, "New keypair").click();
   const dialog = page.getByRole("dialog", {
-    name: "Are you sure you want to create a new program keypair?",
+    name: "Create a new program keypair?",
   });
   await expect
     .poll(
@@ -90,7 +90,7 @@ test("client-v2-program-keypair: Replace a keypair", async ({
 
   await button(page, "New keypair").click();
   const dialog = page.getByRole("dialog", {
-    name: "Are you sure you want to create a new program keypair?",
+    name: "Create a new program keypair?",
   });
   await dialog.getByRole("button", { name: "Generate" }).click();
 
@@ -107,7 +107,7 @@ test("client-v2-program-keypair: Cancel", async ({ seededPage: page }) => {
 
   await button(page, "New keypair").click();
   const dialog = page.getByRole("dialog", {
-    name: "Are you sure you want to create a new program keypair?",
+    name: "Create a new program keypair?",
   });
   await expect(dialog).toBeVisible();
   await page.keyboard.press("Escape");
@@ -182,7 +182,9 @@ test("client-v2-program-keypair: Open on a mismatch", async ({
   await newKeypair(page);
   await field(page).fill(OTHER_ID);
   await button(page, "Change program id").click();
-  await expect(block(page).getByText("Program id changed")).toBeVisible();
+  await expect(
+    block(page).getByText(/This program id does not match the program keypair/)
+  ).toBeVisible();
 
   // A fresh load opens the fold by itself: the mismatch blocks a first deploy
   await page.reload();

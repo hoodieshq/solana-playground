@@ -89,7 +89,7 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
 
     expect(
       screen.getByRole("dialog", {
-        name: "Are you sure you want to create a new program keypair?",
+        name: "Create a new program keypair?",
       })
     ).toBeTruthy();
     expect(
@@ -182,6 +182,18 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
     expect(
       screen.getByText(/This program id does not match the program keypair/)
     ).toBeTruthy();
+  });
+
+  it("keeps the green note away from the mismatch warning", () => {
+    draw(props({ note: "changed", customId: true, mismatch: true }));
+    expect(screen.queryByText("Program id changed")).toBeNull();
+  });
+
+  it("puts Remove custom id in the keypair row, as quiet as the rest", () => {
+    draw(props({ customId: true }));
+    const remove = screen.getByRole("button", { name: "Remove custom id" });
+    const create = screen.getByRole("button", { name: "New keypair" });
+    expect(remove.parentElement).toBe(create.parentElement);
   });
 
   it("reports an edit, so the container can drop a stale note", () => {

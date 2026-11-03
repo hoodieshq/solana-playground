@@ -311,7 +311,11 @@ describe("features/program-keypair/ui/ProgramKeypair", () => {
     press("Change program id");
 
     expect(mocks.updates[0].customPk?.equals(OTHER.publicKey)).toBe(true);
-    expect(screen.getByText("Program id changed")).toBeTruthy();
+    // An id that is not the keypair's: the warning speaks, not a green note
+    expect(screen.queryByText("Program id changed")).toBeNull();
+    expect(
+      screen.getByText(/This program id does not match the program keypair/)
+    ).toBeTruthy();
     expect(events()).toEqual([["keypair_custom_id_set", {}]]);
   });
 
