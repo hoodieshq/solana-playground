@@ -4,6 +4,7 @@ import type {
   Ask,
   Beat,
   Chip,
+  QuestionResult,
   Quote,
   Step,
   Text,
@@ -12,6 +13,7 @@ import type {
 } from "@/entities/tutorial";
 
 import { FINISH_DELAY_MS } from "./clock";
+import { answerOf } from "./progress";
 import type {
   ConversationProgress,
   PassedVia,
@@ -49,13 +51,8 @@ interface TurnBase {
   whole: boolean;
 }
 
-/** How a resolved question reads in its record */
-export type AskOutcome =
-  | "first_try"
-  | "retry"
-  | "typed"
-  | "skipped"
-  | "call_panel";
+/** How a resolved question reads in its record (`answerOf`) */
+export type AskOutcome = QuestionResult;
 
 /**
  * An act card's state. `refused` is a call the program refused as the step's
@@ -177,19 +174,6 @@ export interface ViewOptions {
 
 const beatsOf = (step: Step, fail: boolean): Beat[] =>
   fail ? step.onFail ?? [] : step.beats;
-
-const outcomeOf = (r: Resolution): AskOutcome | null => {
-  switch (r.kind) {
-    case "picked":
-      return r.attempts === 1 ? "first_try" : "retry";
-    case "typed":
-      return "typed";
-    case "skipped":
-      return r.via === "call_panel" ? "call_panel" : "skipped";
-    default:
-      return null;
-  }
-};
 
 const attemptsOf = (r: Resolution): number => {
   if (r.kind === "picked") return r.attempts;
@@ -332,7 +316,7 @@ export const view = (
             wrong: "wrong" in r ? r.wrong : [],
             hinted: "hintedAt" in r && r.hintedAt !== undefined,
             writeFailed: "writeFailed" in r && r.writeFailed === true,
-            outcome: outcomeOf(r),
+            outcome: answerOf(r),
             attempts: attemptsOf(r),
           });
           if ("hintedAt" in r && r.hintedAt !== undefined) {

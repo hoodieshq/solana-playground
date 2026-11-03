@@ -87,6 +87,7 @@ const store = PgConversation as unknown as {
   onDidChange: ReturnType<typeof vi.fn>;
   onDidRequestFocus: ReturnType<typeof vi.fn>;
   edit: ReturnType<typeof vi.fn>;
+  typeIt: ReturnType<typeof vi.fn>;
   init: ReturnType<typeof vi.fn>;
   startOver: ReturnType<typeof vi.fn>;
 };
@@ -510,6 +511,105 @@ describe("TutorialConversation", () => {
     act(() => focus({ file: "src/lib.rs", line: "landing" }));
     expect(PgEditor.revealLine).toHaveBeenCalledWith("/hello/src/lib.rs", 5);
     expect(PgEditor.focus).toHaveBeenCalled();
+  });
+
+  it("sends the file typed in before a quick switch to another, not the other", () => {
+    vi.useFakeTimers();
+    let saved = () => {};
+    vi.mocked(PgExplorer.onDidSaveFile).mockImplementation((cb) => {
+      saved = cb as () => void;
+      return { dispose: vi.fn() };
+    });
+    vi.mocked(PgExplorer.getFileContent).mockImplementation((path) =>
+      path === "/hello/src/lib.rs" ? 'msg!("Hello, World!");' : "// client"
+    );
+    const explorer = PgExplorer as unknown as { currentFilePath: string };
+    try {
+      render(<TutorialConversation />);
+      explorer.currentFilePath = "/hello/src/lib.rs";
+      saved();
+      // The learner switches tabs before the typing rests
+      explorer.currentFilePath = "/hello/client/client.ts";
+      saved();
+      expect(store.edit).toHaveBeenCalledWith(
+        "src/lib.rs",
+        'msg!("Hello, World!");'
+      );
+      vi.advanceTimersByTime(300);
+      expect(store.edit).toHaveBeenLastCalledWith(
+        "client/client.ts",
+        "// client"
+      );
+      expect(store.edit).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("puts the caret on a line the engine names, as I'll fix it myself asks", () => {
+    let focus: (f: {
+      file: string;
+      line: number | "landing";
+    }) => void = () => {};
+    store.onDidRequestFocus.mockImplementation((cb) => {
+      focus = cb;
+      return { dispose: vi.fn() };
+    });
+    (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
+      "/hello/src/lib.rs";
+    render(<TutorialConversation />);
+    act(() => focus({ file: "src/lib.rs", line: 9 }));
+    expect(PgEditor.revealLine).toHaveBeenCalledWith("/hello/src/lib.rs", 9);
+    expect(PgEditor.focus).toHaveBeenCalled();
+  });
+
+  it("leaves the focus alone when the file to type in is not in the workspace", () => {
+    let focus: (f: {
+      file: string;
+      line: number | "landing";
+    }) => void = () => {};
+    store.onDidRequestFocus.mockImplementation((cb) => {
+      focus = cb;
+      return { dispose: vi.fn() };
+    });
+    vi.mocked(PgExplorer.getFile).mockReturnValue(null);
+    render(<TutorialConversation />);
+    act(() => focus({ file: "src/gone.rs", line: 3 }));
+    expect(refuse).toHaveBeenCalled();
+    expect(PgEditor.focus).not.toHaveBeenCalled();
+  });
+
+  it("sends Type it myself to the engine for the live question", async () => {
+    const ask = step1.beats.find((b): b is Ask => b.kind === "ask")!;
+    const question: Turn = {
+      id: ask.id,
+      kind: "ask",
+      step: step1.id,
+      at: 2,
+      whole: true,
+      beatId: ask.id,
+      ask,
+      open: true,
+      wrong: [],
+      hinted: false,
+      writeFailed: false,
+      outcome: null,
+      attempts: 0,
+    };
+    const onQuestion: ConversationView = {
+      turns: [divider, question],
+      live: question,
+      steps: onStep2.steps,
+      placeholder: onStep2.placeholder,
+      nextAt: null,
+      finishAt: null,
+    };
+    store.view.mockReturnValue(onQuestion);
+    render(<TutorialConversation />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Type it myself" })
+    );
+    expect(store.typeIt).toHaveBeenCalledWith(ask.id);
   });
 
   it("presses the live act on ⌘↵", () => {

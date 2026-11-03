@@ -4,6 +4,7 @@ import type {
   Ask,
   Beat,
   CallArg,
+  QuestionResult,
   Step,
   TutorialDefinition,
   TutorialEvents,
@@ -11,7 +12,7 @@ import type {
 
 import { TICK_MS } from "./clock";
 import { holds, keyOf, typedKey } from "./landing";
-import { freshProgress } from "./progress";
+import { answerOf, freshProgress } from "./progress";
 import type {
   ConversationProgress,
   Cursor,
@@ -559,29 +560,6 @@ const passStep = (
   ]);
 };
 
-/** How a question resolved, as `tutorial_question_answered` counts it */
-export type QuestionResult =
-  | "first_try"
-  | "retry"
-  | "typed"
-  | "skipped"
-  | "call_panel";
-
-const resultOf = (
-  r: Exclude<Resolution, { kind: "open" }>
-): QuestionResult | null => {
-  switch (r.kind) {
-    case "picked":
-      return r.attempts === 1 ? "first_try" : "retry";
-    case "typed":
-      return "typed";
-    case "skipped":
-      return r.via === "call_panel" ? "call_panel" : "skipped";
-    default:
-      return null;
-  }
-};
-
 /**
  * One `tutorial_question_answered` per question the action took out of
  * `open`, whichever way: a pick, Skip, typing, or a step passed elsewhere.
@@ -598,7 +576,7 @@ const answeredEvents = (
   for (const [id, was] of Object.entries(before.beats)) {
     const now = after.beats[id];
     if (was?.kind !== "open" || !now || now.kind === "open") continue;
-    const result = resultOf(now);
+    const result = answerOf(now);
     if (!result) continue;
     const attempts =
       now.kind === "picked" ? now.attempts : Math.min(3, was.wrong.length + 1);
@@ -1545,6 +1523,16 @@ if (import.meta.vitest) {
           { type: "passed", via: "client", result: OK_BUILD, at: 4000 },
         ]).effects;
         expect(answered(client)).toEqual([event("skipped", 1)]);
+      });
+
+      it("counts a question once, whatever comes after it resolved", () => {
+        const { effects } = play([
+          start,
+          rightPick,
+          { type: "pick", beatId: "s1.q1", option: 1, at: 5100 },
+          { type: "skip", beatId: "s1.q1", at: 5200 },
+        ]);
+        expect(answered(effects)).toEqual([event("first_try", 1)]);
       });
 
       it("caps attempts at 3 and sends nothing for a wrong pick or a hint", () => {

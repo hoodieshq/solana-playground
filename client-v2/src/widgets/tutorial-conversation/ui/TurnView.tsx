@@ -48,9 +48,10 @@ export interface TurnViewProps {
 const linesOf = (content: string | null) => content?.split("\n") ?? [];
 
 /**
- * What a question's record calls it: "Q<n>" counting the tutorial's
- * questions in order, fix questions left out, or "Fix" for a fix question,
- * so the records down the thread say which question each answers.
+ * What a question's record calls it, so the records down the thread say
+ * which question each answers: "Fix" for an ask whose kicker is `Fix it`,
+ * else "Q<n>" counting the tutorial's asks whose kicker is `Question`, in
+ * order. The kicker is one of the two (`Ask["kicker"]`).
  */
 export const questionLabel = (definition: TutorialDefinition, ask: Ask) => {
   if (ask.kicker === "Fix it") return "Fix";
@@ -62,9 +63,9 @@ export const questionLabel = (definition: TutorialDefinition, ask: Ask) => {
 
 /**
  * One turn of the feed as its card: the intro, a divider, the assistant's
- * line, the learner's pill, a wrote card, an act or its result, and the
- * question card, and the stand-ins for the win and finish cards. Only the live turn gets
- * the buttons that act; navigation links stay live on every record.
+ * line, the learner's pill, a wrote card, a question, an act or its result,
+ * and the stand-ins for the win and finish cards. Only the live turn gets the
+ * buttons that act; navigation links stay live on every record.
  */
 const TurnView = ({
   turn,

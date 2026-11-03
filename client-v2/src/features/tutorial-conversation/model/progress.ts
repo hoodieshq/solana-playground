@@ -1,4 +1,8 @@
-import type { Act, ConversationSave } from "@/entities/tutorial";
+import type {
+  Act,
+  ConversationSave,
+  QuestionResult,
+} from "@/entities/tutorial";
 
 /**
  * What a conversation tutorial saves under `conversation` in
@@ -72,6 +76,30 @@ export type Resolution =
     } & Resolved)
   | ({ kind: "typed" } & Resolved)
   | ({ kind: "skipped"; via: SkipVia } & Resolved);
+
+/**
+ * How a resolved question counts, for its record and its event; null for a
+ * beat that is not a resolved question. The one mapping: the record's
+ * qualifier and `tutorial_question_answered` must never disagree.
+ */
+export const answerOf = (r: Resolution): QuestionResult | null => {
+  switch (r.kind) {
+    case "picked":
+      return r.attempts === 1 ? "first_try" : "retry";
+    case "typed":
+      return "typed";
+    case "skipped":
+      return r.via === "call_panel" ? "call_panel" : "skipped";
+    case "said":
+    case "written":
+    case "open":
+      return null;
+    default: {
+      const never: never = r;
+      return never;
+    }
+  }
+};
 
 /**
  * How a question was skipped: its Skip button, a Call panel call that passed

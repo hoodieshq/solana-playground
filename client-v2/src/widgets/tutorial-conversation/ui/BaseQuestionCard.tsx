@@ -27,6 +27,18 @@ export const QUALIFIER: Record<AskOutcome, (attempts: number) => string> = {
   call_panel: () => "skipped, called from the Call panel",
 };
 
+/**
+ * Whether the learner gave the answer (a green check on the record) or the
+ * question was passed by (a skip mark): a skip was not got right
+ */
+const ANSWERED: Record<AskOutcome, boolean> = {
+  first_try: true,
+  retry: true,
+  typed: true,
+  skipped: false,
+  call_panel: false,
+};
+
 const ROWS = [0, 1, 2] as const;
 
 type RowState = "right" | "wrong" | "left";
@@ -38,9 +50,9 @@ const rowState = (right: boolean, wrong: boolean): RowState => {
 };
 
 /**
- * An option as its row shows it. `line` keeps it to one line, for the
- * record's ellipsis; `ruled` draws a ruled-out option in one grey, so the
- * reason under it reads first.
+ * An option as its row shows it. `line` keeps a code option on one line, for
+ * the record, whose row truncates it; `ruled` draws a ruled-out option in one
+ * grey, so the reason under it reads first.
  */
 const OptionText = ({
   ask,
@@ -97,8 +109,7 @@ export const BaseQuestionRecord = ({
   wrong,
 }: BaseQuestionRecordProps) => {
   const [open, setOpen] = useState(false);
-  // Green only for an answer the learner gave; a skip was passed by
-  const answered = outcome !== "skipped" && outcome !== "call_panel";
+  const answered = ANSWERED[outcome];
   return (
     <div>
       <button
@@ -197,6 +208,24 @@ export const BaseQuestionWaiting = ({
   </p>
 );
 
+/**
+ * Whether a key press is the live question's to take. A field keeps its
+ * typing; a chord (⌘S saves), a held key's repeat, an IME composition and a
+ * press something else already handled stay out; and an open dialog or menu
+ * owns the keyboard, so S there never skips the question behind it.
+ */
+const ownsKey = (e: KeyboardEvent) =>
+  !typing(e.target) &&
+  !e.metaKey &&
+  !e.ctrlKey &&
+  !e.altKey &&
+  !e.repeat &&
+  !e.isComposing &&
+  !e.defaultPrevented &&
+  !document.querySelector(
+    "[role='dialog'], [role='alertdialog'], [role='menu']"
+  );
+
 export interface BaseQuestionCardProps {
   ask: Ask;
   /** The options picked wrong so far, in order */
@@ -247,13 +276,22 @@ const BaseQuestionCard = ({
     box.current.focus({ preventScroll: true });
   }, []);
 
-  // The right pick's hold, cancelled if the card goes before it ends
+  // The right pick's hold, cancelled if the card goes before it ends. The
+  // green is let go once sent: a pick the engine refused (an act started
+  // meanwhile) leaves the rows pickable rather than one green row stuck
   useEffect(() => {
     if (right === null) return;
-    const t = window.setTimeout(() => onPick(right), RIGHT_HOLD_MS);
+    const t = window.setTimeout(() => {
+      onPick(right);
+      setRight(null);
+    }, RIGHT_HOLD_MS);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one send per right pick
   }, [right]);
+
+  /** Focus on the card, or on nothing in particular */
+  const inside = (el: Element | null) =>
+    !el || el === document.body || !!box.current?.contains(el);
 
   const pick = (i: number) => {
     if (disabled || right !== null || wrong.includes(i)) return;
@@ -266,14 +304,19 @@ const BaseQuestionCard = ({
     const next =
       ROWS.find((k) => k > i && !wrong.includes(k)) ??
       ROWS.find((k) => k !== i && !wrong.includes(k));
+    // Only while the learner is still here: a click on "Type it myself" in
+    // the same frame keeps the editor
     if (next !== undefined) {
-      requestAnimationFrame(() => rows.current[next]?.focus());
+      requestAnimationFrame(() => {
+        if (!inside(document.activeElement)) return;
+        rows.current[next]?.focus();
+      });
     }
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (typing(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!ownsKey(e)) return;
       const n = ["1", "2", "3"].indexOf(e.key);
       if (n !== -1) {
         e.preventDefault();
@@ -287,7 +330,10 @@ const BaseQuestionCard = ({
       } else if (key === "h") {
         e.preventDefault();
         if (!hinted) onHint();
-      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      } else if (
+        (e.key === "ArrowDown" || e.key === "ArrowUp") &&
+        inside(document.activeElement)
+      ) {
         const at = rows.current.findIndex((r) => r === document.activeElement);
         const down = e.key === "ArrowDown";
         // From no row, ↓ lands on the first and ↑ on the last

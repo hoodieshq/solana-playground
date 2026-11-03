@@ -1,5 +1,18 @@
 import { createTracker } from "@/shared/lib/telemetry";
 
+/**
+ * How a question resolved: a right pick first time or after wrong ones, its
+ * key line typed by hand, skipped (its button, or its step passed by a client
+ * run), or skipped by a Call panel call that passed its step. The record's
+ * qualifier and `tutorial_question_answered` both read it.
+ */
+export type QuestionResult =
+  | "first_try"
+  | "retry"
+  | "typed"
+  | "skipped"
+  | "call_panel";
+
 /** How the feed moved to a step's divider: a bar segment, its narrow menu, or ⌥↑ / ⌥↓ */
 export type StepJumpVia = "bar" | "menu" | "key";
 
@@ -31,14 +44,15 @@ export type TutorialEvents = {
    * A question left open: the right pick, Skip, its key line typed by hand,
    * or its step passed elsewhere (`call_panel` from the Call panel, `skipped`
    * from a client run). `question` is the beat id; `attempts` (1 to 3) is
-   * the picks for a pick, else the wrong picks before it plus one. Fires once
-   * per question; a wrong pick or a hint sends nothing. The question's text
-   * is never sent.
+   * the picks for a pick, else the wrong picks before it plus one. Fires each
+   * time a question leaves open; a wrong pick or a hint sends nothing. Start
+   * over and a step's Reset open it again, so a re-answer counts again. The
+   * question's text is never sent.
    */
   tutorial_question_answered: {
     tutorial: string;
     question: string;
-    result: "first_try" | "retry" | "typed" | "skipped" | "call_panel";
+    result: QuestionResult;
     attempts: number;
   };
   /**

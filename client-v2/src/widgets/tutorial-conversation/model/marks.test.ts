@@ -23,7 +23,7 @@ describe("widgets/tutorial-conversation/model/marks", () => {
   const BOILER =
     'use anchor_lang::prelude::*;\n\ndeclare_id!("11111111111111111111111111111111");';
 
-  const openAsk = (): Turn => ({
+  const askTurn = (open: boolean): Turn => ({
     id: ask.id,
     kind: "ask",
     step: "write-program",
@@ -31,13 +31,14 @@ describe("widgets/tutorial-conversation/model/marks", () => {
     whole: false,
     beatId: ask.id,
     ask,
-    open: true,
+    open,
     wrong: [],
     hinted: false,
     writeFailed: false,
-    outcome: null,
-    attempts: 0,
+    outcome: open ? null : "first_try",
+    attempts: open ? 0 : 1,
   });
+  const openAsk = () => askTurn(true);
   const wroteCard = (lines: number[], whole: boolean, step: string): Turn => ({
     id: `wrote:${step}`,
     kind: "wrote",
@@ -87,5 +88,39 @@ describe("widgets/tutorial-conversation/model/marks", () => {
     expect(
       marksOf(hello, viewOf([old], null), () => BOILER)("src/lib.rs")
     ).toEqual(NONE);
+  });
+
+  it("draws no landing for an answered question, or for a file it cannot read", () => {
+    const answered = askTurn(false);
+    expect(
+      marksOf(hello, viewOf([answered], answered), () => BOILER)("src/lib.rs")
+        .landing
+    ).toBeNull();
+    const ask = openAsk();
+    expect(
+      marksOf(hello, viewOf([ask], ask), () => null)("src/lib.rs")
+    ).toEqual(NONE);
+  });
+
+  it("lights the last of two writes in the file on the live step", () => {
+    const ask = openAsk();
+    const first = wroteCard([1, 2, 3], true, "write-program");
+    const second: Turn = {
+      id: "wrote:second",
+      kind: "wrote",
+      step: "write-program",
+      at: 3,
+      whole: true,
+      beatId: "s1.q1",
+      wrote: { file: "src/lib.rs", lines: [5, 6] },
+      failed: false,
+    };
+    expect(
+      marksOf(
+        hello,
+        viewOf([first, second, ask], ask),
+        () => BOILER
+      )("src/lib.rs").written
+    ).toEqual([5, 6]);
   });
 });

@@ -62,6 +62,8 @@ interface World {
   engine: EngineState;
   files: Record<string, string>;
   events: Effect[];
+  /** The engine's requests for the caret, as `PgConversation` passes them on */
+  focus: Effect[];
 }
 
 /** Carries out a write as the store does: the key line kept in the block */
@@ -74,6 +76,10 @@ const carryOut = (world: World, effect: Effect, at: number): Action[] => {
   }
   if (effect.kind === "event") {
     world.events.push(effect);
+    return [];
+  }
+  if (effect.kind === "focus") {
+    world.focus.push(effect);
     return [];
   }
   if (effect.kind !== "write") return [];
@@ -164,6 +170,7 @@ const started = (): World => {
     engine: INITIAL_ENGINE_STATE,
     files: {},
     events: [],
+    focus: [],
   };
   apply(world, { type: "start", at: now() });
   return world;
@@ -322,19 +329,91 @@ describe("the question card over the engine", () => {
     });
   });
 
-  it("Type it myself asks the engine for the landing in lib.rs", () => {
+  it("Type it myself asks the engine for the caret at the landing in lib.rs", () => {
     const world = started();
-    const effects: Effect[] = [];
-    const r = reduce(ctx, world.engine, {
-      type: "typeIt",
-      beatId: q1.id,
-      at: now(),
-    });
-    effects.push(...r.effects);
     render(<Lesson world={world} />);
-    expect(screen.getByRole("button", { name: "Type it myself" })).toBeTruthy();
-    expect(effects).toEqual([
+    fireEvent.click(screen.getByRole("button", { name: "Type it myself" }));
+    expect(world.focus).toEqual([
       { kind: "focus", file: "src/lib.rs", line: "landing" },
     ]);
+    expect(world.engine.progress.beats["s1.q1"]?.kind).toBe("open");
+  });
+
+  it("posts the definition's hint once, for the button and for H", () => {
+    render(<Lesson world={started()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Hint" }));
+    expect(screen.getAllByText(q1.hint as string)).toHaveLength(1);
+    press("h");
+    expect(screen.getAllByText(q1.hint as string)).toHaveLength(1);
+  });
+
+  it("takes no second click on a ruled-out row", () => {
+    const world = started();
+    render(<Lesson world={world} />);
+    press("1");
+    const card = screen.getByRole("region", {
+      name: "Which line writes to the program log?",
+    });
+    fireEvent.click(within(card).getAllByRole("button")[0]);
+    press("1");
+    expect(world.engine.progress.beats["s1.q1"]).toMatchObject({
+      kind: "open",
+      wrong: [0],
+    });
+  });
+
+  it.each([
+    ["⌘S", { key: "s", metaKey: true }],
+    ["Ctrl+1", { key: "1", ctrlKey: true }],
+    ["a held key's repeat", { key: "s", repeat: true }],
+  ])("leaves %s alone", (_, init) => {
+    const world = started();
+    render(<Lesson world={world} />);
+    fireEvent.keyDown(window, init);
+    act(() => {
+      vi.advanceTimersByTime(RIGHT_HOLD_MS);
+    });
+    expect(world.engine.progress.beats["s1.q1"]?.kind).toBe("open");
+  });
+
+  it("leaves the keys to an open dialog", () => {
+    const world = started();
+    render(
+      <>
+        <div role="dialog" aria-label="Settings">
+          <button type="button">Close</button>
+        </div>
+        <Lesson world={world} />
+      </>
+    );
+    screen.getByRole("button", { name: "Close" }).focus();
+    press("s");
+    expect(world.engine.progress.beats["s1.q1"]?.kind).toBe("open");
+  });
+
+  it("moves between the rows with the arrows, and Enter picks the focused one", () => {
+    const world = started();
+    render(<Lesson world={world} />);
+    const card = screen.getByRole("region", {
+      name: "Which line writes to the program log?",
+    });
+    const rows = within(card).getAllByRole("button").slice(0, 3);
+    press("ArrowDown");
+    expect(document.activeElement).toBe(rows[0]);
+    press("ArrowDown");
+    expect(document.activeElement).toBe(rows[1]);
+    press("ArrowUp");
+    press("ArrowUp");
+    expect(document.activeElement).toBe(rows[0]);
+    // Enter on a focused button is the browser's click
+    press("ArrowDown");
+    fireEvent.click(document.activeElement!);
+    act(() => {
+      vi.advanceTimersByTime(RIGHT_HOLD_MS);
+    });
+    expect(world.engine.progress.beats["s1.q1"]).toMatchObject({
+      kind: "picked",
+      attempts: 1,
+    });
   });
 });

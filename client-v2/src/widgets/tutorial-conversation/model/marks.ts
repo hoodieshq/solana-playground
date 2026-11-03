@@ -12,19 +12,26 @@ import type {
  * question's answer lands.
  */
 export interface FeedMarks {
-  written: number[];
+  readonly written: readonly number[];
   /** The write was posted since the page loaded: its lines flash in once */
-  arriving: boolean;
-  landing: Landing | null;
+  readonly arriving: boolean;
+  readonly landing: Landing | null;
 }
 
-const NONE: FeedMarks = { written: [], arriving: false, landing: null };
+const NONE: FeedMarks = Object.freeze({
+  written: Object.freeze([]),
+  arriving: false,
+  landing: null,
+});
 
 /**
  * The marks for each file, read off the feed's view. Written lines are the
  * last wrote card's in this file on the live step; a write from an earlier
  * step is history, not "what the assistant just did". The landing is the
- * live question's dry run (`landingFor`), as the write would place it now.
+ * live question's dry run (`landingFor`), as the write would place it now;
+ * a file that cannot be read, or a question its step does not know, gets no
+ * landing rather than a guessed one at the top of an empty file. Nothing is
+ * live after the finish, and nothing is marked.
  */
 export const marksOf =
   (
@@ -35,6 +42,7 @@ export const marksOf =
   (file: string): FeedMarks => {
     const live = view.live;
     const step = live?.step ?? null;
+    if (step === null) return NONE;
     const wrote = [...view.turns]
       .reverse()
       .find(
@@ -45,17 +53,20 @@ export const marksOf =
           t.wrote.file === file
       );
     const written =
-      wrote?.kind === "wrote" && wrote.wrote ? [...wrote.wrote.lines] : [];
+      wrote?.kind === "wrote" && wrote.wrote ? wrote.wrote.lines : [];
 
     let landing: Landing | null = null;
     if (live?.kind === "ask" && live.open && live.ask.writes?.file === file) {
       const at = stepOfBeat(definition, live.beatId);
-      landing = landingFor(
-        read(file) ?? "",
-        live.ask.writes.block,
-        at?.target[file],
-        at?.start[file] ?? ""
-      );
+      const code = read(file);
+      if (at && code !== null) {
+        landing = landingFor(
+          code,
+          live.ask.writes.block,
+          at.target[file],
+          at.start[file] ?? ""
+        );
+      }
     }
 
     if (!written.length && !landing) return NONE;
