@@ -163,7 +163,6 @@ describe("BaseBuild", () => {
   });
 
   // An edit after a build needs a new build, without the assistant or a command
-  // An edit after a build needs a new build, without the assistant or a command
   it("offers Build again as the outlined pill beside Deploy", () => {
     const p = props({ kind: "succeeded" });
     render(<BaseBuild {...p} />);

@@ -143,7 +143,7 @@ const BuildButton = ({
 }: {
   p: BaseBuildProps;
   label: string;
-  variant?: "outline" | "link";
+  variant?: "outline";
 }) => (
   <AsyncButton
     variant={variant}
@@ -354,7 +354,9 @@ const Succeeded = (p: BaseBuildProps) => (
         <BuildButton p={p} label="Build again" variant="outline" />
         {/* The one place to download the IDL: a link under the pills, as
             Unreached's Show full log and Deploy's Upload IDL */}
-        <div className="flex w-full justify-center">{p.idlActions}</div>
+        {p.hasIdl && (
+          <div className="flex w-full justify-center">{p.idlActions}</div>
+        )}
       </>
     }
     progress={p}
