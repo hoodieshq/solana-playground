@@ -681,7 +681,8 @@ if (import.meta.vitest) {
       ],
     ];
 
-    it.each(SIGNED_SEEDS)("writes %s %s as %s", (type, value, hex) => {
+    it.each(SIGNED_SEEDS)("writes %s %s as %s", (...row) => {
+      const [type, value, hex] = row;
       const { parse, toBuffer } = getIdlType(type as IdlType);
       expect(toBuffer(parse(value)).toString("hex")).toBe(hex);
     });

@@ -22,12 +22,12 @@ interface Shape {
   confirming?: boolean;
 }
 
-const props = (s: Shape = {}): BaseProgramKeypairProps => ({
+const props = (s: Shape): BaseProgramKeypairProps => ({
   programId: ID,
   hasKeypair: s.hasKeypair ?? true,
   customId: s.customId ?? false,
   mismatch: s.mismatch ?? false,
-  note: s.note ?? null,
+  note: s.note,
   open: s.open ?? true,
   onOpenChange: vi.fn(),
   confirming: s.confirming ?? false,
@@ -41,6 +41,15 @@ const props = (s: Shape = {}): BaseProgramKeypairProps => ({
   onChangeId: vi.fn(),
   onRemoveCustomId: vi.fn(),
 });
+
+const fileInput = () => {
+  const input = screen
+    .getByText("Drop a program keypair here")
+    .closest("label")
+    ?.querySelector("input");
+  if (!input) throw new Error("the keypair drop zone has no file input");
+  return input;
+};
 
 const draw = (p: BaseProgramKeypairProps) =>
   render(
@@ -64,7 +73,7 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
   });
 
   it("shows the id, its copy button and the hint when open", () => {
-    draw(props());
+    draw(props({}));
 
     const field = screen.getByRole("textbox", { name: "Program id" });
     expect((field as HTMLInputElement).value).toBe(ID);
@@ -77,7 +86,7 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
   });
 
   it("asks for a new keypair through onNew", () => {
-    const p = props();
+    const p = props({});
     draw(p);
     press("New keypair");
     expect(p.onNew).toHaveBeenCalledTimes(1);
@@ -113,7 +122,7 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
   });
 
   it("hands a dropped file to onImport", () => {
-    const p = props();
+    const p = props({});
     draw(p);
     const file = new File(["[]"], "program-keypair.json");
     fireEvent.drop(screen.getByLabelText("Import keypair"), {
@@ -123,19 +132,16 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
   });
 
   it("hands a picked file to onImport", () => {
-    const p = props();
+    const p = props({});
     draw(p);
     const file = new File(["[]"], "program-keypair.json");
-    const input = screen
-      .getByText("Drop a program keypair here")
-      .closest("label")!
-      .querySelector("input")!;
+    const input = fileInput();
     fireEvent.change(input, { target: { files: [file] } });
     expect(p.onImport).toHaveBeenCalledWith(file);
   });
 
   it("exports the keypair, and hides Export with none or a custom id", () => {
-    const p = props();
+    const p = props({});
     const { unmount } = draw(p);
     press("Export keypair");
     expect(p.onExport).toHaveBeenCalledTimes(1);
@@ -151,7 +157,7 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
   });
 
   it("offers Change program id once the text differs, trimmed", () => {
-    const p = props();
+    const p = props({});
     draw(p);
     expect(
       screen.queryByRole("button", { name: "Change program id" })
@@ -165,7 +171,7 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
   });
 
   it("removes a custom id, offered only while one is set", () => {
-    const { unmount } = draw(props());
+    const { unmount } = draw(props({}));
     expect(
       screen.queryByRole("button", { name: "Remove custom id" })
     ).toBeNull();

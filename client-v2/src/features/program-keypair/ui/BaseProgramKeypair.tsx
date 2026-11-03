@@ -28,11 +28,16 @@ import {
 import { Input } from "@/shared/ui/input";
 
 /** The line under the field or the drop zone after an action */
-export type KeypairNote = "changed" | "invalid" | "removed" | "refused" | null;
+export type KeypairNote =
+  | "changed"
+  | "invalid"
+  | "removed"
+  | "refused"
+  | undefined;
 
 export interface BaseProgramKeypairProps {
-  /** The id a deploy goes to: the custom id, else the keypair's; null with neither */
-  programId: string | null;
+  /** The id a deploy goes to: the custom id, else the keypair's; undefined with neither */
+  programId: string | undefined;
   hasKeypair: boolean;
   /** A custom program id overrides the keypair's */
   customId: boolean;

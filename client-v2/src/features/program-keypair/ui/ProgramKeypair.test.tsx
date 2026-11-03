@@ -17,6 +17,7 @@ interface Info {
 }
 
 const mocks = vi.hoisted(() => ({
+  // eslint-disable-next-line unicorn/no-null -- the mock mirrors PgProgramInfo, whose kp and customPk are null when unset
   info: { kp: null, customPk: null } as Info,
   deployed: false,
   listeners: new Set<() => void>(),
@@ -48,6 +49,7 @@ vi.mock("@/utils", async () => {
         return mocks.info.customPk;
       },
       get pk() {
+        // eslint-disable-next-line unicorn/no-null -- mirrors PgProgramInfo.pk, which is null with neither
         return mocks.info.customPk ?? mocks.info.kp?.publicKey ?? null;
       },
       update: (patch: Partial<Info>) => {
@@ -73,7 +75,7 @@ vi.mock("@/hooks", async () => {
     ) => {
       const [, rerender] = useReducer((n: number) => n + 1, 0);
       useEffect(() => onDidChange(rerender).dispose, [onDidChange]);
-      return mocks.info.customPk ?? mocks.info.kp?.publicKey ?? null;
+      return mocks.info.customPk ?? mocks.info.kp?.publicKey ?? undefined;
     },
   };
 });
@@ -90,6 +92,7 @@ const OTHER = Keypair.fromSeed(new Uint8Array(32).fill(9));
 let sent: ReturnType<typeof memoryProvider>;
 beforeEach(() => {
   mocks.info.kp = KP;
+  // eslint-disable-next-line unicorn/no-null -- unset custom id reads null, as PgProgramInfo.customPk does
   mocks.info.customPk = null;
   mocks.deployed = false;
   mocks.listeners.clear();
@@ -115,11 +118,17 @@ const press = (name: string) =>
   fireEvent.click(screen.getByRole("button", { name }));
 const events = () => sent.events.map((e) => [e.name, e.params]);
 
-const importText = async (text: string) => {
+const fileInput = () => {
   const input = screen
     .getByText("Drop a program keypair here")
-    .closest("label")!
-    .querySelector("input")!;
+    .closest("label")
+    ?.querySelector("input");
+  if (!input) throw new Error("the keypair drop zone has no file input");
+  return input;
+};
+
+const importText = async (text: string) => {
+  const input = fileInput();
   const file = new File([text], "program-keypair.json");
   await act(async () => {
     fireEvent.change(input, { target: { files: [file] } });
@@ -227,6 +236,7 @@ describe("features/program-keypair/ui/ProgramKeypair", () => {
   });
 
   it("generates at once when there is no keypair", () => {
+    // eslint-disable-next-line unicorn/no-null -- unset keypair reads null, as PgProgramInfo.kp does
     mocks.info.kp = null;
     draw();
     openFold();
@@ -238,6 +248,7 @@ describe("features/program-keypair/ui/ProgramKeypair", () => {
   });
 
   it("asks before removing a custom id even with no keypair", () => {
+    // eslint-disable-next-line unicorn/no-null -- unset keypair reads null, as PgProgramInfo.kp does
     mocks.info.kp = null;
     mocks.info.customPk = OTHER.publicKey;
     draw();
@@ -328,6 +339,7 @@ describe("features/program-keypair/ui/ProgramKeypair", () => {
     ).toBeTruthy();
     press("Remove custom id");
 
+    // eslint-disable-next-line unicorn/no-null -- `null` clears the custom id in program-info.json
     expect(mocks.updates).toEqual([{ customPk: null }]);
     expect(field().value).toBe(KP.publicKey.toBase58());
     expect(screen.getByText("Custom id removed")).toBeTruthy();

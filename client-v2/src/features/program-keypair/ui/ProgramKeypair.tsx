@@ -55,7 +55,7 @@ const ProgramKeypair = () => {
   const mismatch = isMismatch();
   const [open, setOpen] = useState(mismatch);
   const [confirming, setConfirming] = useState(false);
-  const [note, setNote] = useState<KeypairNote>(null);
+  const [note, setNote] = useState<KeypairNote>(undefined);
 
   // A mismatch would stop a first deploy, so it opens the fold when it
   // appears; the user may still close it
@@ -65,9 +65,10 @@ const ProgramKeypair = () => {
 
   const generate = () => {
     const replaced = !!PgProgramInfo.kp;
+    // eslint-disable-next-line unicorn/no-null -- `null` clears the persisted custom id in program-info.json
     PgProgramInfo.update({ kp: PgWeb3.Keypair.generate(), customPk: null });
     programKeypairTelemetry.track("keypair_generated", { replaced });
-    setNote(null);
+    setNote(undefined);
     setConfirming(false);
   };
 
@@ -101,9 +102,10 @@ const ProgramKeypair = () => {
       return;
     }
     // An imported keypair names the program: a custom id would hide it
+    // eslint-disable-next-line unicorn/no-null -- `null` clears the persisted custom id in program-info.json
     PgProgramInfo.update({ kp: read.kp, customPk: null });
     programKeypairTelemetry.track("keypair_imported", {});
-    setNote(null);
+    setNote(undefined);
   };
 
   const changeId = (text: string) => {
@@ -120,6 +122,7 @@ const ProgramKeypair = () => {
   };
 
   const removeCustomId = () => {
+    // eslint-disable-next-line unicorn/no-null -- `null` clears the persisted custom id in program-info.json
     PgProgramInfo.update({ customPk: null });
     programKeypairTelemetry.track("keypair_custom_id_removed", {});
     setNote("removed");
@@ -127,7 +130,7 @@ const ProgramKeypair = () => {
 
   return (
     <BaseProgramKeypair
-      programId={pk?.toBase58() ?? null}
+      programId={pk?.toBase58()}
       hasKeypair={!!PgProgramInfo.kp}
       customId={!!PgProgramInfo.customPk}
       mismatch={mismatch}
@@ -147,7 +150,7 @@ const ProgramKeypair = () => {
       onSaveOld={() => exportFrom("dialog")}
       onImport={(file) => void importFile(file)}
       onExport={() => exportFrom("block")}
-      onEdit={() => setNote((n) => (n === "refused" ? n : null))}
+      onEdit={() => setNote((n) => (n === "refused" ? n : undefined))}
       onChangeId={changeId}
       onRemoveCustomId={removeCustomId}
     />

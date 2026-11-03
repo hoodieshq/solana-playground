@@ -126,7 +126,9 @@ test("client-v2-program-keypair: Round trip", async ({ seededPage: page }) => {
   await button(page, "Export keypair").click();
   const download = await saving;
   expect(download.suggestedFilename()).toBe("program-keypair.json");
-  const text = await readFile((await download.path())!, "utf8");
+  const downloaded = await download.path();
+  if (!downloaded) throw new Error("the exported keypair was not saved");
+  const text = await readFile(downloaded, "utf8");
   const bytes = JSON.parse(text);
   expect(Array.isArray(bytes) && bytes.length).toBe(64);
 
