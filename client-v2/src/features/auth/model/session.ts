@@ -165,7 +165,12 @@ export class PgSession {
    * rather than per-window, so the reply only has to say "finished" and this
    * side re-reads the session. Rejects when that read finds nobody signed in.
    */
-  static signIn({
+  static signIn(): Promise<void> {
+    return PgSession.signInWith({});
+  }
+
+  /** `signIn` with where it started and the extra scopes it asks for */
+  static signInWith({
     from,
     scopes,
   }: {
@@ -177,7 +182,7 @@ export class PgSession {
      * refreshes the stored token, so no user change fires.
      */
     scopes?: string[];
-  } = {}): Promise<void> {
+  }): Promise<void> {
     // One popup and one nonce at a time: a second click while the first flow
     // waits joins it instead of racing it for the session cookie, and keeps
     // the first one's origin. A flow that lacks scopes this caller needs
@@ -189,8 +194,8 @@ export class PgSession {
       );
       if (covered) return pending;
       return pending.then(
-        () => PgSession.signIn({ from, scopes }),
-        () => PgSession.signIn({ from, scopes })
+        () => PgSession.signInWith({ from, scopes }),
+        () => PgSession.signInWith({ from, scopes })
       );
     }
     PgSession._pendingScopes = scopes ?? [];
@@ -754,7 +759,7 @@ if (import.meta.vitest) {
         }));
 
         await PgSession.signIn();
-        await PgSession.signIn({ scopes: ["gist"] });
+        await PgSession.signInWith({ scopes: ["gist"] });
 
         expect("scopes" in bodies[0]).toBe(false);
         expect(bodies[1].scopes).toEqual(["gist"]);
@@ -772,6 +777,7 @@ if (import.meta.vitest) {
                       user: {
                         id: "u1",
                         name: "Ada",
+                        // eslint-disable-next-line unicorn/no-null -- a session answer says `null` for an account without an avatar
                         image: null,
                         login: "ada",
                       },
@@ -786,13 +792,14 @@ if (import.meta.vitest) {
         await PgSession.refreshWith({
           id: "u1",
           name: "Ada",
+          // eslint-disable-next-line unicorn/no-null -- `SessionUser.image` is `null` for an account without an avatar
           image: null,
           login: "ada",
         });
         const users: Array<string | undefined> = [];
         PgSession.onDidChange(() => users.push(PgSession.get()?.id));
 
-        await PgSession.signIn({ scopes: ["gist"] });
+        await PgSession.signInWith({ scopes: ["gist"] });
 
         // Only the sign-in state moved (pending, then idle); the user did not
         expect(PgSession.get()?.id).toBe("u1");
@@ -980,14 +987,14 @@ if (import.meta.vitest) {
         (global.fetch as Mock).mockImplementation(
           async (url: string, init?: RequestInit) => {
             if (url === "/api/auth/sign-in/social") {
-              bodies.push(JSON.parse(init!.body as string));
+              bodies.push(JSON.parse(init?.body as string));
             }
             return { ok: true, json: async () => ({ url: "https://x/" }) };
           }
         );
 
         const plain = PgSession.signIn();
-        const scoped = PgSession.signIn({ scopes: ["gist"] });
+        const scoped = PgSession.signInWith({ scopes: ["gist"] });
         await vi.waitFor(() => expect(popup.open).toHaveBeenCalledTimes(1));
         popup.cancel();
         await expect(plain).rejects.toThrow(/cancelled/i);
