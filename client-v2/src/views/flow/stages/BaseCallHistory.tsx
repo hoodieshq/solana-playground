@@ -21,6 +21,7 @@ const BaseCallHistory = ({
   txUrl,
   onOpen,
 }: BaseCallHistoryProps) => {
+  // eslint-disable-next-line unicorn/no-null -- a React component renders nothing with null
   if (records.length === 0) return null;
   return (
     <section aria-label="Call history" className="flex flex-col gap-2">

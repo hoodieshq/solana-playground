@@ -7,8 +7,8 @@ export interface Receiver {
 
 /** What the receiver is chosen from: the current wallet and the first account */
 export interface ReceiverSource {
-  current: { isPg?: boolean; name: string; address: string } | null;
-  firstAccount: Receiver | null;
+  current: { isPg?: boolean; name: string; address: string } | undefined;
+  firstAccount: Receiver | undefined;
 }
 
 /** Why an amount cannot be sent */
@@ -43,7 +43,7 @@ export const DEFAULT_AMOUNT = "1";
 export const receiverOf = ({
   current,
   firstAccount,
-}: ReceiverSource): Receiver | null => {
+}: ReceiverSource): Receiver | undefined => {
   if (current?.isPg) return { name: current.name, address: current.address };
   return firstAccount;
 };
@@ -64,13 +64,16 @@ export const parseAmount = (text: string): ParsedAmount => {
 };
 
 /**
- * Whether `text` can go from a wallet holding `balance` SOL (`null` while it
- * loads), keeping `FEE_RESERVE_SOL` for the fee
+ * Whether `text` can go from a wallet holding `balance` SOL (`undefined` while
+ * it loads), keeping `FEE_RESERVE_SOL` for the fee
  */
-export const canSend = (text: string, balance: number | null): SendCheck => {
+export const canSend = (
+  text: string,
+  balance: number | undefined
+): SendCheck => {
   const amount = parseAmount(text);
   if (!amount.ok) return amount;
-  if (balance === null) return { ok: false, problem: "checking" };
+  if (balance === undefined) return { ok: false, problem: "checking" };
   const spendable = Math.round((balance - FEE_RESERVE_SOL) * LAMPORTS_PER_SOL);
   if (amount.lamports > spendable)
     return { ok: false, problem: "above-balance" };
@@ -135,21 +138,23 @@ if (import.meta.vitest) {
     });
 
     it("receiverOf picks the first account when nothing is current", () => {
-      expect(receiverOf({ current: null, firstAccount: WALLET_1 })).toEqual(
-        WALLET_1
-      );
+      expect(
+        receiverOf({ current: undefined, firstAccount: WALLET_1 })
+      ).toEqual(WALLET_1);
     });
 
-    it("receiverOf is null before the Playground wallet is set up", () => {
-      expect(receiverOf({ current: null, firstAccount: null })).toBeNull();
+    it("receiverOf is undefined before the Playground wallet is set up", () => {
+      expect(
+        receiverOf({ current: undefined, firstAccount: undefined })
+      ).toBeUndefined();
     });
 
     it.each([
-      ["1", 1, 1_000_000_000],
-      ["0.5", 0.5, 500_000_000],
-      [" 2 ", 2, 2_000_000_000],
-      ["0.000000001", 0.000000001, 1],
-    ])("parseAmount accepts %j", (text, sol, lamports) => {
+      { text: "1", sol: 1, lamports: 1_000_000_000 },
+      { text: "0.5", sol: 0.5, lamports: 500_000_000 },
+      { text: " 2 ", sol: 2, lamports: 2_000_000_000 },
+      { text: "0.000000001", sol: 0.000000001, lamports: 1 },
+    ])("parseAmount accepts $text", ({ text, sol, lamports }) => {
       expect(parseAmount(text)).toEqual({ ok: true, sol, lamports });
     });
 
@@ -166,7 +171,10 @@ if (import.meta.vitest) {
     });
 
     it("canSend is checking while the balance is unknown", () => {
-      expect(canSend("1", null)).toEqual({ ok: false, problem: "checking" });
+      expect(canSend("1", undefined)).toEqual({
+        ok: false,
+        problem: "checking",
+      });
     });
 
     it("canSend keeps 0.001 SOL of the balance for fees", () => {
@@ -178,7 +186,7 @@ if (import.meta.vitest) {
     });
 
     it("canSend reports the amount's own problem first", () => {
-      expect(canSend("abc", null)).toEqual({
+      expect(canSend("abc", undefined)).toEqual({
         ok: false,
         problem: "not-a-number",
       });

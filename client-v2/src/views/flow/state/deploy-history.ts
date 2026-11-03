@@ -94,9 +94,10 @@ export class PgDeployHistory {
         workspace,
         cluster,
         programId,
+        // eslint-disable-next-line unicorn/no-null -- `DeployRecord` persists an absent signature as null
         signature: ran?.signature ?? null,
         ...(ran && { upgraded: ran.upgraded }),
-        ...(ran?.cost != null && { cost: ran.cost }),
+        ...(typeof ran?.cost === "number" && { cost: ran.cost }),
       });
     });
   }

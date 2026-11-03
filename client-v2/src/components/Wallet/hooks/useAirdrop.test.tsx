@@ -24,7 +24,9 @@ const faucetOn = (
   amount: ReturnType<typeof PgConnection.getAirdropAmount>
 ) => {
   const { result } = renderHook(() => useAirdrop());
-  const [onChange] = vi.mocked(PgConnection.onDidChangeCluster).mock.lastCall!;
+  const subscription = vi.mocked(PgConnection.onDidChangeCluster).mock.lastCall;
+  if (!subscription) throw new Error("useAirdrop did not watch the cluster");
+  const [onChange] = subscription;
   vi.mocked(PgConnection.getAirdropAmount).mockReturnValue(amount);
   act(() => (onChange as (c: string | null) => void)(cluster));
   return result.current.faucet;
@@ -48,6 +50,7 @@ describe("useAirdrop", () => {
   });
 
   it("knows no faucet until the cluster is read", () => {
+    // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` and `getAirdropAmount()` are `null` before the cluster is read or where there is no faucet
     expect(faucetOn(null, null)).toBe("unknown");
   });
 
@@ -56,6 +59,7 @@ describe("useAirdrop", () => {
   });
 
   it("has none on mainnet", () => {
+    // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` and `getAirdropAmount()` are `null` before the cluster is read or where there is no faucet
     expect(faucetOn("mainnet-beta", null)).toBe("none");
   });
 });

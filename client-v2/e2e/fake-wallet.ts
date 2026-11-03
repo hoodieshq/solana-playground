@@ -24,6 +24,7 @@ export interface PageWallet {
 
 export const installFakeWallet = async (
   page: Page,
+  // eslint-disable-next-line layers/curry-order -- 15 call sites in `external-wallet.e2e.spec.ts` and `wallet-funding.e2e.spec.ts` pass `(page, opts)`
   opts: {
     name: string;
     keypair?: Keypair;
@@ -64,7 +65,7 @@ export const installFakeWallet = async (
     publicKey: number[];
     sign: boolean;
     chains: string[];
-    reject: string | null;
+    reject: string | undefined;
   }) => {
     type Account = {
       address: string;
@@ -120,6 +121,7 @@ export const installFakeWallet = async (
         },
         "standard:events": {
           version: "1.0.0",
+          // eslint-disable-next-line layers/curry-order -- the wallet-standard `on(event, listener)` signature
           on: (_e: string, fn: (p: { accounts: Account[] }) => void) => {
             listeners.add(fn);
             return () => listeners.delete(fn);
@@ -162,7 +164,7 @@ export const installFakeWallet = async (
     address,
     publicKey: Array.from(keypair.publicKey.toBytes()),
     sign: !!opts.sign,
-    reject: opts.reject ?? null,
+    reject: opts.reject,
     chains: opts.chains ?? [
       "solana:devnet",
       "solana:mainnet",

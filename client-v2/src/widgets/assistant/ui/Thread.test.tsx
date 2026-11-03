@@ -129,6 +129,8 @@ describe("Thread, signed out", () => {
   const SIGN_IN_TO_KEEP =
     "Sign in to keep this conversation on your other devices.";
   const USER = { id: "u1", name: "Ada" } as unknown as SessionUser;
+  // eslint-disable-next-line unicorn/no-null -- `PgSession.get()` answers `null` when signed out
+  const SIGNED_OUT: SessionUser | null = null;
 
   /** Who is signed in, and a way to change it the way `PgSession` would */
   const session = (initial: SessionUser | null) => {
@@ -150,7 +152,7 @@ describe("Thread, signed out", () => {
     vi.spyOn(PgSyncClient, "available").mockResolvedValue(available);
 
   it("a conversation ends in an offer to sign in", async () => {
-    session(null);
+    session(SIGNED_OUT);
     syncs(true);
     act(() => {
       PgAssistant.addUserMessage("Hi");
@@ -160,7 +162,7 @@ describe("Thread, signed out", () => {
   });
 
   it("signing in from the offer stays in the project and is reported", async () => {
-    session(null);
+    session(SIGNED_OUT);
     syncs(true);
     const signIn = vi.spyOn(PgSession, "signIn").mockResolvedValue();
     act(() => {
@@ -184,14 +186,14 @@ describe("Thread, signed out", () => {
     await act(async () => {});
     expect(screen.queryByText(SIGN_IN_TO_KEEP)).toBeNull();
 
-    act(() => setUser(null));
+    act(() => setUser(SIGNED_OUT));
     expect(await screen.findByText(SIGN_IN_TO_KEEP)).toBeTruthy();
   });
 
   // The session effect's own read is what tells it the account signed in; a
   // read started by the panel, which can mount first, hid that from it
   it("never starts the session read itself", async () => {
-    session(null);
+    session(SIGNED_OUT);
     syncs(true);
     const whenRead = vi.spyOn(PgSession, "whenRead");
     const refresh = vi.spyOn(PgSession, "refresh");
@@ -212,7 +214,7 @@ describe("Thread, signed out", () => {
       new Promise<void>((resolve) => (answer = resolve))
     );
     // Before the read `get()` is `null` for everyone
-    vi.spyOn(PgSession, "get").mockReturnValue(null);
+    vi.spyOn(PgSession, "get").mockReturnValue(SIGNED_OUT);
     act(() => {
       PgAssistant.addUserMessage("Hi");
     });
@@ -226,7 +228,7 @@ describe("Thread, signed out", () => {
   });
 
   it("a sign-in under way holds the button, and its end frees it", async () => {
-    const setUser = session(null);
+    const setUser = session(SIGNED_OUT);
     syncs(true);
     const state = vi
       .spyOn(PgSession, "signInState")
@@ -241,12 +243,12 @@ describe("Thread, signed out", () => {
     expect(button.disabled).toBe(true);
 
     state.mockReturnValue({ status: "idle" });
-    act(() => setUser(null));
+    act(() => setUser(SIGNED_OUT));
     expect(button.disabled).toBe(false);
   });
 
   it("signing in takes the offer away", async () => {
-    const setUser = session(null);
+    const setUser = session(SIGNED_OUT);
     syncs(true);
     act(() => {
       PgAssistant.addUserMessage("Hi");
@@ -259,7 +261,7 @@ describe("Thread, signed out", () => {
   });
 
   it("a cancelled sign-in is logged, anything else reported", async () => {
-    session(null);
+    session(SIGNED_OUT);
     syncs(true);
     const logged = logMemory();
     initLogger({ providers: [logged] });
@@ -296,7 +298,7 @@ describe("Thread, signed out", () => {
   });
 
   it("an empty thread has nothing to keep", async () => {
-    session(null);
+    session(SIGNED_OUT);
     syncs(true);
     render(<Thread turn={stubTurn(false)} project="Counter" />);
     await act(async () => {});
@@ -304,7 +306,7 @@ describe("Thread, signed out", () => {
   });
 
   it("a deployment without sync offers nothing", async () => {
-    session(null);
+    session(SIGNED_OUT);
     syncs(false);
     act(() => {
       PgAssistant.addUserMessage("Hi");

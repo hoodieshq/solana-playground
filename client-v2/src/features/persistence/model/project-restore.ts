@@ -331,34 +331,36 @@ const passUnlocked = async (): Promise<SyncResult> => {
  * be read, the project waits for the next pass: falling through to that
  * merge on a dropped request is the very loss this exists to prevent.
  *
- * @returns the new mark; `null` when there is no whole-snapshot mark, the row
+ * @returns the new mark; `undefined` when there is no whole-snapshot mark, the row
  * has moved past it, or it holds no usable files to rebase on; `"retry"`
  * when the row could not be read
  */
 const rebaseWholeSnapshotMark = async (
   project: ServerProject,
   local: string
-): Promise<SyncMark | "retry" | null> => {
+): Promise<SyncMark | "retry" | undefined> => {
   const old = await PgSyncMark.readWholeSnapshotMark(project.id);
-  if (!old || old.updatedAt !== project.updatedAt) return null;
+  if (!old || old.updatedAt !== project.updatedAt) return undefined;
 
   const full = await PgProjectSync.fetch(project.id);
   if (!full) {
+    // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
     report(`rebase whole-snapshot mark ${project.id}: row unreadable`, null);
     return "retry";
   }
   // Re-checked on the copy actually read: the row may move after the list
-  if (full.updatedAt !== old.updatedAt) return null;
+  if (full.updatedAt !== old.updatedAt) return undefined;
   if (!isUsableSnapshot(full.snapshot)) {
     // No files to agree on: reconcile pushes this copy over the row, as it
     // does for any row that holds no code
     if (full.snapshot) {
       report(
         `rebase whole-snapshot mark ${project.id}: unusable snapshot`,
+        // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
         null
       );
     }
-    return null;
+    return undefined;
   }
 
   const agreed = await hashFiles(full.snapshot);

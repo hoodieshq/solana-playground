@@ -32,29 +32,31 @@ export interface BaseInteractProps {
   selected: string | null;
   onPick: (id: string) => void;
   surface: InteractSurface;
-  /** The cluster for prose; null until the endpoint has been read */
-  cluster: string | null;
+  /** The cluster for prose; undefined until the endpoint has been read */
+  cluster: string | undefined;
   onGoTo: (stage: Extract<Stage, "build" | "deploy">) => void;
   /** The "Upload IDL" action (`IdlActions mode="upload"`) */
   idlLoad: ReactNode;
   /**
    * Why an Anchor IDL of spec 0.1.0 (Anchor 0.30 on) cannot be called
-   * (`readIdl`'s reason), shown on the `bad-idl` surface; absent or null for
-   * any other IDL
+   * (`readIdl`'s reason), shown on the `bad-idl` surface; absent for any
+   * other IDL
    */
-  idlRefusal?: string | null;
+  idlRefusal?: string;
   /** The form, drawn only on the `ready` surface */
   form: ReactNode;
-  /** The program the calls go to; null when there is none to name */
-  programId: string | null;
+  /** The program the calls go to; absent when there is none to name */
+  programId: string | undefined;
   /** The code was built after the last deploy on this network */
   builtAfterDeploy: boolean;
-  /** The fee payer cannot pay one fee; `airdrop` is null without a faucet */
-  solNeeded: {
-    balance: number;
-    cluster: string;
-    airdrop: (() => Promise<void>) | null;
-  } | null;
+  /** The fee payer cannot pay one fee; `airdrop` is absent without a faucet */
+  solNeeded:
+    | {
+        balance: number;
+        cluster: string;
+        airdrop: (() => Promise<void>) | undefined;
+      }
+    | undefined;
 }
 
 type EmptySurface = Exclude<InteractSurface, "ready">;
@@ -171,6 +173,7 @@ const Empty = ({
 
 /** What stands between the person and a useful call, above the form */
 const Callouts = ({ p }: { p: BaseInteractProps }) => {
+  // eslint-disable-next-line unicorn/no-null -- a React component renders nothing with null
   if (!p.builtAfterDeploy && !p.solNeeded) return null;
   return (
     <div className="flex max-w-[42rem] flex-col gap-3 px-6 pt-6">
@@ -211,7 +214,13 @@ const Callouts = ({ p }: { p: BaseInteractProps }) => {
 };
 
 /** The program the stage calls, shortened, with copy, and its network */
-const Program = ({ id, cluster }: { id: string; cluster: string | null }) => (
+const Program = ({
+  id,
+  cluster,
+}: {
+  id: string;
+  cluster: string | undefined;
+}) => (
   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
     <span>Program</span>
     <code className="font-mono text-foreground" title={id}>

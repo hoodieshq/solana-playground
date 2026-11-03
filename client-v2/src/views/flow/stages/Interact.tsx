@@ -105,8 +105,8 @@ const Interact = () => {
   const buildAt =
     build && !build.failed && build.workspace === explorer.currentWorkspaceName
       ? build.at
-      : null;
-  const deployAt = history.find((r) => r.cluster === cluster)?.at ?? null;
+      : undefined;
+  const deployAt = history.find((r) => r.cluster === cluster)?.at;
 
   // The fee payer cannot pay one fee (Spec 12): only with a wallet to pay
   const wallet = useWallet();
@@ -117,9 +117,9 @@ const Interact = () => {
       ? {
           balance: +balance.toFixed(4),
           cluster: clusterName(cluster),
-          airdrop: faucet === "available" ? airdrop : null,
+          airdrop: faucet === "available" ? airdrop : undefined,
         }
-      : null;
+      : undefined;
 
   const selectedIndex = history.findIndex((r) => r.id === selected);
   const selectedRecord = selectedIndex >= 0 ? history[selectedIndex] : null;
@@ -147,7 +147,7 @@ const Interact = () => {
       onGoTo={(stage) => PgFlow.setStage(stage)}
       idlLoad={<IdlActions mode="upload" />}
       idlRefusal={idlRefusal(PgProgramInfo.readIdl())}
-      programId={programId}
+      programId={programId ?? undefined}
       builtAfterDeploy={builtAfterDeploy(buildAt, deployAt)}
       solNeeded={short}
       form={
@@ -168,7 +168,7 @@ const Interact = () => {
 const idlRefusal = (reading: IdlReading | null) =>
   reading?.kind === "refused" && reading.version === "1"
     ? reading.reason
-    : null;
+    : undefined;
 
 /** The session's last build, kept current */
 const useLastBuild = () => {

@@ -20,10 +20,12 @@ interface BlockExplorerParam {
    * `value` in order to be able to derive the full URLs.
    *
    * @param path URL path
-   * @param value last path value
-   * @param cluster the network the link opens; the selected network when omitted
+   * @returns a function taking the last path value and the network the link
+   * opens (the selected network when `undefined`)
    */
-  getCommonUrl?(path: string, value: string, cluster?: Cluster | null): string;
+  getCommonUrl?(
+    path: string
+  ): (value: string, cluster: Cluster | null | undefined) => string;
   /**
    * Get address URL for the configured explorer.
    *
@@ -74,11 +76,12 @@ class _PgBlockExplorer {
    * @returns the created block explorer
    */
   static create(b: BlockExplorerParam): BlockExplorer {
-    b.getCommonUrl ??= (p, v, cluster) =>
-      b.url + "/" + p + "/" + v + b.getClusterParam(cluster);
-    b.getAddressUrl ??= (address, cluster) =>
-      b.getCommonUrl!("address", address, cluster);
-    b.getTxUrl ??= (txHash, cluster) => b.getCommonUrl!("tx", txHash, cluster);
+    const getCommonUrl =
+      b.getCommonUrl ??
+      ((p: string) => (v: string, cluster: Cluster | null | undefined) =>
+        b.url + "/" + p + "/" + v + b.getClusterParam(cluster));
+    b.getAddressUrl ??= getCommonUrl("address");
+    b.getTxUrl ??= getCommonUrl("tx");
 
     const opens = (cluster: Cluster | null) =>
       cluster === "mainnet-beta" || b.getClusterParam(cluster) !== "";

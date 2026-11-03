@@ -2,11 +2,11 @@
 export interface CallOutcome {
   instruction: string;
   ok: boolean;
-  /** Null when the transaction never reached the network */
-  signature: string | null;
+  /** Undefined when the transaction never reached the network */
+  signature: string | undefined;
   logs: string[];
-  /** The line that explains a failure, never empty then; null on success */
-  failingLine: string | null;
+  /** The line that explains a failure, never empty then; undefined on success */
+  failingLine: string | undefined;
 }
 
 /** Log lines a program writes when it fails, as Spec 03 picks them */
@@ -16,8 +16,14 @@ const FAILURE = /Error Code:|custom program error|failed:/;
  * The one log line that explains a failed call: the program's own error if a
  * line names one, else the last line, else the error message.
  */
-export const failingLine = (logs: string[], message?: string): string | null =>
-  logs.find((l) => FAILURE.test(l)) ?? logs.at(-1) ?? message ?? null;
+export const failingLine = (logs: string[]): string | undefined =>
+  logs.find((l) => FAILURE.test(l)) ?? logs.at(-1);
+
+/** `failingLine`, with the error message standing in when the logs say nothing */
+export const failingLineWith =
+  (message: string) =>
+  (logs: string[]): string =>
+    failingLine(logs) ?? message;
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
@@ -44,17 +50,17 @@ if (import.meta.vitest) {
       });
 
       it("falls back to the last line", () => {
-        expect(failingLine(["a", "b"], "message")).toBe("b");
+        expect(failingLineWith("message")(["a", "b"])).toBe("b");
       });
 
       it("uses the message when there are no logs", () => {
-        expect(failingLine([], "Wallet not connected")).toBe(
+        expect(failingLineWith("Wallet not connected")([])).toBe(
           "Wallet not connected"
         );
       });
 
       it("has nothing to say with neither", () => {
-        expect(failingLine([])).toBeNull();
+        expect(failingLine([])).toBeUndefined();
       });
     });
   });

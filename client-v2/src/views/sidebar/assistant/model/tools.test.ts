@@ -80,18 +80,20 @@ describe("build and deploy approvals", () => {
       getProjectContext: () => ({
         workspaceName: "hello_anchor",
         cluster: "https://api.devnet.solana.com",
+        // eslint-disable-next-line unicorn/no-null -- `ProjectContext.buildError` is `string | null`
         buildError: null,
       }),
       quoteDeploy: async () => ({ network: "devnet", cost }),
       build: vi.fn(async () => {}),
+      // eslint-disable-next-line unicorn/no-null -- `deploy()` answers `null` without a program id
       deploy: vi.fn(async () => null),
     } as unknown as PlaygroundBridge);
 
   /** The question on the approval card a tool opened */
   const askedWith = async (tool: "build" | "deploy", b: PlaygroundBridge) => {
-    const run = createTools(b)
-      .find((t) => t.name === tool)!
-      .run({});
+    const found = createTools(b).find((t) => t.name === tool);
+    if (!found) throw new Error(`createTools has no tool named ${tool}`);
+    const run = found.run({});
     await vi.waitFor(() => expect(PgAssistant.items).toHaveLength(1));
     const card = PgAssistant.items[0];
     PgAssistant.resolveApproval(card.id, false);
@@ -108,12 +110,14 @@ describe("build and deploy approvals", () => {
   });
 
   it("leaves the cost out when it cannot be estimated", async () => {
+    // eslint-disable-next-line unicorn/no-null -- `quoteDeploy().cost` is `number | null`, null meaning no estimate
     expect(await askedWith("deploy", commandBridge(null))).toBe(
       "Deploy hello_anchor to devnet?"
     );
   });
 
   it("asks whether to build the program", async () => {
+    // eslint-disable-next-line unicorn/no-null -- `quoteDeploy().cost` is `number | null`, null meaning no estimate
     expect(await askedWith("build", commandBridge(null))).toBe(
       "Build hello_anchor?"
     );

@@ -21,6 +21,7 @@ const makeWallet = (name: string) => {
     name,
     icon: "data:image/svg+xml;base64,PHN2Zy8+",
     connected: false,
+    // eslint-disable-next-line unicorn/no-null -- a wallet's `publicKey` is `null` until it connects
     publicKey: null as null | { toBase58: () => string },
     connect: vi.fn(async () => {
       wallet.connected = true;
@@ -41,7 +42,7 @@ const makeWallet = (name: string) => {
 const utils = vi.hoisted(() => ({
   PgWallet: {
     standardWallets: [] as unknown[],
-    current: null as unknown,
+    current: undefined as unknown,
     accounts: [{ name: "Wallet 1", kp: [] }],
     state: "pg",
     create: () => ({ publicKey: { toBase58: () => RECEIVER_ADDRESS } }),
@@ -102,7 +103,8 @@ afterEach(() => {
 const events = (name: string) =>
   sent.events.filter((event) => event.name === name);
 
-const renderOpen = async (onOpenChange = vi.fn()) => {
+const renderOpen = async () => {
+  const onOpenChange = vi.fn();
   render(<FundDialog open={true} onOpenChange={onOpenChange} />);
   await act(async () => undefined);
   return onOpenChange;
@@ -415,7 +417,12 @@ describe("features/fund-wallet/ui/FundDialog", () => {
   });
 
   it("renders while the current extension is mid-disconnect, with no key", async () => {
-    utils.PgWallet.current = { isPg: false, name: "Phantom", publicKey: null };
+    utils.PgWallet.current = {
+      isPg: false,
+      name: "Phantom",
+      // eslint-disable-next-line unicorn/no-null -- a disconnecting wallet's `publicKey` is `null`
+      publicKey: null,
+    };
 
     render(<FundDialog open={false} onOpenChange={vi.fn()} />);
     await renderOpen();

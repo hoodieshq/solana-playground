@@ -149,7 +149,10 @@ export class PgServer {
     try {
       response = await fetch(requestUrl, requestInit);
     } catch (e: any) {
-      throw new PgServerError(requestUrl, null, e?.message || String(e), {
+      throw new PgServerError({
+        url: requestUrl,
+        status: undefined,
+        body: e?.message || String(e),
         cause: e,
       });
     }
@@ -157,7 +160,11 @@ export class PgServer {
       // A body cut off mid-read still leaves the status to report; the
       // placeholder says in the error's message that the body was lost
       const body = await response.text().catch(() => UNREADABLE_BODY);
-      throw new PgServerError(requestUrl, response.status, body);
+      throw new PgServerError({
+        url: requestUrl,
+        status: response.status,
+        body,
+      });
     }
 
     return response;

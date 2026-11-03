@@ -12,6 +12,7 @@ describe("warnsOnDeploy", () => {
     expect(warnsOnDeploy("mainnet-beta")).toBe(true);
     expect(warnsOnDeploy("devnet")).toBe(false);
     expect(warnsOnDeploy("localnet")).toBe(false);
+    // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` is `null` until the first endpoint is read
     expect(warnsOnDeploy(null)).toBe(false);
   });
 });

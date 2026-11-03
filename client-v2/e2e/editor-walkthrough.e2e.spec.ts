@@ -40,7 +40,7 @@ const item = (page: Page, name: string) =>
  * Renames an explorer item through its menu and dialog with no pause first, so
  * it starts inside the autosave's delay, and returns once the new name shows
  */
-const renameTo = async (page: Page, name: string, to: string) => {
+const renameWith = (to: string) => async (page: Page, name: string) => {
   await item(page, name).click({ button: "right" });
   await page.getByRole("menuitem", { name: /Rename/ }).click();
   const dialog = page.getByRole("dialog", { name: `Rename '${name}'` });
@@ -151,7 +151,7 @@ test.describe.serial("the editor", () => {
     // Meant to land inside the autosave's delay, where the edit is saved before
     // the move; on a slow runner the timer may win, so the event's ordering is
     // pinned in `explorer.test.ts`, and this checks the user's path end to end
-    await renameTo(page, "lib.rs", "moved.rs");
+    await renameWith("moved.rs")(page, "lib.rs");
     await item(page, "moved.rs").click();
     await focusEditor(page);
     await expect.poll(() => editorText(page)).toContain("// renamed");
@@ -165,7 +165,7 @@ test.describe.serial("the editor", () => {
     await item(page, "moved.rs").click();
     await focusEditor(page);
     await expect.poll(() => editorText(page)).toContain("// renamed");
-    await renameTo(page, "moved.rs", "lib.rs");
+    await renameWith("lib.rs")(page, "moved.rs");
   });
 
   test("keeps an edit made just before its folder is renamed", async () => {
@@ -175,7 +175,7 @@ test.describe.serial("the editor", () => {
     await item(page, "client.ts").click();
     await focusEditor(page);
     await page.keyboard.type(" // folder");
-    await renameTo(page, "client", "web");
+    await renameWith("web")(page, "client");
     if (!(await item(page, "client.ts").isVisible())) {
       await item(page, "web").click();
     }
@@ -192,7 +192,7 @@ test.describe.serial("the editor", () => {
     await item(page, "client.ts").click();
     await focusEditor(page);
     await expect.poll(() => editorText(page)).toContain("// folder");
-    await renameTo(page, "web", "client");
+    await renameWith("client")(page, "web");
     // The reload may draw `src` closed, and the next test starts from `lib.rs`
     if (!(await item(page, "lib.rs").isVisible())) {
       await item(page, "src").click();

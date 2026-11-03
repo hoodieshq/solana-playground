@@ -127,6 +127,17 @@ const createAccountGenerator = (acc: IdlAccount): InstructionValueGenerator => {
   return { type: "Custom", value: getKnownAccountKey(acc.name) ?? "" };
 };
 
+/** What a seed of its kind must carry, or a throw naming what is missing */
+const seedField = (
+  seed: { kind: string; value?: string; path?: string },
+  field: "value" | "path"
+) => {
+  const value = seed[field];
+  if (value === undefined)
+    throw new Error(`Seed of kind \`${seed.kind}\` has no \`${field}\``);
+  return value;
+};
+
 /**
  * The generator that fills one PDA seed (or the seed program) of an IDL.
  * The 0.29 package types seeds as `any`; a `const` seed carries `value`, an
@@ -143,11 +154,11 @@ const seedGenerator = (seed: {
   | { type: "Arguments" | "Accounts"; name: string } => {
   switch (seed.kind) {
     case "const":
-      return { type: "Custom", value: seed.value! };
+      return { type: "Custom", value: seedField(seed, "value") };
     case "arg":
-      return { type: "Arguments", name: seed.path! };
+      return { type: "Arguments", name: seedField(seed, "path") };
     case "account":
-      return { type: "Accounts", name: seed.path! };
+      return { type: "Accounts", name: seedField(seed, "path") };
     default:
       throw new Error(`Unknown seed kind: \`${seed.kind}\``);
   }

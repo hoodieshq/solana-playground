@@ -83,7 +83,12 @@ const buildThenInteract = async (page: Page, idl: object) => {
   });
   // CI has no build server: the request is answered here
   await page.route("**/build", (route) =>
-    json(route, { stderr: "", uuid: null, idl })
+    json(route, {
+      stderr: "",
+      // eslint-disable-next-line unicorn/no-null -- the build server answers `uuid: null` when nothing was stored
+      uuid: null,
+      idl,
+    })
   );
   await page.locator("#flow-stage-tab-build").click();
   const build = page.locator("#flow-stage-panel-build");

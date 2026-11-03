@@ -137,12 +137,12 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
               Deploying with this project&apos;s program keypair,{" "}
               <code className="font-mono">{p.name}-keypair.json</code>, keeps
               the program id
-              {p.programId ? (
+              {p.programId && (
                 <>
                   {" "}
                   <code className="font-mono break-all">{p.programId}</code>
                 </>
-              ) : null}
+              )}
               . {NO_KEYPAIR[p.tool](p.name)}
             </p>
           </Step>

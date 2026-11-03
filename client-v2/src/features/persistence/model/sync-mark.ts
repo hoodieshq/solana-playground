@@ -158,6 +158,7 @@ export class PgSyncMark {
         // Not a fault: every browser the first sync client synced holds
         // these, and reconcile reads them through `readWholeSnapshotMark`
         if (!isWholeSnapshotMark(parsed)) {
+          // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
           report(`sync mark ${projectId}: malformed`, null);
         }
         return null;
@@ -185,14 +186,14 @@ export class PgSyncMark {
    * merge base, and `read` returns `null` for it. Reconcile uses it only to
    * tell whether the row has moved since this device last agreed.
    *
-   * @returns the timestamp, or `null` when the mark is absent or any other
+   * @returns the timestamp, or `undefined` when the mark is absent or any other
    * shape
    */
   static async readWholeSnapshotMark(
     projectId: string
-  ): Promise<{ updatedAt: string } | null> {
+  ): Promise<{ updatedAt: string } | undefined> {
     const userId = currentUserId();
-    if (!userId) return null;
+    if (!userId) return undefined;
 
     try {
       const parsed = JSON.parse(
@@ -200,11 +201,11 @@ export class PgSyncMark {
       );
       return isWholeSnapshotMark(parsed)
         ? { updatedAt: parsed.updatedAt }
-        : null;
+        : undefined;
     } catch (e) {
       if (!isMissing(e))
         report(`read whole-snapshot sync mark ${projectId}`, e);
-      return null;
+      return undefined;
     }
   }
 
@@ -532,8 +533,8 @@ if (import.meta.vitest) {
             updatedAt: "t1",
             dirty: false,
           });
-          expect(await PgSyncMark.readWholeSnapshotMark("p1")).toBeNull();
-          expect(await PgSyncMark.readWholeSnapshotMark("p2")).toBeNull();
+          expect(await PgSyncMark.readWholeSnapshotMark("p1")).toBeUndefined();
+          expect(await PgSyncMark.readWholeSnapshotMark("p2")).toBeUndefined();
           expect(getFailures()).toEqual([]);
         });
       });

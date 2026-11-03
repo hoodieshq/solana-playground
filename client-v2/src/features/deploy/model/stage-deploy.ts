@@ -24,7 +24,7 @@ export type StageStop =
       kind: "funding";
       detail: DeployFundingError["detail"];
       cluster: string | null;
-      workspace: string | null;
+      workspace: string | undefined;
     }
   | { kind: "cancelled" };
 
@@ -43,6 +43,10 @@ export type StageDeployState =
   | { phase: "stopped"; stop: StageStop }
   /** `backupFor` is the wallet address the backup line is shown for */
   | { phase: "done"; backupFor: string | null };
+
+/** `StageDeployState`'s `backupFor` when the backup line is not shown */
+// eslint-disable-next-line unicorn/no-null -- the state's "no backup line", which the Deploy stage compares with `null`
+const NO_BACKUP: string | null = null;
 
 /** How long a new Playground wallet may take to become current */
 const WALLET_TIMEOUT_MS = 15_000;
@@ -106,7 +110,10 @@ export class PgStageDeploy {
    * @param onFailed called with a failure before it is reported, so the stage
    * can mark one it already shows in place (Spec 08's one message per cause)
    */
-  static async start(onFailed?: (error: unknown) => void) {
+  static start(): Promise<void>;
+  static start(onFailed: (error: unknown) => void): Promise<void>;
+  static async start(...handlers: [] | [onFailed: (error: unknown) => void]) {
+    const [onFailed] = handlers;
     if (PgStageDeploy._running()) return;
     // Loaded here, not at the top: the slice's parts and helpers render in
     // places that never load the playground's runtime
@@ -123,7 +130,7 @@ export class PgStageDeploy {
     PgStageDeploy._set({ phase: "running", askingStaleBuild: false });
 
     const cluster = PgConnection.cluster;
-    const workspace = PgExplorer.currentWorkspaceName ?? null;
+    const workspace = PgExplorer.currentWorkspaceName;
     const redeploy = PgProgramInfo.onChain?.deployed === true;
     // A step recorded by an earlier run says nothing about this one, which
     // may fail before it reaches the deploy command
@@ -133,16 +140,16 @@ export class PgStageDeploy {
       // Interact's deployment switcher may have pointed the project at an
       // imported id; redeploying always targets the project's own key,
       // never whatever Interact last selected.
+      // eslint-disable-next-line unicorn/no-null -- `customPk` is `null` in the program info when none is picked
       PgProgramInfo.update({ customPk: null });
       if (cluster) {
         deployTelemetry.track("deploy_started", { cluster, redeploy });
       }
       await ensurePlaygroundWallet(PgWallet);
       reachedRun = true;
-      result = await PgDeployRun.withAnswers(
-        { confirmStaleBuild: PgStageDeploy._askStaleBuild },
-        () => PgCommand.deploy.execute()
-      );
+      result = await PgDeployRun.runWith({
+        confirmStaleBuild: PgStageDeploy._askStaleBuild,
+      })(() => PgCommand.deploy.execute());
     } catch (error) {
       PgStageDeploy._failed(error, {
         cluster,
@@ -154,7 +161,7 @@ export class PgStageDeploy {
     } finally {
       // A question still open when the run ended can no longer be answered
       PgStageDeploy._staleResolve?.(false);
-      PgStageDeploy._staleResolve = null;
+      PgStageDeploy._staleResolve = undefined;
     }
 
     // A press that only paused or resumed a run reports nothing
@@ -162,7 +169,7 @@ export class PgStageDeploy {
       PgStageDeploy._set({ phase: "idle" });
       return;
     }
-    let backupFor: string | null = null;
+    let backupFor: string | undefined;
     try {
       const paidBy = PgWallet.current;
       if (paidBy?.isPg) {
@@ -174,7 +181,7 @@ export class PgStageDeploy {
       // backup line is lost, and the stage must still leave "running"
       log.error(error, { report: true, context: { after: "deploy" } });
     }
-    PgStageDeploy._set({ phase: "done", backupFor });
+    PgStageDeploy._set({ phase: "done", backupFor: backupFor ?? NO_BACKUP });
     try {
       if (cluster) {
         deployTelemetry.track("deploy_succeeded", { cluster, redeploy });
@@ -189,7 +196,7 @@ export class PgStageDeploy {
   /** The user answered "Your last build failed" */
   static answerStaleBuild(deploy: boolean) {
     const resolve = PgStageDeploy._staleResolve;
-    PgStageDeploy._staleResolve = null;
+    PgStageDeploy._staleResolve = undefined;
     if (PgStageDeploy._state.phase === "running") {
       PgStageDeploy._set({ phase: "running", askingStaleBuild: false });
     }
@@ -208,7 +215,7 @@ export class PgStageDeploy {
       saved ? "deploy_backup_saved" : "deploy_backup_dismissed",
       {}
     );
-    PgStageDeploy._set({ phase: "done", backupFor: null });
+    PgStageDeploy._set({ phase: "done", backupFor: NO_BACKUP });
   }
 
   private static _askStaleBuild = () =>
@@ -229,7 +236,7 @@ export class PgStageDeploy {
     error: unknown,
     run: {
       cluster: Cluster | null;
-      workspace: string | null;
+      workspace: string | undefined;
       reachedRun: boolean;
       onFailed?: (error: unknown) => void;
     }
@@ -275,7 +282,7 @@ export class PgStageDeploy {
   }
 
   private static _state: StageDeployState = { phase: "idle" };
-  private static _staleResolve: ((deploy: boolean) => void) | null = null;
+  private static _staleResolve: ((deploy: boolean) => void) | undefined;
   private static readonly _listeners = new Set<() => void>();
 }
 

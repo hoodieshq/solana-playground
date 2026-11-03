@@ -24,20 +24,23 @@ const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 const SHORT_ID = "6PNd…AVkj";
 const WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 
-const record = (
-  id: string,
-  signature: string | null,
-  cluster = "devnet"
-): DeployRecord => ({
-  id,
-  workspace: "counter",
-  cluster,
-  programId: PROGRAM_ID,
-  signature,
-  at: Date.UTC(2026, 9, 15),
-});
+// eslint-disable-next-line unicorn/no-null -- a stored record writes an absent signature as null
+const NONE = null;
+
+const recordFor =
+  (cluster: string) =>
+  (id: string, signature: string | null): DeployRecord => ({
+    id,
+    workspace: "counter",
+    cluster,
+    programId: PROGRAM_ID,
+    signature,
+    at: Date.UTC(2026, 9, 15),
+  });
+const record = recordFor("devnet");
 
 const IDLE_RUN: DeployRunState = {
+  // eslint-disable-next-line unicorn/no-null -- `DeployRunState.step` is `null` while no deploy runs
   step: null,
   percent: 0,
   funds: false,
@@ -45,9 +48,9 @@ const IDLE_RUN: DeployRunState = {
 };
 
 const NO_DETAILS: DeployDetails = {
-  upgradable: null,
-  authority: null,
-  programSize: null,
+  upgradable: undefined,
+  authority: undefined,
+  programSize: undefined,
 };
 
 /** Every prop, named; each test passes what it is about */
@@ -71,11 +74,11 @@ const props = (state: {
   details: state.details ?? NO_DETAILS,
   history: state.history,
   payer:
-    state.payer === undefined
-      ? { address: WALLET, balance: 4.2, playground: true }
-      : state.payer,
+    "payer" in state
+      ? state.payer
+      : { address: WALLET, balance: 4.2, playground: true },
   run: state.run ?? IDLE_RUN,
-  funding: state.funding ?? null,
+  funding: state.funding,
   backup: state.backup ?? false,
   staleBuild: false,
   addressUrl: (id, cluster) => `https://explorer.test/${cluster}/address/${id}`,
@@ -151,7 +154,9 @@ describe("BaseDeploy", () => {
       />
     );
 
-    const warning = mainnetWarning()!;
+    const warning = screen.getByRole("alert", {
+      name: "Mainnet deploy warning",
+    });
     expect(warning.textContent).toContain(
       "For a program that matters, deploy from your own machine with the Solana CLI or Anchor."
     );
@@ -207,7 +212,7 @@ describe("BaseDeploy", () => {
         {...props({
           built: true,
           deploy: "failed",
-          history: [record("a", null)],
+          history: [record("a", NONE)],
           cluster: "mainnet-beta",
         })}
       />
@@ -217,6 +222,7 @@ describe("BaseDeploy", () => {
     expect(screen.getAllByRole("alert")).toHaveLength(2);
   });
 
+  // eslint-disable-next-line unicorn/no-null -- `BaseDeployProps.cluster` is `null` until the endpoint has been read
   it.each(["devnet", null])("does not warn on %s", (cluster) => {
     render(
       <BaseDeploy
@@ -267,7 +273,7 @@ describe("BaseDeploy", () => {
         {...props({
           built: true,
           deploy: "running",
-          history: [record("a", null)],
+          history: [record("a", NONE)],
         })}
       />
     );
@@ -326,7 +332,7 @@ describe("BaseDeploy", () => {
         {...props({
           built: true,
           deploy: "idle",
-          history: [record("a", null)],
+          history: [record("a", NONE)],
         })}
       />
     );
@@ -338,7 +344,7 @@ describe("BaseDeploy", () => {
         {...props({
           built: true,
           deploy: "idle",
-          history: [record("a", null)],
+          history: [record("a", NONE)],
           details: {
             upgradable: true,
             authority: "Auth111",
@@ -358,7 +364,7 @@ describe("BaseDeploy", () => {
         {...props({
           built: true,
           deploy: "idle",
-          history: [record("a", null), record("b", null)],
+          history: [record("a", NONE), record("b", NONE)],
         })}
       />
     );
@@ -378,7 +384,10 @@ describe("BaseDeploy", () => {
           built: true,
           deploy: "idle",
           cluster: "testnet",
-          history: [record("a", null, "testnet"), record("b", null, "devnet")],
+          history: [
+            recordFor("testnet")("a", NONE),
+            recordFor("devnet")("b", NONE),
+          ],
         })}
       />
     );
@@ -398,10 +407,10 @@ describe("BaseDeploy", () => {
     const p = props({
       built: true,
       deploy: "idle",
-      history: [record("a", "5sig", "playnet")],
+      history: [recordFor("playnet")("a", "5sig")],
     });
-    p.addressUrl = () => null;
-    p.txUrl = () => null;
+    p.addressUrl = () => undefined;
+    p.txUrl = () => undefined;
     render(<BaseDeploy {...p} />);
 
     expect(screen.queryAllByRole("link")).toHaveLength(0);
@@ -413,7 +422,7 @@ describe("BaseDeploy", () => {
       workspace: "counter",
       cluster: "devnet",
       programId: PROGRAM_ID,
-      signature: null,
+      signature: NONE,
       at: Date.UTC(2026, 9, 15),
       cost: 1_420_000_000,
       upgraded: true,
@@ -441,7 +450,12 @@ describe("BaseDeploy", () => {
 
     rerender(
       <BaseDeploy
-        {...props({ built: true, deploy: "idle", history: [], payer: null })}
+        {...props({
+          built: true,
+          deploy: "idle",
+          history: [],
+          payer: undefined,
+        })}
       />
     );
     expect(screen.getByLabelText("Who pays").textContent).toBe(
@@ -496,7 +510,7 @@ describe("BaseDeploy", () => {
     const p = props({
       built: true,
       deploy: "idle",
-      history: [record("a", null)],
+      history: [record("a", NONE)],
       backup: true,
     });
     render(<BaseDeploy {...p} />);
@@ -533,7 +547,7 @@ describe("BaseDeploy", () => {
         {...props({
           built: true,
           deploy: "idle",
-          history: [record("a", null)],
+          history: [record("a", NONE)],
         })}
       />
     );
@@ -574,7 +588,7 @@ describe("BaseDeploy", () => {
         {...props({
           built: true,
           deploy: "idle",
-          history: [record("a", null)],
+          history: [record("a", NONE)],
         })}
       />
     );

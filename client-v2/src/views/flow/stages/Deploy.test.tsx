@@ -20,12 +20,14 @@ const mocks = vi.hoisted(() => ({
   report: vi.fn(),
   markShown: vi.fn(),
   flow: { build: "done", deploy: "active" },
+  // eslint-disable-next-line unicorn/no-null -- `useProgramInfo()` answers `null` for a failed chain read, no keypair and no build
   programInfo: { onChain: null, pk: null, uuid: null as string | null },
   deployState: "ready",
   history: [] as unknown[],
   update: vi.fn(),
   noop: () => ({ dispose: () => undefined }),
   wallet: {
+    // eslint-disable-next-line unicorn/no-null -- `PgWallet.current` is `null` while no wallet is current
     current: null as null | {
       isPg: boolean;
       publicKey: { toBase58: () => string };
@@ -127,14 +129,23 @@ beforeEach(() => {
 });
 afterEach(() => {
   mocks.flow = { build: "done", deploy: "active" };
+  // eslint-disable-next-line unicorn/no-null -- `useProgramInfo()` answers `null` for a failed chain read, no keypair and no build
   mocks.programInfo = { onChain: null, pk: null, uuid: null };
   mocks.deployState = "ready";
   mocks.history = [];
+  // eslint-disable-next-line unicorn/no-null -- `PgWallet.current` is `null` while no wallet is current
   mocks.wallet.current = null;
   mocks.wallet.accounts = [];
   resetTelemetry();
   vi.clearAllMocks();
 });
+
+/** The stale-build question the running deploy is asking */
+const confirmStaleBuild = () => {
+  const { answers } = PgDeployRun;
+  if (!answers) throw new Error("no deploy is running, so nothing is asking");
+  return answers.confirmStaleBuild();
+};
 
 /** Every event the stage sent, by name */
 const events = () => sent.events.map((e) => e.name);
@@ -149,6 +160,7 @@ describe("Deploy stage", () => {
   // stage's "Your last build failed" question is how the user opts into it
   it("keeps Deploy enabled after a failed build when a binary exists", () => {
     mocks.flow = { build: "failed", deploy: "active" };
+    // eslint-disable-next-line unicorn/no-null -- `useProgramInfo()` answers `null` for a failed chain read and no keypair
     mocks.programInfo = { onChain: null, pk: null, uuid: "previous-build" };
     render(<Deploy />);
 
@@ -255,9 +267,9 @@ describe("Deploy stage", () => {
     // The wallet becomes current only after its derivation settles, as
     // `PgWallet.current` does; the deploy's own wallet check must see it
     mocks.wallet.add.mockImplementation(() => setTimeout(becomeCurrent));
-    let walletAtDeploy: string | null = "not run";
+    let walletAtDeploy: string | undefined = "not run";
     mocks.execute.mockImplementation(async () => {
-      walletAtDeploy = mocks.wallet.current?.publicKey.toBase58() ?? null;
+      walletAtDeploy = mocks.wallet.current?.publicKey.toBase58();
     });
     render(<Deploy />);
 
@@ -273,7 +285,7 @@ describe("Deploy stage", () => {
     mocks.wallet.current = pgWallet();
     let answer: Promise<boolean> | undefined;
     mocks.execute.mockImplementation(async () => {
-      answer = PgDeployRun.answers!.confirmStaleBuild();
+      answer = confirmStaleBuild();
       if (!(await answer)) throw new DeployCancelledError();
     });
     render(<Deploy />);
@@ -364,7 +376,7 @@ describe("Deploy stage", () => {
     mocks.wallet.current = pgWallet();
     let answer: Promise<boolean> | undefined;
     mocks.execute.mockImplementation(async () => {
-      answer = PgDeployRun.answers!.confirmStaleBuild();
+      answer = confirmStaleBuild();
       await answer;
     });
     const first = render(<Deploy />);
@@ -483,6 +495,7 @@ describe("Deploy stage", () => {
         balance: 0,
         needed: 1,
         address: WALLET,
+        // eslint-disable-next-line unicorn/no-null -- `DeployFundingError`'s `cause` is `string | null`
         cause: null,
       })
     );

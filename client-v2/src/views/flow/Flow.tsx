@@ -171,7 +171,7 @@ const FlowFrame = () => {
     const closed = wasOpen.current && !settings.open;
     wasOpen.current = settings.open;
     if (!closed) return;
-    revealAtOnce(shell.current!);
+    if (shell.current) revealAtOnce(shell.current);
     const target =
       refocus.current && canTakeFocus(refocus.current)
         ? refocus.current

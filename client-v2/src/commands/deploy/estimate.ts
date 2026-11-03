@@ -23,21 +23,21 @@ const FIXED_TRANSACTIONS = 3;
 
 /**
  * Lamports a deploy of the built program is about to cost the paying wallet,
- * or `null` when the program or the chain cannot be read. A first deploy
+ * or `undefined` when the program or the chain cannot be read. A first deploy
  * keeps the buffer's rent as the program's; an upgrade gets the buffer's
  * rent back and pays only for a larger program data account and the fees.
  * The program account's own rent, about 0.001 SOL, is left out.
  */
-export const estimateDeployCost = async (): Promise<number | null> => {
+const estimateCost = async (): Promise<number | undefined> => {
   try {
     const onChain = PgProgramInfo.onChain;
-    if (!onChain) return null;
+    if (!onChain) return undefined;
 
     let programLen = PgProgramInfo.importedProgram?.bytes.length;
     if (!programLen && PgProgramInfo.uuid) {
       programLen = (await PgServer.deploy(PgProgramInfo.uuid)).length;
     }
-    if (!programLen) return null;
+    if (!programLen) return undefined;
 
     const connection = PgConnection.current;
     const additionalLen = additionalProgramLen({
@@ -61,28 +61,42 @@ export const estimateDeployCost = async (): Promise<number | null> => {
     log.warn("could not estimate the deploy cost", {
       context: { error: String(e) },
     });
-    return null;
+    return undefined;
   }
 };
+
+/**
+ * The assistant bridge's quote says `null` for a cost that cannot be
+ * estimated, so that is what the exported estimates answer
+ */
+// eslint-disable-next-line unicorn/no-null -- the bridge's quote type
+const asQuote = (cost: number | undefined): number | null => cost ?? null;
+
+/** {@link estimateCost} as the bridge's quote */
+export const estimateDeployCost = async (): Promise<number | null> =>
+  asQuote(await estimateCost());
 
 /**
  * {@link estimateDeployCost}, or `null` once `ms` pass without an answer:
  * the approval card waits on it, and a stalled build server or RPC must not
  * hold the card
  */
-export const estimateDeployCostWithin = async (
-  ms: number = QUOTE_TIMEOUT_MS
-): Promise<number | null> => {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => {
-      log.warn("the deploy cost estimate timed out", { context: { ms } });
-      resolve(null);
-    }, ms);
-  });
-  try {
-    return await Promise.race([estimateDeployCost(), timeout]);
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-  }
-};
+export const estimateDeployCostWith =
+  (ms: number) => async (): Promise<number | null> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => {
+        log.warn("the deploy cost estimate timed out", { context: { ms } });
+        resolve(undefined);
+      }, ms);
+    });
+    try {
+      return asQuote(await Promise.race([estimateCost(), timeout]));
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  };
+
+/** {@link estimateDeployCost} within the time the approval card waits */
+export const estimateDeployCostWithin =
+  estimateDeployCostWith(QUOTE_TIMEOUT_MS);

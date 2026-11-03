@@ -29,6 +29,7 @@ test("client-v2-deploy: A devnet record viewed on testnet", async ({
             workspace: "e2e-project",
             cluster: "devnet",
             programId,
+            // eslint-disable-next-line unicorn/no-null -- `flow.deploys` persists `signature: null` for a deploy with no signature
             signature: null,
             at,
           },

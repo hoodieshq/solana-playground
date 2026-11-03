@@ -38,14 +38,17 @@ describe("describeProject", () => {
     ({
       getProjectContext: () => ({
         workspaceName: "p",
+        // eslint-disable-next-line unicorn/no-null -- `ProjectContext.currentFilePath` is `string | null`
         currentFilePath: null,
         filePaths: [],
         openFilePaths: [],
         idl,
+        // eslint-disable-next-line unicorn/no-null -- `ProjectContext.programId` is `string | null`
         programId: null,
         deployState: "ready",
         cluster: "devnet",
         walletConnected: false,
+        // eslint-disable-next-line unicorn/no-null -- `ProjectContext.lesson` is `LessonContext | null`
         lesson: null,
       }),
     } as unknown as PlaygroundBridge);

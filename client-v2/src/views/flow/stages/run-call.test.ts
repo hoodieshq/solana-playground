@@ -67,7 +67,7 @@ describe("runCall", () => {
       ok: true,
       signature: "sig",
       logs: ["Program log: Instruction: Increment"],
-      failingLine: null,
+      failingLine: undefined,
     });
     expect(h.println).toHaveBeenCalledWith("Call succeeded.");
     expect(PgCallHistory.list("P", "devnet")).toHaveLength(1);
@@ -77,6 +77,7 @@ describe("runCall", () => {
     h.test.mockResolvedValue("sig");
     h.confirm.mockResolvedValue(undefined);
     h.getTransaction
+      // eslint-disable-next-line unicorn/no-null -- an RPC answers `null` for a transaction it has not indexed
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ meta: { logMessages: ["late"] } });
 
@@ -108,7 +109,7 @@ describe("runCall", () => {
 
     expect(outcome).toMatchObject({
       ok: false,
-      signature: null,
+      signature: undefined,
       failingLine: ERROR_LINE,
     });
   });
@@ -120,7 +121,7 @@ describe("runCall", () => {
 
     expect(outcome).toMatchObject({
       ok: false,
-      signature: null,
+      signature: undefined,
       logs: [],
       failingLine: "Enum variant not found",
     });
@@ -140,6 +141,7 @@ describe("runCall", () => {
   });
 
   it("records nothing without a program or a network, and still resolves", async () => {
+    // eslint-disable-next-line unicorn/no-null -- `PgProgramInfo.getPkStr()` answers `null` without a program
     h.pk = null;
     h.test.mockResolvedValue("sig");
     h.confirm.mockResolvedValue(undefined);

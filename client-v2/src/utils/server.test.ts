@@ -106,7 +106,7 @@ describe("PgServer failures", () => {
     const error = await PgServer.deploy("x").catch((e) => e);
 
     expect(error).toBeInstanceOf(PgServerError);
-    expect(error.status).toBeNull();
+    expect(error.status).toBeUndefined();
   });
 });
 

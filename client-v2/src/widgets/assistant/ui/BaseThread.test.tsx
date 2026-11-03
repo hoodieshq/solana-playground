@@ -40,6 +40,7 @@ const renderThread = (
       items={items}
       working={overrides.working ?? false}
       unsaved={overrides.unsaved ?? false}
+      // eslint-disable-next-line unicorn/no-null -- `signIn` is `SignInOffer | null`, null meaning no offer
       signIn={overrides.signIn ?? null}
       project={overrides.project === undefined ? "Counter" : overrides.project}
       suggestions={SUGGESTIONS}

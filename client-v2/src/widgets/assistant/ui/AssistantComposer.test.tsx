@@ -49,7 +49,12 @@ vi.mock("../../../utils/explorer/explorer", () => ({
   },
 }));
 vi.mock("../../../utils/program-info", () => ({
-  PgProgramInfo: { idl: null, callableIdl: () => null },
+  PgProgramInfo: {
+    // eslint-disable-next-line unicorn/no-null -- the real `idl` and `callableIdl` answer `null` without an IDL
+    idl: null,
+    // eslint-disable-next-line unicorn/no-null -- same
+    callableIdl: () => null,
+  },
 }));
 vi.mock("../../../views/sidebar/assistant/bridge/playground-bridge", () => ({
   realBridge: {

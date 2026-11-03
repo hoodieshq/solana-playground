@@ -21,6 +21,9 @@ vi.mock("../../../utils", () => ({
 
 import { PgDeployHistory } from "./deploy-history";
 
+// eslint-disable-next-line unicorn/no-null -- a stored record writes an absent signature as null
+const NONE = null;
+
 /** The mocked utils module, in the shape the factory above gives it */
 const mockedUtils = async () =>
   (await import("../../../utils")) as unknown as {
@@ -159,7 +162,7 @@ describe("PgDeployHistory deploy result", () => {
   it("keeps the signature, cost and upgrade the deploy reported", async () => {
     const { PgCommand, PgConnection, PgExplorer, PgGlobal, PgProgramInfo } =
       await mockedUtils();
-    let deployCallback: ((result: unknown) => void) | undefined;
+    let deployCallback = undefined as ((result: unknown) => void) | undefined;
     PgCommand.deploy.onDidFinish.mockImplementation((cb) => {
       deployCallback = cb;
       return { dispose: vi.fn() };
@@ -170,7 +173,9 @@ describe("PgDeployHistory deploy result", () => {
     PgProgramInfo.getPkStr.mockReturnValue("Prog111");
 
     const sub = PgDeployHistory.init();
-    deployCallback!({
+    if (!deployCallback)
+      throw new Error("the deploy finish was not subscribed");
+    deployCallback({
       ok: { signature: "sig1", cost: 1_500_000_000, upgraded: true },
     });
 
@@ -187,7 +192,7 @@ describe("PgDeployHistory deploy result", () => {
       workspace: "w",
       cluster: "devnet",
       programId: "A",
-      signature: null,
+      signature: NONE,
       at: 1,
     };
     localStorage.setItem("flow.deploys", JSON.stringify([old]));
@@ -204,7 +209,7 @@ describe("PgDeployHistory deploy result", () => {
       workspace: "w",
       cluster: "devnet",
       programId: "A",
-      signature: null,
+      signature: NONE,
       at: 1,
       cost: "lots",
     };

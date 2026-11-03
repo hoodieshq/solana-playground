@@ -4,7 +4,7 @@ import {
   json,
   LONG,
   seedWorkspace,
-  stubSession,
+  stubSignedOut,
   stubSignedIn,
   test,
   TEST_USER,
@@ -28,15 +28,15 @@ type OwnWindow = Window & {
 };
 
 const connectOwnKey = (page: Page) =>
-  page.evaluate(
-    (endpoint) =>
-      (window as OwnWindow).__pgAssistant!.connect({
-        id: "openai",
-        apiKey: "sk-e2e-own-key-0123456789",
-        endpoint,
-      }),
-    ENDPOINT
-  );
+  page.evaluate((endpoint) => {
+    const assistant = (window as OwnWindow).__pgAssistant;
+    if (!assistant) throw new Error("window.__pgAssistant is not exposed");
+    return assistant.connect({
+      id: "openai",
+      apiKey: "sk-e2e-own-key-0123456789",
+      endpoint,
+    });
+  }, ENDPOINT);
 
 const stubProvider = (page: Page) =>
   page.route(`${ENDPOINT.baseUrl}/chat/completions`, (route) =>
@@ -63,7 +63,7 @@ test("assistant-sign-out-history: Signed out with a conversation", async ({
   page,
 }) => {
   await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
-  await stubSession(page, null);
+  await stubSignedOut(page);
   await stubProvider(page);
   await seedWorkspace(page, "signed-out-history");
 
@@ -98,7 +98,7 @@ test("assistant-sign-out-history: Pressing the line's button", async ({
 }) => {
   const lines = linesOn(page);
   await page.route("**/api/sync", (r) => json(r, { enabled: true, db: "ok" }));
-  await stubSession(page, null);
+  await stubSignedOut(page);
   await stubProvider(page);
   // Refused, so no popup opens: what is under test is that the press is
   // reported and starts a sign-in

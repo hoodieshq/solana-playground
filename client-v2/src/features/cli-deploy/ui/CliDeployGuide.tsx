@@ -34,6 +34,8 @@ const CliDeployGuide = (p: CliDeployGuideProps) => {
   // the situation's, so each opening picks it again
   const [tool, setTool] = useState<CliTool>("solana");
   const [cluster, setCluster] = useState<CliCluster>("devnet");
+  // Mirrors the `from` prop, which is `null` while the guide is closed
+  // eslint-disable-next-line unicorn/no-null -- the prop's closed value
   const [openedFrom, setOpenedFrom] = useState<GuideFrom | null>(null);
 
   const { from } = p;

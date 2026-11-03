@@ -21,7 +21,7 @@ const isV029 = (v: Record<string, unknown>) =>
 
 const NOT_AN_IDL: IdlReading = {
   kind: "refused",
-  version: null,
+  version: undefined,
   reason: "not an Anchor IDL",
 };
 
@@ -46,7 +46,7 @@ export const readIdl = (raw: unknown): IdlReading => {
       context: {
         reason: reading.reason,
         program: programName(raw),
-        spec: isObject(raw.metadata) ? raw.metadata.spec : null,
+        spec: isObject(raw.metadata) ? raw.metadata.spec : undefined,
       },
     });
   }

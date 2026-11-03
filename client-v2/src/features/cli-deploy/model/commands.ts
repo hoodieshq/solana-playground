@@ -4,11 +4,13 @@ export type CliTool = "solana" | "anchor";
 /** The cluster the guide deploys to */
 export type CliCluster = "devnet" | "mainnet";
 
-/** The guide's cluster for Playground's, or `null` for one it has no line for */
-export const cliClusterOf = (cluster: string | null): CliCluster | null => {
+/** The guide's cluster for Playground's, or `undefined` for one it has no line for */
+export const cliClusterOf = (
+  cluster: string | null
+): CliCluster | undefined => {
   if (cluster === "devnet") return "devnet";
   if (cluster === "mainnet-beta") return "mainnet";
-  return null;
+  return undefined;
 };
 
 /** The `--url` the Solana CLI takes for each cluster */
@@ -73,8 +75,9 @@ if (import.meta.vitest) {
     it("maps only devnet and mainnet-beta to a guide cluster", () => {
       expect(cliClusterOf("devnet")).toBe("devnet");
       expect(cliClusterOf("mainnet-beta")).toBe("mainnet");
-      expect(cliClusterOf("localnet")).toBeNull();
-      expect(cliClusterOf(null)).toBeNull();
+      expect(cliClusterOf("localnet")).toBeUndefined();
+      // eslint-disable-next-line unicorn/no-null -- the guide's cluster prop is `null` until read
+      expect(cliClusterOf(null)).toBeUndefined();
     });
   });
 }

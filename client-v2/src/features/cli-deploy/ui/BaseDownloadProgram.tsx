@@ -14,7 +14,7 @@ export interface BaseDownloadProgramProps {
   /** The file the binary is saved as, `<program>.so` */
   fileName: string;
   /** Why the last press saved nothing, when a build would fix it */
-  note: DownloadNote | null;
+  note: DownloadNote | undefined;
   /** Fetches and saves the binary; a rejection is a failure to report */
   onDownload: () => Promise<void>;
 }

@@ -45,26 +45,49 @@ describe("entities/external-wallet/model/bridge", () => {
     url: "https://api.mainnet-beta.solana.com",
   };
 
-  /** A connected bridged wallet over a fake built from `opts` */
-  const connected = async (
-    opts: FakeOptions,
-    signingCluster: () => SigningCluster | undefined = () => undefined
-  ) => {
-    const fake = fakes.registerFakeWallet(opts);
-    cleanup.push(() => fake.unregister());
-    const seen: { latest: StandardWallet[] } = { latest: [] };
-    cleanup.push(
-      bridge.watchExternalWallets(
-        (wallets) => {
+  /** A connected bridged wallet over a fake built from `opts`, signing for `signingCluster` */
+  const connectedWith =
+    (signingCluster: () => SigningCluster | undefined) =>
+    async (opts: FakeOptions) => {
+      const fake = fakes.registerFakeWallet(opts);
+      cleanup.push(() => fake.unregister());
+      const seen: { latest: StandardWallet[] } = { latest: [] };
+      cleanup.push(
+        bridge.watchExternalWalletsWith({ signingCluster })((wallets) => {
           seen.latest = wallets;
-        },
-        { signingCluster }
-      )
-    );
-    const wallet = seen.latest.find((w) => w.name === opts.name);
-    if (!wallet) throw new Error(`${opts.name} not listed`);
-    await wallet.connect();
-    return { wallet, fake };
+        })
+      );
+      const wallet = seen.latest.find((w) => w.name === opts.name);
+      if (!wallet) throw new Error(`${opts.name} not listed`);
+      await wallet.connect();
+      return { wallet, fake };
+    };
+
+  /** A connected bridged wallet that signs without a cluster hint */
+  const connected = connectedWith(() => undefined);
+
+  const signTransactionOf = (wallet: StandardWallet, tx: Transaction) => {
+    if (!wallet.signTransaction) {
+      throw new Error(`${wallet.name} cannot sign transactions`);
+    }
+    return wallet.signTransaction(tx);
+  };
+
+  const signAllTransactionsOf = (
+    wallet: StandardWallet,
+    txs: Transaction[]
+  ) => {
+    if (!wallet.signAllTransactions) {
+      throw new Error(`${wallet.name} cannot sign transactions`);
+    }
+    return wallet.signAllTransactions(txs);
+  };
+
+  const signMessageOf = (wallet: StandardWallet, message: Uint8Array) => {
+    if (!wallet.signMessage) {
+      throw new Error(`${wallet.name} cannot sign messages`);
+    }
+    return wallet.signMessage(message);
   };
 
   /** A transfer from `from`, with a made-up blockhash: nothing is sent */
@@ -84,7 +107,7 @@ describe("entities/external-wallet/model/bridge", () => {
     const kp = Keypair.generate();
     const { wallet } = await connected({ name: "Phantom", accounts: [kp] });
 
-    const signed = await wallet.signTransaction!(transfer(kp));
+    const signed = await signTransactionOf(wallet, transfer(kp));
 
     expect(signed).toBeInstanceOf(Transaction);
     expect(signed.verifySignatures()).toBe(true);
@@ -94,7 +117,7 @@ describe("entities/external-wallet/model/bridge", () => {
     const kp = Keypair.generate();
     const { wallet } = await connected({ name: "Phantom", accounts: [kp] });
 
-    const signed = await wallet.signAllTransactions!([
+    const signed = await signAllTransactionsOf(wallet, [
       transfer(kp),
       transfer(kp),
     ]);
@@ -108,16 +131,16 @@ describe("entities/external-wallet/model/bridge", () => {
     const current: { cluster: SigningCluster | undefined } = {
       cluster: DEVNET,
     };
-    const { wallet, fake } = await connected(
-      { name: "Phantom", accounts: [kp] },
-      () => current.cluster
-    );
+    const { wallet, fake } = await connectedWith(() => current.cluster)({
+      name: "Phantom",
+      accounts: [kp],
+    });
 
-    await wallet.signTransaction!(transfer(kp));
+    await signTransactionOf(wallet, transfer(kp));
     current.cluster = MAINNET;
-    await wallet.signTransaction!(transfer(kp));
+    await signTransactionOf(wallet, transfer(kp));
     current.cluster = undefined;
-    await wallet.signTransaction!(transfer(kp));
+    await signTransactionOf(wallet, transfer(kp));
 
     expect(fake.signedChains()).toEqual([
       "solana:devnet",
@@ -134,7 +157,7 @@ describe("entities/external-wallet/model/bridge", () => {
       reject: "sign",
     });
 
-    await expect(wallet.signTransaction!(transfer(kp))).rejects.toThrow(
+    await expect(signTransactionOf(wallet, transfer(kp))).rejects.toThrow(
       fakes.FAKE_REJECTION
     );
   });
@@ -144,7 +167,7 @@ describe("entities/external-wallet/model/bridge", () => {
     const { wallet } = await connected({ name: "Phantom", accounts: [kp] });
     const message = new TextEncoder().encode("hello");
 
-    const signature = await wallet.signMessage!(message);
+    const signature = await signMessageOf(wallet, message);
 
     expect(
       await ed25519.verify(signature, message, kp.publicKey.toBytes())
@@ -159,7 +182,7 @@ describe("entities/external-wallet/model/bridge", () => {
     });
 
     await expect(
-      wallet.signMessage!(new TextEncoder().encode("x"))
+      signMessageOf(wallet, new TextEncoder().encode("x"))
     ).rejects.toThrow(fakes.FAKE_REJECTION);
   });
 });

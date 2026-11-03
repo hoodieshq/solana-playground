@@ -246,8 +246,8 @@ if (import.meta.vitest) {
             { isTemporary: false, currentWorkspaceName: "p" },
             {
               idl: raw,
-              importedProgram: null,
-              uuid: null,
+              importedProgram: undefined,
+              uuid: undefined,
               pk: PK,
               onChain: { deployed: true },
             }

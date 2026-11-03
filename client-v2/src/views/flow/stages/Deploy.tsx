@@ -40,26 +40,28 @@ const readHistory = () =>
  * is starting or "running" instead. A run the user cancelled is not a
  * failure.
  */
-const deployStatus = (
-  deployState: unknown,
-  flow: FlowState,
-  stage: StageDeployState
-): DeployStatus => {
-  if (deployState === "loading" || stage.phase === "running") return "running";
-  const cancelled =
-    stage.phase === "stopped" && stage.stop.kind === "cancelled";
-  if (flow.deploy === "failed" && !cancelled) return "failed";
-  return "idle";
-};
+const deployStatusFor =
+  (flow: FlowState, stage: StageDeployState) =>
+  (deployState: unknown): DeployStatus => {
+    if (deployState === "loading" || stage.phase === "running")
+      return "running";
+    const cancelled =
+      stage.phase === "stopped" && stage.stop.kind === "cancelled";
+    if (flow.deploy === "failed" && !cancelled) return "failed";
+    return "idle";
+  };
 
 /** The funding stop's detail, when it ran on the project and network open now */
 const fundingHere = (stage: StageDeployState) => {
-  if (stage.phase !== "stopped" || stage.stop.kind !== "funding") return null;
+  if (stage.phase !== "stopped" || stage.stop.kind !== "funding") {
+    return undefined;
+  }
   const { stop } = stage;
   const here =
     stop.cluster === PgConnection.cluster &&
-    stop.workspace === (PgExplorer.currentWorkspaceName ?? null);
-  return here ? stop.detail : null;
+    (stop.workspace ?? undefined) ===
+      (PgExplorer.currentWorkspaceName ?? undefined);
+  return here ? stop.detail : undefined;
 };
 
 /**
@@ -88,7 +90,7 @@ const Deploy = () => {
   // Read on mount, not only on change: the stage router remounts this stage
   // on every switch, and no event fires to fill it again.
   const [history, setHistory] = useState<DeployRecord[]>(readHistory);
-  const [guide, setGuide] = useState<GuideFrom | null>(null);
+  const [guide, setGuide] = useState<GuideFrom>();
   const stage = useStageDeploy();
   const explorer = useBlockExplorer();
   const programInfo = useProgramInfo();
@@ -117,18 +119,18 @@ const Deploy = () => {
   const deployed = onChain?.deployed === true;
   const upgradable = deployed && onChain?.upgradable === true;
   const details: DeployDetails = {
-    upgradable: deployed ? upgradable : null,
-    authority: upgradable ? onChain?.authority?.toBase58() ?? null : null,
-    programSize: upgradable ? onChain?.programDataLen ?? null : null,
+    upgradable: deployed ? upgradable : undefined,
+    authority: upgradable ? onChain?.authority?.toBase58() : undefined,
+    programSize: upgradable ? onChain?.programDataLen : undefined,
   };
 
-  const payer: DeployPayer | null = wallet
+  const payer: DeployPayer | undefined = wallet
     ? {
         address: wallet.publicKey.toBase58(),
-        balance: typeof balance === "number" ? balance : null,
+        balance: typeof balance === "number" ? balance : undefined,
         playground: wallet.isPg === true,
       }
-    : null;
+    : undefined;
 
   const saveKeypair = () => {
     try {
@@ -142,14 +144,15 @@ const Deploy = () => {
 
   // A record's cluster is whatever the browser stored; an explorer that
   // cannot open it gets no link rather than one to mainnet
-  const linkTo = (cluster: string, url: (c: Cluster) => string) =>
-    explorer.opens(cluster as Cluster) ? url(cluster as Cluster) : null;
+  const linkWith = (url: (c: Cluster) => string) => (cluster: string) =>
+    explorer.opens(cluster as Cluster) ? url(cluster as Cluster) : undefined;
 
   // A failed build leaves the server's last binary in place, so Deploy stays
   // available when one exists; the stage then asks before using it
   const built =
     flow.build === "done" ||
     (flow.build === "failed" && Boolean(programInfo.uuid));
+  // eslint-disable-next-line unicorn/no-null -- `BaseDeploy` and `CliDeployGuide` take `programId: string | null`
   const programId = programInfo.pk?.toBase58() ?? null;
 
   return (
@@ -157,7 +160,7 @@ const Deploy = () => {
       <BaseDeploy
         cluster={PgConnection.cluster}
         built={built}
-        deploy={deployStatus(deployState, flow, stage)}
+        deploy={deployStatusFor(flow, stage)(deployState)}
         programId={programId}
         details={details}
         history={history}
@@ -171,10 +174,10 @@ const Deploy = () => {
         }
         staleBuild={stage.phase === "running" && stage.askingStaleBuild}
         addressUrl={(id, cluster) =>
-          linkTo(cluster, (c) => explorer.getAddressUrl(id, c))
+          linkWith((c) => explorer.getAddressUrl(id, c))(cluster)
         }
         txUrl={(signature, cluster) =>
-          linkTo(cluster, (c) => explorer.getTxUrl(signature, c))
+          linkWith((c) => explorer.getTxUrl(signature, c))(cluster)
         }
         onDeploy={() =>
           void PgStageDeploy.start((error) =>
@@ -190,8 +193,9 @@ const Deploy = () => {
         onOpenCliGuide={setGuide}
       />
       <CliDeployGuide
-        from={guide}
-        onClose={() => setGuide(null)}
+        // eslint-disable-next-line unicorn/no-null -- `CliDeployGuide`'s `from` is `GuideFrom | null`
+        from={guide ?? null}
+        onClose={() => setGuide(undefined)}
         cluster={PgConnection.cluster}
         built={built}
         programId={programId}

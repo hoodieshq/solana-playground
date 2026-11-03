@@ -24,13 +24,13 @@ const renderDialog = (props: Partial<BaseFundDialogProps>) =>
       onOpenChange={props.onOpenChange ?? vi.fn()}
       receiver={props.receiver ?? RECEIVER}
       wallets={props.wallets ?? [PHANTOM]}
-      payer={props.payer === undefined ? null : props.payer}
+      payer={props.payer}
       cluster={props.cluster === undefined ? "devnet" : props.cluster}
       amount={props.amount ?? "1"}
       onAmountChange={props.onAmountChange ?? vi.fn()}
       onConnect={props.onConnect ?? vi.fn().mockResolvedValue(undefined)}
       onSend={props.onSend ?? vi.fn().mockResolvedValue(undefined)}
-      failure={props.failure === undefined ? null : props.failure}
+      failure={props.failure}
     />
   );
 

@@ -7,13 +7,13 @@ export const FEE_SOL = 0.000005;
  * says nothing.
  */
 export const builtAfterDeploy = (
-  buildAt: number | null,
-  deployAt: number | null
-) => buildAt !== null && deployAt !== null && buildAt > deployAt;
+  buildAt: number | undefined,
+  deployAt: number | undefined
+) => buildAt !== undefined && deployAt !== undefined && buildAt > deployAt;
 
 /** Whether the fee payer cannot pay one fee; an unread balance says nothing */
-export const solNeeded = (balance: number | null) =>
-  balance !== null && balance < FEE_SOL;
+export const solNeeded = (balance: number | undefined) =>
+  balance !== undefined && balance < FEE_SOL;
 
 /** A program id shortened in the middle: "6PNd…AVkj" */
 export const shortenId = (id: string) =>
@@ -26,15 +26,15 @@ if (import.meta.vitest) {
     it("builtAfterDeploy compares a known build with a known deploy", () => {
       expect(builtAfterDeploy(2, 1)).toBe(true);
       expect(builtAfterDeploy(1, 2)).toBe(false);
-      expect(builtAfterDeploy(null, 1)).toBe(false);
-      expect(builtAfterDeploy(2, null)).toBe(false);
+      expect(builtAfterDeploy(undefined, 1)).toBe(false);
+      expect(builtAfterDeploy(2, undefined)).toBe(false);
     });
 
     it("solNeeded asks for SOL below one fee only", () => {
       expect(solNeeded(0)).toBe(true);
       expect(solNeeded(0.000004)).toBe(true);
       expect(solNeeded(FEE_SOL)).toBe(false);
-      expect(solNeeded(null)).toBe(false);
+      expect(solNeeded(undefined)).toBe(false);
     });
 
     it("shortenId keeps four characters each side", () => {

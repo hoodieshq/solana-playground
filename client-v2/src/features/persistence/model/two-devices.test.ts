@@ -56,6 +56,13 @@ interface StoredProject {
 
 const server = new Map<string, StoredProject>();
 
+/** The account's row, for a test that has just put one there */
+const serverRow = (id: string): StoredProject => {
+  const row = server.get(id);
+  if (!row) throw new Error(`the account holds no row ${id}`);
+  return row;
+};
+
 /** Monotonic, because two writes in the same millisecond would tie */
 let clock = 0;
 const tick = () => `2026-01-01T00:00:${String(++clock).padStart(2, "0")}.000Z`;
@@ -250,7 +257,7 @@ const setUp = () => {
  * through it would hand this device an agreement it never made.
  */
 const otherDeviceWrote = (id: string, content: string) => {
-  const existing = server.get(id)!;
+  const existing = serverRow(id);
   server.set(id, {
     ...existing,
     snapshot: { files: { "src/lib.rs": content } },
@@ -260,7 +267,7 @@ const otherDeviceWrote = (id: string, content: string) => {
 
 /** The other browser wrote these files, and only these */
 const otherDeviceWroteFiles = (id: string, files: Record<string, string>) => {
-  const existing = server.get(id)!;
+  const existing = serverRow(id);
   server.set(id, { ...existing, snapshot: { files }, updatedAt: tick() });
 };
 
@@ -328,7 +335,7 @@ const captureWrites = () => {
 };
 
 /** What the editor holds, per full path, standing in for Monaco's models */
-let editor: { dispose: () => void } | null = null;
+let editor: { dispose: () => void } | undefined;
 const editorHolds = (buffers: Record<string, string>) => {
   const held = new Map(Object.entries(buffers));
   editor = PgExplorer.registerEditorBuffers({
@@ -341,7 +348,7 @@ const editorHolds = (buffers: Record<string, string>) => {
 
 /** The other browser deleted it, so the row is tombstoned */
 const otherDeviceDeleted = (id: string) => {
-  const existing = server.get(id)!;
+  const existing = serverRow(id);
   server.set(id, { ...existing, deleted: true, snapshot: null });
 };
 
@@ -416,7 +423,7 @@ describe("work that never reached the server", () => {
   beforeEach(setUp);
   afterEach(() => {
     editor?.dispose();
-    editor = null;
+    editor = undefined;
     vi.restoreAllMocks();
   });
 
@@ -463,7 +470,7 @@ describe("work that never reached the server", () => {
 
     expect(await PgProjectSync.resolve(HELLO.id, "keep-local")).toBe(true);
 
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "an afternoon of work" },
     });
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
@@ -497,7 +504,7 @@ describe("work that never reached the server", () => {
     // The editor finishes loading during the re-open, before memory is
     // re-read, so it builds its model from the text just replaced. The
     // re-open then reuses that model, and the pane goes on showing it.
-    let buffers: Map<string, string> | null = null;
+    let buffers: Map<string, string> | undefined;
     vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
       buffers = editorHolds({
         [`/${HELLO.name}/src/lib.rs`]: "an afternoon of work",
@@ -506,7 +513,7 @@ describe("work that never reached the server", () => {
 
     expect(await PgProjectSync.resolve(HELLO.id, "take-server")).toBe(true);
 
-    expect(buffers!.get(`/${HELLO.name}/src/lib.rs`)).toBe("the other device");
+    expect(buffers?.get(`/${HELLO.name}/src/lib.rs`)).toBe("the other device");
     expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
       "the other device"
     );
@@ -520,7 +527,7 @@ describe("both devices changed it", () => {
   });
   afterEach(() => {
     editor?.dispose();
-    editor = null;
+    editor = undefined;
     clearFailures();
     vi.restoreAllMocks();
   });
@@ -549,7 +556,7 @@ describe("both devices changed it", () => {
 
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
 
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "my lib", "tests/t.rs": "their test" },
     });
     expect(replace).toHaveBeenCalledWith(HELLO.name, {
@@ -569,7 +576,7 @@ describe("both devices changed it", () => {
 
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
 
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
     });
   });
@@ -605,7 +612,7 @@ describe("both devices changed it", () => {
       "tests/t.rs": "my test",
       "src/new.rs": "new",
     };
-    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: expected });
+    expect(serverRow(HELLO.id).snapshot).toEqual({ files: expected });
     expect(replace).toHaveBeenLastCalledWith(HELLO.name, expected);
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
   });
@@ -634,7 +641,7 @@ describe("both devices changed it", () => {
     const result = await reconcile();
 
     expect(result.conflicts).toEqual([]);
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
     });
   });
@@ -671,7 +678,7 @@ describe("both devices changed it", () => {
 
     expect(await PgProjectSync.resolve(HELLO.id, "keep-local")).toBe(true);
 
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "a\nmine\nc\nd\ne\n", "tests/t.rs": "their test" },
     });
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
@@ -695,7 +702,7 @@ describe("both devices changed it", () => {
       "src/lib.rs": "a\ntheirs\nc\nd\ne\n",
       "src/mine.rs": "my change",
     });
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: {
         "src/lib.rs": "a\ntheirs\nc\nd\ne\n",
         "src/mine.rs": "my change",
@@ -732,14 +739,14 @@ describe("both devices changed it", () => {
       divergentOn(HELLO.id, ["src/lib.rs", "tests/t.rs"])
     );
     expect(replace).not.toHaveBeenCalled();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: theirs });
+    expect(serverRow(HELLO.id).snapshot).toEqual({ files: theirs });
   });
 
   it("uploads what the user resolved line by line, and the other device takes it without asking", async () => {
     const theirs = "a\ntheirs\nc\nd\ne\n";
     await startFrom({ "src/lib.rs": base }, { "src/lib.rs": theirs });
     // What the other device last agreed with the account: its own write
-    const theirsAt = server.get(HELLO.id)!.updatedAt;
+    const theirsAt = serverRow(HELLO.id).updatedAt;
     localFilesAre(HELLO.name, { "src/lib.rs": "a\nmine\nc\nd\ne\n" });
     captureWrites();
     expect(await PgProjectSync.pushCurrent()).toBe("conflict");
@@ -768,7 +775,7 @@ describe("both devices changed it", () => {
       })
     ).toBe(true);
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": content },
     });
 
@@ -823,7 +830,7 @@ describe("both devices changed it", () => {
     // Both sides' changes. The parked push, had it sent what it read before
     // waiting, would have patched `lib` back over `their lib` and passed the
     // swap.
-    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: both });
+    expect(serverRow(HELLO.id).snapshot).toEqual({ files: both });
   });
 
   it("drops a snapshot read before a merge rewrote the files", async () => {
@@ -841,7 +848,7 @@ describe("both devices changed it", () => {
         generation,
       })
     ).toBe("skipped");
-    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: both });
+    expect(serverRow(HELLO.id).snapshot).toEqual({ files: both });
   });
 
   it("brings the open file's editor buffer up to the merged copy", async () => {
@@ -929,7 +936,7 @@ describe("both devices changed it", () => {
     );
     // Mounted during the re-open, from memory not yet re-read, and typed into
     // before the re-open was done
-    let buffers: Map<string, string> | null = null;
+    let buffers: Map<string, string> | undefined;
     vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
       buffers = editorHolds({
         [`/${HELLO.name}/src/lib.rs`]: "a\nb\nc\nd\nE\n",
@@ -941,7 +948,7 @@ describe("both devices changed it", () => {
 
     expect((await reconcile()).replaced).toEqual([HELLO.name]);
 
-    expect(buffers!.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\nE\n");
+    expect(buffers?.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\nE\n");
     expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
       "A\nb\nc\nd\nE\n"
     );
@@ -1028,7 +1035,7 @@ describe("both devices changed it", () => {
       async (name: string, files: Record<string, string>) =>
         writeStored(name, files)
     );
-    let buffers: Map<string, string> | null = null;
+    let buffers: Map<string, string> | undefined;
     vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
       buffers = editorHolds({ [`/${HELLO.name}/tests/t.rs`]: "test" });
     });
@@ -1037,7 +1044,7 @@ describe("both devices changed it", () => {
 
     // Left in place, autosave would write the file back and the next push
     // would undo the other device's delete
-    expect(buffers!.has(`/${HELLO.name}/tests/t.rs`)).toBe(false);
+    expect(buffers?.has(`/${HELLO.name}/tests/t.rs`)).toBe(false);
     expect(storedFiles().has(`/${HELLO.name}/tests/t.rs`)).toBe(false);
   });
 
@@ -1074,7 +1081,7 @@ describe("both devices changed it", () => {
 
     // Left as work owed, so the next push merges it with the other device's
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
     });
   });
@@ -1110,6 +1117,7 @@ describe("both devices changed it", () => {
     editorHolds({ [`/${HELLO.name}/src/lib.rs`]: "a\nb\nC\nd\nE\n" });
     const writeFile = PgFs.writeFile.bind(PgFs);
     let failed = false;
+    // eslint-disable-next-line max-params -- mirrors `PgFs.writeFile`'s own signature
     vi.spyOn(PgFs, "writeFile").mockImplementation(async (path, data, opts) => {
       if (!failed && data === "A\nb\nC\nd\nE\n") {
         failed = true;
@@ -1168,7 +1176,7 @@ describe("both devices changed it", () => {
 
     expect(result.conflicts).toEqual([]);
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
     });
   });
@@ -1187,7 +1195,7 @@ describe("both devices changed it", () => {
     expect(result.conflicts).toEqual([]);
     expect(result.replaced).toEqual([]);
     expect(replace).not.toHaveBeenCalled();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nc\nd\ne\n" },
     });
   });
@@ -1261,7 +1269,7 @@ describe("two rewrites of one project at once", () => {
 
     expect(await first).toBe("merged");
     expect(await second).toBe("merged");
-    expect(server.get(HELLO.id)!.snapshot).toEqual({ files: both });
+    expect(serverRow(HELLO.id).snapshot).toEqual({ files: both });
   });
 
   it("answers the banner after a merge already running, with the user's own answer", async () => {
@@ -1304,7 +1312,7 @@ describe("two rewrites of one project at once", () => {
     answer();
     expect(await running).toBe("conflict");
     expect(await resolved).toBe(true);
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "a\nmine\nc\n", "tests/t.rs": "their test" },
     });
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
@@ -1353,7 +1361,7 @@ describe("a workspace whose files are gone from the store", () => {
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
     writeStored(HELLO.name, {});
     await PgSyncMark.markDirty(HELLO.id);
-    return server.get(HELLO.id)!.snapshot;
+    return serverRow(HELLO.id).snapshot;
   };
 
   it("is not uploaded by reconcile while the account is where it was", async () => {
@@ -1363,7 +1371,7 @@ describe("a workspace whose files are gone from the store", () => {
     await reconcile();
 
     expect(puts()).toEqual([]);
-    expect(server.get(HELLO.id)!.snapshot).toEqual(held);
+    expect(serverRow(HELLO.id).snapshot).toEqual(held);
   });
 
   it("is not uploaded over a row that holds no code", async () => {
@@ -1374,6 +1382,7 @@ describe("a workspace whose files are gone from the store", () => {
       id: HELLO.id,
       name: HELLO.name,
       kind: "tutorial",
+      // eslint-disable-next-line unicorn/no-null -- a wire row: the server stores a cleared snapshot as null
       snapshot: null,
       updatedAt: tick(),
     });
@@ -1396,7 +1405,7 @@ describe("a workspace whose files are gone from the store", () => {
 
     expect(puts()).toEqual([]);
     expect(replace).not.toHaveBeenCalled();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "the other device" },
     });
     expect(result.pushed).toEqual([]);
@@ -1410,7 +1419,7 @@ describe("a workspace whose files are gone from the store", () => {
     expect(await PgProjectSync.resolve(HELLO.id, "retry")).toBe(false);
 
     expect(puts()).toEqual([]);
-    expect(server.get(HELLO.id)!.snapshot).toEqual(held);
+    expect(serverRow(HELLO.id).snapshot).toEqual(held);
     // and the question is still up, rather than silently dropped
     expect(PgProjectSync.conflictFor(HELLO.id)).not.toBeNull();
   });
@@ -1428,11 +1437,12 @@ describe("a row emptied before the server refused it", () => {
     writeStored(HELLO.name, { "src/lib.rs": "kept", "src/extra.rs": "gone" });
     await signedIn();
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
-    const row = server.get(HELLO.id)!;
+    const row = serverRow(HELLO.id);
     server.set(HELLO.id, {
       id: row.id,
       name: row.name,
       kind: row.kind,
+      // eslint-disable-next-line unicorn/no-null -- a wire row: the server stores a cleared snapshot as null
       snapshot: null,
       updatedAt: row.updatedAt,
     });
@@ -1440,7 +1450,7 @@ describe("a row emptied before the server refused it", () => {
     writeStored(HELLO.name, { "src/lib.rs": "kept" });
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
 
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "kept" },
     });
     // and the mark now agrees with it, so nothing more goes up
@@ -1504,7 +1514,7 @@ describe("a project whose mark is one hash of the whole snapshot", () => {
     expect(result.conflicts).toEqual([]);
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
     expect(replace).not.toHaveBeenCalled();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "edited here since" },
     });
     expect(result.pushed).toEqual([HELLO.name]);
@@ -1528,7 +1538,7 @@ describe("a project whose mark is one hash of the whole snapshot", () => {
     const result = await reconcile();
 
     expect(result.conflicts).toEqual([]);
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
     });
   });
@@ -1562,7 +1572,7 @@ describe("a project whose mark is one hash of the whole snapshot", () => {
     const second = await reconcile();
 
     expect(second.conflicts).toEqual([]);
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "edited here since" },
     });
   });
@@ -1590,7 +1600,7 @@ describe("a project whose mark is one hash of the whole snapshot", () => {
 
     expect(result.conflicts).toEqual([]);
     expect(replace).not.toHaveBeenCalled();
-    expect(server.get(HELLO.id)!.updatedAt).toBe(before);
+    expect(serverRow(HELLO.id).updatedAt).toBe(before);
     // and the next exchange is an ordinary one, against a per-file mark
     expect((await PgSyncMark.read(HELLO.id))?.updatedAt).toBe(before);
   });
@@ -1709,7 +1719,7 @@ describe("deleting on one device", () => {
       projectId: HELLO.id,
       kind: "deleted-elsewhere",
     });
-    expect(server.get(HELLO.id)!.deleted).toBe(true);
+    expect(serverRow(HELLO.id).deleted).toBe(true);
   });
 });
 
@@ -1745,7 +1755,7 @@ describe("a tutorial deleted and started again", () => {
     } finally {
       effect.dispose();
     }
-    expect(server.get(HELLO.id)!.deleted).toBe(true);
+    expect(serverRow(HELLO.id).deleted).toBe(true);
 
     vi.restoreAllMocks();
     asDevice([HELLO], "a fresh start");
@@ -1760,7 +1770,7 @@ describe("a tutorial deleted and started again", () => {
     expect(server.get(HELLO.id)).toMatchObject({
       snapshot: { files: { "src/lib.rs": "a fresh start" } },
     });
-    expect(server.get(HELLO.id)!.deleted).toBeFalsy();
+    expect(serverRow(HELLO.id).deleted).toBeFalsy();
   });
 });
 
@@ -1793,8 +1803,9 @@ describe("a program keypair only this device holds", () => {
   const local = () => JSON.parse(storedFiles().get(programInfoPath)!);
   const onServer = () =>
     JSON.parse(
-      (server.get(HELLO.id)!.snapshot as { files: Record<string, string> })
-        .files[PROGRAM_INFO]
+      (serverRow(HELLO.id).snapshot as { files: Record<string, string> }).files[
+        PROGRAM_INFO
+      ]
     );
 
   /**
@@ -1959,8 +1970,9 @@ describe("a program keypair only this device holds", () => {
     expect(local()).toEqual(expected);
     expect(onServer()).toEqual(expected);
     expect(
-      (server.get(HELLO.id)!.snapshot as { files: Record<string, string> })
-        .files["src/lib.rs"]
+      (serverRow(HELLO.id).snapshot as { files: Record<string, string> }).files[
+        "src/lib.rs"
+      ]
     ).toBe("my lib");
   });
 
@@ -2018,7 +2030,7 @@ describe("the exchange after typing was folded into a rewrite", () => {
     effect?.dispose();
     effect = null;
     editor?.dispose();
-    editor = null;
+    editor = undefined;
     delete (document as { visibilityState?: unknown }).visibilityState;
     clearFailures();
     vi.restoreAllMocks();
@@ -2106,7 +2118,7 @@ describe("the exchange after typing was folded into a rewrite", () => {
     await settle();
 
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nB\nc\nD\ne\nf\nG\n" },
     });
     expect(buffers.get(path)).toBe("A\nB\nc\nD\ne\nf\nG\n");
@@ -2140,7 +2152,7 @@ describe("the exchange after typing was folded into a rewrite", () => {
     await settle();
 
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nB\nc\nD\ne\nf\ng\n" },
     });
     expect(buffers.get(path)).toBe("A\nB\nc\nD\ne\nf\ng\n");
@@ -2203,7 +2215,7 @@ describe("picking up where the account left off", () => {
         ([, init]) => init?.method === "PUT"
       )
     ).toEqual([]);
-    expect(server.get("p1")!.name).toBe("Alpha");
+    expect(serverRow("p1").name).toBe("Alpha");
   });
 
   it("hands over a project made before signing in", async () => {
@@ -2215,7 +2227,7 @@ describe("picking up where the account left off", () => {
     const result = await reconcile();
 
     expect(result.pushed).toEqual(["Scratch"]);
-    expect(server.get("local-only")!.snapshot).toEqual({
+    expect(serverRow("local-only").snapshot).toEqual({
       files: { "src/lib.rs": "declare_id!();" },
     });
   });
@@ -2281,7 +2293,7 @@ describe("signing out of a browser", () => {
     // On the server, and this device's mark says so -- which is what makes it
     // eligible for release in the first place
     await reconcile();
-    expect(server.get("p1")!.snapshot).toBeTruthy();
+    expect(serverRow("p1").snapshot).toBeTruthy();
 
     explorerForgets(workspaces);
     const effect = projectSync();
@@ -2294,8 +2306,8 @@ describe("signing out of a browser", () => {
       effect.dispose();
     }
 
-    expect(server.get("p1")!.deleted).toBeFalsy();
-    expect(server.get("p1")!.snapshot).toBeTruthy();
+    expect(serverRow("p1").deleted).toBeFalsy();
+    expect(serverRow("p1").snapshot).toBeTruthy();
   });
 
   it("gives them back on the next sign-in", async () => {
@@ -2342,7 +2354,7 @@ describe("signing out of a browser", () => {
       effect.dispose();
     }
 
-    expect(server.get("p1")!.deleted).toBe(true);
+    expect(serverRow("p1").deleted).toBe(true);
   });
 });
 
@@ -2391,7 +2403,7 @@ describe("a project renamed on one device", () => {
 
   /** The other browser renamed it, which moves the row on */
   const otherDeviceRenamed = (id: string, name: string) => {
-    const existing = server.get(id)!;
+    const existing = serverRow(id);
     server.set(id, {
       id: existing.id,
       name,
@@ -2443,7 +2455,7 @@ describe("a project renamed on one device", () => {
 
     storedFiles().set("/Bar/src/lib.rs", "an edit after the rename");
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
-    expect(server.get(FOO.id)!.name).toBe("Bar");
+    expect(serverRow(FOO.id).name).toBe("Bar");
   });
 
   it("takes the new name in a merge too, when only the other device renamed it", async () => {
@@ -2462,8 +2474,8 @@ describe("a project renamed on one device", () => {
 
     expect((await reconcile()).conflicts).toEqual([]);
     expect(rename).toHaveBeenCalledWith("Bar", { from: "Foo" });
-    expect(server.get(FOO.id)!.name).toBe("Bar");
-    expect(server.get(FOO.id)!.snapshot).toEqual({
+    expect(serverRow(FOO.id).name).toBe("Bar");
+    expect(serverRow(FOO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nC\n" },
     });
   });
@@ -2476,7 +2488,7 @@ describe("a project renamed on one device", () => {
     await reconcile();
 
     expect(rename).not.toHaveBeenCalled();
-    expect(server.get(FOO.id)!.name).toBe("Baz");
+    expect(serverRow(FOO.id).name).toBe("Baz");
   });
 
   it("uploads this device's name when both renamed it and nothing else", async () => {
@@ -2489,7 +2501,7 @@ describe("a project renamed on one device", () => {
 
     expect(rename).not.toHaveBeenCalled();
     expect(result.conflicts).toEqual([]);
-    expect(server.get(FOO.id)!.name).toBe("Baz");
+    expect(serverRow(FOO.id).name).toBe("Baz");
   });
 
   it("takes the other name along with the other files when asked", async () => {
@@ -2508,7 +2520,7 @@ describe("a project renamed on one device", () => {
 
     expect(await PgProjectSync.resolve(FOO.id, "take-server")).toBe(true);
     expect(rename).toHaveBeenCalledWith("Bar", { from: "Baz" });
-    expect(server.get(FOO.id)!.name).toBe("Bar");
+    expect(serverRow(FOO.id).name).toBe("Bar");
   });
 
   it("keeps this device's name along with its files when asked", async () => {
@@ -2522,7 +2534,7 @@ describe("a project renamed on one device", () => {
     await reconcile();
 
     expect(await PgProjectSync.resolve(FOO.id, "keep-local")).toBe(true);
-    expect(server.get(FOO.id)!.name).toBe("Baz");
+    expect(serverRow(FOO.id).name).toBe("Baz");
   });
 
   it("still takes the files when the rename fails", async () => {
@@ -2574,7 +2586,7 @@ describe("a project renamed on one device", () => {
 
     storedFiles().set("/Bar/src/lib.rs", "an edit after the renames");
     await PgProjectSync.pushCurrent();
-    expect(server.get(FOO.id)!.name).toBe("Bar");
+    expect(serverRow(FOO.id).name).toBe("Bar");
   });
 
   it("never uploads the stand-in name a clash left, on any later edit", async () => {
@@ -2590,8 +2602,8 @@ describe("a project renamed on one device", () => {
 
     storedFiles().set("/Bar imported/src/lib.rs", "an edit here");
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
-    expect(server.get(FOO.id)!.name).toBe("Bar");
-    expect(server.get(FOO.id)!.snapshot).toEqual({
+    expect(serverRow(FOO.id).name).toBe("Bar");
+    expect(serverRow(FOO.id).snapshot).toEqual({
       files: { "src/lib.rs": "an edit here" },
     });
   });
@@ -2607,7 +2619,7 @@ describe("a project renamed on one device", () => {
 
     storedFiles().set("/Foo/src/lib.rs", "an edit here");
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
-    expect(server.get(FOO.id)!.name).toBe("Bar");
+    expect(serverRow(FOO.id).name).toBe("Bar");
   });
 
   it("uploads a name the user gives a stand-in", async () => {
@@ -2618,7 +2630,7 @@ describe("a project renamed on one device", () => {
 
     await userRenamed(workspaces, "Bar imported", "Qux");
     await reconcile();
-    expect(server.get(FOO.id)!.name).toBe("Qux");
+    expect(serverRow(FOO.id).name).toBe("Qux");
   });
 
   /** An import that does what the explorer's does to the list and the store */
@@ -2683,7 +2695,7 @@ describe("a project renamed on one device", () => {
         { immediate: true }
       )
     ).toBe("ok");
-    expect(server.get("p3")!.name).toBe("Bar");
+    expect(serverRow("p3").name).toBe("Bar");
   });
 
   it("gives the name back in the same pass when its holder was deleted elsewhere", async () => {
@@ -2726,7 +2738,7 @@ describe("a project renamed on one device", () => {
 
     uploadsWork();
     await reconcile();
-    expect(server.get(FOO.id)!.name).toBe("Baz");
+    expect(serverRow(FOO.id).name).toBe("Baz");
   });
 
   it("keeps a stand-in off the account when the merge's upload fails", async () => {
@@ -2753,8 +2765,8 @@ describe("a project renamed on one device", () => {
 
     uploadsWork();
     await reconcile();
-    expect(server.get(FOO.id)!.name).toBe("Bar");
-    expect(server.get(FOO.id)!.snapshot).toEqual({
+    expect(serverRow(FOO.id).name).toBe("Bar");
+    expect(serverRow(FOO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nC\n" },
     });
   });
@@ -2770,7 +2782,7 @@ describe("a project renamed on one device", () => {
     otherDeviceRenamed(FOO.id, "Bar");
     await reconcile();
     expect(workspaces[0].name).toBe("Foo");
-    expect(server.get(FOO.id)!.name).toBe("Bar");
+    expect(serverRow(FOO.id).name).toBe("Bar");
     clearFailures();
 
     await reconcile();
@@ -2778,7 +2790,7 @@ describe("a project renamed on one device", () => {
     await reconcile();
 
     expect(rename).toHaveBeenCalledTimes(3);
-    expect(server.get(FOO.id)!.name).toBe("Bar");
+    expect(serverRow(FOO.id).name).toBe("Bar");
     expect(getFailures()).toEqual([]);
   });
 
@@ -2812,6 +2824,6 @@ describe("a project renamed on one device", () => {
 
     storedFiles().set("/Foo/src/lib.rs", "an edit here");
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
-    expect(server.get(FOO.id)!.name).toBe("Bar (old)");
+    expect(serverRow(FOO.id).name).toBe("Bar (old)");
   });
 });

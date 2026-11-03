@@ -124,7 +124,7 @@ const settledProject = async (page: Page) => {
   await page.waitForTimeout(1000);
 };
 
-const path = (...names: string[]) => ["", PROJECT, ...names].join("/");
+const path = (...names: string[]) => ["", PROJECT].concat(names).join("/");
 
 test("a file created just before a reload is still there", async ({ page }) => {
   await settledProject(page);

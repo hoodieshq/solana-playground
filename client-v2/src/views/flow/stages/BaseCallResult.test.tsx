@@ -25,7 +25,7 @@ describe("BaseCallResult", () => {
       ok: true,
       signature: "5sig",
       logs: ["Program log: Instruction: Increment"],
-      failingLine: null,
+      failingLine: undefined,
     };
     render(<BaseCallResult outcome={outcome} cluster="devnet" txUrl={txUrl} />);
 
@@ -62,7 +62,7 @@ describe("BaseCallResult", () => {
     const outcome: CallOutcome = {
       instruction: "increment",
       ok: false,
-      signature: null,
+      signature: undefined,
       logs: [],
       failingLine: "Wallet not connected",
     };
@@ -75,29 +75,29 @@ describe("BaseCallResult", () => {
 });
 
 describe("BaseCallHistory", () => {
-  const record = (
-    id: string,
-    instruction: string,
-    ok: boolean,
-    at: number
-  ): CallRecord => ({
-    id,
-    programId: "P",
-    cluster: "devnet",
-    instruction,
-    ok,
-    signature: ok ? `sig-${id}` : null,
-    failingLine: ok ? null : "Error Code: X",
-    at,
-  });
+  // eslint-disable-next-line unicorn/no-null -- the stored record writes an absent signature or failing line as null
+  const NONE = null;
+
+  const recordFor =
+    (id: string, instruction: string) =>
+    (ok: boolean, at: number): CallRecord => ({
+      id,
+      programId: "P",
+      cluster: "devnet",
+      instruction,
+      ok,
+      signature: ok ? `sig-${id}` : NONE,
+      failingLine: ok ? NONE : "Error Code: X",
+      at,
+    });
 
   it("lists calls in the order given and opens a row's instruction", () => {
     const onOpen = vi.fn();
     render(
       <BaseCallHistory
         records={[
-          record("b", "increment", false, 2),
-          record("a", "initialize", true, 1),
+          recordFor("b", "increment")(false, 2),
+          recordFor("a", "initialize")(true, 1),
         ]}
         cluster="devnet"
         txUrl={txUrl}
