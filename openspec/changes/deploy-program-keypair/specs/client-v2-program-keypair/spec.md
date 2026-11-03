@@ -72,9 +72,9 @@ JSON the Solana CLI writes."
 
 #### Scenario: Round trip
 
-- **WHEN** the user exports the keypair, opens another project and imports
-  that file
-- **THEN** the second project's program id is the first one's
+- **WHEN** the user exports the keypair, replaces it with a new one and
+  imports the exported file
+- **THEN** the program id is the exported keypair's again
 
 #### Scenario: Refused file
 
@@ -105,7 +105,7 @@ that state SHALL still refuse with the deploy command's existing message
 ("Entered program ID doesn't match the program ID derived from program's
 keypair.").
 
-#### Scenario: Warned and refused
+#### Scenario: Warned and refused (manual)
 
 - **WHEN** the user sets a custom id that differs from the keypair and
   presses Deploy on a cluster the program is not on
@@ -128,8 +128,9 @@ no parameters unless named:
 
 No event SHALL carry a secret key, a public key or a program id.
 
-#### Scenario: Events of a round trip (tested through the memory provider)
+#### Scenario: Events of a round trip (manual)
 
 - **WHEN** the user exports, then imports a keypair
 - **THEN** `keypair_exported` with `from: "block"` and `keypair_imported`
-  are sent, and neither carries a key
+  are sent, and neither carries a key (asserted through the memory provider
+  in the slice's React tests)
