@@ -15,7 +15,13 @@ import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { PgAssistant } from "../../sidebar/assistant/store";
 import { PgFlow } from "../state/stage";
 import type { FlowState } from "../state/stage";
-import { PgCommand, PgExplorer, PgFramework, PgSettings } from "../../../utils";
+import { useRenderOnChange } from "../../../hooks";
+import {
+  PgCommand,
+  PgExplorer,
+  PgProgramInfo,
+  PgSettings,
+} from "../../../utils";
 
 /**
  * The build server's host, for naming it in the UI. Falls back to the raw
@@ -52,6 +58,7 @@ const Build = () => {
   const online = useOnline();
   const own = ownOutput(out, PgExplorer.currentWorkspaceName ?? null);
   const surface = buildSurface({ flow, own });
+  const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl);
 
   return (
     <BaseBuild
@@ -77,11 +84,11 @@ const Build = () => {
       // The stage's catch rethrows; BaseBuild's buttons report what is left
       onBuild={() => PgCommand.build.execute().catch(toldByStage("build"))}
       onContinue={() => PgFlow.setStage("deploy")}
-      onExport={() => PgFramework.exportWorkspace()}
+      hasIdl={!!idl}
       onAsk={(prompt) => PgAssistant.requestPrompt(prompt)}
       onOpenFile={(path) => PgExplorer.openFile(path)}
       onShowLog={requestConsole}
-      idlActions={<IdlActions mode="download" />}
+      idlActions={<IdlActions mode="download" look="link" />}
     />
   );
 };
