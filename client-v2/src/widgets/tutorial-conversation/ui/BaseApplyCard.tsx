@@ -18,6 +18,14 @@ export interface BaseApplyCardProps {
 
 const baseName = (path: string) => path.split("/").pop() ?? path;
 
+/** Why the last Apply did not land, said on the open card */
+const FAILED: Record<NonNullable<Proposal["applyFailed"]>, string> = {
+  moved:
+    "Could not apply it: the line changed since. Ask again for a fresh change.",
+  write:
+    "Could not write the file. Try Apply again, or make the change yourself.",
+};
+
 /** How a settled card ends, in place of its buttons */
 const SETTLED: Record<"applied" | "kept", string> = {
   applied: "Applied.",
@@ -28,7 +36,8 @@ const SETTLED: Record<"applied" | "kept", string> = {
  * A change the live assistant proposed: the line's diff and two outline
  * buttons, "Apply to <file>" and "Keep it". It never applies by itself
  * (spec "One composer; free questions go to the live assistant"). An Apply
- * that could not write leaves the card open and says why.
+ * that did not land leaves the card open and says why: the line changed
+ * since, or the file could not be written.
  */
 const BaseApplyCard = ({ proposal, onApply, onKeep }: BaseApplyCardProps) => {
   const file = baseName(proposal.file);
@@ -49,8 +58,7 @@ const BaseApplyCard = ({ proposal, onApply, onKeep }: BaseApplyCardProps) => {
           <div className="flex flex-col gap-2">
             {proposal.applyFailed && (
               <p role="status" className="text-caption text-error">
-                Could not apply it: the line changed since. Ask again for a
-                fresh change.
+                {FAILED[proposal.applyFailed]}
               </p>
             )}
             <div className="flex flex-wrap gap-2">

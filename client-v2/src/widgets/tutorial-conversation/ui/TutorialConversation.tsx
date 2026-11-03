@@ -399,11 +399,14 @@ const nextTutorialOf = (next: string | null): string | null =>
 
 /**
  * The tutorial conversation in the frame's chat: it starts the engine for the
- * open workspace, draws the feed from the engine's view, and turns each
- * card's press into the engine's action. ⌘↵ presses the live act, or Explain
- * on an open failure, unless the learner is typing; a call act with arguments
- * waits for its own fields, where Enter sends. The finish card's "All
- * tutorials" opens the catalog, another widget's, so the frame passes it in.
+ * open workspace, draws the feed from the engine's view merged with the live
+ * assistant's thread (`mergeFeed`), and turns each card's press into the
+ * engine's action. While it is mounted the assistant runs in the tutorial's
+ * mode (`tutorialMode`): the lesson's context, reading tools, and no writing
+ * or running. ⌘↵ presses the live act, or Explain on an open failure, unless
+ * the learner is typing; a call act with arguments waits for its own fields,
+ * where Enter sends. The finish card's "All tutorials" and the assistant's
+ * menu open what other widgets own, so the frame passes both in.
  */
 export const TutorialConversation = ({
   onAllTutorials,

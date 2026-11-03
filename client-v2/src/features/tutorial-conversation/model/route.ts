@@ -42,35 +42,37 @@ export const wordOf = (text: string): Word | null => {
   const parts = text
     .trim()
     .toLowerCase()
-    .replace(/[.!?,]+$/, "")
     .split(/\s+/)
+    // Each part's own punctuation: "please, build" as much as "build!"
+    .map((part) => part.replace(/[.!?,]+$/, ""))
     .filter((part) => part !== "please" && part !== "");
   if (parts.length !== 1) return null;
-  return WORDS[parts[0].replace(/[.!?,]+$/, "")] ?? null;
+  return WORDS[parts[0]] ?? null;
 };
 
-/**
- * Where a composer message goes, in the spec's order: a word whose action
- * is live runs it, a word while a question is open is refused, and anything
- * else is the assistant's. A word with nothing live to run is the
- * assistant's too, so a learner asking "deploy?" on step 1 gets an answer
- * rather than silence. Finish chips are pressed, never matched from text.
- */
+/** Where a composer message goes (`route`), with the word it matched */
 export type Route =
-  | { kind: "word"; action: WordAction }
-  | { kind: "refused" }
+  | { kind: "word"; word: Word; action: WordAction }
+  | { kind: "refused"; word: Word }
   | { kind: "assistant" };
 
-export const route = (text: string, live: Turn | null): Route => {
+/**
+ * Where a composer message goes, in the spec's order: a word while a
+ * question is open is refused, a word whose action is live runs it at `at`,
+ * and anything else is the assistant's. A word with nothing live to run is
+ * the assistant's too, so a learner asking "deploy?" on step 1 with no
+ * question open gets an answer rather than silence. Finish chips are
+ * pressed, never matched from text.
+ */
+export const route = (text: string, live: Turn | null, at: number): Route => {
   const word = wordOf(text);
   if (!word || !live) return { kind: "assistant" };
-  if (live.kind === "ask" && live.open) return { kind: "refused" };
-  const action = actionFor(word, live);
-  return action ? { kind: "word", action } : { kind: "assistant" };
+  if (live.kind === "ask" && live.open) return { kind: "refused", word };
+  const action = actionFor(word, live, at);
+  return action ? { kind: "word", word, action } : { kind: "assistant" };
 };
 
-const actionFor = (word: Word, live: Turn): WordAction | null => {
-  const at = Date.now();
+const actionFor = (word: Word, live: Turn, at: number): WordAction | null => {
   switch (word) {
     case "start":
       return live.kind === "intro" ? { type: "start", at } : null;
@@ -159,46 +161,56 @@ if (import.meta.vitest) {
       expect(wordOf("  Please DEPLOY. ")).toBe("deploy");
       expect(wordOf("next please!")).toBe("next");
       expect(wordOf("Go")).toBe("start");
+      expect(wordOf("please, build")).toBe("build");
       expect(wordOf("build it")).toBeNull();
       expect(wordOf("what does build do?")).toBeNull();
       expect(wordOf("please")).toBeNull();
       expect(wordOf("")).toBeNull();
     });
 
-    it("runs a word whose action is live", () => {
-      expect(route("start", intro)).toMatchObject({
+    it("runs a word whose action is live, at the message's own time", () => {
+      expect(route("go", intro, 500)).toEqual({
         kind: "word",
-        action: { type: "start" },
+        word: "start",
+        action: { type: "start", at: 500 },
       });
-      expect(route("build", act("build", "live"))).toMatchObject({
+      expect(route("build", act("build", "live"), 500)).toEqual({
         kind: "word",
-        action: { type: "act", beatId: "s1.build" },
+        word: "build",
+        action: { type: "act", beatId: "s1.build", at: 500 },
       });
-      expect(route("deploy", act("buildDeploy", "live"))).toMatchObject({
+      expect(route("deploy", act("buildDeploy", "live"), 500)).toMatchObject({
         kind: "word",
+        word: "deploy",
         action: { type: "act" },
       });
     });
 
     it("refuses any word while a question is open, before matching it", () => {
-      expect(route("build", openAsk)).toEqual({ kind: "refused" });
-      expect(route("next please", openAsk)).toEqual({ kind: "refused" });
+      expect(route("build", openAsk, 500)).toEqual({
+        kind: "refused",
+        word: "build",
+      });
+      expect(route("next please", openAsk, 500)).toEqual({
+        kind: "refused",
+        word: "next",
+      });
     });
 
     it("sends everything else to the assistant", () => {
-      expect(route("I'm stuck", openAsk)).toEqual({ kind: "assistant" });
-      expect(route("what does declare_id do?", intro)).toEqual({
+      expect(route("I'm stuck", openAsk, 500)).toEqual({ kind: "assistant" });
+      expect(route("what does declare_id do?", intro, 500)).toEqual({
         kind: "assistant",
       });
       // A word with nothing live to run
-      expect(route("deploy", act("build", "live"))).toEqual({
+      expect(route("deploy", act("build", "live"), 500)).toEqual({
         kind: "assistant",
       });
-      expect(route("build", act("build", "running"))).toEqual({
+      expect(route("build", act("build", "running"), 500)).toEqual({
         kind: "assistant",
       });
-      expect(route("next", intro)).toEqual({ kind: "assistant" });
-      expect(route("build", null)).toEqual({ kind: "assistant" });
+      expect(route("next", intro, 500)).toEqual({ kind: "assistant" });
+      expect(route("build", null, 500)).toEqual({ kind: "assistant" });
     });
   });
 }

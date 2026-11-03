@@ -55,11 +55,7 @@ const refused = (
   schema: tool.schema,
   run: () => {
     log.info(`refused ${tool.name} in the ${mode.name} mode`);
-    return (
-      `${tool.name} is not available in this ${mode.name}: you cannot ` +
-      `change files, build, deploy or send transactions here. Tell the ` +
-      `learner what to do, or use the tools this ${mode.name} gives you.`
-    );
+    return `${tool.name} is not available in this ${mode.name}. ${mode.refusal}`;
   },
 });
 

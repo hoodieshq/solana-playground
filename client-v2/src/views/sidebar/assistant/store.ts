@@ -43,6 +43,8 @@ export interface AssistantMode {
   /** Whether one of the assistant's own tools may run; a refused one answers
    * the model with a refusal instead */
   allows(name: string): boolean;
+  /** Why a refused tool cannot run here, and what to do instead, told to the model */
+  refusal: string;
 }
 
 /** A change the assistant wants to make, waiting on the user */
@@ -560,7 +562,7 @@ export class PgAssistant {
 
   /** The mode narrowing the assistant to one surface, or null (`AssistantMode`) */
   static get mode(): AssistantMode | null {
-    return PgAssistant._mode;
+    return PgAssistant._modes[PgAssistant._modes.length - 1] ?? null;
   }
 
   /**
@@ -568,13 +570,18 @@ export class PgAssistant {
    * (`tutorial-flow-v2` 3.6). The next turn reads it; a turn in flight keeps
    * the tools it started with.
    *
-   * @returns clears the mode, unless another surface has set its own since
+   * Modes stack: the latest set is the one in force, and clearing one, in
+   * any order, leaves the latest still set, so a surface unmounting never
+   * lifts another's narrowing.
+   *
+   * @returns clears this mode
    */
   static setMode(mode: AssistantMode): Disposable {
-    PgAssistant._mode = mode;
+    PgAssistant._modes.push(mode);
     return {
       dispose: () => {
-        if (PgAssistant._mode === mode) PgAssistant._mode = null;
+        const at = PgAssistant._modes.lastIndexOf(mode);
+        if (at !== -1) PgAssistant._modes.splice(at, 1);
       },
     };
   }
@@ -1369,7 +1376,8 @@ export class PgAssistant {
   private static _localServers: readonly McpServerEntry[] =
     LOCAL_MCP_SERVERS.map((server) => ({ ...server }));
   private static _mcpTools: Readonly<Record<string, readonly McpTool[]>> = {};
-  private static _mode: AssistantMode | null = null;
+  /** Every mode a surface has set and not cleared, the one in force last */
+  private static _modes: AssistantMode[] = [];
   /**
    * The turn in flight, if `beginTurn` registered one. `cut` once its thread
    * has closed, until the turn ends.

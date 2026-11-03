@@ -23,10 +23,11 @@ export type FeedEntry =
 /**
  * The lesson's turns and the thread's exchanges after `since` (the last
  * Start over; null shows the whole thread), in one order by time. A lesson
- * turn goes first on a tie, and the thread keeps its own order. Tool calls
- * and approvals do not show: in a tutorial the assistant's only actions are
- * the lesson's own (`tutorialMode`), which draw their own cards. A reply
- * still empty while its first words stream has nothing to show yet.
+ * turn goes first on a tie, and the thread keeps its own order. Tool rows
+ * and approvals are left out by choice: what the assistant does in a
+ * tutorial that the learner should see (a hint, a skip, a proposed change)
+ * draws the lesson's own card, and its reads show nothing. A reply still
+ * empty while its first words stream has nothing to show yet.
  */
 export const mergeFeed = (
   turns: readonly Turn[],

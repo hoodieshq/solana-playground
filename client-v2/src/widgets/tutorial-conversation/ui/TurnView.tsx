@@ -83,8 +83,8 @@ interface FollowButton {
 /**
  * What a chip's `follow` opens, through the handlers the cards already use,
  * or null when it has nowhere to go here: no next tutorial, a handler not
- * given yet, or `showFix`, which no tutorial's finish uses (AUTHORING.md
- * "The finish and the docs": the others only when asked for).
+ * given yet, or `showFix`: after the finish there is no failure left to
+ * show the fix of.
  */
 const followButton = (
   follow: Follow,

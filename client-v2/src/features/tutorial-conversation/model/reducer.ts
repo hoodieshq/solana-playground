@@ -13,7 +13,9 @@ import type {
 import { TICK_MS } from "./clock";
 import { holds, keyOf, typedKey } from "./landing";
 import { answerOf, freshProgress, hintOf } from "./progress";
+import type { Word } from "./route";
 import type {
+  ApplyFailure,
   ConversationProgress,
   Cursor,
   PassedVia,
@@ -134,10 +136,13 @@ export type Action =
   | { type: "finish"; at: number }
   | { type: "restartStep"; at: number }
   | { type: "startOver"; at: number }
-  /** A typed action word: its pill, then the action it names (task 3.6) */
-  | { type: "word"; text: string; then: WordAction; at: number }
+  /**
+   * A typed action word (task 3.6): the action it names, and its pill when
+   * that action changed something; a word the engine refuses is dropped
+   */
+  | { type: "word"; word: Word; text: string; then: WordAction; at: number }
   /** An action word typed while a question is open: refused, not run */
-  | { type: "refuseWord"; text: string; at: number }
+  | { type: "refuseWord"; word: Word; text: string; at: number }
   /** A finish chip pressed, by its index in the definition's `finish.chips` */
   | { type: "chip"; index: number; at: number }
   /** The assistant proposed one line's change; it waits for Apply or Keep */
@@ -149,7 +154,7 @@ export type Action =
   | { type: "apply"; id: string; at: number }
   /** The proposal's line was written (`apply`'s effect landed) */
   | { type: "applied"; id: string; at: number }
-  | { type: "applyFailed"; id: string; at: number }
+  | { type: "applyFailed"; id: string; reason: ApplyFailure; at: number }
   | { type: "keep"; id: string; at: number }
   /** A composer message went to the live assistant: counted, nothing saved */
   | { type: "asked"; at: number };
@@ -667,25 +672,23 @@ const stepNumber = (definition: TutorialDefinition, cursor: Cursor) => {
 const wordSent = (
   ctx: EngineContext,
   cursor: Cursor,
-  text: string,
-  refused: boolean
+  action: Extract<Action, { type: "word" | "refuseWord" }>
 ): Effect => ({
   kind: "event",
   name: "tutorial_word_sent",
   params: {
     tutorial: ctx.slug,
     step: stepNumber(ctx.definition, cursor),
-    word: text,
-    refused,
+    word: action.word,
+    refused: action.type === "refuseWord",
   },
 });
 
+/** What ends an open proposal's wait: Apply landed or failed, or Keep it */
+type Settling = Extract<Action, { type: "applied" | "applyFailed" | "keep" }>;
+
 /** A proposal once Apply landed, failed, or Keep it was pressed */
-const settle = (
-  proposal: Proposal,
-  how: "applied" | "applyFailed" | "keep",
-  at: number
-): Proposal => {
+const settle = (proposal: Proposal, action: Settling): Proposal => {
   const base: Proposal = {
     id: proposal.id,
     file: proposal.file,
@@ -695,9 +698,13 @@ const settle = (
     at: proposal.at,
     state: proposal.state,
   };
-  if (how === "applied") return { ...base, state: "applied", settledAt: at };
-  if (how === "keep") return { ...base, state: "kept", settledAt: at };
-  return { ...base, applyFailed: true };
+  if (action.type === "applied") {
+    return { ...base, state: "applied", settledAt: action.at };
+  }
+  if (action.type === "keep") {
+    return { ...base, state: "kept", settledAt: action.at };
+  }
+  return { ...base, applyFailed: action.reason };
 };
 
 const settledEvents = (
@@ -1276,7 +1283,7 @@ const reduceAction = (
           },
           stage: ran.state.stage,
         },
-        effects: [wordSent(ctx, p.cursor, action.text, false), ...ran.effects],
+        effects: [wordSent(ctx, p.cursor, action), ...ran.effects],
       };
     }
 
@@ -1290,7 +1297,7 @@ const reduceAction = (
             { kind: "refused", text: action.text, at: action.at },
           ],
         },
-        [wordSent(ctx, p.cursor, action.text, true)]
+        [wordSent(ctx, p.cursor, action)]
       );
 
     case "chip": {
@@ -1361,7 +1368,7 @@ const reduceAction = (
     case "keep": {
       const proposal = p.proposals.find((x) => x.id === action.id);
       if (!proposal || proposal.state !== "open") return same(state);
-      const settled = settle(proposal, action.type, action.at);
+      const settled = settle(proposal, action);
       return withProgress(
         state,
         {
@@ -3067,14 +3074,15 @@ if (import.meta.vitest) {
         const r = play([
           {
             type: "word",
-            text: "go",
+            word: "start",
+            text: "Go!",
             then: { type: "start", at: 1000 },
             at: 1000,
           },
         ]);
         expect(r.progress.startedAt).toBe(1000);
         expect(r.progress.said).toEqual([
-          { kind: "word", text: "go", at: 1000 },
+          { kind: "word", text: "Go!", at: 1000 },
         ]);
         expect(r.effects).toContainEqual({
           kind: "event",
@@ -3082,7 +3090,7 @@ if (import.meta.vitest) {
           params: {
             tutorial: "hello-anchor",
             step: 0,
-            word: "go",
+            word: "start",
             refused: false,
           },
         });
@@ -3097,6 +3105,7 @@ if (import.meta.vitest) {
         const before = play([start]).state;
         const r = reduce(ctx(), before, {
           type: "word",
+          word: "next",
           text: "next",
           then: { type: "next", at: 2000 },
           at: 2000,
@@ -3109,6 +3118,7 @@ if (import.meta.vitest) {
         const before = play([start]).state;
         const r = reduce(ctx(), before, {
           type: "refuseWord",
+          word: "build",
           text: "build",
           at: 3000,
         });
@@ -3179,12 +3189,15 @@ if (import.meta.vitest) {
         const failed = reduce(ctx(), proposed, {
           type: "applyFailed",
           id: "p1",
+          reason: "moved",
           at: 5100,
         });
         expect(failed.state.progress.proposals[0]).toMatchObject({
           state: "open",
-          applyFailed: true,
+          applyFailed: "moved",
         });
+        // A write that failed sends nothing
+        expect(failed.effects).toEqual([]);
         const applied = reduce(ctx(), failed.state, {
           type: "applied",
           id: "p1",
@@ -3232,7 +3245,7 @@ if (import.meta.vitest) {
       it("a step's Reset keeps the records, and Start over clears them", () => {
         const said = play([
           start,
-          { type: "refuseWord", text: "build", at: 3000 },
+          { type: "refuseWord", word: "build", text: "build", at: 3000 },
           { type: "propose", proposal, at: 4000 },
         ]).state;
         const reset = reduce(ctx(), said, { type: "restartStep", at: 5000 });

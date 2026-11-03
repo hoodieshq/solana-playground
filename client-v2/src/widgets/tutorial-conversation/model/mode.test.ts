@@ -109,7 +109,7 @@ describe("the tutorial's assistant mode", () => {
     });
   });
 
-  it("proposes nothing for a missing file, line or change", async () => {
+  it("proposes nothing for a missing file, line or change, or more than one line", async () => {
     const propose = toolOf("propose_change");
     expect(
       await propose.run({ file: "nope.rs", line: 1, after: "x" })
@@ -128,6 +128,13 @@ describe("the tutorial's assistant mode", () => {
         after: "use anchor_lang::prelude::*;",
       })
     ).toContain("already reads so");
+    expect(
+      await propose.run({
+        file: "programs/hello/src/lib.rs",
+        line: 2,
+        after: '        msg!("a");\n        msg!("b");',
+      })
+    ).toContain("one line at a time");
     expect(conversation.propose).not.toHaveBeenCalled();
   });
 });

@@ -76,9 +76,19 @@ export interface Proposal {
   state: "open" | "applied" | "kept";
   /** When Apply landed or Keep it was pressed */
   settledAt?: number;
-  /** The last Apply could not write; the card stays open to try again */
-  applyFailed?: true;
+  /**
+   * Why the last Apply did not land; the card stays open. After `write` a
+   * retry can land; after `moved` it lands only once the line reads `before`
+   * again.
+   */
+  applyFailed?: ApplyFailure;
 }
+
+/**
+ * Why an Apply did not land: the line no longer read as proposed (`moved`),
+ * or reading or writing the file failed (`write`)
+ */
+export type ApplyFailure = "moved" | "write";
 
 /** Where the lesson stands: before Start, in a step, or past the last win */
 export type Cursor =
@@ -701,7 +711,7 @@ const saidSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-/** A proposal as saved: `Proposal`. A false `applyFailed` reads as absent */
+/** A proposal as saved: `Proposal` */
 const proposalSchema = z.object({
   id: z.string().min(1),
   file: z.string().min(1),
@@ -711,7 +721,7 @@ const proposalSchema = z.object({
   at: z.number(),
   state: z.enum(["open", "applied", "kept"]),
   settledAt: z.number().optional(),
-  applyFailed: z.boolean().optional(),
+  applyFailed: z.enum(["moved", "write"]).optional(),
 });
 
 const parseSaid = (v: unknown): Said | null => {
@@ -721,9 +731,7 @@ const parseSaid = (v: unknown): Said | null => {
 
 const parseProposal = (v: unknown): Proposal | null => {
   const parsed = proposalSchema.safeParse(v);
-  if (!parsed.success) return null;
-  const { applyFailed, ...proposal } = parsed.data;
-  return applyFailed ? { ...proposal, applyFailed: true } : proposal;
+  return parsed.success ? parsed.data : null;
 };
 
 /** A list added after version 1 shipped: absent reads as empty, and an
@@ -847,7 +855,14 @@ if (import.meta.vitest) {
               appended: true,
             },
           },
-          "s2.q2": { kind: "open", at: 2000, wrong: [1], hintedAt: 2050 },
+          // The live assistant's hint: no I'm stuck pill, on reload too
+          "s2.q2": {
+            kind: "open",
+            at: 2000,
+            wrong: [1],
+            hintedAt: 2050,
+            hintByAssistant: true,
+          },
         },
         opts.beats
       ),
@@ -1097,7 +1112,7 @@ if (import.meta.vitest) {
         after: "// one more",
         at: 9200,
         state: "open",
-        applyFailed: true,
+        applyFailed: "write",
       };
       const saved = midway({
         said: [

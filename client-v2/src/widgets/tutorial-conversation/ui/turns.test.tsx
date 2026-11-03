@@ -23,6 +23,7 @@ import { textOf } from "./Prose";
 import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
 import type {
+  ApplyFailure,
   LandedCall,
   Proposal,
   Turn,
@@ -1033,7 +1034,7 @@ describe("TurnView's last win", () => {
 describe("BaseApplyCard", () => {
   const proposal = (
     state: "open" | "applied" | "kept",
-    applyFailed?: true
+    applyFailed?: ApplyFailure
   ): Proposal => {
     const p: Proposal = {
       id: "p1",
@@ -1044,7 +1045,7 @@ describe("BaseApplyCard", () => {
       at: 1,
       state,
     };
-    if (applyFailed) p.applyFailed = true;
+    if (applyFailed) p.applyFailed = applyFailed;
     return p;
   };
 
@@ -1071,21 +1072,25 @@ describe("BaseApplyCard", () => {
     expect(onKeep).toHaveBeenCalledTimes(1);
   });
 
-  it("says why an Apply did not land and keeps its buttons", () => {
-    render(
-      <BaseApplyCard
-        proposal={proposal("open", true)}
-        onApply={vi.fn()}
-        onKeep={vi.fn()}
-      />
-    );
-    expect(screen.getByRole("status").textContent).toContain(
-      "the line changed since"
-    );
-    expect(
-      screen.getByRole("button", { name: "Apply to lib.rs" })
-    ).toBeTruthy();
-  });
+  it.each<[ApplyFailure, string]>([
+    ["moved", "the line changed since"],
+    ["write", "Could not write the file"],
+  ])(
+    "says why an Apply did not land (%s) and keeps its buttons",
+    (reason, said) => {
+      render(
+        <BaseApplyCard
+          proposal={proposal("open", reason)}
+          onApply={vi.fn()}
+          onKeep={vi.fn()}
+        />
+      );
+      expect(screen.getByRole("status").textContent).toContain(said);
+      expect(
+        screen.getByRole("button", { name: "Apply to lib.rs" })
+      ).toBeTruthy();
+    }
+  );
 
   it("ends a settled card with what happened, and no buttons", () => {
     const { rerender } = render(
@@ -1168,13 +1173,22 @@ describe("TurnView's chip answer", () => {
     expect(on.openNextTutorial).toHaveBeenCalledTimes(1);
   });
 
-  it("opens the menu and the client file through the cards' own handlers", async () => {
+  it("opens the menu through the frame's handler", async () => {
     const on = handlers();
     draw("showMenu", on, null);
     await userEvent.click(
       screen.getByRole("button", { name: "Show the menu" })
     );
     expect(on.openMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the client file at its top, as the win card's button does", async () => {
+    const on = handlers();
+    draw("writeClient", on, null);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Write it in client.ts" })
+    );
+    expect(on.showLine).toHaveBeenCalledWith("client/client.ts", 1);
   });
 
   it.each<[string, Follow | null, string | null]>([

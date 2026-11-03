@@ -90,6 +90,7 @@ describe("a mode", () => {
     context: () => "Tutorial: Hello Anchor",
     tools: [hint],
     allows: (name) => name === "read_file",
+    refusal: "The lesson builds; offer a change instead.",
   };
   const names = (tools: { name: string }[]) => tools.map((t) => t.name);
 
@@ -110,7 +111,9 @@ describe("a mode", () => {
     );
     const result = await write?.run({ path: "src/lib.rs", content: "new" });
 
-    expect(result).toContain("write_file is not available in this tutorial");
+    expect(result).toBe(
+      "write_file is not available in this tutorial. The lesson builds; offer a change instead."
+    );
     expect(PgAssistant.items).toHaveLength(0);
     expect(PgAssistant.status).toBe("idle");
   });
@@ -122,7 +125,7 @@ describe("a mode", () => {
     expect(await read?.run({ path: "src/lib.rs" })).toBe("fn main() {}");
   });
 
-  it("is read by the next createTools, and cleared only by its own setter", () => {
+  it("is read by the next createTools, and clearing one leaves the latest other in force", () => {
     const set = PgAssistant.setMode(tutorial);
     expect(names(createTools(bridge("old")))).toContain("hint");
     const other = PgAssistant.setMode({
@@ -130,10 +133,26 @@ describe("a mode", () => {
       context: () => "",
       tools: [],
       allows: () => true,
+      refusal: "",
     });
     set.dispose();
     expect(PgAssistant.mode?.name).toBe("other");
     other.dispose();
+    expect(PgAssistant.mode).toBeNull();
+  });
+
+  it("keeps an earlier mode when a later one clears first", () => {
+    const first = PgAssistant.setMode(tutorial);
+    const second = PgAssistant.setMode({
+      name: "other",
+      context: () => "",
+      tools: [],
+      allows: () => true,
+      refusal: "",
+    });
+    second.dispose();
+    expect(PgAssistant.mode).toBe(tutorial);
+    first.dispose();
     expect(PgAssistant.mode).toBeNull();
   });
 });

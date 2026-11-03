@@ -84,7 +84,7 @@ const whereOf = (
   );
 };
 
-/** The run that ended last, of any act */
+/** The latest run to start, of any act, that has ended */
 const lastRun = (progress: ConversationProgress): RunRecord | null => {
   let last: RunRecord | null = null;
   for (const runs of Object.values(progress.runs)) {

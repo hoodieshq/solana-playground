@@ -8,7 +8,12 @@ import { failedResult } from "./ports";
 import type { Judge, Runner, Workspace } from "./ports";
 import { WorkspaceMovedError } from "./real-workspace";
 import { freshProgress, parseProgress } from "./progress";
-import type { ConversationProgress, PassedVia, RunResult } from "./progress";
+import type {
+  ApplyFailure,
+  ConversationProgress,
+  PassedVia,
+  RunResult,
+} from "./progress";
 import { INITIAL_ENGINE_STATE, actOf, reduce, stepOfBeat } from "./reducer";
 import type { Action, Effect, EngineContext, EngineState } from "./reducer";
 import { route } from "./route";
@@ -191,24 +196,32 @@ export class PgConversation {
 
   /**
    * A message typed in the composer, routed in the spec's order (`route`):
-   * a live action's word runs it with its pill, a word while a question is
-   * open posts the refusal, and anything else is the assistant's, which the
-   * caller sends.
+   * a live action's word runs it, with its pill when the action changed
+   * something (a word the engine refuses is dropped); a word while a question
+   * is open posts the refusal; anything else is the assistant's, which the
+   * caller sends. The word and its action share one time, so the pill sits
+   * before what the action posts.
    */
   static say(text: string): "lesson" | "assistant" {
-    const routed = route(text, PgConversation.view()?.live ?? null);
     const at = Date.now();
+    const routed = route(text, PgConversation.view()?.live ?? null, at);
     switch (routed.kind) {
       case "word":
         PgConversation._dispatch({
           type: "word",
+          word: routed.word,
           text: text.trim(),
           then: routed.action,
           at,
         });
         return "lesson";
       case "refused":
-        PgConversation._dispatch({ type: "refuseWord", text: text.trim(), at });
+        PgConversation._dispatch({
+          type: "refuseWord",
+          word: routed.word,
+          text: text.trim(),
+          at,
+        });
         return "lesson";
       case "assistant":
         return "assistant";
@@ -236,15 +249,34 @@ export class PgConversation {
     PgConversation._dispatch({ type: "propose", proposal, at: Date.now() });
   }
 
-  /** The apply card's "Apply to <file>" */
+  /** The apply card's "Apply to <file>"; a second press while one is in flight waits for it */
   static apply(id: string) {
+    if (PgConversation._applying.has(id)) {
+      log.debug("Apply pressed while an Apply is in flight", {
+        context: { id },
+      });
+      return;
+    }
     PgConversation._dispatch({ type: "apply", id, at: Date.now() });
   }
 
-  /** The apply card's "Keep it" */
+  /**
+   * The apply card's "Keep it". Held while an Apply is in flight: the write
+   * may already be on its way, and settling as kept would leave the file
+   * changed under a card that says it was not.
+   */
   static keep(id: string) {
+    if (PgConversation._applying.has(id)) {
+      log.debug("Keep it pressed while an Apply is in flight", {
+        context: { id },
+      });
+      return;
+    }
     PgConversation._dispatch({ type: "keep", id, at: Date.now() });
   }
+
+  /** Proposals whose Apply is reading or writing the file */
+  private static _applying = new Set<string>();
 
   /** Back to the intro. The frame confirms first; the assistant's thread stays */
   static startOver() {
@@ -698,44 +730,68 @@ export class PgConversation {
         break;
       }
       case "apply": {
-        const failed = () =>
+        const failed = (reason: ApplyFailure) =>
           PgConversation._dispatch({
             type: "applyFailed",
             id: effect.id,
+            reason,
             at: Date.now(),
           });
-        try {
-          if (!stillOpen()) break;
-          const content = await ports.workspace.read(effect.file, name);
-          const lines = content?.split("\n") ?? null;
-          if (lines?.[effect.line - 1] !== effect.before) {
-            // The learner changed the line since the proposal: writing it now
-            // would overwrite their edit, so the card says it could not
-            log.warn(`A proposal's line moved before Apply`, {
-              context: { name, file: effect.file, line: effect.line },
-            });
-            failed();
-            break;
-          }
-          lines[effect.line - 1] = effect.after;
-          if (!stillOpen()) break;
-          await ports.workspace.write(effect.file, lines.join("\n"), name);
-          if (!stillOpen()) {
-            PgConversation._landedLate(name, effect.file);
-            break;
-          }
+        const applied = () =>
           PgConversation._dispatch({
             type: "applied",
             id: effect.id,
             at: Date.now(),
           });
+        const where = { name, file: effect.file, id: effect.id };
+        PgConversation._applying.add(effect.id);
+        try {
+          if (!stillOpen()) {
+            log.info("An Apply was left behind by a workspace switch", {
+              context: where,
+            });
+            break;
+          }
+          const content = await ports.workspace.read(effect.file, name);
+          const lines = content?.split("\n") ?? null;
+          const current = lines?.[effect.line - 1];
+          if (lines && current === effect.after && current !== effect.before) {
+            // An earlier Apply wrote it and its result never landed (the
+            // workspace switched under it): the line already reads as proposed
+            applied();
+            break;
+          }
+          if (!lines || current !== effect.before) {
+            // The learner changed the line since the proposal (or the file is
+            // gone): writing now would overwrite their edit
+            log.warn(`A proposal's line moved before Apply`, {
+              context: { name, file: effect.file, line: effect.line },
+            });
+            failed("moved");
+            break;
+          }
+          lines[effect.line - 1] = effect.after;
+          if (!stillOpen()) {
+            log.info("An Apply was left behind by a workspace switch", {
+              context: where,
+            });
+            break;
+          }
+          await ports.workspace.write(effect.file, lines.join("\n"), name);
+          if (!stillOpen()) {
+            PgConversation._landedLate(name, effect.file);
+            break;
+          }
+          applied();
         } catch (e) {
           if (PgConversation._moved(e, name, `apply to ${effect.file}`)) break;
           log.error(e, {
             report: true,
             context: { name, path: effect.file },
           });
-          failed();
+          failed("write");
+        } finally {
+          PgConversation._applying.delete(effect.id);
         }
         break;
       }

@@ -15,6 +15,7 @@ import type {
 
 import { FINISH_DELAY_MS } from "./clock";
 import { answerOf } from "./progress";
+import { wordOf } from "./route";
 import type {
   ConversationProgress,
   PassedVia,
@@ -70,7 +71,9 @@ const stepAt = (
   let found: { id: string; from: number } | null = null;
   for (const step of definition.steps) {
     const time = p.times[step.id];
-    if (time && time.from <= at && (!found || time.from >= found.from)) {
+    // Strictly before: a record at the moment a step began is the word that
+    // began it, typed in the step before
+    if (time && time.from < at && (!found || time.from >= found.from)) {
       found = { id: step.id, from: time.from };
     }
   }
@@ -113,6 +116,8 @@ const composerTurns = (
       );
       return;
     }
+    // "explain" runs Explain the error, which echoes the learner itself
+    if (said.kind === "word" && wordOf(said.text) === "explain") return;
     out.push({
       id: `said:${i}`,
       kind: "you",
@@ -370,6 +375,9 @@ export const view = (
   if (p.cursor.kind === "intro") {
     turn({ id: "intro", kind: "intro", step: null, at: 0 });
   }
+  // Before the lesson's turns, so a typed word's pill goes first on a tie
+  // with what its action posted at the same moment
+  composerTurns(definition, p).forEach(turn);
 
   const last = definition.steps[definition.steps.length - 1];
   definition.steps.forEach((step, index) => {
@@ -649,8 +657,6 @@ export const view = (
     });
   }
 
-  composerTurns(definition, p).forEach(turn);
-
   // Construction order is the lesson's order; time only moves a turn that
   // genuinely came later, such as a hint after its question
   const ordered = all
@@ -881,7 +887,7 @@ if (import.meta.vitest) {
         hello,
         play([
           { type: "start", at: 1000 },
-          { type: "refuseWord", text: "build", at: 3000 },
+          { type: "refuseWord", word: "build", text: "build", at: 3000 },
           {
             type: "propose",
             proposal: {
@@ -1061,6 +1067,40 @@ if (import.meta.vitest) {
         open: false,
       });
       expect(explained.live?.id).toBe("f1.q2");
+    });
+
+    it("a typed explain echoes once, as Explain the error", () => {
+      const typed = view(
+        hello,
+        play(
+          toFailed().concat([
+            {
+              type: "word",
+              word: "explain",
+              text: "explain",
+              then: { type: "explain", beatId: "s1.build", at: 9000 },
+              at: 9000,
+            },
+          ])
+        ),
+        LATE
+      );
+      expect(typed.turns.filter((t) => t.kind === "you")).toHaveLength(
+        view(
+          hello,
+          play(
+            toFailed().concat([
+              { type: "explain", beatId: "s1.build", at: 9000 },
+            ])
+          ),
+          LATE
+        ).turns.filter((t) => t.kind === "you").length
+      );
+      expect(ids(typed).slice(-3)).toEqual([
+        "you:explain:f1.explain",
+        "f1.explain",
+        "f1.q2",
+      ]);
     });
 
     it("a failed fix build is an ordinary failure with a live result card", () => {

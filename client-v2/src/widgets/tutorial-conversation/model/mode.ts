@@ -44,8 +44,10 @@ const openQuestion = (): string | null => {
 
 /**
  * The tutorial's mode for the live assistant (`PgAssistant.setMode`): the
- * context above, the read-only tools, and four tools that only do what the
- * lesson's own controls do.
+ * lesson's context (`describeTutorial`), the read-only tools, and four
+ * tools that only show or offer something: the menu, the question's Hint
+ * and Skip as their buttons do, and a one-line change the learner applies
+ * or keeps.
  *
  * @param openMenu opens the frame's navigation, which another widget owns
  */
@@ -56,6 +58,10 @@ export const tutorialMode = ({
 }): AssistantMode => ({
   name: "tutorial",
   allows: (name) => ALLOWED.has(name),
+  refusal:
+    "In a tutorial you cannot change files, build, deploy or send " +
+    "transactions: the lesson does those. Tell the learner which button or " +
+    "step does it, or offer a change with propose_change.",
   context: () => {
     const { context, engine } = PgConversation.state;
     if (!context) return "The learner is not in a tutorial right now.";
@@ -141,7 +147,12 @@ export const tutorialMode = ({
         if (content === null) return `There is no file at ${file}.`;
         const before = content.split("\n")[line - 1];
         if (before === undefined) return `${file} has no line ${line}.`;
-        const after = str(input, "after");
+        const after = input.after;
+        if (typeof after !== "string")
+          return "Send the whole new line as `after`.";
+        if (/[\r\n]/.test(after)) {
+          return "Propose one line at a time: `after` must not break the line.";
+        }
         if (before === after) return "That line already reads so.";
         PgAssistant.addToolCall(`proposed a change to ${file}`);
         PgConversation.propose({ id: uuid(), file, line, before, after });
@@ -160,9 +171,8 @@ const readFile = (file: string): string | null => {
       PgExplorer.getFileContent(PgExplorer.convertToFullPath(file)) ?? null
     );
   } catch (e) {
-    log.warn("could not read a file the assistant named", {
-      context: { file, error: e instanceof Error ? e.message : String(e) },
-    });
+    // A missing file reads as undefined; a throw is the explorer failing
+    log.error(e, { report: true, context: { file, what: "assistant read" } });
     return null;
   }
 };

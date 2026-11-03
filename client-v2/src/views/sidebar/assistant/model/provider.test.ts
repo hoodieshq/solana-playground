@@ -172,6 +172,7 @@ describe("the assistant's provider", () => {
       context: () => "Tutorial: Hello Anchor, step 1 of 4",
       tools: [],
       allows: () => true,
+      refusal: "",
     });
     try {
       await createProvider({ id: "default", apiKey: "" }).send("hi");

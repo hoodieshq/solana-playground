@@ -115,8 +115,10 @@ export type TutorialEvents = {
   /**
    * A message typed in the composer was only an action word ("build",
    * "deploy please", "start"): it ran that action, or, while a question was
-   * open, was refused (`refused`). `word` is the message as typed, which is
-   * only ever one of those words. `step` is as in `tutorial_question_asked`.
+   * open, was refused (`refused`). `word` is the action word it matched,
+   * whatever the case, "please" or punctuation ("begin" and "go" send
+   * `start`), never the message itself. `step` is as in
+   * `tutorial_question_asked`.
    */
   tutorial_word_sent: {
     tutorial: string;

@@ -395,7 +395,8 @@ The tutorial slice SHALL emit:
 - `tutorial_word_sent` when a composer message is only an action word, with:
   - `tutorial`;
   - `step`;
-  - `word`: the message as typed, only ever one of the action words;
+  - `word`: the action word matched (`start`, `build`, `deploy`, `run`,
+    `call`, `next` or `explain`), never the message itself;
   - `refused`: whether an open question refused it.
 - `tutorial_change_applied` when "Apply to <file>" on the apply card writes
   its line, with:
