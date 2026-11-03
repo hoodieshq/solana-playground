@@ -20,6 +20,9 @@ class SignInFailed extends Error {
   }
 }
 
+const signInCancelled = () =>
+  new SignInFailed("cancelled", "Sign-in cancelled.");
+
 const reasonOf = (error: unknown): SignInFailure =>
   error instanceof SignInFailed ? error.reason : "request-failed";
 
@@ -212,8 +215,10 @@ export class PgSession {
     authTelemetry.track("auth_sign_in_started", {});
     PgSession._signingInFrom = from ?? null;
     PgSession._setSignIn({ status: "pending" });
+    const cancel = new AbortController();
+    PgSession._cancel = cancel;
     try {
-      await PgSession._signInThroughPopup(scopes);
+      await PgSession._signInThroughPopup(scopes, cancel.signal);
     } catch (error) {
       authTelemetry.track("auth_sign_in_failed", { reason: reasonOf(error) });
       PgSession._setSignIn({
@@ -224,6 +229,8 @@ export class PgSession {
       throw error;
     } finally {
       PgSession._signingInFrom = null;
+      PgSession._cancel = undefined;
+      PgSession._channel = undefined;
     }
     PgSession._setSignIn(IDLE);
     authTelemetry.track("auth_signed_in", {});
@@ -237,24 +244,38 @@ export class PgSession {
     return PgSession._signingInFrom;
   }
 
-  private static async _signInThroughPopup(scopes: string[] | undefined) {
+  private static async _signInThroughPopup(
+    scopes: string[] | undefined,
+    cancelled: AbortSignal
+  ) {
     const nonce = randomNonce();
 
-    const response = await fetch("/api/auth/sign-in/social", {
-      method: "POST",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        provider: "github",
-        callbackURL: `${AUTH_COMPLETE_ROUTE}?nonce=${nonce}`,
-        ...(scopes?.length ? { scopes } : {}),
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch("/api/auth/sign-in/social", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          provider: "github",
+          callbackURL: `${AUTH_COMPLETE_ROUTE}?nonce=${nonce}`,
+          ...(scopes?.length ? { scopes } : {}),
+        }),
+        signal: cancelled,
+      });
+    } catch (error) {
+      // The abort is the user's Cancel; anything else is a failed request
+      if (cancelled.aborted) throw signInCancelled();
+      throw error;
+    }
     if (!response.ok) {
       throw new SignInFailed("request-failed", "Could not start sign-in");
     }
 
     const { url } = await response.json();
+    // A Cancel can land after the answer but before its body is read, and
+    // nothing else would stop the popup opening
+    if (cancelled.aborted) throw signInCancelled();
     if (!url) {
       throw new SignInFailed(
         "request-failed",
@@ -288,12 +309,8 @@ export class PgSession {
 
     const receipt = await channel.receive();
     if (!receipt.delivered) {
-      throw new SignInFailed(
-        receipt.reason,
-        receipt.reason === "cancelled"
-          ? "Sign-in cancelled."
-          : "Sign-in did not complete."
-      );
+      if (receipt.reason === "cancelled") throw signInCancelled();
+      throw new SignInFailed(receipt.reason, "Sign-in did not complete.");
     }
 
     await PgSession.refresh();
@@ -306,8 +323,13 @@ export class PgSession {
     }
   }
 
-  /** Stop waiting on the popup. Inert unless a sign-in is outstanding. */
+  /**
+   * Stop the sign-in in progress, at whatever step it is: while the authorize
+   * URL loads no popup opens, and once it is open the wait on it ends. Either
+   * way `signIn` rejects as cancelled. Inert unless a sign-in is outstanding.
+   */
   static cancelSignIn() {
+    PgSession._cancel?.abort();
     PgSession._channel?.cancel();
   }
 
@@ -439,6 +461,7 @@ export class PgSession {
     PgSession._user = null;
     PgSession._onSignOut = null;
     PgSession._listeners.clear();
+    PgSession._cancel = undefined;
     PgSession._channel = undefined;
     PgSession._openChannelImpl = openPopupChannel;
     PgSession._signingInFrom = null;
@@ -466,6 +489,8 @@ export class PgSession {
   private static _reading: Promise<void> | undefined;
   private static _signInState: SignInState = IDLE;
 
+  /** Aborts the sign-in in flight; set from its start, unlike `_channel` */
+  private static _cancel: AbortController | undefined;
   private static _channel: PopupChannel | undefined;
   private static _openChannelImpl: typeof openPopupChannel = openPopupChannel;
 
@@ -900,6 +925,82 @@ if (import.meta.vitest) {
 
         await expect(PgSession.signIn()).rejects.toThrow(/sign-in/i);
         expect(open).not.toHaveBeenCalled();
+      });
+
+      it("opens no popup and reads no session when cancelled while the authorize URL loads", async () => {
+        let answer!: (response: unknown) => void;
+        const request = vi.fn(
+          (_input: unknown, init?: RequestInit) =>
+            new Promise((resolve, reject) => {
+              answer = resolve;
+              init?.signal?.addEventListener("abort", () =>
+                reject(new DOMException("aborted", "AbortError"))
+              );
+            })
+        );
+        vi.spyOn(globalThis, "fetch").mockImplementation(
+          request as unknown as typeof fetch
+        );
+        const open = vi.fn();
+        PgSession.setOpenChannel(open as never);
+
+        const pending = PgSession.signIn();
+        await vi.waitFor(() => expect(request).toHaveBeenCalled());
+        PgSession.cancelSignIn();
+        answer({ ok: true, json: async () => ({ url: "https://x/" }) });
+
+        await expect(pending).rejects.toThrow(/cancelled/i);
+        expect(open).not.toHaveBeenCalled();
+        expect(request).toHaveBeenCalledTimes(1);
+        expect(PgSession.get()).toBeNull();
+        expect(PgSession.signInState()).toEqual({
+          status: "failed",
+          reason: "cancelled",
+          message: "Sign-in cancelled.",
+        });
+      });
+
+      it("opens no popup when cancelled after the authorize URL answered but before it was read", async () => {
+        let readBody!: (body: unknown) => void;
+        vi.spyOn(globalThis, "fetch").mockImplementation(
+          vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => new Promise((resolve) => (readBody = resolve)),
+          }) as unknown as typeof fetch
+        );
+        const open = vi.fn();
+        PgSession.setOpenChannel(open as never);
+
+        const pending = PgSession.signIn();
+        await vi.waitFor(() => expect(readBody).toBeDefined());
+        PgSession.cancelSignIn();
+        readBody({ url: "https://x/" });
+
+        await expect(pending).rejects.toThrow(/cancelled/i);
+        expect(open).not.toHaveBeenCalled();
+      });
+
+      it("lets a sign-in after a cancelled one open its popup", async () => {
+        let answer!: (response: unknown) => void;
+        vi.spyOn(globalThis, "fetch").mockImplementationOnce(
+          (() =>
+            new Promise<unknown>(
+              (resolve) => (answer = resolve)
+            )) as unknown as typeof fetch
+        );
+        const open = vi.fn();
+        PgSession.setOpenChannel(open as never);
+        const first = PgSession.signIn();
+        await vi.waitFor(() => expect(answer).toBeDefined());
+        PgSession.cancelSignIn();
+        answer({ ok: true, json: async () => ({ url: "https://x/" }) });
+        await expect(first).rejects.toThrow(/cancelled/i);
+
+        const popup = heldPopup();
+        const second = PgSession.signIn();
+        await vi.waitFor(() => expect(popup.open).toHaveBeenCalled());
+        popup.cancel();
+        await expect(second).rejects.toThrow(/cancelled/i);
       });
 
       /** A popup that answers only when the test says, and how many were opened */
