@@ -1,3 +1,4 @@
+import { isAirdropSignInGated } from "../../commands/airdrop/sign-in-gate";
 import { PgSession } from "../../features/auth";
 import {
   Cluster,
@@ -18,12 +19,13 @@ export const automaticAirdrop = () => {
     PgCommon.executeInOrder(async () => {
       if (!PgSettings.wallet.automaticAirdrop) return;
 
-      // Signed-out users can't airdrop; avoid throwing from the gate
-      if (!PgSession.get()) return;
-
       // If there was an error, disable the effect
       const cluster = PgConnection.cluster;
       if (!cluster || errorCache.has(cluster)) return;
+
+      // A signed-out user can't airdrop from a public faucet; skip rather
+      // than throw from the airdrop's pre-check. A local one needs no sign-in
+      if (isAirdropSignInGated(cluster) && !PgSession.get()) return;
 
       // Get airdrop amount based on network (in SOL)
       const airdropAmount = PgConnection.getAirdropAmount();

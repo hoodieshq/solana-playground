@@ -1,4 +1,5 @@
 import { recheckWhileBad } from "@/shared/lib/backoff-recheck";
+import { createLogger } from "@/shared/lib/logger";
 import { NETWORKS } from "../constants";
 import { PgCommon } from "./common";
 import { createDerivable, declareDecorator, derivable } from "./decorators";
@@ -136,6 +137,8 @@ const recheckWhileStalled = (cb: () => void): Disposable =>
     maxMs: 60000,
   });
 
+const log = createLogger("connection:cluster");
+
 /** Hosts a local validator answers on */
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -144,7 +147,9 @@ const isLocalEndpoint = (endpoint: string) => {
   try {
     return LOCAL_HOSTS.has(new URL(endpoint).hostname);
   } catch {
-    // Not a URL: `getCluster` goes on to the genesis hash, which fails loudly
+    // Not a URL, so not local: `getCluster` goes on to the genesis hash,
+    // which fails loudly with the endpoint
+    log.debug("endpoint is not a URL; not read as local");
     return false;
   }
 };

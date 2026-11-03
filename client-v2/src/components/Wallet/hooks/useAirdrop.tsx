@@ -30,8 +30,9 @@ export const useAirdrop = () => {
 
   const airdrop = async () => {
     // Sign in only where the faucet is public (`isAirdropSignInGated`); a
-    // local validator needs none. A failed sign-in rejects to the caller, which tells the user: printed
-    // to a folded console, or to none under Home, it reached nobody
+    // local validator needs none. A failed sign-in rejects to the caller,
+    // which tells the user: printed to a folded console, or to none under
+    // Home, it reached nobody
     if (isAirdropSignInGated(PgConnection.cluster) && !PgSession.get()) {
       await PgSession.signIn();
     }
