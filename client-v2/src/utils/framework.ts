@@ -627,6 +627,75 @@ if (import.meta.vitest) {
         expect(paths).toContain("src/lib.rs");
         expect(paths).not.toContain("client/programs/p/src/lib.rs");
       });
+
+      /**
+       * Dropping every JSON file broke `import idl from "../idl/x.json"` and
+       * fixture reads at run time, long after an import that said nothing
+       */
+      describe("JSON files", () => {
+        it("keeps an IDL and a fixture beside the scripts that read them", async () => {
+          expect(
+            await pathsOf([
+              ["src/index.ts", 'import idl from "../idl/x.json";'],
+              ["idl/x.json", "{}"],
+              ["tests/a.test.ts", 'import a from "./fixtures/a.json";'],
+              ["tests/fixtures/a.json", "{}"],
+            ])
+          ).toEqual([
+            "client/idl/x.json",
+            "client/src/index.ts",
+            "tests/a.test.ts",
+            "tests/fixtures/a.json",
+          ]);
+        });
+
+        it("places JSON from a test folder under tests", async () => {
+          expect(
+            await pathsOf([
+              ["run.ts", "a"],
+              ["test/data/b.json", "{}"],
+            ])
+          ).toEqual(["client/run.ts", "tests/data/b.json"]);
+        });
+
+        it("leaves out package manifests and tool configuration", async () => {
+          expect(
+            await pathsOf([
+              ["index.ts", "a"],
+              ["package.json", "{}"],
+              ["client/package.json", "{}"],
+              ["tsconfig.json", "{}"],
+              ["tsconfig.build.json", "{}"],
+              ["tests/tsconfig.json", "{}"],
+              ["jsconfig.json", "{}"],
+              [".eslintrc.json", "{}"],
+            ])
+          ).toEqual(["client/index.ts"]);
+        });
+
+        it("gives a contested JSON path to the top-level file", async () => {
+          expect(
+            await PgFramework.convertToPlaygroundLayout([
+              ["client/x.json", "nested"],
+              ["x.json", "root"],
+              ["a.ts", "a"],
+            ])
+          ).toEqual([
+            ["client/client/x.json", "nested"],
+            ["client/x.json", "root"],
+            ["client/a.ts", "a"],
+          ]);
+        });
+
+        it("finds nothing to open in JSON alone", async () => {
+          await expect(
+            pathsOf([
+              ["idl/x.json", "{}"],
+              ["data.json", "{}"],
+            ])
+          ).rejects.toThrow("No program code found.");
+        });
+      });
     });
 
     describe("PgFramework.hasProgram", () => {
