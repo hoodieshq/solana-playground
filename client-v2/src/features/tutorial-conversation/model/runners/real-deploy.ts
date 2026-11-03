@@ -16,7 +16,7 @@ import { createLogger } from "@/shared/lib/logger";
 import { actRunner } from "./act-runner";
 import type { ActRun } from "./act-runner";
 import { runDeploy } from "./deploy";
-import { deploySlotOf, recogniseDeploy } from "./recognise";
+import { deploySlotOf, landedDeploy, recogniseDeploy } from "./recognise";
 import type { DeployPort, OnChain } from "./deploy";
 import type { FundingChain } from "./fund";
 
@@ -70,6 +70,65 @@ const closeBuffer = async (buffer: string, wallet: Wallet) => {
     () => BpfLoaderUpgradeable.closeBuffer(pk(buffer), { wallet }),
     async () => !(await conn.getAccountInfo(pk(buffer)))
   );
+};
+
+/** The slot of the program's last deploy or upgrade; null when not on chain */
+const deploySlotOnChain = async (programId: string) => {
+  const conn = PgConnection.current;
+  const program = await conn.getAccountInfo(pk(programId));
+  if (!program) return null;
+  // The program account names its ProgramData account after a u32 tag
+  const data = await conn.getAccountInfo(
+    new PgWeb3.PublicKey(program.data.subarray(4, 36))
+  );
+  return data ? deploySlotOf(data.data) : null;
+};
+
+const programSignatures = async (programId: string) =>
+  (
+    await PgConnection.current.getSignaturesForAddress(pk(programId), {
+      limit: 20,
+    })
+  ).map((s) => ({
+    signature: s.signature,
+    slot: s.slot,
+    failed: s.err !== null,
+  }));
+
+/**
+ * Sends a deploy or upgrade from `buffer`. When its retries give up, a
+ * deploy that landed anyway (the confirm timed out, then the retry failed on
+ * the consumed buffer) answers its signature instead of the failure.
+ */
+const sendFromBuffer = async (
+  send: () => Promise<string | undefined>,
+  buffer: string,
+  programId: string,
+  what: string
+): Promise<string> => {
+  let failure: unknown;
+  try {
+    const signature = await send();
+    if (signature) return signature;
+    failure = new Error(`The ${what} sent no transaction`);
+  } catch (e) {
+    failure = e;
+  }
+  const landed = await landedDeploy({
+    programId,
+    bufferExists: async () =>
+      !!(await PgConnection.current.getAccountInfo(pk(buffer))),
+    deploySlot: deploySlotOnChain,
+    signatures: programSignatures,
+  }).catch((e) => {
+    log.error(e, {
+      report: true,
+      context: { stage: `Checking whether the ${what} landed` },
+    });
+    return null;
+  });
+  if (landed) return landed;
+  throw failure;
 };
 
 /**
@@ -199,32 +258,40 @@ export const realDeployPort = (): DeployPort => {
     },
     deploy: async (buffer, length) => {
       const conn = PgConnection.current;
-      const signature = await sendAndConfirmTxWithRetries(
+      return sendFromBuffer(
         () =>
-          BpfLoaderUpgradeable.deployProgram(
-            PgProgramInfo.kp!,
-            pk(buffer),
-            length,
-            {
-              wallet: wallet!,
-            }
+          sendAndConfirmTxWithRetries(
+            () =>
+              BpfLoaderUpgradeable.deployProgram(
+                PgProgramInfo.kp!,
+                pk(buffer),
+                length,
+                { wallet: wallet! }
+              ),
+            async () => !(await conn.getAccountInfo(pk(buffer)))
           ),
-        async () => !(await conn.getAccountInfo(pk(buffer)))
+        buffer,
+        PgProgramInfo.pk!.toBase58(),
+        "deploy"
       );
-      if (!signature) throw new Error("The deploy sent no transaction");
-      return signature;
     },
     upgrade: async (buffer) => {
       const conn = PgConnection.current;
-      const signature = await sendAndConfirmTxWithRetries(
+      return sendFromBuffer(
         () =>
-          BpfLoaderUpgradeable.upgradeProgram(PgProgramInfo.pk!, pk(buffer), {
-            wallet: wallet!,
-          }),
-        async () => !(await conn.getAccountInfo(pk(buffer)))
+          sendAndConfirmTxWithRetries(
+            () =>
+              BpfLoaderUpgradeable.upgradeProgram(
+                PgProgramInfo.pk!,
+                pk(buffer),
+                { wallet: wallet! }
+              ),
+            async () => !(await conn.getAccountInfo(pk(buffer)))
+          ),
+        buffer,
+        PgProgramInfo.pk!.toBase58(),
+        "upgrade"
       );
-      if (!signature) throw new Error("The upgrade sent no transaction");
-      return signature;
     },
     closeBuffer: (buffer) => closeBuffer(buffer, wallet!),
     instructions: () =>
@@ -265,29 +332,13 @@ export const tutorialRunner = actRunner(
   async (act, startedAtMs) => {
     if (act !== "deploy" && act !== "buildDeploy") return null;
     if (PgConnection.cluster !== "devnet") return null;
-    const conn = PgConnection.current;
     return recogniseDeploy({
       act,
       programId: PgProgramInfo.pk?.toBase58() ?? null,
       startedAtMs,
-      deploySlot: async (programId) => {
-        const program = await conn.getAccountInfo(pk(programId));
-        if (!program) return null;
-        // The program account names its ProgramData account after a u32 tag
-        const data = await conn.getAccountInfo(
-          new PgWeb3.PublicKey(program.data.subarray(4, 36))
-        );
-        return data ? deploySlotOf(data.data) : null;
-      },
-      blockTime: (slot) => conn.getBlockTime(slot),
-      signatures: async (programId) =>
-        (await conn.getSignaturesForAddress(pk(programId), { limit: 20 })).map(
-          (s) => ({
-            signature: s.signature,
-            slot: s.slot,
-            failed: s.err !== null,
-          })
-        ),
+      deploySlot: deploySlotOnChain,
+      blockTime: (slot) => PgConnection.current.getBlockTime(slot),
+      signatures: programSignatures,
       instructions: (PgProgramInfo.idl?.instructions ?? []).map(
         (ix) => ix.name
       ),

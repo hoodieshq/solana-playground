@@ -66,6 +66,33 @@ export const recogniseDeploy = async (
   };
 };
 
+export interface LandedInput {
+  programId: string;
+  /** Whether the deploy's buffer still exists: a deploy that lands consumes it */
+  bufferExists(): Promise<boolean>;
+  deploySlot(programId: string): Promise<number | null>;
+  signatures(programId: string): Promise<ProgramSignature[]>;
+}
+
+/**
+ * The signature of a deploy or upgrade whose confirm failed but which landed:
+ * its buffer is gone and the program's deploy slot holds a successful
+ * signature. Devnet confirms slowly, and a retry of a landed deploy fails on
+ * the consumed buffer, so without this a live program reads as failed. Null
+ * when it did not land, or the chain cannot place it yet.
+ */
+export const landedDeploy = async (
+  input: LandedInput
+): Promise<string | null> => {
+  if (await input.bufferExists()) return null;
+  const slot = await input.deploySlot(input.programId);
+  if (slot === null) return null;
+  const landed = (await input.signatures(input.programId)).find(
+    (s) => !s.failed && s.slot === slot
+  );
+  return landed?.signature ?? null;
+};
+
 /**
  * The slot of a program's last deploy or upgrade, from its ProgramData
  * account's data: a u32 tag, then that slot as a u64. Null for data too
@@ -169,6 +196,38 @@ if (import.meta.vitest) {
       outer.set(data, 7);
       expect(deploySlotOf(outer.subarray(7, 52))).toBe(312_456_789);
       expect(deploySlotOf(new Uint8Array(8))).toBeNull();
+    });
+
+    it("answers a deploy that landed though its confirm failed", async () => {
+      const landed = (
+        bufferExists: boolean,
+        signatures: ProgramSignature[],
+        slot: number | null = DEPLOY_SLOT
+      ) =>
+        landedDeploy({
+          programId: PROGRAM,
+          bufferExists: async () => bufferExists,
+          deploySlot: async () => slot,
+          signatures: async () => signatures,
+        });
+      await expect(
+        landed(false, [
+          sig("callSig", DEPLOY_SLOT + 2),
+          sig("deploySig", DEPLOY_SLOT),
+        ])
+      ).resolves.toBe("deploySig");
+      // The buffer still holds the program: the deploy did not land
+      await expect(
+        landed(true, [sig("deploySig", DEPLOY_SLOT)])
+      ).resolves.toBeNull();
+      // Not on chain, or the slot's signature failed or is not listed yet
+      await expect(
+        landed(false, [sig("deploySig", DEPLOY_SLOT)], null)
+      ).resolves.toBeNull();
+      await expect(
+        landed(false, [sig("failedSig", DEPLOY_SLOT, true)])
+      ).resolves.toBeNull();
+      await expect(landed(false, [])).resolves.toBeNull();
     });
 
     it("leaves a program it cannot place alone", async () => {
