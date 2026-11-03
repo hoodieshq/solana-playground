@@ -1347,8 +1347,8 @@ describe("POST /api/agent spend gate", () => {
     const leak = (text: string) => runs.find((run) => text.includes(run));
 
     beforeEach(() => {
-      vi.stubEnv("AGENT_API_KEY", KEY);
-      vi.stubEnv("AGENT_NEWCOMER_API_KEY", NEWCOMER_KEY);
+      vi.stubEnv("PG_AI_API_KEY", KEY);
+      vi.stubEnv("PG_AI_NEWCOMER_API_KEY", NEWCOMER_KEY);
     });
 
     const failing = async (answer: Answer) => {
@@ -1609,7 +1609,7 @@ describe("POST /api/agent spend gate", () => {
       [
         "an oversized body",
         () => {
-          vi.stubEnv("AGENT_MAX_BODY_BYTES", "16");
+          vi.stubEnv("PG_AI_MAX_BODY_BYTES", "16");
         },
       ],
       [
