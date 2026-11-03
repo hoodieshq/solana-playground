@@ -8,7 +8,7 @@ const REASONS: Record<
   { text: string; action?: "sign-in" | "retry" }
 > = {
   "no-key": {
-    text: "The assistant needs a key of your own on this deployment.",
+    text: "The hosted model is not available. Add your own key to use the assistant.",
   },
   "signed-out": {
     text: "Sign in with GitHub to use the hosted model, or add a key of your own.",

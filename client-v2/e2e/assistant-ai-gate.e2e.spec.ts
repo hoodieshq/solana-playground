@@ -39,7 +39,7 @@ test("assistant-ai-gate: No hosted key, nothing connected", async ({
   await startProject(page, "ai-off-no-key", LONG);
 
   await expect(row(page)).toContainText(
-    "The assistant needs a key of your own on this deployment.",
+    "The hosted model is not available. Add your own key to use the assistant.",
     LONG
   );
   await typeAndEnter(page);

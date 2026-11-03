@@ -665,7 +665,7 @@ describe("AssistantComposer, the off row", () => {
     render(<Harness />);
     expect(row()?.getAttribute("role")).toBe("status");
     expect(row()?.textContent).toContain(
-      "The assistant needs a key of your own on this deployment."
+      "The hosted model is not available. Add your own key to use the assistant."
     );
     await userEvent
       .setup()
@@ -702,7 +702,7 @@ describe("AssistantComposer, the off row", () => {
       .setup()
       .click(screen.getByRole("button", { name: "Sign in with GitHub" }));
     await waitFor(() =>
-      expect(row()?.textContent).toContain("Sign-in failed. Try again.")
+      expect(row()?.textContent).toContain("Couldn't sign in. Try again.")
     );
   });
 

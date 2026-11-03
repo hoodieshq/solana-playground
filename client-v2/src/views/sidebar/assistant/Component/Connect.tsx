@@ -255,7 +255,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
         return;
       }
       log.error(error, { report: true, context: { from: "assistant" } });
-      setSignInError("Sign-in failed. Try again.");
+      setSignInError("Couldn't sign in. Try again.");
     });
   };
 

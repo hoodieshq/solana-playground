@@ -30,7 +30,7 @@ The assistant SHALL learn whether the deployment offers a hosted model, and that
 
 While nothing usable is connected and the hosted model cannot answer this user, the composer SHALL stay on screen and a row `#assistant-ai-off` with `role="status"` SHALL stand above it, holding one reason and its actions:
 
-- no hosted model on this deployment: "The assistant needs a key of your own on this deployment." with **Add a key**;
+- no hosted model on this deployment: "The hosted model is not available. Add your own key to use the assistant." with **Add a key**;
 - a hosted model, nobody signed in: "Sign in with GitHub to use the hosted model, or add a key of your own." with **Sign in with GitHub** and **Add a key**;
 - the hosted model's availability unknown: "The assistant can't reach its model. Try again in a minute." with **Try again** and **Add a key**.
 
@@ -39,7 +39,7 @@ While nothing usable is connected and the hosted model cannot answer this user, 
 #### Scenario: No hosted key, nothing connected
 
 - **WHEN** the status route answers `key: "own"`, no key is kept, and the panel opens
-- **THEN** `#assistant-ai-off` reads "The assistant needs a key of your own on this deployment.", **Add a key** opens Connect a model, and Send is disabled with "Connect a model to send"
+- **THEN** `#assistant-ai-off` reads "The hosted model is not available. Add your own key to use the assistant.", **Add a key** opens Connect a model, and Send is disabled with "Connect a model to send"
 
 #### Scenario: Signed out with a hosted model
 

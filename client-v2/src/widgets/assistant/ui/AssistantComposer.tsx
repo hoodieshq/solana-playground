@@ -228,7 +228,7 @@ export function AssistantComposer({
         return;
       }
       log.error(error, { report: true, context: { from: "ai-off" } });
-      setSignInError("Sign-in failed. Try again.");
+      setSignInError("Couldn't sign in. Try again.");
     });
   };
 
