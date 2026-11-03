@@ -13,7 +13,7 @@ const reducedMotion = () =>
  * starts before the first paint, so the finished check never shows for a
  * frame first.
  */
-export const DrawnCheck = ({ draw }: { draw: boolean }) => {
+export const BaseDrawnCheck = ({ draw }: { draw: boolean }) => {
   const path = useRef<SVGPathElement>(null);
   useLayoutEffect(() => {
     if (!draw || reducedMotion()) return;

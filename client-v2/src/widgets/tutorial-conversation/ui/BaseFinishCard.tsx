@@ -12,7 +12,7 @@ import {
 import { CopyButton } from "@/shared/ui/copy-button";
 import { Tag } from "@/shared/ui/tag";
 import BaseReceipt, { receiptText } from "./BaseReceipt";
-import { DrawnCheck } from "./DrawnCheck";
+import { BaseDrawnCheck } from "./BaseDrawnCheck";
 import { Prose, READ, formatTook } from "./Prose";
 
 /** The finish card's tag, its "Step n done": the whole tutorial is a win */
@@ -69,7 +69,7 @@ const BaseFinishCard = ({
     aria-label="Finished"
     className="flex items-start gap-3 rounded-card border border-border bg-surface-panel p-5"
   >
-    <DrawnCheck draw />
+    <BaseDrawnCheck draw />
     {/* One column beside the check, as on the win card, so every part of
         the card starts where the headline does */}
     <div className="flex min-w-0 flex-1 flex-col gap-4">

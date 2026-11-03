@@ -6,7 +6,7 @@ import type { PassedVia } from "@/features/tutorial-conversation";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
 import { Tag } from "@/shared/ui/tag";
-import { DrawnCheck } from "./DrawnCheck";
+import { BaseDrawnCheck } from "./BaseDrawnCheck";
 import { nothingFocused } from "./keys";
 import { Prose, READ } from "./Prose";
 
@@ -86,7 +86,7 @@ const BaseWinCard = ({
       className="flex flex-col gap-3 rounded-panel border border-border bg-surface-panel p-4"
     >
       <div className="flex items-start gap-3">
-        <DrawnCheck draw={live} />
+        <BaseDrawnCheck draw={live} />
         {/* One column beside the check, so the line and the buttons start
             where the headline does */}
         <div className="flex min-w-0 flex-1 flex-col gap-3">

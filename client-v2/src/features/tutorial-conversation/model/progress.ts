@@ -909,43 +909,6 @@ if (import.meta.vitest) {
       };
       const hello = { instruction: "hello", args: { name: "Alex" } };
       expect(calledOf([hello])).toEqual([hello]);
-      expect(
-        reload(
-          midway({
-            runs: {
-              "s4.call": [
-                {
-                  status: "ok",
-                  at: 1,
-                  took: 1,
-                  result: {
-                    act: "call",
-                    ok: true,
-                    seconds: 1,
-                    signatures: ["sig"],
-                    line: null,
-                    called: [],
-                    receipt: {
-                      fee: 5000,
-                      signer: "Wa11et",
-                      accounts: [{ name: "program", address: "Pr0g" }, 7],
-                      log: "not lines",
-                    },
-                  },
-                },
-              ],
-            },
-          })
-        )?.runs["s4.call"][0]
-      ).toMatchObject({
-        result: {
-          receipt: {
-            fee: 5000,
-            signer: "Wa11et",
-            accounts: [{ name: "program", address: "Pr0g" }],
-          },
-        },
-      });
       // Saved before the field existed
       expect(calledOf(undefined)).toEqual([]);
       expect(calledOf({})).toEqual([]);
@@ -995,6 +958,27 @@ if (import.meta.vitest) {
       });
       expect(bare?.status).toBe("ok");
       expect(bare?.status === "ok" && "receipt" in bare.result).toBe(false);
+      // Each field stands alone: a log that is not lines, or an account
+      // that is not one, goes, and the rest of the receipt stays
+      const kept = landed({
+        signatures: ["sig"],
+        line: null,
+        receipt: {
+          fee: 5000,
+          signer: "Wa11et",
+          accounts: [{ name: "program", address: "Pr0g" }, 7],
+          log: "not lines",
+        },
+      });
+      expect(
+        kept?.status === "ok" && "receipt" in kept.result
+          ? kept.result.receipt
+          : "no receipt"
+      ).toEqual({
+        fee: 5000,
+        signer: "Wa11et",
+        accounts: [{ name: "program", address: "Pr0g" }],
+      });
       // One bad log line costs only itself
       expect(
         landed({

@@ -1164,6 +1164,52 @@ if (import.meta.vitest) {
       });
     });
 
+    it("the finish's receipt is the call that landed last, by time, and on a tie the later record", () => {
+      const ran = (at: number, signature: string): RunRecord => ({
+        status: "ok",
+        at,
+        took: 900,
+        result: {
+          act: "call",
+          ok: true,
+          seconds: 0.9,
+          signatures: [signature],
+          line: null,
+          called: [],
+        },
+      });
+      const finished = (runs: RunRecord[]): EngineState => ({
+        progress: {
+          version: 1,
+          passed: hello.steps.map((s) => s.id),
+          finishedAt: 60000,
+          startedAt: 1000,
+          restartedAt: null,
+          cursor: { kind: "finished" },
+          beats: {},
+          runs: { "s4.call": runs },
+          times: {},
+        },
+        stage: null,
+      });
+      const receiptOf = (runs: RunRecord[]) => {
+        const finish = view(hello, finished(runs), LATE).turns.at(-1);
+        return finish?.kind === "finish" ? finish.receipt?.signatures : null;
+      };
+      // Records keep their order, oldest first; a later time wins wherever
+      // the record sits
+      expect(receiptOf([ran(50000, "later"), ran(40000, "earlier")])).toEqual([
+        "later",
+      ]);
+      expect(receiptOf([ran(40000, "earlier"), ran(50000, "later")])).toEqual([
+        "later",
+      ]);
+      // Two calls in the same millisecond: the one recorded after is the last
+      expect(receiptOf([ran(50000, "first"), ran(50000, "second")])).toEqual([
+        "second",
+      ]);
+    });
+
     it("next makes the win a record; the last win is live with no next and schedules the finish", () => {
       const steps: Action[] = toFailed()
         .slice(0, 3)

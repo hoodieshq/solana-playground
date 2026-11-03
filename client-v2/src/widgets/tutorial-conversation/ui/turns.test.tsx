@@ -747,9 +747,11 @@ describe("BaseWinCard", () => {
 
   it("reads the Call panel line after a pass from the panel, and offers client.ts", async () => {
     const i = steps.findIndex((s) => s.win.callPanelLine);
+    const callPanelLine = steps[i]?.win.callPanelLine;
+    if (!callPanelLine) throw new Error("Hello Anchor has no Call panel line");
     const { onWriteInClient } = win(i, { via: "call_panel" });
     // Prose draws `code` spans without their backticks
-    const panelLine = textOf(steps[i].win.callPanelLine!).replace(/`/g, "");
+    const panelLine = textOf(callPanelLine).replace(/`/g, "");
     expect(
       screen.getByText(
         (_, el) => el?.tagName === "P" && el.textContent === panelLine
@@ -967,7 +969,7 @@ describe("BaseFinishCard", () => {
 
 describe("TurnView's last win", () => {
   it("reads the last step's headline with no Next, as Hello Anchor finishes", () => {
-    const last = definition.steps.at(-1)!;
+    const last = definition.steps[definition.steps.length - 1];
     const turn: Turn = {
       id: `win:${last.id}`,
       kind: "win",
