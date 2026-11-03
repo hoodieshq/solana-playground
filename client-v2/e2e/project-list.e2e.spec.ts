@@ -85,51 +85,71 @@ test("client-v2-layout: Renaming in place", async ({ page }) => {
   ).toHaveCount(1);
 });
 
-/** An imported GitHub project's name, long enough to truncate on every width */
+/** Long enough to truncate in the desk sidebar and the phone menu page alike */
 const LONG_NAME = "github-drift-labs-protocol-v2-programs-drift";
 
-/**
- * How far a row's name runs past the left edge of its pin, in pixels; 0 or
- * less when the name stops short of it
- */
-const nameOverPin = (page: Page, name: string) =>
+/** Where a pinned row's name, pin and "⋮" sit, in page pixels */
+const pinnedRowGeometry = (page: Page, name: string) =>
   projectRow(page, name).evaluate((button) => {
     const label = button.querySelector(":scope > span");
-    const pin = button.parentElement?.querySelector('[title="Pinned"]');
-    if (!label || !pin) throw new Error("the row has no name or no pin");
-    return (
-      label.getBoundingClientRect().right - pin.getBoundingClientRect().left
-    );
+    const item = button.parentElement;
+    const pin = item?.querySelector('[title="Pinned"]');
+    const actions = item?.querySelector('[data-sidebar="menu-action"]');
+    if (!item || !label || !pin || !actions) {
+      throw new Error("the row has no name, pin or actions");
+    }
+    const middle = (rect: DOMRect) => rect.top + rect.height / 2;
+    const row = button.getBoundingClientRect();
+    const nameBox = label.getBoundingClientRect();
+    const pinBox = pin.getBoundingClientRect();
+    const actionsBox = actions.getBoundingClientRect();
+    return {
+      isTruncated: label.scrollWidth > label.clientWidth,
+      nameOverPin: nameBox.right - pinBox.left,
+      nameOverActions: nameBox.right - actionsBox.left,
+      pinOffMiddle: Math.abs(middle(pinBox) - middle(row)),
+      actionsOffMiddle: Math.abs(middle(actionsBox) - middle(row)),
+    };
   });
 
 for (const [layout, viewport] of [
   ["desk", { width: 1280, height: 800 }],
   ["phone", { width: 390, height: 844 }],
 ] as const) {
-  // HOO-2500: the pin was drawn over the row, and a long name ran under it
-  test(`a pinned project's long name stops short of its pin (${layout})`, async ({
+  // HOO-2500: the pin is drawn over the row, so a pinned row's name must
+  // truncate before it and before the "⋮"
+  test(`keeps a pinned project's long name clear of its pin (${layout})`, async ({
     page,
   }) => {
     test.setTimeout(120_000);
     await seedWorkspace(page, LONG_NAME);
     await startAnotherProject(page, "beta");
-    await (await projectMenu(page, LONG_NAME))
-      .getByRole("menuitem", { name: "Pin" })
-      .click();
-    await page.keyboard.press("Escape");
+    const menu = await projectMenu(page, LONG_NAME);
+    await menu.getByRole("menuitem", { name: "Pin" }).click();
+    await expect(menu).toBeHidden();
 
     await page.setViewportSize(viewport);
     if (layout === "phone") {
       await page.getByRole("button", { name: "Menu", exact: true }).click();
     }
-    // The pin hides while the row is hovered or focused
+    // The pin is hidden while its row is hovered or holds focus, and the
+    // menu hands focus back to the row's "⋮": park both elsewhere
     await page.mouse.move(viewport.width - 1, viewport.height - 1);
-    await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+    await page.evaluate(() =>
+      (document.activeElement as HTMLElement | null)?.blur()
+    );
+    const pin = projectRow(page, LONG_NAME).locator("..").getByTitle("Pinned");
+    await expect(pin).toBeVisible();
 
-    await expect(
-      projectRow(page, LONG_NAME).locator("..").getByTitle("Pinned")
-    ).toBeVisible();
-    expect(await nameOverPin(page, LONG_NAME)).toBeLessThanOrEqual(0);
+    const geometry = await pinnedRowGeometry(page, LONG_NAME);
+    // A name that fits would clear the pin whatever the padding
+    expect(geometry.isTruncated).toBe(true);
+    expect(geometry.nameOverPin).toBeLessThanOrEqual(0);
+    expect(geometry.nameOverActions).toBeLessThanOrEqual(0);
+    if (layout === "phone") {
+      expect(geometry.pinOffMiddle).toBeLessThanOrEqual(1);
+      expect(geometry.actionsOffMiddle).toBeLessThanOrEqual(1);
+    }
   });
 }
 

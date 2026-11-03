@@ -73,16 +73,17 @@ const LESSON_ACTIONS: ReadonlySet<ProjectAction> = new Set([
 ]);
 
 /**
- * The row's right padding when it is pinned: the "⋮" (`right-1`, 20 px) and
- * the pin (`right-7`, 12 px) end 40 px from the edge, and the name keeps 4 px
- * clear of them. It overrides the 32 px `SidebarMenuButton` keeps for the
- * "⋮" alone, on every width.
+ * A pinned row's right padding: room for the "⋮" and the pin, both drawn
+ * over the row, with a gap before the name. The pin's far side sits at
+ * `right-7` plus its own width; this is that and `gap-1`. `!` because the
+ * button's own padding (`SidebarMenuButton`) otherwise wins.
  */
 const PIN_ROOM = "pr-11!";
 
 /**
- * A phone's rows are 52 px tall; the pin and the "⋮" sit beside the name, not
- * at the 28 px desk row's offset from the top
+ * Below `md` the row is taller than the fixed top offset the pin and the
+ * "⋮" use on a desk, so both are centred on the row instead; `!` beats
+ * `SidebarMenuAction`'s own `peer-data-[size]` top.
  */
 const ON_PHONE_ROW_MIDDLE = "max-md:top-1/2! max-md:-translate-y-1/2";
 
@@ -179,8 +180,8 @@ const Row = ({
       <SidebarMenuButton
         isActive={isCurrent}
         aria-current={isCurrent ? "page" : undefined}
-        // The pin is drawn over the row, left of the "⋮": the name truncates
-        // short of both (`PIN_ROOM`), or a long one runs under the pin
+        // The pin is drawn over the row, so a pinned row needs more room on
+        // the right than the "⋮" alone
         className={entry.pinned ? PIN_ROOM : undefined}
         onClick={() => list.onAction(entry, "open", "click")}
       >
