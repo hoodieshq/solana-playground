@@ -212,7 +212,10 @@ export const BaseQuestionWaiting = ({
  * Whether a key press is the live question's to take. A field keeps its
  * typing; a chord (⌘S saves), a held key's repeat, an IME composition and a
  * press something else already handled stay out; and an open dialog or menu
- * owns the keyboard, so S there never skips the question behind it.
+ * owns the keyboard, so S there never skips the question behind it. The
+ * caller also requires the focus on the card or on nothing (WCAG 2.1.4: a
+ * one-letter shortcut is active only on focus), which the card takes as it
+ * arrives.
  */
 const ownsKey = (e: KeyboardEvent) =>
   !typing(e.target) &&
@@ -247,7 +250,8 @@ export interface BaseQuestionCardProps {
  * record as the assistant writes. A wrong pick is sent at once: it turns
  * red, shakes, says "Not quite." and why, and the focus moves to the next
  * row still to pick; after two wrong, the last row is outlined. Keys work
- * while no field has focus: 1 to 3 pick, ↑ and ↓ move, H hints, S skips.
+ * while the focus is on the card or on nothing (`ownsKey`): 1 to 3 pick, ↑
+ * and ↓ move, H hints, S skips.
  */
 const BaseQuestionCard = ({
   ask,
@@ -316,7 +320,7 @@ const BaseQuestionCard = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!ownsKey(e)) return;
+      if (!ownsKey(e) || !inside(document.activeElement)) return;
       const n = ["1", "2", "3"].indexOf(e.key);
       if (n !== -1) {
         e.preventDefault();
@@ -330,10 +334,7 @@ const BaseQuestionCard = ({
       } else if (key === "h") {
         e.preventDefault();
         if (!hinted) onHint();
-      } else if (
-        (e.key === "ArrowDown" || e.key === "ArrowUp") &&
-        inside(document.activeElement)
-      ) {
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         const at = rows.current.findIndex((r) => r === document.activeElement);
         const down = e.key === "ArrowDown";
         // From no row, ↓ lands on the first and ↑ on the last

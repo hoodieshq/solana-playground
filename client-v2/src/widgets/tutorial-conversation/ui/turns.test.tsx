@@ -10,7 +10,7 @@ import BaseResultCard from "./BaseResultCard";
 import BaseStepDivider from "./BaseStepDivider";
 import BaseWroteCard from "./BaseWroteCard";
 import { BaseQuestionRecord } from "./BaseQuestionCard";
-import TurnView, { questionLabel } from "./TurnView";
+import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
 import type { Turn } from "@/features/tutorial-conversation";
 
@@ -541,21 +541,6 @@ describe("BaseQuestionRecord", () => {
     expect(rows[ask.answer].getAttribute("data-state")).toBe("right");
     await userEvent.click(record);
     expect(document.querySelectorAll("[data-state]")).toHaveLength(0);
-  });
-});
-
-describe("questionLabel", () => {
-  it("counts the questions in order and calls a fix question Fix", () => {
-    const asks = definition.steps
-      .flatMap((s) => [...s.beats, ...(s.onFail ?? [])])
-      .filter((b): b is Ask => b.kind === "ask");
-    expect(asks.map((a) => questionLabel(definition, a))).toEqual([
-      "Q1",
-      "Fix",
-      "Q2",
-      "Q3",
-      "Q4",
-    ]);
   });
 });
 

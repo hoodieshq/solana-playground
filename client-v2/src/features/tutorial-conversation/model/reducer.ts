@@ -1506,15 +1506,12 @@ if (import.meta.vitest) {
           line: null,
           called: [],
         };
-        const onStep2 = [
+        const panel = play([
           start,
           rightPick,
           build(7000),
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
-        ] as Action[];
-        const panel = play([
-          ...onStep2,
           { type: "passed", via: "call_panel", result: called, at: 9500 },
         ]).effects;
         expect(answered(panel).at(-1)).toEqual(event("call_panel", 1, "s2.q2"));

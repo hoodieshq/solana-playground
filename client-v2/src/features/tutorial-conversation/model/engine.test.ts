@@ -422,6 +422,8 @@ describe("Hello Anchor through the engine", () => {
       definition.intro.files["src/lib.rs"]
     );
     await step(() => PgConversation.start());
+    // The question answered before Start over counts; the restart itself
+    // answers nothing
     expect(events.events.map((e) => e.name)).toEqual([
       "tutorial_started",
       "tutorial_question_answered",

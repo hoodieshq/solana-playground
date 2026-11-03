@@ -105,7 +105,8 @@ question, holding the question, three option buttons in a group, and the foot
 buttons "Hint", "Type it myself" and "Skip". The card SHALL take focus on
 arrival without scrolling.
 
-Keys, when no text field has focus:
+Keys, while the focus is on the card or on nothing, and no dialog or menu is
+open (the card takes the focus as it arrives):
 
 - 1, 2 and 3 pick an option;
 - ↑ and ↓ move between rows;

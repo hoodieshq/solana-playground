@@ -53,7 +53,7 @@ const linesOf = (content: string | null) => content?.split("\n") ?? [];
  * else "Q<n>" counting the tutorial's asks whose kicker is `Question`, in
  * order. The kicker is one of the two (`Ask["kicker"]`).
  */
-export const questionLabel = (definition: TutorialDefinition, ask: Ask) => {
+const questionLabel = (definition: TutorialDefinition, ask: Ask) => {
   if (ask.kicker === "Fix it") return "Fix";
   const questions = definition.steps
     .flatMap((s) => s.beats)
@@ -222,3 +222,28 @@ const TurnView = ({
 };
 
 export default TurnView;
+
+if (import.meta.vitest) {
+  const { describe, it, expect, beforeAll } = import.meta.vitest;
+
+  describe("widgets/tutorial-conversation/ui/TurnView", () => {
+    let hello: TutorialDefinition;
+    beforeAll(async () => {
+      hello = (await import("../../../tutorials/hello-anchor/tutorial.json"))
+        .default as unknown as TutorialDefinition;
+    });
+
+    it("questionLabel counts the questions in order and calls a fix question Fix", () => {
+      const asks = hello.steps
+        .flatMap((s) => s.beats.concat(s.onFail ?? []))
+        .filter((b): b is Ask => b.kind === "ask");
+      expect(asks.map((a) => questionLabel(hello, a))).toEqual([
+        "Q1",
+        "Fix",
+        "Q2",
+        "Q3",
+        "Q4",
+      ]);
+    });
+  });
+}
