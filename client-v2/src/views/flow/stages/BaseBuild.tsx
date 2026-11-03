@@ -246,7 +246,7 @@ const Unreached = (p: BaseBuildProps & { failure: BuildFailure | null }) => {
           <CalloutDescription>
             {noAnswer
               ? "The Playground server did not answer. Your code is unchanged."
-              : "The full log has the details."}
+              : "Build stopped for a reason we can't name. The full log has the details."}
           </CalloutDescription>
         </Callout>
       </StageEmptyNotice>

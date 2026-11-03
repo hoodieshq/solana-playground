@@ -101,3 +101,17 @@ The Write and Build stages SHALL show no cluster notice. Each notice is a
 
 - **WHEN** the user presses "Change network" on the cluster notice
 - **THEN** the settings open with the network field focused
+
+### Requirement: The setup list warns on a network that does not answer
+
+While the chosen cluster does not answer or its slot does not move, the
+"Choose a network" row of "Get set up" SHALL lose its tick and show its warn
+state, with the cluster's name as its value and "<cluster> is not responding"
+as its title and as the words read after its label; it SHALL NOT count as
+done. It SHALL tick again when the cluster answers.
+
+#### Scenario: The setup row warns while the cluster does not answer
+
+- **WHEN** the cluster stops answering
+- **THEN** the "Choose a network" row shows its warn state, titled "devnet
+  is not responding", and the list counts one step fewer as done

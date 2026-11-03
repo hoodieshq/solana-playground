@@ -176,6 +176,21 @@ test.describe("on a 1440 px window", () => {
     await expect(notice(page)).toHaveCount(0, { timeout: 15_000 });
   });
 
+  test("client-v2-status: The setup row warns while the cluster does not answer", async ({
+    seededPage: page,
+  }) => {
+    const row = page
+      .getByRole("listitem")
+      .filter({ hasText: "Choose a network" });
+    await expect(row).toHaveAttribute("data-status", "done");
+    await stallDevnet(page);
+    await page.reload();
+    await expect(row).toHaveAttribute("data-status", "warn", {
+      timeout: 15_000,
+    });
+    await expect(row).toHaveAttribute("title", "devnet is not responding");
+  });
+
   test("client-v2-status: Change network from the notice", async ({
     seededPage: page,
   }) => {
