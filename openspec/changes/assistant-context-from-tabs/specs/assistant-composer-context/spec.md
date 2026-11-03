@@ -4,7 +4,7 @@
 
 ### Requirement: The context is the open tabs plus added files
 
-The assistant's context SHALL be every open tab plus every file the person added from the + menu, minus every file the person removed. Each turn's project state SHALL carry each file of the context in full, and SHALL NOT name any other project path. A deleted file SHALL leave the context.
+The assistant's context SHALL be every open tab plus every file the person added from the + menu, minus every file the person removed. Each turn's project state SHALL carry each file of the context in full, and SHALL NOT name any other project path, with one stated exception: a failed build's compiler output is sent as it is and can name or quote any file. A deleted file SHALL leave the context.
 
 #### Scenario: Only the context reaches the model
 
@@ -13,7 +13,7 @@ The assistant's context SHALL be every open tab plus every file the person added
 
 ### Requirement: The model reads only the context
 
-`read_file` SHALL return a file's content only when the file is in the context. For any other path it SHALL return, without the content, a message telling the model that the file is not in the conversation's context and to ask the person to add it with + in the composer. No tool SHALL list the project's files. `write_file` still accepts any path, behind the person's approval.
+`read_file` SHALL return a file's content only when the file is in the context. For any other path it SHALL return, without the content, a message telling the model that the file is not in the conversation's context and to ask the person to add it with + in the composer. No tool SHALL list the project's files. `write_file` still accepts any path inside the project, behind the person's approval; it SHALL answer that a file already holds the proposed content only for a file in the context, and SHALL refuse a path that leaves the project.
 
 #### Scenario: Reading a file outside the context (manual)
 

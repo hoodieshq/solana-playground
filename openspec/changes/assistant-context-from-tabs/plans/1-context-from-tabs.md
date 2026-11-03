@@ -34,11 +34,12 @@
 **Produces:**
 - `interface ContextChoice { readonly added: readonly string[]; readonly removed: readonly string[] }`
 - `contextPaths(tabs: readonly string[], choice: ContextChoice, exists: (path: string) => boolean): string[]`. Tabs in order, then added in order, without duplicates, minus `removed`, minus paths for which `exists` is false.
-- `PgAssistantContext.choice(workspace: string | null): ContextChoice`. Returns empty unless `workspace` is the one last written.
+- `PgAssistantContext.choice(workspace: string | null): ContextChoice`, one per workspace (a `Map` keyed by the stable workspace id), empty until a choice is made there.
+- `PgAssistantContext.forget(workspace, path)`: drops every choice about `path` and what is under it (a deleted file).
+- `normalizeProjectPath(path: string): string | null`: `./`, `//`, `.`, `..`, backslashes, a leading `/`; `null` for empty or leaving the project.
 - `PgAssistantContext.add(workspace, path)`: drops `path` from `removed`, and appends it to `added` unless it is there already.
 - `PgAssistantContext.remove(workspace, path)`: drops it from `added` and adds it to `removed`.
 - `PgAssistantContext.onDidChange(cb): { dispose(): void }`.
-- Writing under a different workspace starts that workspace from an empty choice.
 
 - [ ] Tests: order (tabs, then added), dedupe of a tab that is also added, removal of a tab, re-add puts it back at its tab position, the `exists` filter, the workspace switch, and `onDidChange` firing on add and on remove.
 - [ ] Run `yarn test-unit src/entities/assistant-context/model/context.ts` and see it fail. Implement. Run again and see it pass. Commit.
@@ -49,7 +50,7 @@
 
 **Produces:**
 - `PlaygroundBridge.listContextFiles(): string[]`
-- `PlaygroundBridge.toProjectPath(path: string): string` (normalises the model's path)
+- `PlaygroundBridge.toProjectPath(path: string): string | null` (normalises the model's path; `null` names nothing in the project)
 - `ProjectContext.contextFiles: { path: string; content: string }[]`, which replaces `filePaths`, `openFilePaths` and `currentFileContent`. `currentFilePath` stays.
 - `TurnContext` and the `context` argument of `Provider.send` are removed. `describeProject(bridge?)`.
 

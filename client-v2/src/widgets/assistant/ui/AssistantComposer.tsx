@@ -144,13 +144,7 @@ export function AssistantComposer({
     const subs = [
       PgExplorer.onDidSetTabs(render),
       PgExplorer.onDidCreateItem(render),
-      // A deleted file's picks go with it, so a new file made at its path is
-      // not in the context until the user adds it
-      PgExplorer.onDidDeleteItem((fullPath) => {
-        const path = realBridge.toProjectPath(fullPath);
-        if (path) PgAssistantContext.forget(workspace(), path);
-        render();
-      }),
+      PgExplorer.onDidDeleteItem(render),
       PgExplorer.onDidRenameItem(render),
       PgExplorer.onDidSwitchWorkspace(render),
     ];

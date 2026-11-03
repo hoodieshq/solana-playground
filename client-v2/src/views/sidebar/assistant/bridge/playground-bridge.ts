@@ -230,3 +230,13 @@ export const realBridge: PlaygroundBridge = {
     };
   },
 };
+
+// A deleted file's choices go with it, so a new file made at its path is not
+// in the context until the user adds it. Here, not in the composer: the
+// store outlives the panel, and a delete while it is closed counts too
+PgExplorer.onDidDeleteItem((fullPath) => {
+  const path = realBridge.toProjectPath(fullPath);
+  if (path) {
+    PgAssistantContext.forget(PgExplorer.currentWorkspaceId ?? null, path);
+  }
+});

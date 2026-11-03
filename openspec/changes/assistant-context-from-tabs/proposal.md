@@ -26,7 +26,7 @@ user decide what goes. Slava settled the rules on 3 Nov
   the "N files" and "N open" chips.
 - The + menu gains "Add a file", a submenu that lists the project files not
   in the context.
-- Added and removed files reset when the user switches project.
+- Added and removed files are kept per project while the page is open, across a switch to another project and back. A reload starts from the open tabs. Deleting a file drops the choices about it.
 - Telemetry (widget `assistant`): adds `assistant_context_file_added`
   (`via: "menu"`). `assistant_file_chip_removed` keeps its name and gains no
   parameters, and now fires for any file chip.
