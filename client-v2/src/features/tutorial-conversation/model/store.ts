@@ -11,6 +11,7 @@ import { freshProgress, parseProgress } from "./progress";
 import type { ConversationProgress, PassedVia, RunResult } from "./progress";
 import { INITIAL_ENGINE_STATE, actOf, reduce, stepOfBeat } from "./reducer";
 import type { Action, Effect, EngineContext, EngineState } from "./reducer";
+import { route } from "./route";
 import { tutorialTelemetry } from "./telemetry";
 import { view } from "./view";
 import type { ConversationView } from "./view";
@@ -178,6 +179,63 @@ export class PgConversation {
    */
   static restartStep() {
     PgConversation._dispatch({ type: "restartStep", at: Date.now() });
+  }
+
+  /**
+   * A message typed in the composer, routed in the spec's order (`route`):
+   * a live action's word runs it with its pill, a word while a question is
+   * open posts the refusal, and anything else is the assistant's, which the
+   * caller sends.
+   */
+  static say(text: string): "lesson" | "assistant" {
+    const routed = route(text, PgConversation.view()?.live ?? null);
+    const at = Date.now();
+    switch (routed.kind) {
+      case "word":
+        PgConversation._dispatch({
+          type: "word",
+          text: text.trim(),
+          then: routed.action,
+          at,
+        });
+        return "lesson";
+      case "refused":
+        PgConversation._dispatch({ type: "refuseWord", text: text.trim(), at });
+        return "lesson";
+      case "assistant":
+        return "assistant";
+    }
+  }
+
+  /** A composer message reached the live assistant; it is only counted */
+  static asked() {
+    PgConversation._dispatch({ type: "asked", at: Date.now() });
+  }
+
+  /** A finish chip pressed, by its index in the definition's chips */
+  static chip(index: number) {
+    PgConversation._dispatch({ type: "chip", index, at: Date.now() });
+  }
+
+  /** The assistant's Propose a change: one line, as an apply card */
+  static propose(proposal: {
+    id: string;
+    file: string;
+    line: number;
+    before: string;
+    after: string;
+  }) {
+    PgConversation._dispatch({ type: "propose", proposal, at: Date.now() });
+  }
+
+  /** The apply card's "Apply to <file>" */
+  static apply(id: string) {
+    PgConversation._dispatch({ type: "apply", id, at: Date.now() });
+  }
+
+  /** The apply card's "Keep it" */
+  static keep(id: string) {
+    PgConversation._dispatch({ type: "keep", id, at: Date.now() });
   }
 
   /** Back to the intro. The frame confirms first; the assistant's thread stays */
@@ -628,6 +686,48 @@ export class PgConversation {
             )}`,
             { report: true }
           );
+        }
+        break;
+      }
+      case "apply": {
+        const failed = () =>
+          PgConversation._dispatch({
+            type: "applyFailed",
+            id: effect.id,
+            at: Date.now(),
+          });
+        try {
+          if (!stillOpen()) break;
+          const content = await ports.workspace.read(effect.file, name);
+          const lines = content?.split("\n") ?? null;
+          if (lines?.[effect.line - 1] !== effect.before) {
+            // The learner changed the line since the proposal: writing it now
+            // would overwrite their edit, so the card says it could not
+            log.warn(`A proposal's line moved before Apply`, {
+              context: { name, file: effect.file, line: effect.line },
+            });
+            failed();
+            break;
+          }
+          lines[effect.line - 1] = effect.after;
+          if (!stillOpen()) break;
+          await ports.workspace.write(effect.file, lines.join("\n"), name);
+          if (!stillOpen()) {
+            PgConversation._landedLate(name, effect.file);
+            break;
+          }
+          PgConversation._dispatch({
+            type: "applied",
+            id: effect.id,
+            at: Date.now(),
+          });
+        } catch (e) {
+          if (PgConversation._moved(e, name, `apply to ${effect.file}`)) break;
+          log.error(e, {
+            report: true,
+            context: { name, path: effect.file },
+          });
+          failed();
         }
         break;
       }

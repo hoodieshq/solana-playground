@@ -38,6 +38,44 @@ export interface ConversationProgress extends ConversationSave {
   runs: Record<string, RunRecord[]>;
   /** When each step started and passed, by step id, for the divider's time */
   times: Record<string, StepTime>;
+  /**
+   * What the composer posted in the lesson's own feed, oldest first (task
+   * 3.6). Added after version 1 shipped: a save without it reads as none.
+   */
+  said: Said[];
+  /** Changes the assistant proposed as apply cards, oldest first; added
+   * after version 1 shipped, like `said` */
+  proposals: Proposal[];
+}
+
+/**
+ * A composer message the lesson answered itself, with no model: a typed
+ * action word echoed as a pill (the act it ran records itself), the same
+ * word refused while a question is open, or a finish chip pressed (its
+ * answer is the definition's, never saved).
+ */
+export type Said =
+  | { kind: "word"; text: string; at: number }
+  | { kind: "refused"; text: string; at: number }
+  | { kind: "chip"; index: number; at: number };
+
+/**
+ * One line the assistant proposed to change, as its apply card shows it. It
+ * is never applied by itself: Apply writes it, Keep it leaves the file.
+ */
+export interface Proposal {
+  id: string;
+  /** Workspace path: `programs/hello/src/lib.rs` */
+  file: string;
+  /** 1-based */
+  line: number;
+  /** The line as the assistant read it, to refuse an Apply after it moved */
+  before: string;
+  after: string;
+  at: number;
+  state: "open" | "applied" | "kept";
+  /** The last Apply could not write; the card stays open to try again */
+  applyFailed?: true;
 }
 
 /** Where the lesson stands: before Start, in a step, or past the last win */
@@ -302,6 +340,8 @@ export const freshProgress = (
   beats: {},
   runs: {},
   times: {},
+  said: [],
+  proposals: [],
 });
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -310,6 +350,9 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 const isMs = (v: unknown): v is number => Number.isFinite(v);
 
 const isMsOrNull = (v: unknown): v is number | null => v === null || isMs(v);
+
+/** A string with something in it */
+const isText = (v: unknown): v is string => typeof v === "string" && v !== "";
 
 const isStrings = (v: unknown): v is string[] =>
   Array.isArray(v) && v.every((s) => typeof s === "string");
@@ -612,6 +655,72 @@ const parseEach = <T>(
   return out;
 };
 
+const parseSaid = (v: unknown): Said | null => {
+  if (!isRecord(v) || !isMs(v.at)) return null;
+  if ((v.kind === "word" || v.kind === "refused") && isText(v.text)) {
+    return { kind: v.kind, text: v.text, at: v.at };
+  }
+  if (v.kind === "chip" && Number.isInteger(v.index) && Number(v.index) >= 0) {
+    return { kind: "chip", index: Number(v.index), at: v.at };
+  }
+  return null;
+};
+
+const PROPOSAL_STATES: readonly Proposal["state"][] = [
+  "open",
+  "applied",
+  "kept",
+];
+
+const parseProposal = (v: unknown): Proposal | null => {
+  if (
+    !isRecord(v) ||
+    !isText(v.id) ||
+    !isText(v.file) ||
+    !Number.isInteger(v.line) ||
+    Number(v.line) < 1 ||
+    typeof v.before !== "string" ||
+    typeof v.after !== "string" ||
+    !isMs(v.at) ||
+    !PROPOSAL_STATES.includes(v.state as Proposal["state"])
+  ) {
+    return null;
+  }
+  const proposal: Proposal = {
+    id: v.id,
+    file: v.file,
+    line: Number(v.line),
+    before: v.before,
+    after: v.after,
+    at: v.at,
+    state: v.state as Proposal["state"],
+  };
+  if (v.applyFailed === true) proposal.applyFailed = true;
+  return proposal;
+};
+
+/** A list added after version 1 shipped: absent reads as empty, and an
+ * unreadable entry is dropped and reported by its index */
+const parseList = <T>(
+  v: unknown,
+  parse: (entry: unknown) => T | null,
+  onDrop: (key: string) => void,
+  section: string
+): T[] => {
+  if (v === undefined) return [];
+  if (!Array.isArray(v)) {
+    onDrop(section);
+    return [];
+  }
+  const out: T[] = [];
+  v.forEach((entry, i) => {
+    const parsed = parse(entry);
+    if (parsed !== null) out.push(parsed);
+    else onDrop(`${section}[${i}]`);
+  });
+  return out;
+};
+
 const VIAS: readonly PassedVia[] = ["chat", "client", "call_panel"];
 
 const parseTime = (v: unknown): StepTime | null => {
@@ -657,6 +766,8 @@ export const parseProgress = (
       "runs"
     ),
     times: parseEach(saved.times, parseTime, onDrop, "times"),
+    said: parseList(saved.said, parseSaid, onDrop, "said"),
+    proposals: parseList(saved.proposals, parseProposal, onDrop, "proposals"),
   };
 };
 
@@ -678,6 +789,8 @@ if (import.meta.vitest) {
         beats?: Record<string, unknown>;
         runs?: Record<string, unknown>;
         times?: Record<string, unknown>;
+        said?: unknown[];
+        proposals?: unknown[];
       } = {}
     ) => ({
       version: 1 as const,
@@ -748,6 +861,8 @@ if (import.meta.vitest) {
         },
         opts.times
       ),
+      said: opts.said ?? [],
+      proposals: opts.proposals ?? [],
     });
 
     /** Through JSON, as the file holds it */
@@ -919,6 +1034,70 @@ if (import.meta.vitest) {
         "runs.s4.call[1]",
         "times.broken",
       ]);
+    });
+
+    it("reads a save from before the composer's records as having none", () => {
+      const before: Record<string, unknown> = midway();
+      delete before.said;
+      delete before.proposals;
+      const dropped: string[] = [];
+      expect(
+        parseProgress(JSON.parse(JSON.stringify(before)), (k) =>
+          dropped.push(k)
+        )
+      ).toEqual(midway());
+      expect(dropped).toEqual([]);
+    });
+
+    it("keeps the composer's records, and drops the ones it cannot read", () => {
+      const word = { kind: "word", text: "build", at: 3000 };
+      const refused = { kind: "refused", text: "deploy please", at: 3100 };
+      const chip = { kind: "chip", index: 1, at: 9000 };
+      const applied = {
+        id: "p1",
+        file: "programs/hello/src/lib.rs",
+        line: 10,
+        before: '        msg!("Hello, {}!", name);',
+        after: '        msg!("Once upon a time on devnet");',
+        at: 9100,
+        state: "applied",
+      };
+      const failed = {
+        id: "p2",
+        file: "programs/hello/src/lib.rs",
+        line: 10,
+        before: "",
+        after: "// one more",
+        at: 9200,
+        state: "open",
+        applyFailed: true,
+      };
+      const saved = midway({
+        said: [
+          word,
+          { kind: "word", text: "", at: 1 },
+          refused,
+          { kind: "chip", index: -1, at: 1 },
+          chip,
+        ],
+        proposals: [applied, { id: "p3", file: "x", line: 0 }, failed],
+      });
+      const dropped: string[] = [];
+      expect(
+        parseProgress(JSON.parse(JSON.stringify(saved)), (k) => dropped.push(k))
+      ).toEqual(
+        midway({ said: [word, refused, chip], proposals: [applied, failed] })
+      );
+      expect(dropped).toEqual(["said[1]", "said[3]", "proposals[1]"]);
+      const notAList = midway();
+      (notAList as { said: unknown }).said = "build";
+      const named: string[] = [];
+      expect(
+        parseProgress(JSON.parse(JSON.stringify(notAList)), (k) =>
+          named.push(k)
+        )?.said
+      ).toEqual([]);
+      expect(named).toEqual(["said"]);
     });
 
     it("keeps a restart time and a question skipped from elsewhere, and refuses a malformed restart time", () => {

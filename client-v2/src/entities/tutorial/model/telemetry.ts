@@ -30,8 +30,8 @@ export type TutorialEvents = {
    */
   tutorial_opened: { tutorial: string };
   /**
-   * The engine's `start` action: the intro card's Start, or, once the
-   * composer lands (task 3.6), a start word. Fires once per start; Start
+   * The engine's `start` action: the intro card's Start, or a start word
+   * typed in the composer ("start", "begin", "go"). Fires once per start; Start
    * over then Start fires it again. `tutorial` is the slug.
    */
   tutorial_started: { tutorial: string };
@@ -102,6 +102,35 @@ export type TutorialEvents = {
    * 0 before Start.
    */
   tutorial_step_back: { tutorial: string; step: number };
+  /**
+   * A composer message went to the live assistant (`typed`), or a finish chip
+   * was pressed (`chip`), whose answer needs no model. `step` is 1-based, 0
+   * before Start and the last step after the finish. The text is never sent.
+   */
+  tutorial_question_asked: {
+    tutorial: string;
+    step: number;
+    source: "typed" | "chip";
+  };
+  /**
+   * A message typed in the composer was only an action word ("build",
+   * "deploy please", "start"): it ran that action, or, while a question was
+   * open, was refused (`refused`). `word` is the message as typed, which is
+   * only ever one of those words. `step` is as in `tutorial_question_asked`.
+   */
+  tutorial_word_sent: {
+    tutorial: string;
+    step: number;
+    word: string;
+    refused: boolean;
+  };
+  /**
+   * "Apply to <file>" on the assistant's apply card wrote its line. `file`
+   * is the workspace path. A write that failed sends nothing.
+   */
+  tutorial_change_applied: { tutorial: string; file: string };
+  /** "Keep it" on the assistant's apply card left the file as it was */
+  tutorial_change_kept: { tutorial: string };
   /**
    * An act or a Call panel call ended, or a reload interrupted one; the
    * engine fires it from its reducer. `action` is `build`, `deploy`,

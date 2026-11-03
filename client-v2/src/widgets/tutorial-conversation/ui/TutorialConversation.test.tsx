@@ -199,6 +199,8 @@ const loaded = (): ConversationState => ({
       finishedAt: null,
       startedAt: 1,
       restartedAt: null,
+      said: [],
+      proposals: [],
       cursor: {
         kind: "step",
         stepId: definition.steps[1].id,

@@ -75,6 +75,8 @@ if (import.meta.vitest) {
       finishedAt: null,
       startedAt: null,
       restartedAt: null,
+      said: [],
+      proposals: [],
       cursor,
       beats: {},
       runs: {},

@@ -17,6 +17,7 @@ import type {
   ConversationProgress,
   Cursor,
   PassedVia,
+  Proposal,
   Resolution,
   RunRecord,
   RunResult,
@@ -126,7 +127,32 @@ export type Action =
   | { type: "next"; at: number }
   | { type: "finish"; at: number }
   | { type: "restartStep"; at: number }
-  | { type: "startOver"; at: number };
+  | { type: "startOver"; at: number }
+  /** A typed action word: its pill, then the action it names (task 3.6) */
+  | { type: "word"; text: string; then: WordAction; at: number }
+  /** An action word typed while a question is open: refused, not run */
+  | { type: "refuseWord"; text: string; at: number }
+  /** A finish chip pressed, by its index in the definition's `finish.chips` */
+  | { type: "chip"; index: number; at: number }
+  /** The assistant proposed one line's change; it waits for Apply or Keep */
+  | {
+      type: "propose";
+      proposal: Pick<Proposal, "id" | "file" | "line" | "before" | "after">;
+      at: number;
+    }
+  | { type: "apply"; id: string; at: number }
+  /** The proposal's line was written (`apply`'s effect landed) */
+  | { type: "applied"; id: string; at: number }
+  | { type: "applyFailed"; id: string; at: number }
+  | { type: "keep"; id: string; at: number }
+  /** A composer message went to the live assistant: counted, nothing saved */
+  | { type: "asked"; at: number };
+
+/** What a typed action word may run: the same actions its buttons send */
+export type WordAction = Extract<
+  Action,
+  { type: "start" } | { type: "act" } | { type: "next" } | { type: "explain" }
+>;
 
 export type Effect =
   | {
@@ -185,6 +211,41 @@ export type Effect =
       kind: "event";
       name: "tutorial_action_run";
       params: ActionRunParams;
+    }
+  | {
+      kind: "event";
+      name: "tutorial_question_asked";
+      /** `step` is 1-based, 0 before Start */
+      params: { tutorial: string; step: number; source: "typed" | "chip" };
+    }
+  | {
+      kind: "event";
+      name: "tutorial_word_sent";
+      params: {
+        tutorial: string;
+        step: number;
+        word: string;
+        refused: boolean;
+      };
+    }
+  | {
+      kind: "event";
+      name: "tutorial_change_applied";
+      params: { tutorial: string; file: string };
+    }
+  | {
+      kind: "event";
+      name: "tutorial_change_kept";
+      params: { tutorial: string };
+    }
+  /** Write a proposal's line over `before`, unless the line moved since */
+  | {
+      kind: "apply";
+      id: string;
+      file: string;
+      line: number;
+      before: string;
+      after: string;
     }
   /** Put the caret where the answer lands, or on the error's line */
   | { kind: "focus"; file: string; line: number | "landing" }
@@ -587,6 +648,75 @@ const answeredEvents = (
     });
   }
   return events;
+};
+
+/** The step a lesson event names: 1-based, 0 before Start, the last after
+ * the finish */
+const stepNumber = (definition: TutorialDefinition, cursor: Cursor) => {
+  if (cursor.kind === "intro") return 0;
+  if (cursor.kind === "finished") return definition.steps.length;
+  return definition.steps.findIndex((s) => s.id === cursor.stepId) + 1;
+};
+
+const wordSent = (
+  ctx: EngineContext,
+  cursor: Cursor,
+  text: string,
+  refused: boolean
+): Effect => ({
+  kind: "event",
+  name: "tutorial_word_sent",
+  params: {
+    tutorial: ctx.slug,
+    step: stepNumber(ctx.definition, cursor),
+    word: text,
+    refused,
+  },
+});
+
+/** A proposal once Apply landed, failed, or Keep it was pressed */
+const settle = (
+  proposal: Proposal,
+  how: "applied" | "applyFailed" | "keep"
+): Proposal => {
+  const base: Proposal = {
+    id: proposal.id,
+    file: proposal.file,
+    line: proposal.line,
+    before: proposal.before,
+    after: proposal.after,
+    at: proposal.at,
+    state: proposal.state,
+  };
+  if (how === "applied") return { ...base, state: "applied" };
+  if (how === "keep") return { ...base, state: "kept" };
+  return { ...base, applyFailed: true };
+};
+
+const settledEvents = (
+  ctx: EngineContext,
+  proposal: Proposal,
+  how: "applied" | "applyFailed" | "keep"
+): Effect[] => {
+  if (how === "applied") {
+    return [
+      {
+        kind: "event",
+        name: "tutorial_change_applied",
+        params: { tutorial: ctx.slug, file: proposal.file },
+      },
+    ];
+  }
+  if (how === "keep") {
+    return [
+      {
+        kind: "event",
+        name: "tutorial_change_kept",
+        params: { tutorial: ctx.slug },
+      },
+    ];
+  }
+  return [];
 };
 
 export const reduce = (
@@ -1119,6 +1249,135 @@ const reduceAction = (
         ...flowed.effects,
       ]);
     }
+
+    case "word": {
+      const ran = reduceAction(ctx, state, action.then);
+      if (ran.state.progress === p && ran.effects.length === 0) {
+        return same(state);
+      }
+      const q = ran.state.progress;
+      return {
+        state: {
+          progress: {
+            ...q,
+            said: [
+              ...q.said,
+              { kind: "word", text: action.text, at: action.at },
+            ],
+          },
+          stage: ran.state.stage,
+        },
+        effects: [wordSent(ctx, p.cursor, action.text, false), ...ran.effects],
+      };
+    }
+
+    case "refuseWord":
+      return withProgress(
+        state,
+        {
+          ...p,
+          said: [
+            ...p.said,
+            { kind: "refused", text: action.text, at: action.at },
+          ],
+        },
+        [wordSent(ctx, p.cursor, action.text, true)]
+      );
+
+    case "chip": {
+      if (p.cursor.kind !== "finished") return same(state);
+      if (!definition.finish.chips[action.index]) return same(state);
+      return withProgress(
+        state,
+        {
+          ...p,
+          said: [
+            ...p.said,
+            { kind: "chip", index: action.index, at: action.at },
+          ],
+        },
+        [
+          {
+            kind: "event",
+            name: "tutorial_question_asked",
+            params: {
+              tutorial: ctx.slug,
+              step: stepNumber(definition, p.cursor),
+              source: "chip",
+            },
+          },
+        ]
+      );
+    }
+
+    case "propose": {
+      if (p.proposals.some((x) => x.id === action.proposal.id)) {
+        return same(state);
+      }
+      const proposal: Proposal = {
+        id: action.proposal.id,
+        file: action.proposal.file,
+        line: action.proposal.line,
+        before: action.proposal.before,
+        after: action.proposal.after,
+        at: action.at,
+        state: "open",
+      };
+      return withProgress(state, {
+        ...p,
+        proposals: [...p.proposals, proposal],
+      });
+    }
+
+    case "apply": {
+      const proposal = p.proposals.find((x) => x.id === action.id);
+      if (!proposal || proposal.state !== "open") return same(state);
+      return {
+        state,
+        effects: [
+          {
+            kind: "apply",
+            id: proposal.id,
+            file: proposal.file,
+            line: proposal.line,
+            before: proposal.before,
+            after: proposal.after,
+          },
+        ],
+      };
+    }
+
+    case "applied":
+    case "applyFailed":
+    case "keep": {
+      const proposal = p.proposals.find((x) => x.id === action.id);
+      if (!proposal || proposal.state !== "open") return same(state);
+      const settled = settle(proposal, action.type);
+      return withProgress(
+        state,
+        {
+          ...p,
+          proposals: p.proposals.map((x) => (x.id === action.id ? settled : x)),
+        },
+        settledEvents(ctx, proposal, action.type)
+      );
+    }
+
+    case "asked":
+      return {
+        state,
+        effects: [
+          {
+            kind: "event",
+            name: "tutorial_question_asked",
+            params: {
+              tutorial: ctx.slug,
+              step: stepNumber(definition, p.cursor),
+              source: "typed",
+            },
+          },
+        ],
+      };
 
     case "startOver":
       // Never a no-op: on a failed load the intro shows too, and this is the
@@ -1938,6 +2197,8 @@ if (import.meta.vitest) {
               finishedAt: running.progress.finishedAt,
               startedAt: running.progress.startedAt,
               restartedAt: running.progress.restartedAt,
+              said: running.progress.said,
+              proposals: running.progress.proposals,
               cursor: running.progress.cursor,
               beats: running.progress.beats,
               times: running.progress.times,
@@ -2652,6 +2913,35 @@ if (import.meta.vitest) {
         ).toBe(r.state);
       });
 
+      it("a finish chip posts only after the finish, and is counted as asked", () => {
+        const done = play(toFinish()).state;
+        expect(
+          reduce(ctx(), done, { type: "chip", index: 0, at: 12000 }).state
+        ).toBe(done);
+        const finished = reduce(ctx(), done, {
+          type: "finish",
+          at: 12000,
+        }).state;
+        const r = reduce(ctx(), finished, {
+          type: "chip",
+          index: 1,
+          at: 13000,
+        });
+        expect(r.state.progress.said).toEqual([
+          { kind: "chip", index: 1, at: 13000 },
+        ]);
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_question_asked",
+            params: { tutorial: "hello-anchor", step: 4, source: "chip" },
+          },
+        ]);
+        expect(
+          reduce(ctx(), finished, { type: "chip", index: 2, at: 13000 }).state
+        ).toBe(finished);
+      });
+
       it("finish before the last win is a no-op", () => {
         const before = play(toFinish().slice(0, 4)).state;
         expect(reduce(ctx(), before, { type: "finish", at: 9000 }).state).toBe(
@@ -2739,6 +3029,196 @@ if (import.meta.vitest) {
         expect(r.effects).toEqual([
           { kind: "restore", files: hello.intro.files, remove: [] },
         ]);
+      });
+    });
+
+    describe("the composer", () => {
+      const proposal = {
+        id: "p1",
+        file: "programs/hello/src/lib.rs",
+        line: 10,
+        before: "        old",
+        after: "        new",
+      };
+
+      it("a word runs its action and posts its pill, counted as sent", () => {
+        const r = play([
+          {
+            type: "word",
+            text: "go",
+            then: { type: "start", at: 1000 },
+            at: 1000,
+          },
+        ]);
+        expect(r.progress.startedAt).toBe(1000);
+        expect(r.progress.said).toEqual([
+          { kind: "word", text: "go", at: 1000 },
+        ]);
+        expect(r.effects).toContainEqual({
+          kind: "event",
+          name: "tutorial_word_sent",
+          params: {
+            tutorial: "hello-anchor",
+            step: 0,
+            word: "go",
+            refused: false,
+          },
+        });
+        expect(r.effects).toContainEqual({
+          kind: "event",
+          name: "tutorial_started",
+          params: { tutorial: "hello-anchor" },
+        });
+      });
+
+      it("a word whose action the engine refuses posts no pill", () => {
+        const before = play([start]).state;
+        const r = reduce(ctx(), before, {
+          type: "word",
+          text: "next",
+          then: { type: "next", at: 2000 },
+          at: 2000,
+        });
+        expect(r.state).toBe(before);
+        expect(r.effects).toEqual([]);
+      });
+
+      it("a refused word posts the refusal and runs nothing", () => {
+        const before = play([start]).state;
+        const r = reduce(ctx(), before, {
+          type: "refuseWord",
+          text: "build",
+          at: 3000,
+        });
+        expect(r.state.progress.said).toEqual([
+          { kind: "refused", text: "build", at: 3000 },
+        ]);
+        expect(r.state.progress.runs).toEqual(before.progress.runs);
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_word_sent",
+            params: {
+              tutorial: "hello-anchor",
+              step: 1,
+              word: "build",
+              refused: true,
+            },
+          },
+        ]);
+      });
+
+      it("a message to the assistant is counted and saves nothing", () => {
+        const before = play([start]).state;
+        const r = reduce(ctx(), before, { type: "asked", at: 3000 });
+        expect(r.state).toBe(before);
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_question_asked",
+            params: { tutorial: "hello-anchor", step: 1, source: "typed" },
+          },
+        ]);
+      });
+
+      it("a proposal waits; Apply asks for the write, and only the write applies it", () => {
+        const proposed = play([
+          start,
+          { type: "propose", proposal, at: 4000 },
+          { type: "propose", proposal, at: 4100 },
+        ]).state;
+        expect(proposed.progress.proposals).toEqual([
+          {
+            id: "p1",
+            file: "programs/hello/src/lib.rs",
+            line: 10,
+            before: "        old",
+            after: "        new",
+            at: 4000,
+            state: "open",
+          },
+        ]);
+        const asked = reduce(ctx(), proposed, {
+          type: "apply",
+          id: "p1",
+          at: 5000,
+        });
+        expect(asked.state).toBe(proposed);
+        expect(asked.effects).toEqual([
+          {
+            kind: "apply",
+            id: "p1",
+            file: "programs/hello/src/lib.rs",
+            line: 10,
+            before: "        old",
+            after: "        new",
+          },
+        ]);
+        const failed = reduce(ctx(), proposed, {
+          type: "applyFailed",
+          id: "p1",
+          at: 5100,
+        });
+        expect(failed.state.progress.proposals[0]).toMatchObject({
+          state: "open",
+          applyFailed: true,
+        });
+        const applied = reduce(ctx(), failed.state, {
+          type: "applied",
+          id: "p1",
+          at: 5200,
+        });
+        expect(applied.state.progress.proposals[0].state).toBe("applied");
+        expect(applied.state.progress.proposals[0].applyFailed).toBeUndefined();
+        expect(applied.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_change_applied",
+            params: {
+              tutorial: "hello-anchor",
+              file: "programs/hello/src/lib.rs",
+            },
+          },
+        ]);
+        // Settled once: neither Apply nor Keep it moves it again
+        expect(
+          reduce(ctx(), applied.state, { type: "keep", id: "p1", at: 6000 })
+            .state
+        ).toBe(applied.state);
+        expect(
+          reduce(ctx(), applied.state, { type: "apply", id: "p1", at: 6000 })
+            .effects
+        ).toEqual([]);
+      });
+
+      it("Keep it leaves the file and is counted", () => {
+        const proposed = play([
+          start,
+          { type: "propose", proposal, at: 4000 },
+        ]).state;
+        const r = reduce(ctx(), proposed, { type: "keep", id: "p1", at: 5000 });
+        expect(r.state.progress.proposals[0].state).toBe("kept");
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_change_kept",
+            params: { tutorial: "hello-anchor" },
+          },
+        ]);
+      });
+
+      it("a step's Reset keeps the records, and Start over clears them", () => {
+        const said = play([
+          start,
+          { type: "refuseWord", text: "build", at: 3000 },
+          { type: "propose", proposal, at: 4000 },
+        ]).state;
+        const reset = reduce(ctx(), said, { type: "restartStep", at: 5000 });
+        expect(reset.state.progress.said).toEqual(said.progress.said);
+        expect(reset.state.progress.proposals).toEqual(said.progress.proposals);
+        const over = reduce(ctx(), said, { type: "startOver", at: 6000 });
+        expect(over.state.progress.said).toEqual([]);
+        expect(over.state.progress.proposals).toEqual([]);
       });
     });
 
@@ -2870,6 +3350,8 @@ if (import.meta.vitest) {
             finishedAt: null,
             startedAt: 1000,
             restartedAt: null,
+            said: [],
+            proposals: [],
             cursor: { kind: "step", stepId: here.id, beat: 1, fail: false },
             beats: { [here.beats[0].id]: { kind: "said", at: 1000 } },
             runs: {},
@@ -2980,6 +3462,8 @@ if (import.meta.vitest) {
             finishedAt: null,
             startedAt: 1000,
             restartedAt: null,
+            said: [],
+            proposals: [],
             cursor: at(2).progress.cursor,
             beats: at(2).progress.beats,
             runs: {
