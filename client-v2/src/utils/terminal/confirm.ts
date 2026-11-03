@@ -24,7 +24,7 @@ const ANSWERS: Record<string, "yes" | "no"> = {
  * @param input what the person typed
  * @returns `"yes"` or `"no"`, or the input in lower case when it is neither
  */
-export const confirmAnswer = (input: string) => {
+const confirmAnswer = (input: string) => {
   const lower = input.trim().toLowerCase();
   return ANSWERS[lower] ?? lower;
 };
@@ -39,7 +39,7 @@ export const confirmAnswer = (input: string) => {
  * the input in lower case for the validator to refuse
  */
 export const confirmReply = (input: string, defaultValue?: string) =>
-  confirmAnswer(input || defaultValue || "");
+  confirmAnswer(input) || confirmAnswer(defaultValue ?? "");
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
@@ -72,6 +72,7 @@ if (import.meta.vitest) {
       ["", "no", "no"],
       ["", undefined, ""],
       ["N", "yes", "no"],
+      ["  ", "yes", "yes"],
     ])("reads %j with default %s as %j", (input, def, reply) => {
       expect(confirmReply(input, def)).toBe(reply);
     });

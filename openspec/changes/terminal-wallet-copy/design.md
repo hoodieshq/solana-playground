@@ -38,9 +38,13 @@ prototype draws no wallet panel, so Spec 12 is the only source for its help.
   over top-level command names, at most 2, ties to the earlier in
   `PgCommandManager.all` order, the order `help` lists. A swap counts as one
   edit, so `biuld` is 1 away from `build`.
-- **Up runs the suggestion** by pushing it onto the shell's history after the
-  line is printed (`PgTerm.suggest`). History moves a repeated entry to the
+- **Up runs the suggestion** by pushing it onto the shell's history before the
+  line is printed. History moves a repeated entry to the
   end already, so the suggestion never duplicates.
+  The suggestion and its line come from `unknownCommand`
+  (`utils/terminal/unknown-command.ts`); the history push is
+  `PgTerm.offerFromHistory`, and a failure there is logged, never shown in
+  place of the line.
 - **The confirm suffix is the terminal's**, not each caller's: `[Y/n]`,
   `[y/N]` or `[y/n]` from `default`. Every confirm in the app gets it,
   `deploy`'s and `sugar`'s included; Spec 13's rule is general. Answers are

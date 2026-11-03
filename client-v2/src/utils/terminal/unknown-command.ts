@@ -1,11 +1,8 @@
 /** Words a person types out of shell habit; Spec 13 answers them in one line */
 const SHELL_HABITS = ["ls", "cd", "cat", "npm", "yarn", "cargo"];
 
-/**
- * How far a typo may be from a command and still get a suggestion: Spec 13's
- * two edits, fewer for a short name, where two edits reach almost anything
- */
-const maxEdits = (name: string) => Math.min(2, Math.floor(name.length / 2));
+/** How far a typo may be from a command and still get a suggestion (Spec 13) */
+const MAX_EDITS = 2;
 
 /**
  * Edits between two words: insert, delete, replace, or swap two neighbours
@@ -59,7 +56,7 @@ export const unknownCommand = (
   let best: { name: string; edits: number } | undefined;
   for (const name of names) {
     const edits = editDistance(word, name);
-    if (edits <= maxEdits(name) && (!best || edits < best.edits)) {
+    if (edits <= MAX_EDITS && (!best || edits < best.edits)) {
       best = { name, edits };
     }
   }
@@ -122,10 +119,6 @@ if (import.meta.vitest) {
         line: "`BUILD` is not a command. Did you mean `build`?",
       });
       expect(unknownCommand("Ls", NAMES)).toMatchObject({ kind: "shell" });
-    });
-
-    it("suggests nothing two edits from a short name", () => {
-      expect(unknownCommand("ab", ["run"])).toMatchObject({ kind: "none" });
     });
 
     it("points to help when nothing is close", () => {

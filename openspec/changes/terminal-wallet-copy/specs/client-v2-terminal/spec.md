@@ -3,7 +3,8 @@
 ### Requirement: An unknown command suggests the closest one
 
 A command the terminal does not know SHALL end with one line and no
-"Process error:" prefix:
+"Process error:" prefix. The typed word SHALL be matched in any case and
+shown as typed:
 
 - when a known command is 2 edits or fewer away (insert, delete, replace or
   swap two neighbours): "`<typed>` is not a command. Did you mean
