@@ -28,6 +28,20 @@ export type TutorialEvents = {
    */
   tutorial_finished: { tutorial: string; seconds: number };
   /**
+   * A question left open: the right pick, Skip, its key line typed by hand,
+   * or its step passed elsewhere (`call_panel` from the Call panel, `skipped`
+   * from a client run). `question` is the beat id; `attempts` (1 to 3) is
+   * the picks for a pick, else the wrong picks before it plus one. Fires once
+   * per question; a wrong pick or a hint sends nothing. The question's text
+   * is never sent.
+   */
+  tutorial_question_answered: {
+    tutorial: string;
+    question: string;
+    result: "first_try" | "retry" | "typed" | "skipped" | "call_panel";
+    attempts: number;
+  };
+  /**
    * A step's goal passed on a real result. `via` is how: `chat` (an act
    * card), `client` (a client run) or `call_panel`. `step` is 1-based;
    * `seconds` is whole seconds from entering the step to its pass, time away

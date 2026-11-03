@@ -160,6 +160,17 @@ export type Effect =
     }
   | {
       kind: "event";
+      name: "tutorial_question_answered";
+      params: {
+        tutorial: string;
+        question: string;
+        result: QuestionResult;
+        /** 1 to 3 */
+        attempts: number;
+      };
+    }
+  | {
+      kind: "event";
       name: "tutorial_step_passed";
       params: {
         tutorial: string;
@@ -548,7 +559,78 @@ const passStep = (
   ]);
 };
 
+/** How a question resolved, as `tutorial_question_answered` counts it */
+export type QuestionResult =
+  | "first_try"
+  | "retry"
+  | "typed"
+  | "skipped"
+  | "call_panel";
+
+const resultOf = (
+  r: Exclude<Resolution, { kind: "open" }>
+): QuestionResult | null => {
+  switch (r.kind) {
+    case "picked":
+      return r.attempts === 1 ? "first_try" : "retry";
+    case "typed":
+      return "typed";
+    case "skipped":
+      return r.via === "call_panel" ? "call_panel" : "skipped";
+    default:
+      return null;
+  }
+};
+
+/**
+ * One `tutorial_question_answered` per question the action took out of
+ * `open`, whichever way: a pick, Skip, typing, or a step passed elsewhere.
+ * Read off the progress rather than raised in each case, so a new path to a
+ * resolution cannot forget to count it. A pick counts its own attempts; any
+ * other ending counts the wrong picks before it plus one, at most three.
+ */
+const answeredEvents = (
+  ctx: EngineContext,
+  before: ConversationProgress,
+  after: ConversationProgress
+): Effect[] => {
+  const events: Effect[] = [];
+  for (const [id, was] of Object.entries(before.beats)) {
+    const now = after.beats[id];
+    if (was?.kind !== "open" || !now || now.kind === "open") continue;
+    const result = resultOf(now);
+    if (!result) continue;
+    const attempts =
+      now.kind === "picked"
+        ? now.attempts
+        : Math.min(3, was.wrong.length + 1);
+    events.push({
+      kind: "event",
+      name: "tutorial_question_answered",
+      params: { tutorial: ctx.slug, question: id, result, attempts },
+    });
+  }
+  return events;
+};
+
 export const reduce = (
+  ctx: EngineContext,
+  state: EngineState,
+  action: Action
+): Reduced => {
+  const reduced = reduceAction(ctx, state, action);
+  if (reduced.state.progress === state.progress) return reduced;
+  const answered = answeredEvents(
+    ctx,
+    state.progress,
+    reduced.state.progress
+  );
+  return answered.length
+    ? { state: reduced.state, effects: [...reduced.effects, ...answered] }
+    : reduced;
+};
+
+const reduceAction = (
   ctx: EngineContext,
   state: EngineState,
   action: Action
@@ -1353,7 +1435,7 @@ if (import.meta.vitest) {
           openedAt: 1000 + 2 * TICK_MS,
           wrong: [],
         });
-        expect(effects.at(-1)).toMatchObject({
+        expect(effects.findLast((e) => e.kind === "write")).toMatchObject({
           kind: "write",
           beatId: "s1.q1",
           key: 'msg!("Hello, World!");',
@@ -1392,6 +1474,102 @@ if (import.meta.vitest) {
           at: 6000,
         });
         expect(after.state).toBe(before);
+      });
+    });
+
+    describe("tutorial_question_answered", () => {
+      const answered = (effects: Effect[]) =>
+        effects.filter(
+          (e) => e.kind === "event" && e.name === "tutorial_question_answered"
+        );
+      const event = (result: string, attempts: number, question = "s1.q1") => ({
+        kind: "event",
+        name: "tutorial_question_answered",
+        params: { tutorial: "hello-anchor", question, result, attempts },
+      });
+
+      it("counts a right first pick as first_try", () => {
+        expect(answered(play([start, rightPick]).effects)).toEqual([
+          event("first_try", 1),
+        ]);
+      });
+
+      it("counts a wrong pick, then the right one, once as retry with 2 attempts", () => {
+        const { effects } = play([
+          start,
+          { type: "pick", beatId: "s1.q1", option: 0, at: 4000 },
+          rightPick,
+        ]);
+        expect(answered(effects)).toEqual([event("retry", 2)]);
+      });
+
+      it("counts Skip after a wrong pick as skipped with 2 attempts", () => {
+        const { effects } = play([
+          start,
+          { type: "pick", beatId: "s1.q1", option: 2, at: 4000 },
+          { type: "skip", beatId: "s1.q1", at: 4500 },
+        ]);
+        expect(answered(effects)).toEqual([event("skipped", 2)]);
+      });
+
+      it("counts the key line typed by hand as typed", () => {
+        const { effects } = play([
+          start,
+          {
+            type: "edit",
+            file: "src/lib.rs",
+            content: `use anchor_lang::prelude::*;\n\nmsg!("Hello, World!");\n`,
+            at: 6000,
+          },
+        ]);
+        expect(answered(effects)).toEqual([event("typed", 1)]);
+      });
+
+      it("counts a question passed by the Call panel as call_panel, and one passed by a client run as skipped", () => {
+        const called: RunResult = {
+          act: "call",
+          ok: true,
+          seconds: 1,
+          signatures: ["x"],
+          line: null,
+          called: [],
+        };
+        const onStep2 = [
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+          { type: "next", at: 9000 },
+        ] as Action[];
+        const panel = play([
+          ...onStep2,
+          { type: "passed", via: "call_panel", result: called, at: 9500 },
+        ]).effects;
+        expect(answered(panel).at(-1)).toEqual(
+          event("call_panel", 1, "s2.q2")
+        );
+        const client = play([
+          start,
+          { type: "passed", via: "client", result: OK_BUILD, at: 4000 },
+        ]).effects;
+        expect(answered(client)).toEqual([event("skipped", 1)]);
+      });
+
+      it("caps attempts at 3 and sends nothing for a wrong pick or a hint", () => {
+        const { effects } = play([
+          start,
+          { type: "hint", beatId: "s1.q1", at: 3000 },
+          { type: "pick", beatId: "s1.q1", option: 0, at: 4000 },
+          { type: "pick", beatId: "s1.q1", option: 2, at: 4500 },
+        ]);
+        expect(answered(effects)).toEqual([]);
+        const after = play([
+          start,
+          { type: "pick", beatId: "s1.q1", option: 0, at: 4000 },
+          { type: "pick", beatId: "s1.q1", option: 2, at: 4500 },
+          { type: "skip", beatId: "s1.q1", at: 5000 },
+        ]).effects;
+        expect(answered(after)).toEqual([event("skipped", 3)]);
       });
     });
 

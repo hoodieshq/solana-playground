@@ -81,7 +81,8 @@ for; tasks with "after nothing" start at once.
       `landingFor`; 3.3 landed without them), the expandable
       record, `tutorial_question_answered`.
       Verify: component tests for the spec's wrong-then-right scenario and
-      the typed-by-hand path (HOO-2353; fleet; M 1.5; after 2.2, 3.1)
+      the typed-by-hand path (HOO-2353; fleet; M 1.5; after 2.2, 3.1;
+      plan: [plans/3.5-question-card.md](plans/3.5-question-card.md))
 - [ ] 3.6 Composer and the live assistant in one thread: action words (and
       the open-question refusal), the finish chips, free messages to the
       assistant in tutorial mode with its four interface tools (open the
