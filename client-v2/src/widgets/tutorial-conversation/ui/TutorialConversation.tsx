@@ -16,6 +16,8 @@ import {
 import { Spinner } from "@/shared/ui/spinner";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
+import { marksOf } from "../model/marks";
+import type { FeedMarks } from "../model/marks";
 import { barProgress } from "../model/step-bar";
 import { tutorialTelemetry } from "../model/telemetry";
 import BaseFeed from "./BaseFeed";
@@ -27,6 +29,12 @@ const log = createLogger("tutorial-conversation:feed");
 
 /** How many lines sit above a line the feed shows in the editor */
 const LINES_ABOVE = 8;
+/**
+ * How long typing rests before the engine reads the file for a question's
+ * key line: the explorer announces every keystroke, and the engine needs only
+ * where the typing stopped
+ */
+const EDIT_REST_MS = 300;
 
 /**
  * The engine's state, re-rendering on every notification. Counted rather
@@ -188,11 +196,65 @@ const useLockedPreview = (state: ConversationState) => {
   }, [onIntro]);
 };
 
+/** The feed's marks for a file of the open tutorial, or none outside one */
+const marksNow = (file: string): FeedMarks | null => {
+  const context = PgConversation.state.context;
+  const view = PgConversation.view();
+  if (!context || !view) return null;
+  return marksOf(context.definition, view, read)(file);
+};
+
+/**
+ * The editor and the engine, both ways. Typing in a lesson file reaches the
+ * engine (`edit`), so a question's key line typed by hand resolves it; the
+ * engine's request for the caret ("Type it myself", "I'll fix it myself")
+ * opens the file at the line, the landing as the feed draws it, and focuses
+ * the editor.
+ */
+const useEditorLink = () => {
+  useEffect(() => {
+    let timer: number | undefined;
+    const saved = PgExplorer.onDidSaveFile(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (!PgConversation.state.context) return;
+        const path = PgExplorer.currentFilePath;
+        if (!path) return;
+        const content = PgExplorer.getFileContent(path);
+        if (content === undefined) return;
+        PgConversation.edit(PgExplorer.getRelativePath(path), content);
+      }, EDIT_REST_MS);
+    });
+    const focus = PgConversation.onDidRequestFocus(({ file, line }) => {
+      const at =
+        line === "landing" ? marksNow(file)?.landing?.lines[0] ?? 1 : line;
+      showLine(file, at);
+      PgEditor.focus();
+    });
+    return () => {
+      window.clearTimeout(timer);
+      saved.dispose();
+      focus.dispose();
+    };
+  }, []);
+};
+
+/**
+ * The feed's line marks for the workspace's editor (`TutorialWorkspace`'s
+ * `marks`): re-reads on every change of the conversation, so the landing
+ * moves as the lesson does.
+ */
+export const useConversationMarks = () => {
+  useConversationState();
+  return (file: string) => marksNow(file) ?? {};
+};
+
 const handlers: TurnHandlers = {
   start: () => PgConversation.start(),
   pick: (beatId, option) => PgConversation.pick(beatId, option),
   hint: (beatId) => PgConversation.hint(beatId),
   skip: (beatId) => PgConversation.skip(beatId),
+  typeIt: (beatId) => PgConversation.typeIt(beatId),
   act: (beatId, args) => PgConversation.act(beatId, args),
   explain: (beatId) => PgConversation.explain(beatId),
   fixMyself: (beatId) => PgConversation.fixMyself(beatId),
@@ -224,6 +286,7 @@ export const TutorialConversation = () => {
   const context = state.context;
   useOpenEnteredStep(state);
   useLockedPreview(state);
+  useEditorLink();
   const view = PgConversation.view();
 
   useEffect(() => {

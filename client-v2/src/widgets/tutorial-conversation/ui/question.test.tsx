@@ -22,11 +22,23 @@ import hello from "../../../tutorials/hello-anchor/tutorial.json";
 
 // The engine's entry also exports its store, which drags in the app's
 // generated globals; the card needs only the pure engine behind it
-vi.mock("@/features/tutorial-conversation", async () => ({
-  ...(await import("@/features/tutorial-conversation/model/reducer")),
-  ...(await import("@/features/tutorial-conversation/model/view")),
-  ...(await import("@/features/tutorial-conversation/model/landing")),
-}));
+vi.mock("@/features/tutorial-conversation", async () => {
+  const reducer = await import(
+    "@/features/tutorial-conversation/model/reducer"
+  );
+  const landing = await import(
+    "@/features/tutorial-conversation/model/landing"
+  );
+  return {
+    INITIAL_ENGINE_STATE: reducer.INITIAL_ENGINE_STATE,
+    reduce: reducer.reduce,
+    stepOfBeat: reducer.stepOfBeat,
+    view: (await import("@/features/tutorial-conversation/model/view")).view,
+    insertBlock: landing.insertBlock,
+    typedKey: landing.typedKey,
+    withOwnText: landing.withOwnText,
+  };
+});
 
 import { RIGHT_HOLD_MS } from "./BaseQuestionCard";
 import TurnView from "./TurnView";
@@ -44,9 +56,7 @@ const ctx: EngineContext = {
   slug: "hello-anchor",
   judge: (_goal, result) => result.ok,
 };
-const q1 = definition.steps[0].beats.find(
-  (b): b is Ask => b.kind === "ask"
-)!;
+const q1 = definition.steps[0].beats.find((b): b is Ask => b.kind === "ask")!;
 
 interface World {
   engine: EngineState;
@@ -57,7 +67,9 @@ interface World {
 /** Carries out a write as the store does: the key line kept in the block */
 const carryOut = (world: World, effect: Effect, at: number): Action[] => {
   if (effect.kind === "restore") {
-    world.files = { ...world.files, ...effect.files };
+    for (const [path, content] of Object.entries(effect.files)) {
+      world.files[path] = content;
+    }
     return [];
   }
   if (effect.kind === "event") {
@@ -81,7 +93,7 @@ const carryOut = (world: World, effect: Effect, at: number): Action[] => {
     step?.target[effect.file],
     step?.start[effect.file] ?? ""
   );
-  world.files = { ...world.files, [effect.file]: placed.code };
+  world.files[effect.file] = placed.code;
   return [
     {
       type: "written",
@@ -233,9 +245,9 @@ describe("the question card over the engine", () => {
     // The record opens to the three rows in their final states, with reasons
     fireEvent.click(record);
     expect(record.getAttribute("aria-expanded")).toBe("true");
-    const states = [
-      ...document.querySelectorAll("[data-state]"),
-    ].map((el) => el.getAttribute("data-state"));
+    const states = Array.from(document.querySelectorAll("[data-state]")).map(
+      (el) => el.getAttribute("data-state")
+    );
     expect(states).toEqual(["wrong", "right", "left"]);
   });
 
@@ -288,9 +300,8 @@ describe("the question card over the engine", () => {
   it("typing the key line resolves it as typed by you, and the rest of the block is filled in", () => {
     const world = started();
     // The learner types the key line under the boilerplate
-    const lines = `${world.files["src/lib.rs"]}\n\nmsg!("Hello, World!");`.split(
-      "\n"
-    );
+    const lines =
+      `${world.files["src/lib.rs"]}\n\nmsg!("Hello, World!");`.split("\n");
     apply(world, {
       type: "edit",
       file: "src/lib.rs",

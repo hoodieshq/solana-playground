@@ -601,9 +601,7 @@ const answeredEvents = (
     const result = resultOf(now);
     if (!result) continue;
     const attempts =
-      now.kind === "picked"
-        ? now.attempts
-        : Math.min(3, was.wrong.length + 1);
+      now.kind === "picked" ? now.attempts : Math.min(3, was.wrong.length + 1);
     events.push({
       kind: "event",
       name: "tutorial_question_answered",
@@ -620,11 +618,7 @@ export const reduce = (
 ): Reduced => {
   const reduced = reduceAction(ctx, state, action);
   if (reduced.state.progress === state.progress) return reduced;
-  const answered = answeredEvents(
-    ctx,
-    state.progress,
-    reduced.state.progress
-  );
+  const answered = answeredEvents(ctx, state.progress, reduced.state.progress);
   return answered.length
     ? { state: reduced.state, effects: [...reduced.effects, ...answered] }
     : reduced;
@@ -1545,9 +1539,7 @@ if (import.meta.vitest) {
           ...onStep2,
           { type: "passed", via: "call_panel", result: called, at: 9500 },
         ]).effects;
-        expect(answered(panel).at(-1)).toEqual(
-          event("call_panel", 1, "s2.q2")
-        );
+        expect(answered(panel).at(-1)).toEqual(event("call_panel", 1, "s2.q2"));
         const client = play([
           start,
           { type: "passed", via: "client", result: OK_BUILD, at: 4000 },
