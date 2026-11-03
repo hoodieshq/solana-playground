@@ -11,7 +11,12 @@ import { PgTerminal } from "../terminal";
 import type { MergeUnion, OrString } from "../types";
 import { PgWallet, Wallet } from "../wallet";
 import type { PgWeb3 } from "../web3";
-import { pgSignerFromFile, TRANSPILE_OPTIONS, wrapScript } from "./kit";
+import {
+  pgSignerFromFile,
+  showBigInts,
+  TRANSPILE_OPTIONS,
+  wrapScript,
+} from "./kit";
 import { JsRuntimePackageName, PgJsRuntimePackage } from "./package";
 
 /** Options to use when running a script/test */
@@ -229,9 +234,8 @@ export class PgJsRuntime {
     // Redefine console inside the iframe to log in the terminal
     const log = (cb?: (text: string) => string) => {
       return (...args: any[]) => {
-        return PgTerminal.println(
-          "    " + (cb ? cb(util.format(...args)) : util.format(...args))
-        );
+        const text = util.format(...showBigInts(args));
+        return PgTerminal.println("    " + (cb ? cb(text) : text));
       };
     };
     const iframeConsole = {

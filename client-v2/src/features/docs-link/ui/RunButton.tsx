@@ -3,7 +3,7 @@ import type { FC } from "react";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 import BaseRunButton from "./BaseRunButton";
-import { useRunState } from "./use-run-state";
+import { useBrokenLink, useRunState } from "./use-run-state";
 import { PgClientRun } from "../model/run";
 
 const ENDED = new Set(["done", "failed", "missing-package"]);
@@ -11,6 +11,9 @@ const ENDED = new Set(["done", "failed", "missing-package"]);
 /** The stage row's Run, connected to the run store */
 const RunButton: FC = () => {
   const state = useRunState();
+  // "This link is broken" opened no project: there is nothing to run
+  const broken = useBrokenLink();
+  if (broken) return null;
   return (
     <BaseRunButton
       running={state.kind === "running"}

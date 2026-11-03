@@ -40,6 +40,16 @@ export const wrapScript = (
   finally { ${endCode} }
 })()`;
 
+/**
+ * Write BigInt arguments as Node's console does (`2000n`): the browser's
+ * `util.format` prints them as `{}`, and Kit returns every amount as one.
+ *
+ * @param args what the script logged
+ * @returns the arguments to format
+ */
+export const showBigInts = (args: unknown[]) =>
+  args.map((arg) => (typeof arg === "bigint" ? `${arg}n` : arg));
+
 /** What `signerFromFile` says when the current wallet has no keypair to read */
 export const SIGNER_NEEDS_PG_WALLET =
   "signerFromFile uses your Playground wallet. Switch to it to run this script.";

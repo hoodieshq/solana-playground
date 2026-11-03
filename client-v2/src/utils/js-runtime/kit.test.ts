@@ -8,6 +8,7 @@ import { Keypair } from "@solana/web3.js";
 import { missingPackageOf } from "./missing-package";
 import {
   pgSignerFromFile,
+  showBigInts,
   SIGNER_NEEDS_PG_WALLET,
   TRANSPILE_OPTIONS,
   wrapScript,
@@ -43,6 +44,12 @@ describe("TRANSPILE_OPTIONS", () => {
     // eslint-disable-next-line no-new-func
     new Function("out", code)(out);
     expect(out).toEqual([2000n]);
+  });
+});
+
+describe("showBigInts", () => {
+  it("writes a BigInt as Node does and leaves the rest", () => {
+    expect(showBigInts([2000n, "SOL", 1])).toEqual(["2000n", "SOL", 1]);
   });
 });
 

@@ -18,3 +18,13 @@ export const useOpenedLink = (): DocsLink | null => {
   useEffect(() => PgDocsLink.onDidChange(setLink).dispose, []);
   return link;
 };
+
+/** @returns whether the open view is a docs link that did not decode */
+export const useBrokenLink = (): boolean => {
+  const [broken, setBroken] = useState(PgDocsLink.broken);
+  useEffect(
+    () => PgDocsLink.onDidChange(() => setBroken(PgDocsLink.broken)).dispose,
+    []
+  );
+  return broken;
+};

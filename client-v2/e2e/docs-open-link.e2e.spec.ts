@@ -55,13 +55,13 @@ const stubBalance = (page: Page, lamports: () => number) =>
     });
   });
 
-/** Presses Run, and finishes the Playground wallet's setup it opens */
+/**
+ * Presses Run. A fresh browser has no Playground wallet yet, so Run first
+ * opens its setup, which the test completes.
+ */
 const run = async (page: Page) => {
   await page.locator("#flow-run").click();
-  const setup = page.getByRole("button", { name: "Continue" });
-  if (await setup.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await setup.click();
-  }
+  await page.getByRole("button", { name: "Continue" }).click(LONG);
 };
 
 const callout = (page: Page) => page.locator("#client-run-callout");

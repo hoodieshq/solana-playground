@@ -3,13 +3,16 @@ import type { FC } from "react";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 import BaseRunCallout from "./BaseRunCallout";
-import { useOpenedLink, useRunState } from "./use-run-state";
+import { useBrokenLink, useOpenedLink, useRunState } from "./use-run-state";
 import { PgClientRun } from "../model/run";
 
 /** The note above the code of a project with no program, connected */
 const RunCallout: FC = () => {
   const state = useRunState();
+  // "This link is broken" opened no project: there is nothing to run
+  const broken = useBrokenLink();
   const link = useOpenedLink();
+  if (broken) return null;
   return (
     <BaseRunCallout
       state={state}

@@ -33,7 +33,7 @@ export const open = PgRouter.create({
 
     if (!decoded.ok) {
       docsLinkTelemetry.track("docs_link_failed", { reason: decoded.reason });
-      PgDocsLink.set(null);
+      PgDocsLink.set(null, { broken: true });
       const backHref = backToDocsHref(decoded.from, document.referrer);
       const route = handleRoute({
         main: async () => (
@@ -47,6 +47,7 @@ export const open = PgRouter.create({
         dispose: () => {
           route.dispose();
           reopen.dispose();
+          PgDocsLink.set(null);
         },
       };
     }

@@ -3,6 +3,7 @@ import type { DocsLink } from "../lib/link";
 type Listener = (link: DocsLink | null) => void;
 
 let current: DocsLink | null = null;
+let broken = false;
 const listeners = new Set<Listener>();
 
 /**
@@ -15,8 +16,17 @@ export const PgDocsLink = {
     return current;
   },
 
-  set(link: DocsLink | null) {
+  /**
+   * Whether the open view is "This link is broken". The frame around it
+   * still shows the stage row, and its Run would run a project nobody opened.
+   */
+  get broken() {
+    return broken;
+  },
+
+  set(link: DocsLink | null, opts: { broken?: boolean } = {}) {
     current = link;
+    broken = opts.broken ?? false;
     listeners.forEach((listener) => listener(link));
   },
 

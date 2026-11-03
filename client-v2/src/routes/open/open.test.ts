@@ -86,6 +86,7 @@ describe("/open", () => {
     expect(routeArg().getExplorerInitArg).toBeUndefined();
     expect(routeArg().main).toBeInstanceOf(Function);
     expect(PgDocsLink.opened).toBeNull();
+    expect(PgDocsLink.broken).toBe(true);
     expect(sent.events).toEqual([
       { name: "docs_link_failed", params: { reason: "missing" } },
     ]);
