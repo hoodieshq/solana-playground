@@ -19,8 +19,6 @@ const LOAD_HINT =
  */
 export type IdlActionsMode = "download" | "upload";
 
-type Note = { kind: "used"; text: string } | { kind: "refused" };
-
 /** Parses an Anchor IDL file's text; throws when it is not one */
 const parseIdl = (text: string) => {
   const parsed = JSON.parse(text);
@@ -51,53 +49,57 @@ const DownloadIdl = () => {
   );
 };
 
-/** Loads an IDL file into this browser, picked through a button */
+/**
+ * How the line beside Upload IDL names the IDL in use: by its own name, so
+ * the user can tell which file is loaded. A 1.x IDL keeps it under
+ * `metadata`.
+ */
+const idlLabel = (idl: object) => {
+  const { name: legacy, metadata } = idl as {
+    name?: unknown;
+    metadata?: { name?: unknown };
+  };
+  const name = metadata?.name ?? legacy;
+  return typeof name === "string" && name ? `IDL \u00b7 ${name}` : "IDL loaded";
+};
+
+/**
+ * Loads an IDL file into this browser, picked through a button. The IDL in
+ * use is shared state, so Deploy and Interact, each with its own instance,
+ * name the same one; only a refused pick stays with the instance it hit.
+ */
 const UploadIdl = () => {
-  const [note, setNote] = useState<Note | null>(null);
+  const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl);
+  const [refused, setRefused] = useState(false);
 
   /** Refuses a file that is not an IDL; a throw after that is ours */
   const load = async (file: File | undefined) => {
     if (!file) return;
-    // A note from an earlier file must not outlive a failure on this one
-    setNote(null);
+    // A refusal of an earlier file must not outlive a good pick of this one
+    setRefused(false);
     // Read outside the try: a file that cannot be read is not the user's
     // malformed IDL, and `ImportButton` reports it
     const text = await file.text();
-    let idl;
+    let parsed;
     try {
-      idl = parseIdl(text);
+      parsed = parseIdl(text);
     } catch (e) {
       // The user's own file, not a fault of ours: say so and log it quietly
       log.warn("Refused an IDL file", {
         context: { name: file.name, reason: String(e) },
       });
-      setNote({ kind: "refused" });
+      setRefused(true);
       return;
     }
-    PgProgramInfo.update({ idl });
-    // A 1.x IDL names its program under `metadata`
-    const name = idl.name ?? idl.metadata?.name ?? file.name;
-    setNote({ kind: "used", text: `Using ${name}` });
+    PgProgramInfo.update({ idl: parsed });
   };
-
-  const noteLine = note && (
-    <span
-      role="status"
-      className={
-        note.kind === "refused"
-          ? "font-mono text-xs text-error"
-          : "font-mono text-xs text-muted-foreground"
-      }
-    >
-      {note.kind === "refused" ? "That file is not an Anchor IDL." : note.text}
-    </span>
-  );
 
   // `ImportButton` reports a throw from `load` itself. The input lets go of
   // the file on every pick: a browser fires no change for the file it already
   // holds, so a file fixed on disk and picked again would be ignored.
+  // One group, so the line stays beside its button wherever a stage puts it
   return (
-    <>
+    <span className="inline-flex flex-wrap items-center gap-2">
       <ImportButton
         accept=".json"
         title={LOAD_HINT}
@@ -109,8 +111,17 @@ const UploadIdl = () => {
       >
         Upload IDL
       </ImportButton>
-      {noteLine}
-    </>
+      {refused && (
+        <span role="status" className="font-mono text-xs text-error">
+          That file is not an Anchor IDL.
+        </span>
+      )}
+      {idl && (
+        <span role="status" className="font-mono text-xs text-muted-foreground">
+          {idlLabel(idl)}
+        </span>
+      )}
+    </span>
   );
 };
 

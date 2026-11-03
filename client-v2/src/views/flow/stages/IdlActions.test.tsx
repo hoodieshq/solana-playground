@@ -1,7 +1,7 @@
 // The IDL's two doors: download what the build produced, and upload a file
 // into the browser by picking it.
-import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   update: vi.fn(),
@@ -14,9 +14,27 @@ vi.mock("../../../utils", () => ({
   PgCommon: { getDataUrl: () => "data:application/json," },
   PgProgramInfo: { update: mocks.update, onDidChangeIdl: "idl" },
 }));
-vi.mock("../../../hooks", () => ({
-  useRenderOnChange: () => mocks.idl,
-}));
+// The IDL is shared state: every mounted instance re-reads it on a change
+const listeners = new Set<() => void>();
+const setIdl = (idl: unknown) => {
+  mocks.idl = idl;
+  listeners.forEach((l) => l());
+};
+vi.mock("../../../hooks", async () => {
+  const { useEffect, useReducer } = await import("react");
+  return {
+    useRenderOnChange: () => {
+      const [, rerender] = useReducer((n: number) => n + 1, 0);
+      useEffect(() => {
+        listeners.add(rerender);
+        return () => {
+          listeners.delete(rerender);
+        };
+      }, []);
+      return mocks.idl;
+    },
+  };
+});
 vi.mock("@/shared/lib/logger", () => ({
   createLogger: () => ({
     warn: mocks.warn,
@@ -37,6 +55,10 @@ const pick = (container: HTMLElement, file: File) =>
   fireEvent.change(container.querySelector('input[type="file"]')!, {
     target: { files: [file] },
   });
+
+beforeEach(() => {
+  mocks.update.mockImplementation(({ idl }: { idl: unknown }) => setIdl(idl));
+});
 
 afterEach(() => {
   mocks.idl = null;
@@ -61,7 +83,7 @@ describe("IdlActions", () => {
 
     pick(container, jsonFile(COUNTER_IDL));
 
-    expect(await screen.findByText("Using counter")).toBeTruthy();
+    expect(await screen.findByText("IDL \u00b7 counter")).toBeTruthy();
     expect(mocks.update).toHaveBeenCalledWith({
       idl: { name: "counter", instructions: [] },
     });
@@ -89,6 +111,64 @@ describe("IdlActions", () => {
     ).toBeTruthy();
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.warn).toHaveBeenCalled();
+  });
+
+  /** The loaded IDL is shared, so every step that offers Upload IDL names it */
+  it("names an IDL loaded before it mounted", () => {
+    mocks.idl = { name: "counter", instructions: [] };
+    render(<IdlActions mode="upload" />);
+
+    expect(screen.getByText("IDL \u00b7 counter")).toBeTruthy();
+  });
+
+  it("names an Anchor 1.x IDL by its metadata", () => {
+    mocks.idl = { metadata: { name: "vault" }, instructions: [] };
+    render(<IdlActions mode="upload" />);
+
+    expect(screen.getByText("IDL \u00b7 vault")).toBeTruthy();
+  });
+
+  it("says an IDL is loaded when it carries no name", () => {
+    mocks.idl = { instructions: [] };
+    render(<IdlActions mode="upload" />);
+
+    expect(screen.getByText("IDL loaded")).toBeTruthy();
+  });
+
+  it("shows nothing beside the button while no IDL is loaded", () => {
+    render(<IdlActions mode="upload" />);
+
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  /** Deploy and Interact each mount their own Upload IDL */
+  it("shows an upload on one step on the other at once", async () => {
+    const deploy = render(<IdlActions mode="upload" />).container;
+    const interact = render(<IdlActions mode="upload" />).container;
+
+    pick(deploy, jsonFile(COUNTER_IDL));
+
+    await vi.waitFor(() =>
+      expect(within(interact).getByText("IDL \u00b7 counter")).toBeTruthy()
+    );
+  });
+
+  it("keeps a refused file to the step where it was picked", async () => {
+    mocks.idl = { name: "counter", instructions: [] };
+    const deploy = render(<IdlActions mode="upload" />).container;
+    const interact = render(<IdlActions mode="upload" />).container;
+
+    pick(interact, jsonFile("not json"));
+
+    expect(
+      await within(interact).findByText("That file is not an Anchor IDL.")
+    ).toBeTruthy();
+    expect(
+      within(deploy).queryByText("That file is not an Anchor IDL.")
+    ).toBeNull();
+    // The refusal changed nothing: both still name the IDL in use
+    expect(within(deploy).getByText("IDL \u00b7 counter")).toBeTruthy();
+    expect(within(interact).getByText("IDL \u00b7 counter")).toBeTruthy();
   });
 
   it("holds Download IDL until a build produced one", () => {
