@@ -5,6 +5,7 @@ import {
   LONG,
   projectMenu,
   seedWorkspace,
+  startProject,
   test,
   TEST_USER,
 } from "./fixtures";
@@ -564,8 +565,12 @@ test("gist-sharing: No header Share on a phone", async ({ page }) => {
 test("gist-sharing: Another project's row", async ({ page }) => {
   await stubAuth(page, { signedIn: true });
   await seedWorkspace(page, "other-project");
-  // The second project is the open one
-  await seedWorkspace(page);
+  // A second project from Home, which then is the open one
+  await page
+    .locator('[data-slot="sidebar"]')
+    .getByRole("button", { name: "Home", exact: true })
+    .click();
+  await startProject(page, PROJECT);
 
   const menu = await projectMenu(page, "other-project");
   await expect(menu.getByRole("menuitem", { name: /^Share/ })).toHaveCount(0);
