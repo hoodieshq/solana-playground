@@ -4,6 +4,7 @@ import { TriangleAlert } from "lucide-react";
 import { isSignInFailure, PgSession } from "@/features/auth";
 import { useRenderOnChange } from "@/hooks";
 import { ShareGist } from "@/features/gist";
+import type { GistShareSource } from "@/features/gist";
 import { createLogger } from "@/shared/lib/logger";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { PgView } from "@/utils/view";
@@ -15,6 +16,8 @@ const log = createLogger("app:share-gist");
 interface ShareGistDialogProps {
   name: string;
   readFiles: () => Promise<Record<string, string>>;
+  /** Where the dialog was opened, for the share's telemetry */
+  source: GistShareSource;
 }
 
 /** What the prompt shows for a sign-in that ended without a session */
@@ -29,8 +32,10 @@ const messageOf = (error: unknown) =>
  *
  * The sign-in runs beside the frame's submit, not inside it: the popup cannot
  * say it was closed (`popup-channel`), so a submit that waited on it would
- * hold the dialog busy, with Cancel off, until the flow expires. Here Cancel
- * stays live, and closing the dialog while the sign-in waits cancels it.
+ * hold the dialog busy, with Cancel off, until the flow expires. While it
+ * waits the submit reads "Cancel sign-in" and stops it, keeping the prompt
+ * open, as the prototype's own sign-in control does; the frame's Cancel
+ * closes the dialog and cancels it too.
  */
 const SignInToShare = () => {
   useRenderOnChange(PgSession.onDidChange);
@@ -52,6 +57,11 @@ const SignInToShare = () => {
   }, []);
 
   const signIn = () => {
+    // While its popup is open the button is the cancel
+    if (waiting) {
+      PgSession.cancelSignIn();
+      return;
+    }
     setFailure(undefined);
     ownSignIn.current = true;
     PgSession.signIn()
@@ -84,11 +94,10 @@ const SignInToShare = () => {
       name="share-gist-sign-in"
       title="Sign in to share"
       buttonProps={{
-        text: waiting ? "Waiting for GitHub…" : "Sign in with GitHub",
-        icon: <GithubMark className="size-4" />,
+        text: waiting ? "Cancel sign-in" : "Sign in with GitHub",
+        icon: waiting ? undefined : <GithubMark className="size-4" />,
         onSubmit: signIn,
         noCloseOnSubmit: true,
-        disabled: waiting,
       }}
     >
       <div className="flex max-w-md flex-col gap-3">
@@ -112,7 +121,7 @@ const SignInToShare = () => {
  * layer because the two features may not import each other. Signed out, the
  * sign-in prompt stands in its place until a session arrives.
  */
-const ShareGistDialog = ({ name, readFiles }: ShareGistDialogProps) => {
+const ShareGistDialog = ({ name, readFiles, source }: ShareGistDialogProps) => {
   // The first session read may still be on its way when the dialog opens,
   // and a sign-in, from the prompt or elsewhere, moves the dialog on
   useRenderOnChange(PgSession.onDidChange);
@@ -124,12 +133,14 @@ const ShareGistDialog = ({ name, readFiles }: ShareGistDialogProps) => {
   if (signedIn) shared.current = true;
   if (!shared.current) return <SignInToShare />;
   return (
-    <ModalFrame name="share-gist" title={`Share ${name} as a gist`}>
+    <ModalFrame name="share-gist" title="Share to GitHub">
       <ShareGist
         name={name}
         readFiles={readFiles}
+        source={source}
         signedIn={signedIn}
         signIn={(options) => PgSession.signIn(options)}
+        cancelSignIn={() => PgSession.cancelSignIn()}
       />
     </ModalFrame>
   );
@@ -138,9 +149,11 @@ const ShareGistDialog = ({ name, readFiles }: ShareGistDialogProps) => {
 /** Open the share dialog; settles when it closes */
 export const openShareGistDialog = (
   name: string,
-  readFiles: () => Promise<Record<string, string>>
+  readFiles: () => Promise<Record<string, string>>,
+  source: GistShareSource
 ) =>
   PgView.setModal<unknown, ShareGistDialogProps>(ShareGistDialog, {
     name,
     readFiles,
+    source,
   });

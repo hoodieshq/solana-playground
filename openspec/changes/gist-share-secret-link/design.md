@@ -123,10 +123,12 @@ See proposal.md for why. The pieces this change touches today:
    Share. On a phone the project list sits on the pager's menu page, and the
    open project's row and its menu are reachable there.
 
-7. **The phone stepper for a no-program project is not rendered.** In
-   `StageBar`, when `phone && !state.hasProgram`, the `Stepper` is left out
-   and the "Client project" badge stays. The filtering stays in `Stepper`,
-   so a desktop no-program project is unchanged.
+7. **The phone stepper for a no-program project is not rendered.**
+   `Stepper` draws nothing when the stages it would show are none, which
+   happens only on a phone (Write is left out there) for a project whose one
+   stage is Write. The "Client project" badge in `StageBar` stays. Kept in
+   `Stepper`, beside the filtering that empties the list, so a desktop
+   no-program project is unchanged and the case is tested where it arises.
 
 ## Risks / Trade-offs
 

@@ -68,7 +68,7 @@ afterEach(() => {
 const open = async () => {
   render(<ModalHost />);
   await act(async () => {
-    void openShareGistDialog("counter", readFiles);
+    void openShareGistDialog("counter", readFiles, "project_menu");
   });
 };
 
@@ -111,10 +111,10 @@ describe("app/ShareGistDialog", () => {
     expect(cancel).not.toHaveBeenCalled();
     expect(signIn).toHaveBeenCalledTimes(1);
     expect(
-      screen.getByRole("heading", { name: "Share counter as a gist" })
+      screen.getByRole("heading", { name: "Share to GitHub" })
     ).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Create public gist" })
+      screen.getByRole("button", { name: "Share to GitHub" })
     ).toBeTruthy();
     expect(readFiles).not.toHaveBeenCalled();
     expect(gistRequests()).toEqual([]);
@@ -125,7 +125,7 @@ describe("app/ShareGistDialog", () => {
     await open();
 
     expect(
-      screen.getByRole("heading", { name: "Share counter as a gist" })
+      screen.getByRole("heading", { name: "Share to GitHub" })
     ).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Sign in to share" })).toBe(
       null
@@ -183,13 +183,38 @@ describe("app/ShareGistDialog", () => {
 
     await press("Sign in with GitHub");
 
-    const waiting = screen.getByRole("button", { name: "Waiting for GitHub…" });
-    expect((waiting as HTMLButtonElement).disabled).toBe(true);
-    await press("Cancel");
+    // The submit itself is the cancel while the popup waits
+    await press("Cancel sign-in");
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("heading", { name: "Sign in to share" })
+    ).toBeTruthy();
+    expect(screen.getByText("Sign-in cancelled.")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Sign in with GitHub" })
+    ).toBeTruthy();
+    expect(reported()).toEqual([]);
+    expect(gistRequests()).toEqual([]);
+  });
+
+  it("gist-sharing: Closing the dialog while sign-in waits", async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: "https://x/" }),
+    } as Response);
+    const cancel = vi.fn();
+    PgSession.setOpenChannel(() => ({
+      receive: () => new Promise(() => {}),
+      cancel,
+    }));
+    await open();
+    await press("Sign in with GitHub");
+
+    await press(/^Cancel$/);
 
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(PgView.getOpenModals()).toEqual([]);
-    expect(reported()).toEqual([]);
     expect(gistRequests()).toEqual([]);
   });
 
@@ -275,7 +300,7 @@ describe("app/ShareGistDialog", () => {
 
     expect(screen.queryByText("Sign-in cancelled.")).toBe(null);
     expect(
-      screen.getByRole("heading", { name: "Share counter as a gist" })
+      screen.getByRole("heading", { name: "Share to GitHub" })
     ).toBeTruthy();
   });
 
@@ -288,7 +313,7 @@ describe("app/ShareGistDialog", () => {
     });
 
     expect(
-      screen.getByRole("heading", { name: "Share counter as a gist" })
+      screen.getByRole("heading", { name: "Share to GitHub" })
     ).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Sign in to share" })).toBe(
       null
@@ -303,7 +328,7 @@ describe("app/ShareGistDialog", () => {
     });
 
     expect(
-      screen.getByRole("heading", { name: "Share counter as a gist" })
+      screen.getByRole("heading", { name: "Share to GitHub" })
     ).toBeTruthy();
   });
 });

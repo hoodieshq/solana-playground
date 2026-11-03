@@ -91,7 +91,8 @@ export type ProjectListProps = {
    */
   onShareGist?: (
     name: string,
-    readFiles: () => Promise<Record<string, string>>
+    readFiles: () => Promise<Record<string, string>>,
+    source: "project_menu"
   ) => Promise<unknown>;
 };
 
@@ -248,8 +249,10 @@ const ProjectList = ({
           return;
         }
         // The dialog reports and counts its own failures
-        await onShareGist(entry.name, () =>
-          readProjectFiles(entry.name, PgExplorer.fs)
+        await onShareGist(
+          entry.name,
+          () => readProjectFiles(entry.name, PgExplorer.fs),
+          "project_menu"
         );
         return;
       case "delete":

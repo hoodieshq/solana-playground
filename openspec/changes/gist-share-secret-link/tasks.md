@@ -74,11 +74,11 @@ and 5 may run in parallel with 2–3.
 
 ## 5. No phone stepper for a project with no program (SF#75 landing, no separate ticket)
 
-- [ ] 5.1 `StageBar` leaves the `Stepper` out on a phone when
-  `!state.hasProgram` and keeps the "Client project" badge. Verify with a
-  `StageBar`/`Stepper.test.tsx` case at phone width: no "Development loop"
-  tablist, badge present. A desktop no-program project still shows the Write
-  tab.
+- [ ] 5.1 `Stepper` draws nothing on a phone when no stage is left after
+  Write is left out (a project with no program); `StageBar` keeps the
+  "Client project" badge. Verify with a `Stepper.test.tsx` case at phone
+  width: no "Development loop" tablist. A desktop no-program project still
+  shows the Write tab.
 
 ## 6. Integration
 

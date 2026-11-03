@@ -100,8 +100,9 @@ the dialog, which offers to sign in again and then shares with the
 visibility the user chose, without a second press.
 
 While a sign-in or the gist-access popup waits for GitHub, the primary
-button of the prompt or the dialog SHALL read "Cancel sign-in"
-(`share-gist-cancel-sign-in`), as the prototype's own sign-in control does.
+button of the prompt or the dialog SHALL read "Cancel sign-in" (in the share
+dialog, `share-gist-cancel-sign-in`; in the prompt, the frame's submit), as
+the prototype's own sign-in control does.
 Pressing it SHALL stop the wait and keep the dialog open on the step it came
 from (the prompt, signing in again, or allowing gists), saying "Sign-in
 cancelled.", with the button back to its own label, which starts a new

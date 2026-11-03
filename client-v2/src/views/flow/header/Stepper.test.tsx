@@ -190,4 +190,27 @@ describe("phone", () => {
       "false"
     );
   });
+
+  it("draws no tablist for a project with no program, whose one stage is Write", () => {
+    const noProgram: FlowState = {
+      stage: "write",
+      build: "upcoming",
+      buildSettled: "upcoming",
+      deploy: "upcoming",
+      interact: "upcoming",
+      buildErrorCount: 0,
+      buildMs: null,
+      buildStartedAt: null,
+      buildStartedBefore: null,
+      buildFailure: null,
+      deployBeforeRun: null,
+      stopped: null,
+      hasProgram: false,
+    };
+    render(<Stepper state={noProgram} onSelect={vi.fn()} phone />);
+    expect(
+      screen.queryByRole("tablist", { name: "Development loop" })
+    ).toBeNull();
+    expect(screen.queryAllByRole("tab")).toEqual([]);
+  });
 });

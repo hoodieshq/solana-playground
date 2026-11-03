@@ -1,17 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 
+import { createLogger } from "@/shared/lib/logger";
+import { PgView } from "@/utils/view";
 import { GIST_SCOPE } from "../config.mjs";
+import { playgroundLink } from "../lib/playground-link";
 import { exportProject } from "../model/export";
 import type { ExportResult } from "../model/export";
 import { gistTelemetry } from "../model/telemetry";
+import type {
+  GistCopiedLink,
+  GistExportFailure,
+  GistShareSource,
+  GistVisibility,
+} from "../model/telemetry";
 import BaseShareGist from "./BaseShareGist";
 import type { ShareStep } from "./BaseShareGist";
+
+const log = createLogger("gist:share");
 
 export interface ShareGistProps {
   /** The project's name */
   name: string;
   /** The project's files, keyed by path relative to its root */
   readFiles: () => Promise<Record<string, string>>;
+  /** Where the dialog was opened, for telemetry */
+  source: GistShareSource;
   /**
    * Whether someone is signed in. A value the caller keeps current: the
    * dialog can open before the page's first session read has answered.
@@ -23,17 +36,41 @@ export interface ShareGistProps {
    * cancels or the sign-in fails, with a message fit to show.
    */
   signIn: (options?: { scopes?: string[] }) => Promise<void>;
+  /**
+   * Stop the sign-in under way, so the `signIn` it started rejects as
+   * cancelled. Passed in for the same reason as `signIn`.
+   */
+  cancelSignIn: () => void;
+  /** The page's origin, which the Playground link opens under */
+  origin?: string;
 }
 
 const messageOf = (error: unknown) =>
   error instanceof Error && error.message ? error.message : "Sign-in failed.";
 
+/** The toast a copy that reached the clipboard shows */
+const LinkCopied = () => <span>Link copied</span>;
+
 /**
  * The share dialog's body, connected: signs in when it must, asks for gist
- * access when the token lacks it, and counts how each share ends.
+ * access when the token lacks it, copies the links it hands out, and counts
+ * how each share ends.
  */
-const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
+const ShareGist = ({
+  name,
+  readFiles,
+  source,
+  signedIn,
+  signIn,
+  cancelSignIn,
+  origin = window.location.origin,
+}: ShareGistProps) => {
   const [state, setState] = useState<ShareStep>({ step: "ready" });
+  // Secret on every open (Spec 05); a retry after a sign-in or a grant reads
+  // the choice from here, so it keeps what the user picked
+  const [visibility, setVisibility] = useState<GistVisibility>("secret");
+  const [busy, setBusy] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   // A dialog closed mid-share must not have state set on it. Set in the effect,
   // not only at first render: StrictMode runs the cleanup and the effect
   // again on mount, and a ref left `false` drops every answer
@@ -47,19 +84,31 @@ const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
   const show = (next: ShareStep) => {
     if (mounted.current) setState(next);
   };
+  const failed = (reason: GistExportFailure) =>
+    gistTelemetry.track("gist_export_failed", { reason, visibility });
 
   /** One export; `afterGrant` says the user has just allowed gists */
   const share = async ({ afterGrant }: { afterGrant: boolean }) => {
-    const result: ExportResult = await exportProject({
-      name,
-      files: await readFiles(),
-    });
+    if (mounted.current) setBusy(true);
+    let result: ExportResult;
+    try {
+      result = await exportProject(
+        { name, files: await readFiles() },
+        { visibility, source }
+      );
+    } finally {
+      if (mounted.current) setBusy(false);
+    }
     switch (result.status) {
       case "created":
-        show({ step: "created", url: result.url });
+        show({
+          step: "created",
+          url: result.url,
+          link: playgroundLink(origin, result.id),
+        });
         return;
       case "needs-sign-in":
-        gistTelemetry.track("gist_export_failed", { reason: "signed-out" });
+        failed("signed-out");
         // With its reason, so the step holds while this page still thinks
         // the session it lost is there
         show({
@@ -69,9 +118,7 @@ const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
         return;
       case "needs-gist-scope":
         if (afterGrant) {
-          gistTelemetry.track("gist_export_failed", {
-            reason: "needs-gist-scope",
-          });
+          failed("needs-gist-scope");
           show({ step: "failed", reason: "scope-not-granted" });
           return;
         }
@@ -79,7 +126,7 @@ const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
         show({ step: "grant" });
         return;
       case "failed":
-        gistTelemetry.track("gist_export_failed", { reason: result.reason });
+        failed(result.reason);
         show({ step: "failed", reason: result.reason });
         return;
     }
@@ -89,16 +136,37 @@ const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
     scopes: string[] | undefined,
     retry: (error: string) => ShareStep
   ) => {
+    show({ step: "waiting", for: scopes ? "grant" : "sign-in" });
     try {
       await signIn(scopes ? { scopes } : undefined);
     } catch (e) {
       // `signIn` counted its own failure (`auth_sign_in_failed`); this one is
-      // the share's
-      gistTelemetry.track("gist_export_failed", { reason: "sign-in-failed" });
+      // the share's. A cancel, from here or elsewhere, lands here too
+      failed("sign-in-failed");
       show(retry(messageOf(e)));
       return;
     }
+    show({ step: "ready" });
     await share({ afterGrant: !!scopes });
+  };
+
+  const copy = async (link: GistCopiedLink) => {
+    if (state.step !== "created") return;
+    const value = link === "playground" ? state.link : state.url;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch (e) {
+      // A refused clipboard is the browser's answer, not a fault of ours:
+      // the dialog says so and the link stays selectable
+      log.warn("clipboard refused the link", {
+        context: { error: String(e) },
+      });
+      if (mounted.current) setCopyFailed(true);
+      return;
+    }
+    if (mounted.current) setCopyFailed(false);
+    PgView.setToast(LinkCopied, { options: { name: "gist-link-copied" } });
+    gistTelemetry.track("gist_link_copied", { copied: link });
   };
 
   // Until a step has its own answer, the session decides what is offered: a
@@ -106,12 +174,17 @@ const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
   let shown = state;
   const undecided =
     state.step === "ready" || (state.step === "sign-in" && !state.error);
-  if (undecided) shown = signedIn ? { step: "ready" } : { step: "sign-in" };
+  if (undecided) {
+    shown = signedIn ? { step: "ready" } : { step: "sign-in" };
+  }
 
   return (
     <BaseShareGist
       name={name}
       state={shown}
+      visibility={visibility}
+      onVisibilityChange={setVisibility}
+      busy={busy}
       onCreate={() => share({ afterGrant: false })}
       onSignIn={() =>
         signInThen(undefined, (error) => ({ step: "sign-in", error }))
@@ -119,6 +192,9 @@ const ShareGist = ({ name, readFiles, signedIn, signIn }: ShareGistProps) => {
       onGrant={() =>
         signInThen([GIST_SCOPE], (error) => ({ step: "grant", error }))
       }
+      onCancelSignIn={cancelSignIn}
+      onCopy={copy}
+      copyFailed={copyFailed}
     />
   );
 };
