@@ -3,6 +3,7 @@ import {
   fromStoredEndpoints,
   parseStoredSettings,
   toStoredEndpoints,
+  withoutBrokenGroups,
 } from "../settings/stored-endpoint";
 import type {
   Arrayable,
@@ -149,13 +150,20 @@ const storage = {
     const stored = parseStoredSettings(stateStr);
     if (stored instanceof Error) {
       // A broken entry must not stop the app from starting: load the
-      // defaults, Devnet included, and the next write replaces it
-      log.error(stored, { report: true });
+      // defaults, Devnet included, and the next settings write replaces it.
+      // Never the value itself: a custom endpoint may carry an API token.
+      log.error(stored, {
+        report: true,
+        context: { key: this.KEY, length: stateStr.length },
+      });
       return defaultState;
     }
 
     // Endpoints are stored as the option picked, not its address
-    return fromStoredEndpoints(stored, defaultState) as Settings;
+    return fromStoredEndpoints(
+      withoutBrokenGroups(defaultState)(stored),
+      defaultState
+    ) as Settings;
   },
 
   /** Serialize the data and write to storage. */
