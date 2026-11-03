@@ -268,7 +268,7 @@ if (import.meta.vitest) {
       it("sends only the newest calls that fit its budget", () => {
         const items = [said(0, "user", "read them all")].concat(
           Array.from({ length: 30 }, (_, n) =>
-            record(n + 1, "read_file", "x".repeat(4_000))
+            record(n + 1, "read_file", `${n + 1}`.padEnd(4_000, "x"))
           )
         );
 
@@ -283,6 +283,14 @@ if (import.meta.vitest) {
         );
         expect(ids[0]).toBe("call_1");
         expect(ids[14]).toBe("call_15");
+        // The newest: records 16 to 30, in order
+        const kept = names.map((m) =>
+          parseInt(
+            (m.content as { output: { value: string } }[])[0].output.value,
+            10
+          )
+        );
+        expect(kept).toEqual(Array.from({ length: 15 }, (_, n) => n + 16));
       });
 
       it("opens on the first user message, as Anthropic requires", () => {

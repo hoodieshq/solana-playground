@@ -2,6 +2,7 @@ import type {
   ApprovalRequest,
   ChatItem,
 } from "../../../views/sidebar/assistant/store";
+import { TOOL_NAME } from "./tool-call";
 
 /**
  * Unchanged lines kept either side of a change.
@@ -207,7 +208,7 @@ const isReplayableCall = (call: unknown) => {
   const { name, input, output, failed } = call as Record<string, unknown>;
   return (
     typeof name === "string" &&
-    name !== "" &&
+    TOOL_NAME.test(name) &&
     typeof output === "string" &&
     output.trim() !== "" &&
     typeof input === "object" &&
@@ -562,6 +563,10 @@ if (import.meta.vitest) {
       it.each([
         ["a name that is not text", { name: 1, input: {}, output: "x" }],
         ["an empty name", { name: "", input: {}, output: "x" }],
+        [
+          "a name no backend takes",
+          { name: "functions.read", input: {}, output: "x" },
+        ],
         ["no input", { name: "read_file", output: "x" }],
         [
           "an input that is text",
@@ -591,6 +596,24 @@ if (import.meta.vitest) {
         };
 
         expect(decodeThread([stored])).toEqual([]);
+      });
+
+      it.each([
+        ["a wrapped input", { value: "{bad" }, "x"],
+        ["an omitted input", { omitted: "9000 characters of input" }, "x"],
+        ["no output", {}, "(no output)"],
+      ])("keeps a stored call with %s through storage", (_, input, output) => {
+        const record: ChatItem = {
+          id: base.id,
+          createdAt: base.createdAt,
+          kind: "tool",
+          label: "read_file",
+          call: { name: "read_file", input, output, failed: true },
+        };
+
+        expect(
+          decodeThread(JSON.parse(JSON.stringify(encodeThread([record]))))
+        ).toEqual([record]);
       });
 
       it("keeps a stored call through a merge with a local copy of the same item", () => {

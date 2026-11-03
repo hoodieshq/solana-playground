@@ -23,12 +23,14 @@ export interface ToolCallRecord {
 }
 
 /**
- * Caps on what one record keeps. A result is what costs: a file read whole.
- * The live project goes with every turn anyway (`describeProject`), so a cut
- * result loses little. A thread is pushed in one request of at most 2 MB
- * (`api/conversations.mjs`) and keeps 200 items, so these keep a thread of
- * records under it with room for JSON's escapes; how many records a replay
- * sends is bounded separately (`REPLAY_CALL_BUDGET` in `replay.ts`).
+ * Caps on what one record keeps, in characters. A result is what costs: a
+ * file read whole. The live project goes with every turn anyway
+ * (`describeProject`), so a cut result loses little. A thread is pushed in one
+ * request of at most 2,000,000 bytes (`api/conversations.mjs`) and keeps 200
+ * items: 200 records at these caps are about 1.2 MB of mostly-ASCII text, but
+ * text of three-byte characters can pass the limit, as long replies already
+ * can. How many records a replay sends is bounded separately
+ * (`REPLAY_CALL_BUDGET` in `replay.ts`).
  */
 const RESULT_CAP = 4_000;
 const INPUT_STRING_CAP = 1_000;
@@ -36,6 +38,17 @@ const INPUT_CAP = 2_000;
 
 /** Said in place of an empty result: Anthropic refuses an empty text block */
 const NO_OUTPUT = "(no output)";
+
+/** What Anthropic and OpenAI accept as a tool's name in a replayed call */
+export const TOOL_NAME = /^[a-zA-Z0-9_-]{1,64}$/;
+
+/**
+ * A tool's name as a replay can send it. The SDK reports a call to a tool
+ * that does not exist with the name the model made up (`functions.read`);
+ * stored as it is, every later replay of the thread would be refused.
+ */
+const replayableName = (name: string) =>
+  name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64) || "tool";
 
 /** A surrogate with no partner, which JSON escapes and Postgres refuses */
 const LONE_SURROGATE =
@@ -91,7 +104,7 @@ const capInputValue = (
     ? value.map((v) => capInputValue(v, apiKey, seen))
     : Object.fromEntries(
         Object.entries(value).map(([k, v]) => [
-          k,
+          storable(k),
           capInputValue(v, apiKey, seen),
         ])
       );
@@ -132,7 +145,7 @@ export const toToolCallRecord = (
 ): ToolCallRecord => {
   const output = cut(redactKey(result.output, apiKey), RESULT_CAP);
   const call: ToolCallRecord = {
-    name: result.toolName,
+    name: replayableName(result.toolName),
     input: capInput(result.input, apiKey),
     output: output.trim() ? output : NO_OUTPUT,
   };
@@ -202,6 +215,35 @@ if (import.meta.vitest) {
         y: { a: 1 },
         at: "2026-11-03T00:00:00.000Z",
       });
+    });
+
+    it("stores a made-up tool name as one a replay can send", () => {
+      const { name } = toToolCallRecord(
+        {
+          toolName: "functions.read file",
+          input: {},
+          output: "Not a tool",
+          failed: true,
+        },
+        undefined
+      );
+
+      expect(name).toBe("functions_read_file");
+      expect(TOOL_NAME.test(name)).toBe(true);
+    });
+
+    it("strips NUL from an input's keys, as from its values", () => {
+      expect(record({ "a\u0000b": 1 }).input).toEqual({ ab: 1 });
+    });
+
+    it("redacts the key from a result", () => {
+      const key = "sk-test-output-0123456789";
+      const { output } = toToolCallRecord(
+        { toolName: "probe", input: {}, output: `got ${key}`, failed: false },
+        key
+      );
+
+      expect(output).not.toContain(key);
     });
 
     it("redacts the key inside a nested input", () => {

@@ -53,7 +53,8 @@ length and end with a marker giving the number of characters cut. An input
 still longer than 2,000 characters once serialised SHALL be replaced by a note
 giving its size. An input that is not an object SHALL be stored wrapped in
 one, and an empty result as `(no output)`. Stored text SHALL hold no NUL and
-no unpaired surrogate. The connection's key SHALL NOT
+no unpaired surrogate. A tool name outside `[a-zA-Z0-9_-]{1,64}` SHALL be
+stored with every other character replaced by `_`. The connection's key SHALL NOT
 appear in a stored call. Failing to store a call SHALL NOT fail its turn.
 
 #### Scenario: A long result is cut with a marker (manual)
@@ -80,6 +81,11 @@ appear in a stored call. Failing to store a call SHALL NOT fail its turn.
 
 - **WHEN** a tool's result holds a NUL character, or a cut would split an emoji
 - **THEN** the stored result holds neither the NUL nor half of the emoji
+
+#### Scenario: A made-up tool name is stored as one a backend takes (manual)
+
+- **WHEN** the model calls `functions.read file`, a tool that does not exist
+- **THEN** the stored call is named `functions_read_file`
 
 #### Scenario: The key is redacted (manual)
 

@@ -167,8 +167,13 @@ const textOf = (value: unknown): string => {
 
 /** What a tool threw, as the text the model reads: its message when it has one */
 const toolErrorText = (error: unknown) => {
-  const { message } = (error ?? {}) as { message?: unknown };
-  return typeof message === "string" ? message : textOf(error);
+  try {
+    const { message } = (error ?? {}) as { message?: unknown };
+    return typeof message === "string" ? message : textOf(error);
+  } catch {
+    // A getter that throws on `message`: the call still gets a result
+    return UNPRINTABLE;
+  }
 };
 
 /** Characters of an unparsed error body kept in the detail */
