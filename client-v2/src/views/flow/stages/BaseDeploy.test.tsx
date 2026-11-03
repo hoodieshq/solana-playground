@@ -454,6 +454,22 @@ describe("BaseDeploy", () => {
     ).toBeNull();
   });
 
+  it("calls a first deploy on this network deploying, whatever is on the others", () => {
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "running",
+          cluster: "testnet",
+          history: [record("a", NONE)],
+        })}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Deploying..." })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Upgrading..." })).toBeNull();
+  });
+
   it("does not set the network against the others until it is known", () => {
     render(
       <BaseDeploy
