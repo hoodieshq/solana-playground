@@ -227,6 +227,28 @@ it("picks up Hello Anchor half done", () => {
   ).toContain("2 of 4");
 });
 
+it("counts pages on the card of a tutorial without a definition", () => {
+  progress.set("Lumberjack", { state: "started", page: 2, pages: 4 });
+  render(<TutorialsPage />);
+
+  expect(
+    screen
+      .getByRole("button", { name: "Continue Lumberjack" })
+      .closest('[data-slot="action-card"]')?.textContent
+  ).toContain("2 of 4");
+});
+
+it("reports the banner's state when Continue opens it", async () => {
+  progress.set("Hello Anchor", { state: "started", page: 1, pages: 4 });
+  render(<TutorialsPage />);
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  await waitFor(() => expect(named("catalog_banner_opened")).toHaveLength(1));
+  expect(named("catalog_banner_opened")[0].params).toEqual({
+    state: "started",
+  });
+});
+
 it("moves on to Lumberjack once Hello Anchor is done", () => {
   progress.set("Hello Anchor", { state: "completed" });
   render(<TutorialsPage />);
@@ -297,6 +319,8 @@ it("filters by framework once the list holds two, and reports it", async () => {
     screen.queryByRole("button", { name: "Open Hello Anchor" })
   ).toBeNull();
   expect(screen.getByRole("status").textContent).toBe("1 result");
+  // A filter, like a search, takes the banner's place
+  expect(screen.queryByRole("region", { name: "Hello Anchor" })).toBeNull();
   expect(
     screen.getByRole("searchbox", { name: "Search tutorials" })
   ).toHaveProperty("placeholder", "Search Seahorse tutorials");

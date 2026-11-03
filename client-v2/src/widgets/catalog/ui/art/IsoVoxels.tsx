@@ -1,6 +1,9 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 
+import { createLogger } from "@/shared/lib/logger";
 import { cn } from "@/shared/lib/utils";
+
+const log = createLogger("catalog:voxels");
 
 /** The brand mark, ▷O, in its 970 × 574 box (the prototype's `brandGlyphs`) */
 const MARK_PATH =
@@ -9,7 +12,7 @@ const MARK_PATH =
 /* Ported from the tutorial-v2 prototype (ui/IsoVoxels.tsx), which took it from Almaz's stand
    (views/flow/gallery/banner-art/IsoVoxels.tsx): the cubes are the brand pattern's rounded, low tiles */
 
-/** The brand colours the sculpture is shaded in, the product's BRAND tokens */
+/** The brand colours the sculpture is shaded in: literal on purpose, since canvas pixels cannot read CSS variables; they match `--brand-purple` and `--brand-green` */
 const BRAND = {
   purple: "#9945FF",
   violet: "#7A56DA",
@@ -28,16 +31,6 @@ const CORNER_MASK: CSSProperties = {
   maskImage:
     "radial-gradient(130% 80% at 100% 0%, #000 30%, rgba(0, 0, 0, 0.25) 58%, transparent 78%)",
 };
-
-/**
- * The ▷O mark as a voxel sculpture lying on the card, in 2:1 pixel isometric.
- *
- * Every filled cell of the rasterized mark is a low rounded tile with a lit top and shaded sides.
- * Cubes rise into place on mount, a slow ripple leaves the play triangle and
- * runs out through the ring, and the pointer presses a soft bump up through
- * them. Faces are painted pixel by pixel into sprite atlases once per size, so
- * a frame is only a few hundred `drawImage` calls on whole device pixels.
- */
 
 /** Grid the mark is sampled into; rows follow the mark's 970 × 574 box */
 const COLS = 33;
@@ -606,6 +599,15 @@ const buildScene = (
   };
 };
 
+/**
+ * The ▷O mark as a voxel sculpture lying on the card, in 2:1 pixel isometric.
+ *
+ * Every filled cell of the rasterized mark is a low rounded tile with a lit top and shaded sides.
+ * Cubes rise into place on mount, a slow ripple leaves the play triangle and
+ * runs out through the ring, and the pointer presses a soft bump up through
+ * them. Faces are painted pixel by pixel into sprite atlases once per size, so
+ * a frame is only a few hundred `drawImage` calls on whole device pixels.
+ */
 export function IsoVoxels({
   className,
   corner = false,
@@ -621,7 +623,18 @@ export function IsoVoxels({
     const root = rootRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    const mark = buildMark();
+    // Decorative: where the canvas cannot be read (blocked, or no Path2D) the
+    // banner keeps its words and draws no sculpture
+    const mark = (() => {
+      try {
+        return buildMark();
+      } catch (e) {
+        log.warn("the voxel mark could not be drawn", {
+          context: { error: String(e) },
+        });
+        return null;
+      }
+    })();
     if (!root || !canvas || !ctx || !mark || mark.count === 0) return;
     const host = root.parentElement;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

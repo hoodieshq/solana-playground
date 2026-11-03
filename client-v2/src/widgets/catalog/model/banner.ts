@@ -3,22 +3,29 @@ import type { TutorialItem } from "./use-tutorial-list";
 /** Which of its three states the banner is in, as `catalog_banner_opened` sends it */
 export type BannerState = "fresh" | "started" | "completed";
 
-/** What the Start here banner says */
-export interface Banner {
-  state: BannerState;
+/** What the Start here banner says, by its state */
+export type Banner = {
   /** The tutorial's name, which is also what its Open is called with */
   id: string;
   title: string;
   /** "Start here", "Continue · Step 3 of 4", "Completed" */
   label: string;
   line: string;
-  /** The facts that decide a start; only before one */
-  meta?: string;
-  /** How far a started tutorial is: `done` of `of` */
-  meter?: { done: number; of: number };
-  /** The one action's words */
-  action: "Start" | "Continue" | "Open again";
-}
+} & (
+  | {
+      state: "fresh";
+      /** The facts that decide a start */
+      meta: string;
+      action: "Start";
+    }
+  | {
+      state: "started";
+      /** How far it is: `done` of `of` */
+      meter: { done: number; of: number };
+      action: "Continue";
+    }
+  | { state: "completed"; action: "Open again" }
+);
 
 /** The fields of a tutorial the banner reads */
 export type BannerItem = Pick<
@@ -31,9 +38,7 @@ export type BannerItem = Pick<
   | "authors"
   | "progress"
   | "pages"
-  | "minutes"
-  | "objectives"
-  | "finish"
+  | "lesson"
 >;
 
 /**
@@ -65,21 +70,22 @@ export const bannerOf = (
       ...head,
       state: "completed",
       label: "Completed",
-      line: t.finish?.replace(/\.$/, "") ?? t.description,
+      line: t.lesson?.finish.replace(/\.$/, "") || t.description,
       action: "Open again",
     };
   }
   if (p.state === "started") {
     const meter = { done: p.page, of: p.pages };
-    if (t.objectives) {
+    if (t.lesson) {
+      // The step after the passed ones; the last once all passed but the
+      // finish has not shown
       const n = Math.min(p.page + 1, p.pages);
+      const next = t.lesson.objectives[n - 1];
       return {
         ...head,
         state: "started",
         label: `Continue · Step ${n} of ${p.pages}`,
-        line: t.objectives[n - 1]
-          ? `Next: ${t.objectives[n - 1]}`
-          : t.description,
+        line: next ? `Next: ${next}` : t.description,
         meter,
         action: "Continue",
       };
@@ -93,8 +99,8 @@ export const bannerOf = (
       action: "Continue",
     };
   }
-  const size = t.objectives
-    ? [t.minutes && `${t.minutes} min`, `${t.pages} steps`]
+  const size = t.lesson
+    ? [`${t.lesson.minutes} min`, `${t.pages} steps`]
     : [`${t.pages} pages`];
   return {
     ...head,
@@ -121,9 +127,11 @@ if (import.meta.vitest) {
       authors: [{ name: "acheron" }],
       progress,
       pages: 4,
-      minutes: 10,
-      objectives: ["Write it", "Deploy it", "Call it", "Name it"],
-      finish: "You built and called your first Solana program.",
+      lesson: {
+        minutes: 10,
+        objectives: ["Write it", "Deploy it", "Call it", "Name it"],
+        finish: "You built and called your first Solana program.",
+      },
     });
 
     const lumberjack = (progress: Progress): BannerItem => ({
@@ -135,9 +143,7 @@ if (import.meta.vitest) {
       authors: [{ name: "Jonas Hahn" }],
       progress,
       pages: 3,
-      minutes: undefined,
-      objectives: undefined,
-      finish: undefined,
+      lesson: undefined,
     });
 
     const NEW: Progress = { state: "new" };
@@ -161,7 +167,7 @@ if (import.meta.vitest) {
       const b = bannerOf(helloAnchor({ state: "started", page: 2, pages: 4 }));
       expect(b.label).toBe("Continue · Step 3 of 4");
       expect(b.line).toBe("Next: Call it");
-      expect(b.meter).toEqual({ done: 2, of: 4 });
+      expect(b.state === "started" && b.meter).toEqual({ done: 2, of: 4 });
       expect(b.action).toBe("Continue");
     });
 
@@ -171,7 +177,8 @@ if (import.meta.vitest) {
     });
 
     it("counts pages for a tutorial without a definition", () => {
-      expect(bannerOf(lumberjack(NEW)).meta).toBe(
+      const fresh = bannerOf(lumberjack(NEW));
+      expect(fresh.state === "fresh" && fresh.meta).toBe(
         "3 pages · Intermediate · Anchor · by Jonas Hahn"
       );
       const b = bannerOf(lumberjack({ state: "started", page: 2, pages: 3 }));
@@ -184,7 +191,17 @@ if (import.meta.vitest) {
       expect(b.label).toBe("Completed");
       expect(b.line).toBe("You built and called your first Solana program");
       expect(b.action).toBe("Open again");
-      expect(b.meta).toBeUndefined();
+      expect(b.state).toBe("completed");
+    });
+
+    it("falls back to the description where the definition says nothing", () => {
+      expect(bannerOf(lumberjack(DONE)).line).toBe(
+        "How to build an energy system on chain."
+      );
+      // A save with more steps than the definition now has: no objective
+      expect(
+        bannerOf(helloAnchor({ state: "started", page: 5, pages: 6 })).line
+      ).toBe("Hello world program with Anchor framework.");
     });
 
     it("features the first of the ladder not completed, else the last", () => {

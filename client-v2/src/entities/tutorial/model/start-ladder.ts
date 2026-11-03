@@ -1,6 +1,6 @@
 /**
  * The tutorials the start offers, in the order a new developer takes them:
- * one per level, all Anchor (Slava, 3 Nov). Home and the Tutorials page list
+ * one per level, all Anchor. Home and the Tutorials page list
  * only these; every other tutorial stays registered, so its link and New
  * project's list keep it. `line` is what the Start here banner says of a
  * lesson not yet started, as the tutorial-v2 prototype's lessons write it

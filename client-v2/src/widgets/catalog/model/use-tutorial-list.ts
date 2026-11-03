@@ -18,12 +18,14 @@ export interface TutorialItem {
   progress: TutorialProgress;
   /** Its pages, or a conversation tutorial's steps */
   pages: number;
-  /** A conversation tutorial's minutes; none without a definition */
-  minutes?: number;
-  /** A conversation tutorial's step objectives, in order */
-  objectives?: string[];
-  /** A conversation tutorial's finish headline */
-  finish?: string;
+  /** What a conversation tutorial's definition says; none without one */
+  lesson?: {
+    minutes: number;
+    /** Each step's objective, in order */
+    objectives: string[];
+    /** The finish card's headline */
+    finish: string;
+  };
   /** This card's Open, while it runs or once it failed; none otherwise */
   open?: CardOpen;
 }
@@ -56,9 +58,11 @@ export const useTutorialList = (
           authors: t.authors,
           progress: progressFor(t.name),
           pages: t.pageCount,
-          minutes: t.definition?.minutes,
-          objectives: t.definition?.steps.map((s) => s.objective),
-          finish: t.definition && plain(t.definition.finish.headline),
+          lesson: t.definition && {
+            minutes: t.definition.minutes,
+            objectives: t.definition.steps.map((s) => s.objective),
+            finish: plain(t.definition.finish.headline),
+          },
           open: cardOpen(t.name),
         })),
     },

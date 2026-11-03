@@ -1,5 +1,5 @@
 import { ArrowRight, Check } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
@@ -37,9 +37,13 @@ const BaseStartHereBanner = ({
   const titleId = useId();
   const box = useRef<HTMLElement>(null);
   const [wide, setWide] = useState(true);
-  useEffect(() => {
+  // Measured before paint, so a narrow banner never draws the wide sculpture
+  // first and replays it in the corner
+  useLayoutEffect(() => {
     const el = box.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
+    if (!el) return;
+    setWide(el.getBoundingClientRect().width >= WIDE_MIN);
+    if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(([e]) =>
       setWide(e.contentRect.width >= WIDE_MIN)
     );
@@ -91,7 +95,7 @@ const BaseStartHereBanner = ({
           <p className="mt-2 max-w-[44ch] text-[0.9375rem] leading-[1.35] text-balance text-foreground/78">
             {b.line}
           </p>
-          {b.meter ? (
+          {b.state === "started" ? (
             <div className="mt-3 flex max-w-xs items-center gap-3">
               <span
                 aria-hidden="true"
@@ -107,7 +111,7 @@ const BaseStartHereBanner = ({
               </span>
             </div>
           ) : null}
-          {b.meta ? (
+          {b.state === "fresh" ? (
             <p className="mt-3 text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">
               {b.meta}
             </p>

@@ -63,7 +63,7 @@ that tutorial's saved progress:
   · <level> · <framework> · by <author>"; "<m> pages" and no minutes for a
   tutorial without a definition) and **Start**.
 - Started: the label "Continue · Step <n> of <m>", `n` the first step not
-  passed ("Continue · Page <n> of <m>" for a tutorial without a definition),
+  passed (the last step once every step passed and the finish has not shown) ("Continue · Page <n> of <m>" for a tutorial without a definition),
   the line "Next: <that step's objective>" (the description without a
   definition), a meter with "<passed> of <m>", and **Continue**.
 - Completed (all three done): the label "Completed" with a tick, the

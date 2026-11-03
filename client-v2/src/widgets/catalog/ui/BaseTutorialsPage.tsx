@@ -19,14 +19,16 @@ export interface BaseTutorialsPageProps {
   count: number;
   /** The tutorials matching the query and the framework */
   items: readonly TutorialItem[];
-  /** The Start here banner; none when the page lists nothing */
-  banner?: Banner;
-  /** The banner's Open, while it runs or once it failed */
-  bannerOpen?: CardOpen;
+  /** The Start here banner and its Open; none when the page lists nothing */
+  banner?: {
+    banner: Banner;
+    /** The banner's Open, while it runs or once it failed */
+    open?: CardOpen;
+    onOpen: () => Promise<void>;
+  };
   /** An Open runs: every card and the banner wait for it */
   busy: boolean;
   onOpen: (id: string) => Promise<void>;
-  onBannerOpen: () => Promise<void>;
 }
 
 /**
@@ -44,10 +46,8 @@ const BaseTutorialsPage = ({
   count,
   items,
   banner,
-  bannerOpen,
   busy,
   onOpen,
-  onBannerOpen,
 }: BaseTutorialsPageProps) => {
   const searching = query.trim() !== "";
   const browsing = !searching && framework === "all";
@@ -70,13 +70,14 @@ const BaseTutorialsPage = ({
       </div>
       {browsing && banner ? (
         <BaseStartHereBanner
-          banner={banner}
-          open={bannerOpen}
+          banner={banner.banner}
+          open={banner.open}
           busy={busy}
-          onOpen={onBannerOpen}
+          onOpen={banner.onOpen}
         />
       ) : null}
-      {browsing ? null : (
+      {/* While browsing the banner leads; the line shows only when nothing is listed */}
+      {browsing && items.length > 0 ? null : (
         <p role="status" className="text-[0.8125rem] text-muted-foreground">
           {resultsLine(items.length, query, framework)}
         </p>

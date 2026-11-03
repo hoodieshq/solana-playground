@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { ladderLine, startTutorials } from "@/entities/tutorial";
+import { createLogger } from "@/shared/lib/logger";
 import { PgTutorial } from "@/utils";
 import { matchesTutorial } from "../lib/filter";
 import { frameworkCount } from "../lib/levels";
@@ -16,6 +17,8 @@ import BaseTutorialsPage from "./BaseTutorialsPage";
 /** The id the banner's Open runs under, apart from its tutorial's card */
 const BANNER = "banner";
 
+const log = createLogger("catalog:banner");
+
 /**
  * The start's tutorials (`startTutorials`), searched by name and
  * description, filtered by framework, under the Start here banner. Open, on
@@ -27,8 +30,8 @@ const TutorialsPage = () => {
   const [query, setQuery] = useState("");
   const [framework, setFramework] = useState<FrameworkFilter>("all");
   const { open, busy, cardOpen } = useCardOpen("tutorials");
-  const pool = useMemo(() => startTutorials(PgTutorial.all), []);
-  // Read once, unsearched: the banner and the filter go by the whole list
+  const pool = startTutorials(PgTutorial.all);
+  // Read with no query: the banner and the filter go by the whole list
   const { list } = useTutorialList("", cardOpen, pool);
   const all = list.state === "ready" ? list.cards : [];
   const items = all.filter(
@@ -56,19 +59,26 @@ const TutorialsPage = () => {
       filterable={frameworkCount(all) >= 2}
       count={pool.length}
       items={items}
-      banner={banner}
-      bannerOpen={cardOpen(BANNER)}
       busy={busy}
       onOpen={(name) => open(name, () => PgTutorial.open(name))}
-      onBannerOpen={async () => {
-        if (!banner) return;
-        await open(BANNER, async () => {
-          await PgTutorial.open(banner.id);
-          catalogTelemetry.track("catalog_banner_opened", {
-            state: banner.state,
-          });
-        });
-      }}
+      banner={
+        banner && {
+          banner,
+          open: cardOpen(BANNER),
+          onOpen: () =>
+            open(BANNER, async () => {
+              await PgTutorial.open(banner.id);
+              // Counted apart from the Open: a throw here is not it failing
+              try {
+                catalogTelemetry.track("catalog_banner_opened", {
+                  state: banner.state,
+                });
+              } catch (e) {
+                log.error(e, { report: true });
+              }
+            }),
+        }
+      }
     />
   );
 };

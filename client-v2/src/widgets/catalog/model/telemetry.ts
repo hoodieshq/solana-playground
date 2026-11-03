@@ -1,4 +1,6 @@
 import { createTracker } from "@/shared/lib/telemetry";
+import type { FrameworkFilter } from "../lib/levels";
+import type { BannerState } from "./banner";
 
 /** The two pages the catalog shows */
 export type CatalogPage = "tutorials" | "programs";
@@ -21,15 +23,12 @@ type CatalogEvents = {
    */
   catalog_open_failed: { page: CatalogPage };
   /** The Tutorials page's framework filter changed; `framework` is the one now picked */
-  catalog_filtered: {
-    page: "tutorials";
-    framework: "all" | "Anchor" | "Seahorse" | "Native";
-  };
+  catalog_filtered: { page: "tutorials"; framework: FrameworkFilter };
   /**
    * The Start here banner's action opened its tutorial; `state` is what the
    * banner said: not started, started, or every start tutorial completed
    */
-  catalog_banner_opened: { state: "fresh" | "started" | "completed" };
+  catalog_banner_opened: { state: BannerState };
   /** In New project, the user picked the other list; `tab` is the one now shown */
   catalog_tab_switched: { tab: CatalogPage };
 };
