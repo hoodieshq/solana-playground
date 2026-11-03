@@ -428,10 +428,12 @@ if (import.meta.vitest) {
         ["an empty string", ""],
         ["a number", 42],
         ["an array", ["devnet"]],
+        // eslint-disable-next-line unicorn/no-null -- stored JSON can hold null; this is what it reads back as
         ["null", null],
         ["an option that is not a string", { option: 5 }],
         [
           "a custom option with a null address",
+          // eslint-disable-next-line unicorn/no-null -- stored JSON can hold null; this is what it reads back as
           { option: "custom", url: null },
         ],
         ["a custom option with a number address", { option: "custom", url: 5 }],
@@ -469,6 +471,7 @@ if (import.meta.vitest) {
       it.each([
         ["a string", "x"],
         ["a number", 5],
+        // eslint-disable-next-line unicorn/no-null -- stored JSON can hold null; this is what it reads back as
         ["null", null],
         ["an array", ["devnet"]],
       ])("drops a stored group that is %s", (_, group) => {
