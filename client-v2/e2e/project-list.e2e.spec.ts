@@ -85,6 +85,54 @@ test("client-v2-layout: Renaming in place", async ({ page }) => {
   ).toHaveCount(1);
 });
 
+/** An imported GitHub project's name, long enough to truncate on every width */
+const LONG_NAME = "github-drift-labs-protocol-v2-programs-drift";
+
+/**
+ * How far a row's name runs past the left edge of its pin, in pixels; 0 or
+ * less when the name stops short of it
+ */
+const nameOverPin = (page: Page, name: string) =>
+  projectRow(page, name).evaluate((button) => {
+    const label = button.querySelector(":scope > span");
+    const pin = button.parentElement?.querySelector('[title="Pinned"]');
+    if (!label || !pin) throw new Error("the row has no name or no pin");
+    return (
+      label.getBoundingClientRect().right - pin.getBoundingClientRect().left
+    );
+  });
+
+for (const [layout, viewport] of [
+  ["desk", { width: 1280, height: 800 }],
+  ["phone", { width: 390, height: 844 }],
+] as const) {
+  // HOO-2500: the pin was drawn over the row, and a long name ran under it
+  test(`a pinned project's long name stops short of its pin (${layout})`, async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await seedWorkspace(page, LONG_NAME);
+    await startAnotherProject(page, "beta");
+    await (await projectMenu(page, LONG_NAME))
+      .getByRole("menuitem", { name: "Pin" })
+      .click();
+    await page.keyboard.press("Escape");
+
+    await page.setViewportSize(viewport);
+    if (layout === "phone") {
+      await page.getByRole("button", { name: "Menu", exact: true }).click();
+    }
+    // The pin hides while the row is hovered or focused
+    await page.mouse.move(viewport.width - 1, viewport.height - 1);
+    await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+
+    await expect(
+      projectRow(page, LONG_NAME).locator("..").getByTitle("Pinned")
+    ).toBeVisible();
+    expect(await nameOverPin(page, LONG_NAME)).toBeLessThanOrEqual(0);
+  });
+}
+
 test("renames the open project in place", async ({ page }) => {
   test.setTimeout(120_000);
   await twoProjects(page);
