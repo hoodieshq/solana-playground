@@ -171,3 +171,31 @@ named after the commit SHA, and SHALL NOT deploy the `.map` files.
 - **WHEN** a browser requests `/static/js/<bundle>.js.map` from the deployed
   site
 - **THEN** the response is not the source map
+
+### Requirement: Reports carry no user code or secret key
+
+What the browser sends to Sentry SHALL NOT carry the user's program output or
+a secret key. A console breadcrumb SHALL be kept only when its first argument
+is the logger's `[<slice>:<module>]` tag, and SHALL NOT keep the call's raw
+arguments. A base58 or hex run of 64 or more characters, and a list of 32 or
+more numbers from 0 to 255, SHALL be replaced with `[redacted]` in exception
+values, messages, breadcrumbs, extras, contexts and tags. Public keys (32 to
+44 base58 characters) SHALL be kept, and the text of a feedback SHALL be sent
+as the user wrote it.
+
+#### Scenario: The user's test prints to the console
+
+- **WHEN** a test the user runs prints a value with `console.log`, and an
+  error is reported afterwards
+- **THEN** the report's breadcrumbs do not include that output
+
+#### Scenario: A secret key in an error message
+
+- **WHEN** a reported error's message quotes a 64-byte secret key, as base58
+  or as a JSON byte array
+- **THEN** the report shows `[redacted]` in its place
+
+#### Scenario: A wallet address in a reported context
+
+- **WHEN** a reported entry's context holds a wallet's public key
+- **THEN** the report shows the public key as it was

@@ -53,6 +53,10 @@ the same time; section 3 follows both.
 - [ ] 2.5 ESLint inside the layers: `no-console` except the console provider;
       `no-restricted-imports` for `@sentry/*` in the logger's providers
       except the Sentry provider (HOO-1897; after 2.2)
+- [ ] 2.6 Scrub what reaches Sentry: console breadcrumbs only from the
+      logger, secret-shaped strings redacted across the event, public keys
+      and feedback text kept (HOO-1800; after 2.2;
+      [plan](plans/2.6-scrub-reports.md))
 
 ## 3. Rules
 

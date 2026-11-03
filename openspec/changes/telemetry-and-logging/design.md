@@ -111,6 +111,17 @@ and the level set and error handling of its
     _Rejected:_ a hand-written catalogue (drifts); TSDoc alone (a change's
     analytics impact is invisible until coded).
 
+12. **Reports are scrubbed in the reporter.** `reporter/sentry.ts` passes
+    `beforeBreadcrumb` and `beforeSend` the pure rules in `reporter/scrub.ts`:
+    console breadcrumbs only from the logger, without their raw arguments,
+    and secret-shaped strings (base58 or hex runs of 64+ characters, lists of
+    32+ bytes) redacted across the event. The user's tests print through
+    mocha's `spec` reporter to the main window's `console.log`, which
+    Sentry's `Console` integration records with every argument. _Rejected:_
+    scrubbing at each call site (the user's output never passes through our
+    code); turning console breadcrumbs off (the logger's trail before an
+    error is the most useful context a report has).
+
 ## Risks / Trade-offs
 
 - `shared` gains a list of slice names in `prefixes.ts`.
