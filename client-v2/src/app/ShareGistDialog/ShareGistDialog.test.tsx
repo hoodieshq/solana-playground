@@ -30,6 +30,12 @@ vi.mock("@/widgets/session-footer", async () => ({
   GithubMark: (await import("@/widgets/session-footer/ui/GithubMark")).default,
 }));
 
+/** A cancel the user made is a quiet line, never an error callout */
+const expectQuietCancel = () => {
+  const line = screen.getByText("Sign-in cancelled.");
+  expect(line.closest('[data-slot="callout"]')).toBe(null);
+};
+
 const USER: SessionUser = {
   id: "u1",
   name: "Ada",
@@ -167,7 +173,7 @@ describe("app/ShareGistDialog", () => {
     expect(
       screen.getByRole("heading", { name: "Sign in to share" })
     ).toBeTruthy();
-    expect(screen.getByText("Sign-in cancelled.")).toBeTruthy();
+    expectQuietCancel();
     expect(reported()).toEqual([]);
     expect(gistRequests()).toEqual([]);
   });
@@ -205,7 +211,7 @@ describe("app/ShareGistDialog", () => {
     expect(
       screen.getByRole("heading", { name: "Sign in to share" })
     ).toBeTruthy();
-    expect(screen.getByText("Sign-in cancelled.")).toBeTruthy();
+    expectQuietCancel();
     expect(
       screen.getByRole("button", { name: "Sign in with GitHub" })
     ).toBeTruthy();
@@ -328,7 +334,7 @@ describe("app/ShareGistDialog", () => {
     }));
     await open();
     await press("Sign in with GitHub");
-    expect(screen.getByText("Sign-in cancelled.")).toBeTruthy();
+    expectQuietCancel();
 
     vi.spyOn(PgSession, "signIn").mockImplementation(() =>
       PgSession.refreshWith(USER)

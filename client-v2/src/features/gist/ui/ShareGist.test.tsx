@@ -17,6 +17,12 @@ import { PgView } from "@/utils/view";
 import ShareGist from "./ShareGist";
 import type { ShareGistProps } from "./ShareGist";
 
+/** A cancel the user made is a quiet line, never an error callout */
+const expectQuietCancel = () => {
+  const line = screen.getByText("Sign-in cancelled.");
+  expect(line.closest('[data-slot="callout"]')).toBe(null);
+};
+
 const URL = "https://gist.github.com/ada/abc";
 const ORIGIN = "https://beta.solpg.io";
 const LINK = `${ORIGIN}/gist/abc`;
@@ -252,7 +258,7 @@ it("offers Cancel sign-in while the popup waits, and stays on sign-in after it",
   await press(/^Cancel sign-in$/);
 
   expect(cancelSignIn).toHaveBeenCalledTimes(1);
-  expect(screen.getByText("Sign-in cancelled.")).toBeTruthy();
+  expectQuietCancel();
   expect(fetch).not.toHaveBeenCalled();
   expect(sent.events).toEqual([
     {
@@ -277,7 +283,7 @@ it("returns to Allow gists after a cancelled grant", async () => {
   await press(/Allow gists on GitHub/);
   await press(/^Cancel sign-in$/);
 
-  expect(screen.getByText("Sign-in cancelled.")).toBeTruthy();
+  expectQuietCancel();
   expect(
     screen.getByRole("button", { name: "Allow gists on GitHub" })
   ).toBeTruthy();

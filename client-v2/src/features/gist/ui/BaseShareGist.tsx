@@ -15,14 +15,22 @@ import type { GistCopiedLink, GistVisibility } from "../model/telemetry";
 export type ShareFailure = ExportFailure | "scope-not-granted";
 
 /**
- * Where a share stands. `sign-in` and `grant` carry the reason the last try
- * of that step failed, if it did; a press from either is a retry. `waiting`
- * is a sign-in or a grant whose popup is open on GitHub.
+ * How the last try of a sign-in or a grant ended: a failure, said as an
+ * error, or the user's own cancel, said quietly
+ */
+export type SignInEnding =
+  | { kind: "failed"; message: string }
+  | { kind: "cancelled"; message: string };
+
+/**
+ * Where a share stands. `sign-in` and `grant` carry how the last try of that
+ * step ended, if it did; a press from either is a retry. `waiting` is a
+ * sign-in or a grant whose popup is open on GitHub.
  */
 export type ShareStep =
   | { step: "ready" }
-  | { step: "sign-in"; error?: string }
-  | { step: "grant"; error?: string }
+  | { step: "sign-in"; ended?: SignInEnding }
+  | { step: "grant"; ended?: SignInEnding }
   | { step: "waiting"; for: "sign-in" | "grant" }
   | { step: "created"; url: string; link: string }
   | { step: "failed"; reason: ShareFailure };
@@ -247,9 +255,11 @@ const BaseShareGist = ({
     : undefined;
 
   let problem: string | undefined;
+  let notice: string | undefined;
   if (state.step === "failed") problem = FAILURE[state.reason](name);
   else if (state.step === "sign-in" || state.step === "grant") {
-    problem = state.error;
+    if (state.ended?.kind === "cancelled") notice = state.ended.message;
+    else problem = state.ended?.message;
   }
 
   const granting =
@@ -274,6 +284,10 @@ const BaseShareGist = ({
           GitHub needs your permission for Playground to create gists on your
           account. It asks once.
         </p>
+      )}
+
+      {notice && (
+        <p className="text-body font-read text-muted-foreground">{notice}</p>
       )}
 
       {problem && (

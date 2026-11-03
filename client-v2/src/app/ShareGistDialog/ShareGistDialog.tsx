@@ -47,7 +47,8 @@ const buttonText = (waiting: boolean, cancellable: boolean) => {
 const SignInToShare = () => {
   useRenderOnChange(PgSession.onDidChange);
   const waiting = PgSession.signInState().status === "pending";
-  const [failure, setFailure] = useState<string>();
+  // A sign-in the user cancelled is said quietly; a real failure in red
+  const [ended, setEnded] = useState<{ message: string; cancelled: boolean }>();
   // The sign-in settles after a Cancel has closed the dialog
   const mounted = useRef(true);
   // Whether the sign-in under way is this prompt's: one started from the
@@ -73,7 +74,7 @@ const SignInToShare = () => {
       PgSession.cancelSignIn();
       return;
     }
-    setFailure(undefined);
+    setEnded(undefined);
     ownSignIn.current = true;
     PgSession.signIn()
       .catch((error: unknown) => {
@@ -93,7 +94,15 @@ const SignInToShare = () => {
         } else {
           log.error(error, { report: true, context: { item: "sign-in" } });
         }
-        if (mounted.current) setFailure(messageOf(error));
+        if (mounted.current) {
+          setEnded({
+            message: messageOf(error),
+            cancelled:
+              userEnded &&
+              state.status === "failed" &&
+              state.reason === "cancelled",
+          });
+        }
       })
       .finally(() => {
         ownSignIn.current = false;
@@ -116,10 +125,15 @@ const SignInToShare = () => {
         <p className="text-body font-read text-muted-foreground">
           Your project goes to a gist on your GitHub account.
         </p>
-        {failure && (
+        {ended?.cancelled && (
+          <p className="text-body font-read text-muted-foreground">
+            {ended.message}
+          </p>
+        )}
+        {ended && !ended.cancelled && (
           <Callout variant="error">
             <TriangleAlert />
-            <CalloutDescription>{failure}</CalloutDescription>
+            <CalloutDescription>{ended.message}</CalloutDescription>
           </Callout>
         )}
       </div>

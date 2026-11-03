@@ -32,4 +32,5 @@ export type {
   BaseShareGistProps,
   ShareFailure,
   ShareStep,
+  SignInEnding,
 } from "./ui/BaseShareGist";

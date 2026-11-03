@@ -14,7 +14,7 @@ import type {
   GistVisibility,
 } from "../model/telemetry";
 import BaseShareGist from "./BaseShareGist";
-import type { ShareStep } from "./BaseShareGist";
+import type { ShareStep, SignInEnding } from "./BaseShareGist";
 
 const log = createLogger("gist:share");
 
@@ -81,6 +81,8 @@ const ShareGist = ({
       mounted.current = false;
     };
   }, []);
+  // Whether the sign-in under way ended by this dialog's own Cancel
+  const cancelled = useRef(false);
   const show = (next: ShareStep) => {
     if (mounted.current) setState(next);
   };
@@ -113,7 +115,10 @@ const ShareGist = ({
         // the session it lost is there
         show({
           step: "sign-in",
-          error: "Your session ended. Sign in again to share.",
+          ended: {
+            kind: "failed",
+            message: "Your session ended. Sign in again to share.",
+          },
         });
         return;
       case "needs-gist-scope":
@@ -134,8 +139,9 @@ const ShareGist = ({
 
   const signInThen = async (
     scopes: string[] | undefined,
-    retry: (error: string) => ShareStep
+    retry: (ended: SignInEnding) => ShareStep
   ) => {
+    cancelled.current = false;
     show({ step: "waiting", for: scopes ? "grant" : "sign-in" });
     try {
       await signIn(scopes ? { scopes } : undefined);
@@ -143,7 +149,14 @@ const ShareGist = ({
       // `signIn` counted its own failure (`auth_sign_in_failed`); this one is
       // the share's. A cancel, from here or elsewhere, lands here too
       failed("sign-in-failed");
-      show(retry(messageOf(e)));
+      const message = messageOf(e);
+      show(
+        retry(
+          cancelled.current
+            ? { kind: "cancelled", message }
+            : { kind: "failed", message }
+        )
+      );
       return;
     }
     show({ step: "ready" });
@@ -173,7 +186,7 @@ const ShareGist = ({
   // sign-in elsewhere, or the first session read, moves the dialog along
   let shown = state;
   const undecided =
-    state.step === "ready" || (state.step === "sign-in" && !state.error);
+    state.step === "ready" || (state.step === "sign-in" && !state.ended);
   if (undecided) {
     shown = signedIn ? { step: "ready" } : { step: "sign-in" };
   }
@@ -187,12 +200,16 @@ const ShareGist = ({
       busy={busy}
       onCreate={() => share({ afterGrant: false })}
       onSignIn={() =>
-        signInThen(undefined, (error) => ({ step: "sign-in", error }))
+        signInThen(undefined, (ended) => ({ step: "sign-in", ended }))
       }
       onGrant={() =>
-        signInThen([GIST_SCOPE], (error) => ({ step: "grant", error }))
+        signInThen([GIST_SCOPE], (ended) => ({ step: "grant", ended }))
       }
-      onCancelSignIn={cancelSignIn}
+      onCancelSignIn={() => {
+        // The rejection it brings is the user's own doing, said quietly
+        cancelled.current = true;
+        cancelSignIn();
+      }}
       onCopy={copy}
       copyFailed={copyFailed}
     />
