@@ -1,4 +1,5 @@
 import { createTools } from "./tools";
+import { READING_TOOLS } from "./reading-tools";
 import { PgAssistant, type AssistantMode } from "../store";
 import type { PlaygroundBridge } from "../bridge/playground-bridge";
 
@@ -154,5 +155,19 @@ describe("a mode", () => {
     expect(PgAssistant.mode).toBe(tutorial);
     first.dispose();
     expect(PgAssistant.mode).toBeNull();
+  });
+});
+
+describe("READING_TOOLS", () => {
+  it("names only tools the assistant has", async () => {
+    const { createSkillTools } = await vi.importActual<
+      typeof import("./skill-tools")
+    >("./skill-tools");
+    const real = new Set(
+      createTools(bridge(null), null)
+        .concat(createSkillTools())
+        .map((tool) => tool.name)
+    );
+    for (const name of READING_TOOLS) expect(real).toContain(name);
   });
 });

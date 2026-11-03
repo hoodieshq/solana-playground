@@ -5,24 +5,10 @@ import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer } from "@/utils/explorer";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 import type { AssistantMode } from "@/views/sidebar/assistant/store";
+import { READING_TOOLS } from "@/views/sidebar/assistant/model/reading-tools";
 import { describeTutorial } from "./context";
 
 const log = createLogger("tutorial-conversation:mode");
-
-/**
- * The assistant's own tools that may run in a tutorial: reading only. The
- * skill tools read the ecosystem's guidance; writing, building and deploying
- * stay the lesson's (spec "One composer; free questions go to the live
- * assistant").
- */
-const ALLOWED = new Set([
-  "list_files",
-  "read_file",
-  "get_build_error",
-  "list_skills",
-  "load_skill",
-  "read_skill_reference",
-]);
 
 /** A string argument the model supplied, or "" */
 const str = (input: ToolInput, key: string) => {
@@ -57,7 +43,9 @@ export const tutorialMode = ({
   openMenu: () => void;
 }): AssistantMode => ({
   name: "tutorial",
-  allows: (name) => ALLOWED.has(name),
+  // Reading only: writing, building and deploying stay the lesson's (spec
+  // "One composer; free questions go to the live assistant")
+  allows: (name) => READING_TOOLS.has(name),
   refusal:
     "In a tutorial you cannot change files, build, deploy or send " +
     "transactions: the lesson does those. Tell the learner which button or " +
@@ -97,6 +85,10 @@ export const tutorialMode = ({
       run: () => {
         const beatId = openQuestion();
         if (!beatId) return "No question is open, so there is no hint to post.";
+        const live = PgConversation.view()?.live;
+        if (live?.kind === "ask" && live.hinted) {
+          return "The hint is already shown under the question. Help in your own words instead.";
+        }
         PgAssistant.addToolCall("posted the hint");
         PgConversation.hint(beatId, { byAssistant: true });
         return "The hint is posted under the question. Do not repeat it.";

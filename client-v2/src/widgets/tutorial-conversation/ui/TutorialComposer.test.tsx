@@ -102,10 +102,30 @@ describe("BaseTutorialComposer", () => {
     expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
   });
 
+  it("routes Enter while the assistant answers, so a word still runs", async () => {
+    const onSend = vi.fn();
+    render(
+      <BaseTutorialComposer
+        value="build"
+        onChange={vi.fn()}
+        placeholder="Ask about this step"
+        busy={true}
+        onSend={onSend}
+        onStop={vi.fn()}
+        chips={null}
+        onChip={vi.fn()}
+      />
+    );
+    fireEvent.keyDown(box(), { key: "Enter" });
+    expect(onSend).toHaveBeenCalledWith("build");
+    fireEvent.keyDown(box(), { key: "Enter", shiftKey: true });
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
+
   it("has no chips during the lesson, and presses one after the finish", async () => {
     const onChip = vi.fn();
     const { rerender } = render(<Held onSend={vi.fn()} onChip={onChip} />);
-    expect(screen.queryByRole("button", { name: /hello says/ })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Ask next" })).toBeNull();
 
     const labels = definition.finish.chips.map((c) => c.label);
     rerender(<Held onSend={vi.fn()} chips={labels} onChip={onChip} />);

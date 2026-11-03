@@ -783,6 +783,8 @@ export class PgConversation {
             break;
           }
           applied();
+          // TODO(tutorial-flow-v2 4.2): a deployed file changed this way gets
+          // the redeploy nudge
         } catch (e) {
           if (PgConversation._moved(e, name, `apply to ${effect.file}`)) break;
           log.error(e, {

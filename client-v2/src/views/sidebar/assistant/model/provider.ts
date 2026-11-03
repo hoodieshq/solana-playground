@@ -47,9 +47,9 @@ const createReplies = () => {
   };
 };
 
-/** The mode's context as a system message, when a surface has set one */
 const log = createLogger("assistant:provider");
 
+/** The mode's context as a system message, when a surface has set one */
 const modeContext = () => {
   const mode = PgAssistant.mode;
   if (!mode) return [];

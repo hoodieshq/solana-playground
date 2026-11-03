@@ -13,7 +13,10 @@ export interface BaseTutorialComposerProps {
   value: string;
   onChange: (value: string) => void;
   placeholder: Placeholder;
-  /** The live assistant answers: Send becomes Stop, and the words wait */
+  /**
+   * The live assistant answers: Send becomes Stop. Enter still routes the
+   * message: a word runs, and a question waits in the box for the answer
+   */
   busy: boolean;
   onSend: (text: string) => void;
   onStop: () => void;
@@ -41,7 +44,7 @@ const BaseTutorialComposer = ({
 }: BaseTutorialComposerProps) => (
   <div className="flex flex-col gap-2">
     {chips && (
-      <div className="flex flex-wrap gap-2" aria-label="Ask next">
+      <div role="group" className="flex flex-wrap gap-2" aria-label="Ask next">
         {chips.map((label, i) => (
           <Button
             key={label}
@@ -60,8 +63,20 @@ const BaseTutorialComposer = ({
         placeholder={placeholder}
         onChange={(e) => onChange(e.currentTarget.value)}
         onKeyDown={(e) => {
+          if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) {
+            return;
+          }
           // The composer's Enter would send on ⌘↵ too
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.preventDefault();
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault();
+            return;
+          }
+          // The composer holds every send while the assistant answers; a
+          // live action's word still runs then, so Enter routes it here
+          if (busy) {
+            e.preventDefault();
+            if (value.trim()) onSend(value);
+          }
         }}
       />
       <ComposerToolbar>
