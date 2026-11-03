@@ -11,7 +11,10 @@ const chevron = (page: Page) =>
     .getByRole("button", { name: "Files", expanded: false })
     .or(head(page).getByRole("button", { name: "Files", expanded: true }));
 
-/** Hello Anchor has a definition: Start opens it in the frame */
+/**
+ * Hello Anchor has a definition: opening it opens the frame on its intro
+ * card, and the card's Start begins step 1
+ */
 const startHelloAnchor = async (page: Page) => {
   // No default backend, whatever the dev server is configured with
   await page.route("**/api/agent", (route) =>
@@ -19,7 +22,10 @@ const startHelloAnchor = async (page: Page) => {
   );
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/tutorials/hello-anchor");
-  await page.getByRole("button", { name: "Start", exact: true }).click(LONG);
+  await page
+    .getByRole("complementary", { name: "Tutorial chat" })
+    .getByRole("button", { name: /Start step 1/ })
+    .click(LONG);
   await expect(head(page)).toBeVisible(LONG);
 };
 

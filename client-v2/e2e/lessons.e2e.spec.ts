@@ -53,10 +53,12 @@ const skipStep = (page: Page) =>
   page.getByRole("button", { name: "Skip this step", exact: true });
 
 /**
- * The code editor itself. In the tutorial frame the workspace's head stands
- * in for the editor's own tab row (`#tabs`), which is not drawn there
+ * The stage's code editor. In the tutorial frame the workspace's head stands
+ * in for the editor's own tab row (`#tabs`), which is not drawn there, and
+ * other editors (the intro's preview) may come first in the page
  */
-const editor = (page: Page) => page.locator(".monaco-editor").first();
+const editor = (page: Page) =>
+  page.getByTestId("tutorial-workspace").locator(".monaco-editor").first();
 
 test.describe("client-v2-lessons", () => {
   test.setTimeout(120_000);
