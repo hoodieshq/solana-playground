@@ -3,6 +3,10 @@ import type {
   ConversationSave,
   QuestionResult,
 } from "@/entities/tutorial";
+import { z } from "zod";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("tutorial-conversation:progress");
 
 /**
  * What a conversation tutorial saves under `conversation` in
@@ -446,7 +450,14 @@ const parseResult = (v: unknown): RunResult | null => {
     const signatures = isStrings(v.signatures) ? v.signatures : [];
     const line = typeof v.line === "string" ? v.line : null;
     const { receipt, ...rest } = v;
-    const kept = parseReceipt(receipt);
+    const { receipt: kept, mismatched } = parseReceipt(receipt);
+    if (mismatched.length) {
+      // Kept as far as it reads: a receipt field is drawn, never judged, so
+      // it does not fail the load the way an unreadable entry does
+      log.debug("a saved receipt holds fields that do not match its schema", {
+        context: { mismatched },
+      });
+    }
     return (kept
       ? { ...rest, signatures, line, called, receipt: kept }
       : { ...rest, signatures, line, called }) as unknown as RunResult;
@@ -460,29 +471,75 @@ const parseResult = (v: unknown): RunResult | null => {
   return v as unknown as RunResult;
 };
 
-const isAccount = (v: unknown): v is ReceiptAccount =>
-  isRecord(v) && typeof v.name === "string" && typeof v.address === "string";
+/**
+ * A receipt as the finish card draws it. Every field is optional: the call
+ * runner (task 4.3) fills what it can.
+ */
+const receiptSchema = z.object({
+  fee: z.number().int().nonnegative().optional(),
+  signer: z.string().optional(),
+  accounts: z
+    .array(z.object({ name: z.string(), address: z.string() }))
+    .optional(),
+  log: z.array(z.string()).optional(),
+});
 
 /**
- * The receipt fields that read as theirs, entry by entry for the lists, or
- * null when it is not a record or none of them is left
+ * The receipt's fields that match `receiptSchema`, or null when it is not an
+ * object or none is left. What does not match costs only itself: a field, or
+ * one entry of a list. `mismatched` names each such path (`accounts.1`), for
+ * the caller to log.
  */
-const parseReceipt = (v: unknown): Receipt | null => {
-  if (!isRecord(v)) return null;
-  const out: Receipt = {};
-  if (typeof v.fee === "number" && Number.isInteger(v.fee) && v.fee >= 0) {
-    out.fee = v.fee;
+const parseReceipt = (
+  v: unknown
+): { receipt: Receipt | null; mismatched: string[] } => {
+  if (!isRecord(v)) {
+    return { receipt: null, mismatched: v === undefined ? [] : ["receipt"] };
   }
-  if (typeof v.signer === "string") out.signer = v.signer;
-  const accounts = Array.isArray(v.accounts)
-    ? v.accounts.filter(isAccount)
-    : [];
-  if (accounts.length) out.accounts = accounts;
-  const log = Array.isArray(v.log)
-    ? v.log.filter((l): l is string => typeof l === "string")
-    : [];
-  if (log.length) out.log = log;
-  return Object.keys(out).length ? out : null;
+  const first = receiptSchema.safeParse(v);
+  const mismatched = first.success
+    ? []
+    : first.error.issues.map((issue) => issue.path.join("."));
+  const parsed = first.success
+    ? first.data
+    : receiptSchema.parse(withoutPaths(v, first.error.issues));
+  const out: Receipt = {};
+  if (parsed.fee !== undefined) out.fee = parsed.fee;
+  if (parsed.signer !== undefined) out.signer = parsed.signer;
+  if (parsed.accounts?.length) out.accounts = parsed.accounts;
+  if (parsed.log?.length) out.log = parsed.log;
+  return {
+    receipt: Object.keys(out).length ? out : null,
+    mismatched,
+  };
+};
+
+/**
+ * The receipt without what its issues point at: a list entry where the
+ * issue names one, else the whole field
+ */
+const withoutPaths = (
+  v: Record<string, unknown>,
+  issues: readonly { path: readonly PropertyKey[] }[]
+): Record<string, unknown> => {
+  const out: Record<string, unknown> = Object.assign({}, v);
+  const entries = new Map<string, Set<number>>();
+  for (const { path } of issues) {
+    const [field, index] = path;
+    if (typeof field !== "string") continue;
+    if (typeof index === "number" && Array.isArray(out[field])) {
+      const set = entries.get(field) ?? new Set<number>();
+      set.add(index);
+      entries.set(field, set);
+    } else {
+      delete out[field];
+    }
+  }
+  for (const [field, drop] of entries) {
+    const list = out[field];
+    if (Array.isArray(list)) out[field] = list.filter((_, i) => !drop.has(i));
+  }
+  return out;
 };
 
 /** A run saved as `started` comes back `interrupted`: nothing resumes */
@@ -988,6 +1045,31 @@ if (import.meta.vitest) {
         })
       ).toMatchObject({
         result: { receipt: { log: ["Program log: Hello, Alex!"] } },
+      });
+    });
+
+    it("names each receipt path its schema does not match, for the log", () => {
+      expect(
+        parseReceipt({
+          fee: -1,
+          signer: "Wa11et",
+          accounts: [{ name: "program", address: "Pr0g" }, 7],
+          log: "not lines",
+        })
+      ).toEqual({
+        receipt: {
+          signer: "Wa11et",
+          accounts: [{ name: "program", address: "Pr0g" }],
+        },
+        mismatched: ["fee", "accounts.1", "log"],
+      });
+      expect(parseReceipt(undefined)).toEqual({
+        receipt: null,
+        mismatched: [],
+      });
+      expect(parseReceipt("receipt")).toEqual({
+        receipt: null,
+        mismatched: ["receipt"],
       });
     });
 
