@@ -146,6 +146,9 @@ const SignInToShare = () => {
         onSubmit: signIn,
         noCloseOnSubmit: true,
         disabled: waiting && !cancellable,
+        // One cancel while the popup waits, Cancel sign-in; the head's Close
+        // still closes the prompt and cancels it, as the share dialog's does
+        noCancel: waiting && cancellable,
         // The same one action as every other step of Share
         variant: "brand",
       }}
@@ -204,7 +207,7 @@ const ShareFrame = ({ body, run }: ShareGistControl) => {
     copy,
   };
   // Without a submit of its own, the frame's button closes the dialog
-  // (Close), and that is no call to action, so it is not the brand one
+  // (Close), and that is no call to action: outlined, not the brand one
   const closes = action.run === "close";
   const onSubmit = action.run === "close" ? undefined : submits[action.run];
 
@@ -225,10 +228,12 @@ const ShareFrame = ({ body, run }: ShareGistControl) => {
         icon,
         onSubmit,
         noCloseOnSubmit: !closes,
-        // The gist exists by then: Cancel would read as undoing the share
-        noCancel: action.run === "copy",
+        // The gist exists by then: Cancel would read as undoing the share.
+        // While GitHub's popup waits, Cancel beside Cancel sign-in reads as
+        // two of the same; the head's Close is the way out then
+        noCancel: action.run === "copy" || action.run === "cancel-sign-in",
         disabled: action.busy,
-        variant: closes ? "default" : "brand",
+        variant: closes ? "outline" : "brand",
       }}
     >
       <BaseShareGist {...body} githubMark={<GithubMark />} />

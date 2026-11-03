@@ -76,8 +76,9 @@ submit in both), as the prototype's own sign-in control does.
 Pressing it SHALL stop the wait and keep the dialog open on the step it came
 from (the prompt, signing in again, or allowing gists), saying "Sign-in
 cancelled.", with the button back to its own label, which starts a new
-sign-in. The frame's Cancel SHALL stay available too: it closes the dialog
-and cancels the sign-in. A sign-in that ends without a session SHALL keep
+sign-in. While it waits the frame SHALL draw no Cancel beside it, so the
+footer holds one cancel; the header's Close SHALL stay available: it closes
+the dialog and cancels the sign-in. A sign-in that ends without a session SHALL keep
 the dialog open with the reason shown.
 
 #### Scenario: Signed out, the prompt comes first
@@ -108,7 +109,7 @@ the dialog open with the reason shown.
 
 #### Scenario: Closing the dialog while sign-in waits
 - **WHEN** the user presses "Sign in with GitHub" and, while it waits,
-  presses the frame's Cancel
+  presses the header's Close
 - **THEN** the sign-in stops, the dialog closes, and no gist is created
 
 #### Scenario: A sign-in that cannot start

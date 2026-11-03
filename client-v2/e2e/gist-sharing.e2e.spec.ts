@@ -242,9 +242,11 @@ test("gist-sharing: Closing the dialog while sign-in waits", async ({
   await expect(
     prompt(page).getByRole("button", { name: "Cancel sign-in" })
   ).toBeVisible();
-  await prompt(page)
-    .getByRole("button", { name: "Cancel", exact: true })
-    .click();
+  // One cancel while the popup waits: the head's Close is the way out
+  await expect(
+    prompt(page).getByRole("button", { name: "Cancel", exact: true })
+  ).toHaveCount(0);
+  await prompt(page).getByRole("button", { name: "Close" }).click();
 
   await expect(prompt(page)).toHaveCount(0);
   expect(requests).toHaveLength(0);

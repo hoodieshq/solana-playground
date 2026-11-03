@@ -39,7 +39,7 @@ export type OpenFocus = "field" | "dialog";
  * or `brand`, the ring `BrandButton`, for a dialog whose submit is its view's
  * one call to action
  */
-export type SubmitVariant = "default" | "destructive" | "brand";
+export type SubmitVariant = "default" | "outline" | "destructive" | "brand";
 
 /** Whether the submit can be pressed, and why not */
 export type SubmitStatus = "ready" | "disabled" | "busy";
@@ -257,7 +257,8 @@ export const BaseModalFrame = ({
                 ref={submitRef}
                 type="submit"
                 variant={submit.variant}
-                className={phone ? undefined : FOOTER_BUTTON}
+                // The foot's height on a phone as on a desk, whatever the face
+                className={phone ? submitPadding(true, false) : FOOTER_BUTTON}
                 disabled={!canSubmit}
               >
                 {submitLabel}

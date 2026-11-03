@@ -234,7 +234,9 @@ describe("app/ShareGistDialog", () => {
     await open();
     await press("Sign in with GitHub");
 
-    await press(/^Cancel$/);
+    // One cancel while the popup waits: the head's Close is the way out
+    expect(screen.queryByRole("button", { name: /^Cancel$/ })).toBeNull();
+    await press(/^Close$/);
 
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(PgView.getOpenModals()).toEqual([]);
