@@ -113,7 +113,9 @@ the tag `ns` to the entry's namespace, and SHALL do nothing when
 
 The logger SHALL log with `Logger.panic` every uncaught error, unhandled
 promise rejection, and error thrown while rendering, and Sentry SHALL NOT
-capture them through any other path.
+capture them through any other path. A rejection the terminal already showed
+the user as a "Process error" is the exception: it is logged at `warn`, a
+breadcrumb only.
 
 #### Scenario: An unhandled rejection
 
@@ -121,6 +123,14 @@ capture them through any other path.
 - **THEN** the memory provider records a `panic` entry with namespace
   `logger:global`, and Sentry receives exactly one event for it, marked
   unhandled
+
+#### Scenario: A terminal command fails as expected
+
+- **WHEN** a terminal command fails in a way the user is shown (an unknown
+  command, a declined wallet question, any "Process error" line) and the
+  rejection reaches the global handler
+- **THEN** the memory provider records a `warn` entry with namespace
+  `logger:global`, not reported, and Sentry receives no event for it
 
 #### Scenario: A component throws while rendering
 

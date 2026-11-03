@@ -55,7 +55,8 @@ the same time; section 3 follows both.
       except the Sentry provider (HOO-1897; after 2.2)
 - [x] 2.6 Scrub what reaches Sentry: console breadcrumbs off, the logger's
       trail added by the reporter, secret-shaped values redacted in the whole
-      error event, public keys and feedback text kept (HOO-1800; after 2.2;
+      error event, public keys and feedback text kept, a command failure the terminal
+      printed logged at `warn`, not reported (HOO-1800; after 2.2;
       [plan](plans/2.6-scrub-reports.md))
 
 ## 3. Rules

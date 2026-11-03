@@ -7,6 +7,7 @@ import { PgHistory } from "./history";
 import { PgShell } from "./shell";
 import { PgTty } from "./tty";
 import { PgCommon } from "../common";
+import { markShown } from "../../shared/lib/logger";
 import type { CommandManager, Prefixes, PrintOptions } from "./types";
 import type { Methods, ClassReturnType, SyncOrAsync } from "../types";
 
@@ -601,6 +602,8 @@ export class PgTerm {
       const previousLine = this._tty.getLine(1)?.translateToString().trim();
       if (previousLine !== msg) this.println(msg);
 
+      // The user has seen it: an unknown command or a declined question is not a bug to report
+      markShown(e);
       throw e;
     } finally {
       this.enable();
@@ -648,4 +651,53 @@ export class PgTerm {
 
     return true;
   };
+}
+
+if (import.meta.vitest) {
+  const { describe, it, expect, vi, beforeAll, afterEach } = import.meta.vitest;
+
+  describe("utils/terminal/terminal", () => {
+    let logger: typeof import("../../shared/lib/logger");
+
+    beforeAll(async () => {
+      logger = await import("../../shared/lib/logger");
+    });
+
+    afterEach(() => logger.resetLogger());
+
+    /** The parts of a terminal `process` touches, without an xterm */
+    const fakeTerm = () =>
+      Object.assign(Object.create(PgTerm.prototype), {
+        disable: () => {},
+        enable: () => {},
+        scrollToBottom: () => {},
+        println: vi.fn(),
+        _tty: { getLine: () => undefined },
+      }) as PgTerm;
+
+    it("a command failure the terminal printed leaves a warning, never a panic", async () => {
+      const logged = logger.memoryProvider();
+      logger.initLogger({ providers: [logged] });
+      const uninstall = logger.installGlobalHandlers();
+      const term = fakeTerm();
+      const failure = new Error("Command `nope` not found.");
+
+      const reason = await term
+        .process(() => {
+          throw failure;
+        })
+        .catch((error: unknown) => error);
+      const event = new Event("unhandledrejection") as PromiseRejectionEvent;
+      Object.defineProperty(event, "reason", { value: reason });
+      globalThis.dispatchEvent(event);
+      uninstall();
+
+      expect(reason).toBe(failure);
+      expect(term.println).toHaveBeenCalledWith(
+        "Process error: Command `nope` not found."
+      );
+      expect(logged.entries.map((entry) => entry.level)).toEqual(["warn"]);
+      expect(logged.entries[0].report).toBe(false);
+    });
+  });
 }
