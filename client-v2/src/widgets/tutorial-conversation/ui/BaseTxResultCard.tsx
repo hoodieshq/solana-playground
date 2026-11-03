@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Check,
@@ -19,6 +19,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/shared/ui/collapsible";
+import { Button } from "@/shared/ui/button";
 import { Prose, READ, formatSeconds } from "./Prose";
 
 type TxResult = Extract<RunResult, { act: "run" | "call" }>;
@@ -130,9 +131,59 @@ const Shell = ({
   );
 };
 
-/** The quiet text controls under the details' sentence, as the prototype sets them */
+/**
+ * The quiet text controls under the details' sentence, as the prototype sets
+ * them: the design system's ghost button with its box taken off
+ */
 const QUIET =
-  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-[0.875rem] leading-[1.125rem] text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none";
+  "h-auto px-0 hover:bg-transparent inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-[0.875rem] leading-[1.125rem] text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none";
+
+/** Code in the details' sentence, on the prototype's ringed chip */
+const CHIP = "bg-black/35 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.18)]";
+
+const FAUCET_URL = "https://faucet.solana.com";
+
+/** lamports as SOL, to at most four places */
+const solOf = (lamports: number) =>
+  String(Math.round((lamports / 1e9) * 1e4) / 1e4);
+
+/** An address cut to its ends, as the wallet row shows it */
+const shortKey = (key: string) =>
+  key.length > 14 ? `${key.slice(0, 6)}…${key.slice(-6)}` : key;
+
+/** Copy for a value, reading "Copied" for a moment after it worked */
+const CopyText = ({
+  value,
+  label,
+  what,
+}: {
+  value: string;
+  label: string;
+  /** What did not happen, for the failure's toast */
+  what: string;
+}) => {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1600);
+    return () => clearTimeout(t);
+  }, [copied]);
+  const onCopy = () =>
+    navigator.clipboard
+      .writeText(value)
+      .then(() => setCopied(true))
+      .catch(reportButtonFailure(what));
+  return (
+    <Button variant="ghost" size="xs" onClick={onCopy} className={QUIET}>
+      {copied ? (
+        <Check aria-hidden="true" className="size-3.5" />
+      ) : (
+        <Copy aria-hidden="true" strokeWidth={1.75} className="size-3.5" />
+      )}
+      <span aria-live="polite">{copied ? "Copied" : label}</span>
+    </Button>
+  );
+};
 
 /** The transaction's log in a well of its own, for the details' Log */
 const LogLines = ({ lines }: { lines: string[] }) => (
@@ -140,29 +191,6 @@ const LogLines = ({ lines }: { lines: string[] }) => (
     {lines.join("\n")}
   </pre>
 );
-
-/** Copy signature, reading "Copied" for a moment after it worked */
-const CopySignature = ({ value }: { value: string }) => {
-  const [copied, setCopied] = useState(false);
-  const onCopy = () =>
-    navigator.clipboard
-      .writeText(value)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1600);
-      })
-      .catch(reportButtonFailure("copy the signature"));
-  return (
-    <button type="button" onClick={onCopy} className={QUIET}>
-      {copied ? (
-        <Check aria-hidden="true" className="size-3.5" />
-      ) : (
-        <Copy aria-hidden="true" strokeWidth={1.75} className="size-3.5" />
-      )}
-      <span aria-live="polite">{copied ? "Copied" : "Copy signature"}</span>
-    </button>
-  );
-};
 
 /** A landed run or call: "Confirmed", the instruction, what the program said */
 const LandedCard = ({ result }: { result: Landed }) => {
@@ -212,25 +240,30 @@ const LandedCard = ({ result }: { result: Landed }) => {
       details={
         <Collapsible open={showLog} onOpenChange={setShowLog}>
           <p className={cn(READ, "text-pretty")}>
-            <Prose text={sentence} />
+            <Prose text={sentence} codeClassName={CHIP} />
           </p>
           <div className="mt-2 flex items-center gap-4">
             {signature && (
               <>
-                <CopySignature value={signature} />
-                <a
-                  href={devnetExplorerUrl({ kind: "tx", value: signature })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={QUIET}
-                >
-                  <ExternalLink
-                    aria-hidden="true"
-                    strokeWidth={1.75}
-                    className="size-3.5"
-                  />
-                  Explorer
-                </a>
+                <CopyText
+                  value={signature}
+                  label="Copy signature"
+                  what="copy the signature"
+                />
+                <Button variant="ghost" size="xs" asChild className={QUIET}>
+                  <a
+                    href={devnetExplorerUrl({ kind: "tx", value: signature })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink
+                      aria-hidden="true"
+                      strokeWidth={1.75}
+                      className="size-3.5"
+                    />
+                    Explorer
+                  </a>
+                </Button>
               </>
             )}
             {receipt.log && (
@@ -267,6 +300,58 @@ const errorLineOf = (log: string): string | null => {
   );
 };
 
+/**
+ * A run or call the faucet left short: what is short, the wallet to top up,
+ * and the faucet, as the prototype's "Not enough devnet SOL" card draws it.
+ * The act card under it runs again.
+ */
+const FundsCard = ({
+  result,
+}: {
+  result: Extract<Failed, { reason: "no_funds" }>;
+}) => {
+  const { balance, cost, address } = result.funding;
+  return (
+    <Shell
+      failed
+      icon={
+        <CircleX aria-hidden="true" className="size-4 shrink-0 text-error" />
+      }
+      title="Not enough devnet SOL"
+      meta={null}
+      body={
+        <>
+          <p className={READ}>
+            {`Your wallet has ${solOf(balance)} SOL, and this ${
+              result.act
+            } needs about ${solOf(
+              cost
+            )} SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself.`}
+          </p>
+          <div className="flex items-center gap-3 text-caption">
+            <span className="shrink-0 text-muted-foreground">Your wallet</span>
+            <code
+              title={address}
+              className="min-w-0 flex-1 truncate font-mono text-foreground"
+            >
+              {shortKey(address)}
+            </code>
+            <CopyText value={address} label="Copy" what="copy the address" />
+          </div>
+          <div className="flex">
+            <Button variant="secondary" asChild>
+              <a href={FAUCET_URL} target="_blank" rel="noopener noreferrer">
+                Open faucet
+                <ExternalLink aria-hidden="true" className="size-4" />
+              </a>
+            </Button>
+          </div>
+        </>
+      }
+    />
+  );
+};
+
 /** A run or call that failed, or that sent nothing */
 const FailedCard = ({ result }: { result: Failed }) => {
   if (result.reason === "no_transaction") {
@@ -285,13 +370,9 @@ const FailedCard = ({ result }: { result: Failed }) => {
       />
     );
   }
-  const titles = {
-    no_funds: "Not enough devnet SOL",
-    no_wallet: "No wallet",
-  } as const;
-  const title =
-    (result.reason && titles[result.reason]) ??
-    (result.act === "run" ? "Run failed" : "Call failed");
+  if (result.reason === "no_funds") return <FundsCard result={result} />;
+  let title = result.act === "run" ? "Run failed" : "Call failed";
+  if (result.reason === "no_wallet") title = "No wallet";
   const error = result.refused?.error;
   // A card titled by its reason says the rest in its body, once
   let meta: string | null = result.reason ? null : result.message;

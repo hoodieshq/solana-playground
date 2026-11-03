@@ -455,6 +455,15 @@ describe("BaseResultCard", () => {
       funding: { balance: 0, cost: 500_000_000, address: "Wa11et" },
     });
     expect(screen.getByText("Not enough devnet SOL")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Your wallet has 0 SOL, and this run needs about 0.5 SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
+      )
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /Open faucet/ }).getAttribute("href")
+    ).toBe("https://faucet.solana.com");
     unmount();
     txCard({
       act: "call",
