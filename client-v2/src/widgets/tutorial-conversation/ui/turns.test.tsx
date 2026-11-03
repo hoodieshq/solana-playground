@@ -439,6 +439,29 @@ describe("BaseResultCard", () => {
     expect(screen.getByText(/Program log: Instruction: Hello/)).toBeTruthy();
   });
 
+  it("heads a run the faucet left short, and one with no wallet, by their reason", () => {
+    const { unmount } = txCard({
+      act: "run",
+      ok: false,
+      seconds: 1,
+      reason: "no_funds",
+      message: "The airdrop failed",
+      log: "",
+      funding: { balance: 0, cost: 500_000_000, address: "Wa11et" },
+    });
+    expect(screen.getByText("Not enough devnet SOL")).toBeTruthy();
+    unmount();
+    txCard({
+      act: "call",
+      ok: false,
+      seconds: 0,
+      reason: "no_wallet",
+      message: "No wallet",
+      log: "",
+    });
+    expect(screen.getAllByText("No wallet").length).toBeGreaterThan(0);
+  });
+
   it("reads a run that sent nothing as no transaction, not a red card", () => {
     txCard({
       act: "run",

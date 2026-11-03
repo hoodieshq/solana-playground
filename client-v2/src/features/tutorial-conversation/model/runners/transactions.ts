@@ -407,6 +407,57 @@ if (import.meta.vitest) {
         });
       });
 
+      it("several landed transactions: every signature, every call, the last receipt", () => {
+        const first: SentTx = {
+          kind: "landed",
+          signature: "first",
+          log: HELLO_LOG,
+          err: null,
+          computeUnits: 100,
+          fee: 5000,
+          signer: WALLET,
+          calls: [hello()],
+        };
+        const second: SentTx = {
+          kind: "landed",
+          signature: "second",
+          log: HELLO_LOG,
+          err: null,
+          computeUnits: 200,
+          fee: 10000,
+          signer: WALLET,
+          calls: [hello({ name: "Alex" })],
+        };
+        expect(resultFor([first, second])).toMatchObject({
+          ok: true,
+          signatures: ["first", "second"],
+          called: [
+            { instruction: "hello", args: {} },
+            { instruction: "hello", args: { name: "Alex" } },
+          ],
+          receipt: { fee: 10000, computeUnits: 200 },
+        });
+      });
+
+      it("a landed error with no Anchor log names the chain's error", () => {
+        const log = [
+          `Program ${PROGRAM} invoke [1]`,
+          `Program ${PROGRAM} failed: SBF program panicked`,
+        ];
+        expect(
+          resultFor([
+            landed(log, [hello()], {
+              InstructionError: [0, "ProgramFailedToComplete"],
+            }),
+          ])
+        ).toMatchObject({
+          ok: false,
+          message:
+            'The transaction failed: {"InstructionError":[0,"ProgramFailedToComplete"]}',
+          refused: { instruction: "hello", error: null },
+        });
+      });
+
       it("a landed transaction with an error fails, even after one that succeeded", () => {
         const result = resultFor([
           landed(HELLO_LOG),

@@ -38,6 +38,9 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * one to this program the IDL cannot decode (an IDL older than the program)
  * is left out and logged, so the call goal it would have passed fails.
  */
+// TODO(HOO-2357 follow-up): move to a pure module with a Hello Anchor IDL
+// fixture test, and say on the card when an instruction did not decode;
+// both deferred from the sx review, the by-hand devnet run covers it now
 const decodeCalls = (
   encoded: string,
   programId: string,
