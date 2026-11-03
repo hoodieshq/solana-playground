@@ -241,6 +241,7 @@ const FlowFrame = () => {
   // A tutorial with a definition opens in its frame (`tutorial-flow-v2`
   // 2.1), its chat holding the conversation (3.3), whose engine runs Start
   // over. The composer under the feed is 3.6's.
+  const openMenu = useRef<() => void>(() => {});
   const conversation = useConversationStartOver();
   const marks = useConversationMarks();
   const tutorial = useTutorialFrame({
@@ -252,8 +253,14 @@ const FlowFrame = () => {
     body: (
       <TutorialConversation
         onAllTutorials={() => catalogPage.open("tutorials", "nav")}
+        onOpenMenu={() => openMenu.current()}
       />
     ),
+  });
+  // The live assistant's open_menu tool (3.6) opens the frame's navigation,
+  // which exists only once the frame is built from the body above
+  useEffect(() => {
+    openMenu.current = () => tutorial.frame?.nav.onOpenChange(true);
   });
 
   // The frame's workspace (2.2): its head and tree over the stage, and its

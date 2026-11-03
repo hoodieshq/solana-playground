@@ -131,8 +131,16 @@ export class PgConversation {
     PgConversation._dispatch({ type: "pick", beatId, option, at: Date.now() });
   }
 
-  static hint(beatId: string) {
-    PgConversation._dispatch({ type: "hint", beatId, at: Date.now() });
+  /**
+   * The question's hint: its H key or Hint button, or the live assistant's
+   * Hint tool (`byAssistant`), which posts it with no "I'm stuck" pill
+   */
+  static hint(beatId: string, opts: { byAssistant?: boolean } = {}) {
+    PgConversation._dispatch(
+      opts.byAssistant
+        ? { type: "hint", beatId, at: Date.now(), byAssistant: true }
+        : { type: "hint", beatId, at: Date.now() }
+    );
   }
 
   /** The question's Skip button */

@@ -21,6 +21,8 @@ import { marksOf } from "../model/marks";
 import type { FeedMarks } from "../model/marks";
 import { PgTutorial } from "@/utils/tutorial";
 import { barProgress } from "../model/step-bar";
+import { tutorialMode } from "../model/mode";
+import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { tutorialTelemetry } from "../model/telemetry";
 import BaseFeed from "./BaseFeed";
 import TurnView from "./TurnView";
@@ -327,7 +329,28 @@ const copyFailed = reportButtonFailure("copy it");
 export interface TutorialConversationProps {
   /** Open the catalog's Tutorials page */
   onAllTutorials: () => void;
+  /** Open the frame's navigation, for the live assistant's open_menu tool */
+  onOpenMenu: () => void;
 }
+
+/**
+ * The live assistant in its tutorial mode while the feed is shown: the
+ * lesson's context, reading tools and the four interface tools, and nothing
+ * that writes or runs. The menu opener may change between renders; the
+ * mode reads the latest.
+ */
+const useAssistantMode = (onOpenMenu: () => void) => {
+  const openMenu = useRef(onOpenMenu);
+  useEffect(() => {
+    openMenu.current = onOpenMenu;
+  }, [onOpenMenu]);
+  useEffect(
+    () =>
+      PgAssistant.setMode(tutorialMode({ openMenu: () => openMenu.current() }))
+        .dispose,
+    []
+  );
+};
 
 /**
  * The handlers that read no prop and no definition; `TutorialConversation`
@@ -376,7 +399,9 @@ const nextTutorialOf = (next: string | null): string | null =>
  */
 export const TutorialConversation = ({
   onAllTutorials,
+  onOpenMenu,
 }: TutorialConversationProps) => {
+  useAssistantMode(onOpenMenu);
   useEffect(
     () =>
       PgConversation.init({
