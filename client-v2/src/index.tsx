@@ -19,7 +19,19 @@ createRoot(document.getElementById("root")!).render(
         environment: env.VERCEL_ENV,
       }}
       googleAnalytics={{ measurementId: env.GA_MEASUREMENT_ID }}
-      fallback={<p role="alert">Something went wrong. Reload the page.</p>}
+      // Spec 08's fallback (ANY-00) for the whole app: nothing is left on
+      // screen to retry from, so it offers a reload. Plain elements, because
+      // the boundary sits outside every provider
+      fallback={
+        <div role="alert">
+          <p>
+            Playground stopped for a reason we can&apos;t name. Reload the page.
+          </p>
+          <button type="button" onClick={() => window.location.reload()}>
+            Reload
+          </button>
+        </div>
+      }
     >
       <App />
     </Observability>

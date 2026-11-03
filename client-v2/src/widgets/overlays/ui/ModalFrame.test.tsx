@@ -280,20 +280,45 @@ it("should send overlay_modal_opened once under StrictMode", () => {
   expect(events("overlay_modal_opened")).toEqual([{ name: "rename-item" }]);
 });
 
-it("should show a message for an Error without one", async () => {
+// Spec 08, ANY-00: name the action that stopped, never a generic error
+it.each([
+  ["an Error without a message", new Error()],
+  ["an empty string", ""],
+  ["a value that is not an error", 42],
+])("should name the action that stopped for %s", async (_, thrown) => {
   renderFrame({
     title: "Rename",
     buttonProps: {
       text: "Rename",
       onSubmit: async () => {
-        throw new Error();
+        throw thrown;
       },
     },
   });
 
   await submit("Rename");
 
-  expect(screen.getByRole("alert").textContent).toBe("Something went wrong");
+  expect(screen.getByRole("alert").textContent).toBe(
+    "Rename stopped for a reason we can't name. Try again."
+  );
+});
+
+it("should name the action without the label's closing punctuation", async () => {
+  renderFrame({
+    title: "Delete",
+    buttonProps: {
+      text: "Delete…",
+      onSubmit: async () => {
+        throw new Error();
+      },
+    },
+  });
+
+  await submit("Delete…");
+
+  expect(screen.getByRole("alert").textContent).toBe(
+    "Delete stopped for a reason we can't name. Try again."
+  );
 });
 
 it("should stay open and quiet when the user cancels the submit", async () => {
