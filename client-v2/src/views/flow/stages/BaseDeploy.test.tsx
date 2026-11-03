@@ -390,6 +390,65 @@ describe("BaseDeploy", () => {
     expect(screen.getByText("2,048 bytes")).toBeTruthy();
   });
 
+  it("counts and redeploys only what is on the network picked now", () => {
+    const { container } = render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          cluster: "mainnet-beta",
+          history: [record("a", "5sig")],
+        })}
+      />
+    );
+
+    expect(
+      container.querySelector('[data-slot="stage-empty-meta"]')?.textContent
+    ).toBe("Mainnet · 0 deployments");
+    expect(
+      screen.getByRole("button", { name: "Deploy to mainnet" })
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Redeploy/ })).toBeNull();
+    expect(screen.queryByRole("status", { name: "Deploy result" })).toBeNull();
+    expect(
+      screen.getByText("Nothing is deployed to mainnet yet.", { exact: false })
+    ).toBeTruthy();
+    // The devnet deployment stays in the history, under its own network
+    const history = screen.getByRole("region", { name: "History" });
+    expect(within(history).getByText("Devnet")).toBeTruthy();
+  });
+
+  it("shows the latest deployment on the network picked, not the newest anywhere", () => {
+    const { container } = render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          cluster: "testnet",
+          history: [
+            recordFor("devnet")("c", "devsig"),
+            recordFor("testnet")("b", "testsig"),
+            recordFor("devnet")("a", NONE),
+          ],
+        })}
+      />
+    );
+
+    expect(
+      container.querySelector('[data-slot="stage-empty-meta"]')?.textContent
+    ).toBe("Testnet · 1 deployment");
+    const result = screen.getByRole("status", { name: "Deploy result" });
+    expect(result.textContent).toContain("Deployed to testnet");
+    expect(
+      within(result).getByRole("link", {
+        name: "View latest deployment transaction (testsig) on Explorer (Testnet)",
+      })
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Redeploy to testnet" })
+    ).toBeTruthy();
+  });
+
   it("lists every deployment in the history", () => {
     render(
       <BaseDeploy
