@@ -159,10 +159,10 @@ const storage = {
       return defaultState;
     }
 
-    // Endpoints are stored as the option picked, not its address
-    return fromStoredEndpoints(
-      dropBrokenSettingsFor(defaultState)(stored),
-      defaultState
+    // Endpoints are stored as the option picked, not its address; resolved
+    // first, since an option is an object where the default is a string
+    return dropBrokenSettingsFor(defaultState)(
+      fromStoredEndpoints(stored, defaultState)
     ) as Settings;
   },
 

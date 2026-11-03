@@ -209,14 +209,30 @@ export const parseStoredSettings = (raw: string): State | Error => {
 };
 
 /**
- * Stored settings without the values that would break the merge with the
- * defaults: anything the defaults hold as an object that is not one, at any
- * depth, and a `null` where the default is not `null`. `setMissingDefaults`
- * in `updatable` recurses into both and throws writing into a primitive or
- * `null`; without them, those settings load their defaults, Devnet included.
+ * Whether a stored value can stand where the defaults hold a value that is
+ * not an object: `null` only where the default is `null`, and an object or
+ * array only as an array in place of an array
+ */
+const fitsLeaf = (fallback: unknown, value: unknown): boolean => {
+  // eslint-disable-next-line unicorn/no-null -- `null` is what parsed JSON holds
+  if (value === null) return fallback === null;
+  if (typeof value !== "object") return true;
+  return Array.isArray(fallback) && Array.isArray(value);
+};
+
+/**
+ * Stored settings without the values that would break loading them, at any
+ * depth: a non-object where the defaults hold an object, a `null` where the
+ * default is not `null` (`setMissingDefaults` in `updatable` reads into it
+ * and throws), and an object or array where the default is a primitive
+ * (`handleFields` in `updatable` writes its keys onto the primitive and
+ * throws). Dropped, a setting loads its default, Devnet included.
+ *
+ * Endpoints are stored as objects over string defaults, so this runs on
+ * settings `fromStoredEndpoints` has already turned back into addresses.
  *
  * @param defaults the default settings
- * @param stored the settings `localStorage` holds
+ * @param stored the settings `localStorage` holds, endpoints resolved
  */
 export const dropBrokenSettingsFor =
   (defaults: State) =>
@@ -229,8 +245,7 @@ export const dropBrokenSettingsFor =
             ? [[key, dropBrokenSettingsFor(fallback)(value)]]
             : [];
         }
-        // eslint-disable-next-line unicorn/no-null -- `null` is what parsed JSON holds
-        return value === null && fallback !== null ? [] : [[key, value]];
+        return fitsLeaf(fallback, value) ? [[key, value]] : [];
       })
     );
 
@@ -491,10 +506,23 @@ if (import.meta.vitest) {
       });
 
       it("reads a connection group that is not an object without throwing", () => {
-        // `dropBrokenSettingsFor` drops it first; this pins the second guard
+        // Endpoints resolve before `dropBrokenSettingsFor` drops the group
         expect(
           fromStoredEndpoints({ connection: "x" }, defaults, options)
         ).toEqual({ connection: "x" });
+      });
+
+      it("keeps a stored option once it resolves, which the filter alone would drop", () => {
+        const stored = { connection: { endpoint: { option: "devnet" } } };
+
+        expect(
+          dropBrokenSettingsFor(defaults)(
+            fromStoredEndpoints(stored, defaults, options)
+          )
+        ).toEqual({ connection: { endpoint: PLATFORM_DEVNET } });
+        expect(dropBrokenSettingsFor(defaults)(stored)).toEqual({
+          connection: {},
+        });
       });
 
       describe("below the top level", () => {
@@ -513,6 +541,23 @@ if (import.meta.vitest) {
           const stored = JSON.parse('{"ui":{"theme":null}}');
 
           expect(dropBrokenSettingsFor(nested)(stored)).toEqual({ ui: {} });
+        });
+
+        it.each([
+          ["an object", { x: 1 }],
+          ["an array", ["a"]],
+        ])("drops %s stored where the default is a string", (_, value) => {
+          expect(
+            dropBrokenSettingsFor(nested)({ ui: { theme: value } })
+          ).toEqual({ ui: {} });
+        });
+
+        it("keeps an array stored where the default is an array", () => {
+          const withList = { recent: ["a"] };
+
+          expect(dropBrokenSettingsFor(withList)({ recent: ["b"] })).toEqual({
+            recent: ["b"],
+          });
         });
 
         it("keeps nested values that fit the defaults", () => {
