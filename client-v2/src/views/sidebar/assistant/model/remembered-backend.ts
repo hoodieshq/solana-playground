@@ -60,6 +60,9 @@ const attempt = (what: string, run: () => void) =>
     false
   );
 
+/** Whether a key that survived `dropKept` was reported in this tab already */
+let survivorReported = false;
+
 /**
  * Remove the connection an older build kept for this tab, the one way every
  * path that must lose the key does it. If the removal throws, the entry is
@@ -72,9 +75,6 @@ const attempt = (what: string, run: () => void) =>
  *
  * @returns whether the key is gone from this tab's storage
  */
-/** Whether a key that survived `dropKept` was reported in this tab already */
-let survivorReported = false;
-
 const dropKept = (what: string) => {
   if (attempt(what, () => sessionStorage.removeItem(CONNECTION_KEY))) {
     return true;
