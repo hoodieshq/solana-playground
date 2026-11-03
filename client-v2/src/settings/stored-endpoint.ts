@@ -213,7 +213,7 @@ export const parseStoredSettings = (raw: string): State | Error => {
  * not an object: `null` only where the default is `null`, and an object or
  * array only as an array in place of an array
  */
-const fitsLeaf = (fallback: unknown, value: unknown): boolean => {
+const canReplaceDefault = (fallback: unknown, value: unknown): boolean => {
   // eslint-disable-next-line unicorn/no-null -- `null` is what parsed JSON holds
   if (value === null) return fallback === null;
   if (typeof value !== "object") return true;
@@ -226,7 +226,8 @@ const fitsLeaf = (fallback: unknown, value: unknown): boolean => {
  * default is not `null` (`setMissingDefaults` in `updatable` reads into it
  * and throws), and an object or array where the default is a primitive
  * (`handleFields` in `updatable` writes its keys onto the primitive and
- * throws). Dropped, a setting loads its default, Devnet included.
+ * throws). Dropped, a setting loads its default, Devnet included. A key
+ * the defaults do not hold is kept as it is, for the migrations.
  *
  * Endpoints are stored as objects over string defaults, so this runs on
  * settings `fromStoredEndpoints` has already turned back into addresses.
@@ -240,12 +241,15 @@ export const dropBrokenSettingsFor =
     Object.fromEntries(
       Object.entries(stored).flatMap(([key, value]) => {
         const fallback = defaults[key];
+        // No default: a setting since renamed, which a migration still reads
+        // (`other.blockExplorer`); `removeExtraProperties` drops it after
+        if (!Object.hasOwn(defaults, key)) return [[key, value]];
         if (isRecord(fallback)) {
           return isRecord(value)
             ? [[key, dropBrokenSettingsFor(fallback)(value)]]
             : [];
         }
-        return fitsLeaf(fallback, value) ? [[key, value]] : [];
+        return canReplaceDefault(fallback, value) ? [[key, value]] : [];
       })
     );
 
@@ -568,6 +572,12 @@ if (import.meta.vitest) {
 
           expect(dropBrokenSettingsFor(nested)(stored)).toEqual(stored);
         });
+      });
+
+      it("keeps a group the defaults no longer hold, for its migration", () => {
+        const stored = { other: { blockExplorer: "Solscan" } };
+
+        expect(dropBrokenSettingsFor(defaults)(stored)).toEqual(stored);
       });
 
       it("keeps groups the defaults do not hold as objects", () => {
