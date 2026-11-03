@@ -117,7 +117,12 @@ const BaseResultCard = ({
   // A Base component takes types only from the feature: the slice's entry
   // would load its store
   const unreachable = failedBuild?.reason === "unreachable";
-  const foldable = !!failedBuild && !unreachable && !open;
+  // Folded, it opens again only when there is something to read
+  const foldable =
+    !!failedBuild &&
+    !unreachable &&
+    !open &&
+    (failedBuild.error !== null || failedBuild.log !== "");
   const expanded = open || (foldable && reopened);
   const { title, meta } = headOf(result, expanded);
   const headParts = (
