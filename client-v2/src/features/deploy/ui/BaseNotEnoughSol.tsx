@@ -25,7 +25,7 @@ export interface BaseNotEnoughSolProps {
   onSignIn: () => void;
 }
 
-const reasonLine = (reason: FundingFailure, network: string | null) => {
+const reasonLine = (reason: FundingFailure, network: string | undefined) => {
   const lines: Record<FundingFailure, string> = {
     signed_out: `Sign in with GitHub to request ${solOn(network)}.`,
     no_faucet: "This network has no faucet. Send SOL to the wallet below.",

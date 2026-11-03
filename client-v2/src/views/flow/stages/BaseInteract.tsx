@@ -35,8 +35,8 @@ export interface BaseInteractProps {
   surface: InteractSurface;
   /** The cluster's name for the program chip; undefined until the endpoint has been read */
   cluster: string | undefined;
-  /** The cluster as a sentence names it ("devnet"); null until the endpoint has been read */
-  network: string | null;
+  /** The cluster as a sentence names it ("devnet"); undefined until the endpoint has been read */
+  network: string | undefined;
   onGoTo: (stage: Extract<Stage, "build" | "deploy">) => void;
   /** The "Upload IDL" action (`IdlActions mode="upload"`) */
   idlLoad: ReactNode;

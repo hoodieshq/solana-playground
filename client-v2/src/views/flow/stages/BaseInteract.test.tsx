@@ -58,7 +58,7 @@ const props = (
   onPick: over.onPick ?? vi.fn(),
   surface,
   cluster: "cluster" in over ? over.cluster : "Devnet",
-  network: "cluster" in over ? over.cluster ?? null : "devnet",
+  network: "cluster" in over ? over.cluster : "devnet",
   onGoTo: over.onGoTo ?? vi.fn(),
   idlLoad: <button>Upload IDL</button>,
   form: <div>FORM</div>,

@@ -42,14 +42,16 @@ export const UNKNOWN_NETWORK = "the network";
 
 /**
  * The network as a sentence names it: our clusters lowercase ("Not enough
- * devnet SOL"), any other name (Surfpool) as it is, `null` while the cluster
+ * devnet SOL"), any other name (Surfpool) as it is, `undefined` while the cluster
  * is unknown, so a caller can drop the word ("Not enough SOL") rather than
  * print "the network SOL". Standalone labels such as pickers and chips keep
  * `networkName`.
  */
-export const networkInSentence = (cluster: string | null): string | null => {
+export const networkInSentence = (
+  cluster: string | null | undefined
+): string | undefined => {
+  if (cluster === null || cluster === undefined) return undefined;
   const name = clusterName(cluster);
-  if (name === null) return null;
   const lower = name.toLowerCase();
   return LOWERCASE_IN_SENTENCE.has(lower) ? lower : name;
 };
@@ -58,8 +60,8 @@ export const networkInSentence = (cluster: string | null): string | null => {
  * The network's SOL in a sentence: "devnet SOL", or plain "SOL" while the
  * network (`networkInSentence`'s answer) is unknown
  */
-export const solOn = (network: string | null): string =>
-  network === null ? "SOL" : `${network} SOL`;
+export const solOn = (network: string | undefined): string =>
+  network === undefined ? "SOL" : `${network} SOL`;
 
 /** Cluster moniker an offered network talks to */
 type NetworkCluster = "devnet" | "mainnet-beta";
@@ -111,7 +113,7 @@ if (import.meta.vitest) {
       expect(networkInSentence("localnet")).toBe("localnet");
       expect(networkInSentence("playnet")).toBe("playnet");
       expect(networkInSentence("Surfpool")).toBe("Surfpool");
-      expect(networkInSentence(null)).toBeNull();
+      expect(networkInSentence(undefined)).toBeUndefined();
     });
 
     it("networkInSentence lowercases every cluster that has a name", () => {
@@ -122,7 +124,7 @@ if (import.meta.vitest) {
 
     it("solOn names the network's SOL, or plain SOL while it is unknown", () => {
       expect(solOn("devnet")).toBe("devnet SOL");
-      expect(solOn(null)).toBe("SOL");
+      expect(solOn(undefined)).toBe("SOL");
     });
 
     it("UNKNOWN_NETWORK is what prose says while the cluster is unknown", () => {
