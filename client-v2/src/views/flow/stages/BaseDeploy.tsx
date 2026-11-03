@@ -140,10 +140,16 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
 const deployNetwork = (p: BaseDeployProps) =>
   networkInSentence(p.cluster) ?? UNKNOWN_NETWORK;
 
-/** Who pays, before a deploy */
-const payerLine = (payer: DeployPayer | undefined) => {
+/**
+ * Who pays, before a deploy. Before the first one the Playground wallet does
+ * not exist yet; it is made on the deploy, and only devnet tops it up free.
+ */
+const payerLine = (p: BaseDeployProps) => {
+  const payer = p.payer;
   if (!payer) {
-    return "Deploys from a Playground wallet created on your first deploy.";
+    return p.cluster === "devnet"
+      ? "From your Playground wallet · free devnet SOL"
+      : "From your Playground wallet";
   }
   const balance =
     payer.balance === undefined ? "" : ` · ${payer.balance.toFixed(2)} SOL`;
@@ -385,7 +391,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
             aria-label="Who pays"
             className="text-caption text-muted-foreground"
           >
-            {payerLine(p.payer)}
+            {payerLine(p)}
           </p>
         )}
         {!latest && p.programKeypair}

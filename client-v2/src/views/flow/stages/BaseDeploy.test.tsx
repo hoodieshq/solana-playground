@@ -334,7 +334,9 @@ describe("BaseDeploy", () => {
     const result = screen.getByRole("status", { name: "Deploy result" });
     expect(result.textContent).toContain("Deployed to devnet");
     expect(result.querySelector("code")?.textContent).toBe(SHORT_ID);
-    expect(result.querySelector('[data-slot="copy-button"]')).toBeTruthy();
+    expect(
+      within(result).getByRole("button", { name: "Copy the program id" })
+    ).toBeTruthy();
     const explorer = within(result).getByRole("link", {
       name: `View latest deployment (${PROGRAM_ID}) on Explorer (Devnet)`,
     });
@@ -472,7 +474,7 @@ describe("BaseDeploy", () => {
     expect(result.textContent).toContain("1.42 SOL");
   });
 
-  it("names the wallet that pays, or says one is created on the first deploy", () => {
+  it("names the wallet that pays, or the Playground wallet before the first deploy", () => {
     const { rerender } = render(
       <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
     );
@@ -508,11 +510,28 @@ describe("BaseDeploy", () => {
       />
     );
     expect(screen.getByLabelText("Who pays").textContent).toBe(
-      "Deploys from a Playground wallet created on your first deploy."
+      "From your Playground wallet · free devnet SOL"
     );
     expect(
       screen.getByRole("button", { name: "Deploy to devnet" })
     ).toHaveProperty("disabled", false);
+  });
+
+  it("promises free SOL before the first deploy only on devnet", () => {
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          history: [],
+          payer: undefined,
+          cluster: "mainnet-beta",
+        })}
+      />
+    );
+    expect(screen.getByLabelText("Who pays").textContent).toBe(
+      "From your Playground wallet"
+    );
   });
 
   it("shows the run's steps while it deploys", () => {

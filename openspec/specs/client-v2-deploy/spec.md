@@ -12,7 +12,9 @@ the panel, and keeps a history whose links open each record's network.
 Before a deploy, the Deploy stage SHALL show one line naming the wallet that
 pays: "From your Playground wallet · {short address} · {balance} SOL",
 the address shortened in the middle. With no Playground wallet yet, the line
-SHALL read "Deploys from a Playground wallet created on your first deploy."
+SHALL read "From your Playground wallet · free devnet SOL" on devnet and
+"From your Playground wallet" on any other network (Spec 03's deploy card
+context line).
 The deploy action SHALL stay pressable without a wallet once the program is
 built. Inside a sentence the deploy action and every line of the stage SHALL
 name the network in lower case ("Deploy to devnet", "Deployed to mainnet");
@@ -21,8 +23,8 @@ standalone labels (pickers, chips, Explorer links) keep it capitalised.
 #### Scenario: No wallet yet (manual)
 
 - **WHEN** a browser with no Playground wallet opens the built Deploy stage
-- **THEN** the who-pays line says a wallet is created on the first deploy and
-  "Deploy to devnet" is pressable
+- **THEN** the who-pays line reads "From your Playground wallet · free devnet
+  SOL" and "Deploy to devnet" is pressable
 
 ### Requirement: A deploy from the stage creates the wallet it needs
 
