@@ -3,16 +3,18 @@ import { networkIndicator, OFFLINE_LINE } from "./indicators";
 import type { NetworkInput } from "./indicators";
 
 /**
- * What keeps work waiting, whatever stage is shown: the browser is offline
- * (Spec 08 NET-01) or the cluster does not answer (NET-02). Offline comes
- * first: a cluster cannot answer a browser with no network.
+ * What keeps work waiting: the browser is offline (Spec 08 NET-01) or the
+ * cluster does not answer (NET-02). It does not depend on the stage;
+ * `stageNotice` decides where it shows. Offline comes first: a cluster cannot
+ * answer a browser with no network.
  */
 export type NoticeCondition = "offline" | "cluster-down";
 
 /** The line over the stage, when the stage shows one */
-export type StageNoticeView =
-  | { kind: "offline"; text: string }
-  | { kind: "cluster-down"; text: string };
+export interface StageNoticeView {
+  kind: NoticeCondition;
+  text: string;
+}
 
 /** The stages that wait for the cluster; Write and Build do not */
 const WAITS_FOR_CLUSTER: ReadonlySet<Stage> = new Set(["deploy", "interact"]);
@@ -20,8 +22,8 @@ const WAITS_FOR_CLUSTER: ReadonlySet<Stage> = new Set(["deploy", "interact"]);
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
- * The condition, read as the network indicator reads it, so the indicator and
- * the notice can never disagree on whether the cluster is down.
+ * The condition. Whether the cluster is down is read through
+ * `networkIndicator`, so the indicator and the notice cannot disagree on it.
  */
 export const noticeCondition = (
   network: NetworkInput,

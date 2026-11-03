@@ -7,12 +7,13 @@ import {
   memoryProvider,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
+import { PgView } from "@/utils/view";
 import type { NetworkInput } from "../model/indicators";
 
 // The `@/utils` barrel reaches globals only a booted app has; the notice uses
 // the connection's re-check alone
 const connection = vi.hoisted(() => ({
-  recheck: vi.fn(() => Promise.resolve()),
+  recheck: vi.fn(() => Promise.resolve(true)),
 }));
 vi.mock("@/utils", () => ({ PgConnection: connection }));
 
@@ -48,6 +49,15 @@ const goOnline = (next: boolean) => {
     window.dispatchEvent(new Event(next ? "online" : "offline"));
   });
 };
+
+/** The failed-press toast `reportButtonFailure` raises, as its text */
+const toasted = (setToast: ReturnType<typeof spyToast>) =>
+  setToast.mock.calls.map(([elementable]) => {
+    const Toast = elementable as () => React.ReactElement;
+    return render(<Toast />).container.textContent;
+  });
+const spyToast = () =>
+  vi.spyOn(PgView, "setToast").mockImplementation(() => undefined);
 
 let sent: ReturnType<typeof memoryProvider>;
 beforeEach(() => {
@@ -108,6 +118,38 @@ describe("BaseStageNotice", () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(onChangeNetwork).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps Try again busy while it asks, and reports a failed ask", async () => {
+    const setToast = spyToast();
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => (finish = resolve));
+    const { rerender } = render(
+      <BaseStageNotice
+        notice={{ kind: "cluster-down", text: CLUSTER }}
+        onRetry={() => pending}
+        onChangeNetwork={vi.fn()}
+      />
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    const busy = screen.getByRole("button", { name: /Trying…/ });
+    expect((busy as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => finish());
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(setToast).not.toHaveBeenCalled();
+
+    // A rejected ask is told, as every AsyncButton's failure is
+    rerender(
+      <BaseStageNotice
+        notice={{ kind: "cluster-down", text: CLUSTER }}
+        onRetry={() => Promise.reject(new Error("devnet did not answer"))}
+        onChangeNetwork={vi.fn()}
+      />
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await vi.waitFor(() =>
+      expect(toasted(setToast)).toEqual(["Could not reach the network."])
+    );
+  });
 });
 
 describe("StageNotice", () => {
@@ -126,6 +168,35 @@ describe("StageNotice", () => {
 
     goOnline(true);
     expect(screen.queryByRole("alert")).toBeNull();
+
+    // Gone and back is a new onset
+    goOnline(false);
+    expect(eventsNamed("status_notice_shown")).toEqual([
+      { notice: "offline" },
+      { notice: "offline" },
+    ]);
+  });
+
+  it("clears the cluster line by itself when the cluster answers again", () => {
+    net.input = DOWN;
+    const { rerender } = render(
+      <StageNotice stage="deploy" onOpenNetwork={vi.fn()} />
+    );
+    expect(screen.getByRole("alert")).toBeTruthy();
+    net.input = UP;
+    rerender(<StageNotice stage="deploy" onOpenNetwork={vi.fn()} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("fails Try again when the cluster still does not answer", async () => {
+    const setToast = spyToast();
+    net.input = DOWN;
+    connection.recheck.mockResolvedValueOnce(false);
+    render(<StageNotice stage="deploy" onOpenNetwork={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await vi.waitFor(() =>
+      expect(toasted(setToast)).toEqual(["Could not reach the network."])
+    );
   });
 
   it("shows the cluster line on Deploy only, measured when it first shows", () => {

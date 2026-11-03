@@ -18,12 +18,13 @@ type StatusEvents = {
   };
   /** A user opened the phone's status sheet; `worst` is the chip's state. */
   status_sheet_opened: { worst: MeasuredState };
-  /** A notice over the stage appeared: once per onset of its condition, not
-   * once per stage it shows on (Spec 08, "error_shown once per onset"). */
+  /** A notice over the stage first showed since its condition began: not
+   * again on a stage switch, but again once the condition has ended and come
+   * back. */
   status_notice_shown: { notice: NoticeCondition };
   /** A user pressed Try again or Change network on the cluster notice. */
   status_notice_action: {
-    notice: "cluster-down";
+    notice: Extract<NoticeCondition, "cluster-down">;
     action: "retry" | "change-network";
   };
 };

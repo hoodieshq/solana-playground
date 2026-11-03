@@ -2,7 +2,7 @@ import type { Disposable } from "./types";
 
 /**
  * The connection's derivables a user's "Try again" asks again
- * (`PgConnection.recheck`). Apart from `connection.ts`, whose imports need a
+ * (`PgConnection.recheck`). Kept out of `connection.ts`, whose imports need a
  * booted app, so the trigger can be tested alone.
  */
 const listeners = new Set<() => void>();

@@ -421,7 +421,6 @@ const LayoutShell = ({
     let prevDeploy: StageStatus | undefined;
     const subs = [
       PgCommand.deploy.onDidStart(() => openConsole()),
-      // A stage's "Show full log" (Spec 08)
       onDidRequestConsole(() => openConsole("button")),
       PgFlow.onDidChange((flow) => {
         if (

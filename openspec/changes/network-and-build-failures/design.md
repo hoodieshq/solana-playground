@@ -44,10 +44,14 @@ the indicators.
   a phone, nothing under Home or a page). Alternative: lifting the console's
   open state into a store, rejected as a larger change of a widget other
   tickets touch.
-- **Try again is `PgConnection.recheck()`.** It fires a manual trigger that
-  the `isConnected` and `isClusterDown` derivables listen to, and resolves
-  once a probe of its own answers, so the AsyncButton is busy while it asks.
-  The polling intervals stay as they are.
+- **Try again is `PgConnection.recheck()`.** It fires a manual trigger
+  (`utils/ask-again.ts`) that the `isConnected` and `isClusterDown`
+  derivables listen to, and takes the same two readings itself, awaited, so
+  the AsyncButton is busy until the slower stall check ends. It resolves to
+  whether the cluster answered with a moving slot; when it did not, the press
+  fails and the button's own failure toast says "Could not reach the
+  network." The polls compare against the derived value rather than a copy
+  of their own, so a value Try again derived in between is the one they see.
 - **One offline line.** `OFFLINE_LINE` takes Spec 08's NET-01 words, which
   name Deploy and the assistant as well as Build ("the assistant" for the
   spec's working name Program Pal, as Spec 04 says the UI does; Design

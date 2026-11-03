@@ -218,7 +218,14 @@ describe("BaseBuild", () => {
         })}
       />
     );
+    expect(
+      screen.getByRole("heading", { name: "Build did not start" })
+    ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Show full log" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+    expect(
+      screen.getByText(/Build server: https:\/\/api\.solpg\.io/)
+    ).toBeTruthy();
   });
 
   // Spec 08 ERR-23: offline, Build waits; the line over the stage says why
@@ -229,12 +236,14 @@ describe("BaseBuild", () => {
       { kind: "unreached", failure: { kind: "other", message: "x" } },
       "Try again",
     ],
+    ["a compiler failure", "failed", "Try again"],
+    ["one from before the reload", { kind: "restored", failed: true }, "Build"],
   ] as const)("disables Build offline, on %s", (_, surface, label) => {
-    render(
-      <BaseBuild
-        {...props(surface as BuildSurfaceView, false, false, null, true)}
-      />
-    );
+    const view =
+      surface === "failed"
+        ? failed([typeError("a", null)])
+        : (surface as BuildSurfaceView);
+    render(<BaseBuild {...props(view, false, false, null, true)} />);
     expect(
       (screen.getByRole("button", { name: label }) as HTMLButtonElement)
         .disabled

@@ -38,12 +38,17 @@ export const StageNotice = ({ stage, onOpenNetwork }: StageNoticeProps) => {
   return (
     <BaseStageNotice
       notice={notice}
-      onRetry={() => {
+      onRetry={async () => {
         statusTelemetry.track("status_notice_action", {
           notice: "cluster-down",
           action: "retry",
         });
-        return PgConnection.recheck();
+        // A cluster that still does not answer fails the press, so the button
+        // says so ("Could not reach the network.") rather than going quiet
+        // under the same notice
+        if (!(await PgConnection.recheck())) {
+          throw new Error(`${network.name} did not answer`);
+        }
       }}
       onChangeNetwork={() => {
         statusTelemetry.track("status_notice_action", {

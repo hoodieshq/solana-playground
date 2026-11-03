@@ -151,9 +151,10 @@ test.describe("on a 1440 px window", () => {
     await expect(notice(page).getByRole("alert")).toContainText(
       "Devnet isn't answering. Playground keeps trying. You can switch network."
     );
-    await expect(
-      notice(page).getByRole("button", { name: "Try again" })
-    ).toBeVisible();
+    // The cluster recovers; Try again asks it now, and the line clears
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await notice(page).getByRole("button", { name: "Try again" }).click();
+    await expect(notice(page)).toHaveCount(0, { timeout: 15_000 });
   });
 
   test("client-v2-status: Change network from the notice", async ({

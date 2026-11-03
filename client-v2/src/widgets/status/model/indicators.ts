@@ -43,11 +43,7 @@ export interface ChipView {
 /** After this long, a start that has not answered reads "Taking longer" */
 export const SLOW_AFTER_MS = 60_000;
 
-/**
- * Spec 08 NET-01's line, on the indicators and over the stage alike: one cause,
- * one message. "The assistant", not the spec's working name Program Pal (Spec
- * 04; Design alignment, 3 Nov 2026).
- */
+/** The offline line, on the indicators and over the stage alike: one cause, one message */
 export const OFFLINE_LINE =
   "You're offline. Editing still works. Build, Deploy and the assistant need a connection.";
 
