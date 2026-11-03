@@ -51,6 +51,7 @@ Plan: [plans/1-frame-and-scale.md](plans/1-frame-and-scale.md).
       head and the workspace head's small controls take a 44 px hit area
       and look the same. Verify: unit tests unchanged; by hand with touch
       emulation at 1024
-- [ ] 6.2 The act card's main button colour: f7d42bf2e draws it off-white
+- [x] 6.2 The act card's main button colour: f7d42bf2e draws it off-white
       (its warm palette); DES-160's 3 Nov palette is purple with white text.
-      Asked Lead; no change until answered
+      Lead, 3 Nov: Almaz's DES-160 comment settles the cool palette, so the
+      button stays purple (Button default) and `BaseActCard` is unchanged

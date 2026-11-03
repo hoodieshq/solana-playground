@@ -219,6 +219,8 @@ export const BaseQuestionWaiting = ({
  * one-letter shortcut is active only on focus), which the card takes as it
  * arrives.
  */
+const OVERLAY = "[role='dialog'], [role='alertdialog'], [role='menu']";
+
 const ownsKey = (e: KeyboardEvent) =>
   !typing(e.target) &&
   !e.metaKey &&
@@ -227,9 +229,7 @@ const ownsKey = (e: KeyboardEvent) =>
   !e.repeat &&
   !e.isComposing &&
   !e.defaultPrevented &&
-  !document.querySelector(
-    "[role='dialog'], [role='alertdialog'], [role='menu']"
-  );
+  !document.querySelector(OVERLAY);
 
 export interface BaseQuestionCardProps {
   ask: Ask;
@@ -276,9 +276,12 @@ const BaseQuestionCard = ({
   const lastOne = wrong.length === 2 ? left[0] : null;
 
   // It takes the focus as it arrives, so the keys work at once, without
-  // scrolling the feed; a learner typing in the composer keeps their field
+  // scrolling the feed; a learner typing in the composer keeps their field,
+  // and one in an open dialog or menu (the workspace's file tree) keeps it
+  // open, as a popover closes when the focus leaves it
   useEffect(() => {
-    if (!box.current || typing(document.activeElement)) return;
+    const active = document.activeElement;
+    if (!box.current || typing(active) || active?.closest(OVERLAY)) return;
     box.current.focus({ preventScroll: true });
   }, []);
 
