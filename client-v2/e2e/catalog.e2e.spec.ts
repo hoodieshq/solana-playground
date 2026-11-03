@@ -192,10 +192,8 @@ test.describe("on a phone", () => {
     expect(second.y).toBeGreaterThan(first.y + first.height - 1);
     expect(Math.round(second.x)).toBe(Math.round(first.x));
 
-    // The card's own Open is hidden here: its title opens it
-    await work
-      .getByRole("button", { name: "Hello Anchor", exact: true })
-      .click();
+    // The tutorial card is one button over the whole card, on a phone too
+    await work.getByRole("button", { name: "Open Hello Anchor" }).click();
     await expect(page).toHaveURL(/\/tutorials\/hello-anchor/, LONG);
   });
 });
