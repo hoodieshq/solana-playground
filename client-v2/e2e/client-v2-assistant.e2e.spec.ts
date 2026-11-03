@@ -626,7 +626,7 @@ test.describe("The thread", () => {
 
     const card = page.locator("[data-slot=diff][data-status=unanswered]");
     await expect(card).toBeVisible(LONG);
-    await expect(card.getByText("Not applied")).toBeVisible();
+    await expect(card.getByText("Not applied", { exact: true })).toBeVisible();
     await expect(
       card.getByText("not applied -- the session ended before you answered")
     ).toBeVisible();
