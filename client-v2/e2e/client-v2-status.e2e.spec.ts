@@ -141,6 +141,12 @@ test.describe("on a 1440 px window", () => {
       lines.filter((line) =>
         line.startsWith("[telemetry:event] status_notice_shown ")
       );
+    // Deploy's code is loaded while online: offline, a stage not yet opened
+    // cannot load its chunk (sent to Lead as intake, 3 Nov)
+    await page.locator("#flow-stage-tab-deploy").click();
+    await expect(
+      page.locator("#flow-stage-panel-deploy").getByRole("heading").first()
+    ).toBeVisible();
     await page.locator("#flow-stage-tab-build").click();
     await page.context().setOffline(true);
     await expect(notice(page)).toBeVisible();
