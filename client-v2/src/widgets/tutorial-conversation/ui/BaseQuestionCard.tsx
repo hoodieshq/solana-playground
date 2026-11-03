@@ -210,6 +210,9 @@ export const BaseQuestionWaiting = ({
   </p>
 );
 
+/** An open dialog or menu, which owns the keyboard and the focus */
+const OVERLAY = "[role='dialog'], [role='alertdialog'], [role='menu']";
+
 /**
  * Whether a key press is the live question's to take. A field keeps its
  * typing; a chord (⌘S saves), a held key's repeat, an IME composition and a
@@ -219,8 +222,6 @@ export const BaseQuestionWaiting = ({
  * one-letter shortcut is active only on focus), which the card takes as it
  * arrives.
  */
-const OVERLAY = "[role='dialog'], [role='alertdialog'], [role='menu']";
-
 const ownsKey = (e: KeyboardEvent) =>
   !typing(e.target) &&
   !e.metaKey &&
@@ -276,13 +277,16 @@ const BaseQuestionCard = ({
   const lastOne = wrong.length === 2 ? left[0] : null;
 
   // It takes the focus as it arrives, so the keys work at once, without
-  // scrolling the feed; a learner typing in the composer keeps their field,
-  // and one in an open dialog or menu (the workspace's file tree) keeps it
-  // open, as a popover closes when the focus leaves it
+  // scrolling the feed; a learner typing in the composer keeps their field.
+  // Nor does it take the focus out of an open dialog, menu or popover (the
+  // workspace's file tree): those close when the focus leaves them
   useEffect(() => {
+    const card = box.current;
     const active = document.activeElement;
-    if (!box.current || typing(active) || active?.closest(OVERLAY)) return;
-    box.current.focus({ preventScroll: true });
+    if (!card || typing(active)) return;
+    const overlay = active?.closest(OVERLAY);
+    if (overlay && !overlay.contains(card)) return;
+    card.focus({ preventScroll: true });
   }, []);
 
   // The right pick's hold, cancelled if the card goes before it ends. The

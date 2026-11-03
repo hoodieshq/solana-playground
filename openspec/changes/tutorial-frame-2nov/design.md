@@ -85,6 +85,17 @@ The prototype dropped the closing period from step objectives and win lines.
 Hello Anchor's `tutorial.json` loses its trailing periods there; the other
 tutorials follow in their own tickets.
 
+### A question leaves an open popover alone
+
+With the files column gone, the tree is a popover, and it closes when the
+focus leaves it. A question that arrives while it is open (a slow load, or a
+learner opening the tree as step 1 posts) took the focus as it mounted and shut
+the tree. The card now takes the focus on arrival unless the focus is in an
+open dialog, menu or popover that does not hold the card, as it already left
+the composer's field alone. Its keys wait until the learner closes the tree or
+moves to the card, the same as after any dialog. This narrows
+`tutorial-flow-v2`'s "takes focus on arrival" by one case.
+
 ## Risks / Trade-offs
 
 - Parallel PRs edit the same cards (#263 build act, #255 client run, the
