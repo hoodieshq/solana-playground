@@ -41,7 +41,10 @@ test("client-v2-lessons: Suggestions in a lesson", async ({ page }) => {
   );
   // Neither the lesson's questions nor the assistant's: the column is the
   // conversation's
-  for (const name of [...LESSON_QUESTIONS, ...PROJECT_QUESTIONS]) {
+  for (const name of LESSON_QUESTIONS) {
+    await expect(page.getByRole("button", { name })).toHaveCount(0);
+  }
+  for (const name of PROJECT_QUESTIONS) {
     await expect(page.getByRole("button", { name })).toHaveCount(0);
   }
   // The scenario's "free questions go through the conversation's composer"

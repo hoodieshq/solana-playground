@@ -65,9 +65,9 @@ const Glyph = ({ step, index }: { step: StepBarItem; index: number }) => (
 
 /**
  * The segments are raw `button`s: a step segment, its glyph and its
- * connector are the prototype's, and neither of the design system's step
- * parts fits: `stepper` is a Tabs switch with one selection (the Write, Build, Deploy loop), where
- * these are jump buttons marked with `aria-current`.
+ * connector are the prototype's, and the design system's `stepper` does not
+ * fit: it is a Tabs switch with one selection (the Write, Build, Deploy
+ * loop), where these are jump buttons marked with `aria-current`.
  *
  * The tutorial's steps under the chat head: one button per step, labelled
  * with its short label, and the progress hairline on the bar's bottom edge.

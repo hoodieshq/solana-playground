@@ -21,7 +21,8 @@ export type OpenTutorial =
  * keys) are offered. Not while the tutorial in the URL (`PgTutorial.current`)
  * is unstarted: its intro, or upstream's About page, has Start as its only
  * action (Almaz's prototype, `tutorial-v2/SPEC.md` 9.2), and a stage reached
- * before it built a project that did not exist yet.
+ * before it built a project that did not exist yet. A bug fix with a
+ * ticket, HOO-2365, whose acceptance is its proposal; no spec delta covers it.
  */
 export const offersStages = (open: OpenTutorial): boolean => {
   switch (open.kind) {

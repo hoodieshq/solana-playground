@@ -404,9 +404,13 @@ module.exports = {
                   "tutorial.json"
                 );
                 if (fs.existsSync(definitionFile)) {
-                  acc[tutorialName].pageCount = JSON.parse(
+                  const steps = JSON.parse(
                     fs.readFileSync(definitionFile, "utf8")
-                  ).steps.length;
+                  ).steps;
+                  if (!Array.isArray(steps)) {
+                    throw new Error(`${definitionFile} has no steps`);
+                  }
+                  acc[tutorialName].pageCount = steps.length;
                   return acc;
                 }
                 const pagesDirs = [
