@@ -15,6 +15,8 @@ export interface CatalogSearchProps {
   className?: string;
   /** The magnifier in front; New project draws the field without it */
   icon?: boolean;
+  /** The hint, "Search <label>" by default */
+  placeholder?: string;
 }
 
 /** The catalog's search field: "Search tutorials", "Search programs" */
@@ -24,6 +26,7 @@ const CatalogSearch = ({
   onQuery,
   className,
   icon = true,
+  placeholder = `Search ${label}`,
 }: CatalogSearchProps) => (
   <InputGroup className={cn("max-w-80", className)}>
     {icon ? (
@@ -33,7 +36,7 @@ const CatalogSearch = ({
     ) : null}
     <InputGroupInput
       type="search"
-      placeholder={`Search ${label}`}
+      placeholder={placeholder}
       aria-label={`Search ${label}`}
       value={query}
       onChange={(e) => onQuery(e.target.value)}

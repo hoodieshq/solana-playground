@@ -26,6 +26,6 @@ page, child of HOO-2237). Task 1 runs alongside 2 and 3; 3 needs 2.
 
 - [ ] 3.1 Heading, search ("Search 16 tutorials") and the framework filter,
       the results line, level sections with counts and Show all; emits
-      `catalog_filtered`
+      `catalog_filtered` (HOO-2360, [plan](plans/3-tutorials-page.md))
 - [ ] 3.2 The Start here banner in its three states with the voxel mark,
-      starting its tutorial on open; emits `catalog_banner_opened`
+      starting its tutorial on open; emits `catalog_banner_opened` (HOO-2360, [plan](plans/3-tutorials-page.md))

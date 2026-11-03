@@ -26,17 +26,19 @@ test("client-v2-layout: Finding a tutorial by search", async ({
   seededPage: page,
 }) => {
   await navItem(page, "Tutorials").click();
-  await search(page, "tutorials").fill("seahorse");
+  // The start lists Hello Anchor, Lumberjack and Zero Copy; Lumberjack has
+  // no definition yet, so it still opens on its About screen
+  await search(page, "tutorials").fill("energy");
 
   await expect(
-    page.getByRole("button", { name: "Open Hello Seahorse" })
+    page.getByRole("button", { name: "Open Lumberjack" })
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Open Hello Anchor" })
   ).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Open Hello Seahorse" }).click();
-  await expect(page).toHaveURL(/\/tutorials\/hello-seahorse/, LONG);
+  await page.getByRole("button", { name: "Open Lumberjack" }).click();
+  await expect(page).toHaveURL(/\/tutorials\/lumberjack/, LONG);
   await expect(search(page, "tutorials")).toBeHidden();
   // An unstarted tutorial opens on its About screen, in the stage
   await expect(
@@ -146,7 +148,9 @@ test("client-v2-layout: Searching tutorials", async ({ seededPage: page }) => {
   await navItem(page, "Tutorials").click();
   await search(page, "tutorials").pressSequentially("zzz");
 
-  await expect(page.getByText("No tutorials match “zzz”.")).toBeVisible();
+  await expect(
+    page.getByText("No tutorials match “zzz”", { exact: true })
+  ).toBeVisible();
   await expect
     .poll(() => lineOf(lines, "catalog_searched"))
     .toContain("empty: true");

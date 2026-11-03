@@ -20,6 +20,16 @@ type CatalogEvents = {
    * cancelled import is not a failure.
    */
   catalog_open_failed: { page: CatalogPage };
+  /** The Tutorials page's framework filter changed; `framework` is the one now picked */
+  catalog_filtered: {
+    page: "tutorials";
+    framework: "all" | "Anchor" | "Seahorse" | "Native";
+  };
+  /**
+   * The Start here banner's action opened its tutorial; `state` is what the
+   * banner said: not started, started, or every start tutorial completed
+   */
+  catalog_banner_opened: { state: "fresh" | "started" | "completed" };
   /** In New project, the user picked the other list; `tab` is the one now shown */
   catalog_tab_switched: { tab: CatalogPage };
 };

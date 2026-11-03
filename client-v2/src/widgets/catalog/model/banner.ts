@@ -1,0 +1,199 @@
+import type { TutorialItem } from "./use-tutorial-list";
+
+/** Which of its three states the banner is in, as `catalog_banner_opened` sends it */
+export type BannerState = "fresh" | "started" | "completed";
+
+/** What the Start here banner says */
+export interface Banner {
+  state: BannerState;
+  /** The tutorial's name, which is also what its Open is called with */
+  id: string;
+  title: string;
+  /** "Start here", "Continue · Step 3 of 4", "Completed" */
+  label: string;
+  line: string;
+  /** The facts that decide a start; only before one */
+  meta?: string;
+  /** How far a started tutorial is: `done` of `of` */
+  meter?: { done: number; of: number };
+  /** The one action's words */
+  action: "Start" | "Continue" | "Open again";
+}
+
+/** The fields of a tutorial the banner reads */
+export type BannerItem = Pick<
+  TutorialItem,
+  | "id"
+  | "title"
+  | "description"
+  | "level"
+  | "framework"
+  | "authors"
+  | "progress"
+  | "pages"
+  | "minutes"
+  | "objectives"
+  | "finish"
+>;
+
+/**
+ * The tutorial the banner features: the first of the start's ladder not yet
+ * completed, or the last once all are (the tutorial-v2 prototype's
+ * `useFeatured`). `items` are in ladder order. None when there are none.
+ */
+export const featuredOf = <T extends Pick<TutorialItem, "progress">>(
+  items: readonly T[]
+): T | undefined =>
+  items.find((t) => t.progress.state !== "completed") ?? items.at(-1);
+
+/**
+ * The banner for a tutorial. One with a definition counts steps: a started
+ * one names the first step not passed, read as the step after the passed
+ * count since steps pass in order. One without a definition counts pages.
+ */
+export const bannerOf = (
+  t: BannerItem,
+  /** What it says of the tutorial before a start: the ladder's line */
+  intro?: string
+): Banner => {
+  const head = { id: t.id, title: t.title };
+  const author = t.authors[0] && `by ${t.authors[0].name}`;
+  const p = t.progress;
+
+  if (p.state === "completed") {
+    return {
+      ...head,
+      state: "completed",
+      label: "Completed",
+      line: t.finish?.replace(/\.$/, "") ?? t.description,
+      action: "Open again",
+    };
+  }
+  if (p.state === "started") {
+    const meter = { done: p.page, of: p.pages };
+    if (t.objectives) {
+      const n = Math.min(p.page + 1, p.pages);
+      return {
+        ...head,
+        state: "started",
+        label: `Continue · Step ${n} of ${p.pages}`,
+        line: t.objectives[n - 1]
+          ? `Next: ${t.objectives[n - 1]}`
+          : t.description,
+        meter,
+        action: "Continue",
+      };
+    }
+    return {
+      ...head,
+      state: "started",
+      label: `Continue · Page ${p.page} of ${p.pages}`,
+      line: t.description,
+      meter,
+      action: "Continue",
+    };
+  }
+  const size = t.objectives
+    ? [t.minutes && `${t.minutes} min`, `${t.pages} steps`]
+    : [`${t.pages} pages`];
+  return {
+    ...head,
+    state: "fresh",
+    label: "Start here",
+    line: intro ?? t.description,
+    meta: [...size, t.level, t.framework, author].filter(Boolean).join(" · "),
+    action: "Start",
+  };
+};
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  describe("widgets/catalog/model/banner", () => {
+    type Progress = BannerItem["progress"];
+
+    const helloAnchor = (progress: Progress): BannerItem => ({
+      id: "Hello Anchor",
+      title: "Hello Anchor",
+      description: "Hello world program with Anchor framework.",
+      level: "Beginner",
+      framework: "Anchor",
+      authors: [{ name: "acheron" }],
+      progress,
+      pages: 4,
+      minutes: 10,
+      objectives: ["Write it", "Deploy it", "Call it", "Name it"],
+      finish: "You built and called your first Solana program.",
+    });
+
+    const lumberjack = (progress: Progress): BannerItem => ({
+      id: "Lumberjack",
+      title: "Lumberjack",
+      description: "How to build an energy system on chain.",
+      level: "Intermediate",
+      framework: "Anchor",
+      authors: [{ name: "Jonas Hahn" }],
+      progress,
+      pages: 3,
+      minutes: undefined,
+      objectives: undefined,
+      finish: undefined,
+    });
+
+    const NEW: Progress = { state: "new" };
+    const DONE: Progress = { state: "completed" };
+
+    it("invites a first start of Hello Anchor", () => {
+      expect(
+        bannerOf(helloAnchor(NEW), "Write, deploy and call your first program")
+      ).toEqual({
+        id: "Hello Anchor",
+        title: "Hello Anchor",
+        state: "fresh",
+        label: "Start here",
+        line: "Write, deploy and call your first program",
+        meta: "10 min · 4 steps · Beginner · Anchor · by acheron",
+        action: "Start",
+      });
+    });
+
+    it("picks up Hello Anchor half done at the step after the passed ones", () => {
+      const b = bannerOf(helloAnchor({ state: "started", page: 2, pages: 4 }));
+      expect(b.label).toBe("Continue · Step 3 of 4");
+      expect(b.line).toBe("Next: Call it");
+      expect(b.meter).toEqual({ done: 2, of: 4 });
+      expect(b.action).toBe("Continue");
+    });
+
+    it("stays on the last step once every step passed but the finish has not shown", () => {
+      const b = bannerOf(helloAnchor({ state: "started", page: 4, pages: 4 }));
+      expect(b.label).toBe("Continue · Step 4 of 4");
+    });
+
+    it("counts pages for a tutorial without a definition", () => {
+      expect(bannerOf(lumberjack(NEW)).meta).toBe(
+        "3 pages · Intermediate · Anchor · by Jonas Hahn"
+      );
+      const b = bannerOf(lumberjack({ state: "started", page: 2, pages: 3 }));
+      expect(b.label).toBe("Continue · Page 2 of 3");
+      expect(b.line).toBe("How to build an energy system on chain.");
+    });
+
+    it("says completed with the finish headline and only Open again", () => {
+      const b = bannerOf(helloAnchor(DONE));
+      expect(b.label).toBe("Completed");
+      expect(b.line).toBe("You built and called your first Solana program");
+      expect(b.action).toBe("Open again");
+      expect(b.meta).toBeUndefined();
+    });
+
+    it("features the first of the ladder not completed, else the last", () => {
+      const a = helloAnchor(DONE);
+      const l = lumberjack(NEW);
+      expect(featuredOf([a, l])?.id).toBe("Lumberjack");
+      expect(featuredOf([a, lumberjack(DONE)])?.id).toBe("Lumberjack");
+      expect(featuredOf([helloAnchor(NEW), l])?.id).toBe("Hello Anchor");
+      expect(featuredOf([])).toBeUndefined();
+    });
+  });
+}

@@ -31,11 +31,12 @@ test.describe("on a desktop window", () => {
     await expect(
       region.getByRole("button", { name: "Open a program" })
     ).toBeVisible();
-    await expect(region.getByRole("button", { name: /^Open / })).toHaveCount(5);
-    // The tutorial cards: every "Open ..." button but the "Open a program" tile
+    await expect(region.getByRole("button", { name: /^Open / })).toHaveCount(4);
+    // The tutorial cards, the start's three: every "Open ..." button but the
+    // "Open a program" tile
     await expect(
       region.getByRole("button", { name: /^Open (?!a program)/ })
-    ).toHaveCount(4);
+    ).toHaveCount(3);
 
     await expect(page.locator("[data-gallery-modal]")).toHaveCount(0);
     await expect(page.locator(".monaco-editor")).toHaveCount(0);

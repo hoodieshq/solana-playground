@@ -23,24 +23,69 @@ const utils = vi.hoisted(() => ({
 }));
 vi.mock("@/utils", () => utils);
 
+/** Each tutorial's progress by name; new when absent */
+const progress = vi.hoisted(() => new Map<string, unknown>());
+vi.mock("@/entities/tutorial", async () => {
+  const actual = await vi.importActual<typeof import("@/entities/tutorial")>(
+    "@/entities/tutorial"
+  );
+  return {
+    startTutorials: actual.startTutorials,
+    ladderLine: actual.ladderLine,
+    useTutorialProgress: () => (name: string) =>
+      progress.get(name) ?? { state: "new" },
+  };
+});
+
 import { catalogPage } from "../model/catalog-page";
 import TutorialsPage from "./TutorialsPage";
 
-const tutorial = (name: string, description: string) => ({
+const tutorial = (
+  name: string,
+  level: string,
+  framework: string,
+  description: string
+) => ({
   name,
   description,
+  level,
+  framework,
+  authors: [{ name: "acheron" }],
+  pageCount: 4,
+  thumbnail: `/${name}.png`,
+});
+
+/** Hello Anchor as its definition lists it: four steps */
+const helloAnchor = () => ({
+  name: "Hello Anchor",
+  description: "Hello world with Anchor",
   level: "Beginner",
   framework: "Anchor",
-  thumbnail: `/${name}.png`,
+  authors: [{ name: "acheron" }],
+  pageCount: 4,
+  thumbnail: "/hello-anchor.png",
+  definition: {
+    minutes: 10,
+    steps: [
+      { objective: "Write it" },
+      { objective: "Deploy it" },
+      { objective: "Call it" },
+      { objective: "Name it" },
+    ],
+    finish: { headline: "You built and called your first Solana program." },
+  },
 });
 
 let sent: ReturnType<typeof memoryProvider>;
 let logged: ReturnType<typeof memoryLogs>;
 beforeEach(() => {
   utils.PgTutorial.all = [
-    tutorial("Hello Anchor", "Hello world with Anchor"),
-    tutorial("Hello Seahorse", "Hello world with Seahorse"),
+    tutorial("Hello Seahorse", "Beginner", "Seahorse", "Hello with Seahorse"),
+    tutorial("Zero Copy", "Advanced", "Anchor", "Big accounts"),
+    tutorial("Lumberjack", "Intermediate", "Anchor", "An energy system"),
+    helloAnchor(),
   ];
+  progress.clear();
   utils.PgTutorial.open.mockReset().mockResolvedValue(undefined);
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
@@ -65,14 +110,12 @@ const named = (name: string) => sent.events.filter((e) => e.name === name);
 
 it("finds a tutorial by search", () => {
   render(<TutorialsPage />);
-  search("seahorse");
+  search("energy");
 
   expect(
     screen.queryByRole("button", { name: "Open Hello Anchor" })
   ).toBeNull();
-  expect(
-    screen.getByRole("button", { name: "Open Hello Seahorse" })
-  ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Open Lumberjack" })).toBeTruthy();
 });
 
 it("opens a tutorial, reports it and leaves the page", async () => {
@@ -80,10 +123,10 @@ it("opens a tutorial, reports it and leaves the page", async () => {
   // itself rather than waiting on one
   catalogPage.open("tutorials", "nav");
   render(<TutorialsPage />);
-  fireEvent.click(screen.getByRole("button", { name: "Open Hello Seahorse" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open Lumberjack" }));
 
   await waitFor(() => expect(named("catalog_item_opened")).toHaveLength(1));
-  expect(utils.PgTutorial.open).toHaveBeenCalledWith("Hello Seahorse");
+  expect(utils.PgTutorial.open).toHaveBeenCalledWith("Lumberjack");
   expect(named("catalog_item_opened")[0].params).toEqual({ page: "tutorials" });
   expect(catalogPage.current()).toBeNull();
 });
@@ -92,7 +135,7 @@ it("refuses a second Open while one runs", () => {
   utils.PgTutorial.open.mockReturnValue(new Promise<void>(() => {}));
   render(<TutorialsPage />);
   fireEvent.click(screen.getByRole("button", { name: "Open Hello Anchor" }));
-  fireEvent.click(screen.getByRole("button", { name: "Hello Seahorse" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open Lumberjack" }));
 
   expect(utils.PgTutorial.open).toHaveBeenCalledTimes(1);
 });
@@ -136,4 +179,125 @@ it("reports no search for a cleared field", () => {
   act(() => vi.advanceTimersByTime(1000));
 
   expect(named("catalog_searched")).toEqual([]);
+});
+
+it("lists only the start's three, by level, with no framework filter", () => {
+  render(<TutorialsPage />);
+
+  expect(
+    screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)
+  ).toEqual(["Hello Anchor", "Beginner", "Intermediate", "Advanced"]);
+  expect(
+    screen.queryByRole("button", { name: "Open Hello Seahorse" })
+  ).toBeNull();
+  expect(
+    screen.getByRole("searchbox", { name: "Search tutorials" })
+  ).toHaveProperty("placeholder", "Search 3 tutorials");
+  expect(
+    screen.queryByRole("button", { name: "Filter by framework" })
+  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Show all" })).toBeNull();
+});
+
+it("invites a first start of Hello Anchor and reports the banner's open", async () => {
+  render(<TutorialsPage />);
+  const banner = screen.getByRole("region", { name: "Hello Anchor" });
+  expect(banner.textContent).toContain("Start here");
+  expect(banner.textContent).toContain(
+    "Write, deploy and call your first program"
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+  await waitFor(() => expect(named("catalog_banner_opened")).toHaveLength(1));
+  expect(utils.PgTutorial.open).toHaveBeenCalledWith("Hello Anchor");
+  expect(named("catalog_banner_opened")[0].params).toEqual({ state: "fresh" });
+});
+
+it("picks up Hello Anchor half done", () => {
+  progress.set("Hello Anchor", { state: "started", page: 2, pages: 4 });
+  render(<TutorialsPage />);
+
+  const banner = screen.getByRole("region", { name: "Hello Anchor" });
+  expect(banner.textContent).toContain("Continue · Step 3 of 4");
+  expect(banner.textContent).toContain("Next: Call it");
+  expect(
+    screen
+      .getByRole("button", { name: "Continue Hello Anchor" })
+      .closest('[data-slot="action-card"]')?.textContent
+  ).toContain("2 of 4");
+});
+
+it("moves on to Lumberjack once Hello Anchor is done", () => {
+  progress.set("Hello Anchor", { state: "completed" });
+  render(<TutorialsPage />);
+
+  expect(
+    screen.getByRole("region", { name: "Lumberjack" }).textContent
+  ).toContain("Start here");
+  expect(
+    screen.getByRole("button", { name: "Hello Anchor completed. Open it" })
+  ).toBeTruthy();
+});
+
+it("says Completed with only Open again once all three are done", () => {
+  for (const name of ["Hello Anchor", "Lumberjack", "Zero Copy"])
+    progress.set(name, { state: "completed" });
+  render(<TutorialsPage />);
+
+  const banner = screen.getByRole("region", { name: "Zero Copy" });
+  expect(banner.textContent).toContain("Completed");
+  expect(screen.getByRole("button", { name: "Open again" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+});
+
+it("gives the banner's place to the results line while searching", () => {
+  render(<TutorialsPage />);
+  search("zzz");
+
+  expect(screen.queryByRole("region", { name: "Hello Anchor" })).toBeNull();
+  expect(screen.getByRole("status").textContent).toBe(
+    "No tutorials match “zzz”"
+  );
+});
+
+it("shows a failed banner open on the banner", async () => {
+  utils.PgTutorial.open.mockRejectedValue(new Error("Assets missing"));
+  render(<TutorialsPage />);
+  fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toBe("Assets missing");
+  expect(
+    screen.getByRole("region", { name: "Hello Anchor" }).contains(alert)
+  ).toBe(true);
+  expect(named("catalog_banner_opened")).toEqual([]);
+});
+
+it("filters by framework once the list holds two, and reports it", async () => {
+  utils.PgTutorial.all = [
+    helloAnchor(),
+    tutorial("Lumberjack", "Intermediate", "Seahorse", "An energy system"),
+  ];
+  render(<TutorialsPage />);
+  fireEvent.keyDown(
+    screen.getByRole("button", { name: "Filter by framework" }),
+    { key: "Enter" }
+  );
+  fireEvent.click(
+    await screen.findByRole("menuitemradio", { name: "Seahorse" })
+  );
+
+  expect(named("catalog_filtered").map((e) => e.params)).toEqual([
+    { page: "tutorials", framework: "Seahorse" },
+  ]);
+  expect(
+    screen.getByRole("button", { name: "Framework: Seahorse" })
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole("button", { name: "Open Hello Anchor" })
+  ).toBeNull();
+  expect(screen.getByRole("status").textContent).toBe("1 result");
+  expect(
+    screen.getByRole("searchbox", { name: "Search tutorials" })
+  ).toHaveProperty("placeholder", "Search Seahorse tutorials");
 });
