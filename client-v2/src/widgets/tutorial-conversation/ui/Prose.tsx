@@ -119,4 +119,7 @@ export const LISTING = "font-mono text-[0.875rem] leading-[1.5rem]";
 
 /** The win and finish headlines: 28/32 at 500 */
 export const HEADLINE =
-  "font-heading text-[1.75rem] leading-8 font-medium tracking-normal text-foreground";
+  "font-heading text-[1.75rem] leading-8 font-medium tracking-[-0.02em] text-foreground";
+
+/** A headline or a step's heading carries no full stop, whatever the definition wrote */
+export const noStop = (text: Text): string => textOf(text).replace(/\.$/, "");

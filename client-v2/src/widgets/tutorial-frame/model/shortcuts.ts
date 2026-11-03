@@ -1,7 +1,11 @@
-/** One row of "Keyboard shortcuts": what it does, and its keys one by one */
+/** The dialog's groups, in their order: what you do in the lesson, the panels, the steps */
+export const SHORTCUT_GROUPS = ["In the lesson", "Panels", "Steps"] as const;
+
+/** One row of "Keyboard shortcuts": what it does, its keys one by one, and its group */
 export interface Shortcut {
   what: string;
   keys: string[];
+  group: typeof SHORTCUT_GROUPS[number];
 }
 
 /**
@@ -15,15 +19,23 @@ export const shortcutsFor = (mac: boolean): Shortcut[] => {
   const mod = mac ? "⌘" : "Ctrl";
   const alt = mac ? "⌥" : "Alt";
   return [
-    { what: "Run the live action", keys: [mod, "↵"] },
-    { what: "Start, or go to the next step", keys: ["↵"] },
-    { what: "Pick an answer", keys: ["1", "2", "3"] },
-    { what: "Skip the question", keys: ["S"] },
-    { what: "Get a hint", keys: ["H"] },
-    { what: "Menu", keys: [mod, "B"] },
-    { what: "Files", keys: [mod, "E"] },
-    { what: "Terminal", keys: [mod, "J"] },
-    { what: "Previous and next step", keys: [`${alt}↑`, `${alt}↓`] },
+    { what: "Run the live action", keys: [mod, "↵"], group: "In the lesson" },
+    {
+      what: "Start, or go to the next step",
+      keys: ["↵"],
+      group: "In the lesson",
+    },
+    { what: "Pick an answer", keys: ["1", "2", "3"], group: "In the lesson" },
+    { what: "Skip the question", keys: ["S"], group: "In the lesson" },
+    { what: "Get a hint", keys: ["H"], group: "In the lesson" },
+    { what: "Menu", keys: [mod, "B"], group: "Panels" },
+    { what: "Files", keys: [mod, "E"], group: "Panels" },
+    { what: "Terminal", keys: [mod, "J"], group: "Panels" },
+    {
+      what: "Previous and next step",
+      keys: [`${alt}↑`, `${alt}↓`],
+      group: "Steps",
+    },
   ];
 };
 
@@ -42,6 +54,21 @@ if (import.meta.vitest) {
         "⌘ E",
         "⌘ J",
         "⌥↑ ⌥↓",
+      ]);
+    });
+
+    it("groups the keys: five in the lesson, three panels, then the steps", () => {
+      const groups = shortcutsFor(true).map((s) => s.group);
+      expect(groups).toEqual([
+        "In the lesson",
+        "In the lesson",
+        "In the lesson",
+        "In the lesson",
+        "In the lesson",
+        "Panels",
+        "Panels",
+        "Panels",
+        "Steps",
       ]);
     });
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpRight, FileCode, FilePlus2, TriangleAlert } from "lucide-react";
+import { FilePlus2, TriangleAlert } from "lucide-react";
 
 import type { Wrote } from "@/features/tutorial-conversation";
 import { Button } from "@/shared/ui/button";
@@ -41,8 +41,9 @@ export const rangeOf = (lines: readonly number[]) => {
  * control, not a card, and has no card variant (the prototype's wrote card is
  * one), so this keeps the card's own frame and draws its own focus outline.
  *
- * What a write put in a file: the path, the range, the first three lines and
- * "Show in <file>". The whole card is the button. A created file reads
+ * What a write put in a file: the path, the first three lines and "⋯ N
+ * more lines" (the prototype's listing at `f7d42bf2e`). The whole card is the
+ * button, and its label names the range. A created file reads
  * "Created <path>" with "New file"; a write that failed says the block is not
  * in the file. It stays a link once it is a record. A block the learner's own
  * lines kept from its place went to the end of the file: the card says so
@@ -101,39 +102,49 @@ const BaseWroteCard = ({
       onClick={() => onShow(wrote.file, first)}
       className="w-full overflow-hidden rounded-control border border-border bg-surface-panel text-left outline-none hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand-purple"
     >
-      <span className="flex h-8 items-center gap-2 px-3">
-        <FileCode
-          aria-hidden="true"
-          className="size-3.5 text-muted-foreground"
-        />
-        <span className="font-mono text-[0.75rem] text-foreground">
+      {/* The file's path alone: the numbers under it say which lines, and
+          the whole card opens them */}
+      <span className="flex h-8 items-center px-3">
+        <span className="min-w-0 truncate font-mono text-[0.75rem] text-foreground">
           {wrote.file}
         </span>
-        <span className="text-[0.75rem] text-subtle">{range}</span>
-        <span className="ml-auto font-mono text-[0.75rem] text-success tabular-nums">
-          +{wrote.lines.length}
+      </span>
+      {/* Two columns: the numbers start 12 in, under the path, and hold
+          still; only the code beside them scrolls sideways */}
+      <span className="flex pb-2 font-mono text-[0.75rem] leading-5">
+        <span
+          aria-hidden="true"
+          className="w-[1.625rem] shrink-0 pl-3 text-subtle tabular-nums select-none"
+        >
+          {shown.map((_, i) => (
+            <span key={i} className="block">
+              {first + i}
+            </span>
+          ))}
+        </span>
+        <span className="block min-w-0 flex-1 overflow-x-auto pr-3 pl-2">
+          {shown.map((line, i) => (
+            <span key={i} className="block whitespace-pre text-foreground">
+              {line}
+            </span>
+          ))}
         </span>
       </span>
-      <span className="block bg-surface-well font-mono text-[0.75rem] leading-[1.6]">
-        {shown.map((line, i) => (
+      {/* What is left of the run, as the listing's last row: an ellipsis in
+          the numbers' column, the words on the code's edge */}
+      {more > 0 && (
+        <span className="-mt-1 flex pb-2 text-[0.75rem] leading-5 text-subtle">
           <span
-            key={i}
-            className="block border-l-2 border-success/50 bg-success/5 px-3 whitespace-pre"
+            aria-hidden="true"
+            className="w-[1.625rem] shrink-0 pl-3 font-mono select-none"
           >
-            <span className="mr-3 text-subtle tabular-nums">{first + i}</span>
-            {line}
+            ⋯
           </span>
-        ))}
-        {more > 0 && (
-          <span className="block px-3 text-subtle">
+          <span className="pl-2">
             {more} more {more === 1 ? "line" : "lines"}
           </span>
-        )}
-      </span>
-      <span className="flex h-[1.875rem] items-center gap-1 border-t border-border px-3 text-[0.75rem] text-muted-foreground">
-        <ArrowUpRight aria-hidden="true" className="size-3.5" />
-        Show in {baseName(wrote.file)}
-      </span>
+        </span>
+      )}
     </button>
   );
   if (!wrote.appended) return card;

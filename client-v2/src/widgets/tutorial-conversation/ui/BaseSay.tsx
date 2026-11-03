@@ -1,5 +1,3 @@
-import { ArrowUpRight } from "lucide-react";
-
 import type { Quote, Text } from "@/entities/tutorial";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
@@ -32,7 +30,9 @@ const BaseSay = ({
 }: BaseSayProps) => {
   const error = quote?.tone === "error" && !settled;
   return (
-    <div className="flex flex-col gap-3">
+    // The text to the line it quotes 9, as Practicum sets a paragraph over
+    // its listing
+    <div className="flex flex-col gap-[9px]">
       <p className={READ}>
         <Prose text={text} />
       </p>
@@ -49,14 +49,13 @@ const BaseSay = ({
                 onClick={() => onShowQuote(quote)}
                 className="ml-auto h-6 gap-1 text-[0.75rem] text-muted-foreground"
               >
-                <ArrowUpRight aria-hidden="true" className="size-3.5" />
                 Show in {baseName(quote.file)}
               </Button>
             )}
           </figcaption>
           <pre
             className={cn(
-              "overflow-x-auto border-l-2 px-3 py-1.5 font-mono text-[0.75rem] leading-[1.6] text-foreground",
+              "overflow-x-auto border-l-2 px-3 py-1.5 font-mono text-[0.75rem] leading-5 text-foreground",
               error
                 ? "border-error bg-error/10"
                 : "border-primary bg-primary/10"

@@ -13,7 +13,7 @@ import type { AskOutcome } from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { typing } from "./keys";
-import { Prose } from "./Prose";
+import { HEADING, LISTING, Prose } from "./Prose";
 
 /** How long a right pick shows green before the card folds to its record */
 export const RIGHT_HOLD_MS = 500;
@@ -65,14 +65,16 @@ const OptionText = ({
   line?: boolean;
   ruled?: boolean;
 }) => {
+  // One colour for code, as Practicum sets its options: syntax colours
+  // picked out some answers over others and read as hints
   const tone = ruled ? "text-muted-foreground" : "text-foreground";
   if (ask.code) {
     return (
       <code
         className={cn(
-          "font-mono text-[0.8125rem] leading-[1.5]",
+          LISTING,
           line ? "whitespace-pre" : "block whitespace-pre-wrap break-words",
-          ruled ? tone : "text-syntax-plain"
+          tone
         )}
       >
         {ask.options[i]}
@@ -80,7 +82,7 @@ const OptionText = ({
     );
   }
   return (
-    <span className={cn("text-control leading-[1.375rem]", tone)}>
+    <span className={cn("text-[1rem] leading-[1.5rem]", tone)}>
       <Prose text={ask.options[i]} />
     </span>
   );
@@ -360,14 +362,18 @@ const BaseQuestionCard = ({
       ref={box}
       tabIndex={-1}
       aria-labelledby={titleId}
-      // The ring and the shadow mark the one card that waits on the learner
-      className="rounded-panel p-5 pb-3 shadow-[0_8px_24px_rgb(0_0_0/0.3)] outline-none gradient-stroke [--stroke-fill:var(--surface-panel)]"
+      // The ring and the shadow mark the one card that waits on the learner.
+      // As Practicum's quiz, it steps out past the text column to 8 px from
+      // the panel's edges, 40 under the text before it
+      className="-mx-3 mt-[25px] rounded-panel p-5 pb-[19px] shadow-[0_8px_24px_rgb(0_0_0/0.3)] outline-none gradient-stroke [--stroke-fill:var(--surface-panel)]"
     >
+      {/* The quiz question, 18/26: what you answer reads as the card's own
+          title, a step over the 16 px text before it */}
       <h3
         id={titleId}
-        className="mb-4 font-heading text-[1.125rem] font-medium leading-[1.35] text-foreground"
+        className={cn(HEADING, "mb-3 text-[1.125rem] leading-[1.625rem]")}
       >
-        <Prose text={ask.question} />
+        <Prose text={ask.question} size="large" />
       </h3>
       <div
         role="group"
@@ -408,8 +414,7 @@ const BaseQuestionCard = ({
               <span
                 aria-hidden="true"
                 className={cn(
-                  "grid w-[1.125rem] shrink-0 place-items-center rounded-sm",
-                  ask.code ? "h-[1.21875rem]" : "h-[1.375rem]"
+                  "grid h-6 w-[1.125rem] shrink-0 place-items-center rounded-sm"
                 )}
               >
                 {isRight && (
@@ -429,8 +434,8 @@ const BaseQuestionCard = ({
               <span className="min-w-0 flex-1">
                 <span
                   className={cn(
-                    "block leading-[1.375rem]",
-                    !ask.code && "text-balance"
+                    "block leading-[1.5rem]",
+                    !ask.code && "font-read"
                   )}
                 >
                   <OptionText ask={ask} i={i} ruled={ruled} />
@@ -438,12 +443,12 @@ const BaseQuestionCard = ({
                 {ruled && ask.why[i] && (
                   <span
                     id={`${reasonId}-${i}`}
-                    className="mt-2 block text-caption text-foreground/80 duration-150 animate-in fade-in slide-in-from-top-1 motion-reduce:animate-none"
+                    className="mt-2 block text-caption leading-5 text-foreground/80 duration-150 animate-in fade-in slide-in-from-top-1 motion-reduce:animate-none"
                   >
                     <span className="font-medium text-foreground">
                       Not quite.
                     </span>{" "}
-                    <Prose text={ask.why[i]!} />
+                    <Prose text={ask.why[i]!} size="small" />
                   </span>
                 )}
               </span>
@@ -456,7 +461,7 @@ const BaseQuestionCard = ({
           ? `Not quite. ${ask.why[lastWrong] ?? ""}`.trim()
           : ""}
       </p>
-      <div className="-mx-2.5 mt-3 flex items-center gap-1">
+      <div className="-mx-2.5 mt-5 flex items-center gap-1">
         {ask.writes && (
           <Button
             variant="ghost"

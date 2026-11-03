@@ -1,4 +1,4 @@
-import { Prose, TITLE } from "./Prose";
+import { Prose, TITLE, noStop } from "./Prose";
 
 export interface BaseStepDividerProps {
   /** The step's objective, which heads it */
@@ -14,7 +14,7 @@ export interface BaseStepDividerProps {
  */
 const BaseStepDivider = ({ objective }: BaseStepDividerProps) => (
   <h2 className={TITLE}>
-    <Prose text={objective} />
+    <Prose text={noStop(objective)} />
   </h2>
 );
 

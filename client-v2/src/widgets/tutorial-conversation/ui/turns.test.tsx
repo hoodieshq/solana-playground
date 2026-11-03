@@ -97,7 +97,7 @@ describe("BaseStepDivider", () => {
 describe("BaseWroteCard", () => {
   const lines = [5, 6, 7, 8, 9, 10, 11, 12, 13];
 
-  it("is a button naming the lines, with the first three and the rest counted", async () => {
+  it("is a button naming the lines, headed by the path alone, with the first three and '⋯ N more lines'", async () => {
     const onShow = vi.fn();
     render(
       <BaseWroteCard
@@ -110,10 +110,12 @@ describe("BaseWroteCard", () => {
     const card = screen.getByRole("button", {
       name: "Show lines 5 to 13 in src/lib.rs",
     });
-    expect(card.textContent).toContain("src/lib.rslines 5 to 13+9");
+    expect(card.textContent?.startsWith("src/lib.rs5")).toBe(true);
+    expect(card.textContent).not.toContain("lines 5 to 13");
+    expect(card.textContent).not.toContain("+9");
+    expect(card.textContent).not.toContain("Show in");
     expect(card.textContent).toContain("#[program]");
-    expect(card.textContent).toContain("6 more lines");
-    expect(card.textContent).toContain("Show in lib.rs");
+    expect(card.textContent).toContain("⋯6 more lines");
     await userEvent.click(card);
     expect(onShow).toHaveBeenCalledWith("src/lib.rs", 5);
   });
@@ -1105,7 +1107,7 @@ describe("TurnView's last win", () => {
         }}
       />
     );
-    expect(screen.getByText("hello knows your name.")).toBeTruthy();
+    expect(screen.getByText("hello knows your name")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
   });
 });

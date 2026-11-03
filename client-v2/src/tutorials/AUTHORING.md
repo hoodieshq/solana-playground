@@ -463,7 +463,8 @@ purpose..."). `onFail` holds the beats after the learner presses Explain: a
   assistant explains.
 
 `win` closes the step: `headline` says what is now true ("Your program
-compiles."), `line` says what that means. `callPanelLine` replaces `line`
+compiles"), `line` says what that means. A headline, like a step's
+`objective`, carries no closing period. `callPanelLine` replaces `line`
 when the learner passed the step from the Call panel; `"extra": "openTest"`
 adds an "Open Call" button. No values that only a live run knows (a program
 id, a fee, a time); a value the program always gives, like `Count: 1`, is
@@ -591,7 +592,7 @@ call it. It passes the check as it stands.
       "goal": { "kind": "build", "instructions": ["echo"] },
       "win": {
         "id": "s1.win",
-        "headline": "Your program compiles.",
+        "headline": "Your program compiles",
         "line": "Its IDL has one instruction, `echo`, with one argument, `text`."
       },
       "explain": "This step writes a program with one instruction, `echo`, that logs the text it is sent. Then the build checks it."
@@ -639,7 +640,7 @@ call it. It passes the check as it stands.
       },
       "win": {
         "id": "s2.win",
-        "headline": "Your program answered from devnet.",
+        "headline": "Your program answered from devnet",
         "line": "The log line came back in the transaction your wallet signed.",
         "callPanelLine": "You called `echo` from the Call panel, which Playground built from the IDL."
       },
@@ -647,7 +648,7 @@ call it. It passes the check as it stands.
     }
   ],
   "finish": {
-    "headline": "You built and called a Solana program.",
+    "headline": "You built and called a Solana program",
     "line": "Your text went to devnet and came back in the program log.",
     "learned": [
       "Taking an argument and logging it",
