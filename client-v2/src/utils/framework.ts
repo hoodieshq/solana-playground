@@ -117,6 +117,25 @@ const PROGRAM_SOURCE_REGEX = /\.(rs|py)$/;
 /** TypeScript and JavaScript, the only files a project with no program runs */
 const SCRIPT_FILE_REGEX = /\.[jt]sx?$/;
 
+/**
+ * JSON a project with no program keeps beside its scripts: an IDL a client
+ * imports, a fixture a test reads
+ */
+const DATA_FILE_REGEX = /\.json$/;
+
+/**
+ * JSON that configures the repository's own tooling rather than holding
+ * data: Playground resolves packages and compiler options itself, so these
+ * would only sit in the tree
+ */
+const TOOL_CONFIG_REGEX =
+  /(^|\/)(package\.json|(ts|js)config(\.[^/]+)?\.json|\.[^/]+)$/;
+
+/** Whether a project with no program keeps the file at `path` */
+const isNoProgramFile = (path: string) =>
+  SCRIPT_FILE_REGEX.test(path) ||
+  (DATA_FILE_REGEX.test(path) && !TOOL_CONFIG_REGEX.test(path));
+
 /** A test file, named as the gist format's loose placement names one */
 const TEST_FILE_REGEX = /\.(test|spec)\.[jt]sx?$/;
 
@@ -166,14 +185,15 @@ const freePath = (path: string, taken: Set<string>) => {
 /**
  * Lay out a repository with no program: tests under `tests/`, every other
  * TypeScript or JavaScript file under `client/`, each keeping its path below
- * the folder that placed it. Files of any other kind are left out. When two
+ * the folder that placed it. JSON data goes by the same rule, so a relative
+ * import of an IDL or a fixture still resolves; tool configuration
+ * (`TOOL_CONFIG_REGEX`) and files of any other kind are left out. When two
  * files want one path, the one `placementRank` puts first gets it and the
  * other keeps its whole path, so nothing is overwritten.
  *
  * @param files repository files
  * @param root the imported folder, dropped from the front of every path
- * @returns the files in the playground layout, in the given order, empty
- * when none is a script
+ * @returns the files in the playground layout, in the given order
  */
 const toNoProgramLayout = (files: TupleFiles, root: string): TupleFiles => {
   const prefix = root.replace(/^\/+|\/+$/g, "");
@@ -195,7 +215,7 @@ const toNoProgramLayout = (files: TupleFiles, root: string): TupleFiles => {
         : NO_PROGRAM_FOLDER.CLIENT;
       return { path, content, folder, rest, target };
     })
-    .filter(({ path }) => SCRIPT_FILE_REGEX.test(path));
+    .filter(({ path }) => isNoProgramFile(path));
 
   const taken = new Set<string>();
   const placed = new Map<typeof wanted[number], string>();
@@ -281,7 +301,8 @@ export class PgFramework {
    * no framework recognises are laid out as a project with no program when
    * they hold TypeScript or JavaScript and no Rust or Python: a program in a
    * layout no framework knows is refused, never imported without its source.
-   * Other files of such a project are left out.
+   * Such a project keeps its JSON data too (`toNoProgramLayout`), but JSON
+   * alone is nothing to open.
    *
    * @param files framework files
    * @param root the imported folder, which a project with no program drops
@@ -303,7 +324,9 @@ export class PgFramework {
         throw new Error(NOT_A_PROGRAM);
       }
       const noProgramFiles = toNoProgramLayout(files, root);
-      if (!noProgramFiles.length) throw new Error(noProgramCode(opts?.source));
+      if (!noProgramFiles.some(([path]) => SCRIPT_FILE_REGEX.test(path))) {
+        throw new Error(noProgramCode(opts?.source));
+      }
       return noProgramFiles;
     }
 
