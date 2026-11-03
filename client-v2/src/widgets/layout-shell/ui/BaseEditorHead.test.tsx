@@ -6,6 +6,13 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import BaseEditorHead from "./BaseEditorHead";
 import type { BaseEditorHeadProps } from "./BaseEditorHead";
 
+/** The head's element; a test that cannot find it says so */
+const headElement = () => {
+  const el = document.getElementById("editor-head");
+  if (!el) throw new Error("no #editor-head");
+  return el;
+};
+
 // A click hovers first, which opens the button's tooltip; Radix measures it
 // with a ResizeObserver, which jsdom lacks
 class NoopResizeObserver {
@@ -76,7 +83,7 @@ it("is the 44 px head with a bottom line, its toggles 32 px with an 8 px radius"
     filesKey: "Ctrl+E",
     terminalKey: "Ctrl+J",
   });
-  const head = document.getElementById("editor-head")!;
+  const head = headElement();
   expect(head.className).toContain("h-11");
   expect(head.className).toContain("border-b");
   const files = screen.getByRole("button", { name: "Files" });
@@ -101,7 +108,7 @@ it.each([
     });
     const host = hostRef.mock.calls.find(([el]) => el !== null)?.[0];
     expect(host).toBeInstanceOf(HTMLElement);
-    expect(document.getElementById("editor-head")!.contains(host)).toBe(true);
+    expect(headElement().contains(host)).toBe(true);
     expect((host as HTMLElement).hidden).toBe(hidden);
   }
 );

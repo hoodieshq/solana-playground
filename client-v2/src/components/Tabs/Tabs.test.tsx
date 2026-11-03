@@ -21,7 +21,7 @@ vi.mock("../../hooks", () => ({
   }),
   useKeybind: () => {},
   useRenderOnChange: () => undefined,
-  useWallet: () => null,
+  useWallet: () => undefined,
 }));
 // The tabs themselves are not under test, only where the row is drawn
 vi.mock("../Dnd", () => ({
@@ -35,7 +35,7 @@ vi.mock("../Dnd", () => ({
     ),
   },
 }));
-vi.mock("../Img", () => ({ default: () => null }));
+vi.mock("../Img", () => ({ default: () => undefined }));
 vi.mock("@/shared/lib/hooks/use-viewport", () => ({
   useViewport: () => "wide",
 }));
@@ -52,7 +52,7 @@ import { Tabs } from "./Tabs";
 // The head's ref callback, as React calls it: the host, then its cleanup
 let release: (() => void) | undefined;
 const setHost = (el: HTMLElement) => {
-  release = editorHeadHost(el) ?? undefined;
+  release = editorHeadHost(el);
 };
 const clearHost = () => {
   release?.();

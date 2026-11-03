@@ -7,11 +7,11 @@ import { useSyncExternalStore } from "react";
  * would show it over the pages `Primary` swaps in that have no tabs.
  * One slot: the frame draws one head.
  */
-let host: HTMLElement | null = null;
+let host: HTMLElement | undefined;
 const listeners = new Set<() => void>();
 
-/** Sets the host, or clears it with null, and tells every reader */
-const setEditorHeadHost = (el: HTMLElement | null) => {
+/** Sets the host, or clears it with undefined, and tells every reader */
+const setEditorHeadHost = (el: HTMLElement | undefined) => {
   if (el === host) return;
   host = el;
   listeners.forEach((listener) => listener());
@@ -22,11 +22,12 @@ const setEditorHeadHost = (el: HTMLElement | null) => {
  * up only if it still holds it, so a head that unmounts after another one
  * took the slot cannot send the row back into the stage
  */
+// `null` in the type: React's ref callbacks pass it
 export const editorHeadHost = (el: HTMLElement | null) => {
   if (!el) return;
   setEditorHeadHost(el);
   return () => {
-    if (host === el) setEditorHeadHost(null);
+    if (host === el) setEditorHeadHost(undefined);
   };
 };
 
@@ -40,7 +41,7 @@ const subscribe = (listener: () => void) => {
 const snapshot = () => host;
 
 /**
- * The head's host, or null where no head is drawn (a phone, Home, a unit
+ * The head's host, or undefined where no head is drawn (a phone, Home, a unit
  * test); a host that appears later re-renders the reader
  */
 export const useEditorHeadHost = () =>
@@ -50,7 +51,7 @@ if (import.meta.vitest) {
   const { describe, it, expect, vi, afterEach } = import.meta.vitest;
 
   describe("widgets/layout-shell/model/editor-head-host", () => {
-    afterEach(() => setEditorHeadHost(null));
+    afterEach(() => setEditorHeadHost(undefined));
 
     it("notifies readers when the host changes", () => {
       const listener = vi.fn();
@@ -59,21 +60,26 @@ if (import.meta.vitest) {
       setEditorHeadHost(el);
       expect(listener).toHaveBeenCalledTimes(1);
       expect(snapshot()).toBe(el);
-      setEditorHeadHost(null);
+      setEditorHeadHost(undefined);
       expect(listener).toHaveBeenCalledTimes(2);
-      expect(snapshot()).toBeNull();
+      expect(snapshot()).toBeUndefined();
       unsubscribe();
     });
 
     it("lets a head give up the slot only while it holds it", () => {
       const first = document.createElement("div");
       const second = document.createElement("div");
-      const releaseFirst = editorHeadHost(first)!;
-      const releaseSecond = editorHeadHost(second)!;
+      const take = (el: HTMLElement) => {
+        const release = editorHeadHost(el);
+        if (!release) throw new Error("a head took no slot");
+        return release;
+      };
+      const releaseFirst = take(first);
+      const releaseSecond = take(second);
       releaseFirst();
       expect(snapshot()).toBe(second);
       releaseSecond();
-      expect(snapshot()).toBeNull();
+      expect(snapshot()).toBeUndefined();
     });
 
     it("stops telling a reader that unsubscribed", () => {

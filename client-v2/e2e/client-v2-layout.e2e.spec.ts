@@ -1783,8 +1783,9 @@ test("the tab row keeps its height with a wallet connected", async ({
   expect((await icon.boundingBox())?.height).toBeLessThanOrEqual(16);
   // The row fills the 44 px editor head, whose bottom line it sits above
   const head = await page.locator("#editor-head").boundingBox();
+  if (!head) throw new Error("#editor-head has no box");
   expect((await row.boundingBox())?.height).toBeLessThanOrEqual(
-    head!.height - 1
+    head.height - 1
   );
   await expect(row.getByRole("tab").first()).toBeInViewport({ ratio: 1 });
 });

@@ -273,7 +273,13 @@ const savedFilesOpen = () =>
   );
 
 /** The editor head's Files toggle, and whether it reads pressed */
-const filesToggle = () => document.getElementById("editor-head-files")!;
+/** An element by id; a test that cannot find it says which */
+const byId = (id: string) => {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`no #${id}`);
+  return el;
+};
+const filesToggle = () => byId("editor-head-files");
 const filesPressed = () => filesToggle().getAttribute("aria-pressed");
 
 it("should report the width class once per load", () => {
@@ -297,7 +303,7 @@ it("should toggle the console by button and by Ctrl+J, and say which", () => {
 
 describe("the editor head", () => {
   const headButton = (name: "Files" | "Terminal") =>
-    within(document.getElementById("editor-head")!).getByRole("button", {
+    within(byId("editor-head")).getByRole("button", {
       name,
     });
   const pressed = (name: "Files" | "Terminal") =>

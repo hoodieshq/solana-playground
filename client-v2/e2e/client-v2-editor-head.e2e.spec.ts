@@ -119,7 +119,9 @@ test.describe("at 1440", () => {
     const file = page
       .locator('#root-dir [data-path*="/tests/"][data-path$=".ts"]')
       .first();
-    const name = (await file.getAttribute("data-path"))!.split("/").pop()!;
+    const path = await file.getAttribute("data-path");
+    if (!path) throw new Error("the tree's first file has no data-path");
+    const name = path.split("/").pop() ?? path;
     await file.click();
     await expect(head(page).locator("#tabs")).toContainText(name);
     await expect(file).toHaveClass(/\bselected\b/);
