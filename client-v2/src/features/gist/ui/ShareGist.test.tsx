@@ -223,7 +223,7 @@ it("copies the GitHub link from its own button, naming it in the toast", async (
   await press(/^Copy GitHub link$/);
 
   expect(write).toHaveBeenCalledWith(URL);
-  // Spec 05, Share copy: "Link copied · GitHub link copied"
+  // Nikita's Spec 05 (Share copy) names the GitHub link in its toast
   const Toast = toast.mock.calls[0][0] as ComponentType;
   expect(render(<Toast />).container.textContent).toBe("GitHub link copied");
   expect(sent.events.at(-1)).toEqual({

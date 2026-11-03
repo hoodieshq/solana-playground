@@ -57,9 +57,9 @@ const messageOf = (error: unknown) =>
     ? error.message
     : "Could not sign in.";
 
-/** The toast a copy that reached the clipboard shows, naming the link */
 const LinkCopied = () => <span>Link copied</span>;
 const GithubLinkCopied = () => <span>GitHub link copied</span>;
+/** The toast a copy that reached the clipboard shows, per link; the GitHub one says which */
 const COPIED_TOAST = { playground: LinkCopied, github: GithubLinkCopied };
 
 /**

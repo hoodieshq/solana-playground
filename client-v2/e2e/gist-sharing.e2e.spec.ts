@@ -522,7 +522,7 @@ test("gist-sharing: Copying the Playground link", async ({ page, context }) => {
     .getByRole("button", { name: "Copy Playground link" })
     .click();
 
-  await expect(page.getByText("Link copied")).toBeVisible();
+  await expect(page.getByText("Link copied", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     new URL(LINK_PATH, page.url()).href
   );
@@ -539,7 +539,9 @@ test("gist-sharing: Copying the GitHub link", async ({ page, context }) => {
 
   await dialog(page).getByRole("button", { name: "Copy GitHub link" }).click();
 
-  await expect(page.getByText("GitHub link copied")).toBeVisible();
+  await expect(
+    page.getByText("GitHub link copied", { exact: true })
+  ).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     GIST_URL
   );
