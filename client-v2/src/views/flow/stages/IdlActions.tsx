@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FC } from "react";
 
 import ImportButton from "../../../components/ImportButton";
+import { programName } from "@/entities/idl";
 import { createLogger } from "@/shared/lib/logger";
 import { Button } from "@/shared/ui/button";
 import { useRenderOnChange } from "../../../hooks";
@@ -49,19 +50,9 @@ const DownloadIdl = () => {
   );
 };
 
-/**
- * How the line beside Upload IDL names the IDL in use: by the program name
- * the IDL carries (a 1.x IDL keeps it under `metadata`), so the user can tell
- * which program's IDL is loaded.
- */
+/** Names the IDL in use by its program, so the user can tell which is loaded */
 const idlLabel = (idl: object) => {
-  const { name: legacy, metadata } = idl as {
-    name?: unknown;
-    metadata?: { name?: unknown };
-  };
-  const name = [legacy, metadata?.name].find(
-    (n): n is string => typeof n === "string" && n !== ""
-  );
+  const name = programName(idl);
   return name ? `IDL \u00b7 ${name}` : "IDL loaded";
 };
 

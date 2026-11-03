@@ -131,8 +131,13 @@ describe("IdlActions", () => {
     expect(screen.getByText("IDL \u00b7 vault")).toBeTruthy();
   });
 
-  it("names a legacy IDL by its own name when it also has metadata", () => {
-    mocks.idl = { name: "counter", metadata: {}, instructions: [] };
+  /** A deploy adds `metadata.address` to a legacy IDL, and no name */
+  it("names a deployed legacy IDL by its own name", () => {
+    mocks.idl = {
+      name: "counter",
+      metadata: { address: "6PNd" },
+      instructions: [],
+    };
     render(<IdlActions mode="upload" />);
 
     expect(screen.getByText("IDL \u00b7 counter")).toBeTruthy();
