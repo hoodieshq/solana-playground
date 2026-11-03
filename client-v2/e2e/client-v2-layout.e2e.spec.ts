@@ -1781,8 +1781,11 @@ test("the tab row keeps its height with a wallet connected", async ({
   const icon = row.getByRole("button", { name: "Wallet" }).locator("img");
   await expect(icon).toBeVisible();
   expect((await icon.boundingBox())?.height).toBeLessThanOrEqual(16);
-  // The row is 40 px tall (`h-10`), plus its bottom border's rounding
-  expect((await row.boundingBox())?.height).toBeLessThanOrEqual(41);
+  // The row fills the 44 px editor head, whose bottom line it sits above
+  const head = await page.locator("#editor-head").boundingBox();
+  expect((await row.boundingBox())?.height).toBeLessThanOrEqual(
+    head!.height - 1
+  );
   await expect(row.getByRole("tab").first()).toBeInViewport({ ratio: 1 });
 });
 

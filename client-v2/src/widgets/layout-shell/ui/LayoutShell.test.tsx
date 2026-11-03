@@ -316,6 +316,19 @@ describe("the editor head", () => {
     ]);
   });
 
+  it("follows the console's own control, and folds an open console", () => {
+    shell();
+    fireEvent.click(consoleButton());
+    expect(pressed("Terminal")).toBe("true");
+    fireEvent.click(headButton("Terminal"));
+    expect(consoleButton().getAttribute("aria-expanded")).toBe("false");
+    expect(pressed("Terminal")).toBe("false");
+    expect(toggled()).toEqual([
+      { panel: "console", open: true, via: "button" },
+      { panel: "console", open: false, via: "button" },
+    ]);
+  });
+
   it("follows Cmd+E and Ctrl+J", () => {
     shell();
     const filesAtStart = pressed("Files");
@@ -323,6 +336,14 @@ describe("the editor head", () => {
     expect(pressed("Files")).not.toBe(filesAtStart);
     press({ key: "j", ctrlKey: true });
     expect(pressed("Terminal")).toBe("true");
+  });
+
+  it("folds an open files column, via button", () => {
+    savedFilesOpen();
+    shell();
+    fireEvent.click(filesToggle());
+    expect(toggled()).toEqual([{ panel: "files", open: false, via: "button" }]);
+    expect(filesPressed()).toBe("false");
   });
 
   it("is not drawn under Home", () => {
@@ -1312,7 +1333,8 @@ describe("on a phone", () => {
   it("closes the Files sheet by the column's own button", () => {
     phoneShell();
     tap(button("Files"));
-    // The column is told it is in the Sheet, so Flow draws no Hide files there
+    // The column is told it is in the Sheet, so Flow opens a lesson's column
+    // on Files there (`startOn`)
     expect(button("Files column control").dataset.phone).toBe("true");
     fireEvent.click(button("Files column control"));
     expect(document.querySelector('[data-slot="sheet-content"]')).toBeNull();
@@ -1353,14 +1375,6 @@ describe("on a phone", () => {
 });
 
 describe("the stage bar", () => {
-  it("folds the files column from the editor head's toggle, via button", () => {
-    savedFilesOpen();
-    shell();
-    fireEvent.click(filesToggle());
-    expect(toggled()).toEqual([{ panel: "files", open: false, via: "button" }]);
-    expect(filesPressed()).toBe("false");
-  });
-
   it("hides the assistant from its toggle and names the project", () => {
     explorer.name = "Counter";
     shell();
@@ -1674,15 +1688,13 @@ describe("with Home", () => {
     }
   );
 
-  it("draws the column bar over Home, titled Home, with no files toggle", () => {
+  it("draws the column bar over Home, titled Home, with no editor head", () => {
     explorer.name = "Counter";
     shell(home);
     const bar = document.querySelector<HTMLElement>('[data-slot="stage-bar"]')!;
     expect(within(bar).getByText("Home")).toBeTruthy();
     expect(within(bar).queryByText("Counter")).toBeNull();
-    expect(
-      within(bar).queryByRole("button", { name: /project panel/ })
-    ).toBeNull();
+    expect(document.getElementById("editor-head")).toBeNull();
     expect(screen.queryByText("stage tabs")).toBeNull();
   });
 
@@ -1765,8 +1777,9 @@ describe("with a page over the work", () => {
     const over = within(screen.getByTestId("layout-cover"));
     expect(over.getByText("Tutorials")).toBeTruthy();
     expect(over.getByText("page slot")).toBeTruthy();
+    expect(over.queryByRole("button", { name: /assistant/i })).toBeNull();
     expect(
-      over.queryByRole("button", { name: /assistant|project panel/i })
+      screen.getByTestId("layout-cover").querySelector("#editor-head")
     ).toBeNull();
   });
 

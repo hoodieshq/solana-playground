@@ -89,7 +89,10 @@ test.describe("client-v2-lessons", () => {
 
     // Above the editor, not beside it
     const bandBox = await b.boundingBox();
-    const editorBox = await page.locator("#tabs").boundingBox();
+    // The stage under the band: the tab row sits in the editor head above it
+    const editorBox = await page
+      .locator("#flow-stage-panel-write")
+      .boundingBox();
     expect(bandBox).not.toBeNull();
     expect(editorBox).not.toBeNull();
     expect(bandBox!.y + bandBox!.height).toBeLessThanOrEqual(editorBox!.y + 1);
@@ -172,7 +175,10 @@ test.describe("client-v2-lessons", () => {
     // The page sits inside the stage under the band, over the editor
     const readerBox = await reader.boundingBox();
     const bandBox = await band(page).boundingBox();
-    const editorBox = await page.locator("#tabs").boundingBox();
+    // The stage under the band: the tab row sits in the editor head above it
+    const editorBox = await page
+      .locator("#flow-stage-panel-write")
+      .boundingBox();
     expect(readerBox).not.toBeNull();
     expect(bandBox).not.toBeNull();
     expect(editorBox).not.toBeNull();

@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 
 export const DOCS_URL = "https://solana.com/docs";
 
-/** A column's toggle in the bar: whether the column shows, and the click */
+/** A panel's toggle, here or in the editor head: whether it shows, and the click */
 export interface BarToggle {
   open: boolean;
   onToggle: () => void;
@@ -80,9 +80,8 @@ const AssistantToggle = ({
     <BarButton
       label={label}
       hint={assistantKey === null ? label : `${label} (${assistantKey})`}
-      // Whether the pane is open: the ghost
-      // button draws `aria-expanded` filled, the prototype's look for a
-      // shown assistant. Not `aria-pressed`, which is for a toggle whose
+      // Whether the pane is open: the ghost button draws `aria-expanded`
+      // filled, the prototype's look for a shown assistant. Not `aria-pressed`, which is for a toggle whose
       // label stays the same, and this label changes with each click
       expanded={assistant.open}
       onClick={assistant.onToggle}
@@ -96,9 +95,9 @@ const AssistantToggle = ({
  * The 44 px bar over the files column and the stage (design.md, "Frame chrome
  * (5.25)"): the project's name while the assistant is hidden, then the
  * assistant's toggle and the documentation. The files toggle lives in the
- * editor head (`BaseEditorHead`), beside the terminal's. The assistant's toggle is
- * named apart from the head's "Collapse assistant", so each name stays one
- * button.
+ * editor head (`BaseEditorHead`), beside the terminal's. The assistant's
+ * toggle is named apart from the assistant's own "Collapse assistant", so
+ * each name stays one button.
  */
 const BaseStageBar = ({
   title,

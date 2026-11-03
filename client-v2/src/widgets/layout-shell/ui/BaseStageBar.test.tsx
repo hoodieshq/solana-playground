@@ -56,7 +56,7 @@ it("draws no files toggle, which is the editor head's, and always the documentat
     title: null,
     assistant: { open: true, onToggle: vi.fn() },
   });
-  expect(screen.queryByRole("button", { name: /project panel/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /files/i })).toBeNull();
   const docs = screen.getByRole("link", { name: "Documentation" });
   expect(docs.getAttribute("href")).toBe(DOCS_URL);
   expect(docs.getAttribute("target")).toBe("_blank");

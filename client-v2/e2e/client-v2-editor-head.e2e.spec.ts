@@ -12,7 +12,7 @@ import {
 } from "./fixtures";
 
 /**
- * The editor head (`openspec/changes/files-toggle-in-editor-head`): the tab
+ * The editor head (the `client-v2-editor-head` capability): the tab
  * row, Files and Terminal in one 44 px bar over the files column and the
  * stage. Titles are the spec's scenarios.
  */
@@ -76,6 +76,12 @@ test.describe("at 1440", () => {
     expect(after.head.width).toBe(before.head.width);
     expect(after.files.x).toBe(before.files.x);
     expect(after.terminal.x).toBe(before.terminal.x);
+    expect(after.head.y).toBe(before.head.y);
+    // And back: closing moves nothing either
+    await filesToggle(page).click();
+    await expect(filesPanel(page)).toHaveCount(0);
+    const closed = await boxOf(page, "#editor-head-files");
+    expect(closed.x).toBe(before.files.x);
   });
 
   test("client-v2-editor-head: The head on another stage", async ({ page }) => {
@@ -84,6 +90,10 @@ test.describe("at 1440", () => {
     await expect(filesToggle(page)).toBeVisible();
     await expect(terminalToggle(page)).toBeVisible();
     await expect(page.locator("#tabs")).toBeHidden();
+    // Back on Write the row shows again, in the head
+    await page.locator("#flow-stage-tab-write").click();
+    await expect(head(page).locator("#tabs")).toBeVisible();
+    await expect(head(page).locator("#tabs")).toContainText("lib.rs");
   });
 
   test("client-v2-editor-head: Opening and closing the tree", async ({
@@ -97,10 +107,21 @@ test.describe("at 1440", () => {
     const panel = await boxOf(page, "#files[data-panel]");
     const bar = await boxOf(page, "#editor-head");
     expect(panel.y).toBeGreaterThanOrEqual(bar.y + bar.height - 1);
+    const center = await boxOf(page, "#center[data-panel]");
+    expect(panel.x + panel.width).toBeLessThanOrEqual(center.x + 1);
 
-    const file = page.locator('#root-dir [data-path$="/src/lib.rs"]');
+    // A file that is not open yet, so the tab and the highlight have to move
+    await page
+      .locator("#root-dir [data-path]")
+      .filter({ hasText: /^tests$/ })
+      .first()
+      .click();
+    const file = page
+      .locator('#root-dir [data-path*="/tests/"][data-path$=".ts"]')
+      .first();
+    const name = (await file.getAttribute("data-path"))!.split("/").pop()!;
     await file.click();
-    await expect(head(page).locator("#tabs")).toContainText("lib.rs");
+    await expect(head(page).locator("#tabs")).toContainText(name);
     await expect(file).toHaveClass(/\bselected\b/);
 
     await filesToggle(page).click();
@@ -156,7 +177,9 @@ test.describe("at 1440", () => {
     await terminalToggle(page).click();
     await expect(consoleTrigger(page)).toHaveAttribute("aria-expanded", "true");
     await expect(terminalToggle(page)).toHaveAttribute("aria-pressed", "true");
-    await leaveEditor(page).catch(() => undefined);
+    // The click left the focus on the toggle, outside the editor, where the
+    // shell's Ctrl+J reaches it
+    await expect(terminalToggle(page)).toBeFocused();
     await page.keyboard.press("Control+j");
     await expect(consoleTrigger(page)).toHaveAttribute(
       "aria-expanded",

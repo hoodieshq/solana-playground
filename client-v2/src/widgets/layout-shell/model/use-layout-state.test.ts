@@ -77,6 +77,18 @@ it("should keep a saved open files column open", () => {
   expect(result.current.state.open.files).toBe(true);
 });
 
+it("should keep a saved closed files column closed", () => {
+  localStorage.setItem(
+    LAYOUT_STORAGE_KEY,
+    JSON.stringify({
+      v: 2,
+      open: { nav: true, files: false, assistant: true, console: false },
+    })
+  );
+  const { result } = renderHook(() => useLayoutState());
+  expect(result.current.state.open.files).toBe(false);
+});
+
 it("should keep both of two updates made in one tick", () => {
   const { result } = renderHook(() => useLayoutState());
   act(() => {

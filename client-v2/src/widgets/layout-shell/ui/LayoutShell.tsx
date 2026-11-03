@@ -10,8 +10,8 @@ import { PgFlow } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 
 import { onDidRequestConsole } from "../model/console-request";
-import { setEditorHeadHost } from "../model/editor-head-host";
-import { CONSOLE_KEY, keyLabel } from "../model/keys";
+import { editorHeadHost } from "../model/editor-head-host";
+import { CONSOLE_KEY, FILES_KEY, keyLabel } from "../model/keys";
 import type {
   PageSource,
   PhonePage,
@@ -621,7 +621,8 @@ const LayoutShell = ({
               setOpen("console", { open: !state.open.console, via: "button" }),
           }}
           showTabs={showTabs}
-          hostRef={setEditorHeadHost}
+          hostRef={editorHeadHost}
+          filesKey={keyLabel(FILES_KEY, PgCommon.getOS())}
           terminalKey={keyLabel(CONSOLE_KEY, PgCommon.getOS())}
         />
       }

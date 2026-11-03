@@ -49,7 +49,8 @@ export const Tabs = () => {
   const phone = useViewport() === "phone";
   // From 768 px the row sits in the frame's editor head, over the files
   // column and the stage; it stays mounted here, so its contexts are the
-  // stage's. With no head (the legacy tutorial view) it draws in place.
+  // stage's. With no head (a phone returns above; Home, a unit test) it
+  // draws in place.
   const host = useEditorHeadHost();
   if (phone || !explorer.tabs.length) return null;
 

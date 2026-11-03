@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, RefCallback } from "react";
 import { Folder, Terminal } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
@@ -16,7 +16,9 @@ export interface BaseEditorHeadProps {
    */
   showTabs: boolean;
   /** Receives the element the tab row portals into (`setEditorHeadHost`) */
-  hostRef: (el: HTMLElement | null) => void;
+  hostRef: RefCallback<HTMLDivElement>;
+  /** The files column's key as the user presses it (`keyLabel(FILES_KEY, os)`) */
+  filesKey: string;
   /** The console's key as the user presses it (`keyLabel(CONSOLE_KEY, os)`) */
   terminalKey: string;
 }
@@ -66,24 +68,27 @@ const BaseEditorHead = ({
   terminal,
   showTabs,
   hostRef,
+  filesKey,
   terminalKey,
 }: BaseEditorHeadProps) => (
   <div
     id="editor-head"
     data-slot="editor-head"
-    className="flex h-11 shrink-0 items-center gap-1 border-b border-border pr-1.5"
+    className="flex h-11 shrink-0 items-center gap-1 border-b border-border bg-surface-base pr-1.5"
   >
-    {/* No display class of its own, so `hidden` takes it off the page */}
+    {/* No display class of its own, so `hidden` takes it off the page. The
+      row fills the head: the head draws the fill and the bottom line, so the
+      row's own height and line would stack a second one under it */}
     <div
       ref={hostRef}
       hidden={!showTabs}
-      className="min-w-0 flex-1 self-stretch"
+      className="min-w-0 flex-1 self-stretch [&>#tabs]:h-full [&>#tabs]:border-b-0"
     />
     <div className="ml-auto flex shrink-0 items-center gap-1">
       <HeadToggle
         id="editor-head-files"
         label="Files"
-        hint="Files (⌘E)"
+        hint={`Files (${filesKey})`}
         toggle={files}
       >
         <Folder aria-hidden="true" />

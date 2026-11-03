@@ -305,8 +305,8 @@ const NavSlot = ({ nav }: { nav: BaseLayoutShellProps["nav"] }) => {
 /**
  * The four-column frame: the navigation as the stock Sidebar, then the
  * assistant on a wide screen (a Sheet below `LAYOUT_BREAKPOINTS.compact`), then
- * the work area: the stage bar over the files column and the stage, the stage
- * over the console. Below `LAYOUT_BREAKPOINTS.phone` the frame gives way
+ * the work area: the stage bar, the stage tabs and the editor head over the
+ * files column and the stage, the stage over the console. Below `LAYOUT_BREAKPOINTS.phone` the frame gives way
  * to `BasePhonePager`; the stage and the console are outlets, so their nodes
  * move between the two without remounting. Lays out what it is given; owns
  * the outlets' nodes and, of layout state, only the assistant widened for
@@ -704,7 +704,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                       className="flex min-w-0 flex-col"
                     >
                       {/* Over the files column and the stage both, as the prototype
-                draws them: the column bar, then the stage tabs */}
+                draws them: the column bar, the stage tabs, then the editor head */}
                       {props.stageBar}
                       {props.stageTabs}
                       {props.workHead}

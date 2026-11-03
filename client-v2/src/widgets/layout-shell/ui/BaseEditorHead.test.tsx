@@ -24,6 +24,7 @@ const draw = (props: BaseEditorHeadProps) =>
         terminal={props.terminal}
         showTabs={props.showTabs}
         hostRef={props.hostRef}
+        filesKey={props.filesKey}
         terminalKey={props.terminalKey}
       />
     </TooltipProvider>
@@ -37,6 +38,7 @@ it("marks each toggle pressed while its panel is open", () => {
     terminal: closed(),
     showTabs: true,
     hostRef: vi.fn(),
+    filesKey: "Ctrl+E",
     terminalKey: "Ctrl+J",
   });
   const files = screen.getByRole("button", { name: "Files" });
@@ -55,6 +57,7 @@ it("calls each toggle's onToggle on click", async () => {
     terminal,
     showTabs: true,
     hostRef: vi.fn(),
+    filesKey: "Ctrl+E",
     terminalKey: "Ctrl+J",
   });
   await userEvent.click(screen.getByRole("button", { name: "Files" }));
@@ -70,6 +73,7 @@ it("is the 44 px head with a bottom line, its toggles 32 px with an 8 px radius"
     terminal: closed(),
     showTabs: true,
     hostRef: vi.fn(),
+    filesKey: "Ctrl+E",
     terminalKey: "Ctrl+J",
   });
   const head = document.getElementById("editor-head")!;
@@ -92,6 +96,7 @@ it.each([
       terminal: closed(),
       showTabs,
       hostRef,
+      filesKey: "Ctrl+E",
       terminalKey: "Ctrl+J",
     });
     const host = hostRef.mock.calls.find(([el]) => el !== null)?.[0];
@@ -107,10 +112,13 @@ it("names the keys in the toggles' hints", async () => {
     terminal: closed(),
     showTabs: true,
     hostRef: vi.fn(),
+    filesKey: "⌘E",
     terminalKey: "⌘J",
   });
   await userEvent.hover(screen.getByRole("button", { name: "Terminal" }));
   expect((await screen.findAllByText("Terminal (⌘J)")).length).toBeGreaterThan(
     0
   );
+  await userEvent.hover(screen.getByRole("button", { name: "Files" }));
+  expect((await screen.findAllByText("Files (⌘E)")).length).toBeGreaterThan(0);
 });

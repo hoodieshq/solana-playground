@@ -174,12 +174,10 @@ describe("isLessonTab", () => {
 
 describe("LeftPanel in the flush frame", () => {
   it.each([false, true])(
-    "has no fold strip of its own (collapsed: %s): the stage bar folds it",
+    "has no fold strip of its own (collapsed: %s): the editor head folds it",
     (collapsed) => {
       draw(collapsed);
-      expect(
-        screen.queryByRole("button", { name: /project panel/ })
-      ).toBeNull();
+      expect(screen.queryByRole("button", { name: /files/i })).toBeNull();
       expect(screen.queryByRole("button", { name: "New file" })).toBeNull();
     }
   );
