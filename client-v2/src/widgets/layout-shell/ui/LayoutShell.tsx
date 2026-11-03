@@ -398,7 +398,7 @@ const LayoutShell = ({
   // everywhere there, Monaco included.
   // On a phone the key toggles the pager's own Files Sheet.
   useKeybind(
-    "Ctrl+E",
+    FILES_KEY,
     {
       handle: (ev) => {
         // Before `preventDefault`: under Home or a page the key is not the shell's

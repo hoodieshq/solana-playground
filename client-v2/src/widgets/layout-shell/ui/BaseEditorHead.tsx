@@ -15,7 +15,7 @@ export interface BaseEditorHeadProps {
    * mounted, hidden, on the others and its row would linger here
    */
   showTabs: boolean;
-  /** Receives the element the tab row portals into (`setEditorHeadHost`) */
+  /** Receives the element the tab row portals into (`editorHeadHost`) */
   hostRef: RefCallback<HTMLDivElement>;
   /** The files column's key as the user presses it (`keyLabel(FILES_KEY, os)`) */
   filesKey: string;
@@ -78,7 +78,8 @@ const BaseEditorHead = ({
   >
     {/* No display class of its own, so `hidden` takes it off the page. The
       row fills the head: the head draws the fill and the bottom line, so the
-      row's own height and line would stack a second one under it */}
+      row's own height and line would stack a second one under it. `#tabs` is
+      `PgView.ids.TABS`, the id `components/Tabs` gives the row */}
     <div
       ref={hostRef}
       hidden={!showTabs}

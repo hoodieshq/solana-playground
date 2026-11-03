@@ -46,10 +46,20 @@ vi.mock("@/widgets/layout-shell", async () => ({
   ).useEditorHeadHost,
 }));
 
-import { setEditorHeadHost } from "@/widgets/layout-shell/model/editor-head-host";
+import { editorHeadHost } from "@/widgets/layout-shell/model/editor-head-host";
 import { Tabs } from "./Tabs";
 
-afterEach(() => setEditorHeadHost(null));
+// The head's ref callback, as React calls it: the host, then its cleanup
+let release: (() => void) | undefined;
+const setHost = (el: HTMLElement) => {
+  release = editorHeadHost(el) ?? undefined;
+};
+const clearHost = () => {
+  release?.();
+  release = undefined;
+};
+
+afterEach(clearHost);
 
 const hostElement = () => {
   const el = document.createElement("div");
@@ -64,7 +74,7 @@ it("renders the row in place where no head is drawn", () => {
 
 it("renders the row inside the editor head's host when one is set", () => {
   const host = hostElement();
-  setEditorHeadHost(host);
+  setHost(host);
   const { container } = render(<Tabs />);
   expect(host.querySelector("#tabs")).not.toBeNull();
   expect(container.querySelector("#tabs")).toBeNull();
@@ -73,16 +83,16 @@ it("renders the row inside the editor head's host when one is set", () => {
 it("moves into a host that appears after the row mounted", () => {
   const { container } = render(<Tabs />);
   const host = hostElement();
-  act(() => setEditorHeadHost(host));
+  act(() => setHost(host));
   expect(host.querySelector("#tabs")).not.toBeNull();
   expect(container.querySelector("#tabs")).toBeNull();
 });
 
 it("moves back in place when the head goes away", () => {
   const host = hostElement();
-  setEditorHeadHost(host);
+  setHost(host);
   const { container } = render(<Tabs />);
-  act(() => setEditorHeadHost(null));
+  act(clearHost);
   expect(container.querySelector("#tabs")).not.toBeNull();
   expect(host.querySelector("#tabs")).toBeNull();
 });

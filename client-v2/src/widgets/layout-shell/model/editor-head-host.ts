@@ -11,7 +11,7 @@ let host: HTMLElement | null = null;
 const listeners = new Set<() => void>();
 
 /** Sets the host, or clears it with null, and tells every reader */
-export const setEditorHeadHost = (el: HTMLElement | null) => {
+const setEditorHeadHost = (el: HTMLElement | null) => {
   if (el === host) return;
   host = el;
   listeners.forEach((listener) => listener());
