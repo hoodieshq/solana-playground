@@ -210,6 +210,26 @@ describe("TutorialComposer", () => {
     expect(t.send).toHaveBeenCalledWith("I'm stuck");
   });
 
+  it("keeps a question in the box, uncounted, while the assistant answers", () => {
+    store.say.mockReturnValue("assistant");
+    const t = turn();
+    render(
+      <TutorialComposer
+        turn={{
+          send: t.send,
+          stop: t.stop,
+          busy: true,
+          input: "why msg!?",
+          setInput: vi.fn(),
+        }}
+      />
+    );
+    fireEvent.keyDown(box(), { key: "Enter" });
+    expect(store.say).toHaveBeenCalledWith("why msg!?");
+    expect(store.asked).not.toHaveBeenCalled();
+    expect(t.send).not.toHaveBeenCalled();
+  });
+
   it("shows the finish chips only after the finish, and posts a chip's answer with no model call", async () => {
     const t = turn();
     const { unmount } = render(<Connected turn={t} />);

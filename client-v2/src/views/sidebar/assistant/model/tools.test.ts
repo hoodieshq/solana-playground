@@ -136,9 +136,12 @@ describe("a mode", () => {
       allows: () => true,
       refusal: "",
     });
-    set.dispose();
-    expect(PgAssistant.mode?.name).toBe("other");
-    other.dispose();
+    try {
+      set.dispose();
+      expect(PgAssistant.mode?.name).toBe("other");
+    } finally {
+      other.dispose();
+    }
     expect(PgAssistant.mode).toBeNull();
   });
 
@@ -151,9 +154,12 @@ describe("a mode", () => {
       allows: () => true,
       refusal: "",
     });
-    second.dispose();
-    expect(PgAssistant.mode).toBe(tutorial);
-    first.dispose();
+    try {
+      second.dispose();
+      expect(PgAssistant.mode).toBe(tutorial);
+    } finally {
+      first.dispose();
+    }
     expect(PgAssistant.mode).toBeNull();
   });
 });

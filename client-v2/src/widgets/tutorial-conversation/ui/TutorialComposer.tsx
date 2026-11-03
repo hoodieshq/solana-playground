@@ -42,6 +42,9 @@ export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
       turn.setInput("");
       return;
     }
+    // A question while the assistant answers waits in the box, uncounted:
+    // `useTurn` would refuse it
+    if (turn.busy) return;
     // TODO(tutorial-flow-v2 3.6 follow-up): counted before `useTurn` says
     // whether the message went out (with no model it opens Connect a model
     // and keeps the text); counting only a started send needs `send` to
