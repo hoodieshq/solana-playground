@@ -13,6 +13,7 @@ import {
   memoryProvider as memoryTelemetry,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
+import { TooltipProvider } from "@/shared/ui/tooltip";
 import { PgView } from "@/utils/view";
 import { ModalHost } from "@/widgets/overlays";
 import { openShareGistDialog } from "./ShareGistDialog";
@@ -42,7 +43,15 @@ let logs: ReturnType<typeof memoryLog>;
 let fetchSpy: ReturnType<typeof vi.spyOn>;
 const readFiles = vi.fn(async () => ({ "src/lib.rs": "x" }));
 
+/** jsdom has no ResizeObserver, which the visibility radios measure with */
+class NoResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 beforeEach(() => {
+  vi.stubGlobal("ResizeObserver", NoResizeObserver);
   initTelemetry({ providers: [memoryTelemetry()] });
   logs = memoryLog();
   initLogger({ providers: [logs] });
@@ -59,6 +68,7 @@ afterEach(() => {
     while (PgView.getOpenModals().length) PgView.closeTopModal();
   });
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   PgSession.reset();
   resetTelemetry();
   resetLogger();
@@ -66,7 +76,12 @@ afterEach(() => {
 
 /** Opens the share dialog for "counter" over a mounted host */
 const open = async () => {
-  render(<ModalHost />);
+  // The app's root provides the tooltips the visibility help tip needs
+  render(
+    <TooltipProvider>
+      <ModalHost />
+    </TooltipProvider>
+  );
   await act(async () => {
     void openShareGistDialog("counter", readFiles, "project_menu");
   });
