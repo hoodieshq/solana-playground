@@ -390,7 +390,7 @@ describe("BaseDeploy", () => {
     expect(screen.getByText("2,048 bytes")).toBeTruthy();
   });
 
-  it("counts and redeploys only what is on the network picked now", () => {
+  it("shows the empty stage on a network with no deployment, history and all", () => {
     const { container } = render(
       <BaseDeploy
         {...props({
@@ -404,14 +404,15 @@ describe("BaseDeploy", () => {
 
     expect(
       container.querySelector('[data-slot="stage-empty-meta"]')?.textContent
-    ).toBe("Mainnet · 0 deployments");
+    ).toBe("Mainnet");
+    expect(screen.getByText("Nothing deployed yet")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Deploy to mainnet" })
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Redeploy/ })).toBeNull();
     expect(screen.queryByRole("status", { name: "Deploy result" })).toBeNull();
     expect(
-      screen.getByText("Nothing is deployed to mainnet yet.", { exact: false })
+      screen.getByText("Each network keeps its own deployments.")
     ).toBeTruthy();
     // The devnet deployment stays in the history, under its own network
     const history = screen.getByRole("region", { name: "History" });

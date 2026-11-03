@@ -51,12 +51,13 @@ test("client-v2-deploy: A devnet record viewed on testnet", async ({
   await expect(link).toHaveText("Explorer (Devnet)", LONG);
   await expect(link).toHaveAttribute("href", /[?&]cluster=devnet(&|$)/);
 
-  // The devnet deployment is not on testnet: the head counts none here, no
-  // result card stands for it, and the button is a first deploy
+  // The devnet deployment is not on testnet: the stage is empty here, with
+  // no count and no result card, and the button is a first deploy
   const panel = page.locator("#flow-stage-panel-deploy");
   await expect(panel.locator('[data-slot="stage-empty-meta"]')).toHaveText(
-    "Testnet · 0 deployments"
+    "Testnet"
   );
+  await expect(panel.getByText("Nothing deployed yet")).toBeVisible();
   await expect(
     panel.getByRole("status", { name: "Deploy result" })
   ).toHaveCount(0);

@@ -152,22 +152,18 @@ const payerLine = (payer: DeployPayer | undefined) => {
 };
 
 /**
- * The stage's prose. `here` is the latest deployment on the network picked
- * now; a project deployed only on other networks is told this one has none
- * yet.
+ * The stage's prose. `latest` is the latest deployment on the network picked
+ * now; a project deployed only on other networks is told that each keeps its
+ * own.
  */
-const description = (p: BaseDeployProps, here: DeployRecord | undefined) => {
+const description = (p: BaseDeployProps, latest: DeployRecord | undefined) => {
   if (!p.built) {
     return "Build the program first \u2014 the stepper unlocks Deploy once it compiles cleanly.";
   }
-  if (here) {
+  if (latest) {
     return "The program id stays constant across deploys; redeploying upgrades it in place.";
   }
-  if (p.history.length > 0) {
-    return `Nothing is deployed to ${deployNetwork(
-      p
-    )} yet. Each network keeps its own deployments.`;
-  }
+  if (p.history.length > 0) return "Each network keeps its own deployments.";
   return `Deploying sends the compiled program to ${deployNetwork(p)}.`;
 };
 
@@ -362,12 +358,11 @@ const MainnetWarningBody = ({ p }: { p: BaseDeployProps }) => {
  * button shows on every cluster.
  */
 const BaseDeploy = (p: BaseDeployProps) => {
-  // The layout follows any deployment; the count, the result and the
-  // button's Redeploy follow only the network picked now, since a program
-  // deployed elsewhere is not on this one
-  const latest = p.history[0];
+  // Each network keeps its own deployments: the stage reads only the
+  // network picked now, so a program deployed elsewhere leaves it empty here.
+  // History still lists every network, each row under its own.
   const onNetwork = p.history.filter((r) => r.cluster === p.cluster);
-  const latestHere = onNetwork[0];
+  const latest = onNetwork[0];
   const n = onNetwork.length;
   const meta = [
     p.cluster && networkName(p.cluster),
@@ -389,9 +384,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
           {latest ? "Deploy" : "Nothing deployed yet"}
         </StageEmptyTitle>
         {meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
-        <StageEmptyDescription>
-          {description(p, latestHere)}
-        </StageEmptyDescription>
+        <StageEmptyDescription>{description(p, latest)}</StageEmptyDescription>
         {p.built && !latest && p.programId && (
           <p className="text-caption text-muted-foreground">
             Program id <code className="font-mono">{p.programId}</code>
@@ -434,8 +427,8 @@ const BaseDeploy = (p: BaseDeployProps) => {
             </CalloutDescription>
           </Callout>
         )}
-        {latestHere && <DeployResult latest={latestHere} p={p} />}
-        {latest && <History p={p} />}
+        {latest && <DeployResult latest={latest} p={p} />}
+        {p.history.length > 0 && <History p={p} />}
         {latest && p.programKeypair}
         <BaseStaleBuildDialog
           open={p.staleBuild}
@@ -449,7 +442,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
             title={deployBlockedReason(p)}
             onClick={p.onDeploy}
           >
-            {deployLabel(p, latestHere !== undefined)}
+            {deployLabel(p, latest !== undefined)}
             {!running && <BrandButtonIcon />}
           </BrandButton>
           {/* Upload IDL and the CLI guide: before the first deploy, centred
