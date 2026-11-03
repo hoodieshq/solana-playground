@@ -129,14 +129,16 @@ const PLACEHOLDERS: Record<TurnPhase, string> = {
 
 /**
  * Whether someone is signed in, or `null` until the page's session read has
- * answered: a signed-in user must not see "Sign in" flash on load.
+ * answered: a signed-in user must not see "Sign in" flash on load. It waits
+ * for the page's read and never starts one (`afterFirstRead`, not
+ * `whenRead`).
  */
 const useSignedIn = (): boolean | null => {
   const [read, setRead] = useState(false);
   const [, render] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     let live = true;
-    void PgSession.whenRead().then(() => {
+    void PgSession.afterFirstRead().then(() => {
       if (live) setRead(true);
     });
     const session = PgSession.onDidChange(render);

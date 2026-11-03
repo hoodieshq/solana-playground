@@ -695,6 +695,20 @@ describe("AssistantComposer, the off row", () => {
     expect(row()).toBeNull();
   });
 
+  it("starts no session read of its own: the page's session effect reads it", () => {
+    PgSession.reset();
+    backend = { state: "present", model: "m" };
+    const reads = vi.mocked(globalThis.fetch);
+    reads.mockClear();
+    render(<Harness />);
+    expect(
+      reads.mock.calls.filter(([url]) =>
+        String(url).includes("/api/auth/get-session")
+      )
+    ).toEqual([]);
+    expect(row()).toBeNull();
+  });
+
   it("does not show while the default is being asked about", () => {
     backend = { state: "checking" };
     render(<Harness />);
