@@ -36,6 +36,8 @@ let state: RunState = { kind: "idle" };
 let current: { startedAt: number; source: RunSource } | null = null;
 /** Run was pressed and is still setting the wallet up or reading its SOL */
 let starting = false;
+/** How many runs have started, so `runScripts` can tell whether its own did */
+let started = 0;
 let listening = false;
 const listeners = new Set<Listener>();
 
@@ -47,22 +49,24 @@ const set = (next: RunState) => {
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
+/** A failure, or the missing package it names */
+const failure = (message: string): SettledState => {
+  const pkg = missingPackageOf(message);
+  return pkg ? { kind: "missing-package", pkg } : { kind: "failed", message };
+};
+
 /**
  * How a finished `run` reads, from what the command handed back: a
- * `RunResult`, or the error it threw before any script ran.
+ * `RunResult`, or the error it threw before any script ran. A missing
+ * package can come either way: thrown while loading the script, or
+ * reported by the script's own wrapper when its import fails.
  */
 const settle = (
   result: { ok: RunResult | undefined } | { err: unknown },
   ms: number
 ): SettledState => {
-  if ("err" in result) {
-    const message = messageOf(result.err);
-    const pkg = missingPackageOf(message);
-    return pkg ? { kind: "missing-package", pkg } : { kind: "failed", message };
-  }
-  if (result.ok && !result.ok.ok) {
-    return { kind: "failed", message: result.ok.error };
-  }
+  if ("err" in result) return failure(messageOf(result.err));
+  if (result.ok && !result.ok.ok) return failure(result.ok.error);
   return { kind: "done", ms };
 };
 
@@ -83,6 +87,7 @@ const listen = () => {
   if (listening) return;
 
   PgCommand.run.onDidStart(() => {
+    started++;
     current = {
       startedAt: Date.now(),
       source: PgDocsLink.opened ? "link" : "project",
@@ -152,12 +157,15 @@ const funded = async (wallet: WalletOrigin) => {
 /**
  * Run the scripts. A rejection the command threw before it started never
  * reaches `onDidFinish` (another run in progress, say), so it is shown here.
+ * A run that started has already settled through `onDidFinish`, which the
+ * command calls before it rethrows, so its state is left as it is.
  */
 const runScripts = async () => {
+  const before = started;
   try {
     await PgCommand.run.execute();
   } catch (error) {
-    if (state.kind === "running") return;
+    if (started !== before) return;
     log.warn("run refused before it started", { context: { error } });
     set({ kind: "failed", message: messageOf(error) });
   }

@@ -140,6 +140,22 @@ describe("PgClientRun", () => {
     });
   });
 
+  it("reads a missing package the script reported as a missing package", async () => {
+    const { PgClientRun } = await load();
+    startRun();
+    finishRun({
+      ok: {
+        ok: false,
+        error: "Package `@solana-program/memo` is not available.",
+      },
+    });
+
+    expect(PgClientRun.state).toEqual({
+      kind: "missing-package",
+      pkg: "@solana-program/memo",
+    });
+  });
+
   it("shows a run typed in the terminal", async () => {
     const { PgClientRun } = await load();
     startRun();
@@ -260,6 +276,22 @@ describe("PgClientRun", () => {
     expect(PgClientRun.state).toEqual({
       kind: "failed",
       message: "Client is already running!",
+    });
+  });
+
+  it("keeps what a run that started and threw finished with", async () => {
+    const { PgClientRun } = await load();
+    const error = new Error("Package `@solana-program/memo` is not available.");
+    // As `PgCommandManager.execute` does: finish the run, then rethrow
+    utils.PgCommand.run.execute.mockImplementationOnce(async () => {
+      startRun();
+      finishRun({ err: error });
+      throw error;
+    });
+    await PgClientRun.start();
+    expect(PgClientRun.state).toEqual({
+      kind: "missing-package",
+      pkg: "@solana-program/memo",
     });
   });
 
