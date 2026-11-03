@@ -327,7 +327,11 @@ describe("Hello Anchor through the engine", () => {
     ]);
     expect(saved.finishedAt).not.toBeNull();
     // Every act that ended is measured, the planned failure included
-    expect(events.events.map((e) => e.name)).toEqual([
+    const answered = (e: { name: string }) =>
+      e.name === "tutorial_question_answered";
+    expect(
+      events.events.filter((e) => !answered(e)).map((e) => e.name)
+    ).toEqual([
       "tutorial_started",
       "tutorial_action_run",
       "tutorial_step_passed",
@@ -341,6 +345,13 @@ describe("Hello Anchor through the engine", () => {
       "tutorial_action_run",
       "tutorial_finished",
     ]);
+    // Each of the five questions counts once, the planned fix question
+    // included, as it resolves
+    expect(
+      events.events
+        .filter(answered)
+        .map((e) => (e.params as { question: string }).question)
+    ).toEqual(["s1.q1", "f1.q2", "s2.q2", "s3.q3", "s4.q4"]);
     expect(
       events.events
         .filter((e) => e.name === "tutorial_action_run")
@@ -411,8 +422,11 @@ describe("Hello Anchor through the engine", () => {
       definition.intro.files["src/lib.rs"]
     );
     await step(() => PgConversation.start());
+    // The question answered before Start over counts; the restart itself
+    // answers nothing
     expect(events.events.map((e) => e.name)).toEqual([
       "tutorial_started",
+      "tutorial_question_answered",
       "tutorial_started",
     ]);
     // Start put step 1's start files back (the first write beat's boilerplate

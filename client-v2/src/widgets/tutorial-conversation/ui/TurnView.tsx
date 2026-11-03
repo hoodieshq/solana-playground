@@ -1,13 +1,17 @@
-import type { Quote, TutorialDefinition } from "@/entities/tutorial";
+import type { Ask, Quote, TutorialDefinition } from "@/entities/tutorial";
 import type { Turn } from "@/features/tutorial-conversation";
 import BaseActCard from "./BaseActCard";
 import BaseIntroCard from "./BaseIntroCard";
+import BaseQuestionCard, {
+  BaseQuestionRecord,
+  BaseQuestionWaiting,
+} from "./BaseQuestionCard";
 import BaseResultCard from "./BaseResultCard";
 import BaseSay from "./BaseSay";
 import BaseStepDivider from "./BaseStepDivider";
 import BaseWroteCard from "./BaseWroteCard";
 import BaseYouPill from "./BaseYouPill";
-import { AskStandIn, FinishStandIn, WinStandIn } from "./stand-ins";
+import { FinishStandIn, WinStandIn } from "./stand-ins";
 
 /** What the cards ask the conversation to do; each is one engine action */
 export interface TurnHandlers {
@@ -15,6 +19,8 @@ export interface TurnHandlers {
   pick: (beatId: string, option: number) => void;
   hint: (beatId: string) => void;
   skip: (beatId: string) => void;
+  /** "Type it myself": the caret to where the answer lands */
+  typeIt: (beatId: string) => void;
   act: (beatId: string, args?: Record<string, string>) => void;
   explain: (beatId: string) => void;
   fixMyself: (beatId: string) => void;
@@ -42,10 +48,24 @@ export interface TurnViewProps {
 const linesOf = (content: string | null) => content?.split("\n") ?? [];
 
 /**
+ * What a question's record calls it, so the records down the thread say
+ * which question each answers: "Fix" for an ask whose kicker is `Fix it`,
+ * else "Q<n>" counting the tutorial's asks whose kicker is `Question`, in
+ * order. The kicker is one of the two (`Ask["kicker"]`).
+ */
+const questionLabel = (definition: TutorialDefinition, ask: Ask) => {
+  if (ask.kicker === "Fix it") return "Fix";
+  const questions = definition.steps
+    .flatMap((s) => s.beats)
+    .filter((b): b is Ask => b.kind === "ask" && b.kicker === "Question");
+  return `Q${questions.findIndex((b) => b.id === ask.id) + 1}`;
+};
+
+/**
  * One turn of the feed as its card: the intro, a divider, the assistant's
- * line, the learner's pill, a wrote card, an act or its result, and the
- * stand-ins for the question, win and finish cards. Only the live turn gets
- * the buttons that act; navigation links stay live on every record.
+ * line, the learner's pill, a wrote card, a question, an act or its result,
+ * and the stand-ins for the win and finish cards. Only the live turn gets the
+ * buttons that act; navigation links stay live on every record.
  */
 const TurnView = ({
   turn,
@@ -124,17 +144,35 @@ const TurnView = ({
       );
     }
     case "ask":
+      if (turn.open && live) {
+        return (
+          <BaseQuestionCard
+            ask={turn.ask}
+            wrong={turn.wrong}
+            hinted={turn.hinted}
+            disabled={running}
+            onPick={(option) => on.pick(turn.beatId, option)}
+            onHint={() => on.hint(turn.beatId)}
+            onSkip={() => on.skip(turn.beatId)}
+            onTypeIt={() => on.typeIt(turn.beatId)}
+          />
+        );
+      }
+      if (turn.open || !turn.outcome) {
+        return (
+          <BaseQuestionWaiting
+            ask={turn.ask}
+            label={questionLabel(definition, turn.ask)}
+          />
+        );
+      }
       return (
-        <AskStandIn
+        <BaseQuestionRecord
           ask={turn.ask}
-          open={turn.open && live}
-          wrong={turn.wrong}
+          label={questionLabel(definition, turn.ask)}
           outcome={turn.outcome}
           attempts={turn.attempts}
-          disabled={running}
-          onPick={(option) => on.pick(turn.beatId, option)}
-          onHint={() => on.hint(turn.beatId)}
-          onSkip={() => on.skip(turn.beatId)}
+          wrong={turn.wrong}
         />
       );
     case "act":
@@ -184,3 +222,28 @@ const TurnView = ({
 };
 
 export default TurnView;
+
+if (import.meta.vitest) {
+  const { describe, it, expect, beforeAll } = import.meta.vitest;
+
+  describe("widgets/tutorial-conversation/ui/TurnView", () => {
+    let hello: TutorialDefinition;
+    beforeAll(async () => {
+      hello = (await import("../../../tutorials/hello-anchor/tutorial.json"))
+        .default as unknown as TutorialDefinition;
+    });
+
+    it("questionLabel counts the questions in order and calls a fix question Fix", () => {
+      const asks = hello.steps
+        .flatMap((s) => s.beats.concat(s.onFail ?? []))
+        .filter((b): b is Ask => b.kind === "ask");
+      expect(asks.map((a) => questionLabel(hello, a))).toEqual([
+        "Q1",
+        "Fix",
+        "Q2",
+        "Q3",
+        "Q4",
+      ]);
+    });
+  });
+}

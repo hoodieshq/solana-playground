@@ -9,7 +9,7 @@ import BaseIntroCard, { HOW_IT_GOES, INTRO_NOTE } from "./BaseIntroCard";
 import BaseResultCard from "./BaseResultCard";
 import BaseStepDivider from "./BaseStepDivider";
 import BaseWroteCard from "./BaseWroteCard";
-import { AskStandIn } from "./stand-ins";
+import { BaseQuestionRecord } from "./BaseQuestionCard";
 import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
 import type { Turn } from "@/features/tutorial-conversation";
@@ -488,7 +488,7 @@ describe("BaseResultCard", () => {
   });
 });
 
-describe("AskStandIn", () => {
+describe("BaseQuestionRecord", () => {
   const ask = definition.steps
     .flatMap((s) => s.beats)
     .find((b): b is Ask => b.kind === "ask")!;
@@ -497,75 +497,50 @@ describe("AskStandIn", () => {
     ["first_try", 1, "· first try"],
     ["retry", 2, "· 2nd try"],
     ["retry", 3, "· 3rd try"],
-    ["typed", 0, "· typed by you"],
-    ["skipped", 0, "· skipped"],
-    ["call_panel", 0, "· skipped, called from the Call panel"],
+    ["typed", 1, "· typed by you"],
+    ["skipped", 1, "· skipped"],
+    ["call_panel", 1, "· skipped, called from the Call panel"],
   ] as const)(
     "records %s after %i attempts as %s",
     (outcome, attempts, end) => {
       render(
-        <AskStandIn
+        <BaseQuestionRecord
           ask={ask}
-          open={false}
-          wrong={[]}
+          label="Q1"
           outcome={outcome}
           attempts={attempts}
-          disabled={false}
-          onPick={vi.fn()}
-          onHint={vi.fn()}
-          onSkip={vi.fn()}
+          wrong={[]}
         />
       );
-      expect(screen.getByText(end)).toBeTruthy();
-      expect(screen.queryByRole("button")).toBeNull();
+      const record = screen.getByRole("button");
+      expect(record.textContent).toContain(end);
+      expect(record.textContent).toContain(ask.options[ask.answer]);
+      expect(record.textContent?.startsWith("Q1")).toBe(true);
     }
   );
 
-  it("picks an option while open", async () => {
-    const onPick = vi.fn();
-    render(
-      <AskStandIn
-        ask={ask}
-        open
-        wrong={[]}
-        outcome={null}
-        attempts={0}
-        disabled={false}
-        onPick={onPick}
-        onHint={vi.fn()}
-        onSkip={vi.fn()}
-      />
-    );
-    const group = screen.getByRole("group");
-    await userEvent.click(group.querySelectorAll("button")[ask.answer]);
-    expect(onPick).toHaveBeenCalledWith(ask.answer);
-  });
-
-  it("says Not quite. once a pick was wrong, and takes no second click on it", async () => {
-    const onPick = vi.fn();
+  it("opens to the question and its three rows with their reasons, and closes again", async () => {
     const wrong = ask.answer === 0 ? 1 : 0;
-    const draw = (picked: number[]) => (
-      <AskStandIn
+    render(
+      <BaseQuestionRecord
         ask={ask}
-        open
-        wrong={picked}
-        outcome={null}
-        attempts={0}
-        disabled={false}
-        onPick={onPick}
-        onHint={vi.fn()}
-        onSkip={vi.fn()}
+        label="Q1"
+        outcome="retry"
+        attempts={2}
+        wrong={[wrong]}
       />
     );
-    const { rerender } = render(draw([]));
-    expect(screen.getByRole("status").textContent).toBe("");
-
-    rerender(draw([wrong]));
-    expect(screen.getByRole("status").textContent).toBe("Not quite.");
-    const option = screen.getByRole("group").querySelectorAll("button")[wrong];
-    expect(option.getAttribute("aria-disabled")).toBe("true");
-    await userEvent.click(option);
-    expect(onPick).not.toHaveBeenCalled();
+    const record = screen.getByRole("button");
+    expect(record.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(record);
+    expect(record.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText(ask.question as string)).toBeTruthy();
+    const rows = document.querySelectorAll("[data-state]");
+    expect(rows).toHaveLength(3);
+    expect(rows[wrong].getAttribute("data-state")).toBe("wrong");
+    expect(rows[ask.answer].getAttribute("data-state")).toBe("right");
+    await userEvent.click(record);
+    expect(document.querySelectorAll("[data-state]")).toHaveLength(0);
   });
 });
 
@@ -577,6 +552,7 @@ describe("TurnView", () => {
     pick: vi.fn(),
     hint: vi.fn(),
     skip: vi.fn(),
+    typeIt: vi.fn(),
     act: vi.fn(),
     explain: vi.fn(),
     fixMyself: vi.fn(),

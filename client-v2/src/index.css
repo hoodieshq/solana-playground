@@ -235,8 +235,28 @@
 .pg-editor-busy {
   @apply opacity-60 transition-opacity duration-150;
 }
+/*
+ * A tutorial question's wrong pick shakes once, small, so it reads as "not
+ * that one" rather than as an error (`widgets/tutorial-conversation`,
+ * `BaseQuestionCard`).
+ */
+.pg-shake {
+  animation: pg-shake 260ms var(--ease-standard-value, ease-out);
+}
+@keyframes pg-shake {
+  20% {
+    transform: translateX(-3px);
+  }
+  45% {
+    transform: translateX(3px);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .pg-arrive {
+  .pg-arrive,
+  .pg-shake {
     animation: none;
   }
   .pg-editor-busy {

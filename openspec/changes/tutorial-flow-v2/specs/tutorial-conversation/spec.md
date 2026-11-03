@@ -105,7 +105,8 @@ question, holding the question, three option buttons in a group, and the foot
 buttons "Hint", "Type it myself" and "Skip". The card SHALL take focus on
 arrival without scrolling.
 
-Keys, when no text field has focus:
+Keys, while the focus is on the card or on nothing, and no dialog or menu is
+open (the card takes the focus as it arrives):
 
 - 1, 2 and 3 pick an option;
 - ↑ and ↓ move between rows;
@@ -146,8 +147,8 @@ SHALL expand the three rows in their final states, with their reasons.
 
 #### Scenario: A wrong pick, then the right one
 
-- **WHEN** on Hello Anchor's first question the learner presses 2, then 1
-- **THEN** option 2 shows "Not quite." and "`println!` prints to a terminal,
+- **WHEN** on Hello Anchor's first question the learner presses 1, then 2
+- **THEN** option 1 shows "Not quite." and "`println!` prints to a terminal,
   and a program on Solana has none. On chain, a program talks through `msg!`."
 - **AND** after the right pick, `lib.rs` gains lines 5 to 13, the wrote card
   reads "src/lib.rs · lines 5 to 13", and the record ends "· 2nd try"

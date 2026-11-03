@@ -44,6 +44,7 @@ import { RailFooter, SessionFooter } from "@/widgets/session-footer";
 import { SettingsPage, settingsTelemetry } from "@/widgets/settings-page";
 import {
   TutorialConversation,
+  useConversationMarks,
   useConversationStartOver,
 } from "@/widgets/tutorial-conversation";
 import { useTutorialFrame } from "@/widgets/tutorial-frame";
@@ -241,6 +242,7 @@ const FlowFrame = () => {
   // 2.1), its chat holding the conversation (3.3), whose engine runs Start
   // over. The composer under the feed is 3.6's.
   const conversation = useConversationStartOver();
+  const marks = useConversationMarks();
   const tutorial = useTutorialFrame({
     // Back to the list the tutorial came from; the navigation's own way
     // there, so it reads as `nav`
@@ -378,6 +380,7 @@ const FlowFrame = () => {
             <TutorialWorkspace
               active={inFrame}
               console={console}
+              marks={marks}
               keys={{
                 files: keyLabel("Ctrl+E", PgCommon.getOS()),
                 terminal: keyLabel(CONSOLE_KEY, PgCommon.getOS()),

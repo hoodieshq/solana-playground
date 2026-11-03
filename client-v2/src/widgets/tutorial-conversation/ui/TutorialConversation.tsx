@@ -16,6 +16,8 @@ import {
 import { Spinner } from "@/shared/ui/spinner";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
+import { marksOf } from "../model/marks";
+import type { FeedMarks } from "../model/marks";
 import { barProgress } from "../model/step-bar";
 import { tutorialTelemetry } from "../model/telemetry";
 import BaseFeed from "./BaseFeed";
@@ -27,6 +29,12 @@ const log = createLogger("tutorial-conversation:feed");
 
 /** How many lines sit above a line the feed shows in the editor */
 const LINES_ABOVE = 8;
+/**
+ * How long typing rests before the engine reads the file for a question's
+ * key line: the explorer announces every keystroke, and the engine needs only
+ * where the typing stopped
+ */
+const EDIT_REST_MS = 300;
 
 /**
  * The engine's state, re-rendering on every notification. Counted rather
@@ -80,8 +88,11 @@ const savePosition = (path: string, line: number) =>
  * (`reportButtonFailure`), never a throw out of the click.
  * TODO(tutorial-flow-v2 2.2): lighting the lines again is the editor's
  * (HOO-2349)
+ *
+ * @returns where the line is: `shown` in the open editor, `opening` while
+ * the file opens, or null when it was refused
  */
-const showLine = (file: string, line: number) => {
+const showLine = (file: string, line: number): "shown" | "opening" | null => {
   const refuse = reportButtonFailure(`open ${file}`);
   try {
     const path = PgExplorer.convertToFullPath(file);
@@ -91,15 +102,20 @@ const showLine = (file: string, line: number) => {
       const missing = new Error(`${file} is not in this workspace`);
       markUnavailableHere(missing, "it is not in this project");
       refuse(missing);
-      return;
+      return null;
     }
     // Saved too for the open file: an editor not mounted yet reads it later
     savePosition(path, line);
-    if (PgExplorer.currentFilePath === path) PgEditor.revealLine(path, line);
-    else PgExplorer.openFile(path);
+    if (PgExplorer.currentFilePath === path) {
+      PgEditor.revealLine(path, line);
+      return "shown";
+    }
+    PgExplorer.openFile(path);
+    return "opening";
   } catch (e) {
     // No workspace current (one switching), or the explorer refused the open
     refuse(e);
+    return null;
   }
 };
 
@@ -188,11 +204,127 @@ const useLockedPreview = (state: ConversationState) => {
   }, [onIntro]);
 };
 
+/** Marks that failed to compute, by message, so a re-render logs each once */
+const unmarked = new Set<string>();
+
+/**
+ * The feed's marks for a file of the open tutorial, or null outside one.
+ * Computed while the frame renders, so it never throws: marks are
+ * decoration, and a failure here draws no lines rather than taking the
+ * workspace down.
+ */
+const marksNow = (file: string): FeedMarks | null => {
+  try {
+    const context = PgConversation.state.context;
+    const view = PgConversation.view();
+    if (!context || !view) return null;
+    return marksOf(context.definition, view, read)(file);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (!unmarked.has(message)) {
+      unmarked.add(message);
+      log.error(e, { report: true, context: { file, what: "line marks" } });
+    }
+    return null;
+  }
+};
+
+/**
+ * Hands the engine a file the learner changed, as the explorer holds it.
+ * The engine reads it for an open question's key line and ignores a file no
+ * question writes to.
+ */
+const sendEdit = (path: string) => {
+  try {
+    if (!PgConversation.state.context || !PgExplorer.currentWorkspaceName) {
+      return;
+    }
+    const content = PgExplorer.getFileContent(path);
+    if (content === undefined) {
+      // Renamed or deleted while the typing rested: nothing left to read
+      log.debug("an edited file is gone before the engine read it", {
+        context: { path },
+      });
+      return;
+    }
+    PgConversation.edit(PgExplorer.getRelativePath(path), content);
+  } catch (e) {
+    // A workspace switching under the timer; the next change sends again
+    log.warn("could not hand the engine an edit", {
+      context: { path, error: e instanceof Error ? e.message : String(e) },
+    });
+  }
+};
+
+/**
+ * The editor and the engine, both ways. A change to the open file reaches
+ * the engine (`edit`) once the typing rests, so a question's key line typed
+ * by hand resolves it; the file is taken when it changes, and a change to
+ * another file first sends the pending one, so a quick tab switch never
+ * sends the wrong file. The engine's request for the caret ("Type it
+ * myself", "I'll fix it myself") opens the file at the line, the landing as
+ * the feed draws it, and focuses the editor unless the open was refused.
+ */
+const useEditorLink = () => {
+  useEffect(() => {
+    let pending: { path: string; timer: number } | null = null;
+    const flush = () => {
+      if (!pending) return;
+      window.clearTimeout(pending.timer);
+      const { path } = pending;
+      pending = null;
+      sendEdit(path);
+    };
+    const saved = PgExplorer.onDidSaveFile(() => {
+      const path = PgExplorer.currentFilePath;
+      if (!path) return;
+      if (pending && pending.path !== path) flush();
+      if (pending) window.clearTimeout(pending.timer);
+      pending = { path, timer: window.setTimeout(flush, EDIT_REST_MS) };
+    });
+
+    const focus = PgConversation.onDidRequestFocus(({ file, line }) => {
+      const at =
+        line === "landing" ? marksNow(file)?.landing?.lines[0] ?? 1 : line;
+      const shown = showLine(file, at);
+      if (shown === "shown") PgEditor.focus();
+      // The editor stays mounted and swaps its file as the open lands: it
+      // takes focus a frame later. A refused open leaves the focus alone
+      if (shown === "opening") requestAnimationFrame(() => PgEditor.focus());
+    });
+    return () => {
+      if (pending) window.clearTimeout(pending.timer);
+      saved.dispose();
+      focus.dispose();
+    };
+  }, []);
+};
+
+/**
+ * The feed's line marks for the workspace's editor (`TutorialWorkspace`'s
+ * `marks`). They refresh on each notification of the conversation, so the
+ * landing follows the lesson and the typing once it has rested, not each
+ * keystroke.
+ */
+export const useConversationMarks = () => {
+  useConversationState();
+  return (file: string) => {
+    const marks = marksNow(file);
+    if (!marks) return {};
+    return {
+      written: [...marks.written],
+      arriving: marks.arriving,
+      landing: marks.landing,
+    };
+  };
+};
+
 const handlers: TurnHandlers = {
   start: () => PgConversation.start(),
   pick: (beatId, option) => PgConversation.pick(beatId, option),
   hint: (beatId) => PgConversation.hint(beatId),
   skip: (beatId) => PgConversation.skip(beatId),
+  typeIt: (beatId) => PgConversation.typeIt(beatId),
   act: (beatId, args) => PgConversation.act(beatId, args),
   explain: (beatId) => PgConversation.explain(beatId),
   fixMyself: (beatId) => PgConversation.fixMyself(beatId),
@@ -224,6 +356,7 @@ export const TutorialConversation = () => {
   const context = state.context;
   useOpenEnteredStep(state);
   useLockedPreview(state);
+  useEditorLink();
   const view = PgConversation.view();
 
   useEffect(() => {

@@ -2,7 +2,7 @@ import { act, render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ActBeat, TutorialDefinition } from "@/entities/tutorial";
+import type { ActBeat, Ask, TutorialDefinition } from "@/entities/tutorial";
 import type {
   ConversationState,
   ConversationView,
@@ -12,7 +12,12 @@ import hello from "../../../tutorials/hello-anchor/tutorial.json";
 
 const definition = hello as unknown as TutorialDefinition;
 
-vi.mock("@/features/tutorial-conversation", () => ({
+vi.mock("@/features/tutorial-conversation", async () => ({
+  // The marks' dry run of a question's landing is the engine's own
+  landingFor: (await import("@/features/tutorial-conversation/model/landing"))
+    .landingFor,
+  stepOfBeat: (await import("@/features/tutorial-conversation/model/reducer"))
+    .stepOfBeat,
   PgConversation: {
     state: null,
     view: vi.fn(),
@@ -22,6 +27,9 @@ vi.mock("@/features/tutorial-conversation", () => ({
     pick: vi.fn(),
     hint: vi.fn(),
     skip: vi.fn(),
+    typeIt: vi.fn(),
+    edit: vi.fn(),
+    onDidRequestFocus: vi.fn(),
     act: vi.fn(),
     explain: vi.fn(),
     fixMyself: vi.fn(),
@@ -35,7 +43,9 @@ vi.mock("@/features/tutorial-conversation", () => ({
 vi.mock("@/utils/explorer", () => ({
   PgExplorer: {
     convertToFullPath: (p: string) => `/hello/${p}`,
-    getFileContent: () => "a\nb\nc\nd\ne\nf\ng",
+    getFileContent: vi.fn(() => "a\nb\nc\nd\ne\nf\ng"),
+    getRelativePath: (p: string) => p.replace("/hello/", ""),
+    onDidSaveFile: vi.fn(),
     currentWorkspaceName: "hello",
     currentFilePath: "",
     saveEditorPosition: vi.fn(),
@@ -51,7 +61,7 @@ vi.mock("@/shared/lib/report-button-failure", () => ({
   markUnavailableHere: vi.fn(),
 }));
 vi.mock("@/utils/editor", () => ({
-  PgEditor: { revealLine: vi.fn(), setReadOnly: vi.fn() },
+  PgEditor: { revealLine: vi.fn(), setReadOnly: vi.fn(), focus: vi.fn() },
 }));
 vi.mock("@/entities/tutorial", async () => ({
   tutorialTelemetry: (await import("@/entities/tutorial/model/telemetry"))
@@ -75,6 +85,9 @@ const store = PgConversation as unknown as {
   state: ConversationState | null;
   view: ReturnType<typeof vi.fn>;
   onDidChange: ReturnType<typeof vi.fn>;
+  onDidRequestFocus: ReturnType<typeof vi.fn>;
+  edit: ReturnType<typeof vi.fn>;
+  typeIt: ReturnType<typeof vi.fn>;
   init: ReturnType<typeof vi.fn>;
   startOver: ReturnType<typeof vi.fn>;
 };
@@ -174,6 +187,8 @@ beforeEach(() => {
   vi.mocked(PgExplorer.getFile).mockReturnValue({ path: "p", content: "" });
   store.init.mockReturnValue({ dispose });
   store.onDidChange.mockReturnValue({ dispose: vi.fn() });
+  store.onDidRequestFocus.mockReturnValue({ dispose: vi.fn() });
+  vi.mocked(PgExplorer.onDidSaveFile).mockReturnValue({ dispose: vi.fn() });
 });
 
 describe("TutorialConversation", () => {
@@ -427,6 +442,174 @@ describe("TutorialConversation", () => {
     );
     expect(PgExplorer.openFile).not.toHaveBeenCalled();
     expect(refuse).not.toHaveBeenCalled();
+  });
+
+  it("hands the engine the file the learner types in, once the typing rests", () => {
+    vi.useFakeTimers();
+    let saved = () => {};
+    vi.mocked(PgExplorer.onDidSaveFile).mockImplementation((cb) => {
+      saved = cb as () => void;
+      return { dispose: vi.fn() };
+    });
+    (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
+      "/hello/src/lib.rs";
+    vi.mocked(PgExplorer.getFileContent).mockReturnValue('msg!("Hello");');
+    try {
+      render(<TutorialConversation />);
+      saved();
+      saved();
+      vi.advanceTimersByTime(299);
+      expect(store.edit).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(store.edit).toHaveBeenCalledTimes(1);
+      expect(store.edit).toHaveBeenCalledWith("src/lib.rs", 'msg!("Hello");');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("puts the caret where the open question's answer lands, for Type it myself", () => {
+    let focus: (f: {
+      file: string;
+      line: number | "landing";
+    }) => void = () => {};
+    store.onDidRequestFocus.mockImplementation((cb) => {
+      focus = cb;
+      return { dispose: vi.fn() };
+    });
+    const ask = step1.beats.find((b): b is Ask => b.kind === "ask")!;
+    const question: Turn = {
+      id: ask.id,
+      kind: "ask",
+      step: step1.id,
+      at: 2,
+      whole: true,
+      beatId: ask.id,
+      ask,
+      open: true,
+      wrong: [],
+      hinted: false,
+      writeFailed: false,
+      outcome: null,
+      attempts: 0,
+    };
+    const onQuestion: ConversationView = {
+      turns: [divider, question],
+      live: question,
+      steps: onStep2.steps,
+      placeholder: onStep2.placeholder,
+      nextAt: null,
+      finishAt: null,
+    };
+    store.view.mockReturnValue(onQuestion);
+    vi.mocked(PgExplorer.getFileContent).mockReturnValue(
+      'use anchor_lang::prelude::*;\n\ndeclare_id!("11111111111111111111111111111111");'
+    );
+    (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
+      "/hello/src/lib.rs";
+    render(<TutorialConversation />);
+    act(() => focus({ file: "src/lib.rs", line: "landing" }));
+    expect(PgEditor.revealLine).toHaveBeenCalledWith("/hello/src/lib.rs", 5);
+    expect(PgEditor.focus).toHaveBeenCalled();
+  });
+
+  it("sends the file typed in before a quick switch to another, not the other", () => {
+    vi.useFakeTimers();
+    let saved = () => {};
+    vi.mocked(PgExplorer.onDidSaveFile).mockImplementation((cb) => {
+      saved = cb as () => void;
+      return { dispose: vi.fn() };
+    });
+    vi.mocked(PgExplorer.getFileContent).mockImplementation((path) =>
+      path === "/hello/src/lib.rs" ? 'msg!("Hello, World!");' : "// client"
+    );
+    const explorer = PgExplorer as unknown as { currentFilePath: string };
+    try {
+      render(<TutorialConversation />);
+      explorer.currentFilePath = "/hello/src/lib.rs";
+      saved();
+      // The learner switches tabs before the typing rests
+      explorer.currentFilePath = "/hello/client/client.ts";
+      saved();
+      expect(store.edit).toHaveBeenCalledWith(
+        "src/lib.rs",
+        'msg!("Hello, World!");'
+      );
+      vi.advanceTimersByTime(300);
+      expect(store.edit).toHaveBeenLastCalledWith(
+        "client/client.ts",
+        "// client"
+      );
+      expect(store.edit).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("puts the caret on a line the engine names, as I'll fix it myself asks", () => {
+    let focus: (f: {
+      file: string;
+      line: number | "landing";
+    }) => void = () => {};
+    store.onDidRequestFocus.mockImplementation((cb) => {
+      focus = cb;
+      return { dispose: vi.fn() };
+    });
+    (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
+      "/hello/src/lib.rs";
+    render(<TutorialConversation />);
+    act(() => focus({ file: "src/lib.rs", line: 9 }));
+    expect(PgEditor.revealLine).toHaveBeenCalledWith("/hello/src/lib.rs", 9);
+    expect(PgEditor.focus).toHaveBeenCalled();
+  });
+
+  it("leaves the focus alone when the file to type in is not in the workspace", () => {
+    let focus: (f: {
+      file: string;
+      line: number | "landing";
+    }) => void = () => {};
+    store.onDidRequestFocus.mockImplementation((cb) => {
+      focus = cb;
+      return { dispose: vi.fn() };
+    });
+    vi.mocked(PgExplorer.getFile).mockReturnValue(null);
+    render(<TutorialConversation />);
+    act(() => focus({ file: "src/gone.rs", line: 3 }));
+    expect(refuse).toHaveBeenCalled();
+    expect(PgEditor.focus).not.toHaveBeenCalled();
+  });
+
+  it("sends Type it myself to the engine for the live question", async () => {
+    const ask = step1.beats.find((b): b is Ask => b.kind === "ask")!;
+    const question: Turn = {
+      id: ask.id,
+      kind: "ask",
+      step: step1.id,
+      at: 2,
+      whole: true,
+      beatId: ask.id,
+      ask,
+      open: true,
+      wrong: [],
+      hinted: false,
+      writeFailed: false,
+      outcome: null,
+      attempts: 0,
+    };
+    const onQuestion: ConversationView = {
+      turns: [divider, question],
+      live: question,
+      steps: onStep2.steps,
+      placeholder: onStep2.placeholder,
+      nextAt: null,
+      finishAt: null,
+    };
+    store.view.mockReturnValue(onQuestion);
+    render(<TutorialConversation />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Type it myself" })
+    );
+    expect(store.typeIt).toHaveBeenCalledWith(ask.id);
   });
 
   it("presses the live act on ⌘↵", () => {
