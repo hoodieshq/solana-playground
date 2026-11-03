@@ -9,7 +9,7 @@
   },
   {
     "name": "spl-binary-oracle-pair",
-    "description": "Mints a pass token and a fail token for every deposit; once an oracle decides the outcome, the winning token redeems the pool.",
+    "description": "Mints a pass token and a fail token for every deposit; after the decision window, an oracle picks the outcome and only the winning token redeems.",
     "repo": "https://github.com/solana-labs/solana-program-library/tree/token-v4.0.0/binary-oracle-pair/program",
     "icon": "https://avatars.githubusercontent.com/u/35608259",
     "framework": "Native",
@@ -17,7 +17,7 @@
   },
   {
     "name": "spl-feature-proposal",
-    "description": "Proposes a new cluster feature and lets validators vote to activate it by holding the proposal's tokens in their stake accounts.",
+    "description": "Proposes a new cluster feature and mints tokens for the participants; once enough of them are sent to the proposal's acceptance account before the deadline, a tally activates the feature.",
     "repo": "https://github.com/solana-labs/solana-program-library/tree/token-v4.0.0/feature-proposal/program",
     "icon": "https://avatars.githubusercontent.com/u/35608259",
     "framework": "Native",
@@ -57,7 +57,7 @@
   },
   {
     "name": "spl-shared-memory",
-    "description": "Copies instruction data into an account so that later instructions in the same transaction can read it.",
+    "description": "Lets a program called through a cross-program invocation hand data back to its caller, by copying instruction data into a shared account.",
     "repo": "https://github.com/solana-labs/solana-program-library/tree/token-v4.0.0/shared-memory/program",
     "icon": "https://avatars.githubusercontent.com/u/35608259",
     "framework": "Native",
