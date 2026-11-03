@@ -10,7 +10,6 @@ import {
   PgWallet,
   PgWeb3,
 } from "../../../../utils";
-import { PgProgramInteraction } from "../../../../utils/program-interaction";
 import { createLogger } from "@/shared/lib/logger";
 import type { ActRun } from "./act-runner";
 import { captureSends } from "./capture";
@@ -119,6 +118,12 @@ const sendCall = async (call: {
       `The deployed program has no \`${call.instruction}\`. Build and deploy it again.`
     );
   }
+  // Loaded here, not at the top: its storage reads `sessionStorage` on
+  // import, which throws where the browser refuses storage and would take
+  // the whole app down with it, as the Test panel's lazy load never did
+  const { PgProgramInteraction } = await import(
+    "../../../../utils/program-interaction"
+  );
   const ix = PgProgramInteraction.getOrCreateInstruction(idlIx);
   const values = {
     ...ix.values,
