@@ -1,17 +1,18 @@
+import { PanelLeft } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { PanelLeft } from "lucide-react";
 
+import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
-import StepRail from "../lessons/StepRail";
-import { cursorStep, foldRecord, PgLesson } from "../lessons";
+
+import { PgExplorer, PgView } from "../../../utils";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
+import { cursorStep, foldRecord, PgLesson } from "../lessons";
+import StepRail from "../lessons/StepRail";
 import { BOTTOM_BAR_HEIGHT } from "../tokens";
 import { keepColumn, keptColumn, type Tab } from "./kept-column";
-import { PgExplorer, PgView } from "../../../utils";
-import { cn } from "@/shared/lib/utils";
 
 // The editor's "Show files" asks for the tree, not just the column: in a
 // lesson the column would otherwise open on Steps. A hidden column is

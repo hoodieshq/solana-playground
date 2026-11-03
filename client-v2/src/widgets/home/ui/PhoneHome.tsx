@@ -1,16 +1,17 @@
 import { PgSession } from "@/features/auth";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgFramework, PgTutorial } from "@/utils";
+
 import { runExample } from "../model/example";
 import { useSessionRetry } from "../model/session-retry";
+import type { PageTile } from "../model/telemetry";
+import { homeTelemetry } from "../model/telemetry";
+import { useProgramCount } from "../model/use-program-count";
 import { useVisit } from "../model/use-visit";
 import { needsSessionRetry } from "../model/visit";
-import { homeTelemetry } from "../model/telemetry";
-import type { PageTile } from "../model/telemetry";
-import { useProgramCount } from "../model/use-program-count";
 import { toastActionFailed } from "./action-failed-toast";
-import BasePhoneHome from "./BasePhoneHome";
 import type { PhoneQuickstart, QuickstartTarget } from "./BasePhoneHome";
+import BasePhoneHome from "./BasePhoneHome";
 
 export interface PhoneHomeProps {
   onAsk: () => void;

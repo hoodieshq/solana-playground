@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { LONG, expect, home, stubSession, test } from "./fixtures";
+import { expect, home, LONG, stubSession, test } from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
 const TITLE = "Continue on a computer";

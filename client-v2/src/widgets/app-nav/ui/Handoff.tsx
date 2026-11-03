@@ -3,9 +3,10 @@ import { useState, useSyncExternalStore } from "react";
 import { isSignInFailure, PgSession } from "@/features/auth";
 import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+
 import { navTelemetry } from "../model/telemetry";
-import BaseHandoff, { HANDOFF_TITLE } from "./BaseHandoff";
 import type { HandoffAccount } from "./BaseHandoff";
+import BaseHandoff, { HANDOFF_TITLE } from "./BaseHandoff";
 
 const log = createLogger("app-nav:handoff");
 

@@ -4,13 +4,14 @@ import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
 import { SidebarProvider } from "@/shared/ui/sidebar";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+
+import type { StatusIndicator } from "../model/indicators";
 import {
   aiIndicator,
   analyzerIndicator,
   chipOf,
   networkIndicator,
 } from "../model/indicators";
-import type { StatusIndicator } from "../model/indicators";
 import BaseStatusChip from "./BaseStatusChip";
 import BaseStatusRail from "./BaseStatusRail";
 import BaseStatusRow from "./BaseStatusRow";

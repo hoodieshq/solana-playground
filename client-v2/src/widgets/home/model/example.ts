@@ -1,10 +1,10 @@
 import { createLogger } from "@/shared/lib/logger";
 import {
+  isTerminalUnmounted,
   PgCommand,
   PgExplorer,
   PgFramework,
   PgGlobal,
-  isTerminalUnmounted,
 } from "@/utils";
 
 const log = createLogger("home:first-run");

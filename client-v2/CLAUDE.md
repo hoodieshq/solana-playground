@@ -125,7 +125,8 @@ yarn ds-add stepper --dry-run   # what would be written; --diff, --view too
 The script builds the registry in `../design-system` (run `npm ci` there
 once, and again whenever its lockfile changes), serves it on the port
 `components.json` maps `@playground` to for as long as the install runs, and
-formats what lands with this package's prettier. Names are the registry's
+applies this package's error-level ESLint fixes to `src/shared`, import order
+among them, then formats what lands with this package's prettier. Names are the registry's
 (`design-system/registry.json`); `components.json` maps `@playground` to that
 server and the aliases to `@/shared/ui`, `@/shared/lib` and
 `@/shared/lib/hooks`. Nothing comes from the design system's public site
@@ -288,11 +289,23 @@ error across all of `src/` and `e2e/`, and the id rule holds in `e2e/`. The
 lint catches the common spellings, not every one. The fifth is the boundary
 check's job (Layers, "The boundary check"); the rest hold by review, apart
 from the ESLint warnings an item names. The `lint` script's `--max-warnings`
-caps the total of every ESLint warning in `src/`, `api/` and `e2e/`, not only
+caps the total of every ESLint warning in the folders it lints, not only
 those, and a PR that pushes the total over the cap fails. A sanctioned
 exception, such as `null` on the wire or a signature a library defines,
 passes with `// eslint-disable-next-line <rule> -- <why>` on the line before
-it.
+it. Import order is an ESLint error in all of `src/`, `api/`, `e2e/`,
+`scripts/` and `eslint-plugin-layers/` (`simple-import-sort/imports`), legacy
+roots included; in the layers and `api/` it also fails the build's
+`lint:layers`. Unused variables and shadowing are ESLint errors across the
+same five folders, and so is any `console` method in `src/` and `e2e/`
+outside the logger's console provider and the `.mjs` modules, which plain
+Node runs without the logger; in the layers and `api/` these fail
+`lint:layers` too. `scripts/` and `eslint-plugin-layers/` may call `console`:
+they run in Node, outside the app and its logger. A leading `_` does not exempt
+an unused name: drop the binding (`[, value]`) or disable the line with a
+reason.
+`yarn eslint --fix --quiet <files>` sorts the imports;
+`yarn lint --fix` would also apply every warning's autofix across the tree.
 
 - **The lint warnings are debt, not the normal state.** `yarn lint` reports
   thousands of warnings, and `--max-warnings` in `package.json` records their
@@ -512,7 +525,10 @@ it.
   CI job itself, in its runner image, see
   [`docs/local-ci-with-act.md`](docs/local-ci-with-act.md).
 - **A PR that changes bundle sizes commits a refreshed `bench/BUNDLE.md`.**
-  Rebase onto the base branch first: CI measures the merge commit. Then run
+  Rebase onto the base branch first: CI measures the merge commit. Run
+  `yarn setup`, not `setup:with-stubs`: the snapshot measures the real wasm
+  packages, as CI does, so `build-fast` refuses stubs nobody asked for and
+  `bundle:info` refuses a build that lacks a real package. Then run
   `REACT_APP_GA_MEASUREMENT_ID= yarn build-fast`: CI's build has no GA id, and
   the empty value keeps CRA from taking one from `client-v2/.env`, since
   dotenv does not override a variable already set. Sentry needs no override:
@@ -534,13 +550,15 @@ it.
   `DISPLAY_STEP_TOLERANCE_BYTES`, where real change of up to about two display
   steps can stay unrecorded.
 - **The browser suite runs in CI** (`yarn test-e2e`, the `e2e` matrix of
-  `client-v2.yml`, one shard per matrix entry) on every PR (GitHub reads the
+  `reusable-client-v2.yml`, one shard per matrix entry; `client-v2.yml` runs
+  that workflow on the real wasm packages) on every PR (GitHub reads the
   workflow from the PR's merge commit; see the root `CLAUDE.md`, "This is a
-  fork"), and a red spec fails the PR's checks. It needs no server and no
-  Postgres: every spec stubs the account endpoints with `page.route`, and
-  the dev server serves `api/*.mjs` itself. The assistant's specs stub
-  `/api/agent` the same way, so none depends on the machine's default
-  backend. Two sync tests ("switching
+  fork"), and a red spec fails the PR's checks. The `@real-wasm` specs run
+  the CLIs; the manual `client-v2-with-stubs.yml` runs the suite on the stubs
+  and leaves them out. It needs no server and no Postgres: every spec stubs
+  the account endpoints with `page.route`, and the dev server serves
+  `api/*.mjs` itself. The assistant's specs stub `/api/agent` the same way,
+  so none depends on the machine's default backend. Two sync tests ("switching
   tabs mid-debounce raises no conflict", "reloading a project the account
   already has writes nothing") are `test.fixme` on the runner, where the
   load's timing differs and the sync races they guard show. The two are

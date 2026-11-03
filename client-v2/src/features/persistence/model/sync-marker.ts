@@ -1,7 +1,7 @@
-import { report } from "./diagnostics";
-import { PgSyncMark } from "./sync-mark";
-import type { SyncMark } from "./sync-mark";
 import type { Disposable } from "../../../utils/types";
+import { report } from "./diagnostics";
+import type { SyncMark } from "./sync-mark";
+import { PgSyncMark } from "./sync-mark";
 
 /**
  * Sync itself, loaded on first use. The slice's entry exports this module, and

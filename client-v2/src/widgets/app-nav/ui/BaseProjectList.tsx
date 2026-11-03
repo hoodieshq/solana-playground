@@ -14,6 +14,8 @@ import {
 import type { ComponentType, KeyboardEvent } from "react";
 import { useId, useRef, useState } from "react";
 
+import type { SyncMarker } from "@/features/persistence";
+import { cn } from "@/shared/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,8 +36,7 @@ import {
   SidebarMenuSkeleton,
 } from "@/shared/ui/sidebar";
 import { StatusDot } from "@/shared/ui/status-dot";
-import { cn } from "@/shared/lib/utils";
-import type { SyncMarker } from "@/features/persistence";
+
 import type { ProjectAction } from "../model/project-action";
 import type { LessonProgress, ProjectEntry } from "../model/project-entries";
 

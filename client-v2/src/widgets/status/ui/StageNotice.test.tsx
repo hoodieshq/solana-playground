@@ -8,6 +8,7 @@ import {
   resetTelemetry,
 } from "@/shared/lib/telemetry";
 import { PgView } from "@/utils/view";
+
 import type { NetworkInput } from "../model/indicators";
 
 // The `@/utils` barrel reaches globals only a booted app has; the notice uses

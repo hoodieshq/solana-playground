@@ -1,10 +1,11 @@
 import { FC } from "react";
 import { DropzoneOptions, DropzoneState, useDropzone } from "react-dropzone";
 
-import Input from "../Input";
-import { Checkmark, Upload } from "../Icons";
-import { PgCommon } from "../../utils";
 import { cn } from "@/shared/lib/utils";
+
+import { PgCommon } from "../../utils";
+import { Checkmark, Upload } from "../Icons";
+import Input from "../Input";
 
 interface UploadAreaProps extends DropzoneOptions {
   /** Callback to run on drop or import */

@@ -1,15 +1,19 @@
 // @ts-nocheck
-import * as monaco from "monaco-editor";
 import type { WorldState } from "@solana-playground/rust-analyzer";
+import * as monaco from "monaco-editor";
 
-import { importTypes } from "../../common";
+import { createLogger } from "@/shared/lib/logger";
+
 import {
   AsyncMethods,
   Disposable,
   PgCommon,
   PgExplorer,
 } from "../../../../../../utils";
+import { importTypes } from "../../common";
 import { trackStart } from "./status";
+
+const log = createLogger("editor:rust-analyzer");
 
 /** Monaco language id for Rust */
 const LANGUAGE_ID = "rust";
@@ -46,7 +50,7 @@ export const initRustAnalyzer = (): Promise<Disposable> => {
   // Without it the worker fails every attempt, never reports ready, and the
   // retry below spawns another 9MB worker every interval, forever.
   if (!window.crossOriginIsolated) {
-    console.warn("Rust Analyzer disabled: the page is not crossOriginIsolated");
+    log.warn("Rust Analyzer disabled: the page is not crossOriginIsolated");
   }
   // TODO(HOO-2483): a start that throws after the worker came up leaves the
   // worker and the listeners made so far running; the indicator's Reload is
@@ -184,15 +188,15 @@ const fetchTransitiveCrates = async (): Promise<string[]> => {
     names = JSON.parse(await PgCommon.fetchText(url));
   } catch (e) {
     // The SPA fallback answers a missing file with `index.html`
-    console.warn(
+    log.warn(
       `Rust Analyzer: ${url} did not load, proc macros stay unresolved`,
-      e
+      { context: { error: e } }
     );
     return [];
   }
 
   if (!Array.isArray(names)) {
-    console.warn(
+    log.warn(
       `Rust Analyzer: ${url} is not a JSON array, proc macros stay unresolved`
     );
     return [];

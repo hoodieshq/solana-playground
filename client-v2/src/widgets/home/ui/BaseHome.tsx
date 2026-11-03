@@ -1,6 +1,6 @@
-import { useState } from "react";
-import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
+import type { ReactNode } from "react";
+import { useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import {
@@ -18,6 +18,7 @@ import { BrandButton, BrandButtonIcon } from "@/shared/ui/brand-button";
 import { BrandIcon } from "@/shared/ui/brand-icon";
 import { Button } from "@/shared/ui/button";
 import type { TutorialData } from "@/utils";
+
 import type { RecentEntry } from "../model/recent";
 import type { PageTile } from "../model/telemetry";
 import HomeComposer from "./HomeComposer";

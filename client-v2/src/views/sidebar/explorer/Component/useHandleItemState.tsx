@@ -1,6 +1,8 @@
 import { RefObject, useEffect, useLayoutEffect, useRef } from "react";
-import { PgExplorer } from "../../../../utils";
+
 import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
+
+import { PgExplorer } from "../../../../utils";
 import { keepTree, keptFolders, reopenFolders } from "./kept-tree";
 
 /**

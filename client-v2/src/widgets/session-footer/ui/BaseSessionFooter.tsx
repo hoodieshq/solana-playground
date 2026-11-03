@@ -1,7 +1,7 @@
-import type { ReactNode, Ref } from "react";
 import { ChevronsUpDown } from "lucide-react";
-import { cn } from "@/shared/lib/utils";
+import type { ReactNode, Ref } from "react";
 
+import { cn } from "@/shared/lib/utils";
 import { DropdownMenu, DropdownMenuTrigger } from "@/shared/ui/dropdown-menu";
 import {
   SidebarMenu,
@@ -10,13 +10,14 @@ import {
   SidebarMenuItem,
 } from "@/shared/ui/sidebar";
 import { Spinner } from "@/shared/ui/spinner";
+
+import type { AccountLine, AccountView } from "../model/account";
 import {
   accountLabel,
   accountLines,
   accountUser,
   lineText,
 } from "../model/account";
-import type { AccountLine, AccountView } from "../model/account";
 import AccountAvatar from "./AccountAvatar";
 
 const LINE_STYLE: Record<AccountLine["kind"], string> = {

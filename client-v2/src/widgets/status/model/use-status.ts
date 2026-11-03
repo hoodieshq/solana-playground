@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
-import { PgAnalyzerStatus } from "@/components/Editor/Monaco/languages/rust/rust-analyzer/status";
 import type { AnalyzerState } from "@/components/Editor/Monaco/languages/rust/rust-analyzer/status";
+import { PgAnalyzerStatus } from "@/components/Editor/Monaco/languages/rust/rust-analyzer/status";
 import { PgSession } from "@/features/auth";
 import { useRenderOnChange } from "@/hooks";
 import { useElapsed } from "@/shared/lib/hooks/use-elapsed";
@@ -9,8 +9,9 @@ import { useOnline } from "@/shared/lib/hooks/use-online";
 import { PgConnection } from "@/utils";
 import { displayModelName } from "@/views/sidebar/assistant/model/labels";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
-import { aiIndicator, analyzerIndicator, networkIndicator } from "./indicators";
+
 import type { AiInput, NetworkInput, StatusIndicator } from "./indicators";
+import { aiIndicator, analyzerIndicator, networkIndicator } from "./indicators";
 
 const subscribeAnalyzer = (cb: () => void) =>
   PgAnalyzerStatus.onDidChange(() => cb()).dispose;

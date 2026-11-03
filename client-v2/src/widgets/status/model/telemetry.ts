@@ -1,4 +1,5 @@
 import { createTracker } from "@/shared/lib/telemetry";
+
 import type { IndicatorId, StatusState } from "./indicators";
 import type { NoticeCondition } from "./notice";
 

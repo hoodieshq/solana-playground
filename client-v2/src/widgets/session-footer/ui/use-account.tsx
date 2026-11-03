@@ -6,8 +6,9 @@ import { FeedbackMenuItems, useFeedbackSend } from "@/features/feedback";
 import { useBalance, useRenderOnChange, useWallet } from "@/hooks";
 import { useOnline } from "@/shared/lib/hooks/use-online";
 import { createLogger } from "@/shared/lib/logger";
-import { PgCommand, PgCommon, PgExplorer, PgView, PgWallet } from "@/utils";
 import type { SettingsRequest } from "@/shared/lib/settings-request";
+import { PgCommand, PgCommon, PgExplorer, PgView, PgWallet } from "@/utils";
+
 import type {
   AccountItem,
   AccountSession,

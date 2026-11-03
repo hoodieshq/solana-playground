@@ -1,4 +1,7 @@
+import { PgExplorer } from "../../../utils/explorer/explorer";
+import { PgAccountList } from "./account-list";
 import { report } from "./diagnostics";
+import type { Conflict, ServerProject } from "./project-sync";
 import {
   freeName,
   isCleanAgainst,
@@ -12,9 +15,6 @@ import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgThreadIndex } from "./thread-index";
 import { PgWorkspaceRegistry } from "./workspace-registry";
-import { PgExplorer } from "../../../utils/explorer/explorer";
-import { PgAccountList } from "./account-list";
-import type { Conflict, ServerProject } from "./project-sync";
 
 /** What one reconcile pass did */
 export interface SyncResult {

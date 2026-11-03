@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import { CircleAlert, CircleCheck, CircleX, History } from "lucide-react";
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
@@ -31,21 +31,22 @@ import {
   StageEmptyMeta,
   StageEmptyTitle,
 } from "@/shared/ui/stage-empty";
+
 import {
   EMPTY_SOURCE_HINT,
   fileLabel,
 } from "../../../commands/build/empty-source";
-import { errorMeta, msLabel, warningCount } from "./build-view";
-import type { BuildSurface } from "./build-surface";
 import type { BuildFailure } from "../state/stage";
-import { SLOW_BUILD_MS } from "./use-slow-build";
+import type { BuildSurface } from "./build-surface";
 import type { DiagnosticView, FailedView } from "./build-view";
+import { errorMeta, msLabel, warningCount } from "./build-view";
 import {
   STAGE_BODY,
   STAGE_FOOT,
   STAGE_FRAME,
   STAGE_REPORT,
 } from "./stage-layout";
+import { SLOW_BUILD_MS } from "./use-slow-build";
 
 /** A Build surface with what it draws: the failed one carries its errors */
 export type BuildSurfaceView =

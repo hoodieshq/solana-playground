@@ -8,6 +8,7 @@ import {
   SheetTrigger,
 } from "@/shared/ui/sheet";
 import { StatusDot } from "@/shared/ui/status-dot";
+
 import type { ChipView, StatusIndicator } from "../model/indicators";
 import { DOT, IndicatorDot, StatusDetail } from "./parts";
 

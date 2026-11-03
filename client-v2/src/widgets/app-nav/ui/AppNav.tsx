@@ -1,10 +1,11 @@
 import { PgView } from "@/utils";
 import NewWorkspaceModal from "@/views/flow/gallery/NewWorkspaceModal";
+
 import type { NavItem } from "../model/nav-item";
 import { navTelemetry } from "../model/telemetry";
+import type { BaseAppNavProps } from "./BaseAppNav";
 import BaseAppNav from "./BaseAppNav";
 import Handoff from "./Handoff";
-import type { BaseAppNavProps } from "./BaseAppNav";
 
 /** The items that open a page of their own */
 export type NavPage = Extract<NavItem, "tutorials" | "programs">;

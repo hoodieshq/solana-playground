@@ -1,8 +1,9 @@
 import { ComponentPropsWithoutRef, forwardRef } from "react";
 import { Link as RouterLink } from "react-router-dom";
 
-import { External } from "../Icons";
 import { cn } from "@/shared/lib/utils";
+
+import { External } from "../Icons";
 
 export interface LinkProps extends ComponentPropsWithoutRef<"a"> {
   href: RoutePath;

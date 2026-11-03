@@ -1,7 +1,11 @@
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 
-import Stepper from "./Stepper";
+import { useViewport } from "@/shared/lib/hooks/use-viewport";
+import { cn } from "@/shared/lib/utils";
+
+import { useKeybind } from "../../../hooks";
+import type { LessonState } from "../lessons";
 import {
   cursorStep,
   foldRecord,
@@ -9,12 +13,9 @@ import {
   PgLesson,
   targetStage,
 } from "../lessons";
-import type { LessonState } from "../lessons";
-import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
 import type { FlowState } from "../state/stage";
-import { useKeybind } from "../../../hooks";
-import { useViewport } from "@/shared/lib/hooks/use-viewport";
-import { cn } from "@/shared/lib/utils";
+import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
+import Stepper from "./Stepper";
 
 /**
  * The dev-loop stepper: in the frame, a full-width row of stage tabs under the

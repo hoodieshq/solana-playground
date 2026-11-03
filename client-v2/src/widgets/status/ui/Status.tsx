@@ -1,10 +1,11 @@
 import { useState } from "react";
 
 import { useOnline } from "@/shared/lib/hooks/use-online";
-import { chipOf } from "../model/indicators";
+
 import type { StatusIndicator } from "../model/indicators";
-import { measured, statusTelemetry } from "../model/telemetry";
+import { chipOf } from "../model/indicators";
 import type { PickedFrom } from "../model/telemetry";
+import { measured, statusTelemetry } from "../model/telemetry";
 import { useStatus } from "../model/use-status";
 import BaseStatusChip from "./BaseStatusChip";
 import BaseStatusRail from "./BaseStatusRail";

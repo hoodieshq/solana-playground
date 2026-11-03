@@ -1,20 +1,20 @@
 import { SetStateAction, useCallback } from "react";
 
-import { BaseEditorTabs } from "./BaseEditorTabs";
-
-import Tab from "./Tab";
-import { Button } from "@/shared/ui/button";
-import { cn } from "@/shared/lib/utils";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
-import Dnd from "../Dnd";
-import Img from "../Img";
-import { PgExplorer, PgView, PgWallet } from "../../utils";
+import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
+
 import {
   useExplorer,
   useKeybind,
   useRenderOnChange,
   useWallet,
 } from "../../hooks";
+import { PgExplorer, PgView, PgWallet } from "../../utils";
+import Dnd from "../Dnd";
+import Img from "../Img";
+import { BaseEditorTabs } from "./BaseEditorTabs";
+import Tab from "./Tab";
 
 export const Tabs = () => {
   // Without this, tabs flicker after reorder

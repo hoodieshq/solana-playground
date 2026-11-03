@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/shared/ui/sidebar";
+
 import type { StatusIndicator } from "../model/indicators";
 import { IndicatorDot, StatusDetail } from "./parts";
 

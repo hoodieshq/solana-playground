@@ -1,11 +1,13 @@
-import { FC, useEffect, useMemo, useRef } from "react";
 import "xterm/css/xterm.css";
 
-import { useExposeStatic, useKeybind } from "../../hooks";
-import { CommandManager, PgCommon, PgTerm, PgTerminal } from "../../utils";
-import { resolveColor } from "../../shared/lib/css-color";
-import { xtermTheme } from "./terminal-theme";
+import { FC, useEffect, useMemo, useRef } from "react";
+
 import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
+
+import { useExposeStatic, useKeybind } from "../../hooks";
+import { resolveColor } from "../../shared/lib/css-color";
+import { CommandManager, PgCommon, PgTerm, PgTerminal } from "../../utils";
+import { xtermTheme } from "./terminal-theme";
 
 interface TerminalProps {
   cmdManager: CommandManager;

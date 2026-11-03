@@ -1,5 +1,5 @@
-import type { ChangeEvent, ComponentProps } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ChangeEvent, ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import * as reportModule from "@/shared/lib/report-button-failure";

@@ -4,6 +4,7 @@ import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
+
 import type { StageNoticeView } from "../model/notice";
 
 export interface BaseStageNoticeProps {

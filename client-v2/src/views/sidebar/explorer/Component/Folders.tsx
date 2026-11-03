@@ -11,13 +11,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { cn } from "@/shared/lib/utils";
 
-import ExplorerButtons from "./ExplorerButtons";
-import Dnd, { DragStartEvent, DragEndEvent } from "../../../../components/Dnd";
-import LangIcon from "../../../../components/LangIcon";
-import { ExplorerContextMenu } from "./ExplorerContextMenu";
-import { ReplaceItem } from "./Modals";
+import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { cn } from "@/shared/lib/utils";
+import { AsyncButton } from "@/shared/ui/async-button";
+
+import Dnd, { DragEndEvent, DragStartEvent } from "../../../../components/Dnd";
 import {
   Plus,
   Rocket,
@@ -26,15 +26,16 @@ import {
   Triangle,
   Wrench,
 } from "../../../../components/Icons";
-import { PgCommon, PgExplorer, PgView, PgTheme } from "../../../../utils";
+import LangIcon from "../../../../components/LangIcon";
+import { useKeybind } from "../../../../hooks";
+import { PgCommon, PgExplorer, PgTheme, PgView } from "../../../../utils";
+import ExplorerButtons from "./ExplorerButtons";
+import { ExplorerContextMenu } from "./ExplorerContextMenu";
+import { ReplaceItem } from "./Modals";
 import { useCreateItem } from "./useCreateItem";
 import { useExplorerContextMenu } from "./useExplorerContextMenu";
-import { useResetCtxSelected } from "./useResetCtxSelected";
 import { useHandleItemState } from "./useHandleItemState";
-import { useKeybind } from "../../../../hooks";
-import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
-import { AsyncButton } from "@/shared/ui/async-button";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { useResetCtxSelected } from "./useResetCtxSelected";
 
 /*
  * The rows are styled from the root, on the class names `PgExplorer` toggles
@@ -403,10 +404,10 @@ const RecursiveFolder: FC<React.PropsWithChildren<RecursiveFolderProps>> = ({
       >
         {folders
           .sort((a, b) => a.localeCompare(b))
-          .map((folderName) => (
+          .map((childName) => (
             <RecursiveFolder
-              key={folderName}
-              path={PgCommon.appendSlash(PgCommon.joinPaths(path, folderName))}
+              key={childName}
+              path={PgCommon.appendSlash(PgCommon.joinPaths(path, childName))}
             />
           ))}
 

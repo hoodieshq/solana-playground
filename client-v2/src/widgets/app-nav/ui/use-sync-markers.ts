@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { PgSession } from "@/features/auth";
+import type { SyncMarker } from "@/features/persistence";
 import {
   onDidChangeSyncMarkers,
   report,
   syncMarkerOf,
 } from "@/features/persistence";
-import type { SyncMarker } from "@/features/persistence";
 import { PgExplorer } from "@/utils";
 
 /**

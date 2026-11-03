@@ -1,6 +1,7 @@
 import type { Stage } from "@/views/flow/state/stage";
-import { networkIndicator, OFFLINE_LINE } from "./indicators";
+
 import type { NetworkInput } from "./indicators";
+import { networkIndicator, OFFLINE_LINE } from "./indicators";
 
 /**
  * What keeps work waiting: the browser is offline (Spec 08 NET-01) or the

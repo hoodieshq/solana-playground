@@ -1,3 +1,5 @@
+import type { Page } from "@playwright/test";
+
 import {
   expect,
   home,
@@ -6,7 +8,6 @@ import {
   seedWorkspace,
   test,
 } from "./fixtures";
-import type { Page } from "@playwright/test";
 
 /** The navigation's Home, which brings Home back over an open project */
 const navHome = (page: Page) =>

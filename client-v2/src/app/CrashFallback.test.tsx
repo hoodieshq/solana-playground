@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
 import { LoggerErrorBoundary } from "@/shared/lib/logger";
+
 import { CrashFallback } from "./CrashFallback";
 
 const Crash = (): never => {

@@ -17,6 +17,7 @@ import {
 } from "@/shared/lib/telemetry";
 import { SidebarProvider } from "@/shared/ui/sidebar";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+
 import {
   aiIndicator,
   analyzerIndicator,

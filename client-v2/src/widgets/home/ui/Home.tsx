@@ -4,18 +4,19 @@ import { PgSession } from "@/features/auth";
 import { StartFromScratch } from "@/features/new-project";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgTutorial } from "@/utils";
+
 import { errorMessage } from "../lib/error-message";
 import { runExample } from "../model/example";
+import type { RecentEntry } from "../model/recent";
 import { recentProjects } from "../model/recent";
 import { useSessionRetry } from "../model/session-retry";
+import type { PageTile } from "../model/telemetry";
+import { homeTelemetry } from "../model/telemetry";
+import { useProgramCount } from "../model/use-program-count";
 import { useVisit } from "../model/use-visit";
 import { needsSessionRetry } from "../model/visit";
-import type { RecentEntry } from "../model/recent";
-import { useProgramCount } from "../model/use-program-count";
-import { homeTelemetry } from "../model/telemetry";
-import type { PageTile } from "../model/telemetry";
-import BaseHome from "./BaseHome";
 import type { HomeStart, TutorialFailure } from "./BaseHome";
+import BaseHome from "./BaseHome";
 
 export interface HomeProps {
   onAsk: () => void;

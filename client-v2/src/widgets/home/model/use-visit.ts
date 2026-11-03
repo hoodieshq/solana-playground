@@ -5,8 +5,9 @@ import { PgAccountList } from "@/features/persistence";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer } from "@/utils";
-import { visitOf } from "./visit";
+
 import type { Visit } from "./visit";
+import { visitOf } from "./visit";
 
 const log = createLogger("home:visit");
 

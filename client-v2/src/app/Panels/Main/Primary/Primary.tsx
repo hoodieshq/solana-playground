@@ -1,25 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { createLogger } from "@/shared/lib/logger";
+
 import ErrorBoundary, {
   type ErrorBoundaryChildren,
 } from "../../../../components/ErrorBoundary";
 import { SpinnerWithBg } from "../../../../components/Loading";
-import { PgCommon, PgView } from "../../../../utils";
 import { useGetAndSetStatic } from "../../../../hooks";
-import { createLogger } from "@/shared/lib/logger";
+import { PgCommon, PgView } from "../../../../utils";
 
 const log = createLogger("view:main-primary");
 
 const Primary = () => {
   const [el, setEl] = useState<ErrorBoundaryChildren>(null);
-  const setElWithTransition = useCallback(async (el: unknown) => {
-    if (PgCommon.isAsyncFunction(el)) {
+  const setElWithTransition = useCallback(async (nextEl: unknown) => {
+    if (PgCommon.isAsyncFunction(nextEl)) {
       setEl(null);
 
       const setContent = async () => {
         setEl(
           PgCommon.callIfNeeded(
-            await (el as () => unknown)()
+            await (nextEl as () => unknown)()
           ) as ErrorBoundaryChildren
         );
       };
@@ -34,7 +35,7 @@ const Primary = () => {
         setEl({ error: e as Error, refresh: setContent });
       }
     } else {
-      setEl(PgCommon.callIfNeeded(el) as ErrorBoundaryChildren);
+      setEl(PgCommon.callIfNeeded(nextEl) as ErrorBoundaryChildren);
     }
   }, []);
 

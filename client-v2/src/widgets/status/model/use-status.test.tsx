@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { PgAnalyzerStatus } from "@/components/Editor/Monaco/languages/rust/rust-analyzer/status";
+
 import { useStatus } from "./use-status";
 
 /** An event that hands each subscriber `value` at once, as `PgConnection`'s do */

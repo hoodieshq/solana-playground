@@ -2,12 +2,13 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import type { McpServerEntry, McpTool } from "@/features/mcp";
+import { callTool } from "@/features/mcp";
 import { cn } from "@/shared/lib/utils";
 import { NativeSelect, NativeSelectOption } from "@/shared/ui/native-select";
-import { PgAssistant } from "../store";
+
 import { PgConnection } from "../../../../utils";
-import { callTool } from "@/features/mcp";
-import type { McpServerEntry, McpTool } from "@/features/mcp";
+import { PgAssistant } from "../store";
 
 interface ServerConsoleProps {
   server: McpServerEntry;

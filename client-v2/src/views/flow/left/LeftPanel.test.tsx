@@ -74,8 +74,8 @@ vi.mock("../lessons/StepRail", () => ({
   default: () => <div data-testid="step-rail" />,
 }));
 
-import LeftPanel, { isLessonTab } from "./LeftPanel";
 import { forgetColumn } from "./kept-column";
+import LeftPanel, { isLessonTab } from "./LeftPanel";
 
 const draw = (collapsed: boolean, onHide?: () => void) =>
   render(<LeftPanel collapsed={collapsed} onHide={onHide} />);

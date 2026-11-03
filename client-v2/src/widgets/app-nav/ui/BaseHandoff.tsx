@@ -1,6 +1,7 @@
 import { Check, Copy, Monitor, Share } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 
+import { GithubMark } from "@/shared/lib/github-mark";
 import { BrandButton } from "@/shared/ui/brand-button";
 import { Button } from "@/shared/ui/button";
 import {
@@ -12,7 +13,6 @@ import {
   DrawerTitle,
 } from "@/shared/ui/drawer";
 import { SidebarMenuButton } from "@/shared/ui/sidebar";
-import { GithubMark } from "@/shared/lib/github-mark";
 
 export const HANDOFF_TITLE = "Continue on a computer";
 

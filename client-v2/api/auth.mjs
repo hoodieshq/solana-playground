@@ -9,19 +9,19 @@
  * that spans segments. `api-routing.test.mjs` holds the rule.
  *
  * The dev server arrives the other way, dispatching on the first path segment
- * (see `resolveApiRoute` in `craco.config.js`).
+ * (see `resolveApiRoute` in `scripts/api-route.mjs`).
  */
 import { toNodeHandler } from "better-auth/node";
 
+import {
+  warnAboutMissingObservabilityIds,
+  withObservability,
+} from "../src/features/api/server.mjs";
 import {
   AUTH_NOT_CONFIGURED,
   getAuth,
   missingConfig,
 } from "../src/features/auth/server.mjs";
-import {
-  warnAboutMissingObservabilityIds,
-  withObservability,
-} from "../src/features/api/server.mjs";
 
 /**
  * Put the requested path back on the request.

@@ -1,5 +1,6 @@
-import { createTracker } from "@/shared/lib/telemetry";
 import type { NoParams } from "@/shared/lib/telemetry";
+import { createTracker } from "@/shared/lib/telemetry";
+
 import type { NavItem } from "./nav-item";
 import type { ProjectAction } from "./project-action";
 

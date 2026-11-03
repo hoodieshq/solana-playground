@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useOnline } from "@/shared/lib/hooks/use-online";
 import { PgConnection } from "@/utils";
 import type { Stage } from "@/views/flow/state/stage";
-import { noticeCondition, stageNotice } from "../model/notice";
+
 import type { NoticeCondition } from "../model/notice";
+import { noticeCondition, stageNotice } from "../model/notice";
 import { statusTelemetry } from "../model/telemetry";
 import { useNetworkInput } from "../model/use-status";
 import BaseStageNotice from "./BaseStageNotice";

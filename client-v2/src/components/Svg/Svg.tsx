@@ -1,7 +1,8 @@
 import { ComponentPropsWithoutRef, forwardRef } from "react";
 
-import { PgTheme, ThemeColor } from "../../utils";
 import { cn } from "@/shared/lib/utils";
+
+import { PgTheme, ThemeColor } from "../../utils";
 
 export interface SvgProps extends ComponentPropsWithoutRef<"svg"> {
   color?: ThemeColor;

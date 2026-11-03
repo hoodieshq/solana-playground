@@ -1,14 +1,15 @@
 import { FC, useEffect, useRef } from "react";
 
 import { Button } from "@/shared/ui/button";
-import EditorWithTabs from "../../EditorWithTabs";
-import Markdown from "../../Markdown";
-import Resizable from "../../Resizable";
-import { SpinnerWithBg } from "../../Loading";
-import { PointedArrow } from "../../Icons";
+
 import { Emoji } from "../../../constants";
 import { useAsyncEffect } from "../../../hooks";
 import { PgCommon, PgRouter, PgTutorial, PgView } from "../../../utils";
+import EditorWithTabs from "../../EditorWithTabs";
+import { PointedArrow } from "../../Icons";
+import { SpinnerWithBg } from "../../Loading";
+import Markdown from "../../Markdown";
+import Resizable from "../../Resizable";
 import type { TutorialMainComponentProps } from "../types";
 
 export const Main: FC<React.PropsWithChildren<TutorialMainComponentProps>> = ({

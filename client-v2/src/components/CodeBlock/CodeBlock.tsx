@@ -1,12 +1,13 @@
 import { useState } from "react";
 
-import { CopyButton } from "@/shared/ui/copy-button";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
-import { highlight } from "./highlight";
-import { PgTheme, resolveTextMateTheme } from "../../utils";
-import { resolveColor } from "../../shared/lib/css-color";
-import { useAsyncEffect, useDifferentBackground } from "../../hooks";
 import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { CopyButton } from "@/shared/ui/copy-button";
+
+import { useAsyncEffect, useDifferentBackground } from "../../hooks";
+import { resolveColor } from "../../shared/lib/css-color";
+import { PgTheme, resolveTextMateTheme } from "../../utils";
+import { highlight } from "./highlight";
 
 export interface CodeBlockProps {
   /** Code */

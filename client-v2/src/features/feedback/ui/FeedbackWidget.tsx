@@ -1,9 +1,10 @@
-import { createContext, useCallback, useContext, useMemo, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef } from "react";
 
 import { useRenderOnChange } from "@/hooks";
 import { usePgTheme } from "@/shared/lib/hooks/use-pg-theme";
 import { PgConnection, PgView } from "@/utils";
+
 import type { GithubLink } from "../lib/github-links";
 import { useFeedbackProvider } from "../model/context";
 import { feedbackTelemetry } from "../model/telemetry";

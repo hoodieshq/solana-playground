@@ -10,8 +10,8 @@ import {
   beforeEach,
   expect,
   it,
-  vi,
   type MockInstance,
+  vi,
 } from "vitest";
 
 import {

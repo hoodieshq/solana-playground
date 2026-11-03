@@ -1,6 +1,8 @@
+import { ArrowLeft, ChevronDown, Search, X } from "lucide-react";
 import {
   Dispatch,
   FC,
+  type JSX,
   ReactNode,
   SetStateAction,
   useEffect,
@@ -8,10 +10,11 @@ import {
   useMemo,
   useRef,
   useState,
-  type JSX,
 } from "react";
-import { ArrowLeft, ChevronDown, Search, X } from "lucide-react";
 
+import { createLogger } from "@/shared/lib/logger";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import {
   Command,
@@ -26,13 +29,11 @@ import {
   InputGroupInput,
 } from "@/shared/ui/input-group";
 import { Popover, PopoverAnchor, PopoverContent } from "@/shared/ui/popover";
-import { createLogger } from "@/shared/lib/logger";
-import { cn } from "@/shared/lib/utils";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { Spinner } from "@/shared/ui/spinner";
-import type { InputProps } from "../Input";
+
 import { useKeybind, useOnClickOutside } from "../../hooks";
 import { Arrayable, Getable, PgCommon } from "../../utils";
+import type { InputProps } from "../Input";
 
 const log = createLogger("components:search-bar");
 
@@ -223,9 +224,9 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
 
   // Sync changes
   useEffect(() => {
-    setItemState((itemState) => {
-      if (itemState.isInSubSearch) return itemState;
-      return { ...itemState, items };
+    setItemState((prevState) => {
+      if (prevState.isInSubSearch) return prevState;
+      return { ...prevState, items };
     });
   }, [items]);
   useEffect(() => {
@@ -312,13 +313,17 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
     item.onSelect?.(item);
 
     if (isCompleted) {
-      setSelectedItems((items) => {
-        if (!items.pending.length) return { ...items, completed: [item] };
-        return { completed: [...items.pending, item], pending: [] };
+      setSelectedItems((prevSelected) => {
+        if (!prevSelected.pending.length)
+          return { ...prevSelected, completed: [item] };
+        return { completed: [...prevSelected.pending, item], pending: [] };
       });
       onSearch?.({ input: props.value, item });
     } else {
-      setSelectedItems((items) => ({ ...items, pending: [item] }));
+      setSelectedItems((prevSelected) => ({
+        ...prevSelected,
+        pending: [item],
+      }));
     }
 
     if (isInSubSearch) {
@@ -514,8 +519,8 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                 // Search `itemState.items`, not `filteredItems` or
                 // `normalizedItems`: those are empty while the list is closed
                 // (`isVisible` false), and a paste can come before it opens.
-                const item = itemState.items?.find((item) => {
-                  const { label } = normalizeItem(item);
+                const item = itemState.items?.find((candidate) => {
+                  const { label } = normalizeItem(candidate);
                   return (
                     label === labelToSelectOnPaste || label === clipboardText
                   );
@@ -612,7 +617,10 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                 aria-label="Back"
                 onClick={() => {
                   setItemState({ items, isInSubSearch: false });
-                  setSelectedItems((items) => ({ ...items, pending: [] }));
+                  setSelectedItems((prevSelected) => ({
+                    ...prevSelected,
+                    pending: [],
+                  }));
                   inputRef.current?.focus();
                 }}
               >

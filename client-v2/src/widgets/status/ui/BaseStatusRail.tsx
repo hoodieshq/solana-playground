@@ -13,8 +13,9 @@ import {
   SidebarMenuItem,
 } from "@/shared/ui/sidebar";
 import { StatusDot } from "@/shared/ui/status-dot";
-import { DOT, StatusDetail } from "./parts";
+
 import type { BaseStatusRowProps } from "./BaseStatusRow";
+import { DOT, StatusDetail } from "./parts";
 
 /**
  * The status row on the rail: the three dots, one button each, doing what

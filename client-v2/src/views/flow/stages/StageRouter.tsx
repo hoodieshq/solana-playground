@@ -1,10 +1,11 @@
 import type { FC } from "react";
 import { lazy, Suspense } from "react";
 
-import Write from "./Write";
+import { cn } from "@/shared/lib/utils";
+
 import { SpinnerWithBg } from "../../../components/Loading";
 import type { Stage } from "../state/stage";
-import { cn } from "@/shared/lib/utils";
+import Write from "./Write";
 
 const Build = lazy(() => import("./Build"));
 const Deploy = lazy(() => import("./Deploy"));

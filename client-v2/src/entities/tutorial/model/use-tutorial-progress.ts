@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 
 import { isMissing } from "@/shared/lib/is-missing";
 import { createLogger } from "@/shared/lib/logger";
+
 // By module, not the utils barrel, which reads the build's globals on import
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
 import type { TutorialMetadata } from "../../../utils/tutorial/types";
-import { progressOf } from "./progress";
 import type { TutorialProgress } from "./progress";
+import { progressOf } from "./progress";
 
 const log = createLogger("tutorial:progress");
 

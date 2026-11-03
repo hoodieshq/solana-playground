@@ -56,9 +56,9 @@ vi.mock("./merge-editor/controller", () => ({
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import { BaseConflictResolver } from "./BaseConflictResolver";
-import { merge3 } from "../model/merge";
 import type { FileConflict } from "../model/merge";
+import { merge3 } from "../model/merge";
+import { BaseConflictResolver } from "./BaseConflictResolver";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }

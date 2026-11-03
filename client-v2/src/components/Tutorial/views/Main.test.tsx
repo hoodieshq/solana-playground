@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import type { MockInstance } from "vitest";
 import {
   afterAll,
   afterEach,
@@ -9,7 +10,6 @@ import {
   it,
   vi,
 } from "vitest";
-import type { MockInstance } from "vitest";
 
 import { Main } from "./Main";
 

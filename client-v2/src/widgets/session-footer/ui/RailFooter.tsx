@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { SettingsRequest } from "@/shared/lib/settings-request";
+
 import BaseRailFooter from "./BaseRailFooter";
 import { useAccount } from "./use-account";
 

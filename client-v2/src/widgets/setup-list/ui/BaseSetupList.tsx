@@ -11,8 +11,9 @@ import {
   SetupListTrigger,
   SetupListValue,
 } from "@/shared/ui/setup-list";
-import { counts } from "../model/steps";
+
 import type { SetupStep, StepView, TodoStep } from "../model/steps";
+import { counts } from "../model/steps";
 
 const STEP_LABELS: Record<SetupStep, string> = {
   assistant: "Connect the assistant",

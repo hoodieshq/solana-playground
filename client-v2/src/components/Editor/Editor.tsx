@@ -1,8 +1,9 @@
-import { useEffect, lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import { NoFileOpen } from "@/widgets/layout-shell";
-import { SpinnerWithBg } from "../Loading";
+
 import { PgCommon, PgExplorer } from "../../utils";
+import { SpinnerWithBg } from "../Loading";
 
 const Monaco = lazy(() => import("./Monaco"));
 

@@ -30,8 +30,8 @@ vi.mock("../utils", async () => {
   };
 });
 
-import { checkPgWallet, checkWallet } from "./checks";
 import { TerminalLineError } from "../utils/terminal/line-error";
+import { checkPgWallet, checkWallet } from "./checks";
 
 beforeEach(() => {
   env.wallet = undefined;

@@ -33,7 +33,7 @@ const Card: FC<React.PropsWithChildren<CardProps>> = ({
     setIsClickable(hasHref);
   }, [props.onClick]);
 
-  const Card = (
+  const card = (
     <div
       ref={ref}
       className={cn(
@@ -58,11 +58,11 @@ const Card: FC<React.PropsWithChildren<CardProps>> = ({
           "hover:cursor-pointer hover:[transform:translateY(-0.5rem)] hover:[&>div]:bg-surface-hover hover:after:opacity-100"
         )}
       >
-        {Card}
+        {card}
       </div>
     );
   }
-  return Card;
+  return card;
 };
 
 export default Card;

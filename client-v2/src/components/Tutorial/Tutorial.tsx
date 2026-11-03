@@ -1,9 +1,9 @@
 import { FC, useCallback, useEffect } from "react";
 
-import { About, Main } from "./views";
-import { PgTutorial } from "../../utils";
 import { useRenderOnChange } from "../../hooks";
+import { PgTutorial } from "../../utils";
 import type { TutorialComponentProps } from "./types";
+import { About, Main } from "./views";
 
 export const Tutorial: FC<React.PropsWithChildren<TutorialComponentProps>> = ({
   about,

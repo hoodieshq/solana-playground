@@ -2,8 +2,9 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { SidebarProvider } from "@/shared/ui/sidebar";
-import BaseHandoff from "./BaseHandoff";
+
 import type { BaseHandoffProps, HandoffAccount } from "./BaseHandoff";
+import BaseHandoff from "./BaseHandoff";
 
 const LINK = "https://beta.solpg.io/tutorials/hello-solana";
 
