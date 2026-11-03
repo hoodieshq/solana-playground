@@ -45,14 +45,14 @@ const INVALID_NAME = "Use letters, digits, spaces, - and _.";
  * in the field, not reported: another tab or device is all it takes.
  */
 const refusalOf = (error: unknown, entry: ProjectEntry, newName: string) => {
-  const message = error instanceof Error ? error.message : null;
+  const message = error instanceof Error ? error.message : undefined;
   if (message === PgWorkspace.errors.NOT_FOUND) {
     return `${entry.name} is no longer in your projects.`;
   }
   if (message === PgWorkspace.errors.ALREADY_EXISTS) {
     return `A project named ${newName} already exists.`;
   }
-  return null;
+  return undefined;
 };
 
 /**
@@ -92,8 +92,8 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
   const [, refresh] = useReducer((n: number) => n + 1, 0);
   const [pins, setPins] = useState(readPins);
   const markers = useSyncMarkers();
-  const [renaming, setRenaming] = useState<string | null>(null);
-  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | undefined>();
+  const [renameError, setRenameError] = useState<string | undefined>();
   // How the rename was asked for: it is counted on commit, with that `via`
   const renameVia = useRef<"click" | "key">("click");
   // A second Enter, or the blur after it, must not start a second rename of
@@ -152,11 +152,11 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
 
   // The project being renamed went (renamed or deleted elsewhere): its field
   // goes with it, rather than come back on a project of that name later
-  const renamingGone = renaming !== null && !names.includes(renaming);
+  const renamingGone = renaming !== undefined && !names.includes(renaming);
   useEffect(() => {
     if (!renamingGone) return;
-    setRenaming(null);
-    setRenameError(null);
+    setRenaming(undefined);
+    setRenameError(undefined);
   }, [renamingGone]);
 
   const projects = listProjects(
@@ -164,7 +164,7 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
     {
       idOf: (name) => PgExplorer.workspaceIdOf(name),
       isLesson: (name) => PgTutorial.isWorkspaceTutorial(name),
-      markerOf: (name) => markers.get(name) ?? null,
+      markerOf: (name) => markers.get(name),
     },
     livePins
   );
@@ -211,7 +211,7 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
         return;
       }
       case "rename":
-        setRenameError(null);
+        setRenameError(undefined);
         setRenaming(entry.name);
         return;
       case "duplicate": {
@@ -255,7 +255,7 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
       return;
     }
     if (newName === entry.name) {
-      setRenaming(null);
+      setRenaming(undefined);
       return;
     }
     if (names.includes(newName)) {
@@ -275,8 +275,8 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
         from: entry.name,
         announce: true,
       });
-      setRenaming(null);
-      setRenameError(null);
+      setRenaming(undefined);
+      setRenameError(undefined);
     } catch (e) {
       const refusal = refusalOf(e, entry, newName);
       if (refusal) {
@@ -298,16 +298,16 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
       loading={
         !PgExplorer.isTemporary && PgExplorer.allWorkspaceNames === undefined
       }
-      current={PgExplorer.currentWorkspaceName ?? null}
-      renaming={renamingGone ? null : renaming}
+      current={PgExplorer.currentWorkspaceName}
+      renaming={renamingGone ? undefined : renaming}
       renameError={renameError}
       onAction={onAction}
-      onRenameChange={() => setRenameError(null)}
+      onRenameChange={() => setRenameError(undefined)}
       onRenameCommit={onRenameCommit}
       onRenameCancel={() => {
         if (renamePending.current) return;
-        setRenaming(null);
-        setRenameError(null);
+        setRenaming(undefined);
+        setRenameError(undefined);
       }}
     />
   );
