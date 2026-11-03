@@ -48,7 +48,7 @@
 
 **Interfaces — Produces:**
 ```ts
-type KeypairNote = { kind: "changed" | "invalid" | "removed" | "refused" } | null;
+type KeypairNote = "changed" | "invalid" | "removed" | "refused" | null;
 interface BaseProgramKeypairProps {
   programId: string | null;      // pk
   hasKeypair: boolean;
@@ -60,13 +60,14 @@ interface BaseProgramKeypairProps {
   onNew(): void;                 // container: generate or open dialog
   onConfirmNew(): void; onCancelNew(): void; onSaveOld(): void;
   onImport(file: File): void; onExport(): void;
+  onEdit(): void;                // field typed in: the container drops a stale note
   onChangeId(text: string): void; onRemoveCustomId(): void;
 }
 ```
 `ProgramKeypair` (no props) owns `note`, `open` (initially `mismatch`, forced true when mismatch turns on), `confirming`; subscribes to `PgProgramInfo.onDidChangePk/Kp/CustomPk` via `useRenderOnChange`; emits the events.
 
 - [ ] Base tests (one per action): closed by default shows only the trigger; open shows field with id, copy, hint; New calls `onNew`; dialog shows the legacy copy and Generate/Save keypair call their handlers; drop zone file calls `onImport`; Export hidden when `!hasKeypair || customId`; typing shows "Change program id" and passes trimmed text; Remove shows only with `customId`; mismatch shows the warning; each `note` shows its line.
-- [ ] Container tests with `vi.mock("../../../utils")` holding a fake `PgProgramInfo` and the memory provider: import valid → `update({kp, customPk: null})` + `keypair_imported`; import bad → no update + `keypair_import_refused {reason:"wrong_shape"}`; New with kp → dialog, Generate → `keypair_generated {replaced:true}`; export → `PgCommon.export("program-keypair.json", [...])` + `keypair_exported {from:"block"}`; change valid / invalid; remove.
+- [ ] Container tests with `vi.mock("@/utils")` holding a fake `PgProgramInfo` (and `@/hooks`, `@/shared/lib/report-button-failure`) and the memory provider: import valid → `update({kp, customPk: null})` + `keypair_imported`; import bad → no update + `keypair_import_refused {reason:"wrong_shape"}`; New with kp → dialog, Generate → `keypair_generated {replaced:true}`; export → `PgCommon.export("program-keypair.json", [...])` + `keypair_exported {from:"block"}`; change valid / invalid; remove.
 - [ ] Run both files → FAIL, implement → PASS.
 
 ### Task 3: wire into the Deploy stage (tasks.md 2.1)

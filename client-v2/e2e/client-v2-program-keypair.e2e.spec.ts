@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import type { Page } from "@playwright/test";
+import { Keypair } from "@solana/web3.js";
 
 import { expect, LONG, test } from "./fixtures";
 
@@ -10,7 +11,11 @@ import { expect, LONG, test } from "./fixtures";
  * by hand (`(manual)` in the spec).
  */
 
-const OTHER_ID = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
+/**
+ * A custom id no account holds on devnet: the block counts an id with an
+ * account as deployed, and a deployed program shows no mismatch
+ */
+const OTHER_ID = Keypair.generate().publicKey.toBase58();
 
 const block = (page: Page) =>
   page

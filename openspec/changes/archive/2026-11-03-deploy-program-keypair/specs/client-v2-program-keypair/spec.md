@@ -13,7 +13,8 @@ The Deploy stage SHALL show a fold labelled "Program id" (a section with
 `aria-label="Program id"`) whose trigger button reads "Program id". Before
 the first deploy it SHALL sit under the payer line; after a deploy, under
 the history. It SHALL be closed by default and open by itself while a custom
-id is set that does not match the keypair.
+id is set that does not match the keypair and the program is not known to
+be deployed on the selected cluster.
 
 Open, it SHALL show a text field with `aria-label="Program id"` holding the
 project's program id (the custom id when one is set, else the keypair's
