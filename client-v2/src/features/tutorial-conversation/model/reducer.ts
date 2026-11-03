@@ -1797,7 +1797,13 @@ if (import.meta.vitest) {
           })
         ).toBe("no_wallet");
         expect(
-          outcomeOf({ act: "run", ok: false, seconds: 2, message: "x", log: "" })
+          outcomeOf({
+            act: "run",
+            ok: false,
+            seconds: 2,
+            message: "x",
+            log: "",
+          })
         ).toBe("failed");
         expect(
           outcomeOf({

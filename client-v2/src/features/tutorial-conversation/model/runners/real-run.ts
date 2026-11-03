@@ -5,12 +5,12 @@ import {
   PgCommand,
   PgConnection,
   PgProgramInfo,
-  PgProgramInteraction,
   PgTerminal,
   PgTx,
   PgWallet,
   PgWeb3,
 } from "../../../../utils";
+import { PgProgramInteraction } from "../../../../utils/program-interaction";
 import { createLogger } from "@/shared/lib/logger";
 import type { ActRun } from "./act-runner";
 import { captureSends } from "./capture";
@@ -122,7 +122,10 @@ const sendCall = async (call: {
 };
 
 /** The run and call port over the editor's runner and devnet */
-export const realRunPort = (funding: FundingChain, capSol: number): RunPort => ({
+export const realRunPort = (
+  funding: FundingChain,
+  capSol: number
+): RunPort => ({
   refusal: () =>
     PgConnection.cluster === "devnet"
       ? null

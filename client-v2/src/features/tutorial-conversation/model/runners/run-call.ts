@@ -6,6 +6,9 @@ import type { FundingChain } from "./fund";
 import { resultOf } from "./transactions";
 import type { DecodedCall, SentTx } from "./transactions";
 
+/** A run's or a call's result */
+type TxResult = Extract<RunResult, { act: "run" | "call" }>;
+
 /** The stages' labels, as the act card shows them */
 export const RUN_STAGES = {
   funding: "Funding your wallet",
@@ -81,13 +84,13 @@ export const runOrCall = async (
   act: "run" | "call",
   input: RunInput,
   onStage: (stage: RunStage) => void
-): Promise<RunResult> => {
+): Promise<TxResult> => {
   const started = port.now();
   const seconds = () => (port.now() - started) / 1000;
   const fail = (
     message: string,
     reason?: "no_wallet" | "no_funds"
-  ): RunResult => ({
+  ): TxResult => ({
     act,
     ok: false,
     seconds: seconds(),
@@ -377,9 +380,9 @@ if (import.meta.vitest) {
     });
 
     it("refuses to start with no wallet, off devnet, or before a deploy", async () => {
-      expect(
-        (await stagesOf(portWith({ wallet: null }))).result
-      ).toMatchObject({ ok: false, reason: "no_wallet" });
+      expect((await stagesOf(portWith({ wallet: null }))).result).toMatchObject(
+        { ok: false, reason: "no_wallet" }
+      );
       expect(
         (await stagesOf(portWith({ refusal: "Switch to devnet." }))).result
       ).toMatchObject({ ok: false, message: "Switch to devnet." });

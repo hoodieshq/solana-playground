@@ -16,12 +16,12 @@ export interface Sender {
 /** The RPC's reason and the simulation's log, from web3.js's `SendTransactionError` */
 const refusalOf = (e: unknown) => {
   const err = e as { transactionMessage?: unknown; transactionLogs?: unknown };
-  const message =
-    typeof err?.transactionMessage === "string"
-      ? err.transactionMessage
-      : e instanceof Error
-      ? e.message
-      : String(e);
+  let message = String(e);
+  if (typeof err?.transactionMessage === "string") {
+    message = err.transactionMessage;
+  } else if (e instanceof Error) {
+    message = e.message;
+  }
   const log = Array.isArray(err?.transactionLogs)
     ? err.transactionLogs.filter((l): l is string => typeof l === "string")
     : [];

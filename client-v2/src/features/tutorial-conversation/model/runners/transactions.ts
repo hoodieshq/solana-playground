@@ -1,4 +1,10 @@
-import type { Called, Receipt, ReceiptAccount, Refusal, RunResult } from "../progress";
+import type {
+  Called,
+  Receipt,
+  ReceiptAccount,
+  Refusal,
+  RunResult,
+} from "../progress";
 
 /**
  * One transaction a run or call sent, as the chain answered it: landed
@@ -167,7 +173,7 @@ export const resultOf = ({
   programId: string;
   pattern: string | undefined;
   seconds: number;
-}): RunResult => {
+}): Extract<RunResult, { act: "run" | "call" }> => {
   const failure = sent.find(failed);
   if (failure) {
     const refused = refusalOf(failure.log, programId, failure.calls);
@@ -357,9 +363,7 @@ if (import.meta.vitest) {
         });
 
       it("a landed run: signatures, the picked line, the calls and the last receipt", () => {
-        expect(
-          resultFor([landed(HELLO_LOG)])
-        ).toEqual({
+        expect(resultFor([landed(HELLO_LOG)])).toEqual({
           act: "run",
           ok: true,
           seconds: 3,
@@ -403,7 +407,10 @@ if (import.meta.vitest) {
           landed(HELLO_LOG),
           landed(CHOP_LOG, [], { InstructionError: [0, { Custom: 6000 }] }),
         ]);
-        expect(result).toMatchObject({ ok: false, message: "Not enough energy" });
+        expect(result).toMatchObject({
+          ok: false,
+          message: "Not enough energy",
+        });
       });
 
       it("a send that failed before the chain carries its first line and no refusal", () => {
