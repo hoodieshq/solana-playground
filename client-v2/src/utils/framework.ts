@@ -126,10 +126,11 @@ const DATA_FILE_REGEX = /\.json$/;
 /**
  * JSON that configures the repository's own tooling rather than holding
  * data: Playground resolves packages and compiler options itself, so these
- * would only sit in the tree
+ * would only sit in the tree. A dotfile, or anything in a dot folder
+ * (`.vscode/`), counts too.
  */
 const TOOL_CONFIG_REGEX =
-  /(^|\/)(package\.json|(ts|js)config(\.[^/]+)?\.json|\.[^/]+)$/;
+  /(^|\/)(package\.json|(ts|js)config(\.[^/]+)?\.json)$|(^|\/)\./;
 
 /** Whether a project with no program keeps the file at `path` */
 const isNoProgramFile = (path: string) =>
@@ -692,6 +693,8 @@ if (import.meta.vitest) {
               ["tests/tsconfig.json", "{}"],
               ["jsconfig.json", "{}"],
               [".eslintrc.json", "{}"],
+              [".vscode/settings.json", "{}"],
+              ["tests/.fixtures/a.json", "{}"],
             ])
           ).toEqual(["client/index.ts"]);
         });
