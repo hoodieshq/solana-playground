@@ -68,12 +68,14 @@ const defaultBackend = (configured: boolean) =>
     ok: true,
     json: async () => ({
       key: configured ? "hosted" : "own",
+      /* eslint-disable unicorn/no-null -- a `GET /api/ai/status` body: `null` is on the wire */
       reason: null,
       model: configured ? "z-ai/glm-5.3-flash:US" : null,
+      /* eslint-enable unicorn/no-null */
     }),
   } as Response);
 
-/** What `Provider.send` is handed with the text: the signal and the context */
+/** What `Provider.send` is handed with the text: the signal */
 type SendTurn = Parameters<Provider["send"]>[1];
 
 /** A provider whose turn runs until its signal aborts, then rejects */
@@ -300,6 +302,7 @@ describe("useTurn", () => {
     await act(async () =>
       answer({
         ok: true,
+        // eslint-disable-next-line unicorn/no-null -- a `GET /api/ai/status` body: `null` is on the wire
         json: async () => ({ key: "hosted", reason: null, model: null }),
       } as Response)
     );
@@ -951,6 +954,7 @@ describe("useTurn without a session", () => {
       if (!String(input).includes("/api/auth/get-session")) {
         return {
           ok: true,
+          // eslint-disable-next-line unicorn/no-null -- a `GET /api/ai/status` body: `null` is on the wire
           json: async () => ({ key: "hosted", reason: null, model: null }),
         } as Response;
       }
@@ -1069,8 +1073,10 @@ const heldProbe = () => {
           status: 200,
           json: async () => ({
             key: configured ? "hosted" : "own",
+            /* eslint-disable unicorn/no-null -- a `GET /api/ai/status` body: `null` is on the wire */
             reason: null,
             model: null,
+            /* eslint-enable unicorn/no-null */
           }),
         } as Response);
     })
@@ -1624,12 +1630,13 @@ describe("useTurn's turn events", () => {
       .filter((e) => e.name.startsWith("assistant_turn_"))
       .map((e) => [e.name, e.params]);
   const sent = ["assistant_turn_sent", { provider: "default" }];
-  const failed = (reason: string, status?: number) => [
+  const failed = (reason: string) => [
     "assistant_turn_failed",
-    status === undefined
-      ? { provider: "default", reason }
-      : { provider: "default", reason, status },
+    { provider: "default", reason },
   ];
+  /** As `failed`, for a failure the backend answered with HTTP `status` */
+  const failedWith = (status: number) => (reason: string) =>
+    ["assistant_turn_failed", { provider: "default", reason, status }];
 
   beforeEach(() => PgAssistant.connect({ id: "default", apiKey: "" }));
 
@@ -1695,7 +1702,7 @@ describe("useTurn's turn events", () => {
     [
       "a provider error with its status",
       new TurnFailure("Provider says no", { reason: "provider", status: 500 }),
-      failed("provider", 500),
+      failedWith(500)("provider"),
     ],
     [
       "a refusal, with no status",
@@ -1710,7 +1717,7 @@ describe("useTurn's turn events", () => {
     [
       "an upstream 429 that is not a cap",
       new TurnFailure("Rate limited.", { reason: "provider", status: 429 }),
-      failed("provider", 429),
+      failedWith(429)("provider"),
     ],
     [
       "a key the backend rejects",
@@ -1722,7 +1729,7 @@ describe("useTurn's turn events", () => {
           status: 401,
         }),
       }),
-      failed("provider", 401),
+      failedWith(401)("provider"),
     ],
     [
       "a failure raised on this side, such as the step limit",
@@ -1734,6 +1741,7 @@ describe("useTurn's turn events", () => {
       new TypeError("Failed to fetch"),
       failed("provider"),
     ],
+    // eslint-disable-next-line max-params -- `it.each` spreads each row of the table into the callback
   ])("reports %s as failed", async (_, error, expected) => {
     provider.send.mockRejectedValue(error);
     const { result } = renderHook(() => useTestTurn());
@@ -1902,7 +1910,7 @@ describe("useTurn's turn events", () => {
       await waitFor(() => expect(provider.send).toHaveBeenCalledTimes(4));
       await waitFor(() => expect(result.current.busy).toBe(false));
 
-      expect(turnEvents()).toStrictEqual([sent, failed("provider", 429)]);
+      expect(turnEvents()).toStrictEqual([sent, failedWith(429)("provider")]);
     });
 
     it("reports a Stop during the countdown as stopped", async () => {
@@ -1959,7 +1967,7 @@ describe("useTurn's turn events", () => {
       await waitFor(() => expect(provider.send).toHaveBeenCalledTimes(2));
       await waitFor(() => expect(result.current.busy).toBe(false));
 
-      expect(turnEvents()).toStrictEqual([sent, failed("provider", 500)]);
+      expect(turnEvents()).toStrictEqual([sent, failedWith(500)("provider")]);
     });
 
     it("reports a wait longer than it counts down as failed at once", async () => {
@@ -1970,7 +1978,7 @@ describe("useTurn's turn events", () => {
 
       await act(() => result.current.send(PROMPT));
 
-      expect(turnEvents()).toStrictEqual([sent, failed("provider", 429)]);
+      expect(turnEvents()).toStrictEqual([sent, failedWith(429)("provider")]);
     });
   });
 });

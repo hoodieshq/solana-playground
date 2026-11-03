@@ -36,16 +36,24 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/* eslint-disable unicorn/no-null -- `GET /api/ai/status` bodies: `null` is on the wire */
+/** The body's `model` and `reason` when there is none */
+const NONE = null;
+/** `GET /api/ai/status`'s answer for a deployment with no hosted key */
+const own = { available: false, key: "own", reason: null, model: null };
+/* eslint-enable unicorn/no-null */
+
 /** `GET /api/ai/status`'s answer for a deployment that offers a hosted key */
-const hosted = (model: unknown, reason: string | null = "signed-out") => ({
-  available: reason === null,
+const hostedWith = (reason: string | null) => (model: unknown) => ({
+  available: reason === NONE,
   key: "hosted",
   reason,
   model,
 });
-
-/** `GET /api/ai/status`'s answer for a deployment with no hosted key */
-const own = { available: false, key: "own", reason: null, model: null };
+/** Offered, though not to this caller: signed out */
+const hosted = hostedWith("signed-out");
+/** Offered to this caller */
+const served = hostedWith(NONE);
 
 /** The probe's answer: this body, with this status */
 const answer = (body: unknown, status = 200) =>
@@ -66,7 +74,7 @@ const expectFailure = (reason: string) => {
 
 describe("probeDefaultBackend", () => {
   it("asks the status route, and nothing else", async () => {
-    const spy = answer(hosted(null));
+    const spy = answer(hosted(NONE));
     await probeDefaultBackend();
     expect(spy.mock.calls.map(([url]) => url)).toEqual(["/api/ai/status"]);
   });
@@ -81,7 +89,7 @@ describe("probeDefaultBackend", () => {
   });
 
   it("is present with the deployment's model, signed in", async () => {
-    answer(hosted("z-ai/glm-5.3-flash:US", null));
+    answer(served("z-ai/glm-5.3-flash:US"));
     expect(await probeDefaultBackend()).toEqual({
       state: "present",
       model: "z-ai/glm-5.3-flash:US",
@@ -95,7 +103,7 @@ describe("probeDefaultBackend", () => {
   });
 
   it("is unreachable, warned of and counted when the server could not read the session", async () => {
-    answer(hosted("m", "unavailable"));
+    answer(hostedWith("unavailable")("m"));
     expect(await probeDefaultBackend()).toEqual({ state: "unreachable" });
     // The route has logged its own failure; this is the client's view of it
     expect(logs.entries.map((e) => [e.ns, e.level, e.report])).toEqual([
@@ -107,12 +115,12 @@ describe("probeDefaultBackend", () => {
   });
 
   it("asks again after the server could not read the session", async () => {
-    const spy = answer(hosted("m", "unavailable"));
+    const spy = answer(hostedWith("unavailable")("m"));
     await probeDefaultBackend();
     spy.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => hosted("m", null),
+      json: async () => served("m"),
     } as Response);
     expect(await probeDefaultBackend()).toEqual({
       state: "present",
@@ -157,7 +165,7 @@ describe("probeDefaultBackend", () => {
   it("offers a hosted key whose reason it does not know", async () => {
     // A reason a later server adds still names a key the deployment holds;
     // only `unavailable` says the server could not tell
-    answer(hosted("m", "sleeping"));
+    answer(hostedWith("sleeping")("m"));
     expect(await probeDefaultBackend()).toEqual({
       state: "present",
       model: "m",
@@ -193,7 +201,7 @@ describe("probeDefaultBackend", () => {
       .mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => hosted(null),
+        json: async () => hosted(NONE),
       } as Response);
     expect(await probeDefaultBackend()).toEqual({ state: "unreachable" });
     expect(await probeDefaultBackend()).toEqual({
@@ -211,7 +219,7 @@ describe("probeDefaultBackend", () => {
   });
 
   it("asks once per page", async () => {
-    const spy = answer(hosted(null));
+    const spy = answer(hosted(NONE));
     await probeDefaultBackend();
     await probeDefaultBackend();
     expect(spy).toHaveBeenCalledTimes(1);
@@ -298,7 +306,7 @@ describe("retryDefaultBackend", () => {
 
 describe("useDefaultBackend", () => {
   it("starts checking, then settles", async () => {
-    answer(hosted(null));
+    answer(hosted(NONE));
     const { result } = renderHook(() => useDefaultBackend());
     expect(result.current).toEqual({ state: "checking" });
     await waitFor(() =>
