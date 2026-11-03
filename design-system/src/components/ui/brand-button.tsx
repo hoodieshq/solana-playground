@@ -16,7 +16,7 @@ const brandButtonVariants = cva(
     variants: {
       variant: {
         ring: "rounded-full brand-action text-foreground [--stroke-fill:var(--surface-hover)] hover:not-disabled:-translate-y-px hover:not-disabled:text-white active:not-disabled:text-white",
-        accent: "rounded-lg bg-primary text-white font-act hover:brightness-[1.12]",
+        accent: "rounded-lg bg-primary text-white font-act hover:brightness-[1.12] dark:not-disabled:not-aria-disabled:inset-ring dark:inset-ring-primary-edge",
       },
       size: {
         default: "h-10 px-5 has-data-[slot=brand-button-icon]:pr-4 font-heading text-[0.9375rem] [&_svg:not([class*='size-'])]:size-[1.15em]",

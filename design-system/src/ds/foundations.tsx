@@ -5,7 +5,7 @@ function Colour() {
     <Section
       id="colour"
       title="Colour"
-      note="The product is an equal-channel grey ramp with one accent. Solana's purple marks what is current and what acts. Its green means done. Nothing else in the window carries colour."
+      note="The product is a cool grey ramp with one accent. Solana's purple marks what is current and what acts. Its green means done. Nothing else in the window carries colour."
     >
       <SwatchGrid
         title="Brand"
