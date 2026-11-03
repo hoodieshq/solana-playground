@@ -488,6 +488,25 @@ describe("runTurn", () => {
       expect(results.map(({ output }) => output)).toEqual([""]);
     });
 
+    it("reports a failure whose message cannot be read as a placeholder", async () => {
+      const results = await resultsOf(
+        toolReturning(() => {
+          throw Object.defineProperty({}, "message", {
+            get() {
+              throw new Error("no message");
+            },
+          });
+        })
+      );
+
+      expect(results).toEqual([
+        expect.objectContaining({
+          output: "(a value that could not be written as text)",
+          failed: true,
+        }),
+      ]);
+    });
+
     it("reports a result that is not text as JSON", async () => {
       const results = await resultsOf(toolReturning(() => ({ a: 1 })));
 

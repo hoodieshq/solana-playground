@@ -170,8 +170,13 @@ const toolErrorText = (error: unknown) => {
   try {
     const { message } = (error ?? {}) as { message?: unknown };
     return typeof message === "string" ? message : textOf(error);
-  } catch {
-    // A getter that throws on `message`: the call still gets a result
+  } catch (cause) {
+    // A getter that throws on `message`: the call still gets a result, and
+    // the team hears of the tool that threw it
+    log.warn("a tool's error could not be read", {
+      report: true,
+      context: { detail: textOf(cause) },
+    });
     return UNPRINTABLE;
   }
 };

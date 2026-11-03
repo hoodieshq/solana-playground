@@ -39,16 +39,22 @@ const INPUT_CAP = 2_000;
 /** Said in place of an empty result: Anthropic refuses an empty text block */
 const NO_OUTPUT = "(no output)";
 
-/** What Anthropic and OpenAI accept as a tool's name in a replayed call */
-export const TOOL_NAME = /^[a-zA-Z0-9_-]{1,64}$/;
+/**
+ * What every backend accepts as a tool's name in a replayed call: Anthropic's
+ * and OpenAI's characters, starting as Gemini requires
+ */
+export const TOOL_NAME = /^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/;
 
 /**
  * A tool's name as a replay can send it. The SDK reports a call to a tool
  * that does not exist with the name the model made up (`functions.read`);
  * stored as it is, every later replay of the thread would be refused.
  */
-const replayableName = (name: string) =>
-  name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64) || "tool";
+const replayableName = (name: string) => {
+  const safe = name.replace(/[^a-zA-Z0-9_-]/g, "_");
+  if (!safe) return "tool";
+  return (/^[a-zA-Z_]/.test(safe) ? safe : `_${safe}`).slice(0, 64);
+};
 
 /** A surrogate with no partner, which JSON escapes and Postgres refuses */
 const LONE_SURROGATE =
@@ -229,6 +235,17 @@ if (import.meta.vitest) {
       );
 
       expect(name).toBe("functions_read_file");
+      expect(TOOL_NAME.test(name)).toBe(true);
+    });
+
+    it("starts a made-up name with a letter or underscore, as Gemini requires", () => {
+      expect(record({}).name).toBe("probe");
+      const { name } = toToolCallRecord(
+        { toolName: "1inch-quote", input: {}, output: "x", failed: true },
+        undefined
+      );
+
+      expect(name).toBe("_1inch-quote");
       expect(TOOL_NAME.test(name)).toBe(true);
     });
 

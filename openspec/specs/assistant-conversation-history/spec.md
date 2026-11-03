@@ -53,8 +53,10 @@ length and end with a marker giving the number of characters cut. An input
 still longer than 2,000 characters once serialised SHALL be replaced by a note
 giving its size. An input that is not an object SHALL be stored wrapped in
 one, and an empty result as `(no output)`. Stored text SHALL hold no NUL and
-no unpaired surrogate. A tool name outside `[a-zA-Z0-9_-]{1,64}` SHALL be
-stored with every other character replaced by `_`. The connection's key SHALL NOT
+no unpaired surrogate. A tool name outside `[a-zA-Z0-9_-]` SHALL be stored
+with every other character replaced by `_`, starting with `_` when it does
+not start with a letter or `_`, at most 64 characters long, and `tool` when
+nothing is left. The connection's key SHALL NOT
 appear in a stored call. Failing to store a call SHALL NOT fail its turn.
 
 #### Scenario: A long result is cut with a marker (manual)
