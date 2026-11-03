@@ -355,14 +355,18 @@ export const view = (
             attempts: attemptsOf(r),
           });
           if ("hintedAt" in r && r.hintedAt !== undefined) {
-            turn({
-              id: `you:hint:${b.id}`,
-              kind: "you",
-              step: step.id,
-              at: r.hintedAt,
-              text: STUCK,
-              code: false,
-            });
+            // Asked through the assistant, the learner's own message is
+            // already in the feed
+            if (!r.hintByAssistant) {
+              turn({
+                id: `you:hint:${b.id}`,
+                kind: "you",
+                step: step.id,
+                at: r.hintedAt,
+                text: STUCK,
+                code: false,
+              });
+            }
             turn({
               id: `hint:${b.id}`,
               kind: "hint",
@@ -762,6 +766,19 @@ if (import.meta.vitest) {
         kind: "act",
         state: "live",
       });
+    });
+
+    it("a hint the assistant asked for posts with no I'm stuck pill", () => {
+      const v = view(
+        hello,
+        play([
+          { type: "start", at: 1000 },
+          { type: "hint", beatId: "s1.q1", at: 3000, byAssistant: true },
+        ]),
+        LATE
+      );
+      expect(v.turns.find((t) => t.id === "hint:s1.q1")).toBeTruthy();
+      expect(v.turns.find((t) => t.id === "you:hint:s1.q1")).toBeUndefined();
     });
 
     it("skip and typed read as their outcomes", () => {

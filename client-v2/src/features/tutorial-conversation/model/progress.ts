@@ -109,7 +109,15 @@ export type PassedVia = "chat" | "client" | "call_panel";
 export type Resolution =
   | { kind: "said"; at: number; writeFailed?: true }
   | { kind: "written"; at: number; wrote: Wrote }
-  | { kind: "open"; at: number; wrong: number[]; hintedAt?: number }
+  | {
+      kind: "open";
+      at: number;
+      wrong: number[];
+      hintedAt?: number;
+      /** The live assistant's Hint tool asked for it, after the learner's
+       * own message: no "I'm stuck" pill (task 3.6) */
+      hintByAssistant?: true;
+    }
   | ({
       kind: "picked";
       option: number;
@@ -160,6 +168,7 @@ interface Resolved {
   openedAt: number;
   wrong: number[];
   hintedAt?: number;
+  hintByAssistant?: true;
   /** The block the answer wrote, once it landed */
   wrote?: Wrote;
 }
@@ -393,11 +402,36 @@ const parseWrote = (v: unknown): Wrote | null => {
   return wrote;
 };
 
+/** A question's hint fields as saved: its time, and who asked, when there
+ * was one */
+const parseHint = (
+  v: Record<string, unknown>
+): { hintedAt?: number; hintByAssistant?: true } => {
+  if (!isMs(v.hintedAt)) return {};
+  return v.hintByAssistant === true
+    ? { hintedAt: v.hintedAt, hintByAssistant: true }
+    : { hintedAt: v.hintedAt };
+};
+
+/**
+ * A question's hint fields, carried from its open state to its resolution
+ * unchanged
+ */
+export const hintOf = (r: {
+  hintedAt?: number;
+  hintByAssistant?: true;
+}): { hintedAt?: number; hintByAssistant?: true } => {
+  if (!r.hintedAt) return {};
+  return r.hintByAssistant
+    ? { hintedAt: r.hintedAt, hintByAssistant: true }
+    : { hintedAt: r.hintedAt };
+};
+
 /** The fields every resolved question carries, or null when one is off */
 const parseResolved = (v: Record<string, unknown>): Resolved | null => {
   if (!isMs(v.at) || !isMs(v.openedAt) || !isIndexes(v.wrong)) return null;
   const out: Resolved = { at: v.at, openedAt: v.openedAt, wrong: v.wrong };
-  if (isMs(v.hintedAt)) out.hintedAt = v.hintedAt;
+  Object.assign(out, parseHint(v));
   if (v.writeFailed === true) out.writeFailed = true;
   if (v.wrote !== undefined) {
     const wrote = parseWrote(v.wrote);
@@ -423,8 +457,7 @@ const parseResolution = (v: unknown): Resolution | null => {
     case "open": {
       if (!isIndexes(v.wrong)) return null;
       const open: Resolution = { kind: "open", at, wrong: v.wrong };
-      if (isMs(v.hintedAt)) open.hintedAt = v.hintedAt;
-      return open;
+      return Object.assign(open, parseHint(v));
     }
     case "picked": {
       const resolved = parseResolved(v);

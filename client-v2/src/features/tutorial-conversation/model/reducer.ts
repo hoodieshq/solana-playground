@@ -12,7 +12,7 @@ import type {
 
 import { TICK_MS } from "./clock";
 import { holds, keyOf, typedKey } from "./landing";
-import { answerOf, freshProgress } from "./progress";
+import { answerOf, freshProgress, hintOf } from "./progress";
 import type {
   ConversationProgress,
   Cursor,
@@ -68,7 +68,13 @@ export const INITIAL_ENGINE_STATE: EngineState = {
 export type Action =
   | { type: "start"; at: number }
   | { type: "pick"; beatId: string; option: number; at: number }
-  | { type: "hint"; beatId: string; at: number }
+  | {
+      type: "hint";
+      beatId: string;
+      at: number;
+      /** The live assistant's Hint tool, not the card: no pill */
+      byAssistant?: true;
+    }
   /** The question's Skip button; a skip from elsewhere is `pass`'s to record */
   | { type: "skip"; beatId: string; at: number }
   | { type: "typeIt"; beatId: string; at: number }
@@ -484,7 +490,7 @@ const pass = (
         at,
         openedAt: r.at,
         wrong: r.wrong,
-        ...(r.hintedAt ? { hintedAt: r.hintedAt } : {}),
+        ...hintOf(r),
       };
       if (fail) {
         beats[b.id] = { kind: "typed", ...base };
@@ -788,7 +794,7 @@ const reduceAction = (
         option: action.option,
         attempts: open.wrong.length + 1,
         wrong: open.wrong,
-        ...(open.hintedAt ? { hintedAt: open.hintedAt } : {}),
+        ...hintOf(open),
       };
       const flowed = flow(
         ctx,
@@ -808,7 +814,9 @@ const reduceAction = (
         ...p,
         beats: {
           ...p.beats,
-          [live.beat.id]: { ...live.open, hintedAt: action.at },
+          [live.beat.id]: action.byAssistant
+            ? { ...live.open, hintedAt: action.at, hintByAssistant: true }
+            : { ...live.open, hintedAt: action.at },
         },
       });
     }
@@ -823,7 +831,7 @@ const reduceAction = (
         openedAt: open.at,
         via: "button",
         wrong: open.wrong,
-        ...(open.hintedAt ? { hintedAt: open.hintedAt } : {}),
+        ...hintOf(open),
       };
       const flowed = flow(
         ctx,
@@ -869,7 +877,7 @@ const reduceAction = (
         at: action.at,
         openedAt: open.at,
         wrong: open.wrong,
-        ...(open.hintedAt ? { hintedAt: open.hintedAt } : {}),
+        ...hintOf(open),
       };
       const flowed = flow(
         ctx,
@@ -1631,6 +1639,19 @@ if (import.meta.vitest) {
         expect(
           effects.some((e) => e.kind === "write" && e.beatId === "s1.q1")
         ).toBe(true);
+      });
+
+      it("a hint the assistant asked for is marked so, through the skip", () => {
+        const { progress } = play([
+          start,
+          { type: "hint", beatId: "s1.q1", at: 3000, byAssistant: true },
+          { type: "skip", beatId: "s1.q1", at: 4000 },
+        ]);
+        expect(progress.beats["s1.q1"]).toMatchObject({
+          kind: "skipped",
+          hintedAt: 3000,
+          hintByAssistant: true,
+        });
       });
 
       it("type it myself focuses the landing in the answer's file", () => {
