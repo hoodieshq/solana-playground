@@ -95,7 +95,9 @@ test.describe("client-v2-lessons", () => {
       0
     );
 
-    // Above the editor, not beside it
+    // Above the editor, not beside it. Monaco mounts after the band, and
+    // boundingBox does not wait for it
+    await expect(editor(page)).toBeVisible();
     const bandBox = await b.boundingBox();
     const editorBox = await editor(page).boundingBox();
     expect(bandBox).not.toBeNull();
@@ -178,6 +180,7 @@ test.describe("client-v2-lessons", () => {
     await expect(reader).toBeVisible();
 
     // The page sits inside the stage under the band, over the editor
+    await expect(editor(page)).toBeVisible();
     const readerBox = await reader.boundingBox();
     const bandBox = await band(page).boundingBox();
     const editorBox = await editor(page).boundingBox();
