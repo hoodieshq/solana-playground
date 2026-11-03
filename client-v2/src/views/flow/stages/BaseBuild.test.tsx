@@ -38,12 +38,14 @@ const props = (
   surface: BuildSurfaceView,
   building = false,
   slow = false,
-  elapsedMs: number | null = null
+  elapsedMs: number | null = null,
+  offline = false
 ): BaseBuildProps => ({
   surface,
   building,
   slow,
   elapsedMs,
+  offline,
   host: "api.solpg.io",
   serverUrl: "https://api.solpg.io",
   ms: 2900,
@@ -52,6 +54,7 @@ const props = (
   onExport: vi.fn(() => Promise.resolve()),
   onAsk: vi.fn(),
   onOpenFile: vi.fn(),
+  onShowLog: vi.fn(),
   idlActions: null,
 });
 
@@ -199,8 +202,43 @@ describe("BaseBuild", () => {
     ).toBeTruthy();
     expect(screen.getByText("The full log has the details.")).toBeTruthy();
     expect(screen.queryByText(/did not answer/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
-    expect(screen.getByText(/Server request failed: boom/)).toBeTruthy();
+    // The whole output is in the terminal: Spec 08 ANY-00's secondary
+    expect(screen.queryByRole("button", { name: "Show details" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show full log" }));
+    expect(p.onShowLog).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+
+  it("keeps BUILD-04 on its details, with no full log", () => {
+    render(
+      <BaseBuild
+        {...props({
+          kind: "unreached",
+          failure: { kind: "no-answer", message: "Failed to fetch" },
+        })}
+      />
+    );
+    expect(screen.queryByRole("button", { name: "Show full log" })).toBeNull();
+  });
+
+  // Spec 08 ERR-23: offline, Build waits; the line over the stage says why
+  it.each([
+    ["the first build", { kind: "empty" }, "Build"],
+    [
+      "a failed one",
+      { kind: "unreached", failure: { kind: "other", message: "x" } },
+      "Try again",
+    ],
+  ] as const)("disables Build offline, on %s", (_, surface, label) => {
+    render(
+      <BaseBuild
+        {...props(surface as BuildSurfaceView, false, false, null, true)}
+      />
+    );
+    expect(
+      (screen.getByRole("button", { name: label }) as HTMLButtonElement)
+        .disabled
+    ).toBe(true);
   });
 
   it("says a failed build happened before the reload", () => {
