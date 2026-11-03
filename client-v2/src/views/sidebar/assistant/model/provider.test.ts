@@ -58,10 +58,34 @@ vi.mock("./prompt", () => ({
   describeProject: () => "project",
 }));
 
+/** Holds the `slow` tool until a test lets it finish */
+const slow = vi.hoisted(() => {
+  let release = () => {};
+  let started = () => {};
+  return {
+    started: new Promise<void>((resolve) => (started = resolve)),
+    reset() {
+      this.started = new Promise<void>((resolve) => (started = resolve));
+    },
+    run: () =>
+      new Promise<string>((resolve) => {
+        release = () => resolve("Done slowly.");
+        started();
+      }),
+    release: () => release(),
+  };
+});
+
 vi.mock("./tools", async () => {
   const { PgAssistant } = await import("../store");
   return {
     createTools: () => [
+      {
+        name: "slow",
+        description: "Takes a while",
+        schema: { type: "object", properties: {}, additionalProperties: false },
+        run: () => slow.run(),
+      },
       {
         name: "write_file",
         description: "Write a file",
@@ -371,8 +395,35 @@ describe("the assistant's provider", () => {
       ]);
     });
 
+    it.each([
+      ["stopped", () => PgAssistant.stopTurn()],
+      ["its thread closed", () => PgAssistant.closeThread()],
+    ])(
+      "stores no call whose turn was %s while the tool ran",
+      async (_, cut) => {
+        slow.reset();
+        respond(openAiToolCall("c1", "slow", {}), openAiText("Late."));
+        // Closing cuts the turn only while a thread is open, as in the panel
+        await PgAssistant.loadThread("slow-turn");
+        const turn = new AbortController();
+        PgAssistant.beginTurn(turn);
+
+        const sent = defaultBackend().send("go slowly", turn.signal);
+        await slow.started;
+        cut();
+        slow.release();
+        await sent.catch(() => undefined);
+        PgAssistant.endTurn(turn);
+
+        expect(PgAssistant.items.filter(isToolCallRecord)).toEqual([]);
+        PgAssistant.closeThread();
+      }
+    );
+
     it("survives storage and a pull from another device, and goes with the next request", async () => {
       writeTurn();
+      // The panel adds the message before the turn (`use-turn`)
+      PgAssistant.addUserMessage("make the change");
       await defaultBackend().send("make the change");
       vi.restoreAllMocks();
 

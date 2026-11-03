@@ -25,26 +25,47 @@ export interface ToolCallRecord {
 /**
  * Caps on what one record keeps. A result is what costs: a file read whole.
  * The live project goes with every turn anyway (`describeProject`), so a cut
- * result loses little. How many records a replay sends is bounded separately
- * (`REPLAY_CALL_BUDGET` in `replay.ts`).
+ * result loses little. A thread is pushed in one request of at most 2 MB
+ * (`api/conversations.mjs`) and keeps 200 items, so these keep a thread of
+ * records under it with room for JSON's escapes; how many records a replay
+ * sends is bounded separately (`REPLAY_CALL_BUDGET` in `replay.ts`).
  */
 const RESULT_CAP = 4_000;
 const INPUT_STRING_CAP = 1_000;
-const INPUT_CAP = 4_000;
+const INPUT_CAP = 2_000;
 
 /** Said in place of an empty result: Anthropic refuses an empty text block */
-export const NO_OUTPUT = "(no output)";
+const NO_OUTPUT = "(no output)";
 
-/** `text` cut to `cap`, ending with how much was cut, so the model knows */
-const cut = (text: string, cap: number) =>
-  text.length <= cap
-    ? text
-    : `${text.slice(0, cap)} … [${text.length - cap} characters cut]`;
+/** A surrogate with no partner, which JSON escapes and Postgres refuses */
+const LONE_SURROGATE =
+  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
 
 /**
- * Every string in a call's input redacted and cut, the shape kept. Values
- * JSON cannot hold become text, and a cycle is cut where it closes, so
- * storing the record never throws on what a tool was called with.
+ * Text Postgres takes in a `jsonb` row: no NUL and no lone surrogate. Either
+ * one fails the server's insert of the whole thread, so one binary read would
+ * stop the thread syncing for good.
+ */
+const storable = (text: string) =>
+  text.replaceAll("\u0000", "").replace(LONE_SURROGATE, "\uFFFD");
+
+/**
+ * `text` made storable and cut to `cap`, ending with how much was cut, so
+ * the model knows. The cut never splits a surrogate pair.
+ */
+const cut = (raw: string, cap: number) => {
+  const text = storable(raw);
+  if (text.length <= cap) return text;
+  const end = /[\uD800-\uDBFF]/.test(text[cap - 1]) ? cap - 1 : cap;
+  return `${text.slice(0, end)} … [${text.length - end} characters cut]`;
+};
+
+/**
+ * Every string in a call's input redacted and cut, the shape kept, so
+ * storing the record never throws on what a tool was called with: a value
+ * with `toJSON` (a `Date`) is stored as that, a BigInt as its digits, a
+ * function or symbol is dropped, and an object inside itself is replaced by
+ * `[circular]`.
  */
 const capInputValue = (
   value: unknown,
@@ -60,13 +81,22 @@ const capInputValue = (
   }
   if (value === null || typeof value !== "object") return value;
   if (seen.has(value)) return "[circular]";
-  seen.add(value);
-  if (Array.isArray(value)) {
-    return value.map((v) => capInputValue(v, apiKey, seen));
+  const { toJSON } = value as { toJSON?: unknown };
+  if (typeof toJSON === "function") {
+    return capInputValue(toJSON.call(value), apiKey, seen);
   }
-  return Object.fromEntries(
-    Object.entries(value).map(([k, v]) => [k, capInputValue(v, apiKey, seen)])
-  );
+  // Ancestors only: the same object twice side by side is not a cycle
+  seen.add(value);
+  const capped = Array.isArray(value)
+    ? value.map((v) => capInputValue(v, apiKey, seen))
+    : Object.fromEntries(
+        Object.entries(value).map(([k, v]) => [
+          k,
+          capInputValue(v, apiKey, seen),
+        ])
+      );
+  seen.delete(value);
+  return capped;
 };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -143,6 +173,34 @@ if (import.meta.vitest) {
       expect(record({}, "x".repeat(4_000)).output).toBe("x".repeat(4_000));
       expect(record({ s: "y".repeat(1_000) }).input).toEqual({
         s: "y".repeat(1_000),
+      });
+    });
+
+    it("stores no NUL and no lone surrogate, which Postgres refuses", () => {
+      const { output, input } = record(
+        { s: "a\u0000b\uD83D" },
+        "x\u0000\uDE00y"
+      );
+
+      expect(output).toBe("x\uFFFDy");
+      expect(input).toEqual({ s: "ab\uFFFD" });
+    });
+
+    it("never cuts a surrogate pair in half", () => {
+      const output = record({}, `${"x".repeat(3_999)}😀😀`).output;
+
+      expect(output.startsWith(`${"x".repeat(3_999)} … [`)).toBe(true);
+      expect(output).toBe(`${"x".repeat(3_999)} … [4 characters cut]`);
+    });
+
+    it("keeps an object met twice that is not a cycle, and a Date as text", () => {
+      const shared = { a: 1 };
+      const at = new Date("2026-11-03T00:00:00.000Z");
+
+      expect(record({ x: shared, y: shared, at }).input).toEqual({
+        x: { a: 1 },
+        y: { a: 1 },
+        at: "2026-11-03T00:00:00.000Z",
       });
     });
 

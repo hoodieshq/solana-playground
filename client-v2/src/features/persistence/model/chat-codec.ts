@@ -179,38 +179,42 @@ const isStoredItem = (value: unknown): value is StoredItem => {
  * the item falls back to `createdAt` as its version. Kept, it would be
  * uploaded with every push of the thread, and the server refuses a whole
  * thread over one item it cannot cast. An approval card's `undo` that the
- * card cannot have is dropped too (`withValidUndo`), and so is a tool item's
- * stored call that a replay could not send (`withValidCall`).
+ * card cannot have is dropped too (`withValidUndo`). A tool item whose stored
+ * call a replay could not send is not one (`isReplayableCall`).
  */
 export const decodeItem = (stored: unknown): ChatItem | null => {
   if (!isStoredItem(stored)) return null;
-  return withValidCall(withValidUndo(withValidVersion(stored)));
+  // A stored call is an item of its own, never a marker: one a replay could
+  // not send goes whole, so it costs that call, not every later turn, and is
+  // not drawn as a second marker either
+  if (
+    stored.kind === "tool" &&
+    "call" in stored &&
+    !isReplayableCall(stored.call)
+  ) {
+    return null;
+  }
+  return withValidUndo(withValidVersion(stored));
 };
 
 /**
- * A tool item keeps its stored call only when the call can be replayed: a
- * string name and output, an input that is a plain object (Anthropic refuses
- * any other), and `failed` absent or `true`. Otherwise the call is dropped,
- * so one hand-edited or foreign record costs its replay, not every later turn
- * of the thread. The item left behind is drawn as a plain marker named after
- * the tool.
+ * Whether a tool item's stored call can be replayed: a name and an output
+ * that are non-empty text, an input that is a plain object (Anthropic refuses
+ * any other, and an empty text block), and `failed` absent or `true`.
  */
-const withValidCall = (item: ChatItem): ChatItem => {
-  if (item.kind !== "tool" || item.call === undefined) return item;
-  const call = item.call as Partial<NonNullable<typeof item.call>> | null;
-  const valid =
-    !!call &&
-    typeof call === "object" &&
-    typeof call.name === "string" &&
-    typeof call.output === "string" &&
-    typeof call.input === "object" &&
-    call.input !== null &&
-    !Array.isArray(call.input) &&
-    (call.failed === undefined || call.failed === true);
-  if (valid) return item;
-  const marker = { ...item };
-  delete marker.call;
-  return marker;
+const isReplayableCall = (call: unknown) => {
+  if (!call || typeof call !== "object") return false;
+  const { name, input, output, failed } = call as Record<string, unknown>;
+  return (
+    typeof name === "string" &&
+    name !== "" &&
+    typeof output === "string" &&
+    output.trim() !== "" &&
+    typeof input === "object" &&
+    input !== null &&
+    !Array.isArray(input) &&
+    (failed === undefined || failed === true)
+  );
 };
 
 /**
@@ -557,6 +561,7 @@ if (import.meta.vitest) {
 
       it.each([
         ["a name that is not text", { name: 1, input: {}, output: "x" }],
+        ["an empty name", { name: "", input: {}, output: "x" }],
         ["no input", { name: "read_file", output: "x" }],
         [
           "an input that is text",
@@ -570,12 +575,13 @@ if (import.meta.vitest) {
           "an output that is not text",
           { name: "read_file", input: {}, output: null },
         ],
+        ["an empty output", { name: "read_file", input: {}, output: " " }],
         [
           "failed: false",
           { name: "read_file", input: {}, output: "x", failed: false },
         ],
         ["no call at all", null],
-      ])("drops a stored call with %s and keeps the marker", (_, call) => {
+      ])("drops a tool item whose stored call has %s", (_, call) => {
         const stored = {
           id: base.id,
           createdAt: base.createdAt,
@@ -584,14 +590,21 @@ if (import.meta.vitest) {
           call,
         };
 
-        expect(decodeThread([stored])).toEqual([
-          {
-            id: base.id,
-            createdAt: base.createdAt,
-            kind: "tool",
-            label: "read_file",
-          },
-        ]);
+        expect(decodeThread([stored])).toEqual([]);
+      });
+
+      it("keeps a stored call through a merge with a local copy of the same item", () => {
+        const record: ChatItem = {
+          id: base.id,
+          createdAt: base.createdAt,
+          kind: "tool",
+          label: "read_file",
+          call: { name: "read_file", input: {}, output: "fn main() {}" },
+        };
+        const pulled = decodeThread(JSON.parse(JSON.stringify([record])));
+
+        expect(mergeThreads([record], pulled)).toEqual([record]);
+        expect(mergeThreads(pulled, [record])).toEqual([record]);
       });
 
       it("drops hand-edited junk rather than throwing", () => {

@@ -83,25 +83,41 @@ which the thread does not keep.
 The seed gains tool messages, so the replay's type becomes the SDK's
 `ModelMessage` (a type-only import), and the provider uses it as is.
 
-### Caps: 4,000 characters per result, 1,000 per input string
+### Caps: 4,000 characters per result, 1,000 per input string, 2,000 per input
 
 `describeProject` sends the live project with every turn, so a file the model
-read is in front of it again anyway, and a cut result loses little. An input
-that is not an object (the raw text of arguments the model got wrong) is
-wrapped as `{ value }`, because Anthropic refuses a `tool_use` whose input is
-not an object, and an empty result is stored as `(no output)`, because it
-refuses an empty text block. The decoder drops a record that breaks either
-rule, so a foreign or hand-edited record costs its replay, not the thread.
-Storing never throws: the tool has already run.
+read is in front of it again anyway, and a cut result loses little. A thread
+is pushed in one request of at most 2 MB (`api/conversations.mjs`) and keeps
+200 items, so 200 records at their caps (about 6,000 characters each) stay
+under it with room for JSON's escapes.
 
-### A replay sends the newest calls within 96,000 characters
+What is stored must also be accepted downstream:
 
-The default backend refuses a body over 512 KB (`AGENT_MAX_BODY_BYTES`), and a
-thread of 200 items could hold records worth about 800 KB. A replay walks the
-thread from the newest record back and stops at the budget; older calls are
-left out, as all were before this change, and the text still tells of them.
-The sync batch (2 MB per push) is far from that: each record comes with its
-tool's marker, so a thread holds about 100 at most.
+- An input that is not an object (the raw text of arguments the model got
+  wrong) is wrapped as `{ value }`: Anthropic refuses a `tool_use` whose input
+  is not an object.
+- An empty result is stored as `(no output)`: Anthropic refuses an empty text
+  block.
+- NUL characters are removed and lone surrogates replaced, and a cut never
+  splits a surrogate pair: Postgres refuses either in a `jsonb` row, and the
+  server inserts a thread's items together, so one would stop the thread
+  syncing for good.
+
+The decoder drops a tool item whose record breaks the first two rules, whole,
+so a foreign or hand-edited record costs that call, not every later turn, and
+is not drawn as a second marker. Storing never throws: the tool has already
+run.
+
+### A replay sends the newest calls within 64,000 characters
+
+The default backend refuses a body over 512 KB (`AGENT_MAX_BODY_BYTES`), which
+also carries the prompt, the project and the conversation's text, and a
+character can take three bytes. A thread of 200 items could hold records worth
+over 1 MB. A replay walks the thread from the newest record back, counting each
+as JSON writes it, and stops at the budget; older calls are left out, as all
+were before this change, and the text still tells of them. A replay also opens
+on the thread's first user message, since a thread cut to its newest items can
+open on a reply or a call, and Anthropic refuses that.
 
 ## Risks / Trade-offs
 
@@ -116,6 +132,10 @@ tool's marker, so a thread holds about 100 at most.
 - [A stored result holds project content on the server] → the thread already
   stores patch bodies (`PatchApproval.before`/`after`) the same way, and the
   key is redacted.
+- [A stored result holds what an MCP server returned] → new with this change:
+  third-party output now reaches IndexedDB and Postgres, not only the model.
+  It is cut like any result; whether some servers' results should not be kept
+  is a question for the security review that asked for this.
 
 ## Migration Plan
 

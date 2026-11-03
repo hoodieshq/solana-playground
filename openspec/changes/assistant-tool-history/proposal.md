@@ -16,7 +16,8 @@ can see what the agent did (HOO-2425).
   its input, its result, and whether it failed, as a record on a `tool` item
   that the thread does not render.
 - Long inputs and results are capped before they are stored, with a marker
-  saying how much was cut, so a thread stays inside the server's batch limit.
+  saying how much was cut, so a thread stays inside the sync limit and a
+  replay inside the default backend's body limit.
 - A provider built for a stored thread replays those records as tool-call and
   tool-result pairs in the place they happened. A call with no stored result
   is never replayed.

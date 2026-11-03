@@ -22,7 +22,7 @@ the messages the next request sends.
 
 ## Global Constraints
 
-- Result cap 4,000 characters; input string cap 1,000; serialised input cap 4,000. The marker is ` … [<n> characters cut]`.
+- Result cap 4,000 characters; input string cap 1,000; serialised input cap 2,000. The marker is ` … [<n> characters cut]`.
 - No new item kind, no server, API or migration change.
 - Replayed ids are `call_<n>`, from 1, numbered through one replay.
 - In-source tests for single-module units (`AGENTS.md`); no spreads in test fixtures.
@@ -32,7 +32,7 @@ the messages the next request sends.
 
 - A tool returning a non-string (MCP JSON) → stored as `JSON.stringify` text. Test in Task 1.
 - A preliminary (streaming) tool result → not reported; only the final one is. Test in Task 1.
-- A stored `call` with a wrong shape (hand-edited storage) → the decoder drops the record and keeps the item as a plain marker. Test in Task 2.
+- A stored `call` with a wrong shape (hand-edited storage) → the decoder drops the tool item whole. Test in Task 2.
 - A turn cut by a backend switch (`_dropsCut`) → no record is written, as no marker is. Test in Task 2.
 - A record whose result contains the key → redacted. Test in Task 2.
 
@@ -53,12 +53,12 @@ the messages the next request sends.
 
 ### Task 2: the `call` record on a `tool` item
 
-**Files:** Create `src/features/persistence/model/tool-call.ts` (type, caps, `isToolCallRecord`, `toToolCallRecord`; imports the store by type only, so replay can import it without a cycle). As built, after review: inputs that are not objects are wrapped, empty results become `(no output)`, `addToolResult` never throws, and replay keeps the newest calls within 96,000 characters. Modify `src/views/sidebar/assistant/store.ts` (`addToolResult`, in-source tests), `src/features/persistence/model/chat-codec.ts` (decode + its block).
+**Files:** Create `src/features/persistence/model/tool-call.ts` (type, caps, `isToolCallRecord`, `toToolCallRecord`; imports the store by type only, so replay can import it without a cycle). As built, after two review rounds: inputs that are not objects are wrapped, empty results become `(no output)`, NUL and lone surrogates are not stored, `addToolResult` never throws, the decoder drops an unreplayable record whole, and replay keeps the newest calls within 64,000 characters and opens on a user message. `ReplayMessage` is gone: `toReplayMessages` returns `ModelMessage[]`, and `ToolCallRecord.input` is `Record<string, unknown>`. Modify `src/views/sidebar/assistant/store.ts` (`addToolResult`, in-source tests), `src/features/persistence/model/chat-codec.ts` (decode + its block).
 
 **Produces:**
 - `export interface ToolCallRecord { name: string; input: unknown; output: string; failed?: true }`.
 - `ChatItem` `tool` variant: `{ kind: "tool"; label: string; call?: ToolCallRecord }`.
-- `static addToolResult(result: { toolName: string; input: unknown; output: string; failed: boolean }): void`: pushes `{ kind: "tool", label: toolName, call }`; capped by `capCall`, key redacted with `redactKey`, skipped by `_dropsCut`.
+- `static addToolResult(result: { toolName: string; input: unknown; output: string; failed: boolean }): void`: pushes `{ kind: "tool", label: toolName, call }`; capped by `toToolCallRecord`, key redacted with `redactKey`, skipped by `_dropsCut`.
 - `export const isToolCallRecord = (item: ChatItem): item is ChatItem & { kind: "tool"; call: ToolCallRecord }`, declared once, so the renderer and replay agree.
 
 - [x] Tests in the store's in-source block: `stores a tool's result as a record` (exact item shape); `cuts a 10,000-character result to 4,000 and says 6,000 were cut`; `cuts a long input string and keeps the other fields`; `replaces an input over 4,000 characters serialised with a note`; `redacts the key from a stored result`; `writes no record while a cut turn unwinds`.
@@ -89,4 +89,3 @@ the messages the next request sends.
 ### Task 5: gate
 
 - [x] `yarn run check` green (lint, format, types, unit, spec validate).
-- [x] Tick tasks 1.1–1.6 in `tasks.md`; the OpenSpec close question goes before `gh pr create` (method phase 6).

@@ -51,9 +51,10 @@ stored call SHALL travel with the thread to local storage and to the account.
 Before a call is stored, each text value in its input longer than 1,000
 characters, and a result longer than 4,000 characters, SHALL be cut to that
 length and end with a marker giving the number of characters cut. An input
-still longer than 4,000 characters once serialised SHALL be replaced by a note
+still longer than 2,000 characters once serialised SHALL be replaced by a note
 giving its size. An input that is not an object SHALL be stored wrapped in
-one, and an empty result as `(no output)`. The connection's key SHALL NOT
+one, and an empty result as `(no output)`. Stored text SHALL hold no NUL and
+no unpaired surrogate. The connection's key SHALL NOT
 appear in a stored call. Failing to store a call SHALL NOT fail its turn.
 
 #### Scenario: A long result is cut with a marker (manual)
@@ -76,6 +77,11 @@ appear in a stored call. Failing to store a call SHALL NOT fail its turn.
 - **WHEN** storing a call fails
 - **THEN** the failure is logged for reporting, nothing is stored for it, and the turn goes on
 
+#### Scenario: Text Postgres refuses is not stored (manual)
+
+- **WHEN** a tool's result holds a NUL character, or a cut would split an emoji
+- **THEN** the stored result holds neither the NUL nor half of the emoji
+
 #### Scenario: The key is redacted (manual)
 
 - **WHEN** a tool's result contains the connection's key
@@ -85,8 +91,9 @@ appear in a stored call. Failing to store a call SHALL NOT fail its turn.
 
 A provider built for a thread that is already stored SHALL send the model, in
 place, each stored call as a tool call followed by its tool result, between the
-text that came before and after it, for the newest calls that fit 96,000
-characters together; older calls SHALL be left out. A tool item that carries no stored call
+text that came before and after it, for the newest calls that fit 64,000
+characters together as JSON; older calls SHALL be left out. The replay SHALL
+open on the thread's first user message. A tool item that carries no stored call
 SHALL be left out, as today. A thread holding no stored calls SHALL replay as
 text only, as before.
 
@@ -107,8 +114,13 @@ text only, as before.
 
 #### Scenario: A long thread replays its newest calls (manual)
 
-- **WHEN** a thread holds 30 stored calls of about 4,000 characters each
-- **THEN** the replay sends the newest 23 and leaves the 7 oldest out
+- **WHEN** a thread holds 30 stored calls with 4,000-character results (about 4,030 characters each with name and input)
+- **THEN** the replay sends the newest 15 and leaves the 15 oldest out
+
+#### Scenario: A replay opens on a user message (manual)
+
+- **WHEN** a thread cut to its newest items opens on a reply and a stored call
+- **THEN** the replay leaves both out and opens on the first user message
 
 #### Scenario: A thread from before replays as text (manual)
 

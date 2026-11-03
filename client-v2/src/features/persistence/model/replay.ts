@@ -4,17 +4,20 @@ import type { ChatItem } from "../../../views/sidebar/assistant/store";
 import { isToolCallRecord, type ToolCallRecord } from "./tool-call";
 
 /**
- * Characters of stored calls one replay sends, newest first. The default
- * backend refuses a body over 512 KB (`AGENT_MAX_BODY_BYTES`), which also
- * carries the prompt, the project and the conversation's text; a thread keeps
- * up to 200 items, so its records alone could reach about 800 KB at their
- * caps. Older calls past the budget are left out, as before HOO-2425: the
+ * Characters of stored calls one replay sends, newest first, counted as JSON
+ * writes them. The default backend refuses a body over 512 KB
+ * (`AGENT_MAX_BODY_BYTES`), which also carries the prompt, the project and the
+ * conversation's text, and a character can take three bytes; a thread keeps
+ * up to 200 items, so its records alone could pass 1 MB at their caps. Older
+ * calls past the budget are left out, as all were before HOO-2425: the
  * conversation's text still says what they did.
  */
-const REPLAY_CALL_BUDGET = 96_000;
+const REPLAY_CALL_BUDGET = 64_000;
 
 const sizeOf = (call: ToolCallRecord) =>
-  call.name.length + JSON.stringify(call.input).length + call.output.length;
+  call.name.length +
+  JSON.stringify(call.input).length +
+  JSON.stringify(call.output).length;
 
 /** The ids of the records a replay sends: the newest that fit the budget */
 const recordsInBudget = (items: readonly ChatItem[]) => {
@@ -54,7 +57,7 @@ export const toReplayMessages = (
 ): ModelMessage[] => {
   const replayed = recordsInBudget(items);
   let calls = 0;
-  return items.flatMap((item): ModelMessage[] => {
+  const messages = items.flatMap((item): ModelMessage[] => {
     if (isToolCallRecord(item) && !replayed.has(item.id)) return [];
     if (isToolCallRecord(item)) {
       const toolCallId = `call_${++calls}`;
@@ -87,6 +90,10 @@ export const toReplayMessages = (
     }
     return [];
   });
+  // A thread cut to its newest items (`capThread`) can open on a reply or a
+  // call; Anthropic refuses a conversation that does not open with the user
+  const first = messages.findIndex((message) => message.role === "user");
+  return first === -1 ? [] : messages.slice(first);
 };
 
 if (import.meta.vitest) {
@@ -225,7 +232,8 @@ if (import.meta.vitest) {
       });
 
       it("replays a failed call as an error result", () => {
-        const [, result] = toReplayMessages([
+        const [, , result] = toReplayMessages([
+          said(0, "user", "read it"),
           record(1, "read_file", "Not found", true),
         ]);
 
@@ -244,32 +252,51 @@ if (import.meta.vitest) {
 
       it("numbers two calls in order, each result naming its own call", () => {
         const ids = toReplayMessages([
+          said(0, "user", "look around"),
           record(1, "list_files", "a"),
           record(2, "read_file", "b"),
-        ]).map(
-          (message) =>
-            (message.content as { toolCallId: string }[])[0].toolCallId
-        );
+        ])
+          .slice(1)
+          .map(
+            (message) =>
+              (message.content as { toolCallId: string }[])[0].toolCallId
+          );
 
         expect(ids).toEqual(["call_1", "call_1", "call_2", "call_2"]);
       });
 
       it("sends only the newest calls that fit its budget", () => {
-        const items = Array.from({ length: 30 }, (_, n) =>
-          record(n, "read_file", "x".repeat(4_000))
+        const items = [said(0, "user", "read them all")].concat(
+          Array.from({ length: 30 }, (_, n) =>
+            record(n + 1, "read_file", "x".repeat(4_000))
+          )
         );
 
         const names = toReplayMessages(items).flatMap((message) =>
           message.role === "tool" ? [message] : []
         );
 
-        // 96,000 characters hold 23 records of about 4,030 each
-        expect(names).toHaveLength(23);
+        // 64,000 characters hold 15 records of about 4,030 each
+        expect(names).toHaveLength(15);
         const ids = names.map(
           (m) => (m.content as { toolCallId: string }[])[0].toolCallId
         );
         expect(ids[0]).toBe("call_1");
-        expect(ids[22]).toBe("call_23");
+        expect(ids[14]).toBe("call_15");
+      });
+
+      it("opens on the first user message, as Anthropic requires", () => {
+        const messages = toReplayMessages([
+          said(1, "assistant", "the end of an older answer"),
+          record(2, "read_file", "fn main() {}"),
+          said(3, "user", "and now?"),
+          said(4, "assistant", "Now this."),
+        ]);
+
+        expect(messages).toEqual([
+          { role: "user", content: "and now?" },
+          { role: "assistant", content: "Now this." },
+        ]);
       });
 
       it("is empty for an empty thread", () => {

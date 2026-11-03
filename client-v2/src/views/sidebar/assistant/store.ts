@@ -3522,7 +3522,7 @@ if (import.meta.vitest) {
         });
       });
 
-      it("replaces an input still over 4,000 characters with a note of its size", () => {
+      it("replaces an input still over 2,000 characters with a note of its size", () => {
         const input = { lines: Array.from({ length: 1_000 }, () => "abcdef") };
 
         PgAssistant.addToolResult({

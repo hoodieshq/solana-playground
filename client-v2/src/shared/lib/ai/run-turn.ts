@@ -140,20 +140,35 @@ const messageOf = (error: unknown): string => {
   return String(error);
 };
 
+/** What a tool's output or failure reads as when it cannot be written at all */
+const UNPRINTABLE = "(a value that could not be written as text)";
+
 /**
- * A tool's output as the text the model reads. Total, since it runs inside the
- * stream after the tool already ran: nothing is `""`, and a value JSON cannot
- * write (a cycle, a BigInt) falls back to `String`.
+ * A tool's output, or what it threw, as text. Total, since it runs inside the
+ * stream after the tool already ran: nothing is `""`, a value JSON cannot
+ * write (a cycle, a BigInt) falls back to `String`, and one neither can
+ * write to `UNPRINTABLE`.
  */
-const textOf = (output: unknown): string => {
-  if (typeof output === "string") return output;
-  if (output === undefined) return "";
+const textOf = (value: unknown): string => {
+  if (typeof value === "string") return value;
+  if (value === undefined) return "";
   try {
-    return JSON.stringify(output) ?? String(output);
+    return JSON.stringify(value) ?? String(value);
   } catch {
     // Not JSON: its own string form is still a truthful answer for the model
-    return String(output);
+    try {
+      return String(value);
+    } catch {
+      // Not even that (a throwing `toString`); the call still gets a result
+      return UNPRINTABLE;
+    }
   }
+};
+
+/** What a tool threw, as the text the model reads: its message when it has one */
+const toolErrorText = (error: unknown) => {
+  const { message } = (error ?? {}) as { message?: unknown };
+  return typeof message === "string" ? message : textOf(error);
 };
 
 /** Characters of an unparsed error body kept in the detail */
@@ -312,7 +327,7 @@ export const runTurn = async ({
               toolCallId: part.toolCallId,
               toolName: part.toolName,
               input: part.input,
-              output: messageOf(part.error),
+              output: toolErrorText(part.error),
               failed: true,
             });
             break;
