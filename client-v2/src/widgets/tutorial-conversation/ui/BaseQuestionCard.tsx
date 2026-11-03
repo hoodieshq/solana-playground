@@ -290,7 +290,9 @@ const BaseQuestionCard = ({
       } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         const at = rows.current.findIndex((r) => r === document.activeElement);
         const down = e.key === "ArrowDown";
-        const from = at === -1 ? (down ? -1 : 3) : at;
+        // From no row, ↓ lands on the first and ↑ on the last
+        let from = at;
+        if (at === -1) from = down ? -1 : ROWS.length;
         const to = down
           ? ROWS.find((k) => k > from)
           : [...ROWS].reverse().find((k) => k < from);
