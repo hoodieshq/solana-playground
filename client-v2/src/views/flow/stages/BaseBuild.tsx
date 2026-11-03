@@ -242,7 +242,7 @@ const Unreached = (p: BaseBuildProps & { failure: BuildFailure | null }) => {
       description={
         noAnswer
           ? "The Playground server did not answer. Your code is unchanged."
-          : "Build stopped for a reason we can't name. The full log has the details."
+          : "The full log has the details."
       }
       actions={
         <>

@@ -301,15 +301,15 @@ it.each([
   await submit("Rename");
 
   expect(screen.getByRole("alert").textContent).toBe(
-    "Rename stopped for a reason we can't name. Try again."
+    "Could not rename. Try again."
   );
 });
 
 it.each([
-  ["Delete…", "Delete"],
-  ["Save...", "Save"],
-  ["Remove?", "Remove"],
-  ["…", "This action"],
+  ["Delete…", "delete"],
+  ["Save...", "save"],
+  ["Remove?", "remove"],
+  ["…", "do that"],
 ])("should name the action of the label %s as %s", async (label, action) => {
   renderFrame({
     title: "Delete",
@@ -324,7 +324,7 @@ it.each([
   await submit(label);
 
   expect(screen.getByRole("alert").textContent).toBe(
-    `${action} stopped for a reason we can't name. Try again.`
+    `Could not ${action}. Try again.`
   );
 });
 

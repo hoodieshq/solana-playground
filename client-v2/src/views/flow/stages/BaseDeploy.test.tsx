@@ -131,7 +131,7 @@ describe("BaseDeploy", () => {
     );
 
     expect(screen.getByRole("alert").textContent).toContain(
-      "Deploy failed. The terminal has the details."
+      "Could not deploy. The full log has the details."
     );
   });
 
@@ -263,11 +263,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy {...props({ built: false, deploy: "idle", history: [] })} />
     );
 
-    expect(
-      screen.getByText(
-        "Build the program first. Deploy opens once the build passes."
-      )
-    ).toBeTruthy();
+    expect(screen.getByText("Build the program first.")).toBeTruthy();
   });
 
   /** The network is a quiet eyebrow over the title, not a mono line under it */

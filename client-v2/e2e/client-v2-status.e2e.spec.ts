@@ -176,7 +176,7 @@ test.describe("on a 1440 px window", () => {
 
     await page.locator("#flow-stage-tab-deploy").click();
     await expect(notice(page).getByRole("alert")).toContainText(
-      "Devnet isn't answering. Playground keeps trying. You can switch network."
+      "Devnet is not answering. Try again, or change the network."
     );
     // The cluster recovers; Try again asks it now, and the line clears
     await page.unrouteAll({ behavior: "ignoreErrors" });

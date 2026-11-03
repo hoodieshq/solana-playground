@@ -59,15 +59,16 @@ export class SubmitCancelled extends Error {
 }
 
 /**
- * Spec 08's fallback (ANY-00) for a submit that threw nothing to show: it
- * names the action that stopped, never a generic error. The action is the
- * submit's label without its closing punctuation ("Delete…" reads "Delete"),
- * or "This action" when nothing is left of it.
+ * Spec 08's fallback for a submit that threw nothing to show: "Could not
+ * {action}.", never a generic error. The action is the submit's label without
+ * its closing punctuation, lower-cased ("Delete…" reads "delete"); a label
+ * with nothing left of it reads "do that".
  * A dialog has no log to point at, so it ends on the retry its button offers.
  */
 const unknownError = (action: string) => {
-  const verb = action.replace(/[\s.…?!:]+$/u, "") || "This action";
-  return `${verb} stopped for a reason we can't name. Try again.`;
+  const verb = action.replace(/[\s.…?!:]+$/u, "");
+  const what = verb ? verb.charAt(0).toLowerCase() + verb.slice(1) : "do that";
+  return `Could not ${what}. Try again.`;
 };
 
 /** The message to show for whatever the `action` submit threw; never empty */

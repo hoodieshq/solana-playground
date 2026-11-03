@@ -20,7 +20,7 @@ SHALL clear the message.
 #### Scenario: An invalid name (manual)
 
 - **WHEN** a user types `my.project` and presses Start
-- **THEN** the message "Use letters, numbers, spaces, - or _" shows under the
+- **THEN** the message "Use letters, numbers, spaces, - or _." shows under the
   name field, the field is `aria-invalid` and described by the message, and
   no project is created
 

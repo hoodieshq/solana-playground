@@ -66,7 +66,7 @@ print `^C` and one line:
   buffer account was closed and the SOL returned."
 - if closing failed: "Stopped. The program was not deployed. The buffer
   account <address> still holds its SOL. Run `solana program close
-  --buffers` to reclaim it."
+  --buffers` to get it back."
 
 The program on chain SHALL stay as it was. From the final deploy or upgrade
 on, a stop SHALL print "This step can't be stopped. Wait for it to finish."
@@ -103,7 +103,7 @@ recorded in the history.
   fails
 - **THEN** the terminal prints "Stopped. The program was not deployed. The
   buffer account <address> still holds its SOL. Run `solana program close
-  --buffers` to reclaim it.", in two sentences with no semicolon
+  --buffers` to get it back.", in two sentences with no semicolon
 
 ### Requirement: A command that cannot stop says so
 

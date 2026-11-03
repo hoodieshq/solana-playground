@@ -10,7 +10,7 @@ What the wallet panel tells the person about the wallet it shows.
 While the wallet panel shows a Playground wallet, a help mark (`data-slot`
 `help-tip`, `aria-label` "About the Playground wallet") SHALL sit beside the
 wallet's name. Hovering or focusing it SHALL show "A wallet kept in this
-browser. Playground uses it to sign your calls without asking. Use it for
+browser. Playground uses it to deploy and to sign your calls without asking. Use it for
 devnet, testnet and local clusters only." While the panel shows a wallet
 from a browser extension, the mark SHALL not be there.
 
