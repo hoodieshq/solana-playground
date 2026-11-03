@@ -66,12 +66,15 @@ const attempt = (what: string, run: () => void) =>
  * blanked instead, which leaves no key to read.
  *
  * Reported only when the key verifiably survived both, which is a privacy
- * failure the team must hear about. Storage that refuses everything (site
+ * failure the team must hear about, and once per tab. Storage that refuses everything (site
  * data blocked) fails the read-back too; then nothing was ever written, and
  * it is only logged.
  *
  * @returns whether the key is gone from this tab's storage
  */
+/** Whether a key that survived `dropKept` was reported in this tab already */
+let survivorReported = false;
+
 const dropKept = (what: string) => {
   if (attempt(what, () => sessionStorage.removeItem(CONNECTION_KEY))) {
     return true;
@@ -85,9 +88,14 @@ const dropKept = (what: string) => {
   );
   if (!left) return true;
 
-  log.error(new Error("could not forget the key kept for this tab"), {
-    report: true,
-  });
+  // Once per tab: every mount of the panel and the Settings row tries again,
+  // and a tab whose storage refuses writes would report on each
+  if (!survivorReported) {
+    survivorReported = true;
+    log.error(new Error("could not forget the key kept for this tab"), {
+      report: true,
+    });
+  }
   return false;
 };
 
@@ -230,6 +238,7 @@ if (import.meta.vitest) {
       afterEach(() => {
         vi.restoreAllMocks();
         resetLogger();
+        survivorReported = false;
       });
 
       it("remembers nothing until a backend has been chosen", () => {
@@ -393,6 +402,19 @@ if (import.meta.vitest) {
         expect(failures).toHaveLength(1);
         expect(failures[0].ns).toBe("assistant:remembered-backend");
         expect(JSON.stringify(logged.entries)).not.toContain(KEY);
+      });
+
+      it("reports a key that survives only once per tab", () => {
+        const logged = memoryProvider();
+        initLogger({ providers: [logged] });
+        keepAsOlderBuild();
+        failOnSession("removeItem", "setItem");
+
+        expect(dropKeptKey()).toBe(false);
+        expect(dropKeptKey()).toBe(false);
+        expect(forgetBackend()).toBe(false);
+
+        expect(reported(logged)).toHaveLength(1);
       });
 
       it("reports nothing when storage is blocked outright", () => {

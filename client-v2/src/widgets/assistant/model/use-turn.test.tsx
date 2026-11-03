@@ -774,6 +774,21 @@ describe("useTurn", () => {
     });
   });
 
+  it("reports a busy turn to the store, so every Delete my key reads it", async () => {
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-ant-fake" });
+    provider.send.mockImplementation(untilAborted);
+    const { result } = renderHook(() => useTestTurn());
+    expect(PgAssistant.keyHold).toBe("ready");
+
+    act(() => {
+      void result.current.send("hi");
+    });
+    expect(PgAssistant.keyHold).toBe("busy");
+
+    act(() => result.current.stop());
+    await waitFor(() => expect(PgAssistant.keyHold).toBe("ready"));
+  });
+
   it("does not connect the default for a send while Connect a model is open", async () => {
     defaultBackend(true);
     const { result } = renderHook(() => useTestTurn());

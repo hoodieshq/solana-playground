@@ -109,3 +109,14 @@ it("says so when the key an older build kept cannot be removed", async () => {
   expect(screen.getByText(KEY_NOT_FORGOTTEN)).toBeTruthy();
   expect(PgAssistant.connection).toBeNull();
 });
+
+it("waits while a send is still starting, as the head does", () => {
+  PgAssistant.connect({ id: "anthropic", apiKey: KEY });
+  render(<AssistantKey phone={false} />);
+
+  act(() => PgAssistant.markTurnBusy(true));
+  expect(button().disabled).toBe(true);
+
+  act(() => PgAssistant.markTurnBusy(false));
+  expect(button().disabled).toBe(false);
+});

@@ -359,6 +359,12 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   };
   const phase = phaseOf();
   const busy = phase !== "idle";
+  // Delete my key reads this through `PgAssistant.keyHold`, in the head and
+  // in Settings alike
+  useEffect(() => {
+    PgAssistant.markTurnBusy(busy);
+  }, [busy]);
+  useEffect(() => () => PgAssistant.markTurnBusy(false), []);
 
   const connection = usableConnection();
   // Connecting answers the hint; a later disconnect must not bring it back

@@ -323,7 +323,8 @@ describe("Assistant", () => {
 
   it("keeps Delete my key disabled during a turn", async () => {
     PgAssistant.connect({ id: "anthropic", apiKey: "sk-ant-fake" });
-    turn.busy = true;
+    // What `useTurn`, stubbed here, reports while its turn is busy
+    PgAssistant.markTurnBusy(true);
     const { user } = setup();
     await user.click(screen.getByRole("button", { name: "More" }));
     expect(
@@ -331,6 +332,7 @@ describe("Assistant", () => {
         .getByRole("menuitem", { name: "Delete my key" })
         .getAttribute("aria-disabled")
     ).toBe("true");
+    PgAssistant.markTurnBusy(false);
   });
 
   it("offers no Delete my key for the keyless default", async () => {

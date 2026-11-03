@@ -1,8 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { dropKeptKey } from "../../../views/sidebar/assistant/model/remembered-backend";
-import { PROVIDERS } from "../../../views/sidebar/assistant/model/types";
-import type { KeyHold } from "../../../views/sidebar/assistant/model/types";
 import {
   KEY_NOT_FORGOTTEN,
   PgAssistant,
@@ -13,17 +11,8 @@ import BaseAssistantKey from "./BaseAssistantKey";
 const subscribe = (onChange: () => void) =>
   PgAssistant.onDidChange(onChange).dispose;
 
-/**
- * Whether a backend holding the user's key is connected, and whether a turn
- * is using it: the store's own view, since the panel's turn hook may not be
- * mounted while Settings covers the window
- */
-const stateOf = (): KeyHold => {
-  const id = PgAssistant.connection?.id;
-  if (!PROVIDERS.find((p) => p.id === id)?.needsKey) return "none";
-  if (PgAssistant.status !== "idle" || PgAssistant.turnRunning) return "busy";
-  return "ready";
-};
+/** The store's `keyHold`, which the head's More reads too */
+const stateOf = () => PgAssistant.keyHold;
 
 /**
  * `BaseAssistantKey` on the live connection. Delete my key is the head's

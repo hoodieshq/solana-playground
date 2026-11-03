@@ -25,7 +25,12 @@ import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "@/features/mcp";
 import type { ModelProvider } from "@/shared/lib/ai";
-import { isDefaultBackend, type Effort } from "./model/types";
+import {
+  isDefaultBackend,
+  PROVIDERS,
+  type Effort,
+  type KeyHold,
+} from "./model/types";
 import { paramsOf, type BackendParams } from "./model/backend-params";
 import {
   isToolCallRecord,
@@ -444,6 +449,30 @@ export class PgAssistant {
     return (
       !!current && current.id === next.id && current.apiKey === next.apiKey
     );
+  }
+
+  /**
+   * Whether the panel's turn is busy by its own reckoning (`useTurn`'s
+   * `busy`), which runs ahead of `status`: a send still finding its backend,
+   * a message waiting on a busy model. `useTurn` reports it here so every
+   * Delete my key, including the one in Settings where the panel may not be
+   * mounted, reads the same answer from `keyHold`.
+   */
+  static markTurnBusy(busy: boolean) {
+    if (PgAssistant._turnBusy === busy) return;
+    PgAssistant._turnBusy = busy;
+    PgAssistant._emitOnly();
+  }
+
+  /** Whether Delete my key can act now, the one answer every offer of it reads */
+  static get keyHold(): KeyHold {
+    const id = PgAssistant._connection?.id;
+    if (!PROVIDERS.find((p) => p.id === id)?.needsKey) return "none";
+    const busy =
+      PgAssistant._turnBusy ||
+      PgAssistant._status !== "idle" ||
+      PgAssistant.turnRunning;
+    return busy ? "busy" : "ready";
   }
 
   /** Mark Connect a model open, keeping the conversation */
@@ -1728,6 +1757,7 @@ export class PgAssistant {
   private static _gatewayServersSeq = 0;
   // Kept apart from the listed skills, which `loadSkills` replaces whole; in memory only
   private static _skillChoices: ReadonlyMap<string, boolean> = new Map();
+  private static _turnBusy = false;
   private static _gatewayServers: readonly McpServerEntry[] = [];
   // Kept apart from the gateway's list, which `loadMcpServers` replaces whole; in memory only, like `_localServers`
   private static _gatewayServersOff: ReadonlySet<string> = new Set();

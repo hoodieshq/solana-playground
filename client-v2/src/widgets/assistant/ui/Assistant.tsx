@@ -5,7 +5,6 @@ import { useTutorialBeforeStart } from "@/entities/tutorial";
 import { PgSession } from "@/features/auth";
 import { Button } from "@/shared/ui/button";
 import Grounding from "../../../views/sidebar/assistant/Component/Grounding";
-import { PROVIDERS } from "../../../views/sidebar/assistant/model/types";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { modelShown } from "../model/choice";
@@ -18,20 +17,9 @@ import type { ConnectOpener } from "../model/use-turn";
 import { AssistantComposer } from "./AssistantComposer";
 import { Thread } from "./Thread";
 import { BaseAssistantHead } from "./BaseAssistantHead";
-import type { DeleteKey } from "./BaseAssistantHead";
 
 /** What the panel shows under its head */
 type View = "chat" | "sources";
-
-/** Whether More offers Delete my key, and whether it can be pressed now */
-const deleteKeyOf = (busy: boolean): DeleteKey => {
-  const id = PgAssistant.connection?.id;
-  const holdsKey = !!PROVIDERS.find((p) => p.id === id)?.needsKey;
-  if (!holdsKey) return "none";
-  // The turn is using the key
-  if (busy) return "busy";
-  return "ready";
-};
 
 /**
  * The open project's name, or `null` before one is open, kept live through a
@@ -154,7 +142,7 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
         onHide={onHide}
         canWiden={canWiden}
         // Read on every render `useTurn` makes for a change in the store
-        deleteKey={deleteKeyOf(turn.busy)}
+        deleteKey={PgAssistant.keyHold}
         onDeleteKey={() => {
           assistantTelemetry.track("assistant_key_deleted", {});
           PgAssistant.disconnect();
