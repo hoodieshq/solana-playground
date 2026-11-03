@@ -92,12 +92,8 @@ const headOf = (
  * Explain and "I'll fix it myself" while it is open. The run tickets (4.1 to
  * 4.3) fill the bodies each result carries.
  *
- * A run's or call's result is `BaseTxResultCard`'s.
- *
- * TODO(tutorial-flow-v2 4.2): an open failed deploy draws no button yet.
- * Its card is 4.2's (Try again and Open faucet). In Hello Anchor, the one
- * definition so far, no deploy act is reachable before step 1's build
- * passes, which needs a wired runner.
+ * A run's or call's result is `BaseTxResultCard`'s; a deploy's is
+ * `BaseDeployResultCard`'s, which `TurnView` picks for it.
  */
 const BaseResultCard = ({
   result,

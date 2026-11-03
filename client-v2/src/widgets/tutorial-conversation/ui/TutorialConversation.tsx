@@ -17,6 +17,7 @@ import {
   reportButtonFailure,
 } from "@/shared/lib/report-button-failure";
 import { Spinner } from "@/shared/ui/spinner";
+import { PgProgramInfo, PgWallet } from "@/utils";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import { marksOf } from "../model/marks";
@@ -24,6 +25,8 @@ import type { FeedMarks } from "../model/marks";
 import { PgTutorial } from "@/utils/tutorial";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { explainPrompt, whenAnswered } from "../model/explain";
+import { PgFlow } from "@/views/flow/state/stage";
+import { announceDeploys } from "../model/runner";
 import { tutorialTelemetry } from "../model/telemetry";
 import BaseFeed from "./BaseFeed";
 import TurnView from "./TurnView";
@@ -353,6 +356,27 @@ const showFix = (beatId: string) => {
   showLine(step.file, line);
 };
 
+/**
+ * The tutorial's runner, announcing each deploy and build-and-deploy to
+ * `PgFlow`: the terminal bar, the drawer's first open and the amber
+ * "changed since the last deploy" follow it as they follow the deploy command.
+ */
+const runner = announceDeploys(
+  tutorialRunner,
+  PgFlow,
+  () => PgExplorer.currentWorkspaceName
+);
+
+/**
+ * "Create wallet" on a deploy that found none: the Playground wallet, made in
+ * this browser as the Setup modal makes it (`PgWallet.add` makes it the
+ * current wallet too), then the deploy runs again.
+ */
+const createWallet = (beatId: string) => {
+  if (!PgWallet.accounts.length) PgWallet.add();
+  PgConversation.act(beatId);
+};
+
 /** Where a copy the clipboard refused is told */
 const copyFailed = reportButtonFailure("copy it");
 
@@ -387,6 +411,8 @@ const handlers: Omit<
   // win card shows no "Open Call"
   openCall: undefined,
   copyFailed: (error) => copyFailed(error),
+  showLog: () => PgConversation.showLog(),
+  createWallet,
 };
 
 /**
@@ -415,7 +441,7 @@ export const TutorialConversation = ({
     () =>
       PgConversation.init({
         workspace: realWorkspace,
-        runner: tutorialRunner,
+        runner,
         judge: judgeGoal,
       }).dispose,
     []
@@ -565,6 +591,7 @@ export const TutorialConversation = ({
           passed={progress.passed}
           read={read}
           nextTutorial={nextTutorial}
+          programId={PgProgramInfo.pk?.toBase58() ?? null}
           on={on}
         />
       )}

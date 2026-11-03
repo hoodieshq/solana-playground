@@ -706,14 +706,14 @@ it("should open the console once when a deploy fails, not for one already failed
   // The reducer is the only way to set a deploy's status without a deploy
   const dispatch = (ev: Parameters<typeof PgFlow.reduce>[1]) =>
     PgFlow["_dispatch"](ev);
-  dispatch({ type: "deploy-start" });
-  dispatch({ type: "deploy-finish", ok: false });
+  dispatch({ type: "deploy-start", from: "command" });
+  dispatch({ type: "deploy-finish", ok: false, from: "command" });
   shell();
   expect(toggled()).toEqual([]);
 
   dispatch({ type: "workspace-change" });
-  dispatch({ type: "deploy-start" });
-  act(() => dispatch({ type: "deploy-finish", ok: false }));
+  dispatch({ type: "deploy-start", from: "command" });
+  act(() => dispatch({ type: "deploy-finish", ok: false, from: "command" }));
   expect(toggled()).toEqual([{ panel: "console", open: true, via: "auto" }]);
 });
 
@@ -721,8 +721,8 @@ it("should not reopen the console for a change that leaves a deploy failed", () 
   const dispatch = (ev: Parameters<typeof PgFlow.reduce>[1]) =>
     PgFlow["_dispatch"](ev);
   shell();
-  dispatch({ type: "deploy-start" });
-  act(() => dispatch({ type: "deploy-finish", ok: false }));
+  dispatch({ type: "deploy-start", from: "command" });
+  act(() => dispatch({ type: "deploy-finish", ok: false, from: "command" }));
   press({ key: "j", ctrlKey: true });
   expect(consoleButton().getAttribute("aria-expanded")).toBe("false");
   act(() => dispatch({ type: "set-stage", stage: "build" }));

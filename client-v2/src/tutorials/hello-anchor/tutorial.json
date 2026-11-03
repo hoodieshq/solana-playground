@@ -193,7 +193,7 @@
           "act": "deploy",
           "say": "Press Deploy and watch for the program id.",
           "title": "Deploy to devnet",
-          "context": "From your Playground wallet on devnet",
+          "context": "From your Playground wallet · free devnet SOL",
           "button": "Deploy"
         }
       ],
@@ -338,7 +338,7 @@
           "act": "buildDeploy",
           "say": "Devnet still runs the old `hello`. Build and deploy again: the program keeps its address.",
           "title": "Build and deploy",
-          "context": "Upgrades your program in place",
+          "context": "Upgrades {program} in place · from your wallet",
           "button": "Build and deploy"
         },
         {

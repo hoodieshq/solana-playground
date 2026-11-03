@@ -1,6 +1,13 @@
-import type { Ask, Quote, TutorialDefinition } from "@/entities/tutorial";
+import type {
+  ActBeat,
+  Ask,
+  Quote,
+  TutorialDefinition,
+} from "@/entities/tutorial";
 import type { Turn } from "@/features/tutorial-conversation";
+import { shortKey } from "@/shared/lib/short-key";
 import BaseActCard from "./BaseActCard";
+import BaseDeployResultCard from "./BaseDeployResultCard";
 import BaseIntroCard from "./BaseIntroCard";
 import BaseQuestionCard, {
   BaseQuestionRecord,
@@ -44,6 +51,10 @@ export interface TurnHandlers {
   copyReceipt: () => void;
   /** A copy the clipboard refused */
   copyFailed: (error: unknown) => void;
+  /** Open the terminal, where a run printed its lines */
+  showLog: () => void;
+  /** Make the Playground wallet a deploy found missing, then run it again */
+  createWallet: (beatId: string) => Promise<unknown> | void;
 }
 
 export interface TurnViewProps {
@@ -59,11 +70,25 @@ export interface TurnViewProps {
   read: (file: string) => string | null;
   /** The next tutorial's name, for the finish card, or null */
   nextTutorial: string | null;
+  /** The workspace's program id, which an act's `{program}` names; null before a build */
+  programId?: string | null;
   on: TurnHandlers;
 }
 
 /** The client file a Call panel pass sends the learner to write the call in */
 const CLIENT_FILE = "client/client.ts";
+
+/** An act's context with `{program}` as the short program id, or "your program" */
+const withProgram = (act: ActBeat, programId: string | null): ActBeat =>
+  act.context.includes("{program}")
+    ? {
+        ...act,
+        context: act.context.replace(
+          "{program}",
+          programId ? shortKey(programId) : "your program"
+        ),
+      }
+    : act;
 
 const linesOf = (content: string | null) => content?.split("\n") ?? [];
 
@@ -95,6 +120,7 @@ const TurnView = ({
   passed,
   read,
   nextTutorial,
+  programId = null,
   on,
 }: TurnViewProps) => {
   const showQuote = (quote: Quote) => on.showLine(quote.file, quote.line);
@@ -198,7 +224,7 @@ const TurnView = ({
     case "act":
       return (
         <BaseActCard
-          act={turn.act}
+          act={withProgram(turn.act, programId)}
           state={turn.state}
           note={turn.note}
           stage={turn.stage}
@@ -208,6 +234,18 @@ const TurnView = ({
         />
       );
     case "result":
+      if (turn.result.act === "deploy" || turn.result.act === "buildDeploy") {
+        return (
+          <BaseDeployResultCard
+            result={turn.result}
+            // Not `&& live`: a failed deploy stays open while it is the act's
+            // latest run, whether it or the Try again card under it is live
+            open={turn.open}
+            onShowLog={on.showLog}
+            onCreateWallet={() => on.createWallet(turn.beatId)}
+          />
+        );
+      }
       return (
         <BaseResultCard
           result={turn.result}

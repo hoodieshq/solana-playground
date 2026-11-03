@@ -122,6 +122,30 @@ export class PgConversation {
     return { dispose: () => PgConversation._explainListeners.delete(cb) };
   }
 
+  /**
+   * A result card's Log: the workspace that holds the terminal opens it.
+   * With no workspace listening (none mounted, or not active) a press does
+   * nothing.
+   */
+  static onDidRequestLog(cb: () => void): Disposable {
+    PgConversation._logListeners.add(cb);
+    return { dispose: () => PgConversation._logListeners.delete(cb) };
+  }
+
+  /**
+   * Open the terminal, where the run printed its lines. A listener that
+   * throws is logged, and the others still hear it.
+   */
+  static showLog() {
+    for (const cb of PgConversation._logListeners) {
+      try {
+        cb();
+      } catch (e) {
+        log.error(e, { report: true, context: { what: "open the terminal" } });
+      }
+    }
+  }
+
   static start() {
     PgConversation._dispatch({ type: "start", at: Date.now() });
   }
@@ -853,4 +877,5 @@ export class PgConversation {
   private static readonly _explainListeners = new Set<
     (request: { beatId: string; result: RunResult }) => void
   >();
+  private static readonly _logListeners = new Set<() => void>();
 }
