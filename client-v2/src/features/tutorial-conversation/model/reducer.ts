@@ -214,7 +214,7 @@ const outcomeOf = (result: RunResult): ActionRunParams["outcome"] => {
 };
 
 /** The `tutorial_action_run` event of one run */
-export const actionRunOf = (
+const actionRunOf = (
   run: { slug: string; step: number; act: Act; took: number },
   outcome: ActionRunParams["outcome"]
 ): Effect => ({

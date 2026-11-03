@@ -16,7 +16,7 @@ import { createLogger } from "@/shared/lib/logger";
 import { actRunner } from "./act-runner";
 import type { ActRun } from "./act-runner";
 import { runDeploy } from "./deploy";
-import { recogniseDeploy } from "./recognise";
+import { deploySlotOf, recogniseDeploy } from "./recognise";
 import type { DeployPort, OnChain } from "./deploy";
 import type { FundingChain } from "./fund";
 
@@ -39,7 +39,7 @@ const playgroundWallet = (): Wallet | null => {
 const pk = (address: string) => new PgWeb3.PublicKey(address);
 
 /** Devnet through the connection the settings hold, which `PgTx` sends on */
-export const devnetFunding: FundingChain = {
+const devnetFunding: FundingChain = {
   balance: (address) => PgConnection.current.getBalance(pk(address)),
   airdrop: (address, lamports) =>
     PgConnection.current.requestAirdrop(pk(address), lamports),
@@ -61,6 +61,15 @@ const onChainOf = async (id: string): Promise<OnChain> => {
     dataLen: info.programDataLen,
     authority: info.authority?.toBase58() ?? null,
   };
+};
+
+/** Closes a buffer, returning its rent to the wallet that funded it */
+const closeBuffer = async (buffer: string, wallet: Wallet) => {
+  const conn = PgConnection.current;
+  await sendAndConfirmTxWithRetries(
+    () => BpfLoaderUpgradeable.closeBuffer(pk(buffer), { wallet }),
+    async () => !(await conn.getAccountInfo(pk(buffer)))
+  );
 };
 
 /**
@@ -167,13 +176,25 @@ export const realDeployPort = (): DeployPort => {
           }),
         async () => !!(await conn.getAccountInfo(buffer.publicKey))
       );
-      await BpfLoaderUpgradeable.loadBuffer(buffer.publicKey, bytes, {
-        wallet: payer,
-        onRateLimit: (retryAfter) =>
-          PgTerminal.println(
-            `Warning: Reached rate-limits, waiting ${retryAfter}s...`
-          ),
-      });
+      try {
+        await BpfLoaderUpgradeable.loadBuffer(buffer.publicKey, bytes, {
+          wallet: payer,
+          onRateLimit: (retryAfter) =>
+            PgTerminal.println(
+              `Warning: Reached rate-limits, waiting ${retryAfter}s...`
+            ),
+        });
+      } catch (e) {
+        // The buffer already holds its rent: give it back before the write's
+        // failure stands, as `runDeploy` does for a failed deploy
+        await closeBuffer(buffer.publicKey.toBase58(), payer).catch((closing) =>
+          log.error(closing, {
+            report: true,
+            context: { stage: "Closing the buffer" },
+          })
+        );
+        throw e;
+      }
       return buffer.publicKey.toBase58();
     },
     deploy: async (buffer, length) => {
@@ -205,13 +226,7 @@ export const realDeployPort = (): DeployPort => {
       if (!signature) throw new Error("The upgrade sent no transaction");
       return signature;
     },
-    closeBuffer: async (buffer) => {
-      const conn = PgConnection.current;
-      await sendAndConfirmTxWithRetries(
-        () => BpfLoaderUpgradeable.closeBuffer(pk(buffer), { wallet: wallet! }),
-        async () => !(await conn.getAccountInfo(pk(buffer)))
-      );
-    },
+    closeBuffer: (buffer) => closeBuffer(buffer, wallet!),
     instructions: () =>
       (PgProgramInfo.idl?.instructions ?? []).map((ix) => ix.name),
     print: (line) => PgTerminal.println(line),
@@ -262,8 +277,7 @@ export const tutorialRunner = actRunner(
         const data = await conn.getAccountInfo(
           new PgWeb3.PublicKey(program.data.subarray(4, 36))
         );
-        // ProgramData: a u32 tag, then the u64 slot of the last deploy
-        return data ? Number(data.data.readBigUInt64LE(4)) : null;
+        return data ? deploySlotOf(data.data) : null;
       },
       blockTime: (slot) => conn.getBlockTime(slot),
       signatures: async (programId) =>

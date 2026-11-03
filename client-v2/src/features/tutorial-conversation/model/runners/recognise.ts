@@ -28,7 +28,7 @@ export interface RecogniseInput {
  * How far the device's clock may run ahead of the chain's and still own a
  * deploy: `startedAtMs` is the device's, a block time the chain's
  */
-export const CLOCK_SKEW_MS = 60_000;
+const CLOCK_SKEW_MS = 60_000;
 
 /**
  * A deploy a reload interrupted, recognised from the chain. Only a deploy or
@@ -65,6 +65,22 @@ export const recogniseDeploy = async (
     instructions: input.instructions,
   };
 };
+
+/**
+ * The slot of a program's last deploy or upgrade, from its ProgramData
+ * account's data: a u32 tag, then that slot as a u64. Null for data too
+ * short to be one.
+ */
+export const deploySlotOf = (data: Uint8Array): number | null =>
+  data.length < 12
+    ? null
+    : Number(
+        new DataView(
+          data.buffer,
+          data.byteOffset,
+          data.byteLength
+        ).getBigUint64(4, true)
+      );
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
@@ -140,6 +156,19 @@ if (import.meta.vitest) {
       await expect(
         recogniseDeploy(input([sig("mine", DEPLOY_SLOT)], -20))
       ).resolves.toMatchObject({ signature: "mine", seconds: 0 });
+    });
+
+    it("reads the deploy slot after ProgramData's tag", () => {
+      const data = new Uint8Array(45);
+      const view = new DataView(data.buffer);
+      view.setUint32(0, 3, true);
+      view.setBigUint64(4, BigInt(312_456_789), true);
+      expect(deploySlotOf(data)).toBe(312_456_789);
+      // A view into a larger buffer, as web3's account data can be
+      const outer = new Uint8Array(64);
+      outer.set(data, 7);
+      expect(deploySlotOf(outer.subarray(7, 52))).toBe(312_456_789);
+      expect(deploySlotOf(new Uint8Array(8))).toBeNull();
     });
 
     it("leaves a program it cannot place alone", async () => {

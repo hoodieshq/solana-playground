@@ -52,7 +52,8 @@ export interface Runner {
   /**
    * A run a reload interrupted, looked up where it would have landed: the
    * result it had, or null when it did not land or the act cannot tell
-   * (only a deploy can, from the chain). `startedAtMs` is the run's start
+   * (only a deploy can, from the chain). `startedAtMs` is the interrupted
+   * run's `at`: its start by the device's clock, in ms
    */
   recognise?(act: Act, startedAtMs: number): Promise<RunResult | null>;
 }

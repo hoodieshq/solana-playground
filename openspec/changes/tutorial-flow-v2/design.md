@@ -156,6 +156,11 @@ separate PRs against fixtures.
   in the terminal and reports no stages; the workspace keeps the program
   keypair, so a redeploy is an upgrade;
 - funding is the deploy's own airdrop top-up, reported as a stage;
+- a cluster other than devnet stops it with a failed card that says to
+  switch; the terminal line names the estimate before the buffer, the result
+  the measured cost;
+- a deploy that fails after its buffer is funded, in the write or the
+  deploy, closes the buffer, so a retry does not pay for a second one;
 - before any SOL is locked in a buffer, a program whose upgrade authority is
   another wallet, an immutable one, or a first deploy without the keypair
   stops with a failed card;

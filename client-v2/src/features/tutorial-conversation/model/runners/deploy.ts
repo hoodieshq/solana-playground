@@ -13,7 +13,7 @@ export const DEPLOY_STAGES = {
 } as const;
 
 /** Lamports kept for transaction fees on top of the rent a deploy locks */
-export const FEE_HEADROOM = 20_000_000;
+const FEE_HEADROOM = 20_000_000;
 
 /** What the deploy can learn about the program before it runs */
 export interface ProgramState {
