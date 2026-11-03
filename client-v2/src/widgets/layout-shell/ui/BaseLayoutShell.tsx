@@ -181,6 +181,12 @@ export interface BaseLayoutShellProps {
    * stage; on a phone, in the bar of the preview page
    */
   stageTabs: ReactNode;
+  /**
+   * The editor head (`BaseEditorHead`), under `stageTabs` across the files
+   * column and the stage, outside their group so opening the column moves
+   * nothing in it. Not on a phone, and not under Home, where no work shows.
+   */
+  workHead?: ReactNode;
   stage: ReactNode;
   console: ReactNode;
   /** Renders the assistant, in its panel, its Sheet or the pager's page */
@@ -701,6 +707,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                 draws them: the column bar, then the stage tabs */}
                       {props.stageBar}
                       {props.stageTabs}
+                      {props.workHead}
                       {/* Hidden, the group holds only the
                 stage and, like the horizontal group below `compact`, neither
                 takes nor saves its layout */}

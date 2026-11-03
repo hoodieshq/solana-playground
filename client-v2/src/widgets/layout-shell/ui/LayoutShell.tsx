@@ -10,7 +10,8 @@ import { PgFlow } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 
 import { onDidRequestConsole } from "../model/console-request";
-import { CONSOLE_KEY } from "../model/keys";
+import { setEditorHeadHost } from "../model/editor-head-host";
+import { CONSOLE_KEY, keyLabel } from "../model/keys";
 import type {
   PageSource,
   PhonePage,
@@ -25,6 +26,7 @@ import { layoutTelemetry } from "../model/telemetry";
 import { useLayoutState } from "../model/use-layout-state";
 import type { AssistantWide } from "./BaseLayoutShell";
 import BaseLayoutShell from "./BaseLayoutShell";
+import BaseEditorHead from "./BaseEditorHead";
 import BaseStageBar from "./BaseStageBar";
 
 export interface LayoutShellProps {
@@ -49,6 +51,11 @@ export interface LayoutShellProps {
    * shell's own stage bar; on a phone, in the preview page's bar
    */
   stageTabs: ReactNode;
+  /**
+   * Whether the editor head shows the editor's tab row: the Write stage's
+   * only; the head's Files and Terminal show on every stage. Default true.
+   */
+  showTabs?: boolean;
   /**
    * The files column. `collapsed` is never true in the phone's Files Sheet;
    * `phone` says the column is in that Sheet, where `toggle` closes it.
@@ -116,6 +123,7 @@ const isEditable = (target: EventTarget | null) =>
 const LayoutShell = ({
   nav,
   stageTabs,
+  showTabs = true,
   files,
   stage,
   console,
@@ -589,19 +597,6 @@ const LayoutShell = ({
       stageBar={
         <BaseStageBar
           title={barTitle}
-          // Under Home there is no files column to toggle
-          files={
-            homeShown
-              ? null
-              : {
-                  open: state.open.files,
-                  onToggle: () =>
-                    setOpen("files", {
-                      open: !state.open.files,
-                      via: "button",
-                    }),
-                }
-          }
           // The panel's toggle on a wide window; below it, and at every width
           // under Home, what opens the Sheet
           assistant={{
@@ -613,6 +608,23 @@ const LayoutShell = ({
         />
       }
       stageTabs={stageTabs}
+      workHead={
+        <BaseEditorHead
+          files={{
+            open: state.open.files,
+            onToggle: () =>
+              setOpen("files", { open: !state.open.files, via: "button" }),
+          }}
+          terminal={{
+            open: state.open.console,
+            onToggle: () =>
+              setOpen("console", { open: !state.open.console, via: "button" }),
+          }}
+          showTabs={showTabs}
+          hostRef={setEditorHeadHost}
+          terminalKey={keyLabel(CONSOLE_KEY, PgCommon.getOS())}
+        />
+      }
       stage={stage()}
       console={console({
         open: phone ? phoneConsole : state.open.console,
@@ -643,7 +655,6 @@ const LayoutShell = ({
           bar: (
             <BaseStageBar
               title={cover.title}
-              files={null}
               assistant={null}
               assistantKey={null}
             />

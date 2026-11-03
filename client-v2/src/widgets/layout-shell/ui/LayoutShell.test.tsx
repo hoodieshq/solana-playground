@@ -210,8 +210,8 @@ const shellTree = (
         )}
         stageTabs={<div>stage tabs</div>}
         files={({ collapsed, toggle, phone }) => (
-          // Stands for a control inside the column; the stage bar carries
-          // "Collapse project panel" / "Expand project panel"
+          // Stands for a control inside the column; the editor head carries
+          // "Files"
           <button
             type="button"
             aria-expanded={!collapsed}
@@ -259,6 +259,23 @@ const shell = (
   cover?: LayoutShellProps["cover"]
 ) => render(shellTree(home, work, cover));
 
+/**
+ * A visitor who left the files column open: a first visit now opens it
+ * closed (DES-205), and these cases start from an open column
+ */
+const savedFilesOpen = () =>
+  localStorage.setItem(
+    LAYOUT_STORAGE_KEY,
+    JSON.stringify({
+      v: 2,
+      open: { nav: true, files: true, assistant: true, console: false },
+    })
+  );
+
+/** The editor head's Files toggle, and whether it reads pressed */
+const filesToggle = () => document.getElementById("editor-head-files")!;
+const filesPressed = () => filesToggle().getAttribute("aria-pressed");
+
 it("should report the width class once per load", () => {
   shell();
   expect(
@@ -278,6 +295,42 @@ it("should toggle the console by button and by Ctrl+J, and say which", () => {
   ]);
 });
 
+describe("the editor head", () => {
+  const headButton = (name: "Files" | "Terminal") =>
+    within(document.getElementById("editor-head")!).getByRole("button", {
+      name,
+    });
+  const pressed = (name: "Files" | "Terminal") =>
+    headButton(name).getAttribute("aria-pressed");
+
+  it("toggles the files column and the console as buttons", () => {
+    shell();
+    const filesAtStart = pressed("Files");
+    fireEvent.click(headButton("Files"));
+    expect(pressed("Files")).not.toBe(filesAtStart);
+    fireEvent.click(headButton("Terminal"));
+    expect(pressed("Terminal")).toBe("true");
+    expect(toggled()).toEqual([
+      { panel: "files", open: filesAtStart !== "true", via: "button" },
+      { panel: "console", open: true, via: "button" },
+    ]);
+  });
+
+  it("follows Cmd+E and Ctrl+J", () => {
+    shell();
+    const filesAtStart = pressed("Files");
+    press({ key: "e", metaKey: true });
+    expect(pressed("Files")).not.toBe(filesAtStart);
+    press({ key: "j", ctrlKey: true });
+    expect(pressed("Terminal")).toBe("true");
+  });
+
+  it("is not drawn under Home", () => {
+    shell(() => <div>home</div>);
+    expect(document.getElementById("editor-head")).toBeNull();
+  });
+});
+
 it("should report Cmd+B once, via key", () => {
   shell();
   press({ key: "b", metaKey: true });
@@ -294,6 +347,7 @@ it("should report the navigation's own button as a button", () => {
 });
 
 it("should tell the files column it is not in the phone's Sheet", () => {
+  savedFilesOpen();
   shell();
   expect(
     screen.getByRole("button", { name: "Files column control" }).dataset.phone
@@ -301,15 +355,12 @@ it("should tell the files column it is not in the phone's Sheet", () => {
 });
 
 it("should toggle the files column by Cmd+E and by its button, and say which", () => {
+  savedFilesOpen();
   shell();
   press({ key: "e", metaKey: true });
-  expect(
-    screen.getByRole("button", { name: "Expand project panel" })
-  ).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Expand project panel" }));
-  expect(
-    screen.getByRole("button", { name: "Collapse project panel" })
-  ).toBeTruthy();
+  expect(filesPressed()).toBe("false");
+  fireEvent.click(filesToggle());
+  expect(filesPressed()).toBe("true");
   expect(toggled()).toEqual([
     { panel: "files", open: false, via: "key" },
     { panel: "files", open: true, via: "button" },
@@ -317,12 +368,11 @@ it("should toggle the files column by Cmd+E and by its button, and say which", (
 });
 
 it("should open a folded files column when the editor asks to show files", () => {
+  savedFilesOpen();
   shell();
   press({ key: "e", metaKey: true });
   act(() => PgView.showFiles());
-  expect(
-    screen.getByRole("button", { name: "Collapse project panel" })
-  ).toBeTruthy();
+  expect(filesPressed()).toBe("true");
   expect(toggled()).toEqual([
     { panel: "files", open: false, via: "key" },
     { panel: "files", open: true, via: "button" },
@@ -330,11 +380,10 @@ it("should open a folded files column when the editor asks to show files", () =>
 });
 
 it("should leave an open files column open when the editor asks to show files", () => {
+  savedFilesOpen();
   shell();
   act(() => PgView.showFiles());
-  expect(
-    screen.getByRole("button", { name: "Collapse project panel" })
-  ).toBeTruthy();
+  expect(filesPressed()).toBe("true");
   expect(toggled()).toEqual([]);
 });
 
@@ -357,6 +406,7 @@ it("should start the navigation as a rail between 768 and 1023 px, and save noth
 });
 
 it("should fold the files column by Cmd+E between 768 and 1023 px, and save it", () => {
+  savedFilesOpen();
   resizeTo(800);
   shell();
   press({ key: "e", metaKey: true });
@@ -659,6 +709,7 @@ it("should set the assistant Sheet in the theme's text font, not its code font, 
 });
 
 it("should save the open state and read it back", () => {
+  savedFilesOpen();
   const first = shell();
   fireEvent.click(consoleButton());
   press({ key: "b", metaKey: true });
@@ -675,18 +726,14 @@ it("should save the open state and read it back", () => {
   expect(
     screen.getByRole("button", { name: "Expand navigation" })
   ).toBeTruthy();
-  expect(
-    screen.getByRole("button", { name: "Expand project panel" })
-  ).toBeTruthy();
+  expect(filesPressed()).toBe("false");
   expect(screen.getByRole("button", { name: "Expand assistant" })).toBeTruthy();
 });
 
 it("should fall back on a corrupt saved layout and report it", () => {
   localStorage.setItem(LAYOUT_STORAGE_KEY, "{");
   shell();
-  expect(
-    screen.getByRole("button", { name: "Collapse project panel" })
-  ).toBeTruthy();
+  expect(filesPressed()).toBe("false");
   expect(
     sent.events.filter((event) => event.name === "layout_restore_failed")
   ).toEqual([expect.objectContaining({ params: { reason: "corrupt" } })]);
@@ -815,6 +862,7 @@ it("should leave Control+E in a contenteditable alone too, on a Mac", () => {
 });
 
 it("should fold the files column by Ctrl+E from a text field on Windows and Linux, where Ctrl has no meaning there", () => {
+  savedFilesOpen();
   onUserAgent(WINDOWS);
   shell();
   const field = textField();
@@ -825,6 +873,7 @@ it("should fold the files column by Ctrl+E from a text field on Windows and Linu
 });
 
 it("should fold the files column when Control is held with Cmd in a text field on a Mac", () => {
+  savedFilesOpen();
   // The Meta makes it the shortcut, not the caret movement
   onUserAgent(MAC);
   shell();
@@ -844,6 +893,7 @@ describe.each([
   ["Windows", WINDOWS],
 ])("on %s", (_, userAgent) => {
   it("should still fold the files column by Cmd+E from a text field, which has no native meaning there", () => {
+    savedFilesOpen();
     onUserAgent(userAgent);
     shell();
     const field = textField();
@@ -854,6 +904,7 @@ describe.each([
   });
 
   it("should fold the files column by Control+E outside a text field, and keep it from the page", () => {
+    savedFilesOpen();
     onUserAgent(userAgent);
     shell();
     const proceeded = fireEvent.keyDown(document.body, {
@@ -887,6 +938,7 @@ it.each([
 );
 
 it("should fold the files column by Cmd+E and unfold the rail by Cmd+B at the phone's line", () => {
+  savedFilesOpen();
   resizeTo(LAYOUT_BREAKPOINTS.phone);
   shell();
   press({ key: "e", metaKey: true });
@@ -1301,15 +1353,12 @@ describe("on a phone", () => {
 });
 
 describe("the stage bar", () => {
-  it("folds the files column from its toggle, via button", () => {
+  it("folds the files column from the editor head's toggle, via button", () => {
+    savedFilesOpen();
     shell();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Collapse project panel" })
-    );
+    fireEvent.click(filesToggle());
     expect(toggled()).toEqual([{ panel: "files", open: false, via: "button" }]);
-    expect(
-      screen.getByRole("button", { name: "Expand project panel" })
-    ).toBeTruthy();
+    expect(filesPressed()).toBe("false");
   });
 
   it("hides the assistant from its toggle and names the project", () => {
@@ -1375,14 +1424,11 @@ describe("the stage bar", () => {
   });
 
   it("holds the files column's one toggle at the phone's line, with no opener at the left edge", () => {
+    savedFilesOpen();
     resizeTo(LAYOUT_BREAKPOINTS.phone);
     shell();
-    expect(
-      screen.getAllByRole("button", { name: "Collapse project panel" })
-    ).toHaveLength(1);
-    expect(
-      screen.queryByRole("button", { name: "Expand project panel" })
-    ).toBeNull();
+    expect(document.querySelectorAll("#editor-head-files")).toHaveLength(1);
+    expect(filesPressed()).toBe("true");
   });
 
   it("is not drawn on a phone", () => {
