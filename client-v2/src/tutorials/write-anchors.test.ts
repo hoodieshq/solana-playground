@@ -1,7 +1,14 @@
+import { existsSync, readdirSync, readFileSync } from "fs";
+import { join } from "path";
 import { describe, expect, it } from "vitest";
 
 import { checkDefinition } from "@/entities/tutorial/model/definition/check";
-import type { Beat, Step, TutorialDefinition } from "@/entities/tutorial";
+import type {
+  Beat,
+  Block,
+  Step,
+  TutorialDefinition,
+} from "@/entities/tutorial";
 import {
   groundOf,
   insertBlock,
@@ -33,6 +40,29 @@ interface Lesson {
 }
 
 const LESSONS = prototype as Record<"lumberjack" | "zeroCopy", Lesson>;
+
+/** Every conversation tutorial in this folder, by slug */
+const TUTORIALS = Object.fromEntries(
+  readdirSync(__dirname, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !/^[_.]/.test(e.name))
+    .filter((e) => existsSync(join(__dirname, e.name, "tutorial.json")))
+    .map((e) => [
+      e.name,
+      JSON.parse(
+        readFileSync(join(__dirname, e.name, "tutorial.json"), "utf8")
+      ) as TutorialDefinition,
+    ])
+);
+
+/** A step's block writes in the order a run plays them: its beats, a right
+ * pick's write included, then the planned failure's */
+const writesOf = (step: Step): [string, Block][] =>
+  step.beats.concat(step.onFail ?? []).flatMap((b): [string, Block][] => {
+    if (b.kind === "write" && !("create" in b.writes))
+      return [[b.id, b.writes]];
+    if (b.kind === "ask" && b.writes) return [[b.id, b.writes]];
+    return [];
+  });
 
 /** The fix question's id: the planned failure's beats start with `f1.` */
 const isFix = (w: Write) => w.id.startsWith("f1.");
@@ -105,27 +135,73 @@ describe("tutorials/write-anchors", () => {
     });
   });
 
-  it("builds Zero Copy's planned failure in another order without the refs", () => {
+  it.each(Object.entries(LESSONS))(
+    "%s: without the refs a write of the planned failure lands elsewhere",
+    (_, lesson) => {
+      const build = lesson.writes.filter((w) => !isFix(w));
+      const bare = build.map((w) => ({
+        id: w.id,
+        file: w.file,
+        block: w.block,
+      }));
+      const differs = build.some(
+        (_w, k) =>
+          replay(lesson, build.slice(0, k + 1)).code !==
+          replay(lesson, bare.slice(0, k + 1)).code
+      );
+      expect(differs).toBe(true);
+    }
+  );
+
+  it("Zero Copy's fix never reaches its target without the refs", () => {
     const lesson = LESSONS.zeroCopy;
-    const build = lesson.writes.filter((w) => !isFix(w));
-    const own = replay(lesson, build).code;
     const targetOnly = replay(
       lesson,
-      build.map((w) => ({ id: w.id, file: w.file, block: w.block }))
+      lesson.writes.map((w) => ({ id: w.id, file: w.file, block: w.block }))
     ).code;
-    expect(targetOnly).not.toBe(own);
+    expect(targetOnly).not.toBe(lesson.target.trimEnd());
   });
+
+  describe.each(Object.entries(TUTORIALS))(
+    "%s: every write lands in place",
+    (_, definition) => {
+      it.each(definition.steps.map((s, i) => [s.id, i] as const))(
+        "step %s",
+        (_id, i) => {
+          const step = definition.steps[i];
+          const files: Record<string, string> = JSON.parse(
+            JSON.stringify(step.start)
+          );
+          const appended: string[] = [];
+          for (const [id, write] of writesOf(step)) {
+            const { reference, start } = groundOf(write, step);
+            const placed = insertBlock(
+              files[write.file] ?? "",
+              write.block,
+              reference,
+              start
+            );
+            if (placed.appended) appended.push(id);
+            files[write.file] = placed.code;
+          }
+          expect(appended).toEqual([]);
+        }
+      );
+    }
+  );
 
   describe("the check", () => {
     const lesson = LESSONS.lumberjack;
-    const accounts = lesson.writes.find((w) => w.id === "s1.accounts");
+    const found = lesson.writes.find((w) => w.id === "s1.accounts");
+    if (!found?.ref) throw new Error("Lumberjack's s1.accounts has a ref");
+    const accounts = { block: found.block, ref: found.ref };
 
     it("needs a block with a ref to appear in it", () => {
       const write: Write = {
         id: "s1.accounts",
         file: lesson.file,
         block: "pub fn goodbye() {}",
-        ref: accounts?.ref,
+        ref: accounts.ref,
       };
       expect(
         beatErrors(definitionWith(lesson, [write])).map((e) => e.path)
@@ -136,21 +212,37 @@ describe("tutorials/write-anchors", () => {
       const write: Write = {
         id: "s1.accounts",
         file: lesson.file,
-        block: accounts?.block ?? "",
-        ref: `${accounts?.ref}\n\n${accounts?.block}\n`,
+        block: accounts.block,
+        ref: `${accounts.ref}\n\n${accounts.block}\n`,
       };
       expect(
         beatErrors(definitionWith(lesson, [write])).map((e) => e.path)
       ).toEqual(["steps[0].beats[0].writes.ref"]);
     });
 
+    it("checks the ref of a fix question in the planned failure", () => {
+      const d = JSON.parse(JSON.stringify(hello)) as TutorialDefinition;
+      const k = (d.steps[0].onFail ?? []).findIndex(
+        (b) => b.kind === "ask" && b.writes
+      );
+      const fix = d.steps[0].onFail?.[k];
+      if (fix?.kind !== "ask" || !fix.writes) {
+        throw new Error("Hello Anchor's planned failure has a fix question");
+      }
+      fix.writes.ref = "pub fn goodbye() {}\n";
+      expect(
+        checkDefinition(d, new Set([hello.finish.next ?? ""])).map(
+          (e) => e.path
+        )
+      ).toEqual([`steps[0].onFail[${k}].writes.block`]);
+    });
+
     it("checks a ref's block there, not in the step's target", () => {
-      const broken = lesson.writes.find((w) => w.id === "s1.accounts");
       const write: Write = {
         id: "s1.accounts",
         file: lesson.file,
         block: "    pub only_in_the_ref: u8,",
-        ref: `${broken?.ref}\n    pub only_in_the_ref: u8,\n`,
+        ref: `${accounts.ref}\n    pub only_in_the_ref: u8,\n`,
       };
       expect(beatErrors(definitionWith(lesson, [write]))).toEqual([]);
     });

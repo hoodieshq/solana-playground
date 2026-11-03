@@ -1108,6 +1108,33 @@ if (import.meta.vitest) {
         });
       });
 
+      it("carries a question's own ref and start into the write its right pick queues", () => {
+        const d = JSON.parse(JSON.stringify(hello)) as TutorialDefinition;
+        const q1 = d.steps[0].beats[2];
+        if (q1.kind !== "ask" || !q1.writes) {
+          throw new Error("Hello Anchor's first question writes a block");
+        }
+        q1.writes.ref = q1.writes.block;
+        q1.writes.start = "";
+        const c: EngineContext = {
+          definition: d,
+          slug: "hello-anchor",
+          judge: (_goal, result) => result.ok,
+        };
+        const state = reduce(c, INITIAL_ENGINE_STATE, start).state;
+        const r = reduce(c, state, {
+          type: "pick",
+          beatId: "s1.q1",
+          option: q1.answer,
+          at: 9000,
+        });
+        expect(r.effects.find((e) => e.kind === "write")).toMatchObject({
+          beatId: "s1.q1",
+          ref: q1.writes.block,
+          start: "",
+        });
+      });
+
       it("leaves ref and start off a write that has neither", () => {
         const write = play([start]).effects.find((e) => e.kind === "write");
         expect(write).not.toHaveProperty("ref");

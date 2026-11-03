@@ -286,7 +286,7 @@
           "minLength": 1
         },
         "start": {
-          "description": "The file as this write finds it, when that is not the step's start: its lines the block replaces go.",
+          "description": "The whole file as this write finds it, when that is not the step's start. Its lines count as known; those its `ref` lacks go when the file is rebuilt from the `ref`.",
           "type": "string"
         }
       }

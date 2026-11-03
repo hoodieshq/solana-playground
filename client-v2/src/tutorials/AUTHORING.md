@@ -117,8 +117,9 @@ Every step carries whole files, never edits:
 How a block lands: Playground finds the block's lines in the target and
 rebuilds the file from the target, keeping the lines the file already has.
 So blocks land in their place whatever order the beats write them in. The
-check does not test rules 1 and 3; break them and the check still passes,
-but blocks land in the wrong place. The rules:
+check does not test rule 1, nor rule 3 for a write without its own `ref`;
+break them and the check still passes, but blocks land in the wrong place.
+The rules:
 
 1. **A step's `start` is the previous step's `target`, copied exactly.** A
    line the learner's file has that neither the start nor the target knows
@@ -128,7 +129,8 @@ but blocks land in the wrong place. The rules:
    dropping blank ones: any other difference, a space inside a line, a
    comment, the text in a `msg!`, is refused. Keep the target's indentation
    in the block, since what lands is the block's own text.
-3. **Make each block, as a run of lines, unique in the target.** A block
+3. **Make each block, as a run of lines, unique in the target** (or in its
+   `ref`, where the check enforces it). A block
    lands at the first place its lines appear in a row, so a block of only
    `}` lines lands at the first `}`. Start the block from a line that names
    something. Single lines may repeat, with one catch: a line the file
