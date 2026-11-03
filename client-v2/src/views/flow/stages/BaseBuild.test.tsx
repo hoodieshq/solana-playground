@@ -191,6 +191,21 @@ describe("BaseBuild", () => {
     }
   );
 
+  // Without an IDL the take-away row would be an empty gap under the pills
+  it.each([
+    [true, 1],
+    [false, 0],
+  ])("draws the IDL row only when there is an IDL (%s)", (hasIdl, rows) => {
+    const p = props({ kind: "succeeded" });
+    p.hasIdl = hasIdl;
+    p.idlActions = <a href="#idl">Download IDL</a>;
+    render(<BaseBuild {...p} />);
+
+    expect(
+      screen.queryAllByRole("link", { name: "Download IDL" })
+    ).toHaveLength(rows);
+  });
+
   it("says a build that never reached the compiler did not start (BUILD-04)", async () => {
     const p = props({
       kind: "unreached",

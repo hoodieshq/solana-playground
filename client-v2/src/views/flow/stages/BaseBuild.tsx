@@ -72,14 +72,17 @@ export interface BaseBuildProps {
   offline: boolean;
   onBuild: () => unknown;
   onContinue: () => void;
-  /** The last build produced an IDL; the success line names it */
+  /**
+   * The app holds an IDL, the build's or an uploaded one: the success line
+   * names it and the Download IDL row is drawn
+   */
   hasIdl: boolean;
   /** Sends a prompt to the assistant: an error card's Explain or Fix */
   onAsk: (prompt: string) => void;
   onOpenFile: (path: string) => void;
   /** Opens the console, where the terminal holds the whole output */
   onShowLog: () => void;
-  /** Download IDL, shown with a successful build */
+  /** Download IDL, a link under Build succeeded's pills, drawn only with `hasIdl` */
   idlActions: ReactNode;
 }
 
