@@ -360,9 +360,6 @@ const isMs = (v: unknown): v is number => Number.isFinite(v);
 
 const isMsOrNull = (v: unknown): v is number | null => v === null || isMs(v);
 
-/** A string with something in it */
-const isText = (v: unknown): v is string => typeof v === "string" && v !== "";
-
 const isStrings = (v: unknown): v is string[] =>
   Array.isArray(v) && v.every((s) => typeof s === "string");
 
@@ -688,48 +685,42 @@ const parseEach = <T>(
   return out;
 };
 
+/** A composer record as saved: `Said` */
+const saidSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.enum(["word", "refused"]),
+    text: z.string().min(1),
+    at: z.number(),
+  }),
+  z.object({
+    kind: z.literal("chip"),
+    index: z.number().int().nonnegative(),
+    at: z.number(),
+  }),
+]);
+
+/** A proposal as saved: `Proposal`. A false `applyFailed` reads as absent */
+const proposalSchema = z.object({
+  id: z.string().min(1),
+  file: z.string().min(1),
+  line: z.number().int().positive(),
+  before: z.string(),
+  after: z.string(),
+  at: z.number(),
+  state: z.enum(["open", "applied", "kept"]),
+  applyFailed: z.boolean().optional(),
+});
+
 const parseSaid = (v: unknown): Said | null => {
-  if (!isRecord(v) || !isMs(v.at)) return null;
-  if ((v.kind === "word" || v.kind === "refused") && isText(v.text)) {
-    return { kind: v.kind, text: v.text, at: v.at };
-  }
-  if (v.kind === "chip" && Number.isInteger(v.index) && Number(v.index) >= 0) {
-    return { kind: "chip", index: Number(v.index), at: v.at };
-  }
-  return null;
+  const parsed = saidSchema.safeParse(v);
+  return parsed.success ? parsed.data : null;
 };
 
-const PROPOSAL_STATES: readonly Proposal["state"][] = [
-  "open",
-  "applied",
-  "kept",
-];
-
 const parseProposal = (v: unknown): Proposal | null => {
-  if (
-    !isRecord(v) ||
-    !isText(v.id) ||
-    !isText(v.file) ||
-    !Number.isInteger(v.line) ||
-    Number(v.line) < 1 ||
-    typeof v.before !== "string" ||
-    typeof v.after !== "string" ||
-    !isMs(v.at) ||
-    !PROPOSAL_STATES.includes(v.state as Proposal["state"])
-  ) {
-    return null;
-  }
-  const proposal: Proposal = {
-    id: v.id,
-    file: v.file,
-    line: Number(v.line),
-    before: v.before,
-    after: v.after,
-    at: v.at,
-    state: v.state as Proposal["state"],
-  };
-  if (v.applyFailed === true) proposal.applyFailed = true;
-  return proposal;
+  const parsed = proposalSchema.safeParse(v);
+  if (!parsed.success) return null;
+  const { applyFailed, ...proposal } = parsed.data;
+  return applyFailed ? { ...proposal, applyFailed: true } : proposal;
 };
 
 /** A list added after version 1 shipped: absent reads as empty, and an
