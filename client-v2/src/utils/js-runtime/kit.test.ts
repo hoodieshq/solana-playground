@@ -113,6 +113,11 @@ describe("wrapScript", () => {
     ]);
   });
 
+  it("runs the script as strict code", async () => {
+    const logged = await run("undeclared = 1;");
+    expect(logged[0]).toMatch(/^fail: .*undeclared/);
+  });
+
   it("reports a thrown value that cannot be printed", async () => {
     expect(await run("throw Object.create(null);")).toEqual([
       "fail: a value that cannot be printed",

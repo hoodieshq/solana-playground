@@ -23,7 +23,7 @@ const HIDDEN_GLOBALS = ["eval", "Function"];
  *
  * `eval` and `Function` are shadowed by the outer function's parameters,
  * since assigning to `eval` in a class body, which is strict code, is a
- * syntax error. The script runs in strict mode for the same reason.
+ * syntax error. Being in a class body also makes the script strict code.
  *
  * @param code the script, imports already taken out
  * @param endCode what signals the end of the run
@@ -56,20 +56,20 @@ export const showBigInts = (args: unknown[]) =>
  * `Error`, which the page's does not match.
  *
  * @param reason the rejection's reason: an error, a string, anything
- * @returns its message, or its text
+ * @returns its message; its name when the message is empty; else its text
  */
 export const reasonMessage = (reason: unknown): string => {
-  const { message, name } =
-    (reason as { message?: unknown; name?: unknown } | undefined) ?? {};
-  if (typeof message === "string" && message) return message;
-  // `new Error()` has an empty message: its name is all there is to say
-  if (typeof name === "string" && name && typeof message === "string") {
-    return name;
-  }
   try {
+    const { message, name } =
+      (reason as { message?: unknown; name?: unknown } | undefined) ?? {};
+    if (typeof message === "string" && message) return message;
+    // `new Error()` has an empty message: its name is all there is to say
+    if (typeof name === "string" && name && typeof message === "string") {
+      return name;
+    }
     return String(reason);
   } catch {
-    // An object with no prototype has no `toString` to call
+    // No `toString` (an object with no prototype), or a getter that throws
     return "a value that cannot be printed";
   }
 };

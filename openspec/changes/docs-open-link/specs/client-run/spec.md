@@ -39,10 +39,10 @@ has been run, and its `data-state` SHALL name the state shown:
 
 `source` shows only before the first run of a project from a docs link. A
 project the user opened any other way shows the callout only after it is run.
-Every state after a run SHALL offer "Run again", except `missing-package`:
-running it again cannot load the package either. When another project opens,
-the callout SHALL start over from that project's own state; a run in
-progress keeps its state until it ends.
+In the callout, every state after a run SHALL offer "Run again", except
+`missing-package`: running it again cannot load the package either. When
+another project opens, the callout SHALL clear; a run in progress keeps its
+state until it ends.
 
 #### Scenario: The Quickstart runs to the end (manual)
 - **WHEN** the Quickstart's script finishes without an uncaught error after

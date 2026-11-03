@@ -182,6 +182,12 @@ describe("PgClientRun", () => {
     expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
   });
 
+  it("shows a run whose -h comes after a path, which runs", async () => {
+    const { PgClientRun } = await load();
+    utils.handlers.start.forEach((cb) => cb("run a.ts -h"));
+    expect(PgClientRun.state.kind).toBe("running");
+  });
+
   it("shows a run typed in the terminal", async () => {
     const { PgClientRun } = await load();
     startRun();

@@ -175,6 +175,9 @@ test.describe("client-run", () => {
     await expect(callout(page)).toHaveAttribute("data-state", "failed", LONG);
     await expect(callout(page)).toContainText("fetch failed");
     await expect(page.locator(".xterm-rows")).toContainText("Step 2");
+    await expect(page.locator(".xterm-rows")).toContainText(
+      "Uncaught error: fetch failed"
+    );
   });
 
   test("client-run: An error the script does not await", async ({ page }) => {

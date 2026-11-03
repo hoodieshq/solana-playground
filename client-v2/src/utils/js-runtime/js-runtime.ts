@@ -82,14 +82,12 @@ export class PgJsRuntime {
 
         // Get globals
         const { globals, endCode } = await this._getGlobals({ isTest });
-        globals.push([
-          "__fail",
-          (reason: unknown) => {
-            const error = reasonMessage(reason);
-            if (result.ok) result = { ok: false, error };
-            return error;
-          },
-        ]);
+        const fail: NonNullable<IframeGlobals["__fail"]> = (reason) => {
+          const error = reasonMessage(reason);
+          if (result.ok) result = { ok: false, error };
+          return error;
+        };
+        globals.push(["__fail", fail]);
 
         // Handle imports
         const importResult = await this._getImports(code);
@@ -208,6 +206,8 @@ export class PgJsRuntime {
     if (!iframeWindow) throw new Error("No iframe window");
 
     // Non runtime errors e.g. syntax
+    // TODO(docs-link follow-up, run ids): an error thrown from a script's
+    // timer lands here too and ends its run early
     iframeWindow.addEventListener("error", (ev) => {
       PgTerminal.println(`    ${ev.message}`);
       (iframeWindow as IframeGlobals).__fail?.(ev.message);
@@ -225,9 +225,7 @@ export class PgJsRuntime {
       // TODO(docs-link follow-up, run ids): a rejection that lands after its
       // script ended is printed but cannot turn that run red, and one that
       // lands while the next run goes turns the next one red. `execute`
-      // clears `__fail` when a run ends, so only the second case remains.
-      // The `error` listener above has the same gap, wider: an error thrown
-      // from a script's timer ends the run early
+      // clears `__fail` when a run ends, so only the second case remains
       (iframeWindow as IframeGlobals).__fail?.(message);
       // Does not require custom event dispatch to indicate running has finished
     });

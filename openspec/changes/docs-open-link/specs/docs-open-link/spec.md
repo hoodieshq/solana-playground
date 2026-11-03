@@ -29,7 +29,7 @@ server sees the code.
 
 #### Scenario: No title
 - **WHEN** a link has `name=hello.ts` and no `title`
-- **THEN** the project's title is "hello"
+- **THEN** the callout reads "From a docs link: hello"
 
 #### Scenario: Gist and GitHub links (manual)
 - **WHEN** the user opens `/gist/<id>` or `/<github url>`

@@ -6,7 +6,7 @@ export interface DocsLink {
   name: string;
   /** The file's text */
   code: string;
-  /** The project's title */
+  /** Shown above the code, as "From {host}: {title}" */
   title: string;
   /** The `https:` page the link came from */
   from?: string;

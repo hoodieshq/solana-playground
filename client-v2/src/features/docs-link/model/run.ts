@@ -92,24 +92,28 @@ const settleWith =
   };
 
 /**
+ * Whether a `run` typed in the terminal only asks for its help, which prints
+ * and ends with no finish event, so it must not show as a run. The command
+ * reads `-h` as help only right after its name; anywhere else the run goes.
+ */
+const isHelp = (input: string | null) =>
+  /^\s*\S+\s+(-h|--help)(\s|$)/.test(input ?? "");
+
+/** Whether a docs link opened the project a run starts on */
+const currentSource = (): RunSource => (PgDocsLink.opened ? "link" : "project");
+
+/**
  * Follow the `run` command's own events, so a `run` typed in the terminal
  * shows on the stage row like one from its button. Started on first use, not
  * at import: `PgCommand` reads the command list, which is filled at startup.
  */
-/**
- * Whether a `run` typed in the terminal only asks for its help, which prints
- * and ends with no finish event, so it must not show as a run
- */
-const isHelp = (input: string | null) =>
-  /(^|\s)(-h|--help)(\s|$)/.test(input ?? "");
-
 const listen = () => {
   if (listening) return;
 
   PgCommand.run.onDidStart((input) => {
     if (isHelp(input)) return;
     started++;
-    const source: RunSource = PgDocsLink.opened ? "link" : "project";
+    const source = currentSource();
     docsLinkTelemetry.track("docs_link_run_started", { source });
     set({ kind: "running", startedAt: Date.now(), source });
   });
@@ -118,10 +122,7 @@ const listen = () => {
     const run =
       state.kind === "running"
         ? state
-        : {
-            startedAt: Date.now(),
-            source: (PgDocsLink.opened ? "link" : "project") as RunSource,
-          };
+        : { startedAt: Date.now(), source: currentSource() };
     const ms = Date.now() - run.startedAt;
     const next = settleWith(ms)(result);
     const outcome: RunOutcome = next.kind;
@@ -200,6 +201,10 @@ const connectWallet = async (): Promise<WalletOrigin | undefined> => {
   }
   if (PgWallet.current) return origin;
   log.warn("connect ended without a wallet; nothing to run with");
+  set({
+    kind: "failed",
+    message: "No wallet is connected. Connect one, then press Run again.",
+  });
   return undefined;
 };
 
@@ -255,6 +260,9 @@ export const PgClientRun = {
     } finally {
       starting = false;
     }
+    // A `run` typed in the terminal meanwhile is the run: this one would be
+    // refused, and its refusal would cover the running one
+    if (PgClientRun.state.kind === "running") return;
     await runScripts();
   },
 
