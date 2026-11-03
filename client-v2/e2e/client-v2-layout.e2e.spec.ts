@@ -35,8 +35,8 @@ const onlyLineOf = async (page: Page, lines: string[], name: string) => {
 };
 
 /**
- * Starts Hello Anchor's first lesson on a fresh profile, which opens on Home,
- * from Home's tutorial card
+ * Starts Hello Anchor's first lesson from Home's tutorial card, on a profile
+ * with no project, which opens on Home
  */
 const startTutorial = async (page: Page) => {
   await expect(home(page)).toBeVisible({ timeout: 20_000 });
@@ -45,7 +45,7 @@ const startTutorial = async (page: Page) => {
     .click();
   // `exact`: Connect a model's dialog has a "Start" of its own
   await page.getByRole("button", { name: "Start", exact: true }).click();
-  // A first visit opens with the tree closed; the lesson's switch is in it
+  // The lesson's switch is in the tree; open it whatever the saved layout
   await openFiles(page);
   await expect(page.getByRole("radio", { name: "Steps" })).toBeVisible();
 };

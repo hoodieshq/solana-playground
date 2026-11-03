@@ -175,8 +175,9 @@ Done:
   menu; on a phone the three fold into one status chip in the top bar that
   opens a sheet), the
   assistant, then the work area. Across the top of the work area runs the
-  stage bar, with the stepper (Write → Build → Deploy →
-  Interact, state derived from real build/deploy events); under it runs the
+  stage bar (the project's name while the assistant is hidden, the
+  assistant's toggle, Docs); under it the stepper (Write → Build → Deploy →
+  Interact, state derived from real build/deploy events); under that the
   editor head, with the open files' tabs on the left and two toggles on the
   right, Files and Terminal; under the head sit the Files column (closed on
   a first visit; Files in the head opens and closes it and always works,
