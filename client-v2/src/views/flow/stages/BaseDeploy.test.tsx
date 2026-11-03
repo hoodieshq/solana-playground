@@ -517,22 +517,25 @@ describe("BaseDeploy", () => {
     ).toHaveProperty("disabled", false);
   });
 
-  it("promises free SOL before the first deploy only on devnet", () => {
-    render(
-      <BaseDeploy
-        {...props({
-          built: true,
-          deploy: "idle",
-          history: [],
-          payer: undefined,
-          cluster: "mainnet-beta",
-        })}
-      />
-    );
-    expect(screen.getByLabelText("Who pays").textContent).toBe(
-      "From your Playground wallet"
-    );
-  });
+  it.each(["mainnet-beta", "testnet", null])(
+    "promises no free SOL before the first deploy on %s",
+    (cluster) => {
+      render(
+        <BaseDeploy
+          {...props({
+            built: true,
+            deploy: "idle",
+            history: [],
+            payer: undefined,
+            cluster,
+          })}
+        />
+      );
+      expect(screen.getByLabelText("Who pays").textContent).toBe(
+        "From your Playground wallet"
+      );
+    }
+  );
 
   it("shows the run's steps while it deploys", () => {
     render(

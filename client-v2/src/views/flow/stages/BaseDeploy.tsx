@@ -141,8 +141,10 @@ const deployNetwork = (p: BaseDeployProps) =>
   networkInSentence(p.cluster) ?? UNKNOWN_NETWORK;
 
 /**
- * Who pays, before a deploy. Before the first one the Playground wallet does
- * not exist yet; it is made on the deploy, and only devnet tops it up free.
+ * Who pays, before a deploy. With no wallet current, the deploy makes the
+ * Playground wallet. Free SOL is promised on devnet only, the network Spec 03's
+ * line names; testnet, localnet and playnet airdrop too, but the line stays
+ * silent there, and so it does while the cluster is unknown.
  */
 const payerLine = (p: BaseDeployProps) => {
   const payer = p.payer;

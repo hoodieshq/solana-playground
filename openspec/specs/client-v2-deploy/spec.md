@@ -12,9 +12,10 @@ the panel, and keeps a history whose links open each record's network.
 Before a deploy, the Deploy stage SHALL show one line naming the wallet that
 pays: "From your Playground wallet · {short address} · {balance} SOL",
 the address shortened in the middle. With no Playground wallet yet, the line
-SHALL read "From your Playground wallet · free devnet SOL" on devnet and
-"From your Playground wallet" on any other network (Spec 03's deploy card
-context line).
+SHALL read "From your Playground wallet · free devnet SOL" on devnet, the
+only network the design's line names, and "From your Playground wallet" on
+every other network, whether or not it airdrops, and while the cluster is
+unknown.
 The deploy action SHALL stay pressable without a wallet once the program is
 built. Inside a sentence the deploy action and every line of the stage SHALL
 name the network in lower case ("Deploy to devnet", "Deployed to mainnet");
