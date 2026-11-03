@@ -66,19 +66,20 @@ const divergentMessage = (conflict: Conflict) => {
 };
 
 /**
- * What a banner button does: give an answer, or open the rename dialog for
- * the open project. Only the answers a button can give alone; `resolved`
- * carries content
+ * What a banner button does: give an answer (`resolution`, only the answers a
+ * button can give alone, since `resolved` carries content), or open the rename
+ * dialog for the open project, which is the project the banner is about
  */
 type Action = { label: string; primary?: boolean } & (
-  | { resolution: Extract<Resolution, string> }
-  | { opens: "rename" }
+  | { kind: "answer"; resolution: Extract<Resolution, string> }
+  | { kind: "rename" }
 );
 
 /**
- * What the user is shown, and what each answer does. Titles and tones are
- * Spec 08's ACCT-06 to ACCT-09: a question about two copies is a warning, a
- * project that has stopped uploading is an error
+ * What the user is shown, and what each answer does. Titles and tones follow
+ * the designers' failure-states spec (Spec 08, ACCT-06 to ACCT-09): a question
+ * about two copies is a warning, a project that has stopped uploading is an
+ * error
  */
 const PROMPTS: Record<
   Conflict["kind"],
@@ -94,8 +95,17 @@ const PROMPTS: Record<
     variant: "warning",
     message: divergentMessage,
     actions: [
-      { label: "Keep this version", resolution: "keep-local", primary: true },
-      { label: "Take the other version", resolution: "take-server" },
+      {
+        label: "Keep this version",
+        kind: "answer",
+        resolution: "keep-local",
+        primary: true,
+      },
+      {
+        label: "Take the other version",
+        kind: "answer",
+        resolution: "take-server",
+      },
     ],
   },
   "deleted-elsewhere": {
@@ -106,28 +116,28 @@ const PROMPTS: Record<
     actions: [
       {
         label: "Keep a copy",
+        kind: "answer",
         resolution: "keep-as-new",
         primary: true,
       },
-      { label: "Delete anyway", resolution: "delete-local" },
+      { label: "Delete anyway", kind: "answer", resolution: "delete-local" },
     ],
   },
   // The two below are refusals rather than questions, so they name the thing
-  // the user has to go and change and then offer the one answer there is. The
-  // retry is not a convenience: a project with a question outstanding is not
-  // pushed again, so without something to press, renaming the project or
-  // deleting the file that made it too big would fix the cause and leave it
-  // stuck anyway.
-  // Renaming does not upload by itself: the retry stays a separate press, so
-  // a name refused again is said again rather than retried in a loop
+  // the user has to go and change and then offer a retry. The retry is not a
+  // convenience: a project with a question outstanding is not pushed again, so
+  // without something to press, renaming the project or deleting the file
+  // that made it too big would fix the cause and leave it stuck anyway. A
+  // taken name also offers the rename itself; renaming still uploads nothing
+  // while the question stands, so the retry stays a press of its own
   "name-taken": {
     title: "Not syncing",
     variant: "error",
     message: () =>
       "Another project in your account uses this name. Rename this one, then try again.",
     actions: [
-      { label: "Rename", opens: "rename", primary: true },
-      { label: "Try again", resolution: "retry" },
+      { label: "Rename", kind: "rename", primary: true },
+      { label: "Try again", kind: "answer", resolution: "retry" },
     ],
   },
   "too-large": {
@@ -135,7 +145,14 @@ const PROMPTS: Record<
     variant: "error",
     message: () =>
       `This project is over ${MAX_PROJECT_BODY_LABEL}. Remove or shrink its largest files, then try again.`,
-    actions: [{ label: "Try again", resolution: "retry", primary: true }],
+    actions: [
+      {
+        label: "Try again",
+        kind: "answer",
+        resolution: "retry",
+        primary: true,
+      },
+    ],
   },
 };
 
@@ -209,6 +226,15 @@ const SyncBanner = () => {
     }
   };
 
+  /** What pressing `action` does, and what a failure says did not happen */
+  const pressOf = (action: Action) =>
+    action.kind === "rename"
+      ? {
+          run: () => PgView.setModal(RenameWorkspace),
+          failure: "rename the project",
+        }
+      : { run: () => answer(action.resolution), failure: "apply your choice" };
+
   const renderBanner = (conflict: Conflict) => {
     const prompt = PROMPTS[conflict.kind];
     // Line by line needs the lines: a divergence the merge never got as far as
@@ -253,24 +279,21 @@ const SyncBanner = () => {
                 Resolve…
               </Button>
             )}
-            {prompt.actions.map((action) => (
-              <AsyncButton
-                key={action.label}
-                variant={action.primary ? "default" : "outline"}
-                size="sm"
-                disabled={busy}
-                onClick={() =>
-                  "opens" in action
-                    ? PgView.setModal(RenameWorkspace)
-                    : answer(action.resolution)
-                }
-                onError={reportButtonFailure(
-                  "opens" in action ? "rename the project" : "apply your choice"
-                )}
-              >
-                {action.label}
-              </AsyncButton>
-            ))}
+            {prompt.actions.map((action) => {
+              const { run, failure } = pressOf(action);
+              return (
+                <AsyncButton
+                  key={action.label}
+                  variant={action.primary ? "default" : "outline"}
+                  size="sm"
+                  disabled={busy}
+                  onClick={run}
+                  onError={reportButtonFailure(failure)}
+                >
+                  {action.label}
+                </AsyncButton>
+              );
+            })}
           </div>
         </CalloutDescription>
       </Callout>

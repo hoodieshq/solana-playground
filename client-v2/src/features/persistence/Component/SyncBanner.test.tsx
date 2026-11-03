@@ -285,6 +285,20 @@ describe("SyncBanner titles and actions", () => {
     expect(resolve).not.toHaveBeenCalled();
   });
 
+  it("uploads again from Try again when the name is taken", async () => {
+    const resolve = vi.spyOn(PgProjectSync, "resolve").mockResolvedValue(true);
+    const setModal = vi.spyOn(PgView, "setModal").mockResolvedValue(undefined);
+    await mount("name-taken");
+    const retry = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.trim() === "Try again"
+    );
+    if (!retry) throw new Error("the banner offers no Try again");
+    await act(async () => retry.click());
+
+    expect(resolve).toHaveBeenCalledWith("p1", "retry");
+    expect(setModal).not.toHaveBeenCalled();
+  });
+
   it("offers only Try again when the project is too large", async () => {
     await mount("too-large");
     expect(buttonLabels()).toEqual(["Try again"]);
