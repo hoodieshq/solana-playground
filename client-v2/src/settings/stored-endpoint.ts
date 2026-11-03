@@ -217,7 +217,7 @@ export const parseStoredSettings = (raw: string): State | Error => {
  * @param defaults the default settings
  * @param stored the settings `localStorage` holds
  */
-export const withoutBrokenGroups =
+export const dropBrokenGroupsFor =
   (defaults: State) =>
   (stored: State): State =>
     Object.fromEntries(
@@ -474,13 +474,13 @@ if (import.meta.vitest) {
       ])("drops a stored group that is %s", (_, group) => {
         const stored = { connection: group, ui: { theme: "Dark" } };
 
-        expect(withoutBrokenGroups(defaults)(stored)).toEqual({
+        expect(dropBrokenGroupsFor(defaults)(stored)).toEqual({
           ui: { theme: "Dark" },
         });
       });
 
       it("reads a connection group that is not an object without throwing", () => {
-        // `withoutBrokenGroups` drops it first; this pins the second guard
+        // `dropBrokenGroupsFor` drops it first; this pins the second guard
         expect(
           fromStoredEndpoints({ connection: "x" }, defaults, options)
         ).toEqual({ connection: "x" });
@@ -489,7 +489,7 @@ if (import.meta.vitest) {
       it("keeps groups the defaults do not hold as objects", () => {
         const stored = { connection: { endpoint: "x" }, extra: 5 };
 
-        expect(withoutBrokenGroups(defaults)(stored)).toEqual(stored);
+        expect(dropBrokenGroupsFor(defaults)(stored)).toEqual(stored);
       });
 
       it.each([
