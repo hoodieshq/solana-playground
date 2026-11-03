@@ -49,7 +49,7 @@ const EDIT_REST_MS = 300;
  * state object (`_set` in `PgConversation`), and the view it then answers is
  * what moved; React would skip a `setState` of an object it already holds.
  */
-const useConversationState = (): ConversationState => {
+export const useConversationState = (): ConversationState => {
   const [, render] = useReducer((n: number) => n + 1, 0);
   useEffect(() => PgConversation.onDidChange(render).dispose, []);
   return PgConversation.state;
@@ -360,12 +360,12 @@ const useAssistantMode = (onOpenMenu: () => void) => {
 
 /**
  * The handlers that read no prop and no definition; `TutorialConversation`
- * adds the ones that do (the next tutorial, All tutorials) and Copy
+ * adds the ones that do (the next tutorial, All tutorials, the menu) and Copy
  * receipt's count
  */
 const handlers: Omit<
   TurnHandlers,
-  "openNextTutorial" | "allTutorials" | "copyReceipt"
+  "openNextTutorial" | "allTutorials" | "openMenu" | "copyReceipt"
 > = {
   start: () => PgConversation.start(),
   pick: (beatId, option) => PgConversation.pick(beatId, option),
@@ -503,6 +503,7 @@ export const TutorialConversation = ({
           .catch(reportButtonFailure(`open ${nextTutorial}`));
       },
       allTutorials: onAllTutorials,
+      openMenu: onOpenMenu,
       copyReceipt: () => {
         const slug = PgConversation.state.context?.slug;
         if (slug) {
@@ -512,7 +513,7 @@ export const TutorialConversation = ({
         }
       },
     }),
-    [next, nextTutorial, onAllTutorials]
+    [next, nextTutorial, onAllTutorials, onOpenMenu]
   );
 
   if (!context || !view) {

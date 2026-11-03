@@ -392,6 +392,17 @@ The tutorial slice SHALL emit:
   - `step`;
   - `source`: `typed`, or `chip` when a finish chip is pressed (the event
     fires for chips too, though their answer needs no model).
+- `tutorial_word_sent` when a composer message is only an action word, with:
+  - `tutorial`;
+  - `step`;
+  - `word`: the message as typed, only ever one of the action words;
+  - `refused`: whether an open question refused it.
+- `tutorial_change_applied` when "Apply to <file>" on the apply card writes
+  its line, with:
+  - `tutorial`;
+  - `file`: the workspace path.
+- `tutorial_change_kept` when "Keep it" on the apply card leaves the file as
+  it was, with `tutorial`.
 - `tutorial_step_reset` when a confirmed Reset on an appended wrote card
   puts the live step back as it was entered, with:
   - `tutorial`;

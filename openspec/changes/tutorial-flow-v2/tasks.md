@@ -85,13 +85,14 @@ for; tasks with "after nothing" start at once.
       Verify: component tests for the spec's wrong-then-right scenario and
       the typed-by-hand path (HOO-2353; fleet; M 1.5; after 2.2, 3.1;
       plan: [plans/3.5-question-card.md](plans/3.5-question-card.md))
-- [ ] 3.6 Composer and the live assistant in one thread: action words (and
+- [x] 3.6 Composer and the live assistant in one thread: action words (and
       the open-question refusal), the finish chips, free messages to the
       assistant in tutorial mode with its four interface tools (open the
       menu, Hint, Skip, the apply card) and no writing or running tools, the
       doc list in its context, the merged feed, `tutorial_question_asked`.
       Verify: unit tests for the routing order; typed "I'm stuck" posts the
-      hint; a tool call to write a file is refused in tutorial mode (HOO-2354; fleet; L 2.5; after 3.1)
+      hint; a tool call to write a file is refused in tutorial mode (HOO-2354; fleet; L 2.5; after 3.1;
+      plan: [plans/3.6-composer-and-assistant.md](plans/3.6-composer-and-assistant.md))
 
 ## 4. Runs
 

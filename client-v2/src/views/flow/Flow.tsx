@@ -36,13 +36,14 @@ import { PgCommon, PgView } from "@/utils";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
 import { catalogPage, catalogSlot, useCatalogPage } from "@/widgets/catalog";
-import { Assistant } from "@/widgets/assistant";
+import { Assistant, useTurn } from "@/widgets/assistant";
 import { homeSlot, useStartView } from "@/widgets/home";
 import { CONSOLE_KEY, keyLabel, LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
 import { RailFooter, SessionFooter } from "@/widgets/session-footer";
 import { SettingsPage, settingsTelemetry } from "@/widgets/settings-page";
 import {
+  TutorialComposer,
   TutorialConversation,
   useConversationMarks,
   useConversationStartOver,
@@ -78,6 +79,33 @@ const Flow = () => (
 );
 
 const log = createLogger("flow:settings");
+
+/**
+ * A tutorial's chat: the feed, and its composer at the foot (3.6). The frame
+ * has no assistant panel (`LayoutShellProps.tutorial`), so the one live
+ * assistant turn is held here while the chat shows, and the panel's own
+ * holds it again once the frame goes.
+ */
+const TutorialChat = ({
+  onAllTutorials,
+  onOpenMenu,
+}: {
+  onAllTutorials: () => void;
+  onOpenMenu: () => void;
+}) => {
+  const turn = useTurn({ open: openConnectDialog });
+  return (
+    <>
+      <TutorialConversation
+        onAllTutorials={onAllTutorials}
+        onOpenMenu={onOpenMenu}
+      />
+      <div className="px-5 pb-4">
+        <TutorialComposer turn={turn} />
+      </div>
+    </>
+  );
+};
 
 /**
  * Whether focus can land on `el`: on screen, and not inside an `inert` part,
@@ -240,7 +268,7 @@ const FlowFrame = () => {
 
   // A tutorial with a definition opens in its frame (`tutorial-flow-v2`
   // 2.1), its chat holding the conversation (3.3), whose engine runs Start
-  // over. The composer under the feed is 3.6's.
+  // over, and the composer under the feed (3.6).
   const openMenu = useRef<() => void>(() => {});
   const conversation = useConversationStartOver();
   const marks = useConversationMarks();
@@ -251,7 +279,7 @@ const FlowFrame = () => {
     onStartOver: conversation.onStartOver,
     passed: conversation.passed,
     body: (
-      <TutorialConversation
+      <TutorialChat
         onAllTutorials={() => catalogPage.open("tutorials", "nav")}
         onOpenMenu={() => openMenu.current()}
       />

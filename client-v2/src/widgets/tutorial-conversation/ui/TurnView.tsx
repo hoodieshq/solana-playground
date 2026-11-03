@@ -1,4 +1,10 @@
-import type { Ask, Quote, TutorialDefinition } from "@/entities/tutorial";
+import type {
+  Ask,
+  Follow,
+  Quote,
+  TutorialDefinition,
+} from "@/entities/tutorial";
+import { Button } from "@/shared/ui/button";
 import type { Turn } from "@/features/tutorial-conversation";
 import BaseActCard from "./BaseActCard";
 import BaseIntroCard from "./BaseIntroCard";
@@ -33,6 +39,8 @@ export interface TurnHandlers {
   showLine: (file: string, line: number) => void;
   /** Open the Call panel; absent until it can be opened (task 4.4) */
   openCall?: () => void;
+  /** Open the navigation overlay; absent where there is none */
+  openMenu?: () => void;
   /** Open the next tutorial, from the finish card */
   openNextTutorial: () => void;
   /** Open the catalog's Tutorials page, from the finish card */
@@ -65,6 +73,47 @@ export interface TurnViewProps {
 
 /** The client file a Call panel pass sends the learner to write the call in */
 const CLIENT_FILE = "client/client.ts";
+
+/** A finish chip's quiet button: its label and what it opens */
+interface FollowButton {
+  label: string;
+  onClick: () => void;
+}
+
+/**
+ * What a chip's `follow` opens, through the handlers the cards already use,
+ * or null when it has nowhere to go here: no next tutorial, a handler not
+ * given yet, or `showFix`, which no tutorial's finish uses (AUTHORING.md
+ * "The finish and the docs": the others only when asked for).
+ */
+const followButton = (
+  follow: Follow,
+  nextTutorial: string | null,
+  on: TurnHandlers
+): FollowButton | null => {
+  const { openCall, openMenu } = on;
+  switch (follow) {
+    case "nextTutorial":
+      return nextTutorial
+        ? { label: `Open ${nextTutorial}`, onClick: on.openNextTutorial }
+        : null;
+    case "openTest":
+      return openCall ? { label: "Open Call", onClick: openCall } : null;
+    case "showMenu":
+      return openMenu ? { label: "Show the menu", onClick: openMenu } : null;
+    case "writeClient":
+      return {
+        label: "Write it in client.ts",
+        onClick: () => on.showLine(CLIENT_FILE, 1),
+      };
+    case "showFix":
+      return null;
+    default: {
+      const never: never = follow;
+      return never;
+    }
+  }
+};
 
 const linesOf = (content: string | null) => content?.split("\n") ?? [];
 
@@ -140,10 +189,21 @@ const TurnView = ({
       );
     case "hint":
       return <BaseSay text={turn.text} />;
-    case "reply":
-      // TODO(tutorial-flow-v2 3.6): a finish chip's `follow`, the quiet
-      // button after its answer, lands with the composer's chips
-      return <BaseSay text={turn.text} />;
+    case "reply": {
+      const button = turn.follow
+        ? followButton(turn.follow, nextTutorial, on)
+        : null;
+      return (
+        <div className="flex flex-col items-start gap-2">
+          <BaseSay text={turn.text} />
+          {button && (
+            <Button variant="ghost" size="sm" onClick={button.onClick}>
+              {button.label}
+            </Button>
+          )}
+        </div>
+      );
+    }
     case "apply":
       return (
         <BaseApplyCard

@@ -2,7 +2,12 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ActBeat, Ask, TutorialDefinition } from "@/entities/tutorial";
+import type {
+  ActBeat,
+  Ask,
+  Follow,
+  TutorialDefinition,
+} from "@/entities/tutorial";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import BaseActCard from "./BaseActCard";
@@ -1100,5 +1105,85 @@ describe("BaseApplyCard", () => {
       />
     );
     expect(screen.getByText("Kept yours.")).toBeTruthy();
+  });
+});
+
+describe("TurnView's chip answer", () => {
+  const handlers = (): TurnHandlers => ({
+    start: vi.fn(),
+    pick: vi.fn(),
+    hint: vi.fn(),
+    skip: vi.fn(),
+    typeIt: vi.fn(),
+    act: vi.fn(),
+    explain: vi.fn(),
+    fixMyself: vi.fn(),
+    next: vi.fn(),
+    restartStep: vi.fn(),
+    openNextTutorial: vi.fn(),
+    allTutorials: vi.fn(),
+    copyReceipt: vi.fn(),
+    copyFailed: vi.fn(),
+    apply: vi.fn(),
+    keep: vi.fn(),
+    showLine: vi.fn(),
+    openMenu: vi.fn(),
+  });
+  const reply = (follow: Follow | null): Turn => ({
+    id: "reply:0",
+    kind: "reply",
+    step: null,
+    at: 1,
+    whole: true,
+    text: "Counter PDA Tutorial is a good next one.",
+    follow,
+  });
+  const draw = (
+    follow: Follow | null,
+    on: TurnHandlers,
+    nextTutorial: string | null
+  ) =>
+    render(
+      <TurnView
+        turn={reply(follow)}
+        definition={definition}
+        live={false}
+        running={false}
+        passed={[]}
+        read={() => null}
+        nextTutorial={nextTutorial}
+        on={on}
+      />
+    );
+
+  it("follows the answer with a quiet button that opens the next tutorial", async () => {
+    const on = handlers();
+    draw("nextTutorial", on, "Counter PDA Tutorial");
+    expect(
+      screen.getByText("Counter PDA Tutorial is a good next one.")
+    ).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open Counter PDA Tutorial" })
+    );
+    expect(on.openNextTutorial).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the menu and the client file through the cards' own handlers", async () => {
+    const on = handlers();
+    draw("showMenu", on, null);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Show the menu" })
+    );
+    expect(on.openMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it.each<[string, Follow | null, string | null]>([
+    ["no follow", null, "Counter PDA Tutorial"],
+    ["a next tutorial that is not listed", "nextTutorial", null],
+    ["Open Call before the panel can open", "openTest", null],
+    ["a fix no tutorial shows", "showFix", null],
+  ])("draws no button for %s", (_, follow, nextTutorial) => {
+    draw(follow, handlers(), nextTutorial);
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 });
