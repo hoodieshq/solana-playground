@@ -206,7 +206,7 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
             </div>
             {!p.built && (
               <p className="text-caption text-muted-foreground">
-                Build successfully first.
+                Build successfully first to download the program.
               </p>
             )}
           </Step>

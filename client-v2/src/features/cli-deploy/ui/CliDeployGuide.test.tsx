@@ -200,7 +200,9 @@ describe("features/cli-deploy/ui/CliDeployGuide", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Download .so" })).toBeNull();
-    expect(screen.getByText("Build successfully first.")).toBeTruthy();
+    expect(
+      screen.getByText("Build successfully first to download the program.")
+    ).toBeTruthy();
     // A loaded IDL needs no build, and step 3.1 names the file it saves
     expect(screen.getByRole("button", { name: "Download IDL" })).toBeTruthy();
   });
