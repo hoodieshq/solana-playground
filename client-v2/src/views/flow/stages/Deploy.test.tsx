@@ -152,7 +152,7 @@ const events = () => sent.events.map((e) => e.name);
 
 const pressDeploy = async () =>
   act(async () =>
-    fireEvent.click(screen.getByRole("button", { name: "Deploy to Devnet" }))
+    fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
   );
 
 describe("Deploy stage", () => {
@@ -182,7 +182,7 @@ describe("Deploy stage", () => {
     render(<Deploy />);
 
     await act(async () =>
-      fireEvent.click(screen.getByRole("button", { name: "Deploy to Devnet" }))
+      fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
     );
 
     expect(mocks.report).toHaveBeenCalledWith(failure);
@@ -198,7 +198,7 @@ describe("Deploy stage", () => {
     render(<Deploy />);
 
     await act(async () =>
-      fireEvent.click(screen.getByRole("button", { name: "Deploy to Devnet" }))
+      fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
     );
 
     expect(mocks.markShown).toHaveBeenCalledWith(failure);
@@ -210,7 +210,7 @@ describe("Deploy stage", () => {
     render(<Deploy />);
 
     await act(async () =>
-      fireEvent.click(screen.getByRole("button", { name: "Deploy to Devnet" }))
+      fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
     );
 
     expect(mocks.markShown).not.toHaveBeenCalled();
@@ -244,9 +244,9 @@ describe("Deploy stage", () => {
 
     expect(
       screen.getByRole("status", { name: "Deploy result" }).textContent
-    ).toContain("Deployed to Devnet");
+    ).toContain("Deployed to devnet");
     expect(
-      screen.getByRole("button", { name: "Redeploy to Devnet" })
+      screen.getByRole("button", { name: "Redeploy to devnet" })
     ).toBeTruthy();
   });
 
@@ -256,7 +256,7 @@ describe("Deploy stage", () => {
     render(<Deploy />);
 
     await act(async () =>
-      fireEvent.click(screen.getByRole("button", { name: "Deploy to Devnet" }))
+      fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
     );
 
     expect(mocks.update).toHaveBeenCalledWith({ customPk: null });
@@ -292,7 +292,7 @@ describe("Deploy stage", () => {
 
     await pressDeploy();
     expect(
-      screen.getByRole("dialog", { name: "Your last build failed" })
+      screen.getByRole("dialog", { name: "The last build failed" })
     ).toBeTruthy();
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
@@ -349,7 +349,7 @@ describe("Deploy stage", () => {
 
     await act(async () =>
       fireEvent.click(
-        screen.getByRole("button", { name: "Redeploy to Devnet" })
+        screen.getByRole("button", { name: "Redeploy to devnet" })
       )
     );
     await act(async () =>
@@ -366,7 +366,7 @@ describe("Deploy stage", () => {
 
     await act(async () =>
       fireEvent.click(
-        screen.getByRole("button", { name: "Redeploy to Devnet" })
+        screen.getByRole("button", { name: "Redeploy to devnet" })
       )
     );
     expect(screen.queryByLabelText("Keypair backup")).toBeNull();
@@ -385,7 +385,7 @@ describe("Deploy stage", () => {
 
     render(<Deploy />);
     expect(
-      screen.getByRole("dialog", { name: "Your last build failed" })
+      screen.getByRole("dialog", { name: "The last build failed" })
     ).toBeTruthy();
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Deploy last build" }))
@@ -450,7 +450,7 @@ describe("Deploy stage", () => {
     render(<Deploy />);
     await act(async () =>
       fireEvent.click(
-        screen.getByRole("button", { name: "Redeploy to Devnet" })
+        screen.getByRole("button", { name: "Redeploy to devnet" })
       )
     );
 
@@ -505,9 +505,7 @@ describe("Deploy stage", () => {
 
     await pressDeploy();
     await act(async () =>
-      fireEvent.click(
-        screen.getByRole("button", { name: "Sign in with GitHub" })
-      )
+      fireEvent.click(screen.getByRole("button", { name: "Sign in" }))
     );
 
     expect(mocks.signIn).toHaveBeenCalledOnce();
