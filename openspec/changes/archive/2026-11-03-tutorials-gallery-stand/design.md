@@ -51,16 +51,19 @@ in `widgets/assistant/ui/Assistant.tsx`); the files column shows
   `isStarted(name)` and `getMetadata(name)` (`pageNumber`, `completed`) once
   per page show, plus `pageCount` from the tutorial's data, and hands a
   `progress` union (`new` | `started{page, pages}` | `completed`) to the
-  cards and the banner. The banner's states are a function of Hello Anchor's
-  and Counter PDA Tutorial's progress, tested as a pure function.
-- **The banner starts the tutorial.** As on the stand, the banner's action
-  marks the tutorial to start on open, then opens it; the About page takes
-  the mark on mount and calls its own `start`. The mark is one module-level
-  name, taken once, so a later visit to the About page stops there as usual.
-  A tutorial with a definition has no About page: opening it creates its
-  workspace on the intro card (`tutorial-flow-v2`), so it needs no mark, and
-  the banner only opens it.
-- **The art is ours, in the slice.** The voxel mark (`IsoVoxels`, an SVG of
+  cards and the banner. The banner's states are a function of the start ladder's
+  progress (Hello Anchor, Lumberjack, Zero Copy), tested as a pure function.
+- **The banner opens its tutorial as its card does** (HOO-2360, 3 Nov,
+  following the tutorial-v2 prototype: `openTutorial(slug)` for both). A
+  definition opens on its conversation; Lumberjack and Zero Copy, markdown
+  until `tutorial-flow-v2` tasks 6.3 and 6.4, open their About page. The
+  start-on-open mark this design once had is dropped: nothing on the start
+  needs it once Hello Anchor is a definition.
+- **The banner follows the prototype's ladder** (`LADDER` in the
+  prototype's `host.tsx`): Hello Anchor, Lumberjack, Zero Copy; it features
+  the first not completed, or the last. The start lists only these three
+  (Slava, 3 Nov 14:23), so the ladder and the list are one constant.
+- **The art is ours, in the slice.** The voxel mark (`IsoVoxels`, a canvas of
   cubes from the stand) and the framework cover are product art, not
   design-system parts: they go into `widgets/catalog/ui/art/` rewritten
   without styled-components. Their colours are the brand deck's own grounds,

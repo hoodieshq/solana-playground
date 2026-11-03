@@ -9,11 +9,18 @@ the tutorial card it shares with New project, and a tutorial's About page.
 
 ### Requirement: The Tutorials page leads with a heading, a search and a filter
 
+The Tutorials page and Home SHALL list only the tutorials of the start
+ladder, Hello Anchor (Beginner), Lumberjack (Intermediate) and Zero Copy
+(Advanced), in that order; every other tutorial stays registered (its link
+and New project's Tutorials list keep it) but leaves the start. Home shows
+the three and its link to the Tutorials page reads "All 3".
+
 The Tutorials page SHALL open with the heading "Tutorials" (its only `h1`),
 a search field whose placeholder reads "Search <n> tutorials" with `n` the
-number of tutorials (or "Search <framework> tutorials" while a framework is
-picked), labelled "Search tutorials", and a framework filter button beside
-it. The filter button SHALL be labelled "Filter by framework" while no
+number of tutorials listed ("Search 3 tutorials"; "Search <framework>
+tutorials" while a framework is picked), labelled "Search tutorials", and a
+framework filter button beside it, drawn only while the list holds two or
+more frameworks. The filter button SHALL be labelled "Filter by framework" while no
 framework is picked and "Framework: <name>" while one is, and SHALL open a
 menu titled "Framework" with All, Anchor, Seahorse and Native. The search
 SHALL match a tutorial's name and description, and the filter its framework;
@@ -22,10 +29,17 @@ say "<n> results" ("1 result"), or "No tutorials match “<query>”" ("No
 <framework> tutorials match …"; "No <framework> tutorials yet" with no
 query) when nothing matches.
 
+#### Scenario: The start lists the three v2 lessons
+
+- **WHEN** a user opens Tutorials
+- **THEN** Beginner holds Hello Anchor, Intermediate Lumberjack and Advanced
+  Zero Copy, the search reads "Search 3 tutorials", and no framework filter
+  shows, since all three are Anchor
+
 #### Scenario: Filtering by framework
 
-- **WHEN** a user opens Tutorials, opens "Filter by framework" and picks
-  Seahorse
+- **WHEN** the list holds Anchor and Seahorse tutorials and a user opens
+  "Filter by framework" and picks Seahorse
 - **THEN** only Seahorse tutorials show, the button is labelled
   "Framework: Seahorse", the search reads "Search Seahorse tutorials", and
   a status line gives the count
@@ -38,32 +52,54 @@ query) when nothing matches.
 ### Requirement: A Start here banner leads the page while browsing
 
 While neither a search nor a filter is on, the Tutorials page SHALL show a
-banner above the groups, titled by its tutorial, in one of three states read
-from the tutorials' saved progress:
+banner above the groups with the voxel mark, titled by its tutorial: the
+first of the ladder (Hello Anchor, Lumberjack, Zero Copy) not completed, or
+Zero Copy once all three are. It SHALL be in one of three states read from
+that tutorial's saved progress:
 
-- Hello Anchor not started: the label "Start here", the line "Write, deploy
-  and call your first Solana program", a meta line (pages, level, framework,
-  author) and **Start**.
-- Hello Anchor started and not completed: the label "Pick up where you left
-  off", "Page <n> of <m>" with a meter, and **Continue**.
-- Hello Anchor completed: the banner names Counter PDA Tutorial with the
-  label "Up next" and **Start**, or, once that one is started, "Pick up where
-  you left off", its page and **Continue**.
+- Not started: the label "Start here", the lesson's line (Hello Anchor
+  "Write, deploy and call your first program", Lumberjack "Keep a player's
+  state on chain and refill energy over time", Zero Copy "Make accounts
+  bigger than a program's memory"), a meta line ("<minutes> min · <m> steps
+  · <level> · <framework> · by <author>"; "<m> pages" and no minutes for a
+  tutorial without a definition) and **Start**.
+- Started: the label "Continue · Step <n> of <m>", `n` the first step not
+  passed ("Continue · Page <n> of <m>" for a tutorial without a definition),
+  the line "Next: <that step's objective>" (the description without a
+  definition), a meter with "<passed> of <m>", and **Continue**.
+- Completed (all three done): the label "Completed" with a tick, the
+  definition's finish headline (the description without one), and
+  **Open again**; no tutorial after Zero Copy is offered.
 
-The banner's action SHALL open its tutorial and start it at once, without
-stopping on the About page. A search or a filter SHALL hide the banner.
+The banner's action SHALL open its tutorial as its card does (a definition
+on its conversation, any other tutorial on its About page or its page); a
+failed open SHALL be said on the banner. A search or a filter SHALL hide
+the banner.
 
 #### Scenario: A first visit
 
 - **WHEN** a user who has never opened a tutorial opens Tutorials
 - **THEN** the banner reads "Start here" and "Hello Anchor", and its Start
-  opens Hello Anchor at its first page
+  opens Hello Anchor on its intro card
 
 #### Scenario: Hello Anchor half done
 
-- **WHEN** a user who left Hello Anchor on page 2 opens Tutorials
-- **THEN** the banner reads "Pick up where you left off" and "Page 2 of
-  <m>", and Continue opens page 2
+- **WHEN** the learner has passed two of Hello Anchor's four steps and opens
+  Tutorials
+- **THEN** the banner reads "Continue · Step 3 of 4" and Hello Anchor's
+  card reads "2 of 4"
+
+#### Scenario: The banner moves on
+
+- **WHEN** a user who finished Hello Anchor opens Tutorials
+- **THEN** the banner reads "Start here" and "Lumberjack", and Hello
+  Anchor's card shows its tick
+
+#### Scenario: Everything done
+
+- **WHEN** a user who finished all three opens Tutorials
+- **THEN** the banner reads "Completed" and "Zero Copy", with Open again
+  and no Start
 
 #### Scenario: The banner gives way to a search
 
@@ -82,9 +118,11 @@ every match. The cards SHALL be two columns where the page is at least
 
 #### Scenario: Show all
 
-- **WHEN** a user opens Tutorials and presses Show all under Beginner
-- **THEN** every Beginner tutorial shows, and the button reads Show less
-  with `aria-expanded` true
+- **WHEN** a level holds more than four tutorials and a user presses Show
+  all under it
+- **THEN** every tutorial of that level shows, and the button reads Show
+  less with `aria-expanded` true; with one per level, as on the start
+  today, no Show all is drawn
 
 ### Requirement: A tutorial card opens its tutorial
 
@@ -105,14 +143,14 @@ dialog's Tutorials list SHALL use the same card, with the "<level> ·
 
 #### Scenario: Opening a tutorial from its card
 
-- **WHEN** a user opens Tutorials and presses "Open Hello Seahorse"
-- **THEN** Hello Seahorse's About page shows
+- **WHEN** a user opens Tutorials and presses "Open Lumberjack"
+- **THEN** Lumberjack's About page shows
 
 #### Scenario: A started tutorial's card
 
-- **WHEN** a user who left Counter PDA Tutorial on page 2 opens Tutorials
+- **WHEN** a user who left Lumberjack on page 2 opens Tutorials
 - **THEN** its card shows "2 of <m>" beside its name and its button is
-  labelled "Continue Counter PDA Tutorial"
+  labelled "Continue Lumberjack"
 
 #### Scenario: New project lists the same cards
 
@@ -125,7 +163,7 @@ dialog's Tutorials list SHALL use the same card, with the "<level> ·
 The catalog SHALL send `catalog_filtered` with `page` `tutorials` and
 `framework` (`all`, `Anchor`, `Seahorse` or `Native`) when the framework
 filter changes, and `catalog_banner_opened` with `state` (`fresh`,
-`started` or `next`) when the banner's action opens its tutorial; a failed
+`started` or `completed`) when the banner's action opens its tutorial; a failed
 open from the banner SHALL send `catalog_open_failed` with `page`
 `tutorials` and be reported, as a card's does.
 

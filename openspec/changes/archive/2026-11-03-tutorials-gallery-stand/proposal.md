@@ -23,6 +23,10 @@ five still open. HOO-2254, polish stage two, stream E1.
   Start), started ("Pick up where you left off", page N of M, Continue), and
   finished, which hands the banner to the next tutorial (Counter PDA: "Up
   next", Start; or Continue where it was left). Slava, 2026-10-26.
+  Superseded 3 Nov (HOO-2360, Slava 14:23 and 14:32): the start lists only
+  Hello Anchor, Lumberjack and Zero Copy, and the banner follows the
+  tutorial-v2 prototype: "Start here", "Continue · Step n of m", and
+  "Completed" once all three are done; see the spec.
 - **New tutorial cards.** A cover in the brand (one of the brand grounds by
   framework, the white mark on it) replaces upstream's thumbnail; the line
   under the description is "Anchor · by acheron" inside a level group and

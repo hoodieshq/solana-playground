@@ -6,6 +6,7 @@ export { conversationProgressOf, progressOf } from "./model/progress";
 export type { ConversationSave } from "./model/progress";
 export type { TutorialProgress } from "./model/progress";
 export { useTutorialProgress } from "./model/use-tutorial-progress";
+export { START_LADDER, ladderLine, startTutorials } from "./model/start-ladder";
 export { tutorialTelemetry } from "./model/telemetry";
 export type { QuestionResult, StepJumpVia } from "./model/telemetry";
 export type { TutorialEvents } from "./model/telemetry";
