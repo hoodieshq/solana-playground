@@ -74,7 +74,10 @@ const walk = (value: unknown, ancestors: object[]): unknown => {
   const below = [...ancestors, value];
   if (Array.isArray(value)) return value.map((item) => walk(item, below));
   return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [key, walk(item, below)])
+    Object.entries(value).map(([key, item]) => [
+      redactText(key),
+      walk(item, below),
+    ])
   );
 };
 
@@ -232,6 +235,10 @@ if (import.meta.vitest) {
           a: { owner: PUBKEY },
           b: { owner: PUBKEY },
         });
+      });
+
+      it("should redact a key that is itself a secret", () => {
+        expect(redact({ [KEY]: 1 })).toEqual({ "[redacted]": 1 });
       });
 
       it("should survive a cycle", () => {

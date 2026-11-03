@@ -79,7 +79,9 @@ The logger SHALL reach Sentry only through
 `shared/lib/logger/providers/sentry.ts`; no other logger provider SHALL
 import `@sentry/*`. The Sentry provider SHALL send every `panic` entry, and
 every `error` or `warn`
-entry logged with `report: true`, and no `info` or `debug` entry. It SHALL set
+entry logged with `report: true`, and no `info` or `debug` entry, as an event;
+an entry at `warn` or above that is not reported reaches Sentry only as a
+breadcrumb, which no report is sent for. It SHALL set
 the tag `ns` to the entry's namespace, and SHALL do nothing when
 `REACT_APP_SENTRY_DSN` is unset.
 
@@ -92,7 +94,8 @@ the tag `ns` to the entry's namespace, and SHALL do nothing when
 #### Scenario: An error not marked for reporting
 
 - **WHEN** `Logger.error(error)` is called without `report: true`
-- **THEN** the Sentry provider sends nothing
+- **THEN** the Sentry provider sends no event, and keeps the entry as a
+  breadcrumb for the next report
 
 #### Scenario: A reported error
 
@@ -179,30 +182,33 @@ output or a secret key. Sentry's `Console` integration SHALL be off and every
 `console` breadcrumb dropped; the logger's own trail SHALL reach Sentry as
 breadcrumbs the reporter adds, one per entry at `warn` or above. In every
 value of an error event and of a breadcrumb, a hex or base58 run of 64 or more
-characters, and a list of 32 or more numbers from 0 to 255 (bracketed, bare,
-a typed array or an index-keyed object), SHALL be replaced with `[redacted]`.
+characters, a list of 32 or more numbers from 0 to 255 (bracketed, bare,
+or as an index-keyed object), and a typed array of 32 or more bytes, SHALL be
+replaced with `[redacted]`, in keys as in values.
 An event that cannot be scrubbed SHALL be replaced by one that says it was
 withheld. Public keys (32 to 44 base58 characters) SHALL be kept. A feedback
-SHALL be sent as the user wrote it: it is text they chose to send.
+SHALL be sent as the user wrote it: it is text they chose to send. The
+scenarios below are automated by `reporter/sentry.integration.test.ts`, which
+runs the real SDK, and checked by hand on a preview with a DSN.
 
-#### Scenario: The user's test prints to the console
+#### Scenario: The user's test prints to the console (manual)
 
 - **WHEN** a test the user runs prints a value with `console.log`, even one
   that starts with a `[slice:module]` tag, and an error is reported afterwards
 - **THEN** the report's breadcrumbs do not include that output
 
-#### Scenario: A secret key in an error message
+#### Scenario: A secret key in an error message (manual)
 
 - **WHEN** a reported error's message quotes a 64-byte secret key, as base58
   or as a JSON byte array
 - **THEN** the report shows `[redacted]` in its place
 
-#### Scenario: A secret key in a reported context
+#### Scenario: A secret key in a reported context (manual)
 
 - **WHEN** a reported entry's context holds a secret key as a `Uint8Array`
 - **THEN** the report shows `[redacted]` in its place
 
-#### Scenario: A wallet address in a reported context
+#### Scenario: A wallet address in a reported context (manual)
 
 - **WHEN** a reported entry's context holds a wallet's public key
 - **THEN** the report shows the public key as it was
