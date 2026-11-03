@@ -1,6 +1,6 @@
 # Tasks
 
-All tasks belong to HOO-2507 and land in one PR, because the Quickstart
+Plan: [plans/1-docs-open-link.md](plans/1-docs-open-link.md). All tasks belong to HOO-2507 and land in one PR, because the Quickstart
 runs only when all of them are in. Tasks 1 and 2 can run in parallel; 3 needs
 both; 4 needs 3.
 
