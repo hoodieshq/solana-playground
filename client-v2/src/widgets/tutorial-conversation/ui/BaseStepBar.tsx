@@ -4,7 +4,7 @@ import { Check, ChevronDown } from "lucide-react";
 
 import type { StepJumpVia } from "@/entities/tutorial";
 import type { StepBarItem } from "@/features/tutorial-conversation";
-import { COARSE_HIT_ROW } from "@/shared/lib/hit-area";
+import { COARSE_HIT_BELOW, COARSE_HIT_ROW } from "@/shared/lib/hit-area";
 import { cn } from "@/shared/lib/utils";
 import {
   DropdownMenu,
@@ -194,7 +194,9 @@ const BaseStepBar = ({ steps, live, viewing, onJump }: BaseStepBarProps) => {
               aria-current={currentOf(viewing === index, live === index)}
               onClick={() => onJump(index, "bar")}
               className={cn(
-                COARSE_HIT_ROW,
+                // Reaching down only: centred, it covered the trigger's
+                // lower half, and a tap there jumped instead of opening
+                COARSE_HIT_BELOW,
                 "flex h-3 items-center disabled:cursor-default",
                 FOCUS
               )}

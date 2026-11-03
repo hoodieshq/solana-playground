@@ -4,7 +4,7 @@ import type { StepBarItem } from "@/features/tutorial-conversation";
  * From the step at index `at`, the step ⌥↑ (`by` -1) or ⌥↓ (`by` 1) moves the
  * feed to: the one before or after it, if the learner has reached it.
  * Reached steps are the passed ones and the live one, so the keys stop at the
- * first divider and at the live step. Null when there is nowhere to go.
+ * first step's heading and at the live step. Null when there is nowhere to go.
  */
 export const stepBeside = (
   steps: readonly StepBarItem[],

@@ -97,6 +97,23 @@ describe("BaseStepDivider", () => {
 describe("BaseWroteCard", () => {
   const lines = [5, 6, 7, 8, 9, 10, 11, 12, 13];
 
+  it("keeps a blank written line's row, so the numbers stay beside their code", () => {
+    render(
+      <BaseWroteCard
+        wrote={{ file: "src/lib.rs", lines: [1, 2, 3] }}
+        failed={false}
+        preview={["use x;", "", "fn f() {}"]}
+        onShow={vi.fn()}
+      />
+    );
+    const card = screen.getByRole("button", {
+      name: "Show lines 1 to 3 in src/lib.rs",
+    });
+    const rows = [...card.querySelectorAll("span.whitespace-pre")];
+    expect(rows).toHaveLength(3);
+    expect(rows[1].className).toContain("min-h-5");
+  });
+
   it("is a button naming the lines, headed by the path alone, with the first three and '⋯ N more lines'", async () => {
     const onShow = vi.fn();
     render(

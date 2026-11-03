@@ -10,3 +10,10 @@ export const COARSE_HIT =
 /** The same, 44 px tall across the control's own width, for a wide, thin one */
 export const COARSE_HIT_ROW =
   "relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:top-1/2 pointer-coarse:after:h-11 pointer-coarse:after:-translate-y-1/2 pointer-coarse:after:content-['']";
+
+/**
+ * A wide, thin control under another: its 44 px area starts at its own top
+ * and reaches down, so it never covers the control above it
+ */
+export const COARSE_HIT_BELOW =
+  "relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:top-0 pointer-coarse:after:h-11 pointer-coarse:after:content-['']";

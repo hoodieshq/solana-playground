@@ -55,18 +55,21 @@ const STOP = /^[.,;:!?)\]]+/;
 export const Prose = ({
   text,
   className,
-  size = "normal",
+  chip = "normal",
 }: {
   text: Text | string;
   className?: string;
-  size?: keyof typeof CHIP_SIZE;
+  /** The code chip's size; the text around it keeps the caller's */
+  chip?: keyof typeof CHIP_SIZE;
 }) => {
   const parts = textOf(text).split("`");
   const out: ReactNode[] = [];
+  // How much of the text part at an index a chip before it took as its stop
+  const taken = new Map<number, number>();
   parts.forEach((part, i) => {
     // Even parts are text, odd ones sat between backticks
     if (i % 2 === 0) {
-      out.push(part);
+      out.push(part.slice(taken.get(i) ?? 0));
       return;
     }
     const stop = parts[i + 1]?.match(STOP)?.[0] ?? "";
@@ -76,7 +79,7 @@ export const Prose = ({
         className={cn(
           "inline-block rounded-[4px] font-mono font-[350] whitespace-nowrap text-current",
           CHIP,
-          CHIP_SIZE[size],
+          CHIP_SIZE[chip],
           stop && "mr-[2px]"
         )}
       >
@@ -93,7 +96,7 @@ export const Prose = ({
         {stop}
       </span>
     );
-    parts[i + 1] = parts[i + 1].slice(stop.length);
+    taken.set(i + 1, stop.length);
   });
   return <span className={className}>{out}</span>;
 };
@@ -122,4 +125,5 @@ export const HEADLINE =
   "font-heading text-[1.75rem] leading-8 font-medium tracking-[-0.02em] text-foreground";
 
 /** A headline or a step's heading carries no full stop, whatever the definition wrote */
-export const noStop = (text: Text): string => textOf(text).replace(/\.$/, "");
+export const noStop = (text: Text): string =>
+  textOf(text).replace(/(?<!\.)\.$/, "");

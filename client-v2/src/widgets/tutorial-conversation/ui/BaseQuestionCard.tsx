@@ -373,7 +373,7 @@ const BaseQuestionCard = ({
         id={titleId}
         className={cn(HEADING, "mb-3 text-[1.125rem] leading-[1.625rem]")}
       >
-        <Prose text={ask.question} size="large" />
+        <Prose text={ask.question} chip="large" />
       </h3>
       <div
         role="group"
@@ -448,7 +448,7 @@ const BaseQuestionCard = ({
                     <span className="font-medium text-foreground">
                       Not quite.
                     </span>{" "}
-                    <Prose text={ask.why[i]!} size="small" />
+                    <Prose text={ask.why[i]!} chip="small" />
                   </span>
                 )}
               </span>

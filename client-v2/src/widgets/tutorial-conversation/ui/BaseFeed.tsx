@@ -13,7 +13,7 @@ import { typing } from "./keys";
  * A jumped-to heading lands this far under the feed's top, in px: the feed's
  * own top padding, so it rests where the first heading sits on load
  */
-export const UNDER_BAR = 22;
+export const HEADING_TOP = 22;
 const FLASH_MS = 700;
 const SCROLL_MS = 320;
 /** How long a jump's smooth scroll may take to settle before scrolling counts as the learner's */
@@ -44,7 +44,8 @@ const FOCUSABLE =
  * The lesson as one feed: the step bar, then the turns in a `role="log"`,
  * then the back pill while the live card is off screen or the feed is on
  * another step. A step bar segment, an item of its menu or ⌥↑ / ⌥↓
- * (unless a field has focus) scrolls a divider to 22 px under the bar and
+ * (unless a field has focus) brings a step's heading to rest 22 px under the
+ * feed's top and
  * flashes it once; the lesson's progress is untouched. The step the feed is
  * scrolled into is the bar's "viewing" one. Turns older than the page load
  * render whole.
@@ -72,7 +73,7 @@ const BaseFeed = ({
     const box = scroller.current;
     if (!divider || !box) return;
     box.scrollTo?.({
-      top: divider.offsetTop - UNDER_BAR,
+      top: divider.offsetTop - HEADING_TOP,
       behavior: reducedMotion() ? "auto" : "smooth",
     });
     if (!reducedMotion()) {
@@ -117,7 +118,8 @@ const BaseFeed = ({
     return () => document.removeEventListener("keydown", onKey);
   }, [steps]);
 
-  // Scrolling by hand moves "viewing" to the divider under the bar. A feed
+  // Scrolling by hand moves "viewing" to the step whose heading is at the
+  // feed's top. A feed
   // scrolled to its bottom is on the live step: a short live step never
   // brings its divider up to the bar, so the divider test alone would name
   // the step before it
@@ -131,7 +133,7 @@ const BaseFeed = ({
     let under: number | null = null;
     steps.forEach((step, index) => {
       const divider = dividers.current.get(step.id);
-      if (divider && divider.offsetTop <= box.scrollTop + UNDER_BAR + 1) {
+      if (divider && divider.offsetTop <= box.scrollTop + HEADING_TOP + 1) {
         under = index;
       }
     });

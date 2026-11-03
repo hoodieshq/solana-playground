@@ -845,8 +845,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                       className="flex min-h-0 min-w-0 flex-1"
                     >
                       {props.tutorial?.chat}
-                      {/* The files column, held open (`filesState`), until the
-                      feed (task 3.3) carries the lesson's steps and Skip */}
+                      {/* The stage alone: the frame has no files column, the
+                      workspace head holds the tree */}
                       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                         {workGroup}
                       </div>

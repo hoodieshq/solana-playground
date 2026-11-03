@@ -124,7 +124,11 @@ const BaseWroteCard = ({
         </span>
         <span className="block min-w-0 flex-1 overflow-x-auto pr-3 pl-2">
           {shown.map((line, i) => (
-            <span key={i} className="block whitespace-pre text-foreground">
+            <span
+              key={i}
+              // A blank line keeps its row, so the numbers stay beside their code
+              className="block min-h-5 whitespace-pre text-foreground"
+            >
               {line}
             </span>
           ))}

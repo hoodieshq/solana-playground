@@ -65,7 +65,11 @@ const BaseIntroCard = ({
           className="size-10 shrink-0 rounded-lg object-cover"
         />
         <div className="min-w-0">
-          <h2 id="tutorial-intro-name" className={cn(TITLE, "truncate")}>
+          <h2
+            id="tutorial-intro-name"
+            title={name}
+            className={cn(TITLE, "truncate")}
+          >
             {name}
           </h2>
           <p className="text-[0.75rem] text-subtle tabular-nums">

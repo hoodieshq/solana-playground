@@ -191,6 +191,23 @@ describe("BaseFeed", () => {
     expect(turns[0].className).not.toContain("animate-fade");
   });
 
+  it("sets each turn's gap from the one before it, the feed starting flush", () => {
+    const { container } = feed();
+    const turns = [...container.querySelectorAll<HTMLElement>("[data-turn]")];
+    expect(turns[0].style.marginTop).toBe("0px");
+    turns.slice(1).forEach((el, i) => {
+      if (el.dataset.turn === "divider")
+        expect(el.style.marginTop).toBe("30px");
+      if (
+        turns[i].dataset.turn === "divider" &&
+        el.dataset.turn !== "divider"
+      ) {
+        expect(el.style.marginTop).toBe("9px");
+      }
+    });
+    expect(turns.some((el) => el.dataset.turn === "divider")).toBe(true);
+  });
+
   it("jumps from step 3 to step 1, and keeps step 3 the live one", async () => {
     const onJump = vi.fn();
     const { container } = feed({ onJump });
@@ -294,7 +311,7 @@ describe("BaseFeed", () => {
   it("reads a feed scrolled to its bottom as on the live step, though step 3's divider never reached the bar", () => {
     const { container } = feed();
     // Scrolled by hand to the bottom: step 3's divider (900) is below the
-    // bar (600 + 12), so the divider rule alone would name step 2
+    // feed's top (600 + `HEADING_TOP`), so the divider rule alone would name step 2
     const box = layout(container, {
       scrollTop: 600,
       clientHeight: 400,
