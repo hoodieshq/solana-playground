@@ -33,6 +33,12 @@ when a session reads a file matching the `paths` in the frontmatter.
   copy on a tie. `mergeThreads` explains why two devices' clocks never need to
   agree. The open thread takes the server's copy through `PgAssistant.foldIn`,
   never a reload.
+- **A thread goes up in batches, measured in bytes.** `batchPush`
+  (`model/chat-batch.mjs`) splits a push into bodies under the caps
+  `api/conversations.mjs` enforces, from the same constants. Item caps count
+  characters, and a thread sent whole outgrew the byte cap and got a 413 on
+  every push. An item too large for any body stays local, is reported, and
+  makes the push `failed`, so a sign-out never drops it.
 - **Project sync depends on a persisted "sync mark"**, one file per project
   per account at `/.config/sync/<userId>/<projectId>.json`
   (`model/sync-mark.ts`): a SHA-256 per file of what the server last accepted,

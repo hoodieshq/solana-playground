@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 
-import { DELETED_REASON } from "../src/features/persistence/server.mjs";
+import {
+  batchPush,
+  DELETED_REASON,
+  MAX_BATCH_BYTES,
+  MAX_BATCH_ITEMS,
+} from "../src/features/persistence/server.mjs";
 
 const load = async () => {
   // Fresh module per case: `db.mjs` memoises its pool at module scope
@@ -207,6 +212,118 @@ describe("/api/conversations", () => {
       assert.deepEqual(await mod.readBody(streamOf(...chunks)), {
         error: "too-large",
       });
+    });
+  });
+
+  describe("batchPush", () => {
+    const streamOf = (text) => ({
+      async *[Symbol.asyncIterator]() {
+        yield Buffer.from(text, "utf8");
+      },
+    });
+
+    /**
+     * A long thread at its worst: the device keeps 200 items, and each one
+     * carries text of a three-byte character, so the character counts on an
+     * item say a third of what the wire carries.
+     */
+    const longThread = () =>
+      Array.from({ length: 200 }, (_, n) => ({
+        id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+        kind: "assistant",
+        createdAt: new Date(n * 1000).toISOString(),
+        text: "語".repeat(20_000),
+      }));
+
+    const envelope = {
+      threadId: "6f1c1c1e-6f4b-4b55-9c1e-5c2d1b6a7e01",
+      projectId: "w1",
+    };
+
+    it("splits a thread the cap would refuse into bodies it takes", async () => {
+      const mod = await load();
+      const items = longThread();
+
+      // The thread whole is what used to be sent, and it never got in
+      const whole = JSON.stringify({ ...envelope, items });
+      assert.deepEqual(await mod.readBody(streamOf(whole)), {
+        error: "too-large",
+      });
+
+      const { bodies, oversized } = batchPush(envelope, items);
+
+      assert.ok(bodies.length > 1);
+      assert.deepEqual(oversized, []);
+      const sent = [];
+      for (const body of bodies) {
+        const read = await mod.readBody(streamOf(body));
+        assert.equal(read.error, undefined, "a batch got a 413");
+        assert.equal(read.body.threadId, envelope.threadId);
+        assert.equal(read.body.projectId, envelope.projectId);
+        assert.ok(read.body.items.length <= MAX_BATCH_ITEMS);
+        assert.ok(read.body.items.every(mod.isValidItem));
+        sent.push(...read.body.items.map((i) => i.id));
+      }
+      // Every item once, oldest first, so the first body creates the thread
+      assert.deepEqual(
+        sent,
+        items.map((i) => i.id)
+      );
+    });
+
+    it("fills a body to the byte, never past it", () => {
+      const items = longThread().slice(0, 4);
+      const one = Buffer.byteLength(
+        JSON.stringify({ ...envelope, items: [items[0]] })
+      );
+      // Room for exactly two items: the empty body, two items and one comma
+      const two = Buffer.byteLength(
+        JSON.stringify({ ...envelope, items: items.slice(0, 2) })
+      );
+
+      const { bodies } = batchPush(envelope, items, { maxBytes: two });
+
+      assert.equal(bodies.length, 2);
+      bodies.forEach((b) => assert.equal(Buffer.byteLength(b), two));
+      assert.ok(one < two);
+    });
+
+    it("caps the item count as the server does", () => {
+      const items = longThread().map((i) => ({
+        id: i.id,
+        kind: "user",
+        createdAt: i.createdAt,
+        text: "m",
+      }));
+
+      const { bodies } = batchPush(envelope, items, { maxItems: 64 });
+
+      assert.deepEqual(
+        bodies.map((b) => JSON.parse(b).items.length),
+        [64, 64, 64, 8]
+      );
+    });
+
+    it("leaves out an item no body can hold, and sends the rest", () => {
+      const [small, huge, last] = longThread().slice(0, 3);
+      const big = {
+        id: huge.id,
+        kind: huge.kind,
+        createdAt: huge.createdAt,
+        text: "語".repeat(MAX_BATCH_BYTES),
+      };
+
+      const { bodies, oversized } = batchPush(envelope, [small, big, last]);
+
+      assert.deepEqual(oversized, [big.id]);
+      assert.deepEqual(
+        bodies.flatMap((b) => JSON.parse(b).items.map((i) => i.id)),
+        [small.id, last.id]
+      );
+    });
+
+    it("sends nothing for an empty thread", () => {
+      assert.deepEqual(batchPush(envelope, []), { bodies: [], oversized: [] });
     });
   });
 
