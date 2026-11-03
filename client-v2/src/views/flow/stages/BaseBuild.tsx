@@ -142,7 +142,7 @@ const BuildButton = ({
 }: {
   p: BaseBuildProps;
   label: string;
-  variant?: "outline";
+  variant?: "outline" | "link";
 }) => (
   <AsyncButton
     variant={variant}
@@ -350,6 +350,12 @@ const Succeeded = (p: BaseBuildProps) => (
         >
           Export project
         </AsyncButton>
+        {/* An edit after the build needs a new one before Deploy. A link
+            under the row, as Unreached's Show full log: a fourth button
+            would wrap the row */}
+        <div className="flex w-full justify-center">
+          <BuildButton p={p} label="Build again" variant="link" />
+        </div>
       </>
     }
     progress={p}

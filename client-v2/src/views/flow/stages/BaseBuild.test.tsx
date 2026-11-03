@@ -161,6 +161,17 @@ describe("BaseBuild", () => {
     expect(lastIsActions(container)).toBe("stage-empty-actions");
   });
 
+  // An edit after a build needs a new build, without the assistant or a command
+  it("offers Build again after a build, as a link under the row", () => {
+    const p = props({ kind: "succeeded" });
+    render(<BaseBuild {...p} />);
+
+    const again = screen.getByRole("button", { name: "Build again" });
+    expect(again.getAttribute("data-variant")).toBe("link");
+    fireEvent.click(again);
+    expect(p.onBuild).toHaveBeenCalled();
+  });
+
   it("says a build that never reached the compiler did not start (BUILD-04)", async () => {
     const p = props({
       kind: "unreached",
