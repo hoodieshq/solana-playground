@@ -6,6 +6,17 @@ import type {
 } from "@/features/tutorial-conversation";
 import type { TutorialDefinition } from "@/entities/tutorial";
 
+/**
+ * The names of the tutorial mode's own tools, declared once: the tools
+ * (`tutorialMode`) and the prose that tells the model to call them use these
+ */
+export const TOOLS = {
+  openMenu: "open_menu",
+  hint: "hint",
+  skip: "skip",
+  propose: "propose_change",
+} as const;
+
 export interface TutorialFacts {
   definition: TutorialDefinition;
   progress: ConversationProgress;
@@ -32,8 +43,8 @@ export const describeTutorial = (facts: TutorialFacts): string => {
   if (live?.kind === "ask" && live.open) {
     lines.push(
       `A question is open: "${textOf(live.ask.question)}". Do not give its ` +
-        "answer away; the hint tool posts the lesson's own hint, and the " +
-        "skip tool skips it, as its buttons do."
+        `answer away; ${TOOLS.hint} posts the lesson's own hint, and ` +
+        `${TOOLS.skip} skips it, as its buttons do.`
     );
   }
   const last = lastRun(progress);
@@ -53,9 +64,9 @@ export const describeTutorial = (facts: TutorialFacts): string => {
   }
   lines.push(
     "In this tutorial you cannot change files, build, deploy or send " +
-      "transactions. To change code, propose one line with propose_change; " +
+      `transactions. To change code, propose one line with ${TOOLS.propose}; ` +
       "the learner applies it or keeps their own. To show the steps, use " +
-      "open_menu. You never judge whether a step passed: the lesson does."
+      `${TOOLS.openMenu}. You never judge whether a step passed: the lesson does.`
   );
   return lines.join("\n");
 };
@@ -169,6 +180,49 @@ if (import.meta.vitest) {
       expect(text).toContain(`Objective: ${hello.steps[1].objective}.`);
       expect(text).toContain("in front: programs/hello/src/lib.rs");
       expect(text).toContain("you cannot change files, build, deploy");
+    });
+
+    it("guards an open question's answer and lists the tutorial's docs", () => {
+      const ask = hello.steps[0].beats.find(
+        (b): b is import("@/entities/tutorial").Ask => b.kind === "ask"
+      );
+      if (!ask) throw new Error("Hello Anchor has no question in step 1");
+      const live: Turn = {
+        id: ask.id,
+        kind: "ask",
+        step: hello.steps[0].id,
+        at: 1,
+        whole: false,
+        beatId: ask.id,
+        ask,
+        open: true,
+        wrong: [],
+        hinted: false,
+        writeFailed: false,
+        outcome: null,
+        attempts: 0,
+      };
+      const withDocs: TutorialDefinition = Object.assign({}, hello, {
+        docs: [
+          {
+            title: "The program log",
+            url: "https://solana.com/docs/programs/debugging",
+            file: "log.md",
+          },
+        ],
+      });
+      const text = describeTutorial({
+        definition: withDocs,
+        progress: freshProgress(),
+        live,
+        openFiles: [],
+        currentFile: null,
+      });
+      expect(text).toContain("Do not give its answer away");
+      expect(text).toContain(`${TOOLS.hint} posts the lesson's own hint`);
+      expect(text).toContain(
+        "Docs you may link, one page at most per answer: The program log (https://solana.com/docs/programs/debugging)."
+      );
     });
 
     it("names the last result, a failed build with its error", () => {

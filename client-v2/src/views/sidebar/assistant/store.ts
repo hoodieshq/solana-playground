@@ -570,9 +570,9 @@ export class PgAssistant {
    * (`tutorial-flow-v2` 3.6). The next turn reads it; a turn in flight keeps
    * the tools it started with.
    *
-   * Modes stack: the latest set is the one in force, and clearing one, in
-   * any order, leaves the latest still set, so a surface unmounting never
-   * lifts another's narrowing.
+   * Modes stack: the latest set is the one in force. Clearing one, in any
+   * order, leaves the latest of those still set in force, so a surface
+   * unmounting never lifts another's narrowing.
    *
    * @returns clears this mode
    */

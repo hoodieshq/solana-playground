@@ -22,6 +22,7 @@ const baseName = (path: string) => path.split("/").pop() ?? path;
 const FAILED: Record<NonNullable<Proposal["applyFailed"]>, string> = {
   moved:
     "Could not apply it: the line changed since. Ask again for a fresh change.",
+  gone: "Could not apply it: the file is not there any more.",
   write:
     "Could not write the file. Try Apply again, or make the change yourself.",
 };

@@ -50,7 +50,8 @@ export interface ConversationProgress extends ConversationSave {
 
 /**
  * A composer message the lesson answered itself, with no model: a typed
- * action word echoed as a pill (the act it ran records itself), the same
+ * action word echoed as a pill (the act it ran records itself; "explain"
+ * has none, since Explain the error echoes itself), the same
  * word refused while a question is open, or a finish chip pressed (its
  * answer is the definition's, never saved).
  */
@@ -86,9 +87,10 @@ export interface Proposal {
 
 /**
  * Why an Apply did not land: the line no longer read as proposed (`moved`),
- * or reading or writing the file failed (`write`)
+ * the file is no longer there (`gone`), or reading or writing it failed
+ * (`write`)
  */
-export type ApplyFailure = "moved" | "write";
+export type ApplyFailure = "moved" | "gone" | "write";
 
 /** Where the lesson stands: before Start, in a step, or past the last win */
 export type Cursor =
@@ -721,7 +723,7 @@ const proposalSchema = z.object({
   at: z.number(),
   state: z.enum(["open", "applied", "kept"]),
   settledAt: z.number().optional(),
-  applyFailed: z.enum(["moved", "write"]).optional(),
+  applyFailed: z.enum(["moved", "gone", "write"]).optional(),
 });
 
 const parseSaid = (v: unknown): Said | null => {

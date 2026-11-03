@@ -196,8 +196,8 @@ export class PgConversation {
 
   /**
    * A message typed in the composer, routed in the spec's order (`route`):
-   * a live action's word runs it, with its pill when the action changed
-   * something (a word the engine refuses is dropped); a word while a question
+   * a live action's word runs it, with its pill (a word the engine does not
+   * act on goes to the assistant instead); a word while a question
    * is open posts the refusal; anything else is the assistant's, which the
    * caller sends. The word and its action share one time, so the pill sits
    * before what the action posts.
@@ -206,7 +206,8 @@ export class PgConversation {
     const at = Date.now();
     const routed = route(text, PgConversation.view()?.live ?? null, at);
     switch (routed.kind) {
-      case "word":
+      case "word": {
+        const before = PgConversation._state;
         PgConversation._dispatch({
           type: "word",
           word: routed.word,
@@ -214,7 +215,14 @@ export class PgConversation {
           then: routed.action,
           at,
         });
-        return "lesson";
+        if (PgConversation._state !== before) return "lesson";
+        // The view showed the action live and the engine refused it: the
+        // message goes to the assistant rather than vanishing
+        log.info("A typed word's action did not run; asking the assistant", {
+          context: { word: routed.word },
+        });
+        return "assistant";
+      }
       case "refused":
         PgConversation._dispatch({
           type: "refuseWord",
@@ -249,7 +257,7 @@ export class PgConversation {
     PgConversation._dispatch({ type: "propose", proposal, at: Date.now() });
   }
 
-  /** The apply card's "Apply to <file>"; a second press while one is in flight waits for it */
+  /** The apply card's "Apply to <file>"; a second press while one is in flight is ignored, and the first settles the card */
   static apply(id: string) {
     if (PgConversation._applying.has(id)) {
       log.debug("Apply pressed while an Apply is in flight", {
@@ -261,9 +269,9 @@ export class PgConversation {
   }
 
   /**
-   * The apply card's "Keep it". Held while an Apply is in flight: the write
-   * may already be on its way, and settling as kept would leave the file
-   * changed under a card that says it was not.
+   * The apply card's "Keep it". Ignored while an Apply is in flight: the
+   * write may already be on its way, and settling as kept would leave the
+   * file changed under a card that says it was not.
    */
   static keep(id: string) {
     if (PgConversation._applying.has(id)) {
@@ -761,9 +769,16 @@ export class PgConversation {
             applied();
             break;
           }
-          if (!lines || current !== effect.before) {
-            // The learner changed the line since the proposal (or the file is
-            // gone): writing now would overwrite their edit
+          if (!lines) {
+            log.warn("A proposal's file is gone before Apply", {
+              context: { name, file: effect.file },
+            });
+            failed("gone");
+            break;
+          }
+          if (current !== effect.before) {
+            // The learner changed the line since the proposal: writing now
+            // would overwrite their edit
             log.warn(`A proposal's line moved before Apply`, {
               context: { name, file: effect.file, line: effect.line },
             });

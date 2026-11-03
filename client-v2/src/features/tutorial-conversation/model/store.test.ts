@@ -1108,6 +1108,18 @@ describe("PgConversation's composer", () => {
     expect(workspace.files["src/lib.rs"]).toBe("a\nmine\nc");
     expect(proposal()).toMatchObject({ state: "open", applyFailed: "moved" });
     expect(named("tutorial_change_applied")).toHaveLength(0);
+    // The failed Apply is over: Keep it answers again
+    PgConversation.keep("p1");
+    expect(proposal().state).toBe("kept");
+  });
+
+  it("says a file that is gone is gone, not a moved line", async () => {
+    open(NAME, { workspace: memoryWorkspace({}) });
+    await settle();
+    propose();
+    PgConversation.apply("p1");
+    await settle();
+    expect(proposal()).toMatchObject({ state: "open", applyFailed: "gone" });
   });
 
   it("says a write failed as a write, not as a moved line", async () => {

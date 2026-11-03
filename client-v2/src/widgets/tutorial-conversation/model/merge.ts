@@ -24,7 +24,8 @@ export type FeedEntry =
  * The lesson's turns and the thread's exchanges after `since` (the last
  * Start over; null shows the whole thread), in one order by time. A lesson
  * turn goes first on a tie, and the thread keeps its own order. Tool rows
- * and approvals are left out by choice: what the assistant does in a
+ * and settled approvals are left out by choice (a pending one says the turn
+ * waits on it): what the assistant does in a
  * tutorial that the learner should see (a hint, a skip, a proposed change)
  * draws the lesson's own card, and its reads show nothing. A reply still
  * empty while its first words stream has nothing to show yet.
@@ -55,6 +56,11 @@ export const mergeFeed = (
   }
   return out.concat(exchanges.slice(next));
 };
+
+/** What a pending approval reads as in the tutorial feed */
+export const APPROVAL_WAITING =
+  "The assistant asked to change the project, which a tutorial does not do. " +
+  "Press Stop to go on.";
 
 const atOf = (entry: FeedEntry) =>
   entry.kind === "lesson" ? entry.turn.at : entry.at;
@@ -89,8 +95,21 @@ const entryOf = (
         tone: item.kind,
       };
     case "tool":
-    case "approval":
       return null;
+    case "approval":
+      // A turn begun before the tutorial opened keeps the tools it started
+      // with, so it can still wait on an approval the feed draws no card for:
+      // say so while it waits, rather than leave Stop unexplained
+      return item.status === "pending"
+        ? {
+            kind: "answer",
+            id: item.id,
+            at,
+            whole,
+            text: APPROVAL_WAITING,
+            tone: "notice",
+          }
+        : null;
     default: {
       const never: never = item;
       return never;
@@ -172,6 +191,35 @@ if (import.meta.vitest) {
       );
       expect(before).toMatchObject({ id: "q", whole: true });
       expect(after).toMatchObject({ id: "r", whole: false });
+    });
+
+    it("says a pending approval keeps the turn waiting, and hides a settled one", () => {
+      const approval = (
+        id: string,
+        status: "pending" | "denied"
+      ): ChatItem => ({
+        id,
+        createdAt: iso(2000),
+        kind: "approval",
+        request: { type: "patch", path: "src/lib.rs", before: "a", after: "b" },
+        status,
+      });
+      expect(
+        mergeFeed(
+          [],
+          [approval("a1", "pending"), approval("a2", "denied")],
+          null
+        )
+      ).toEqual([
+        {
+          kind: "answer",
+          id: "a1",
+          at: 2000,
+          whole: false,
+          text: APPROVAL_WAITING,
+          tone: "notice",
+        },
+      ]);
     });
 
     it("hides tool calls, approvals and a reply with no words yet", () => {

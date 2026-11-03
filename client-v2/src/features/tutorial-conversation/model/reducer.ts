@@ -226,7 +226,7 @@ export type Effect =
   | {
       kind: "event";
       name: "tutorial_question_asked";
-      /** `step` is 1-based, 0 before Start */
+      /** `step` as `stepNumber` gives it: 1-based, 0 before Start, the last after the finish */
       params: { tutorial: string; step: number; source: "typed" | "chip" };
     }
   | {
@@ -684,7 +684,10 @@ const wordSent = (
   },
 });
 
-/** What ends an open proposal's wait: Apply landed or failed, or Keep it */
+/**
+ * What answers an open proposal's Apply or Keep it: `applied` and `keep`
+ * settle it; `applyFailed` leaves it open, with the reason
+ */
 type Settling = Extract<Action, { type: "applied" | "applyFailed" | "keep" }>;
 
 /** A proposal once Apply landed, failed, or Keep it was pressed */

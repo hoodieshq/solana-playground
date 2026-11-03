@@ -25,6 +25,9 @@ const str = (input: ToolInput, key: string) => {
  * Skill and MCP tools are appended here rather than wired per provider, so
  * every backend gets ecosystem grounding without touching its adapter.
  *
+ * A mode's own tools (below) run as the mode defines them, without
+ * `requestApproval`: the mode answers for what they change.
+ *
  * With a mode set (`PgAssistant.setMode`), a tool the mode does not allow
  * stays offered but only answers with a refusal, so the model is told why
  * rather than calling a tool that is not there; the mode's own tools join.

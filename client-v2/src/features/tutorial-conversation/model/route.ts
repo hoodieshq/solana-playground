@@ -1,4 +1,4 @@
-import type { Act } from "@/entities/tutorial";
+import type { Act, ActBeat } from "@/entities/tutorial";
 import type { WordAction } from "./reducer";
 import type { Turn } from "./view";
 
@@ -72,6 +72,12 @@ export const route = (text: string, live: Turn | null, at: number): Route => {
   return action ? { kind: "word", word, action } : { kind: "assistant" };
 };
 
+/** The fields a call act asks the learner to fill: its string arguments */
+const fieldsOf = (act: ActBeat): string[] =>
+  act.act === "call"
+    ? (act.call.args ?? []).filter((a): a is string => typeof a === "string")
+    : [];
+
 const actionFor = (word: Word, live: Turn, at: number): WordAction | null => {
   switch (word) {
     case "start":
@@ -87,9 +93,11 @@ const actionFor = (word: Word, live: Turn, at: number): WordAction | null => {
     case "run":
     case "call": {
       if (live.kind !== "act" || live.state === "running") return null;
-      return ACTS[word].includes(live.act.act)
-        ? { type: "act", beatId: live.beatId, at }
-        : null;
+      if (!ACTS[word].includes(live.act.act)) return null;
+      // A call with a field for the learner to fill waits for its own
+      // fields, as ⌘↵ does: the word is the assistant's to answer
+      if (fieldsOf(live.act).length) return null;
+      return { type: "act", beatId: live.beatId, at };
     }
     default: {
       const never: never = word;
@@ -183,6 +191,39 @@ if (import.meta.vitest) {
         kind: "word",
         word: "deploy",
         action: { type: "act" },
+      });
+    });
+
+    const call = (args: import("@/entities/tutorial").CallArg[]): Turn =>
+      Object.assign(turnOf("s4.call"), {
+        kind: "act" as const,
+        beatId: "s4.call",
+        act: {
+          kind: "act" as const,
+          id: "s4.call",
+          title: "Call",
+          context: "",
+          button: "Call",
+          act: "call" as const,
+          call: { instruction: "hello", args },
+        },
+        state: "live" as const,
+        note: null,
+        stage: null,
+        took: null,
+      }) as Turn;
+
+    it("runs a typed call only when the act has no field left to fill", () => {
+      expect(
+        route("call", call([{ name: "name", value: "Alex" }]), 500)
+      ).toEqual({
+        kind: "word",
+        word: "call",
+        action: { type: "act", beatId: "s4.call", at: 500 },
+      });
+      // The name field waits for the learner, as ⌘↵ does
+      expect(route("call please", call(["name"]), 500)).toEqual({
+        kind: "assistant",
       });
     });
 

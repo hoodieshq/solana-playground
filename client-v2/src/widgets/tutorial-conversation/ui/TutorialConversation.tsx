@@ -338,8 +338,8 @@ export interface TutorialConversationProps {
 
 /**
  * The live assistant in its tutorial mode while the feed is shown: the
- * lesson's context, reading tools and the four interface tools, and nothing
- * that writes or runs. The menu opener may change between renders; the
+ * lesson's context, reading tools and its four tools (`tutorialMode`), and
+ * none of the assistant's own writing or running tools. The menu opener may change between renders; the
  * mode reads the latest.
  */
 const useAssistantMode = (onOpenMenu: () => void) => {

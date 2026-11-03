@@ -64,7 +64,8 @@ const useNarrow = (ref: RefObject<HTMLElement | null>) => {
 };
 
 /**
- * The lesson as one feed: the step bar, then the turns in a `role="log"`,
+ * The lesson as one feed: the step bar, then the turns (merged with the live
+ * assistant's exchanges when `entries` is given) in a `role="log"`,
  * then the back pill while the live card is off screen or the feed is on
  * another step. A step bar segment, an item of its narrow menu or ⌥↑ / ⌥↓
  * (unless a field has focus) scrolls a divider to 12 px under the bar and

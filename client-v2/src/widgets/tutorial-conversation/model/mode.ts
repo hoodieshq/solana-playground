@@ -6,7 +6,7 @@ import { PgExplorer } from "@/utils/explorer";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 import type { AssistantMode } from "@/views/sidebar/assistant/store";
 import { READING_TOOLS } from "@/views/sidebar/assistant/model/reading-tools";
-import { describeTutorial } from "./context";
+import { TOOLS, describeTutorial } from "./context";
 
 const log = createLogger("tutorial-conversation:mode");
 
@@ -31,9 +31,10 @@ const openQuestion = (): string | null => {
 /**
  * The tutorial's mode for the live assistant (`PgAssistant.setMode`): the
  * lesson's context (`describeTutorial`), the read-only tools, and four
- * tools that only show or offer something: the menu, the question's Hint
- * and Skip as their buttons do, and a one-line change the learner applies
- * or keeps.
+ * tools of its own: the menu; the question's Hint, and its Skip, which
+ * resolves it and has the lesson write its block, as the buttons do; and a
+ * one-line change the learner applies or keeps. The assistant itself writes
+ * nothing.
  *
  * @param openMenu opens the frame's navigation, which another widget owns
  */
@@ -49,7 +50,7 @@ export const tutorialMode = ({
   refusal:
     "In a tutorial you cannot change files, build, deploy or send " +
     "transactions: the lesson does those. Tell the learner which button or " +
-    "step does it, or offer a change with propose_change.",
+    `step does it, or offer a change with ${TOOLS.propose}.`,
   context: () => {
     const { context, engine } = PgConversation.state;
     if (!context) return "The learner is not in a tutorial right now.";
@@ -65,7 +66,7 @@ export const tutorialMode = ({
   },
   tools: [
     {
-      name: "open_menu",
+      name: TOOLS.openMenu,
       description:
         "Open the tutorial's navigation menu, with its steps and the other " +
         "tutorials. Use it when the learner asks for the menu.",
@@ -77,7 +78,7 @@ export const tutorialMode = ({
       },
     },
     {
-      name: "hint",
+      name: TOOLS.hint,
       description:
         "Post the open question's own hint under it, as its Hint button " +
         "does. Use it when the learner is stuck on the question.",
@@ -95,7 +96,7 @@ export const tutorialMode = ({
       },
     },
     {
-      name: "skip",
+      name: TOOLS.skip,
       description:
         "Skip the open question, as its Skip button does: the lesson writes " +
         "its answer's code. Use it only when the learner asks you to do it " +
@@ -106,11 +107,14 @@ export const tutorialMode = ({
         if (!beatId) return "No question is open, so there is nothing to skip.";
         PgAssistant.addToolCall("skipped the question");
         PgConversation.skip(beatId);
-        return "Skipped: the lesson wrote the answer's code.";
+        return (
+          "Skipped: the lesson is writing the answer's code into the file, " +
+          "and its card says if the write fails."
+        );
       },
     },
     {
-      name: "propose_change",
+      name: TOOLS.propose,
       description:
         "Propose changing one line of a file. The learner sees the line's " +
         "diff with Apply and Keep it; nothing changes until they press " +
@@ -135,9 +139,12 @@ export const tutorialMode = ({
         if (typeof line !== "number" || !Number.isInteger(line) || line < 1) {
           return "The line must be a whole number from 1.";
         }
-        const content = readFile(file);
-        if (content === null) return `There is no file at ${file}.`;
-        const before = content.split("\n")[line - 1];
+        const read = readFile(file);
+        if (read.kind === "missing") return `There is no file at ${file}.`;
+        if (read.kind === "failed") {
+          return `Could not read ${file} just now; try again in a moment.`;
+        }
+        const before = read.content.split("\n")[line - 1];
         if (before === undefined) return `${file} has no line ${line}.`;
         const after = input.after;
         if (typeof after !== "string")
@@ -147,7 +154,14 @@ export const tutorialMode = ({
         }
         if (before === after) return "That line already reads so.";
         PgAssistant.addToolCall(`proposed a change to ${file}`);
-        PgConversation.propose({ id: uuid(), file, line, before, after });
+        PgConversation.propose({
+          id: uuid(),
+          // The workspace's own form of the path, as the lesson's files use
+          file: PgExplorer.getRelativePath(PgExplorer.convertToFullPath(file)),
+          line,
+          before,
+          after,
+        });
         return (
           "The change is posted as a card; the learner decides. Do not " +
           "propose it again."
@@ -157,14 +171,23 @@ export const tutorialMode = ({
   ],
 });
 
-const readFile = (file: string): string | null => {
+/** A file the assistant named, as the explorer holds it */
+type Read =
+  | { kind: "ok"; content: string }
+  | { kind: "missing" }
+  | { kind: "failed" };
+
+const readFile = (file: string): Read => {
   try {
-    return (
-      PgExplorer.getFileContent(PgExplorer.convertToFullPath(file)) ?? null
+    const content = PgExplorer.getFileContent(
+      PgExplorer.convertToFullPath(file)
     );
+    return content === undefined
+      ? { kind: "missing" }
+      : { kind: "ok", content };
   } catch (e) {
     // A missing file reads as undefined; a throw is the explorer failing
     log.error(e, { report: true, context: { file, what: "assistant read" } });
-    return null;
+    return { kind: "failed" };
   }
 };
