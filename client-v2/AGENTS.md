@@ -16,6 +16,10 @@ derive the new instance with lenses (`ramda`'s `lensProp`/`set`/`over`, or a sim
 hides which fields the fixture actually carries; the explicit form names the change. Build long
 event series with small named helpers rather than inline spreads.
 
+ESLint warns on such a spread (`layers/no-test-spread` in `eslint-plugin-layers/`): in a `*.test.*` or
+`*.spec.*` file, anywhere under `e2e/`, and inside an `if (import.meta.vitest)` block. A spread in a call
+(`fn(...args)`) builds no shape and passes.
+
 Production code is not covered by this rule yet — match the surrounding idiom there.
 
 Note: no lens library is a dependency yet — until one is added, write the explicit copy.
@@ -50,8 +54,9 @@ first.
 
 Inside a block:
 
-- Take the test API from `import.meta.vitest`, `vi` included, and never the global `it`:
-  `@types/mocha` declares that global without `each`, because `src/utils/js-runtime` imports mocha.
+- Take the test API from `import.meta.vitest`, `vi` included, never from the globals: they are
+  typed in test files only (`tsconfig.app.json`, the second program `yarn test-types` checks,
+  leaves test files and `vitest/globals` out), so a global `it` in a block fails the type check.
 - Put the tests under one `describe` named after the module path from `src/` without extension
   (`features/persistence/model/project-id`), with the block's hooks and helpers inside it: vitest's `fullName` carries no
   file path, so the `describe` is what names the module in a failure.

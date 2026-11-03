@@ -1,4 +1,6 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { cn } from "@/shared/lib/utils";
 import { NativeSelect, NativeSelectOption } from "@/shared/ui/native-select";
@@ -22,6 +24,17 @@ const ACTION =
 
 /** Descriptions past this many characters start collapsed */
 const LONG_DESCRIPTION = 220;
+
+/** A line that opens with an all-caps label, `IDENTIFIER:` or `ACCOUNT TYPES RETURNED (by entity.kind):` */
+const CAPS_LABEL = /^([A-Z][A-Z0-9 _-]*[A-Z0-9](?: \([^)\n]*\))?:)/gm;
+
+/** Tool descriptions are Markdown by convention; servers that write `LABEL:` headings get them in bold */
+const emphasiseLabels = (description: string) =>
+  description.replace(CAPS_LABEL, "**$1**");
+
+/** The Markdown a tool description renders to, spaced for the card's small type */
+const DESCRIPTION_MARKDOWN =
+  "[overflow-wrap:anywhere] [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-[1.125rem] [&_p]:mb-2 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-[1.125rem] [&_li+li]:mt-1 [&_li>p]:mt-1 [&_li>p]:mb-0 [&_li>ul]:mt-1 [&_li>ul]:mb-0 [&>:last-child]:mb-0 [&_strong]:font-semibold [&_strong]:text-[var(--text-primary)] [&_code]:rounded [&_code]:bg-surface-hover [&_code]:px-1 [&_code]:py-px [&_code]:font-pg-code [&_code]:text-[0.95em]";
 
 /** Argument names that mean the Solana cluster, whatever the server calls it */
 const CLUSTER_KEYS = ["cluster", "network"];
@@ -146,7 +159,7 @@ const ServerConsole = ({ server, providerName }: ServerConsoleProps) => {
   };
 
   return (
-    <div className="mb-3 rounded-panel border border-border p-2.5">
+    <div className="mb-3 rounded-panel border border-border bg-surface-base p-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="text-[0.75rem] text-[var(--text-primary)]">
           {server.name || server.id}
@@ -188,12 +201,17 @@ const ServerConsole = ({ server, providerName }: ServerConsoleProps) => {
               <div
                 className={cn(
                   MUTED,
-                  "pt-1.5 leading-normal whitespace-pre-wrap",
-                  // Clamped rather than sliced, so the full text stays selectable
-                  !descriptionOpen && descriptionIsLong && "line-clamp-3"
+                  "pt-1.5 leading-[1.55]",
+                  DESCRIPTION_MARKDOWN,
+                  // Cut by height rather than sliced, so the full text stays selectable; the fade marks the cut
+                  !descriptionOpen &&
+                    descriptionIsLong &&
+                    "max-h-[4.75em] overflow-hidden [mask-image:linear-gradient(to_bottom,black_60%,transparent)]"
                 )}
               >
-                {description}
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {emphasiseLabels(description)}
+                </ReactMarkdown>
               </div>
               {descriptionIsLong && (
                 <button
@@ -219,9 +237,7 @@ const ServerConsole = ({ server, providerName }: ServerConsoleProps) => {
               />
 
               <div className="flex gap-1.5 pt-2">
-                <button className={ACTION} onClick={call} disabled={busy}>
-                  {busy ? "Calling…" : "Call"}
-                </button>
+                {/* Asking the model is the usual next step after the arguments, so it comes first in tab order; Call ends the form */}
                 {PgAssistant.isConnected && (
                   <button
                     className={ACTION}
@@ -231,6 +247,9 @@ const ServerConsole = ({ server, providerName }: ServerConsoleProps) => {
                     Ask {providerName ?? "the assistant"}
                   </button>
                 )}
+                <button className={ACTION} onClick={call} disabled={busy}>
+                  {busy ? "Calling…" : "Call"}
+                </button>
               </div>
             </>
           )}

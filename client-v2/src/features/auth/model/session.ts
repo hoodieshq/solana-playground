@@ -64,11 +64,11 @@ export interface SessionUser {
   /** Our own row id, and the owner of every synced project and conversation */
   id: string;
   /** GitHub display name. Not the handle -- that is `login`. */
-  name: string | null;
-  /** Avatar URL, or `null` for an account without one */
-  image: string | null;
+  name: string | undefined;
+  /** Avatar URL, or `undefined` for an account without one */
+  image: string | undefined;
   /** GitHub @handle, for display and the profile link. Never an identity key. */
-  login: string | null;
+  login: string | undefined;
 }
 
 /** Where a sign-in started, when its listeners must tell it apart from the account footer's */
@@ -115,7 +115,7 @@ const READ_TIMEOUT_MS = 10_000;
 export type ReadState = "unread" | "failed" | "answered";
 
 /**
- * A 2xx body, or `null` when it is an HTML page: a host with no auth route
+ * A 2xx body, or `undefined` when it is an HTML page: a host with no auth route
  * serves its app shell there, which says nobody can be signed in. Any other
  * body that does not parse (a cut-off answer, a portal's text) throws, and
  * the read fails.
@@ -125,9 +125,10 @@ const jsonOrPage = async (response: Response) => {
     log.warn("session read answered a page, not JSON", {
       context: { status: response.status },
     });
-    return null;
+    return undefined;
   }
-  return await response.json();
+  // A JSON `null` body says as little as a page does
+  return (await response.json()) ?? undefined;
 };
 
 /**
@@ -168,7 +169,7 @@ const notConfigured = async (response: Response) => {
  * build on a cycle.
  */
 export class PgSession {
-  static get(): SessionUser | null {
+  static get(): SessionUser | undefined {
     return PgSession._user;
   }
 
@@ -218,7 +219,7 @@ export class PgSession {
   }
 
   private static async _read() {
-    let next: SessionUser | null = null;
+    let next: SessionUser | undefined;
     let failed = false;
 
     try {
@@ -231,15 +232,15 @@ export class PgSession {
         const body = await jsonOrPage(response);
         // A page where this user's session came from is a proxy's, not this
         // host lacking the route: it says nothing about them
-        if (body === null && PgSession._user) failed = true;
+        if (body === undefined && PgSession._user) failed = true;
         next = body?.user
           ? {
               id: String(body.user.id),
-              name: body.user.name ?? null,
-              image: body.user.image ?? null,
-              login: body.user.login ?? null,
+              name: body.user.name ?? undefined,
+              image: body.user.image ?? undefined,
+              login: body.user.login ?? undefined,
             }
-          : null;
+          : undefined;
       } else if (await notConfigured(response)) {
         // This deployment has no sign-in, so nobody is signed in: an answer
       } else if (response.status === 404 && PgSession._user) {
@@ -306,7 +307,7 @@ export class PgSession {
 
   private static async _signIn(from: SignInOrigin | undefined) {
     authTelemetry.track("auth_sign_in_started", {});
-    PgSession._signingInFrom = from ?? null;
+    PgSession._signingInFrom = from;
     PgSession._setSignIn({ status: "pending" });
     try {
       await PgSession._signInThroughPopup();
@@ -319,17 +320,17 @@ export class PgSession {
       });
       throw error;
     } finally {
-      PgSession._signingInFrom = null;
+      PgSession._signingInFrom = undefined;
     }
     PgSession._setSignIn(IDLE);
     authTelemetry.track("auth_signed_in", {});
   }
 
   /**
-   * The origin passed to the `signIn` in progress, or `null` when none runs or it named none.
+   * The origin passed to the `signIn` in progress, or `undefined` when none runs or it named none.
    * Still set when `onDidChange` fires for that sign-in; cleared once it settles.
    */
-  static get signingInFrom(): SignInOrigin | null {
+  static get signingInFrom(): SignInOrigin | undefined {
     return PgSession._signingInFrom;
   }
 
@@ -486,7 +487,7 @@ export class PgSession {
         // The previous account's data may be left on this browser
         log.error(error, { report: true, context: { step: "teardown" } });
       }
-      PgSession._set(null);
+      PgSession._set(undefined);
     } finally {
       PgSession._ending = false;
     }
@@ -507,7 +508,7 @@ export class PgSession {
    * the browser side of `features/auth` stays unaware that persistence exists
    * (its server module, `model/auth.mjs`, does import it).
    */
-  static setOnSignOut(hook: SignOutHook | null) {
+  static setOnSignOut(hook: SignOutHook | undefined) {
     PgSession._onSignOut = hook;
   }
 
@@ -517,7 +518,7 @@ export class PgSession {
   }
 
   /** Test seam: set the user without a network round trip */
-  static async refreshWith(user: SessionUser | null) {
+  static async refreshWith(user: SessionUser | undefined) {
     PgSession._setRead("answered", user);
   }
 
@@ -528,12 +529,12 @@ export class PgSession {
 
   /** Test seam: drop all state without touching the network */
   static reset() {
-    PgSession._user = null;
-    PgSession._onSignOut = null;
+    PgSession._user = undefined;
+    PgSession._onSignOut = undefined;
     PgSession._listeners.clear();
     PgSession._channel = undefined;
     PgSession._openChannelImpl = openPopupChannel;
-    PgSession._signingInFrom = null;
+    PgSession._signingInFrom = undefined;
     PgSession._signingOut = undefined;
     PgSession._ending = false;
     PgSession._pending = undefined;
@@ -544,9 +545,9 @@ export class PgSession {
 
   private static _signingOut: Promise<void> | undefined;
   private static _ending = false;
-  private static _user: SessionUser | null = null;
-  private static _signingInFrom: SignInOrigin | null = null;
-  private static _onSignOut: SignOutHook | null = null;
+  private static _user: SessionUser | undefined;
+  private static _signingInFrom: SignInOrigin | undefined;
+  private static _onSignOut: SignOutHook | undefined;
   private static readonly _listeners = new Set<() => void>();
 
   private static _pending: Promise<void> | undefined;
@@ -572,7 +573,7 @@ export class PgSession {
   }
 
   /** Settle a read: its state, then its user, with one change for both */
-  private static _setRead(state: ReadState, user: SessionUser | null) {
+  private static _setRead(state: ReadState, user: SessionUser | undefined) {
     const next =
       state === "failed" && PgSession._readState === "answered"
         ? "answered"
@@ -585,7 +586,7 @@ export class PgSession {
   }
 
   /** Set the user; whether it changed, and so whether listeners heard */
-  private static _set(user: SessionUser | null): boolean {
+  private static _set(user: SessionUser | undefined): boolean {
     const unchanged =
       PgSession._user?.id === user?.id &&
       PgSession._user?.name === user?.name &&
@@ -613,9 +614,9 @@ if (import.meta.vitest) {
     });
     const signedIn = (user: {
       id: string;
-      name: string | null;
-      image?: string | null;
-      login?: string | null;
+      name: string | undefined;
+      image?: string | undefined;
+      login?: string | undefined;
     }) =>
       vi.fn().mockResolvedValue({
         ok: true,
@@ -648,7 +649,7 @@ if (import.meta.vitest) {
         await Promise.resolve();
         expect(settled).toBe(false);
 
-        answer({ id: "u1", name: null, image: null });
+        answer({ id: "u1", name: undefined, image: undefined });
         await Promise.all([read, waited]);
 
         expect(PgSession.get()?.id).toBe("u1");
@@ -658,6 +659,7 @@ if (import.meta.vitest) {
       it("reads once when nothing has read the session yet", async () => {
         const request = vi.spyOn(globalThis, "fetch").mockResolvedValue({
           ok: true,
+          // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for nobody
           json: async () => ({ user: null }),
         } as Response);
 
@@ -751,6 +753,7 @@ if (import.meta.vitest) {
         [
           "nobody",
           () =>
+            // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for nobody
             Promise.resolve({ ok: true, json: async () => ({ user: null }) }),
           false,
         ],
@@ -766,7 +769,7 @@ if (import.meta.vitest) {
 
           expect(PgSession.hasRead).toBe(true);
           expect(PgSession.readState).toBe(failed ? "failed" : "answered");
-          expect(PgSession.get()).toBeNull();
+          expect(PgSession.get()).toBeUndefined();
         }
       );
 
@@ -782,6 +785,7 @@ if (import.meta.vitest) {
         PgSession.onDidChange(heard);
         request.mockResolvedValueOnce({
           ok: true,
+          // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for nobody
           json: async () => ({ user: null }),
         } as Response);
         await PgSession.refresh();
@@ -794,6 +798,7 @@ if (import.meta.vitest) {
         initLogger({ providers: [memoryProvider()] });
         const request = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
           ok: true,
+          // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for nobody
           json: async () => ({ user: null }),
         } as Response);
         await PgSession.refresh();
@@ -859,7 +864,9 @@ if (import.meta.vitest) {
         initLogger({ providers: [memoryProvider()] });
         const request = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ user: { id: "u1", name: null, image: null } }),
+          json: async () => ({
+            user: { id: "u1", name: undefined, image: undefined },
+          }),
         } as Response);
         await PgSession.refresh();
         request.mockResolvedValueOnce(answer as Response);
@@ -872,7 +879,9 @@ if (import.meta.vitest) {
         initLogger({ providers: [memoryProvider()] });
         const request = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ user: { id: "u1", name: null, image: null } }),
+          json: async () => ({
+            user: { id: "u1", name: undefined, image: undefined },
+          }),
         } as Response);
         await PgSession.refresh();
         request.mockRejectedValueOnce(new Error("offline"));
@@ -882,12 +891,36 @@ if (import.meta.vitest) {
       });
 
       it("is signed out before any refresh", () => {
-        expect(PgSession.get()).toBeNull();
+        expect(PgSession.get()).toBeUndefined();
+      });
+
+      it("reads the profile fields the route answers `null` for as undefined", async () => {
+        vi.spyOn(globalThis, "fetch").mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            user: {
+              id: "u1",
+              // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for a missing field
+              name: null,
+              // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for a missing field
+              image: null,
+              // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for a missing field
+              login: null,
+            },
+          }),
+        } as Response);
+
+        await PgSession.refresh();
+
+        const user = PgSession.get();
+        expect(user?.name).toBeUndefined();
+        expect(user?.image).toBeUndefined();
+        expect(user?.login).toBeUndefined();
       });
 
       it("reads the user from the session endpoint", async () => {
         vi.spyOn(globalThis, "fetch").mockImplementation(
-          signedIn({ id: "u1", name: "Ada", image: null })
+          signedIn({ id: "u1", name: "Ada", image: undefined })
         );
 
         await PgSession.refresh();
@@ -895,8 +928,8 @@ if (import.meta.vitest) {
         expect(PgSession.get()).toEqual({
           id: "u1",
           name: "Ada",
-          image: null,
-          login: null,
+          image: undefined,
+          login: undefined,
         });
         expect(global.fetch).toHaveBeenCalledWith(
           "/api/auth/get-session",
@@ -908,13 +941,14 @@ if (import.meta.vitest) {
         vi.spyOn(globalThis, "fetch").mockImplementation(
           vi.fn().mockResolvedValue({
             ok: true,
+            // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for nobody
             json: async () => null,
           }) as unknown as typeof fetch
         );
 
         await PgSession.refresh();
 
-        expect(PgSession.get()).toBeNull();
+        expect(PgSession.get()).toBeUndefined();
       });
 
       it.each([
@@ -936,7 +970,7 @@ if (import.meta.vitest) {
 
           await PgSession.refresh();
 
-          expect(PgSession.get()).toBeNull();
+          expect(PgSession.get()).toBeUndefined();
           expect(logged.entries).toEqual([
             expect.objectContaining({ ns: "auth:session", level, report }),
           ]);
@@ -945,7 +979,7 @@ if (import.meta.vitest) {
 
       it("notifies subscribers when the user changes", async () => {
         vi.spyOn(globalThis, "fetch").mockImplementation(
-          signedIn({ id: "u1", name: null, image: null })
+          signedIn({ id: "u1", name: undefined, image: undefined })
         );
         const seen: unknown[] = [];
         const sub = PgSession.onDidChange(() => seen.push(PgSession.get()));
@@ -954,13 +988,13 @@ if (import.meta.vitest) {
         sub.dispose();
 
         expect(seen).toEqual([
-          { id: "u1", name: null, image: null, login: null },
+          { id: "u1", name: undefined, image: undefined, login: undefined },
         ]);
       });
 
       it("does not notify when the user is unchanged", async () => {
         vi.spyOn(globalThis, "fetch").mockImplementation(
-          signedIn({ id: "u1", name: "Ada", image: null })
+          signedIn({ id: "u1", name: "Ada", image: undefined })
         );
         await PgSession.refresh();
 
@@ -988,7 +1022,12 @@ if (import.meta.vitest) {
               : Promise.resolve({
                   ok: true,
                   json: async () => ({
-                    user: { id: "u1", name: "Ada", image: null, login: "ada" },
+                    user: {
+                      id: "u1",
+                      name: "Ada",
+                      image: undefined,
+                      login: "ada",
+                    },
                   }),
                 })
           ) as unknown as typeof fetch
@@ -1012,7 +1051,7 @@ if (import.meta.vitest) {
         expect(PgSession.get()).toEqual({
           id: "u1",
           name: "Ada",
-          image: null,
+          image: undefined,
           login: "ada",
         });
       });
@@ -1092,7 +1131,8 @@ if (import.meta.vitest) {
               ok: true,
               json: async () =>
                 input === "/api/auth/get-session"
-                  ? null
+                  ? // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for nobody
+                    null
                   : { url: "https://x/" },
             } as Response)
         );
@@ -1134,7 +1174,7 @@ if (import.meta.vitest) {
         }));
 
         await expect(PgSession.signIn()).rejects.toThrow(/cancelled/i);
-        expect(PgSession.get()).toBeNull();
+        expect(PgSession.get()).toBeUndefined();
       });
 
       it("says a popup that never answered did not finish", async () => {
@@ -1264,6 +1304,29 @@ if (import.meta.vitest) {
         expect(isSignInFailure(new TypeError("fetch failed"))).toBe(false);
       });
 
+      it("names the origin of a sign-in under way, and nothing while idle or once it settles", async () => {
+        const popup = heldPopup();
+        expect(PgSession.signingInFrom).toBeUndefined();
+
+        const pending = PgSession.signIn({ from: "assistant" });
+        expect(PgSession.signingInFrom).toBe("assistant");
+        await vi.waitFor(() => expect(popup.open).toHaveBeenCalled());
+        popup.cancel();
+        await expect(pending).rejects.toThrow(/cancelled/i);
+
+        expect(PgSession.signingInFrom).toBeUndefined();
+      });
+
+      it("names no origin for a sign-in that was given none", async () => {
+        const popup = heldPopup();
+
+        const pending = PgSession.signIn();
+        expect(PgSession.signingInFrom).toBeUndefined();
+        await vi.waitFor(() => expect(popup.open).toHaveBeenCalled());
+        popup.cancel();
+        await expect(pending).rejects.toThrow(/cancelled/i);
+      });
+
       it("does not start a second sign-in while one is pending", async () => {
         const popup = heldPopup();
 
@@ -1311,21 +1374,21 @@ if (import.meta.vitest) {
 
       it("signs out and clears the user", async () => {
         vi.spyOn(globalThis, "fetch").mockImplementation(
-          signedIn({ id: "u1", name: "Ada", image: null })
+          signedIn({ id: "u1", name: "Ada", image: undefined })
         );
         await PgSession.refresh();
-        expect(PgSession.get()).not.toBeNull();
+        expect(PgSession.get()).toBeDefined();
 
         await PgSession.signOut();
 
-        expect(PgSession.get()).toBeNull();
+        expect(PgSession.get()).toBeUndefined();
         expect(global.fetch).toHaveBeenCalledWith(
           "/api/auth/sign-out",
           expect.objectContaining({ method: "POST" })
         );
       });
 
-      const ada = { id: "u1", name: "Ada", image: null, login: null };
+      const ada = { id: "u1", name: "Ada", image: undefined, login: undefined };
 
       const signOutAnswers = (answer: Partial<Response>) =>
         vi.spyOn(globalThis, "fetch").mockResolvedValue(answer as Response);
@@ -1390,7 +1453,7 @@ if (import.meta.vitest) {
           "request",
           "teardown as u1, ending true",
         ]);
-        expect(PgSession.get()).toBeNull();
+        expect(PgSession.get()).toBeUndefined();
         expect(PgSession.isEnding).toBe(false);
       });
 
@@ -1434,7 +1497,7 @@ if (import.meta.vitest) {
         await PgSession.signOut();
 
         expect(teardown).toHaveBeenCalledTimes(1);
-        expect(PgSession.get()).toBeNull();
+        expect(PgSession.get()).toBeUndefined();
       });
 
       it("still signs out when the teardown fails, and reports it", async () => {
@@ -1449,7 +1512,7 @@ if (import.meta.vitest) {
 
         await PgSession.signOut();
 
-        expect(PgSession.get()).toBeNull();
+        expect(PgSession.get()).toBeUndefined();
         expect(logged.entries).toEqual([
           expect.objectContaining({
             ns: "auth:session",

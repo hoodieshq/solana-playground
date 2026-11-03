@@ -22,6 +22,7 @@ const countBuilds = async (page: Page) => {
     builds.push(route.request().url());
     return route.fulfill({
       contentType: "application/json",
+      // eslint-disable-next-line unicorn/no-null -- the stubbed build response is wire JSON, where `null` means no IDL
       body: JSON.stringify({ stderr: "", uuid: "e2e-build", idl: null }),
     });
   });
@@ -100,9 +101,9 @@ test.describe("on a desktop window", () => {
     await page.route("**/build", () => undefined);
     await page.goto("/");
     await homeRegion(page).getByRole("button", { name: "Run it" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Building…" })
-    ).toBeVisible(LONG);
+    await expect(page.getByRole("heading", { name: "Building…" })).toBeVisible(
+      LONG
+    );
 
     await page.clock.runFor(61_000);
     await expect(
@@ -138,6 +139,7 @@ test.describe("when the account check fails", () => {
         ? route.fulfill({ status: 502, body: "bad gateway" })
         : route.fulfill({
             contentType: "application/json",
+            // eslint-disable-next-line unicorn/no-null -- the stubbed auth route answers JSON `null`: nobody signed in
             body: JSON.stringify({ user: null }),
           })
     );

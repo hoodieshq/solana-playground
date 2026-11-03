@@ -54,7 +54,7 @@ const BaseRailFooter = ({
                   <Spinner aria-label="Sending feedback" />
                 ) : (
                   <AccountAvatar
-                    image={accountUser(account)?.image ?? null}
+                    image={accountUser(account)?.image}
                     sending={false}
                     className="size-4"
                   />

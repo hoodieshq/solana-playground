@@ -16,6 +16,7 @@ export const EVENT_PREFIXES = {
   "session-footer": "session",
   "settings-page": "settings",
   "setup-list": "setup",
+  skills: "skills",
   status: "status",
 } as const;
 

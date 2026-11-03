@@ -318,6 +318,9 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
   });
 
   it("says so when progress cannot be saved, and toasts once", async () => {
+    // The store imports the toast lazily. Loaded here first, that import
+    // resolves at once, so a `flush` covers every toast the writes cause
+    await import("./SaveFailedToast");
     const logged = memoryProvider();
     initLogger({ providers: [logged] });
     (PgTutorial.getStorage as Mock).mockImplementation(() => ({
@@ -345,9 +348,6 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
         expect(entry.error?.message).toBe("quota exceeded");
         expect(entry.report).toBe(true);
       }
-      // The toast component is imported lazily, so it can land after `flush`
-      await vi.waitFor(() => expect(PgView.setToast).toHaveBeenCalled());
-      await flush();
       expect(PgView.setToast).toHaveBeenCalledTimes(1);
       expect(
         (PgView.setToast as ReturnType<typeof vi.fn>).mock.calls[0][1]
@@ -355,6 +355,25 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
     } finally {
       sub?.dispose();
       resetLogger();
+    }
+  });
+
+  it("starts an empty record when the stored lesson is null", async () => {
+    // JSON on disk can hold `"lesson": null`; it reads as no progress yet
+    // eslint-disable-next-line unicorn/no-null -- a value JSON.parse returns
+    files.set(PATH.tutorial, { lesson: null });
+    explorer.currentWorkspaceName = PATH.tutorial;
+    const sub = PgLesson.init();
+    try {
+      await flush();
+
+      expect(PgLesson.state.loadFailed).toBe(false);
+      expect(PgLesson.state.record.events.map((e) => e.type)).toEqual([
+        "enter",
+      ]);
+    } finally {
+      sub.dispose();
+      files.delete(PATH.tutorial);
     }
   });
 

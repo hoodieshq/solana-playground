@@ -1,9 +1,10 @@
+import { afterEach, expect, it, vi } from "vitest";
+
 // The utils barrel reaches generated globals and wasm packages that exist only
 // in the built app
 vi.mock("../../../../utils", () => ({ PgConnection: { cluster: "devnet" } }));
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
 
 import { PgAssistant } from "../store";
 import type { McpServerEntry } from "@/features/mcp";

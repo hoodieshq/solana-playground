@@ -1,5 +1,4 @@
 // @vitest-environment node
-// `@types/mocha` also declares a global `it` and `describe`, without `each`
 import { describe, it } from "vitest";
 import type { Mock } from "vitest";
 import handler from "../../../api/agent.mjs";
@@ -322,13 +321,13 @@ describe("POST /api/agent body validation", () => {
     ["empty", ""],
   ];
 
-  for (const [label, key] of missingKeys) {
+  missingKeys.forEach(([label, key]) => {
     it(`answers 503 when the key is ${label}, before reading the body`, async () => {
       vi.stubEnv("AGENT_API_KEY", key);
       const res = await postJson(handler, "null");
       expect(res.statusCode).toBe(503);
     });
-  }
+  });
 });
 
 /**

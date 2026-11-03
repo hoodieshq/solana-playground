@@ -93,7 +93,7 @@ it("shows the name over the @login on the account row, and no wallet", () => {
     account: view({
       session: {
         status: "signed-in",
-        user: { name: "Tester", login: "t", image: null },
+        user: { name: "Tester", login: "t", image: undefined },
       },
       wallet: WALLET,
     }),
@@ -113,7 +113,7 @@ it("says signed-in work saves here while offline", () => {
     account: view({
       session: {
         status: "signed-in",
-        user: { name: "Tester", login: "t", image: null },
+        user: { name: "Tester", login: "t", image: undefined },
       },
       online: false,
     }),
