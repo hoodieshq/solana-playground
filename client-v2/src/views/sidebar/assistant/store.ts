@@ -2112,8 +2112,13 @@ if (import.meta.vitest) {
     });
 
     describe("PgAssistant when the session changes", () => {
-      const signedIn = (name: string | null) =>
-        PgSession.refreshWith({ id: "u1", name, image: null, login: null });
+      const signedIn = (name: string | undefined) =>
+        PgSession.refreshWith({
+          id: "u1",
+          name,
+          image: undefined,
+          login: undefined,
+        });
 
       const signedOutAndDisconnected = () => {
         PgAssistant.disconnect();
@@ -2126,11 +2131,11 @@ if (import.meta.vitest) {
       afterEach(signedOutAndDisconnected);
 
       it("needs sign-in for the default backend once the session ends", async () => {
-        await signedIn(null);
+        await signedIn(undefined);
         PgAssistant.connect({ id: "default", apiKey: "" });
         expect(PgAssistant.needsSignIn).toBe(false);
 
-        await PgSession.refreshWith(null);
+        await PgSession.refreshWith(undefined);
 
         expect(PgAssistant.needsSignIn).toBe(true);
         // Nothing opens on its own: the next send asks (`useTurn`)
@@ -2138,10 +2143,10 @@ if (import.meta.vitest) {
       });
 
       it("never needs sign-in for a key-based backend", async () => {
-        await signedIn(null);
+        await signedIn(undefined);
         PgAssistant.connect({ id: "openai", apiKey: "sk-test" });
 
-        await PgSession.refreshWith(null);
+        await PgSession.refreshWith(undefined);
 
         expect(PgAssistant.needsSignIn).toBe(false);
         // Signing out leaves the backend and its key where they were
@@ -2152,9 +2157,9 @@ if (import.meta.vitest) {
       });
 
       it("closes Connect a model even while the default backend has no session", async () => {
-        await signedIn(null);
+        await signedIn(undefined);
         PgAssistant.connect({ id: "default", apiKey: "" });
-        await PgSession.refreshWith(null);
+        await PgSession.refreshWith(undefined);
         PgAssistant.pickBackend();
 
         PgAssistant.keepBackend();
