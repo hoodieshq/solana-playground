@@ -296,6 +296,7 @@ export interface StepBarItem {
 }
 
 export type Placeholder =
+  | "Ask anything about this tutorial"
   | "Ask about this step"
   | "Ask while it builds"
   | "Ask anything";
@@ -710,7 +711,10 @@ export const view = (
   });
 
   let placeholder: Placeholder = "Ask about this step";
-  if (p.cursor.kind === "finished") placeholder = "Ask anything";
+  // Before Start there is no step to ask about yet
+  if (p.cursor.kind === "intro")
+    placeholder = "Ask anything about this tutorial";
+  else if (p.cursor.kind === "finished") placeholder = "Ask anything";
   else if (running) placeholder = "Ask while it builds";
 
   const lastTime = p.times[last.id];
@@ -796,7 +800,7 @@ if (import.meta.vitest) {
         "not_reached",
         "not_reached",
       ]);
-      expect(v.placeholder).toBe("Ask about this step");
+      expect(v.placeholder).toBe("Ask anything about this tutorial");
       expect(v.finishAt).toBeNull();
     });
 

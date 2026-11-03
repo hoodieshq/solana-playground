@@ -19,7 +19,11 @@ vi.mock("@/features/tutorial-conversation", () => ({
     say: vi.fn(),
     asked: vi.fn(),
     chip: vi.fn(),
+    start: vi.fn(),
   },
+}));
+vi.mock("@/views/sidebar/assistant/store", () => ({
+  PgAssistant: { items: [] },
 }));
 // The connected feed pulls in the explorer and the editor; the composer needs
 // only the state it re-renders on
@@ -29,6 +33,7 @@ vi.mock("./TutorialConversation", async () => {
 });
 
 import { PgConversation } from "@/features/tutorial-conversation";
+import { PgAssistant } from "@/views/sidebar/assistant/store";
 import BaseTutorialComposer from "./BaseTutorialComposer";
 import { TutorialComposer } from "./TutorialComposer";
 import type { ComposerTurn } from "./TutorialComposer";
@@ -39,6 +44,7 @@ const store = PgConversation as unknown as {
   say: ReturnType<typeof vi.fn>;
   asked: ReturnType<typeof vi.fn>;
   chip: ReturnType<typeof vi.fn>;
+  start: ReturnType<typeof vi.fn>;
 };
 
 const box = () => screen.getByRole("textbox", { name: "Message" });
@@ -52,6 +58,7 @@ const Held = (props: {
   const [value, setValue] = useState("");
   return (
     <BaseTutorialComposer
+      waiting={false}
       value={value}
       onChange={setValue}
       placeholder="Ask about this step"
@@ -87,6 +94,7 @@ describe("BaseTutorialComposer", () => {
   it("shows the moment's placeholder and is never disabled", () => {
     render(
       <BaseTutorialComposer
+        waiting={false}
         value=""
         onChange={vi.fn()}
         placeholder="Ask while it builds"
@@ -106,6 +114,7 @@ describe("BaseTutorialComposer", () => {
     const onSend = vi.fn();
     render(
       <BaseTutorialComposer
+        waiting={false}
         value="build"
         onChange={vi.fn()}
         placeholder="Ask about this step"
@@ -146,18 +155,27 @@ describe("TutorialComposer", () => {
       nextAt: null,
       finishAt: null,
     } as ConversationView);
-  const stateAt = (cursor: "step" | "finished") =>
+  /** Where the lesson stands, by the cursor's kind */
+  const CURSORS = {
+    intro: { kind: "intro" },
+    step: { kind: "step", stepId: definition.steps[0].id },
+    finished: { kind: "finished" },
+  } as const;
+  const stateAt = (cursor: keyof typeof CURSORS) =>
     ({
       context: { definition, slug: "hello-anchor" },
-      engine: {
-        progress: {
-          cursor:
-            cursor === "finished"
-              ? { kind: "finished" }
-              : { kind: "step", stepId: definition.steps[0].id },
-        },
-      },
+      loadedAt: 0,
+      engine: { progress: { cursor: CURSORS[cursor], restartedAt: null } },
     } as unknown as ConversationState);
+  const thread = PgAssistant as unknown as {
+    items: import("@/views/sidebar/assistant/store").ChatItem[];
+  };
+  const reply = (text: string) => ({
+    id: "a1",
+    createdAt: new Date(1000).toISOString(),
+    kind: "assistant" as const,
+    text,
+  });
 
   /** A turn whose input is held like `useTurn`'s */
   const Connected = ({
@@ -186,8 +204,52 @@ describe("TutorialComposer", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    thread.items = [];
     store.state = stateAt("step");
     store.view.mockReturnValue(view("Ask about this step"));
+  });
+
+  it("reads greyed before Start until focused, and still takes a question", async () => {
+    store.state = stateAt("intro");
+    store.view.mockReturnValue(view("Ask anything about this tutorial"));
+    store.say.mockReturnValue("assistant");
+    const t = turn();
+    const { container } = render(<Connected turn={t} />);
+    const waiting = container.querySelector("[data-waiting]");
+    expect(waiting?.className).toContain("opacity-50");
+    expect(waiting?.className).toContain("focus-within:opacity-100");
+    expect(screen.queryByRole("button", { name: "Start step 1" })).toBeNull();
+    expect(box().getAttribute("placeholder")).toBe(
+      "Ask anything about this tutorial"
+    );
+    await userEvent.type(box(), "what is a PDA{Enter}");
+    expect(t.send).toHaveBeenCalledWith("what is a PDA");
+  });
+
+  it("suggests starting once the assistant has answered before Start", async () => {
+    store.state = stateAt("intro");
+    store.view.mockReturnValue(view("Ask anything about this tutorial"));
+    thread.items = [reply("A PDA is an address a program signs for.")];
+    render(<Connected turn={turn()} />);
+    expect(screen.getByText("Ready to start the lesson?")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Start step 1" }));
+    expect(store.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds the suggestion while the answer is still coming", () => {
+    store.state = stateAt("intro");
+    store.view.mockReturnValue(view("Ask anything about this tutorial"));
+    thread.items = [reply("A PDA is")];
+    const busy = { send: vi.fn(async () => {}), stop: vi.fn(), busy: true };
+    render(<Connected turn={busy} />);
+    expect(screen.queryByRole("button", { name: "Start step 1" })).toBeNull();
+  });
+
+  it("lifts once the lesson has begun: no grey, no suggestion", () => {
+    thread.items = [reply("A PDA is an address a program signs for.")];
+    const { container } = render(<Connected turn={turn()} />);
+    expect(container.querySelector("[data-waiting]")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Start step 1" })).toBeNull();
   });
 
   it("runs a live action's word in the lesson, and never asks the assistant", async () => {

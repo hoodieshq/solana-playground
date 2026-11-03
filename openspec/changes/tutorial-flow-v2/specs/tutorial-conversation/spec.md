@@ -272,8 +272,13 @@ definition SHALL carry none.
 
 The chat column SHALL have one composer at its foot, never disabled. Enter
 sends and Shift+Enter breaks the line. ⌘↵ in the composer SHALL do nothing.
-The placeholder SHALL follow the moment: "Ask about this step", "Ask while it
-builds" while an act runs, and "Ask anything" after the finish. During the
+The placeholder SHALL follow the moment: "Ask anything about this tutorial"
+before Start, "Ask about this step", "Ask while it builds" while an act runs,
+and "Ask anything" after the finish. Before Start the composer SHALL read
+greyed until it takes focus, still taking a question or a start word. Once
+the assistant has answered a question before Start, the composer SHALL
+suggest starting, "Ready to start the lesson?", with a "Start step 1" button
+that starts the lesson as the intro card's does. Both lift on Start. During the
 lesson there SHALL be no chips row. After the finish, the definition's finish
 chips SHALL show above the composer. What the composer does with a message,
 in this order:
@@ -313,6 +318,15 @@ assistant MAY link one of the tutorial's doc pages in its answer (see
 
 - **WHEN** in step 1 the learner types "what does declare_id do?"
 - **THEN** the assistant answers in the feed, and no file changes
+
+#### Scenario: A question before Start
+
+- **WHEN** a learner on the intro card types "what is a PDA?"
+- **THEN** the composer read greyed until focused, with the placeholder
+  "Ask anything about this tutorial", and no "Start step 1" button
+- **AND** the assistant's answer posts in the feed, after which the composer
+  suggests starting, with a "Start step 1" button
+- **AND** after "Start step 1" the composer reads as usual, with no suggestion
 
 #### Scenario: Typed "I'm stuck"
 
