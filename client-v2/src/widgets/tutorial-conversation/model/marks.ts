@@ -9,7 +9,11 @@ import type {
  * What the feed lights in a file of the editor (`tutorial-workspace`'s
  * `LineMarks`, less the failed build's line, which the workspace reads
  * itself): the lines the assistant last wrote there, and where the open
- * question's answer lands.
+ * question's answer lands. A copy of that shape, not an import: one widget
+ * never imports another, and `views/flow/Flow.tsx` joins the two, where the
+ * type checker holds them to the same fields.
+ * TODO(tutorial-flow-v2): move the shared shape down to `entities/tutorial`
+ * if a third reader appears.
  */
 export interface FeedMarks {
   readonly written: readonly number[];
