@@ -35,7 +35,9 @@ const isCancel = (error: unknown) => {
 
 /** What the prompt shows for a sign-in that ended without a session */
 const messageOf = (error: unknown) =>
-  error instanceof Error && error.message ? error.message : "Sign-in failed.";
+  error instanceof Error && error.message
+    ? error.message
+    : "Could not sign in.";
 
 /** The prompt's one button: sign in, cancel its own wait, or wait on another's */
 const buttonText = (waiting: boolean, cancellable: boolean) => {

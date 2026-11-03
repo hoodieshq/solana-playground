@@ -53,10 +53,14 @@ export interface ShareGistProps {
 const SIGN_IN_CANCELLED = "Sign-in cancelled.";
 
 const messageOf = (error: unknown) =>
-  error instanceof Error && error.message ? error.message : "Sign-in failed.";
+  error instanceof Error && error.message
+    ? error.message
+    : "Could not sign in.";
 
-/** The toast a copy that reached the clipboard shows */
+/** The toast a copy that reached the clipboard shows, naming the link */
 const LinkCopied = () => <span>Link copied</span>;
+const GithubLinkCopied = () => <span>GitHub link copied</span>;
+const COPIED_TOAST = { playground: LinkCopied, github: GithubLinkCopied };
 
 /**
  * The share dialog's body, connected: signs in when it must, asks for gist
@@ -182,7 +186,9 @@ const ShareGist = ({
       return;
     }
     if (mounted.current) setCopyFailed(false);
-    PgView.setToast(LinkCopied, { options: { name: "gist-link-copied" } });
+    PgView.setToast(COPIED_TOAST[link], {
+      options: { name: "gist-link-copied" },
+    });
     gistTelemetry.track("gist_link_copied", { copied: link });
   };
 

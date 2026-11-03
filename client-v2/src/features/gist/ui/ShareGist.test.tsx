@@ -3,7 +3,7 @@
 // gist access asked for only when the token lacks it, the links it copies,
 // and every ending counted once.
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { StrictMode } from "react";
+import { type ComponentType, StrictMode } from "react";
 import type { Mock } from "vitest";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -205,22 +205,27 @@ it("copies the Playground link, toasts and counts it", async () => {
   expect(toast.mock.calls[0][1]).toEqual({
     options: { name: "gist-link-copied" },
   });
+  const Toast = toast.mock.calls[0][0] as ComponentType;
+  expect(render(<Toast />).container.textContent).toBe("Link copied");
   expect(sent.events.at(-1)).toEqual({
     name: "gist_link_copied",
     params: { copied: "playground" },
   });
 });
 
-it("copies the GitHub link from its own button", async () => {
+it("copies the GitHub link from its own button, naming it in the toast", async () => {
   answers([201, { url: URL, id: "abc" }]);
   const write = stubClipboard(async () => {});
-  vi.spyOn(PgView, "setToast").mockImplementation(vi.fn());
+  const toast = vi.spyOn(PgView, "setToast").mockImplementation(vi.fn());
   renderShare();
   await press(/^Share to GitHub$/);
 
   await press(/^Copy GitHub link$/);
 
   expect(write).toHaveBeenCalledWith(URL);
+  // Spec 05, Share copy: "Link copied · GitHub link copied"
+  const Toast = toast.mock.calls[0][0] as ComponentType;
+  expect(render(<Toast />).container.textContent).toBe("GitHub link copied");
   expect(sent.events.at(-1)).toEqual({
     name: "gist_link_copied",
     params: { copied: "github" },
@@ -356,6 +361,20 @@ it("stays ready when the project cannot be read, and tells the user", async () =
   expect(sent.events).toEqual([]);
 });
 
+it("says it could not sign in when the failure carries no words", async () => {
+  renderShareWith({
+    signedIn: false,
+    signIn: vi.fn().mockRejectedValue(new Error("")),
+    cancelSignIn: noCancel(),
+    readFiles: async () => FILES,
+  });
+
+  await press(/^Sign in with GitHub$/);
+
+  // Spec 08 ACCT-03
+  expect(screen.getByText("Could not sign in.")).toBeTruthy();
+});
+
 it("says so when the browser blocks the sign-in popup", async () => {
   renderShareWith({
     signedIn: false,
@@ -384,7 +403,11 @@ it("asks for gist access once, then retries by itself with the same visibility",
     fireEvent.click(screen.getByRole("radio", { name: "Public" }))
   );
   await press(/^Share to GitHub$/);
-  expect(screen.getByText(/GitHub needs your permission/)).toBeTruthy();
+  expect(
+    screen.getByText(
+      /^Playground needs permission to create gists on your GitHub\.$/
+    )
+  ).toBeTruthy();
 
   await press(/Allow gists on GitHub/);
 
@@ -412,7 +435,11 @@ it("stops when GitHub still lacks gist access after the grant", async () => {
   await press(/^Share to GitHub$/);
   await press(/Allow gists on GitHub/);
 
-  expect(screen.getByText(/GitHub did not grant gist access/)).toBeTruthy();
+  expect(
+    screen.getByText(
+      /^Playground can't write to your GitHub without permission\.$/
+    )
+  ).toBeTruthy();
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(sent.events.at(-1)).toEqual({
     name: "gist_export_failed",
@@ -426,7 +453,7 @@ it("offers sign-in again when GitHub revoked the grant", async () => {
 
   await press(/^Share to GitHub$/);
   expect(
-    screen.getByText(/GitHub no longer accepts this sign-in/)
+    screen.getByText(/^GitHub access was removed\. Sign in again to share\.$/)
   ).toBeTruthy();
 
   await press(/Sign in with GitHub again/);

@@ -381,7 +381,9 @@ test("gist-sharing: Access still missing after the popup", async ({ page }) => {
     .click(LONG);
 
   await expect(
-    dialog(page).getByText(/GitHub did not grant gist access/)
+    dialog(page).getByText(
+      /Playground can't write to your GitHub without permission/
+    )
   ).toBeVisible(LONG);
   expect(requests).toHaveLength(2);
 });
@@ -537,7 +539,7 @@ test("gist-sharing: Copying the GitHub link", async ({ page, context }) => {
 
   await dialog(page).getByRole("button", { name: "Copy GitHub link" }).click();
 
-  await expect(page.getByText("Link copied")).toBeVisible();
+  await expect(page.getByText("GitHub link copied")).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     GIST_URL
   );

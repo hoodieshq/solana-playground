@@ -131,8 +131,8 @@ access is granted SHALL retry the export once by itself.
 #### Scenario: Access still missing after the popup
 
 - **WHEN** the retry after granting access answers `needs-gist-scope` again
-- **THEN** the dialog says GitHub did not grant gist access and offers no
-  automatic retry
+- **THEN** the dialog says "Playground can't write to your GitHub without
+  permission." and offers no automatic retry
 
 ### Requirement: Show the gist when it is made
 
@@ -520,7 +520,8 @@ project list is the way in.
 ### Requirement: Copy the Playground link
 
 In the shared state, each copy action SHALL write its value to the clipboard
-and show the toast "Link copied". A clipboard that refuses SHALL show no
+and show a toast naming what was copied: "Link copied" for the Playground
+link, "GitHub link copied" for the GitHub URL (Spec 05). A clipboard that refuses SHALL show no
 toast, and the dialog SHALL say the link could not be copied.
 
 #### Scenario: Copying the Playground link
@@ -530,5 +531,5 @@ toast, and the dialog SHALL say the link could not be copied.
 
 #### Scenario: Copying the GitHub link
 - **WHEN** the user presses "Copy GitHub link"
-- **THEN** the clipboard holds the gist's GitHub URL and a "Link copied"
-  toast shows
+- **THEN** the clipboard holds the gist's GitHub URL and a "GitHub link
+  copied" toast shows
