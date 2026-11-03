@@ -15,6 +15,7 @@ import { Button } from "@/shared/ui/button";
 import {
   Command,
   CommandEmpty,
+  CommandGroup,
   CommandItem,
   CommandList,
 } from "@/shared/ui/command";
@@ -153,8 +154,9 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
     // Hide search results
     setIsVisible(false);
 
-    // Reset back to the original items
+    // Reset back to the original items, and load the groups afresh next time
     setItemState({ items, isInSubSearch: false });
+    groupLists.clear();
 
     // Reset the input to its last saved value
     if (restoreIfNotSelected) setInputValue(lastValue.current);
@@ -201,36 +203,65 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
 
       return { ...item, isSelected };
     });
-  const filteredItems = normalizedItems
-    ? filter
-      ? normalizedItems.filter((item) =>
-          filter({
-            input: props.value,
-            item,
-            items: normalizedItems,
+  const topRows: Row[] | null = normalizedItems
+    ? (filter
+        ? normalizedItems.filter((item) =>
+            filter({
+              input: props.value,
+              item,
+              items: normalizedItems,
+            })
+          )
+        : normalizedItems.filter((item) => {
+            if (item.onlyShowIfValid) {
+              return isValid(getItemValue(item));
+            }
+
+            // Show all options if the input is valid
+            if (isValid(props.value)) return true;
+
+            return matchesQuery(props.value)(item);
           })
-        )
-      : normalizedItems.filter((item) => {
-          if (item.onlyShowIfValid) {
-            return isValid(getItemValue(item));
-          }
-
-          // Show all options if the input is valid
-          if (isValid(props.value)) return true;
-
-          if (typeof item.matches === "function") {
-            return item.matches(props.value);
-          }
-
-          const matches = item.matches ?? [item.label];
-          const lowerCaseValue = props.value.toLowerCase();
-          return matches.some((match) => {
-            return typeof match === "string"
-              ? match.toLowerCase().includes(lowerCaseValue)
-              : match.test(lowerCaseValue);
-          });
-        })
+      ).map((item) => ({ key: item.label, item }))
     : null;
+
+  // Typing on the top level also searches inside the groups, so an entry
+  // need not be found by opening each group in turn. Not with a caller's own
+  // `filter`, nor once the input is a valid value (every item shows then).
+  const isSearchingGroups =
+    !!normalizedItems &&
+    !filter &&
+    !itemState.isInSubSearch &&
+    !!props.value.trim() &&
+    !isValid(props.value);
+  const groupLists = useGroupLists(
+    isSearchingGroups ? itemState.items : undefined
+  );
+  const nestedRows: Row[] =
+    isSearchingGroups && normalizedItems
+      ? normalizedItems.flatMap((group) => {
+          const children = groupLists.get(group.label) ?? [];
+          return children
+            .map(normalizeItem)
+            .filter(
+              (child) =>
+                !child.onlyShowIfValid &&
+                matchesQuery(props.value)(withValueMatch(child))
+            )
+            .map((child) => ({
+              key: `${group.label}›${child.label}`,
+              group,
+              item: {
+                ...child,
+                isSelected:
+                  selectedItems.completed[0]?.label === group.label &&
+                  selectedItems.completed[1]?.label === child.label,
+              },
+            }));
+        })
+      : [];
+  /** Every row the list shows, in its visual (and keyboard) order */
+  const filteredItems = topRows ? [...topRows, ...nestedRows] : null;
 
   const [loading, setLoading] = useState(false);
   const searchCommon = async (_item: Item) => {
@@ -292,10 +323,16 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
       reportButtonFailure(`pick ${normalizeItem(item).label}`)
     );
   };
+  /** Pick a row; a nested one as if its group were opened first */
+  const pickRow = (row: Row) => {
+    const { group } = row;
+    if (group) setSelectedItems((items) => ({ ...items, pending: [group] }));
+    pick(row.item);
+  };
   const searchTopResult = () => {
     if (filteredItems && keyboardSelectionIndex !== null) {
-      const selectedItem = filteredItems.at(keyboardSelectionIndex);
-      if (selectedItem) pick(selectedItem);
+      const selectedRow = filteredItems.at(keyboardSelectionIndex);
+      if (selectedRow) pickRow(selectedRow);
     } else setIsVisible(true);
   };
   useKeybind("Enter", {
@@ -321,7 +358,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
       // just got mounted, therefore, either set the selection index to the
       // actual selected item, or if the selected item doesn't exist, select
       // the first item
-      const index = filteredItems.findIndex((item) => item.isSelected);
+      const index = filteredItems.findIndex((row) => row.item.isSelected);
       setKeyboardSelectionIndex(index === -1 ? 0 : index);
     } else {
       // If there is a selection, check whether the selected item exists in the
@@ -406,10 +443,22 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  const renderRow = (row: Row) => (
+    <CommandItem
+      key={row.key}
+      ref={row.item.isSelected ? selectedItemRef : null}
+      value={row.key}
+      data-checked={row.item.isSelected}
+      onSelect={() => pickRow(row)}
+    >
+      {row.item.element ?? row.item.label}
+    </CommandItem>
+  );
+
   const highlighted =
     keyboardSelectionIndex === null
       ? ""
-      : filteredItems?.at(keyboardSelectionIndex)?.label ?? "";
+      : filteredItems?.at(keyboardSelectionIndex)?.key ?? "";
 
   return (
     <div ref={wrapperRef} className="w-full">
@@ -557,9 +606,9 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
             <Command
               shouldFilter={false}
               value={highlighted}
-              onValueChange={(label) => {
+              onValueChange={(key) => {
                 const index = filteredItems
-                  ? filteredItems.findIndex((item) => item.label === label)
+                  ? filteredItems.findIndex((row) => row.key === key)
                   : -1;
                 if (index !== -1) setKeyboardSelectionIndex(index);
               }}
@@ -567,16 +616,15 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
             >
               <CommandList className="max-h-60">
                 <CommandEmpty className="py-2">No match</CommandEmpty>
-                {filteredItems?.map((item) => (
-                  <CommandItem
-                    key={item.label}
-                    ref={item.isSelected ? selectedItemRef : null}
-                    value={item.label}
-                    data-checked={item.isSelected}
-                    onSelect={() => pick(item)}
+                {topRows?.map(renderRow)}
+                {groupRowsOf(nestedRows).map(({ group, rows }) => (
+                  <CommandGroup
+                    key={group.label}
+                    heading={group.label}
+                    className="p-0"
                   >
-                    {item.element ?? item.label}
-                  </CommandItem>
+                    {rows.map(renderRow)}
+                  </CommandGroup>
                 ))}
               </CommandList>
             </Command>
@@ -595,6 +643,89 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
 
 const normalizeItem = (item: Item): NormalizedItem => {
   return typeof item === "object" ? item : { label: item };
+};
+
+/** A row of the list: a top-level item, or an entry found inside `group` */
+type Row = { key: string; item: NormalizedItem; group?: NormalizedItem };
+
+/** Whether `item` matches what was typed: its `matches`, else its label */
+const matchesQuery = (query: string) => (item: NormalizedItem) => {
+  if (typeof item.matches === "function") return item.matches(query);
+
+  const matches = item.matches ?? [item.label];
+  const lowerCaseQuery = query.toLowerCase();
+  return matches.some((match) => {
+    return typeof match === "string"
+      ? match.toLowerCase().includes(lowerCaseQuery)
+      : match.test(lowerCaseQuery);
+  });
+};
+
+/**
+ * `item` also matched by its value, so an entry found inside a group (a
+ * program, a Pyth feed) is found by its address as well as its name
+ */
+const withValueMatch = (item: NormalizedItem): NormalizedItem => {
+  if (typeof item.value !== "string" || typeof item.matches === "function") {
+    return item;
+  }
+  return { ...item, matches: [...(item.matches ?? [item.label]), item.value] };
+};
+
+/** Consecutive nested rows of one group, for a heading each */
+const groupRowsOf = (rows: Row[]) =>
+  rows.reduce<Array<{ group: NormalizedItem; rows: Row[] }>>((acc, row) => {
+    const last = acc.at(-1);
+    if (!row.group) return acc;
+    if (last?.group.label === row.group.label) last.rows.push(row);
+    else acc.push({ group: row.group, rows: [row] });
+    return acc;
+  }, []);
+
+/**
+ * The lists of the groups among `items`, by group label, loaded the first
+ * time they are asked for and kept until `clear`. `items` is rebuilt on every
+ * render of most callers, so a group is known by its label, not its identity.
+ * A group whose list fails to load is left out of the search: its own page
+ * reports the failure when the user opens it.
+ */
+const useGroupLists = (items: Item[] | null | undefined) => {
+  const lists = useRef(new Map<string, Item[]>());
+  const requested = useRef(new Set<string>());
+  const [, setLoaded] = useState(0);
+
+  useEffect(() => {
+    for (const item of items ?? []) {
+      if (typeof item !== "object" || !item.items) continue;
+      const { label, items: source } = item;
+      if (requested.current.has(label)) continue;
+      requested.current.add(label);
+
+      Promise.resolve()
+        .then(() => PgCommon.callIfNeeded(source))
+        .then((list) => {
+          if (!requested.current.has(label)) return;
+          lists.current.set(label, list);
+          setLoaded((n) => n + 1);
+        })
+        .catch((e) => {
+          log.debug("A group's list did not load for the search; skipped", {
+            context: {
+              group: label,
+              message: e instanceof Error ? e.message : String(e),
+            },
+          });
+        });
+    }
+  }, [items]);
+
+  return {
+    get: (label: string) => lists.current.get(label),
+    clear: () => {
+      lists.current.clear();
+      requested.current.clear();
+    },
+  };
 };
 
 type InputError = InputProps["error"];

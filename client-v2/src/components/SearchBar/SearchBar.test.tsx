@@ -292,6 +292,92 @@ describe("components/SearchBar", () => {
     expect(document.activeElement).toBe(input());
   });
 
+  it("finds an entry inside a group by name and lists it under the group", async () => {
+    render(
+      <Harness
+        items={[
+          "Random",
+          { label: "All programs", items: ["System", "Token Metadata"] },
+        ]}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.type(input(), "metadata");
+
+    expect(optionNames()).toEqual(["Token Metadata"]);
+    const group = option("Token Metadata").closest(
+      '[data-slot="command-group"]'
+    );
+    expect(group?.textContent).toContain("All programs");
+  });
+
+  it("finds an entry inside a group by its address", async () => {
+    render(
+      <Harness
+        items={[
+          {
+            label: "Pyth",
+            items: [
+              {
+                label: "Crypto.BTC/USD",
+                value: "HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J",
+              },
+              {
+                label: "Crypto.ETH/USD",
+                value: "EdVCmQ9FSPcVe5YySXDPCRmc8aDQLKJ9xvYBMZPie1Vw",
+              },
+            ],
+          },
+        ]}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.type(input(), "hovqm");
+    expect(optionNames()).toEqual(["Crypto.BTC/USD"]);
+  });
+
+  it("loads a group's list once to search it, and picks with the whole path", async () => {
+    const setSelectedItems = vi.fn();
+    const load = vi.fn(() =>
+      Promise.resolve([{ label: "Crypto.SOL/USD", value: "sol-feed" }])
+    );
+    render(
+      <Harness
+        items={[{ label: "Pyth", items: load }]}
+        setSelectedItems={setSelectedItems}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.type(input(), "sol");
+    expect(
+      await screen.findByRole("option", { name: "Crypto.SOL/USD" })
+    ).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(option("Crypto.SOL/USD"));
+    expect(input().value).toBe("sol-feed");
+    expect(lastLabels(setSelectedItems)).toEqual(["Pyth", "Crypto.SOL/USD"]);
+  });
+
+  it("a group that fails to load while typing is skipped, not reported", async () => {
+    failures.actions.length = 0;
+    render(
+      <Harness
+        items={[
+          "Random",
+          {
+            label: "Token accounts",
+            items: () => Promise.reject(new Error("rpc")),
+          },
+        ]}
+      />
+    );
+    await userEvent.click(input());
+    await userEvent.type(input(), "rand");
+    expect(optionNames()).toEqual(["Random"]);
+    expect(failures.actions).toEqual([]);
+  });
+
   it("the search button opens the list", async () => {
     render(<Harness items={["a"]} />);
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
