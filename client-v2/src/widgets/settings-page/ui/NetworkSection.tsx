@@ -135,7 +135,12 @@ const NetworkSection = () => {
         name: rpc.name,
         picked,
         onUndo: () => {
-          PgCustomRpcs.restore(removed.rpc, removed.index);
+          if (!PgCustomRpcs.restore(removed.rpc, removed.index)) {
+            PgView.setToast(() => <span>Could not put {rpc.name} back.</span>, {
+              options: { name: "custom-rpc-restore-failed" },
+            });
+            return;
+          }
           // Only while the network is still the Devnet the remove moved it
           // to: a network picked since then stays
           if (picked && PgSettings.connection.endpoint === DEFAULT_ENDPOINT) {

@@ -210,11 +210,14 @@ export const PgCustomRpcs = {
     return write(list) ? { rpc, index } : undefined;
   },
 
-  /** Put a removed RPC back where it was, or last if the list shrank */
-  restore(rpc: CustomRpc, index: number): void {
+  /**
+   * Put a removed RPC back where it was, or last if the list shrank; false
+   * when the browser refused the write
+   */
+  restore(rpc: CustomRpc, index: number): boolean {
     const list = read().filter((r) => r.url !== rpc.url);
     list.splice(Math.min(index, list.length), 0, rpc);
-    write(list);
+    return write(list);
   },
 
   /**
@@ -292,7 +295,7 @@ if (import.meta.vitest) {
       });
     });
 
-    it("hostOf is the host alone, port included, never the path or query", () => {
+    it("returns the host alone from hostOf, port included, never the path or query", () => {
       expect(hostOf("https://rpc.example.com/v1/key?api-key=s")).toBe(
         "rpc.example.com"
       );
@@ -388,7 +391,7 @@ if (import.meta.vitest) {
       expect(PgCustomRpcs.list()).toEqual(before);
     });
 
-    it("removing a URL not listed is undefined", () => {
+    it("answers undefined when removing a URL that is not listed", () => {
       expect(PgCustomRpcs.remove("https://none.test/")).toBeUndefined();
     });
 

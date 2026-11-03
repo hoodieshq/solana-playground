@@ -23,7 +23,7 @@ The Network row's radio group (`aria-label="Network"`) SHALL show Devnet, Mainne
 
 ### Requirement: Adding a custom RPC
 
-An "Add custom RPC" button SHALL open an inline form with a "Name" field, an "RPC URL" field and a "Save" button, under the help line "Any Solana RPC URL. It stays in this browser." Save or Enter SHALL save a valid entry and pick it. An empty name SHALL save as the URL's host; a name SHALL be at most 32 characters. "Cancel" SHALL close the form and save nothing.
+An "Add custom RPC" button SHALL open an inline form with a "Name" field, an "RPC URL" field and a "Save" button, under the help line "Any Solana RPC URL. It stays in this browser." Save or Enter SHALL save a valid entry and pick it. An empty name SHALL save as the URL's host, or as "Testnet" or "Localnet" for those clusters' addresses; a name SHALL be at most 32 characters. "Cancel" SHALL close the form and save nothing.
 
 #### Scenario: A new RPC is saved and picked
 
@@ -66,7 +66,7 @@ The list of saved RPCs (`aria-label="Custom RPCs"`) SHALL show each RPC's name a
 
 ### Requirement: Editing and removing a saved RPC
 
-Each saved RPC SHALL have an "Edit {name}" and a "Remove {name}" button. Edit SHALL open the form filled in and save under the same rules. Remove SHALL drop the RPC and show a toast "Removed {name}." with "Undo"; removing the picked RPC SHALL set the network to Devnet and say "Removed {name}. Network is Devnet now." Undo SHALL put the RPC back where it was and re-pick it if it was picked and the network is still Devnet.
+Each saved RPC SHALL have an "Edit {name}" and a "Remove {name}" button. Edit SHALL open the form filled in and save under the same rules. Remove SHALL drop the RPC and show a toast "Removed {name}." with "Undo"; removing the picked RPC SHALL set the network to Devnet and say "Removed {name}. Network is Devnet now." Undo SHALL put the RPC back where it was and re-pick it if it was picked and the network is still Devnet. A remove or an Undo the browser cannot store SHALL say "Could not remove {name}." or "Could not put {name} back."
 
 #### Scenario: Editing renames the chip
 
