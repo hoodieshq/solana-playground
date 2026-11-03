@@ -159,7 +159,7 @@ const placement = (
  */
 export const groundOf = (
   write: { file: string; ref?: string; start?: string },
-  step: Pick<Step, "start" | "target"> | undefined
+  step: Pick<Step, "start" | "target"> | null | undefined
 ): { reference: string | undefined; start: string } => ({
   reference: write.ref ?? step?.target[write.file],
   start: write.start ?? step?.start[write.file] ?? "",

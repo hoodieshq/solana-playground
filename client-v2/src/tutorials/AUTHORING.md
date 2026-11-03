@@ -179,7 +179,7 @@ A write with neither lands against the step's target and start, as above.
 Give every write of the failing build the same `ref`, so the lines the
 failure's copy quotes ("line 20") are the lines the learner sees.
 
-```json
+```text
 "writes": {
   "file": "src/lib.rs",
   "block": "    pub board: Box<Account<'info, Board>>,",
