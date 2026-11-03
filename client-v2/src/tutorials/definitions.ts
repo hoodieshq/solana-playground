@@ -30,12 +30,12 @@ export const definitionTutorials = (others: TutorialData[]): TutorialData[] => {
     thumbnail: DEFINITION_FILES[slug].thumbnail ?? d.thumbnail,
     pageCount: d.steps.length,
     unixTimestamp: DEFINITION_FILES[slug].unixTimestamp,
-    // Never rendered for a definition: the route opens it on its intro
-    // (`openOnIntro`), so it is started before `LessonRoute` would show this
-    // About page. Kept because `TutorialData` requires one, named as
-    // `createTutorial` names it (only Hello Anchor has one); task 7.1
-    // retires it with the v1 lesson
-    importComponent: () => import(`./${slug}/${d.name.replaceAll(" ", "")}`),
+    // Never called: the route opens a definition on its intro card
+    // (`openOnIntro`) and draws the editor itself. `TutorialData` requires one
+    importComponent: () =>
+      Promise.reject(
+        new Error(`${d.name} opens in the conversation, not as a component`)
+      ),
     definition: d,
   }));
 };

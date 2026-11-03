@@ -246,9 +246,11 @@ const FlowFrame = () => {
   const inFrame = tutorial.frame !== undefined && viewport === "wide";
   const terminal = useTutorialTerminal();
 
-  // Under the frame's width a tutorial keeps the old layout, and its
-  // conversation takes the assistant's column until the phone's own layout
-  // (`tutorial-phone`) lands
+  // Under the frame's width a tutorial keeps the plain layout, and its
+  // conversation takes the assistant's column (the delta's "a conversation
+  // tutorial has no assistant panel of its own").
+  // TODO(HOO-2359): the column does not open itself, so a learner there opens
+  // the chat to find Start; the phone's own layout replaces this
   const chatInColumn = tutorial.frame !== undefined && !inFrame;
   // None before a tutorial's Start: its intro offers only Start
   const stagesOffered = useStagesOffered();

@@ -26,7 +26,7 @@ const SUGGESTIONS = [
  */
 const MAKE_CHANGE =
   "Write this change for me, using write_file with the complete new content " +
-  "of the file — the change you just described, or the one this step needs " +
+  "of the file — the change you just described, or the one my question needs " +
   "if you have not described one yet. If it touches more than one file, do " +
   "them one at a time. Skip the explanation you would usually give first and " +
   "summarise it in one line afterwards.";

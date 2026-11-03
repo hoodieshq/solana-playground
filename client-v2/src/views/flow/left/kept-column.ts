@@ -2,8 +2,8 @@
  * What the files column held when it last unmounted, in which project
  * (`PgExplorer.currentWorkspaceId`, which a rename keeps).
  * Hidden by ⌘E or the stage bar, the column leaves the layout and unmounts
- * (design.md, "Frame chrome (5.25)"), so its scroll is put back from here when it comes back; the tree keeps its folders on its
- * own (`kept-tree.ts`).
+ * (design.md, "Frame chrome (5.25)"), so its scroll is put back from here
+ * when it comes back; the tree keeps its folders on its own (`kept-tree.ts`).
  */
 export type KeptColumn = { workspace: string; scrollTop: number };
 
