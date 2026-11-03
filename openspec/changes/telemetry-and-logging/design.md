@@ -111,16 +111,22 @@ and the level set and error handling of its
     _Rejected:_ a hand-written catalogue (drifts); TSDoc alone (a change's
     analytics impact is invisible until coded).
 
-12. **Reports are scrubbed in the reporter.** `reporter/sentry.ts` passes
-    `beforeBreadcrumb` and `beforeSend` the pure rules in `reporter/scrub.ts`:
-    console breadcrumbs only from the logger, without their raw arguments,
-    and secret-shaped strings (base58 or hex runs of 64+ characters, lists of
-    32+ bytes) redacted across the event. The user's tests print through
-    mocha's `spec` reporter to the main window's `console.log`, which
-    Sentry's `Console` integration records with every argument. _Rejected:_
+12. **Reports are scrubbed in the reporter.** The user's tests print through
+    mocha's `spec` reporter to the main window's `console.log`, which Sentry's
+    `Console` integration records as breadcrumbs, and no console call tells
+    their output from the logger's. So the integration is off, and the Sentry
+    provider leaves each entry at `warn` or above as a breadcrumb through
+    `reporter.trail`. `reporter/sentry.ts` passes `beforeBreadcrumb` and
+    `beforeSend` the pure rules in `reporter/scrub.ts`, which walk the whole
+    event and redact secret-shaped values: hex or base58 runs of 64+
+    characters, and 32+ bytes in any shape, including the index-keyed object
+    Sentry's normalising makes of a typed array. An event the rules cannot walk
+    is replaced by a "withheld" event, since Sentry drops a throwing
+    `beforeSend` without a word. Feedback is not an error event, so its text
+    is sent as written. _Rejected:_ keeping console breadcrumbs whose first
+    argument is the logger's tag (user output can start with one too);
     scrubbing at each call site (the user's output never passes through our
-    code); turning console breadcrumbs off (the logger's trail before an
-    error is the most useful context a report has).
+    code); a list of event fields to scrub (every field left off is a leak).
 
 ## Risks / Trade-offs
 

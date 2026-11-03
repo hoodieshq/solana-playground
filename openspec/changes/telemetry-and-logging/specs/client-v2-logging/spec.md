@@ -174,25 +174,32 @@ named after the commit SHA, and SHALL NOT deploy the `.map` files.
 
 ### Requirement: Reports carry no user code or secret key
 
-What the browser sends to Sentry SHALL NOT carry the user's program output or
-a secret key. A console breadcrumb SHALL be kept only when its first argument
-is the logger's `[<slice>:<module>]` tag, and SHALL NOT keep the call's raw
-arguments. A base58 or hex run of 64 or more characters, and a list of 32 or
-more numbers from 0 to 255, SHALL be replaced with `[redacted]` in exception
-values, messages, breadcrumbs, extras, contexts and tags. Public keys (32 to
-44 base58 characters) SHALL be kept, and the text of a feedback SHALL be sent
-as the user wrote it.
+An error event the browser sends to Sentry SHALL NOT carry the user's program
+output or a secret key. Sentry's `Console` integration SHALL be off and every
+`console` breadcrumb dropped; the logger's own trail SHALL reach Sentry as
+breadcrumbs the reporter adds, one per entry at `warn` or above. In every
+value of an error event and of a breadcrumb, a hex or base58 run of 64 or more
+characters, and a list of 32 or more numbers from 0 to 255 (bracketed, bare,
+a typed array or an index-keyed object), SHALL be replaced with `[redacted]`.
+An event that cannot be scrubbed SHALL be replaced by one that says it was
+withheld. Public keys (32 to 44 base58 characters) SHALL be kept. A feedback
+SHALL be sent as the user wrote it: it is text they chose to send.
 
 #### Scenario: The user's test prints to the console
 
-- **WHEN** a test the user runs prints a value with `console.log`, and an
-  error is reported afterwards
+- **WHEN** a test the user runs prints a value with `console.log`, even one
+  that starts with a `[slice:module]` tag, and an error is reported afterwards
 - **THEN** the report's breadcrumbs do not include that output
 
 #### Scenario: A secret key in an error message
 
 - **WHEN** a reported error's message quotes a 64-byte secret key, as base58
   or as a JSON byte array
+- **THEN** the report shows `[redacted]` in its place
+
+#### Scenario: A secret key in a reported context
+
+- **WHEN** a reported entry's context holds a secret key as a `Uint8Array`
 - **THEN** the report shows `[redacted]` in its place
 
 #### Scenario: A wallet address in a reported context
