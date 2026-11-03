@@ -42,18 +42,23 @@ vi.mock("../../../effects/chat-thread/push-thread", () => ({
 
 // What the chips read: the workspace, the bridge and the lesson. The real ones
 // reach the utils barrel, which needs the build's globals
-const { noEvent } = vi.hoisted(() => ({
+const { noEvent, deleted } = vi.hoisted(() => ({
   noEvent: () => ({ dispose: () => {} }),
+  /** The composer's listener for a deleted item, fired by a test */
+  deleted: { fire: (_path: string) => {} },
 }));
 vi.mock("../../../utils/explorer/explorer", () => ({
   PgExplorer: {
     currentFilePath: "src/lib.rs",
     // Each test gets its own, so one test's context choice is not another's
-    currentWorkspaceName: "w0",
+    currentWorkspaceId: "w0",
     getItemNameFromPath: (path: string) => path.split("/").pop(),
     onDidSetTabs: noEvent,
     onDidCreateItem: noEvent,
-    onDidDeleteItem: noEvent,
+    onDidDeleteItem: (cb: (path: string) => void) => {
+      deleted.fire = cb;
+      return { dispose: () => {} };
+    },
     onDidRenameItem: noEvent,
     onDidSwitchWorkspace: noEvent,
   },
@@ -74,10 +79,11 @@ vi.mock(
       realBridge: {
         listFiles: () => FILES,
         listOpenFiles: () => ["src/lib.rs"],
+        toProjectPath: (path: string) => path.replace(/^\/+/, ""),
         listContextFiles: () =>
           contextPaths(
             ["src/lib.rs"],
-            PgAssistantContext.choice(PgExplorer.currentWorkspaceName ?? null),
+            PgAssistantContext.choice(PgExplorer.currentWorkspaceId ?? null),
             (path) => FILES.includes(path)
           ),
       },
@@ -181,8 +187,8 @@ let workspaces = 0;
 beforeEach(async () => {
   const { PgExplorer } = await import("../../../utils/explorer/explorer");
   (
-    PgExplorer as { currentWorkspaceName: string }
-  ).currentWorkspaceName = `w${++workspaces}`;
+    PgExplorer as { currentWorkspaceId: string }
+  ).currentWorkspaceId = `w${++workspaces}`;
 });
 
 describe("AssistantComposer, context chips", () => {
@@ -246,6 +252,21 @@ describe("AssistantComposer, context chips", () => {
       "assistant_context_file_added",
       { via: "menu" },
     ]);
+  });
+
+  it("forgets an added file once it is deleted", async () => {
+    const { PgAssistantContext } = await import("@/entities/assistant-context");
+    const { PgExplorer } = await import("../../../utils/explorer/explorer");
+    render(<Harness />);
+    const user = await openMenu(/Add context/);
+    await openAddFile(user);
+    await pickFile(user, "tests/anchor.test.ts");
+
+    act(() => deleted.fire("/tests/anchor.test.ts"));
+
+    expect(
+      PgAssistantContext.choice(PgExplorer.currentWorkspaceId ?? null).added
+    ).toEqual([]);
   });
 
   it("offers a removed tab under Add a file, and brings its chip back", async () => {

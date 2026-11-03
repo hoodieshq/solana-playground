@@ -80,7 +80,7 @@
 
 **Files:** `e2e/client-v2-assistant.e2e.spec.ts`.
 
-- [ ] `assistant-composer-context: Only the context reaches the model`. Stub `/api/agent` and capture the POST bodies. The default project has `src/lib.rs` open: add `client/client.ts` through the menu, remove nothing, send. The body contains `client/client.ts` and `src/lib.rs`, and not the path of a file never opened, for example `tests/anchor.test.ts`, if the template has one (pick from the template's tree at implementation).
+- [ ] `assistant-composer-context: Only the context reaches the model`. Stub `/api/agent` and capture the POST bodies. The default Anchor project opens `src/lib.rs` alone: add `client/client.ts` through the menu and send. The body carries the text unique to `lib.rs` and `client.ts`, and neither `tests/anchor.test.ts` nor its unique text (the tool declarations name `src/lib.rs` as an example, so paths alone prove nothing).
 - [ ] `assistant-composer-context: Remove an open tab from the context`: remove `lib.rs`, send two messages, and neither body contains `src/lib.rs`.
 - [ ] `assistant-composer-context: Add a file that is not open`: add via the menu, see the chip and the telemetry line.
 - [ ] Run `yarn test-e2e e2e/client-v2-assistant.e2e.spec.ts -g assistant-composer-context`. Commit.

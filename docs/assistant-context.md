@@ -110,13 +110,15 @@ the browser, behind the same approval gates.
   apply explicitly" is enforced in the loop itself, identically for every
   provider, rather than by the transport inspecting a call before it runs.
 - Project context comes from what the client already holds: `PgExplorer` for
-  files and the open tab, `PgProgramInfo` for the IDL and program ID,
+  files and the open tabs, `PgProgramInfo` for the IDL and program ID,
   `PgGlobal` for build and deploy state. Every turn carries the
   conversation's context in full: the open tabs plus the files the user added
   with + › Add a file, minus the ones they removed from it. No other path of
   the project is sent, and `read_file` refuses any file outside the context,
-  telling the model to ask for it (the 29 Oct security review). The chips
-  above the composer name exactly that, one per file.
+  telling the model to ask for it, so the user decides what of their code
+  goes to the model provider. The chips above the composer name exactly that,
+  one per file. One known limit: a failed build's compiler output is sent as
+  it is, and it can name or quote a file outside the context.
 - The panel is a new sidebar page, so it sits beside the editor without covering
   it, and it is the page the app opens on.
 - You stay in control of a turn: the backend is named above the chat and can be

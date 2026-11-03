@@ -38,14 +38,14 @@ The + menu SHALL offer "Add a file", a submenu listing by relative path every pr
 - **WHEN** the person opens "Add context", then "Add a file", and picks `tests/anchor.test.ts`
 - **THEN** a chip "anchor.test.ts" appears, the next request carries that file in full, and `assistant_context_file_added` is sent with `via: "menu"`
 
-### Requirement: The context resets with the project
+### Requirement: Choices belong to their project
 
-Files added and files removed SHALL apply to the project they were chosen in. Switching to another project SHALL start from its open tabs alone. A reload SHALL also start from the open tabs.
+Files added and files removed SHALL apply to the project they were chosen in, and SHALL be kept for it while the page is open, across a switch to another project and back and across a rename. Another project SHALL start from its own open tabs. A reload SHALL start from the open tabs. Deleting a file SHALL drop the choices about it, so a new file made at its path is not in the context until it is added.
 
 #### Scenario: Switch projects (manual)
 
-- **WHEN** the person added a file in project A, then opens project B
-- **THEN** B's chips are B's open tabs only
+- **WHEN** the person removed `secret.rs` in project A, added a file in project B, then returns to A
+- **THEN** B's chips were B's open tabs plus its added file, and in A `secret.rs` is still out of the context
 
 ## MODIFIED Requirements
 

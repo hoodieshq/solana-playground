@@ -32,8 +32,8 @@ const log = createLogger("assistant:composer");
 /** How a chip names what it sends, for a screen reader */
 const sent = (what: string) => `Sent with this message: ${what}`;
 
-/** The workspace a context choice belongs to */
-const workspace = () => PgExplorer.currentWorkspaceName ?? null;
+/** The workspace a context choice belongs to, by its stable id */
+const workspace = () => PgExplorer.currentWorkspaceId ?? null;
 
 /**
  * What the assistant reads each turn, as chips over the input: the lesson
@@ -64,8 +64,8 @@ const contextChips = (
       },
     };
   });
-  // The prototype's order: where you are, what you are looking at, then
-  // what else is sent
+  // Where you are, the files (tabs in tab order, then the added ones),
+  // then what else is sent
   return [
     lesson
       ? {
@@ -144,7 +144,13 @@ export function AssistantComposer({
     const subs = [
       PgExplorer.onDidSetTabs(render),
       PgExplorer.onDidCreateItem(render),
-      PgExplorer.onDidDeleteItem(render),
+      // A deleted file's picks go with it, so a new file made at its path is
+      // not in the context until the user adds it
+      PgExplorer.onDidDeleteItem((fullPath) => {
+        const path = realBridge.toProjectPath(fullPath);
+        if (path) PgAssistantContext.forget(workspace(), path);
+        render();
+      }),
       PgExplorer.onDidRenameItem(render),
       PgExplorer.onDidSwitchWorkspace(render),
     ];
