@@ -4,6 +4,7 @@ import { Check, ChevronDown } from "lucide-react";
 
 import type { StepJumpVia } from "@/entities/tutorial";
 import type { StepBarItem } from "@/features/tutorial-conversation";
+import { COARSE_HIT_ROW } from "@/shared/lib/hit-area";
 import { cn } from "@/shared/lib/utils";
 import {
   DropdownMenu,
@@ -124,6 +125,7 @@ const BaseStepBar = ({ steps, live, viewing, onJump }: BaseStepBarProps) => {
         <DropdownMenuTrigger
           disabled={live === null}
           className={cn(
+            COARSE_HIT_ROW,
             "group -mx-1.5 flex h-[1.125rem] items-center gap-1.5 rounded-md px-1.5 text-[0.875rem] leading-[1.125rem] font-label hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
             FOCUS
           )}
@@ -192,6 +194,7 @@ const BaseStepBar = ({ steps, live, viewing, onJump }: BaseStepBarProps) => {
               aria-current={currentOf(viewing === index, live === index)}
               onClick={() => onJump(index, "bar")}
               className={cn(
+                COARSE_HIT_ROW,
                 "flex h-3 items-center disabled:cursor-default",
                 FOCUS
               )}

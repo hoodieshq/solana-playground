@@ -44,3 +44,13 @@ Plan: [plans/1-frame-and-scale.md](plans/1-frame-and-scale.md).
 - [x] 5.1 Re-pin `tutorial-flow-v2` proposal and design to `f7d42bf2e`, with
       the line that the 31 Oct type scale and step head supersede
       `fb4b8e9ee`. Verify: `yarn spec:validate`
+
+## 6. Added by Lead, 3 Nov 22:04
+
+- [x] 6.1 DES-160: from 1024 px the desktop frame; under a finger the step
+      head and the workspace head's small controls take a 44 px hit area
+      and look the same. Verify: unit tests unchanged; by hand with touch
+      emulation at 1024
+- [ ] 6.2 The act card's main button colour: f7d42bf2e draws it off-white
+      (its warm palette); DES-160's 3 Nov palette is purple with white text.
+      Asked Lead; no change until answered
