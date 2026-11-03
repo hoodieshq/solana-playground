@@ -81,36 +81,43 @@ const write = (list: CustomRpc[]) => {
   listeners.forEach((cb) => cb());
 };
 
+/** Save `input`, over the entry saved under `replacing` when there is one */
+const put = (input: CustomRpc, replacing: string | undefined): SaveResult => {
+  const check = checkRpcUrl(input.url);
+  if (!check.ok) return check;
+
+  const list = read();
+  const taken = list.find((r) => r.url === check.url && r.url !== replacing);
+  if (taken) return { ok: false, reason: "duplicate", name: taken.name };
+
+  const name = input.name.trim().slice(0, NAME_MAX) || hostOf(check.url);
+  const rpc = { name, url: check.url };
+  const at = list.findIndex((r) => r.url === replacing);
+  if (at === -1) list.push(rpc);
+  else list[at] = rpc;
+  write(list);
+  return { ok: true, rpc };
+};
+
 /** The saved custom RPCs, kept in this browser under their own key */
 export const PgCustomRpcs = {
   list: read,
 
-  /**
-   * Save an RPC, or replace the one saved under `replacing` (its URL) in
-   * place. An empty name saves as the URL's host.
-   */
-  save(input: CustomRpc, replacing?: string): SaveResult {
-    const check = checkRpcUrl(input.url);
-    if (!check.ok) return check;
+  /** Save a new RPC; an empty name saves as the URL's host */
+  save(input: CustomRpc): SaveResult {
+    return put(input, undefined);
+  },
 
-    const list = read();
-    const taken = list.find((r) => r.url === check.url && r.url !== replacing);
-    if (taken) return { ok: false, reason: "duplicate", name: taken.name };
-
-    const name = input.name.trim().slice(0, NAME_MAX) || hostOf(check.url);
-    const rpc = { name, url: check.url };
-    const at = replacing ? list.findIndex((r) => r.url === replacing) : -1;
-    if (at === -1) list.push(rpc);
-    else list[at] = rpc;
-    write(list);
-    return { ok: true, rpc };
+  /** Replace the RPC saved under `url` in place, under the same rules */
+  replace(url: string, input: CustomRpc): SaveResult {
+    return put(input, url);
   },
 
   /** Drop the RPC saved under `url`; what and where, for an undo */
-  remove(url: string): { rpc: CustomRpc; index: number } | null {
+  remove(url: string): { rpc: CustomRpc; index: number } | undefined {
     const list = read();
     const index = list.findIndex((r) => r.url === url);
-    if (index === -1) return null;
+    if (index === -1) return undefined;
     const [rpc] = list.splice(index, 1);
     write(list);
     return { rpc, index };
@@ -161,7 +168,14 @@ if (import.meta.vitest) {
       localStorage.clear();
     });
 
-    const add = (url: string, name = "") => PgCustomRpcs.save({ name, url });
+    const add = (name: string, url: string) => PgCustomRpcs.save({ name, url });
+
+    /** Remove, then restore, as the toast's Undo does */
+    const removeAndRestore = (url: string) => {
+      const removed = PgCustomRpcs.remove(url);
+      if (!removed) throw new Error(`not listed: ${url}`);
+      PgCustomRpcs.restore(removed.rpc, removed.index);
+    };
 
     describe("checkRpcUrl", () => {
       it.each([
@@ -195,7 +209,7 @@ if (import.meta.vitest) {
     });
 
     it("saves an unnamed RPC under its host", () => {
-      const saved = add("https://rpc.example.com/v1/k");
+      const saved = add("", "https://rpc.example.com/v1/k");
       expect(saved).toEqual({
         ok: true,
         rpc: { name: "rpc.example.com", url: "https://rpc.example.com/v1/k" },
@@ -206,12 +220,12 @@ if (import.meta.vitest) {
     });
 
     it("trims a name and keeps at most 32 characters of it", () => {
-      add("https://a.test", `  ${"x".repeat(40)}  `);
+      add(`  ${"x".repeat(40)}  `, "https://a.test");
       expect(PgCustomRpcs.list()[0].name).toBe("x".repeat(32));
     });
 
     it("refuses a URL that fails the rule, and saves nothing", () => {
-      expect(add("http://api.devnet.solana.com")).toEqual({
+      expect(add("", "http://api.devnet.solana.com")).toEqual({
         ok: false,
         reason: "format",
       });
@@ -219,8 +233,8 @@ if (import.meta.vitest) {
     });
 
     it("refuses a URL already saved, compared as a URL, naming the saved one", () => {
-      add("https://rpc.example.com/", "Helius");
-      expect(add("https://RPC.example.com")).toEqual({
+      add("Helius", "https://rpc.example.com/");
+      expect(add("", "https://RPC.example.com")).toEqual({
         ok: false,
         reason: "duplicate",
         name: "Helius",
@@ -228,8 +242,8 @@ if (import.meta.vitest) {
     });
 
     it("keeps the order of saving, and persists across a fresh read", () => {
-      add("https://a.test", "A");
-      add("https://b.test", "B");
+      add("A", "https://a.test");
+      add("B", "https://b.test");
       const raw = JSON.parse(localStorage.getItem("customRpcs") ?? "null");
       expect(raw).toEqual([
         { name: "A", url: "https://a.test/" },
@@ -239,12 +253,12 @@ if (import.meta.vitest) {
     });
 
     it("replaces an edited entry in place", () => {
-      add("https://a.test", "A");
-      add("https://b.test", "B");
-      const edited = PgCustomRpcs.save(
-        { name: "A2", url: "https://a2.test" },
-        "https://a.test/"
-      );
+      add("A", "https://a.test");
+      add("B", "https://b.test");
+      const edited = PgCustomRpcs.replace("https://a.test/", {
+        name: "A2",
+        url: "https://a2.test",
+      });
       expect(edited.ok).toBe(true);
       expect(PgCustomRpcs.list()).toEqual([
         { name: "A2", url: "https://a2.test/" },
@@ -253,39 +267,38 @@ if (import.meta.vitest) {
     });
 
     it("lets an edit keep its own URL, but not take another's", () => {
-      add("https://a.test", "A");
-      add("https://b.test", "B");
+      add("A", "https://a.test");
+      add("B", "https://b.test");
       expect(
-        PgCustomRpcs.save(
-          { name: "A!", url: "https://a.test" },
-          "https://a.test/"
-        ).ok
+        PgCustomRpcs.replace("https://a.test/", {
+          name: "A!",
+          url: "https://a.test",
+        }).ok
       ).toBe(true);
       expect(
-        PgCustomRpcs.save(
-          { name: "A", url: "https://b.test" },
-          "https://a.test/"
-        )
+        PgCustomRpcs.replace("https://a.test/", {
+          name: "A",
+          url: "https://b.test",
+        })
       ).toEqual({ ok: false, reason: "duplicate", name: "B" });
     });
 
     it("restores a removed entry where it was", () => {
-      add("https://a.test", "A");
-      add("https://b.test", "B");
-      add("https://c.test", "C");
+      add("A", "https://a.test");
+      add("B", "https://b.test");
+      add("C", "https://c.test");
       const before = PgCustomRpcs.list();
-      const removed = PgCustomRpcs.remove("https://b.test/");
-      expect(removed).toEqual({
+      expect(PgCustomRpcs.remove("https://b.test/")).toEqual({
         rpc: { name: "B", url: "https://b.test/" },
         index: 1,
       });
       expect(PgCustomRpcs.list().map((r) => r.name)).toEqual(["A", "C"]);
-      PgCustomRpcs.restore(removed!.rpc, removed!.index);
+      PgCustomRpcs.restore({ name: "B", url: "https://b.test/" }, 1);
       expect(PgCustomRpcs.list()).toEqual(before);
     });
 
-    it("removing a URL not listed is null", () => {
-      expect(PgCustomRpcs.remove("https://none.test/")).toBeNull();
+    it("removing a URL not listed is undefined", () => {
+      expect(PgCustomRpcs.remove("https://none.test/")).toBeUndefined();
     });
 
     it.each([
@@ -323,12 +336,11 @@ if (import.meta.vitest) {
     it("tells listeners about every change, and stops when disposed", () => {
       const cb = vi.fn();
       const sub = PgCustomRpcs.onDidChange(cb);
-      add("https://a.test", "A");
-      const removed = PgCustomRpcs.remove("https://a.test/");
-      PgCustomRpcs.restore(removed!.rpc, removed!.index);
+      add("A", "https://a.test");
+      removeAndRestore("https://a.test/");
       expect(cb).toHaveBeenCalledTimes(3);
       sub.dispose();
-      add("https://b.test", "B");
+      add("B", "https://b.test");
       expect(cb).toHaveBeenCalledTimes(3);
     });
 
