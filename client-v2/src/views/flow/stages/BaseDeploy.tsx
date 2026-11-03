@@ -112,7 +112,8 @@ export interface BaseDeployProps {
   idlUpload: ReactNode;
   /**
    * The folded "Program id" block (`ProgramKeypair`): under the payer line
-   * before the first deploy, under the history after one
+   * before the first deploy on the network picked, under the history after
+   * one
    */
   programKeypair: ReactNode;
   /** Opens the CLI deploy guide; `from` is the control pressed */
@@ -163,7 +164,11 @@ const description = (p: BaseDeployProps, latest: DeployRecord | undefined) => {
   if (latest) {
     return "The program id stays constant across deploys; redeploying upgrades it in place.";
   }
-  if (p.history.length > 0) return "Each network keeps its own deployments.";
+  // Said only once the network is known: until then there is no "here" to
+  // set against the others
+  if (p.cluster && p.history.length > 0) {
+    return "Each network keeps its own deployments.";
+  }
   return `Deploying sends the compiled program to ${deployNetwork(p)}.`;
 };
 
@@ -351,11 +356,12 @@ const MainnetWarningBody = ({ p }: { p: BaseDeployProps }) => {
 };
 
 /**
- * The Deploy stage, drawn from props alone; `Deploy` connects it. Before the
- * first deploy it is the prototype's empty stage: centred, the pill with
- * "Upload IDL" and "Deploy with the CLI" under it, no history yet. After one
- * it shows the result and the history, read from the left. The CLI guide's
- * button shows on every cluster.
+ * The Deploy stage, drawn from props alone; `Deploy` connects it. It reads
+ * the network picked now: before the first deploy there it is the
+ * prototype's empty stage, centred, the pill with "Upload IDL" and "Deploy
+ * with the CLI" under it, and History below when other networks have
+ * deployments. After one it shows the result and the history, read from the
+ * left. The CLI guide's button shows on every cluster.
  */
 const BaseDeploy = (p: BaseDeployProps) => {
   // Each network keeps its own deployments: the stage reads only the

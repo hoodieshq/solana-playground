@@ -390,7 +390,7 @@ describe("BaseDeploy", () => {
     expect(screen.getByText("2,048 bytes")).toBeTruthy();
   });
 
-  it("shows the empty stage on a network with no deployment, history and all", () => {
+  it("shows the empty stage with every network's history on a network with no deployment", () => {
     const { container } = render(
       <BaseDeploy
         {...props({
@@ -427,9 +427,10 @@ describe("BaseDeploy", () => {
           deploy: "idle",
           cluster: "testnet",
           history: [
-            recordFor("devnet")("c", "devsig"),
-            recordFor("testnet")("b", "testsig"),
-            recordFor("devnet")("a", NONE),
+            recordFor("devnet")("d", "devsig"),
+            recordFor("testnet")("c", "testsig"),
+            recordFor("devnet")("b", NONE),
+            recordFor("testnet")("a", NONE),
           ],
         })}
       />
@@ -437,7 +438,7 @@ describe("BaseDeploy", () => {
 
     expect(
       container.querySelector('[data-slot="stage-empty-meta"]')?.textContent
-    ).toBe("Testnet · 1 deployment");
+    ).toBe("Testnet · 2 deployments");
     const result = screen.getByRole("status", { name: "Deploy result" });
     expect(result.textContent).toContain("Deployed to testnet");
     expect(
@@ -447,6 +448,28 @@ describe("BaseDeploy", () => {
     ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Redeploy to testnet" })
+    ).toBeTruthy();
+    expect(
+      screen.queryByText("Each network keeps its own deployments.")
+    ).toBeNull();
+  });
+
+  it("does not set the network against the others until it is known", () => {
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          // eslint-disable-next-line unicorn/no-null -- the cluster is `null` until the endpoint is read
+          cluster: null,
+          history: [record("a", NONE)],
+        })}
+      />
+    );
+
+    expect(screen.getByText("Nothing deployed yet")).toBeTruthy();
+    expect(
+      screen.getByText("Deploying sends the compiled program to the network.")
     ).toBeTruthy();
   });
 
