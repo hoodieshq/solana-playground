@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 // How one Interact call becomes an outcome: sent and confirmed, failed on
 // chain, refused in preflight, or never sent; and what reaches the history.
 const h = vi.hoisted(() => ({
@@ -34,8 +35,6 @@ vi.mock("../../../utils", () => ({
 vi.mock("../../../utils/program-interaction", () => ({
   PgProgramInteraction: { test: h.test },
 }));
-
-import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runCall } from "./run-call";
 import { PgCallHistory } from "../state/call-history";
