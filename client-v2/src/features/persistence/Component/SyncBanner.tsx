@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { TriangleAlertIcon } from "lucide-react";
+import { CircleAlertIcon, TriangleAlertIcon } from "lucide-react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
-import { Callout, CalloutDescription } from "@/shared/ui/callout";
+import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
 import { ConflictResolver } from "../ui/ConflictResolver";
 import { PgProjectSync } from "../model/project-sync";
 import { MAX_PROJECT_BODY_LABEL } from "../model/project-write.mjs";
 import { persistenceTelemetry } from "../model/telemetry";
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import { PgView } from "../../../utils/view";
+import { RenameWorkspace } from "../../../views/sidebar/explorer/Component/Modals/RenameWorkspace";
 import type { Conflict, Resolution } from "../model/project-sync";
 
 /** `src/lib.rs`, or `src/lib.rs and 2 other files` */
@@ -63,20 +65,33 @@ const divergentMessage = (conflict: Conflict) => {
   return "This project changed on another device, and this one has unsaved changes.";
 };
 
-/** What the user is shown, and what each answer does */
+/**
+ * What a banner button does: give an answer, or open the rename dialog for
+ * the open project. Only the answers a button can give alone; `resolved`
+ * carries content
+ */
+type Action = { label: string; primary?: boolean } & (
+  | { resolution: Extract<Resolution, string> }
+  | { opens: "rename" }
+);
+
+/**
+ * What the user is shown, and what each answer does. Titles and tones are
+ * Spec 08's ACCT-06 to ACCT-09: a question about two copies is a warning, a
+ * project that has stopped uploading is an error
+ */
 const PROMPTS: Record<
   Conflict["kind"],
   {
+    title: string;
+    variant: "warning" | "error";
     message: (conflict: Conflict) => string;
-    // Only the answers a button can give alone; `resolved` carries content
-    actions: {
-      label: string;
-      resolution: Extract<Resolution, string>;
-      primary?: boolean;
-    }[];
+    actions: Action[];
   }
 > = {
   divergent: {
+    title: "Changed on another device",
+    variant: "warning",
     message: divergentMessage,
     actions: [
       { label: "Keep this version", resolution: "keep-local", primary: true },
@@ -84,6 +99,8 @@ const PROMPTS: Record<
     ],
   },
   "deleted-elsewhere": {
+    title: "Deleted on another device",
+    variant: "warning",
     message: () =>
       "This project was deleted on another device, but this one has unsaved changes.",
     actions: [
@@ -101,12 +118,21 @@ const PROMPTS: Record<
   // pushed again, so without something to press, renaming the project or
   // deleting the file that made it too big would fix the cause and leave it
   // stuck anyway.
+  // Renaming does not upload by itself: the retry stays a separate press, so
+  // a name refused again is said again rather than retried in a loop
   "name-taken": {
+    title: "Not syncing",
+    variant: "error",
     message: () =>
       "Another project in your account uses this name. Rename this one, then try again.",
-    actions: [{ label: "Try again", resolution: "retry", primary: true }],
+    actions: [
+      { label: "Rename", opens: "rename", primary: true },
+      { label: "Try again", resolution: "retry" },
+    ],
   },
   "too-large": {
+    title: "Too large to sync",
+    variant: "error",
     message: () =>
       `This project is over ${MAX_PROJECT_BODY_LABEL}. Remove or shrink its largest files, then try again.`,
     actions: [{ label: "Try again", resolution: "retry", primary: true }],
@@ -193,10 +219,13 @@ const SyncBanner = () => {
 
     const named = namedPath(conflict);
     const at = named ? message.indexOf(named) : -1;
+    const Icon =
+      prompt.variant === "error" ? CircleAlertIcon : TriangleAlertIcon;
 
     return (
-      <Callout variant="warning">
-        <TriangleAlertIcon />
+      <Callout variant={prompt.variant}>
+        <Icon />
+        <CalloutTitle>{prompt.title}</CalloutTitle>
         {/* Message left, buttons right; the buttons drop below when it gets
             narrow. Full opacity: the message is the point of the banner */}
         <CalloutDescription className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 opacity-100">
@@ -226,12 +255,18 @@ const SyncBanner = () => {
             )}
             {prompt.actions.map((action) => (
               <AsyncButton
-                key={action.resolution}
+                key={action.label}
                 variant={action.primary ? "default" : "outline"}
                 size="sm"
                 disabled={busy}
-                onClick={() => answer(action.resolution)}
-                onError={reportButtonFailure("apply your choice")}
+                onClick={() =>
+                  "opens" in action
+                    ? PgView.setModal(RenameWorkspace)
+                    : answer(action.resolution)
+                }
+                onError={reportButtonFailure(
+                  "opens" in action ? "rename the project" : "apply your choice"
+                )}
               >
                 {action.label}
               </AsyncButton>

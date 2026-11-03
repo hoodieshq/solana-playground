@@ -1,5 +1,12 @@
 // The resolve view loads Monaco, which jsdom cannot run; it is not opened
 vi.mock("../ui/ConflictResolver", () => ({ ConflictResolver: () => null }));
+// The rename dialog reads the app's settings, which a test never boots
+vi.mock(
+  "../../../views/sidebar/explorer/Component/Modals/RenameWorkspace",
+  () => ({
+    RenameWorkspace: () => null,
+  })
+);
 // The banner binds its onError at render, before a test could spy on it
 const report = vi.hoisted(() => vi.fn());
 vi.mock("@/shared/lib/report-button-failure", () => ({
@@ -20,7 +27,10 @@ import {
 } from "@/shared/lib/telemetry";
 import { PgProjectSync } from "../model/project-sync";
 import type { FileConflict } from "../model/merge";
+import type { Conflict } from "../model/project-sync";
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import { PgView } from "../../../utils/view";
+import { RenameWorkspace } from "../../../views/sidebar/explorer/Component/Modals/RenameWorkspace";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -193,5 +203,81 @@ describe("SyncBanner wording", () => {
     );
     expect(labels).toContain("Keep a copy");
     expect(labels).toContain("Delete anyway");
+  });
+});
+
+describe("SyncBanner titles and actions", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  /** Mount the banner over a conflict of `kind` */
+  const mount = async (kind: Conflict["kind"]) => {
+    vi.spyOn(PgProjectSync, "conflictFor").mockReturnValue({
+      projectId: "p1",
+      kind,
+    });
+    await act(async () => root.render(<SyncBanner />));
+  };
+  const buttonLabels = () =>
+    Array.from(container.querySelectorAll("button")).map((b) =>
+      b.textContent?.trim()
+    );
+
+  beforeEach(() => {
+    vi.spyOn(PgExplorer, "currentWorkspaceId", "get").mockReturnValue("p1");
+    vi.spyOn(PgExplorer, "onDidSwitchWorkspace").mockReturnValue({
+      dispose: () => undefined,
+    });
+    vi.spyOn(PgProjectSync, "onDidChangeConflicts").mockReturnValue({
+      dispose: () => undefined,
+    });
+    container = document.body.appendChild(document.createElement("div"));
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["divergent", "Changed on another device", "warning"],
+    ["deleted-elsewhere", "Deleted on another device", "warning"],
+    ["name-taken", "Not syncing", "error"],
+    ["too-large", "Too large to sync", "error"],
+  ] as const)(
+    "titles a %s conflict %j in a %s callout",
+    async (kind, title, variant) => {
+      await mount(kind);
+      const callout = container.querySelector('[data-slot="callout"]');
+      expect(callout?.getAttribute("data-variant")).toBe(variant);
+      expect(
+        callout?.querySelector('[data-slot="callout-title"]')?.textContent
+      ).toBe(title);
+    }
+  );
+
+  it("offers Rename before Try again when the name is taken", async () => {
+    await mount("name-taken");
+    expect(buttonLabels()).toEqual(["Rename", "Try again"]);
+  });
+
+  it("opens the rename dialog for the open project from Rename", async () => {
+    const setModal = vi.spyOn(PgView, "setModal").mockResolvedValue(undefined);
+    const resolve = vi.spyOn(PgProjectSync, "resolve");
+    await mount("name-taken");
+    const rename = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.trim() === "Rename"
+    );
+    await act(async () => rename!.click());
+
+    expect(setModal).toHaveBeenCalledWith(RenameWorkspace);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("offers only Try again when the project is too large", async () => {
+    await mount("too-large");
+    expect(buttonLabels()).toEqual(["Try again"]);
   });
 });
