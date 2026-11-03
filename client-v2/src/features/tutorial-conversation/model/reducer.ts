@@ -222,6 +222,12 @@ const outcomeOf = (result: RunResult): ActionRunParams["outcome"] => {
   ) {
     return result.reason;
   }
+  if (
+    (result.act === "run" || result.act === "call") &&
+    (result.reason === "no_wallet" || result.reason === "no_funds")
+  ) {
+    return result.reason;
+  }
   return "failed";
 };
 
@@ -785,6 +791,9 @@ const reduceAction = (
       // A run that ended well may run again while the step has not passed:
       // its result may have failed the goal (a call before the upgrade)
       const input: RunInput = { beatId: beat.id };
+      if (step.goal.kind === "call" && step.goal.log !== undefined) {
+        input.log = step.goal.log;
+      }
       if (beat.act === "call") {
         input.call = {
           instruction: beat.call.instruction,
@@ -1766,6 +1775,42 @@ if (import.meta.vitest) {
         expect(outcomeOf(DEPLOYED)).toBe("ok");
       });
 
+      it("names a run's or call's outcome by its reason, else failed", () => {
+        expect(
+          outcomeOf({
+            act: "call",
+            ok: false,
+            seconds: 1,
+            message: "short",
+            log: "",
+            reason: "no_funds",
+          })
+        ).toBe("no_funds");
+        expect(
+          outcomeOf({
+            act: "run",
+            ok: false,
+            seconds: 0,
+            message: "No wallet",
+            log: "",
+            reason: "no_wallet",
+          })
+        ).toBe("no_wallet");
+        expect(
+          outcomeOf({ act: "run", ok: false, seconds: 2, message: "x", log: "" })
+        ).toBe("failed");
+        expect(
+          outcomeOf({
+            act: "run",
+            ok: false,
+            seconds: 2,
+            message: "client.ts sent no transaction. See the terminal.",
+            log: "",
+            reason: "no_transaction",
+          })
+        ).toBe("failed");
+      });
+
       it("measures acts a reload interrupted, and nothing else", () => {
         const r = reduce(ctx(), INITIAL_ENGINE_STATE, {
           type: "interrupted",
@@ -2104,6 +2149,32 @@ if (import.meta.vitest) {
         expect(progress.passed).toEqual([]);
         expect(progress.runs["s1.build"]).toMatchObject([
           { status: "failed", took: 1200 },
+        ]);
+      });
+
+      it("hands a run the step goal's log pattern, so the runner picks the card's line", () => {
+        const s3 = play([
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+          { type: "next", at: 9000 },
+          { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.deploy", at: 10000 },
+          { type: "ended", beatId: "s2.deploy", result: DEPLOYED, at: 12000 },
+          { type: "next", at: 13000 },
+          { type: "skip", beatId: "s3.q3", at: 13500 },
+        ]);
+        const { effects } = reduce(ctx(), s3.state, {
+          type: "act",
+          beatId: "s3.run",
+          at: 14000,
+        });
+        expect(effects).toEqual([
+          expect.objectContaining({
+            kind: "run",
+            input: { beatId: "s3.run", log: "Hello, World!" },
+          }),
         ]);
       });
 
