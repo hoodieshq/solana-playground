@@ -51,15 +51,17 @@ folder SHALL go under `tests/`; every other TypeScript or JavaScript file
 under `client/`. A JSON file (`.json`) SHALL be placed by the same rule,
 under `tests/` when it sits in a leading `tests/` or `test/` folder and
 under `client/` otherwise, so a script's relative import of an IDL or a
-fixture still resolves. Each keeps its path with that leading folder (or
+fixture within the same folder still resolves. Each keeps its path with that leading folder (or
 `client/`) dropped. When two files want one place, a top-level file takes
 it before one from `client/` or `tests/`, which takes it before one from
 `test/`, whatever their order; the other keeps its whole path. A JSON
-file that is tool configuration (`package.json`, a `*-lock.json`,
+file that is tool configuration (`package.json`, `package-lock.json`,
+`npm-shrinkwrap.json`,
 `tsconfig*.json`, `jsconfig*.json`, or one whose name or folder starts with
 a dot) and files of other kinds SHALL be left out. JSON alone SHALL count
 as nothing to open. A relative import that crosses from `client/` to
-`tests/`, or out of a leading folder the placement drops, is not rewritten.
+`tests/` (including a loose test file's import of JSON beside it), or out
+of a leading folder the placement drops, is not rewritten.
 
 #### Scenario: Folders are kept
 - **WHEN** a repository with no program holds `src/app/main.ts`,

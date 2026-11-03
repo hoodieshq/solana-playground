@@ -125,11 +125,11 @@ const DATA_FILE_REGEX = /\.json$/i;
 
 /**
  * JSON a project with no program leaves out as tool configuration rather
- * than data: package manifests and lockfiles, `tsconfig` and `jsconfig`
+ * than data: package manifests and npm lockfiles, `tsconfig` and `jsconfig`
  * files, and any dotfile or file in a dot folder (`.vscode/`)
  */
 const TOOL_CONFIG_REGEX =
-  /(^|\/)(package\.json|[^/]*-lock\.json|(ts|js)config[^/]*\.json)$|(^|\/)\./i;
+  /(^|\/)(package\.json|package-lock\.json|npm-shrinkwrap\.json|(ts|js)config[^/]*\.json)$|(^|\/)\./i;
 
 /**
  * Whether a project with no program keeps the file at `path`: every script,
@@ -708,6 +708,7 @@ if (import.meta.vitest) {
               [".vscode/settings.json", "{}"],
               ["tests/.fixtures/a.json", "{}"],
               ["package-lock.json", "{}"],
+              ["npm-shrinkwrap.json", "{}"],
               ["tsconfig-base.json", "{}"],
               ["TSCONFIG.JSON", "{}"],
             ])
@@ -721,6 +722,15 @@ if (import.meta.vitest) {
               ["idl/X.JSON", "{}"],
             ])
           ).toEqual(["client/a.ts", "client/idl/X.JSON"]);
+        });
+
+        it("keeps a fixture whose name only ends like a lockfile", async () => {
+          expect(
+            await pathsOf([
+              ["a.ts", "a"],
+              ["tests/fixtures/file-lock.json", "{}"],
+            ])
+          ).toEqual(["client/a.ts", "tests/fixtures/file-lock.json"]);
         });
 
         it("reads JSON paths from the imported folder", async () => {
