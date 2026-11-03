@@ -38,7 +38,9 @@ The "from" side, on `new-face-polish-2` at `bdd350ba7`:
   3.2, still open.
 
 The "to" side is Almaz's prototype (`almaz/mobile-tutorial-prototype`,
-`design-system/src/prototype/tutorial-v2`, `fb4b8e9ee`) and its `SPEC.md`. The
+`design-system/src/prototype/tutorial-v2`, `f7d42bf2e` since 3 Nov, was
+`fb4b8e9ee`; the 31 Oct type scale and step head supersede `fb4b8e9ee`'s, see
+`tutorial-frame-2nov`) and its `SPEC.md`. The
 prototype wins where they differ. The differences went to Almaz as a question
 batch (`questions-for-almaz.md`); he answered all 34 on 28 Oct, and the specs
 carry his answers. Nikita's "Spec 00 · Index and open decisions", in its decision D3, lists
