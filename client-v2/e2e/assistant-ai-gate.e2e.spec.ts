@@ -45,7 +45,7 @@ test("assistant-ai-gate: No hosted key, nothing connected", async ({
   await typeAndEnter(page);
   await expect(page.getByText("Connect a model to send")).toBeAttached();
 
-  await row(page).getByRole("button", { name: "Add a key" }).click();
+  await row(page).getByRole("button", { name: "Add an API key" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
@@ -64,7 +64,7 @@ test("assistant-ai-gate: Signed out with a hosted model", async ({ page }) => {
     row(page).getByRole("button", { name: "Sign in with GitHub" })
   ).toBeVisible();
   await expect(
-    row(page).getByRole("button", { name: "Add a key" })
+    row(page).getByRole("button", { name: "Add an API key" })
   ).toBeVisible();
   await typeAndEnter(page);
   await expect(page.getByText("Sign in to send")).toBeAttached();

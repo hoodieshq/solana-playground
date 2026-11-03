@@ -660,7 +660,7 @@ describe("AssistantComposer, the off row", () => {
     PgAssistant.disconnect();
   });
 
-  it("says a deployment with no hosted key needs a key, and Add a key opens Connect a model", async () => {
+  it("says a deployment with no hosted key needs a key, and Add an API key opens Connect a model", async () => {
     backend = { state: "absent" };
     render(<Harness />);
     expect(row()?.getAttribute("role")).toBe("status");
@@ -669,7 +669,7 @@ describe("AssistantComposer, the off row", () => {
     );
     await userEvent
       .setup()
-      .click(screen.getByRole("button", { name: "Add a key" }));
+      .click(screen.getByRole("button", { name: "Add an API key" }));
     expect(openConnect).toHaveBeenCalledWith("ai-off", undefined);
     expect(tracked()).toEqual([
       ["assistant_ai_off_shown", { reason: "no-key" }],
@@ -683,7 +683,7 @@ describe("AssistantComposer, the off row", () => {
     expect((await shownRow()).textContent).toContain(
       "Sign in with GitHub to use the hosted model, or add a key of your own."
     );
-    expect(screen.getByRole("button", { name: "Add a key" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add an API key" })).toBeTruthy();
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "Sign in with GitHub" }));

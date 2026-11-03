@@ -84,7 +84,7 @@ export function BaseAiOffRow({
           variant={action === undefined ? "default" : "outline"}
           onClick={onAddKey}
         >
-          Add a key
+          Add an API key
         </Button>
       </div>
     </Callout>
