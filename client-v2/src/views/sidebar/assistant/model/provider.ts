@@ -12,7 +12,7 @@ import type { LanguageModel, ModelMessage } from "ai";
 import type { ModelProvider } from "@/shared/lib/ai";
 import type { ReplayMessage } from "../../../../features/persistence/model/replay";
 import type { ModelProviderInput } from "./model-providers";
-import { TurnFailure, type Provider } from "./types";
+import { EVERYTHING, TurnFailure, type Provider } from "./types";
 
 const log = createLogger("assistant:provider");
 
@@ -72,7 +72,8 @@ export const createProvider = (
     id: connection.id,
     label: profile.label,
 
-    async send(input, signal, context) {
+    async send(input, turn) {
+      const signal = turn?.signal;
       const ai = await loadAi();
       signal?.throwIfAborted();
       model ??= ai.createModel(profile.connection);
@@ -94,8 +95,7 @@ export const createProvider = (
             {
               role: "system",
               content: `Current project state:\n\n${describeProject(
-                undefined,
-                context
+                turn?.context ?? EVERYTHING
               )}`,
             },
           ],
