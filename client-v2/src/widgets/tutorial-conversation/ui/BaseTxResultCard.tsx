@@ -10,6 +10,7 @@ import {
 
 import type { RunResult } from "@/features/tutorial-conversation";
 import { devnetExplorerUrl } from "@/shared/lib/devnet-explorer";
+import { PROGRAM_LOG, programLogText } from "@/shared/lib/program-log";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
@@ -24,8 +25,6 @@ import { READ, formatSeconds } from "./Prose";
 type TxResult = Extract<RunResult, { act: "run" | "call" }>;
 type Landed = Extract<TxResult, { ok: true }>;
 type Failed = Extract<TxResult, { ok: false }>;
-
-const PROGRAM_LOG = "Program log: ";
 
 /** The head's meta when no instruction was decoded */
 const SENT_FROM: Record<TxResult["act"], string> = {
@@ -135,9 +134,7 @@ const LandedCard = ({ result }: { result: Landed }) => {
   const ix = result.called[result.called.length - 1]?.instruction ?? null;
   const signature = result.signatures[result.signatures.length - 1] ?? null;
   const receipt = result.receipt ?? {};
-  const said = result.line?.startsWith(PROGRAM_LOG)
-    ? result.line.slice(PROGRAM_LOG.length)
-    : result.line;
+  const said = result.line === null ? null : programLogText(result.line);
 
   const usage: string[] = [];
   if (receipt.computeUnits !== undefined) {

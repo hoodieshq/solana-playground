@@ -1,3 +1,6 @@
+import { createLogger } from "@/shared/lib/logger";
+import { isProgramLog } from "@/shared/lib/program-log";
+
 import type {
   Called,
   Receipt,
@@ -37,6 +40,8 @@ export interface DecodedCall extends Called {
   accounts: ReceiptAccount[];
 }
 
+const log = createLogger("tutorial-conversation:transactions");
+
 /** Anchor logs the instruction's name first, in the program's own frame */
 const INSTRUCTION = /^Program log: Instruction: (\w+)/;
 /** `AnchorError thrown in ...` or `AnchorError occurred.` */
@@ -65,7 +70,7 @@ export const programLines = (log: string[], programId: string): string[] => {
     }
     if (
       stack[stack.length - 1] === programId &&
-      line.startsWith("Program log: ") &&
+      isProgramLog(line) &&
       !INSTRUCTION.test(line)
     ) {
       out.push(line);
@@ -80,8 +85,12 @@ const matcher = (pattern: string | undefined): ((line: string) => boolean) => {
   try {
     const re = new RegExp(pattern, "i");
     return (line) => re.test(line);
-  } catch {
-    // The judge reports a broken pattern; the card still shows a line
+  } catch (e) {
+    // The judge reports a broken pattern to the team; here the card still
+    // shows the program's first line
+    log.warn("A step's log pattern does not compile; showing the first line", {
+      context: { pattern, error: e instanceof Error ? e.message : String(e) },
+    });
     return () => true;
   }
 };
