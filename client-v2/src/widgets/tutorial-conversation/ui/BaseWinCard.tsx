@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect } from "react";
 import { FileCode, Send } from "lucide-react";
 
 import type { Win } from "@/entities/tutorial";
@@ -6,11 +6,9 @@ import type { PassedVia } from "@/features/tutorial-conversation";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
 import { Tag } from "@/shared/ui/tag";
+import { DrawnCheck } from "./DrawnCheck";
 import { nothingFocused } from "./keys";
 import { Prose, READ } from "./Prose";
-
-/** How long the check takes to draw itself */
-const DRAW_MS = 420;
 
 export interface BaseWinCardProps {
   win: Win;
@@ -32,47 +30,6 @@ export interface BaseWinCardProps {
   /** Open `client/client.ts`, after a pass from the Call panel */
   onWriteInClient: () => void;
 }
-
-const reducedMotion = () =>
-  typeof window.matchMedia === "function" &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/**
- * A check in a circle that draws its stroke when it mounts on a live win;
- * static under reduced motion. The animation starts before the first paint,
- * so the finished check never shows for a frame first.
- */
-const DrawnCheck = ({ draw }: { draw: boolean }) => {
-  const path = useRef<SVGPathElement>(null);
-  useLayoutEffect(() => {
-    if (!draw || reducedMotion()) return;
-    path.current?.animate?.(
-      [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }],
-      { duration: DRAW_MS, easing: "ease-out" }
-    );
-  }, [draw]);
-  return (
-    <svg
-      role="img"
-      aria-label="Passed"
-      viewBox="0 0 24 24"
-      className="size-7 shrink-0 text-success"
-    >
-      <circle cx="12" cy="12" r="11" className="fill-success/14" />
-      <path
-        ref={path}
-        d="M7 12.5l3.2 3.2L17 9"
-        pathLength={1}
-        strokeDasharray={1}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-};
 
 /**
  * The card a passed step ends on: a drawn check, "Step n done", the
@@ -128,46 +85,50 @@ const BaseWinCard = ({
       aria-label={`Step ${index} done`}
       className="flex flex-col gap-3 rounded-panel border border-border bg-surface-panel p-4"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <DrawnCheck draw={live} />
-        <div className="flex min-w-0 flex-col gap-1">
-          <Tag className="w-fit">Step {index} done</Tag>
-          <p className="font-heading text-title text-foreground">
-            <Prose text={win.headline} />
-          </p>
+        {/* One column beside the check, so the line and the buttons start
+            where the headline does */}
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <Tag className="w-fit">Step {index} done</Tag>
+            <p className="font-heading text-title text-foreground">
+              <Prose text={win.headline} />
+            </p>
+          </div>
+          {live && (
+            <p className={READ}>
+              <Prose text={line} />
+            </p>
+          )}
+          {(canNext || openCall || fromPanel) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {canNext && (
+                <Button onClick={onNext}>
+                  Next: {next}
+                  <Kbd
+                    aria-hidden="true"
+                    className="bg-white/15 text-primary-foreground/80"
+                  >
+                    ↵
+                  </Kbd>
+                </Button>
+              )}
+              {openCall && (
+                <Button
+                  variant="outline"
+                  size={live ? "default" : "xs"}
+                  onClick={openCall}
+                >
+                  <Send aria-hidden="true" />
+                  Open Call
+                </Button>
+              )}
+              {writeInClient}
+            </div>
+          )}
         </div>
       </div>
-      {live && (
-        <p className={READ}>
-          <Prose text={line} />
-        </p>
-      )}
-      {(canNext || openCall || fromPanel) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {canNext && (
-            <Button onClick={onNext}>
-              Next: {next}
-              <Kbd
-                aria-hidden="true"
-                className="bg-white/15 text-primary-foreground/80"
-              >
-                ↵
-              </Kbd>
-            </Button>
-          )}
-          {openCall && (
-            <Button
-              variant="outline"
-              size={live ? "default" : "xs"}
-              onClick={openCall}
-            >
-              <Send aria-hidden="true" />
-              Open Call
-            </Button>
-          )}
-          {writeInClient}
-        </div>
-      )}
     </section>
   );
 };

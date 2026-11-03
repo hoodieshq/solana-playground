@@ -870,6 +870,9 @@ describe("BaseFinishCard", () => {
   it("finishes Hello Anchor with the receipt whose log reads Hello, Alex!", async () => {
     finish();
     const card = screen.getByRole("region", { name: "Finished" });
+    // Marked as a win, like a step's
+    expect(within(card).getByRole("img", { name: "Passed" })).toBeTruthy();
+    expect(within(card).getByText("Tutorial complete")).toBeTruthy();
     await userEvent.click(
       within(card).getByRole("button", { name: /Transaction details/ })
     );

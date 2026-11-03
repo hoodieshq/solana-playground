@@ -84,7 +84,9 @@ const BaseReceipt = ({ call, onCopyError }: BaseReceiptProps) => {
             key={`${row.label}:${row.key}`}
             className="flex items-center gap-2"
           >
-            <span className="min-w-0 flex-1 truncate text-muted-foreground">
+            {/* Wraps rather than cuts: "Your wallet · signer" is the
+                wallet copy, verbatim */}
+            <span className="min-w-0 flex-1 text-muted-foreground">
               {row.label}
             </span>
             <span className="font-mono text-foreground">
