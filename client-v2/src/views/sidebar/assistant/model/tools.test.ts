@@ -131,6 +131,12 @@ describe("build and deploy approvals", () => {
     );
   });
 
+  it("names the network and leaves the cost out when neither is known", async () => {
+    expect(await askedWith("deploy", commandBridge(null, true, null))).toBe(
+      "Deploy hello_anchor to the network?"
+    );
+  });
+
   it("asks whether to build the program", async () => {
     expect(await askedWith("build", commandBridge(null))).toBe(
       "Build hello_anchor?"

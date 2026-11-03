@@ -113,8 +113,9 @@ label and open that network.
 
 After a successful deploy paid by a Playground wallet, the result card SHALL
 show a backup line (`aria-label="Keypair backup"`): "Your program on
-{network} is tied to this browser's wallet. Save the keypair so you can
-update it from another browser." with "Save keypair" and "Not now". "Save
+{network} is tied to this browser's Playground wallet. Save the keypair so you
+can update it from another browser.", `{network}` lowercase ("devnet"), with
+"Save keypair" and "Not now". "Save
 keypair" SHALL download the wallet's keypair file and hide the line for that
 wallet; "Not now" SHALL hide it for that wallet. The choice SHALL be kept per
 wallet address in this browser.
@@ -141,16 +142,21 @@ signature or cost SHALL still list.
 ### Requirement: The assistant's approvals ask with the cost
 
 The assistant's approval card for a deploy SHALL be titled "Deploy {program}
-to {network}? It costs about {cost} SOL.", where `{cost}` is estimated from
-the built program's size; when no estimate is available the second sentence
-SHALL be left out. The card for a build SHALL be titled "Build {program}?".
-`{program}` is the project's name.
+to {network}? It costs about {cost} {network} SOL from your Playground
+wallet.", with `{network}` lowercase ("devnet"), where `{cost}` is estimated
+from the built program's size. When a connected wallet, not the Playground
+wallet, pays, the sentence SHALL end "from your wallet.". While the network is
+unknown, the question SHALL name "the network" and the cost SHALL read plain
+"SOL" ("It costs about {cost} SOL from …"). When no estimate is available the
+second sentence SHALL be left out. The card for a build SHALL be titled "Build
+{program}?". `{program}` is the project's name.
 
 #### Scenario: Deploy approval names the cost (manual)
 
-- **WHEN** the assistant asks to deploy a built program on devnet
+- **WHEN** the assistant asks to deploy a built program on devnet, paid by the
+  Playground wallet
 - **THEN** the card reads "Deploy {project} to devnet? It costs about
-  {cost} SOL." with Allow and Deny
+  {cost} devnet SOL from your Playground wallet." with Allow and Deny
 
 ### Requirement: Deploy events
 

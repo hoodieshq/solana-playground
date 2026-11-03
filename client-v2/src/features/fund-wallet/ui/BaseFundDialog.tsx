@@ -96,9 +96,9 @@ const amountNote = (
     return {
       ok: true,
       error: false,
-      text: cluster
-        ? `Sent on ${networkInSentence(cluster)}.`
-        : "Sent on the Playground's cluster.",
+      text: `Sent on ${
+        networkInSentence(cluster) ?? "the Playground's cluster"
+      }.`,
     };
   }
   const notes: Record<Exclude<SendCheck, { ok: true }>["problem"], string> = {

@@ -1,5 +1,8 @@
-import { clusterName } from "../../../constants";
-import { networkInSentence } from "@/features/deploy";
+import {
+  clusterName,
+  networkInSentence,
+  UNKNOWN_NETWORK,
+} from "../../../constants";
 import { useEffect, useRef, useState } from "react";
 
 import BaseInteract from "./BaseInteract";
@@ -117,7 +120,7 @@ const Interact = () => {
     wallet && typeof balance === "number" && solNeeded(balance) && cluster
       ? {
           balance: +balance.toFixed(4),
-          cluster: networkInSentence(cluster) ?? "the network",
+          cluster: networkInSentence(cluster) ?? UNKNOWN_NETWORK,
           airdrop: faucet === "available" ? airdrop : null,
         }
       : null;

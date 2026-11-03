@@ -3,6 +3,7 @@ import { createSkillTools } from "./skill-tools";
 import { PgAssistant } from "../store";
 import { realBridge, type PlaygroundBridge } from "../bridge/playground-bridge";
 import { formatSol } from "@/features/deploy";
+import { solOn, UNKNOWN_NETWORK } from "@/constants";
 import type { ToolDefinition, ToolInput } from "@/shared/lib/ai";
 
 /** The project's name, as the approval cards name the program */
@@ -203,9 +204,9 @@ export const createTools = (
       const cost =
         quote.cost === null
           ? ""
-          : ` It costs about ${formatSol(quote.cost)} ${
-              quote.network === null ? "SOL" : `${quote.network} SOL`
-            } from ${
+          : ` It costs about ${formatSol(quote.cost)} ${solOn(
+              quote.network
+            )} from ${
               quote.playground ? "your Playground wallet" : "your wallet"
             }.`;
       const { id: approvalId, allowed } = await PgAssistant.requestApproval({
@@ -213,7 +214,7 @@ export const createTools = (
         name: "deploy",
         effect: `Sends a transaction to ${cluster} and spends SOL from the connected wallet.`,
         question: `Deploy ${programName(bridge)} to ${
-          quote.network ?? "the network"
+          quote.network ?? UNKNOWN_NETWORK
         }?${cost}`,
       });
       if (!allowed) return "The user declined to deploy.";

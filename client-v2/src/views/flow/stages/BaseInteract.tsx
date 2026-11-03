@@ -14,6 +14,7 @@ import {
   StageEmptyNotice,
   StageEmptyTitle,
 } from "@/shared/ui/stage-empty";
+import { UNKNOWN_NETWORK } from "@/constants";
 import type { Stage } from "../state/stage";
 import { shortenId } from "./interact-callouts";
 import type { InteractSurface } from "./interact-surface";
@@ -64,7 +65,7 @@ type EmptySurface = Exclude<InteractSurface, "ready">;
 /** What an empty surface says; `notice` is an error, shown as a callout */
 interface EmptyCopy {
   title: string;
-  description?: (cluster: string) => string;
+  description?: (network: string) => string;
   notice?: string;
 }
 
@@ -97,8 +98,8 @@ const COPY: Record<EmptySurface, EmptyCopy> = {
   },
   checking: {
     title: "Checking the program",
-    description: (cluster) =>
-      `Reading the program from ${cluster} to see whether it is deployed.`,
+    description: (network) =>
+      `Reading the program from ${network} to see whether it is deployed.`,
   },
   "bad-idl": {
     title: "This IDL can't be read",
@@ -153,7 +154,7 @@ const Empty = ({
       <StageEmptyTitle>{copy.title}</StageEmptyTitle>
       {copy.description && (
         <StageEmptyDescription>
-          {copy.description(p.network ?? "the network")}
+          {copy.description(p.network ?? UNKNOWN_NETWORK)}
         </StageEmptyDescription>
       )}
       {notice && (

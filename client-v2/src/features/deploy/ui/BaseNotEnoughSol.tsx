@@ -5,7 +5,8 @@ import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
 import { CopyButton } from "@/shared/ui/copy-button";
 import type { FundingFailure } from "@/commands/deploy/run";
-import { formatSol, networkInSentence, shortKey } from "../model/format";
+import { networkInSentence, solOn } from "@/constants";
+import { formatSol, shortKey } from "../model/format";
 
 /** Solana's web faucet; it serves devnet and testnet */
 export const WEB_FAUCET_URL = "https://faucet.solana.com";
@@ -24,13 +25,9 @@ export interface BaseNotEnoughSolProps {
   onSignIn: () => void;
 }
 
-/** "devnet SOL", or plain "SOL" while the network is unknown */
-const solOf = (network: string | null) =>
-  network === null ? "SOL" : `${network} SOL`;
-
 const reasonLine = (reason: FundingFailure, network: string | null) => {
   const lines: Record<FundingFailure, string> = {
-    signed_out: `Sign in with GitHub to request ${solOf(network)}.`,
+    signed_out: `Sign in with GitHub to request ${solOn(network)}.`,
     no_faucet: "This network has no faucet. Send SOL to the wallet below.",
     airdrop_failed: "The faucet did not send SOL.",
   };
@@ -45,7 +42,7 @@ const BaseNotEnoughSol = (p: BaseNotEnoughSolProps) => {
   return (
     <Callout variant="error" role="alert" aria-label="Not enough SOL">
       <CircleAlert />
-      <CalloutTitle>Not enough {solOf(network)}</CalloutTitle>
+      <CalloutTitle>Not enough {solOn(network)}</CalloutTitle>
       <CalloutDescription className="flex flex-col gap-2">
         <span>
           Your wallet has {formatSol(p.balance)} SOL, this deploy needs about{" "}

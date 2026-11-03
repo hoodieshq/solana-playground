@@ -2,7 +2,7 @@ import { KeyRound } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
-import { networkInSentence } from "../model/format";
+import { networkInSentence, UNKNOWN_NETWORK } from "@/constants";
 
 export interface BaseBackupLineProps {
   cluster: string | null;
@@ -20,9 +20,9 @@ const BaseBackupLine = ({
     <KeyRound />
     <CalloutDescription className="flex flex-col gap-2">
       <span>
-        Your program on {networkInSentence(cluster) ?? "the network"} is tied to
-        this browser's Playground wallet. Save the keypair so you can update it
-        from another browser.
+        Your program on {networkInSentence(cluster) ?? UNKNOWN_NETWORK} is tied
+        to this browser's Playground wallet. Save the keypair so you can update
+        it from another browser.
       </span>
       <span className="flex gap-2">
         <Button size="sm" onClick={onSave}>

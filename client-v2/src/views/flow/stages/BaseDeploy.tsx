@@ -27,6 +27,7 @@ import {
   networkName,
   shortKey,
 } from "@/features/deploy";
+import { UNKNOWN_NETWORK } from "@/constants";
 import type { DeployRunState, DeployFundingError } from "@/commands/deploy/run";
 import {
   MAINNET_DEPLOY_WARNING_BODY,
@@ -129,7 +130,7 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
  * has been read
  */
 const deployNetwork = (p: BaseDeployProps) =>
-  networkInSentence(p.cluster) ?? "the network";
+  networkInSentence(p.cluster) ?? UNKNOWN_NETWORK;
 
 /** Who pays, before a deploy */
 const payerLine = (payer: DeployPayer | null) => {
@@ -202,7 +203,9 @@ const DeployResult = ({
         <StatusDot variant="success" size="lg" />
         {latest.upgraded
           ? "Upgraded. The program id stays the same."
-          : `Deployed to ${networkInSentence(latest.cluster) ?? "the network"}`}
+          : `Deployed to ${
+              networkInSentence(latest.cluster) ?? UNKNOWN_NETWORK
+            }`}
       </div>
       <div className="flex items-center gap-2 rounded-lg bg-surface-base px-3 py-2">
         <span className="shrink-0 text-caption text-subtle">Program id</span>

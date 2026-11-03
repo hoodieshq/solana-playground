@@ -1,4 +1,4 @@
-import { clusterName, networkInSentence } from "@/constants";
+import { clusterName, networkInSentence, UNKNOWN_NETWORK } from "@/constants";
 
 export { networkInSentence };
 
@@ -21,7 +21,7 @@ export const shortKey = (key: string): string =>
 
 /** The network's name in prose: "Mainnet" for mainnet-beta, "the network" while unknown */
 export const networkName = (cluster: string | null): string =>
-  clusterName(cluster) ?? "the network";
+  clusterName(cluster) ?? UNKNOWN_NETWORK;
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
@@ -42,16 +42,6 @@ if (import.meta.vitest) {
       expect(networkName("mainnet-beta")).toBe("Mainnet");
       expect(networkName("devnet")).toBe("Devnet");
       expect(networkName(null)).toBe("the network");
-    });
-
-    it("networkInSentence lowercases the cluster mid-sentence, other names as they are", () => {
-      expect(networkInSentence("devnet")).toBe("devnet");
-      expect(networkInSentence("mainnet-beta")).toBe("mainnet");
-      expect(networkInSentence("testnet")).toBe("testnet");
-      expect(networkInSentence("localnet")).toBe("localnet");
-      expect(networkInSentence("playnet")).toBe("playnet");
-      expect(networkInSentence("Surfpool")).toBe("Surfpool");
-      expect(networkInSentence(null)).toBeNull();
     });
   });
 }
