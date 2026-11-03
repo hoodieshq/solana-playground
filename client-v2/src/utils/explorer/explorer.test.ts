@@ -117,9 +117,9 @@ describe("deleting the current workspace", () => {
     await PgExplorer.createWorkspace("beta", { files: files("beta") });
     await PgExplorer.createWorkspace("gamma", { files: files("gamma") });
 
-    for (const name of [
-      ...requireFor("the workspace names")(PgExplorer.allWorkspaceNames),
-    ]) {
+    for (const name of Array.from(
+      requireFor("the workspace names")(PgExplorer.allWorkspaceNames)
+    )) {
       await PgExplorer.deleteWorkspace(name);
     }
 
@@ -491,9 +491,9 @@ describe("renaming a workspace that is not the current one", () => {
 
     expect(PgExplorer.currentWorkspaceName).toBe("beta");
     expect(
-      [
-        ...requireFor("the workspace names")(PgExplorer.allWorkspaceNames),
-      ].sort()
+      Array.from(
+        requireFor("the workspace names")(PgExplorer.allWorkspaceNames)
+      ).sort()
     ).toEqual(["beta", "gamma"]);
     expect(PgExplorer.workspaceIdOf("gamma")).toBe(alphaId);
     expect(stored().get("/gamma/src/lib.rs")).toBe("declare_id!();");
