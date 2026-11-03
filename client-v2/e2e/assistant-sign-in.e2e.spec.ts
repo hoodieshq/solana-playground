@@ -115,12 +115,14 @@ test("assistant-own-key: Signed out, the default backend offers sign-in", async 
   await stubSession(page, null);
   await openProject(page, "signed-out");
 
+  // The off row stands once the page has read the session, before any send
+  const addKey = page
+    .locator("#assistant-ai-off")
+    .getByRole("button", { name: "Add a key" });
+  await expect(addKey).toBeVisible(LONG);
   await composer(page).fill("Why did my build fail?");
   await composer(page).press("Enter");
-  await page
-    .locator("#assistant-ai-off")
-    .getByRole("button", { name: "Add a key" })
-    .click(LONG);
+  await addKey.click();
 
   await expectSignInOffered(page);
   expect(await isConnected(page)).toBe(false);
