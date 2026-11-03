@@ -17,12 +17,14 @@ an error report.
 
 #### Scenario: Nothing durable holds the key
 
-- **WHEN** the user connects to a key-based backend and reloads the tab
+- **WHEN** the user connects to a key-based backend and the key is held in
+  memory
 - **THEN** neither `localStorage` nor IndexedDB contains the key string
 
 #### Scenario: Requests to our origin carry no key
 
-- **WHEN** the user connects to a key-based backend and reloads the tab
+- **WHEN** the user connects to a key-based backend and the key is held in
+  memory
 - **THEN** no request to the app's own origin carries the key in a header or
   body
 
@@ -143,8 +145,8 @@ reply that names its backend SHALL take the backend this browser last chose
 The backend the user last chose SHALL be remembered in `localStorage` as its
 provider, model, base URL and effort, and never with the key. A remembered
 choice written as a bare provider id SHALL still be read, as that provider
-with no other parameters. Disconnecting (Forget key) SHALL remove it, as
-today.
+with no other parameters. Disconnecting (Delete my key, in Settings or the
+chat header's More) SHALL remove it, as today.
 
 #### Scenario: The remembered choice holds no key
 

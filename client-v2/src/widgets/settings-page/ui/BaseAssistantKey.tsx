@@ -12,7 +12,7 @@ interface BaseAssistantKeyProps {
    * storage: what the row says in place of its description, since the
    * panel's notice sits under Settings
    */
-  stuck: string | null;
+  stuck?: string;
   onDelete: () => void;
   phone: boolean;
 }

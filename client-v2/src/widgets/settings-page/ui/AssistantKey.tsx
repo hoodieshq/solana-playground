@@ -28,7 +28,7 @@ const AssistantKey = ({ phone }: { phone: boolean }) => {
   return (
     <BaseAssistantKey
       state={state}
-      stuck={stuck ? KEY_NOT_FORGOTTEN : null}
+      stuck={stuck ? KEY_NOT_FORGOTTEN : undefined}
       phone={phone}
       onDelete={() => {
         setStuck(!PgAssistant.disconnect());
