@@ -203,7 +203,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
 
       return { ...item, isSelected };
     });
-  const topRows: Row[] | null = normalizedItems
+  const topRows: Row[] | undefined = normalizedItems
     ? (filter
         ? normalizedItems.filter((item) =>
             filter({
@@ -223,7 +223,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
             return matchesQuery(props.value)(item);
           })
       ).map((item) => ({ key: item.label, item }))
-    : null;
+    : undefined;
 
   // Typing on the top level also searches inside the groups, so an entry
   // need not be found by opening each group in turn. Not with a caller's own
@@ -261,7 +261,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
         })
       : [];
   /** Every row the list shows, in its visual (and keyboard) order */
-  const filteredItems = topRows ? [...topRows, ...nestedRows] : null;
+  const filteredItems = topRows ? [...topRows, ...nestedRows] : undefined;
 
   const [loading, setLoading] = useState(false);
   const searchCommon = async (_item: Item) => {
