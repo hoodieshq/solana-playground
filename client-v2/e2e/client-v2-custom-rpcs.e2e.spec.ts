@@ -58,9 +58,11 @@ const addRpc = async (
 ) => {
   const settings = page.getByRole("region", { name: "Settings" });
   await settings.getByRole("button", { name: "Add custom RPC" }).click();
-  if (name) await settings.getByLabel("Name").fill(name);
-  await settings.getByLabel("RPC URL").fill(url);
-  await settings.getByLabel("RPC URL").press("Enter");
+  // The Block Explorer section has a row called Name too
+  const form = settings.getByRole("form", { name: "Add custom RPC" });
+  if (name) await form.getByLabel("Name").fill(name);
+  await form.getByLabel("RPC URL").fill(url);
+  await form.getByLabel("RPC URL").press("Enter");
 };
 
 test.beforeEach(async ({ seededPage: page }) => {
@@ -192,9 +194,10 @@ test("client-v2-custom-rpcs: Editing renames the chip", async ({
   const settings = await openSettings(page);
   await addRpc(page, { name: "Helius", url: "https://helius.rpc.test/" });
   await settings.getByRole("button", { name: "Edit Helius" }).click();
-  await settings.getByLabel("Name").fill("Triton");
-  await settings.getByLabel("RPC URL").fill("https://triton.rpc.test/");
-  await settings.getByLabel("RPC URL").press("Enter");
+  const form = settings.getByRole("form", { name: "Edit Helius" });
+  await form.getByLabel("Name").fill("Triton");
+  await form.getByLabel("RPC URL").fill("https://triton.rpc.test/");
+  await form.getByLabel("RPC URL").press("Enter");
   await expect(
     network(page).getByRole("radio", { name: "Triton" })
   ).toHaveAttribute("aria-checked", "true");
