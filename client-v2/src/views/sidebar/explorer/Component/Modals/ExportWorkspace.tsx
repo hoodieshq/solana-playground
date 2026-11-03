@@ -1,18 +1,8 @@
-import { FC, useEffect, useState } from "react";
 import { InfoIcon } from "lucide-react";
+import { FC, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
-import Markdown from "../../../../../components/Markdown";
-import {
-  ModalFrame,
-  ModalPages,
-  modalPage,
-  useModalId,
-} from "@/widgets/overlays";
-import type { ModalPageProps } from "@/widgets/overlays";
-import { Callout, CalloutDescription } from "@/shared/ui/callout";
-import { ExportFile } from "../../../../../components/Icons";
-import { PgExplorer, PgFramework, PgView } from "../../../../../utils";
+import type { ProjectKind } from "@/features/project-export";
 import {
   DEFAULT_KEYPAIR_PATH,
   exportedEndpoint,
@@ -22,10 +12,21 @@ import {
   KEYPAIR_VARIABLE,
   RPC_URL_VARIABLE,
 } from "@/features/project-export";
-import type { ProjectKind } from "@/features/project-export";
 import { createLogger } from "@/shared/lib/logger";
-import { AsyncButton } from "@/shared/ui/async-button";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { AsyncButton } from "@/shared/ui/async-button";
+import { Callout, CalloutDescription } from "@/shared/ui/callout";
+import type { ModalPageProps } from "@/widgets/overlays";
+import {
+  ModalFrame,
+  modalPage,
+  ModalPages,
+  useModalId,
+} from "@/widgets/overlays";
+
+import { ExportFile } from "../../../../../components/Icons";
+import Markdown from "../../../../../components/Markdown";
+import { PgExplorer, PgFramework, PgView } from "../../../../../utils";
 
 const log = createLogger("explorer:export-workspace");
 

@@ -7,6 +7,7 @@ import {
   resetTelemetry,
 } from "@/shared/lib/telemetry";
 import type { TupleFiles } from "@/utils";
+
 import {
   exportedEndpoint,
   exportProject,
@@ -260,6 +261,7 @@ describe("features/project-export/model/export", () => {
     });
 
     it("refuses when no project is named or open", async () => {
+      // eslint-disable-next-line unicorn/no-null -- the real one is null with no project open
       utils.PgExplorer.currentWorkspaceName = null;
       utils.PgFramework.readWorkspaceFiles.mockRejectedValue(
         new Error("Current workspace not found")

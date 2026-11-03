@@ -1,9 +1,10 @@
 import { addImports, getJSDependencyMap } from "@/frameworks/common";
-import { PgConnection, PgExplorer, PgFramework } from "@/utils";
 import type { TupleFiles } from "@/utils";
+import { PgConnection, PgExplorer, PgFramework } from "@/utils";
+
+import type { ConvertedProfile, ConvertProfile } from "./telemetry";
 import { projectExportTelemetry } from "./telemetry";
-import type { ConvertProfile, ConvertedProfile } from "./telemetry";
-import { toNodeProject, toPublicEndpoint } from "./typescript-profile";
+import { toNodeProjectWith, toPublicEndpoint } from "./typescript-profile";
 
 /** Whether a project converts with its framework or with the TypeScript profile */
 export type ProjectKind = "program" | "no-program";
@@ -38,7 +39,8 @@ export const isDownloadFailure = (error: unknown) =>
  * The project to export: the named one, or the open one. Empty when there is
  * neither, which `PgFramework.readWorkspaceFiles` refuses.
  */
-const nameOf = (name?: string) => name ?? PgExplorer.currentWorkspaceName ?? "";
+const nameOf = (name: string | undefined) =>
+  name ?? PgExplorer.currentWorkspaceName ?? "";
 
 const kindOf = (files: TupleFiles): ProjectKind =>
   PgFramework.hasProgram(files.map(([path]) => path))
@@ -51,7 +53,7 @@ const kindOf = (files: TupleFiles): ProjectKind =>
  * @param name the project; the open one by default
  * @returns `program` when a Rust or Python file sits under `src/`
  */
-export const getProjectKind = async (name?: string) =>
+export const getProjectKind = async (name: string | undefined) =>
   kindOf(await PgFramework.readWorkspaceFiles(nameOf(name)));
 
 /**
@@ -114,12 +116,12 @@ export const exportProject = async (opts: {
       converted = await PgFramework.convertToFramework(files);
     } else {
       profile = "typescript";
-      converted = await toNodeProject(files, {
+      converted = await toNodeProjectWith({
         name,
         endpoint: exportedEndpoint(),
         getDependencies: getJSDependencyMap,
         importGlobals: addImports,
-      });
+      })(files);
     }
   } catch (e) {
     projectExportTelemetry.track("export_convert_failed", {

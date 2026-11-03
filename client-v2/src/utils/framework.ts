@@ -367,14 +367,13 @@ export class PgFramework {
   }
 
   /**
-   * Read a workspace's files, hidden ones left out: the open workspace,
-   * unless `name` names another.
+   * Read a workspace's files, hidden ones left out.
    *
-   * @param name the workspace to read; the open one by default
+   * @param name the workspace to read
    * @returns the files, paths relative to the workspace root
    * @throws when nothing names a workspace
    */
-  static async readWorkspaceFiles(name = PgExplorer.currentWorkspaceName) {
+  static async readWorkspaceFiles(name: string) {
     // An empty name would read the root and zip every workspace as ".zip"
     if (!name) throw new Error(PgWorkspace.errors.CURRENT_NOT_FOUND);
     const workspacePath = PgCommon.appendSlash(

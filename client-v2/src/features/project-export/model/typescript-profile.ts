@@ -79,14 +79,14 @@ const uses = (content: string, name: string) =>
  *
  * @param path the script's path, from the project root
  * @param content the script
- * @returns the import line, or `null` when the script uses neither
+ * @returns the import line, or empty when the script uses neither
  */
 const shimImport = (path: string, content: string) => {
   const names = [
     uses(content, "pg") && !declares(content, "pg") && "pg",
     uses(content, "sleep") && !declares(content, "sleep") && "sleep",
   ].filter((name): name is string => !!name);
-  if (!names.length) return null;
+  if (!names.length) return "";
 
   const depth = path.split("/").length - 1;
   const from = "../".repeat(depth) + SHIM_PATH.replace(/\.ts$/, "");
@@ -97,17 +97,14 @@ const shimImport = (path: string, content: string) => {
  * Make a script run under Node: import the Playground's global packages,
  * and `pg` and `sleep` from the shim
  */
-const convertScript = (
-  path: string,
-  content: string,
-  importGlobals: (content: string) => string
-) => {
-  const converted = importGlobals(content);
-  const shim = shimImport(path, converted);
-  return shim ? shim + converted : converted;
-};
+const convertScriptWith =
+  (importGlobals: (content: string) => string) =>
+  (path: string, content: string) => {
+    const converted = importGlobals(content);
+    return shimImport(path, converted) + converted;
+  };
 
-/** The client file `npm run client` runs, or `null` with no client */
+/** The client file `npm run client` runs, or `undefined` with no client */
 const clientEntry = (paths: string[]) => {
   const clients = paths
     .filter((path) => path.startsWith("client/") && SCRIPT_REGEX.test(path))
@@ -115,7 +112,7 @@ const clientEntry = (paths: string[]) => {
   const preferred = PREFERRED_CLIENTS.find((path) => clients.includes(path));
   if (preferred) return preferred;
   const topLevel = clients.find((path) => path.split("/").length === 2);
-  return topLevel ?? clients[0] ?? null;
+  return topLevel ?? clients[0];
 };
 
 /** An npm package name from a project name */
@@ -231,7 +228,7 @@ export const sleep = (ms: number) =>
 const readme = (opts: {
   name: string;
   endpoint: string;
-  client: string | null;
+  client: string | undefined;
   hasTests: boolean;
 }) => {
   const run = [
@@ -283,7 +280,7 @@ exist only in Playground.
  * `playground.ts` added at the root, unless the project holds one there
  * already.
  *
- * @param files the project's files, Playground layout
+ * @param files the project's files, Playground layout (the returned function's)
  * @param opts.name the project's name
  * @param opts.endpoint the cluster `pg.connection` falls back to
  * @param opts.getDependencies the packages the given files use, with versions
@@ -295,84 +292,84 @@ exist only in Playground.
  * @returns the files to zip, and the README to show after: the project's own
  * when it has one at the root, which the profile keeps
  */
-export const toNodeProject = async (
-  files: TupleFiles,
-  opts: {
+export const toNodeProjectWith =
+  (opts: {
     name: string;
     endpoint: string;
     getDependencies: (files: TupleFiles) => Promise<Record<string, string>>;
     importGlobals: (content: string) => string;
-  }
-): Promise<{ files: TupleFiles; readme: string }> => {
-  const converted: TupleFiles = files.map(([path, content]) =>
-    SCRIPT_FOLDER_REGEX.test(path) && SCRIPT_REGEX.test(path)
-      ? [path, convertScript(path, content, opts.importGlobals)]
-      : [path, content]
-  );
+  }) =>
+  async (files: TupleFiles): Promise<{ files: TupleFiles; readme: string }> => {
+    const convertScript = convertScriptWith(opts.importGlobals);
+    const converted: TupleFiles = files.map(([path, content]) =>
+      SCRIPT_FOLDER_REGEX.test(path) && SCRIPT_REGEX.test(path)
+        ? [path, convertScript(path, content)]
+        : [path, content]
+    );
 
-  const paths = files.map(([path]) => path);
-  const client = clientEntry(paths);
-  const hasTests = paths.some(
-    (path) => path.startsWith("tests/") && SCRIPT_REGEX.test(path)
-  );
+    const paths = files.map(([path]) => path);
+    const client = clientEntry(paths);
+    const hasTests = paths.some(
+      (path) => path.startsWith("tests/") && SCRIPT_REGEX.test(path)
+    );
 
-  const shimFile: [string, string] = [SHIM_PATH, shim(opts.endpoint)];
-  const dependencies = await opts.getDependencies([...converted, shimFile]);
-  for (const name of NODE_BUILTINS) delete dependencies[name];
-  const devDependencies: Record<string, string> = {
-    ...DEV_DEPENDENCIES,
-    ...(hasTests ? TEST_DEV_DEPENDENCIES : {}),
-    ...(dependencies["bn.js"] ? { "@types/bn.js": "^5.1.6" } : {}),
+    const shimFile: [string, string] = [SHIM_PATH, shim(opts.endpoint)];
+    const dependencies = await opts.getDependencies([...converted, shimFile]);
+    for (const name of NODE_BUILTINS) delete dependencies[name];
+    const devDependencies: Record<string, string> = {
+      ...DEV_DEPENDENCIES,
+      ...(hasTests ? TEST_DEV_DEPENDENCIES : {}),
+      ...(dependencies["bn.js"] ? { "@types/bn.js": "^5.1.6" } : {}),
+    };
+    for (const name of Object.keys(dependencies)) delete devDependencies[name];
+
+    const scripts: Record<string, string> = {};
+    if (client) scripts.client = `tsx ${client}`;
+    if (hasTests) {
+      scripts.test =
+        'mocha --node-option import=tsx --timeout 1000000 "tests/**/*.{ts,js,tsx,jsx}"';
+    }
+
+    const packageJson = {
+      name: toPackageName(opts.name),
+      private: true,
+      type: "module",
+      engines: { node: ">=20.6" },
+      scripts,
+      dependencies: sorted(dependencies),
+      devDependencies: sorted(devDependencies),
+    };
+
+    const tsconfig = {
+      compilerOptions: {
+        target: "ES2022",
+        module: "ESNext",
+        moduleResolution: "Bundler",
+        esModuleInterop: true,
+        resolveJsonModule: true,
+        skipLibCheck: true,
+        noEmit: true,
+        types: hasTests ? ["node", "mocha"] : ["node"],
+      },
+    };
+
+    const added: TupleFiles = [
+      ["package.json", JSON.stringify(packageJson, undefined, 2) + "\n"],
+      ["tsconfig.json", JSON.stringify(tsconfig, undefined, 2) + "\n"],
+      [
+        "README.md",
+        readme({ name: opts.name, endpoint: opts.endpoint, client, hasTests }),
+      ],
+      [".gitignore", "node_modules\n"],
+      shimFile,
+    ];
+    const taken = new Set(paths);
+    const all = [...converted, ...added.filter(([path]) => !taken.has(path))];
+    return {
+      files: all,
+      readme: all.find(([path]) => path === "README.md")?.[1] ?? "",
+    };
   };
-  for (const name of Object.keys(dependencies)) delete devDependencies[name];
-
-  const scripts: Record<string, string> = {};
-  if (client) scripts.client = `tsx ${client}`;
-  if (hasTests) {
-    scripts.test =
-      'mocha --node-option import=tsx --timeout 1000000 "tests/**/*.{ts,js,tsx,jsx}"';
-  }
-
-  const packageJson = {
-    name: toPackageName(opts.name),
-    private: true,
-    type: "module",
-    engines: { node: ">=20.6" },
-    scripts,
-    dependencies: sorted(dependencies),
-    devDependencies: sorted(devDependencies),
-  };
-
-  const tsconfig = {
-    compilerOptions: {
-      target: "ES2022",
-      module: "ESNext",
-      moduleResolution: "Bundler",
-      esModuleInterop: true,
-      resolveJsonModule: true,
-      skipLibCheck: true,
-      noEmit: true,
-      types: hasTests ? ["node", "mocha"] : ["node"],
-    },
-  };
-
-  const added: TupleFiles = [
-    ["package.json", JSON.stringify(packageJson, null, 2) + "\n"],
-    ["tsconfig.json", JSON.stringify(tsconfig, null, 2) + "\n"],
-    [
-      "README.md",
-      readme({ name: opts.name, endpoint: opts.endpoint, client, hasTests }),
-    ],
-    [".gitignore", "node_modules\n"],
-    shimFile,
-  ];
-  const taken = new Set(paths);
-  const all = [...converted, ...added.filter(([path]) => !taken.has(path))];
-  return {
-    files: all,
-    readme: all.find(([path]) => path === "README.md")?.[1] ?? "",
-  };
-};
 
 if (import.meta.vitest) {
   const { describe, it, expect, beforeAll } = import.meta.vitest;
@@ -393,7 +390,7 @@ if (import.meta.vitest) {
           if (!match[1].startsWith("node:")) names.add(match[1]);
         }
       }
-      return Object.fromEntries([...names].map((name) => [name, "1.0.0"]));
+      return Object.fromEntries(Array.from(names, (name) => [name, "1.0.0"]));
     };
 
     /** `addImports` for two of the globals, as it writes them */
@@ -407,22 +404,26 @@ if (import.meta.vitest) {
         .filter(Boolean)
         .join("") + content;
 
-    const profileOf = (files: TupleFiles, name = "My Project") =>
-      toNodeProject(files, {
+    const profileAs = (name: string) =>
+      toNodeProjectWith({
         name,
         endpoint: DEVNET,
         getDependencies: importedPackages,
         importGlobals,
       });
 
-    const exportOf = async (files: TupleFiles, name?: string) =>
-      (await profileOf(files, name)).files;
+    const profileOf = profileAs("My Project");
+
+    const exportAs = (name: string) => async (files: TupleFiles) =>
+      (await profileAs(name)(files)).files;
+
+    const exportOf = exportAs("My Project");
 
     const fileOf = (files: TupleFiles, path: string) =>
-      files.find(([p]) => p === path)?.[1];
+      files.find(([p]) => p === path)?.[1] ?? "";
 
     const packageOf = (files: TupleFiles) =>
-      JSON.parse(fileOf(files, "package.json")!);
+      JSON.parse(fileOf(files, "package.json"));
 
     const CLIENT = `console.log(pg.wallet.publicKey.toString());
 console.log(await pg.connection.getSlot());
@@ -486,7 +487,7 @@ console.log(await pg.connection.getSlot());
           "await sleep(10);\nconst kp = web3.Keypair.generate();\nnew BN(1);\nconsole.log(pg.connection);",
         ],
       ]);
-      const client = fileOf(files, "client/client.ts")!;
+      const client = fileOf(files, "client/client.ts");
       expect(client).toContain('import { pg, sleep } from "../playground";');
       expect(client).toContain('import * as web3 from "@solana/web3.js";');
       expect(client).toContain('import BN from "bn.js";');
@@ -570,7 +571,7 @@ console.log(await pg.connection.getSlot());
       const shimText = fileOf(
         await exportOf([["client/a.ts", CLIENT]]),
         SHIM_PATH
-      )!;
+      );
       expect(shimText).toContain(`process.env.SOLANA_RPC_URL || "${DEVNET}"`);
       expect(shimText).toContain(
         `process.env.SOLANA_KEYPAIR || "${DEFAULT_KEYPAIR_PATH}"`
@@ -587,7 +588,7 @@ console.log(await pg.connection.getSlot());
       const text = fileOf(
         await exportOf([["client/a.ts", CLIENT]]),
         "README.md"
-      )!;
+      );
       expect(text).toContain("SOLANA_RPC_URL");
       expect(text).toContain(DEVNET);
       expect(text).toContain("SOLANA_KEYPAIR");
@@ -597,15 +598,15 @@ console.log(await pg.connection.getSlot());
     it("escapes an endpoint it writes into code", async () => {
       const shimText = fileOf(
         (
-          await toNodeProject([["client/a.ts", CLIENT]], {
+          await toNodeProjectWith({
             name: "x",
             endpoint: 'https://rpc.example/?k="1"',
             getDependencies: importedPackages,
             importGlobals,
-          })
+          })([["client/a.ts", CLIENT]])
         ).files,
         SHIM_PATH
-      )!;
+      );
       expect(shimText).toContain('"https://rpc.example/?k=\\"1\\""');
     });
 
@@ -647,7 +648,7 @@ console.log(await pg.connection.getSlot());
       const shimText = fileOf(
         await exportOf([["client/a.ts", CLIENT]]),
         SHIM_PATH
-      )!;
+      );
       const { diagnostics } = ts.transpileModule(shimText, {
         reportDiagnostics: true,
         compilerOptions: { module: ts.ModuleKind.ESNext },
@@ -674,22 +675,46 @@ console.log(await pg.connection.getSlot());
     });
 
     it.each([
-      [
-        "devnet",
-        "https://devnet.helius-rpc.com/?api-key=secret",
-        Endpoint.DEVNET,
-      ],
-      ["mainnet-beta", "https://rpc.example/key", Endpoint.MAINNET_BETA],
-      ["testnet", "https://my-testnet.example", Endpoint.TESTNET],
-      ["localnet", "http://localhost:8900", "http://localhost:8900"],
-      ["playnet", "http://playnet", Endpoint.DEVNET],
-      [null, "https://unknown.example", Endpoint.DEVNET],
-    ])("writes %s's public endpoint for %s", (cluster, endpoint, expected) => {
-      expect(toPublicEndpoint(cluster, endpoint)).toBe(expected);
-    });
+      {
+        cluster: "devnet",
+        endpoint: "https://devnet.helius-rpc.com/?api-key=secret",
+        expected: Endpoint.DEVNET,
+      },
+      {
+        cluster: "mainnet-beta",
+        endpoint: "https://rpc.example/key",
+        expected: Endpoint.MAINNET_BETA,
+      },
+      {
+        cluster: "testnet",
+        endpoint: "https://my-testnet.example",
+        expected: Endpoint.TESTNET,
+      },
+      {
+        cluster: "localnet",
+        endpoint: "http://localhost:8900",
+        expected: "http://localhost:8900",
+      },
+      {
+        cluster: "playnet",
+        endpoint: "http://playnet",
+        expected: Endpoint.DEVNET,
+      },
+      {
+        // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` is null until it is known
+        cluster: null,
+        endpoint: "https://unknown.example",
+        expected: Endpoint.DEVNET,
+      },
+    ])(
+      "writes $cluster's public endpoint for $endpoint",
+      ({ cluster, endpoint, expected }) => {
+        expect(toPublicEndpoint(cluster, endpoint)).toBe(expected);
+      }
+    );
 
     it("gives an unusable name a package name", async () => {
-      expect(packageOf(await exportOf([["client/a.ts", ""]], "***")).name).toBe(
+      expect(packageOf(await exportAs("***")([["client/a.ts", ""]])).name).toBe(
         "playground-project"
       );
     });
