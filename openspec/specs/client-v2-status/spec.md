@@ -33,7 +33,7 @@ The network indicator SHALL show the cluster's name. While the connection
 has not answered yet it SHALL be working and read "<Name> · Connecting";
 when the cluster does not answer it SHALL be waiting (warning dot), read
 "<Name> · Not responding" and be named "Change cluster, currently <name>, not
-answering". A click SHALL open the settings on the cluster, as the cluster row
+responding". A click SHALL open the settings on the cluster, as the cluster row
 did.
 
 #### Scenario: A cluster that stops answering

@@ -73,7 +73,7 @@ again.
 A command that needs the Playground Wallet and finds none connected SHALL
 ask "Your Playground wallet is not connected. Connect it? [Y/n]" before it does
 anything else. A command that takes any wallet and finds none SHALL ask "No
-wallet is connected. Connect the Playground Wallet? [Y/n]". A yes SHALL
+wallet is connected. Connect the Playground wallet? [Y/n]". A yes SHALL
 connect the Playground Wallet and the command SHALL go on. A no SHALL end
 the command with "Run `connect` to connect a wallet, then try again." and no
 "Process error:" prefix.

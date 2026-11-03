@@ -42,8 +42,8 @@ close the sheet. Every button in the sheet SHALL be at least 48 px tall.
 ### Requirement: The sheet says what moves with the person
 
 Signed in, the sheet SHALL say their files and this conversation go with
-them and name the GitHub login to sign in with on the computer. Signed out, it SHALL
-say the project stays on this phone and offer "Sign in with GitHub",
+them and name the GitHub login to sign in with on the computer. Signed out,
+it SHALL say the project stays on this phone and offer "Sign in with GitHub",
 with the GitHub mark, as its one action; it starts the sign-in, and once
 signed in the sheet reads as signed in.
 

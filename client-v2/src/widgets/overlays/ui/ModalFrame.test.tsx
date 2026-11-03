@@ -309,6 +309,9 @@ it.each([
   ["Delete…", "delete"],
   ["Save...", "save"],
   ["Remove?", "remove"],
+  ["Delete project…", "delete project"],
+  ["Sign in with GitHub", "sign in with GitHub"],
+  ["API key", "API key"],
   ["…", "do that"],
 ])("should name the action of the label %s as %s", async (label, action) => {
   renderFrame({

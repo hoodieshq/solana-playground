@@ -59,15 +59,20 @@ export class SubmitCancelled extends Error {
 }
 
 /**
- * Spec 08's fallback for a submit that threw nothing to show: "Could not
- * {action}.", never a generic error. The action is the submit's label without
- * its closing punctuation, lower-cased ("Delete…" reads "delete"); a label
- * with nothing left of it reads "do that".
+ * Spec 08's fallback (ANY-00, in its 29 Oct wording) for a submit that threw
+ * nothing to show: "Could not {action}.", never a generic error. The action is
+ * the submit's label without its closing punctuation, its first letter
+ * lower-cased ("Delete…" reads "delete") unless the label opens on an acronym;
+ * a label with nothing left of it reads "do that".
  * A dialog has no log to point at, so it ends on the retry its button offers.
  */
 const unknownError = (action: string) => {
   const verb = action.replace(/[\s.…?!:]+$/u, "");
-  const what = verb ? verb.charAt(0).toLowerCase() + verb.slice(1) : "do that";
+  if (!verb) return "Could not do that. Try again.";
+  // An acronym or a name that opens the label ("API key", "SOL transfer") keeps its case
+  const what = /^[A-Z][a-z]/.test(verb)
+    ? verb.charAt(0).toLowerCase() + verb.slice(1)
+    : verb;
   return `Could not ${what}. Try again.`;
 };
 

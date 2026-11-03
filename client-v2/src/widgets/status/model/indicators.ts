@@ -115,7 +115,7 @@ export const networkIndicator = (
     return view(
       "not-ready",
       "not responding",
-      "The cluster does not answer. Write and Build work; Deploy and Interact wait for it."
+      "The cluster is not responding. Write and Build work; Deploy and Interact wait for it."
     );
   }
   // Playnet is not asked until it has started (`PgConnection.getIsConnected`),
@@ -393,7 +393,9 @@ if (import.meta.vitest) {
 
       it("says sign-in is the way to the hosted model", () => {
         const a = aiIndicator({ kind: "off", needsSignIn: true }, true);
-        expect(a.detail).toMatch(/^Sign in/);
+        expect(a.detail).toBe(
+          "Sign in with GitHub to use the hosted model, or add a key of your own."
+        );
       });
 
       it("reads Offline offline", () => {
