@@ -9,13 +9,18 @@ export interface BaseDownloadIdlProps {
   onDownload: () => void;
 }
 
-/** Saves the IDL Playground holds, beside "Download .so"; off without one */
+/**
+ * Saves the IDL Playground holds, beside "Download .so". Without one it is
+ * `aria-disabled`, not `disabled`: it stays focusable, so keyboard and
+ * screen-reader users still reach why it is off.
+ */
 const BaseDownloadIdl = (p: BaseDownloadIdlProps) => (
   <Button
     variant="outline"
-    disabled={!p.hasIdl}
+    aria-disabled={!p.hasIdl}
+    className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
     title={p.hasIdl ? `Save ${p.fileName}` : "This program has no IDL"}
-    onClick={p.onDownload}
+    onClick={p.hasIdl ? p.onDownload : undefined}
   >
     Download IDL
   </Button>

@@ -329,13 +329,12 @@ describe("features/cli-deploy/ui/CliDeployGuide", () => {
 
     expect(idlLines()).toEqual([]);
     expect(screen.getByText("This program has no IDL to upload.")).toBeTruthy();
-    expect(
-      (
-        screen.getByRole("button", {
-          name: "Download IDL",
-        }) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
+    // Off but focusable, so its title still reaches keyboard users
+    const download = screen.getByRole("button", { name: "Download IDL" });
+    expect(download.getAttribute("aria-disabled")).toBe("true");
+    expect((download as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(download);
+    expect(sent.events.map((e) => e.name)).not.toContain("cli_idl_downloaded");
   });
 
   it("renders nothing while closed", () => {

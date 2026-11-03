@@ -24,7 +24,7 @@ step 3's CodeBlock with its copy button, and Download .so's outline button.
   commands carry `<program-id>`, and a line says the deploy prints it.
 - **The IDL file is `<program>.json`**, the same base name as the binary, so
   the files sit together and the commands name them without guessing.
-- **No IDL** (a native program, or no build yet): Download IDL is off, and
+- **No IDL** (a native program, or no build yet): Download IDL is off (`aria-disabled`, still focusable), and
   step 3.1 says there is no IDL to upload and shows no command.
 
 ## Risks

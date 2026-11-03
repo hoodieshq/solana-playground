@@ -86,7 +86,7 @@ const IDL_COMMANDS: Record<IdlCommandKind, { title: string; copy: string }> = {
     copy: "Copy the IDL upload command",
   },
   anchor: {
-    title: "Anchor · legacy IDL account before 1.0",
+    title: "Anchor before 1.0 · legacy IDL account",
     copy: "Copy the Anchor IDL command",
   },
 };
