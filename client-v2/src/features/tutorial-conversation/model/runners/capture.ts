@@ -8,6 +8,26 @@ export type Captured =
   | { kind: "sent"; signature: string; encoded: string }
   | { kind: "refused"; encoded: string; message: string; log: string[] };
 
+/**
+ * Send errors `PgTx.send` answers by sending again with a fresh blockhash:
+ * the refusal is the first try of a transaction that may land on the retry,
+ * not the program's answer
+ */
+const RETRIED = [
+  "Blockhash not found",
+  "This transaction has already been processed",
+];
+
+/** Whether a refused send is one `PgTx.send` retries */
+export const isRetriedSend = (c: Captured): boolean =>
+  c.kind === "refused" && RETRIED.some((m) => c.message.includes(m));
+
+/** Thrown into a run that starts while another one is capturing */
+export const CAPTURE_BUSY = "Another run is sending. Wait for it to finish.";
+
+/** Whether a capture is in flight: the hook is on the shared prototype */
+let capturing = false;
+
 /** What the hook wraps: web3.js's `Connection.prototype` */
 export interface Sender {
   sendEncodedTransaction(encoded: string, options?: unknown): Promise<string>;
@@ -41,6 +61,12 @@ export const captureSends = async <T>(
   fn: () => Promise<T>
 ): Promise<{ value: T | undefined; error: unknown; captured: Captured[] }> => {
   const captured: Captured[] = [];
+  // Two hooks on one prototype would record each other's sends and restore
+  // out of order, leaving a wrapper behind; the engine runs one act at a time
+  if (capturing) {
+    return { value: undefined, error: new Error(CAPTURE_BUSY), captured };
+  }
+  capturing = true;
   const own = Object.prototype.hasOwnProperty.call(
     target,
     "sendEncodedTransaction"
@@ -67,6 +93,7 @@ export const captureSends = async <T>(
   } finally {
     if (own) target.sendEncodedTransaction = original;
     else delete (target as Partial<Sender>).sendEncodedTransaction;
+    capturing = false;
   }
 };
 
@@ -131,6 +158,39 @@ if (import.meta.vitest) {
       expect(FakeConnection.prototype.sendEncodedTransaction).toBe(before);
       await new FakeConnection().sendEncodedTransaction("later");
       expect(captured).toEqual([]);
+    });
+
+    it("refuses a second capture while one is in flight, and sends untouched", async () => {
+      const conn = new FakeConnection();
+      let inner: Awaited<ReturnType<typeof captureSends>> | null = null;
+      const outer = await captureSends(FakeConnection.prototype, async () => {
+        inner = await captureSends(FakeConnection.prototype, async () =>
+          conn.sendEncodedTransaction("b")
+        );
+        return conn.sendEncodedTransaction("a");
+      });
+      expect(inner!.error).toEqual(new Error(CAPTURE_BUSY));
+      expect(outer.captured.map((c) => c.encoded)).toEqual(["a"]);
+      const after = await captureSends(FakeConnection.prototype, async () =>
+        conn.sendEncodedTransaction("c")
+      );
+      expect(after.captured).toHaveLength(1);
+    });
+
+    it("tells a blockhash retry from a refusal", () => {
+      const refused = (message: string): Captured => ({
+        kind: "refused",
+        encoded: "x",
+        message,
+        log: [],
+      });
+      expect(isRetriedSend(refused("Blockhash not found"))).toBe(true);
+      expect(
+        isRetriedSend(refused("This transaction has already been processed"))
+      ).toBe(true);
+      expect(isRetriedSend(refused("custom program error: 0x1770"))).toBe(
+        false
+      );
     });
 
     it("restores an instance's own send without leaving the wrapper behind", async () => {

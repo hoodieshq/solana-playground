@@ -113,9 +113,9 @@ const anchorError = (log: string[]) => {
   return null;
 };
 
-/** Whether the tutorial's program ran at all in this log */
+/** Whether the tutorial's program ran at all in this log, at any depth */
 const reached = (log: string[], programId: string) =>
-  log.some((line) => line === `Program ${programId} invoke [1]`);
+  log.some((line) => line.startsWith(`Program ${programId} invoke [`));
 
 /**
  * What the program refused: the instruction (decoded, else from Anchor's
@@ -143,7 +143,11 @@ export const refusalOf = (
   };
 };
 
-/** A failure in a sentence: Anchor's message, else the chain's first line */
+/**
+ * A failure in a sentence: Anchor's message (else its error name); for a
+ * refused send, the RPC's first line; for a landed transaction with no
+ * Anchor error, its error as the chain gives it
+ */
 const reasonOf = (tx: SentTx): string => {
   const anchor = anchorError(tx.log);
   if (anchor?.message) return anchor.message;
@@ -156,7 +160,8 @@ const failed = (tx: SentTx): boolean =>
   tx.kind === "refused" || tx.err !== null;
 
 /**
- * One result from every transaction a run or call sent, at least one. Any failure fails
+ * One result from every transaction a run or call sent; `sent` is never
+ * empty (`runOrCall` answers a run that sent nothing itself). Any failure fails
  * the run, with the first failure's reason, log and refusal; otherwise the
  * run landed, with every signature, the picked line, every call to the
  * program, and the last transaction's receipt.

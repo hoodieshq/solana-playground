@@ -1,5 +1,6 @@
 import type { RunResult } from "../progress";
 import type { RunInput, RunStage } from "../ports";
+import { isRetriedSend } from "./capture";
 import type { Captured } from "./capture";
 import { fundForDeploy } from "./fund";
 import type { FundingChain } from "./fund";
@@ -66,6 +67,8 @@ export interface RunPort {
   /** The wire transaction's instructions to the program, decoded by its IDL */
   decode(encoded: string): DecodedCall[];
   print(line: string): void;
+  /** Logs a failure the team should hear of, with what was happening */
+  report(error: unknown, stage: string): void;
   now(): number;
 }
 
@@ -77,7 +80,7 @@ const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * every transaction it sent. Stages: "Funding your wallet" first when the
  * wallet is short, then "Running client.ts" or "Sending", then
  * "Confirming". A run that could not happen is a failed result, never a
- * throw.
+ * throw: an unexpected one is reported and becomes the failure's message.
  */
 export const runOrCall = async (
   port: RunPort,
@@ -87,31 +90,46 @@ export const runOrCall = async (
 ): Promise<TxResult> => {
   const started = port.now();
   const seconds = () => (port.now() - started) / 1000;
-  const fail = (
-    message: string,
-    reason?: "no_wallet" | "no_funds"
-  ): TxResult => ({
+  const fail = (message: string): TxResult => ({
     act,
     ok: false,
     seconds: seconds(),
     message,
     log: "",
-    ...(reason ? { reason } : {}),
   });
+  try {
+    return await attempt(port, act, input, onStage, seconds, fail);
+  } catch (e) {
+    port.report(e, `The tutorial ${act}`);
+    return fail(messageOf(e));
+  }
+};
 
+const attempt = async (
+  port: RunPort,
+  act: "run" | "call",
+  input: RunInput,
+  onStage: (stage: RunStage) => void,
+  seconds: () => number,
+  fail: (message: string) => TxResult
+): Promise<TxResult> => {
   const refusal = port.refusal();
   if (refusal) return fail(refusal);
   const address = port.wallet();
-  if (!address) return fail("No wallet", "no_wallet");
+  if (!address) {
+    return {
+      act,
+      ok: false,
+      seconds: seconds(),
+      reason: "no_wallet",
+      message: "No wallet",
+      log: "",
+    };
+  }
   const programId = port.programId();
   if (!programId) return fail("Deploy the program first.");
 
-  let balance: number;
-  try {
-    balance = await port.funding.balance(address);
-  } catch (e) {
-    return fail(messageOf(e));
-  }
+  const balance = await port.funding.balance(address);
   const short = balance < RUN_FLOOR;
   const labels = [
     ...(short ? [RUN_STAGES.funding] : []),
@@ -145,7 +163,10 @@ export const runOrCall = async (
   }
 
   stage(labels[index]);
-  const { captured, error } = await port.send(act, input);
+  const sends = await port.send(act, input);
+  // A first try `PgTx.send` answered by sending again is not a refusal
+  const captured = sends.captured.filter((c) => !isRetriedSend(c));
+  const { error } = sends;
 
   if (!captured.length) {
     if (error !== undefined) return fail(messageOf(error));
@@ -171,7 +192,7 @@ export const runOrCall = async (
       continue;
     }
     const landed = await port.landed(c.signature).catch((e) => {
-      port.print(`Could not read ${c.signature}: ${messageOf(e)}`);
+      port.report(e, "Reading a sent transaction back");
       return null;
     });
     sent.push(
@@ -180,18 +201,21 @@ export const runOrCall = async (
         : {
             kind: "refused",
             log: [],
-            message: `Transaction ${c.signature} did not confirm.`,
+            message: `Could not read transaction ${c.signature} back from devnet. Open it in Explorer to see whether it landed.`,
             calls,
           }
     );
   }
-  return resultOf({
+  const result = resultOf({
     act,
     sent,
     programId,
     pattern: input.log,
     seconds: seconds(),
   });
+  // What landed stands, but a run that threw after it did not finish
+  if (result.ok && error !== undefined) return fail(messageOf(error));
+  return result;
 };
 
 if (import.meta.vitest) {
@@ -254,6 +278,7 @@ if (import.meta.vitest) {
         landed: over.landed ?? (async () => HELLO_TX),
         decode: () => [HELLO_CALL],
         print: () => {},
+        report: vi.fn(),
         now: () => (clock += 500),
       };
     };
@@ -375,8 +400,55 @@ if (import.meta.vitest) {
       const port = portWith({ landed: async () => null });
       expect((await stagesOf(port)).result).toMatchObject({
         ok: false,
-        message: "Transaction 5ig did not confirm.",
+        message:
+          "Could not read transaction 5ig back from devnet. Open it in Explorer to see whether it landed.",
       });
+    });
+
+    it("a call that landed on PgTx.send's blockhash retry is confirmed, not refused", async () => {
+      const port = portWith({
+        send: async () => ({
+          captured: [
+            {
+              kind: "refused",
+              encoded: "tx",
+              message: "Blockhash not found",
+              log: [],
+            },
+            { kind: "sent", signature: "5ig", encoded: "tx" },
+          ],
+          error: undefined,
+        }),
+      });
+      expect((await stagesOf(port, "call")).result).toMatchObject({
+        ok: true,
+        signatures: ["5ig"],
+      });
+    });
+
+    it("a run that threw after its transaction landed fails with the throw", async () => {
+      const port = portWith({
+        send: async () => ({
+          captured: [{ kind: "sent", signature: "5ig", encoded: "tx" }],
+          error: new Error("Cannot read properties of undefined"),
+        }),
+      });
+      expect((await stagesOf(port)).result).toMatchObject({
+        ok: false,
+        message: "Cannot read properties of undefined",
+      });
+    });
+
+    it("an unexpected throw from the chain is a reported failure, never a throw", async () => {
+      const port = portWith({});
+      port.funding.balance = async () => {
+        throw new Error("fetch failed");
+      };
+      expect((await stagesOf(port)).result).toMatchObject({
+        ok: false,
+        message: "fetch failed",
+      });
+      expect(port.report).toHaveBeenCalledOnce();
     });
 
     it("refuses to start with no wallet, off devnet, or before a deploy", async () => {

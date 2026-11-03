@@ -34,8 +34,9 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /**
  * The calls a wire transaction makes to the program, as its IDL decodes
  * them: the instruction, each argument's value as a string, and the
- * accounts by their IDL names. An instruction the IDL cannot decode (an
- * older program, another program) is left out.
+ * accounts by their IDL names. Instructions to other programs are skipped;
+ * one to this program the IDL cannot decode (an IDL older than the program)
+ * is left out and logged, so the call goal it would have passed fails.
  */
 const decodeCalls = (
   encoded: string,
@@ -53,7 +54,12 @@ const decodeCalls = (
   for (const ix of message.compiledInstructions) {
     if (keys[ix.programIdIndex]?.toBase58() !== programId) continue;
     const decoded = coder.decode(Buffer.from(ix.data));
-    if (!decoded) continue;
+    if (!decoded) {
+      log.warn(
+        "An instruction to the tutorial's program its IDL cannot decode"
+      );
+      continue;
+    }
     const metas = ix.accountKeyIndexes.map((i) => ({
       pubkey: keys[i],
       isSigner: message.isAccountSigner(i),
@@ -162,6 +168,8 @@ export const realRunPort = (
     }
   },
   print: (line) => PgTerminal.println(line),
+  report: (error, stage) =>
+    log.error(error, { report: true, context: { stage } }),
   now: () => Date.now(),
 });
 
@@ -178,7 +186,7 @@ export const runOnDevnet =
       input,
       onStage
     );
-    // The reason and the chain's message only: never a key or the wallet
+    // The reason and the message only: no key material
     if (!result.ok) {
       log.warn(`A tutorial ${act} failed`, {
         context: {

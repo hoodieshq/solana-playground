@@ -1784,6 +1784,7 @@ if (import.meta.vitest) {
             message: "short",
             log: "",
             reason: "no_funds",
+            funding: { balance: 0, cost: 500_000_000, address: "w" },
           })
         ).toBe("no_funds");
         expect(
@@ -2182,6 +2183,49 @@ if (import.meta.vitest) {
             input: { beatId: "s3.run", log: "Hello, World!" },
           }),
         ]);
+      });
+
+      it("a failed transaction on step 3 passes nothing, and the act stays live", () => {
+        const s3 = play([
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+          { type: "next", at: 9000 },
+          { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.deploy", at: 10000 },
+          { type: "ended", beatId: "s2.deploy", result: DEPLOYED, at: 12000 },
+          { type: "next", at: 13000 },
+          { type: "skip", beatId: "s3.q3", at: 13500 },
+          { type: "act", beatId: "s3.run", at: 14000 },
+        ]);
+        const strict: EngineContext = {
+          definition: hello,
+          slug: "hello-anchor",
+          judge: judgeGoal,
+        };
+        const { state } = reduce(strict, s3.state, {
+          type: "ended",
+          beatId: "s3.run",
+          result: {
+            act: "run",
+            ok: false,
+            seconds: 1,
+            message: "Simulation failed",
+            log: "Program log: Instruction: Hello",
+            refused: { instruction: "hello", error: null },
+          },
+          at: 15000,
+        });
+        expect(state.progress.passed).not.toContain("call-client");
+        expect(state.progress.runs["s3.run"]).toMatchObject([
+          { status: "failed" },
+        ]);
+        // The act runs again
+        expect(
+          reduce(strict, state, { type: "act", beatId: "s3.run", at: 16000 })
+            .effects
+        ).toEqual([expect.objectContaining({ kind: "run" })]);
       });
 
       it("flows on after an ok act that is not the goal", () => {

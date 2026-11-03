@@ -34,8 +34,7 @@ const SENT_FROM: Record<TxResult["act"], string> = {
 };
 
 /** lamports as test SOL, the way the details sentence says the fee */
-const testSol = (lamports: number) =>
-  String(Math.round((lamports / 1e9) * 1e9) / 1e9);
+const testSol = (lamports: number) => String(lamports / 1e9);
 
 /** Where a run or call came from, for the sentence and a meta fallback */
 const FROM: Record<TxResult["act"], string> = {
@@ -271,14 +270,15 @@ const FailedCard = ({ result }: { result: Failed }) => {
       title={title}
       meta={meta}
       body={
-        errorLine && (
-          <>
+        <>
+          {errorLine && (
             <p className="border-l-2 border-error/40 pl-3 font-mono text-[0.75rem] break-words text-foreground/90">
               {errorLine}
             </p>
-            <p className={READ}>{result.message}</p>
-          </>
-        )
+          )}
+          {/* The head's meta truncates; the whole reason reads here */}
+          <p className={READ}>{result.message}</p>
+        </>
       }
       details={lines.length ? <LogLines lines={lines} /> : undefined}
     />

@@ -286,21 +286,30 @@ export type RunResult =
       message: string;
       log: string;
       /**
-       * Why nothing reached the chain: no wallet, the faucet left the wallet
-       * short, or the run sent no transaction. Absent for a run that sent and
-       * failed, or that could not run at all.
+       * Why nothing reached the chain: no wallet, or the run sent no
+       * transaction. Absent for a run that sent and failed, or that could not
+       * run at all.
        */
-      reason?: "no_wallet" | "no_funds" | "no_transaction";
-      /** With `no_funds`: the "Not enough devnet SOL" card's facts, in lamports */
-      funding?: { balance: number; cost: number; address: string };
+      reason?: "no_wallet" | "no_transaction";
       /**
        * What the program refused, when the transaction reached it; absent
        * when it never did (no wallet, a send that failed). A `refused` goal
-       * is judged on it and on `log`. The runner fills it from the
-       * transaction's error (`tutorial-flow-v2` task 4.3); until then no real
-       * run carries it.
+       * is judged on it and on `log`. The runner fills it from the program's
+       * log: Anchor's error, else the custom code the runtime names.
        */
       refused?: Refusal;
+    }
+  | {
+      act: "run" | "call";
+      ok: false;
+      seconds: number;
+      message: string;
+      log: string;
+      /** The faucet refused the top-up and the wallet cannot pay a fee */
+      reason: "no_funds";
+      /** The "Not enough devnet SOL" card's facts, in lamports */
+      funding: { balance: number; cost: number; address: string };
+      refused?: undefined;
     };
 
 export const freshProgress = (
