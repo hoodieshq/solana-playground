@@ -58,6 +58,8 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
   const [kind, setKind] = useState<ProjectKind>("program");
   useEffect(() => {
     let current = true;
+    // Another project's kind must not word this one's dialog
+    setKind("program");
     readProjectKind(project).then(
       (read) => current && setKind(read),
       (e) => {

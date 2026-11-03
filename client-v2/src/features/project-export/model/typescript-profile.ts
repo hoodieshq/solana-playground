@@ -300,8 +300,7 @@ export const toNodeProjectWith =
   (endpoint: string) =>
   (name: string) =>
   async (files: TupleFiles): Promise<{ files: TupleFiles; readme: string }> => {
-    const opts = { getDependencies, importGlobals, endpoint, name };
-    const convertScript = convertScriptWith(opts.importGlobals);
+    const convertScript = convertScriptWith(importGlobals);
     const converted: TupleFiles = files.map(([path, content]) =>
       SCRIPT_FOLDER_REGEX.test(path) && SCRIPT_REGEX.test(path)
         ? [path, convertScript(path, content)]
@@ -314,8 +313,8 @@ export const toNodeProjectWith =
       (path) => path.startsWith("tests/") && SCRIPT_REGEX.test(path)
     );
 
-    const shimFile: [string, string] = [SHIM_PATH, shim(opts.endpoint)];
-    const dependencies = await opts.getDependencies([...converted, shimFile]);
+    const shimFile: [string, string] = [SHIM_PATH, shim(endpoint)];
+    const dependencies = await getDependencies([...converted, shimFile]);
     for (const builtin of NODE_BUILTINS) delete dependencies[builtin];
     const devDependencies: Record<string, string> = {
       ...DEV_DEPENDENCIES,
@@ -332,7 +331,7 @@ export const toNodeProjectWith =
     }
 
     const packageJson = {
-      name: toPackageName(opts.name),
+      name: toPackageName(name),
       private: true,
       type: "module",
       engines: { node: ">=20.6" },
@@ -357,10 +356,7 @@ export const toNodeProjectWith =
     const added: TupleFiles = [
       ["package.json", JSON.stringify(packageJson, undefined, 2) + "\n"],
       ["tsconfig.json", JSON.stringify(tsconfig, undefined, 2) + "\n"],
-      [
-        "README.md",
-        readme({ name: opts.name, endpoint: opts.endpoint, client, hasTests }),
-      ],
+      ["README.md", readme({ name, endpoint, client, hasTests })],
       [".gitignore", "node_modules\n"],
       shimFile,
     ];

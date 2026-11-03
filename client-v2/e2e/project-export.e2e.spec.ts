@@ -104,13 +104,14 @@ test("project-export: A project with no program", async ({
   ]);
   const client = await zip.file("client/client.ts")?.async("string");
   expect(client).toContain('import { pg } from "../playground";');
-  await expect(
-    page.getByText("Could not convert the layout; exported it as is.")
-  ).toHaveCount(0);
-  // The README the export wrote, shown after it
+  // The README the export wrote, shown after it; by then a fallback toast
+  // would have shown too
   await expect(
     page
       .getByRole("dialog")
       .getByRole("heading", { name: "Cluster and wallet" })
   ).toBeVisible();
+  await expect(
+    page.getByText("Could not convert the layout; exported it as is.")
+  ).toHaveCount(0);
 });
