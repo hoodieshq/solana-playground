@@ -12,10 +12,10 @@ columns. On a narrower stage the surface SHALL keep one column in the order
 chips, form, result, Call history, Accounts, Events, and SHALL NOT show a
 history section before the first call.
 
-#### Scenario: Wide stage
+#### Scenario: Wide stage (manual)
 - **WHEN** the stage is 48rem wide and the program has calls in its history
 - **THEN** "Call history" is to the right of the form, top-aligned with the chips
 
-#### Scenario: Narrow stage
+#### Scenario: Narrow stage (manual)
 - **WHEN** the stage is 30rem wide
 - **THEN** "Call history" follows the result in one column
