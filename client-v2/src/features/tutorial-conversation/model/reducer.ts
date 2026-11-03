@@ -2,6 +2,7 @@ import type {
   Act,
   ActBeat,
   Ask,
+  Block,
   Beat,
   CallArg,
   Step,
@@ -123,6 +124,9 @@ export type Effect =
       block: string;
       /** The key line the learner typed, for a fill around it */
       key: string | null;
+      /** The write's own reference and start, when the definition gives them */
+      ref?: string;
+      start?: string;
       at: number;
     }
   | { kind: "create"; beatId: string; path: string; at: number }
@@ -273,14 +277,7 @@ const flow = (
       effects.push(
         "create" in b.writes
           ? { kind: "create", beatId: b.id, path: b.writes.create, at: t }
-          : {
-              kind: "write",
-              beatId: b.id,
-              file: b.writes.file,
-              block: b.writes.block,
-              key: null,
-              at: t,
-            }
+          : writeOf(b.id, b.writes, null, t)
       );
       t += TICK_MS;
     } else if (b.kind === "ask") {
@@ -302,20 +299,30 @@ const flow = (
   };
 };
 
+/** A block's write effect, carrying the block's own `ref` and `start` only
+ * when the definition gives them */
+const writeOf = (
+  beatId: string,
+  writes: Block,
+  key: string | null,
+  at: number
+): Effect => {
+  const effect: Extract<Effect, { kind: "write" }> = {
+    kind: "write",
+    beatId,
+    file: writes.file,
+    block: writes.block,
+    key,
+    at,
+  };
+  if (writes.ref !== undefined) effect.ref = writes.ref;
+  if (writes.start !== undefined) effect.start = writes.start;
+  return effect;
+};
+
 /** The write a resolved question's answer queues, when it has one */
 const answerWrite = (ask: Ask, key: string | null, at: number): Effect[] =>
-  ask.writes
-    ? [
-        {
-          kind: "write",
-          beatId: ask.id,
-          file: ask.writes.file,
-          block: ask.writes.block,
-          key,
-          at,
-        },
-      ]
-    : [];
+  ask.writes ? [writeOf(ask.id, ask.writes, key, at)] : [];
 
 /**
  * The step passes: its win posts at `at`, and the questions it left open
@@ -1075,6 +1082,36 @@ if (import.meta.vitest) {
       it("is a no-op once started", () => {
         const once = play([start]).state;
         expect(reduce(ctx(), once, start).state).toBe(once);
+      });
+
+      it("carries a write's own ref and start into its effect", () => {
+        const d = JSON.parse(JSON.stringify(hello)) as TutorialDefinition;
+        const boil = d.steps[0].beats[0];
+        if (boil.kind !== "write" || "create" in boil.writes) {
+          throw new Error("Hello Anchor opens on a block write");
+        }
+        boil.writes.ref = boil.writes.block;
+        boil.writes.start = "";
+        const { effects } = reduce(
+          {
+            definition: d,
+            slug: "hello-anchor",
+            judge: (_goal, result) => result.ok,
+          },
+          INITIAL_ENGINE_STATE,
+          start
+        );
+        expect(effects.find((e) => e.kind === "write")).toMatchObject({
+          beatId: "s1.boil",
+          ref: boil.writes.block,
+          start: "",
+        });
+      });
+
+      it("leaves ref and start off a write that has neither", () => {
+        const write = play([start]).effects.find((e) => e.kind === "write");
+        expect(write).not.toHaveProperty("ref");
+        expect(write).not.toHaveProperty("start");
       });
     });
 

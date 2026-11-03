@@ -1,4 +1,4 @@
-import type { Ask } from "@/entities/tutorial";
+import type { Ask, Step } from "@/entities/tutorial";
 
 /**
  * Where a lesson block lands in a file, and how a file is read for it. Ported
@@ -150,6 +150,20 @@ const placement = (
   }
   return { ref, refNorm, place, mine, ownLine };
 };
+
+/**
+ * What a write lands against: its own `ref` and `start` when the definition
+ * gives them, the step's target and start for the file otherwise. A write
+ * that builds code the step's target does not hold as written (a planned
+ * failure, a fix of it) names the file it belongs to in `ref`
+ */
+export const groundOf = (
+  write: { file: string; ref?: string; start?: string },
+  step: Pick<Step, "start" | "target"> | undefined
+): { reference: string | undefined; start: string } => ({
+  reference: write.ref ?? step?.target[write.file],
+  start: write.start ?? step?.start[write.file] ?? "",
+});
 
 export interface Placed {
   code: string;
@@ -353,6 +367,37 @@ if (import.meta.vitest) {
         expect(
           withOwnText('msg!("Hello, {}!", name);', 'msg!("Yo, {}!", name);')
         ).toBe('msg!("Yo, {}!", name);');
+      });
+    });
+
+    describe("groundOf", () => {
+      const step = {
+        start: { "src/lib.rs": HEAD },
+        target: { "src/lib.rs": TARGET },
+      };
+
+      it("is the step's target and start for a write with neither", () => {
+        expect(groundOf({ file: "src/lib.rs" }, step)).toEqual({
+          reference: TARGET,
+          start: HEAD,
+        });
+      });
+
+      it("is the write's own ref and start when it has them", () => {
+        expect(
+          groundOf({ file: "src/lib.rs", ref: MOD, start: "" }, step)
+        ).toEqual({ reference: MOD, start: "" });
+      });
+
+      it("is an empty start for a file the step's start lacks", () => {
+        expect(groundOf({ file: "client/client.ts" }, step)).toEqual({
+          reference: undefined,
+          start: "",
+        });
+        expect(groundOf({ file: "src/lib.rs" }, undefined)).toEqual({
+          reference: undefined,
+          start: "",
+        });
       });
     });
 

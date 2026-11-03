@@ -107,7 +107,8 @@ Every step carries whole files, never edits:
 - `start`: every file as the step finds it. Step 1 usually starts with
   `{ "src/lib.rs": "" }`.
 - `target`: every file as the step leaves it. Each block a beat writes must
-  appear in the target's file, its lines in a row.
+  appear in the target's file, its lines in a row, unless the write names
+  its own `ref` (the planned failure, below).
 - `file`: the step's main file, the one the editor shows.
 - `readOnly`: files the learner cannot edit in this step. A step that only
   deploys and calls changes no file: its `target` equals its `start`, and
@@ -159,6 +160,33 @@ with a code, a file and a line (`error[E0412]: ...`,
 unplanned. Any such error in that step before the fix counts as the planned
 one, so keep the step free of other errors. Ask the person to build that
 file in Playground before you write the failure's copy around it.
+
+**A write that builds something other than the target: `ref` and `start`.**
+The failing file is not the step's target, and its blocks may not be in the
+target as written (`InitPlayer` without `system_program`) or may sit there
+in another order. Give each such write the file it belongs to:
+
+- `ref`: the whole file the block lands in, here the failing build. The
+  block lands where `ref` has it, and the file is rebuilt from `ref` instead
+  of the target. The check wants the block in `ref` exactly once, and does
+  not look for it in the target.
+- `start`: the file as this write finds it, when that is not the step's
+  `start`. The fix question's write usually needs it: it replaces lines of
+  the failing build, which the step's `start` does not hold. Give it the
+  failing build as `start` and the step's target as `ref`.
+
+A write with neither lands against the step's target and start, as above.
+Give every write of the failing build the same `ref`, so the lines the
+failure's copy quotes ("line 20") are the lines the learner sees.
+
+```json
+"writes": {
+  "file": "src/lib.rs",
+  "block": "    pub board: Box<Account<'info, Board>>,",
+  "ref": "<the step's target for src/lib.rs>",
+  "start": "<the failing build of src/lib.rs>"
+}
+```
 
 ## The four beats
 
