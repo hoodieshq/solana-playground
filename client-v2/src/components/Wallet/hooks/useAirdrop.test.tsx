@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../utils", () => ({
   PgCommand: { airdrop: { execute: vi.fn() } },
   PgConnection: {
+    cluster: "devnet",
     onDidChangeCluster: vi.fn(() => ({ dispose: () => undefined })),
     getAirdropAmount: vi.fn(() => 5),
   },
@@ -61,5 +62,27 @@ describe("useAirdrop", () => {
   it("has none on mainnet", () => {
     // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` and `getAirdropAmount()` are `null` before the cluster is read or where there is no faucet
     expect(faucetOn("mainnet-beta", null)).toBe("none");
+  });
+
+  it("airdrops on localnet without opening the sign-in", async () => {
+    Object.assign(PgConnection, { cluster: "localnet" });
+    try {
+      const { result } = renderHook(() => useAirdrop());
+
+      await result.current.airdrop();
+
+      expect(PgSession.signIn).not.toHaveBeenCalled();
+      expect(PgCommand.airdrop.execute).toHaveBeenCalledOnce();
+    } finally {
+      Object.assign(PgConnection, { cluster: "devnet" });
+    }
+  });
+
+  it("opens the sign-in before a devnet airdrop when signed out", async () => {
+    const { result } = renderHook(() => useAirdrop());
+
+    await result.current.airdrop();
+
+    expect(PgSession.signIn).toHaveBeenCalledOnce();
   });
 });

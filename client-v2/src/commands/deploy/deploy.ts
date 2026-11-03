@@ -17,6 +17,7 @@ import { checkWallet } from "../checks";
 import { StoppedError, throwIfStopped } from "../../utils/stopped";
 import { createCmd } from "../create";
 import { additionalProgramLen } from "./additional-len";
+import { isAirdropSignInGated } from "../airdrop/sign-in-gate";
 import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
 import { deployStoppedLine } from "./stopped";
@@ -233,7 +234,9 @@ const processDeploy = async (
     if (answers) {
       // The stage funds without a question; the airdrop's sign-in check
       // would throw too, but its reason is read here, not from its message
-      if (!PgSession.get()) throw short("signed_out");
+      if (isAirdropSignInGated(PgConnection.cluster) && !PgSession.get()) {
+        throw short("signed_out");
+      }
       PgTerminal.println(`Warning: ${msg}`);
       throwIfStopped(signal, deployStoppedLine({ state: "none" }));
     } else {

@@ -10,6 +10,12 @@ import {
 import { checkWallet } from "../checks";
 import { createArgs, createCmd } from "../create";
 import { NO_FAUCET } from "./no-faucet";
+import { isAirdropSignInGated } from "./sign-in-gate";
+
+/** Command pre-check: a public faucet asks for a sign-in, a local one does not */
+const checkSignedInWhereGated = () => {
+  if (isAirdropSignInGated(PgConnection.cluster)) checkSignedIn();
+};
 
 export const airdrop = createCmd({
   name: "airdrop",
@@ -26,7 +32,7 @@ export const airdrop = createCmd({
       },
     },
   ]),
-  preChecks: [checkWallet, checkSignedIn],
+  preChecks: [checkWallet, checkSignedInWhereGated],
   handle: async (input) => {
     // Until the endpoint is read every cluster looks faucet-less; saying so
     // then would be wrong
