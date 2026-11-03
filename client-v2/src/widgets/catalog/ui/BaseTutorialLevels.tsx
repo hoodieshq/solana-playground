@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
 import { byLevel, LEVEL_FIRST } from "../lib/levels";
 import { tutorialCaption } from "../lib/tutorial-caption";
 import type { TutorialItem } from "../model/use-tutorial-list";
@@ -49,15 +50,16 @@ const BaseTutorialLevels = ({
                 {g.items.length}
               </span>
               {more ? (
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   aria-expanded={open}
                   onClick={() =>
                     setOpened((o) =>
                       open ? o.filter((l) => l !== g.level) : [...o, g.level]
                     )
                   }
-                  className="-mr-2 ml-auto flex h-9 items-center gap-1 rounded-lg px-2 text-[0.8125rem] text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+                  className="-mr-2 ml-auto text-[0.8125rem] text-muted-foreground"
                 >
                   {open ? "Show less" : "Show all"}
                   <ChevronRight
@@ -67,7 +69,7 @@ const BaseTutorialLevels = ({
                       open ? "-rotate-90" : "rotate-90"
                     )}
                   />
-                </button>
+                </Button>
               ) : null}
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-3">

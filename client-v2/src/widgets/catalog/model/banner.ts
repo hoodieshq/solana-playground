@@ -70,6 +70,7 @@ export const bannerOf = (
       ...head,
       state: "completed",
       label: "Completed",
+      // The headline without its full stop, as the prototype sets a banner line
       line: t.lesson?.finish.replace(/\.$/, "") || t.description,
       action: "Open again",
     };

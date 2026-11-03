@@ -4,6 +4,7 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
 import { BrandButton } from "@/shared/ui/brand-button";
+import { Button } from "@/shared/ui/button";
 import type { Banner } from "../model/banner";
 import { IsoVoxels } from "./art/IsoVoxels";
 import type { CardOpen } from "./BaseCatalogGrid";
@@ -119,11 +120,12 @@ const BaseStartHereBanner = ({
           <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
             {b.action === "Open again" ? (
               // The quiet action: words and an arrow, no box
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 disabled={busy}
                 onClick={press}
-                className="group/quiet -mx-2 flex h-10 shrink-0 items-center gap-1 rounded-control px-2 text-[0.8125rem] leading-5 whitespace-nowrap text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none"
+                // The quiet action: words and an arrow, no box even under the pointer
+                className="group/quiet -mx-2 h-10 text-[0.8125rem] text-muted-foreground hover:bg-transparent hover:text-foreground dark:hover:bg-transparent"
               >
                 Open again
                 <ArrowRight
@@ -131,7 +133,7 @@ const BaseStartHereBanner = ({
                   aria-hidden="true"
                   className="size-3.5 transition-transform duration-150 group-hover/quiet:translate-x-0.5 motion-reduce:transition-none"
                 />
-              </button>
+              </Button>
             ) : (
               <BrandButton
                 disabled={busy}
