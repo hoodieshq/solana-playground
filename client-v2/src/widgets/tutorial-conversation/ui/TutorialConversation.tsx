@@ -20,7 +20,6 @@ import { PgExplorer } from "@/utils/explorer";
 import { marksOf } from "../model/marks";
 import type { FeedMarks } from "../model/marks";
 import { PgTutorial } from "@/utils/tutorial";
-import { barProgress } from "../model/step-bar";
 import { tutorialTelemetry } from "../model/telemetry";
 import BaseFeed from "./BaseFeed";
 import TurnView from "./TurnView";
@@ -499,7 +498,6 @@ export const TutorialConversation = ({
       turns={view.turns}
       live={view.live}
       steps={view.steps}
-      progress={barProgress(context.definition, progress)}
       onJump={onJump}
       onBack={onBack}
       renderTurn={(turn, live) => (

@@ -25,25 +25,34 @@ const props = (over: Partial<BaseStepBarProps> = {}): BaseStepBarProps => ({
   steps: over.steps ?? onStep3,
   live: over.live === undefined ? 2 : over.live,
   viewing: over.viewing ?? null,
-  progress: over.progress ?? 0.5,
-  narrow: over.narrow ?? false,
   onJump: over.onJump ?? vi.fn(),
 });
 
+/** The step bar's segments, first to last */
+const segments = () =>
+  [
+    ...screen
+      .getByRole("navigation", { name: "Tutorial steps" })
+      .querySelectorAll("[data-step-segment]"),
+  ] as HTMLButtonElement[];
+
+/** The one line over the segments, which opens the steps' menu */
+const trigger = () =>
+  screen
+    .getByRole("navigation", { name: "Tutorial steps" })
+    .querySelector("button:not([data-step-segment])") as HTMLButtonElement;
+
+const allDone = () => onStep3.map((s) => step(s.id, s.short, s.title, "done"));
+
 describe("BaseStepBar", () => {
-  it("is a nav of one button per step, labelled with its short label", () => {
+  it("is one trigger, 'Step n of m · <short>', over one unlabelled segment per step", () => {
     render(<BaseStepBar {...props()} />);
-    const nav = screen.getByRole("navigation", { name: "Tutorial steps" });
-    const buttons = nav.querySelectorAll("button");
-    expect([...buttons].map((b) => b.textContent)).toEqual([
-      "Program",
-      "Deploy",
-      "3Client",
-      "4Name",
-    ]);
+    expect(trigger().textContent).toBe("Step 3 of 4·Client");
+    expect(segments()).toHaveLength(4);
+    expect(segments().map((b) => b.textContent)).toEqual(["", "", "", ""]);
   });
 
-  it("names each step's state in its label, and disables the ones not reached", () => {
+  it("names each step's state in its segment's label, and disables the ones not reached", () => {
     render(<BaseStepBar {...props()} />);
     expect(
       screen.getByRole("button", { name: "Step 1 of 4, Program, done" })
@@ -56,6 +65,16 @@ describe("BaseStepBar", () => {
       name: "Step 4 of 4, Name argument",
     }) as HTMLButtonElement;
     expect(ahead.disabled).toBe(true);
+  });
+
+  it("lights a segment per step entered", () => {
+    render(<BaseStepBar {...props()} />);
+    expect(segments().map((b) => b.dataset.lit)).toEqual([
+      "true",
+      "true",
+      "true",
+      "false",
+    ]);
   });
 
   it("marks the step the feed is scrolled into as the location, and keeps the live one current", () => {
@@ -72,27 +91,23 @@ describe("BaseStepBar", () => {
     ).toBe("step");
   });
 
-  it("jumps from a done or current segment", async () => {
+  it("jumps from a done or current segment, never from one not reached", async () => {
     const onJump = vi.fn();
     render(<BaseStepBar {...props({ onJump })} />);
     await userEvent.click(
       screen.getByRole("button", { name: "Step 1 of 4, Program, done" })
     );
     expect(onJump).toHaveBeenCalledWith(0, "bar");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Step 4 of 4, Name argument" })
+    );
+    expect(onJump).toHaveBeenCalledTimes(1);
   });
 
-  it("grows the hairline with the progress", () => {
-    render(<BaseStepBar {...props({ progress: 0.625 })} />);
-    expect(screen.getByTestId("step-bar-progress").style.width).toBe("62.5%");
-  });
-
-  it("is one button when narrow, whose menu marks the steps Done and Now", async () => {
+  it("opens a menu from the trigger that marks the steps Done and Now", async () => {
     const onJump = vi.fn();
-    render(<BaseStepBar {...props({ narrow: true, onJump })} />);
-    const trigger = screen.getByRole("button", { name: /Step 3 of 4/ });
-    expect(trigger.textContent).toBe("Step 3 of 4·Client");
-
-    await userEvent.click(trigger);
+    render(<BaseStepBar {...props({ onJump })} />);
+    await userEvent.click(trigger());
     const items = screen.getAllByRole("menuitem");
     expect(items.map((i) => i.textContent)).toEqual([
       "ProgramDone",
@@ -100,40 +115,29 @@ describe("BaseStepBar", () => {
       "3ClientNow",
       "4Name argument",
     ]);
+    expect(items[3].getAttribute("aria-disabled")).toBe("true");
     await userEvent.click(items[1]);
     expect(onJump).toHaveBeenCalledWith(1, "menu");
   });
 
-  it("keeps the last step live after the finish, when no step is current", () => {
-    const finished = onStep3.map((s) => step(s.id, s.short, s.title, "done"));
-    const { unmount } = render(
-      <BaseStepBar {...props({ steps: finished, live: 3 })} />
-    );
+  it("reads 'Done · m of m' after the finish, every segment lit, the last step live", () => {
+    render(<BaseStepBar {...props({ steps: allDone(), live: 3 })} />);
+    expect(trigger().textContent).toBe("Done · 4 of 4");
+    expect(segments().every((b) => b.dataset.lit === "true")).toBe(true);
     expect(
       screen
         .getByRole("button", { name: "Step 4 of 4, Name argument, done" })
         .getAttribute("aria-current")
     ).toBe("step");
-    unmount();
-
-    render(
-      <BaseStepBar {...props({ steps: finished, live: 3, narrow: true })} />
-    );
-    expect(
-      screen.getByRole("button", { name: /Step 4 of 4/ }).textContent
-    ).toBe("Step 4 of 4·Name");
   });
 
-  it("reads the step count before Start, with nothing to open", () => {
+  it("reads the step count before Start, with nothing to open and nothing lit", () => {
     const fresh = onStep3.map((s) =>
       step(s.id, s.short, s.title, "not_reached")
     );
-    render(
-      <BaseStepBar {...props({ steps: fresh, live: null, narrow: true })} />
-    );
-    const trigger = screen.getByRole("button", {
-      name: "4 steps",
-    }) as HTMLButtonElement;
-    expect(trigger.disabled).toBe(true);
+    render(<BaseStepBar {...props({ steps: fresh, live: null })} />);
+    expect(trigger().textContent).toBe("4 steps");
+    expect(trigger().disabled).toBe(true);
+    expect(segments().every((b) => b.dataset.lit === "false")).toBe(true);
   });
 });

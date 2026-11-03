@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+import type { CSSProperties } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 import type { StepJumpVia } from "@/entities/tutorial";
@@ -23,13 +25,16 @@ export interface BaseStepBarProps {
   live: number | null;
   /** The step the feed is scrolled into, by index, when it is not the live one */
   viewing: number | null;
-  /** How far the hairline reaches, from 0 to 1 (`barProgress`) */
-  progress: number;
-  /** Under 24rem of chat width the bar is one button that opens a menu */
-  narrow: boolean;
   /** A done or current step was picked, by its index */
   onJump: (index: number, via: JumpVia) => void;
 }
+
+const FOCUS =
+  "outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple";
+
+/** The newly lit segments sweep in one after another */
+const SWEEP_AFTER = 140;
+const SWEEP_STAGGER = 180;
 
 const labelOf = (step: StepBarItem, index: number, count: number) => {
   const where = `Step ${index + 1} of ${count}, ${step.title}`;
@@ -43,7 +48,36 @@ const currentOf = (looking: boolean, isLive: boolean) => {
   return isLive ? ("step" as const) : undefined;
 };
 
-/** The glyph a segment and a menu row start with: the number, or a check once done */
+/** What the trigger says: the count before Start, the step, or the finish */
+const whereOf = (count: number, live: number | null, finished: boolean) => {
+  if (live === null) return `${count} steps`;
+  if (finished) return `Done · ${count} of ${count}`;
+  return `Step ${live + 1} of ${count}`;
+};
+
+/**
+ * One gradient laid across all the segments: each shows its own share, so
+ * the gaps break a single bar instead of a colour a step. A percent position
+ * moves an image n boxes wide by one box per n - 1
+ */
+const shareOf = (index: number, count: number): CSSProperties => ({
+  backgroundImage: "var(--gradient-product-flat)",
+  backgroundSize: `${count * 100}% 100%`,
+  backgroundPosition: `${count > 1 ? (index / (count - 1)) * 100 : 0}% 0`,
+});
+
+/** Remembers how many segments were lit last time, so only the ones lit since sweep, in order */
+const useSweep = (lit: number) => {
+  const before = useRef(lit);
+  const from = before.current;
+  useEffect(() => {
+    before.current = lit;
+  }, [lit]);
+  return (index: number) =>
+    index >= from ? SWEEP_AFTER + (index - from) * SWEEP_STAGGER : 0;
+};
+
+/** The glyph a menu row starts with: the number, or a check once done */
 const Glyph = ({ step, index }: { step: StepBarItem; index: number }) => (
   <span
     aria-hidden="true"
@@ -64,74 +98,68 @@ const Glyph = ({ step, index }: { step: StepBarItem; index: number }) => (
 );
 
 /**
- * The segments are raw `button`s: a step segment, its glyph and its
- * connector are the prototype's, and the design system's `stepper` does not
- * fit: it is a Tabs switch with one selection (the Write, Build, Deploy
- * loop), where these are jump buttons marked with `aria-current`.
+ * The tutorial's steps under the chat head, as the prototype's `StepBar` at
+ * `f7d42bf2e` draws them: one line, "Step n of m · <short>" at 14/18, opens
+ * the steps' menu (Done and Now, a step not reached disabled), and 8 px under
+ * it one segment per step, a 4 px rounded bar on a 12% track, 4 px apart,
+ * each a 12 px tall button that jumps to its step. A segment lights whole, in
+ * the brand gradient, as its step is entered.
  *
- * The tutorial's steps under the chat head: one button per step, labelled
- * with its short label, and the progress hairline on the bar's bottom edge.
- * A step not reached is disabled; the live one is `aria-current="step"`, and
- * the one the feed is scrolled into, when it is another, is
- * `aria-current="location"`. Narrow, the bar is one button, "Step n of m ·
- * <short>" ("m steps" before Start), whose menu lists the steps with Done
- * and Now.
+ * Built from the menu and raw buttons: the design system's `stepper` is a
+ * Tabs switch with one selection and `step-rail` the v1 vertical rail;
+ * these are jump buttons marked with `aria-current`.
  */
-const BaseStepBar = ({
-  steps,
-  live,
-  viewing,
-  progress,
-  narrow,
-  onJump,
-}: BaseStepBarProps) => {
+const BaseStepBar = ({ steps, live, viewing, onJump }: BaseStepBarProps) => {
   const count = steps.length;
-  const hairline = (
-    <span
-      aria-hidden="true"
-      data-testid="step-bar-progress"
-      style={{ width: `${Math.round(progress * 1000) / 10}%` }}
-      className="absolute bottom-[-1px] left-0 h-0.5 rounded-r-full bg-gradient-product-flat transition-[width] duration-(--duration-slow) ease-out motion-reduce:transition-none"
-    />
-  );
+  const finished = count > 0 && steps.every((s) => s.state === "done");
+  let lit = 0;
+  if (finished) lit = count;
+  else if (live !== null) lit = live + 1;
+  const delayOf = useSweep(lit);
+  const name = live !== null && !finished ? steps[live]?.short : null;
 
-  if (narrow) {
-    const at = live === null ? null : steps[live];
-    return (
-      <nav
-        aria-label="Tutorial steps"
-        className="relative flex h-10 shrink-0 items-center border-b border-border px-3"
-      >
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            disabled={!steps.some((s) => s.state !== "not_reached")}
-            className="flex h-7 items-center gap-1.5 rounded-[6px] px-2 text-[0.8125rem] font-label outline-none hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-brand-purple disabled:hover:bg-transparent"
-          >
-            {at && live !== null ? (
-              <>
-                <span className="text-muted-foreground tabular-nums">
-                  Step {live + 1} of {count}
-                </span>
-                <span aria-hidden="true" className="text-subtle">
-                  ·
-                </span>
-                <span className="text-foreground">{at.short}</span>
-              </>
-            ) : (
-              <span className="text-muted-foreground tabular-nums">
-                {count} steps
+  return (
+    <nav aria-label="Tutorial steps" className="shrink-0 px-5 pt-3 pb-1">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          disabled={live === null}
+          className={cn(
+            "group -mx-1.5 flex h-[1.125rem] items-center gap-1.5 rounded-md px-1.5 text-[0.875rem] leading-[1.125rem] font-label hover:bg-surface-hover disabled:hover:bg-transparent data-[state=open]:bg-surface-hover",
+            FOCUS
+          )}
+        >
+          <span className="text-muted-foreground tabular-nums">
+            {whereOf(count, live, finished)}
+          </span>
+          {name && (
+            <>
+              <span aria-hidden="true" className="text-subtle">
+                ·
               </span>
-            )}
-            <ChevronDown aria-hidden="true" className="size-3.5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64">
-            {steps.map((step, index) => (
+              <span className="font-medium text-foreground">{name}</span>
+            </>
+          )}
+          {live !== null && (
+            <ChevronDown
+              aria-hidden="true"
+              className="size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+            />
+          )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" alignOffset={-8} className="w-64">
+          {steps.map((step, index) => {
+            const now = step.state === "current";
+            const looking = viewing === index;
+            return (
               <DropdownMenuItem
                 key={step.id}
                 disabled={step.state === "not_reached"}
-                aria-current={currentOf(viewing === index, live === index)}
+                aria-current={currentOf(looking, live === index)}
                 onSelect={() => onJump(index, "menu")}
-                className="min-h-10 gap-3 px-2.5"
+                className={cn(
+                  "min-h-10 gap-3 px-2.5",
+                  (now || looking) && "bg-foreground/[0.06]"
+                )}
               >
                 <Glyph step={step} index={index} />
                 <span className="min-w-0 flex-1 truncate">{step.title}</span>
@@ -141,55 +169,50 @@ const BaseStepBar = ({
                   </span>
                 )}
               </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {hairline}
-      </nav>
-    );
-  }
-
-  return (
-    <nav
-      aria-label="Tutorial steps"
-      className="relative flex h-10 shrink-0 items-center border-b border-border px-3"
-    >
-      {steps.map((step, index) => (
-        <span key={step.id} className="flex min-w-0 flex-1 items-center">
-          {index > 0 && (
-            <span
-              aria-hidden="true"
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <span
+        className="mt-2 grid gap-1"
+        style={{
+          gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
+        }}
+      >
+        {steps.map((step, index) => {
+          const on = index < lit;
+          return (
+            <button
+              key={step.id}
+              type="button"
+              data-step-segment=""
+              data-lit={on}
+              disabled={step.state === "not_reached"}
+              aria-label={labelOf(step, index, count)}
+              aria-current={currentOf(viewing === index, live === index)}
+              onClick={() => onJump(index, "bar")}
               className={cn(
-                "mx-1 h-px min-w-2 max-w-6 flex-1",
-                steps[index - 1].state === "done"
-                  ? "bg-border-strong"
-                  : "bg-border"
+                "flex h-3 items-center disabled:cursor-default",
+                FOCUS
               )}
-            />
-          )}
-          <button
-            type="button"
-            disabled={step.state === "not_reached"}
-            aria-label={labelOf(step, index, count)}
-            aria-current={currentOf(viewing === index, live === index)}
-            onClick={() => onJump(index, "bar")}
-            className={cn(
-              "flex h-7 min-w-0 items-center gap-1.5 rounded-[6px] px-2 text-[0.8125rem] font-label outline-none focus-visible:outline-2 focus-visible:outline-brand-purple disabled:cursor-default",
-              step.state === "not_reached" && "text-subtle",
-              step.state === "current" &&
-                "text-foreground hover:bg-surface-hover",
-              step.state === "done" &&
-                "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
-              viewing === index &&
-                "bg-surface-raised text-foreground ring-1 ring-inset ring-border-strong"
-            )}
-          >
-            <Glyph step={step} index={index} />
-            <span className="truncate">{step.short}</span>
-          </button>
-        </span>
-      ))}
-      {hairline}
+            >
+              <span
+                aria-hidden="true"
+                className="relative block h-1 w-full overflow-hidden rounded-[4px] bg-foreground/[0.12]"
+              >
+                <span
+                  style={{
+                    ...shareOf(index, count),
+                    clipPath: on ? "inset(0 0 0 0)" : "inset(0 100% 0 0)",
+                    transitionDelay: on ? `${delayOf(index)}ms` : "0ms",
+                  }}
+                  className="absolute inset-0 transition-[clip-path] duration-(--duration-slow) ease-out motion-reduce:transition-none"
+                />
+              </span>
+            </button>
+          );
+        })}
+      </span>
     </nav>
   );
 };

@@ -1,32 +1,4 @@
-import type { TutorialDefinition } from "@/entities/tutorial";
-import type {
-  ConversationProgress,
-  StepBarItem,
-} from "@/features/tutorial-conversation";
-
-/**
- * How far the step bar's hairline reaches, from 0 to 1: the steps passed,
- * plus the live step's share of the beats it has posted. A step in its
- * planned failure has posted all its own beats, so it counts as whole until
- * it passes.
- */
-export const barProgress = (
-  definition: TutorialDefinition,
-  progress: ConversationProgress
-): number => {
-  const count = definition.steps.length;
-  const cursor = progress.cursor;
-  if (cursor.kind === "finished") return 1;
-
-  const passed = progress.passed.length;
-  if (cursor.kind !== "step" || progress.passed.includes(cursor.stepId)) {
-    return passed / count;
-  }
-  const step = definition.steps.find((s) => s.id === cursor.stepId);
-  const beats = step?.beats.length ?? 0;
-  const share = cursor.fail || beats === 0 ? 1 : cursor.beat / beats;
-  return Math.min(1, (passed + Math.min(1, share)) / count);
-};
+import type { StepBarItem } from "@/features/tutorial-conversation";
 
 /**
  * From the step at index `at`, the step ⌥↑ (`by` -1) or ⌥↓ (`by` 1) moves the
@@ -55,81 +27,15 @@ export const liveStepIndex = (steps: readonly StepBarItem[]): number | null => {
 };
 
 if (import.meta.vitest) {
-  const { describe, it, expect, beforeAll } = import.meta.vitest;
+  const { describe, it, expect } = import.meta.vitest;
 
   describe("widgets/tutorial-conversation/model/step-bar", () => {
-    let hello: TutorialDefinition;
-
-    beforeAll(async () => {
-      hello = (await import("../../../tutorials/hello-anchor/tutorial.json"))
-        .default as unknown as TutorialDefinition;
-    });
-
-    /** A save at `cursor` with `passed` steps; the feature's barrel loads UI */
-    const progressAt = (
-      cursor: ConversationProgress["cursor"],
-      passed: string[] = []
-    ): ConversationProgress => ({
-      version: 1,
-      passed,
-      finishedAt: null,
-      startedAt: null,
-      restartedAt: null,
-      cursor,
-      beats: {},
-      runs: {},
-      times: {},
-    });
-
     const item = (id: string, state: StepBarItem["state"]): StepBarItem => ({
       id,
       short: id,
       title: id,
       state,
       took: null,
-    });
-
-    it("draws no hairline before Start", () => {
-      expect(barProgress(hello, progressAt({ kind: "intro" }))).toBe(0);
-    });
-
-    it("fills a quarter per passed step of four, plus the live step's beats", () => {
-      const second = hello.steps[1];
-      const passed = [hello.steps[0].id];
-      expect(
-        barProgress(
-          hello,
-          progressAt(
-            { kind: "step", stepId: second.id, beat: 0, fail: false },
-            passed
-          )
-        )
-      ).toBe(0.25);
-
-      const half = Math.floor(second.beats.length / 2);
-      expect(
-        barProgress(
-          hello,
-          progressAt(
-            { kind: "step", stepId: second.id, beat: half, fail: false },
-            passed
-          )
-        )
-      ).toBeCloseTo((1 + half / second.beats.length) / 4);
-    });
-
-    it("counts a step in its planned failure as whole until it passes", () => {
-      const cursor = {
-        kind: "step" as const,
-        stepId: hello.steps[0].id,
-        beat: 0,
-        fail: true,
-      };
-      expect(barProgress(hello, progressAt(cursor))).toBe(0.25);
-    });
-
-    it("is full after the finish", () => {
-      expect(barProgress(hello, progressAt({ kind: "finished" }))).toBe(1);
     });
 
     it("moves the keys between reached steps only, up to the live one", () => {

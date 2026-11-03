@@ -80,35 +80,17 @@ describe("BaseIntroCard", () => {
 });
 
 describe("BaseStepDivider", () => {
-  it("reads the kicker, the title and the objective", () => {
+  it("heads the step with its objective alone, before and after it passes", () => {
     render(
-      <BaseStepDivider
-        index={1}
-        count={4}
-        title="Program"
-        objective="Define the hello instruction and log a message"
-        done={false}
-        took={null}
-      />
+      <BaseStepDivider objective="Define the hello instruction and log a message" />
     );
-    expect(screen.getByText("Step 1 of 4")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Program" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", {
+        name: "Define the hello instruction and log a message",
+      })
+    ).toBeTruthy();
+    expect(screen.queryByText(/Step \d of/)).toBeNull();
     expect(screen.queryByLabelText("Passed")).toBeNull();
-  });
-
-  it("gets a check and the step's time once passed", () => {
-    render(
-      <BaseStepDivider
-        index={1}
-        count={4}
-        title="Program"
-        objective="o"
-        done
-        took={41_000}
-      />
-    );
-    expect(screen.getByLabelText("Passed")).toBeTruthy();
-    expect(screen.getByText("41 s")).toBeTruthy();
   });
 });
 
