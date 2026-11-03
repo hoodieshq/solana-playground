@@ -1,6 +1,7 @@
 # Tasks
 
 Ticket: HOO-2548. One PR lands all tasks; base `scope/tutorial-flow`.
+Plan: [plans/1-frame-and-scale.md](plans/1-frame-and-scale.md).
 
 ## 1. Frame
 
