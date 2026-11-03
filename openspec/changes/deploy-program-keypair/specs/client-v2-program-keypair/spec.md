@@ -38,12 +38,13 @@ ghost): the Deploy button stays the stage's only accent action.
 
 ### Requirement: New keypair asks before replacing one
 
-"New keypair" SHALL generate a keypair at once when the project has none.
-When one exists it SHALL open a dialog titled "Are you sure you want to
-create a new program keypair?" with the text "This will create a brand new
-keypair for your program.", the warning "The old keypair will be lost if you
-don't save it.", a "Save keypair" button that downloads the current keypair,
-and a "Generate" button. "Generate" SHALL replace the keypair and remove any
+"New keypair" SHALL generate a keypair at once when the project has neither
+a keypair nor a custom id. Otherwise it SHALL open a dialog titled "Are you
+sure you want to create a new program keypair?" with the text "This will
+create a brand new keypair for your program." (followed by "It also removes
+the custom program id." while one is set), the warning "The old keypair will
+be lost if you don't save it.", a "Save keypair" button that downloads the
+current keypair (shown only when there is one), and a "Generate" button. "Generate" SHALL replace the keypair and remove any
 custom id; closing the dialog SHALL change nothing.
 
 #### Scenario: Replace a keypair
@@ -97,13 +98,19 @@ applies again, and say "Custom id removed".
 
 ### Requirement: A mismatched custom id is warned about before deploy
 
-While a custom id is set and the project has a keypair whose public key
-differs, the block SHALL show a warning callout: "This program id does not
+While a custom id is set, the project has a keypair whose public key
+differs, and the program at the custom id is not known to be deployed on
+the selected cluster, the block SHALL show a warning callout: "This program id does not
 match the program keypair. A first deploy needs the keypair for this id:
 import it, remove the custom id, or create a new keypair." A first deploy in
 that state SHALL still refuse with the deploy command's existing message
 ("Entered program ID doesn't match the program ID derived from program's
 keypair.").
+
+#### Scenario: Deployed program, no warning (manual)
+
+- **WHEN** the custom id names a program already deployed on the cluster
+- **THEN** no mismatch warning shows, since an upgrade needs no keypair
 
 #### Scenario: Warned and refused (manual)
 
