@@ -1,5 +1,5 @@
 import {
-  EllipsisVertical,
+  Ellipsis,
   FoldHorizontal,
   PanelLeftClose,
   UnfoldHorizontal,
@@ -17,6 +17,15 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { MenuItemText } from "@/shared/ui/menu-extras";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+
+/**
+ * The head's icon buttons drawn as the stage bar's (BaseStageBar's
+ * `BAR_CONTROL`): a 32 px square, a thin 18 px icon, so the icons along the
+ * top read as one set. TODO(design-system): a bar icon size in the kit's
+ * Button, then drop this and the bar's copy
+ */
+const HEAD_CONTROL =
+  "size-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground dark:hover:bg-accent [&_svg:not([class*='size-'])]:size-[18px] [&_svg]:stroke-[1.6]";
 
 /**
  * Forget key in More: `none` while no backend holding the user's key is
@@ -108,10 +117,50 @@ export function BaseAssistantHead({
       >
         {title}
       </h2>
+      {canWiden && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={HEAD_CONTROL}
+              aria-label={widenLabel}
+              onClick={onWiden}
+            >
+              {wide ? (
+                <FoldHorizontal aria-hidden="true" />
+              ) : (
+                <UnfoldHorizontal aria-hidden="true" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{widenLabel}</TooltipContent>
+        </Tooltip>
+      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={HEAD_CONTROL}
+            aria-label="Collapse assistant"
+            onClick={onHide}
+          >
+            <PanelLeftClose aria-hidden="true" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Collapse assistant</TooltipContent>
+      </Tooltip>
+      {/* More last, at the edge, as the stage bar's and every toolbar's */}
       <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="More">
-            <EllipsisVertical aria-hidden="true" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={HEAD_CONTROL}
+            aria-label="More"
+          >
+            <Ellipsis aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -167,38 +216,6 @@ export function BaseAssistantHead({
           </Tooltip>
         </DropdownMenuContent>
       </DropdownMenu>
-      {canWiden && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={widenLabel}
-              onClick={onWiden}
-            >
-              {wide ? (
-                <FoldHorizontal aria-hidden="true" />
-              ) : (
-                <UnfoldHorizontal aria-hidden="true" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{widenLabel}</TooltipContent>
-        </Tooltip>
-      )}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Collapse assistant"
-            onClick={onHide}
-          >
-            <PanelLeftClose aria-hidden="true" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Collapse assistant</TooltipContent>
-      </Tooltip>
     </div>
   );
 }
