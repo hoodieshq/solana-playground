@@ -24,7 +24,7 @@ const NETWORKS: ReadonlyArray<Chip> = OFFERED.map(
 /**
  * The network chips: Devnet and Mainnet, then each saved custom RPC under its
  * name, with the checked network's line under them. An endpoint no chip
- * lists (Localnet, Testnet, Playnet, an unsaved URL) leaves none checked.
+ * lists (Playnet, or a URL not saved yet) leaves none checked.
  */
 const BaseNetworkChoice = ({
   endpoint,

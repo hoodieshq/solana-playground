@@ -106,9 +106,9 @@ test("client-v2-custom-rpcs: Picking a custom chip moves the connection", async 
   await addRpc(page, { name: "Helius", url: "https://helius.rpc.test/" });
   await addRpc(page, { name: "Triton", url: "https://triton.rpc.test/" });
   await network(page).getByRole("radio", { name: "Helius" }).click();
-  asked.length = 0;
-  await expect.poll(() => asked).toContain("helius.rpc.test");
-  expect(asked).not.toContain("triton.rpc.test");
+  // The last host asked: the connection keeps polling the picked RPC, so a
+  // request to the other one still in flight is overtaken
+  await expect.poll(() => asked.at(-1)).toBe("helius.rpc.test");
 });
 
 test("client-v2-custom-rpcs: A new RPC is saved and picked", async ({
@@ -201,8 +201,7 @@ test("client-v2-custom-rpcs: Editing renames the chip", async ({
   await expect(
     network(page).getByRole("radio", { name: "Triton" })
   ).toHaveAttribute("aria-checked", "true");
-  asked.length = 0;
-  await expect.poll(() => asked).toContain("triton.rpc.test");
+  await expect.poll(() => asked.at(-1)).toBe("triton.rpc.test");
 });
 
 test("client-v2-custom-rpcs: Removing the picked RPC lands on Devnet", async ({
@@ -232,7 +231,8 @@ test("client-v2-custom-rpcs: A custom endpoint from before is listed", async ({
     settings.connection = settings.connection ?? {};
     settings.connection.endpoint = {
       option: "custom",
-      url: "https://own.rpc.test/?k=1",
+      // Without the trailing slash the listed URL gains
+      url: "https://own.rpc.test",
     };
     localStorage.setItem("settings", JSON.stringify(settings));
     localStorage.removeItem("customRpcs");
@@ -241,5 +241,31 @@ test("client-v2-custom-rpcs: A custom endpoint from before is listed", async ({
   await openSettings(page);
   await expect(
     network(page).getByRole("radio", { name: "own.rpc.test" })
+  ).toHaveAttribute("aria-checked", "true");
+});
+
+test("client-v2-custom-rpcs: Removing an RPC not in use keeps the network", async ({
+  seededPage: page,
+}) => {
+  const settings = await openSettings(page);
+  await addRpc(page, { name: "Helius", url: "https://helius.rpc.test/" });
+  await addRpc(page, { name: "Triton", url: "https://triton.rpc.test/" });
+  await settings.getByRole("button", { name: "Remove Helius" }).click();
+  await expect(
+    page.getByText("Removed Helius.", { exact: true })
+  ).toBeVisible();
+  await expect(
+    network(page).getByRole("radio", { name: "Triton" })
+  ).toHaveAttribute("aria-checked", "true");
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(network(page).getByRole("radio")).toHaveText([
+    "Devnet",
+    "Mainnet",
+    "Helius",
+    "Triton",
+  ]);
+  await expect(
+    network(page).getByRole("radio", { name: "Triton" })
   ).toHaveAttribute("aria-checked", "true");
 });

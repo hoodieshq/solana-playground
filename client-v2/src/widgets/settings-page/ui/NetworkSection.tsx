@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { DEFAULT_ENDPOINT, NETWORKS } from "@/constants";
+import { DEFAULT_ENDPOINT } from "@/constants";
 import { PgCustomRpcs } from "@/entities/custom-rpc";
 import type { CustomRpc, SaveResult } from "@/entities/custom-rpc";
 import { Button } from "@/shared/ui/button";
@@ -12,13 +12,30 @@ import BaseCustomRpcs from "./BaseCustomRpcs";
 import type { CustomRpcSaveAnswer } from "./BaseCustomRpcs";
 import BaseNetworkChoice from "./BaseNetworkChoice";
 
-const OFFERED = NETWORKS.map((n) => n.value);
-
 /** The line under the URL field for a refused save (Spec 07's copy) */
-const refusal = (result: Exclude<SaveResult, { ok: true }>) =>
-  result.reason === "format"
-    ? "Enter a URL that starts with https://"
-    : `Already saved as ${result.name}.`;
+const refusal = (result: Exclude<SaveResult, { ok: true }>): string => {
+  switch (result.reason) {
+    case "format":
+      return "Enter a URL that starts with https://";
+    case "duplicate":
+      return `Already saved as ${result.name}.`;
+    case "storage":
+      return "Could not save in this browser.";
+  }
+};
+
+const pick = (url: string) => {
+  PgSettings.connection.endpoint = url;
+};
+
+/**
+ * List the connection's endpoint when it is a custom one, and move the
+ * connection onto the spelling it is listed under, so its chip is checked
+ */
+const adoptEndpoint = (endpoint: string) => {
+  const listed = PgCustomRpcs.adopt(endpoint);
+  if (listed && listed !== endpoint) pick(listed);
+};
 
 /** The toast after a remove, with the Undo that puts the RPC back */
 const Removed = ({
@@ -61,16 +78,14 @@ const NetworkSection = () => {
     );
     // A custom endpoint set before the list existed, or elsewhere, is listed
     const endpoints = PgSettings.onDidChangeConnectionEndpoint((url) => {
-      if (typeof url === "string") PgCustomRpcs.adopt(url, OFFERED);
+      if (typeof url === "string") adoptEndpoint(url);
     });
-    PgCustomRpcs.adopt(PgSettings.connection.endpoint, OFFERED);
+    adoptEndpoint(PgSettings.connection.endpoint);
     return () => {
       changes.dispose();
       endpoints.dispose();
     };
   }, []);
-
-  const pick = (url: string) => (PgSettings.connection.endpoint = url);
 
   /** Report a save's result; a refusal becomes the line under the field */
   const answer = (
@@ -88,24 +103,31 @@ const NetworkSection = () => {
   };
 
   // A new RPC is picked at once
-  const add = (input: CustomRpc) => {
+  const handleAdd = (input: CustomRpc) => {
     const result = PgCustomRpcs.save(input);
     if (result.ok) pick(result.rpc.url);
     return answer(result, "add");
   };
 
   // An edited RPC keeps the connection on it when it was the one in use
-  const edit = (rpc: CustomRpc, input: CustomRpc) => {
+  const handleEdit = (rpc: CustomRpc, input: CustomRpc) => {
     const picked = PgSettings.connection.endpoint === rpc.url;
     const result = PgCustomRpcs.replace(rpc.url, input);
     if (result.ok && picked) pick(result.rpc.url);
     return answer(result, "edit");
   };
 
-  const remove = (rpc: CustomRpc) => {
+  const handleRemove = (rpc: CustomRpc) => {
     const picked = PgSettings.connection.endpoint === rpc.url;
     const removed = PgCustomRpcs.remove(rpc.url);
-    if (!removed) return;
+    if (!removed) {
+      // Gone already (another tab), or the browser refused; the store
+      // reported which
+      PgView.setToast(() => <span>Could not remove {rpc.name}.</span>, {
+        options: { name: "custom-rpc-remove-failed" },
+      });
+      return;
+    }
     if (picked) pick(DEFAULT_ENDPOINT);
     settingsTelemetry.track("settings_custom_rpc_removed", { picked });
     PgView.setToast(Removed, {
@@ -114,7 +136,11 @@ const NetworkSection = () => {
         picked,
         onUndo: () => {
           PgCustomRpcs.restore(removed.rpc, removed.index);
-          if (picked) pick(removed.rpc.url);
+          // Only while the network is still the Devnet the remove moved it
+          // to: a network picked since then stays
+          if (picked && PgSettings.connection.endpoint === DEFAULT_ENDPOINT) {
+            pick(removed.rpc.url);
+          }
         },
       },
       options: { name: "custom-rpc-removed" },
@@ -124,7 +150,12 @@ const NetworkSection = () => {
   return (
     <div className="flex flex-col gap-3">
       <BaseNetworkChoice endpoint={endpoint} custom={rpcs} onPick={pick} />
-      <BaseCustomRpcs rpcs={rpcs} onAdd={add} onEdit={edit} onRemove={remove} />
+      <BaseCustomRpcs
+        rpcs={rpcs}
+        onAdd={handleAdd}
+        onEdit={handleEdit}
+        onRemove={handleRemove}
+      />
     </div>
   );
 };

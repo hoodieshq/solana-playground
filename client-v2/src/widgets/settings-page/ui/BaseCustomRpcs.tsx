@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import type { FormEvent } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
-import { hostOf } from "@/entities/custom-rpc";
+import { hostOf, RPC_NAME_MAX } from "@/entities/custom-rpc";
 import type { CustomRpc } from "@/entities/custom-rpc";
 import { Button } from "@/shared/ui/button";
 import {
@@ -49,7 +49,7 @@ const BaseCustomRpcs = ({
   onRemove,
 }: BaseCustomRpcsProps) => {
   const [editing, setEditing] = useState<Editing>();
-  const close = () => setEditing(undefined);
+  const handleClose = () => setEditing(undefined);
 
   return (
     <div className="flex flex-col gap-2">
@@ -61,7 +61,7 @@ const BaseCustomRpcs = ({
                 <RpcForm
                   initial={rpc}
                   onSave={(input) => onEdit(rpc, input)}
-                  onClose={close}
+                  onClose={handleClose}
                 />
               </li>
             ) : (
@@ -101,7 +101,7 @@ const BaseCustomRpcs = ({
         </ul>
       )}
       {editing === "new" ? (
-        <RpcForm onSave={onAdd} onClose={close} />
+        <RpcForm onSave={onAdd} onClose={handleClose} />
       ) : (
         <Button
           variant="ghost"
@@ -132,7 +132,7 @@ const RpcForm = ({
   const [error, setError] = useState<string>();
   const id = useId();
 
-  const submit = (ev: FormEvent) => {
+  const handleSubmit = (ev: FormEvent) => {
     ev.preventDefault();
     const answer = onSave({ name, url });
     if (answer.ok) onClose();
@@ -143,14 +143,14 @@ const RpcForm = ({
     <form
       aria-label={initial ? `Edit ${initial.name}` : "Add custom RPC"}
       className="flex flex-col gap-3 py-2"
-      onSubmit={submit}
+      onSubmit={handleSubmit}
     >
       <Field>
         <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
         <Input
           id={`${id}-name`}
           value={name}
-          maxLength={32}
+          maxLength={RPC_NAME_MAX}
           autoFocus
           className="max-md:h-12"
           onChange={(ev) => setName(ev.target.value)}
@@ -167,7 +167,7 @@ const RpcForm = ({
             autoComplete="off"
             spellCheck={false}
             aria-invalid={error ? true : undefined}
-            aria-describedby={`${id}-help ${id}-error`}
+            aria-describedby={error ? `${id}-help ${id}-error` : `${id}-help`}
             onChange={(ev) => {
               setUrl(ev.target.value);
               setError(undefined);
