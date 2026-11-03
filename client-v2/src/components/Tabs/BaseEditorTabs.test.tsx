@@ -66,10 +66,6 @@ const setup = () => {
   return { onSelect, tab, view, user: userEvent.setup() };
 };
 
-/** The tab a trigger sits in, close button and all */
-const frameOf = (trigger: HTMLElement) =>
-  trigger.closest('[data-slot="editor-tab"]');
-
 /** The row's scroller, laid out as `scrollWidth` wide in `clientWidth` */
 const layOut = (scrollWidth: number, clientWidth: number) => {
   const list = screen.getByRole("tablist");

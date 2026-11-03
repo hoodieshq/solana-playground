@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 // The Interact body: chips pick one instruction's form, a call's result shows
 // under it for the program and network it went to, and the history lists.
 const h = vi.hoisted(() => ({ runCall: vi.fn() }));
@@ -36,7 +37,6 @@ vi.mock("../../sidebar/test/Component/Event", () => ({ default: () => null }));
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import InteractBody from "./InteractBody";
