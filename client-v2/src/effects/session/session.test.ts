@@ -24,7 +24,7 @@ import type { ChatItem } from "../../views/sidebar/assistant/store";
  * uploaded into the next account.
  */
 
-const user = { id: "u1", name: null, image: null, login: null };
+const user = { id: "u1", name: undefined, image: undefined, login: undefined };
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
@@ -115,7 +115,7 @@ describe("the session effect", () => {
 
   it("takes a sign-in after a signed-out read Home made before the effects mounted as a sign-in", async () => {
     sync.mockResolvedValue(result({ latest: "Newest" }));
-    await PgSession.refreshWith(null);
+    await PgSession.refreshWith(undefined);
     (PgSession.refresh as unknown as MockInstance).mockResolvedValue(undefined);
 
     const effect = session();
@@ -408,7 +408,7 @@ describe("the session effect", () => {
     PgAccountList.listed(0);
 
     // A re-read that finds nobody, not a sign-out through the app
-    await PgSession.refreshWith(null);
+    await PgSession.refreshWith(undefined);
 
     expect(PgAccountList.state).toBe("unknown");
     effect.dispose();
@@ -421,7 +421,7 @@ describe("the session effect", () => {
     await settle();
     // A second transition: the cookie has already been restored, so this is
     // the user coming back through the sign-in flow
-    await PgSession.refreshWith(null);
+    await PgSession.refreshWith(undefined);
     await PgSession.refreshWith(user);
     await settle();
 
@@ -434,7 +434,7 @@ describe("the session effect", () => {
     const signedOutAfterLoad = async () => {
       const effect = session();
       await settle();
-      await PgSession.refreshWith(null);
+      await PgSession.refreshWith(undefined);
       switchWorkspace.mockClear();
       return effect;
     };
@@ -561,7 +561,7 @@ describe("the session effect", () => {
     // finishing, a later sign-in and the effect going away all release.
     const effect = session();
     await settle();
-    await PgSession.refreshWith(null);
+    await PgSession.refreshWith(undefined);
     await PgSession.refreshWith(user);
     await settle();
     effect.dispose();
@@ -572,7 +572,7 @@ describe("the session effect", () => {
 
   it("releases them when nobody is signed in", async () => {
     vi.spyOn(PgSession, "refresh").mockImplementation(async () => {
-      await PgSession.refreshWith(null);
+      await PgSession.refreshWith(undefined);
     });
 
     const effect = session();
