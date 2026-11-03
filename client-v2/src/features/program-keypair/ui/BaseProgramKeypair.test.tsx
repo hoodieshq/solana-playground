@@ -37,6 +37,7 @@ const props = (s: Shape = {}): BaseProgramKeypairProps => ({
   onSaveOld: vi.fn(),
   onImport: vi.fn(),
   onExport: vi.fn(),
+  onEdit: vi.fn(),
   onChangeId: vi.fn(),
   onRemoveCustomId: vi.fn(),
 });
@@ -103,6 +104,24 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
     expect(p.onConfirmNew).toHaveBeenCalledTimes(1);
   });
 
+  it("cancels the dialog on Escape, never confirms it", () => {
+    const p = props({ confirming: true });
+    draw(p);
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(p.onCancelNew).toHaveBeenCalledTimes(1);
+    expect(p.onConfirmNew).not.toHaveBeenCalled();
+  });
+
+  it("hands a dropped file to onImport", () => {
+    const p = props();
+    draw(p);
+    const file = new File(["[]"], "program-keypair.json");
+    fireEvent.drop(screen.getByLabelText("Import keypair"), {
+      dataTransfer: { files: [file] },
+    });
+    expect(p.onImport).toHaveBeenCalledWith(file);
+  });
+
   it("hands a picked file to onImport", () => {
     const p = props();
     draw(p);
@@ -163,6 +182,15 @@ describe("features/program-keypair/ui/BaseProgramKeypair", () => {
     expect(
       screen.getByText(/This program id does not match the program keypair/)
     ).toBeTruthy();
+  });
+
+  it("reports an edit, so the container can drop a stale note", () => {
+    const p = props({ note: "invalid" });
+    draw(p);
+    fireEvent.change(screen.getByRole("textbox", { name: "Program id" }), {
+      target: { value: "abcd" },
+    });
+    expect(p.onEdit).toHaveBeenCalled();
   });
 
   it.each([

@@ -16,10 +16,14 @@ import type { KeypairNote } from "./BaseProgramKeypair";
 
 const log = createLogger("program-keypair:ui");
 
-/** The custom id differs from the keypair's: a first deploy refuses */
+/**
+ * The custom id differs from the keypair's and is not on the cluster yet, so
+ * a first deploy would refuse. A deployed program upgrades under any keypair.
+ */
 const isMismatch = () => {
-  const { kp, customPk } = PgProgramInfo;
-  return !!kp && !!customPk && !kp.publicKey.equals(customPk);
+  const { kp, customPk, onChain } = PgProgramInfo;
+  if (!kp || !customPk || kp.publicKey.equals(customPk)) return false;
+  return onChain?.deployed !== true;
 };
 
 /** Reads a file as a keypair; a decoded key that is not one is refused too */
@@ -31,7 +35,10 @@ const keypairOf = (text: string) => {
       ok: true as const,
       kp: PgWeb3.Keypair.fromSecretKey(read.secretKey),
     };
-  } catch {
+  } catch (error) {
+    log.info("keypair file holds no valid key", {
+      context: { error: String(error) },
+    });
     return { ok: false as const, reason: "wrong_shape" as const };
   }
 };
@@ -44,12 +51,14 @@ const ProgramKeypair = () => {
   useRenderOnChange(PgProgramInfo.onDidChangeKp);
   useRenderOnChange(PgProgramInfo.onDidChangeCustomPk);
   const pk = useRenderOnChange(PgProgramInfo.onDidChangePk);
+  useRenderOnChange(PgProgramInfo.onDidChangeOnChain);
   const mismatch = isMismatch();
   const [open, setOpen] = useState(mismatch);
   const [confirming, setConfirming] = useState(false);
   const [note, setNote] = useState<KeypairNote>(null);
 
-  // A mismatch is the one state that blocks a deploy: never folded away
+  // A mismatch would stop a first deploy, so it opens the fold when it
+  // appears; the user may still close it
   useEffect(() => {
     if (mismatch) setOpen(true);
   }, [mismatch]);
@@ -126,12 +135,19 @@ const ProgramKeypair = () => {
       open={open}
       onOpenChange={setOpen}
       confirming={confirming}
-      onNew={() => (PgProgramInfo.kp ? setConfirming(true) : generate())}
+      // Ask before anything is lost: an old keypair, or a custom id that
+      // Generate removes
+      onNew={() =>
+        PgProgramInfo.kp || PgProgramInfo.customPk
+          ? setConfirming(true)
+          : generate()
+      }
       onConfirmNew={generate}
       onCancelNew={() => setConfirming(false)}
       onSaveOld={() => exportFrom("dialog")}
       onImport={(file) => void importFile(file)}
       onExport={() => exportFrom("block")}
+      onEdit={() => setNote((n) => (n === "refused" ? n : null))}
       onChangeId={changeId}
       onRemoveCustomId={removeCustomId}
     />

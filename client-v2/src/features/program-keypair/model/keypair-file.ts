@@ -1,4 +1,4 @@
-/** What a keypair file the Solana CLI writes is called when Playground saves one */
+/** The name Playground gives an exported program keypair file */
 export const KEYPAIR_FILE_NAME = "program-keypair.json";
 
 /** Why a file was not taken as a keypair */
@@ -51,12 +51,20 @@ if (import.meta.vitest) {
       expect(read.ok && Array.from(read.secretKey)).toEqual(bytes);
     });
 
+    it("takes 0 and 255, the ends of a byte", () => {
+      const ends = [0, 255].concat(bytes.slice(2));
+      expect(parseKeypairFile(JSON.stringify(ends)).ok).toBe(true);
+    });
+
     it("refuses text that is not JSON", () => {
       expect(parseKeypairFile("{")).toEqual({ ok: false, reason: "not_json" });
     });
 
     it.each([
       ["32 numbers", JSON.stringify(bytes.slice(0, 32))],
+      ["65 numbers", JSON.stringify(bytes.concat([1]))],
+      ["no numbers", "[]"],
+      ["a null document", "null"],
       ["a 256", JSON.stringify(bytes.map((b, i) => (i === 5 ? 256 : b)))],
       ["a -1", JSON.stringify(bytes.map((b, i) => (i === 5 ? -1 : b)))],
       ["a 1.5", JSON.stringify(bytes.map((b, i) => (i === 5 ? 1.5 : b)))],

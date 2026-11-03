@@ -29,20 +29,33 @@ const openDeploy = async (page: Page) => {
 };
 
 const openFold = async (page: Page) => {
-  if (!(await field(page).isVisible())) await button(page, "Program id").click();
+  if (!(await field(page).isVisible()))
+    await button(page, "Program id").click();
   await expect(field(page)).toBeVisible();
 };
 
-/** Leaves the project with a keypair, asking through the dialog if one exists */
+/**
+ * Leaves the project with a new keypair. With none yet New generates at once;
+ * with one it asks first, so wait for whichever happens rather than probe.
+ */
 const newKeypair = async (page: Page) => {
+  const before = await field(page).inputValue();
   await button(page, "New keypair").click();
   const dialog = page.getByRole("dialog", {
     name: "Are you sure you want to create a new program keypair?",
   });
+  await expect
+    .poll(
+      async () =>
+        (await dialog.isVisible()) ||
+        (await field(page).inputValue()) !== before
+    )
+    .toBe(true);
   if (await dialog.isVisible()) {
     await dialog.getByRole("button", { name: "Generate" }).click();
+    await expect(dialog).toBeHidden();
   }
-  await expect(field(page)).not.toHaveValue("");
+  await expect(field(page)).not.toHaveValue(before);
 };
 
 const importFile = (page: Page, text: string) =>
@@ -148,7 +161,12 @@ test("client-v2-program-keypair: Invalid text", async ({
 
   await expect(block(page).getByText("Not a valid public key")).toBeVisible();
   await expect(button(page, "Remove custom id")).toBeHidden();
-  expect(before).not.toBe("abc");
+
+  // The id itself is unchanged: a fresh load shows it again
+  await page.reload();
+  await openDeploy(page);
+  await openFold(page);
+  await expect(field(page)).toHaveValue(before, LONG);
 });
 
 test("client-v2-program-keypair: Open on a mismatch", async ({

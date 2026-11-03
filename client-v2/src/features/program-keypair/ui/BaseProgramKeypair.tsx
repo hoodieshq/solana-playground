@@ -50,6 +50,8 @@ export interface BaseProgramKeypairProps {
   onSaveOld: () => void;
   onImport: (file: File) => void;
   onExport: () => void;
+  /** The field's text changed: a note about the last press is stale */
+  onEdit: () => void;
   /** "Change program id" with the field's text, trimmed */
   onChangeId: (text: string) => void;
   onRemoveCustomId: () => void;
@@ -101,7 +103,10 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
                 className="font-mono text-code"
                 placeholder="Your program's public key"
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  p.onEdit();
+                }}
                 spellCheck={false}
                 autoComplete="off"
               />
@@ -191,6 +196,7 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
             </DialogTitle>
             <DialogDescription>
               This will create a brand new keypair for your program.
+              {p.customId && " It also removes the custom program id."}
             </DialogDescription>
           </DialogHeader>
           <Callout variant="warning">
@@ -200,9 +206,11 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
             </CalloutDescription>
           </Callout>
           <DialogFooter>
-            <Button variant="outline" onClick={p.onSaveOld}>
-              Save keypair
-            </Button>
+            {p.hasKeypair && (
+              <Button variant="outline" onClick={p.onSaveOld}>
+                Save keypair
+              </Button>
+            )}
             <Button onClick={p.onConfirmNew}>Generate</Button>
           </DialogFooter>
         </DialogContent>

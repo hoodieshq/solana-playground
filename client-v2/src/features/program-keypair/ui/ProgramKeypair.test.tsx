@@ -18,9 +18,11 @@ interface Info {
 
 const mocks = vi.hoisted(() => ({
   info: { kp: null, customPk: null } as Info,
+  deployed: false,
   listeners: new Set<() => void>(),
   updates: [] as Partial<Info>[],
   exported: [] as { name: string; content: unknown }[],
+  exportFails: false,
   toast: vi.fn(),
 }));
 
@@ -33,8 +35,10 @@ vi.mock("@/utils", async () => {
   return {
     PgWeb3: web3,
     PgCommon: {
-      export: (name: string, content: unknown) =>
-        mocks.exported.push({ name, content }),
+      export: (name: string, content: unknown) => {
+        if (mocks.exportFails) throw new Error("blocked");
+        mocks.exported.push({ name, content });
+      },
     },
     PgProgramInfo: {
       get kp() {
@@ -53,7 +57,11 @@ vi.mock("@/utils", async () => {
       },
       onDidChangeKp: on,
       onDidChangeCustomPk: on,
+      get onChain() {
+        return { deployed: mocks.deployed };
+      },
       onDidChangePk: on,
+      onDidChangeOnChain: on,
     },
   };
 });
@@ -83,9 +91,11 @@ let sent: ReturnType<typeof memoryProvider>;
 beforeEach(() => {
   mocks.info.kp = KP;
   mocks.info.customPk = null;
+  mocks.deployed = false;
   mocks.listeners.clear();
   mocks.updates = [];
   mocks.exported = [];
+  mocks.exportFails = false;
   mocks.toast.mockReset();
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
@@ -144,6 +154,69 @@ describe("features/program-keypair/ui/ProgramKeypair", () => {
     ]);
   });
 
+  it("refuses 64 bytes whose public half is not the seed's key", async () => {
+    draw();
+    openFold();
+    const forged = Array.from(KP.secretKey.slice(0, 32)).concat(
+      Array.from(OTHER.publicKey.toBytes())
+    );
+    await importText(JSON.stringify(forged));
+
+    expect(mocks.updates).toEqual([]);
+    expect(screen.getByText(/That file is not a program keypair/)).toBeTruthy();
+    expect(events()).toEqual([
+      ["keypair_import_refused", { reason: "wrong_shape" }],
+    ]);
+  });
+
+  it("says so when the browser refuses the download, and counts nothing", () => {
+    mocks.exportFails = true;
+    draw();
+    openFold();
+    press("Export keypair");
+
+    expect(mocks.toast).toHaveBeenCalledWith(
+      "save the program keypair",
+      expect.any(Error)
+    );
+    expect(events()).toEqual([]);
+  });
+
+  it("changes nothing when the New keypair dialog is closed", () => {
+    draw();
+    openFold();
+    press("New keypair");
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mocks.updates).toEqual([]);
+    expect(events()).toEqual([]);
+  });
+
+  it("opens and warns when a mismatch appears after mount", () => {
+    draw();
+    expect(screen.queryByRole("textbox", { name: "Program id" })).toBeNull();
+
+    act(() => {
+      mocks.info.customPk = OTHER.publicKey;
+      mocks.listeners.forEach((cb) => cb());
+    });
+
+    expect(
+      screen.getByText(/This program id does not match the program keypair/)
+    ).toBeTruthy();
+  });
+
+  it("does not warn about a custom id equal to the keypair's", () => {
+    mocks.info.customPk = new PublicKey(KP.publicKey.toBase58());
+    draw();
+    expect(screen.queryByRole("textbox", { name: "Program id" })).toBeNull();
+    openFold();
+    expect(
+      screen.queryByText(/This program id does not match the program keypair/)
+    ).toBeNull();
+  });
+
   it("refuses text that is not JSON", async () => {
     draw();
     openFold();
@@ -162,6 +235,32 @@ describe("features/program-keypair/ui/ProgramKeypair", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(mocks.updates).toHaveLength(1);
     expect(events()).toEqual([["keypair_generated", { replaced: false }]]);
+  });
+
+  it("asks before removing a custom id even with no keypair", () => {
+    mocks.info.kp = null;
+    mocks.info.customPk = OTHER.publicKey;
+    draw();
+    openFold();
+    press("New keypair");
+
+    expect(mocks.updates).toEqual([]);
+    expect(
+      screen.getByText(/It also removes the custom program id\./)
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Save keypair" })).toBeNull();
+  });
+
+  it("does not warn about a custom id already deployed", () => {
+    mocks.info.customPk = OTHER.publicKey;
+    mocks.deployed = true;
+    draw();
+
+    expect(screen.queryByRole("textbox", { name: "Program id" })).toBeNull();
+    openFold();
+    expect(
+      screen.queryByText(/This program id does not match the program keypair/)
+    ).toBeNull();
   });
 
   it("asks before replacing a keypair; Generate replaces it", () => {
@@ -201,6 +300,10 @@ describe("features/program-keypair/ui/ProgramKeypair", () => {
     press("Change program id");
     expect(screen.getByText("Not a valid public key")).toBeTruthy();
     expect(mocks.updates).toEqual([]);
+
+    // Typing again drops the answer to the last press
+    fireEvent.change(field(), { target: { value: "abcd" } });
+    expect(screen.queryByText("Not a valid public key")).toBeNull();
 
     fireEvent.change(field(), {
       target: { value: OTHER.publicKey.toBase58() },

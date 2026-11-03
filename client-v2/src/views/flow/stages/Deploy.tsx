@@ -184,7 +184,11 @@ const Deploy = () => {
         onStaleBuildAnswer={(answer) => PgStageDeploy.answerStaleBuild(answer)}
         onInteract={() => PgFlow.setStage("interact")}
         idlUpload={<IdlActions mode="upload" />}
-        programKeypair={<ProgramKeypair />}
+        // Keyed on the project: an open dialog or a note never carries over
+        // to another project's keypair
+        programKeypair={
+          <ProgramKeypair key={PgExplorer.currentWorkspaceName ?? ""} />
+        }
         onOpenCliGuide={setGuide}
       />
       <CliDeployGuide
