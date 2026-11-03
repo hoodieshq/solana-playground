@@ -828,6 +828,51 @@ describe("TutorialConversation keys and the pill", () => {
     expect(PgExplorer.openFile).toHaveBeenCalledWith("/hello/src/lib.rs");
   });
 
+  it("puts the caret on the compiler's line from the failed card's pointer", async () => {
+    const failure: Turn = {
+      id: "result:s1.build:0",
+      kind: "result",
+      step: step1.id,
+      at: 4,
+      whole: true,
+      beatId: "s1.build",
+      act: "build",
+      result: {
+        act: "build",
+        ok: false,
+        seconds: 6,
+        reason: "compiler",
+        error: {
+          code: "E0412",
+          file: "src/lib.rs",
+          line: 9,
+          column: 32,
+          message: "cannot find type `Hello` in this scope",
+        },
+        log: "",
+      },
+      took: 6000,
+      planned: null,
+      open: true,
+    };
+    store.view.mockReturnValue({
+      turns: [failure],
+      live: failure,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: null,
+      finishAt: null,
+    });
+    (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
+      "/hello/src/lib.rs";
+    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "--> src/lib.rs:9:32" })
+    );
+    expect(PgEditor.revealLine).toHaveBeenCalledWith("/hello/src/lib.rs", 9);
+    expect(PgEditor.focus).toHaveBeenCalled();
+  });
+
   it("runs the build again on ⌘↵ when its server never answered", () => {
     const unreachable: Turn = {
       id: "result:s1.build:0",

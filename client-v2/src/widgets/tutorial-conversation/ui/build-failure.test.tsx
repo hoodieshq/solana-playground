@@ -73,6 +73,7 @@ const handlers = (): TurnHandlers => ({
   next: vi.fn(),
   restartStep: vi.fn(),
   showLine: vi.fn(),
+  revealError: vi.fn(),
   openNextTutorial: vi.fn(),
   allTutorials: vi.fn(),
   copyReceipt: vi.fn(),
@@ -111,12 +112,12 @@ describe("Hello Anchor's planned E0412", () => {
     const v = view(definition, play(toFailure), LATE);
     const on = draw(v.turns.find((t) => t.kind === "result")!);
     expect(screen.getByText("Build failed")).toBeTruthy();
-    expect(screen.getByText("E0412 · line 9 · 6 s")).toBeTruthy();
+    expect(screen.getByText("E0412 · line 9")).toBeTruthy();
     expect(
       screen.getByText("cannot find type `Hello` in this scope")
     ).toBeTruthy();
     screen.getByRole("button", { name: "--> src/lib.rs:9:32" }).click();
-    expect(on.showLine).toHaveBeenCalledWith("src/lib.rs", 9);
+    expect(on.revealError).toHaveBeenCalledWith("src/lib.rs", 9);
   });
 
   it("Explain posts the explanation with line 9 quoted, then the Fix it question", () => {

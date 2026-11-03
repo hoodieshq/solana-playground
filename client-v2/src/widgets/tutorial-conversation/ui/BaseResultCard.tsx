@@ -1,4 +1,5 @@
-import { CircleCheck, CircleX } from "lucide-react";
+import { ChevronDown, CircleCheck, CircleX } from "lucide-react";
+import { useState } from "react";
 
 import type { Text } from "@/entities/tutorial";
 import type { RunResult } from "@/features/tutorial-conversation";
@@ -35,9 +36,22 @@ type TxResult = Extract<RunResult, { act: "run" | "call" }>;
 const isTxResult = (r: RunResult): r is TxResult =>
   r.act === "run" || r.act === "call";
 
+type BuildFailed = Extract<RunResult, { act: "build"; ok: false }>;
+
+/**
+ * The compiler's code and line: "E0412 · line 9" on a card that is live or
+ * opened, "E0412 on line 9" on a folded record (the prototype's `errorMeta`,
+ * f7d42bf2e)
+ */
+const errorMeta = (r: BuildFailed, expanded: boolean): string =>
+  [r.error?.code, r.error?.line != null ? `line ${r.error.line}` : null]
+    .filter(Boolean)
+    .join(expanded ? " · " : " on ");
+
 /** The head's title and meta for a build's or a deploy's result */
 const headOf = (
-  r: Exclude<RunResult, TxResult>
+  r: Exclude<RunResult, TxResult>,
+  expanded: boolean
 ): { title: string; meta: string } => {
   if (r.act === "build") {
     if (r.ok) {
@@ -53,16 +67,7 @@ const headOf = (
     if (r.reason === "unreachable") {
       return { title: "Build server unreachable", meta: "" };
     }
-    const where = [
-      r.error?.code,
-      r.error?.line !== null && r.error?.line !== undefined
-        ? `line ${r.error.line}`
-        : null,
-      formatSeconds(r.seconds),
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    return { title: "Build failed", meta: where };
+    return { title: "Build failed", meta: errorMeta(r, expanded) };
   }
   // A deploy or a build-and-deploy
   if (r.ok) {
@@ -103,14 +108,37 @@ const BaseResultCard = ({
   onShowLine,
   onRetry,
 }: BaseResultCardProps) => {
+  // A folded failed build opens again from its head, to read, never to act
+  const [reopened, setReopened] = useState(false);
   if (isTxResult(result)) return <BaseTxResultCard result={result} />;
-  const { title, meta } = headOf(result);
   const Icon = result.ok ? CircleCheck : CircleX;
   const failedBuild = result.act === "build" && !result.ok ? result : null;
   const error = failedBuild?.error ?? null;
   // A Base component takes types only from the feature: the slice's entry
   // would load its store
   const unreachable = failedBuild?.reason === "unreachable";
+  const foldable = !!failedBuild && !unreachable && !open;
+  const expanded = open || (foldable && reopened);
+  const { title, meta } = headOf(result, expanded);
+  const headParts = (
+    <>
+      <Icon
+        aria-hidden="true"
+        className={cn(
+          "size-4 shrink-0",
+          result.ok ? "text-success" : "text-error"
+        )}
+      />
+      <span className="text-[0.8125rem] font-label text-foreground">
+        {title}
+      </span>
+      {meta && (
+        <span className="truncate text-caption text-muted-foreground">
+          {meta}
+        </span>
+      )}
+    </>
+  );
 
   return (
     <div
@@ -120,23 +148,25 @@ const BaseResultCard = ({
         result.ok ? "border-border" : "border-error/40"
       )}
     >
-      <div className="flex h-9 items-center gap-2 px-3">
-        <Icon
-          aria-hidden="true"
-          className={cn(
-            "size-4 shrink-0",
-            result.ok ? "text-success" : "text-error"
-          )}
-        />
-        <span className="text-[0.8125rem] font-label text-foreground">
-          {title}
-        </span>
-        {meta && (
-          <span className="truncate text-caption text-muted-foreground">
-            {meta}
-          </span>
-        )}
-      </div>
+      {foldable ? (
+        <Button
+          variant="ghost"
+          aria-expanded={reopened}
+          onClick={() => setReopened(!reopened)}
+          className="h-9 w-full justify-start gap-2 rounded-none px-3 font-normal"
+        >
+          {headParts}
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              "ml-auto size-3.5 shrink-0 text-muted-foreground transition-transform",
+              reopened && "rotate-180"
+            )}
+          />
+        </Button>
+      ) : (
+        <div className="flex h-9 items-center gap-2 px-3">{headParts}</div>
+      )}
       {open && unreachable && (
         <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
           <p className={READ}>{UNREACHABLE}</p>
@@ -151,24 +181,26 @@ const BaseResultCard = ({
           </Button>
         </div>
       )}
-      {open && failedBuild && !unreachable && (
-        <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
+      {expanded && failedBuild && !unreachable && (
+        <div className="flex flex-col gap-3 border-t border-error/20 px-3 py-3">
+          {/* The compiler's words on a red rule, a quote of its output with
+              no well (the prototype's ResultCard, f7d42bf2e) */}
           {error && (
-            <p className="font-mono text-[0.75rem] text-foreground">
-              {error.message}
-            </p>
-          )}
-          {error?.file && error.line !== null && (
-            <Button
-              variant="link"
-              size="xs"
-              onClick={() => onShowLine(error.file!, error.line!)}
-              className="h-auto w-fit px-0 font-mono text-[0.75rem] text-muted-foreground"
-            >
-              {`--> ${error.file}:${error.line}${
-                error.column !== null ? `:${error.column}` : ""
-              }`}
-            </Button>
+            <div className="border-l-2 border-error/40 pl-3 font-mono text-[0.8125rem] leading-[1.6]">
+              <p className="break-words text-foreground/90">{error.message}</p>
+              {error.file && error.line !== null && (
+                <Button
+                  variant="link"
+                  size="xs"
+                  onClick={() => onShowLine(error.file!, error.line!)}
+                  className="h-auto w-fit px-0 font-mono text-[0.8125rem] text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground"
+                >
+                  {`--> ${error.file}:${error.line}${
+                    error.column !== null ? `:${error.column}` : ""
+                  }`}
+                </Button>
+              )}
+            </div>
           )}
           {/* No line to link: the log is all the learner has to go on */}
           {!(error?.file && error.line !== null) && failedBuild.log && (
@@ -181,20 +213,22 @@ const BaseResultCard = ({
               <Prose text={planned} />
             </p>
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={onExplain}>
-              Explain the error
-              <Kbd
-                aria-hidden="true"
-                className="bg-white/15 text-primary-foreground/80"
-              >
-                ⌘↵
-              </Kbd>
-            </Button>
-            <Button variant="ghost" onClick={onFixMyself}>
-              I&apos;ll fix it myself
-            </Button>
-          </div>
+          {open && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={onExplain}>
+                Explain the error
+                <Kbd
+                  aria-hidden="true"
+                  className="bg-white/15 text-primary-foreground/80"
+                >
+                  ⌘↵
+                </Kbd>
+              </Button>
+              <Button variant="ghost" onClick={onFixMyself}>
+                I&apos;ll fix it myself
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

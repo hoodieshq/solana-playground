@@ -32,6 +32,8 @@ export interface TurnHandlers {
   restartStep: () => void;
   /** Open a file in the editor with a line in view */
   showLine: (file: string, line: number) => void;
+  /** The compiler's location: the line in view with the caret on it */
+  revealError: (file: string, line: number) => void;
   /** Open the Call panel; absent until it can be opened (task 4.4) */
   openCall?: () => void;
   /** Open the next tutorial, from the finish card */
@@ -213,7 +215,7 @@ const TurnView = ({
           open={turn.open && live}
           onExplain={() => on.explain(turn.beatId)}
           onFixMyself={() => on.fixMyself(turn.beatId)}
-          onShowLine={on.showLine}
+          onShowLine={on.revealError}
           onRetry={() => on.act(turn.beatId)}
         />
       );

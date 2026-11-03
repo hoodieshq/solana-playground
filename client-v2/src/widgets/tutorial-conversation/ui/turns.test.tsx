@@ -579,7 +579,7 @@ describe("BaseResultCard", () => {
       />
     );
     expect(screen.getByText("Build failed")).toBeTruthy();
-    expect(screen.getByText("E0412 · line 9 · 1.6 s")).toBeTruthy();
+    expect(screen.getByText("E0412 · line 9")).toBeTruthy();
     await userEvent.click(
       screen.getByRole("button", { name: "--> src/lib.rs:9:32" })
     );
@@ -680,7 +680,8 @@ describe("BaseResultCard", () => {
     expect(screen.queryByRole("button", { name: /-->/ })).toBeNull();
   });
 
-  it("folds to its head, with no button, once it is a record", () => {
+  it("folds to its head once it is a record, and the head opens it again", async () => {
+    const onShowLine = vi.fn();
     render(
       <BaseResultCard
         result={failed}
@@ -688,12 +689,24 @@ describe("BaseResultCard", () => {
         open={false}
         onExplain={vi.fn()}
         onFixMyself={vi.fn()}
-        onShowLine={vi.fn()}
+        onShowLine={onShowLine}
         onRetry={vi.fn()}
       />
     );
-    expect(screen.getByText("Build failed")).toBeTruthy();
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByText("E0412 on line 9")).toBeTruthy();
+    expect(screen.queryByText(/cannot find type/)).toBeNull();
+    const head = screen.getByRole("button", { name: /Build failed/ });
+    expect(head.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(head);
+    expect(head.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("E0412 · line 9")).toBeTruthy();
+    expect(screen.getByText(/cannot find type/)).toBeTruthy();
+    // A record reveals its line too, but asks for nothing
+    await userEvent.click(
+      screen.getByRole("button", { name: "--> src/lib.rs:9:32" })
+    );
+    expect(onShowLine).toHaveBeenCalledWith("src/lib.rs", 9);
+    expect(screen.queryByRole("button", { name: /Explain/ })).toBeNull();
   });
 });
 
@@ -773,6 +786,7 @@ describe("TurnView", () => {
     copyReceipt: vi.fn(),
     copyFailed: vi.fn(),
     showLine: vi.fn(),
+    revealError: vi.fn(),
   });
   const draw = (turn: Turn, live: boolean) =>
     render(
@@ -850,10 +864,17 @@ describe("TurnView", () => {
     ["a question", openAsk],
     ["a failed build", openFailure],
     ["a win", liveWin],
-  ])("draws %s with no button once another card is live", (_, turn) => {
-    draw(turn, false);
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
-  });
+  ])(
+    "draws %s with no button that acts once another card is live",
+    (_, turn) => {
+      draw(turn, false);
+      // A folded failed build's head only opens it again, to read
+      const acting = screen
+        .queryAllByRole("button")
+        .filter((b) => !b.hasAttribute("aria-expanded"));
+      expect(acting).toHaveLength(0);
+    }
+  );
 
   const appended: Turn = {
     id: "wrote:s1.q1",
@@ -1222,6 +1243,7 @@ describe("TurnView's last win", () => {
           copyReceipt: vi.fn(),
           copyFailed: vi.fn(),
           showLine: vi.fn(),
+          revealError: vi.fn(),
         }}
       />
     );

@@ -262,6 +262,17 @@ const sendEdit = (path: string) => {
 };
 
 /**
+ * Show a file's line and put the caret there. The editor stays mounted and
+ * swaps its file as the open lands, so it takes focus a frame later; a
+ * refused open leaves the focus alone.
+ */
+const showLineWithCaret = (file: string, line: number) => {
+  const shown = showLine(file, line);
+  if (shown === "shown") PgEditor.focus();
+  if (shown === "opening") requestAnimationFrame(() => PgEditor.focus());
+};
+
+/**
  * The editor and the engine, both ways. A change to the open file reaches
  * the engine (`edit`) once the typing rests, so a question's key line typed
  * by hand resolves it; the file is taken when it changes, and a change to
@@ -291,11 +302,7 @@ const useEditorLink = () => {
     const focus = PgConversation.onDidRequestFocus(({ file, line }) => {
       const at =
         line === "landing" ? marksNow(file)?.landing?.lines[0] ?? 1 : line;
-      const shown = showLine(file, at);
-      if (shown === "shown") PgEditor.focus();
-      // The editor stays mounted and swaps its file as the open lands: it
-      // takes focus a frame later. A refused open leaves the focus alone
-      if (shown === "opening") requestAnimationFrame(() => PgEditor.focus());
+      showLineWithCaret(file, at);
     });
     return () => {
       if (pending) window.clearTimeout(pending.timer);
@@ -375,6 +382,7 @@ const handlers: Omit<
   next: () => PgConversation.next(),
   restartStep: () => PgConversation.restartStep(),
   showLine,
+  revealError: showLineWithCaret,
   // TODO(tutorial-flow-v2 4.4): the Call panel's opener; until it exists the
   // win card shows no "Open Call"
   openCall: undefined,

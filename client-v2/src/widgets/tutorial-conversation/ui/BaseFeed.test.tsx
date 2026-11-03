@@ -119,6 +119,7 @@ const handlers = (): TurnHandlers => ({
   copyReceipt: vi.fn(),
   copyFailed: vi.fn(),
   showLine: vi.fn(),
+  revealError: vi.fn(),
 });
 
 const feed = (over: Partial<BaseFeedProps> & { on?: TurnHandlers } = {}) => {

@@ -163,6 +163,7 @@ const Lesson = ({ world }: { world: World }) => {
             copyReceipt: vi.fn(),
             copyFailed: vi.fn(),
             showLine: vi.fn(),
+            revealError: vi.fn(),
           }}
         />
       ))}
