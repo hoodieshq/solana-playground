@@ -1,6 +1,6 @@
 import { addImports, getJSDependencyMap } from "@/frameworks/common";
 import type { TupleFiles } from "@/utils";
-import { PgConnection, PgExplorer, PgFramework } from "@/utils";
+import { PgConnection, PgFramework } from "@/utils";
 
 import type { ConvertedProfile, ConvertProfile } from "./telemetry";
 import { projectExportTelemetry } from "./telemetry";
@@ -20,7 +20,7 @@ const FRAMEWORK_PROFILES: Record<FrameworkName, ConvertedProfile> = {
   Seahorse: "seahorse",
 };
 
-/** What `exportProject` throws when the zip itself failed, after any conversion */
+/** What an export throws when the zip itself failed, after any conversion */
 class DownloadError extends Error {
   constructor(cause: unknown) {
     super(cause instanceof Error ? cause.message : String(cause), { cause });
@@ -35,26 +35,19 @@ class DownloadError extends Error {
 export const isDownloadFailure = (error: unknown) =>
   error instanceof DownloadError;
 
-/**
- * The project to export: the named one, or the open one. Empty when there is
- * neither, which `PgFramework.readWorkspaceFiles` refuses.
- */
-const nameOf = (name: string | undefined) =>
-  name ?? PgExplorer.currentWorkspaceName ?? "";
-
 const kindOf = (files: TupleFiles): ProjectKind =>
   PgFramework.hasProgram(files.map(([path]) => path))
     ? "program"
     : "no-program";
 
 /**
- * Get which conversion "Convert and export" would use for a project.
+ * Read which conversion "Convert and export" would use for a project.
  *
- * @param name the project; the open one by default
+ * @param name the project
  * @returns `program` when a Rust or Python file sits under `src/`
  */
-export const getProjectKind = async (name: string | undefined) =>
-  kindOf(await PgFramework.readWorkspaceFiles(nameOf(name)));
+export const readProjectKind = async (name: string) =>
+  kindOf(await PgFramework.readWorkspaceFiles(name));
 
 /**
  * The endpoint a TypeScript export falls back to, and the one its dialog names:
@@ -73,75 +66,88 @@ const download = async (name: string, files: TupleFiles) => {
 };
 
 /**
- * Export a project as a zip: converted so it works locally, or as it is.
+ * Export a project's files as they are.
  *
- * @param opts.name the project; the open one by default
- * @param opts.convert whether to convert: with the project's framework when it
- * has a program, with the TypeScript profile when it has none
- * @returns the README to show after a conversion
+ * @param name the project
+ * @throws when the project cannot be read, and when the zip did not download
+ */
+export const exportAsIs = async (name: string) => {
+  try {
+    const files = await PgFramework.readWorkspaceFiles(name);
+    await download(name, files);
+    projectExportTelemetry.track("export_downloaded", {
+      profile: "as-is",
+      files: files.length,
+    });
+  } catch (e) {
+    projectExportTelemetry.track("export_failed", { profile: "as-is" });
+    throw e;
+  }
+};
+
+/** A conversion's result, with the profile that made it */
+type Converted = {
+  profile: ConvertedProfile;
+  files: TupleFiles;
+  readme: string;
+};
+
+/**
+ * Export a project converted to work locally: with its framework when it has a
+ * program, with the TypeScript profile when it has none.
+ *
+ * @param name the project
+ * @returns the README to show after
  * @throws when the conversion fails (`PgFramework.isUnknownFramework` when no
  * framework recognises the program), and when the zip did not download
  * (`isDownloadFailure`)
  */
-export const exportProject = async (opts: {
-  name?: string;
-  convert: boolean;
-}): Promise<{ readme?: string }> => {
-  const name = nameOf(opts.name);
-
-  if (!opts.convert) {
-    try {
-      const files = await PgFramework.readWorkspaceFiles(name);
-      await download(name, files);
-      projectExportTelemetry.track("export_downloaded", {
-        profile: "as-is",
-        files: files.length,
-      });
-      return {};
-    } catch (e) {
-      projectExportTelemetry.track("export_failed", { profile: "as-is" });
-      throw e;
-    }
-  }
-
-  // The conversion tried, carried to the failure event: `unknown` until the
-  // files say, and when no framework recognises the program
-  let profile: ConvertProfile = "unknown";
-  let converted: { files: TupleFiles; readme: string };
+export const exportConverted = async (name: string) => {
+  // The conversion tried, for the failure event: `unknown` until the files
+  // say, and when no framework recognises the program
+  let attempted: ConvertProfile = "unknown";
+  let converted: Converted;
   try {
     const files = await PgFramework.readWorkspaceFiles(name);
     if (kindOf(files) === "program") {
       const framework = await PgFramework.getFromFiles(files);
-      if (framework) profile = FRAMEWORK_PROFILES[framework.name];
-      converted = await PgFramework.convertToFramework(files);
+      if (framework) attempted = FRAMEWORK_PROFILES[framework.name];
+      const result = await PgFramework.convertToFramework(files);
+      converted = {
+        profile: FRAMEWORK_PROFILES[result.framework],
+        files: result.files,
+        readme: result.readme,
+      };
     } else {
-      profile = "typescript";
-      converted = await toNodeProjectWith({
-        name,
-        endpoint: exportedEndpoint(),
-        getDependencies: getJSDependencyMap,
-        importGlobals: addImports,
-      })(files);
+      attempted = "typescript";
+      const result = await toNodeProjectWith(getJSDependencyMap)(addImports)(
+        exportedEndpoint()
+      )(name)(files);
+      converted = {
+        profile: "typescript",
+        files: result.files,
+        readme: result.readme,
+      };
     }
   } catch (e) {
     projectExportTelemetry.track("export_convert_failed", {
-      profile,
+      profile: attempted,
       reason: PgFramework.isUnknownFramework(e) ? "unknown-framework" : "error",
     });
     throw e;
   }
 
-  // `profile` is a converted one here: `unknown` only ever ends in the catch
-  const done = profile as ConvertedProfile;
   try {
     await download(name, converted.files);
   } catch (e) {
-    projectExportTelemetry.track("export_failed", { profile: done });
+    projectExportTelemetry.track("export_failed", {
+      profile: converted.profile,
+    });
     throw e;
   }
   projectExportTelemetry.track("export_downloaded", {
-    profile: done,
+    profile: converted.profile,
     files: converted.files.length,
   });
-  return { readme: converted.readme };
+  return converted.readme;
 };

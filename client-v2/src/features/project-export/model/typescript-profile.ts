@@ -2,7 +2,7 @@ import { Endpoint } from "@/constants";
 import type { TupleFiles } from "@/utils";
 
 /** The module that gives `pg` and `sleep` their local meaning */
-export const SHIM_PATH = "playground.ts";
+const SHIM_PATH = "playground.ts";
 
 /** The variable that names the cluster `pg.connection` connects to */
 export const RPC_URL_VARIABLE = "SOLANA_RPC_URL";
@@ -59,7 +59,7 @@ const PREFERRED_CLIENTS = [
  * with: a declaration, or one import statement naming it (the clause cannot
  * cross a quote, so it stays inside that statement)
  */
-const declares = (content: string, name: string) =>
+const hasDeclarationOf = (name: string) => (content: string) =>
   new RegExp(`\\b(const|let|var|function|class)\\s+${name}\\b`).test(content) ||
   new RegExp(
     `^\\s*import\\s+[^;'"]*?\\b${name}\\b[^;'"]*?\\s+from\\s+["']`,
@@ -70,7 +70,7 @@ const declares = (content: string, name: string) =>
  * Whether a script uses the Playground global `name`: the bare name, not a
  * property (`a.pg`) or part of a longer one (`mypg`)
  */
-const uses = (content: string, name: string) =>
+const isGlobalUsedIn = (name: string) => (content: string) =>
   new RegExp(`(^|[^\\w$.])${name}\\b`, "m").test(content);
 
 /**
@@ -83,8 +83,10 @@ const uses = (content: string, name: string) =>
  */
 const shimImport = (path: string, content: string) => {
   const names = [
-    uses(content, "pg") && !declares(content, "pg") && "pg",
-    uses(content, "sleep") && !declares(content, "sleep") && "sleep",
+    isGlobalUsedIn("pg")(content) && !hasDeclarationOf("pg")(content) && "pg",
+    isGlobalUsedIn("sleep")(content) &&
+      !hasDeclarationOf("sleep")(content) &&
+      "sleep",
   ].filter((name): name is string => !!name);
   if (!names.length) return "";
 
@@ -280,26 +282,25 @@ exist only in Playground.
  * `playground.ts` added at the root, unless the project holds one there
  * already.
  *
- * @param files the project's files, Playground layout (the returned function's)
- * @param opts.name the project's name
- * @param opts.endpoint the cluster `pg.connection` falls back to
- * @param opts.getDependencies the packages the given files use, with versions
+ * @param getDependencies the packages the given files use, with versions
  * (`getJSDependencyMap`)
- * @param opts.importGlobals the script with imports added for the Playground's
+ * @param importGlobals the script with imports added for the Playground's
  * global packages (`addImports`); both are passed in because
  * `frameworks/common` imports the `utils` barrel, whose settings need the
  * app's build-time globals, and this module stays testable without them
+ * @param endpoint the cluster `pg.connection` falls back to
+ * @param name the project's name
+ * @param files the project's files, Playground layout
  * @returns the files to zip, and the README to show after: the project's own
  * when it has one at the root, which the profile keeps
  */
 export const toNodeProjectWith =
-  (opts: {
-    name: string;
-    endpoint: string;
-    getDependencies: (files: TupleFiles) => Promise<Record<string, string>>;
-    importGlobals: (content: string) => string;
-  }) =>
+  (getDependencies: (files: TupleFiles) => Promise<Record<string, string>>) =>
+  (importGlobals: (content: string) => string) =>
+  (endpoint: string) =>
+  (name: string) =>
   async (files: TupleFiles): Promise<{ files: TupleFiles; readme: string }> => {
+    const opts = { getDependencies, importGlobals, endpoint, name };
     const convertScript = convertScriptWith(opts.importGlobals);
     const converted: TupleFiles = files.map(([path, content]) =>
       SCRIPT_FOLDER_REGEX.test(path) && SCRIPT_REGEX.test(path)
@@ -315,13 +316,13 @@ export const toNodeProjectWith =
 
     const shimFile: [string, string] = [SHIM_PATH, shim(opts.endpoint)];
     const dependencies = await opts.getDependencies([...converted, shimFile]);
-    for (const name of NODE_BUILTINS) delete dependencies[name];
+    for (const builtin of NODE_BUILTINS) delete dependencies[builtin];
     const devDependencies: Record<string, string> = {
       ...DEV_DEPENDENCIES,
       ...(hasTests ? TEST_DEV_DEPENDENCIES : {}),
       ...(dependencies["bn.js"] ? { "@types/bn.js": "^5.1.6" } : {}),
     };
-    for (const name of Object.keys(dependencies)) delete devDependencies[name];
+    for (const used of Object.keys(dependencies)) delete devDependencies[used];
 
     const scripts: Record<string, string> = {};
     if (client) scripts.client = `tsx ${client}`;
@@ -404,13 +405,8 @@ if (import.meta.vitest) {
         .filter(Boolean)
         .join("") + content;
 
-    const profileAs = (name: string) =>
-      toNodeProjectWith({
-        name,
-        endpoint: DEVNET,
-        getDependencies: importedPackages,
-        importGlobals,
-      });
+    const profileAs =
+      toNodeProjectWith(importedPackages)(importGlobals)(DEVNET);
 
     const profileOf = profileAs("My Project");
 
@@ -598,12 +594,9 @@ console.log(await pg.connection.getSlot());
     it("escapes an endpoint it writes into code", async () => {
       const shimText = fileOf(
         (
-          await toNodeProjectWith({
-            name: "x",
-            endpoint: 'https://rpc.example/?k="1"',
-            getDependencies: importedPackages,
-            importGlobals,
-          })([["client/a.ts", CLIENT]])
+          await toNodeProjectWith(importedPackages)(importGlobals)(
+            'https://rpc.example/?k="1"'
+          )("x")([["client/a.ts", CLIENT]])
         ).files,
         SHIM_PATH
       );

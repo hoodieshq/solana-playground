@@ -1,10 +1,11 @@
 // Public API of the slice: import from here, never from its internals.
 // Exporting a project as a zip, converted to work locally (HOO-2541).
 export {
+  exportAsIs,
+  exportConverted,
   exportedEndpoint,
-  exportProject,
-  getProjectKind,
   isDownloadFailure,
+  readProjectKind,
 } from "./model/export";
 export type { ProjectKind } from "./model/export";
 export { projectExportTelemetry } from "./model/telemetry";

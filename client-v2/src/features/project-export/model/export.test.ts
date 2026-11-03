@@ -9,10 +9,11 @@ import {
 import type { TupleFiles } from "@/utils";
 
 import {
+  exportAsIs,
+  exportConverted,
   exportedEndpoint,
-  exportProject,
-  getProjectKind,
   isDownloadFailure,
+  readProjectKind,
 } from "./export";
 
 const UNKNOWN_FRAMEWORK = "Could not identify framework";
@@ -23,7 +24,6 @@ const utils = vi.hoisted(() => ({
     cluster: "devnet",
     current: { rpcEndpoint: "https://devnet.platform.example/?api-key=secret" },
   },
-  PgExplorer: { currentWorkspaceName: "open-one" as string | null },
   PgFramework: {
     readWorkspaceFiles: vi.fn(),
     downloadZip: vi.fn(),
@@ -56,7 +56,6 @@ let sent: ReturnType<typeof memoryProvider>;
 beforeEach(() => {
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
-  utils.PgExplorer.currentWorkspaceName = "open-one";
   utils.PgFramework.readWorkspaceFiles
     .mockReset()
     .mockResolvedValue(NO_PROGRAM);
@@ -80,11 +79,11 @@ const zipped = () => {
 };
 
 describe("features/project-export/model/export", () => {
-  describe("getProjectKind", () => {
+  describe("readProjectKind", () => {
     it("tells a project with a program from one with none", async () => {
-      expect(await getProjectKind("beta")).toBe("no-program");
+      expect(await readProjectKind("beta")).toBe("no-program");
       utils.PgFramework.readWorkspaceFiles.mockResolvedValue(ANCHOR);
-      expect(await getProjectKind("beta")).toBe("program");
+      expect(await readProjectKind("beta")).toBe("program");
       expect(utils.PgFramework.readWorkspaceFiles).toHaveBeenCalledWith("beta");
     });
   });
@@ -95,9 +94,9 @@ describe("features/project-export/model/export", () => {
     });
   });
 
-  describe("exportProject", () => {
+  describe("exportConverted and exportAsIs", () => {
     it("converts a project with no program with the TypeScript profile", async () => {
-      const { readme } = await exportProject({ name: "beta", convert: true });
+      const readme = await exportConverted("beta");
 
       expect(zipped()).toEqual({
         name: "beta",
@@ -122,7 +121,7 @@ describe("features/project-export/model/export", () => {
     });
 
     it("never writes the RPC URL Playground uses into the zip", async () => {
-      await exportProject({ name: "beta", convert: true });
+      await exportConverted("beta");
 
       const [, files] = utils.PgFramework.downloadZip.mock.calls[0] as [
         string,
@@ -143,9 +142,10 @@ describe("features/project-export/model/export", () => {
       utils.PgFramework.convertToFramework.mockResolvedValue({
         files: anchorFiles,
         readme: "anchor readme",
+        framework: "Anchor",
       });
 
-      const { readme } = await exportProject({ name: "beta", convert: true });
+      const readme = await exportConverted("beta");
 
       expect(utils.PgFramework.convertToFramework).toHaveBeenCalledWith(ANCHOR);
       expect(utils.PgFramework.downloadZip).toHaveBeenCalledWith(
@@ -159,7 +159,7 @@ describe("features/project-export/model/export", () => {
     });
 
     it("exports the files as they are without converting", async () => {
-      await exportProject({ convert: false });
+      await exportAsIs("open-one");
 
       expect(utils.PgFramework.readWorkspaceFiles).toHaveBeenCalledWith(
         "open-one"
@@ -179,9 +179,7 @@ describe("features/project-export/model/export", () => {
         new Error(UNKNOWN_FRAMEWORK)
       );
 
-      await expect(
-        exportProject({ name: "beta", convert: true })
-      ).rejects.toThrow(UNKNOWN_FRAMEWORK);
+      await expect(exportConverted("beta")).rejects.toThrow(UNKNOWN_FRAMEWORK);
       expect(utils.PgFramework.downloadZip).not.toHaveBeenCalled();
       expect(sent.events).toEqual([
         {
@@ -196,9 +194,7 @@ describe("features/project-export/model/export", () => {
       utils.PgFramework.getFromFiles.mockResolvedValue({ name: "Seahorse" });
       utils.PgFramework.convertToFramework.mockRejectedValue(new Error("boom"));
 
-      await expect(
-        exportProject({ name: "beta", convert: true })
-      ).rejects.toThrow("boom");
+      await expect(exportConverted("beta")).rejects.toThrow("boom");
       expect(sent.events).toEqual([
         {
           name: "export_convert_failed",
@@ -210,7 +206,7 @@ describe("features/project-export/model/export", () => {
     it("counts an export that downloaded nothing", async () => {
       utils.PgFramework.downloadZip.mockRejectedValue(new Error("quota"));
 
-      await expect(exportProject({ convert: false })).rejects.toThrow("quota");
+      await expect(exportAsIs("open-one")).rejects.toThrow("quota");
       expect(sent.events).toEqual([
         { name: "export_failed", params: { profile: "as-is" } },
       ]);
@@ -219,10 +215,7 @@ describe("features/project-export/model/export", () => {
     it("counts a converted zip that did not download, apart from a conversion", async () => {
       utils.PgFramework.downloadZip.mockRejectedValue(new Error("quota"));
 
-      const failure = await exportProject({
-        name: "beta",
-        convert: true,
-      }).catch((e: unknown) => e);
+      const failure = await exportConverted("beta").catch((e: unknown) => e);
       expect(isDownloadFailure(failure)).toBe(true);
       expect((failure as Error).message).toBe("quota");
       expect(sent.events).toEqual([
@@ -233,10 +226,7 @@ describe("features/project-export/model/export", () => {
     it("names the TypeScript profile when it fails", async () => {
       common.getJSDependencyMap.mockRejectedValue(new Error("offline"));
 
-      const failure = await exportProject({
-        name: "beta",
-        convert: true,
-      }).catch((e: unknown) => e);
+      const failure = await exportConverted("beta").catch((e: unknown) => e);
       expect(isDownloadFailure(failure)).toBe(false);
       expect(sent.events).toEqual([
         {
@@ -249,28 +239,13 @@ describe("features/project-export/model/export", () => {
     it("says unknown when the project cannot be read", async () => {
       utils.PgFramework.readWorkspaceFiles.mockRejectedValue(new Error("EIO"));
 
-      await expect(
-        exportProject({ name: "beta", convert: true })
-      ).rejects.toThrow("EIO");
+      await expect(exportConverted("beta")).rejects.toThrow("EIO");
       expect(sent.events).toEqual([
         {
           name: "export_convert_failed",
           params: { profile: "unknown", reason: "error" },
         },
       ]);
-    });
-
-    it("refuses when no project is named or open", async () => {
-      // eslint-disable-next-line unicorn/no-null -- the real one is null with no project open
-      utils.PgExplorer.currentWorkspaceName = null;
-      utils.PgFramework.readWorkspaceFiles.mockRejectedValue(
-        new Error("Current workspace not found")
-      );
-
-      await expect(exportProject({ convert: false })).rejects.toThrow(
-        "Current workspace not found"
-      );
-      expect(utils.PgFramework.readWorkspaceFiles).toHaveBeenCalledWith("");
     });
   });
 });

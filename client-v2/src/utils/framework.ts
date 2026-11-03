@@ -408,7 +408,7 @@ export class PgFramework {
    * Convert playground layout files to their framework's layout.
    *
    * @param files playground layout files
-   * @returns the framework's files and the README to show after
+   * @returns the framework's files, the README to show after, and the framework
    * @throws when no framework recognises the files (`isUnknownFramework`)
    */
   static async convertToFramework(files: TupleFiles) {
@@ -416,7 +416,11 @@ export class PgFramework {
     if (!framework) throw new Error(UNKNOWN_FRAMEWORK);
 
     const { convertFromPlayground, readme } = await framework.export();
-    return { files: await convertFromPlayground(files), readme };
+    return {
+      files: await convertFromPlayground(files),
+      readme,
+      framework: framework.name,
+    };
   }
 
   /**

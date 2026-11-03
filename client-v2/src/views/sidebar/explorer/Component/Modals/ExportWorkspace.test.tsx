@@ -36,8 +36,9 @@ const slice = vi.hoisted(() => {
     // The mapping is the slice's and tested there
     exportedEndpoint: () => "https://api.devnet.solana.com",
     DownloadError,
-    exportProject: vi.fn(),
-    getProjectKind: vi.fn(),
+    exportAsIs: vi.fn(),
+    exportConverted: vi.fn(),
+    readProjectKind: vi.fn(),
     isDownloadFailure: (e: unknown) => e instanceof DownloadError,
   };
 });
@@ -61,8 +62,9 @@ let logs: ReturnType<typeof logMemory>;
 beforeEach(() => {
   logs = logMemory();
   initLogger({ providers: [logs] });
-  slice.exportProject.mockReset().mockResolvedValue({});
-  slice.getProjectKind.mockReset().mockResolvedValue("program");
+  slice.exportAsIs.mockReset().mockResolvedValue(undefined);
+  slice.exportConverted.mockReset().mockResolvedValue("# readme");
+  slice.readProjectKind.mockReset().mockResolvedValue("program");
   utils.PgView.setToast.mockReset();
   utils.PgView.closeModal.mockReset();
 });
@@ -97,16 +99,14 @@ it("exports the named project as is", async () => {
   await waitFor(() =>
     expect(utils.PgView.closeModal).toHaveBeenCalledWith(null, "export")
   );
-  expect(slice.exportProject).toHaveBeenCalledWith({
-    convert: false,
-    name: "beta",
-  });
+  expect(slice.exportAsIs).toHaveBeenCalledWith("beta");
+  expect(slice.exportConverted).not.toHaveBeenCalled();
 });
 
 it("tells the user a conversion failed and exports as is", async () => {
-  slice.exportProject
-    .mockRejectedValueOnce(new Error("Could not identify framework"))
-    .mockResolvedValueOnce({});
+  slice.exportConverted.mockRejectedValueOnce(
+    new Error("Could not identify framework")
+  );
   draw("beta");
 
   fireEvent.click(screen.getByRole("button", { name: /convert and export/i }));
@@ -114,17 +114,15 @@ it("tells the user a conversion failed and exports as is", async () => {
   await waitFor(() =>
     expect(utils.PgView.closeModal).toHaveBeenCalledWith(null, "export")
   );
-  expect(slice.exportProject.mock.calls).toEqual([
-    [{ convert: true, name: "beta" }],
-    [{ convert: false, name: "beta" }],
-  ]);
+  expect(slice.exportConverted).toHaveBeenCalledWith("beta");
+  expect(slice.exportAsIs).toHaveBeenCalledWith("beta");
   expect(toastNames()).toEqual(["export-convert-failed"]);
 });
 
 it("does not report a project of no known framework, only notes it", async () => {
-  slice.exportProject
-    .mockRejectedValueOnce(new Error("Could not identify framework"))
-    .mockResolvedValueOnce({});
+  slice.exportConverted.mockRejectedValueOnce(
+    new Error("Could not identify framework")
+  );
   draw("beta");
 
   fireEvent.click(screen.getByRole("button", { name: /convert and export/i }));
@@ -137,7 +135,7 @@ it("does not report a project of no known framework, only notes it", async () =>
 
 it("reports a conversion that failed for another reason", async () => {
   const failure = new Error("convertFromPlayground blew up");
-  slice.exportProject.mockRejectedValueOnce(failure).mockResolvedValueOnce({});
+  slice.exportConverted.mockRejectedValueOnce(failure);
   draw("beta");
 
   fireEvent.click(screen.getByRole("button", { name: /convert and export/i }));
@@ -154,7 +152,8 @@ it("reports a conversion that failed for another reason", async () => {
 
 it("says only that the export failed when the fallback fails too", async () => {
   // A project that cannot be read fails the conversion and the plain export
-  slice.exportProject.mockRejectedValue(new Error("ENOENT"));
+  slice.exportConverted.mockRejectedValue(new Error("ENOENT"));
+  slice.exportAsIs.mockRejectedValue(new Error("ENOENT"));
   draw("beta");
 
   fireEvent.click(screen.getByRole("button", { name: /convert and export/i }));
@@ -165,7 +164,7 @@ it("says only that the export failed when the fallback fails too", async () => {
 
 it("tells the user an export failed, and reports it", async () => {
   const failure = new Error("quota exceeded");
-  slice.exportProject.mockRejectedValue(failure);
+  slice.exportAsIs.mockRejectedValue(failure);
   draw("beta");
 
   fireEvent.click(
@@ -189,7 +188,7 @@ it("names the open project when given no name", () => {
 });
 
 it("asks to make a project with no program a Node project", async () => {
-  slice.getProjectKind.mockResolvedValue("no-program");
+  slice.readProjectKind.mockResolvedValue("no-program");
   draw("beta");
 
   expect(await screen.findByText("Make it a Node project?")).toBeTruthy();
@@ -198,7 +197,7 @@ it("asks to make a project with no program a Node project", async () => {
   expect(screen.getByText("https://api.devnet.solana.com")).toBeTruthy();
   expect(screen.getByText(slice.DEFAULT_KEYPAIR_PATH)).toBeTruthy();
   expect(screen.getByText(slice.RPC_URL_VARIABLE)).toBeTruthy();
-  expect(slice.getProjectKind).toHaveBeenCalledWith("beta");
+  expect(slice.readProjectKind).toHaveBeenCalledWith("beta");
   // Both buttons keep their labels
   expect(
     screen.getByRole("button", { name: /convert and export/i })
@@ -211,39 +210,37 @@ it("asks to make a project with no program a Node project", async () => {
 it("keeps the layout question for a project with a program", async () => {
   draw("beta");
 
-  await waitFor(() => expect(slice.getProjectKind).toHaveBeenCalled());
+  await waitFor(() => expect(slice.readProjectKind).toHaveBeenCalled());
   expect(screen.getByText("Convert the project layout?")).toBeTruthy();
 });
 
 it("converts a project with no program with no fallback toast", async () => {
-  slice.getProjectKind.mockResolvedValue("no-program");
-  slice.exportProject.mockResolvedValue({ readme: "# beta" });
+  slice.readProjectKind.mockResolvedValue("no-program");
+  slice.exportConverted.mockResolvedValue("# beta");
   draw("beta");
 
   fireEvent.click(screen.getByRole("button", { name: /convert and export/i }));
 
   await waitFor(() =>
-    expect(slice.exportProject).toHaveBeenCalledWith({
-      convert: true,
-      name: "beta",
-    })
+    expect(slice.exportConverted).toHaveBeenCalledWith("beta")
   );
+  expect(slice.exportAsIs).not.toHaveBeenCalled();
   expect(toastNames()).toEqual([]);
 });
 
 it("does not fall back when the converted zip did not download", async () => {
-  slice.exportProject.mockRejectedValueOnce(new slice.DownloadError("quota"));
+  slice.exportConverted.mockRejectedValueOnce(new slice.DownloadError("quota"));
   draw("beta");
 
   fireEvent.click(screen.getByRole("button", { name: /convert and export/i }));
 
   await waitFor(() => expect(toastNames()).toEqual(["export-failed"]));
-  expect(slice.exportProject).toHaveBeenCalledTimes(1);
+  expect(slice.exportAsIs).not.toHaveBeenCalled();
   expect(utils.PgView.closeModal).not.toHaveBeenCalled();
 });
 
 it("keeps the layout question when the project cannot be read", async () => {
-  slice.getProjectKind.mockRejectedValue(new Error("EIO"));
+  slice.readProjectKind.mockRejectedValue(new Error("EIO"));
   draw("beta");
 
   await waitFor(() =>

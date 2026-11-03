@@ -5,11 +5,12 @@ import styled, { css } from "styled-components";
 import type { ProjectKind } from "@/features/project-export";
 import {
   DEFAULT_KEYPAIR_PATH,
+  exportAsIs,
+  exportConverted,
   exportedEndpoint,
-  exportProject,
-  getProjectKind,
   isDownloadFailure,
   KEYPAIR_VARIABLE,
+  readProjectKind,
   RPC_URL_VARIABLE,
 } from "@/features/project-export";
 import { createLogger } from "@/shared/lib/logger";
@@ -48,14 +49,16 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
   setPage,
   name,
 }) => {
-  const label = name ?? PgExplorer.currentWorkspaceName ?? "the project";
+  // Empty with no project named or open, which the export refuses
+  const project = name ?? PgExplorer.currentWorkspaceName ?? "";
+  const label = project || "the project";
   const id = useModalId();
   // The program copy shows until the project is read, and stays if the read
   // fails: the export reads the project again and reports its own failure
   const [kind, setKind] = useState<ProjectKind>("program");
   useEffect(() => {
     let current = true;
-    getProjectKind(name).then(
+    readProjectKind(project).then(
       (read) => current && setKind(read),
       (e) => {
         // Only the copy is lost; the export itself says when it fails
@@ -67,12 +70,12 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
     return () => {
       current = false;
     };
-  }, [name]);
+  }, [project]);
 
   const convertAndExport = async () => {
     let readme: string;
     try {
-      ({ readme = "" } = await exportProject({ convert: true, name }));
+      readme = await exportConverted(project);
     } catch (e) {
       // The zip itself failed: an export as is would fail the same way
       if (isDownloadFailure(e)) {
@@ -115,7 +118,7 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
   /** Whether the project downloaded */
   const exportWithoutChanges = async () => {
     try {
-      await exportProject({ convert: false, name });
+      await exportAsIs(project);
     } catch (e) {
       reportExportFailure(e);
       return false;
