@@ -285,6 +285,7 @@ it.each([
   ["an Error without a message", new Error()],
   ["an empty string", ""],
   ["a value that is not an error", 42],
+  ["a bare object with an empty message", { message: "" }],
 ])("should name the action that stopped for %s", async (_, thrown) => {
   renderFrame({
     title: "Rename",
@@ -303,21 +304,26 @@ it.each([
   );
 });
 
-it("should name the action without the label's closing punctuation", async () => {
+it.each([
+  ["Delete…", "Delete"],
+  ["Save...", "Save"],
+  ["Remove?", "Remove"],
+  ["…", "This action"],
+])("should name the action of the label %s as %s", async (label, action) => {
   renderFrame({
     title: "Delete",
     buttonProps: {
-      text: "Delete…",
+      text: label,
       onSubmit: async () => {
         throw new Error();
       },
     },
   });
 
-  await submit("Delete…");
+  await submit(label);
 
   expect(screen.getByRole("alert").textContent).toBe(
-    "Delete stopped for a reason we can't name. Try again."
+    `${action} stopped for a reason we can't name. Try again.`
   );
 });
 
