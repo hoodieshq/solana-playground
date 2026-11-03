@@ -64,7 +64,8 @@ describe("BaseCustomRpcs", () => {
   it("shows a refusal under the field and keeps what was typed", async () => {
     const onAdd = vi.fn(() => ({
       ok: false as const,
-      error: "Enter a URL that starts with https://",
+      error:
+        "Enter a URL that starts with https://, or http:// for a local validator.",
     }));
     renderList({ rpcs: [], onAdd });
     await userEvent.click(
@@ -73,7 +74,9 @@ describe("BaseCustomRpcs", () => {
     await userEvent.type(screen.getByLabelText("RPC URL"), "devnet");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(
-      screen.getByText("Enter a URL that starts with https://")
+      screen.getByText(
+        "Enter a URL that starts with https://, or http:// for a local validator."
+      )
     ).toBeTruthy();
     expect((screen.getByLabelText("RPC URL") as HTMLInputElement).value).toBe(
       "devnet"

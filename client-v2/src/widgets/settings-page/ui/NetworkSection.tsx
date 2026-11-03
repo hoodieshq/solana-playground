@@ -16,7 +16,7 @@ import BaseNetworkChoice from "./BaseNetworkChoice";
 const refusal = (result: Exclude<SaveResult, { ok: true }>): string => {
   switch (result.reason) {
     case "format":
-      return "Enter a URL that starts with https://";
+      return "Enter a URL that starts with https://, or http:// for a local validator.";
     case "duplicate":
       return `Already saved as ${result.name}.`;
     case "storage":

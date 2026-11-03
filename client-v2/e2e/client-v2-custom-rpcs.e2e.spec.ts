@@ -141,7 +141,9 @@ test("client-v2-custom-rpcs: A value that is not an https URL is refused", async
   for (const value of ["devnet", "http://api.devnet.solana.com"]) {
     await addRpc(page, { name: "", url: value });
     await expect(
-      settings.getByText("Enter a URL that starts with https://")
+      settings.getByText(
+        "Enter a URL that starts with https://, or http:// for a local validator."
+      )
     ).toBeVisible();
     await settings.getByRole("button", { name: "Cancel" }).click();
   }

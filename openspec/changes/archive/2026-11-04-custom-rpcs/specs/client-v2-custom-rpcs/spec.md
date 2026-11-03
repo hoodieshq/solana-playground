@@ -37,12 +37,12 @@ An "Add custom RPC" button SHALL open an inline form with a "Name" field, an "RP
 
 ### Requirement: The URL rule
 
-A URL SHALL be saved only when it starts with `https://`, or with `http://` on `localhost` or `127.0.0.1`. Any other value SHALL show "Enter a URL that starts with https://" under the field and save nothing. A URL already saved, or one a chip already offers (Devnet or Mainnet), SHALL be refused with "Already saved as {name}." A save the browser refuses to store SHALL show "Could not save in this browser."
+A URL SHALL be saved only when it starts with `https://`, or with `http://` on `localhost` or `127.0.0.1`. Any other value SHALL show "Enter a URL that starts with https://, or http:// for a local validator." under the field and save nothing. A URL already saved, or one a chip already offers (Devnet or Mainnet), SHALL be refused with "Already saved as {name}." A save the browser refuses to store SHALL show "Could not save in this browser."
 
 #### Scenario: A value that is not an https URL is refused
 
 - **WHEN** a person saves `devnet` or `http://api.devnet.solana.com`
-- **THEN** the field shows "Enter a URL that starts with https://"
+- **THEN** the field shows "Enter a URL that starts with https://, or http:// for a local validator."
 - **AND** nothing is saved
 
 #### Scenario: A local validator over plain HTTP is accepted

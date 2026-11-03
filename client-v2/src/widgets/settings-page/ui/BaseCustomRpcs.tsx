@@ -163,6 +163,9 @@ const RpcForm = ({
             id={`${id}-url`}
             value={url}
             placeholder="https://"
+            // The field's invalid state reddens its text; the value stays the
+            // user's own, as the DS validator input draws it
+            className="text-foreground"
             inputMode="url"
             autoComplete="off"
             spellCheck={false}
