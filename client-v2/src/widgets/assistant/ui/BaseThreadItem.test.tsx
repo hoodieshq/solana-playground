@@ -20,7 +20,7 @@ import { PgView } from "../../../utils/view";
 import type { ToastChildProps } from "../../../utils/view";
 import { BaseThreadItem } from "./BaseThreadItem";
 import type { ChatItem } from "../../../views/sidebar/assistant/store";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 
 // Replies render markdown; the text is enough here
 vi.mock("../../../components/Markdown", () => ({
@@ -31,7 +31,7 @@ const CREATED = "2026-10-19T00:00:00.000Z";
 
 /** What the failed-click toast says, from the last `setToast` call */
 const toastText = (setToast: ReturnType<typeof vi.spyOn>) => {
-  const [elementable] = present("a call to setToast")(
+  const [elementable] = requireFor("a call to setToast")(
     setToast.mock.calls.at(-1)
   );
   const Toast = elementable as FC<ToastChildProps>;

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import { BaseAssistantComposer } from "./BaseAssistantComposer";
 
 interface Setup {
@@ -133,7 +133,7 @@ describe("BaseAssistantComposer", () => {
     const reason = input().getAttribute("aria-describedby");
     expect(reason).toBeTruthy();
     const description = document.getElementById(
-      present("the describing id")(reason)
+      requireFor("the describing id")(reason)
     );
     expect(description?.textContent).toBe("Connect a model to send");
   });

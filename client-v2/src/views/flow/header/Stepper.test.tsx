@@ -8,7 +8,7 @@ import Stepper from "./Stepper";
 import { STEPPER_FULL_WIDTH_PX } from "./stepper-width";
 import { INITIAL_FLOW_STATE } from "../state/stage";
 import type { FlowState } from "../state/stage";
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 
 const failedBuild: FlowState = {
   stage: "build",
@@ -56,7 +56,7 @@ class StubResizeObserver {
 
 /** Gives the stepper root, and only it, this much room */
 const resizeTo = (width: number) => {
-  const root = present("the stepper")(
+  const root = requireFor("the stepper")(
     document.querySelector('[data-slot="stepper"]')
   );
   const fire = observed.get(root);
@@ -76,7 +76,7 @@ describe("Stepper", () => {
     expect(
       screen.getByRole("tablist", { name: "Development loop" })
     ).toBeTruthy();
-    const build = present("the Build tab")(
+    const build = requireFor("the Build tab")(
       document.getElementById("flow-stage-tab-build")
     );
     expect(build.getAttribute("role")).toBe("tab");
@@ -148,7 +148,7 @@ describe("fill", () => {
       <Stepper state={INITIAL_FLOW_STATE} onSelect={vi.fn()} fill />
     );
     const list = () =>
-      present("the stepper list")(
+      requireFor("the stepper list")(
         container.querySelector('[data-slot="stepper-list"]')
       ).className;
     expect(list()).toMatch(/\bw-full\b/);

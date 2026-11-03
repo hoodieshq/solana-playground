@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import { PgView } from "@/utils/view";
 import type { ToastChildProps } from "@/utils/view";
 import {
@@ -29,7 +29,9 @@ afterEach(() => {
 
 /** Render what the last `setToast` call would have put on screen */
 const renderToast = () => {
-  const [elementable] = present("a setToast call")(setToast.mock.calls.at(-1));
+  const [elementable] = requireFor("a setToast call")(
+    setToast.mock.calls.at(-1)
+  );
   const Toast = elementable as FC<ToastChildProps>;
   return render(createElement(Toast, { id: BUTTON_FAILED_TOAST }));
 };

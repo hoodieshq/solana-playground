@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 import {
   LONG,
   PROGRAM,
@@ -53,7 +53,7 @@ test("client-v2-layout: New project's controls line up and its list shows it scr
       dialog(page).getByLabel("Project name"),
       dialog(page).getByRole("button", { name: /^Start/ }),
     ].map(async (l) =>
-      present("a control's bounding box")(await l.boundingBox())
+      requireFor("a control's bounding box")(await l.boundingBox())
     )
   );
   const heights = boxes.map((b) => Math.round(b.height));
@@ -69,8 +69,8 @@ test("client-v2-layout: New project's controls line up and its list shows it scr
   const fade = dialog(page).locator("[data-scroll-fade]");
   await expect(fade).toBeVisible();
   const [fadeBox, bodyBox] = await Promise.all([
-    fade.boundingBox().then(present("the fade's bounding box")),
-    body.boundingBox().then(present("the body's bounding box")),
+    fade.boundingBox().then(requireFor("the fade's bounding box")),
+    body.boundingBox().then(requireFor("the body's bounding box")),
   ]);
   expect(
     Math.abs(fadeBox.y + fadeBox.height - (bodyBox.y + bodyBox.height))
@@ -83,8 +83,8 @@ test("client-v2-layout: New project's controls line up and its list shows it scr
     last
       .locator('[data-slot="action-card-content"]')
       .boundingBox()
-      .then(present("the last card's bounding box")),
-    fade.boundingBox().then(present("the fade's bounding box")),
+      .then(requireFor("the last card's bounding box")),
+    fade.boundingBox().then(requireFor("the fade's bounding box")),
   ]);
   expect(endFadeBox.y).toBeGreaterThanOrEqual(lastBox.y + lastBox.height - 1);
   await last.getByRole("button", { name: /^Open / }).click({ trial: true });

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { BaseAssistantHead } from "./BaseAssistantHead";
 import type { ForgetKey } from "./BaseAssistantHead";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 
 interface HeadChoice {
   wide?: boolean;
@@ -87,7 +87,7 @@ describe("BaseAssistantHead", () => {
     await user.click(more());
     const item = screen.getByRole("menuitem", { name: "Clear conversation" });
     // The item takes no pointer events while disabled; its wrapper does
-    await user.hover(present("the item's row")(item.parentElement));
+    await user.hover(requireFor("the item's row")(item.parentElement));
     expect((await screen.findByRole("tooltip")).textContent).toBe(
       "Coming soon"
     );
@@ -114,7 +114,7 @@ describe("BaseAssistantHead", () => {
     const item = screen.getByRole("menuitem", { name: "Forget key" });
     expect(item.getAttribute("aria-disabled")).toBe("true");
     // The item takes no pointer events while disabled; its wrapper does
-    await user.hover(present("the item's row")(item.parentElement));
+    await user.hover(requireFor("the item's row")(item.parentElement));
     expect((await screen.findByRole("tooltip")).textContent).toBe(
       "Finish this turn first"
     );
@@ -240,7 +240,7 @@ describe("BaseAssistantHead", () => {
 
 it("is the frame's 44 px column bar", () => {
   setup();
-  const head = present("the heading's bar")(
+  const head = requireFor("the heading's bar")(
     screen.getByRole("heading", { name: "hello-anchor" }).parentElement
   );
   expect(head.className).toMatch(/\bh-11\b/);

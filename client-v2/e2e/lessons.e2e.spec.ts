@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 import { expect, home, homeRegion, test } from "./fixtures";
 
 const FIRST = "Define the hello instruction and log a message";
@@ -45,7 +45,7 @@ const landsOnCode = async (page: Page) => {
 
 /** A control's box, which must be on screen */
 const boxOf = async (locator: Locator) => {
-  return present("the control's bounding box")(await locator.boundingBox());
+  return requireFor("the control's bounding box")(await locator.boundingBox());
 };
 
 const skipStep = (page: Page) =>
@@ -87,8 +87,10 @@ test.describe("client-v2-lessons", () => {
     );
 
     // Above the editor, not beside it
-    const bandBox = present("the band's bounding box")(await b.boundingBox());
-    const editorBox = present("the editor's bounding box")(
+    const bandBox = requireFor("the band's bounding box")(
+      await b.boundingBox()
+    );
+    const editorBox = requireFor("the editor's bounding box")(
       await page.locator("#tabs").boundingBox()
     );
     expect(bandBox.y + bandBox.height).toBeLessThanOrEqual(editorBox.y + 1);
@@ -169,13 +171,13 @@ test.describe("client-v2-lessons", () => {
     await expect(reader).toBeVisible();
 
     // The page sits inside the stage under the band, over the editor
-    const readerBox = present("the reader's bounding box")(
+    const readerBox = requireFor("the reader's bounding box")(
       await reader.boundingBox()
     );
-    const bandBox = present("the band's bounding box")(
+    const bandBox = requireFor("the band's bounding box")(
       await band(page).boundingBox()
     );
-    const editorBox = present("the editor's bounding box")(
+    const editorBox = requireFor("the editor's bounding box")(
       await page.locator("#tabs").boundingBox()
     );
     expect(readerBox.y).toBeGreaterThanOrEqual(bandBox.y + bandBox.height - 1);

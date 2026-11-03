@@ -1,7 +1,7 @@
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 import { LONG, test } from "./fixtures";
 
 /**
@@ -43,7 +43,7 @@ const threeTabs = async (page: Page) => {
 
 /** Puts the pointer over the editor, away from every tab */
 const pointerAway = async (page: Page) => {
-  const box = present("the editor's box")(
+  const box = requireFor("the editor's box")(
     await page.locator(".monaco-editor").first().boundingBox()
   );
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -61,10 +61,10 @@ test("dragging a tab reorders it", async ({ seededPage: page }) => {
   const [first, second, third] = await tabIds(page);
   const current = await currentName(page);
 
-  const from = present("the first tab's drag handle box")(
+  const from = requireFor("the first tab's drag handle box")(
     await trigger(page.locator(TAB).nth(0)).boundingBox()
   );
-  const to = present("the second tab's box")(
+  const to = requireFor("the second tab's box")(
     await page.locator(TAB).nth(1).boundingBox()
   );
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
@@ -125,13 +125,15 @@ test("a click at the tab's left edge selects it", async ({
   await threeTabs(page);
 
   const first = page.locator(TAB).nth(0);
-  const box = present("the bounding box of first")(await first.boundingBox());
+  const box = requireFor("the bounding box of first")(
+    await first.boundingBox()
+  );
   await page.mouse.click(box.x + 2, box.y + box.height / 2);
   await expect(trigger(first)).toHaveAttribute("aria-selected", "true");
 
   const second = page.locator(TAB).nth(1);
   await expect(trigger(second)).toHaveAttribute("aria-selected", "false");
-  const close = present("the second tab's close button box")(
+  const close = requireFor("the second tab's close button box")(
     await second.getByRole("button", { name: /^Close / }).boundingBox()
   );
   await page.mouse.click(close.x - 4, close.y + close.height / 2);
@@ -195,8 +197,12 @@ test("a tab opened past the row's edge scrolls into view, and the wheel scrolls 
 
   const last = page.locator(`${TAB}[id$="/f6.rs"]`);
   const inView = async () => {
-    const row = present("the bounding box of list")(await list.boundingBox());
-    const tab = present("the bounding box of last")(await last.boundingBox());
+    const row = requireFor("the bounding box of list")(
+      await list.boundingBox()
+    );
+    const tab = requireFor("the bounding box of last")(
+      await last.boundingBox()
+    );
     return tab.x >= row.x - 1 && tab.x + tab.width <= row.x + row.width + 1;
   };
   await expect.poll(inView).toBe(true);
@@ -205,7 +211,7 @@ test("a tab opened past the row's edge scrolls into view, and the wheel scrolls 
   await list.evaluate((el) => {
     el.scrollLeft = 0;
   });
-  const row = present("the bounding box of list")(await list.boundingBox());
+  const row = requireFor("the bounding box of list")(await list.boundingBox());
   await page.mouse.move(row.x + row.width / 2, row.y + row.height / 2);
   await page.mouse.wheel(0, 200);
   await expect

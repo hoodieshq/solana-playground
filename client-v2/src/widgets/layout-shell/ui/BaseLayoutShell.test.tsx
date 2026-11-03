@@ -3,7 +3,7 @@ import { createElement, useContext, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
 import { KeybindsActive } from "@/shared/lib/keybinds-active";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -323,7 +323,7 @@ it("should show the assistant Sheet when it is open", () => {
 
 it("should set the design system's sidebar widths", () => {
   render(<BaseLayoutShell {...props("wide")} />);
-  const wrapper = present("the sidebar wrapper")(
+  const wrapper = requireFor("the sidebar wrapper")(
     document.querySelector<HTMLElement>('[data-slot="sidebar-wrapper"]')
   );
   expect(wrapper.style.getPropertyValue("--sidebar-width")).toBe("14.5rem");
@@ -344,15 +344,15 @@ it("should draw the stage bar, then the stage tabs, over the work area", () => {
 describe("the flush frame", () => {
   it("has no inset on the provider and no gutter on the inset", () => {
     render(<BaseLayoutShell {...props("wide")} />);
-    const wrapper = present("the sidebar wrapper")(
+    const wrapper = requireFor("the sidebar wrapper")(
       document.querySelector<HTMLElement>('[data-slot="sidebar-wrapper"]')
     );
     expect(wrapper.style.padding).toBe("");
-    const inset = present("the sidebar inset")(
+    const inset = requireFor("the sidebar inset")(
       document.querySelector('[data-slot="sidebar-inset"]')
     );
     expect(inset.className).not.toMatch(/\bmd:ml-2\b/);
-    const sidebar = present("the sidebar container")(
+    const sidebar = requireFor("the sidebar container")(
       document.querySelector<HTMLElement>('[data-slot="sidebar-container"]')
     );
     expect(sidebar.style.top).toBe("");
@@ -387,7 +387,7 @@ describe("the flush frame", () => {
 
   it("lets the navigation draw its right line", () => {
     render(<BaseLayoutShell {...props("wide")} />);
-    const sidebar = present("the sidebar container")(
+    const sidebar = requireFor("the sidebar container")(
       document.querySelector('[data-slot="sidebar-container"]')
     );
     expect(sidebar.className).not.toMatch(/border-r-0/);
@@ -420,14 +420,14 @@ it("should keep the console mounted when the window crosses 1024 px", () => {
 it("should mark the sidebar expanded or collapsed from navOpen", () => {
   const open = render(<BaseLayoutShell {...props("wide")} />);
   expect(
-    present("the sidebar")(
+    requireFor("the sidebar")(
       document.querySelector('[data-slot="sidebar"]')
     ).getAttribute("data-state")
   ).toBe("expanded");
   open.unmount();
   render(<BaseLayoutShell {...props("wide", { navOpen: false })} />);
   expect(
-    present("the sidebar")(
+    requireFor("the sidebar")(
       document.querySelector('[data-slot="sidebar"]')
     ).getAttribute("data-state")
   ).toBe("collapsed");
@@ -436,7 +436,7 @@ it("should mark the sidebar expanded or collapsed from navOpen", () => {
 it("should report the Sheet closing", () => {
   const shell = props("compact", { assistantSheetOpen: true });
   render(<BaseLayoutShell {...shell} />);
-  const sheet = present("the sheet content")(
+  const sheet = requireFor("the sheet content")(
     document.querySelector('[data-slot="sheet-content"]')
   );
   fireEvent.keyDown(sheet, { key: "Escape" });
@@ -539,7 +539,7 @@ it("should take and save the horizontal layout on a wide screen", () => {
   render(<BaseLayoutShell {...wide} />);
   const group = panelSpies.groups["layout-horizontal"];
   expect(group.defaultLayout).toEqual({ assistant: 30, work: 70 });
-  present("the group's onLayoutChanged")(group.onLayoutChanged)(
+  requireFor("the group's onLayoutChanged")(group.onLayoutChanged)(
     { assistant: 40, work: 60 },
     { isUserInteraction: true }
   );
@@ -554,13 +554,13 @@ it("should not save a layout the library settled on its own", () => {
   // saving that would pin the sizes of a window the user has since left
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
-  present("the onLayoutChanged of group layout-horizontal")(
+  requireFor("the onLayoutChanged of group layout-horizontal")(
     panelSpies.groups["layout-horizontal"].onLayoutChanged
   )({ assistant: 40, work: 60 }, { isUserInteraction: false });
-  present("the onLayoutChanged of group layout-work")(
+  requireFor("the onLayoutChanged of group layout-work")(
     panelSpies.groups["layout-work"].onLayoutChanged
   )({ files: 20, center: 80 }, { isUserInteraction: false });
-  present("the onLayoutChanged of group layout-vertical")(
+  requireFor("the onLayoutChanged of group layout-vertical")(
     panelSpies.groups["layout-vertical"].onLayoutChanged
   )({ stage: 60, console: 40 }, { isUserInteraction: false });
   expect(wide.onHorizontalLayout).not.toHaveBeenCalled();
@@ -571,7 +571,7 @@ it("should not save a layout the library settled on its own", () => {
 it("should save a vertical layout the user dragged", () => {
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
-  present("the onLayoutChanged of group layout-vertical")(
+  requireFor("the onLayoutChanged of group layout-vertical")(
     panelSpies.groups["layout-vertical"].onLayoutChanged
   )({ stage: 60, console: 40 }, { isUserInteraction: true });
   expect(wide.onVerticalLayout).toHaveBeenCalledWith({
@@ -606,7 +606,7 @@ const settled = (
   isUserInteraction: boolean
 ) =>
   act(() =>
-    present("the group's onLayoutChanged")(
+    requireFor("the group's onLayoutChanged")(
       panelSpies.groups[id].onLayoutChanged
     )(layout, { isUserInteraction })
   );
@@ -758,9 +758,9 @@ it("should open a reopened files column at the width it was dragged to", () => {
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
   // Dragged to 300 px while open
   act(() =>
-    present("the onResize of panel files")(panelSpies.panels["files"].onResize)(
-      { inPixels: 300 }
-    )
+    requireFor("the onResize of panel files")(
+      panelSpies.panels["files"].onResize
+    )({ inPixels: 300 })
   );
   rerender(<BaseLayoutShell {...props("wide", { filesOpen: false })} />);
   rerender(<BaseLayoutShell {...props("wide", { filesOpen: true })} />);
@@ -835,7 +835,7 @@ it("renders the pager, not the sidebar frame, on a phone", () => {
 describe("widening the assistant", () => {
   /** The shell's assistant slot, recording what it was last handed */
   const lastOf = (seen: { last: AssistantWide | null }) =>
-    present("the widening handed to the assistant slot")(seen.last);
+    requireFor("the widening handed to the assistant slot")(seen.last);
 
   const slot = () => {
     const seen: { last: AssistantWide | null } = { last: null };
@@ -851,7 +851,7 @@ describe("widening the assistant", () => {
     const { seen, assistant } = slot();
     render(<BaseLayoutShell {...props("wide", { assistant })} />);
     act(() =>
-      present("the assistant panel's onResize")(
+      requireFor("the assistant panel's onResize")(
         panelSpies.panels.assistant.onResize
       )({ inPixels: 400 })
     );
@@ -862,7 +862,7 @@ describe("widening the assistant", () => {
     expect(panel.resize).toHaveBeenLastCalledWith(PANEL_SIZES.assistant.max);
     expect(lastOf(seen).wide).toBe(true);
     act(() =>
-      present("the assistant panel's onResize")(
+      requireFor("the assistant panel's onResize")(
         panelSpies.panels.assistant.onResize
       )({
         inPixels: PANEL_SIZES.assistant.max,
@@ -907,7 +907,7 @@ describe("widening the assistant", () => {
     render(<BaseLayoutShell {...wide} />);
     act(() => lastOf(seen).setWide(true));
     act(() =>
-      present("the onLayoutChanged of group layout-horizontal")(
+      requireFor("the onLayoutChanged of group layout-horizontal")(
         panelSpies.groups["layout-horizontal"].onLayoutChanged
       )({ assistant: 40, work: 60 }, { isUserInteraction: false })
     );
@@ -923,7 +923,7 @@ describe("widening the assistant", () => {
     act(() => lastOf(seen).setWide(true));
     panel.resize.mockClear();
     act(() =>
-      present("the onLayoutChanged of group layout-horizontal")(
+      requireFor("the onLayoutChanged of group layout-horizontal")(
         panelSpies.groups["layout-horizontal"].onLayoutChanged
       )({ assistant: 30, work: 70 }, { isUserInteraction: true })
     );
@@ -971,7 +971,7 @@ describe("widening the assistant", () => {
     );
     act(() => lastOf(seen).setWide(true));
     act(() =>
-      present("the assistant panel's onResize")(
+      requireFor("the assistant panel's onResize")(
         panelSpies.panels.assistant.onResize
       )({
         inPixels: PANEL_SIZES.assistant.max,

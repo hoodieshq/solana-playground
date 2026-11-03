@@ -51,7 +51,7 @@ vi.mock("./merge-editor/controller", () => ({
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 import { BaseConflictResolver } from "./BaseConflictResolver";
 import { merge3 } from "../model/merge";
 import type { FileConflict } from "../model/merge";
@@ -219,7 +219,7 @@ describe("BaseConflictResolver", () => {
       editor.appendChild(document.createElement("div")).className = widget;
     }
     const input = editor.appendChild(document.createElement("textarea"));
-    present("the modal content")(
+    requireFor("the modal content")(
       document.querySelector('[data-slot="modal-content"]')
     ).appendChild(editor);
     return input;
@@ -256,7 +256,7 @@ describe("BaseConflictResolver", () => {
   });
 
   it("stays open on a click outside it", async () => {
-    const outside = present("the modal overlay")(
+    const outside = requireFor("the modal overlay")(
       document.querySelector('[data-slot="modal-overlay"]')
     );
     // Radix starts listening for outside presses a task after it opens
@@ -331,7 +331,7 @@ describe("BaseConflictResolver", () => {
     // Each side's gutter holds its own controls for the hunk.
     const takeBoth = (name: string) =>
       act(() =>
-        present(`the hunk 1 control "${name}"`)(
+        requireFor(`the hunk 1 control "${name}"`)(
           Array.from(
             document.querySelectorAll<HTMLButtonElement>(
               '[data-hunk="1"] button'
@@ -355,7 +355,7 @@ describe("BaseConflictResolver", () => {
     /** The slots of a side's pane body, in DOM order */
     const order = (side: "left" | "right") =>
       Array.from(
-        present(`the ${side} pane body`)(
+        requireFor(`the ${side} pane body`)(
           document.querySelector(
             `[data-slot="merge-pane"][data-side="${side}"] [data-slot="merge-pane-body"]`
           )

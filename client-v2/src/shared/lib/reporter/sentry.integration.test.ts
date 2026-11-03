@@ -2,7 +2,7 @@
 import * as Sentry from "@sentry/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 import { reporter } from "./sentry";
 
 type Transport = NonNullable<
@@ -102,7 +102,9 @@ describe("reporter.sendFeedback", () => {
     await pending;
 
     const [[, during]] = itemsOf(
-      present("a non-feedback envelope")(envelopes.find((e) => !isFeedback(e)))
+      requireFor("a non-feedback envelope")(
+        envelopes.find((e) => !isFeedback(e))
+      )
     );
     expect(during.tags).toEqual({ ns: "feedback:form" });
   });

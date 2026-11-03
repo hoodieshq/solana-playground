@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import { BaseStepRail, railStatus } from "./BaseStepRail";
 import type { RailRow } from "./BaseStepRail";
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 
 describe("railStatus", () => {
   it("maps confirmed marks to done", () => {
@@ -88,7 +88,7 @@ describe("BaseStepRail", () => {
       canGo: true,
     };
     const { container } = render(<BaseStepRail rows={[next]} onGo={vi.fn()} />);
-    const item = present("a step rail item")(
+    const item = requireFor("a step rail item")(
       container.querySelector('[data-slot="step-rail-item"]')
     );
     expect(item.getAttribute("data-status")).toBe("locked");

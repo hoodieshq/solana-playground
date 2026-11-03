@@ -1,6 +1,6 @@
 import { PgExplorer } from "./explorer";
 import { PgWorkspace } from "./workspace";
-import { present } from "../../test-utils/present";
+import { requireFor } from "../../test-utils/require-for";
 import {
   clearFailures,
   getFailures,
@@ -118,7 +118,7 @@ describe("deleting the current workspace", () => {
     await PgExplorer.createWorkspace("gamma", { files: files("gamma") });
 
     for (const name of [
-      ...present("the workspace names")(PgExplorer.allWorkspaceNames),
+      ...requireFor("the workspace names")(PgExplorer.allWorkspaceNames),
     ]) {
       await PgExplorer.deleteWorkspace(name);
     }
@@ -178,14 +178,14 @@ describe("init calls that overlap", () => {
 
 /** The id of a workspace the explorer lists */
 const idOf = (name: string) =>
-  present(`the id of workspace ${name}`)(PgExplorer.workspaceIdOf(name));
+  requireFor(`the id of workspace ${name}`)(PgExplorer.workspaceIdOf(name));
 
 const stored = () =>
   (PgExplorer.fs as unknown as { __files: Map<string, string> }).__files;
 
 const readConfig = () =>
   JSON.parse(
-    present("the stored workspaces config")(
+    requireFor("the stored workspaces config")(
       stored().get(PgWorkspace.WORKSPACES_CONFIG_PATH)
     )
   ) as {
@@ -491,7 +491,9 @@ describe("renaming a workspace that is not the current one", () => {
 
     expect(PgExplorer.currentWorkspaceName).toBe("beta");
     expect(
-      [...present("the workspace names")(PgExplorer.allWorkspaceNames)].sort()
+      [
+        ...requireFor("the workspace names")(PgExplorer.allWorkspaceNames),
+      ].sort()
     ).toEqual(["beta", "gamma"]);
     expect(PgExplorer.workspaceIdOf("gamma")).toBe(alphaId);
     expect(stored().get("/gamma/src/lib.rs")).toBe("declare_id!();");
@@ -565,7 +567,7 @@ describe("renaming a workspace that is not the current one", () => {
       failing.mockRestore();
     }
 
-    expect(PgExplorer.workspaceNameOf(present("alpha's id")(alphaId))).toBe(
+    expect(PgExplorer.workspaceNameOf(requireFor("alpha's id")(alphaId))).toBe(
       "alpha"
     );
     expect(stored().get("/alpha/src/lib.rs")).toBe("declare_id!();");

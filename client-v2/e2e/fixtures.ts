@@ -1,7 +1,7 @@
 import { test as base, expect } from "@playwright/test";
 import type { BrowserContext, Page, Route } from "@playwright/test";
 import { isUuid } from "../src/shared/lib/ids";
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 
 /** For a step that waits on the explorer, sync or a reload */
 export const LONG = { timeout: 60_000 };
@@ -380,7 +380,7 @@ export const makeLocalProject = async (page: Page, name: string) => {
   await expect
     .poll(async () => (id = await workspaceIdOf(page, name)), LONG)
     .toBeTruthy();
-  const workspaceId = present("the new project's workspace id")(id);
+  const workspaceId = requireFor("the new project's workspace id")(id);
   expect(isUuid(workspaceId)).toBe(true);
   return workspaceId;
 };

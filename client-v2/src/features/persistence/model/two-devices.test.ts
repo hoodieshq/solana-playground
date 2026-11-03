@@ -10,7 +10,7 @@ import { PgThreadIndex } from "./thread-index";
 import { reconcile, releaseLocalProjects } from "./project-restore";
 // TODO(ui-migration 1.4): a feature importing a feature; the code under test syncs only for a signed-in session
 import { PgSession } from "@/features/auth";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import { projectSync } from "../../../effects/project-sync/project-sync";
 import { PgCommon } from "../../../utils/common";
 import { PgExplorer } from "../../../utils/explorer/explorer";
@@ -57,7 +57,7 @@ interface StoredProject {
 const server = new Map<string, StoredProject>();
 
 const serverRow = (id: string) =>
-  present(`the server row for ${id}`)(server.get(id));
+  requireFor(`the server row for ${id}`)(server.get(id));
 
 /** Monotonic, because two writes in the same millisecond would tie */
 let clock = 0;
@@ -709,9 +709,10 @@ describe("both devices changed it", () => {
 
     // Hunk by hunk, as the view does it: every settled line, and both sides
     // of each conflict, this device's first
-    const [file] = present("the conflict's files")(
-      present("a conflict for the project")(PgProjectSync.conflictFor(HELLO.id))
-        .files
+    const [file] = requireFor("the conflict's files")(
+      requireFor("a conflict for the project")(
+        PgProjectSync.conflictFor(HELLO.id)
+      ).files
     );
     if (file.kind !== "lines") throw new Error("expected a line conflict");
     const content = file.chunks
@@ -1212,12 +1213,12 @@ describe("deleting on one device", () => {
     expect(await PgProjectSync.resolve(HELLO.id, "keep-as-new")).toBe(true);
 
     const carried = await PgThreadIndex.get(
-      present("the kept thread id")(kept.id)
+      requireFor("the kept thread id")(kept.id)
     );
     expect(carried).not.toBeNull();
     expect(carried).not.toBe(oldThread);
     expect(
-      await PgChatStorage.read(present("the carried thread")(carried))
+      await PgChatStorage.read(requireFor("the carried thread")(carried))
     ).toMatchObject([{ text: "kept with the code" }]);
     expect(await PgThreadIndex.get(HELLO.id)).toBeNull();
   });
@@ -1321,7 +1322,7 @@ describe("a program keypair only this device holds", () => {
   const programInfoPath = `/${HELLO.name}/${PROGRAM_INFO}`;
   const local = () =>
     JSON.parse(
-      present("the stored program info")(storedFiles().get(programInfoPath))
+      requireFor("the stored program info")(storedFiles().get(programInfoPath))
     );
   const onServer = () =>
     JSON.parse(
@@ -1899,7 +1900,7 @@ describe("a project renamed on one device", () => {
     from: string,
     to: string
   ) => {
-    const entry = present(`a workspace named ${from}`)(
+    const entry = requireFor(`a workspace named ${from}`)(
       workspaces.find((w) => w.name === from)
     );
     for (const [path, content] of [...storedFiles().entries()]) {
@@ -1920,7 +1921,7 @@ describe("a project renamed on one device", () => {
     from: string,
     to: string
   ) => {
-    const entry = present(`a workspace named ${from}`)(
+    const entry = requireFor(`a workspace named ${from}`)(
       workspaces.find((w) => w.name === from)
     );
     renameLocally(workspaces, from, to);
@@ -2083,8 +2084,8 @@ describe("a project renamed on one device", () => {
     rename.mockImplementationOnce(async (to, opts) => {
       renameLocally(
         workspaces,
-        present("the renamed workspace")(
-          present("the rename options")(opts).from
+        requireFor("the renamed workspace")(
+          requireFor("the rename options")(opts).from
         ),
         to
       );
@@ -2095,7 +2096,7 @@ describe("a project renamed on one device", () => {
     await reconcile();
 
     expect(workspaces[0].name).toBe("Bar");
-    const stored = present("the stored mark")(await PgSyncMark.read(FOO.id));
+    const stored = requireFor("the stored mark")(await PgSyncMark.read(FOO.id));
     expect(stored.localName).toBeUndefined();
   });
 
@@ -2267,7 +2268,7 @@ describe("a project renamed on one device", () => {
 
     const mark = await PgSyncMark.read(FOO.id);
     expect(mark).toEqual(expect.objectContaining({ name: "Bar", dirty: true }));
-    expect(present("the stored mark")(mark).localName).toBeUndefined();
+    expect(requireFor("the stored mark")(mark).localName).toBeUndefined();
 
     uploadsWork();
     await reconcile();
@@ -2337,7 +2338,7 @@ describe("a project renamed on one device", () => {
 
     expect(rename).toHaveBeenCalledTimes(1);
     expect(workspaces[0].name).toBe("Bar");
-    const stored = present("the stored mark")(await PgSyncMark.read(FOO.id));
+    const stored = requireFor("the stored mark")(await PgSyncMark.read(FOO.id));
     expect(stored.name).toBe("Bar");
   });
 

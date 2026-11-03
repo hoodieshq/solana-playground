@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 import {
   expect,
   json,
@@ -114,7 +114,7 @@ test("client-v2-ai: A turn that keeps pausing", async ({ page }) => {
   await expect(error).toBeVisible(LONG);
 
   const pauses = Number(
-    present("the pause count in the error")(
+    requireFor("the pause count in the error")(
       PAUSED.exec(await error.innerText())
     )[1]
   );

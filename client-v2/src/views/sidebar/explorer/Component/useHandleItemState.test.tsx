@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PgExplorer } from "../../../../utils";
 import { forgetTree } from "./kept-tree";
 import { useHandleItemState } from "./useHandleItemState";
-import { present } from "../../../../test-utils/present";
+import { requireFor } from "../../../../test-utils/require-for";
 
 /** What the mocked explorer reports; each test sets its own */
 const given = vi.hoisted(() => ({
@@ -95,7 +95,7 @@ const inTheme = (tree: ReactElement) => (
 const draw = (open?: boolean) => render(inTheme(<Tree open={open} />));
 
 const srcIsOpen = (workspace = "w1") =>
-  present(`${workspace}'s src folder`)(
+  requireFor(`${workspace}'s src folder`)(
     document.querySelector(`[data-path='/${workspace}/src/']`)
   ).classList.contains("open");
 
@@ -185,7 +185,7 @@ describe("useHandleItemState when a project opens", () => {
     openFile("/w2/src/lib.rs");
     view.rerender(inTheme(<Tree workspace="w2" />));
 
-    present("w2's src folder")(
+    requireFor("w2's src folder")(
       document.querySelector("[data-path='/w2/src/']")
     ).classList.remove("open");
     view.rerender(inTheme(<Tree workspace="w2" />));

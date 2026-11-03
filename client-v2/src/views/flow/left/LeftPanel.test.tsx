@@ -63,7 +63,7 @@ vi.mock("../lessons/StepRail", () => ({
   default: () => <div data-testid="step-rail" />,
 }));
 
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 import LeftPanel, { isLessonTab } from "./LeftPanel";
 import { forgetColumn } from "./kept-column";
 
@@ -91,9 +91,13 @@ const inLesson = () => {
   given.lesson = { path: { id: "lesson" }, record: [] };
 };
 const body = () =>
-  present("the left panel body")(document.getElementById("flow-left-tabpanel"));
+  requireFor("the left panel body")(
+    document.getElementById("flow-left-tabpanel")
+  );
 const tab = (name: "steps" | "files") =>
-  present(`the ${name} tab`)(document.getElementById(`flow-left-tab-${name}`));
+  requireFor(`the ${name} tab`)(
+    document.getElementById(`flow-left-tab-${name}`)
+  );
 
 // Before, not after: Testing Library unmounts the last panel after this
 // file's own hooks, and that unmount keeps it again
@@ -166,7 +170,7 @@ describe("LeftPanel in a lesson", () => {
     given.canPass = true;
     // A new object: the same one would bail out of the re-render
     act(() => given.listener?.({ path: { id: "lesson" }, record: [] }));
-    fireEvent.click(present("the Skip button")(skip()));
+    fireEvent.click(requireFor("the Skip button")(skip()));
     expect(given.pass).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,9 +3,9 @@
  * (`value!`): a missing value fails the test with what was missing, not with
  * a `TypeError` some lines later.
  *
- * `present("the panel's bounding box")(await panel.boundingBox())`
+ * `requireFor("the panel's bounding box")(await panel.boundingBox())`
  */
-export const present =
+export const requireFor =
   (what: string) =>
   <T>(value: T | null | undefined): T => {
     if (value === null || value === undefined) {

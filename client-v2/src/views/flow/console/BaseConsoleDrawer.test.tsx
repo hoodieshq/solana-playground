@@ -3,7 +3,7 @@ import path from "node:path";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 import { BOTTOM_BAR_PX } from "../tokens";
 import BaseConsoleDrawer, { CONSOLE_BODY_ID } from "./BaseConsoleDrawer";
 
@@ -36,7 +36,7 @@ it("names its button Terminal and controls the body by its fixed id", () => {
   expect(button.getAttribute("aria-expanded")).toBe("false");
   expect(button.getAttribute("aria-controls")).toBe(CONSOLE_BODY_ID);
   expect(
-    present("the console body")(
+    requireFor("the console body")(
       document.getElementById(CONSOLE_BODY_ID)
     ).querySelector(".xterm")
   ).not.toBeNull();
@@ -137,7 +137,7 @@ it("draws the bar exactly as tall as the folded panel", () => {
     path.join(__dirname, "../../../app/styles/playground-tokens.css"),
     "utf8"
   );
-  const bar = present("the --layout-bar token")(
+  const bar = requireFor("the --layout-bar token")(
     /--layout-bar:\s*([\d.]+)rem;/.exec(tokens)
   );
   expect(parseFloat(bar[1]) * 16).toBe(BOTTOM_BAR_PX);
@@ -145,7 +145,7 @@ it("draws the bar exactly as tall as the folded panel", () => {
 
 it("sits flush in the frame: no edges of its own, the shell's handle draws the line", () => {
   const { container } = draw(true, {});
-  const root = present("the drawer root")(container.firstElementChild);
+  const root = requireFor("the drawer root")(container.firstElementChild);
   expect(root.className).not.toMatch(/\bborder/);
   expect(root.className).not.toMatch(/rounded/);
 });

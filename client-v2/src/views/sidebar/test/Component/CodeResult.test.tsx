@@ -3,7 +3,7 @@ import { render } from "@testing-library/react";
 import { expect, it } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import CodeResult from "./CodeResult";
 
 it("the JSON comes with a copy button and its title", () => {
@@ -13,13 +13,13 @@ it("the JSON comes with a copy button and its title", () => {
     </TooltipProvider>
   );
   expect(
-    present("the code block title")(
+    requireFor("the code block title")(
       container.querySelector('[data-slot="code-block-title"]')
     ).textContent
   ).toBe("JSON");
   expect(container.querySelector('[data-slot="copy-button"]')).not.toBeNull();
   expect(
-    present("the code block content")(
+    requireFor("the code block content")(
       container.querySelector('[data-slot="code-block-content"]')
     ).textContent
   ).toContain('"count": "1"');

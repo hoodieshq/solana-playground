@@ -15,7 +15,7 @@ import {
   memoryProvider,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 
 // The `@/utils` barrel reaches generated globals (`GLOBAL_SETTINGS`) that
 // exist only in a booted app, so the test builds it from the pieces the shell
@@ -100,12 +100,12 @@ import type { LayoutShellProps } from "./LayoutShell";
 
 /** The element a `data-slot` names, which the test needs on the page */
 const slot = <E extends Element = Element>(name: string) =>
-  present(`the ${name} element`)(
+  requireFor(`the ${name} element`)(
     document.querySelector<E>(`[data-slot="${name}"]`)
   );
 /** The layout the shell saved */
 const storedLayout = () =>
-  present("the stored layout")(localStorage.getItem(LAYOUT_STORAGE_KEY));
+  requireFor("the stored layout")(localStorage.getItem(LAYOUT_STORAGE_KEY));
 
 const listeners = new Set<() => void>();
 let width = 1440;
@@ -464,7 +464,9 @@ it("should widen the assistant panel to its maximum, and save nothing", () => {
   localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(DRAGGED));
   shell();
   const saved = localStorage.getItem(LAYOUT_STORAGE_KEY);
-  const assistantPanel = present("the assistant panel")(panelRefs[0].current);
+  const assistantPanel = requireFor("the assistant panel")(
+    panelRefs[0].current
+  );
   const resize = vi.spyOn(assistantPanel, "resize");
   fireEvent.click(screen.getByRole("button", { name: "Widen the assistant" }));
   expect(resize).toHaveBeenCalledWith(560);
@@ -902,9 +904,9 @@ describe("on a phone", () => {
   };
   /** The outlet's box, which carries the page's sizing classes */
   const boxOf = (el: Element) =>
-    present("the outlet's box")(el.closest("div[class*='flex']"));
+    requireFor("the outlet's box")(el.closest("div[class*='flex']"));
   const consoleBox = () =>
-    present("the console's box")(
+    requireFor("the console's box")(
       consoleButton().closest("[class~='h-2/5'], [class~='overflow-hidden']")
     );
 
@@ -967,7 +969,7 @@ describe("on a phone", () => {
   it("puts the stage on the page that shows it", () => {
     phoneShell();
     const stageOf = () =>
-      present("the stage section")(
+      requireFor("the stage section")(
         screen.getByText("stage").closest("section")
       );
     expect(stageOf().getAttribute("aria-label")).toBe("Work");
@@ -1128,7 +1130,7 @@ describe("on a phone", () => {
     act(() => PgFlow.setStage("write"));
     act(() => resizeTo(390));
     const stageOf = () =>
-      present("the stage section")(
+      requireFor("the stage section")(
         screen.getByText("stage").closest("section")
       );
     expect(stageOf().getAttribute("aria-label")).toBe("Work");
@@ -1248,7 +1250,7 @@ describe("on a phone", () => {
     act(() => PgFlow.setStage("build"));
     act(() => resizeTo(390));
     const stageOf = () =>
-      present("the stage section")(
+      requireFor("the stage section")(
         screen.getByText("stage").closest("section")
       );
     expect(stageOf().getAttribute("aria-label")).toBe("Preview");

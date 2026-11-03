@@ -1,4 +1,4 @@
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import { createTools } from "./tools";
 import { PgAssistant } from "../store";
 import type { PlaygroundBridge } from "../bridge/playground-bridge";
@@ -16,7 +16,7 @@ const bridge = (content: string | null): PlaygroundBridge =>
   } as unknown as PlaygroundBridge);
 
 const writeFile = (b: PlaygroundBridge) =>
-  present("the write_file tool")(
+  requireFor("the write_file tool")(
     createTools(b).find((tool) => tool.name === "write_file")
   );
 

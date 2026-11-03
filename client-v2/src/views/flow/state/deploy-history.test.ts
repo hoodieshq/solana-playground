@@ -20,7 +20,7 @@ vi.mock("../../../utils", () => ({
 }));
 
 import { PgDeployHistory } from "./deploy-history";
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 
 /** The mocked utils module, in the shape the factory above gives it */
 const mockedUtils = async () =>
@@ -101,13 +101,13 @@ describe("PgDeployHistory.init wiring", () => {
     expect(deployCallback).toBeDefined();
 
     // Test error case: should not record
-    present("the deploy listener")(deployCallback)({
+    requireFor("the deploy listener")(deployCallback)({
       err: new Error("deploy failed"),
     });
     expect(PgDeployHistory.list("w")).toHaveLength(0);
 
     // Test success case: should record with null signature
-    present("the deploy listener")(deployCallback)({ ok: undefined });
+    requireFor("the deploy listener")(deployCallback)({ ok: undefined });
     const list = PgDeployHistory.list("w");
     expect(list).toHaveLength(1);
     expect(list[0].programId).toBe("Prog111");
@@ -139,17 +139,17 @@ describe("PgDeployHistory.init wiring", () => {
     // A second click while a deploy is running pauses it and resolves the
     // command promise with `ok: undefined` -- not a real completion.
     PgGlobal.deployState = "paused";
-    present("the deploy listener")(deployCallback)({ ok: undefined });
+    requireFor("the deploy listener")(deployCallback)({ ok: undefined });
     expect(PgDeployHistory.list("w")).toHaveLength(0);
 
     // Resuming does the same: the resume click itself resolves immediately.
     PgGlobal.deployState = "loading";
-    present("the deploy listener")(deployCallback)({ ok: undefined });
+    requireFor("the deploy listener")(deployCallback)({ ok: undefined });
     expect(PgDeployHistory.list("w")).toHaveLength(0);
 
     // The real completion, once the deploy command actually finishes.
     PgGlobal.deployState = "ready";
-    present("the deploy listener")(deployCallback)({ ok: undefined });
+    requireFor("the deploy listener")(deployCallback)({ ok: undefined });
     expect(PgDeployHistory.list("w")).toHaveLength(1);
 
     sub.dispose();

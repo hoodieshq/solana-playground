@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { expect, it, vi } from "vitest";
 
 import { Modal } from "@/shared/ui/modal";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import { BaseModalFrame } from "./BaseModalFrame";
 import type { BaseModalFrameProps, SubmitStatus } from "./BaseModalFrame";
 
@@ -249,7 +249,7 @@ it("should focus the body's first input on open", () => {
 it("should draw the hairline under a shown title only", () => {
   const { unmount } = renderFrame({ title: { text: "Rename", hidden: false } });
   const header = () =>
-    present("the modal header")(
+    requireFor("the modal header")(
       document.querySelector('[data-slot="modal-header"]')
     ).classList;
   expect(header().contains("border-b")).toBe(true);

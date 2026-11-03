@@ -18,7 +18,7 @@ import {
   memoryProvider,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 
 const utils = vi.hoisted(() => {
   class ImportCancelledError extends Error {}
@@ -143,7 +143,7 @@ it("draws each tutorial as the tutorial card, with its level and framework", asy
   render(<NewProject />);
 
   const open = screen.getByRole("button", { name: "Open Hello Anchor" });
-  const card = present("the tutorial card")(
+  const card = requireFor("the tutorial card")(
     open.closest<HTMLElement>('[data-slot="action-card"]')
   );
   expect(within(card).getByText("Beginner · Anchor")).toBeTruthy();
@@ -169,7 +169,7 @@ it("shows a failed tutorial Open on its own card and frees the others", async ()
   await act(async () => fireEvent.click(anchor));
 
   const card = (b: HTMLElement) =>
-    present("the tutorial card")(
+    requireFor("the tutorial card")(
       b.closest<HTMLElement>('[data-slot="action-card"]')
     );
   expect(within(card(anchor)).getByRole("alert").textContent).toBe("gone");

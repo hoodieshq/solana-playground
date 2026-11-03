@@ -5,7 +5,7 @@ import { reloadCurrentFromDisk } from "./tab-reload";
 import { tabSync } from "../../../effects/tab-sync/tab-sync";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgWorkspace } from "../../../utils/explorer/workspace";
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 
 /**
  * Another tab renames or deletes the workspace this one has open, and this
@@ -49,7 +49,7 @@ type Config = {
 };
 const config = () =>
   JSON.parse(
-    present("the stored workspaces config")(
+    requireFor("the stored workspaces config")(
       store().get(PgWorkspace.WORKSPACES_CONFIG_PATH)
     )
   ) as Config;

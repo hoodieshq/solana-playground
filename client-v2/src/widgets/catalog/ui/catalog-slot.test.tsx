@@ -6,17 +6,17 @@ vi.mock("@/utils", () => ({}));
 
 import { catalogPage } from "../model/catalog-page";
 import { catalogSlot } from "./catalog-slot";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 
 it("has no slot while no page shows", () => {
   expect(catalogSlot(null)).toBeUndefined();
 });
 
 it("names the page shown and closes it", () => {
-  const slot = present("the programs slot")(catalogSlot("programs"));
+  const slot = requireFor("the programs slot")(catalogSlot("programs"));
   expect(slot.title).toBe("Programs");
   expect(slot.onClose).toBe(catalogPage.close);
-  expect(present("the tutorials slot")(catalogSlot("tutorials")).title).toBe(
+  expect(requireFor("the tutorials slot")(catalogSlot("tutorials")).title).toBe(
     "Tutorials"
   );
 });

@@ -96,7 +96,7 @@ vi.mock("../model/workspace-files", async (importOriginal) => ({
 
 import { PINS_KEY } from "../model/pins";
 import ProjectList from "./ProjectList";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 
 // The stock Sidebar reads the viewport through `matchMedia`, which jsdom lacks
 beforeAll(() => {
@@ -178,7 +178,7 @@ describe("ProjectList", () => {
     fireEvent.keyDown(menuOf("beta"), { key: "p" });
 
     expect(
-      JSON.parse(present("the stored pins")(localStorage.getItem(PINS_KEY)))
+      JSON.parse(requireFor("the stored pins")(localStorage.getItem(PINS_KEY)))
     ).toEqual(["id-b"]);
     expect(projectNames()).toEqual(["beta", "alpha"]);
     expect(events("nav_project_action")).toEqual([
@@ -190,7 +190,7 @@ describe("ProjectList", () => {
     localStorage.setItem(PINS_KEY, JSON.stringify(["id-a", "gone"]));
     draw();
     expect(
-      JSON.parse(present("the stored pins")(localStorage.getItem(PINS_KEY)))
+      JSON.parse(requireFor("the stored pins")(localStorage.getItem(PINS_KEY)))
     ).toEqual(["id-a"]);
   });
 
@@ -417,7 +417,7 @@ describe("ProjectList", () => {
     fireEvent.keyDown(menuOf("beta"), { key: "p" });
 
     expect(
-      JSON.parse(present("the stored pins")(localStorage.getItem(PINS_KEY)))
+      JSON.parse(requireFor("the stored pins")(localStorage.getItem(PINS_KEY)))
     ).toEqual(["id-a", "id-b"]);
   });
 
@@ -427,7 +427,7 @@ describe("ProjectList", () => {
     app.state.ids = {};
     draw();
     expect(
-      JSON.parse(present("the stored pins")(localStorage.getItem(PINS_KEY)))
+      JSON.parse(requireFor("the stored pins")(localStorage.getItem(PINS_KEY)))
     ).toEqual(["id-a"]);
 
     act(() => {

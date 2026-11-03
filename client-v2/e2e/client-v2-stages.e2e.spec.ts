@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 import {
   expect,
   FAILED_BUILD_STDERR,
@@ -216,10 +216,10 @@ test.describe("client-v2-stages on a phone", () => {
       LONG
     );
 
-    const panelBox = present("the panel's bounding box")(
+    const panelBox = requireFor("the panel's bounding box")(
       await panel.boundingBox()
     );
-    const actionsBox = present("the actions' bounding box")(
+    const actionsBox = requireFor("the actions' bounding box")(
       await actions.boundingBox()
     );
     const gap =
@@ -262,10 +262,10 @@ test.describe("client-v2-stages on a phone", () => {
       actions.getByRole("button", { name: /Redeploy to devnet/ })
     ).toBeVisible(LONG);
 
-    const panelBox = present("the panel's bounding box")(
+    const panelBox = requireFor("the panel's bounding box")(
       await panel.boundingBox()
     );
-    const actionsBox = present("the actions' bounding box")(
+    const actionsBox = requireFor("the actions' bounding box")(
       await actions.boundingBox()
     );
     const gap =
@@ -288,10 +288,10 @@ test.describe("client-v2-stages on a phone", () => {
       actions.getByRole("button", { name: "Go to Deploy" })
     ).toBeVisible(LONG);
 
-    const panelBox = present("the panel's bounding box")(
+    const panelBox = requireFor("the panel's bounding box")(
       await panel.boundingBox()
     );
-    const actionsBox = present("the actions' bounding box")(
+    const actionsBox = requireFor("the actions' bounding box")(
       await actions.boundingBox()
     );
     const gap =

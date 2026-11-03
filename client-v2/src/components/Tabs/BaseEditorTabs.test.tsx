@@ -10,14 +10,14 @@ import {
   vi,
 } from "vitest";
 
-import { present } from "../../test-utils/present";
+import { requireFor } from "../../test-utils/require-for";
 import { BaseEditorTab } from "./BaseEditorTab";
 import { BaseEditorTabs } from "./BaseEditorTabs";
 
 const FILES = ["a.rs", "b.rs", "c.rs"];
 
 /** The tabs row's element, by the id `row` gives it */
-const tabs = () => present("the tabs row")(document.getElementById("tabs"));
+const tabs = () => requireFor("the tabs row")(document.getElementById("tabs"));
 
 /** Every `scrollIntoView` call: the element and its options */
 const scrolled = vi.fn();

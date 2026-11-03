@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
 import { currentProject, openGallery, seedWorkspace } from "./fixtures";
 import type { Page } from "@playwright/test";
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 
 /**
  * Chat is keyed by workspace and survives a reload.
@@ -189,7 +189,7 @@ const addMessage = async (
       () =>
         fileIsListed(
           page,
-          encodeURIComponent(present("the open thread's id")(id))
+          encodeURIComponent(requireFor("the open thread's id")(id))
         ),
       { timeout: 15_000 }
     )

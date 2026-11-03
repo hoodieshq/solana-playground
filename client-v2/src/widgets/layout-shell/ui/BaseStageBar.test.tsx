@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import BaseStageBar, { DOCS_URL } from "./BaseStageBar";
 import type { BaseStageBarProps } from "./BaseStageBar";
 
@@ -134,7 +134,7 @@ it("is the 44 px column bar with a bottom line", () => {
     files: null,
     assistant: { open: true, onToggle: vi.fn() },
   });
-  const bar = present("the stage bar")(
+  const bar = requireFor("the stage bar")(
     container.querySelector('[data-slot="stage-bar"]')
   );
   expect(bar.className).toMatch(/\bh-11\b/);

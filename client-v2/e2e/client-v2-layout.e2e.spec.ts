@@ -14,7 +14,7 @@ import {
   stubSignedIn,
   test,
 } from "./fixtures";
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 import { lineOf, linesOn } from "./telemetry";
 
 /**
@@ -81,7 +81,7 @@ const drag = async (
   dx: number,
   dy: number
 ) => {
-  const box = present("the bounding box of separator")(
+  const box = requireFor("the bounding box of separator")(
     await separator.boundingBox()
   );
   const x = box.x + box.width / 2;
@@ -96,7 +96,7 @@ test("client-v2-layout: A resized assistant and an open console", async ({
   seededPage: page,
 }) => {
   const before = await widthOf(page);
-  const box = present("the bounding box of assistantHandle")(
+  const box = requireFor("the bounding box of assistantHandle")(
     await assistantHandle(page).boundingBox()
   );
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -720,7 +720,7 @@ test.describe("on a phone", () => {
     const bar = page
       .getByRole("region", { name: "Work" })
       .getByTestId("phone-bar");
-    const box = present("the bounding box of bar")(await bar.boundingBox());
+    const box = requireFor("the bounding box of bar")(await bar.boundingBox());
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.wheel(390, 0);
     await expect(page.locator("#flow-stage-panel-build")).toBeInViewport();
@@ -996,7 +996,7 @@ test("a toast opens above the navigation", async ({ seededPage: page }) => {
   );
   const toast = page.getByText("layout e2e toast");
   await expect(toast).toBeVisible();
-  const left = present("the bounding box of navColumn")(
+  const left = requireFor("the bounding box of navColumn")(
     await navColumn(page).boundingBox()
   );
   // It rises into place from below the window, so the first frames sit off
@@ -1015,7 +1015,9 @@ test("a toast opens above the navigation", async ({ seededPage: page }) => {
     )
     .toBe(true);
   // The toast really is over the navigation, not beside it
-  const box = present("the bounding box of toast")(await toast.boundingBox());
+  const box = requireFor("the bounding box of toast")(
+    await toast.boundingBox()
+  );
   expect(box.x).toBeLessThan(left.x + left.width);
 });
 
@@ -1139,7 +1141,7 @@ test("client-v2-layout: A layout saved before the four columns", async ({
 
 /** Where an element sits on the page */
 const boxOf = async (locator: ReturnType<Page["locator"]>) =>
-  present(`the bounding box of ${String(locator)}`)(
+  requireFor(`the bounding box of ${String(locator)}`)(
     await locator.boundingBox()
   );
 
@@ -1356,7 +1358,7 @@ test("the account menu opens inside the window, its Sign out on top", async ({
   await expect(menu).toBeVisible();
 
   const box = await boxOf(menu);
-  const viewport = present("the viewport size")(page.viewportSize());
+  const viewport = requireFor("the viewport size")(page.viewportSize());
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
@@ -1376,7 +1378,7 @@ test("the account menu opens inside the window, its Sign out on top", async ({
 
 /** The top edge and height of an element, in px */
 const barOf = async (locator: ReturnType<Page["locator"]>) => {
-  const box = present("the bounding box of locator")(
+  const box = requireFor("the bounding box of locator")(
     await locator.boundingBox()
   );
   return { y: Math.round(box.y), height: Math.round(box.height) };
@@ -1388,7 +1390,7 @@ test("client-v2-layout: The frame at 1440", async ({ seededPage: page }) => {
   await expect
     .poll(
       async () =>
-        present("the bounding box of navColumn")(
+        requireFor("the bounding box of navColumn")(
           await navColumn(page).boundingBox()
         ).x
     )
@@ -1400,17 +1402,17 @@ test("client-v2-layout: The frame at 1440", async ({ seededPage: page }) => {
   await expect.poll(() => barOf(head)).toEqual({ y: 0, height: 44 });
   await expect.poll(() => barOf(stageBar)).toEqual({ y: 0, height: 44 });
   // The stage tabs span the files column and the stage together
-  const tabs = present("the stepper list's box")(
+  const tabs = requireFor("the stepper list's box")(
     await page.locator('[data-slot="stepper-list"]').boundingBox()
   );
-  const work = present("the work panel's box")(
+  const work = requireFor("the work panel's box")(
     await page.locator("#work[data-panel]").boundingBox()
   );
   expect(tabs.width).toBeGreaterThan(work.width - 20);
   // The prototype's widths: nav 232, assistant 368, files 240
   expect(
     Math.round(
-      present("the bounding box of navColumn")(
+      requireFor("the bounding box of navColumn")(
         await navColumn(page).boundingBox()
       ).width
     )
@@ -1418,10 +1420,10 @@ test("client-v2-layout: The frame at 1440", async ({ seededPage: page }) => {
   expect(Math.round(await widthOf(page))).toBe(368);
   await expect(filesPanel(page)).toHaveJSProperty("offsetWidth", 240);
   // One background, separated by 1 px lines: no gutter between the columns
-  const assistant = present("the bounding box of assistantPanel")(
+  const assistant = requireFor("the bounding box of assistantPanel")(
     await assistantPanel(page).boundingBox()
   );
-  const handle = present("the bounding box of assistantHandle")(
+  const handle = requireFor("the bounding box of assistantHandle")(
     await assistantHandle(page).boundingBox()
   );
   expect(Math.round(handle.width)).toBe(1);
@@ -1462,7 +1464,7 @@ test("client-v2-layout: A layout saved before the column bars", async ({
   );
   await page.reload();
   await expect(filesPanel(page)).toHaveCount(0);
-  const row = present("the sidebar inset's box")(
+  const row = requireFor("the sidebar inset's box")(
     await page.locator('[data-slot="sidebar-inset"]').boundingBox()
   );
   await expect

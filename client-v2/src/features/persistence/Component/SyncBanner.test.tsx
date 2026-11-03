@@ -11,7 +11,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 
 import SyncBanner from "./SyncBanner";
 import {
@@ -64,7 +64,7 @@ describe("SyncBanner telemetry", () => {
     ["Keep this version", "keep-local"],
     ["Take the other version", "take-server"],
   ])("tracks %s from the banner", async (label, answer) => {
-    const found = present(`the "${label}" button`)(
+    const found = requireFor(`the "${label}" button`)(
       Array.from(container.querySelectorAll("button")).find(
         (b) => b.textContent?.trim() === label
       )
@@ -80,7 +80,7 @@ describe("SyncBanner telemetry", () => {
   it("reports an answer that fails and leaves the prompt up", async () => {
     const failure = new Error("offline");
     vi.spyOn(PgProjectSync, "resolve").mockRejectedValue(failure);
-    const found = present('the "Keep this version" button')(
+    const found = requireFor('the "Keep this version" button')(
       Array.from(container.querySelectorAll("button")).find(
         (b) => b.textContent?.trim() === "Keep this version"
       )
@@ -110,7 +110,7 @@ describe("SyncBanner wording", () => {
     act(() => root.unmount());
     root = createRoot(container);
     await act(async () => root.render(<SyncBanner />));
-    return present("the banner's message")(
+    return requireFor("the banner's message")(
       container.querySelector('[role="alert"] p')
     ).textContent;
   };

@@ -3,7 +3,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 
 const mocks = vi.hoisted(() => ({
   update: vi.fn(),
@@ -37,7 +37,7 @@ const jsonFile = (text: string, name = "idl.json") =>
 
 const pick = (container: HTMLElement, file: File) =>
   fireEvent.change(
-    present("the file input")(container.querySelector('input[type="file"]')),
+    requireFor("the file input")(container.querySelector('input[type="file"]')),
     { target: { files: [file] } }
   );
 

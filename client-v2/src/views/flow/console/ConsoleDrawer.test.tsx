@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { present } from "../../../test-utils/present";
+import { requireFor } from "../../../test-utils/require-for";
 import { PgCommandManager, PgCommon, PgTerminal } from "../../../utils";
 import type { FlowState, StageStatus } from "../state/stage";
 
@@ -17,7 +17,7 @@ vi.mock(import("./BaseConsoleDrawer"), async (load) => {
 
 /** The props `ConsoleDrawer` last handed its Base */
 const lastDrawerProps = () =>
-  present("a render of the Base drawer")(
+  requireFor("a render of the Base drawer")(
     vi.mocked(BaseConsoleDrawer).mock.lastCall
   )[0];
 
@@ -103,7 +103,7 @@ it("should show what it is told and ask to toggle", () => {
   const handle = screen.getByRole("button", { name: "Terminal" });
   expect(handle.getAttribute("aria-expanded")).toBe("false");
   expect(
-    present("the console body")(
+    requireFor("the console body")(
       document.getElementById(CONSOLE_BODY_ID)
     ).querySelector(".xterm")
   ).not.toBeNull();
@@ -166,7 +166,7 @@ it("should show the flow's status as it changes", () => {
   expect(screen.queryByText(/Building/)).toBeNull();
 
   act(() =>
-    present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
+    requireFor("the flow listener ConsoleDrawer subscribed")(flow.listener)(
       flowState("running")
     )
   );
@@ -191,7 +191,7 @@ describe("the strip's clock", () => {
     render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
     // Mounted 5 s into the run, as after a remount
     act(() =>
-      present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
+      requireFor("the flow listener ConsoleDrawer subscribed")(flow.listener)(
         flowState("running", { buildStartedAt: Date.now() - 5_000 })
       )
     );
@@ -204,7 +204,7 @@ describe("the strip's clock", () => {
   it("should count a deploy from when the strip saw it start", () => {
     render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
     act(() =>
-      present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
+      requireFor("the flow listener ConsoleDrawer subscribed")(flow.listener)(
         flowState("done", { deploy: "running" })
       )
     );
@@ -216,12 +216,12 @@ describe("the strip's clock", () => {
   it("should stop counting once the run is over", () => {
     render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
     act(() =>
-      present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
+      requireFor("the flow listener ConsoleDrawer subscribed")(flow.listener)(
         flowState("done", { deploy: "running" })
       )
     );
     act(() =>
-      present("the flow listener ConsoleDrawer subscribed")(flow.listener)(
+      requireFor("the flow listener ConsoleDrawer subscribed")(flow.listener)(
         flowState("done", { deploy: "done" })
       )
     );

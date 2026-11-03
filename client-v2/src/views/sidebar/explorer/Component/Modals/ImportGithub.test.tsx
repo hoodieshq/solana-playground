@@ -21,7 +21,7 @@ import {
   resetLogger,
 } from "@/shared/lib/logger";
 import { Modal } from "@/shared/ui/modal";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import { PgView as PgViewDirect } from "@/utils/view";
 import { ModalIdContext } from "@/widgets/overlays";
 import { ModalLayerContext } from "@/widgets/overlays/ui/modal-layer";
@@ -92,8 +92,8 @@ const draw = () =>
 
 /** The row of the "Anchor - Hello" example */
 const exampleRow = () =>
-  present("the example's row")(
-    present("the example's title container")(
+  requireFor("the example's row")(
+    requireFor("the example's title container")(
       screen.getByText("Anchor - Hello").closest("div")
     ).parentElement
   );

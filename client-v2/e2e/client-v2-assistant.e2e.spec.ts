@@ -9,7 +9,7 @@ import {
   stubSession,
   test,
 } from "./fixtures";
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 import { lineOf, linesOn } from "./telemetry";
 
 /**
@@ -307,7 +307,7 @@ test.describe("Connect a model", () => {
 
       const dialog = await openConnect(page);
       // A card over the app, not a page of its own
-      const box = present("the dialog's bounding box")(
+      const box = requireFor("the dialog's bounding box")(
         await dialog.boundingBox()
       );
       expect(box.width).toBeLessThan(1280);
@@ -377,7 +377,7 @@ test.describe("Connect a model", () => {
       // The form scrolls under the footer, which stays where it is: pinned
       // to the bottom of the screen, not carried up with the form
       const body = dialog.locator('[data-slot="modal-body"]');
-      const before = present("the connect button's bounding box")(
+      const before = requireFor("the connect button's bounding box")(
         await connect.boundingBox()
       );
       const scrolled = await body.evaluate((el) => {
@@ -386,7 +386,7 @@ test.describe("Connect a model", () => {
       });
       expect(scrolled).toBeGreaterThan(0);
       await expect(connect).toBeInViewport({ ratio: 1 });
-      const after = present("the connect button's bounding box")(
+      const after = requireFor("the connect button's bounding box")(
         await connect.boundingBox()
       );
       expect(after.y).toBe(before.y);
@@ -508,7 +508,8 @@ test.describe("The thread", () => {
       await expect(button).toBeInViewport({ ratio: 1 });
       // A thumb's target, 44 px high
       expect(
-        present("the button's bounding box")(await button.boundingBox()).height
+        requireFor("the button's bounding box")(await button.boundingBox())
+          .height
       ).toBeGreaterThanOrEqual(44);
     }
     // Code reads in the code font: every `data-slot` element gets the text

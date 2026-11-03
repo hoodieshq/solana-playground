@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import Connect from "./Connect";
 import { PgSession } from "../../../../features/auth";
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import type { ConnectAction, ConnectProps } from "./Connect";
 import { PROVIDERS } from "../model/types";
 import { PgAssistant, type Connection } from "../store";
@@ -45,7 +45,7 @@ let action: ConnectAction | null;
 
 /** Presses the action Connect handed its host */
 const connect = () =>
-  present("the action Connect hands its host")(action).connect();
+  requireFor("the action Connect hands its host")(action).connect();
 
 const renderConnect = (props: Omit<ConnectProps, "frame">) =>
   render(
@@ -293,7 +293,7 @@ describe("Connect", () => {
       preset: { provider: "anthropic", model: "claude-unknown-9" },
     });
     await user.type(
-      present("the API key field")(
+      requireFor("the API key field")(
         document.querySelector<HTMLInputElement>("#assistant-api-key")
       ),
       "sk-ant-fake"
@@ -301,11 +301,11 @@ describe("Connect", () => {
 
     act(() => connect());
 
-    const anthropic = present("the Anthropic provider")(
+    const anthropic = requireFor("the Anthropic provider")(
       PROVIDERS.find((p) => p.id === "anthropic")
     );
     expect(PgAssistant.connection?.settings?.model).toBe(
-      present("Anthropic's model settings")(anthropic.modelSettings).defaults
+      requireFor("Anthropic's model settings")(anthropic.modelSettings).defaults
         .model
     );
   });
@@ -329,7 +329,7 @@ describe("Connect", () => {
     expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
 
     await user.type(
-      present("the API key field")(
+      requireFor("the API key field")(
         document.querySelector<HTMLInputElement>("#assistant-api-key")
       ),
       "sk-ant-fake"

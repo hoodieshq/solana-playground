@@ -5,7 +5,7 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { present } from "@/test-utils/present";
+import { requireFor } from "@/test-utils/require-for";
 import { LogoMark, LogoPlay } from "./logo";
 
 /** The subpaths of every path an svg draws, each from its `M` */
@@ -17,12 +17,12 @@ const subpaths = (svg: Element) =>
 describe("LogoPlay", () => {
   it("draws the mark's play shape without its ring", () => {
     const mark = subpaths(
-      present("the mark's svg")(
+      requireFor("the mark's svg")(
         render(<LogoMark />).container.firstElementChild
       )
     );
     const play = subpaths(
-      present("the play shape's svg")(
+      requireFor("the play shape's svg")(
         render(<LogoPlay />).container.firstElementChild
       )
     );

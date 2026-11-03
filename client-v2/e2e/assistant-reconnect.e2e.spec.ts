@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page, Request } from "@playwright/test";
-import { present } from "../src/test-utils/present";
+import { requireFor } from "../src/test-utils/require-for";
 import { json, seedWorkspace, startProject, stubSession } from "./fixtures";
 
 /**
@@ -434,7 +434,7 @@ test.describe("assistant-own-key", () => {
     // or reconnect
     const leaks: string[] = [];
     // Resolved here: a throw inside the listener would not fail the test
-    const origin = new URL(present("the base URL")(baseURL)).origin;
+    const origin = new URL(requireFor("the base URL")(baseURL)).origin;
     page.on("request", (req) => {
       if (new URL(req.url()).origin !== origin) return;
       if (carriesKey(req)) leaks.push(req.url());
@@ -470,7 +470,7 @@ test.describe("assistant-own-key", () => {
     });
     const leaks: string[] = [];
     // Resolved here: a throw inside the listener would not fail the test
-    const origin = new URL(present("the base URL")(baseURL)).origin;
+    const origin = new URL(requireFor("the base URL")(baseURL)).origin;
     page.on("request", (req) => {
       if (new URL(req.url()).origin !== origin) return;
       if (carriesKey(req)) leaks.push(req.url());
