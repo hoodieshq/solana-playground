@@ -23,14 +23,14 @@ SHALL carry no closing period.
 
 The act and result cards are outside this requirement.
 
-#### Scenario: Text and code in an assistant turn
+#### Scenario: Text and code in an assistant turn (manual)
 
 - **WHEN** the intro of Hello Anchor's first step is shown in a 1440 × 900
   window
 - **THEN** its text is 16 px on a 24 px line at weight 320
 - **AND** `#[program]` in it sits on a 22 px chip with a ringed edge
 
-#### Scenario: A quiz question
+#### Scenario: A quiz question (manual)
 
 - **WHEN** step 1's question card is live
 - **THEN** its question is 18 px on a 26 px line and each option's code is
@@ -45,7 +45,7 @@ follows, and text resuming after a listing or a card SHALL start 24 px under
 it. A card that waits on the learner (the live question or act) SHALL step
 out to 8 px from the column's edges.
 
-#### Scenario: A jumped-to heading lands where the first one sits
+#### Scenario: A jumped-to heading lands where the first one sits (manual)
 
 - **WHEN** the learner picks step 1 from the step head while on step 2
 - **THEN** step 1's heading comes to rest 22 px under the feed's top, as the
@@ -57,7 +57,7 @@ With `prefers-reduced-motion: reduce`, a turn that arrives SHALL fade in over
 240 ms, shown whole, with no rise and no typing. Turns already on screen at
 load SHALL show at once.
 
-#### Scenario: A new reply with reduced motion
+#### Scenario: A new reply with reduced motion (manual)
 
 - **WHEN** reduced motion is on and the assistant posts a reply
 - **THEN** the reply fades in whole, with nothing moving or typing
@@ -69,7 +69,7 @@ first three lines of the run written, and when the run is longer, end on a
 row "⋯ N more lines" ("1 more line" for one) in place of the line range. Its
 `aria-label` SHALL still read "Show <range> in <file>".
 
-#### Scenario: A thirteen-line write
+#### Scenario: A thirteen-line write (manual)
 
 - **WHEN** the assistant writes lines 5 to 13 of `lib.rs`
 - **THEN** the wrote card shows lines 5, 6 and 7 and ends on "6 more lines"

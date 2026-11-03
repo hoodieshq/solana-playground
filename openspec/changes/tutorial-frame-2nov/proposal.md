@@ -65,8 +65,8 @@ the feed's type to the head.
   `widgets/layout-shell` (no files column held open in the frame),
   `widgets/tutorial-conversation` (`BaseStepBar`, `BaseStepDivider`,
   `BaseFeed`, `Prose`, `BaseSay`, `BaseWroteCard`, `BaseQuestionCard`,
-  `BaseIntroCard`, `BaseWinCard`, `BaseFinishCard`, `BaseYouPill`, a shared
-  `ui/type.ts`), `widgets/tutorial-frame` (`ShortcutsDialog`), the Hello
+  `BaseIntroCard`, `BaseWinCard`, `BaseFinishCard`, `BaseYouPill`, the
+  scale's constants in `ui/Prose.tsx`), `widgets/tutorial-frame` (`ShortcutsDialog`), the Hello
   Anchor definition's headlines.
 - Tests: the step bar's and divider's component tests, the shell's tests for
   the frame, the tutorial e2e specs that read the old bar.

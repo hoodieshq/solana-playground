@@ -11,14 +11,14 @@ workspace head (the open tab's arrow, the Files tool, ⌘E), and its pin SHALL
 still dock it beside the editor. Outside a tutorial the stage tabs, the stage
 area and the files column stay as they are.
 
-#### Scenario: Deploy step in the frame
+#### Scenario: Deploy step in the frame (manual)
 
 - **WHEN** a learner reaches Hello Anchor's deploy step in a 1440 × 900 window
 - **THEN** the deploy is a card in the chat and the workspace shows `lib.rs`
 - **AND** no stage tab, no "Nothing deployed" area and no Steps or Files
   column is on screen
 
-#### Scenario: An ordinary project keeps its stages
+#### Scenario: An ordinary project keeps its stages (manual)
 
 - **WHEN** the learner leaves the tutorial for an ordinary project
 - **THEN** the stage tabs and the files column show again
@@ -43,7 +43,7 @@ None of them SHALL fire while focus is in a text field, except ⌘B, ⌘E and
 - **WHEN** a question is open and the learner types "1" in the composer
 - **THEN** the composer holds "1" and no option is picked
 
-#### Scenario: The shortcuts dialog
+#### Scenario: The shortcuts dialog (manual)
 
 - **WHEN** the learner opens "Keyboard shortcuts" from the ⋯ menu
 - **THEN** the keys show under "In the lesson", "Panels" and "Steps", in that

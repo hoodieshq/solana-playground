@@ -42,7 +42,7 @@ control. After the finish there SHALL be no pill.
 - **AND** a "Back to step 3" pill shows, and nothing in step 1 can be run
   again
 
-#### Scenario: The step head on step 2
+#### Scenario: The step head on step 2 (manual)
 
 - **WHEN** the learner is on step 2 of Hello Anchor
 - **THEN** the step bar reads "Step 2 of 4 · <step 2's short label>" over four

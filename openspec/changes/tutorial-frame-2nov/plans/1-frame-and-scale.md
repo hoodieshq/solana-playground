@@ -42,7 +42,7 @@
 
 **Files:** Modify `widgets/tutorial-conversation/ui/BaseStepBar.tsx`, `BaseStepDivider.tsx`, `BaseFeed.tsx`, `TutorialConversation.tsx`, `model/step-bar.ts`; Tests `BaseStepBar.test.tsx`, `BaseFeed.test.tsx`.
 
-**Interfaces:** `BaseStepBarProps = { steps; live: number | null; viewing: number | null; finished: boolean; onJump(index, via: "bar" | "menu") }` (no `progress`, no `narrow`). `BaseStepDividerProps = { heading: string }` plus anchor ref as today.
+**Interfaces:** `BaseStepBarProps = { steps; live: number | null; viewing: number | null; onJump(index, via: "bar" | "menu") }` (no `progress`, no `narrow`; finished is derived from `steps`). `BaseStepDividerProps = { objective: string }`.
 
 - [ ] Tests: trigger text "Step 2 of 4 · <short>" on step 2, "4 steps" disabled before Start, "Done · 4 of 4" after finish; four segment buttons with aria-labels "Step n of 4, <title>[, done|, current]", none with visible text; segments lit = `live + 1` (all after finish); menu rows disabled when not reached; divider renders the objective as `h2` and no "Step n of m", no time.
 - [ ] Run, see them fail.
@@ -51,7 +51,7 @@
 
 ### Task 3: Reading scale (3.1–3.3)
 
-**Files:** Create `widgets/tutorial-conversation/ui/type.ts` (`HEADING`, `TITLE`, `READ`, `LISTING`, `CHIP`); Modify `Prose.tsx`, `BaseSay.tsx`, `BaseIntroCard.tsx`, `BaseQuestionCard.tsx`, `BaseWroteCard.tsx`, `BaseWinCard.tsx`, `BaseFinishCard.tsx`, `BaseYouPill.tsx`, `BaseFeed.tsx`.
+**Files:** Modify `Prose.tsx` (`READ`, `HEADING`, `TITLE`, `LISTING`, `HEADLINE`, `CHIP`, `noStop`, the `chip` size prop), `BaseSay.tsx`, `BaseIntroCard.tsx`, `BaseQuestionCard.tsx`, `BaseWroteCard.tsx`, `BaseWinCard.tsx`, `BaseFinishCard.tsx`, `BaseYouPill.tsx`, `BaseFeed.tsx`.
 
 - [ ] Tests: wrote card for lines 5–13 shows 3 rows and "6 more lines", head has no "lines 5 to 13", aria-label still "Show lines 5 to 13 in src/lib.rs"; `Prose` keeps a following "." in the chip's nowrap span; a fresh turn under reduced motion carries the `pg-fade` animation class.
 - [ ] Run, see them fail.

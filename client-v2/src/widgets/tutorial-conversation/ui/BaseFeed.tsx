@@ -45,8 +45,7 @@ const FOCUSABLE =
  * then the back pill while the live card is off screen or the feed is on
  * another step. A step bar segment, an item of its menu or ⌥↑ / ⌥↓
  * (unless a field has focus) brings a step's heading to rest 22 px under the
- * feed's top and
- * flashes it once; the lesson's progress is untouched. The step the feed is
+ * feed's top and flashes it once; the lesson's progress is untouched. The step the feed is
  * scrolled into is the bar's "viewing" one. Turns older than the page load
  * render whole.
  */
@@ -119,10 +118,9 @@ const BaseFeed = ({
   }, [steps]);
 
   // Scrolling by hand moves "viewing" to the step whose heading is at the
-  // feed's top. A feed
-  // scrolled to its bottom is on the live step: a short live step never
-  // brings its divider up to the bar, so the divider test alone would name
-  // the step before it
+  // feed's top. A feed scrolled to its bottom is on the live step: a short
+  // live step never brings its heading up to the top, so the heading test
+  // alone would name the step before it
   const onScroll = () => {
     const box = scroller.current;
     if (!box || Date.now() < jumping.current) return;

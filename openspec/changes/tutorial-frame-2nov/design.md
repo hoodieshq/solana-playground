@@ -72,11 +72,12 @@ segments is kept, behind `motion-reduce`.
 
 ### One module for the scale
 
-`widgets/tutorial-conversation/ui/type.ts` holds the prototype's class
-strings: `HEADING`, `TITLE`, `READ`, `LISTING`, `CHIP`. `Prose` takes
-`small` and `large` for the chip, as the prototype's does. The win and finish
-headlines use `text-[1.75rem] leading-8 font-medium`. The act and result
-cards may adopt the module in their own tickets.
+`widgets/tutorial-conversation/ui/Prose.tsx`, where `READ` already lived and
+which the act and result cards already import, holds the prototype's class
+strings: `READ`, `HEADING`, `TITLE`, `LISTING`, `HEADLINE` and `CHIP`, plus
+`noStop`. `Prose` takes `chip` (`normal`, `large`, `small`) for the chip's
+size, as the prototype's `small` and `large` do. The act and result cards may
+adopt the constants in their own tickets.
 
 ### Headlines without periods
 

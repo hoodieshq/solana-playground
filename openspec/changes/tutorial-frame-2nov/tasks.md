@@ -23,7 +23,7 @@ Plan: [plans/1-frame-and-scale.md](plans/1-frame-and-scale.md).
 
 ## 3. Reading scale
 
-- [x] 3.1 `ui/type.ts` and the ringed chip in `Prose`; the scale in Say,
+- [x] 3.1 the scale (`READ`, `HEADING`, `TITLE`, `LISTING`, `HEADLINE`) and the ringed chip in `Prose.tsx`; the scale in Say,
       intro, question, wrote, win, finish and you cards; the feed's rhythm
       and the waiting cards' 8 px. Verify: screenshots against the reference
       at 1440
