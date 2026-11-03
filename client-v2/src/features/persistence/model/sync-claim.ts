@@ -129,7 +129,12 @@ if (import.meta.vitest) {
       (PgFs as unknown as { __files: Map<string, string> }).__files;
 
     const signIn = (id: string) =>
-      PgSession.refreshWith({ id, name: null, image: null, login: null });
+      PgSession.refreshWith({
+        id,
+        name: undefined,
+        image: undefined,
+        login: undefined,
+      });
 
     beforeEach(() => {
       PgSession.reset();
@@ -141,7 +146,7 @@ if (import.meta.vitest) {
       await PgSyncClaim.claim("tut:one");
       await signIn("u2");
       await PgSyncClaim.claim("tut:two");
-      await PgSession.refreshWith(null);
+      await PgSession.refreshWith(undefined);
 
       expect((await PgSyncClaim.projectIds()).sort()).toEqual([
         "tut:one",
@@ -154,7 +159,7 @@ if (import.meta.vitest) {
       // and vouch for the next account's copy under the same id
       await signIn("u1");
       await PgSyncClaim.claim("tut:hello");
-      await PgSession.refreshWith(null);
+      await PgSession.refreshWith(undefined);
 
       await PgSyncClaim.forget("tut:hello");
 

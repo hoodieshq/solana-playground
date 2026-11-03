@@ -36,7 +36,12 @@ const storedFiles = () =>
   (PgFs as unknown as { __files: Map<string, string> }).__files;
 
 const signedIn = () =>
-  PgSession.refreshWith({ id: "u1", name: null, image: null, login: null });
+  PgSession.refreshWith({
+    id: "u1",
+    name: undefined,
+    image: undefined,
+    login: undefined,
+  });
 
 /** Pretend the explorer holds these workspaces, name -> id */
 const withLocal = (local: Record<string, string>) => {
@@ -507,9 +512,9 @@ describe("reconcile", () => {
     });
     await PgSession.refreshWith({
       id: "u2",
-      name: null,
-      image: null,
-      login: null,
+      name: undefined,
+      image: undefined,
+      login: undefined,
     });
     const push = vi.spyOn(PgProjectSync, "push").mockResolvedValue("ok");
     serverHas([]);
@@ -532,9 +537,9 @@ describe("reconcile", () => {
     });
     await PgSession.refreshWith({
       id: "u2",
-      name: null,
-      image: null,
-      login: null,
+      name: undefined,
+      image: undefined,
+      login: undefined,
     });
   };
 

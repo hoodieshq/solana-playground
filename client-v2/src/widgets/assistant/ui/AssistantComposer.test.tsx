@@ -170,9 +170,9 @@ describe("AssistantComposer, connected", () => {
   it("connects the default from a keyed backend and clears the thread", async () => {
     await PgSession.refreshWith({
       id: "u1",
-      name: null,
-      image: null,
-      login: null,
+      name: undefined,
+      image: undefined,
+      login: undefined,
     });
     render(<Harness />);
     const user = await openMenu(/Opus 5.5/);
@@ -188,7 +188,7 @@ describe("AssistantComposer, connected", () => {
   });
 
   it("opens Connect a model on the default instead of connecting it, signed out", async () => {
-    await PgSession.refreshWith(null);
+    await PgSession.refreshWith(undefined);
     render(<Harness />);
     const user = await openMenu(/Opus 5.5/);
     await user.click(
