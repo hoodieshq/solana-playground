@@ -164,7 +164,7 @@ describe("Deploy stage", () => {
     mocks.programInfo = { onChain: null, pk: null, uuid: "previous-build" };
     render(<Deploy />);
 
-    const button = screen.getByRole("button", { name: "Deploy to Devnet" });
+    const button = screen.getByRole("button", { name: "Deploy to devnet" });
     expect(button).toHaveProperty("disabled", false);
   });
 
@@ -172,7 +172,7 @@ describe("Deploy stage", () => {
     mocks.flow = { build: "failed", deploy: "active" };
     render(<Deploy />);
 
-    const button = screen.getByRole("button", { name: "Deploy to Devnet" });
+    const button = screen.getByRole("button", { name: "Deploy to devnet" });
     expect(button).toHaveProperty("disabled", true);
   });
 

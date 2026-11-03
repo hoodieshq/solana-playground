@@ -2,8 +2,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  cluster: "devnet" as string | null,
-  wallet: null as null | { isPg?: boolean },
+  cluster: "devnet" as string | undefined,
+  wallet: undefined as undefined | { isPg?: boolean },
 }));
 
 vi.mock("../../../../utils", () => ({
@@ -31,33 +31,36 @@ vi.mock("./build-output", () => ({
   PgBuildOutput: {},
   stripKnownNoise: (s: string) => s,
 }));
-vi.mock("./lesson-context", () => ({ describeLesson: () => null }));
+vi.mock("./lesson-context", () => ({
+  // eslint-disable-next-line unicorn/no-null -- `describeLesson()` answers `null` with no lesson
+  describeLesson: () => null,
+}));
 
 import { realBridge } from "./playground-bridge";
 
 describe("realBridge.quoteDeploy", () => {
   beforeEach(() => {
     mocks.cluster = "devnet";
-    mocks.wallet = null;
+    mocks.wallet = undefined;
   });
 
   it.each([
-    [
-      "no wallet yet, so the Playground wallet will be made and pay",
-      null,
-      true,
-    ],
-    ["the Playground wallet", { isPg: true }, true],
-    ["a connected wallet", { isPg: false }, false],
-  ])("says the Playground wallet pays with %s", async (_, wallet, expected) => {
-    mocks.wallet = wallet;
-    expect((await realBridge.quoteDeploy()).playground).toBe(expected);
+    {
+      label: "no wallet yet, so the Playground wallet will be made and pay",
+      wallet: undefined,
+      expected: true,
+    },
+    { label: "the Playground wallet", wallet: { isPg: true }, expected: true },
+    { label: "a connected wallet", wallet: { isPg: false }, expected: false },
+  ])("says the Playground wallet pays with $label", async (row) => {
+    mocks.wallet = row.wallet;
+    expect((await realBridge.quoteDeploy()).playground).toBe(row.expected);
   });
 
   it.each([
     ["devnet", "devnet"],
     ["mainnet-beta", "mainnet"],
-    [null, null],
+    [undefined, undefined],
   ])("names %s as %s", async (cluster, network) => {
     mocks.cluster = cluster;
     expect(await realBridge.quoteDeploy()).toEqual({

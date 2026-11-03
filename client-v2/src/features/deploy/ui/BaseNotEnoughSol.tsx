@@ -12,7 +12,7 @@ import { formatSol, shortKey } from "../model/format";
 export const WEB_FAUCET_URL = "https://faucet.solana.com";
 
 export interface BaseNotEnoughSolProps {
-  cluster: string | null;
+  cluster: string | undefined;
   reason: FundingFailure;
   /** Lamports the wallet holds */
   balance: number;

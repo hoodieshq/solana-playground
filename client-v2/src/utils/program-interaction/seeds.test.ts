@@ -42,6 +42,18 @@ type RawArg = { name: string; type: unknown };
 type RawIx = { name: string; accounts: RawAccount[]; args: RawArg[] };
 type RawIdl = { address?: string; instructions: RawIx[] };
 
+/** A seed's `path`, which every argument and account seed carries */
+const pathOf = (s: RawSeed): string => {
+  if (s.path === undefined) throw new Error(`a ${s.kind} seed has no path`);
+  return s.path;
+};
+
+/** A seed's bytes, which every const seed carries */
+const constBytesOf = (s: RawSeed): number[] => {
+  if (s.value === undefined) throw new Error("a const seed has no value");
+  return s.value;
+};
+
 const sha256 = (text: string) => createHash("sha256").update(text).digest();
 
 /** One PDA per integer width, each seeded by its argument */
@@ -143,6 +155,7 @@ describe("utils/program-interaction seeds on Anchor 1.x IDLs", () => {
       rawIx.accounts.forEach((rawAcc, j) => {
         if (!rawAcc.pda) return;
         const seeds = rawAcc.pda.seeds;
+        const programSeed = rawAcc.pda.program;
         const label = `${file} ${rawIx.name}.${rawAcc.name}`;
         const typeOf = (s: RawSeed) =>
           rawIx.args.find((a) => a.name === s.path)?.type;
@@ -151,7 +164,7 @@ describe("utils/program-interaction seeds on Anchor 1.x IDLs", () => {
         const fillable = seeds.every(
           (s) =>
             s.kind === "const" ||
-            (!s.path!.includes(".") && !(s.kind === "account" && s.account))
+            (!pathOf(s).includes(".") && !(s.kind === "account" && s.account))
         );
         if (!fillable) covered.left.push(label);
         else covered.filled++;
@@ -160,6 +173,7 @@ describe("utils/program-interaction seeds on Anchor 1.x IDLs", () => {
         );
         if (fillable && signed) covered.signed++;
 
+        // eslint-disable-next-line jest/valid-title -- one case per fixture account; the title is the fixture's own name
         it(label, () => {
           const { values } = createGeneratableInstruction(ixIdl);
           const program = raw.address
@@ -185,12 +199,12 @@ describe("utils/program-interaction seeds on Anchor 1.x IDLs", () => {
           });
 
           const bytesOf = (s: RawSeed): Buffer => {
-            if (s.kind === "const") return Buffer.from(s.value!);
-            if (s.kind === "account") return keyOf(s.path!).toBuffer();
+            if (s.kind === "const") return Buffer.from(constBytesOf(s));
+            if (s.kind === "account") return keyOf(pathOf(s)).toBuffer();
             return argBytes(typeOf(s), ARG_VALUES[String(typeOf(s))]);
           };
-          const seedProgram = rawAcc.pda!.program
-            ? new PgWeb3.PublicKey(bytesOf(rawAcc.pda!.program))
+          const seedProgram = programSeed
+            ? new PgWeb3.PublicKey(bytesOf(programSeed))
             : program;
           const [expected] = PgWeb3.PublicKey.findProgramAddressSync(
             seeds.map(bytesOf),

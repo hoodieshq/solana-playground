@@ -391,7 +391,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
         {!latest && p.programKeypair}
         {p.funding && (
           <BaseNotEnoughSol
-            cluster={p.cluster}
+            cluster={p.cluster ?? undefined}
             reason={p.funding.reason}
             balance={p.funding.balance}
             needed={p.funding.needed}

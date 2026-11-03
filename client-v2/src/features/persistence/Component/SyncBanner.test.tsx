@@ -193,7 +193,7 @@ describe("SyncBanner wording", () => {
     expect(container.querySelector('[role="alert"] p')?.textContent).toBe(
       "This project was deleted on another device, but this one has unsaved changes."
     );
-    const labels = [...container.querySelectorAll("button")].map(
+    const labels = Array.from(container.querySelectorAll("button")).map(
       (b) => b.textContent
     );
     expect(labels).toContain("Keep a copy");

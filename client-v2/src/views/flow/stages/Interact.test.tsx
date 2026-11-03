@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   surface: "ready" as string,
-  cluster: "devnet" as string | null,
+  cluster: "devnet" as string | undefined,
   noop: () => ({ dispose: () => undefined }),
 }));
 
@@ -12,9 +12,10 @@ vi.mock("./interact-surface", () => ({
   interactFacts: () => ({}),
   interactSurface: () => mocks.surface,
 }));
-vi.mock("./IdlActions", () => ({ default: () => null }));
-vi.mock("./InteractBody", () => ({ default: () => null }));
+vi.mock("./IdlActions", () => ({ default: () => undefined }));
+vi.mock("./InteractBody", () => ({ default: () => undefined }));
 vi.mock("../../sidebar/assistant/bridge/build-output", () => ({
+  // eslint-disable-next-line unicorn/no-null -- `PgBuildOutput.latest` is `null` before any build
   PgBuildOutput: { latest: null, onDidChange: mocks.noop },
 }));
 vi.mock("../../../components/Wallet/hooks/useAirdrop", () => ({
@@ -32,8 +33,10 @@ vi.mock("../../../utils", () => ({
     onDidSwitchWorkspace: mocks.noop,
   },
   PgProgramInfo: {
+    // eslint-disable-next-line unicorn/no-null -- `callableIdl()` answers `null` with no IDL
     callableIdl: () => null,
     getPkStr: () => "6PNd3SmUcvQEHfcTiQkpprF4mmXzR7Ez7JwJfnJDAVkj",
+    // eslint-disable-next-line unicorn/no-null -- `readIdl()` answers `null` with no IDL
     readIdl: () => null,
     update: vi.fn(),
   },
