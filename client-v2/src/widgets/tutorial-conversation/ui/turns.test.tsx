@@ -995,6 +995,7 @@ describe("TurnView's last win", () => {
           pick: vi.fn(),
           hint: vi.fn(),
           skip: vi.fn(),
+          typeIt: vi.fn(),
           act: vi.fn(),
           explain: vi.fn(),
           fixMyself: vi.fn(),
