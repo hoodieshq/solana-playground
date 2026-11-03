@@ -61,10 +61,8 @@ export const signInFailureMessage = (error: unknown) =>
     ? error.message
     : "Could not sign in.";
 
+/** The toast a copy that reached the clipboard shows */
 const LinkCopied = () => <span>Link copied</span>;
-const GithubLinkCopied = () => <span>GitHub link copied</span>;
-/** The toast a copy that reached the clipboard shows, per link; the GitHub one says which */
-const COPIED_TOAST = { playground: LinkCopied, github: GithubLinkCopied };
 
 /**
  * The share dialog's body, connected: signs in when it must, asks for gist
@@ -190,7 +188,7 @@ const ShareGist = ({
       return;
     }
     if (mounted.current) setCopyFailed(false);
-    PgView.setToast(COPIED_TOAST[link], {
+    PgView.setToast(LinkCopied, {
       options: { name: "gist-link-copied" },
     });
     gistTelemetry.track("gist_link_copied", { copied: link });

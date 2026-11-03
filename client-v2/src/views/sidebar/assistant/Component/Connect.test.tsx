@@ -58,7 +58,7 @@ const renderConnect = (props: Omit<ConnectProps, "frame">) =>
   );
 
 /**
- * A real known-step failure ("Allow popups for this site to sign in."): the
+ * A real known-step failure ("Allow pop-ups for this site to sign in with GitHub."): the
  * popup is blocked. Made once per test, before the spy replaces `signIn`.
  */
 const blockedPopup = async () => {
@@ -163,7 +163,7 @@ describe("Connect", () => {
       await act(async () => action!.connect());
 
       expect((await screen.findByRole("alert")).textContent).toBe(
-        "Allow popups for this site to sign in."
+        "Allow pop-ups for this site to sign in with GitHub."
       );
     });
 

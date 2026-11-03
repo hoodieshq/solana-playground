@@ -520,10 +520,8 @@ project list is the way in.
 ### Requirement: Copy the Playground link
 
 In the shared state, each copy action SHALL write its value to the clipboard
-and show a toast naming what was copied: "Link copied" for the Playground
-link, "GitHub link copied" for the GitHub URL. A clipboard that
-refuses SHALL show no toast, and the dialog SHALL say the link could not be
-copied.
+and show the toast "Link copied". A clipboard that refuses SHALL show no
+toast, and the dialog SHALL say the link could not be copied.
 
 #### Scenario: Copying the Playground link
 - **WHEN** the gist is made and the user presses the link's copy button
@@ -532,5 +530,5 @@ copied.
 
 #### Scenario: Copying the GitHub link
 - **WHEN** the user presses "Copy GitHub link"
-- **THEN** the clipboard holds the gist's GitHub URL and a "GitHub link
-  copied" toast shows
+- **THEN** the clipboard holds the gist's GitHub URL and a "Link copied"
+  toast shows

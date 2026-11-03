@@ -282,7 +282,8 @@ const BaseShareGist = ({
 
       {granting && (
         <p className="text-body font-read text-muted-foreground">
-          Playground needs permission to create gists on your GitHub.
+          GitHub needs your permission for Playground to create gists on your
+          account. It asks once.
         </p>
       )}
 
