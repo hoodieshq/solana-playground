@@ -92,6 +92,25 @@ describe("/open", () => {
     ]);
   });
 
+  it("clears the broken state once another route takes over", () => {
+    const route = visit("v=1&name=a.ts");
+    route.dispose();
+    expect(PgDocsLink.broken).toBe(false);
+  });
+
+  it("names no host for a link without a source", () => {
+    visit(
+      encodeDocsLink({
+        name: "hello.ts",
+        code: "console.log(1)",
+        from: null,
+        sol: null,
+      })
+    );
+    routeArg().getExplorerInitArg!();
+    expect(sent.events.at(-1)?.params).toMatchObject({ host: "none" });
+  });
+
   it("reloads when a new link replaces the fragment", () => {
     const reload = vi.fn();
     vi.spyOn(window, "location", "get").mockReturnValue({

@@ -112,6 +112,7 @@ describe("BaseRunCallout", () => {
       address: "Wa11et",
       balance: 0,
       needed: 0.02,
+      previous: { kind: "idle" },
     });
     expect(node?.getAttribute("data-state")).toBe("funding");
     const card = document.getElementById("client-run-funding");

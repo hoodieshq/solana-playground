@@ -158,6 +158,7 @@ describe("PgClientRun", () => {
       address: "Wa11et",
       balance: 0,
       needed: 0.02,
+      previous: { kind: "idle" },
     });
     expect(sent.events.at(-1)).toMatchObject({
       name: "docs_link_run_funding_shown",
@@ -208,6 +209,81 @@ describe("PgClientRun", () => {
     PgDocsLink.set(QUICKSTART);
     startRun();
     expect(sent.events.at(-1)?.params).toEqual({ source: "link" });
+  });
+
+  it("runs when the wallet holds exactly what the link needs", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.set(QUICKSTART);
+    utils.lamports = 0.02e9;
+    await PgClientRun.start();
+    expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays on the funding card while the wallet is still short", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.set(QUICKSTART);
+    await PgClientRun.start();
+
+    utils.lamports = 0.01e9;
+    await PgClientRun.checkAgain();
+
+    expect(utils.PgCommand.run.execute).not.toHaveBeenCalled();
+    expect(PgClientRun.state).toMatchObject({ kind: "funding", balance: 0.01 });
+  });
+
+  it("starts one run for a double press", async () => {
+    const { PgClientRun } = await load();
+    await Promise.all([PgClientRun.start(), PgClientRun.start()]);
+    expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing when the wallet setup is closed", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.set(QUICKSTART);
+    utils.PgWallet.state = "setup";
+    const wallet = utils.PgWallet.current;
+    utils.PgWallet.current = null;
+
+    await PgClientRun.start();
+
+    utils.PgWallet.current = wallet;
+    expect(utils.PgCommand.run.execute).not.toHaveBeenCalled();
+    expect(PgClientRun.state.kind).toBe("idle");
+  });
+
+  it("shows a run the command refused before it started", async () => {
+    const { PgClientRun } = await load();
+    utils.PgCommand.run.execute.mockRejectedValueOnce(
+      new Error("Client is already running!")
+    );
+    await PgClientRun.start();
+    expect(PgClientRun.state).toEqual({
+      kind: "failed",
+      message: "Client is already running!",
+    });
+  });
+
+  it("keeps a run going when another link opens", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    startRun();
+    PgDocsLink.set(QUICKSTART);
+    expect(PgClientRun.state.kind).toBe("running");
+  });
+
+  it("counts the run as the link's from start to finish", async () => {
+    const { PgDocsLink } = await load();
+    PgDocsLink.set(QUICKSTART);
+    startRun();
+    PgDocsLink.set(null);
+    finishRun({ ok: { ok: true } });
+    expect(sent.events.at(-1)?.params).toMatchObject({ source: "link" });
+  });
+
+  it("reads a thrown non-Error as its text", async () => {
+    const { PgClientRun } = await load();
+    startRun();
+    finishRun({ err: "boom" as unknown as Error });
+    expect(PgClientRun.state).toEqual({ kind: "failed", message: "boom" });
   });
 
   it("starts a new link from a clean callout", async () => {

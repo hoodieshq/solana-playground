@@ -5,25 +5,38 @@ import { createLogger } from "@/shared/lib/logger";
 
 import { PgDocsLink } from "./opened";
 import { docsLinkTelemetry } from "./telemetry";
-import type { RunOutcome, RunSource } from "./telemetry";
+import type { RunOutcome, RunSource, WalletOrigin } from "./telemetry";
 
 const log = createLogger("docs-link:run");
 
-/** What the stage row's Run and its callout show */
-export type RunState =
+/** A state the run can be in once it is not asking for SOL */
+type SettledState =
   | { kind: "idle" }
-  | { kind: "funding"; address: string; balance: number; needed: number }
   | { kind: "running" }
   | { kind: "done"; ms: number }
   | { kind: "failed"; message: string }
   | { kind: "missing-package"; pkg: string };
 
+/** What the stage row's Run and its callout show */
+export type RunState =
+  | SettledState
+  | {
+      kind: "funding";
+      address: string;
+      balance: number;
+      needed: number;
+      /** What Not now goes back to */
+      previous: SettledState;
+    };
+
 type Listener = (state: RunState) => void;
 
 let state: RunState = { kind: "idle" };
-/** What Not now goes back to from the funding card */
-let beforeFunding: RunState = state;
-let startedAt = 0;
+/** The run in progress: when it started and whose project it ran */
+let current: { startedAt: number; source: RunSource } | null = null;
+/** Run was pressed and is still setting the wallet up or reading its SOL */
+let starting = false;
+let listening = false;
 const listeners = new Set<Listener>();
 
 const set = (next: RunState) => {
@@ -31,32 +44,35 @@ const set = (next: RunState) => {
   listeners.forEach((listener) => listener(next));
 };
 
-const sourceOf = (): RunSource => (PgDocsLink.opened ? "link" : "project");
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
 
-/** How a finished `run` reads, from what the command handed back */
+/**
+ * How a finished `run` reads, from what the command handed back: a
+ * `RunResult`, or the error it threw before any script ran.
+ */
 const settle = (
-  result: { ok: RunResult | undefined } | { err: Error }
-): RunState => {
-  if ("err" in result && result.err) {
-    const message = result.err.message;
+  result: { ok: RunResult | undefined } | { err: unknown },
+  ms: number
+): SettledState => {
+  if ("err" in result) {
+    const message = messageOf(result.err);
     const pkg = missingPackageOf(message);
     return pkg ? { kind: "missing-package", pkg } : { kind: "failed", message };
   }
-  const run = "ok" in result ? result.ok : undefined;
-  if (run && !run.ok) return { kind: "failed", message: run.error };
-  return { kind: "done", ms: Date.now() - startedAt };
+  if (result.ok && !result.ok.ok) {
+    return { kind: "failed", message: result.ok.error };
+  }
+  return { kind: "done", ms };
 };
 
-const outcomeOf: Record<RunState["kind"], RunOutcome | null> = {
+const outcomeOf: Record<SettledState["kind"], RunOutcome | null> = {
   idle: null,
-  funding: null,
   running: null,
   done: "done",
   failed: "failed",
   "missing-package": "missing-package",
 };
-
-let listening = false;
 
 /**
  * Follow the `run` command's own events, so a `run` typed in the terminal
@@ -65,29 +81,40 @@ let listening = false;
  */
 const listen = () => {
   if (listening) return;
-  listening = true;
 
   PgCommand.run.onDidStart(() => {
-    startedAt = Date.now();
-    docsLinkTelemetry.track("docs_link_run_started", { source: sourceOf() });
+    current = {
+      startedAt: Date.now(),
+      source: PgDocsLink.opened ? "link" : "project",
+    };
+    docsLinkTelemetry.track("docs_link_run_started", {
+      source: current.source,
+    });
     set({ kind: "running" });
   });
   PgCommand.run.onDidFinish((result) => {
-    const next = settle(result);
+    const run = current ?? { startedAt: Date.now(), source: "project" };
+    current = null;
+    const ms = Date.now() - run.startedAt;
+    const next = settle(result, ms);
     const outcome = outcomeOf[next.kind];
     if (outcome) {
       docsLinkTelemetry.track("docs_link_run_finished", {
-        source: sourceOf(),
+        source: run.source,
         outcome,
-        seconds: Math.floor((Date.now() - startedAt) / 1000),
+        seconds: Math.floor(ms / 1000),
       });
     }
     set(next);
   });
 
   // A new link, or a project opened any other way, starts from a clean
-  // callout
-  PgDocsLink.onDidChange(() => set({ kind: "idle" }));
+  // callout; a run still going keeps its state until it ends
+  PgDocsLink.onDidChange(() => {
+    if (state.kind !== "running") set({ kind: "idle" });
+  });
+
+  listening = true;
 };
 
 /** The wallet's balance now, read from the chain rather than the cached one */
@@ -101,24 +128,39 @@ const balanceOf = async (address: PgWeb3.PublicKey) =>
  * @param wallet `new` when Run had to set the wallet up first
  * @returns whether the run may start
  */
-const funded = async (wallet: "new" | "existing") => {
+const funded = async (wallet: WalletOrigin) => {
   const needed = PgDocsLink.opened?.sol;
   if (!needed) return true;
 
   const address = PgWallet.current?.publicKey;
-  if (!address) return false;
+  // `start` sets the wallet up first, so this is a wallet that vanished
+  if (!address) throw new Error("No wallet to run the script with.");
   const balance = await balanceOf(address);
   if (balance >= needed) return true;
 
-  if (state.kind !== "funding") beforeFunding = state;
   docsLinkTelemetry.track("docs_link_run_funding_shown", { wallet });
   set({
     kind: "funding",
     address: address.toBase58(),
     balance,
     needed,
+    previous: state.kind === "funding" ? state.previous : state,
   });
   return false;
+};
+
+/**
+ * Run the scripts. A rejection the command threw before it started never
+ * reaches `onDidFinish` (another run in progress, say), so it is shown here.
+ */
+const runScripts = async () => {
+  try {
+    await PgCommand.run.execute();
+  } catch (error) {
+    if (state.kind === "running") return;
+    log.warn("run refused before it started", { context: { error } });
+    set({ kind: "failed", message: messageOf(error) });
+  }
 };
 
 /** The stage row's Run, its funding card's buttons and its state */
@@ -141,32 +183,39 @@ export const PgClientRun = {
   /** Set the wallet up if needed, check its SOL, then `run` */
   async start() {
     listen();
-    if (state.kind === "running") return;
-    let wallet: "new" | "existing" = "existing";
-    if (PgWallet.state === "setup") {
-      wallet = "new";
-      await PgCommand.connect.execute();
-      // The user closed the setup: nothing to run with
-      if (!PgWallet.current) return;
+    // One run at a time, counting the wallet setup and balance read before it
+    if (state.kind === "running" || starting) return;
+    starting = true;
+    try {
+      let wallet: WalletOrigin = "existing";
+      if (PgWallet.state === "setup") {
+        wallet = "new";
+        await PgCommand.connect.execute();
+        // The user closed the setup: nothing to run with, and they know why
+        if (!PgWallet.current) return;
+      }
+      if (!(await funded(wallet))) return;
+    } finally {
+      starting = false;
     }
-    if (!(await funded(wallet))) return;
-
-    // The command prints its own failures in the terminal; the callout
-    // reads them through `onDidFinish`
-    await PgCommand.run
-      .execute()
-      .catch((error: unknown) =>
-        log.warn("run ended with an error", { context: { error } })
-      );
+    await runScripts();
   },
 
   /** The funding card's Check again */
   async checkAgain() {
-    if (await funded("existing")) await PgClientRun.start();
+    if (starting) return;
+    starting = true;
+    let enough: boolean;
+    try {
+      enough = await funded("existing");
+    } finally {
+      starting = false;
+    }
+    if (enough) await runScripts();
   },
 
   /** The funding card's Not now */
   dismissFunding() {
-    if (state.kind === "funding") set(beforeFunding);
+    if (state.kind === "funding") set(state.previous);
   },
 };

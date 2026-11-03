@@ -7,7 +7,7 @@ import { Spinner } from "@/shared/ui/spinner";
 export interface BaseRunButtonProps {
   /** A run is in progress */
   running: boolean;
-  /** The project has been run before */
+  /** The last run ended, whatever its outcome */
   ran: boolean;
   onRun: () => void;
 }

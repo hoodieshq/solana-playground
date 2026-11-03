@@ -214,8 +214,13 @@ export class PgJsRuntime {
 
     // Promise/async errors
     iframeWindow.addEventListener("unhandledrejection", (ev) => {
-      PgTerminal.println(`    ${`Uncaught error: ${ev.reason.message}`}`);
-      (iframeWindow as IframeGlobals).__fail?.(String(ev.reason?.message));
+      // A script may reject with anything: `undefined`, a string, an object
+      const message =
+        ev.reason instanceof Error ? ev.reason.message : String(ev.reason);
+      PgTerminal.println(`    Uncaught error: ${message}`);
+      // TODO(HOO-2507): a rejection that lands after the script ended is
+      // printed but cannot turn its finished run red; runs would need ids
+      (iframeWindow as IframeGlobals).__fail?.(message);
       // Does not require custom event dispatch to indicate running has finished
     });
 

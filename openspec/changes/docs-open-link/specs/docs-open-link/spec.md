@@ -47,6 +47,10 @@ project, when the fragment:
 - has a `name` that breaks the rule above;
 - has a `sol` that is not a positive number.
 
+A `+` left unescaped in `code` SHALL read as `+`. Inflating SHALL stop as
+soon as the output passes 100 KB, so a small crafted stream cannot exhaust
+memory.
+
 The page SHALL say "Playground couldn't read the code in this link. It may
 have been cut off when it was copied. Open the page in the docs again and use
 its Open in Playground button." It SHALL offer two actions:
@@ -76,8 +80,7 @@ The `docs-link` slice SHALL send:
 - `docs_link_opened` when a link decodes and its project opens. Its `host`
   is the host of `from`, or `none`; `bytes` is the decoded file's size.
 - `docs_link_failed` when "This link is broken" shows. Its `reason` is one
-  of `missing`, `version`, `decode`, `size` or `name`; a bad `sol` counts as
-  `missing`.
+  of `missing`, `version`, `decode`, `size`, `name` or `sol`.
 
 #### Scenario: An event per open
 - **WHEN** the user opens the Quickstart link, then a truncated one

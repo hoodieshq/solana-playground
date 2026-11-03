@@ -103,12 +103,13 @@ separators, and `for…of` over a `Map` or `Set` behave as in Node.
 - **WHEN** a script runs `for (const [k] of new Map([["a", 1]])) console.log(k)`
 - **THEN** the terminal prints `a`
 
-### Requirement: Runs from the stage row are measured
+### Requirement: Runs are measured
 
 The `docs-link` slice SHALL send:
 
-- `docs_link_run_started` when a run from the stage row starts. Its `source` is
-  `link` for a project from a docs link, else `project`.
+- `docs_link_run_started` when a `run` starts, from the stage row's Run or
+  typed in the terminal. Its `source` is `link` when a docs link opened the
+  project, else `project`, taken when the run starts.
 - `docs_link_run_finished` when such a run ends. Its `outcome` is `done`,
   `failed` or `missing-package`, its `source` as above, and `seconds` is the
   run's whole seconds.

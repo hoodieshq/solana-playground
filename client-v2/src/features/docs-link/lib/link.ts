@@ -1,4 +1,4 @@
-import { deflateRaw, inflateRaw } from "pako";
+import { deflateRaw, Inflate } from "pako";
 
 /** One file a docs page hands to Playground */
 export interface DocsLink {
@@ -14,13 +14,18 @@ export interface DocsLink {
   sol: number | null;
 }
 
-/** Why a link did not open */
+/**
+ * Why a link did not open: a required key absent, another format version,
+ * code that does not decode, a file empty or over the cap, a bad file name, or
+ * a `sol` that is not a positive number
+ */
 export type DocsLinkFailure =
   | "missing"
   | "version"
   | "decode"
   | "size"
-  | "name";
+  | "name"
+  | "sol";
 
 export type DecodedDocsLink =
   | { ok: true; link: DocsLink }
@@ -64,9 +69,16 @@ const toBase64Url = (bytes: Uint8Array) => {
     .replace(/=+$/, "");
 };
 
-/** Read base64url, and plain base64 too: a hand-made link may use either */
+/**
+ * Read base64url, and plain base64 too: a hand-made link may use either. A
+ * `+` left unescaped in the fragment reaches here as a space, since the
+ * fragment is read as a query string.
+ */
 const fromBase64 = (text: string): Uint8Array => {
-  const standard = text.replace(/-/g, "+").replace(/_/g, "/");
+  const standard = text
+    .replace(/ /g, "+")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
   const binary = atob(standard + "=".repeat((4 - (standard.length % 4)) % 4));
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 };
@@ -80,17 +92,49 @@ const fromBase64 = (text: string): Uint8Array => {
 const inflateCode = (
   code: string
 ): { ok: true; text: string } | { ok: false; reason: "decode" | "size" } => {
-  let bytes: Uint8Array | undefined;
+  let input: Uint8Array;
   try {
-    bytes = inflateRaw(fromBase64(code));
+    input = fromBase64(code);
   } catch {
-    // Not base64, or not a DEFLATE stream: the link was damaged in transit
+    // Not base64: the link was damaged in transit
     return { ok: false, reason: "decode" };
   }
-  // pako answers a stream cut short with nothing rather than a throw
-  if (!bytes) return { ok: false, reason: "decode" };
-  if (!bytes.length || bytes.length > MAX_DOCS_LINK_BYTES) {
-    return { ok: false, reason: "size" };
+
+  // Inflate in chunks and stop past the cap: a few kilobytes of a crafted
+  // stream inflate to gigabytes, so checking the size afterwards is too late
+  const inflator = new Inflate({ raw: true, chunkSize: 16 * 1024 });
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  let tooLarge = false;
+  let complete = false;
+  inflator.onData = (chunk) => {
+    const bytes = chunk as Uint8Array;
+    length += bytes.length;
+    if (length > MAX_DOCS_LINK_BYTES) {
+      tooLarge = true;
+      throw new Error("docs link larger than the cap");
+    }
+    chunks.push(bytes);
+  };
+  inflator.onEnd = (status) => {
+    complete = status === 0;
+  };
+  try {
+    inflator.push(input, true);
+  } catch {
+    // Thrown by `onData` past the cap, or by a stream pako cannot read
+    if (!tooLarge) return { ok: false, reason: "decode" };
+  }
+  if (tooLarge) return { ok: false, reason: "size" };
+  // A stream cut short ends without its final block, and without an error
+  if (!complete) return { ok: false, reason: "decode" };
+  if (!length) return { ok: false, reason: "size" };
+
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
   }
   try {
     return {
@@ -127,9 +171,7 @@ export const decodeDocsLink = (fragment: string): DecodedDocsLink => {
 
   const solParam = params.get("sol");
   const sol = solParam === null ? null : Number(solParam);
-  if (sol !== null && !(Number.isFinite(sol) && sol > 0)) {
-    return fail("missing");
-  }
+  if (sol !== null && !(Number.isFinite(sol) && sol > 0)) return fail("sol");
 
   const inflated = inflateCode(code);
   if (!inflated.ok) return fail(inflated.reason);
@@ -147,7 +189,8 @@ export const decodeDocsLink = (fragment: string): DecodedDocsLink => {
 };
 
 /**
- * Write a docs link's fragment, as the docs site builds it.
+ * Write a docs link's fragment: the inverse of `decodeDocsLink`, for tests.
+ * The docs site builds its links from `docs/open-in-playground-link.md`.
  *
  * @param link the file and what travels with it
  * @returns the fragment, without its `#`
@@ -239,8 +282,8 @@ if (import.meta.vitest) {
       expect(reasonOf(withParam("code", "%%%"))).toBe("decode");
       expect(reasonOf(withParam("name", "a.rs"))).toBe("name");
       expect(reasonOf(withParam("name", "../a.ts"))).toBe("name");
-      expect(reasonOf(withParam("sol", "-1"))).toBe("missing");
-      expect(reasonOf(withParam("sol", "lots"))).toBe("missing");
+      expect(reasonOf(withParam("sol", "-1"))).toBe("sol");
+      expect(reasonOf(withParam("sol", "lots"))).toBe("sol");
 
       const tooBig = encodeDocsLink({
         name: "a.ts",
@@ -267,6 +310,34 @@ if (import.meta.vitest) {
       const plain = params.get("code")!.replace(/-/g, "+").replace(/_/g, "/");
       params.set("code", plain);
       expect(decodeDocsLink(params.toString()).ok).toBe(true);
+    });
+
+    it("reads a plus left unescaped in the fragment", () => {
+      // This text deflates to a code whose standard base64 holds a "+"
+      const script = 'const v11 = "1v7p~ü";';
+      const code = new URLSearchParams(
+        encodeDocsLink({ name: "a.ts", code: script, from: null, sol: null })
+      )
+        .get("code")!
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
+      expect(code).toContain("+");
+
+      const decoded = decodeDocsLink(`v=1&name=a.ts&code=${code}`);
+
+      expect(decoded.ok && decoded.link.code).toBe(script);
+    });
+
+    it("stops inflating a stream that grows past the cap", () => {
+      // 50 MB of one byte deflates to about 50 KB; only the cap stops it
+      const bomb = encodeDocsLink({
+        name: "a.ts",
+        code: "a".repeat(50 * 1024 * 1024),
+        from: null,
+        sol: null,
+      });
+      const decoded = decodeDocsLink(bomb);
+      expect(decoded.ok || decoded.reason).toBe("size");
     });
 
     it("never uses a source that is not https", () => {

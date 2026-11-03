@@ -13,10 +13,10 @@ Everything after `#` is the URL fragment, so the code never reaches a server.
 | --- | --- | --- |
 | `v` | yes | `1`, the format version |
 | `name` | yes | The file's name: letters, digits, `.`, `_` or `-`, ending in `.ts` or `.js` (`quickstart.ts`) |
-| `code` | yes | The file's UTF-8 text, raw-DEFLATE compressed (RFC 1951), base64url without padding. At most 100 KB before compression |
+| `code` | yes | The file's UTF-8 text, raw-DEFLATE compressed (RFC 1951), base64url without padding. Not empty, and at most 100 KiB before compression |
 | `title` | no | The project's title. Defaults to `name` without its extension |
-| `from` | no | The docs page, an `https:` URL. Playground links back to it ("View the docs page", "Back to the docs") |
-| `sol` | no | Devnet SOL the script needs, such as `0.02`. Below it, Run asks the user to fund their wallet first |
+| `from` | no | The docs page, an `https:` URL. Playground links back to it ("View the docs page", "Back to the docs"). Any other URL is ignored |
+| `sol` | no | Devnet SOL the script needs, a number above 0 such as `0.02`. Below it, Run asks the user to fund their wallet first. Any other value breaks the link |
 
 Encode every value with `encodeURIComponent` (or `URLSearchParams`).
 
@@ -47,7 +47,8 @@ The Quickstart file is about 1.7 KB as a link.
   `@solana-program/token-2022`, plus Playground's earlier list (`@solana/web3.js`,
   `@solana/spl-token`, `@coral-xyz/anchor` and others). If a script imports
   anything else, Playground shows which package it can't load, and nothing runs.
-- `signerFromFile(<any path>)` is the user's Playground wallet.
+- `signerFromFile(<any path>)` is the user's Playground wallet. With another
+  wallet selected, the run fails and asks the user to switch to it.
 - Top-level `await`, BigInt literals, ES2020.
 - One file. Relative imports (`./other`) are not supported.
 
