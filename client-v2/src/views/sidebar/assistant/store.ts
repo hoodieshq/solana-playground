@@ -23,10 +23,27 @@ import { report } from "../../../features/persistence";
 import { uuid } from "../../../shared/lib/ids";
 import type { Disposable } from "../../../utils";
 import type { McpServerEntry, McpTool } from "@/features/mcp";
-import type { ModelProvider } from "@/shared/lib/ai";
+import type { ModelProvider, ToolDefinition } from "@/shared/lib/ai";
 import { isDefaultBackend, type Effort } from "./model/types";
 
 const log = createLogger("assistant:store");
+
+/**
+ * What a surface hands the assistant to narrow it while it is shown, such as
+ * a tutorial: its own context, its own tools, and which of the assistant's
+ * tools may still run. The assistant never imports the surface.
+ */
+export interface AssistantMode {
+  /** A name for logs and refusals: `tutorial` */
+  name: string;
+  /** Sent with every turn as a system message, after the project's state */
+  context(): string;
+  /** Tools of the surface's own, offered beside the allowed ones */
+  tools: readonly ToolDefinition[];
+  /** Whether one of the assistant's own tools may run; a refused one answers
+   * the model with a refusal instead */
+  allows(name: string): boolean;
+}
 
 /** A change the assistant wants to make, waiting on the user */
 export interface PatchApproval {
@@ -539,6 +556,27 @@ export class PgAssistant {
   static async initMcp() {
     await PgAssistant.loadMcpServers();
     await PgAssistant.discoverMcpTools();
+  }
+
+  /** The mode narrowing the assistant to one surface, or null (`AssistantMode`) */
+  static get mode(): AssistantMode | null {
+    return PgAssistant._mode;
+  }
+
+  /**
+   * Narrow the assistant while a surface is shown, as the tutorial feed does
+   * (`tutorial-flow-v2` 3.6). The next turn reads it; a turn in flight keeps
+   * the tools it started with.
+   *
+   * @returns clears the mode, unless another surface has set its own since
+   */
+  static setMode(mode: AssistantMode): Disposable {
+    PgAssistant._mode = mode;
+    return {
+      dispose: () => {
+        if (PgAssistant._mode === mode) PgAssistant._mode = null;
+      },
+    };
   }
 
   /**
@@ -1331,6 +1369,7 @@ export class PgAssistant {
   private static _localServers: readonly McpServerEntry[] =
     LOCAL_MCP_SERVERS.map((server) => ({ ...server }));
   private static _mcpTools: Readonly<Record<string, readonly McpTool[]>> = {};
+  private static _mode: AssistantMode | null = null;
   /**
    * The turn in flight, if `beginTurn` registered one. `cut` once its thread
    * has closed, until the turn ends.

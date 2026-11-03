@@ -1,8 +1,11 @@
 import { createMcpTools } from "./mcp-tools";
 import { createSkillTools } from "./skill-tools";
-import { PgAssistant } from "../store";
+import { PgAssistant, type AssistantMode } from "../store";
 import { realBridge, type PlaygroundBridge } from "../bridge/playground-bridge";
+import { createLogger } from "@/shared/lib/logger";
 import type { ToolDefinition, ToolInput } from "@/shared/lib/ai";
+
+const log = createLogger("assistant:tools");
 
 /** Read a required string argument the model supplied */
 const str = (input: ToolInput, key: string) => {
@@ -22,12 +25,45 @@ const str = (input: ToolInput, key: string) => {
  * Skill and MCP tools are appended here rather than wired per provider, so
  * every backend gets ecosystem grounding without touching its adapter.
  *
+ * With a mode set (`PgAssistant.setMode`), a tool the mode does not allow
+ * stays offered but only answers with a refusal, so the model is told why
+ * rather than calling a tool that is not there; the mode's own tools join.
+ *
  * @param bridge the playground to act on
+ * @param mode the surface narrowing the assistant, if any
  * @returns vendor-neutral tool definitions
  */
 export const createTools = (
-  bridge: PlaygroundBridge = realBridge
-): ToolDefinition[] => [
+  bridge: PlaygroundBridge = realBridge,
+  mode: AssistantMode | null = PgAssistant.mode
+): ToolDefinition[] => {
+  const own = projectTools(bridge);
+  if (!mode) return own;
+  return [
+    ...own.map((tool) => (mode.allows(tool.name) ? tool : refused(tool, mode))),
+    ...mode.tools,
+  ];
+};
+
+/** A tool the mode does not allow: offered as it was, refusing to run */
+const refused = (
+  tool: ToolDefinition,
+  mode: AssistantMode
+): ToolDefinition => ({
+  name: tool.name,
+  description: `Not available in this ${mode.name}. ${tool.description}`,
+  schema: tool.schema,
+  run: () => {
+    log.info(`refused ${tool.name} in the ${mode.name} mode`);
+    return (
+      `${tool.name} is not available in this ${mode.name}: you cannot ` +
+      `change files, build, deploy or send transactions here. Tell the ` +
+      `learner what to do, or use the tools this ${mode.name} gives you.`
+    );
+  },
+});
+
+const projectTools = (bridge: PlaygroundBridge): ToolDefinition[] => [
   ...createSkillTools(),
   ...createMcpTools(),
 

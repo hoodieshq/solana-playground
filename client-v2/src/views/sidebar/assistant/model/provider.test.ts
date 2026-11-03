@@ -165,6 +165,27 @@ describe("the assistant's provider", () => {
     ]);
   });
 
+  it("sends a mode's context after the project's state while the mode is set", async () => {
+    const sent = respond(openAiText("Hi."));
+    const mode = PgAssistant.setMode({
+      name: "tutorial",
+      context: () => "Tutorial: Hello Anchor, step 1 of 4",
+      tools: [],
+      allows: () => true,
+    });
+    try {
+      await createProvider({ id: "default", apiKey: "" }).send("hi");
+    } finally {
+      mode.dispose();
+    }
+
+    expect(messagesOf(sent[0].body).slice(0, 3)).toEqual([
+      { role: "system", content: "system" },
+      { role: "system", content: "Current project state:\n\nproject" },
+      { role: "system", content: "Tutorial: Hello Anchor, step 1 of 4" },
+    ]);
+  });
+
   it("asks Anthropic for droppable updates, effort, fallbacks, a cached prompt and 64000 tokens", async () => {
     const sent = respond(anthropicText("ok", "end_turn"));
 

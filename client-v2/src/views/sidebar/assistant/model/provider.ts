@@ -46,6 +46,12 @@ const createReplies = () => {
   };
 };
 
+/** The mode's context as a system message, when a surface has set one */
+const modeContext = () => {
+  const mode = PgAssistant.mode;
+  return mode ? [{ role: "system" as const, content: mode.context() }] : [];
+};
+
 /**
  * One conversation with any model provider, on `runTurn`. The history keeps the SDK's messages, so
  * tool calls and Gemini's thought signatures go back as sent; a failed turn leaves it unchanged.
@@ -89,6 +95,7 @@ export const createProvider = (
               role: "system",
               content: `Current project state:\n\n${describeProject()}`,
             },
+            ...modeContext(),
           ],
           // Built per turn, so MCP tools discovered since the last one are offered
           tools: ai.toSdkTools(createTools()),
