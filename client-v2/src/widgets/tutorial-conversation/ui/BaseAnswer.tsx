@@ -17,17 +17,14 @@ const TONE: Record<BaseAnswerProps["tone"], string> = {
 
 /**
  * The live assistant's turn in the feed: its Markdown on the column's
- * ground, with no bubble, like the lesson's lines, so the two read as one
- * thread (spec "The lesson and the assistant share one thread").
+ * ground, with no bubble and in the lesson's own type (`inheritFont`), so
+ * the two read as one thread (spec "The lesson and the assistant share one
+ * thread").
  */
 const BaseAnswer = ({ text, tone }: BaseAnswerProps) => (
   <div className={cn("flex flex-col gap-2", TONE[tone])}>
     <span className="sr-only">Assistant: </span>
-    {tone === "reply" ? (
-      <Markdown codeFontOnly>{text}</Markdown>
-    ) : (
-      <p>{text}</p>
-    )}
+    {tone === "reply" ? <Markdown inheritFont>{text}</Markdown> : <p>{text}</p>}
   </div>
 );
 
