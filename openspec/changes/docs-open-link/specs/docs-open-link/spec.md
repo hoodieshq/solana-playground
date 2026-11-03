@@ -42,13 +42,13 @@ project, when the fragment:
 
 - lacks `v`, `code` or `name`;
 - has a `v` other than `1`;
-- has a `code` that is not base64url or does not inflate;
-- has a `code` that inflates to empty text or to more than 100 KB;
+- has a `code` that is neither base64url nor base64, or does not inflate;
+- has a `code` that inflates to empty text or to more than 100 KiB;
 - has a `name` that breaks the rule above;
 - has a `sol` that is not a positive number.
 
 A `+` left unescaped in `code` SHALL read as `+`. Inflating SHALL stop as
-soon as the output passes 100 KB, so a small crafted stream cannot exhaust
+soon as the output passes 100 KiB, so a small crafted stream cannot exhaust
 memory.
 
 The page SHALL say "Playground couldn't read the code in this link. It may

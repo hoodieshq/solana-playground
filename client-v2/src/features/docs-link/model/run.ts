@@ -1,40 +1,50 @@
-import { PgCommand, PgConnection, PgWallet, PgWeb3 } from "@/utils";
-import { missingPackageOf } from "@/utils/js-runtime";
-import type { RunResult } from "@/utils/js-runtime";
+import { isSetupRejected } from "@/commands/connect/setup-rejected";
 import { createLogger } from "@/shared/lib/logger";
+import { PgCommand, PgConnection, PgExplorer, PgWallet, PgWeb3 } from "@/utils";
+import type { RunResult } from "@/utils/js-runtime";
+import { missingPackageOf } from "@/utils/js-runtime";
 
 import { PgDocsLink } from "./opened";
-import { docsLinkTelemetry } from "./telemetry";
 import type { RunOutcome, RunSource, WalletOrigin } from "./telemetry";
+import { docsLinkTelemetry } from "./telemetry";
 
 const log = createLogger("docs-link:run");
 
-/** A state the run can be in once it is not asking for SOL */
-type SettledState =
-  | { kind: "idle" }
-  | { kind: "running" }
+/** How a run that started ended */
+type EndedState =
   | { kind: "done"; ms: number }
   | { kind: "failed"; message: string }
   | { kind: "missing-package"; pkg: string };
 
+/** A state with no run going and no card asking for SOL */
+type RestingState = { kind: "idle" } | EndedState;
+
 /** What the stage row's Run and its callout show */
 export type RunState =
-  | SettledState
+  | RestingState
+  | {
+      kind: "running";
+      startedAt: number;
+      /** Whether a docs link opened the project, taken when the run starts */
+      source: RunSource;
+    }
   | {
       kind: "funding";
       address: string;
       balance: number;
       needed: number;
       /** What Not now goes back to */
-      previous: SettledState;
+      previous: RestingState;
     };
 
 type Listener = (state: RunState) => void;
 
 let state: RunState = { kind: "idle" };
-/** The run in progress: when it started and whose project it ran */
-let current: { startedAt: number; source: RunSource } | null = null;
-/** Run was pressed and is still setting the wallet up or reading its SOL */
+/**
+ * Run was pressed and is still setting the wallet up or reading its SOL. A
+ * guard against a second press, not a state to show: the setup modal or the
+ * funding card is what the user sees meanwhile.
+ */
 let starting = false;
 /** How many runs have started, so `runScripts` can tell whether its own did */
 let started = 0;
@@ -46,11 +56,23 @@ const set = (next: RunState) => {
   listeners.forEach((listener) => listener(next));
 };
 
+/** Back to a clean callout, unless a run is still going */
+const reset = () => {
+  if (state.kind !== "running") set({ kind: "idle" });
+};
+
+/** @returns what Not now should return to from the current state */
+const restingOf = (current: RunState): RestingState => {
+  if (current.kind === "funding") return current.previous;
+  if (current.kind === "running") return { kind: "idle" };
+  return current;
+};
+
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
 /** A failure, or the missing package it names */
-const failure = (message: string): SettledState => {
+const failure = (message: string): EndedState => {
   const pkg = missingPackageOf(message);
   return pkg ? { kind: "missing-package", pkg } : { kind: "failed", message };
 };
@@ -61,22 +83,13 @@ const failure = (message: string): SettledState => {
  * package can come either way: thrown while loading the script, or
  * reported by the script's own wrapper when its import fails.
  */
-const settle = (
-  result: { ok: RunResult | undefined } | { err: unknown },
-  ms: number
-): SettledState => {
-  if ("err" in result) return failure(messageOf(result.err));
-  if (result.ok && !result.ok.ok) return failure(result.ok.error);
-  return { kind: "done", ms };
-};
-
-const outcomeOf: Record<SettledState["kind"], RunOutcome | null> = {
-  idle: null,
-  running: null,
-  done: "done",
-  failed: "failed",
-  "missing-package": "missing-package",
-};
+const settleWith =
+  (ms: number) =>
+  (result: { ok: RunResult | undefined } | { err: unknown }): EndedState => {
+    if ("err" in result) return failure(messageOf(result.err));
+    if (result.ok && !result.ok.ok) return failure(result.ok.error);
+    return { kind: "done", ms };
+  };
 
 /**
  * Follow the `run` command's own events, so a `run` typed in the terminal
@@ -88,36 +101,31 @@ const listen = () => {
 
   PgCommand.run.onDidStart(() => {
     started++;
-    current = {
-      startedAt: Date.now(),
-      source: PgDocsLink.opened ? "link" : "project",
-    };
-    docsLinkTelemetry.track("docs_link_run_started", {
-      source: current.source,
-    });
-    set({ kind: "running" });
+    const source: RunSource = PgDocsLink.opened ? "link" : "project";
+    docsLinkTelemetry.track("docs_link_run_started", { source });
+    set({ kind: "running", startedAt: Date.now(), source });
   });
   PgCommand.run.onDidFinish((result) => {
-    const run = current ?? { startedAt: Date.now(), source: "project" };
-    current = null;
+    // A run that started before anything listened has no start to read
+    const run =
+      state.kind === "running"
+        ? state
+        : { startedAt: Date.now(), source: "project" as const };
     const ms = Date.now() - run.startedAt;
-    const next = settle(result, ms);
-    const outcome = outcomeOf[next.kind];
-    if (outcome) {
-      docsLinkTelemetry.track("docs_link_run_finished", {
-        source: run.source,
-        outcome,
-        seconds: Math.floor(ms / 1000),
-      });
-    }
+    const next = settleWith(ms)(result);
+    const outcome: RunOutcome = next.kind;
+    docsLinkTelemetry.track("docs_link_run_finished", {
+      source: run.source,
+      outcome,
+      seconds: Math.floor(ms / 1000),
+    });
     set(next);
   });
 
-  // A new link, or a project opened any other way, starts from a clean
-  // callout; a run still going keeps its state until it ends
-  PgDocsLink.onDidChange(() => {
-    if (state.kind !== "running") set({ kind: "idle" });
-  });
+  // A new link, a broken one, or another project opened starts from a clean
+  // callout: the last run's end belongs to the project it ran
+  PgDocsLink.onDidChange(reset);
+  PgExplorer.onDidSwitchWorkspace(reset);
 
   listening = true;
 };
@@ -127,44 +135,72 @@ const balanceOf = async (address: PgWeb3.PublicKey) =>
   PgWeb3.lamportsToSol(await PgConnection.current.getBalance(address));
 
 /**
- * The SOL check a docs link asks for: the funding card when the wallet holds
- * less than the link's `sol`, else nothing.
+ * The SOL check a docs link asks for: the funding card when the Playground
+ * wallet holds less than the link's `sol`, else nothing. A browser wallet is
+ * not checked: `signerFromFile` reads the Playground wallet only, and says so
+ * when the script asks for it.
  *
- * @param wallet `new` when Run had to set the wallet up first
+ * @param wallet `new` when Run had to set the wallet up first; Check again
+ * always reports `existing`, since the card's wallet exists by then
  * @returns whether the run may start
  */
 const funded = async (wallet: WalletOrigin) => {
   const needed = PgDocsLink.opened?.sol;
   if (!needed) return true;
 
-  const address = PgWallet.current?.publicKey;
-  // `start` sets the wallet up first, so this is a wallet that vanished
-  if (!address) throw new Error("No wallet to run the script with.");
-  const balance = await balanceOf(address);
+  const current = PgWallet.current;
+  // `start` connects the wallet first, so this is a wallet that vanished
+  if (!current) throw new Error("No wallet to run the script with.");
+  if (!current.isPg) return true;
+
+  const balance = await balanceOf(current.publicKey);
   if (balance >= needed) return true;
 
   docsLinkTelemetry.track("docs_link_run_funding_shown", { wallet });
   set({
     kind: "funding",
-    address: address.toBase58(),
+    address: current.publicKey.toBase58(),
     balance,
     needed,
-    previous: state.kind === "funding" ? state.previous : state,
+    previous: restingOf(state),
   });
   return false;
 };
 
 /**
+ * Connect the wallet when Run finds none: the setup for a first visit, the
+ * Playground wallet again after a disconnect.
+ *
+ * @returns how the wallet came to be, or `undefined` when the user closed
+ * the setup
+ */
+const connectWallet = async (): Promise<WalletOrigin | undefined> => {
+  if (PgWallet.state !== "setup" && PgWallet.state !== "disconnected") {
+    return "existing";
+  }
+  const origin: WalletOrigin = PgWallet.state === "setup" ? "new" : "existing";
+  try {
+    await PgCommand.connect.execute();
+  } catch (error) {
+    if (!isSetupRejected(error)) throw error;
+    // The user closed the setup: nothing to run with, and they know why
+    log.info("wallet setup closed before the run");
+    return undefined;
+  }
+  return PgWallet.current ? origin : undefined;
+};
+
+/**
  * Run the scripts. A rejection the command threw before it started never
  * reaches `onDidFinish` (another run in progress, say), so it is shown here.
- * A run that started has already settled through `onDidFinish`, which the
- * command calls before it rethrows, so its state is left as it is.
  */
 const runScripts = async () => {
   const before = started;
   try {
     await PgCommand.run.execute();
   } catch (error) {
+    // A run that started has settled through `onDidFinish`, which the
+    // command calls before it rethrows: its state already says how it ended
     if (started !== before) return;
     log.warn("run refused before it started", { context: { error } });
     set({ kind: "failed", message: messageOf(error) });
@@ -188,20 +224,15 @@ export const PgClientRun = {
     return { dispose: () => void listeners.delete(listener) };
   },
 
-  /** Set the wallet up if needed, check its SOL, then `run` */
+  /** Connect the wallet if needed, check its SOL, then `run` */
   async start() {
     listen();
     // One run at a time, counting the wallet setup and balance read before it
     if (state.kind === "running" || starting) return;
     starting = true;
     try {
-      let wallet: WalletOrigin = "existing";
-      if (PgWallet.state === "setup") {
-        wallet = "new";
-        await PgCommand.connect.execute();
-        // The user closed the setup: nothing to run with, and they know why
-        if (!PgWallet.current) return;
-      }
+      const wallet = await connectWallet();
+      if (!wallet) return;
       if (!(await funded(wallet))) return;
     } finally {
       starting = false;

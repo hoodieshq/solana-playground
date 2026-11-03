@@ -9,9 +9,9 @@ export interface DocsLink {
   /** The project's title */
   title: string;
   /** The `https:` page the link came from */
-  from: string | null;
+  from?: string;
   /** Devnet SOL the script needs before it can run */
-  sol: number | null;
+  sol?: number;
 }
 
 /**
@@ -29,7 +29,7 @@ export type DocsLinkFailure =
 
 export type DecodedDocsLink =
   | { ok: true; link: DocsLink }
-  | { ok: false; reason: DocsLinkFailure; from: string | null };
+  | { ok: false; reason: DocsLinkFailure; from?: string };
 
 /** The one format version this client reads */
 const VERSION = "1";
@@ -48,15 +48,15 @@ export const DOCS_HOME = "https://solana.com/docs";
  * `javascript:` or a plain-HTTP page.
  *
  * @param value the URL as the link gives it
- * @returns the URL, or `null`
+ * @returns the URL, or `undefined`
  */
-const httpsUrlOf = (value: string | null): string | null => {
-  if (!value) return null;
+const httpsUrlOf = (value: string | null): string | undefined => {
+  if (!value) return undefined;
   try {
-    return new URL(value).protocol === "https:" ? value : null;
+    return new URL(value).protocol === "https:" ? value : undefined;
   } catch {
     // Not a URL at all: the link has no usable source
-    return null;
+    return undefined;
   }
 };
 
@@ -169,9 +169,10 @@ export const decodeDocsLink = (fragment: string): DecodedDocsLink => {
   if (version !== VERSION) return fail("version");
   if (!NAME_REGEX.test(name)) return fail("name");
 
-  const solParam = params.get("sol");
-  const sol = solParam === null ? null : Number(solParam);
-  if (sol !== null && !(Number.isFinite(sol) && sol > 0)) return fail("sol");
+  const sol = params.has("sol") ? Number(params.get("sol")) : undefined;
+  if (sol !== undefined && !(Number.isFinite(sol) && sol > 0)) {
+    return fail("sol");
+  }
 
   const inflated = inflateCode(code);
   if (!inflated.ok) return fail(inflated.reason);
@@ -201,7 +202,7 @@ export const encodeDocsLink = (
   const params = new URLSearchParams({ v: VERSION, name: link.name });
   if (link.title) params.set("title", link.title);
   if (link.from) params.set("from", link.from);
-  if (link.sol !== null) params.set("sol", String(link.sol));
+  if (link.sol !== undefined) params.set("sol", String(link.sol));
   params.set(
     "code",
     toBase64Url(deflateRaw(new TextEncoder().encode(link.code)))
@@ -217,7 +218,7 @@ export const encodeDocsLink = (
  * @param referrer `document.referrer`
  * @returns the URL to go to
  */
-export const backToDocsHref = (from: string | null, referrer: string) => {
+export const backToDocsHref = (from: string | undefined, referrer: string) => {
   if (from) return from;
   const fromReferrer = httpsUrlOf(referrer);
   if (fromReferrer) {
@@ -257,8 +258,6 @@ if (import.meta.vitest) {
       const fragment = encodeDocsLink({
         name: "hello.ts",
         code: "console.log(1)",
-        from: null,
-        sol: null,
       });
       const decoded = decodeDocsLink(`#${fragment}`);
       expect(decoded.ok && decoded.link.title).toBe("hello");
@@ -266,17 +265,17 @@ if (import.meta.vitest) {
 
     it("names why a link is broken", () => {
       const good = new URLSearchParams(encodeDocsLink(QUICKSTART));
-      const withParam = (key: string, value: string | null) => {
+      const withParam = (key: string, value: string | undefined) => {
         const params = new URLSearchParams(good);
-        if (value === null) params.delete(key);
+        if (value === undefined) params.delete(key);
         else params.set(key, value);
         return decodeDocsLink(params.toString());
       };
-      const code = good.get("code")!;
+      const code = good.get("code") ?? "";
       const reasonOf = (decoded: DecodedDocsLink) =>
         decoded.ok ? "ok" : decoded.reason;
 
-      expect(reasonOf(withParam("code", null))).toBe("missing");
+      expect(reasonOf(withParam("code", undefined))).toBe("missing");
       expect(reasonOf(withParam("v", "2"))).toBe("version");
       expect(reasonOf(withParam("code", code.slice(0, -40)))).toBe("decode");
       expect(reasonOf(withParam("code", "%%%"))).toBe("decode");
@@ -284,12 +283,12 @@ if (import.meta.vitest) {
       expect(reasonOf(withParam("name", "../a.ts"))).toBe("name");
       expect(reasonOf(withParam("sol", "-1"))).toBe("sol");
       expect(reasonOf(withParam("sol", "lots"))).toBe("sol");
+      expect(reasonOf(withParam("sol", "0"))).toBe("sol");
+      expect(reasonOf(withParam("sol", "Infinity"))).toBe("sol");
 
       const tooBig = encodeDocsLink({
         name: "a.ts",
         code: "x".repeat(MAX_DOCS_LINK_BYTES + 1),
-        from: null,
-        sol: null,
       });
       expect(reasonOf(decodeDocsLink(tooBig))).toBe("size");
     });
@@ -307,7 +306,9 @@ if (import.meta.vitest) {
 
     it("reads plain base64 as well as base64url", () => {
       const params = new URLSearchParams(encodeDocsLink(QUICKSTART));
-      const plain = params.get("code")!.replace(/-/g, "+").replace(/_/g, "/");
+      const plain = (params.get("code") ?? "")
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
       params.set("code", plain);
       expect(decodeDocsLink(params.toString()).ok).toBe(true);
     });
@@ -315,10 +316,11 @@ if (import.meta.vitest) {
     it("reads a plus left unescaped in the fragment", () => {
       // This text deflates to a code whose standard base64 holds a "+"
       const script = 'const v11 = "1v7p~ü";';
-      const code = new URLSearchParams(
-        encodeDocsLink({ name: "a.ts", code: script, from: null, sol: null })
+      const code = (
+        new URLSearchParams(encodeDocsLink({ name: "a.ts", code: script })).get(
+          "code"
+        ) ?? ""
       )
-        .get("code")!
         .replace(/-/g, "+")
         .replace(/_/g, "/");
       expect(code).toContain("+");
@@ -333,8 +335,6 @@ if (import.meta.vitest) {
       const bomb = encodeDocsLink({
         name: "a.ts",
         code: "a".repeat(50 * 1024 * 1024),
-        from: null,
-        sol: null,
       });
       const decoded = decodeDocsLink(bomb);
       expect(decoded.ok || decoded.reason).toBe("size");
@@ -342,20 +342,26 @@ if (import.meta.vitest) {
 
     it("never uses a source that is not https", () => {
       const decoded = decodeDocsLink("v=1&from=javascript%3Aalert(1)");
-      expect(decoded.ok || decoded.from).toBeNull();
+      expect(decoded.ok || decoded.from).toBeUndefined();
     });
 
     it("sends Back to the docs to the best page it knows", () => {
       const from = "https://solana.com/docs/quickstart";
       expect(backToDocsHref(from, "")).toBe(from);
-      expect(backToDocsHref(null, "https://solana.com/docs/payments")).toBe(
-        "https://solana.com/docs/payments"
-      );
-      expect(backToDocsHref(null, "https://evil.example/solana.com")).toBe(
+      expect(
+        backToDocsHref(undefined, "https://solana.com/docs/payments")
+      ).toBe("https://solana.com/docs/payments");
+      expect(backToDocsHref(undefined, "https://evil.example/solana.com")).toBe(
         DOCS_HOME
       );
-      expect(backToDocsHref(null, "http://solana.com/docs")).toBe(DOCS_HOME);
-      expect(backToDocsHref(null, "")).toBe(DOCS_HOME);
+      // A host that only ends in the name is someone else's
+      expect(backToDocsHref(undefined, "https://notsolana.com/docs")).toBe(
+        DOCS_HOME
+      );
+      expect(backToDocsHref(undefined, "http://solana.com/docs")).toBe(
+        DOCS_HOME
+      );
+      expect(backToDocsHref(undefined, "")).toBe(DOCS_HOME);
     });
   });
 }

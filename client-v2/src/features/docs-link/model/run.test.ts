@@ -11,11 +11,13 @@ const utils = vi.hoisted(() => {
   const handlers: {
     start: Array<(input: string | null) => void>;
     finish: Array<Finish>;
-  } = { start: [], finish: [] };
+    switchWorkspace: Array<() => void>;
+  } = { start: [], finish: [], switchWorkspace: [] };
   const address = { toBase58: () => "Wa11et" };
   return {
     handlers,
     lamports: 0,
+    balanceError: undefined as Error | undefined,
     PgCommand: {
       run: {
         onDidStart: (cb: (input: string | null) => void) => {
@@ -32,7 +34,13 @@ const utils = vi.hoisted(() => {
     },
     PgWallet: {
       state: "pg" as string,
-      current: { publicKey: address } as unknown,
+      current: { publicKey: address, isPg: true } as unknown,
+    },
+    PgExplorer: {
+      onDidSwitchWorkspace: (cb: () => void) => {
+        handlers.switchWorkspace.push(cb);
+        return { dispose: () => {} };
+      },
     },
   };
 });
@@ -40,8 +48,14 @@ const utils = vi.hoisted(() => {
 vi.mock("@/utils", () => ({
   PgCommand: utils.PgCommand,
   PgWallet: utils.PgWallet,
+  PgExplorer: utils.PgExplorer,
   PgConnection: {
-    current: { getBalance: async () => utils.lamports },
+    current: {
+      getBalance: async () => {
+        if (utils.balanceError) throw utils.balanceError;
+        return utils.lamports;
+      },
+    },
   },
   PgWeb3: { lamportsToSol: (lamports: number) => lamports / 1e9 },
 }));
@@ -65,6 +79,7 @@ const load = async () => {
   vi.resetModules();
   utils.handlers.start.length = 0;
   utils.handlers.finish.length = 0;
+  utils.handlers.switchWorkspace.length = 0;
   const telemetry = await import("@/shared/lib/telemetry");
   const provider = telemetry.memoryProvider();
   telemetry.initTelemetry({ providers: [provider] });
@@ -80,9 +95,12 @@ const load = async () => {
 const startRun = () => utils.handlers.start.forEach((cb) => cb("run"));
 const finishRun = (result: Parameters<Finish>[0]) =>
   utils.handlers.finish.forEach((cb) => cb(result));
+const switchWorkspace = () =>
+  utils.handlers.switchWorkspace.forEach((cb) => cb());
 
 beforeEach(() => {
   utils.lamports = 0;
+  utils.balanceError = undefined;
   utils.PgWallet.state = "pg";
   utils.PgCommand.run.execute.mockClear();
   utils.PgCommand.connect.execute.mockClear();
@@ -164,7 +182,7 @@ describe("PgClientRun", () => {
 
   it("asks for SOL before running a link that needs it", async () => {
     const { PgClientRun, PgDocsLink } = await load();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
 
     await PgClientRun.start();
 
@@ -184,7 +202,7 @@ describe("PgClientRun", () => {
 
   it("runs once Check again finds the SOL", async () => {
     const { PgClientRun, PgDocsLink } = await load();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     await PgClientRun.start();
 
     utils.lamports = 0.5e9;
@@ -195,7 +213,7 @@ describe("PgClientRun", () => {
 
   it("goes back from the funding card on Not now", async () => {
     const { PgClientRun, PgDocsLink } = await load();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     await PgClientRun.start();
 
     PgClientRun.dismissFunding();
@@ -205,7 +223,7 @@ describe("PgClientRun", () => {
 
   it("sets a new wallet up before checking its SOL", async () => {
     const { PgClientRun, PgDocsLink } = await load();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     utils.PgWallet.state = "setup";
 
     await PgClientRun.start();
@@ -222,14 +240,14 @@ describe("PgClientRun", () => {
 
   it("counts a run as the link's while the link's project is open", async () => {
     const { PgDocsLink } = await load();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     startRun();
     expect(sent.events.at(-1)?.params).toEqual({ source: "link" });
   });
 
   it("runs when the wallet holds exactly what the link needs", async () => {
     const { PgClientRun, PgDocsLink } = await load();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     utils.lamports = 0.02e9;
     await PgClientRun.start();
     expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
@@ -237,7 +255,7 @@ describe("PgClientRun", () => {
 
   it("stays on the funding card while the wallet is still short", async () => {
     const { PgClientRun, PgDocsLink } = await load();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     await PgClientRun.start();
 
     utils.lamports = 0.01e9;
@@ -255,16 +273,85 @@ describe("PgClientRun", () => {
 
   it("does nothing when the wallet setup is closed", async () => {
     const { PgClientRun, PgDocsLink } = await load();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     utils.PgWallet.state = "setup";
+    // As `connect` does when the user closes the setup modal
+    utils.PgCommand.connect.execute.mockRejectedValueOnce(
+      new Error("Setup rejected.")
+    );
+
+    await expect(PgClientRun.start()).resolves.toBeUndefined();
+
+    expect(utils.PgCommand.run.execute).not.toHaveBeenCalled();
+    expect(PgClientRun.state.kind).toBe("idle");
+  });
+
+  it("connects a disconnected wallet before checking its SOL", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.open(QUICKSTART);
+    utils.PgWallet.state = "disconnected";
+
+    await PgClientRun.start();
+
+    expect(utils.PgCommand.connect.execute).toHaveBeenCalledTimes(1);
+    expect(sent.events.at(-1)?.params).toEqual({ wallet: "existing" });
+  });
+
+  it("checks no SOL on a browser wallet", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.open(QUICKSTART);
     const wallet = utils.PgWallet.current;
-    utils.PgWallet.current = null;
+    utils.PgWallet.current = { publicKey: { toBase58: () => "Ph4ntom" } };
 
     await PgClientRun.start();
 
     utils.PgWallet.current = wallet;
-    expect(utils.PgCommand.run.execute).not.toHaveBeenCalled();
+    expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets Run start again after the balance read fails", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.open(QUICKSTART);
+    utils.balanceError = new Error("fetch failed");
+    await expect(PgClientRun.start()).rejects.toThrow("fetch failed");
     expect(PgClientRun.state.kind).toBe("idle");
+
+    utils.balanceError = undefined;
+    utils.lamports = 0.5e9;
+    await PgClientRun.start();
+
+    expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes back past a short Check again to the run before the card", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.open(QUICKSTART);
+    startRun();
+    finishRun({ ok: { ok: false, error: "fetch failed" } });
+    await PgClientRun.start();
+    await PgClientRun.checkAgain();
+
+    PgClientRun.dismissFunding();
+
+    expect(PgClientRun.state).toEqual({
+      kind: "failed",
+      message: "fetch failed",
+    });
+  });
+
+  it("starts another project from a clean callout", async () => {
+    const { PgClientRun } = await load();
+    startRun();
+    finishRun({ ok: { ok: true } });
+    switchWorkspace();
+    expect(PgClientRun.state.kind).toBe("idle");
+  });
+
+  it("keeps a run going when another project opens", async () => {
+    const { PgClientRun } = await load();
+    startRun();
+    switchWorkspace();
+    expect(PgClientRun.state.kind).toBe("running");
   });
 
   it("shows a run the command refused before it started", async () => {
@@ -298,15 +385,15 @@ describe("PgClientRun", () => {
   it("keeps a run going when another link opens", async () => {
     const { PgClientRun, PgDocsLink } = await load();
     startRun();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     expect(PgClientRun.state.kind).toBe("running");
   });
 
   it("counts the run as the link's from start to finish", async () => {
     const { PgDocsLink } = await load();
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     startRun();
-    PgDocsLink.set(null);
+    PgDocsLink.clear();
     finishRun({ ok: { ok: true } });
     expect(sent.events.at(-1)?.params).toMatchObject({ source: "link" });
   });
@@ -322,7 +409,7 @@ describe("PgClientRun", () => {
     const { PgClientRun, PgDocsLink } = await load();
     startRun();
     finishRun({ ok: { ok: true } });
-    PgDocsLink.set(QUICKSTART);
+    PgDocsLink.open(QUICKSTART);
     expect(PgClientRun.state.kind).toBe("idle");
   });
 });

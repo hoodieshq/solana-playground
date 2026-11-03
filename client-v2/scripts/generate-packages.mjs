@@ -4,13 +4,7 @@ import fs from "fs/promises";
 import { createRequire } from "module";
 import pathModule from "path";
 
-import {
-  CLIENT_PATH,
-  exists,
-  readJSON,
-  REPO_ROOT_PATH,
-  resetDir,
-} from "./utils.mjs";
+import { CLIENT_PATH, exists, readJSON, resetDir } from "./utils.mjs";
 
 const { readSupportedPackages } = createRequire(import.meta.url)(
   "./lib/supported-packages.cjs"

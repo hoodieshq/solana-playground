@@ -1,5 +1,5 @@
-import type { FC } from "react";
 import { Play } from "lucide-react";
+import type { FC } from "react";
 
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";

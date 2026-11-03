@@ -1,12 +1,12 @@
 // `@types/mocha` also declares a global `it`, without `each`
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { encodeDocsLink, PgDocsLink } from "@/features/docs-link";
 import {
   initTelemetry,
   memoryProvider,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
-import { encodeDocsLink, PgDocsLink } from "@/features/docs-link";
 
 const common = vi.hoisted(() => ({
   handleRoute: vi.fn(() => ({ dispose: () => {} })),
@@ -52,6 +52,13 @@ const routeArg = () =>
     ]
   )[0];
 
+/** The project the route opened, failing the test when it opened none */
+const initArg = () => {
+  const init = routeArg().getExplorerInitArg;
+  if (!init) throw new Error("the route opened no project");
+  return init();
+};
+
 beforeEach(() => {
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
@@ -61,7 +68,7 @@ beforeEach(() => {
 afterEach(() => {
   opened.splice(0).forEach((route) => route.dispose());
   resetTelemetry();
-  PgDocsLink.set(null);
+  PgDocsLink.clear();
   window.location.hash = "";
 });
 
@@ -69,7 +76,7 @@ describe("/open", () => {
   it("opens the link's file as a client project", () => {
     visit(encodeDocsLink(QUICKSTART));
 
-    const { files } = routeArg().getExplorerInitArg!();
+    const { files } = initArg();
     expect(files).toEqual([["client/quickstart.ts", QUICKSTART.code]]);
     expect(PgDocsLink.opened).toEqual(QUICKSTART);
     expect(sent.events).toEqual([
@@ -85,8 +92,7 @@ describe("/open", () => {
 
     expect(routeArg().getExplorerInitArg).toBeUndefined();
     expect(routeArg().main).toBeInstanceOf(Function);
-    expect(PgDocsLink.opened).toBeNull();
-    expect(PgDocsLink.broken).toBe(true);
+    expect(PgDocsLink.state).toEqual({ kind: "broken" });
     expect(sent.events).toEqual([
       { name: "docs_link_failed", params: { reason: "missing" } },
     ]);
@@ -95,20 +101,20 @@ describe("/open", () => {
   it("clears the broken state once another route takes over", () => {
     const route = visit("v=1&name=a.ts");
     route.dispose();
-    expect(PgDocsLink.broken).toBe(false);
+    expect(PgDocsLink.state).toEqual({ kind: "none" });
   });
 
   it("names no host for a link without a source", () => {
-    visit(
-      encodeDocsLink({
-        name: "hello.ts",
-        code: "console.log(1)",
-        from: null,
-        sol: null,
-      })
-    );
-    routeArg().getExplorerInitArg!();
+    visit(encodeDocsLink({ name: "hello.ts", code: "console.log(1)" }));
+    initArg();
     expect(sent.events.at(-1)?.params).toMatchObject({ host: "none" });
+  });
+
+  it("counts the file's size in bytes, not characters", () => {
+    // "ü" is two bytes in UTF-8
+    visit(encodeDocsLink({ name: "hello.ts", code: 'log("ü")' }));
+    initArg();
+    expect(sent.events.at(-1)?.params).toMatchObject({ bytes: 9 });
   });
 
   it("reloads when a new link replaces the fragment", () => {
@@ -129,10 +135,10 @@ describe("/open", () => {
 
   it("forgets the link once another route takes over", () => {
     const route = visit(encodeDocsLink(QUICKSTART));
-    routeArg().getExplorerInitArg!();
+    initArg();
 
     route.dispose();
 
-    expect(PgDocsLink.opened).toBeNull();
+    expect(PgDocsLink.opened).toBeUndefined();
   });
 });

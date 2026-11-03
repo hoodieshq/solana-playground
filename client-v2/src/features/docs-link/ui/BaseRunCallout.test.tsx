@@ -1,58 +1,60 @@
 // The stage row's Run and the callout above the code, drawn from props alone
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
+
+import type { RunState } from "../model/run";
 import BaseRunButton from "./BaseRunButton";
 import BaseRunCallout, { FAUCET_URL } from "./BaseRunCallout";
-import type { RunState } from "../model/run";
 
 const SOURCE = {
   title: "Quickstart",
   from: "https://solana.com/docs/quickstart",
 };
 
-const callout = (
-  state: RunState,
-  source: ComponentProps<typeof BaseRunCallout>["source"] = SOURCE
-) => {
-  const handlers = {
-    onRunAgain: vi.fn(),
-    onCheckAgain: vi.fn(),
-    onNotNow: vi.fn(),
-    onCopyError: vi.fn(),
+const calloutFrom =
+  (source: ComponentProps<typeof BaseRunCallout>["source"]) =>
+  (state: RunState) => {
+    const handlers = {
+      onRunAgain: vi.fn(),
+      onCheckAgain: vi.fn(),
+      onNotNow: vi.fn(),
+      onCopyError: vi.fn(),
+    };
+    const { container } = render(
+      <TooltipProvider>
+        <BaseRunCallout
+          state={state}
+          source={source}
+          onRunAgain={handlers.onRunAgain}
+          onCheckAgain={handlers.onCheckAgain}
+          onNotNow={handlers.onNotNow}
+          onCopyError={handlers.onCopyError}
+        />
+      </TooltipProvider>
+    );
+    const node = container.querySelector("#client-run-callout");
+    return { node, handlers };
   };
-  const { container } = render(
-    <TooltipProvider>
-      <BaseRunCallout
-        state={state}
-        source={source}
-        onRunAgain={handlers.onRunAgain}
-        onCheckAgain={handlers.onCheckAgain}
-        onNotNow={handlers.onNotNow}
-        onCopyError={handlers.onCopyError}
-      />
-    </TooltipProvider>
-  );
-  const node = container.querySelector("#client-run-callout");
-  return { node, handlers };
-};
+
+const callout = calloutFrom(SOURCE);
 
 describe("BaseRunButton", () => {
   it.each([
-    [false, false, "Run", false],
-    [true, false, "Running…", true],
-    [false, true, "Run again", false],
-  ])("running=%s ran=%s reads %s", (running, ran, label, disabled) => {
+    { running: false, ran: false, label: "Run", disabled: false },
+    { running: true, ran: false, label: "Running…", disabled: true },
+    { running: false, ran: true, label: "Run again", disabled: false },
+  ])("running=$running ran=$ran reads $label", (row) => {
     const onRun = vi.fn();
     const { container } = render(
-      <BaseRunButton running={running} ran={ran} onRun={onRun} />
+      <BaseRunButton running={row.running} ran={row.ran} onRun={onRun} />
     );
-    const button = container.querySelector("#flow-run")!;
+    const button = container.querySelector<HTMLButtonElement>("#flow-run");
     // The spinner adds its own "Loading" to the button's accessible name
-    expect(button.textContent).toBe(label);
-    expect((button as HTMLButtonElement).disabled).toBe(disabled);
+    expect(button?.textContent).toBe(row.label);
+    expect(button?.disabled).toBe(row.disabled);
   });
 });
 
@@ -67,15 +69,15 @@ describe("BaseRunCallout", () => {
   });
 
   it("offers no docs page when the link named none", () => {
-    callout({ kind: "idle" }, { title: "Hello", from: null });
-    expect(screen.queryByRole("link", { name: "View the docs page" })).toBe(
-      null
-    );
+    calloutFrom({ title: "Hello" })({ kind: "idle" });
+    expect(
+      screen.queryByRole("link", { name: "View the docs page" })
+    ).toBeNull();
     expect(screen.getByText("From a docs link: Hello")).toBeTruthy();
   });
 
   it("shows nothing for a project from no link before it is run", () => {
-    const { node } = callout({ kind: "idle" }, null);
+    const { node } = calloutFrom(undefined)({ kind: "idle" });
     expect(node).toBeNull();
   });
 

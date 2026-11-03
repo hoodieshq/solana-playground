@@ -1,6 +1,6 @@
 // Public API of the slice: import from here, never from its internals.
 // A docs page's "Open in Playground" link, and the stage row's Run for the
-// client project it opens (HOO-2507).
+// client project it opens.
 export {
   backToDocsHref,
   decodeDocsLink,
@@ -9,6 +9,7 @@ export {
   MAX_DOCS_LINK_BYTES,
 } from "./lib/link";
 export type { DecodedDocsLink, DocsLink, DocsLinkFailure } from "./lib/link";
+export type { LinkState } from "./model/opened";
 export { PgDocsLink } from "./model/opened";
 export { PgClientRun } from "./model/run";
 export type { RunState } from "./model/run";

@@ -1,18 +1,19 @@
 // `@types/mocha` also declares a global `it`, without `each`
-import { describe, expect, it } from "vitest";
-import { transpile } from "typescript";
 import { createKeyPairSignerFromBytes } from "@solana/kit";
 import { signer } from "@solana/kit-plugin-signer";
 import { Keypair } from "@solana/web3.js";
+import { transpile } from "typescript";
+import { describe, expect, it } from "vitest";
 
-import { missingPackageOf } from "./missing-package";
 import {
   pgSignerFromFile,
+  reasonMessage,
   showBigInts,
   SIGNER_NEEDS_PG_WALLET,
   TRANSPILE_OPTIONS,
   wrapScript,
 } from "./kit";
+import { missingPackageOf } from "./missing-package";
 
 describe("missingPackageOf", () => {
   it("names the package a failed import asked for", () => {
@@ -21,8 +22,24 @@ describe("missingPackageOf", () => {
     ).toBe("@solana-program/memo");
   });
 
-  it("is null for any other error", () => {
-    expect(missingPackageOf("fetch failed")).toBeNull();
+  it("is undefined for any other error", () => {
+    expect(missingPackageOf("fetch failed")).toBeUndefined();
+  });
+});
+
+describe("reasonMessage", () => {
+  it("reads an error's message whichever window built it", () => {
+    // An iframe's `Error` is not the page's: only the shape is shared
+    expect(reasonMessage({ name: "Error", message: "boom" })).toBe("boom");
+    expect(reasonMessage(new Error("boom"))).toBe("boom");
+  });
+
+  it("prints anything else a script rejects with", () => {
+    expect(reasonMessage("boom")).toBe("boom");
+    expect(reasonMessage(undefined)).toBe("undefined");
+    expect(reasonMessage(Object.create(null))).toBe(
+      "a value that cannot be printed"
+    );
   });
 });
 
@@ -92,10 +109,10 @@ describe("pgSignerFromFile", () => {
 
   it("makes the Playground wallet the identity and the payer", async () => {
     const keypair = Keypair.generate();
-    const signerFromFile = pgSignerFromFile(deps, () => ({
-      isPg: true,
-      keypair,
-    }));
+    const signerFromFile = pgSignerFromFile(
+      () => ({ isPg: true, keypair }),
+      deps
+    );
 
     const client = await signerFromFile("wallet.json")({});
 
@@ -104,7 +121,7 @@ describe("pgSignerFromFile", () => {
   });
 
   it("refuses a wallet that is not the Playground wallet", async () => {
-    const signerFromFile = pgSignerFromFile(deps, () => ({ isPg: false }));
+    const signerFromFile = pgSignerFromFile(() => ({ isPg: false }), deps);
 
     await expect(signerFromFile("wallet.json")({})).rejects.toThrow(
       SIGNER_NEEDS_PG_WALLET

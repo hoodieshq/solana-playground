@@ -35,7 +35,7 @@ vi.mock("../../utils", () => ({
 import { run } from "./run-and-test";
 
 const execute = (...paths: string[]) =>
-  run.handle!({ args: { paths: paths.length ? paths : undefined } } as never);
+  run.handle?.({ args: { paths: paths.length ? paths : undefined } } as never);
 
 beforeEach(() => {
   runtime.execute.mockReset();

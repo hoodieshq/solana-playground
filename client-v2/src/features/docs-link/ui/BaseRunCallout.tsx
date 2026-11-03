@@ -1,5 +1,5 @@
-import type { FC, ReactNode } from "react";
 import { CircleAlert, CircleCheck, Info, Wallet } from "lucide-react";
+import type { FC, ReactNode } from "react";
 
 import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
@@ -11,7 +11,7 @@ import type { RunState } from "../model/run";
 export interface RunSourceInfo {
   title: string;
   /** The page the link came from, already checked to be `https:` */
-  from: string | null;
+  from?: string;
 }
 
 /** Where "Get devnet SOL" goes until Playground has a faucet of its own */
@@ -19,7 +19,8 @@ export const FAUCET_URL = "https://faucet.solana.com";
 
 export interface BaseRunCalloutProps {
   state: RunState;
-  source: RunSourceInfo | null;
+  /** Absent when no docs link opened the project */
+  source?: RunSourceInfo;
   onRunAgain: () => void;
   onCheckAgain: () => void;
   onNotNow: () => void;
@@ -29,6 +30,40 @@ export interface BaseRunCalloutProps {
 const hostOf = (from: string) => new URL(from).hostname;
 
 const sol = (amount: number) => `${Number(amount.toFixed(4))} SOL`;
+
+interface NoteProps {
+  /** The callout's `data-state`, which the tests and the stand read */
+  state: string;
+  variant: "info" | "success" | "error";
+  icon: ReactNode;
+  title: ReactNode;
+  children: ReactNode;
+  actions?: ReactNode;
+}
+
+/** One of the callout's plain states: an icon, a title, a line, buttons */
+const Note: FC<NoteProps> = ({
+  state,
+  variant,
+  icon,
+  title,
+  children,
+  actions,
+}) => (
+  <Callout
+    id="client-run-callout"
+    data-state={state}
+    variant={variant}
+    className="mb-2"
+  >
+    {icon}
+    <CalloutTitle>{title}</CalloutTitle>
+    <CalloutDescription>
+      {children}
+      {actions && <div className="mt-2 flex gap-2">{actions}</div>}
+    </CalloutDescription>
+  </Callout>
+);
 
 /**
  * The one note above the code of a project with no program: where it came
@@ -48,40 +83,19 @@ const BaseRunCallout: FC<BaseRunCalloutProps> = ({
     </Button>
   );
 
-  const note = (
-    dataState: string,
-    variant: "info" | "success" | "error",
-    icon: ReactNode,
-    title: ReactNode,
-    body: ReactNode,
-    actions?: ReactNode
-  ) => (
-    <Callout
-      id="client-run-callout"
-      data-state={dataState}
-      variant={variant}
-      className="mb-2"
-    >
-      {icon}
-      <CalloutTitle>{title}</CalloutTitle>
-      <CalloutDescription>
-        {body}
-        {actions && <div className="mt-2 flex gap-2">{actions}</div>}
-      </CalloutDescription>
-    </Callout>
-  );
-
   switch (state.kind) {
     case "idle":
     case "running": {
+      // eslint-disable-next-line unicorn/no-null -- a component that draws nothing returns `null`; React's types refuse `undefined`
       if (!source) return null;
       const where = source.from ? hostOf(source.from) : "a docs link";
-      return note(
-        "source",
-        "info",
-        <Info />,
-        `From ${where}: ${source.title}`,
-        <>
+      return (
+        <Note
+          state="source"
+          variant="info"
+          icon={<Info />}
+          title={`From ${where}: ${source.title}`}
+        >
           Runs with your Playground wallet.{" "}
           {source.from && (
             <a
@@ -93,39 +107,50 @@ const BaseRunCallout: FC<BaseRunCalloutProps> = ({
               View the docs page
             </a>
           )}
-        </>
+        </Note>
       );
     }
 
     case "done":
-      return note(
-        "done",
-        "success",
-        <CircleCheck />,
-        `Ran in ${Math.round(state.ms / 1000)} s`,
-        "Signatures and Explorer links are in the terminal.",
-        again
+      return (
+        <Note
+          state="done"
+          variant="success"
+          icon={<CircleCheck />}
+          title={`Ran in ${Math.round(state.ms / 1000)} s`}
+          actions={again}
+        >
+          Signatures and Explorer links are in the terminal.
+        </Note>
       );
 
     case "failed":
-      return note(
-        "failed",
-        "error",
-        <CircleAlert />,
-        "Run failed",
-        state.message,
-        again
+      return (
+        <Note
+          state="failed"
+          variant="error"
+          icon={<CircleAlert />}
+          title="Run failed"
+          actions={again}
+        >
+          {state.message}
+        </Note>
       );
 
     case "missing-package":
-      return note(
-        "missing-package",
-        "error",
-        <CircleAlert />,
-        <>
-          Playground can't load <code>{state.pkg}</code> yet
-        </>,
-        "This script imports it, so nothing ran."
+      return (
+        <Note
+          state="missing-package"
+          variant="error"
+          icon={<CircleAlert />}
+          title={
+            <>
+              Playground can't load <code>{state.pkg}</code> yet
+            </>
+          }
+        >
+          This script imports it, so nothing ran.
+        </Note>
       );
 
     case "funding":

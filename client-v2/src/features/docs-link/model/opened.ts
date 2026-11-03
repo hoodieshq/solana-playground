@@ -1,10 +1,23 @@
 import type { DocsLink } from "../lib/link";
 
-type Listener = (link: DocsLink | null) => void;
+/**
+ * Where the open view came from: no docs link, a link that opened its
+ * project, or "This link is broken", which opened none
+ */
+export type LinkState =
+  | { kind: "none" }
+  | { kind: "opened"; link: DocsLink }
+  | { kind: "broken" };
 
-let current: DocsLink | null = null;
-let broken = false;
+type Listener = (state: LinkState) => void;
+
+let state: LinkState = { kind: "none" };
 const listeners = new Set<Listener>();
+
+const set = (next: LinkState) => {
+  state = next;
+  listeners.forEach((listener) => listener(next));
+};
 
 /**
  * The docs link the open project came from. The `/open` route sets it and
@@ -12,26 +25,35 @@ const listeners = new Set<Listener>();
  * never shows the link's source line or asks for its SOL.
  */
 export const PgDocsLink = {
+  get state() {
+    return state;
+  },
+
+  /** The link that opened the project, if one did */
   get opened() {
-    return current;
+    return state.kind === "opened" ? state.link : undefined;
+  },
+
+  /** @param link the link whose project is now open */
+  open(link: DocsLink) {
+    set({ kind: "opened", link });
   },
 
   /**
-   * Whether the open view is "This link is broken". The frame around it
-   * still shows the stage row, and its Run would run a project nobody opened.
+   * The open view is "This link is broken". The frame around it still shows
+   * the stage row, and its Run would run a project nobody opened.
    */
-  get broken() {
-    return broken;
+  markBroken() {
+    set({ kind: "broken" });
   },
 
-  set(link: DocsLink | null, opts: { broken?: boolean } = {}) {
-    current = link;
-    broken = opts.broken ?? false;
-    listeners.forEach((listener) => listener(link));
+  /** Another route took over: its project did not come from a link */
+  clear() {
+    set({ kind: "none" });
   },
 
   /**
-   * @param listener called with the new link on every change
+   * @param listener called with the new state on every change
    * @returns a disposable that removes the listener
    */
   onDidChange(listener: Listener) {

@@ -13,6 +13,7 @@ import { PgWallet, Wallet } from "../wallet";
 import type { PgWeb3 } from "../web3";
 import {
   pgSignerFromFile,
+  reasonMessage,
   showBigInts,
   TRANSPILE_OPTIONS,
   wrapScript,
@@ -154,6 +155,9 @@ export class PgJsRuntime {
       },
       { isTest }
     );
+    // The run has ended: a rejection it left behind may print, but it no
+    // longer changes this result
+    delete (this._getIframeWindow() as IframeGlobals).__fail;
     return result;
   }
 
@@ -214,12 +218,12 @@ export class PgJsRuntime {
 
     // Promise/async errors
     iframeWindow.addEventListener("unhandledrejection", (ev) => {
-      // A script may reject with anything: `undefined`, a string, an object
-      const message =
-        ev.reason instanceof Error ? ev.reason.message : String(ev.reason);
+      const message = reasonMessage(ev.reason);
       PgTerminal.println(`    Uncaught error: ${message}`);
-      // TODO(HOO-2507): a rejection that lands after the script ended is
-      // printed but cannot turn its finished run red; runs would need ids
+      // TODO(docs-link follow-up, run ids): a rejection that lands after its
+      // script ended is printed but cannot turn that run red, and one that
+      // lands while the next run goes turns the next one red. `execute`
+      // clears `__fail` when a run ends, so only the second case remains
       (iframeWindow as IframeGlobals).__fail?.(message);
       // Does not require custom event dispatch to indicate running has finished
     });
@@ -435,16 +439,13 @@ export class PgJsRuntime {
     if (name === "@solana/kit-plugin-signer") {
       return {
         ...pkg,
-        signerFromFile: pgSignerFromFile(
-          {
-            createKeyPairSignerFromBytes: async (bytes) => {
-              const kit = await import("@solana/kit");
-              return kit.createKeyPairSignerFromBytes(bytes);
-            },
-            signer: pkg.signer,
+        signerFromFile: pgSignerFromFile(() => PgWallet.current, {
+          createKeyPairSignerFromBytes: async (bytes) => {
+            const kit = await import("@solana/kit");
+            return kit.createKeyPairSignerFromBytes(bytes);
           },
-          () => PgWallet.current
-        ),
+          signer: pkg.signer,
+        }),
       };
     }
 

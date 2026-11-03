@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { deflateRaw } from "pako";
 
-import { LONG, expect, json, test } from "./fixtures";
+import { expect, json, LONG, test } from "./fixtures";
 
 /**
  * Builds a docs link as the docs site does. Written here rather than
@@ -41,7 +41,7 @@ const QUICKSTART = [
 ].join("\n");
 
 /** The cluster answers `getBalance` with `lamports`; anything else goes on */
-const stubBalance = (page: Page, lamports: () => number) =>
+const stubBalance = (lamports: () => number, page: Page) =>
   page.route("https://api.devnet.solana.com/**", async (route) => {
     const body = route.request().postDataJSON() as {
       id?: unknown;
@@ -170,6 +170,21 @@ test.describe("client-run", () => {
     await expect(page.locator(".xterm-rows")).toContainText("Step 2");
   });
 
+  test("client-run: An error the script does not await", async ({ page }) => {
+    await page.goto(
+      docsLink({
+        name: "late.ts",
+        code: ['Promise.reject(new Error("boom"));', "await sleep(300);"].join(
+          "\n"
+        ),
+      })
+    );
+    await run(page);
+
+    await expect(callout(page)).toHaveAttribute("data-state", "failed", LONG);
+    await expect(callout(page)).toContainText("boom");
+  });
+
   test("client-run: An import Playground cannot load", async ({ page }) => {
     await page.goto(
       docsLink({
@@ -192,7 +207,7 @@ test.describe("client-run", () => {
   });
 
   test("client-run: A new wallet", async ({ page }) => {
-    await stubBalance(page, () => 0);
+    await stubBalance(() => 0, page);
     await page.goto(
       docsLink({ name: "quickstart.ts", code: QUICKSTART, sol: 0.02 })
     );
@@ -209,7 +224,7 @@ test.describe("client-run", () => {
 
   test("client-run: Funded while the card shows", async ({ page }) => {
     let lamports = 0;
-    await stubBalance(page, () => lamports);
+    await stubBalance(() => lamports, page);
     await page.goto(
       docsLink({ name: "quickstart.ts", code: QUICKSTART, sol: 0.02 })
     );

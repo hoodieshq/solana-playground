@@ -8,7 +8,8 @@ const MISSING_PACKAGE_REGEX = /^Package `(.+)` is not available\.$/;
  * Get the package a failed import asked for.
  *
  * @param message the error's message
- * @returns the package name, or `null` when the error is not a missing package
+ * @returns the package name, or `undefined` when the error is not a missing
+ * package
  */
-export const missingPackageOf = (message: string): string | null =>
-  MISSING_PACKAGE_REGEX.exec(message)?.[1] ?? null;
+export const missingPackageOf = (message: string): string | undefined =>
+  MISSING_PACKAGE_REGEX.exec(message)?.[1];

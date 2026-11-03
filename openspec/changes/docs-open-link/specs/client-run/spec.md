@@ -51,6 +51,11 @@ Every state after a run SHALL offer "Run again".
 - **THEN** the callout shows `failed` with "fetch failed", and the
   terminal keeps the output of the first two steps
 
+#### Scenario: An error the script does not await
+- **WHEN** the script starts a promise it never awaits, and that promise
+  rejects with "boom" before the script ends
+- **THEN** the callout shows `failed` with "boom"
+
 #### Scenario: An import Playground cannot load
 - **WHEN** the script imports `@solana-program/memo`
 - **THEN** the callout shows `missing-package` naming

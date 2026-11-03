@@ -1,10 +1,11 @@
 import {
-  BaseBrokenLink,
   backToDocsHref,
+  BaseBrokenLink,
   decodeDocsLink,
   docsLinkTelemetry,
   PgDocsLink,
 } from "@/features/docs-link";
+
 import { PgExplorer, PgRouter } from "../../utils";
 import { handleRoute } from "../common";
 
@@ -33,7 +34,7 @@ export const open = PgRouter.create({
 
     if (!decoded.ok) {
       docsLinkTelemetry.track("docs_link_failed", { reason: decoded.reason });
-      PgDocsLink.set(null, { broken: true });
+      PgDocsLink.markBroken();
       const backHref = backToDocsHref(decoded.from, document.referrer);
       const route = handleRoute({
         main: async () => (
@@ -47,7 +48,7 @@ export const open = PgRouter.create({
         dispose: () => {
           route.dispose();
           reopen.dispose();
-          PgDocsLink.set(null);
+          PgDocsLink.clear();
         },
       };
     }
@@ -55,7 +56,7 @@ export const open = PgRouter.create({
     const { link } = decoded;
     const route = handleRoute({
       getExplorerInitArg: () => {
-        PgDocsLink.set(link);
+        PgDocsLink.open(link);
         docsLinkTelemetry.track("docs_link_opened", {
           host: link.from ? new URL(link.from).hostname : "none",
           bytes: new TextEncoder().encode(link.code).length,
@@ -73,7 +74,7 @@ export const open = PgRouter.create({
         route.dispose();
         reopen.dispose();
         // Another route took over: its project did not come from this link
-        PgDocsLink.set(null);
+        PgDocsLink.clear();
       },
     };
   },

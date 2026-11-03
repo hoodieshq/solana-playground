@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 
-import { PgClientRun } from "../model/run";
-import type { RunState } from "../model/run";
+import type { LinkState } from "../model/opened";
 import { PgDocsLink } from "../model/opened";
-import type { DocsLink } from "../lib/link";
+import type { RunState } from "../model/run";
+import { PgClientRun } from "../model/run";
 
 /** @returns the stage row's run state, kept current */
 export const useRunState = (): RunState => {
@@ -12,19 +12,9 @@ export const useRunState = (): RunState => {
   return state;
 };
 
-/** @returns the docs link the open project came from, kept current */
-export const useOpenedLink = (): DocsLink | null => {
-  const [link, setLink] = useState(PgDocsLink.opened);
-  useEffect(() => PgDocsLink.onDidChange(setLink).dispose, []);
-  return link;
-};
-
-/** @returns whether the open view is a docs link that did not decode */
-export const useBrokenLink = (): boolean => {
-  const [broken, setBroken] = useState(PgDocsLink.broken);
-  useEffect(
-    () => PgDocsLink.onDidChange(() => setBroken(PgDocsLink.broken)).dispose,
-    []
-  );
-  return broken;
+/** @returns where the open view came from, kept current */
+export const useLinkState = (): LinkState => {
+  const [state, setState] = useState(PgDocsLink.state);
+  useEffect(() => PgDocsLink.onDidChange(setState).dispose, []);
+  return state;
 };

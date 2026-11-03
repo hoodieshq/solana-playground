@@ -702,7 +702,7 @@ it("should open the console when a deploy starts, as auto", () => {
 
 it("should open the console when a script run starts, as auto", () => {
   shell();
-  act(() => run.starts.forEach((cb) => cb(null)));
+  act(() => run.starts.forEach((cb) => cb("run")));
   expect(consoleButton().getAttribute("aria-expanded")).toBe("true");
   expect(toggled()).toEqual([{ panel: "console", open: true, via: "auto" }]);
 });
