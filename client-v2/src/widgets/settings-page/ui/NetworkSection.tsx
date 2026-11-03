@@ -41,12 +41,18 @@ const adoptEndpoint = (endpoint: string) => {
 const Removed = ({
   id,
   name,
-  picked,
+  wasPicked,
   onUndo,
-}: ToastChildProps & { name: string; picked: boolean; onUndo: () => void }) => (
+}: ToastChildProps & {
+  name: string;
+  wasPicked: boolean;
+  onUndo: () => void;
+}) => (
   <span className="flex items-center gap-3">
     <span>
-      {picked ? `Removed ${name}. Network is Devnet now.` : `Removed ${name}.`}
+      {wasPicked
+        ? `Removed ${name}. Network is Devnet now.`
+        : `Removed ${name}.`}
     </span>
     <Button
       variant="ghost"
@@ -88,37 +94,36 @@ const NetworkSection = () => {
   }, []);
 
   /** Report a save's result; a refusal becomes the line under the field */
-  const answer = (
-    result: SaveResult,
-    mode: "add" | "edit"
-  ): CustomRpcSaveAnswer => {
-    if (!result.ok) {
-      settingsTelemetry.track("settings_custom_rpc_refused", {
-        reason: result.reason,
-      });
-      return { ok: false, error: refusal(result) };
-    }
-    settingsTelemetry.track("settings_custom_rpc_saved", { mode });
-    return { ok: true };
-  };
+  const answerFor =
+    (mode: "add" | "edit") =>
+    (result: SaveResult): CustomRpcSaveAnswer => {
+      if (!result.ok) {
+        settingsTelemetry.track("settings_custom_rpc_refused", {
+          reason: result.reason,
+        });
+        return { ok: false, error: refusal(result) };
+      }
+      settingsTelemetry.track("settings_custom_rpc_saved", { mode });
+      return { ok: true };
+    };
 
   // A new RPC is picked at once
   const handleAdd = (input: CustomRpc) => {
     const result = PgCustomRpcs.save(input);
     if (result.ok) pick(result.rpc.url);
-    return answer(result, "add");
+    return answerFor("add")(result);
   };
 
   // An edited RPC keeps the connection on it when it was the one in use
   const handleEdit = (rpc: CustomRpc, input: CustomRpc) => {
-    const picked = PgSettings.connection.endpoint === rpc.url;
+    const wasPicked = PgSettings.connection.endpoint === rpc.url;
     const result = PgCustomRpcs.replace(rpc.url, input);
-    if (result.ok && picked) pick(result.rpc.url);
-    return answer(result, "edit");
+    if (result.ok && wasPicked) pick(result.rpc.url);
+    return answerFor("edit")(result);
   };
 
   const handleRemove = (rpc: CustomRpc) => {
-    const picked = PgSettings.connection.endpoint === rpc.url;
+    const wasPicked = PgSettings.connection.endpoint === rpc.url;
     const removed = PgCustomRpcs.remove(rpc.url);
     if (!removed) {
       // Gone already (another tab), or the browser refused; the store
@@ -128,12 +133,14 @@ const NetworkSection = () => {
       });
       return;
     }
-    if (picked) pick(DEFAULT_ENDPOINT);
-    settingsTelemetry.track("settings_custom_rpc_removed", { picked });
+    if (wasPicked) pick(DEFAULT_ENDPOINT);
+    settingsTelemetry.track("settings_custom_rpc_removed", {
+      picked: wasPicked,
+    });
     PgView.setToast(Removed, {
       componentProps: {
         name: rpc.name,
-        picked,
+        wasPicked,
         onUndo: () => {
           if (!PgCustomRpcs.restore(removed.rpc, removed.index)) {
             PgView.setToast(() => <span>Could not put {rpc.name} back.</span>, {
@@ -143,7 +150,10 @@ const NetworkSection = () => {
           }
           // Only while the network is still the Devnet the remove moved it
           // to: a network picked since then stays
-          if (picked && PgSettings.connection.endpoint === DEFAULT_ENDPOINT) {
+          if (
+            wasPicked &&
+            PgSettings.connection.endpoint === DEFAULT_ENDPOINT
+          ) {
             pick(removed.rpc.url);
           }
         },
