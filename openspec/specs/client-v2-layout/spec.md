@@ -11,7 +11,7 @@ Start from scratch SHALL be a short form: a title, then a "Framework" row and
 a "Name" row, each with its label, Start at the end of the Name row. A
 message about the project name SHALL show under the name field, linked to it
 with `aria-describedby`, and SHALL name the rule ("Use letters, numbers,
-spaces, - or _"); showing it SHALL move nothing above it. The field SHALL be
+spaces, - or _."); showing it SHALL move nothing above it. The field SHALL be
 marked invalid with a red edge while the message shows. A valid name SHALL
 get no edge of its own: the field stays quiet while the name is fine.
 Whether a name is taken SHALL still be checked on Start only, and typing
@@ -59,7 +59,7 @@ page as the user turns it, without waiting for the page to be saved.
 #### Scenario: The open lesson's row follows its page (manual)
 
 - **WHEN** a user on page 2 of Hello Anchor goes on to page 3
-- **THEN** the Hello Anchor row shows "3/<pages>" without a reload
+- **THEN** the Hello Anchor row shows "3 of <pages>" without a reload
 
 #### Scenario: A project has no progress (manual)
 

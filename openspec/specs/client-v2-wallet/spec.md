@@ -19,7 +19,7 @@ from a browser extension, the mark SHALL not be there.
 - **WHEN** the wallet panel is open on a Playground wallet and the person
   hovers the help mark beside its name
 - **THEN** the tooltip reads "A wallet kept in this browser. Playground uses
-  it to sign your calls without asking. Use it for devnet, testnet and local
+  it to deploy and to sign your calls without asking. Use it for devnet, testnet and local
   clusters only."
 
 #### Scenario: No help on an extension wallet (manual)

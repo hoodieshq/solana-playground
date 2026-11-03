@@ -362,10 +362,10 @@ const Progress = ({
 
 /** Right padding for what sits at the row's end, so the name stops short */
 const roomFor = (entry: ProjectEntry) => {
-  // The marker, "12/12" and a pin side by side
-  if (entry.marker && entry.progress) return entry.pinned ? "pr-40" : "pr-36";
+  // The marker, "12 of 12" and a pin side by side
+  if (entry.marker && entry.progress) return entry.pinned ? "pr-46" : "pr-42";
   if (entry.marker) return "pr-24";
-  if (entry.progress) return entry.pinned ? "pr-20" : "pr-16";
+  if (entry.progress) return entry.pinned ? "pr-26" : "pr-22";
   return undefined;
 };
 
