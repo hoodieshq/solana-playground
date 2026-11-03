@@ -3,11 +3,20 @@ import { describe, expect, it } from "vitest";
 import { isAirdropSignInGated } from "./sign-in-gate";
 
 describe("isAirdropSignInGated", () => {
-  it("opens the gate on the local faucets only", () => {
-    expect(isAirdropSignInGated("localnet")).toBe(false);
-    expect(isAirdropSignInGated("playnet")).toBe(false);
-    expect(isAirdropSignInGated("devnet")).toBe(true);
-    expect(isAirdropSignInGated("testnet")).toBe(true);
+  it.each(["localnet", "playnet"])("opens the gate on %s", (cluster) => {
+    expect(isAirdropSignInGated(cluster)).toBe(false);
+  });
+
+  it.each(["devnet", "testnet", "mainnet-beta"])(
+    "keeps the gate on %s",
+    (cluster) => {
+      expect(isAirdropSignInGated(cluster)).toBe(true);
+    }
+  );
+
+  it("keeps the gate while the cluster is unread", () => {
+    // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` is `null` before the cluster is read
+    expect(isAirdropSignInGated(null)).toBe(true);
     expect(isAirdropSignInGated(undefined)).toBe(true);
   });
 });

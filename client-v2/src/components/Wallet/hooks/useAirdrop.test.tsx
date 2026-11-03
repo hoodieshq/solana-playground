@@ -59,6 +59,10 @@ describe("useAirdrop", () => {
     expect(faucetOn("devnet", 5)).toBe("available");
   });
 
+  it("offers the local validator's faucet on localnet", () => {
+    expect(faucetOn("localnet", 100)).toBe("available");
+  });
+
   it("has none on mainnet", () => {
     // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` and `getAirdropAmount()` are `null` before the cluster is read or where there is no faucet
     expect(faucetOn("mainnet-beta", null)).toBe("none");

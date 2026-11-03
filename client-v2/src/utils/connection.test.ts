@@ -30,4 +30,27 @@ describe("PgConnection.getCluster", () => {
     await expect(PgConnection.getCluster(endpoint)).resolves.toBe("localnet");
     expect(create).not.toHaveBeenCalled();
   });
+
+  it("reads the public devnet URL as devnet, not localnet", async () => {
+    await expect(
+      PgConnection.getCluster("https://api.devnet.solana.com")
+    ).resolves.toBe("devnet");
+  });
+
+  // A remote host that only spells "localhost" must not open the local
+  // path's sign-in-free airdrop; it is decided by its genesis hash
+  it.each([
+    "https://localhost.example.com",
+    "https://rpc.example.com/?proxy=127.0.0.1",
+  ])("does not read %s as localnet", async (endpoint) => {
+    const getGenesisHash = vi.fn(async () => "unknown-genesis");
+    vi.spyOn(PgConnection, "create").mockReturnValue({
+      getGenesisHash,
+    } as never);
+
+    await expect(PgConnection.getCluster(endpoint)).rejects.toThrow(
+      "did not match any cluster"
+    );
+    expect(getGenesisHash).toHaveBeenCalledOnce();
+  });
 });

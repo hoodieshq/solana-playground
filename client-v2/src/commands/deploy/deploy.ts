@@ -232,8 +232,9 @@ const processDeploy = async (
     }
 
     if (answers) {
-      // The stage funds without a question; the airdrop's sign-in check
-      // would throw too, but its reason is read here, not from its message
+      // The stage funds without a question. Only a public faucet needs a
+      // session (`isAirdropSignInGated`, as the airdrop's own pre-check);
+      // the reason is read here, not from that check's message
       if (isAirdropSignInGated(PgConnection.cluster) && !PgSession.get()) {
         throw short("signed_out");
       }

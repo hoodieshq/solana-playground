@@ -59,8 +59,7 @@ describe("airdrop", () => {
     await expect(run).rejects.not.toThrow(NO_FAUCET);
   });
 
-  // The local faucet is the user's own validator (Localnet, Surfpool): the
-  // sign-in gate guards the public devnet faucet only, as upstream has none
+  // The local faucet is the user's own validator (Localnet, Surfpool)
   it.each(["localnet", "playnet"])(
     "airdrops on %s without a sign-in",
     async (cluster) => {
@@ -71,5 +70,10 @@ describe("airdrop", () => {
 
   it.each(["devnet", "testnet"])("asks to sign in on %s", async (cluster) => {
     await expect(checkOn(cluster)).rejects.toThrow("Sign in with GitHub");
+  });
+
+  it("asks no sign-in before the cluster is read, so the handler can say it is loading", async () => {
+    // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` is `null` before the cluster is read
+    await expect(checkOn(null)).resolves.toBeUndefined();
   });
 });

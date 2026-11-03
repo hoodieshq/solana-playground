@@ -12,8 +12,13 @@ import { createArgs, createCmd } from "../create";
 import { NO_FAUCET } from "./no-faucet";
 import { isAirdropSignInGated } from "./sign-in-gate";
 
-/** Command pre-check: a public faucet asks for a sign-in, a local one does not */
+/**
+ * Command pre-check: a public faucet asks for a sign-in, a local one does not.
+ * Before the cluster is read it asks nothing, so `handle` can say the network
+ * is still loading instead of asking a local user to sign in.
+ */
 const checkSignedInWhereGated = () => {
+  if (PgConnection.cluster === null) return;
   if (isAirdropSignInGated(PgConnection.cluster)) checkSignedIn();
 };
 

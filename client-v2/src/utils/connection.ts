@@ -136,6 +136,19 @@ const recheckWhileStalled = (cb: () => void): Disposable =>
     maxMs: 60000,
   });
 
+/** Hosts a local validator answers on */
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
+/** Whether `endpoint` points at this machine; an unparsable URL is not local */
+const isLocalEndpoint = (endpoint: string) => {
+  try {
+    return LOCAL_HOSTS.has(new URL(endpoint).hostname);
+  } catch {
+    // Not a URL: `getCluster` goes on to the genesis hash, which fails loudly
+    return false;
+  }
+};
+
 @derivable(derive)
 class _PgConnection {
   /**
@@ -211,10 +224,10 @@ class _PgConnection {
     // Playnet
     if (PgPlaynet.isUrlPlaynet(endpoint)) return "playnet";
 
-    // Local
-    if (endpoint.includes("localhost") || endpoint.includes("127.0.0.1")) {
-      return "localnet";
-    }
+    // Local: Localnet and Surfpool, on any port. The host is compared, not
+    // the URL text, since a local endpoint opens the airdrop's sign-in gate
+    // (`isAirdropSignInGated`) and `https://localhost.example.com` is remote
+    if (isLocalEndpoint(endpoint)) return "localnet";
 
     // Public
     //

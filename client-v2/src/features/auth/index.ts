@@ -9,11 +9,9 @@ export type { SignInFailure } from "./model/telemetry";
 export { SIGNED_OUT_REASON } from "./config.mjs";
 
 /**
- * Command pre-check: the airdrop demo requires an identity.
- *
- * Replaces `checkGithubSignIn`, which gated on a reload-scoped in-memory
- * token. This gates on the persisted session instead, so the check survives a
- * refresh the way users expect.
+ * Command pre-check: throws while signed out. The airdrop runs it only where
+ * the faucet is public (`isAirdropSignInGated`); a local validator funds a
+ * signed-out user. It reads the persisted session, so it survives a refresh.
  */
 export const checkSignedIn = () => {
   if (!PgSession.get()) {
