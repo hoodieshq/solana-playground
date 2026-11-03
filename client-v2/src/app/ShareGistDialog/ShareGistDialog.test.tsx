@@ -134,12 +134,12 @@ describe("app/ShareGistDialog", () => {
     expect(cancel).not.toHaveBeenCalled();
     expect(signIn).toHaveBeenCalledTimes(1);
     expect(
-      screen.getByRole("heading", { name: "Share to GitHub" })
+      screen.getByRole("heading", { name: "Share counter as a gist" })
     ).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Share to GitHub" })
+      screen.getByRole("button", { name: "Create secret gist" })
     ).toBeTruthy();
-    expect(readFiles).not.toHaveBeenCalled();
+    // The share dialog reads the project for its file list, and sends nothing
     expect(gistRequests()).toEqual([]);
   });
 
@@ -148,7 +148,7 @@ describe("app/ShareGistDialog", () => {
     await open();
 
     expect(
-      screen.getByRole("heading", { name: "Share to GitHub" })
+      screen.getByRole("heading", { name: "Share counter as a gist" })
     ).toBeTruthy();
     expect(
       screen.queryByRole("heading", { name: "Sign in to share" })
@@ -355,7 +355,7 @@ describe("app/ShareGistDialog", () => {
 
     expect(screen.queryByText("Sign-in cancelled.")).toBeNull();
     expect(
-      screen.getByRole("heading", { name: "Share to GitHub" })
+      screen.getByRole("heading", { name: "Share counter as a gist" })
     ).toBeTruthy();
   });
 
@@ -369,11 +369,60 @@ describe("app/ShareGistDialog", () => {
     });
 
     expect(
-      screen.getByRole("heading", { name: "Share to GitHub" })
+      screen.getByRole("heading", { name: "Share counter as a gist" })
     ).toBeTruthy();
     expect(
       screen.queryByRole("heading", { name: "Sign in to share" })
     ).toBeNull();
+  });
+
+  it("puts Copy link in the footer once the gist exists, with no Cancel", async () => {
+    await PgSession.refreshWith(USER);
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ url: "https://gist.github.com/ada/abc", id: "abc" }),
+        { status: 201 }
+      )
+    );
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    vi.spyOn(PgView, "setToast").mockImplementation(vi.fn());
+    await open();
+
+    await press("Create secret gist");
+
+    expect(
+      screen.getByRole("heading", { name: "Shared as a secret gist" })
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    await press("Copy link");
+
+    expect(writeText).toHaveBeenCalledWith(
+      `${window.location.origin}/gist/abc`
+    );
+    expect(screen.getByRole("button", { name: "Copied" })).toBeTruthy();
+  });
+
+  it("offers only Close when GitHub refused the gist", async () => {
+    await PgSession.refreshWith(USER);
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ reason: "rejected" }), { status: 422 })
+    );
+    await open();
+
+    await press("Create secret gist");
+
+    expect(
+      screen.getByText("GitHub refused the gist. Nothing was published.")
+    ).toBeTruthy();
+    // The footer's, beside the head's own Close
+    const close = screen
+      .getAllByRole("button", { name: "Close" })
+      .find((button) => button.getAttribute("type") === "submit");
+    if (!close) throw new Error("no footer Close");
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    await act(async () => fireEvent.click(close));
+    expect(PgView.getOpenModals()).toEqual([]);
   });
 
   it("moves on to sharing when a sign-in finishes elsewhere", async () => {
@@ -384,7 +433,7 @@ describe("app/ShareGistDialog", () => {
     });
 
     expect(
-      screen.getByRole("heading", { name: "Share to GitHub" })
+      screen.getByRole("heading", { name: "Share counter as a gist" })
     ).toBeTruthy();
   });
 });
