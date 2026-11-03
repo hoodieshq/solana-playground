@@ -5,6 +5,7 @@ import {
   PgLanguage,
   PgTerminal,
 } from "../../utils";
+import type { RunResult } from "../../utils/js-runtime";
 import { createArgs, createCmd } from "../create";
 
 /**
@@ -69,7 +70,7 @@ export const test = createCmd({
 const processCommon = async (params: {
   paths: string[] | undefined;
   isTest: boolean;
-}) => {
+}): Promise<RunResult> => {
   const { paths, isTest } = params;
   PgTerminal.println(
     PgTerminal.info(`Running ${isTest ? "tests" : "client"}...`)
@@ -96,10 +97,11 @@ const processCommon = async (params: {
         throw new Error(`File '${fileName}' is not a script file`);
       }
 
-      await PgJsRuntime.execute({ fileName, code, isTest });
+      const result = await PgJsRuntime.execute({ fileName, code, isTest });
+      if (!result.ok) return result;
     }
 
-    return;
+    return { ok: true };
   }
 
   // Create default client/test if the folder is empty
@@ -119,13 +121,16 @@ const processCommon = async (params: {
     return await PgJsRuntime.execute({ fileName, code, isTest });
   }
 
-  // Run all files inside the folder
+  // Run all files inside the folder; the first that fails ends the run
   for (const fileName of folder.files.filter(PgLanguage.getIsPathJsLike)) {
     const code = PgExplorer.getFileContent(
       PgCommon.joinPaths(folderPath, fileName)
     )!;
-    await PgJsRuntime.execute({ fileName, code, isTest });
+    const result = await PgJsRuntime.execute({ fileName, code, isTest });
+    if (!result.ok) return result;
   }
+
+  return { ok: true };
 };
 
 /** Default client files*/
