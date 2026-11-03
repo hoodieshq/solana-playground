@@ -4,7 +4,7 @@ vi.mock("../ui/ConflictResolver", () => ({ ConflictResolver: () => null }));
 vi.mock(
   "../../../views/sidebar/explorer/Component/Modals/RenameWorkspace",
   () => ({
-    RenameWorkspace: () => null,
+    RenameWorkspace: () => undefined,
   })
 );
 // The banner binds its onError at render, before a test could spy on it
@@ -242,13 +242,21 @@ describe("SyncBanner titles and actions", () => {
   });
 
   it.each([
-    ["divergent", "Changed on another device", "warning"],
-    ["deleted-elsewhere", "Deleted on another device", "warning"],
-    ["name-taken", "Not syncing", "error"],
-    ["too-large", "Too large to sync", "error"],
+    {
+      kind: "divergent",
+      title: "Changed on another device",
+      variant: "warning",
+    },
+    {
+      kind: "deleted-elsewhere",
+      title: "Deleted on another device",
+      variant: "warning",
+    },
+    { kind: "name-taken", title: "Not syncing", variant: "error" },
+    { kind: "too-large", title: "Too large to sync", variant: "error" },
   ] as const)(
-    "titles a %s conflict %j in a %s callout",
-    async (kind, title, variant) => {
+    "titles a $kind conflict $title in a $variant callout",
+    async ({ kind, title, variant }) => {
       await mount(kind);
       const callout = container.querySelector('[data-slot="callout"]');
       expect(callout?.getAttribute("data-variant")).toBe(variant);
@@ -270,7 +278,8 @@ describe("SyncBanner titles and actions", () => {
     const rename = Array.from(container.querySelectorAll("button")).find(
       (b) => b.textContent?.trim() === "Rename"
     );
-    await act(async () => rename!.click());
+    if (!rename) throw new Error("the banner offers no Rename");
+    await act(async () => rename.click());
 
     expect(setModal).toHaveBeenCalledWith(RenameWorkspace);
     expect(resolve).not.toHaveBeenCalled();
