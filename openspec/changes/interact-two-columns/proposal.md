@@ -18,15 +18,19 @@ move it into a right-hand column beside the form; Accounts stay at the bottom
 - The history column keeps a fixed 18rem width and stays in view (sticky)
   while a long form scrolls.
 - In the wide layout, an empty history shows its heading and "Calls you send
-  show up here.", so the form does not change width after the first call.
+  show up here.", so the history column is not a blank hole before the first
+  call.
+- Fill and Reset in the instruction form wrap together as one group.
 - Accounts and Events stay below both columns, full width.
 - Narrower stages keep today's single column.
 
 ## Impact
 
 - `client-v2/src/views/flow/stages/InteractBody.tsx`,
-  `BaseCallHistory.tsx` and their tests.
+  `BaseCallHistory.tsx` and their tests;
+  `client-v2/src/views/sidebar/test/Component/Instruction/Instruction.tsx`
+  (the button row, shared with the legacy Test panel).
 - Spec `client-v2-interact`: one added requirement.
 - No change to calls, results, storage or the toolbar.
 - Spec 03 of the designers says the history sits "under the instruction list";
-  the conflict goes to Design alignment.
+  the 30 Oct call's decision supersedes it.

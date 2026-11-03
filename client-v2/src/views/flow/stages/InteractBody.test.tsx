@@ -158,6 +158,41 @@ describe("InteractBody", () => {
     const columns = history.closest("[data-slot='interact-columns']");
     expect(columns).not.toBeNull();
     expect(columns?.contains(screen.getByText("form initialize"))).toBe(true);
+    // One column shows no history before the first call
+    expect(history.className).toContain("@max-[40rem]:hidden");
+  });
+
+  it("keeps a populated history in the column, shown at every width, and its rows pick the form", () => {
+    localStorage.setItem(
+      "flow.calls",
+      JSON.stringify([
+        {
+          id: "a",
+          programId: "P",
+          cluster: "devnet",
+          instruction: "increment",
+          ok: true,
+          signature: "sig",
+          // eslint-disable-next-line unicorn/no-null -- a stored record writes a missing failing line as null
+          failingLine: null,
+          at: 1,
+        },
+      ])
+    );
+    render(
+      wrap(
+        <InteractBody
+          idl={idl("initialize", "increment")}
+          programId="P"
+          cluster="devnet"
+        />
+      )
+    );
+    const history = screen.getByRole("region", { name: "Call history" });
+    expect(history.closest("[data-slot='interact-columns']")).not.toBeNull();
+    expect(history.className).not.toContain("@max-[40rem]:hidden");
+    fireEvent.click(screen.getByRole("button", { name: "Open increment" }));
+    expect(screen.getByText("form increment")).toBeTruthy();
   });
 
   it("puts Accounts and Events below the columns, full width", () => {

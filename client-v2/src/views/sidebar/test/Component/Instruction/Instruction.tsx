@@ -209,8 +209,8 @@ const Instruction: FC<InstructionProps> = ({
 
         {(instruction.values.accounts.length > 0 ||
           instruction.values.args.length > 0) && (
-          // The secondaries wrap as one group, so a narrow form never leaves
-          // Reset alone on a line under Call and Fill
+          // When the row is too narrow for all three buttons, Fill and Reset
+          // wrap together under Call rather than leaving Reset alone
           <div className="flex gap-2">
             <Button variant="outline" onClick={fillRandom} disabled={calling}>
               Fill

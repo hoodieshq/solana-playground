@@ -24,4 +24,33 @@ describe("BaseCallHistory", () => {
     expect(region.textContent).toContain("Calls you send show up here.");
     expect(screen.queryByRole("list")).toBeNull();
   });
+
+  it("lists the calls and drops the empty line once there is one", () => {
+    render(
+      <BaseCallHistory
+        records={[
+          {
+            id: "a",
+            programId: "P",
+            cluster: "devnet",
+            instruction: "initialize",
+            ok: true,
+            signature: "sig1234567",
+            // eslint-disable-next-line unicorn/no-null -- a stored record writes a missing failing line as null
+            failingLine: null,
+            at: 1,
+          },
+        ]}
+        cluster="devnet"
+        txUrl={(s: string) => `https://x/tx/${s}`}
+        onOpen={vi.fn()}
+        showEmpty
+        className="sticky"
+      />
+    );
+    const region = screen.getByRole("region", { name: "Call history" });
+    expect(screen.getByRole("list")).toBeTruthy();
+    expect(region.textContent).not.toContain("Calls you send show up here.");
+    expect(region.className).toContain("sticky");
+  });
 });

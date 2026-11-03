@@ -67,7 +67,7 @@ const InteractBody = ({
       {/* The stage's own width decides the columns: the chat and Files panels
           beside it change that width, the viewport does not */}
       <div className="@container">
-        <div className="flex max-w-[64rem] flex-col gap-6 px-6 py-6">
+        <div className="flex max-w-[64.5rem] flex-col gap-6 px-6 py-6">
           <div
             data-slot="interact-columns"
             className="grid grid-cols-1 gap-6 @min-[40rem]:grid-cols-[minmax(0,42rem)_18rem]"
@@ -124,11 +124,15 @@ const InteractBody = ({
               txUrl={txUrl}
               // A row of an instruction a rebuild removed leaves the form alone
               onOpen={(name) => names.includes(name) && setPicked(name)}
-              // The wide layout holds the column before the first call, so the
-              // form keeps its width; one column shows no history until then
+              // The wide layout's history track is there before the first
+              // call; the empty line keeps it from reading as a blank hole.
+              // One column shows no history until then
               showEmpty
               className={cn(
-                "@min-[40rem]:sticky @min-[40rem]:top-6 @min-[40rem]:self-start",
+                // Sticky beside a long form, and no taller than the stage's
+                // view (the viewport less the app header and stage toolbar),
+                // so its last rows stay reachable while it is pinned
+                "@min-[40rem]:sticky @min-[40rem]:top-6 @min-[40rem]:max-h-[calc(100dvh-16rem)] @min-[40rem]:self-start",
                 history.length === 0 && "@max-[40rem]:hidden"
               )}
             />

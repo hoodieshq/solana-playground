@@ -45,13 +45,16 @@ const BaseCallHistory = ({
           Calls you send show up here.
         </p>
       ) : (
-        <ul className="m-0 flex list-none flex-col divide-y divide-border rounded-xl border border-border p-0">
+        <ul className="m-0 flex min-h-0 list-none flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border p-0">
           {records.map((r) => (
             <li
               key={r.id}
               className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-xs"
             >
               <StatusDot variant={r.ok ? "success" : "error"} />
+              {/* In a narrow column the name takes its own line, so every row
+                  breaks at the same place: its basis is the row less the dot
+                  (size-1.5) and the gap after it (gap-x-3), 1.125rem, rounded up */}
               <button
                 type="button"
                 aria-label={`Open ${r.instruction}`}
