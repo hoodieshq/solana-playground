@@ -174,7 +174,7 @@ describe("BaseProjectList", () => {
       ],
     });
     const row = screen.getByRole("button", { name: "Hello Anchor" });
-    expect(screen.getByText("3/5")).toBeTruthy();
+    expect(screen.getByText("3 of 5")).toBeTruthy();
     const id = row.getAttribute("aria-describedby") ?? "";
     expect(
       id

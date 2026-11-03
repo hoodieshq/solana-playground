@@ -328,7 +328,8 @@ const Marker = ({ id, marker }: { id: string; marker: SyncMarker }) => (
 );
 
 /**
- * A lesson's page as "3/5", or a check once it is finished. The digits and
+ * A lesson's place as "3 of 5", the way the tutorial list and the catalogue
+ * card write it, or a check once it is finished. The digits and
  * the check are for the eye and hidden from screen readers; the words beside
  * them carry the id that describes the row, so the row keeps its name
  */
@@ -351,7 +352,7 @@ const Progress = ({
   }
   return (
     <span data-lesson-progress="started" className="tabular-nums">
-      <span aria-hidden>{`${progress.page}/${progress.pages}`}</span>
+      <span aria-hidden>{`${progress.page} of ${progress.pages}`}</span>
       <span id={id} className="sr-only">
         {`Page ${progress.page} of ${progress.pages}`}
       </span>

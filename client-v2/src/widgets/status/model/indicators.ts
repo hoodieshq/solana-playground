@@ -25,7 +25,7 @@ export interface StatusIndicator {
   /** The sheet row's title */
   name: string;
   state: StatusState;
-  /** What the indicator reads: "Devnet · Not answering" */
+  /** What the indicator reads: "Devnet · Not responding" */
   words: string;
   /** The button's accessible name in the status row */
   label: string;
@@ -114,7 +114,7 @@ export const networkIndicator = (
   if (isConnected === false || slotStalled === true) {
     return view(
       "not-ready",
-      "not answering",
+      "not responding",
       "The cluster does not answer. Write and Build work; Deploy and Interact wait for it."
     );
   }
@@ -165,7 +165,7 @@ export const aiIndicator = (ai: AiInput, online: boolean): StatusIndicator => {
     railLabel: "AI, off",
     tip: "AI · Off",
     detail: ai.needsSignIn
-      ? "Sign in to use the hosted model, or connect a model with your own key."
+      ? "Sign in with GitHub to use the hosted model, or add a key of your own."
       : "Connect a model to ask the assistant. Write and Build work without it.",
     action: { kind: "ai", text: "Connect a model" },
   };
@@ -337,7 +337,7 @@ if (import.meta.vitest) {
         ]);
       });
 
-      it("says not answering when down, or when the slot stalls", () => {
+      it("says not responding when down, or when the slot stalls", () => {
         const down = networkIndicator(
           { name: "devnet", isConnected: false, slotStalled: null },
           true
@@ -348,11 +348,11 @@ if (import.meta.vitest) {
         );
         expect([down.state, down.words, down.label]).toEqual([
           "not-ready",
-          "Devnet · Not answering",
-          "Change cluster, currently devnet, not answering",
+          "Devnet · Not responding",
+          "Change cluster, currently devnet, not responding",
         ]);
-        expect(stalled.words).toBe("Devnet · Not answering");
-        expect(down.tip).toBe("Devnet · Not answering");
+        expect(stalled.words).toBe("Devnet · Not responding");
+        expect(down.tip).toBe("Devnet · Not responding");
         expect(down.action).toEqual({
           kind: "network",
           text: "Change network",
