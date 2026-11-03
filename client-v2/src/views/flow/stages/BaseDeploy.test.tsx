@@ -17,6 +17,7 @@ import type {
   DeployStatus,
 } from "./BaseDeploy";
 import type { DeployRecord } from "../state/deploy-history";
+import { present } from "@/test-utils/present";
 
 const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 
@@ -227,9 +228,9 @@ describe("BaseDeploy", () => {
     );
 
     expect(screen.queryByRole("region", { name: "History" })).toBeNull();
-    const actions = container.querySelector<HTMLElement>(
-      '[data-slot="stage-empty-actions"]'
-    )!;
+    const actions = present("the stage's actions")(
+      container.querySelector<HTMLElement>('[data-slot="stage-empty-actions"]')
+    );
     const labels = [...actions.querySelectorAll("button")].map(
       (b) => b.textContent
     );
@@ -249,9 +250,9 @@ describe("BaseDeploy", () => {
     );
 
     expect(screen.getByRole("region", { name: "History" })).toBeTruthy();
-    const actions = container.querySelector<HTMLElement>(
-      '[data-slot="stage-empty-actions"]'
-    )!;
+    const actions = present("the stage's actions")(
+      container.querySelector<HTMLElement>('[data-slot="stage-empty-actions"]')
+    );
     expect(
       within(actions).getByRole("button", { name: "Upload IDL" })
     ).toBeTruthy();

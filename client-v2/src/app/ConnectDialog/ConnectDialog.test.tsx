@@ -27,6 +27,7 @@ import { useTurn } from "@/widgets/assistant";
 import type { DefaultBackend } from "@/widgets/assistant";
 import { ModalFrame, ModalHost } from "@/widgets/overlays";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
+import { present } from "@/test-utils/present";
 import { openConnectDialog } from "./ConnectDialog";
 
 // The form's footer link reaches the utils barrel, which needs the build's
@@ -161,7 +162,9 @@ describe("ConnectDialog", () => {
 
     // With no default on this deployment the form falls back to Anthropic
     await user.type(
-      document.querySelector<HTMLInputElement>("#assistant-api-key")!,
+      present("the API key field")(
+        document.querySelector<HTMLInputElement>("#assistant-api-key")
+      ),
       "sk-ant-fake"
     );
     await user.click(screen.getByRole("button", { name: "Connect" }));
@@ -180,12 +183,12 @@ describe("ConnectDialog", () => {
     const user = userEvent.setup();
     act(() => openConnectDialog("menu"));
 
-    const footer = document.querySelector<HTMLElement>(
-      '[data-slot="modal-footer"]'
-    )!;
-    const body = document.querySelector<HTMLElement>(
-      '[data-slot="modal-body"]'
-    )!;
+    const footer = present("the dialog's footer")(
+      document.querySelector<HTMLElement>('[data-slot="modal-footer"]')
+    );
+    const body = present("the dialog's body")(
+      document.querySelector<HTMLElement>('[data-slot="modal-body"]')
+    );
     const connect = within(footer).getByRole("button", { name: "Connect" });
     expect(within(body).queryByRole("button", { name: "Connect" })).toBeNull();
     // The view's one call to action keeps the brand ring
@@ -194,7 +197,9 @@ describe("ConnectDialog", () => {
     expect(connect.hasAttribute("disabled")).toBe(true);
 
     await user.type(
-      document.querySelector<HTMLInputElement>("#assistant-api-key")!,
+      present("the API key field")(
+        document.querySelector<HTMLInputElement>("#assistant-api-key")
+      ),
       "sk-ant-fake"
     );
     expect(connect.hasAttribute("disabled")).toBe(false);
@@ -236,7 +241,9 @@ describe("ConnectDialog", () => {
     act(() => openConnectDialog("menu"));
 
     await user.type(
-      document.querySelector<HTMLInputElement>("#assistant-api-key")!,
+      present("the API key field")(
+        document.querySelector<HTMLInputElement>("#assistant-api-key")
+      ),
       "sk-ant-fake{Enter}"
     );
 

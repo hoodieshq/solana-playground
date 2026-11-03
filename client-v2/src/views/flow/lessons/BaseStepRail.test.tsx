@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import { BaseStepRail, railStatus } from "./BaseStepRail";
 import type { RailRow } from "./BaseStepRail";
+import { present } from "../../../test-utils/present";
 
 describe("railStatus", () => {
   it("maps confirmed marks to done", () => {
@@ -87,7 +88,9 @@ describe("BaseStepRail", () => {
       canGo: true,
     };
     const { container } = render(<BaseStepRail rows={[next]} onGo={vi.fn()} />);
-    const item = container.querySelector('[data-slot="step-rail-item"]')!;
+    const item = present("a step rail item")(
+      container.querySelector('[data-slot="step-rail-item"]')
+    );
     expect(item.getAttribute("data-status")).toBe("locked");
     expect(item.className).toContain("data-[status=locked]:opacity-100");
     expect(item.className).not.toContain("data-[status=locked]:opacity-50");

@@ -14,6 +14,7 @@ import {
 } from "@/shared/lib/telemetry";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { PgSession } from "@/features/auth";
+import { present } from "@/test-utils/present";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import type { Connection } from "../../../views/sidebar/assistant/store";
 import type { DefaultBackend } from "../model/default-backend";
@@ -154,8 +155,7 @@ describe("AssistantComposer, connected", () => {
     const other = screen
       .getAllByRole("menuitemradio")
       .find((item) => /Gemini/.test(item.textContent ?? ""));
-    expect(other).toBeTruthy();
-    await user.click(other!);
+    await user.click(present("the Gemini menu item")(other));
 
     expect(openConnect).toHaveBeenCalledTimes(1);
     expect(openConnect).toHaveBeenCalledWith("model", {

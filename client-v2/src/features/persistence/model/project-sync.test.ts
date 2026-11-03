@@ -9,6 +9,7 @@ import { PgSyncMark } from "./sync-mark";
 import { PgThreadIndex } from "./thread-index";
 // TODO(ui-migration 1.4): a feature importing a feature; the code under test syncs only for a signed-in session
 import { PgSession } from "@/features/auth";
+import { present } from "@/test-utils/present";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 import { PgWorkspace } from "../../../utils/explorer/workspace";
@@ -64,7 +65,10 @@ const reset = () => {
 
 /** The body of the most recent request */
 const lastBody = () =>
-  JSON.parse((global.fetch as Mock).mock.calls.at(-1)![1].body);
+  JSON.parse(
+    present("a recorded request")((global.fetch as Mock).mock.calls.at(-1))[1]
+      .body
+  );
 
 /** This device and the server agreed on `files`, under `name` */
 const agreedOn = async (

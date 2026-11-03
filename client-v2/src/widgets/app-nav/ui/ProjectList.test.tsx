@@ -96,6 +96,7 @@ vi.mock("../model/workspace-files", async (importOriginal) => ({
 
 import { PINS_KEY } from "../model/pins";
 import ProjectList from "./ProjectList";
+import { present } from "@/test-utils/present";
 
 // The stock Sidebar reads the viewport through `matchMedia`, which jsdom lacks
 beforeAll(() => {
@@ -176,7 +177,9 @@ describe("ProjectList", () => {
 
     fireEvent.keyDown(menuOf("beta"), { key: "p" });
 
-    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual(["id-b"]);
+    expect(
+      JSON.parse(present("the stored pins")(localStorage.getItem(PINS_KEY)))
+    ).toEqual(["id-b"]);
     expect(projectNames()).toEqual(["beta", "alpha"]);
     expect(events("nav_project_action")).toEqual([
       { action: "pin", via: "key" },
@@ -186,7 +189,9 @@ describe("ProjectList", () => {
   it("drops a stored pin no workspace has", () => {
     localStorage.setItem(PINS_KEY, JSON.stringify(["id-a", "gone"]));
     draw();
-    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual(["id-a"]);
+    expect(
+      JSON.parse(present("the stored pins")(localStorage.getItem(PINS_KEY)))
+    ).toEqual(["id-a"]);
   });
 
   it("renames in place through the explorer, announced for sync", async () => {
@@ -411,10 +416,9 @@ describe("ProjectList", () => {
     localStorage.setItem(PINS_KEY, JSON.stringify(["id-a"]));
     fireEvent.keyDown(menuOf("beta"), { key: "p" });
 
-    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual([
-      "id-a",
-      "id-b",
-    ]);
+    expect(
+      JSON.parse(present("the stored pins")(localStorage.getItem(PINS_KEY)))
+    ).toEqual(["id-a", "id-b"]);
   });
 
   it("keeps the pins while the explorer has no workspaces yet", () => {
@@ -422,7 +426,9 @@ describe("ProjectList", () => {
     app.state.names = [];
     app.state.ids = {};
     draw();
-    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual(["id-a"]);
+    expect(
+      JSON.parse(present("the stored pins")(localStorage.getItem(PINS_KEY)))
+    ).toEqual(["id-a"]);
 
     act(() => {
       app.state.names = ["beta", "alpha"];

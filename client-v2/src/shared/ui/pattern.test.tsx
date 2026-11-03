@@ -5,6 +5,7 @@
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { present } from "@/test-utils/present";
 import { Pattern } from "./pattern";
 
 /** Runs queued frames by hand, so the test decides when the loop ticks */
@@ -41,7 +42,9 @@ describe("shared/ui/pattern", () => {
   it("lights where the pointer is, then stops its loop", () => {
     const raf = frames();
     const { container } = render(<Pattern />);
-    const root = container.querySelector<HTMLElement>('[data-slot="pattern"]')!;
+    const root = present("the pattern root")(
+      container.querySelector<HTMLElement>('[data-slot="pattern"]')
+    );
 
     move(120, 80);
     let ran = 0;

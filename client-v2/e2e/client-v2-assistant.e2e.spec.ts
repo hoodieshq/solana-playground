@@ -9,6 +9,7 @@ import {
   stubSession,
   test,
 } from "./fixtures";
+import { present } from "../src/test-utils/present";
 import { lineOf, linesOn } from "./telemetry";
 
 /**
@@ -306,7 +307,9 @@ test.describe("Connect a model", () => {
 
       const dialog = await openConnect(page);
       // A card over the app, not a page of its own
-      const box = (await dialog.boundingBox())!;
+      const box = present("the dialog's bounding box")(
+        await dialog.boundingBox()
+      );
       expect(box.width).toBeLessThan(1280);
       expect(box.height).toBeLessThan(800);
 
@@ -374,14 +377,19 @@ test.describe("Connect a model", () => {
       // The form scrolls under the footer, which stays where it is: pinned
       // to the bottom of the screen, not carried up with the form
       const body = dialog.locator('[data-slot="modal-body"]');
-      const before = (await connect.boundingBox())!;
+      const before = present("the connect button's bounding box")(
+        await connect.boundingBox()
+      );
       const scrolled = await body.evaluate((el) => {
         el.scrollTop = el.scrollHeight;
         return el.scrollTop;
       });
       expect(scrolled).toBeGreaterThan(0);
       await expect(connect).toBeInViewport({ ratio: 1 });
-      expect((await connect.boundingBox())!.y).toBe(before.y);
+      const after = present("the connect button's bounding box")(
+        await connect.boundingBox()
+      );
+      expect(after.y).toBe(before.y);
       expect(before.y + before.height).toBeGreaterThan(PHONE.height - 80);
 
       await connect.click();
@@ -429,7 +437,9 @@ const proposePatch = async (page: Page, lines: number) => {
       "\n"
     );
     // Not awaited: it settles only when the card is answered
-    void (window as ThreadWindow).__pgAssistant!.requestApproval({
+    const store = (window as ThreadWindow).__pgAssistant;
+    if (!store) throw new Error("Expected the assistant store on window");
+    void store.requestApproval({
       type: "patch",
       path: "src/lib.rs",
       before: "",
@@ -460,7 +470,8 @@ test.describe("The thread", () => {
 
     await storeReady(page);
     await page.evaluate((line) => {
-      const store = (window as ThreadWindow).__pgAssistant!;
+      const store = (window as ThreadWindow).__pgAssistant;
+      if (!store) throw new Error("Expected the assistant store on window");
       store.addUserMessage("Show me");
       const id = store.startAssistantMessage();
       store.appendToAssistantMessage(id, "Here:\n\n```rust\n" + line + "\n```");
@@ -496,7 +507,9 @@ test.describe("The thread", () => {
       const button = card.getByRole("button", { name });
       await expect(button).toBeInViewport({ ratio: 1 });
       // A thumb's target, 44 px high
-      expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(
+        present("the button's bounding box")(await button.boundingBox()).height
+      ).toBeGreaterThanOrEqual(44);
     }
     // Code reads in the code font: every `data-slot` element gets the text
     // font from the base layer, so a line must ask for its own
@@ -519,7 +532,8 @@ test.describe("The thread", () => {
 
     await storeReady(page);
     await page.evaluate(() => {
-      const store = (window as ThreadWindow).__pgAssistant!;
+      const store = (window as ThreadWindow).__pgAssistant;
+      if (!store) throw new Error("Expected the assistant store on window");
       for (let i = 0; i < 30; i++) store.addUserMessage(`Message ${i}`);
       (window as unknown as { __replyId: string }).__replyId =
         store.startAssistantMessage();
@@ -529,7 +543,8 @@ test.describe("The thread", () => {
 
     // At the end, the thread follows the answer as it grows
     await page.evaluate(() => {
-      const store = (window as ThreadWindow).__pgAssistant!;
+      const store = (window as ThreadWindow).__pgAssistant;
+      if (!store) throw new Error("Expected the assistant store on window");
       const id = (window as unknown as { __replyId: string }).__replyId;
       for (let i = 0; i < 40; i++) store.appendToAssistantMessage(id, "first ");
     });
@@ -544,7 +559,8 @@ test.describe("The thread", () => {
     const top = await viewport.evaluate((el) => el.scrollTop);
 
     await page.evaluate(() => {
-      const store = (window as ThreadWindow).__pgAssistant!;
+      const store = (window as ThreadWindow).__pgAssistant;
+      if (!store) throw new Error("Expected the assistant store on window");
       const id = (window as unknown as { __replyId: string }).__replyId;
       for (let i = 0; i < 20; i++) store.appendToAssistantMessage(id, "more ");
     });
@@ -567,9 +583,11 @@ test.describe("The thread", () => {
 
     await proposePatch(page, 3);
     await expect(page.getByRole("button", { name: "Apply" })).toBeVisible(LONG);
-    await page.evaluate(() =>
-      (window as ThreadWindow).__pgAssistant!.whenPersisted()
-    );
+    await page.evaluate(() => {
+      const store = (window as ThreadWindow).__pgAssistant;
+      if (!store) throw new Error("Expected the assistant store on window");
+      return store.whenPersisted();
+    });
     // The write resolves before lightning-fs flushes it to IndexedDB, so a
     // reload straight away can still lose it (as in thread-restore.e2e)
     await page.waitForTimeout(1000);

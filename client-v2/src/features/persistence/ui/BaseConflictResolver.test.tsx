@@ -51,6 +51,7 @@ vi.mock("./merge-editor/controller", () => ({
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
+import { present } from "../../../test-utils/present";
 import { BaseConflictResolver } from "./BaseConflictResolver";
 import { merge3 } from "../model/merge";
 import type { FileConflict } from "../model/merge";
@@ -218,7 +219,9 @@ describe("BaseConflictResolver", () => {
       editor.appendChild(document.createElement("div")).className = widget;
     }
     const input = editor.appendChild(document.createElement("textarea"));
-    document.querySelector('[data-slot="modal-content"]')!.appendChild(editor);
+    present("the modal content")(
+      document.querySelector('[data-slot="modal-content"]')
+    ).appendChild(editor);
     return input;
   };
 
@@ -253,7 +256,9 @@ describe("BaseConflictResolver", () => {
   });
 
   it("stays open on a click outside it", async () => {
-    const outside = document.querySelector('[data-slot="modal-overlay"]')!;
+    const outside = present("the modal overlay")(
+      document.querySelector('[data-slot="modal-overlay"]')
+    );
     // Radix starts listening for outside presses a task after it opens
     await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     await act(async () => {
@@ -326,11 +331,13 @@ describe("BaseConflictResolver", () => {
     // Each side's gutter holds its own controls for the hunk.
     const takeBoth = (name: string) =>
       act(() =>
-        Array.from(
-          document.querySelectorAll<HTMLButtonElement>('[data-hunk="1"] button')
-        )
-          .find((b) => b.getAttribute("aria-label") === name)!
-          .click()
+        present(`the hunk 1 control "${name}"`)(
+          Array.from(
+            document.querySelectorAll<HTMLButtonElement>(
+              '[data-hunk="1"] button'
+            )
+          ).find((b) => b.getAttribute("aria-label") === name)
+        ).click()
       );
     // Each hunk's controls say which hunk they are for
     await takeBoth("Take this device's lines, conflict 2 of 3");
@@ -348,9 +355,11 @@ describe("BaseConflictResolver", () => {
     /** The slots of a side's pane body, in DOM order */
     const order = (side: "left" | "right") =>
       Array.from(
-        document.querySelector(
-          `[data-slot="merge-pane"][data-side="${side}"] [data-slot="merge-pane-body"]`
-        )!.children
+        present(`the ${side} pane body`)(
+          document.querySelector(
+            `[data-slot="merge-pane"][data-side="${side}"] [data-slot="merge-pane-body"]`
+          )
+        ).children
       ).map((child) => child.getAttribute("data-slot") ?? "editor");
 
     // Beside the ribbon: after this device's editor, before the other's

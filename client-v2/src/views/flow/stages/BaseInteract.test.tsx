@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { present } from "../../../test-utils/present";
 import BaseInteract from "./BaseInteract";
 import type { BaseInteractProps, DeploymentOption } from "./BaseInteract";
 import type { InteractSurface } from "./interact-surface";
@@ -41,7 +42,9 @@ const props = (
 });
 
 const actions = (container: HTMLElement) =>
-  container.querySelector<HTMLElement>('[data-slot="stage-empty-actions"]')!;
+  present("the stage's actions")(
+    container.querySelector<HTMLElement>('[data-slot="stage-empty-actions"]')
+  );
 
 describe("BaseInteract", () => {
   it("before a deploy it says so and offers Go to Deploy", () => {
@@ -102,7 +105,8 @@ describe("BaseInteract", () => {
   it("a bad IDL shows the error notice", () => {
     const { container } = render(<BaseInteract {...props("bad-idl")} />);
     expect(
-      container.querySelector('[data-slot="callout"]')!.textContent
+      present("the callout")(container.querySelector('[data-slot="callout"]'))
+        .textContent
     ).toContain("corrupted IDL");
   });
 
@@ -178,7 +182,8 @@ describe("BaseInteract", () => {
   it("an unreachable network shows the error notice", () => {
     const { container } = render(<BaseInteract {...props("unreachable")} />);
     expect(
-      container.querySelector('[data-slot="callout"]')!.textContent
+      present("the callout")(container.querySelector('[data-slot="callout"]'))
+        .textContent
     ).toContain("Connection error");
   });
 });

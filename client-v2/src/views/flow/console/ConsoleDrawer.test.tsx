@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { present } from "../../../test-utils/present";
 import { PgCommandManager, PgCommon, PgTerminal } from "../../../utils";
 import type { FlowState, StageStatus } from "../state/stage";
 
@@ -14,10 +15,16 @@ vi.mock(import("./BaseConsoleDrawer"), async (load) => {
   return { CONSOLE_BODY_ID, default: vi.fn(Base) } as const;
 });
 
+/** The props `ConsoleDrawer` last handed its Base */
+const lastDrawerProps = () =>
+  present("a render of the Base drawer")(
+    vi.mocked(BaseConsoleDrawer).mock.lastCall
+  )[0];
+
 /** Makes the request the design system's drawer would, through the
  * `onOpenChange` `ConsoleDrawer` last handed its Base */
 const requestOpen = (open: boolean) =>
-  act(() => vi.mocked(BaseConsoleDrawer).mock.lastCall![0].onOpenChange(open));
+  act(() => lastDrawerProps().onOpenChange(open));
 
 vi.mock("../../main/secondary/terminal/Component/Terminal", () => ({
   default: () => <div className="xterm" />,
@@ -96,7 +103,9 @@ it("should show what it is told and ask to toggle", () => {
   const handle = screen.getByRole("button", { name: "Terminal" });
   expect(handle.getAttribute("aria-expanded")).toBe("false");
   expect(
-    document.getElementById(CONSOLE_BODY_ID)!.querySelector(".xterm")
+    present("the console body")(
+      document.getElementById(CONSOLE_BODY_ID)
+    ).querySelector(".xterm")
   ).not.toBeNull();
   fireEvent.click(handle);
   expect(onToggle).toHaveBeenCalledTimes(1);
@@ -156,7 +165,7 @@ it("should show the flow's status as it changes", () => {
   render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
   expect(screen.queryByText(/Building/)).toBeNull();
 
-  act(() => flow.listener!(flowState("running")));
+  act(() => present("flow.listener")(flow.listener)(flowState("running")));
 
   expect(screen.getByText(/^Building…/)).toBeTruthy();
 });
@@ -178,7 +187,7 @@ describe("the strip's clock", () => {
     render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
     // Mounted 5 s into the run, as after a remount
     act(() =>
-      flow.listener!(
+      present("flow.listener")(flow.listener)(
         flowState("running", { buildStartedAt: Date.now() - 5_000 })
       )
     );
@@ -190,7 +199,11 @@ describe("the strip's clock", () => {
 
   it("should count a deploy from when the strip saw it start", () => {
     render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
-    act(() => flow.listener!(flowState("done", { deploy: "running" })));
+    act(() =>
+      present("flow.listener")(flow.listener)(
+        flowState("done", { deploy: "running" })
+      )
+    );
     act(() => vi.advanceTimersByTime(2_000));
 
     expect(screen.getByText("Deploying… \u00b7 2 s")).toBeTruthy();
@@ -198,8 +211,16 @@ describe("the strip's clock", () => {
 
   it("should stop counting once the run is over", () => {
     render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
-    act(() => flow.listener!(flowState("done", { deploy: "running" })));
-    act(() => flow.listener!(flowState("done", { deploy: "done" })));
+    act(() =>
+      present("flow.listener")(flow.listener)(
+        flowState("done", { deploy: "running" })
+      )
+    );
+    act(() =>
+      present("flow.listener")(flow.listener)(
+        flowState("done", { deploy: "done" })
+      )
+    );
 
     expect(screen.getByText("Deployed")).toBeTruthy();
     expect(vi.getTimerCount()).toBe(0);
@@ -213,5 +234,5 @@ it.each([
 ] as const)("shows the toggle's key on %s as %s", (os, key) => {
   vi.mocked(PgCommon.getOS).mockReturnValue(os);
   render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
-  expect(vi.mocked(BaseConsoleDrawer).mock.lastCall![0].shortcut).toBe(key);
+  expect(lastDrawerProps().shortcut).toBe(key);
 });

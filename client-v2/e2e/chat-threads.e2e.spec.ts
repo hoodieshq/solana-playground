@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures";
 import { currentProject, openGallery, seedWorkspace } from "./fixtures";
 import type { Page } from "@playwright/test";
+import { present } from "../src/test-utils/present";
 
 /**
  * Chat is keyed by workspace and survives a reload.
@@ -184,9 +185,14 @@ const addMessage = async (
     })
     .toContain(text);
   await expect
-    .poll(() => fileIsListed(page, encodeURIComponent(id!)), {
-      timeout: 15_000,
-    })
+    .poll(
+      () =>
+        fileIsListed(
+          page,
+          encodeURIComponent(present("the open thread's id")(id))
+        ),
+      { timeout: 15_000 }
+    )
     .toBe(true);
 };
 

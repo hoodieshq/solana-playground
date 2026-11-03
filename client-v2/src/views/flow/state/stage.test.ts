@@ -33,6 +33,7 @@ vi.mock("../../../utils", () => ({
 
 import { INITIAL_FLOW_STATE, PgFlow, countErrors } from "./stage";
 import { StoppedError } from "../../../utils/stopped";
+import { present } from "../../../test-utils/present";
 import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
 
 /** The mocked build-output module, in the shape the factory above gives it:
@@ -363,13 +364,17 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    buildStart.cb!(null);
-    buildFinish.cb!({ err: new StoppedError("Stopped.") });
+    present("buildStart.cb")(buildStart.cb)(null);
+    present("buildFinish.cb")(buildFinish.cb)({
+      err: new StoppedError("Stopped."),
+    });
     expect(PgFlow.state.build).toBe(PgFlow.state.buildSettled);
     expect(PgFlow.state.stopped).toBe("build");
 
-    deployStart.cb!(null);
-    deployFinish.cb!({ err: new StoppedError("Stopped.") });
+    present("deployStart.cb")(deployStart.cb)(null);
+    present("deployFinish.cb")(deployFinish.cb)({
+      err: new StoppedError("Stopped."),
+    });
     expect(PgFlow.state.deploy).toBe(PgFlow.state.deployBeforeRun);
     expect(PgFlow.state.stopped).toBe("deploy");
 
@@ -418,12 +423,14 @@ describe("PgFlow.init wiring", () => {
     expect(deployCallback).toBeDefined();
 
     // Test error case
-    deployCallback!({ err: new Error("deploy failed") });
+    present("deployCallback")(deployCallback)({
+      err: new Error("deploy failed"),
+    });
     expect(PgFlow.state.deploy).toBe("failed");
     expect(PgFlow.state.stage).toBe("deploy");
 
     // Test success case
-    deployCallback!({ ok: undefined });
+    present("deployCallback")(deployCallback)({ ok: undefined });
     expect(PgFlow.state.deploy).toBe("done");
     expect(PgFlow.state.interact).toBe("active");
     expect(PgFlow.state.stage).toBe("deploy");
@@ -464,25 +471,25 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    deployStartCallback!(null);
+    present("deployStartCallback")(deployStartCallback)(null);
     expect(PgFlow.state.deploy).toBe("running");
 
     // A second click while loading flips `deployState` to "paused" and
     // resolves with `ok: undefined` -- not a real completion.
     PgGlobal.deployState = "paused";
-    deployFinishCallback!({ ok: undefined });
+    present("deployFinishCallback")(deployFinishCallback)({ ok: undefined });
     expect(PgFlow.state.deploy).toBe("running");
 
     // Clicking again to resume flips it to "loading" and also resolves
     // immediately -- still not a real completion.
     PgGlobal.deployState = "loading";
-    deployFinishCallback!({ ok: undefined });
+    present("deployFinishCallback")(deployFinishCallback)({ ok: undefined });
     expect(PgFlow.state.deploy).toBe("running");
 
     // The deploy command itself always settles back to "ready" before its
     // own real finish event fires, success or failure.
     PgGlobal.deployState = "ready";
-    deployFinishCallback!({ ok: undefined });
+    present("deployFinishCallback")(deployFinishCallback)({ ok: undefined });
     expect(PgFlow.state.deploy).toBe("done");
 
     sub.dispose();
@@ -524,13 +531,13 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    buildStartCallback!(null);
+    present("buildStartCallback")(buildStartCallback)(null);
     expect(PgFlow.state.build).toBe("running");
 
     // The build server was unreachable: the `build` command rejects and
     // `PgBuildOutput` never received a value for this run.
     // As `PgServer` throws it for a server that never replied
-    buildFinishCallback!({
+    present("buildFinishCallback")(buildFinishCallback)({
       err: Object.assign(new Error("Server request failed (x): boom"), {
         answered: false,
       }),
@@ -582,11 +589,11 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    buildStartCallback!(null);
+    present("buildStartCallback")(buildStartCallback)(null);
     expect(PgFlow.state.build).toBe("running");
 
     // As the `build` command throws it before any request
-    buildFinishCallback!({
+    present("buildFinishCallback")(buildFinishCallback)({
       err: Object.assign(new Error("lib.rs is empty."), {
         emptyFile: "src/lib.rs",
       }),
@@ -637,7 +644,7 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
 
-    buildStartCallback!(null);
+    present("buildStartCallback")(buildStartCallback)(null);
     // The real build output for this run already arrived and was handled.
     buildOutputModule.PgBuildOutput.latest = {
       stderr: "error: could not compile `hello`",
@@ -645,7 +652,9 @@ describe("PgFlow.init wiring", () => {
       at: Date.now() + 1000,
     };
 
-    buildFinishCallback!({ err: new Error("build command threw") });
+    present("buildFinishCallback")(buildFinishCallback)({
+      err: new Error("build command threw"),
+    });
     // Still "running" -- the onDidFinish handler declined to dispatch a
     // second, redundant `build-finish` on top of the real one.
     expect(PgFlow.state.build).toBe("running");
@@ -783,8 +792,8 @@ describe("PgFlow.init, seeding a reloaded page", () => {
     const sub = PgFlow.init();
     return {
       sub,
-      reset: () => workspaceChange!(),
-      onChainArrived: () => onChainChange!(),
+      reset: () => present("workspaceChange")(workspaceChange)(),
+      onChainArrived: () => present("onChainChange")(onChainChange)(),
     };
   };
 

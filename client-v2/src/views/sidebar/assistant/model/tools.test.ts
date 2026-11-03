@@ -1,3 +1,4 @@
+import { present } from "@/test-utils/present";
 import { createTools } from "./tools";
 import { PgAssistant } from "../store";
 import type { PlaygroundBridge } from "../bridge/playground-bridge";
@@ -15,7 +16,9 @@ const bridge = (content: string | null): PlaygroundBridge =>
   } as unknown as PlaygroundBridge);
 
 const writeFile = (b: PlaygroundBridge) =>
-  createTools(b).find((tool) => tool.name === "write_file")!;
+  present("the write_file tool")(
+    createTools(b).find((tool) => tool.name === "write_file")
+  );
 
 /** The id of the approval card added most recently */
 const latestCard = () =>

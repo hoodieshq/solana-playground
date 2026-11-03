@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 
+import { present } from "../src/test-utils/present";
 import { expect, test } from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
@@ -123,7 +124,7 @@ test("client-v2-overlays: A toast clear of the rail", async ({
   );
   const toast = page.getByText("overlays e2e toast");
   await expect(toast).toBeVisible();
-  const railBox = (await rail.boundingBox())!;
+  const railBox = present("the rail's bounding box")(await rail.boundingBox());
   // It rises into place from below the window; wait for it to be the topmost
   // thing at its own centre, which it only is once it is on screen
   await expect
@@ -138,8 +139,8 @@ test("client-v2-overlays: A toast clear of the rail", async ({
       })
     )
     .toBe(true);
-  const box = (await toast.boundingBox())!;
-  const viewport = page.viewportSize()!;
+  const box = present("the toast's bounding box")(await toast.boundingBox());
+  const viewport = present("the page viewport")(page.viewportSize());
   expect(box.x).toBeGreaterThanOrEqual(railBox.x + railBox.width);
   expect(box.y).toBeGreaterThan(viewport.height / 2);
 });

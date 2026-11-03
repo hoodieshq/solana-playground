@@ -8,6 +8,7 @@ import {
   seedWorkspace,
   test,
 } from "./fixtures";
+import { present } from "../src/test-utils/present";
 
 /**
  * The scenarios of `client-v2-controls`: the stepper, a radio group and a
@@ -82,7 +83,9 @@ test.describe("client-v2-controls", () => {
     await page.keyboard.press("ArrowRight");
 
     const after = group.getByRole("radio", { checked: true });
-    await expect(after).not.toHaveText(before!);
+    await expect(after).not.toHaveText(
+      present("the checked radio's text")(before)
+    );
     await expect(after).toBeFocused();
   });
 

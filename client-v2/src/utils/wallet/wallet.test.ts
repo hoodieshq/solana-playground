@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PgWeb3 } from "../web3";
 import { KeypairFileError } from "./keypair-file";
 import { PgWallet } from "./wallet";
+import { present } from "../../test-utils/present";
 
 // The connection module reads build-time globals the unit runner does not
 // define; `PgWallet.import` never touches it.
@@ -21,11 +22,12 @@ const pick = () => {
     input = this;
   });
   const result = PgWallet.import();
+  const picker = () => present("the file input import() clicked")(input);
   const choose = (text: () => Promise<string>) => {
-    Object.defineProperty(input!, "files", { value: [{ text }] });
-    input!.dispatchEvent(new Event("change"));
+    Object.defineProperty(picker(), "files", { value: [{ text }] });
+    picker().dispatchEvent(new Event("change"));
   };
-  const close = () => input!.dispatchEvent(new Event("cancel"));
+  const close = () => picker().dispatchEvent(new Event("cancel"));
   return { result, choose, close };
 };
 

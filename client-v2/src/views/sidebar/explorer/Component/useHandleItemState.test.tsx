@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PgExplorer } from "../../../../utils";
 import { forgetTree } from "./kept-tree";
 import { useHandleItemState } from "./useHandleItemState";
+import { present } from "../../../../test-utils/present";
 
 /** What the mocked explorer reports; each test sets its own */
 const given = vi.hoisted(() => ({
@@ -94,9 +95,9 @@ const inTheme = (tree: ReactElement) => (
 const draw = (open?: boolean) => render(inTheme(<Tree open={open} />));
 
 const srcIsOpen = (workspace = "w1") =>
-  document
-    .querySelector(`[data-path='/${workspace}/src/']`)!
-    .classList.contains("open");
+  present(`${workspace}'s src folder`)(
+    document.querySelector(`[data-path='/${workspace}/src/']`)
+  ).classList.contains("open");
 
 // Before, not after: Testing Library unmounts the last tree after this file's
 // own `afterEach`, and that unmount keeps it again
@@ -184,7 +185,9 @@ describe("useHandleItemState when a project opens", () => {
     openFile("/w2/src/lib.rs");
     view.rerender(inTheme(<Tree workspace="w2" />));
 
-    document.querySelector("[data-path='/w2/src/']")!.classList.remove("open");
+    present("w2's src folder")(
+      document.querySelector("[data-path='/w2/src/']")
+    ).classList.remove("open");
     view.rerender(inTheme(<Tree workspace="w2" />));
     expect(srcIsOpen("w2")).toBe(false);
   });
