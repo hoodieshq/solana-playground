@@ -10,6 +10,7 @@ import { catalogTelemetry } from "../model/telemetry";
 import { useCardOpen } from "../model/use-card-open";
 import { useSearchTelemetry } from "../model/use-search-telemetry";
 import { useTutorialList } from "../model/use-tutorial-list";
+import type { TutorialItem } from "../model/use-tutorial-list";
 import BaseTutorialsPage from "./BaseTutorialsPage";
 
 /** The id the banner's Open runs under, apart from its tutorial's card */
@@ -28,8 +29,8 @@ const TutorialsPage = () => {
   const { open, busy, cardOpen } = useCardOpen("tutorials");
   const pool = useMemo(() => startTutorials(PgTutorial.all), []);
   // Read once, unsearched: the banner and the filter go by the whole list
-  const { list, count } = useTutorialList("", cardOpen, pool);
-  const all = list.cards;
+  const { list } = useTutorialList("", cardOpen, pool);
+  const all = list.state === "ready" ? list.cards : [];
   const items = all.filter(
     (t) =>
       matchesTutorial({ name: t.title, description: t.description }, query) &&
@@ -37,7 +38,7 @@ const TutorialsPage = () => {
   );
   useSearchTelemetry("tutorials", query, items.length === 0);
 
-  const featured = featuredOf(all);
+  const featured = featuredOf<TutorialItem>(all);
   const banner = featured && bannerOf(featured, ladderLine(featured.id));
 
   return (
@@ -53,7 +54,7 @@ const TutorialsPage = () => {
         });
       }}
       filterable={frameworkCount(all) >= 2}
-      count={count}
+      count={pool.length}
       items={items}
       banner={banner}
       bannerOpen={cardOpen(BANNER)}

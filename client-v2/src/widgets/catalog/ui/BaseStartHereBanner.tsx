@@ -56,7 +56,7 @@ const BaseStartHereBanner = ({
       // A soft light of the brand's purple from the corner the sculpture sits in
       style={{
         background:
-          "radial-gradient(120% 140% at 100% 0%, #9945ff24, transparent 62%), var(--surface-panel)",
+          "radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--brand-purple) 14%, transparent), transparent 62%), var(--surface-panel)",
       }}
       className="relative isolate overflow-hidden rounded-card border border-border"
     >
@@ -98,7 +98,7 @@ const BaseStartHereBanner = ({
                 className="h-[3px] flex-1 overflow-hidden rounded-[2px] bg-border"
               >
                 <span
-                  className="block h-full bg-[linear-gradient(90deg,#9945ff,#14f195)]"
+                  className="block h-full bg-[linear-gradient(90deg,var(--brand-purple),var(--brand-green))]"
                   style={{ width: `${(b.meter.done / b.meter.of) * 100}%` }}
                 />
               </span>

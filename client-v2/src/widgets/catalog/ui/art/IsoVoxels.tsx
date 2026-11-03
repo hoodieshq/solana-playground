@@ -80,7 +80,7 @@ const TILE_GAP = 0.11;
 
 type Lab = [number, number, number];
 
-const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 /** Linear lookup of a CSS cubic bezier, so easing in the loop is one read */
 const bezier = (x1: number, y1: number, x2: number, y2: number) => {
@@ -415,12 +415,11 @@ const paintSprites = (w: number, side: number) => {
         const ao = clamp01(1 - lift / (w * 1.1));
         const idx = Math.floor((1 - ao * ao) * (RAMP - 1) + bayer(x, y));
         const r = Math.min(RAMP - 1, Math.max(0, idx));
-        sidePx[y * sides.width + x0 + x] =
-          Math.abs(dx) < soft
-            ? blendRamps[Math.round(((dx / soft + 1) / 2) * (BLEND - 1))][r]
-            : dx < 0
-            ? leftRamp[r]
-            : rightRamp[r];
+        // Blended across the soft middle, else the left or the right face's ramp
+        let ramp = dx < 0 ? leftRamp : rightRamp;
+        if (Math.abs(dx) < soft)
+          ramp = blendRamps[Math.round(((dx / soft + 1) / 2) * (BLEND - 1))];
+        sidePx[y * sides.width + x0 + x] = ramp[r];
       }
     }
   }
@@ -577,11 +576,9 @@ const buildScene = (
     : Math.max(width * ART_LEFT, width + artW * 0.03 - artW);
   // Larger than the banner, it is centred on it and runs off both edges; in
   // the corner it hangs from the top, a third of it above the frame
-  const top = corner
-    ? -artH * 0.32
-    : MARK_SCALE > 1
-    ? (height - artH) / 2 + height * 0.05
-    : Math.max(14 * dpr, (height - artH) / 2 + height * 0.05);
+  const centred = (height - artH) / 2 + height * 0.05;
+  let top = MARK_SCALE > 1 ? centred : Math.max(14 * dpr, centred);
+  if (corner) top = -artH * 0.32;
   const ox = Math.round(left + w - mark.minA * step);
   const oy = Math.round(top + h0 + w / 2 - (mark.minB * step) / 2);
 
