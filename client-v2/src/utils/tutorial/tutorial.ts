@@ -1,3 +1,5 @@
+import { isMissing } from "../../shared/lib/is-missing";
+import { createLogger } from "../../shared/lib/logger";
 import { PgCommon } from "../common";
 import { PgExplorer, TupleFiles } from "../explorer";
 import { PgWorkspace } from "../explorer/workspace";
@@ -16,6 +18,8 @@ import type {
   TutorialState,
   TutorialStorageData,
 } from "./types";
+
+const log = createLogger("tutorial:open");
 
 const defaultState: TutorialState = {
   pageNumber: null,
@@ -202,12 +206,16 @@ class _PgTutorial {
 
     const tutorialPath = `/tutorials/${PgCommon.toKebabFromTitle(name)}`;
     if (this.isStarted(name)) {
+      let pageNumber = 1;
       try {
-        const { pageNumber } = await this.getMetadata(name);
-        await PgRouter.navigate(tutorialPath + "/" + pageNumber);
-      } catch {
-        await PgRouter.navigate(tutorialPath + "/" + 1);
+        ({ pageNumber } = await this.getMetadata(name));
+      } catch (e) {
+        // A started tutorial whose saved page cannot be read opens on its
+        // first page; a missing file is a warning, anything else is reported
+        if (isMissing(e)) log.warn(`no saved page for ${name}`);
+        else log.error(e, { report: true, context: { tutorial: name } });
       }
+      await PgRouter.navigate(tutorialPath + "/" + pageNumber);
     } else {
       await PgRouter.navigate(tutorialPath);
     }
