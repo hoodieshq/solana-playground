@@ -82,6 +82,6 @@ and 5 may run in parallel with 2–3.
 
 ## 6. Integration
 
-- [ ] 6.1 `yarn run check` in `client-v2` is green, plus `yarn test-api` and
+- [x] 6.1 `yarn run check` in `client-v2` is green, plus `yarn test-api` and
   the gist and no-program e2e specs. Take desktop and phone screenshots of
   the dialog before and after for the PR body.

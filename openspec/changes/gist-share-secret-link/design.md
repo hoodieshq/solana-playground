@@ -71,8 +71,8 @@ See proposal.md for why. The pieces this change touches today:
    `ShareGist` writes to the clipboard, then calls
    `PgView.setToast` (name `gist-link-copied`, text "Link copied") and tracks
    the event. A refused clipboard puts an error line in the dialog instead.
-   The icon button keeps the accessible name "Copy Playground link". "Copy
-   GitHub link" is a ghost text button.
+   "Copy Playground link" is a text button beside the field, and "Copy
+   GitHub link" a ghost text button.
 
 4. **Visibility lives in `ShareGist` state, and the Base draws the radio
    group from it.** It starts as `secret` on every open and is locked while a

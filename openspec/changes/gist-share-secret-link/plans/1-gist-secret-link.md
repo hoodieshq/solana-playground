@@ -58,8 +58,9 @@ pending `signIn` rejecting with `SignInFailed` reason `cancelled`.
    `LayoutShell.stageBarActions` → `Flow` fills it with `ShareButton`
    (`flow-share`) from `app/ShareGistDialog`, `source: "header"`; the row
    passes `"project_menu"`. Gate: `BaseStageBar` test + `ShareButton` test.
-8. **5.1 Phone stepper.** `StageBar` drops the `Stepper` on a phone for
-   `!hasProgram`, keeps "Client project". Gate: stepper/stage-bar test.
+8. **5.1 Phone stepper.** `Stepper` draws nothing when no stage is left on
+   a phone (`!hasProgram`); `StageBar` keeps "Client project". Gate:
+   `Stepper.test.tsx`.
 9. **2.3 / 4.2 e2e.** Update `e2e/gist-sharing.e2e.spec.ts` to the new copy
    and the Playground link, add "gist-sharing: Sign-in cancelled" (inline
    cancel) and "Closing the dialog while sign-in waits", the header and

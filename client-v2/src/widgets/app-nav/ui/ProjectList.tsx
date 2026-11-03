@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 
+import type { GistShareSource } from "@/features/gist";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgTutorial, PgView } from "@/utils";
 import { PgWorkspace } from "@/utils/explorer/workspace";
@@ -92,7 +93,7 @@ export type ProjectListProps = {
   onShareGist?: (
     name: string,
     readFiles: () => Promise<Record<string, string>>,
-    source: "project_menu"
+    source: Extract<GistShareSource, "project_menu">
   ) => Promise<unknown>;
 };
 
