@@ -124,7 +124,7 @@ breadcrumb only.
   `logger:global`, and Sentry receives exactly one event for it, marked
   unhandled
 
-#### Scenario: A terminal command fails as expected
+#### Scenario: A terminal command fails as expected (manual)
 
 - **WHEN** a terminal command fails in a way the user is shown (an unknown
   command, a declined wallet question, any "Process error" line) and the

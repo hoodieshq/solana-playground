@@ -19,7 +19,10 @@ const summary = (reason: object) =>
     ? `${reason.name}: ${reason.message}`
     : String(reason);
 
-/** Sends uncaught errors and unhandled rejections to `panic`; returns the uninstaller */
+/**
+ * Sends uncaught errors and unhandled rejections to `panic`, except a rejection
+ * marked with `markShown`, which is logged at `warn`; returns the uninstaller
+ */
 export const installGlobalHandlers = () => {
   // A cross-origin script error carries only a message, no `error`
   const onError = (event: ErrorEvent) =>
