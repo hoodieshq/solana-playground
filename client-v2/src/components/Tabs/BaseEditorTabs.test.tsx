@@ -139,21 +139,21 @@ describe("BaseEditorTabs", () => {
  * `tabs` at its `[left, right]`; every other element is 0x0, as jsdom lays
  * nothing out
  */
-const placeTabs = (
-  width: number,
-  tabs: Record<string, [number, number]>,
-  rowLeft = 0
-) =>
-  vi
-    .spyOn(Element.prototype, "getBoundingClientRect")
-    .mockImplementation(function (this: Element) {
-      if (this.getAttribute("role") === "tablist") {
-        return new DOMRect(rowLeft, 0, width, 40);
-      }
-      const name = this.querySelector('[role="tab"]')?.textContent ?? "";
-      const [left, right] = tabs[name] ?? [0, 0];
-      return new DOMRect(left, 0, right - left, 40);
-    });
+const placeTabsFrom =
+  (rowLeft: number) =>
+  (width: number, tabs: Record<string, [number, number]>) =>
+    vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: Element) {
+        if (this.getAttribute("role") === "tablist") {
+          return new DOMRect(rowLeft, 0, width, 40);
+        }
+        const name = this.querySelector('[role="tab"]')?.textContent ?? "";
+        const [left, right] = tabs[name] ?? [0, 0];
+        return new DOMRect(left, 0, right - left, 40);
+      });
+
+const placeTabs = placeTabsFrom(0);
 
 describe("BaseEditorTabs scrolling", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -177,7 +177,7 @@ describe("BaseEditorTabs scrolling", () => {
 
   // On a phone the row sits on a pager page, a window's width or more along
   it("measures the tab against the row wherever the row is", () => {
-    placeTabs(200, { "b.rs": [643, 723] }, 393);
+    placeTabsFrom(393)(200, { "b.rs": [643, 723] });
     setup();
     expect(screen.getByRole("tablist").scrollLeft).toBe(130);
   });

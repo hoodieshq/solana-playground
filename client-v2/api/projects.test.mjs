@@ -384,6 +384,7 @@ describe("/api/projects", () => {
       assert.equal(mod.describeWrite({}).status, 400);
       assert.equal(mod.describeWrite({ files: {} }).status, 400);
       // Only the boolean `true` is the old client's "keep this version"
+      // eslint-disable-next-line unicorn/no-null -- `force: null` is a wire value the old client could send
       for (const force of [null, 0, "true", "false"]) {
         const refused = mod.describeWrite({ files: { a: "1" }, force });
         assert.ok(refused.error);
@@ -420,6 +421,7 @@ describe("/api/projects", () => {
     it("refuses an old-format body that is empty or not a file map", async () => {
       const mod = await load();
       assert.ok(mod.describeWrite({ snapshot: { files: {} } }).error);
+      // eslint-disable-next-line unicorn/no-null -- `snapshot: null` is a wire value
       assert.ok(mod.describeWrite({ snapshot: null }).error);
       assert.ok(mod.describeWrite({ snapshot: { files: { a: 1 } } }).error);
     });

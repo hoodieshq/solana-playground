@@ -13,7 +13,7 @@ import {
   PgProgramInteraction,
 } from "../../../utils/program-interaction";
 import { PgCallHistory } from "../state/call-history";
-import { failingLine } from "./call-outcome";
+import { failingLineWith } from "./call-outcome";
 import type { CallOutcome } from "./call-outcome";
 
 const log = createLogger("flow:run-call");
@@ -50,8 +50,6 @@ const readLogs = async (signature: string): Promise<string[]> => {
   return [];
 };
 
-const UNKNOWN = "Unknown error";
-
 /** A transaction error as text; JSON when it serialises, which a BigInt may not */
 const describe = (err: unknown) => {
   try {
@@ -61,8 +59,12 @@ const describe = (err: unknown) => {
   }
 };
 
+/** An absent value as a stored record writes it: `null` */
+// eslint-disable-next-line unicorn/no-null -- `CallRecord` persists an absent signature or failing line as null
+const toStored = <T>(value: T | undefined) => value ?? null;
+
 const send = async (ix: GeneratableInstruction): Promise<CallOutcome> => {
-  let signature: string | null = null;
+  let signature: string | undefined;
   try {
     signature = await PgCommon.transition(PgProgramInteraction.test(ix));
     const confirmed = await PgTx.confirm(signature);
@@ -74,11 +76,10 @@ const send = async (ix: GeneratableInstruction): Promise<CallOutcome> => {
       signature,
       logs,
       failingLine: ok
-        ? null
-        : failingLine(
-            logs,
-            `Transaction failed: ${describe(confirmed?.err)}`
-          ) ?? UNKNOWN,
+        ? undefined
+        : failingLineWith(`Transaction failed: ${describe(confirmed?.err)}`)(
+            logs
+          ),
     };
   } catch (e: any) {
     const raw: string = e?.message ?? String(e);
@@ -98,7 +99,7 @@ const send = async (ix: GeneratableInstruction): Promise<CallOutcome> => {
       // A signature with a thrown error: sent, but its confirmation is unknown
       failingLine: signature
         ? `Could not confirm the call: ${message}`
-        : failingLine(logs, message) ?? UNKNOWN,
+        : failingLineWith(message)(logs),
     };
   }
 };
@@ -138,8 +139,8 @@ export const runCall = async (
         cluster,
         instruction: outcome.instruction,
         ok: outcome.ok,
-        signature: outcome.signature,
-        failingLine: outcome.failingLine,
+        signature: toStored(outcome.signature),
+        failingLine: toStored(outcome.failingLine),
       });
     }
     if (outcome.signature && PgSettings.testUi.showTxDetailsInTerminal) {

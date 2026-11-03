@@ -19,12 +19,12 @@ vi.mock("../../features/auth", () => ({
 vi.mock("./bpf-loader-upgradeable", () => ({
   BpfLoaderUpgradeable: {
     createBuffer: vi.fn(async () => "sig-buffer"),
+    // The arguments are (program id, bytes, options); only the options matter
     loadBuffer: vi.fn(
       async (
-        _pk: unknown,
-        _bytes: unknown,
-        opts: { onWrite: (c: number, t: number) => void }
+        ...args: [unknown, unknown, { onWrite: (c: number, t: number) => void }]
       ) => {
+        const [, , opts] = args;
         opts.onWrite(1, 2);
         opts.onWrite(2, 2);
       }
@@ -45,6 +45,7 @@ vi.mock("../../utils", () => {
       current: {
         getBalance: (...args: unknown[]) => balance(...(args as [])),
         getMinimumBalanceForRentExemption: async (len: number) => len,
+        // eslint-disable-next-line unicorn/no-null -- web3's `getAccountInfo` answers `null` for no account
         getAccountInfo: async () => null,
       },
     },
@@ -71,6 +72,7 @@ vi.mock("../../utils", () => {
       bold: (t: string) => t,
       get: async () => ({ waitForInput, println: vi.fn() }),
     },
+    // eslint-disable-next-line unicorn/no-null -- an RPC confirmation's `err` is `null` on success
     PgTx: { confirm: async () => ({ err: null }) },
     PgView: { setMainSecondaryProgress: vi.fn() },
     PgWallet: { current: { publicKey: pk, isPg: true } },
@@ -88,7 +90,7 @@ vi.mock("../../utils", () => {
   };
 });
 
-const answers = (stale = true) => ({
+const answers = (stale: boolean) => ({
   confirmStaleBuild: vi.fn(async () => stale),
 });
 
@@ -125,12 +127,18 @@ beforeEach(() => {
 const lastBuildFailed = () =>
   Object.assign(PgProgramInfo, {
     lastBuildFailed: true,
-    importedProgram: null,
+    importedProgram: undefined,
   });
 
 /** The command context of a run nobody stops */
 const noStop = () =>
   ({ signal: new AbortController().signal, lockStop: () => {} } as never);
+
+/** The deploy command's handler, run on a context nobody stops */
+const handleDeploy = () => {
+  if (!deploy.handle) throw new Error("The deploy command has no handler");
+  return deploy.handle(noStop());
+};
 
 describe("deploy run", () => {
   it("reports buffer, write and deploy in order, and returns the deploy's result", async () => {
@@ -140,7 +148,7 @@ describe("deploy run", () => {
       .mockResolvedValueOnce(10_000_000_000) // before the run spends
       .mockResolvedValueOnce(9_000_000_000); // after it
 
-    const result = await deploy.handle!(noStop());
+    const result = await handleDeploy();
 
     expect(steps).toEqual(["buffer", "write", "deploy"]);
     expect(result).toEqual({
@@ -157,11 +165,11 @@ describe("deploy run", () => {
       .mockResolvedValueOnce(10_000_000_000) // before the run spends
       .mockRejectedValueOnce(new Error("rpc down")); // after it
 
-    const result = await deploy.handle!(noStop());
+    const result = await handleDeploy();
 
     expect(result).toEqual({
       signature: "sig-deploy",
-      cost: null,
+      cost: undefined,
       upgraded: false,
     });
   });
@@ -170,7 +178,7 @@ describe("deploy run", () => {
     const steps = recordSteps();
     balance.mockResolvedValueOnce(0);
 
-    await PgDeployRun.withAnswers(answers(), () => deploy.handle!(noStop()));
+    await PgDeployRun.runWith(answers(true))(handleDeploy);
 
     expect(steps[0]).toBe("funding");
     expect(PgCommand.airdrop.execute).toHaveBeenCalledWith("1");
@@ -180,7 +188,7 @@ describe("deploy run", () => {
   it("asks in the terminal before funding a typed deploy", async () => {
     balance.mockResolvedValueOnce(0);
 
-    await deploy.handle!(noStop());
+    await handleDeploy();
 
     expect(waitForInput).toHaveBeenCalledOnce();
   });
@@ -191,9 +199,7 @@ describe("deploy run", () => {
       new Error("429 Too Many Requests")
     );
 
-    const run = PgDeployRun.withAnswers(answers(), () =>
-      deploy.handle!(noStop())
-    );
+    const run = PgDeployRun.runWith(answers(true))(handleDeploy);
 
     await expect(run).rejects.toBeInstanceOf(DeployFundingError);
     await run.catch((e: DeployFundingError) => {
@@ -208,11 +214,10 @@ describe("deploy run", () => {
 
   it("asks a signed-out user to sign in instead of requesting SOL", async () => {
     balance.mockResolvedValueOnce(0);
+    // eslint-disable-next-line unicorn/no-null -- `PgSession.get()` is `null` when signed out
     vi.mocked(PgSession.get).mockReturnValueOnce(null as never);
 
-    const run = PgDeployRun.withAnswers(answers(), () =>
-      deploy.handle!(noStop())
-    );
+    const run = PgDeployRun.runWith(answers(true))(handleDeploy);
 
     await expect(run).rejects.toMatchObject({
       detail: { reason: "signed_out" },
@@ -223,11 +228,10 @@ describe("deploy run", () => {
   it("says there is no faucet where the network has none", async () => {
     balance.mockResolvedValueOnce(0);
     const { PgConnection } = await import("../../utils");
+    // eslint-disable-next-line unicorn/no-null -- `getAirdropAmount()` is `null` for a network with no faucet
     vi.mocked(PgConnection.getAirdropAmount).mockReturnValueOnce(null);
 
-    const run = PgDeployRun.withAnswers(answers(), () =>
-      deploy.handle!(noStop())
-    );
+    const run = PgDeployRun.runWith(answers(true))(handleDeploy);
 
     await expect(run).rejects.toMatchObject({
       detail: { reason: "no_faucet" },
@@ -238,7 +242,7 @@ describe("deploy run", () => {
     lastBuildFailed();
     const said = answers(false);
 
-    const run = PgDeployRun.withAnswers(said, runChecks);
+    const run = PgDeployRun.runWith(said)(runChecks);
 
     await expect(run).rejects.toBeInstanceOf(DeployCancelledError);
     expect(said.confirmStaleBuild).toHaveBeenCalledOnce();
@@ -263,7 +267,7 @@ describe("deploy run", () => {
       PgDeployRun.onDidChange(({ upgrade }) => upgrades.push(upgrade))
     );
 
-    const result = await deploy.handle!(noStop());
+    const result = await handleDeploy();
 
     expect(result).toMatchObject({ signature: "sig-upgrade", upgraded: true });
     expect(upgrades).toContain(true);
@@ -275,7 +279,7 @@ describe("deploy run", () => {
       new Error("rpc down")
     );
 
-    await expect(deploy.handle!(noStop())).rejects.toThrow();
+    await expect(handleDeploy()).rejects.toThrow();
 
     expect(PgDeployRun.state.step).toBeNull();
     expect(PgDeployRun.lastStep).toBe("deploy");
@@ -288,24 +292,22 @@ describe("deploy run", () => {
     lastBuildFailed();
     const said = answers(true);
 
-    await expect(
-      PgDeployRun.withAnswers(said, runChecks)
-    ).resolves.toBeUndefined();
+    await expect(PgDeployRun.runWith(said)(runChecks)).resolves.toBeUndefined();
 
     expect(said.confirmStaleBuild).toHaveBeenCalledOnce();
     expect(waitForInput).not.toHaveBeenCalled();
   });
 
   it("drops the stage's answers once its run ends, however it ends", async () => {
-    await PgDeployRun.withAnswers(answers(), async () => undefined);
-    expect(PgDeployRun.answers).toBeNull();
+    await PgDeployRun.runWith(answers(true))(async () => undefined);
+    expect(PgDeployRun.answers).toBeUndefined();
 
     await expect(
-      PgDeployRun.withAnswers(answers(), async () => {
+      PgDeployRun.runWith(answers(true))(async () => {
         throw new Error("failed");
       })
     ).rejects.toThrow("failed");
-    expect(PgDeployRun.answers).toBeNull();
+    expect(PgDeployRun.answers).toBeUndefined();
   });
 
   it("counts what both wallets spent when a connected wallet pays", async () => {
@@ -327,8 +329,10 @@ describe("deploy run", () => {
       // the next two are the run's "before", the last two its "after"
       return (reads <= 3 ? before : after)[key];
     });
+    const current = utils.PgWallet.current;
+    if (!current) throw new Error("The mocked wallet has no current account");
     const standard = {
-      publicKey: utils.PgWallet.current!.publicKey,
+      publicKey: current.publicKey,
       isPg: false,
     };
     Object.assign(utils.PgWallet, {
@@ -346,7 +350,7 @@ describe("deploy run", () => {
     });
 
     try {
-      const result = await deploy.handle!(noStop());
+      const result = await handleDeploy();
       expect(result?.cost).toBe(500_000_000);
     } finally {
       Object.assign(utils.PgWallet, {

@@ -48,7 +48,7 @@ export const answerBackup = (address: string): void => {
 };
 
 if (import.meta.vitest) {
-  const { describe, it, expect, beforeEach } = import.meta.vitest;
+  const { describe, it, expect, beforeEach, vi } = import.meta.vitest;
 
   describe("features/deploy/model/backup", () => {
     beforeEach(() => {
@@ -70,7 +70,6 @@ if (import.meta.vitest) {
     });
 
     it("survives storage that refuses the write", () => {
-      const { vi } = import.meta.vitest!;
       const setItem = vi
         .spyOn(Storage.prototype, "setItem")
         .mockImplementation(() => {

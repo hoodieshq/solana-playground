@@ -43,22 +43,22 @@ import {
 } from "./stage-layout";
 
 /**
- * What the chain says about the deployed program; `null` when unknown or,
+ * What the chain says about the deployed program; absent when unknown or,
  * for the authority and size, when the program can no longer be upgraded
  */
 export interface DeployDetails {
-  upgradable: boolean | null;
-  authority: string | null;
-  programSize: number | null;
+  upgradable: boolean | undefined;
+  authority: string | undefined;
+  programSize: number | undefined;
 }
 
 /** Where the project's last deploy stands */
 export type DeployStatus = "idle" | "running" | "failed";
 
-/** The wallet that pays for the deploy; `balance` is SOL, `null` until read */
+/** The wallet that pays for the deploy; `balance` is SOL, absent until read */
 export interface DeployPayer {
   address: string;
-  balance: number | null;
+  balance: number | undefined;
   /** The Playground wallet, not a connected one such as Phantom */
   playground: boolean;
 }
@@ -84,22 +84,22 @@ export interface BaseDeployProps {
   details: DeployDetails;
   /** Every deployment of the project, newest first */
   history: DeployRecord[];
-  /** The wallet that pays, Playground or connected; `null` while none is current */
-  payer: DeployPayer | null;
+  /** The wallet that pays, Playground or connected; absent while none is current */
+  payer: DeployPayer | undefined;
   /** The running deploy's steps */
   run: DeployRunState;
   /** The last run stopped for lack of SOL */
-  funding: FundingStop | null;
+  funding: FundingStop | undefined;
   /** Show the keypair backup line under the result */
   backup: boolean;
   /** Ask whether to deploy the last successful build */
   staleBuild: boolean;
   /**
    * An Explorer link that opens `cluster`, whatever network is selected;
-   * `null` when the explorer cannot open it, and the link is left out
+   * `undefined` when the explorer cannot open it, and the link is left out
    */
-  addressUrl: (programId: string, cluster: string) => string | null;
-  txUrl: (signature: string, cluster: string) => string | null;
+  addressUrl: (programId: string, cluster: string) => string | undefined;
+  txUrl: (signature: string, cluster: string) => string | undefined;
   onDeploy: () => void;
   onSignIn: () => void;
   onSaveKeypair: () => void;
@@ -132,12 +132,12 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
 const deployNetwork = (p: BaseDeployProps) => networkName(p.cluster);
 
 /** Who pays, before a deploy */
-const payerLine = (payer: DeployPayer | null) => {
+const payerLine = (payer: DeployPayer | undefined) => {
   if (!payer) {
     return "Deploys from a Playground wallet created on your first deploy.";
   }
   const balance =
-    payer.balance === null ? "" : ` · ${payer.balance.toFixed(2)} SOL`;
+    payer.balance === undefined ? "" : ` · ${payer.balance.toFixed(2)} SOL`;
   const which = payer.playground ? "your Playground wallet" : "your wallet";
   return `Deploys from ${which} · ${shortKey(payer.address)}${balance}`;
 };
@@ -223,11 +223,11 @@ const DeployResult = ({
         {latest.cost !== undefined && (
           <Fact name="Cost">{formatSol(latest.cost)} SOL</Fact>
         )}
-        {upgradable !== null && (
+        {upgradable !== undefined && (
           <Fact name="Upgradable">{upgradable ? "Yes" : "No"}</Fact>
         )}
         {authority && <Fact name="Authority">{authority}</Fact>}
-        {programSize !== null && (
+        {programSize !== undefined && (
           <Fact name="Program size">
             {programSize.toLocaleString("en-US")} bytes
           </Fact>
@@ -269,6 +269,7 @@ const DeployResult = ({
 /** A history row's Explorer link, left out when the explorer cannot open its network */
 const HistoryLink = ({ p, r }: { p: BaseDeployProps; r: DeployRecord }) => {
   const href = p.addressUrl(r.programId, r.cluster);
+  // eslint-disable-next-line unicorn/no-null -- a React component renders nothing with null
   if (!href) return null;
   const network = networkName(r.cluster);
   return (

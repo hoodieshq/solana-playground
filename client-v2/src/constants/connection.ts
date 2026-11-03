@@ -20,12 +20,13 @@ const CLUSTER_NAMES: Record<string, string> = {
 /**
  * A cluster's name as a person reads it: a proper noun, so capitalised, and
  * "Mainnet" for the `mainnet-beta` moniker, which URLs, CLI flags and
- * telemetry keep. An unknown moniker comes back as it is.
+ * telemetry keep. An unknown moniker comes back as it is, and no cluster
+ * (`null`) has no name.
  */
 export function clusterName(cluster: string): string;
-export function clusterName(cluster: string | null): string | null;
-export function clusterName(cluster: string | null): string | null {
-  if (cluster === null) return null;
+export function clusterName(cluster: string | null): string | undefined;
+export function clusterName(cluster: string | null): string | undefined {
+  if (cluster === null) return undefined;
   return Object.hasOwn(CLUSTER_NAMES, cluster)
     ? CLUSTER_NAMES[cluster]
     : cluster;
@@ -66,6 +67,6 @@ export const buildNetworks = (urls: PlatformRpcUrls): Network[] =>
 export const NETWORKS = buildNetworks(PLATFORM_RPC_URLS);
 
 /** Default RPC endpoint: the offered Devnet */
-export const DEFAULT_ENDPOINT = NETWORKS.find(
-  (n) => n.cluster === "devnet"
-)!.value;
+const OFFERED_DEVNET = NETWORKS.find((n) => n.cluster === "devnet");
+if (!OFFERED_DEVNET) throw new Error("The offered networks have no Devnet");
+export const DEFAULT_ENDPOINT = OFFERED_DEVNET.value;

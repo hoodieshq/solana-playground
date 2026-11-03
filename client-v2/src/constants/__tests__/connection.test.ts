@@ -58,8 +58,9 @@ describe("clusterName", () => {
     expect(clusterName("unknown")).toBe("unknown");
   });
 
-  it("returns null for no cluster", () => {
-    expect(clusterName(null)).toBeNull();
+  it("returns undefined for no cluster", () => {
+    // eslint-disable-next-line unicorn/no-null -- the cluster is `null` until read
+    expect(clusterName(null)).toBeUndefined();
   });
 });
 

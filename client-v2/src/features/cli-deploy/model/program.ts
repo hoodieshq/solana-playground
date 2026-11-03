@@ -58,17 +58,25 @@ if (import.meta.vitest) {
     it("asks for a rebuild only on the server's 'not built' answer", () => {
       const url = "http://server.test/deploy/u";
       expect(
-        downloadFailure(new PgServerError(url, 500, "Program is not built"))
+        downloadFailure(
+          new PgServerError({ url, status: 500, body: "Program is not built" })
+        )
       ).toBe("not-built");
-      expect(downloadFailure(new PgServerError(url, 500, "disk full"))).toBe(
-        "server"
-      );
       expect(
-        downloadFailure(new PgServerError(url, 404, "Program is not built"))
+        downloadFailure(
+          new PgServerError({ url, status: 500, body: "disk full" })
+        )
       ).toBe("server");
-      expect(downloadFailure(new PgServerError(url, null, "offline"))).toBe(
-        "server"
-      );
+      expect(
+        downloadFailure(
+          new PgServerError({ url, status: 404, body: "Program is not built" })
+        )
+      ).toBe("server");
+      expect(
+        downloadFailure(
+          new PgServerError({ url, status: undefined, body: "offline" })
+        )
+      ).toBe("server");
       expect(downloadFailure(new Error("Program is not built"))).toBe("server");
     });
 
@@ -76,15 +84,15 @@ if (import.meta.vitest) {
       expect(programName({ idlName: "hello_anchor", workspace: "X" })).toBe(
         "hello_anchor"
       );
-      expect(programName({ idlName: null, workspace: "My Counter!" })).toBe(
-        "my_counter"
-      );
-      expect(programName({ idlName: "helloAnchor", workspace: null })).toBe(
-        "hello_anchor"
-      );
-      expect(programName({ idlName: "Counter2Pda", workspace: null })).toBe(
-        "counter2_pda"
-      );
+      expect(
+        programName({ idlName: undefined, workspace: "My Counter!" })
+      ).toBe("my_counter");
+      expect(
+        programName({ idlName: "helloAnchor", workspace: undefined })
+      ).toBe("hello_anchor");
+      expect(
+        programName({ idlName: "Counter2Pda", workspace: undefined })
+      ).toBe("counter2_pda");
       expect(programName({ idlName: undefined, workspace: "  " })).toBe(
         "program"
       );

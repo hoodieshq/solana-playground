@@ -39,6 +39,7 @@ if (import.meta.vitest) {
     it("networkName names the cluster capitalised, Mainnet for mainnet-beta", () => {
       expect(networkName("mainnet-beta")).toBe("Mainnet");
       expect(networkName("devnet")).toBe("Devnet");
+      // eslint-disable-next-line unicorn/no-null -- the cluster is `null` until read
       expect(networkName(null)).toBe("the network");
     });
   });

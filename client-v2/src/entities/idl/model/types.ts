@@ -112,4 +112,4 @@ export type IdlV1Type =
 export type IdlReading =
   | { kind: "v029"; idl: Idl }
   | { kind: "v1"; idl: Idl; source: IdlV1 }
-  | { kind: "refused"; version: "1" | null; reason: string };
+  | { kind: "refused"; version: "1" | undefined; reason: string };

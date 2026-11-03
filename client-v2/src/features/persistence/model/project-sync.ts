@@ -502,7 +502,9 @@ export class PgProjectSync {
   static async push(
     projectId: string,
     snapshot: Snapshot,
+    // eslint-disable-next-line layers/curry-order -- the public signature is the one project-restore and its tests spy on and assert; curried here it would break callers outside this change
     name?: string,
+    // eslint-disable-next-line layers/curry-order -- same: the public `push(projectId, snapshot, name?, opts?)` stays
     opts: PushOptions = {}
   ): Promise<PushResult> {
     // Held from reading the mark to writing the new one -- and through a
@@ -510,18 +512,18 @@ export class PgProjectSync {
     // is about to change. Re-entrant within this tab: `pushCurrent`,
     // `reconcile` and the merge's own upload already hold it.
     return await withSyncLock(() =>
-      PgProjectSync._push(projectId, snapshot, name, opts)
+      PgProjectSync._push(opts, projectId, snapshot, name)
     );
   }
 
   private static async _push(
-    projectId: string,
-    snapshot: Snapshot,
-    name: string | undefined,
     opts: PushOptions & {
       /** Send the whole set even with a mark -- see the `no-files` 400 */
       whole?: boolean;
-    }
+    },
+    projectId: string,
+    snapshot: Snapshot,
+    name: string | undefined
   ): Promise<PushResult> {
     if (!(await PgProjectSync._ready())) return "skipped";
 
@@ -574,7 +576,8 @@ export class PgProjectSync {
     const storedName = pinned ? mark!.name : localName;
     // Relative to the last agreement, when there is one. Without a mark there
     // is nothing to be relative to.
-    const patch = mark && !opts.whole ? diffFiles(mark.files, hashes) : null;
+    const patch =
+      mark && !opts.whole ? diffFiles(mark.files, hashes) : undefined;
 
     // Before anything that can decline to send. What these files held at the
     // last agreement is the one thing a later merge cannot rebuild, and a
@@ -638,6 +641,7 @@ export class PgProjectSync {
     // apart -- and, like it, nothing is recorded.
     const bytes = new TextEncoder().encode(body).length;
     if (bytes > MAX_PROJECT_BODY_BYTES) {
+      // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
       report(`push project ${projectId}: ${bytes} bytes, over the limit`, null);
       PgProjectSync._raise({ projectId, kind: "too-large" });
       return "conflict";
@@ -698,18 +702,25 @@ export class PgProjectSync {
         // whole set puts the files back. Past the gate already, and a whole
         // set is never refused for this, so it is sent once.
         if (patch && refusal?.reason === NO_FILES_REASON) {
+          // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
           report(`push project ${projectId}: account copy was empty`, null);
-          return await PgProjectSync._push(projectId, snapshot, name, {
-            immediate: true,
-            merging: opts.merging,
-            generation: opts.generation,
-            whole: true,
-          });
+          return await PgProjectSync._push(
+            {
+              immediate: true,
+              merging: opts.merging,
+              generation: opts.generation,
+              whole: true,
+            },
+            projectId,
+            snapshot,
+            name
+          );
         }
         const said = refusal?.error;
         report(
           `push project ${projectId}: HTTP ${response.status}` +
             (typeof said === "string" ? ` (${said})` : ""),
+          // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
           null
         );
         return "skipped";
@@ -1039,6 +1050,7 @@ export class PgProjectSync {
             if (buffer !== read) {
               report(
                 `catch up ${localName}: ${path} was edited here while sync removed it; the edit was discarded`,
+                // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
                 null
               );
             }
@@ -1055,6 +1067,7 @@ export class PgProjectSync {
             if (merged.kind === "conflict") {
               report(
                 `catch up ${localName}: what was typed in ${path} during sync overlaps what sync wrote; the synced copy was kept`,
+                // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
                 null
               );
             } else {
@@ -1213,6 +1226,7 @@ export class PgProjectSync {
           // Unreadable is reported where the read failed; a row holding
           // nothing a merge can start from is reported here
           if (full?.snapshot) {
+            // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
             report(`merge project ${projectId}: unusable snapshot`, null);
           }
           return "failed";

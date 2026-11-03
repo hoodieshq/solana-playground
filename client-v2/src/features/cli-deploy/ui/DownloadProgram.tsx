@@ -52,12 +52,12 @@ export const useProgramName = () => {
 /** "Download .so", connected: fetches the last build's binary on press */
 const DownloadProgram = ({ from }: { from: DownloadFrom }) => {
   const name = useProgramName();
-  const [note, setNote] = useState<DownloadNote | null>(null);
+  const [note, setNote] = useState<DownloadNote | undefined>();
   const fileName = `${name}.so`;
 
   // A new build answers the note; it must not linger beside the new binary
   useEffect(() => {
-    const sub = PgProgramInfo.onDidChangeUuid(() => setNote(null));
+    const sub = PgProgramInfo.onDidChangeUuid(() => setNote(undefined));
     return () => sub.dispose();
   }, []);
 
@@ -68,7 +68,7 @@ const DownloadProgram = ({ from }: { from: DownloadFrom }) => {
    * Tells the user, in a note rather than a toast, that a build would fix it.
    * The event and an info log still record it; it is no fault to report.
    */
-  const askForBuild = (reason: DownloadNote, uuid: string | null) => {
+  const askForBuild = (reason: DownloadNote, uuid: string | undefined) => {
     failed(reason);
     log.info("No binary to download; a build is needed", {
       context: { reason, uuid },
@@ -77,10 +77,10 @@ const DownloadProgram = ({ from }: { from: DownloadFrom }) => {
   };
 
   const onDownload = async () => {
-    setNote(null);
+    setNote(undefined);
     const uuid = PgProgramInfo.uuid;
     if (!uuid) {
-      askForBuild("no-build", null);
+      askForBuild("no-build", undefined);
       return;
     }
 

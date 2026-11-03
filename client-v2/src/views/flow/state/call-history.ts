@@ -65,7 +65,7 @@ export class PgCallHistory {
     };
     const stored = PgCallHistory._read();
     // A blob that does not parse is left alone rather than overwritten
-    if (stored === null) return record;
+    if (stored === undefined) return record;
     try {
       const all = [record, ...stored].slice(0, MAX_RECORDS);
       localStorage.setItem(KEY, JSON.stringify(all));
@@ -91,15 +91,15 @@ export class PgCallHistory {
     return PgCallHistory._read() ?? [];
   }
 
-  /** The stored records; null when the blob does not parse as a list */
-  private static _read(): CallRecord[] | null {
+  /** The stored records; undefined when the blob does not parse as a list */
+  private static _read(): CallRecord[] | undefined {
     try {
       const parsed: unknown = JSON.parse(localStorage.getItem(KEY) ?? "[]");
       if (!Array.isArray(parsed)) throw new Error("Not a list");
       return parsed.filter(isCallRecord);
     } catch (e) {
       log.warn("The call history does not parse", { context: { error: e } });
-      return null;
+      return undefined;
     }
   }
 
@@ -111,24 +111,28 @@ if (import.meta.vitest) {
   const { describe, it, expect, beforeEach, vi } = import.meta.vitest;
 
   describe("views/flow/state/call-history", () => {
-    const call = (programId: string, cluster: string, instruction: string) => ({
-      programId,
-      cluster,
-      instruction,
-      ok: true,
-      signature: "sig",
-      failingLine: null,
-    });
+    // eslint-disable-next-line unicorn/no-null -- the stored record writes an absent signature or failing line as null
+    const NONE = null;
+
+    const callWith =
+      (programId: string, cluster: string) => (instruction: string) => ({
+        programId,
+        cluster,
+        instruction,
+        ok: true,
+        signature: "sig",
+        failingLine: NONE,
+      });
 
     beforeEach(() => localStorage.clear());
 
     it("lists one program's calls on one network, newest first", () => {
       vi.spyOn(Date, "now").mockReturnValueOnce(1).mockReturnValueOnce(2);
-      PgCallHistory.add(call("P", "devnet", "initialize"));
-      PgCallHistory.add(call("P", "devnet", "increment"));
+      PgCallHistory.add(callWith("P", "devnet")("initialize"));
+      PgCallHistory.add(callWith("P", "devnet")("increment"));
       vi.restoreAllMocks();
-      PgCallHistory.add(call("P", "testnet", "increment"));
-      PgCallHistory.add(call("Q", "devnet", "increment"));
+      PgCallHistory.add(callWith("P", "testnet")("increment"));
+      PgCallHistory.add(callWith("Q", "devnet")("increment"));
 
       expect(
         PgCallHistory.list("P", "devnet").map((r) => r.instruction)
@@ -137,7 +141,7 @@ if (import.meta.vitest) {
 
     it("keeps only the 50 newest calls", () => {
       for (let i = 0; i < 51; i++) {
-        PgCallHistory.add(call("P", "devnet", `ix${i}`));
+        PgCallHistory.add(callWith("P", "devnet")(`ix${i}`));
       }
       const list = PgCallHistory.list("P", "devnet");
       expect(list).toHaveLength(50);
@@ -152,7 +156,7 @@ if (import.meta.vitest) {
         cluster: "devnet",
         instruction: "increment",
         ok: false,
-        signature: null,
+        signature: NONE,
         failingLine: "Error Code: X",
         at: 1,
       };
@@ -161,8 +165,8 @@ if (import.meta.vitest) {
         programId: "P",
         cluster: "devnet",
         ok: true,
-        signature: null,
-        failingLine: null,
+        signature: NONE,
+        failingLine: NONE,
         at: 2,
       };
       const badOk = {
@@ -171,8 +175,8 @@ if (import.meta.vitest) {
         cluster: "devnet",
         instruction: "x",
         ok: "yes",
-        signature: null,
-        failingLine: null,
+        signature: NONE,
+        failingLine: NONE,
         at: 3,
       };
       localStorage.setItem(KEY, JSON.stringify([good, noInstruction, badOk]));
@@ -183,7 +187,7 @@ if (import.meta.vitest) {
     it("reads unparseable storage as empty and never overwrites it", () => {
       localStorage.setItem(KEY, "{not json");
       expect(PgCallHistory.list("P", "devnet")).toEqual([]);
-      PgCallHistory.add(call("P", "devnet", "increment"));
+      PgCallHistory.add(callWith("P", "devnet")("increment"));
       expect(localStorage.getItem(KEY)).toBe("{not json");
     });
 
@@ -193,7 +197,7 @@ if (import.meta.vitest) {
         cluster: "devnet",
         instruction: "increment",
         ok: false,
-        signature: null,
+        signature: NONE,
         failingLine: "Error Code: X",
         logs: ["a", "b"],
       } as Parameters<typeof PgCallHistory.add>[0]);
@@ -203,9 +207,9 @@ if (import.meta.vitest) {
     it("tells listeners on subscribe and on every add", () => {
       const cb = vi.fn();
       const sub = PgCallHistory.onDidChange(cb);
-      PgCallHistory.add(call("P", "devnet", "increment"));
+      PgCallHistory.add(callWith("P", "devnet")("increment"));
       sub.dispose();
-      PgCallHistory.add(call("P", "devnet", "increment"));
+      PgCallHistory.add(callWith("P", "devnet")("increment"));
       expect(cb).toHaveBeenCalledTimes(2);
     });
   });

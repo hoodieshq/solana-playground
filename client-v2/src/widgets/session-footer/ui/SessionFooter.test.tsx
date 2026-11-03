@@ -61,7 +61,10 @@ vi.mock("@/utils", () => ({
   PgView: { setToast },
 }));
 // The Fund dialog has its own tests; here only the menu item that opens it counts
-vi.mock("@/features/fund-wallet", () => ({ FundDialog: () => null }));
+vi.mock("@/features/fund-wallet", () => ({
+  // eslint-disable-next-line unicorn/no-null -- a React component renders nothing by returning `null`
+  FundDialog: () => null,
+}));
 vi.mock("@/features/feedback", () => ({
   FeedbackMenuItems: () => null,
   useFeedbackSend: () => ({ sending: false, triggerRef: { current: null } }),

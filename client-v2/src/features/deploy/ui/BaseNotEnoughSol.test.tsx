@@ -19,6 +19,7 @@ const renderCard = (props: Partial<BaseNotEnoughSolProps>) => {
         balance={props.balance ?? 0}
         needed={props.needed ?? 1_420_000_000}
         address={ADDRESS}
+        // eslint-disable-next-line unicorn/no-null -- the prop's none value
         cause={props.cause ?? null}
         onRetry={onRetry}
         onSignIn={onSignIn}

@@ -42,7 +42,7 @@ const InteractBody = ({
   useSyncInstructionStorage();
 
   const names = idl.instructions.map((ix) => ix.name);
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string>();
   // A pick the IDL no longer has (a rebuild renamed it) falls back to the first
   const current = picked && names.includes(picked) ? picked : names[0];
   const idlInstruction = idl.instructions.find((ix) => ix.name === current);
@@ -53,8 +53,8 @@ const InteractBody = ({
   const [last, setLast] = useState<{
     target: string;
     outcome: CallOutcome;
-  } | null>(null);
-  const outcome = last?.target === target ? last.outcome : null;
+  }>();
+  const outcome = last?.target === target ? last.outcome : undefined;
   const history = useCallHistory(programId, cluster);
   const network = clusterName(cluster) ?? "the network";
   const explorer = useBlockExplorer();
@@ -131,6 +131,7 @@ const InteractBody = ({
 const FeePayer = () => {
   const wallet = useWallet();
   const balance = useBalance();
+  // eslint-disable-next-line unicorn/no-null -- a React component renders nothing with null
   if (!wallet) return null;
   const who = wallet.isPg ? "Playground wallet" : wallet.name;
   const sol = typeof balance === "number" ? `${+balance.toFixed(4)} SOL` : "—";

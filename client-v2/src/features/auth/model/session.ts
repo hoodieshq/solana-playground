@@ -557,6 +557,7 @@ if (import.meta.vitest) {
       it("waits for the page's read without starting one", async () => {
         const request = vi.spyOn(globalThis, "fetch").mockResolvedValue({
           ok: true,
+          // eslint-disable-next-line unicorn/no-null -- the session endpoint answers `user: null` when signed out
           json: async () => ({ user: null }),
         } as Response);
         let settled = false;
@@ -573,6 +574,7 @@ if (import.meta.vitest) {
       });
 
       it("settles at once after a read", async () => {
+        // eslint-disable-next-line unicorn/no-null -- `refreshWith(null)` is the signed-out answer
         await PgSession.refreshWith(null);
         let settled = false;
         await PgSession.afterRead().then(() => (settled = true));

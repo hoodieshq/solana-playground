@@ -31,9 +31,11 @@ vi.mock("../../sidebar/test/Component/Instruction", () => ({
   ),
 }));
 vi.mock("../../sidebar/test/Component/Account", () => ({
-  default: () => null,
+  default: () => undefined,
 }));
-vi.mock("../../sidebar/test/Component/Event", () => ({ default: () => null }));
+vi.mock("../../sidebar/test/Component/Event", () => ({
+  default: () => undefined,
+}));
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
@@ -122,7 +124,7 @@ describe("InteractBody", () => {
       ok: true,
       signature: "sig",
       logs: [],
-      failingLine: null,
+      failingLine: undefined,
     });
     const { rerender } = render(
       wrap(
@@ -156,6 +158,7 @@ describe("InteractBody", () => {
           instruction: "removed",
           ok: true,
           signature: "sig",
+          // eslint-disable-next-line unicorn/no-null -- a stored record writes a missing failing line as null
           failingLine: null,
           at: 1,
         },

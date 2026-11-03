@@ -487,7 +487,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       return rows[0];
     };
 
-    const say = (userOf, threadId, projectId, n) =>
+    const sayFor = (userOf, projectId) => (threadId, n) =>
       appendMessages(userOf, { threadId, projectId, title: `chat ${n}` }, [
         {
           id: `22222222-0000-4000-8000-0000000002${n}`,
@@ -513,11 +513,12 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
 
     it("deletes its messages and title, keeping the tombstone", async () => {
       const mine = "22222222-0000-4000-8000-000000000021";
-      await say(userId, mine, "p1", 21);
+      await sayFor(userId, "p1")(mine, 21);
 
       await deleteProject(userId, "p1");
 
       assert.deepEqual(await left(mine), {
+        // eslint-disable-next-line unicorn/no-null -- a Postgres row: a deleted chat's title is cleared to NULL
         title: null,
         deleted: true,
         messages: 0,
@@ -526,8 +527,8 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
 
     it("leaves another project's history whole", async () => {
       const neighbour = "22222222-0000-4000-8000-000000000022";
-      await say(userId, "22222222-0000-4000-8000-000000000023", "p1", 23);
-      await say(userId, neighbour, "p2", 22);
+      await sayFor(userId, "p1")("22222222-0000-4000-8000-000000000023", 23);
+      await sayFor(userId, "p2")(neighbour, 22);
 
       await deleteProject(userId, "p1");
 
@@ -541,8 +542,8 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     it("leaves another account's history under the same id whole", async () => {
       // A tutorial's id is the same string in every account that started it
       const theirs = "22222222-0000-4000-8000-000000000024";
-      await say(userId, "22222222-0000-4000-8000-000000000025", "tut:x", 25);
-      await say(otherUser, theirs, "tut:x", 24);
+      await sayFor(userId, "tut:x")("22222222-0000-4000-8000-000000000025", 25);
+      await sayFor(otherUser, "tut:x")(theirs, 24);
 
       await deleteProject(userId, "tut:x");
 
@@ -557,7 +558,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       // A tutorial restarted after a delete leaves the old run's thread
       // tombstoned under a live project id; the next delete takes it too
       const earlier = "22222222-0000-4000-8000-000000000026";
-      await say(userId, earlier, "p1", 26);
+      await sayFor(userId, "p1")(earlier, 26);
       await query("update conversations set deleted_at = now() where id = $1", [
         earlier,
       ]);
@@ -565,6 +566,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       await deleteProject(userId, "p1");
 
       assert.deepEqual(await left(earlier), {
+        // eslint-disable-next-line unicorn/no-null -- a Postgres row: a deleted chat's title is cleared to NULL
         title: null,
         deleted: true,
         messages: 0,
@@ -584,7 +586,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
         createdAt: new Date(2000).toISOString(),
         text: "in flight",
       };
-      await say(userId, threadId, "p1", 27);
+      await sayFor(userId, "p1")(threadId, 27);
       let push;
       let deletion;
 

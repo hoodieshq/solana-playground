@@ -69,6 +69,7 @@ export const useSignInOffer = ({
   }, []);
 
   if (session === "unread" || !session.signedOut || !syncs || !hasItems) {
+    // eslint-disable-next-line unicorn/no-null -- `BaseThread`'s `signIn` prop is `SignInOffer | null`
     return null;
   }
   return { pending: session.pending, onSignIn: signIn };

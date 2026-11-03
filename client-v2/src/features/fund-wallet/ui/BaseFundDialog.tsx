@@ -59,65 +59,63 @@ export interface BaseFundDialogProps {
   /** Every detected wallet; empty when none is installed */
   wallets: FundWalletOption[];
   /**
-   * `null` until the user connects a wallet in this dialog; a wallet connected
+   * `undefined` until the user connects a wallet in this dialog; a wallet connected
    * earlier is listed again and must be picked
    */
-  payer: FundPayer | null;
-  /** The Playground's cluster, named beside the amount; `null` while unknown */
-  cluster: string | null;
+  payer: FundPayer | undefined;
+  /** The Playground's cluster, named beside the amount; `undefined` while unknown */
+  cluster: string | undefined;
   amount: string;
   onAmountChange: (amount: string) => void;
   /** Connects the named wallet; the dialog's button waits on it */
   onConnect: (name: string) => Promise<void>;
   /** Sends the amount; the dialog's button waits on it */
   onSend: () => Promise<void>;
-  failure: FundFailure | null;
+  failure: FundFailure | undefined;
 }
 
 const shortAddress = (address: string) =>
   `${address.slice(0, 4)}…${address.slice(-4)}`;
 
 /** The line under the amount field: a problem, or where the SOL goes */
-const amountNote = (
-  amount: string,
-  payer: FundPayer,
-  cluster: string | null
-): { ok: boolean; error: boolean; text: string } => {
-  if (payer.balance === "unavailable") {
+const amountNoteFor =
+  (payer: FundPayer, cluster: string | undefined) =>
+  (amount: string): { ok: boolean; error: boolean; text: string } => {
+    if (payer.balance === "unavailable") {
+      return {
+        ok: false,
+        error: true,
+        text: `Couldn't read ${payer.name}'s balance. Close and open this again to retry.`,
+      };
+    }
+    const check = canSend(
+      amount,
+      payer.balance === "loading" ? undefined : payer.balance
+    );
+    if (check.ok) {
+      return {
+        ok: true,
+        error: false,
+        text: cluster
+          ? `Sent on ${clusterName(cluster)}.`
+          : "Sent on the Playground's cluster.",
+      };
+    }
+    const notes: Record<Exclude<SendCheck, { ok: true }>["problem"], string> = {
+      "not-a-number": "Enter an amount above 0.",
+      "not-positive": "Enter an amount above 0.",
+      "too-precise": "Use at most 9 decimals.",
+      checking: "Checking the balance…",
+      "above-balance": `${payer.name} holds ${formatSol(
+        typeof payer.balance === "number" ? payer.balance : 0
+      )}.`,
+    };
     return {
       ok: false,
-      error: true,
-      text: `Couldn't read ${payer.name}'s balance. Close and open this again to retry.`,
+      error: check.problem !== "checking",
+      text: notes[check.problem],
     };
-  }
-  const check = canSend(
-    amount,
-    payer.balance === "loading" ? null : payer.balance
-  );
-  if (check.ok) {
-    return {
-      ok: true,
-      error: false,
-      text: cluster
-        ? `Sent on ${clusterName(cluster)}.`
-        : "Sent on the Playground's cluster.",
-    };
-  }
-  const notes: Record<Exclude<SendCheck, { ok: true }>["problem"], string> = {
-    "not-a-number": "Enter an amount above 0.",
-    "not-positive": "Enter an amount above 0.",
-    "too-precise": "Use at most 9 decimals.",
-    checking: "Checking the balance…",
-    "above-balance": `${payer.name} holds ${formatSol(
-      typeof payer.balance === "number" ? payer.balance : 0
-    )}.`,
   };
-  return {
-    ok: false,
-    error: check.problem !== "checking",
-    text: notes[check.problem],
-  };
-};
 
 /** The shared wallet copy (Spec 12, `wallet`) for a request the user refused */
 const declinedIn = (wallet: string) =>
@@ -127,7 +125,7 @@ const failureText = (failure: FundFailure) => {
   switch (failure.kind) {
     case "connect-declined":
     case "send-declined":
-      return { title: declinedIn(failure.wallet), detail: null };
+      return { title: declinedIn(failure.wallet), detail: undefined };
     case "connect-failed":
       return { title: "Couldn't connect the wallet.", detail: failure.detail };
     case "send-failed":
@@ -169,10 +167,10 @@ const BaseFundDialog = ({
   onSend,
   failure,
 }: BaseFundDialogProps) => {
-  const note = payer ? amountNote(amount, payer, cluster) : null;
+  const note = payer ? amountNoteFor(payer, cluster)(amount) : undefined;
   const unconfirmed =
     failure?.kind === "send-unconfirmed" || failure?.kind === "send-pending";
-  const shown = failure ? failureText(failure) : null;
+  const shown = failure ? failureText(failure) : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

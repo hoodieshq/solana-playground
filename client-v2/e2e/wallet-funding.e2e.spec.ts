@@ -71,104 +71,113 @@ interface Cluster {
 
 /**
  * Devnet, answered locally: balances per address (the payer starts with
- * `payerLamports`, 5 SOL unless set; everyone else with 0), a blockhash, and a confirmed status for every
+ * `payerLamports`; everyone else with 0), a blockhash, and a confirmed status for every
  * transaction sent, which also moves the lamports it transfers. Anything else
  * goes to the real devnet, as in the rest of the suite.
  */
-const stubDevnet = async (
-  page: Page,
-  payer: string,
-  payerLamports = 5 * SOL
-): Promise<Cluster> => {
-  const balances = new Map<string, number>([[payer, payerLamports]]);
-  const cluster: Cluster = { sent: [] };
-  const answer = (method: string, params: unknown[]): unknown => {
-    switch (method) {
-      case "getBalance":
-        return {
-          context: { slot: 1 },
-          value: balances.get(params[0] as string) ?? 0,
-        };
-      case "getLatestBlockhash":
-        return {
-          context: { slot: 1 },
-          value: {
-            blockhash: Keypair.generate().publicKey.toBase58(),
-            lastValidBlockHeight: 1_000_000,
-          },
-        };
-      case "getRecentPrioritizationFees":
-        return [];
-      case "sendTransaction": {
-        const tx = Transaction.from(Buffer.from(params[0] as string, "base64"));
-        cluster.sent.push(tx);
-        for (const ix of tx.instructions) {
-          if (!ix.programId.equals(SystemProgram.programId)) continue;
-          const { fromPubkey, toPubkey, lamports } =
-            SystemInstruction.decodeTransfer(ix);
-          const from = fromPubkey.toBase58();
-          const to = toPubkey.toBase58();
-          balances.set(from, (balances.get(from) ?? 0) - Number(lamports));
-          balances.set(to, (balances.get(to) ?? 0) + Number(lamports));
+const stubDevnetFor =
+  (payerLamports: number) =>
+  async (page: Page, payer: string): Promise<Cluster> => {
+    const balances = new Map<string, number>([[payer, payerLamports]]);
+    const cluster: Cluster = { sent: [] };
+    const answer = (method: string, params: unknown[]): unknown => {
+      switch (method) {
+        case "getBalance":
+          return {
+            context: { slot: 1 },
+            value: balances.get(params[0] as string) ?? 0,
+          };
+        case "getLatestBlockhash":
+          return {
+            context: { slot: 1 },
+            value: {
+              blockhash: Keypair.generate().publicKey.toBase58(),
+              lastValidBlockHeight: 1_000_000,
+            },
+          };
+        case "getRecentPrioritizationFees":
+          return [];
+        case "sendTransaction": {
+          const tx = Transaction.from(
+            Buffer.from(params[0] as string, "base64")
+          );
+          cluster.sent.push(tx);
+          for (const ix of tx.instructions) {
+            if (!ix.programId.equals(SystemProgram.programId)) continue;
+            const { fromPubkey, toPubkey, lamports } =
+              SystemInstruction.decodeTransfer(ix);
+            const from = fromPubkey.toBase58();
+            const to = toPubkey.toBase58();
+            balances.set(from, (balances.get(from) ?? 0) - Number(lamports));
+            balances.set(to, (balances.get(to) ?? 0) + Number(lamports));
+          }
+          return base58(tx.signatures[0].signature ?? Buffer.alloc(64));
         }
-        return base58(tx.signatures[0].signature ?? Buffer.alloc(64));
+        case "getSignatureStatuses":
+          return {
+            context: { slot: 1 },
+            value: (params[0] as string[]).map(() => ({
+              slot: 1,
+              // eslint-disable-next-line unicorn/no-null -- JSON-RPC wire payload
+              confirmations: null,
+              // eslint-disable-next-line unicorn/no-null -- JSON-RPC wire payload
+              err: null,
+              confirmationStatus: "confirmed",
+            })),
+          };
+        default:
+          return undefined;
       }
-      case "getSignatureStatuses":
-        return {
-          context: { slot: 1 },
-          value: (params[0] as string[]).map(() => ({
-            slot: 1,
-            confirmations: null,
-            err: null,
-            confirmationStatus: "confirmed",
-          })),
-        };
-      default:
-        return undefined;
-    }
-  };
-
-  await page.route(DEVNET, async (route) => {
-    const body = route.request().postDataJSON() as {
-      id: number;
-      method: string;
-      params?: unknown[];
     };
-    const result = answer(body.method, body.params ?? []);
-    if (result === undefined) return route.fallback();
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ jsonrpc: "2.0", id: body.id, result }),
-    });
-  });
 
-  // Every subscription is accepted; a signature one is confirmed at once
-  let next = 1;
-  await page.routeWebSocket(DEVNET_WS, (ws) => {
-    ws.onMessage((message) => {
-      const { id, method } = JSON.parse(String(message)) as {
+    await page.route(DEVNET, async (route) => {
+      const body = route.request().postDataJSON() as {
         id: number;
         method: string;
+        params?: unknown[];
       };
-      const subscription = next++;
-      ws.send(JSON.stringify({ jsonrpc: "2.0", id, result: subscription }));
-      if (method === "signatureSubscribe") {
-        ws.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            method: "signatureNotification",
-            params: {
-              subscription,
-              result: { context: { slot: 1 }, value: { err: null } },
-            },
-          })
-        );
-      }
+      const result = answer(body.method, body.params ?? []);
+      if (result === undefined) return route.fallback();
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ jsonrpc: "2.0", id: body.id, result }),
+      });
     });
-  });
 
-  return cluster;
-};
+    // Every subscription is accepted; a signature one is confirmed at once
+    let next = 1;
+    await page.routeWebSocket(DEVNET_WS, (ws) => {
+      ws.onMessage((message) => {
+        const { id, method } = JSON.parse(String(message)) as {
+          id: number;
+          method: string;
+        };
+        const subscription = next++;
+        ws.send(JSON.stringify({ jsonrpc: "2.0", id, result: subscription }));
+        if (method === "signatureSubscribe") {
+          ws.send(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              method: "signatureNotification",
+              params: {
+                subscription,
+                result: {
+                  context: { slot: 1 },
+                  value: {
+                    // eslint-disable-next-line unicorn/no-null -- JSON-RPC wire payload
+                    err: null,
+                  },
+                },
+              },
+            })
+          );
+        }
+      });
+    });
+
+    return cluster;
+  };
+const stubDevnet = stubDevnetFor(5 * SOL);
 
 test("client-v2-wallet-funding: No Playground wallet yet", async ({
   seededPage: page,
@@ -266,7 +275,7 @@ test("client-v2-wallet-funding: Amount above the balance", async ({
 }) => {
   void seededPage;
   const phantom = await installFakeWallet(page, { name: "Phantom" });
-  await stubDevnet(page, phantom.address, SOL / 2);
+  await stubDevnetFor(SOL / 2)(page, phantom.address);
   await reloadSettled(page);
   await openFund(page);
   await dialog(page).getByRole("button", { name: "Connect Phantom" }).click();

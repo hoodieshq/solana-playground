@@ -335,7 +335,7 @@ const captureWrites = () => {
 };
 
 /** What the editor holds, per full path, standing in for Monaco's models */
-let editor: { dispose: () => void } | null = null;
+let editor: { dispose: () => void } | undefined;
 const editorHolds = (buffers: Record<string, string>) => {
   const held = new Map(Object.entries(buffers));
   editor = PgExplorer.registerEditorBuffers({
@@ -423,7 +423,7 @@ describe("work that never reached the server", () => {
   beforeEach(setUp);
   afterEach(() => {
     editor?.dispose();
-    editor = null;
+    editor = undefined;
     vi.restoreAllMocks();
   });
 
@@ -504,7 +504,7 @@ describe("work that never reached the server", () => {
     // The editor finishes loading during the re-open, before memory is
     // re-read, so it builds its model from the text just replaced. The
     // re-open then reuses that model, and the pane goes on showing it.
-    let buffers: Map<string, string> | null = null;
+    let buffers: Map<string, string> | undefined;
     vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
       buffers = editorHolds({
         [`/${HELLO.name}/src/lib.rs`]: "an afternoon of work",
@@ -513,7 +513,7 @@ describe("work that never reached the server", () => {
 
     expect(await PgProjectSync.resolve(HELLO.id, "take-server")).toBe(true);
 
-    expect(buffers!.get(`/${HELLO.name}/src/lib.rs`)).toBe("the other device");
+    expect(buffers?.get(`/${HELLO.name}/src/lib.rs`)).toBe("the other device");
     expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
       "the other device"
     );
@@ -527,7 +527,7 @@ describe("both devices changed it", () => {
   });
   afterEach(() => {
     editor?.dispose();
-    editor = null;
+    editor = undefined;
     clearFailures();
     vi.restoreAllMocks();
   });
@@ -940,7 +940,7 @@ describe("both devices changed it", () => {
     );
     // Mounted during the re-open, from memory not yet re-read, and typed into
     // before the re-open was done
-    let buffers: Map<string, string> | null = null;
+    let buffers: Map<string, string> | undefined;
     vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
       buffers = editorHolds({
         [`/${HELLO.name}/src/lib.rs`]: "a\nb\nc\nd\nE\n",
@@ -952,7 +952,7 @@ describe("both devices changed it", () => {
 
     expect((await reconcile()).replaced).toEqual([HELLO.name]);
 
-    expect(buffers!.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\nE\n");
+    expect(buffers?.get(`/${HELLO.name}/src/lib.rs`)).toBe("A\nb\nc\nd\nE\n");
     expect(storedFiles().get(`/${HELLO.name}/src/lib.rs`)).toBe(
       "A\nb\nc\nd\nE\n"
     );
@@ -1039,7 +1039,7 @@ describe("both devices changed it", () => {
       async (name: string, files: Record<string, string>) =>
         writeStored(name, files)
     );
-    let buffers: Map<string, string> | null = null;
+    let buffers: Map<string, string> | undefined;
     vi.spyOn(PgExplorer, "switchWorkspace").mockImplementation(async () => {
       buffers = editorHolds({ [`/${HELLO.name}/tests/t.rs`]: "test" });
     });
@@ -1048,7 +1048,7 @@ describe("both devices changed it", () => {
 
     // Left in place, autosave would write the file back and the next push
     // would undo the other device's delete
-    expect(buffers!.has(`/${HELLO.name}/tests/t.rs`)).toBe(false);
+    expect(buffers?.has(`/${HELLO.name}/tests/t.rs`)).toBe(false);
     expect(storedFiles().has(`/${HELLO.name}/tests/t.rs`)).toBe(false);
   });
 
@@ -1121,6 +1121,7 @@ describe("both devices changed it", () => {
     editorHolds({ [`/${HELLO.name}/src/lib.rs`]: "a\nb\nC\nd\nE\n" });
     const writeFile = PgFs.writeFile.bind(PgFs);
     let failed = false;
+    // eslint-disable-next-line max-params -- mirrors `PgFs.writeFile`'s own signature
     vi.spyOn(PgFs, "writeFile").mockImplementation(async (path, data, opts) => {
       if (!failed && data === "A\nb\nC\nd\nE\n") {
         failed = true;
@@ -1364,7 +1365,7 @@ describe("a workspace whose files are gone from the store", () => {
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
     writeStored(HELLO.name, {});
     await PgSyncMark.markDirty(HELLO.id);
-    return server.get(HELLO.id)!.snapshot;
+    return serverRow(HELLO.id).snapshot;
   };
 
   it("is not uploaded by reconcile while the account is where it was", async () => {
@@ -1374,7 +1375,7 @@ describe("a workspace whose files are gone from the store", () => {
     await reconcile();
 
     expect(puts()).toEqual([]);
-    expect(server.get(HELLO.id)!.snapshot).toEqual(held);
+    expect(serverRow(HELLO.id).snapshot).toEqual(held);
   });
 
   it("is not uploaded over a row that holds no code", async () => {
@@ -1385,6 +1386,7 @@ describe("a workspace whose files are gone from the store", () => {
       id: HELLO.id,
       name: HELLO.name,
       kind: "tutorial",
+      // eslint-disable-next-line unicorn/no-null -- a wire row: the server stores a cleared snapshot as null
       snapshot: null,
       updatedAt: tick(),
     });
@@ -1407,7 +1409,7 @@ describe("a workspace whose files are gone from the store", () => {
 
     expect(puts()).toEqual([]);
     expect(replace).not.toHaveBeenCalled();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "the other device" },
     });
     expect(result.pushed).toEqual([]);
@@ -1421,7 +1423,7 @@ describe("a workspace whose files are gone from the store", () => {
     expect(await PgProjectSync.resolve(HELLO.id, "retry")).toBe(false);
 
     expect(puts()).toEqual([]);
-    expect(server.get(HELLO.id)!.snapshot).toEqual(held);
+    expect(serverRow(HELLO.id).snapshot).toEqual(held);
     // and the question is still up, rather than silently dropped
     expect(PgProjectSync.conflictFor(HELLO.id)).not.toBeNull();
   });
@@ -1439,11 +1441,12 @@ describe("a row emptied before the server refused it", () => {
     writeStored(HELLO.name, { "src/lib.rs": "kept", "src/extra.rs": "gone" });
     await signedIn();
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
-    const row = server.get(HELLO.id)!;
+    const row = serverRow(HELLO.id);
     server.set(HELLO.id, {
       id: row.id,
       name: row.name,
       kind: row.kind,
+      // eslint-disable-next-line unicorn/no-null -- a wire row: the server stores a cleared snapshot as null
       snapshot: null,
       updatedAt: row.updatedAt,
     });
@@ -1451,7 +1454,7 @@ describe("a row emptied before the server refused it", () => {
     writeStored(HELLO.name, { "src/lib.rs": "kept" });
     expect(await PgProjectSync.pushCurrent()).toBe("ok");
 
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "kept" },
     });
     // and the mark now agrees with it, so nothing more goes up
@@ -1515,7 +1518,7 @@ describe("a project whose mark is one hash of the whole snapshot", () => {
     expect(result.conflicts).toEqual([]);
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
     expect(replace).not.toHaveBeenCalled();
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "edited here since" },
     });
     expect(result.pushed).toEqual([HELLO.name]);
@@ -1539,7 +1542,7 @@ describe("a project whose mark is one hash of the whole snapshot", () => {
     const result = await reconcile();
 
     expect(result.conflicts).toEqual([]);
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "A\nb\nc\nd\nE\n" },
     });
   });
@@ -1573,7 +1576,7 @@ describe("a project whose mark is one hash of the whole snapshot", () => {
     const second = await reconcile();
 
     expect(second.conflicts).toEqual([]);
-    expect(server.get(HELLO.id)!.snapshot).toEqual({
+    expect(serverRow(HELLO.id).snapshot).toEqual({
       files: { "src/lib.rs": "edited here since" },
     });
   });
@@ -1601,7 +1604,7 @@ describe("a project whose mark is one hash of the whole snapshot", () => {
 
     expect(result.conflicts).toEqual([]);
     expect(replace).not.toHaveBeenCalled();
-    expect(server.get(HELLO.id)!.updatedAt).toBe(before);
+    expect(serverRow(HELLO.id).updatedAt).toBe(before);
     // and the next exchange is an ordinary one, against a per-file mark
     expect((await PgSyncMark.read(HELLO.id))?.updatedAt).toBe(before);
   });
@@ -2035,7 +2038,7 @@ describe("the exchange after typing was folded into a rewrite", () => {
     effect?.dispose();
     effect = null;
     editor?.dispose();
-    editor = null;
+    editor = undefined;
     delete (document as { visibilityState?: unknown }).visibilityState;
     clearFailures();
     vi.restoreAllMocks();

@@ -11,8 +11,8 @@ import {
 import { PgServerError } from "@/utils/server-error";
 
 const mocks = vi.hoisted(() => ({
-  idl: null as unknown,
-  uuid: "build-uuid" as string | null,
+  idl: undefined as unknown,
+  uuid: "build-uuid" as string | undefined,
   deploy: vi.fn(),
   error: vi.fn(),
   setToast: vi.fn(),
@@ -96,7 +96,7 @@ describe("features/cli-deploy/ui/DownloadProgram", () => {
   });
 
   it("names the binary after the workspace without an IDL", async () => {
-    mocks.idl = null;
+    mocks.idl = undefined;
     render(<DownloadProgram from="guide" />);
     await press();
 
@@ -105,7 +105,11 @@ describe("features/cli-deploy/ui/DownloadProgram", () => {
 
   it("asks for a rebuild when the server lost the build", async () => {
     mocks.deploy.mockRejectedValue(
-      new PgServerError("http://s/deploy/u", 500, "Program is not built")
+      new PgServerError({
+        url: "http://s/deploy/u",
+        status: 500,
+        body: "Program is not built",
+      })
     );
     render(<DownloadProgram from="guide" />);
     await press();
@@ -125,7 +129,11 @@ describe("features/cli-deploy/ui/DownloadProgram", () => {
 
   it("reports any other failure and asks for no rebuild", async () => {
     mocks.deploy.mockRejectedValue(
-      new PgServerError("http://s/deploy/u", 502, "Bad gateway")
+      new PgServerError({
+        url: "http://s/deploy/u",
+        status: 502,
+        body: "Bad gateway",
+      })
     );
     render(<DownloadProgram from="build-stage" />);
     await press();
@@ -144,7 +152,7 @@ describe("features/cli-deploy/ui/DownloadProgram", () => {
   });
 
   it("asks for a build when this browser holds no build id", async () => {
-    mocks.uuid = null;
+    mocks.uuid = undefined;
     render(<DownloadProgram from="guide" />);
     await press();
 
@@ -176,7 +184,11 @@ describe("features/cli-deploy/ui/DownloadProgram", () => {
 
   it("clears the rebuild line once a later press succeeds", async () => {
     mocks.deploy.mockRejectedValueOnce(
-      new PgServerError("http://s/deploy/u", 500, "Program is not built")
+      new PgServerError({
+        url: "http://s/deploy/u",
+        status: 500,
+        body: "Program is not built",
+      })
     );
     render(<DownloadProgram from="build-stage" />);
     await press();

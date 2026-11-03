@@ -16,13 +16,13 @@ export interface DeployRunState {
 
 /** What a finished deploy reports to whoever started it */
 export interface DeployResult {
-  /** The deploy or upgrade transaction; `null` when the RPC returned none */
-  signature: string | null;
+  /** The deploy or upgrade transaction; `undefined` when the RPC returned none */
+  signature: string | undefined;
   /**
-   * Lamports the paying wallets spent on the run, fees included; `null` when
-   * the balance after it could not be read
+   * Lamports the paying wallets spent on the run, fees included; `undefined`
+   * when the balance after it could not be read
    */
-  cost: number | null;
+  cost: number | undefined;
   upgraded: boolean;
 }
 
@@ -70,6 +70,7 @@ export class DeployCancelledError extends Error {
 }
 
 const IDLE: DeployRunState = {
+  // eslint-disable-next-line unicorn/no-null -- `DeployRunState.step` is `null` while no deploy runs, as the Deploy stage and its tests read it
   step: null,
   percent: 0,
   funds: false,
@@ -86,7 +87,7 @@ export class PgDeployRun {
     return PgDeployRun._state;
   }
 
-  static get answers(): DeployAnswers | null {
+  static get answers(): DeployAnswers | undefined {
     return PgDeployRun._answers;
   }
 
@@ -94,7 +95,7 @@ export class PgDeployRun {
    * The last step the latest run reached; kept after the run ends, so a
    * caller that catches the run's error can say where it stopped
    */
-  static get lastStep(): DeployStep | null {
+  static get lastStep(): DeployStep | undefined {
     return PgDeployRun._lastStep;
   }
 
@@ -104,22 +105,21 @@ export class PgDeployRun {
   }
 
   /**
-   * Run `start` with `answers` in place of the terminal's questions; they
-   * apply to that run alone.
+   * Run what is passed next with `answers` in place of the terminal's
+   * questions; they apply to that run alone.
    */
-  static async withAnswers<T>(
-    answers: DeployAnswers,
-    start: () => Promise<T>
-  ): Promise<T> {
-    // Restored, not cleared: a run started inside another keeps its own
-    const outer = PgDeployRun._answers;
-    PgDeployRun._answers = answers;
-    PgDeployRun._lastStep = null;
-    try {
-      return await start();
-    } finally {
-      PgDeployRun._answers = outer;
-    }
+  static runWith(answers: DeployAnswers) {
+    return async <T>(start: () => Promise<T>): Promise<T> => {
+      // Restored, not cleared: a run started inside another keeps its own
+      const outer = PgDeployRun._answers;
+      PgDeployRun._answers = answers;
+      PgDeployRun._lastStep = undefined;
+      try {
+        return await start();
+      } finally {
+        PgDeployRun._answers = outer;
+      }
+    };
   }
 
   /** Record the run's progress; the deploy command alone calls it */
@@ -142,8 +142,8 @@ export class PgDeployRun {
   }
 
   private static _state: DeployRunState = IDLE;
-  private static _answers: DeployAnswers | null = null;
-  private static _lastStep: DeployStep | null = null;
+  private static _answers: DeployAnswers | undefined;
+  private static _lastStep: DeployStep | undefined;
   private static readonly _listeners = new Set<
     (state: DeployRunState) => void
   >();

@@ -166,6 +166,7 @@ class _PgProgramInfo {
 
   /** How the stored IDL reads, or `null` when there is none */
   static readIdl(): IdlReading | null {
+    // eslint-disable-next-line unicorn/no-null -- `null` for no IDL is what every caller and mock of `readIdl()` reads
     return PgProgramInfo.idl ? readIdl(PgProgramInfo.idl) : null;
   }
 
@@ -175,6 +176,7 @@ class _PgProgramInfo {
    */
   static callableIdl(): Idl | null {
     const reading = _PgProgramInfo.readIdl();
+    // eslint-disable-next-line unicorn/no-null -- `null` for no callable IDL is what every caller and mock of `callableIdl()` reads
     return reading && reading.kind !== "refused" ? reading.idl : null;
   }
 

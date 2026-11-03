@@ -149,6 +149,7 @@ describe("features/cli-deploy/ui/CliDeployGuide", () => {
           />
         </TooltipProvider>
       );
+    // eslint-disable-next-line unicorn/no-null -- the prop's closed value
     again(null);
     again("deploy-stage");
 
@@ -237,6 +238,7 @@ describe("features/cli-deploy/ui/CliDeployGuide", () => {
   it("renders nothing while closed", () => {
     renderGuide(
       <CliDeployGuide
+        // eslint-disable-next-line unicorn/no-null -- the prop's closed value
         {...props({ from: null, cluster: "devnet", built: true })}
       />
     );

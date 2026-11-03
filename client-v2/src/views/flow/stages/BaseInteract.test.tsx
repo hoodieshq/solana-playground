@@ -18,6 +18,12 @@ import type { InteractSurface } from "./interact-surface";
 const render = (ui: ReactElement) =>
   rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
 
+/** The value, failing the test with what was missing when there is none */
+const found = <T,>(value: T | null, what: string): T => {
+  if (value === null) throw new Error(`missing ${what}`);
+  return value;
+};
+
 const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 
 const SURFACES: InteractSurface[] = [
@@ -36,14 +42,14 @@ const SURFACES: InteractSurface[] = [
 const props = (
   surface: InteractSurface,
   over: {
-    cluster?: string | null;
+    cluster?: string | undefined;
     deployments?: DeploymentOption[];
     onGoTo?: BaseInteractProps["onGoTo"];
     onPick?: BaseInteractProps["onPick"];
-    programId?: string | null;
+    programId?: string;
     builtAfterDeploy?: boolean;
     solNeeded?: BaseInteractProps["solNeeded"];
-    idlRefusal?: string | null;
+    idlRefusal?: string;
   } = {}
 ): BaseInteractProps => ({
   meta: "no deployments yet",
@@ -51,14 +57,14 @@ const props = (
   selected: over.deployments?.[0]?.id ?? null,
   onPick: over.onPick ?? vi.fn(),
   surface,
-  cluster: over.cluster === undefined ? "devnet" : over.cluster,
+  cluster: "cluster" in over ? over.cluster : "devnet",
   onGoTo: over.onGoTo ?? vi.fn(),
   idlLoad: <button>Upload IDL</button>,
   form: <div>FORM</div>,
-  programId: over.programId ?? null,
+  programId: over.programId,
   builtAfterDeploy: over.builtAfterDeploy ?? false,
-  solNeeded: over.solNeeded ?? null,
-  idlRefusal: over.idlRefusal ?? null,
+  solNeeded: over.solNeeded,
+  idlRefusal: over.idlRefusal,
 });
 
 const actions = (container: HTMLElement) =>
@@ -86,7 +92,7 @@ describe("BaseInteract", () => {
   });
 
   it("an unknown cluster reads as the network while checking", () => {
-    render(<BaseInteract {...props("checking", { cluster: null })} />);
+    render(<BaseInteract {...props("checking", { cluster: undefined })} />);
     expect(
       screen.getByText(/^Reading the program from the network/)
     ).toBeTruthy();
@@ -139,7 +145,10 @@ describe("BaseInteract", () => {
         })}
       />
     );
-    expect(container.querySelector('[data-slot="callout"]')!.textContent).toBe(
+    expect(
+      found(container.querySelector('[data-slot="callout"]'), "a callout")
+        .textContent
+    ).toBe(
       "This IDL uses a custom discriminator on initialize, which Interact cannot call yet."
     );
     expect(screen.queryByText("FORM")).toBeNull();
@@ -271,7 +280,7 @@ describe("BaseInteract", () => {
     render(
       <BaseInteract
         {...props("ready", {
-          solNeeded: { balance: 0, cluster: "localnet", airdrop: null },
+          solNeeded: { balance: 0, cluster: "localnet", airdrop: undefined },
         })}
       />
     );
@@ -283,7 +292,7 @@ describe("BaseInteract", () => {
       <BaseInteract
         {...props("not-deployed", {
           builtAfterDeploy: true,
-          solNeeded: { balance: 0, cluster: "devnet", airdrop: null },
+          solNeeded: { balance: 0, cluster: "devnet", airdrop: undefined },
         })}
       />
     );

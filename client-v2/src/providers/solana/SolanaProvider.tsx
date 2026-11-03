@@ -1,7 +1,7 @@
 import { FC, useEffect } from "react";
 
 import {
-  watchExternalWallets,
+  watchExternalWalletsWith,
   type SigningCluster,
 } from "@/entities/external-wallet";
 import { PgConnection, PgWallet } from "../../utils";
@@ -31,12 +31,9 @@ export const SolanaProvider: FC<React.PropsWithChildren<unknown>> = ({
   // Set the standard wallets, found through ConnectorKit's registry
   useEffect(
     () =>
-      watchExternalWallets(
-        (wallets) => {
-          PgWallet.standardWallets = wallets;
-        },
-        { signingCluster }
-      ),
+      watchExternalWalletsWith({ signingCluster })((wallets) => {
+        PgWallet.standardWallets = wallets;
+      }),
     []
   );
 

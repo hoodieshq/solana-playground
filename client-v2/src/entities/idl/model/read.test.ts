@@ -60,6 +60,7 @@ const sample = (type: IdlType, idl: Idl): unknown => {
         return new BN(7);
     }
   }
+  // eslint-disable-next-line unicorn/no-null -- the Borsh coder encodes an option's None from null
   if ("option" in type || "coption" in type) return null;
   if ("vec" in type) return [sample(type.vec, idl)];
   if ("array" in type) {
@@ -97,6 +98,12 @@ const sample = (type: IdlType, idl: Idl): unknown => {
   throw new Error(`unexpected kind ${def.type.kind}`);
 };
 
+/** The value, failing the test with what was missing when there is none */
+const found = <T>(value: T | null | undefined, what: string): T => {
+  if (value === undefined || value === null) throw new Error(`missing ${what}`);
+  return value;
+};
+
 const accountsOf = (items: IdlAccountItem[]): IdlAccount[] =>
   items.flatMap((a) =>
     "accounts" in a ? accountsOf(a.accounts) : [a as IdlAccount]
@@ -120,12 +127,13 @@ describe("entities/idl/model/read", () => {
     if (reading.kind === "v029") expect(reading.idl).toBe(old);
   });
 
+  // eslint-disable-next-line unicorn/no-null -- a JSON `null` is one of the raw inputs under test
   it.each([null, {}, { instructions: 1 }, "idl", { address: "x" }])(
     "refuses %j as not an Anchor IDL",
     (raw) => {
       expect(readIdl(raw)).toEqual({
         kind: "refused",
-        version: null,
+        version: undefined,
         reason: "not an Anchor IDL",
       });
     }
@@ -151,7 +159,12 @@ describe("entities/idl/model/read", () => {
         expect(Array.from(data.subarray(0, 8))).toEqual(ix.discriminator);
         const decoded = coder.instruction.decode(data);
         expect(decoded?.name).toBe(cix.name);
-        expect(coder.instruction.encode(cix.name, decoded!.data)).toEqual(data);
+        expect(
+          coder.instruction.encode(
+            cix.name,
+            found(decoded, "decoded instruction").data
+          )
+        ).toEqual(data);
       });
     }
   );
@@ -201,12 +214,17 @@ describe("entities/idl/model/read", () => {
 
   it("instantiates a generic type with its arguments", () => {
     const conv = legacy(generics);
-    const ix = conv.instructions.find((i) => i.name === "generic")!;
+    const ix = found(
+      conv.instructions.find((i) => i.name === "generic"),
+      "instruction generic"
+    );
     expect(ix.args[0]).toEqual({
       name: "genericField",
       type: { defined: "GenericType<u32, u64, 10>" },
     });
-    const def = conv.types!.find((t) => t.name === "GenericType<u32, u64, 10>");
+    const def = found(conv.types, "converted types").find(
+      (t) => t.name === "GenericType<u32, u64, 10>"
+    );
     const fields = def?.type.kind === "struct" ? def.type.fields : [];
     expect(fields.find((f) => f.name === "gen1")?.type).toBe("u32");
     expect(fields.find((f) => f.name === "arr")?.type).toEqual({
@@ -218,9 +236,12 @@ describe("entities/idl/model/read", () => {
 
   it("types PDA seeds and keeps a const seed's text", () => {
     const conv = legacy(pda);
-    const acc = accountsOf(conv.instructions[0].accounts).find(
-      (a) => a.name === "pdaAccount"
-    )!;
+    const acc = found(
+      accountsOf(conv.instructions[0].accounts).find(
+        (a) => a.name === "pdaAccount"
+      ),
+      "account pdaAccount"
+    );
     expect(acc.pda).toEqual({
       seeds: [
         { kind: "const", type: "string", value: "hello_world" },
@@ -235,11 +256,12 @@ describe("entities/idl/model/read", () => {
     const withProgram = all.filter((a) => a.pda?.programId);
     expect(withProgram.length).toBeGreaterThan(0);
     for (const a of withProgram) {
-      expect(a.pda!.programId).toMatchObject({
+      const programId = found(a.pda?.programId, "pda programId");
+      expect(programId).toMatchObject({
         kind: "const",
         type: "publicKey",
       });
-      expect(typeof a.pda!.programId.value).toBe("string");
+      expect(typeof programId.value).toBe("string");
     }
     const seeds = all.flatMap((a) => a.pda?.seeds ?? []);
     for (const s of seeds) expect(s.type).toBeDefined();
@@ -249,26 +271,38 @@ describe("entities/idl/model/read", () => {
     // generator, so its account is left to the person
     for (const s of seeds) expect(s.path ?? "").not.toMatch(/\./);
     const raw = ammV3 as unknown as IdlV1;
-    const nestedIx = raw.instructions.find((ix) =>
-      ix.accounts.some(
+    const nestedIx = found(
+      raw.instructions.find((ix) =>
+        ix.accounts.some(
+          (a) =>
+            "pda" in a &&
+            a.pda?.seeds.some((s) => s.kind !== "const" && s.path.includes("."))
+        )
+      ),
+      "an instruction with a nested seed"
+    );
+    const nestedAcc = found(
+      nestedIx.accounts.find(
         (a) =>
           "pda" in a &&
           a.pda?.seeds.some((s) => s.kind !== "const" && s.path.includes("."))
-      )
-    )!;
-    const nestedAcc = nestedIx.accounts.find(
-      (a) =>
-        "pda" in a &&
-        a.pda?.seeds.some((s) => s.kind !== "const" && s.path.includes("."))
-    )!;
-    const conv2 = conv.instructions.find(
-      (ix) =>
-        ix.name === nestedIx.name.replace(/_(.)/g, (_, c) => c.toUpperCase())
-    )!;
-    const mapped = accountsOf(conv2.accounts).find(
-      (a) =>
-        a.name === nestedAcc.name.replace(/_(.)/g, (_, c) => c.toUpperCase())
-    )!;
+      ),
+      "an account with a nested seed"
+    );
+    const conv2 = found(
+      conv.instructions.find(
+        (ix) =>
+          ix.name === nestedIx.name.replace(/_(.)/g, (_, c) => c.toUpperCase())
+      ),
+      "the converted instruction"
+    );
+    const mapped = found(
+      accountsOf(conv2.accounts).find(
+        (a) =>
+          a.name === nestedAcc.name.replace(/_(.)/g, (_, c) => c.toUpperCase())
+      ),
+      "the converted account"
+    );
     expect(mapped.pda).toBeUndefined();
   });
 
@@ -284,10 +318,11 @@ describe("entities/idl/model/read", () => {
 
   it("refuses an account with a custom discriminator", () => {
     const raw = JSON.parse(JSON.stringify(relations)) as IdlV1;
-    raw.accounts![0].discriminator = [1, 2, 3, 4, 5, 6, 7, 8];
+    const account = found(raw.accounts, "accounts")[0];
+    account.discriminator = [1, 2, 3, 4, 5, 6, 7, 8];
     expect(readIdl(raw)).toMatchObject({
       kind: "refused",
-      reason: `a custom discriminator on ${raw.accounts![0].name}`,
+      reason: `a custom discriminator on ${account.name}`,
     });
   });
 
@@ -312,12 +347,13 @@ describe("entities/idl/model/read", () => {
         types: [],
       } as unknown as IdlV1);
 
-    const pdaOf = (seeds: unknown[], args: unknown[] = []) => {
+    const pdaWith = (args: unknown[]) => (seeds: unknown[]) => {
       const conv = legacy(
         one({ accounts: [{ name: "vault", pda: { seeds } }], args })
       );
       return accountsOf(conv.instructions[0].accounts)[0].pda;
     };
+    const pdaOf = pdaWith([]);
 
     it.each([
       [[104, 105], { kind: "const", type: "string", value: "hi" }],
@@ -342,10 +378,9 @@ describe("entities/idl/model/read", () => {
 
     it("types an argument seed from the argument and camelCases its path", () => {
       expect(
-        pdaOf(
-          [{ kind: "arg", path: "max_amount" }],
-          [{ name: "max_amount", type: "u32" }]
-        )?.seeds
+        pdaWith([{ name: "max_amount", type: "u32" }])([
+          { kind: "arg", path: "max_amount" },
+        ])?.seeds
       ).toEqual([{ kind: "arg", type: "u32", path: "maxAmount" }]);
     });
 
@@ -416,6 +451,7 @@ describe("entities/idl/model/read", () => {
         { name: "x", type: { defined: { name: "Nope" } } },
         "an unknown type Nope",
       ],
+      // eslint-disable-next-line max-params -- it.each spreads each table row into the callback
     ])("refuses %s", (_, arg, reason) => {
       expect(readIdl(one({ args: [arg] }))).toEqual({
         kind: "refused",

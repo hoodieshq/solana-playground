@@ -145,7 +145,7 @@ export const fromStoredEndpoints = <T extends State>(
           // a custom one, kept as is
           const ours = options[id].find((o) => o.url === value);
           if (!ours) return value;
-          return options[id].find((o) => o.key === ours.key)!.url;
+          return options[id].find((o) => o.key === ours.key)?.url ?? value;
         }
 
         const { option, url } = (value ?? {}) as {

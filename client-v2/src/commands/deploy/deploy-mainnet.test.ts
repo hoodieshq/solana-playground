@@ -8,6 +8,7 @@ import { MAINNET_DEPLOY_WARNING } from "./mainnet-warning";
 // then fails on the missing program, and the tests read what it printed first
 vi.mock("../../utils", () => ({
   PgCommon: {},
+  // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` is `null` until the first endpoint is read
   PgConnection: { cluster: null, current: {} },
   PgGlobal: { deployState: "ready", update: vi.fn() },
   PgProgramInfo: {},
@@ -55,6 +56,7 @@ describe("deploy", () => {
     expect(warning).toBeLessThan(deploying);
   });
 
+  // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` is `null` until the first endpoint is read
   it.each(["devnet", null])("does not warn on %s", async (cluster) => {
     await runOn(cluster);
 

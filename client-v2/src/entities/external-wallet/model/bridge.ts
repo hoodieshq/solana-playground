@@ -74,7 +74,7 @@ const isListed = (wallet: WalletStandardWallet) => {
 };
 
 const firstSolanaAccount = (accounts: readonly WalletStandardAccount[]) =>
-  accounts.find((account) => account.chains.some(isSolanaChain)) ?? null;
+  accounts.find((account) => account.chains.some(isSolanaChain));
 
 /**
  * The wallet's own error, not ConnectorKit's wrapper: the signer rethrows every
@@ -107,16 +107,16 @@ class BridgedWallet implements StandardWalletAdapter {
   readonly readyState = "Installed" as const;
   readonly signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
 
-  private account: WalletStandardAccount | null = null;
+  private account: WalletStandardAccount | undefined;
   /** The connection request in flight; set exactly while connecting */
-  private pending: Promise<void> | null = null;
+  private pending: Promise<void> | undefined;
   private listeners: {
     [E in keyof StandardWalletEvents]: Set<StandardWalletEvents[E]>;
   } = { connect: new Set(), disconnect: new Set() };
 
   constructor(
-    private readonly wallet: WalletStandardWallet,
-    private readonly opts: WatchOptions
+    private readonly opts: WatchOptions,
+    private readonly wallet: WalletStandardWallet
   ) {
     // Never unsubscribed: one bridged object lives as long as its wallet
     feature<EventsFeature>(wallet, "standard:events")?.on("change", (props) =>
@@ -156,14 +156,17 @@ class BridgedWallet implements StandardWalletAdapter {
   }
 
   get publicKey() {
-    return this.account ? new PublicKey(this.account.publicKey) : null;
+    return this.account
+      ? new PublicKey(this.account.publicKey)
+      : // eslint-disable-next-line unicorn/no-null -- `StandardWalletAdapter.publicKey` is `null` while disconnected
+        null;
   }
 
   /** Asks the wallet once; a second call while it asks waits on the same answer */
   connect() {
     if (this.account) return Promise.resolve();
     this.pending ??= this.requestConnect().finally(() => {
-      this.pending = null;
+      this.pending = undefined;
     });
     return this.pending;
   }
@@ -176,7 +179,7 @@ class BridgedWallet implements StandardWalletAdapter {
         "standard:disconnect"
       )?.disconnect();
     } finally {
-      this.setAccount(null);
+      this.setAccount(undefined);
     }
   }
 
@@ -229,7 +232,7 @@ class BridgedWallet implements StandardWalletAdapter {
     this.setAccount(next);
   }
 
-  private setAccount(account: WalletStandardAccount | null) {
+  private setAccount(account: WalletStandardAccount | undefined) {
     const was = this.account;
     this.account = account;
     if (account) this.emit("connect");
@@ -268,22 +271,21 @@ class BridgedWallet implements StandardWalletAdapter {
 
 /**
  * One bridged object per wallet, so listeners on it survive a new list. The
- * options of the first `watchExternalWallets` call that met a wallet stay with
+ * options of the first `watchExternalWalletsWith` call that met a wallet stay with
  * it; the app has one caller (`SolanaProvider`).
  */
 const bridged = new WeakMap<WalletStandardWallet, BridgedWallet>();
 
-const bridge = (
-  wallet: WalletStandardWallet,
-  opts: WatchOptions
-): StandardWallet => {
-  let found = bridged.get(wallet);
-  if (!found) {
-    found = new BridgedWallet(wallet, opts);
-    bridged.set(wallet, found);
-  }
-  return found;
-};
+const bridgeWith =
+  (opts: WatchOptions) =>
+  (wallet: WalletStandardWallet): StandardWallet => {
+    let found = bridged.get(wallet);
+    if (!found) {
+      found = new BridgedWallet(opts, wallet);
+      bridged.set(wallet, found);
+    }
+    return found;
+  };
 
 /**
  * Call `onChange` with every usable Solana wallet now, once ConnectorKit's
@@ -291,35 +293,30 @@ const bridge = (
  *
  * @returns a function that stops watching
  */
-export const watchExternalWallets = (
-  onChange: (wallets: StandardWallet[]) => void,
-  opts: WatchOptions
-): (() => void) => {
-  const registry = getWalletsRegistry();
-  let stopped = false;
-  const publish = () => {
-    if (stopped) return;
-    onChange(
-      registry
-        .get()
-        .filter(isListed)
-        .map((w) => bridge(w, opts))
-    );
-  };
+export const watchExternalWalletsWith =
+  (opts: WatchOptions) =>
+  (onChange: (wallets: StandardWallet[]) => void): (() => void) => {
+    const registry = getWalletsRegistry();
+    const bridgeOne = bridgeWith(opts);
+    let stopped = false;
+    const publish = () => {
+      if (stopped) return;
+      onChange(registry.get().filter(isListed).map(bridgeOne));
+    };
 
-  publish();
-  ready.then(publish, (error: unknown) => {
-    log.error(error, { report: true, context: { step: "registry ready" } });
-  });
-  const offRegister = registry.on("register", publish);
-  const offUnregister = registry.on("unregister", publish);
+    publish();
+    ready.then(publish, (error: unknown) => {
+      log.error(error, { report: true, context: { step: "registry ready" } });
+    });
+    const offRegister = registry.on("register", publish);
+    const offUnregister = registry.on("unregister", publish);
 
-  return () => {
-    stopped = true;
-    offRegister();
-    offUnregister();
+    return () => {
+      stopped = true;
+      offRegister();
+      offUnregister();
+    };
   };
-};
 
 if (import.meta.vitest) {
   const { describe, it, expect, beforeAll, afterEach } = import.meta.vitest;
@@ -355,11 +352,10 @@ if (import.meta.vitest) {
     const watch = () => {
       const seen: { latest: StandardWallet[] } = { latest: [] };
       disposers.push(
-        watchExternalWallets(
+        watchExternalWalletsWith({ signingCluster: () => undefined })(
           (wallets) => {
             seen.latest = wallets;
-          },
-          { signingCluster: () => undefined }
+          }
         )
       );
       return seen;

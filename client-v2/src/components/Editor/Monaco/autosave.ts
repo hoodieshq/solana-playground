@@ -27,19 +27,19 @@ export const createAutosave = ({
   delay: number;
   save: (path: string, content: string) => void;
 }) => {
-  let pending: PendingSave | null = null;
+  let pending: PendingSave | undefined;
 
   const flush = () => {
     if (!pending) return;
     const { path, read, timer } = pending;
-    pending = null;
+    pending = undefined;
     clearTimeout(timer);
     save(path, read());
   };
 
   return {
     /** Saves `path` after the delay, reading its buffer with `read` then */
-    schedule(path: string, read: () => string) {
+    schedule(read: () => string, path: string) {
       // One timer serves one file: reusing it for another file's edit would
       // discard the pending one
       if (pending?.path !== path) flush();
@@ -68,7 +68,7 @@ if (import.meta.vitest) {
       });
       const edit = (path: string, content: string) => {
         buffers[path] = content;
-        autosave.schedule(path, () => buffers[path]);
+        autosave.schedule(() => buffers[path], path);
       };
       return { autosave, saves, edit };
     };
@@ -112,7 +112,7 @@ if (import.meta.vitest) {
     it("reads the buffer when the save runs, not when the edit is made", () => {
       const { autosave, saves } = setup();
       let buffer = "a";
-      autosave.schedule("/src/lib.rs", () => buffer);
+      autosave.schedule(() => buffer, "/src/lib.rs");
       buffer = "ab";
       vi.advanceTimersByTime(DELAY);
       expect(saves).toEqual([["/src/lib.rs", "ab"]]);

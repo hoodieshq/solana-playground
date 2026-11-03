@@ -62,7 +62,7 @@ export const deploy = createCmd({
 
     try {
       const startTime = performance.now();
-      const result = await processDeploy(signal, lockStop);
+      const result = await processDeploy(lockStop, signal);
       const timePassed = (performance.now() - startTime) / 1000;
       PgTerminal.println(
         `${PgTerminal.success(
@@ -160,14 +160,14 @@ Your address: ${PgWallet.current!.publicKey}`);
 /**
  * Deploy the current program.
  *
- * @param signal a stop ends the deploy while it funds the wallet or writes
- * the buffer (Spec 03's Cancel): at the next transaction, or between chunks
  * @param lockStop called once the final deploy or upgrade begins, which
  * cannot stop
+ * @param signal a stop ends the deploy while it funds the wallet or writes
+ * the buffer (Spec 03's Cancel): at the next transaction, or between chunks
  */
 const processDeploy = async (
-  signal: AbortSignal,
-  lockStop: () => void
+  lockStop: () => void,
+  signal: AbortSignal
 ): Promise<DeployResult> => {
   const programBytes =
     PgProgramInfo.importedProgram?.bytes ??
@@ -217,7 +217,7 @@ const processDeploy = async (
     }`;
     const airdropAmount = PgConnection.getAirdropAmount();
     const answers = PgDeployRun.answers;
-    const short = (reason: FundingFailure, cause: string | null = null) =>
+    const shortWith = (cause: string | null) => (reason: FundingFailure) =>
       new DeployFundingError({
         reason,
         balance: userBalance,
@@ -225,6 +225,8 @@ const processDeploy = async (
         address: wallet.publicKey.toBase58(),
         cause,
       });
+    // eslint-disable-next-line unicorn/no-null -- `detail.cause` is `null` when the faucet said nothing, as the funding card reads it
+    const short = shortWith(null);
     if (typeof airdropAmount !== "number") {
       if (answers) throw short("no_faucet");
       throw new Error(msg);
@@ -275,7 +277,9 @@ const processDeploy = async (
       // The stage shows the faucet's answer on its card; the error and its
       // stack go to the logs, where a faucet regression can be found
       log.error(e, { report: true, context: { what: "stage deploy airdrop" } });
-      throw short("airdrop_failed", e instanceof Error ? e.message : String(e));
+      throw shortWith(e instanceof Error ? e.message : String(e))(
+        "airdrop_failed"
+      );
     }
   }
 
@@ -481,7 +485,7 @@ const processDeploy = async (
   const signature = await (programExists ? upgrade() : deployNew());
   // The program is on chain by now: a failed balance read costs the run its
   // cost figure, never its success, or a retry would pay for an upgrade
-  let cost: number | null = null;
+  let cost: number | undefined;
   try {
     cost = Math.max(0, balanceBefore - (await spendable()));
   } catch (e) {
@@ -489,7 +493,7 @@ const processDeploy = async (
       context: { error: String(e) },
     });
   }
-  return { signature: signature ?? null, cost, upgraded: programExists };
+  return { signature: signature ?? undefined, cost, upgraded: programExists };
 
   function deployNew() {
     return sendAndConfirmTxWithRetries(
@@ -510,8 +514,10 @@ const processDeploy = async (
   function upgrade() {
     return sendAndConfirmTxWithRetries(
       async () => {
+        const programPk = PgProgramInfo.pk;
+        if (!programPk) throw new Error("The program ID was not found");
         return await BpfLoaderUpgradeable.upgradeProgram(
-          PgProgramInfo.pk!,
+          programPk,
           bufferKp.publicKey
         );
       },

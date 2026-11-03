@@ -73,6 +73,7 @@ describe("BaseBuild", () => {
   it.each<BuildSurfaceView>([
     failed([]),
     { kind: "restored", failed: false },
+    // eslint-disable-next-line unicorn/no-null -- `BuildSurfaceView`'s `unreached.failure` is `BuildFailure | null`
     { kind: "unreached", failure: null },
     { kind: "empty" },
   ])("offers no downloads on the $kind surface", (surface) => {

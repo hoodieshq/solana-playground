@@ -112,8 +112,7 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
   };
 
   const instantiate = (
-    name: string,
-    args: IdlV1GenericArg[] | undefined,
+    { name, generics: args }: { name: string; generics?: IdlV1GenericArg[] },
     env: Env
   ): IdlType => {
     const def = defs.get(name);
@@ -140,7 +139,7 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
         name: legacyName,
         type: { kind: "struct", fields: [] },
       });
-      out.set(legacyName, convertTypeDef(def, legacyName, inner));
+      out.set(legacyName, convertTypeDefFor(def, legacyName)(inner));
     }
     return { defined: legacyName };
   };
@@ -176,7 +175,7 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
       }
       return { array: [convertType(item, env), size] };
     }
-    return instantiate(t.defined.name, t.defined.generics, env);
+    return instantiate(t.defined, env);
   };
 
   const isNamed = (fields: IdlV1DefinedFields): fields is IdlV1Field[] =>
@@ -205,37 +204,37 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
     }));
   };
 
-  const convertTypeDef = (
-    def: IdlV1TypeDef,
-    name: string,
-    env: Env
-  ): IdlTypeDef => {
-    const docs = def.docs && { docs: def.docs };
-    if (def.type.kind === "enum") {
-      const variants: IdlEnumVariant[] = def.type.variants.map((v) => {
-        if (!v.fields?.length) return { name: v.name };
-        return isNamed(v.fields)
-          ? { name: v.name, fields: convertFields(v.fields, env) }
-          : {
-              name: v.name,
-              fields: (v.fields as IdlV1Type[]).map((t) => convertType(t, env)),
-            };
-      });
-      return { name, ...docs, type: { kind: "enum", variants } };
-    }
-    if (def.type.kind === "type") {
+  const convertTypeDefFor =
+    (def: IdlV1TypeDef, name: string) =>
+    (env: Env): IdlTypeDef => {
+      const docs = def.docs && { docs: def.docs };
+      if (def.type.kind === "enum") {
+        const variants: IdlEnumVariant[] = def.type.variants.map((v) => {
+          if (!v.fields?.length) return { name: v.name };
+          return isNamed(v.fields)
+            ? { name: v.name, fields: convertFields(v.fields, env) }
+            : {
+                name: v.name,
+                fields: (v.fields as IdlV1Type[]).map((t) =>
+                  convertType(t, env)
+                ),
+              };
+        });
+        return { name, ...docs, type: { kind: "enum", variants } };
+      }
+      if (def.type.kind === "type") {
+        return {
+          name,
+          ...docs,
+          type: { kind: "alias", value: convertType(def.type.alias, env) },
+        };
+      }
       return {
         name,
         ...docs,
-        type: { kind: "alias", value: convertType(def.type.alias, env) },
+        type: { kind: "struct", fields: convertFields(def.type.fields, env) },
       };
-    }
-    return {
-      name,
-      ...docs,
-      type: { kind: "struct", fields: convertFields(def.type.fields, env) },
     };
-  };
 
   // Discriminators first: a custom one refuses the IDL before any mapping
   const ixNames = checkDiscriminators(src);
@@ -244,20 +243,24 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
   // one only where it is used, once per argument list
   for (const def of src.types ?? []) {
     if (!def.generics?.length && def.type.kind !== "type") {
-      instantiate(def.name, undefined, {});
+      instantiate({ name: def.name }, {});
     }
   }
 
   const ixs = src.instructions.map((ix) => convertInstruction(ix));
 
   function convertInstruction(ix: IdlV1Instruction) {
+    const ixName = ixNames.get(ix.name);
+    if (ixName === undefined) {
+      throw new Error(`no instruction name was recorded for ${ix.name}`);
+    }
     const args = ix.args.map((a) => ({
       name: camel(a.name),
       ...(a.docs && { docs: a.docs }),
       type: convertType(a.type, {}),
     }));
     return {
-      name: ixNames.get(ix.name)!,
+      name: ixName,
       ...(ix.docs && { docs: ix.docs }),
       accounts: ix.accounts.map((a) => convertAccount(a, ix)),
       args,
@@ -267,18 +270,21 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
     };
   }
 
-  /** A seed typed from the instruction, or `null` when it cannot be */
-  function convertSeed(seed: IdlV1Seed, ix: IdlV1Instruction): IdlSeed | null {
+  /** A seed typed from the instruction, or `undefined` when it cannot be */
+  function convertSeed(
+    seed: IdlV1Seed,
+    ix: IdlV1Instruction
+  ): IdlSeed | undefined {
     if (seed.kind === "const") return constSeed(seed.value);
     // `account` names the type whose data the path reads: the generator
     // fills a seed from an account's address only
-    if (seed.kind === "account" && seed.account) return null;
+    if (seed.kind === "account" && seed.account) return undefined;
     // The generator fills a seed from an argument or an account by name;
     // a path into an argument's or an account's data it cannot follow
-    if (seed.path.includes(".")) return null;
+    if (seed.path.includes(".")) return undefined;
     if (seed.kind === "arg") {
       const arg = ix.args.find((a) => a.name === seed.path);
-      if (!arg) return null;
+      if (!arg) return undefined;
       return {
         kind: "arg",
         type: convertType(arg.type, {}),
@@ -305,7 +311,7 @@ export const toLegacyIdl = (src: IdlV1): Idl => {
       const seeds = item.pda.seeds.map((s) => convertSeed(s, ix));
       const program = item.pda.program && convertSeed(item.pda.program, ix);
       // A seed the generator cannot fill leaves the account to the person
-      if (seeds.every(Boolean) && program !== null) {
+      if (seeds.every(Boolean) && (!item.pda.program || program)) {
         pda = { seeds, ...(program && { programId: program }) };
       }
     }
@@ -417,7 +423,7 @@ const constSeed = (bytes: number[]): IdlSeed => {
   const text = printable(bytes);
   // Text the generator's `string` parse would change (it drops quotes) goes
   // as bytes, so the PDA derives from the program's own bytes
-  if (text !== null && !/["']/.test(text) && text.trim() === text) {
+  if (text !== undefined && !/["']/.test(text) && text.trim() === text) {
     return { kind: "const", type: "string", value: text };
   }
   if (bytes.length === 32) {
@@ -430,20 +436,20 @@ const constSeed = (bytes: number[]): IdlSeed => {
   return { kind: "const", type: "bytes", value: JSON.stringify(bytes) };
 };
 
-/** The bytes as text when they are printable UTF-8, else `null` */
-const printable = (bytes: number[]): string | null => {
-  if (!bytes.length) return null;
+/** The bytes as text when they are printable UTF-8, else `undefined` */
+const printable = (bytes: number[]): string | undefined => {
+  if (!bytes.length) return undefined;
   try {
     const text = new TextDecoder("utf-8", { fatal: true }).decode(
       Uint8Array.from(bytes)
     );
-    return /^[^\p{Cc}\p{Cf}]+$/u.test(text) ? text : null;
+    return /^[^\p{Cc}\p{Cf}]+$/u.test(text) ? text : undefined;
   } catch (e) {
     // `fatal` throws on bytes that are not UTF-8: they are shown as bytes
     log.debug("seed bytes are not UTF-8, shown as bytes", {
       context: { error: String(e) },
     });
-    return null;
+    return undefined;
   }
 };
 

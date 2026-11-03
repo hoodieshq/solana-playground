@@ -7,6 +7,7 @@ import { NO_FAUCET } from "./no-faucet";
 // Only what `airdrop.handle` reads before it asks the RPC for SOL
 vi.mock("../../utils", () => ({
   PgCommon: {},
+  // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` and `getAirdropAmount()` are `null` before the cluster is read or where there is no faucet
   PgConnection: { cluster: null, getAirdropAmount: vi.fn() },
   PgTerminal: { println: vi.fn(), info: (text: string) => text },
   PgTx: {},
@@ -29,10 +30,12 @@ const runOn = (
 
 describe("airdrop", () => {
   it("says the network has no faucet on mainnet", async () => {
+    // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` and `getAirdropAmount()` are `null` before the cluster is read or where there is no faucet
     await expect(runOn("mainnet-beta", null)).rejects.toThrow(NO_FAUCET);
   });
 
   it("does not claim there is no faucet before the cluster is read", async () => {
+    // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` and `getAirdropAmount()` are `null` before the cluster is read or where there is no faucet
     const run = runOn(null, null);
     await expect(run).rejects.toThrow("still loading");
     await expect(run).rejects.not.toThrow(NO_FAUCET);

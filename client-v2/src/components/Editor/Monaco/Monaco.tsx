@@ -473,7 +473,7 @@ const Monaco = () => {
     // The pending save reads its model's buffer when it runs, so it runs
     // before that model goes: opening a JS/TS file disposes the others, and
     // unmounting the editor disposes every model
-    let watched: monaco.editor.ITextModel | null = null;
+    let watched: monaco.editor.ITextModel | undefined;
     let modelWillDispose: monaco.IDisposable | undefined;
     const content = editor.onDidChangeModelContent(() => {
       const path = PgExplorer.currentFilePath;
@@ -485,7 +485,7 @@ const Monaco = () => {
         modelWillDispose = model.onWillDispose(autosave.flush);
         watched = model;
       }
-      autosave.schedule(path, () => model.getValue());
+      autosave.schedule(() => model.getValue(), path);
     });
 
     // A rename of the edited file, or of a folder above it, moves the pending

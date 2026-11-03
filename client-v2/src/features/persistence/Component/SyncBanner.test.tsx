@@ -170,7 +170,7 @@ describe("SyncBanner wording", () => {
       kind: "too-large",
     });
     await act(async () => root.render(<SyncBanner />));
-    expect(container.querySelector('[role="alert"] p')!.textContent).toBe(
+    expect(container.querySelector('[role="alert"] p')?.textContent).toBe(
       "This project is over the 4 MB sync limit. Remove or shrink its largest files, then try again."
     );
   });
