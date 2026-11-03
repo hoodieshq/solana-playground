@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { cliClusterOf } from "../model/commands";
 import type { CliCluster, CliTool } from "../model/commands";
@@ -32,6 +32,7 @@ const openingCluster = (from: GuideFrom, cluster: string | null): CliCluster =>
 const CliDeployGuide = (p: CliDeployGuideProps) => {
   const name = useProgramName();
   const hasIdl = Boolean(useIdl());
+  const noIdlId = useId();
   // The tool is the user's habit and stays across openings; the cluster is
   // the situation's, so each opening picks it again
   const [tool, setTool] = useState<CliTool>("solana");
@@ -68,7 +69,8 @@ const CliDeployGuide = (p: CliDeployGuideProps) => {
       built={p.built}
       download={<DownloadProgram from="guide" />}
       hasIdl={hasIdl}
-      downloadIdl={<DownloadIdl />}
+      downloadIdl={<DownloadIdl describedBy={noIdlId} />}
+      noIdlId={noIdlId}
       onCopy={(step) =>
         cliDeployTelemetry.track("cli_command_copied", { tool, cluster, step })
       }

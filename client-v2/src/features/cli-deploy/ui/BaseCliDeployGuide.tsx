@@ -43,8 +43,10 @@ export interface BaseCliDeployGuideProps {
   download: ReactNode;
   /** Playground holds an IDL for the program, so step 3.1 has one to upload */
   hasIdl: boolean;
-  /** The IDL download, beside the binary's */
+  /** The IDL download, beside the binary's; shown with or without a build */
   downloadIdl: ReactNode;
+  /** The id of step 3.1's "no IDL" line, which describes the off download */
+  noIdlId: string;
   /** A command's copy button was pressed, in step 3 or 3.1 */
   onCopy: (step: CommandStep) => void;
 }
@@ -80,14 +82,19 @@ const NO_KEYPAIR: Record<CliTool, (name: string) => string> = {
 };
 
 /** Each step 3.1 command block's title and copy button label */
-const IDL_COMMANDS: Record<IdlCommandKind, { title: string; copy: string }> = {
+const IDL_COMMANDS: Record<
+  IdlCommandKind,
+  { title: string; copy: string; failure: string }
+> = {
   "program-metadata": {
     title: "Program Metadata",
     copy: "Copy the IDL upload command",
+    failure: "copy the IDL upload command",
   },
   anchor: {
     title: "Anchor before 1.0 · legacy IDL account",
     copy: "Copy the Anchor IDL command",
+    failure: "copy the Anchor IDL command",
   },
 };
 
@@ -98,6 +105,8 @@ const IDL_COMMANDS: Record<IdlCommandKind, { title: string; copy: string }> = {
 const Commands = (p: {
   title: string;
   copyLabel: string;
+  /** What did not happen when the copy fails, for its toast */
+  failure: string;
   lines: string[];
   onCopy: () => void;
 }) => (
@@ -113,7 +122,7 @@ const Commands = (p: {
         <CopyButton
           value={p.lines.join("\n")}
           label={p.copyLabel}
-          onError={reportButtonFailure(p.copyLabel.replace(/^Copy/, "copy"))}
+          onError={reportButtonFailure(p.failure)}
         />
       </CodeBlockActions>
     </CodeBlockHeader>
@@ -189,12 +198,13 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
         </div>
         <ol className="flex min-w-0 flex-col gap-4">
           <Step title="1. Download the program">
-            {p.built ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {p.download}
-                {p.downloadIdl}
-              </div>
-            ) : (
+            {/* The IDL can be loaded without a build, so its download does
+                not wait for one; step 3.1 names the file it saves */}
+            <div className="flex flex-wrap items-center gap-2">
+              {p.built && p.download}
+              {p.downloadIdl}
+            </div>
+            {!p.built && (
               <p className="text-caption text-muted-foreground">
                 Build successfully first.
               </p>
@@ -218,6 +228,7 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
             <Commands
               title={`${TOOLS[p.tool]} · ${CLUSTERS[p.cluster]}`}
               copyLabel="Copy the deploy command"
+              failure="copy the deploy command"
               lines={commands}
               onCopy={() => p.onCopy("deploy")}
             />
@@ -239,6 +250,7 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
                     key={c.kind}
                     title={IDL_COMMANDS[c.kind].title}
                     copyLabel={IDL_COMMANDS[c.kind].copy}
+                    failure={IDL_COMMANDS[c.kind].failure}
                     lines={c.lines}
                     onCopy={() => p.onCopy("idl")}
                   />
@@ -247,6 +259,14 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
                   Run it beside <code className="font-mono">{p.name}.json</code>{" "}
                   once the deploy finished, with the wallet that deployed:
                   Explorer then names the program&apos;s instructions.
+                  {p.tool === "anchor" && (
+                    <>
+                      {" "}
+                      anchor idl init signs with the wallet in Anchor.toml; on
+                      Anchor 1.0 and later it writes the same Program Metadata
+                      account, so the first command is enough.
+                    </>
+                  )}
                   {!p.programId && (
                     <>
                       {" "}
@@ -260,7 +280,7 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
                 </p>
               </>
             ) : (
-              <p className="text-caption text-muted-foreground">
+              <p id={p.noIdlId} className="text-caption text-muted-foreground">
                 This program has no IDL to upload.
               </p>
             )}

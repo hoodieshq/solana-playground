@@ -7,8 +7,9 @@ deploys the downloaded binary, for the tool picked in a "Tool" control
 (Solana CLI, Anchor) and the cluster picked in a "Cluster" control (Devnet,
 Mainnet), with `<program>.so` and `<program>-keypair.json` filled in, each
 command block with a copy button. It SHALL offer "Download .so" while the
-last build succeeded, and "Download IDL" beside it, which saves the IDL
-Playground holds as `<program>.json` and is off while there is none. It SHALL
+last build succeeded, and "Download IDL" beside it, with or without a build,
+which saves the IDL Playground holds as `<program>.json` and is off while
+there is none. It SHALL
 say that deploying with the project's program keypair keeps the program id,
 naming it, and what to do without that file.
 A step "3.1 Upload the IDL" SHALL give, for both tools and both clusters,

@@ -10,7 +10,7 @@ const handleFailure = reportButtonFailure("download the IDL");
  * "Download IDL", connected: saves the IDL Playground holds as
  * `<program>.json`, the file step 3.1's commands upload
  */
-const DownloadIdl = () => {
+const DownloadIdl = ({ describedBy }: { describedBy: string }) => {
   const idl = useIdl();
   const fileName = `${useProgramName()}.json`;
 
@@ -35,6 +35,7 @@ const DownloadIdl = () => {
       fileName={fileName}
       hasIdl={Boolean(idl)}
       onDownload={onDownload}
+      describedBy={describedBy}
     />
   );
 };

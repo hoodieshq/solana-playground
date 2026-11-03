@@ -72,8 +72,9 @@ export const PROGRAM_ID_PLACEHOLDER = "<program-id>";
  * The commands that upload `<name>.json` as the program's IDL, run from the
  * folder it was saved to. Program Metadata's canonical IDL, the one Explorer
  * reads, comes first for every tool; Anchor adds `anchor idl init`, which
- * before Anchor 1.0 writes the legacy Anchor IDL account. Both sign with the
- * CLI wallet, the program's upgrade authority after step 3.
+ * before Anchor 1.0 writes the legacy Anchor IDL account. The first signs
+ * with the Solana CLI wallet, `anchor idl init` with Anchor's provider wallet:
+ * each the one its tool deployed with in step 3, so the upgrade authority.
  */
 export const idlCommands = (p: {
   tool: CliTool;
