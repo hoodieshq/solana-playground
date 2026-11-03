@@ -1,22 +1,31 @@
+import { FC, useEffect, useState } from "react";
 import { InfoIcon } from "lucide-react";
-import { FC } from "react";
 import styled, { css } from "styled-components";
 
-import { createLogger } from "@/shared/lib/logger";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
-import { AsyncButton } from "@/shared/ui/async-button";
-import { Callout, CalloutDescription } from "@/shared/ui/callout";
-import type { ModalPageProps } from "@/widgets/overlays";
+import Markdown from "../../../../../components/Markdown";
 import {
   ModalFrame,
-  modalPage,
   ModalPages,
+  modalPage,
   useModalId,
 } from "@/widgets/overlays";
-
+import type { ModalPageProps } from "@/widgets/overlays";
+import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { ExportFile } from "../../../../../components/Icons";
-import Markdown from "../../../../../components/Markdown";
 import { PgExplorer, PgFramework, PgView } from "../../../../../utils";
+import {
+  DEFAULT_KEYPAIR_PATH,
+  exportedEndpoint,
+  exportProject,
+  getProjectKind,
+  isDownloadFailure,
+  KEYPAIR_VARIABLE,
+  RPC_URL_VARIABLE,
+} from "@/features/project-export";
+import type { ProjectKind } from "@/features/project-export";
+import { createLogger } from "@/shared/lib/logger";
+import { AsyncButton } from "@/shared/ui/async-button";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
 const log = createLogger("explorer:export-workspace");
 
@@ -40,15 +49,35 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
 }) => {
   const label = name ?? PgExplorer.currentWorkspaceName ?? "the project";
   const id = useModalId();
+  // The program copy shows until the project is read, and stays if the read
+  // fails: the export reads the project again and reports its own failure
+  const [kind, setKind] = useState<ProjectKind>("program");
+  useEffect(() => {
+    let current = true;
+    getProjectKind(name).then(
+      (read) => current && setKind(read),
+      (e) => {
+        // Only the copy is lost; the export itself says when it fails
+        log.warn("could not read the project to word the dialog", {
+          context: { error: String(e) },
+        });
+      }
+    );
+    return () => {
+      current = false;
+    };
+  }, [name]);
 
   const convertAndExport = async () => {
     let readme: string;
     try {
-      ({ readme } = await PgFramework.exportWorkspace({
-        convert: true,
-        name,
-      }));
+      ({ readme = "" } = await exportProject({ convert: true, name }));
     } catch (e) {
+      // The zip itself failed: an export as is would fail the same way
+      if (isDownloadFailure(e)) {
+        reportExportFailure(e);
+        return;
+      }
       // A project of no known framework is an expected outcome, noted; any
       // other conversion failure is the team's to hear of
       if (PgFramework.isUnknownFramework(e)) {
@@ -70,18 +99,24 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
     setPage(modalPage(Readme, { readme }));
   };
 
+  /**
+   * Nothing downloaded: the user hears it and the team hears why. Not
+   * rethrown: the button's `onError` (`reportButtonFailure`) logs
+   * unreported, and its toast would say it a second time
+   */
+  const reportExportFailure = (e: unknown) => {
+    log.error(e, { report: true, context: { step: "export" } });
+    PgView.setToast(() => <span>Could not export {label}.</span>, {
+      options: { name: "export-failed" },
+    });
+  };
+
   /** Whether the project downloaded */
   const exportWithoutChanges = async () => {
     try {
-      await PgFramework.exportWorkspace({ name });
+      await exportProject({ convert: false, name });
     } catch (e) {
-      // Nothing downloaded: the user hears it and the team hears why. Not
-      // rethrown: the button's `onError` (`reportButtonFailure`) logs
-      // unreported, and its toast would say it a second time
-      log.error(e, { report: true, context: { step: "export" } });
-      PgView.setToast(() => <span>Could not export {label}.</span>, {
-        options: { name: "export-failed" },
-      });
+      reportExportFailure(e);
       return false;
     }
     PgView.closeModal(null, id);
@@ -91,17 +126,41 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
   return (
     <ModalFrame name="export-workspace" title={`Export ${label}`}>
       <Content>
-        <Question>Convert the project layout?</Question>
+        {kind === "no-program" ? (
+          <>
+            <Question>Make it a Node project?</Question>
 
-        <Description>
-          Playground uses a different layout than the framework's default
-          layout.
-        </Description>
+            <Description>
+              Playground runs <code>client/</code> and <code>tests/</code> in
+              the browser, where it provides <code>pg.connection</code> and{" "}
+              <code>pg.wallet</code>.
+            </Description>
 
-        <Description>
-          To make the project work locally, playground can make the necessary
-          conversion before exporting.
-        </Description>
+            <Description>
+              Converting adds <code>package.json</code>,{" "}
+              <code>tsconfig.json</code> and run scripts.{" "}
+              <code>pg.connection</code> connects to{" "}
+              <code>{RPC_URL_VARIABLE}</code>, or to{" "}
+              <code>{exportedEndpoint()}</code>, and <code>pg.wallet</code>{" "}
+              reads <code>{KEYPAIR_VARIABLE}</code>, or{" "}
+              <code>{DEFAULT_KEYPAIR_PATH}</code>.
+            </Description>
+          </>
+        ) : (
+          <>
+            <Question>Convert the project layout?</Question>
+
+            <Description>
+              Playground uses a different layout than the framework's default
+              layout.
+            </Description>
+
+            <Description>
+              To make the project work locally, playground can make the
+              necessary conversion before exporting.
+            </Description>
+          </>
+        )}
 
         <Callout variant="info" className="mt-4">
           <InfoIcon />
