@@ -135,7 +135,7 @@ for; tasks with "after nothing" start at once.
 
 ## 6. Tutorials page and content
 
-- [ ] 6.1 The tutorials page by level: tutorials-gallery-stand tasks 3.1 and
+- [x] 6.1 The tutorials page by level: tutorials-gallery-stand tasks 3.1 and
       3.2, plus a conversation tutorial's "<passed> of <m>" on its card and
       "Continue · Step n of m" on the Start here banner. Verify: that change's
       scenarios, except its caption and "Page n of m" banner, which
