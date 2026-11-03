@@ -81,6 +81,15 @@ const NOT_RESENT =
   "The model changed while your message waited, so it was not sent again. Send it again.";
 
 /** A message the model turned away for load, waiting to be sent again */
+/** A message on its way to the model */
+interface Outgoing {
+  text: string;
+  /** Which retry this is, 0 for the first send */
+  attempt: number;
+  /** What the user chose to send with it */
+  context: TurnContext;
+}
+
 interface BusyRetry {
   text: string;
   /** When it is sent again, in `Date.now()` time */
@@ -184,8 +193,8 @@ export interface Turn {
   promptWaiting: boolean;
   /** Bumped whenever the composer's input should take focus */
   focusRequest: number;
-  /** The file whose content the next message leaves out, or `null` */
-  openFileLeftOut: string | null;
+  /** The file whose content the next message leaves out, or `undefined` */
+  openFileLeftOut: string | undefined;
   /**
    * Leaves `path`'s content out of the next message, whoever sends it, as
    * long as it is still the open file then: another file the user switched
@@ -282,9 +291,9 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
   // the panel's job, not the conversation's: a notice item would outlive the
   // connect and be stored with the thread
   const [promptWaiting, setPromptWaiting] = useState(false);
-  const [openFileLeftOut, setOpenFileLeftOut] = useState<string | null>(null);
+  const [openFileLeftOut, setOpenFileLeftOut] = useState<string>();
   // Read by `start`, which a requested prompt runs from an older render
-  const leftOut = useRef<string | null>(null);
+  const leftOut = useRef<string | undefined>(undefined);
   const leaveOutOpenFile = (path: string) => {
     leftOut.current = path;
     setOpenFileLeftOut(path);
@@ -500,39 +509,35 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     // For this message only: the file goes with the next one again
     const context = {
       openFile:
-        leftOut.current === null ||
+        leftOut.current === undefined ||
         leftOut.current !== PgExplorer.currentFilePath,
     };
-    leftOut.current = null;
-    setOpenFileLeftOut(null);
-    await runTurn(trimmed, 0, context);
+    leftOut.current = undefined;
+    setOpenFileLeftOut(undefined);
+    await runTurn({ text: trimmed, attempt: 0, context });
     return true;
   };
   /**
    * One request for a message already in the thread, on the provider `start`
    * chose: the first send, or a busy message sent again.
-   *
-   * @param attempt which retry this is, 0 for the first send
    */
-  const runTurn = async (
-    text: string,
-    attempt: number,
-    context: TurnContext
-  ) => {
-    const { instance, connection: current } = provider.current!;
+  const runTurn = async (outgoing: Outgoing) => {
+    const { text, context } = outgoing;
+    if (!provider.current) throw new Error("a turn ran with no provider");
+    const { instance, connection: current } = provider.current;
     const controller = new AbortController();
     turn.current = controller;
     PgAssistant.beginTurn(controller);
     PgAssistant.setStatus("running");
 
     try {
-      await instance.send(text, controller.signal, context);
+      await instance.send(text, { signal: controller.signal, context });
     } catch (e) {
       const cutReply = isDroppedConnection(e)
         ? PgAssistant.turnReplyWithText()
-        : null;
+        : undefined;
       if (!controller.signal.aborted && e instanceof ModelBusyError) {
-        waitOnBusy(text, attempt, e, context);
+        waitOnBusy(outgoing, e);
       } else if (
         !controller.signal.aborted &&
         isRejectedKey(e) &&
@@ -542,9 +547,8 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
         // it again on the same backend rather than leaving the generic words
         const { id } = current;
         const name = PROVIDERS.find((p) => p.id === id)?.name ?? id;
-        PgAssistant.addError(
-          `${name} did not accept this key. Check it and enter it again, or pick another model.`,
-          paramsOf(current)
+        PgAssistant.addErrorWith(paramsOf(current))(
+          `${name} did not accept this key. Check it and enter it again, or pick another model.`
         );
         assistantTelemetry.track("assistant_key_rejected", {
           provider: current.id,
@@ -606,10 +610,8 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
    * `BUSY_WAIT_MAX_SECONDS` is not counted down at all.
    */
   const waitOnBusy = (
-    text: string,
-    attempt: number,
-    busy: ModelBusyError,
-    context: TurnContext
+    { text, attempt, context }: Outgoing,
+    busy: ModelBusyError
   ) => {
     const seconds = Math.max(1, busy.waitSeconds ?? BUSY_WAIT_SECONDS);
     if (attempt >= BUSY_RETRIES || seconds > BUSY_WAIT_MAX_SECONDS) {
@@ -667,7 +669,11 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
       PgAssistant.addError(NOT_RESENT);
       return;
     }
-    await runTurn(held.text, held.attempt, held.context);
+    await runTurn({
+      text: held.text,
+      attempt: held.attempt,
+      context: held.context,
+    });
   };
   const resendRef = useRef(resend);
   resendRef.current = resend;
