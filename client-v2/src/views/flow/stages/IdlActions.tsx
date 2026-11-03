@@ -46,6 +46,7 @@ type IdlLook = "outline" | "link";
  */
 const DownloadIdl = ({ look }: { look: IdlLook }) => {
   const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl);
+  // eslint-disable-next-line unicorn/no-null -- a component renders nothing as null
   if (!idl) return null;
   return (
     <Button asChild variant={look}>
