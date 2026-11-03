@@ -16,7 +16,11 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 import Link from "../../../../components/Link";
-import { isSignInFailure, PgSession } from "../../../../features/auth";
+import {
+  isSignInFailure,
+  PgSession,
+  SIGN_IN_FAILED_UNKNOWN,
+} from "../../../../features/auth";
 import { useRenderOnChange } from "../../../../hooks/useRenderOnChange";
 import { PgAssistant } from "../store";
 import type { BackendParams } from "../model/backend-params";
@@ -255,7 +259,7 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
         return;
       }
       log.error(error, { report: true, context: { from: "assistant" } });
-      setSignInError("Couldn't sign in. Try again.");
+      setSignInError(SIGN_IN_FAILED_UNKNOWN);
     });
   };
 

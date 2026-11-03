@@ -1,7 +1,11 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
-import { isSignInFailure, PgSession } from "@/features/auth";
+import {
+  isSignInFailure,
+  PgSession,
+  SIGN_IN_FAILED_UNKNOWN,
+} from "@/features/auth";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { PgBuildOutput } from "../../../views/sidebar/assistant/bridge/build-output";
 import { describeLesson } from "../../../views/sidebar/assistant/bridge/lesson-context";
@@ -228,7 +232,7 @@ export function AssistantComposer({
         return;
       }
       log.error(error, { report: true, context: { from: "ai-off" } });
-      setSignInError("Couldn't sign in. Try again.");
+      setSignInError(SIGN_IN_FAILED_UNKNOWN);
     });
   };
 
