@@ -1,6 +1,7 @@
 import { declareDecorator, updatable } from "./decorators";
 import {
   fromStoredEndpoints,
+  parseStoredSettings,
   toStoredEndpoints,
 } from "../settings/stored-endpoint";
 import type {
@@ -12,6 +13,11 @@ import type {
 } from "./types";
 
 import type { JSX } from "react";
+// The module, not the slice's entry: the entry pulls in React and Sentry, and
+// this file loads before everything else
+import { createLogger } from "../shared/lib/logger/logger";
+
+const log = createLogger("settings:storage");
 
 export type Settings = ConvertAll<UnionToTuple<InternalSetting>> & {
   // TODO: Store this in `PgProgramInfo` and remove
@@ -139,8 +145,17 @@ const storage = {
   read() {
     const stateStr = localStorage.getItem(this.KEY);
     if (!stateStr) return defaultState;
+
+    const stored = parseStoredSettings(stateStr);
+    if (stored instanceof Error) {
+      // A broken entry must not stop the app from starting: load the
+      // defaults, Devnet included, and the next write replaces it
+      log.error(stored, { report: true });
+      return defaultState;
+    }
+
     // Endpoints are stored as the option picked, not its address
-    return fromStoredEndpoints(JSON.parse(stateStr), defaultState) as Settings;
+    return fromStoredEndpoints(stored, defaultState) as Settings;
   },
 
   /** Serialize the data and write to storage. */

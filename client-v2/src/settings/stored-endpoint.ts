@@ -93,6 +93,22 @@ const defaultOf = (defaults: State, id: EndpointSettingId) => {
 };
 
 /**
+ * Whether a stored custom value can be handed to a connection: the same test
+ * the custom field's `parse` applies when the user types it (`PgCommon.isUrl`,
+ * not importable here)
+ */
+const isAddress = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    // Not an address: the caller falls back to the default, which is the point
+    return false;
+  }
+};
+
+/**
  * Settings as they go into `localStorage`: an address we provide becomes
  * its option's key, so rotating it in the env reaches every profile.
  *
@@ -122,7 +138,10 @@ export const toStoredEndpoints = (
  * is gone falls back to the default. A plain string written before
  * endpoints were stored as keys resolves the same way when it is one of our
  * addresses; a custom address comes back untouched -- it may carry the
- * user's own API token.
+ * user's own API token. Anything that is not an address (a corrupted entry,
+ * a custom one whose URL does not parse) falls back to the default too: the
+ * offered Devnet for the RPC, so a broken profile still lands somewhere that
+ * works.
  *
  * @param stored the settings `localStorage` holds
  * @param defaults the default settings
@@ -141,21 +160,46 @@ export const fromStoredEndpoints = <T extends State>(
           // key resolves now (a public URL moves to the offered network), or
           // a custom one, kept as is
           const ours = options[id].find((o) => o.url === value);
-          if (!ours) return value;
-          return options[id].find((o) => o.key === ours.key)?.url ?? value;
+          if (ours) {
+            return options[id].find((o) => o.key === ours.key)?.url ?? value;
+          }
+          return isAddress(value) ? value : defaultOf(defaults, id);
         }
 
-        const { option, url } = (value ?? {}) as {
-          option?: string;
-          url?: string;
-        };
-        if (option === "custom" && typeof url === "string") return url;
+        const { option, url } = (
+          value !== null && typeof value === "object" ? value : {}
+        ) as { option?: unknown; url?: unknown };
+        if (option === "custom") {
+          return isAddress(url) ? url : defaultOf(defaults, id);
+        }
 
         const known = options[id].find((o) => o.key === option);
         return known ? known.url : defaultOf(defaults, id);
       }),
     stored
   );
+
+/**
+ * The `settings` entry of `localStorage` as an object, or the reason it is
+ * not one. An entry that does not parse, or parses to something other than
+ * an object, must not stop the app from starting: the caller logs the error
+ * and loads the defaults.
+ *
+ * @param raw the entry as `localStorage` holds it
+ */
+export const parseStoredSettings = (raw: string): State | Error => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    // Handed back, not swallowed: the caller logs it
+    return error instanceof Error ? error : new Error(String(error));
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return new Error("The stored settings are not an object");
+  }
+  return parsed as State;
+};
 
 if (import.meta.vitest) {
   const { describe, it, expect, beforeAll } = import.meta.vitest;
@@ -350,6 +394,39 @@ if (import.meta.vitest) {
         const read = fromStoredEndpoints(stored, defaults, options);
         expect(read.connection.endpoint).toBe(defaults.connection.endpoint);
         expect(read.server.endpoint).toBe(LOCAL_ENDPOINT);
+      });
+
+      it.each([
+        ["a custom address that is not a URL", { option: "custom", url: "x" }],
+        ["a custom option with no address", { option: "custom" }],
+        ["a legacy plain string that is not a URL", "not a url"],
+        ["an empty string", ""],
+        ["a number", 42],
+        ["an array", ["devnet"]],
+      ])("lands on Devnet when the stored endpoint is %s", (_, endpoint) => {
+        const stored = {
+          connection: { endpoint },
+          server: { endpoint },
+        };
+
+        const read = fromStoredEndpoints(stored, defaults, options);
+        expect(read.connection.endpoint).toBe(Endpoint.DEVNET);
+        expect(read.server.endpoint).toBe(defaults.server.endpoint);
+      });
+
+      it.each([
+        ["not JSON", "{not json"],
+        ["JSON null", "null"],
+        ["a JSON number", "42"],
+        ["a JSON array", "[]"],
+      ])("reports stored settings that are %s as unreadable", (_, raw) => {
+        expect(parseStoredSettings(raw)).toBeInstanceOf(Error);
+      });
+
+      it("reads stored settings that are an object", () => {
+        expect(
+          parseStoredSettings('{"connection":{"endpoint":{"option":"devnet"}}}')
+        ).toEqual({ connection: { endpoint: { option: "devnet" } } });
       });
 
       it("reads the dropped SolPg build server as the default", () => {
