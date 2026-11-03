@@ -171,11 +171,16 @@ in another order. Give each such write the file it belongs to:
   of the target. The check wants the block in `ref` exactly once, and does
   not look for it in the target.
 - `start`: the file as this write finds it, when that is not the step's
-  `start`. The fix question's write usually needs it: it replaces lines of
+  `start`. Its lines count as known; any that `ref` lacks go when the file is
+  rebuilt from `ref`. Every line the file can hold at that point must be in
+  `ref` or `start`, or the block goes to the end of the file instead. The fix question's write usually needs it: it replaces lines of
   the failing build, which the step's `start` does not hold. Give it the
   failing build as `start` and the step's target as `ref`.
 
-A write with neither lands against the step's target and start, as above.
+Each falls back on its own: a write with only `ref` still takes the step's
+`start`. The write's `file` must still be a file of the step's target. A
+write with neither lands against the step's target and start, as above. The
+example below is a fix question's write.
 Give every write of the failing build the same `ref`, so the lines the
 failure's copy quotes ("line 20") are the lines the learner sees.
 
