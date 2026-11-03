@@ -54,6 +54,10 @@ export const open = PgRouter.create({
     }
 
     const { link } = decoded;
+    // Another project opened from the tree or the list leaves the path at
+    // `/open`: its project did not come from this link. Saving the link's
+    // project into a workspace switches too, and it is the user's own then
+    const leave = PgExplorer.onDidSwitchWorkspace(() => PgDocsLink.clear());
     const route = handleRoute({
       getExplorerInitArg: () => {
         PgDocsLink.open(link);
@@ -73,6 +77,7 @@ export const open = PgRouter.create({
       dispose: () => {
         route.dispose();
         reopen.dispose();
+        leave.dispose();
         // Another route took over: its project did not come from this link
         PgDocsLink.clear();
       },

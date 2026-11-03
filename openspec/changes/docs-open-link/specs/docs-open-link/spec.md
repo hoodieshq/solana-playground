@@ -31,7 +31,7 @@ server sees the code.
 - **WHEN** a link has `name=hello.ts` and no `title`
 - **THEN** the project's title is "hello"
 
-#### Scenario: Gist and GitHub links
+#### Scenario: Gist and GitHub links (manual)
 - **WHEN** the user opens `/gist/<id>` or `/<github url>`
 - **THEN** it opens as before this change
 
@@ -82,7 +82,7 @@ The `docs-link` slice SHALL send:
 - `docs_link_failed` when "This link is broken" shows. Its `reason` is one
   of `missing`, `version`, `decode`, `size`, `name` or `sol`.
 
-#### Scenario: An event per open
+#### Scenario: An event per open (manual)
 - **WHEN** the user opens the Quickstart link, then a truncated one
 - **THEN** `docs_link_opened` is sent with `host: "solana.com"`, then
   `docs_link_failed` with `reason: "decode"`

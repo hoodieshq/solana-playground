@@ -18,12 +18,12 @@ const HIDDEN_GLOBALS = ["eval", "Function"];
  * Wrap a script so that it:
  * - runs inside a class method, so `this` never reaches the window;
  * - may use top-level `await`;
- * - reports an uncaught error through `__fail`, then ends with `endCode`.
+ * - hands an uncaught error to `__fail`, which records it and returns its
+ *   message, then ends with `endCode`.
  *
- * `eval` and `Function` are shadowed by the outer function's parameters.
- * The blacklist used to assign `undefined` to them inside the method, and
- * assigning to `eval` there is a syntax error: a class body is strict code,
- * and ES5 output only hid that by turning the class into a plain function.
+ * `eval` and `Function` are shadowed by the outer function's parameters,
+ * since assigning to `eval` in a class body, which is strict code, is a
+ * syntax error. The script runs in strict mode for the same reason.
  *
  * @param code the script, imports already taken out
  * @param endCode what signals the end of the run
@@ -36,7 +36,7 @@ export const wrapScript = (
   class __Pg { async __run() {\n${code}\n} }
   const __pg = new __Pg();
   try { await __pg.__run(); }
-  catch (e) { __fail(String(e?.message ?? e)); console.log("Uncaught error:", e?.message ?? e); }
+  catch (e) { console.log("Uncaught error:", __fail(e)); }
   finally { ${endCode} }
 })()`;
 
@@ -59,8 +59,13 @@ export const showBigInts = (args: unknown[]) =>
  * @returns its message, or its text
  */
 export const reasonMessage = (reason: unknown): string => {
-  const message = (reason as { message?: unknown } | undefined)?.message;
-  if (typeof message === "string") return message;
+  const { message, name } =
+    (reason as { message?: unknown; name?: unknown } | undefined) ?? {};
+  if (typeof message === "string" && message) return message;
+  // `new Error()` has an empty message: its name is all there is to say
+  if (typeof name === "string" && name && typeof message === "string") {
+    return name;
+  }
   try {
     return String(reason);
   } catch {

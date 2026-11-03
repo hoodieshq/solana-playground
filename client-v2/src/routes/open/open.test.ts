@@ -11,10 +11,21 @@ import {
 const common = vi.hoisted(() => ({
   handleRoute: vi.fn(() => ({ dispose: () => {} })),
 }));
+const explorer = vi.hoisted(() => ({ switched: [] as Array<() => void> }));
 vi.mock("../common", () => common);
 vi.mock("../../utils", () => ({
   PgRouter: { create: <T>(route: T) => route, navigate: vi.fn() },
-  PgExplorer: { PATHS: { CLIENT_DIRNAME: "client" } },
+  PgExplorer: {
+    PATHS: { CLIENT_DIRNAME: "client" },
+    onDidSwitchWorkspace: (cb: () => void) => {
+      explorer.switched.push(cb);
+      return {
+        dispose: () => {
+          explorer.switched = explorer.switched.filter((other) => other !== cb);
+        },
+      };
+    },
+  },
 }));
 
 import { open } from "./open";
@@ -131,6 +142,15 @@ describe("/open", () => {
 
     expect(reload).toHaveBeenCalledTimes(1);
     vi.restoreAllMocks();
+  });
+
+  it("forgets the link when another project opens", () => {
+    visit(encodeDocsLink(QUICKSTART));
+    initArg();
+
+    explorer.switched.forEach((cb) => cb());
+
+    expect(PgDocsLink.state).toEqual({ kind: "none" });
   });
 
   it("forgets the link once another route takes over", () => {

@@ -30,11 +30,18 @@ const docsLink = (link: {
 
 const DOCS_PAGE = "https://solana.com/docs/quickstart";
 
-/** A docs script that needs no network: it reads its signer and a Map */
+/** The Quickstart's client, built with no RPC call, then its signer and a Map */
 const QUICKSTART = [
   'import { createClient } from "@solana/kit";',
+  'import { solanaDevnetRpc } from "@solana/kit-plugin-rpc";',
   'import { signerFromFile } from "@solana/kit-plugin-signer";',
-  'const client = await createClient().use(signerFromFile("wallet.json"));',
+  'import { systemProgram } from "@solana-program/system";',
+  'import { token2022Program } from "@solana-program/token-2022";',
+  "const client = await createClient()",
+  '  .use(signerFromFile("wallet.json"))',
+  "  .use(solanaDevnetRpc())",
+  "  .use(systemProgram())",
+  "  .use(token2022Program());",
   'console.log("same wallet:", client.identity.address === pg.wallet.publicKey.toBase58());',
   'for (const [k] of new Map([["a", 1]])) console.log("map:", k);',
   "console.log(1_000n * 2n);",

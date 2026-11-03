@@ -84,8 +84,10 @@ export class PgJsRuntime {
         const { globals, endCode } = await this._getGlobals({ isTest });
         globals.push([
           "__fail",
-          (error: string) => {
+          (reason: unknown) => {
+            const error = reasonMessage(reason);
             if (result.ok) result = { ok: false, error };
+            return error;
           },
         ]);
 
@@ -223,7 +225,9 @@ export class PgJsRuntime {
       // TODO(docs-link follow-up, run ids): a rejection that lands after its
       // script ended is printed but cannot turn that run red, and one that
       // lands while the next run goes turns the next one red. `execute`
-      // clears `__fail` when a run ends, so only the second case remains
+      // clears `__fail` when a run ends, so only the second case remains.
+      // The `error` listener above has the same gap, wider: an error thrown
+      // from a script's timer ends the run early
       (iframeWindow as IframeGlobals).__fail?.(message);
       // Does not require custom event dispatch to indicate running has finished
     });
@@ -580,7 +584,7 @@ export class PgJsRuntime {
 }
 
 /** What a running script's iframe holds besides the window's own */
-type IframeGlobals = Window & { __fail?: (error: string) => void };
+type IframeGlobals = Window & { __fail?: (reason: unknown) => string };
 
 /** Keywords that are not allowed to be in the user code */
 const BLACKLISTED_GLOBALS = [

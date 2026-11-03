@@ -68,12 +68,12 @@ link format handed to the docs team.
 - `model/run.ts`: a small store for the run's state;
 - `model/telemetry.ts`;
 - `ui/`: `BaseRunButton`/`RunButton`, `BaseRunCallout`/`RunCallout`,
-  `BaseBrokenLink`/`BrokenLink`.
+  `BaseBrokenLink` (the `/open` route connects it).
 
 `routes/open` decodes the link. A good link opens
 `handleRoute({ getExplorerInitArg })` with `client/<name>` and records the
 link's `title`, `from` and `sol` in the slice's store. A bad link renders
-`BrokenLink` as the main view. The legacy `StageBar` (Run) and `Write`
+`BaseBrokenLink` as the main view. The legacy `StageBar` (Run) and `Write`
 (callout above `Primary`) import the slice. They are legacy roots, so the
 layer check allows it. Run belongs to the slice because the docs link is the
 first thing that needs it. A later rename to a `client-run` slice is cheap,
@@ -86,7 +86,7 @@ idle | funding | running | done | failed | missing-package
 ```
 
 `done` holds `ms`, `failed` holds `message`, `missing-package` holds
-`package`. Two signals tell the store how a run ended:
+`pkg`, `running` holds when it started and whether a link opened its project. Two signals tell the store how a run ended:
 
 - `PgJsRuntime.execute` now returns `{ ok: true } | { ok: false, error }`.
   The wrapper code reports a caught error through an `__fail` global, next to
@@ -96,13 +96,16 @@ idle | funding | running | done | failed | missing-package
 
 The Run button calls `PgCommand.run.execute()`. It does not call the runtime
 directly, so the terminal prints exactly what `run` prints. The store
-listens to the runtime's start and finish events, so a run typed in the
+listens to `PgCommand.run`'s start and finish events, so a run typed in the
 terminal shows on the button too.
 
 **Funding asks only when the link says how much.** A generic project can be a
 read-only script. Only a link with `sol` triggers the card. The balance is
-`PgWallet.balance`. Wallet state `setup` runs `PgCommand.connect`, which opens
-the existing setup modal, then checks the balance.
+read from the chain (`PgConnection.current.getBalance`), not the wallet's
+cached one, so Check again sees a faucet's transfer. Wallet states `setup` and
+`disconnected` run `PgCommand.connect` (the setup modal for the first), then
+check the balance; a browser wallet is not checked, since `signerFromFile`
+uses the Playground wallet only.
 
 **Kit in the runtime.** The five packages go in
 `client-v2/supported-packages.json`. `generate-packages.mjs` and

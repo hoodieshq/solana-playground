@@ -174,6 +174,14 @@ describe("PgClientRun", () => {
     });
   });
 
+  it("shows no run for `run --help`, which never finishes", async () => {
+    const { PgClientRun } = await load();
+    utils.handlers.start.forEach((cb) => cb("run --help"));
+    expect(PgClientRun.state.kind).toBe("idle");
+    await PgClientRun.start();
+    expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
+  });
+
   it("shows a run typed in the terminal", async () => {
     const { PgClientRun } = await load();
     startRun();

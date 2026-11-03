@@ -39,9 +39,12 @@ has been run, and its `data-state` SHALL name the state shown:
 
 `source` shows only before the first run of a project from a docs link. A
 project the user opened any other way shows the callout only after it is run.
-Every state after a run SHALL offer "Run again".
+Every state after a run SHALL offer "Run again", except `missing-package`:
+running it again cannot load the package either. When another project opens,
+the callout SHALL start over from that project's own state; a run in
+progress keeps its state until it ends.
 
-#### Scenario: The Quickstart runs to the end
+#### Scenario: The Quickstart runs to the end (manual)
 - **WHEN** the Quickstart's script finishes without an uncaught error after
   12.4 s
 - **THEN** the callout shows `done` with "Ran in 12 s"
@@ -98,7 +101,9 @@ the Playground wallet as the client's identity and payer, whatever the path.
 When the current wallet is not the Playground wallet, it SHALL fail with
 "signerFromFile uses your Playground wallet. Switch to it to run this
 script." Scripts SHALL run with ES2020 semantics: BigInt literals, numeric
-separators, and `for…of` over a `Map` or `Set` behave as in Node.
+separators, and `for…of` over a `Map` or `Set` behave as in Node. A script
+SHALL run in strict mode, as a module does in Node: an assignment to an
+undeclared name fails the run.
 
 #### Scenario: The Quickstart's client
 - **WHEN** a script builds `createClient().use(signerFromFile("wallet.json")).use(solanaDevnetRpc()).use(systemProgram()).use(token2022Program())`
@@ -121,7 +126,7 @@ The `docs-link` slice SHALL send:
 - `docs_link_run_funding_shown` when the funding card shows. Its `wallet` is
   `new` when Run had to create the wallet, else `existing`.
 
-#### Scenario: A funded run
+#### Scenario: A funded run (manual)
 - **WHEN** a user with enough SOL presses Run on the Quickstart and it
   succeeds
 - **THEN** `docs_link_run_started` with `source: "link"` is sent, then

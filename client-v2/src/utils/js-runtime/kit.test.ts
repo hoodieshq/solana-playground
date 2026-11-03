@@ -1,4 +1,5 @@
-// `@types/mocha` also declares a global `it`, without `each`
+// The test API comes from vitest: `src/utils/js-runtime` imports mocha, whose
+// types declare globals of the same names
 import { createKeyPairSignerFromBytes } from "@solana/kit";
 import { signer } from "@solana/kit-plugin-signer";
 import { Keypair } from "@solana/web3.js";
@@ -32,6 +33,11 @@ describe("reasonMessage", () => {
     // An iframe's `Error` is not the page's: only the shape is shared
     expect(reasonMessage({ name: "Error", message: "boom" })).toBe("boom");
     expect(reasonMessage(new Error("boom"))).toBe("boom");
+  });
+
+  it("names an error that has no message", () => {
+    expect(reasonMessage(new Error())).toBe("Error");
+    expect(reasonMessage(new TypeError(""))).toBe("TypeError");
   });
 
   it("prints anything else a script rejects with", () => {
@@ -79,7 +85,11 @@ describe("wrapScript", () => {
       // eslint-disable-next-line no-new-func
       new Function("console", "__fail", "__end", code)(
         { log: (...args: unknown[]) => logged.push(args.join(" ")) },
-        (error: string) => logged.push(`fail: ${error}`),
+        (reason: unknown) => {
+          const message = reasonMessage(reason);
+          logged.push(`fail: ${message}`);
+          return message;
+        },
         () => resolve(logged)
       );
     });
@@ -100,6 +110,13 @@ describe("wrapScript", () => {
     expect(await run('throw new Error("boom");')).toEqual([
       "fail: boom",
       "Uncaught error: boom",
+    ]);
+  });
+
+  it("reports a thrown value that cannot be printed", async () => {
+    expect(await run("throw Object.create(null);")).toEqual([
+      "fail: a value that cannot be printed",
+      "Uncaught error: a value that cannot be printed",
     ]);
   });
 });
