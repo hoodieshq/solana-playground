@@ -17,6 +17,7 @@ import { PgConnection, PgExplorer, PgGlobal, PgWallet } from "../../../utils";
 import type { Cluster } from "../../../utils";
 import { isSignInFailure, PgSession } from "@/features/auth";
 import { PgStageDeploy, useDeployRun, useStageDeploy } from "@/features/deploy";
+import { ProgramKeypair } from "@/features/program-keypair";
 import type { StageDeployState } from "@/features/deploy";
 import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
@@ -183,6 +184,7 @@ const Deploy = () => {
         onStaleBuildAnswer={(answer) => PgStageDeploy.answerStaleBuild(answer)}
         onInteract={() => PgFlow.setStage("interact")}
         idlUpload={<IdlActions mode="upload" />}
+        programKeypair={<ProgramKeypair />}
         onOpenCliGuide={setGuide}
       />
       <CliDeployGuide
