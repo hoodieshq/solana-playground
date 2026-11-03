@@ -6,7 +6,7 @@
 // directly; `allowJs` lets the TypeScript side import the same file (see
 // `deleted.mjs`).
 
-/** Anything larger is not a conversation batch, it is an attack or a bug */
+/** The most the server takes in one POST; the client splits a push to stay under it */
 export const MAX_BATCH_BYTES = 2_000_000;
 
 /** Items in one batch, whatever their size */
@@ -21,18 +21,21 @@ const bytesOf = (text) => encoder.encode(text).length;
  * Split a push into request bodies the server accepts.
  *
  * Every body is `JSON.stringify({...envelope, items})`, the exact string the
- * caller sends, and is measured in UTF-8 bytes against `maxBytes`: the caps on
- * an item count characters, and a character can be three bytes on the wire.
- * Items keep their order, so the first body is the one that creates the
- * thread. The server upserts each item by id, so several bodies land the same
- * rows one body would have.
+ * caller sends, and is measured in UTF-8 bytes against `maxBytes`: the cap is
+ * on the wire, where a character can take up to four bytes, and the caps on
+ * an item (`cut` in `tool-call.ts`) count characters. Each body
+ * creates the thread if it is absent, and the server upserts each item by id,
+ * so several bodies land the rows one body would have. Items keep their
+ * order, so a failure partway leaves the oldest on the server.
  *
  * An item that could not fit even in a body of its own is left out and named
  * in `oversized`: sending it would only buy the 413 this exists to avoid, and
- * the rest of the thread still syncs.
+ * the rest of the thread still syncs. A thread with nothing to send still gets
+ * one empty body, which is what brings its row into being on the server.
  *
  * @template {{ id: string }} T
- * @param {Record<string, unknown>} envelope what every body carries besides `items`
+ * @param {{ threadId: string, projectId: string }} envelope what every body
+ *   carries besides `items`
  * @param {readonly T[]} items
  * @param {{ maxBytes?: number, maxItems?: number }} [caps]
  * @returns {{ bodies: string[], oversized: string[] }}
@@ -60,8 +63,10 @@ export const batchPush = (
       oversized.push(item.id);
       continue;
     }
-    const added = batch.length ? weight + 1 : weight;
-    if (batch.length >= maxItems || size + added > maxBytes) {
+    // One comma before every item but the first, so the weight to add is
+    // known only once the batch it lands in is
+    const full = batch.length >= maxItems || size + weight + 1 > maxBytes;
+    if (batch.length && full) {
       batches.push(batch);
       batch = [];
       size = emptyBytes;
@@ -69,7 +74,7 @@ export const batchPush = (
     size += batch.length ? weight + 1 : weight;
     batch.push(item);
   }
-  if (batch.length) batches.push(batch);
+  if (batch.length || !batches.length) batches.push(batch);
 
   return {
     bodies: batches.map((b) => JSON.stringify({ ...envelope, items: b })),

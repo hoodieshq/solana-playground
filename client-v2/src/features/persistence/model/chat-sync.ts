@@ -42,7 +42,10 @@ interface HandedThread {
  *   under it can be pushed. The caller leaves it for the user's answer about
  *   the project (`SyncBanner`): "keep as new" carries the conversation,
  *   "delete" drops it.
- * - `failed`: nothing is known; the thread stays and is tried again.
+ * - `failed`: nothing is known; the thread stays and is tried again. Also a
+ *   thread pushed whole but for items too large for any batch: those stay on
+ *   this device, so a sign-out must not drop the thread, and the retry sends
+ *   the rest again, which the server's upsert makes harmless.
  *
  * Neither deletion is `failed`: a failed thread is tried again on every
  * turn, and a tombstone never lifts.
@@ -186,21 +189,35 @@ export class PgChatSync {
       encodeThread(withoutTruncationNotice(items))
     );
 
+    // Said before the batches go, so a batch that fails cannot hide it, and
+    // once per item: the push is retried every turn, and a report each time
+    // would crowd every other failure out of the diagnostics
+    const unreported = oversized.filter(
+      (id) => !PgChatSync._oversizedReported.has(`${threadId}:${id}`)
+    );
+    if (unreported.length) {
+      unreported.forEach((id) =>
+        PgChatSync._oversizedReported.add(`${threadId}:${id}`)
+      );
+      report(
+        `push ${threadId}: larger than the ${MAX_BATCH_BYTES}-byte batch cap, kept on this device only: ${unreported.join(
+          ", "
+        )}`,
+        null
+      );
+    }
+
     for (const body of bodies) {
       const outcome = await PgChatSync._post(threadId, body);
       if (outcome !== "pushed") return outcome;
     }
     // The rest is on the server, but not the whole thread: a sign-out drops
     // only what the server holds, so this one must not read as `pushed`
-    if (oversized.length) {
-      report(
-        `push ${threadId}: ${oversized.length} item(s) over ${MAX_BATCH_BYTES} bytes stay on this device`,
-        null
-      );
-      return "failed";
-    }
-    return "pushed";
+    return oversized.length ? "failed" : "pushed";
   }
+
+  /** `<threadId>:<itemId>` of every item `push` has reported as too large */
+  private static _oversizedReported = new Set<string>();
 
   /** One batch of a push. @returns how it ended -- see `PushOutcome` */
   private static async _post(
@@ -617,11 +634,6 @@ if (import.meta.vitest) {
       });
 
       describe("a thread past the batch cap", () => {
-        let MAX_BATCH_BYTES: typeof import("./chat-batch.mjs").MAX_BATCH_BYTES;
-        beforeAll(async () => {
-          ({ MAX_BATCH_BYTES } = await import("./chat-batch.mjs"));
-        });
-
         /**
          * 200 items, the most a device keeps, each of a three-byte
          * character: about 12 MB on the wire against a 2 MB cap
@@ -676,6 +688,44 @@ if (import.meta.vitest) {
           await PgChatStorage.write(threadId, longThread());
 
           expect(await PgChatSync.push(threadId)).toBe("failed");
+          expect(posts()).toHaveLength(2);
+        });
+
+        it("still posts a thread holding only the truncation notice, empty", async () => {
+          respondingWith(() =>
+            Promise.resolve({ ok: true, json: async () => ({ written: 0 }) })
+          );
+          await signedIn();
+          await PgChatStorage.write(threadId, [
+            {
+              kind: "notice",
+              id: `truncated:${threadId}`,
+              createdAt: new Date(0).toISOString(),
+              text: "Earlier messages are not kept on this device.",
+            },
+          ]);
+
+          expect(await PgChatSync.push(threadId)).toBe("pushed");
+          expect(posts().map((body) => JSON.parse(body).items)).toEqual([[]]);
+        });
+
+        it("reads a tombstone on a later batch as it reads one on the first", async () => {
+          let n = 0;
+          respondingWith(() =>
+            Promise.resolve(
+              ++n === 2
+                ? {
+                    ok: false,
+                    status: 410,
+                    json: async () => ({ reason: "deleted", scope: "project" }),
+                  }
+                : { ok: true, json: async () => ({ written: 1 }) }
+            )
+          );
+          await signedIn();
+          await PgChatStorage.write(threadId, longThread());
+
+          expect(await PgChatSync.push(threadId)).toBe("project-deleted");
           expect(posts()).toHaveLength(2);
         });
 
