@@ -1,6 +1,9 @@
 import { PgCommon } from "./common";
 import { PgTerminal, TerminalLineError, unknownCommand } from "./terminal";
 import type { Arrayable, Disposable, Getable, SyncOrAsync } from "./types";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("terminal:command");
 
 /**
  * Whether a run can be stopped now: `stoppable` honours its signal, `step`
@@ -334,9 +337,16 @@ export class PgCommandManager {
           PgCommandManager.getNames()
         );
         if (answer.kind === "suggestion") {
-          // Up then Enter runs the suggestion (Spec 13, "Not found")
-          const term = await PgTerminal.get();
-          term.offerFromHistory(answer.suggestion);
+          // Up then Enter runs the suggestion (Spec 13, "Not found"). Only a
+          // convenience: failing to offer it must not hide the line
+          try {
+            const term = await PgTerminal.get();
+            term.offerFromHistory(answer.suggestion);
+          } catch (e) {
+            log.warn("could not offer the suggestion to history", {
+              context: { reason: String(e) },
+            });
+          }
         }
         throw new TerminalLineError(answer.line);
       }

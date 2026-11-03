@@ -8,7 +8,7 @@ import { PgShell } from "./shell";
 import { PgTty } from "./tty";
 import { PgCommon } from "../common";
 import { isStopped } from "../stopped";
-import { confirmAnswer, confirmSuffix } from "./confirm";
+import { confirmReply, confirmSuffix } from "./confirm";
 import { processErrorLine } from "./line-error";
 import { createLogger } from "@/shared/lib/logger";
 import {
@@ -156,7 +156,7 @@ export class PgTerminal {
     try {
       return await term.process<T>(cb);
     } catch (e) {
-      // `PgTerm.process` has shown `Process error: …` in the terminal by now,
+      // `PgTerm.process` has printed the failure's line in the terminal by now,
       // so a button that started this must not show the failure a second
       // time. Only while the console is open: printed into a folded one, the
       // user saw nothing here, so the button's toast tells them, unless the
@@ -575,9 +575,10 @@ export class PgTerm {
       disposables.reverse().forEach(({ dispose }) => dispose());
     }
 
-    // Set the input to the default if it exists on empty input
-    if (!userInput && opts?.default) userInput = opts.default;
-    if (opts?.confirm && userInput) userInput = confirmAnswer(userInput);
+    // Set the input to the default if it exists on empty input; a yes or no
+    // answer also takes `y`, `n` and capitals
+    if (opts?.confirm) userInput = confirmReply(userInput, opts.default);
+    else if (!userInput && opts?.default) userInput = opts.default;
 
     // Default validators
     if (opts && !opts.validator) {

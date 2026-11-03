@@ -59,6 +59,16 @@ describe("commands/checks", () => {
     expect(env.questions.map((q) => q.msg)).toEqual([
       "No wallet is connected. Connect the Playground Wallet?",
     ]);
+    // `connect` with no argument is the Playground Wallet
+    expect(connectExecute).toHaveBeenCalledWith();
+  });
+
+  it("asks nothing when any wallet is connected", async () => {
+    env.wallet = { isPg: false };
+
+    await checkWallet();
+
+    expect(env.questions).toEqual([]);
   });
 
   it("ends the command with Spec 13's line, no prefix, on a no", async () => {

@@ -29,6 +29,18 @@ export const confirmAnswer = (input: string) => {
   return ANSWERS[lower] ?? lower;
 };
 
+/**
+ * What a yes or no question takes from the prompt: Enter alone is the
+ * default, and a short or capital answer counts.
+ *
+ * @param input what the person typed, possibly empty
+ * @param defaultValue the question's default, if any
+ * @returns `"yes"`, `"no"`, `""` when empty with no default (ask again), or
+ * the input in lower case for the validator to refuse
+ */
+export const confirmReply = (input: string, defaultValue?: string) =>
+  confirmAnswer(input || defaultValue || "");
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -53,6 +65,15 @@ if (import.meta.vitest) {
       ["No", "no"],
     ])("reads %s as %s", (input, answer) => {
       expect(confirmAnswer(input)).toBe(answer);
+    });
+
+    it.each([
+      ["", "yes", "yes"],
+      ["", "no", "no"],
+      ["", undefined, ""],
+      ["N", "yes", "no"],
+    ])("reads %j with default %s as %j", (input, def, reply) => {
+      expect(confirmReply(input, def)).toBe(reply);
     });
 
     it("leaves any other answer for the validator to refuse", () => {
