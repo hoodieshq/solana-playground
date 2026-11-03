@@ -68,11 +68,13 @@ for; tasks with "after nothing" start at once.
       Verify: component tests for every record line in the spec and the jump
       from step 3 to step 1 (HOO-2351; fleet; M 1.5; after 2.1, 3.1;
       plan: [plans/3.3-feed.md](plans/3.3-feed.md))
-- [ ] 3.4 Win and finish cards: Next with ↵, "Open Call" / "Write it in
+- [x] 3.4 Win and finish cards: Next with ↵, "Open Call" / "Write it in
       client.ts", the finish's Transaction details with the Copy receipt
       icon, "What you learned", the "steps · time · devnet only" line,
-      "Next: <tutorial>" and "All tutorials", no stat pills. Verify: component tests for the last step's win with no Next
-      (HOO-2352; fleet; S 1; after 3.1)
+      "Next: <tutorial>" and "All tutorials", no stat pills,
+      `tutorial_next_opened` and `tutorial_receipt_copied`. Verify: component tests for the last step's win with no Next
+      (HOO-2352; fleet; S 1; after 3.1;
+      plan: [plans/3.4-win-finish.md](plans/3.4-win-finish.md))
 - [x] 3.5 The question card: picks, keys (1-3, H, S), "Not quite." and
       reasons, two-wrong outline, Hint (no model needed), Skip, Type it
       myself, the key line typed by hand, the right pick's write with its
@@ -120,7 +122,9 @@ for; tasks with "after nothing" start at once.
       program row with Explorer, one form with the instruction chips (the
       step's own picked, none for one instruction), "New" fields, one call
       button, the result naming its instruction, the latest result in the panel and the log in the terminal,
-      passing steps 3 and 4, `tutorial_action_run` with `call_panel`.
+      passing steps 3 and 4, `tutorial_action_run` with `call_panel`, and
+      the opener the win card's "Open Call" waits for (3.4's
+      `TODO(tutorial-flow-v2 4.4)`).
       Verify: component tests for the upgrade adding
       `name`; a call passing step 3 (HOO-2358; fleet; M
       1.5; after 2.2, 4.3)

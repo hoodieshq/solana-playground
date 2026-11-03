@@ -3,6 +3,10 @@ import type {
   ConversationSave,
   QuestionResult,
 } from "@/entities/tutorial";
+import { z } from "zod";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("tutorial-conversation:progress");
 
 /**
  * What a conversation tutorial saves under `conversation` in
@@ -172,6 +176,24 @@ export interface Called {
   args: Record<string, string>;
 }
 
+/** One account a transaction touched, as the receipt lists it */
+export interface ReceiptAccount {
+  /** The IDL's name for it, or a role such as "program" */
+  name: string;
+  address: string;
+}
+
+/** A landed transaction's facts, each optional: see the call result's `receipt` */
+export interface Receipt {
+  /** The fee in lamports */
+  fee?: number;
+  /** The wallet that signed */
+  signer?: string;
+  accounts?: ReceiptAccount[];
+  /** The transaction's log, line by line */
+  log?: string[];
+}
+
 /**
  * What the program refused in a failed run or call: the instruction, and the
  * error it returned, or null for a refusal with no code (a panic, running out
@@ -244,6 +266,13 @@ export type RunResult =
        * upgrade the deployed `hello` takes no `name`, so none is sent.
        */
       called: Called[];
+      /**
+       * The receipt the finish card shows ("Transaction details"), of the
+       * transaction the signatures end on. Optional: the call runner
+       * (`tutorial-flow-v2` task 4.3) fills them, and the card draws only
+       * the rows it has.
+       */
+      receipt?: Receipt;
     }
   | {
       act: "run" | "call";
@@ -402,7 +431,10 @@ const isRefusal = (v: unknown): v is Refusal =>
  * exceptions are what `judgeGoal` reads: a call's `called`, which comes back
  * as no call when it is missing or does not read as one, and a failed call's
  * `refused`, dropped when it does not read as a refusal, so the judge can
- * trust the type.
+ * trust the type. A landed run's or call's `signatures` and `line`, which
+ * the finish card draws, come back empty when they do not read as theirs,
+ * and its `receipt` keeps only the fields that do, so the card can trust
+ * them too.
  */
 const parseResult = (v: unknown): RunResult | null => {
   if (
@@ -415,7 +447,20 @@ const parseResult = (v: unknown): RunResult | null => {
   }
   if ((v.act === "run" || v.act === "call") && v.ok) {
     const called = Array.isArray(v.called) ? v.called.filter(isCalled) : [];
-    return { ...v, called } as unknown as RunResult;
+    const signatures = isStrings(v.signatures) ? v.signatures : [];
+    const line = typeof v.line === "string" ? v.line : null;
+    const { receipt, ...rest } = v;
+    const { receipt: kept, mismatched } = parseReceipt(receipt);
+    if (mismatched.length) {
+      // Kept as far as it reads: a receipt field is drawn, never judged, so
+      // it does not fail the load the way an unreadable entry does
+      log.debug("a saved receipt holds fields that do not match its schema", {
+        context: { mismatched },
+      });
+    }
+    return (kept
+      ? { ...rest, signatures, line, called, receipt: kept }
+      : { ...rest, signatures, line, called }) as unknown as RunResult;
   }
   if ((v.act === "run" || v.act === "call") && "refused" in v) {
     const { refused, ...rest } = v;
@@ -424,6 +469,77 @@ const parseResult = (v: unknown): RunResult | null => {
       : rest) as unknown as RunResult;
   }
   return v as unknown as RunResult;
+};
+
+/**
+ * A receipt as the finish card draws it. Every field is optional: the call
+ * runner (task 4.3) fills what it can.
+ */
+const receiptSchema = z.object({
+  fee: z.number().int().nonnegative().optional(),
+  signer: z.string().optional(),
+  accounts: z
+    .array(z.object({ name: z.string(), address: z.string() }))
+    .optional(),
+  log: z.array(z.string()).optional(),
+});
+
+/**
+ * The receipt's fields that match `receiptSchema`, or null when it is not an
+ * object or none is left. What does not match costs only itself: a field, or
+ * one entry of a list. `mismatched` names each such path (`accounts.1`), for
+ * the caller to log.
+ */
+const parseReceipt = (
+  v: unknown
+): { receipt: Receipt | null; mismatched: string[] } => {
+  if (!isRecord(v)) {
+    return { receipt: null, mismatched: v === undefined ? [] : ["receipt"] };
+  }
+  const first = receiptSchema.safeParse(v);
+  const mismatched = first.success
+    ? []
+    : first.error.issues.map((issue) => issue.path.join("."));
+  const parsed = first.success
+    ? first.data
+    : receiptSchema.parse(withoutPaths(v, first.error.issues));
+  const out: Receipt = {};
+  if (parsed.fee !== undefined) out.fee = parsed.fee;
+  if (parsed.signer !== undefined) out.signer = parsed.signer;
+  if (parsed.accounts?.length) out.accounts = parsed.accounts;
+  if (parsed.log?.length) out.log = parsed.log;
+  return {
+    receipt: Object.keys(out).length ? out : null,
+    mismatched,
+  };
+};
+
+/**
+ * The receipt without what its issues point at: a list entry where the
+ * issue names one, else the whole field
+ */
+const withoutPaths = (
+  v: Record<string, unknown>,
+  issues: readonly { path: readonly PropertyKey[] }[]
+): Record<string, unknown> => {
+  const out: Record<string, unknown> = Object.assign({}, v);
+  const entries = new Map<string, Set<number>>();
+  for (const { path } of issues) {
+    const [field, index] = path;
+    if (typeof field !== "string") continue;
+    if (typeof index === "number" && Array.isArray(out[field])) {
+      const set = entries.get(field) ?? new Set<number>();
+      set.add(index);
+      entries.set(field, set);
+    } else {
+      delete out[field];
+    }
+  }
+  for (const [field, drop] of entries) {
+    const list = out[field];
+    if (Array.isArray(list)) out[field] = list.filter((_, i) => !drop.has(i));
+  }
+  return out;
 };
 
 /** A run saved as `started` comes back `interrupted`: nothing resumes */
@@ -861,6 +977,100 @@ if (import.meta.vitest) {
           { instruction: "x", args: { n: 1 } },
         ])
       ).toEqual([hello]);
+    });
+
+    it("reads back only what a landed call's receipt rows can draw", () => {
+      /** The landed call `s4.call` saved with these result fields, read back */
+      const landed = (fields: Record<string, unknown>) =>
+        reload(
+          midway({
+            runs: {
+              "s4.call": [
+                {
+                  status: "ok",
+                  at: 1,
+                  took: 1,
+                  result: Object.assign(
+                    { act: "call", ok: true, seconds: 1, called: [] },
+                    fields
+                  ),
+                },
+              ],
+            },
+          })
+        )?.runs["s4.call"][0];
+
+      // A corrupt signature list or line would throw in the finish card
+      expect(landed({ signatures: "5ig", line: 7 })).toMatchObject({
+        result: { signatures: [], line: null },
+      });
+      expect(landed({})).toMatchObject({
+        result: { signatures: [], line: null },
+      });
+      // Nothing of the receipt reads as its own: no receipt at all
+      const bare = landed({
+        signatures: ["5ig"],
+        line: null,
+        receipt: { fee: -1, accounts: [7], log: [1] },
+      });
+      expect(bare?.status).toBe("ok");
+      expect(bare?.status === "ok" && "receipt" in bare.result).toBe(false);
+      // Each field stands alone: a log that is not lines, or an account
+      // that is not one, goes, and the rest of the receipt stays
+      const kept = landed({
+        signatures: ["sig"],
+        line: null,
+        receipt: {
+          fee: 5000,
+          signer: "Wa11et",
+          accounts: [{ name: "program", address: "Pr0g" }, 7],
+          log: "not lines",
+        },
+      });
+      expect(
+        kept?.status === "ok" && "receipt" in kept.result
+          ? kept.result.receipt
+          : "no receipt"
+      ).toEqual({
+        fee: 5000,
+        signer: "Wa11et",
+        accounts: [{ name: "program", address: "Pr0g" }],
+      });
+      // One bad log line costs only itself
+      expect(
+        landed({
+          signatures: ["5ig"],
+          line: null,
+          receipt: { fee: 0.5, log: ["Program log: Hello, Alex!", 3] },
+        })
+      ).toMatchObject({
+        result: { receipt: { log: ["Program log: Hello, Alex!"] } },
+      });
+    });
+
+    it("names each receipt path its schema does not match, for the log", () => {
+      expect(
+        parseReceipt({
+          fee: -1,
+          signer: "Wa11et",
+          accounts: [{ name: "program", address: "Pr0g" }, 7],
+          log: "not lines",
+        })
+      ).toEqual({
+        receipt: {
+          signer: "Wa11et",
+          accounts: [{ name: "program", address: "Pr0g" }],
+        },
+        mismatched: ["fee", "accounts.1", "log"],
+      });
+      expect(parseReceipt(undefined)).toEqual({
+        receipt: null,
+        mismatched: [],
+      });
+      expect(parseReceipt("receipt")).toEqual({
+        receipt: null,
+        mismatched: ["receipt"],
+      });
     });
 
     it("keeps a passed step once", () => {

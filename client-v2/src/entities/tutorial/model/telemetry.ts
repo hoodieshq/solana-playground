@@ -56,6 +56,17 @@ export type TutorialEvents = {
     attempts: number;
   };
   /**
+   * "Next: <tutorial>" on the finish card opened the tutorial the definition
+   * names next; sent once the open resolved, so a failed one is not counted.
+   * `tutorial` is the one finished, `next` the one opened, both slugs.
+   */
+  tutorial_next_opened: { tutorial: string; next: string };
+  /**
+   * Copy receipt on the finish card's "Transaction details" was pressed; a
+   * copy the clipboard refuses is reported apart, as a button failure.
+   */
+  tutorial_receipt_copied: { tutorial: string };
+  /**
    * A step's goal passed on a real result. `via` is how: `chat` (an act
    * card), `client` (a client run) or `call_panel`. `step` is 1-based;
    * `seconds` is whole seconds from entering the step to its pass, time away

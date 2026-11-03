@@ -354,8 +354,19 @@ export class PgLesson {
 
   /** Subscribe to client events. Call once from the Flow layout. */
   static init(): Disposable {
+    // Another tutorial's About page opens inside the open workspace (the
+    // route names a tutorial that is not this workspace's): the workspace's
+    // lesson is not what is on screen, so none is loaded while it shows
+    const elsewhere = () => {
+      const route = PgTutorial.current;
+      return !!route && route.name !== PgExplorer.currentWorkspaceName;
+    };
+    let wasElsewhere = false;
     const load = async () => {
-      const path = getLessonPath(PgExplorer.currentWorkspaceName);
+      wasElsewhere = elsewhere();
+      const path = wasElsewhere
+        ? null
+        : getLessonPath(PgExplorer.currentWorkspaceName);
       if (!path) {
         PgLesson._dispatch({ type: "load", path: null, at: Date.now() });
         return;
@@ -402,6 +413,11 @@ export class PgLesson {
 
     const subs: Disposable[] = [
       PgExplorer.onDidSwitchWorkspace(load),
+      // Only a move to or from another tutorial's page reloads; a page turn
+      // inside this one leaves the lesson as it is
+      PgTutorial.onDidChangeCurrent(() => {
+        if (elsewhere() !== wasElsewhere) load();
+      }),
       PgFlow.onDidChange((flow) =>
         PgLesson._dispatch({
           type: "evaluate",

@@ -11,7 +11,8 @@ import BaseSay from "./BaseSay";
 import BaseStepDivider from "./BaseStepDivider";
 import BaseWroteCard from "./BaseWroteCard";
 import BaseYouPill from "./BaseYouPill";
-import { FinishStandIn, WinStandIn } from "./stand-ins";
+import BaseFinishCard from "./BaseFinishCard";
+import BaseWinCard from "./BaseWinCard";
 
 /** What the cards ask the conversation to do; each is one engine action */
 export interface TurnHandlers {
@@ -29,6 +30,16 @@ export interface TurnHandlers {
   restartStep: () => void;
   /** Open a file in the editor with a line in view */
   showLine: (file: string, line: number) => void;
+  /** Open the Call panel; absent until it can be opened (task 4.4) */
+  openCall?: () => void;
+  /** Open the next tutorial, from the finish card */
+  openNextTutorial: () => void;
+  /** Open the catalog's Tutorials page, from the finish card */
+  allTutorials: () => void;
+  /** Copy receipt was pressed on the finish card */
+  copyReceipt: () => void;
+  /** A copy the clipboard refused */
+  copyFailed: (error: unknown) => void;
 }
 
 export interface TurnViewProps {
@@ -42,8 +53,13 @@ export interface TurnViewProps {
   passed: readonly string[];
   /** A file's content as the workspace holds it now, or null */
   read: (file: string) => string | null;
+  /** The next tutorial's name, for the finish card, or null */
+  nextTutorial: string | null;
   on: TurnHandlers;
 }
+
+/** The client file a Call panel pass sends the learner to write the call in */
+const CLIENT_FILE = "client/client.ts";
 
 const linesOf = (content: string | null) => content?.split("\n") ?? [];
 
@@ -64,8 +80,8 @@ const questionLabel = (definition: TutorialDefinition, ask: Ask) => {
 /**
  * One turn of the feed as its card: the intro, a divider, the assistant's
  * line, the learner's pill, a wrote card, a question, an act or its result,
- * and the stand-ins for the win and finish cards. Only the live turn gets the
- * buttons that act; navigation links stay live on every record.
+ * the win and finish cards. Only the live turn gets the buttons that act;
+ * navigation links stay live on every record.
  */
 const TurnView = ({
   turn,
@@ -74,6 +90,7 @@ const TurnView = ({
   running,
   passed,
   read,
+  nextTutorial,
   on,
 }: TurnViewProps) => {
   const showQuote = (quote: Quote) => on.showLine(quote.file, quote.line);
@@ -202,20 +219,32 @@ const TurnView = ({
       const index = definition.steps.findIndex((s) => s.id === turn.stepId);
       const next = definition.steps[index + 1]?.title ?? null;
       return (
-        <WinStandIn
+        <BaseWinCard
           win={turn.win}
           index={index + 1}
           next={turn.last ? null : next}
-          done={turn.done || !live}
+          via={turn.via}
+          live={live && !turn.done}
           onNext={on.next}
+          onOpenCall={on.openCall}
+          onWriteInClient={() => on.showLine(CLIENT_FILE, 1)}
         />
       );
     }
     case "finish":
       return (
-        <FinishStandIn
+        <BaseFinishCard
           headline={definition.finish.headline}
           line={definition.finish.line}
+          learned={definition.finish.learned}
+          steps={definition.steps.length}
+          seconds={turn.seconds}
+          receipt={turn.receipt}
+          next={nextTutorial}
+          onNext={on.openNextTutorial}
+          onAllTutorials={on.allTutorials}
+          onCopyReceipt={on.copyReceipt}
+          onCopyError={on.copyFailed}
         />
       );
   }

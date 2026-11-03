@@ -31,6 +31,34 @@ import type { EngineState, Stage } from "./reducer";
  * else; the cards dispatch actions and never compute state of their own.
  */
 
+/** A `run` or `call` act that landed: the result a receipt is read from */
+export type LandedCall = Extract<RunResult, { act: "run" | "call"; ok: true }>;
+
+/**
+ * The last step's latest landed `run` or `call` act, or null: the spec's
+ * "last call's receipt". Only the act cards record runs, so a last step
+ * passed from the Call panel or a client run outside the feed leaves none,
+ * and an earlier step's transaction is never shown in its place.
+ */
+const lastLandedCall = (
+  definition: TutorialDefinition,
+  p: ConversationProgress
+): LandedCall | null => {
+  const last = definition.steps[definition.steps.length - 1];
+  const acts = [...last.beats, ...(last.onFail ?? [])]
+    .filter((b) => b.kind === "act")
+    .map((b) => b.id);
+  let latest: { at: number; result: LandedCall } | null = null;
+  for (const id of acts) {
+    for (const run of p.runs[id] ?? []) {
+      const r = run.status === "ok" ? run.result : null;
+      if (!r || (r.act !== "run" && r.act !== "call") || !r.ok) continue;
+      if (!latest || run.at >= latest.at) latest = { at: run.at, result: r };
+    }
+  }
+  return latest?.result ?? null;
+};
+
 /** The learner's pill when they ask for the hint */
 export const STUCK = "I'm stuck";
 /** The learner's pill on Explain */
@@ -129,7 +157,14 @@ export type Turn = TurnBase &
         via: PassedVia;
         last: boolean;
       }
-    | { kind: "finish"; chips: Chip[] }
+    | {
+        kind: "finish";
+        chips: Chip[];
+        /** Whole seconds from Start to the finish */
+        seconds: number;
+        /** The last landed `run` or `call` act, whose receipt the card shows (`lastLandedCall`) */
+        receipt: LandedCall | null;
+      }
   );
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
@@ -497,6 +532,10 @@ export const view = (
       step: null,
       at: p.finishedAt,
       chips: definition.finish.chips,
+      seconds: Math.round(
+        (p.finishedAt - (p.startedAt ?? p.finishedAt)) / 1000
+      ),
+      receipt: lastLandedCall(definition, p),
     });
   }
 
@@ -1050,6 +1089,127 @@ if (import.meta.vitest) {
       });
     });
 
+    it("the finish reads its receipt from the last step's landed call", () => {
+      const ran = (at: number, signature: string): RunRecord => ({
+        status: "ok",
+        at,
+        took: 900,
+        result: {
+          act: "call",
+          ok: true,
+          seconds: 0.9,
+          signatures: [signature],
+          line: "Program log: Hello, Alex!",
+          called: [],
+        },
+      });
+      const done: EngineState = {
+        progress: {
+          version: 1,
+          passed: hello.steps.map((s) => s.id),
+          finishedAt: 60000,
+          startedAt: 1000,
+          restartedAt: null,
+          cursor: { kind: "finished" },
+          beats: {},
+          runs: {
+            "s3.run": [ran(30000, "first")],
+            // A later call the program refused is no receipt
+            "s4.call": [
+              ran(50000, "last"),
+              {
+                status: "failed",
+                at: 55000,
+                took: 900,
+                result: {
+                  act: "call",
+                  ok: false,
+                  seconds: 0.9,
+                  message: "refused",
+                  log: "",
+                },
+              },
+            ],
+          },
+          times: {},
+        },
+        stage: null,
+      };
+      const finish = view(hello, done, LATE).turns.at(-1);
+      expect(finish).toMatchObject({
+        kind: "finish",
+        seconds: 59,
+        receipt: { signatures: ["last"] },
+      });
+
+      // The last step passed with no run of its own: an earlier step's
+      // transaction is not its receipt
+      const earlierOnly: EngineState = {
+        progress: {
+          version: 1,
+          passed: hello.steps.map((s) => s.id),
+          finishedAt: 60000,
+          startedAt: 1000,
+          restartedAt: null,
+          cursor: { kind: "finished" },
+          beats: {},
+          runs: { "s3.run": [ran(30000, "first")] },
+          times: {},
+        },
+        stage: null,
+      };
+      expect(view(hello, earlierOnly, LATE).turns.at(-1)).toMatchObject({
+        kind: "finish",
+        receipt: null,
+      });
+    });
+
+    it("the finish's receipt is the call that landed last, by time, and on a tie the later record", () => {
+      const ran = (at: number, signature: string): RunRecord => ({
+        status: "ok",
+        at,
+        took: 900,
+        result: {
+          act: "call",
+          ok: true,
+          seconds: 0.9,
+          signatures: [signature],
+          line: null,
+          called: [],
+        },
+      });
+      const finished = (runs: RunRecord[]): EngineState => ({
+        progress: {
+          version: 1,
+          passed: hello.steps.map((s) => s.id),
+          finishedAt: 60000,
+          startedAt: 1000,
+          restartedAt: null,
+          cursor: { kind: "finished" },
+          beats: {},
+          runs: { "s4.call": runs },
+          times: {},
+        },
+        stage: null,
+      });
+      const receiptOf = (runs: RunRecord[]) => {
+        const finish = view(hello, finished(runs), LATE).turns.at(-1);
+        return finish?.kind === "finish" ? finish.receipt?.signatures : null;
+      };
+      // Records keep their order, oldest first; a later time wins wherever
+      // the record sits
+      expect(receiptOf([ran(50000, "later"), ran(40000, "earlier")])).toEqual([
+        "later",
+      ]);
+      expect(receiptOf([ran(40000, "earlier"), ran(50000, "later")])).toEqual([
+        "later",
+      ]);
+      // Two calls in the same millisecond: the one recorded after is the last
+      expect(receiptOf([ran(50000, "first"), ran(50000, "second")])).toEqual([
+        "second",
+      ]);
+    });
+
     it("next makes the win a record; the last win is live with no next and schedules the finish", () => {
       const steps: Action[] = toFailed()
         .slice(0, 3)
@@ -1094,6 +1254,10 @@ if (import.meta.vitest) {
         kind: "finish",
         at: 11900,
         chips: hello.finish.chips,
+        // From Start at 1000 to the finish
+        seconds: 11,
+        // Every pass here came from the Call panel, which leaves no run
+        receipt: null,
       });
       expect(
         finished.turns.find((t) => t.id === "win:greet-by-name")

@@ -6,7 +6,12 @@ vi.mock("../../../utils", () => ({
     fs: { exists: vi.fn(async () => false) },
   },
   PgProgramInfo: { idl: null },
-  PgTutorial: { getStorage: vi.fn() },
+  PgTutorial: {
+    getStorage: vi.fn(),
+    // The tutorial the route names, if any
+    current: null,
+    onDidChangeCurrent: vi.fn(() => ({ dispose: vi.fn() })),
+  },
   PgView: { setToast: vi.fn() },
 }));
 
@@ -286,6 +291,11 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
     fs: { exists: Mock };
   };
   let onSwitch: () => void = () => {};
+  const tutorial = PgTutorial as unknown as {
+    current: { name: string } | null;
+    onDidChangeCurrent: Mock;
+  };
+  let onRoute: () => void = () => {};
 
   const flush = () => new Promise((resolve) => setTimeout(resolve));
 
@@ -298,6 +308,11 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
     );
     explorer.onDidSwitchWorkspace.mockImplementation((cb: () => void) => {
       onSwitch = cb;
+      return { dispose: vi.fn() };
+    });
+    tutorial.current = null;
+    tutorial.onDidChangeCurrent.mockImplementation((cb: () => void) => {
+      onRoute = cb;
       return { dispose: vi.fn() };
     });
     (PgTutorial.getStorage as Mock).mockImplementation(
@@ -375,6 +390,36 @@ describe("PgLesson.init -- real PgTutorialStorage default semantics", () => {
     expect(PgLesson.state.path?.tutorial).toBe(PATH_B.tutorial);
     expect(PgLesson.state.loadFailed).toBe(false);
     expect(PgLesson.state.record.events.map((e) => e.type)).toEqual(["enter"]);
+    sub.dispose();
+  });
+
+  it("loads no lesson while another tutorial's page shows in this workspace, and the lesson again after", async () => {
+    explorer.currentWorkspaceName = PATH.tutorial;
+    tutorial.current = { name: PATH.tutorial };
+    const sub = PgLesson.init();
+    await flush();
+    expect(PgLesson.state.path?.tutorial).toBe(PATH.tutorial);
+
+    // The finish card's Next opens Counter PDA's About page, still in this
+    // workspace
+    tutorial.current = { name: "Counter PDA Tutorial" };
+    onRoute();
+    await flush();
+    expect(PgLesson.state.path).toBeNull();
+
+    tutorial.current = { name: PATH.tutorial };
+    onRoute();
+    await flush();
+    expect(PgLesson.state.path?.tutorial).toBe(PATH.tutorial);
+    sub.dispose();
+  });
+
+  it("keeps the workspace's lesson on a route that names no tutorial, as Home", async () => {
+    explorer.currentWorkspaceName = PATH.tutorial;
+    tutorial.current = null;
+    const sub = PgLesson.init();
+    await flush();
+    expect(PgLesson.state.path?.tutorial).toBe(PATH.tutorial);
     sub.dispose();
   });
 });

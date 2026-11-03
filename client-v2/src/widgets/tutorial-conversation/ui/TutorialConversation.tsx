@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
 import {
   PgConversation,
@@ -7,6 +7,7 @@ import {
   unwiredRunner,
 } from "@/features/tutorial-conversation";
 import type { ConversationState } from "@/features/tutorial-conversation";
+import { slugOf } from "@/entities/tutorial";
 import type { StepJumpVia } from "@/entities/tutorial";
 import { createLogger } from "@/shared/lib/logger";
 import {
@@ -18,6 +19,7 @@ import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import { marksOf } from "../model/marks";
 import type { FeedMarks } from "../model/marks";
+import { PgTutorial } from "@/utils/tutorial";
 import { barProgress } from "../model/step-bar";
 import { tutorialTelemetry } from "../model/telemetry";
 import BaseFeed from "./BaseFeed";
@@ -319,7 +321,23 @@ export const useConversationMarks = () => {
   };
 };
 
-const handlers: TurnHandlers = {
+/** Where a copy the clipboard refused is told */
+const copyFailed = reportButtonFailure("copy it");
+
+export interface TutorialConversationProps {
+  /** Open the catalog's Tutorials page */
+  onAllTutorials: () => void;
+}
+
+/**
+ * The handlers that read no prop and no definition; `TutorialConversation`
+ * adds the ones that do (the next tutorial, All tutorials) and Copy
+ * receipt's count
+ */
+const handlers: Omit<
+  TurnHandlers,
+  "openNextTutorial" | "allTutorials" | "copyReceipt"
+> = {
   start: () => PgConversation.start(),
   pick: (beatId, option) => PgConversation.pick(beatId, option),
   hint: (beatId) => PgConversation.hint(beatId),
@@ -331,16 +349,34 @@ const handlers: TurnHandlers = {
   next: () => PgConversation.next(),
   restartStep: () => PgConversation.restartStep(),
   showLine,
+  // TODO(tutorial-flow-v2 4.4): the Call panel's opener; until it exists the
+  // win card shows no "Open Call"
+  openCall: undefined,
+  copyFailed: (error) => copyFailed(error),
 };
+
+/**
+ * The tutorial a definition's `finish.next` names, by its slug among the
+ * listed ones, or null. The loader drops a definition whose `next` names no
+ * known tutorial, so a set `next` almost always finds one; it finds none
+ * when it names a definition that was itself left out.
+ */
+const nextTutorialOf = (next: string | null): string | null =>
+  next === null
+    ? null
+    : PgTutorial.all.find((t) => slugOf(t.name) === next)?.name ?? null;
 
 /**
  * The tutorial conversation in the frame's chat: it starts the engine for the
  * open workspace, draws the feed from the engine's view, and turns each
  * card's press into the engine's action. ⌘↵ presses the live act, or Explain
  * on an open failure, unless the learner is typing; a call act with arguments
- * waits for its own fields, where Enter sends.
+ * waits for its own fields, where Enter sends. The finish card's "All
+ * tutorials" opens the catalog, another widget's, so the frame passes it in.
  */
-export const TutorialConversation = () => {
+export const TutorialConversation = ({
+  onAllTutorials,
+}: TutorialConversationProps) => {
   useEffect(
     () =>
       PgConversation.init({
@@ -406,6 +442,46 @@ export const TutorialConversation = () => {
     });
   }, []);
 
+  const next = context?.definition.finish.next ?? null;
+  // Read each render: the tutorial list is the app's, not this component's
+  const nextTutorial = nextTutorialOf(next);
+  const on = useMemo<TurnHandlers>(
+    () => ({
+      ...handlers,
+      openNextTutorial: () => {
+        const slug = PgConversation.state.context?.slug;
+        if (!nextTutorial || !next || !slug) {
+          // The button only shows with a next tutorial; a context gone
+          // mid-switch is the one way here
+          log.warn("Next on the finish card had nothing to open", {
+            context: { next, slug: slug ?? null },
+          });
+          return;
+        }
+        // Counted once it opened: a failed open is the toast's, not a learner
+        // going on
+        PgTutorial.open(nextTutorial)
+          .then(() =>
+            tutorialTelemetry.track("tutorial_next_opened", {
+              tutorial: slug,
+              next,
+            })
+          )
+          .catch(reportButtonFailure(`open ${nextTutorial}`));
+      },
+      allTutorials: onAllTutorials,
+      copyReceipt: () => {
+        const slug = PgConversation.state.context?.slug;
+        if (slug) {
+          tutorialTelemetry.track("tutorial_receipt_copied", {
+            tutorial: slug,
+          });
+        }
+      },
+    }),
+    [next, nextTutorial, onAllTutorials]
+  );
+
   if (!context || !view) {
     return (
       <div className="grid flex-1 place-items-center">
@@ -434,7 +510,8 @@ export const TutorialConversation = () => {
           running={running}
           passed={progress.passed}
           read={read}
-          on={handlers}
+          nextTutorial={nextTutorial}
+          on={on}
         />
       )}
     />

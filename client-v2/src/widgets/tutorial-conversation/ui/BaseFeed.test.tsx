@@ -113,6 +113,10 @@ const handlers = (): TurnHandlers => ({
   fixMyself: vi.fn(),
   next: vi.fn(),
   restartStep: vi.fn(),
+  openNextTutorial: vi.fn(),
+  allTutorials: vi.fn(),
+  copyReceipt: vi.fn(),
+  copyFailed: vi.fn(),
   showLine: vi.fn(),
 });
 
@@ -133,6 +137,7 @@ const feed = (over: Partial<BaseFeedProps> & { on?: TurnHandlers } = {}) => {
           running={false}
           passed={[definition.steps[0].id, definition.steps[1].id]}
           read={() => "a\nb\nc\nd\ne\nf\ng"}
+          nextTutorial={null}
           on={on}
         />
       )),
