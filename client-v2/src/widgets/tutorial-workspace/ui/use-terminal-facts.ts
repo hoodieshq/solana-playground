@@ -1,28 +1,48 @@
 import { useEffect, useState } from "react";
 
+import { PgConversation } from "@/features/tutorial-conversation";
 import { PgExplorer, PgProgramInfo } from "@/utils";
 import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
-import { parseBuildReport } from "@/views/flow/stages/build-report";
+import {
+  parseBuildReport,
+  pickDiagnostic,
+} from "@/views/flow/stages/build-report";
 import { PgFlow } from "@/views/flow/state/stage";
 import { restoredRun, stepFacts } from "../model/terminal";
 import type { TerminalFacts, Verdicts } from "../model/terminal";
 
 /**
- * The first diagnostic of the open workspace's last failed build, if the
- * compiler named one. The output outlives a switch of workspace, so one
+ * The diagnostic of the open workspace's last failed build the card shows
+ * too (`pickDiagnostic`: past Anchor's macro symptoms), if the compiler
+ * named one. The output outlives a switch of workspace, so one
  * another workspace produced says nothing about this one's code.
  */
-export const firstDiagnostic = () => {
+/**
+ * The live step's `failsWith` while its planned failure can still happen:
+ * the card picks its error by it, so the editor marks the same line
+ */
+const liveFailsWith = (): string | undefined => {
+  const { context, engine } = PgConversation.state;
+  const cursor = engine.progress.cursor;
+  if (!context || cursor.kind !== "step" || cursor.fail) return undefined;
+  return context.definition.steps.find((s) => s.id === cursor.stepId)
+    ?.failsWith;
+};
+
+export const pickedDiagnostic = () => {
   const out = PgBuildOutput.latest;
   if (!out?.failed || out.workspace !== PgExplorer.currentWorkspaceName) {
     return null;
   }
-  return parseBuildReport(out.stderr).diagnostics[0] ?? null;
+  return pickDiagnostic(
+    parseBuildReport(out.stderr).diagnostics,
+    liveFailsWith()
+  );
 };
 
 /** What the output and the program say at the moment a verdict is read */
 const verdicts = (): Verdicts => ({
-  failedLine: firstDiagnostic()?.line ?? null,
+  failedLine: pickedDiagnostic()?.line ?? null,
   instructions: PgProgramInfo.idl?.instructions.map((ix) => ix.name) ?? [],
 });
 

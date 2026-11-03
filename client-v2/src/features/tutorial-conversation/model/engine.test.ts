@@ -185,6 +185,7 @@ describe("Hello Anchor through the engine", () => {
     const failed: RunResult = {
       act: "build",
       ok: false,
+      reason: "compiler",
       seconds: 1.2,
       error: {
         code: "E0412",

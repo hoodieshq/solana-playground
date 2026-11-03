@@ -18,7 +18,13 @@ export interface BaseResultCardProps {
   onFixMyself: () => void;
   /** Open a file at a line: the compiler's location */
   onShowLine: (file: string, line: number) => void;
+  /** Run the act again: a build whose server never answered */
+  onRetry: () => void;
 }
+
+/** The unreachable build server's line (HOO-2355, designers' BUILD-04) */
+export const UNREACHABLE =
+  "Build couldn't start. The Playground server didn't answer. Your code is unchanged.";
 
 /** lamports to devnet SOL, as the card prints it */
 const sol = (lamports: number) =>
@@ -44,11 +50,15 @@ const headOf = (
         } · ${formatSeconds(r.seconds)}`,
       };
     }
+    if (r.reason === "unreachable") {
+      return { title: "Build server unreachable", meta: "" };
+    }
     const where = [
       r.error?.code,
       r.error?.line !== null && r.error?.line !== undefined
         ? `line ${r.error.line}`
         : null,
+      formatSeconds(r.seconds),
     ]
       .filter(Boolean)
       .join(" · ");
@@ -91,12 +101,16 @@ const BaseResultCard = ({
   onExplain,
   onFixMyself,
   onShowLine,
+  onRetry,
 }: BaseResultCardProps) => {
   if (isTxResult(result)) return <BaseTxResultCard result={result} />;
   const { title, meta } = headOf(result);
   const Icon = result.ok ? CircleCheck : CircleX;
   const failedBuild = result.act === "build" && !result.ok ? result : null;
   const error = failedBuild?.error ?? null;
+  // A Base component takes types only from the feature: the slice's entry
+  // would load its store
+  const unreachable = failedBuild?.reason === "unreachable";
 
   return (
     <div
@@ -123,7 +137,21 @@ const BaseResultCard = ({
           </span>
         )}
       </div>
-      {open && failedBuild && (
+      {open && unreachable && (
+        <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
+          <p className={READ}>{UNREACHABLE}</p>
+          <Button className="w-fit" onClick={onRetry}>
+            Try again
+            <Kbd
+              aria-hidden="true"
+              className="bg-white/15 text-primary-foreground/80"
+            >
+              ⌘↵
+            </Kbd>
+          </Button>
+        </div>
+      )}
+      {open && failedBuild && !unreachable && (
         <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
           {error && (
             <p className="font-mono text-[0.75rem] text-foreground">
@@ -141,6 +169,12 @@ const BaseResultCard = ({
                 error.column !== null ? `:${error.column}` : ""
               }`}
             </Button>
+          )}
+          {/* No line to link: the log is all the learner has to go on */}
+          {!(error?.file && error.line !== null) && failedBuild.log && (
+            <pre className="max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.75rem] text-muted-foreground">
+              {failedBuild.log}
+            </pre>
           )}
           {planned && (
             <p className={READ}>

@@ -336,7 +336,13 @@ describe("PgConversation", () => {
     await settle();
     watch.dispose();
     expect(runner.runs).toEqual([
-      { act: "build", input: { beatId: "s1.build" } },
+      {
+        act: "build",
+        input: {
+          beatId: "s1.build",
+          failsWith: "cannot find type `Hello` in this scope",
+        },
+      },
     ]);
     expect(stages).toContainEqual({
       beatId: "s1.build",
@@ -481,6 +487,7 @@ describe("PgConversation", () => {
           result: {
             act: "build",
             ok: false,
+            reason: "compiler",
             seconds: 0.9,
             error: null,
             log: "x",
@@ -975,6 +982,7 @@ describe("PgConversation", () => {
     releaseFirst({
       act: "build",
       ok: false,
+      reason: "compiler",
       seconds: 1,
       error: null,
       log: "stale",

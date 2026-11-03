@@ -86,6 +86,7 @@
           "button": "Build"
         }
       ],
+      "failsWith": "cannot find type `Hello` in this scope",
       "planned": "This one's on purpose. Every Anchor developer meets this error once, so let's meet it now.",
       "onFail": [
         {

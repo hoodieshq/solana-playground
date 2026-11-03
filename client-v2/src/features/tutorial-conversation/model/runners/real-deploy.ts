@@ -2,7 +2,6 @@ import { additionalProgramLen } from "../../../../commands/deploy/additional-len
 import { BpfLoaderUpgradeable } from "../../../../commands/deploy/bpf-loader-upgradeable";
 import { sendAndConfirmTxWithRetries } from "../../../../commands/deploy/deploy";
 import {
-  PgCommand,
   PgConnection,
   PgProgramInfo,
   PgServer,
@@ -14,6 +13,8 @@ import {
 import type { Wallet } from "../../../../utils";
 import { createLogger } from "@/shared/lib/logger";
 import { actRunner } from "./act-runner";
+import { runBuild } from "./build";
+import type { RunResult } from "../progress";
 import type { ActRun } from "./act-runner";
 import { runDeploy } from "./deploy";
 import { runOnDevnet } from "./real-run";
@@ -154,20 +155,11 @@ export const realDeployPort = (): DeployPort => {
       stale: !PgProgramInfo.uuid || !!PgProgramInfo.lastBuildFailed,
       length: null,
     }),
+    // The build act's own run, so a build-and-deploy names the same error
     build: async () => {
-      // TODO(HOO-2355): the build act's runner, once it lands, so a
-      // build-and-deploy reports the same compiler error card
-      try {
-        await PgCommand.build.execute();
-      } catch (e) {
-        return {
-          ok: false,
-          message: e instanceof Error ? e.message : String(e),
-        };
-      }
-      return PgProgramInfo.lastBuildFailed
-        ? { ok: false, message: "The build failed. See the terminal." }
-        : { ok: true };
+      const built = await runBuild("build", { beatId: "deploy" }, () => {});
+      if (built.ok || built.act !== "build") return { ok: true };
+      return { ok: false, message: buildFailureOf(built) };
     },
     bytes: async () => PgServer.deploy(PgProgramInfo.uuid!),
     onChain: onChainOf,
@@ -304,6 +296,15 @@ export const realDeployPort = (): DeployPort => {
   };
 };
 
+/** A failed build's line on the deploy's failed card */
+const buildFailureOf = (r: Extract<RunResult, { act: "build"; ok: false }>) => {
+  if (r.reason === "unreachable") return "The build server didn't answer.";
+  const e = r.error;
+  if (!e) return "The build failed. See the terminal.";
+  const where = e.line !== null ? ` (line ${e.line})` : "";
+  return `The build failed: ${e.code ? `${e.code} ` : ""}${e.message}${where}`;
+};
+
 /** The deploy act and the build-and-deploy act, on devnet */
 export const runDeployOnDevnet: ActRun = async (act, _input, onStage) => {
   const result = await runDeploy(
@@ -313,7 +314,7 @@ export const runDeployOnDevnet: ActRun = async (act, _input, onStage) => {
   );
   // The reason and the chain's message only: never a key or the wallet.
   // `runDeploy` answers only deploy results, so every failure has a reason
-  if (!result.ok && "reason" in result) {
+  if (!result.ok && result.act !== "build" && "reason" in result) {
     log.warn(`A tutorial ${act} stopped: ${result.reason}`, {
       context: { message: result.message },
     });
@@ -327,6 +328,7 @@ export const runDeployOnDevnet: ActRun = async (act, _input, onStage) => {
  */
 export const tutorialRunner = actRunner(
   {
+    build: runBuild,
     deploy: runDeployOnDevnet,
     buildDeploy: runDeployOnDevnet,
     run: runOnDevnet(devnetFunding, DEVNET_FAUCET_SOL),

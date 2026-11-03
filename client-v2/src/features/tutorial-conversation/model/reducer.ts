@@ -11,9 +11,10 @@ import type {
   TutorialEvents,
 } from "@/entities/tutorial";
 
+import { isPlannedLog } from "./build-error";
 import { TICK_MS } from "./clock";
 import { holds, keyOf, typedKey } from "./landing";
-import { answerOf, freshProgress } from "./progress";
+import { answerOf, freshProgress, isUnreachable } from "./progress";
 import type {
   ConversationProgress,
   Cursor,
@@ -124,6 +125,10 @@ export type Action =
     }
   | { type: "explain"; beatId: string; at: number }
   | { type: "fixMyself"; beatId: string; at: number }
+  /** The assistant's answer to an unplanned failure's Explain ended */
+  | { type: "answered"; beatId: string; at: number }
+  /** "Show me the fix": write the step's target into its file */
+  | { type: "showFix"; beatId: string; at: number }
   | { type: "next"; at: number }
   | { type: "finish"; at: number }
   | { type: "restartStep"; at: number }
@@ -311,6 +316,22 @@ const passed = (p: ConversationProgress, step: Step) =>
 const lastRun = (p: ConversationProgress, beatId: string) =>
   p.runs[beatId]?.at(-1);
 
+/** The state with an act's latest run replaced */
+const withLastRun = (
+  state: EngineState,
+  beatId: string,
+  run: RunRecord
+): EngineState => {
+  const p = state.progress;
+  return {
+    ...state,
+    progress: {
+      ...p,
+      runs: { ...p.runs, [beatId]: [...p.runs[beatId].slice(0, -1), run] },
+    },
+  };
+};
+
 /** Whether a run is in flight: acts never run two at once */
 const running = (p: ConversationProgress) =>
   Object.values(p.runs).some((rs) => rs.at(-1)?.status === "started");
@@ -457,9 +478,11 @@ const pass = (
 };
 
 /**
- * Whether a failed build is the one the step plans: a compiler error (not a
- * run that could not happen), on a step with `onFail`, before the cursor
- * has entered it. Any such build counts, so a learner who runs the build
+ * Whether a failed build is the one the step plans: a compiler failure (not
+ * a server that never answered) whose log holds the step's `failsWith` line,
+ * before the cursor has entered `onFail`. The line, not the first error,
+ * decides: the planned error may have no code, and the server may report a
+ * macro symptom first. Any such build counts, so a learner who runs the build
  * again before pressing Explain meets the same explanation. Judged once,
  * when the run ends, and kept on the run record: once the cursor is in
  * `onFail`, a later failed build there is an ordinary failure.
@@ -471,7 +494,9 @@ const isPlannedFailure = (
 ): boolean =>
   result.act === "build" &&
   !result.ok &&
-  result.error !== null &&
+  result.reason === "compiler" &&
+  !!step.failsWith &&
+  isPlannedLog(result.log, step.failsWith) &&
   !!step.onFail &&
   cursor.kind === "step" &&
   cursor.stepId === step.id &&
@@ -801,6 +826,11 @@ const reduceAction = (
       if (step.goal.kind === "call" && step.goal.log !== undefined) {
         input.log = step.goal.log;
       }
+      // The planned failure is a build of the step's own beats; the second
+      // build, inside `onFail`, shows whatever error it meets
+      if (beat.act === "build" && step.failsWith && !found.fail) {
+        input.failsWith = step.failsWith;
+      }
       if (beat.act === "call") {
         input.call = {
           instruction: beat.call.instruction,
@@ -1006,8 +1036,16 @@ const reduceAction = (
       }
       if (passed(p, found.step)) return same(state);
       if (!run.planned || p.cursor.fail) {
+        // Asked once: the card closes on the press. A server that never
+        // answered has nothing to explain; its card offers Try again
+        if (run.explainedAt !== undefined || isUnreachable(run.result)) {
+          return same(state);
+        }
         return {
-          state,
+          state: withLastRun(state, action.beatId, {
+            ...run,
+            explainedAt: action.at,
+          }),
           effects: [
             { kind: "explain", beatId: action.beatId, result: run.result },
           ],
@@ -1022,6 +1060,55 @@ const reduceAction = (
         action.at
       );
       return withProgress(state, flowed.progress, flowed.effects);
+    }
+
+    case "answered": {
+      const run = lastRun(p, action.beatId);
+      if (
+        !run ||
+        run.status !== "failed" ||
+        run.explainedAt === undefined ||
+        run.answeredAt !== undefined
+      ) {
+        return same(state);
+      }
+      return {
+        state: withLastRun(state, action.beatId, {
+          ...run,
+          answeredAt: action.at,
+        }),
+        effects: [],
+      };
+    }
+
+    case "showFix": {
+      const run = lastRun(p, action.beatId);
+      const found = locate(definition, action.beatId);
+      if (
+        !run ||
+        run.status !== "failed" ||
+        run.result.act !== "build" ||
+        run.explainedAt === undefined ||
+        run.fixedAt !== undefined ||
+        !found
+      ) {
+        return same(state);
+      }
+      const { step } = found;
+      if (p.cursor.kind !== "step" || p.cursor.stepId !== step.id) {
+        return same(state);
+      }
+      const target = step.target[step.file];
+      if (passed(p, step) || target === undefined) return same(state);
+      return {
+        state: withLastRun(state, action.beatId, {
+          ...run,
+          fixedAt: action.at,
+        }),
+        effects: [
+          { kind: "restore", files: { [step.file]: target }, remove: [] },
+        ],
+      };
     }
 
     case "fixMyself": {
@@ -1196,14 +1283,15 @@ if (import.meta.vitest) {
       act: "build",
       ok: false,
       seconds: 1.2,
+      reason: "compiler",
       error: {
         code: "E0412",
         file: "src/lib.rs",
         line: 9,
         column: 32,
-        message: "cannot find type `Hello`",
+        message: "cannot find type `Hello` in this scope",
       },
-      log: "error[E0412]",
+      log: "error[E0412]: cannot find type `Hello` in this scope",
     };
     const FAILED_DEPLOY: RunResult = {
       act: "deploy",
@@ -1708,7 +1796,10 @@ if (import.meta.vitest) {
           kind: "run",
           beatId: "s1.build",
           act: "build",
-          input: { beatId: "s1.build" },
+          input: {
+            beatId: "s1.build",
+            failsWith: "cannot find type `Hello` in this scope",
+          },
           startedAt: 7000,
         });
         expect(reduce(ctx(), state, build(7100)).state).toBe(state);
@@ -1775,6 +1866,7 @@ if (import.meta.vitest) {
           act: "build",
           ok: false,
           seconds: 1,
+          reason: "compiler",
           error: null,
           log: "down",
         };
@@ -2525,6 +2617,62 @@ if (import.meta.vitest) {
         ]);
       });
 
+      it("plans only a failure whose log holds the step's line", () => {
+        const other: RunResult = {
+          act: "build",
+          ok: false,
+          seconds: 1,
+          reason: "compiler",
+          error: {
+            code: "E0308",
+            file: "src/lib.rs",
+            line: 10,
+            column: 9,
+            message: "mismatched types",
+          },
+          log: "error[E0308]: mismatched types",
+        };
+        const { progress } = play([
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: other, at: 7100 },
+        ]);
+        expect(progress.runs["s1.build"]).toEqual([
+          { status: "failed", at: 7000, took: 100, result: other },
+        ]);
+      });
+
+      it("hands the step's line to its first build, never to the second", () => {
+        const first = play([start, rightPick, build(7000)]).effects.find(
+          (e) => e.kind === "run"
+        );
+        expect(first).toMatchObject({
+          input: {
+            beatId: "s1.build",
+            failsWith: "cannot find type `Hello` in this scope",
+          },
+        });
+        const inFail = reduce(ctx(), failed(), {
+          type: "explain",
+          beatId: "s1.build",
+          at: 9000,
+        }).state;
+        const fixed = reduce(ctx(), inFail, {
+          type: "pick",
+          beatId: "f1.q2",
+          option: 2,
+          at: 9500,
+        }).state;
+        const second = reduce(ctx(), fixed, {
+          type: "act",
+          beatId: "f1.build",
+          at: 12000,
+        }).effects.find((e) => e.kind === "run");
+        expect(second).toMatchObject({ input: { beatId: "f1.build" } });
+        expect(second).not.toHaveProperty("input.failsWith");
+      });
+
       it("marks the planned failure on its run, never a build that could not run", () => {
         expect(failed().progress.runs["s1.build"]).toMatchObject([
           { status: "failed", planned: true },
@@ -2533,8 +2681,9 @@ if (import.meta.vitest) {
           act: "build",
           ok: false,
           seconds: 0,
+          reason: "unreachable",
           error: null,
-          log: "The build act is not wired yet.",
+          log: "Server request failed: Failed to fetch",
         };
         const notPlanned = play([
           start,
@@ -2550,10 +2699,10 @@ if (import.meta.vitest) {
           beatId: "s1.build",
           at: 8000,
         });
+        // A server that never answered has nothing to explain: its card
+        // offers Try again instead
         expect(r.state).toBe(notPlanned);
-        expect(r.effects).toEqual([
-          { kind: "explain", beatId: "s1.build", result: noCompiler },
-        ]);
+        expect(r.effects).toEqual([]);
       });
 
       it("a failed build inside onFail is not planned again", () => {
@@ -2609,10 +2758,117 @@ if (import.meta.vitest) {
           beatId: "s2.deploy",
           at: 12000,
         });
-        expect(r.state).toBe(s2);
+        expect(r.state.progress.runs["s2.deploy"].at(-1)).toMatchObject({
+          status: "failed",
+          explainedAt: 12000,
+        });
         expect(r.effects).toEqual([
           { kind: "explain", beatId: "s2.deploy", result: FAILED_DEPLOY },
         ]);
+        // Asked once: a second press sends nothing
+        expect(
+          reduce(ctx(), r.state, {
+            type: "explain",
+            beatId: "s2.deploy",
+            at: 12500,
+          }).effects
+        ).toEqual([]);
+      });
+
+      describe("Show me the fix", () => {
+        const UNPLANNED: RunResult = {
+          act: "build",
+          ok: false,
+          seconds: 1,
+          reason: "compiler",
+          error: {
+            code: "E0308",
+            file: "src/lib.rs",
+            line: 10,
+            column: 9,
+            message: "mismatched types",
+          },
+          log: "error[E0308]: mismatched types",
+        };
+        const explained = () =>
+          play([
+            start,
+            rightPick,
+            build(7000),
+            { type: "ended", beatId: "s1.build", result: UNPLANNED, at: 8000 },
+            { type: "explain", beatId: "s1.build", at: 9000 },
+          ]).state;
+
+        it("records the assistant's answer, once, and never a fix before Explain", () => {
+          const unexplained = play([
+            start,
+            rightPick,
+            build(7000),
+            { type: "ended", beatId: "s1.build", result: UNPLANNED, at: 8000 },
+          ]).state;
+          const early = reduce(ctx(), unexplained, {
+            type: "showFix",
+            beatId: "s1.build",
+            at: 8100,
+          });
+          expect(early.state).toBe(unexplained);
+          expect(early.effects).toEqual([]);
+          const answered = reduce(ctx(), explained(), {
+            type: "answered",
+            beatId: "s1.build",
+            at: 9500,
+          }).state;
+          expect(answered.progress.runs["s1.build"].at(-1)).toMatchObject({
+            explainedAt: 9000,
+            answeredAt: 9500,
+          });
+        });
+
+        it("writes the step's target into its file, once", () => {
+          const answered = reduce(ctx(), explained(), {
+            type: "answered",
+            beatId: "s1.build",
+            at: 9500,
+          }).state;
+          const r = reduce(ctx(), answered, {
+            type: "showFix",
+            beatId: "s1.build",
+            at: 10000,
+          });
+          expect(r.effects).toEqual([
+            {
+              kind: "restore",
+              files: { "src/lib.rs": hello.steps[0].target["src/lib.rs"] },
+              remove: [],
+            },
+          ]);
+          expect(r.state.progress.runs["s1.build"].at(-1)).toMatchObject({
+            fixedAt: 10000,
+          });
+          const again = reduce(ctx(), r.state, {
+            type: "showFix",
+            beatId: "s1.build",
+            at: 10500,
+          });
+          expect(again.state).toBe(r.state);
+          expect(again.effects).toEqual([]);
+        });
+
+        it("writes nothing once the step has passed", () => {
+          const passedStep = reduce(ctx(), explained(), {
+            type: "passed",
+            via: "client",
+            result: OK_BUILD,
+            at: 9600,
+          }).state;
+          expect(
+            reduce(ctx(), passedStep, {
+              type: "showFix",
+              beatId: "s1.build",
+              at: 10000,
+            }).effects
+          ).toEqual([]);
+        });
       });
     });
 

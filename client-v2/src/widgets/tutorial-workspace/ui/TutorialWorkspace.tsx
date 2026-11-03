@@ -15,7 +15,7 @@ import type { TreeSource } from "../model/telemetry";
 import { createdIn, tabsOf, treeRows, tutorialFiles } from "../model/tree";
 import BaseDockedTree from "./BaseDockedTree";
 import BaseWorkspaceHead from "./BaseWorkspaceHead";
-import { firstDiagnostic } from "./use-terminal-facts";
+import { pickedDiagnostic } from "./use-terminal-facts";
 import { useEditorLines } from "./use-editor-lines";
 
 const log = createLogger("tutorial-workspace:workspace");
@@ -235,7 +235,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   useRenderOnChange(PgBuildOutput.onDidChange);
   const flow = PgFlow.state;
   const busy = flow.build === "running" || flow.deploy === "running";
-  const diagnostic = flow.build === "failed" ? firstDiagnostic() : null;
+  const diagnostic = flow.build === "failed" ? pickedDiagnostic() : null;
   const given = open && marks ? marks(open) : {};
   const lineMarks: LineMarks = {
     written: given.written ?? NO_MARKS.written,

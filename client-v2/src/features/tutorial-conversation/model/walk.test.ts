@@ -102,6 +102,7 @@ const goalRunner = (d: TutorialDefinition): Runner => {
           ? {
               act: "build",
               ok: false,
+              reason: "compiler",
               seconds: 1,
               // A failure is planned only with a parsed compiler error
               error: {
@@ -111,7 +112,7 @@ const goalRunner = (d: TutorialDefinition): Runner => {
                 column: 1,
                 message: "planned",
               },
-              log: "error[E0000]: planned",
+              log: "error[E0412]: cannot find type `Hello` in this scope",
             }
           : { act: "build", ok: true, seconds: 1, instructions },
         deploy: {

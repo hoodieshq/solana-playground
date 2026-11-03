@@ -17,17 +17,25 @@ learner's settings name, the same way the editor's Build does. Its stages:
 - "Building" while the server compiles;
 - on success, a result card "Build successful" with the IDL's instruction
   count and names and the real build time;
-- on failure, the failed card of `tutorial-conversation` with the first
-  compiler error's code, file, line and column, read from the server's log.
+- on failure, the failed card of `tutorial-conversation` with one compiler
+  error's code, file, line and column, read from the server's log.
 
-An unreachable server SHALL post a failed card "Build server unreachable",
-which offers "Try again". A failure the server's output cannot place on a
-line SHALL show the log, with no line link.
+The card's error SHALL be the one that holds the step's `failsWith` line when
+the log has it, else the first error that is not a macro symptom: an error
+inside `#[program]` that names `__client_accounts`, `__cpi_client_accounts`
+or a `…Bumps` type is only the echo of another, as the editor's improved
+output already treats it. An error with no code counts like one with a code.
+The server's `Error: Function … Stack offset` lines are never errors.
+
+An unreachable server SHALL post a failed card "Build server unreachable"
+with "Build couldn't start. The Playground server didn't answer. Your code is
+unchanged.", which offers "Try again". A failure the server's output cannot
+place on a line SHALL show the log, with no line link.
 
 #### Scenario: The planned failure is a real compiler error
 
 - **WHEN** Hello Anchor's step 1 builds before the fixing question
-- **THEN** the build server answers with `error[E0412]: cannot find type `Hello` in this scope` at `src/lib.rs:9:32`
+- **THEN** the build server answers with `error[E0412]: cannot find type `Hello` in this scope` at `src/lib.rs:9:32`, after an `E0432` macro symptom at line 5
 - **AND** the card reads "E0412 · line 9" and line 9 is marked
 
 ### Requirement: Deploy goes from the learner's wallet on devnet

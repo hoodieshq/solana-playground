@@ -143,10 +143,13 @@ export interface Win {
   extra?: "openTest";
 }
 
-/** A planned build failure: its card's line and the beats after it, both or neither */
+/**
+ * A planned build failure: its card's line, the log line that marks it and
+ * the beats after it, all three or none
+ */
 type PlannedFailure =
-  | { planned: Text; onFail: Beat[] }
-  | { planned?: never; onFail?: never };
+  | { planned: Text; failsWith: string; onFail: Beat[] }
+  | { planned?: never; failsWith?: never; onFail?: never };
 
 export type Step = PlannedFailure & {
   id: string;

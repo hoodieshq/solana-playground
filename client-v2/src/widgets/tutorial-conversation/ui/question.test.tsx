@@ -155,6 +155,7 @@ const Lesson = ({ world }: { world: World }) => {
             act: vi.fn(),
             explain: vi.fn(),
             fixMyself: vi.fn(),
+            showFix: vi.fn(),
             next: vi.fn(),
             restartStep: vi.fn(),
             openNextTutorial: vi.fn(),

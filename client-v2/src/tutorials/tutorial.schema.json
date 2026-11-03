@@ -788,6 +788,11 @@
           "description": "The assistant's line inside a planned build failure's card.",
           "$ref": "#/definitions/text"
         },
+        "failsWith": {
+          "description": "A line of the build log that marks the planned failure, e.g. \"cannot find type `Hello` in this scope\". A failed build is the planned one only when its log holds it.",
+          "type": "string",
+          "minLength": 1
+        },
         "onFail": {
           "description": "The beats after the planned build failure: the explanation, the fixing question and the second build.",
           "type": "array",
@@ -809,7 +814,8 @@
       },
       "dependencies": {
         "onFail": ["planned"],
-        "planned": ["onFail"]
+        "planned": ["onFail", "failsWith"],
+        "failsWith": ["planned"]
       }
     }
   }

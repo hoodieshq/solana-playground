@@ -376,6 +376,7 @@ describe("BaseResultCard", () => {
           onExplain={vi.fn()}
           onFixMyself={vi.fn()}
           onShowLine={vi.fn()}
+          onRetry={vi.fn()}
         />
       </TooltipProvider>
     );
@@ -501,6 +502,7 @@ describe("BaseResultCard", () => {
     act: "build" as const,
     ok: false as const,
     seconds: 1.6,
+    reason: "compiler" as const,
     log: "",
     error: {
       code: "E0412",
@@ -525,6 +527,7 @@ describe("BaseResultCard", () => {
         onExplain={vi.fn()}
         onFixMyself={vi.fn()}
         onShowLine={vi.fn()}
+        onRetry={vi.fn()}
       />
     );
     expect(screen.getByText("Build successful")).toBeTruthy();
@@ -549,6 +552,7 @@ describe("BaseResultCard", () => {
         onExplain={vi.fn()}
         onFixMyself={vi.fn()}
         onShowLine={vi.fn()}
+        onRetry={vi.fn()}
       />
     );
     const { unmount } = render(deployed(1_250_000_000));
@@ -571,10 +575,11 @@ describe("BaseResultCard", () => {
         onExplain={onExplain}
         onFixMyself={onFixMyself}
         onShowLine={onShowLine}
+        onRetry={vi.fn()}
       />
     );
     expect(screen.getByText("Build failed")).toBeTruthy();
-    expect(screen.getByText("E0412 · line 9")).toBeTruthy();
+    expect(screen.getByText("E0412 · line 9 · 1.6 s")).toBeTruthy();
     await userEvent.click(
       screen.getByRole("button", { name: "--> src/lib.rs:9:32" })
     );
@@ -589,6 +594,92 @@ describe("BaseResultCard", () => {
     expect(onFixMyself).toHaveBeenCalled();
   });
 
+  it("offers Try again, and no Explain, when the build server never answered", async () => {
+    const onRetry = vi.fn();
+    render(
+      <BaseResultCard
+        result={{
+          act: "build",
+          ok: false,
+          seconds: 0,
+          reason: "unreachable",
+          error: null,
+          log: "Server request failed: Failed to fetch",
+        }}
+        planned={null}
+        open
+        onExplain={vi.fn()}
+        onFixMyself={vi.fn()}
+        onShowLine={vi.fn()}
+        onRetry={onRetry}
+      />
+    );
+    expect(screen.getByText("Build server unreachable")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Build couldn't start. The Playground server didn't answer. Your code is unchanged."
+      )
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Explain/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Try again/ }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the log, with no line link, for a failure no line names", () => {
+    render(
+      <BaseResultCard
+        result={{
+          act: "build",
+          ok: false,
+          seconds: 0.4,
+          reason: "compiler",
+          error: null,
+          log: "Server request failed (https://api.solpg.io/build): Invalid path",
+        }}
+        planned={null}
+        open
+        onExplain={vi.fn()}
+        onFixMyself={vi.fn()}
+        onShowLine={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/Invalid path/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /-->/ })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /Explain the error/ })
+    ).toBeTruthy();
+  });
+
+  it("shows the log too when the error it names has no line", () => {
+    render(
+      <BaseResultCard
+        result={{
+          act: "build",
+          ok: false,
+          seconds: 2,
+          reason: "compiler",
+          error: {
+            code: null,
+            file: null,
+            line: null,
+            column: null,
+            message: "linking with `cc` failed",
+          },
+          log: "error: linking with `cc` failed: exit status: 1",
+        }}
+        planned={null}
+        open
+        onExplain={vi.fn()}
+        onFixMyself={vi.fn()}
+        onShowLine={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/exit status: 1/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /-->/ })).toBeNull();
+  });
+
   it("folds to its head, with no button, once it is a record", () => {
     render(
       <BaseResultCard
@@ -598,6 +689,7 @@ describe("BaseResultCard", () => {
         onExplain={vi.fn()}
         onFixMyself={vi.fn()}
         onShowLine={vi.fn()}
+        onRetry={vi.fn()}
       />
     );
     expect(screen.getByText("Build failed")).toBeTruthy();
@@ -673,6 +765,7 @@ describe("TurnView", () => {
     act: vi.fn(),
     explain: vi.fn(),
     fixMyself: vi.fn(),
+    showFix: vi.fn(),
     next: vi.fn(),
     restartStep: vi.fn(),
     openNextTutorial: vi.fn(),
@@ -718,7 +811,14 @@ describe("TurnView", () => {
     whole: true,
     beatId: "s1.build",
     act: "build",
-    result: { act: "build", ok: false, seconds: 1, error: null, log: "" },
+    result: {
+      act: "build",
+      ok: false,
+      reason: "compiler",
+      seconds: 1,
+      error: null,
+      log: "",
+    },
     took: 1000,
     planned: null,
     open: true,
@@ -1114,6 +1214,7 @@ describe("TurnView's last win", () => {
           act: vi.fn(),
           explain: vi.fn(),
           fixMyself: vi.fn(),
+          showFix: vi.fn(),
           next: vi.fn(),
           restartStep: vi.fn(),
           openNextTutorial: vi.fn(),

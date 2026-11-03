@@ -13,6 +13,7 @@ import {
 } from "../../utils";
 import { createCmd } from "../create";
 import { PgBuildOutput } from "../../views/sidebar/assistant/bridge/build-output";
+import { isMacroSymptomText } from "../../views/flow/stages/build-report";
 
 export const build = createCmd({
   name: "build",
@@ -313,19 +314,7 @@ const improveOutput = (output: string) => {
       //
       // Macro errors like the above are not the cause of the error, they are a
       // symptom of another error.
-      const HIDDEN_PATTERNS = [
-        "__client_accounts",
-        "__cpi_client_accounts",
-        /`\S*Bumps`/,
-      ];
-      const hiddenErrors = errors.reduce((acc, cur) => {
-        const isHidden = HIDDEN_PATTERNS.some((pat) => {
-          return typeof pat === "string" ? cur.includes(pat) : pat.test(cur);
-        });
-        if (isHidden) acc.push(cur);
-
-        return acc;
-      }, [] as string[]);
+      const hiddenErrors = errors.filter(isMacroSymptomText);
 
       // Prioritize the most common errors, order matters
       const prioritizedErrors: string[] = [];

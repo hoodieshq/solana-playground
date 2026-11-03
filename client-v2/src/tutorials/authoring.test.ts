@@ -130,6 +130,10 @@ describe("tutorials/AUTHORING.md", () => {
     "onFail without planned": (d) => {
       d.steps[0].onFail = [{ kind: "say", id: "f1.explain", text: "Why." }];
     },
+    "planned failure without its log line": (d) => {
+      d.steps[0].planned = "On purpose.";
+      d.steps[0].onFail = [{ kind: "say", id: "f1.explain", text: "Why." }];
+    },
     "read-only file the step lacks": (d) => {
       d.steps[1].readOnly = ["src/lib.rs", "Anchor.toml"];
     },

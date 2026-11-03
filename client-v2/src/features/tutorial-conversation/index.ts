@@ -1,7 +1,8 @@
 export { tutorialTelemetry } from "./model/telemetry";
-export { freshProgress, parseProgress } from "./model/progress";
+export { freshProgress, isUnreachable, parseProgress } from "./model/progress";
 export type {
   BuildError,
+  BuildFailure,
   Called,
   ConversationProgress,
   Cursor,
@@ -32,6 +33,7 @@ export { judgeGoal } from "./model/goals";
 export { actRunner } from "./model/runners/act-runner";
 export { DEPLOY_STAGES } from "./model/runners/deploy";
 export { tutorialRunner } from "./model/runners/real-deploy";
+export { runBuild } from "./model/runners/build";
 export { WorkspaceMovedError, realWorkspace } from "./model/real-workspace";
 export { openOnIntro } from "./model/open";
 export {
@@ -65,6 +67,7 @@ export type {
 } from "./model/reducer";
 export {
   EXPLAIN,
+  FIX_OFFER,
   INTERRUPTED,
   SKIPPED_DEFAULT,
   STUCK,
