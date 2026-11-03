@@ -24,6 +24,13 @@ interface ShareGistDialogProps {
 const messageOf = (error: unknown) =>
   error instanceof Error && error.message ? error.message : "Sign-in failed.";
 
+/** The prompt's one button: sign in, cancel its own wait, or wait on another's */
+const buttonText = (waiting: boolean, cancellable: boolean) => {
+  if (cancellable) return "Cancel sign-in";
+  if (waiting) return "Waiting for GitHub…";
+  return "Sign in with GitHub";
+};
+
 /**
  * What a signed-out Share shows first (the `gist-sharing` spec, "Sign in to
  * share"): why sharing needs GitHub, and the sign-in. Signing in is a popup,
@@ -56,9 +63,13 @@ const SignInToShare = () => {
     };
   }, []);
 
+  // Only this prompt's own sign-in is its to cancel; one from the account
+  // menu just waits here, as it did before the prompt could cancel
+  const cancellable = waiting && ownSignIn.current;
+
   const signIn = () => {
-    // While its popup is open the button is the cancel
-    if (waiting) {
+    // While its own popup is open the button is the cancel
+    if (cancellable) {
       PgSession.cancelSignIn();
       return;
     }
@@ -94,10 +105,11 @@ const SignInToShare = () => {
       name="share-gist-sign-in"
       title="Sign in to share"
       buttonProps={{
-        text: waiting ? "Cancel sign-in" : "Sign in with GitHub",
+        text: buttonText(waiting, cancellable),
         icon: waiting ? undefined : <GithubMark className="size-4" />,
         onSubmit: signIn,
         noCloseOnSubmit: true,
+        disabled: waiting && !cancellable,
       }}
     >
       <div className="flex max-w-md flex-col gap-3">

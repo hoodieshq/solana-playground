@@ -256,6 +256,28 @@ describe("app/ShareGistDialog", () => {
     expect(cancel).not.toHaveBeenCalled();
   });
 
+  it("offers no Cancel sign-in for a sign-in it did not start", async () => {
+    // A sign-in from the account menu, still waiting when Share opens
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: "https://x/" }),
+    } as Response);
+    const cancel = vi.fn();
+    PgSession.setOpenChannel(() => ({
+      receive: () => new Promise(() => {}),
+      cancel,
+    }));
+    void PgSession.signIn().catch(() => {
+      // Never answered: the reset after the test drops the flow
+    });
+    await open();
+
+    const waiting = screen.getByRole("button", { name: "Waiting for GitHub…" });
+    expect((waiting as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole("button", { name: "Cancel sign-in" })).toBe(null);
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
   it("gist-sharing: Cancel leaves without signing in", async () => {
     const signIn = vi.spyOn(PgSession, "signIn");
     await open();

@@ -99,7 +99,7 @@ describe("/api/gists", () => {
 
   it("400s a visibility that is not a boolean and never calls GitHub", async () => {
     const { deps: d, calls } = deps();
-    for (const visibility of ["yes", 1, null, {}]) {
+    for (const visibility of ["yes", "false", 0, 1, null, {}, []]) {
       const { status } = await call(
         makeReq({
           body: { description: "p", files: FILES, public: visibility },

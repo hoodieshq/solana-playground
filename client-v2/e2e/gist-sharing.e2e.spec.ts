@@ -578,3 +578,22 @@ test("gist-sharing: Another project's row", async ({ page }) => {
 
   await expect(dialog(page)).toHaveCount(0);
 });
+
+test("gist-sharing: A copy is counted", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const lines = linesOn(page);
+  await stubAuth(page, { signedIn: true });
+  await stubGists(page, [201, { url: GIST_URL, id: "abc123" }]);
+  await seedWorkspace(page);
+  await openShare(page);
+  await dialog(page).getByRole("button", { name: "Share to GitHub" }).click();
+  await expect(playgroundLink(page)).toBeVisible(LONG);
+
+  await dialog(page)
+    .getByRole("button", { name: "Copy Playground link" })
+    .click();
+
+  await expect
+    .poll(() => lineOf(lines, "gist_link_copied"))
+    .toContain("copied: playground");
+});
