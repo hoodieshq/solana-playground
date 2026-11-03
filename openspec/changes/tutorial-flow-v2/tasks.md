@@ -117,7 +117,8 @@ for; tasks with "after nothing" start at once.
       Copy and Explorer on every receipt address row, failed
       transactions, `tutorial_action_run` for runs and calls. Verify: unit tests for signature capture and log picking;
       Hello Anchor's step 3 on devnet by hand (HOO-2357; fleet; M 1.5;
-      after 3.1, 3.2)
+      after 3.1, 3.2; plan:
+      [plans/4.3-client-run-and-call.md](plans/4.3-client-run-and-call.md))
 - [ ] 4.4 The Call panel from the deployed IDL: the Form | IDL switch, the
       program row with Explorer, one form with the instruction chips (the
       step's own picked, none for one instruction), "New" fields, one call
