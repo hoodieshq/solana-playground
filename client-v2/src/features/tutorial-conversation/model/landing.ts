@@ -235,7 +235,8 @@ export const insertBlock = (
   return { code: out.join("\n"), lines: taken };
 };
 
-/** Whether `insertBlock` would land the block in place, or append it */
+/** Whether `insertBlock` would land the block in place, or append it.
+ * Pass the write's `groundOf` pair, as the real write does */
 export const landsInPlace = (
   file: string,
   block: string,
@@ -252,7 +253,8 @@ export interface Landing {
 /**
  * Where an open question's answer will land in `file`: a dry run of the
  * write. A ghost line when it lands past the end or on an empty line, a tint
- * on the lines it replaces otherwise.
+ * on the lines it replaces otherwise. Pass the write's `groundOf` pair as
+ * `reference` and `start`, so the dry run and the write agree.
  */
 export const landingFor = (
   code: string,
