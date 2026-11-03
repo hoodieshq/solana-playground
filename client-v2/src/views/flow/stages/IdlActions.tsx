@@ -50,17 +50,19 @@ const DownloadIdl = () => {
 };
 
 /**
- * How the line beside Upload IDL names the IDL in use: by its own name, so
- * the user can tell which file is loaded. A 1.x IDL keeps it under
- * `metadata`.
+ * How the line beside Upload IDL names the IDL in use: by the program name
+ * the IDL carries (a 1.x IDL keeps it under `metadata`), so the user can tell
+ * which program's IDL is loaded.
  */
 const idlLabel = (idl: object) => {
   const { name: legacy, metadata } = idl as {
     name?: unknown;
     metadata?: { name?: unknown };
   };
-  const name = metadata?.name ?? legacy;
-  return typeof name === "string" && name ? `IDL \u00b7 ${name}` : "IDL loaded";
+  const name = [legacy, metadata?.name].find(
+    (n): n is string => typeof n === "string" && n !== ""
+  );
+  return name ? `IDL \u00b7 ${name}` : "IDL loaded";
 };
 
 /**
@@ -70,13 +72,15 @@ const idlLabel = (idl: object) => {
  */
 const UploadIdl = () => {
   const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl);
-  const [refused, setRefused] = useState(false);
+  // The IDL that was in use when a pick here was refused. The refusal shows
+  // only while that IDL still is: any new IDL, from a pick here, on the
+  // other step or from a build, answers it.
+  const [refusal, setRefusal] = useState<{ over: typeof idl }>();
+  const refused = refusal !== undefined && refusal.over === idl;
 
   /** Refuses a file that is not an IDL; a throw after that is ours */
   const load = async (file: File | undefined) => {
     if (!file) return;
-    // A refusal of an earlier file must not outlive a good pick of this one
-    setRefused(false);
     // Read outside the try: a file that cannot be read is not the user's
     // malformed IDL, and `ImportButton` reports it
     const text = await file.text();
@@ -88,7 +92,7 @@ const UploadIdl = () => {
       log.warn("Refused an IDL file", {
         context: { name: file.name, reason: String(e) },
       });
-      setRefused(true);
+      setRefusal({ over: idl });
       return;
     }
     PgProgramInfo.update({ idl: parsed });
@@ -97,8 +101,8 @@ const UploadIdl = () => {
   // `ImportButton` reports a throw from `load` itself. The input lets go of
   // the file on every pick: a browser fires no change for the file it already
   // holds, so a file fixed on disk and picked again would be ignored.
-  // One group, so the line stays beside its button wherever a stage puts it
   return (
+    // One group, so the lines stay beside their button wherever a stage puts it
     <span className="inline-flex flex-wrap items-center gap-2">
       <ImportButton
         accept=".json"
@@ -112,7 +116,7 @@ const UploadIdl = () => {
         Upload IDL
       </ImportButton>
       {refused && (
-        <span role="status" className="font-mono text-xs text-error">
+        <span role="alert" className="font-mono text-xs text-error">
           That file is not an Anchor IDL.
         </span>
       )}
