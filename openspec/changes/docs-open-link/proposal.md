@@ -32,8 +32,8 @@ program has nothing to run from the stage row. The script runtime cannot import
   Playground wallet. Scripts transpile to ES2020, not ES5, so BigInt, `Map`
   and `Set` iteration behave as in Node.
 - New slice `features/docs-link` with telemetry events: `docs_link_opened`,
-  `docs_link_failed`, `client_run_started`, `client_run_finished`,
-  `client_run_funding_shown`.
+  `docs_link_failed`, `docs_link_run_started`, `docs_link_run_finished`,
+  `docs_link_run_funding_shown`.
 
 ## Capabilities
 

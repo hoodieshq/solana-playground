@@ -25,7 +25,7 @@ both; 4 needs 3.
 ## 3. Run
 
 - [ ] 3.1 Run button in the stage row of a project with no program, and the
-      run's callout above the editor, with `client_run_*` events; depends on
+      run's callout above the editor, with `docs_link_run_*` events; depends on
       1.2 and 2.2 (HOO-2507)
 - [ ] 3.2 Funding card for a link with `sol`: Copy address, Get devnet SOL
       (faucet.solana.com), Check again, Not now; depends on 3.1 (HOO-2507)

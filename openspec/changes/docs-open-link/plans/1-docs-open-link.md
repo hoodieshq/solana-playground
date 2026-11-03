@@ -31,7 +31,7 @@ Playwright.
   code in this link. It may have been cut off when it was copied. Open the
   page in the docs again and use its Open in Playground button."
 - Telemetry prefix: `docs-link` maps to two prefixes. The events are named
-  `docs_link_*` and `client_run_*` per the spec. If `prefixes.ts` allows only
+  `docs_link_*` and `docs_link_run_*` per the spec. If `prefixes.ts` allows only
   one prefix per slice, name the run events `docs_link_run_*` and update the
   spec delta in the same commit.
 - "Back to the docs" fallback is `https://solana.com/docs`. "Get devnet SOL"
@@ -128,7 +128,7 @@ Playwright.
 - [ ] **Step 3: Implement** with `pako.deflateRaw` and `pako.inflateRaw`,
   decoding with `TextDecoder("utf-8", { fatal: true })`. Declare the
   `docs_link_opened { host, bytes }` and `docs_link_failed { reason }`
-  events, and the `client_run_*` events from the spec, with doc comments.
+  events, and the `docs_link_run_*` events from the spec, with doc comments.
   Register the prefix.
 - [ ] **Step 4:** Run the tests, `yarn test-unit src/app/slice-structure.test.ts`
   and `yarn lint`. Expected: PASS.
@@ -193,7 +193,7 @@ Playwright.
       gives `funding`;
     - a run started from the terminal (an `onDidStart` without `start()`)
       gives `running`.
-  - Events: one test per `client_run_*`, through the memory provider.
+  - Events: one test per `docs_link_run_*`, through the memory provider.
 - [ ] **Step 2:** Run `yarn test-unit src/features/docs-link`. Expected: FAIL.
 - [ ] **Step 3: Implement.** The funding card uses `CopyButton` with
   `onError={reportButtonFailure("copy the address")}`, and a link button to

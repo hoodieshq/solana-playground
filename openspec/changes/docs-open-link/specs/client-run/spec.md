@@ -32,7 +32,7 @@ has been run, and its `data-state` SHALL name the state shown:
 
 | `data-state` | Title | Body |
 | --- | --- | --- |
-| `source` | "From {host}: {title}" | "Runs with your Playground wallet." When the link had `from`, plus "View the docs page", which opens `from` in a new tab |
+| `source` | "From {host}: {title}", or "From a docs link: {title}" when the link had no `from` | "Runs with your Playground wallet." When the link had `from`, plus "View the docs page", which opens `from` in a new tab |
 | `done` | "Ran in {s} s" | "Signatures and Explorer links are in the terminal." |
 | `failed` | "Run failed" | The script's error message |
 | `missing-package` | "Playground can't load `{package}` yet" | "This script imports it, so nothing ran." |
@@ -107,16 +107,16 @@ separators, and `for…of` over a `Map` or `Set` behave as in Node.
 
 The `docs-link` slice SHALL send:
 
-- `client_run_started` when a run from the stage row starts. Its `source` is
+- `docs_link_run_started` when a run from the stage row starts. Its `source` is
   `link` for a project from a docs link, else `project`.
-- `client_run_finished` when such a run ends. Its `outcome` is `done`,
+- `docs_link_run_finished` when such a run ends. Its `outcome` is `done`,
   `failed` or `missing-package`, its `source` as above, and `seconds` is the
   run's whole seconds.
-- `client_run_funding_shown` when the funding card shows. Its `wallet` is
+- `docs_link_run_funding_shown` when the funding card shows. Its `wallet` is
   `new` when Run had to create the wallet, else `existing`.
 
 #### Scenario: A funded run
 - **WHEN** a user with enough SOL presses Run on the Quickstart and it
   succeeds
-- **THEN** `client_run_started` with `source: "link"` is sent, then
-  `client_run_finished` with `outcome: "done"`
+- **THEN** `docs_link_run_started` with `source: "link"` is sent, then
+  `docs_link_run_finished` with `outcome: "done"`

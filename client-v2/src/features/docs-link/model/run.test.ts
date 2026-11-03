@@ -1,0 +1,220 @@
+// `@types/mocha` also declares a global `it`, without `each`
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { DocsLink } from "../lib/link";
+
+type Finish = (
+  result: { ok: unknown; err?: never } | { err: Error; ok?: never }
+) => void;
+
+const utils = vi.hoisted(() => {
+  const handlers: {
+    start: Array<(input: string | null) => void>;
+    finish: Array<Finish>;
+  } = { start: [], finish: [] };
+  const address = { toBase58: () => "Wa11et" };
+  return {
+    handlers,
+    lamports: 0,
+    PgCommand: {
+      run: {
+        onDidStart: (cb: (input: string | null) => void) => {
+          handlers.start.push(cb);
+          return { dispose: () => {} };
+        },
+        onDidFinish: (cb: Finish) => {
+          handlers.finish.push(cb);
+          return { dispose: () => {} };
+        },
+        execute: vi.fn(async () => undefined),
+      },
+      connect: { execute: vi.fn(async () => undefined) },
+    },
+    PgWallet: {
+      state: "pg" as string,
+      current: { publicKey: address } as unknown,
+    },
+  };
+});
+
+vi.mock("@/utils", () => ({
+  PgCommand: utils.PgCommand,
+  PgWallet: utils.PgWallet,
+  PgConnection: {
+    current: { getBalance: async () => utils.lamports },
+  },
+  PgWeb3: { lamportsToSol: (lamports: number) => lamports / 1e9 },
+}));
+
+const QUICKSTART: DocsLink = {
+  name: "quickstart.ts",
+  code: "console.log(1)",
+  title: "Quickstart",
+  from: "https://solana.com/docs/quickstart",
+  sol: 0.02,
+};
+
+let sent: { events: Array<{ name: string; params: object }> };
+let resetTelemetry = () => {};
+
+/**
+ * A fresh store and link, as on a page load. Telemetry is loaded after the
+ * reset too, so the store and the test share one collector.
+ */
+const load = async () => {
+  vi.resetModules();
+  utils.handlers.start.length = 0;
+  utils.handlers.finish.length = 0;
+  const telemetry = await import("@/shared/lib/telemetry");
+  const provider = telemetry.memoryProvider();
+  telemetry.initTelemetry({ providers: [provider] });
+  sent = provider;
+  resetTelemetry = telemetry.resetTelemetry;
+  const { PgClientRun } = await import("./run");
+  const { PgDocsLink } = await import("./opened");
+  const states: string[] = [];
+  PgClientRun.onDidChange((state) => states.push(state.kind));
+  return { PgClientRun, PgDocsLink, states };
+};
+
+const startRun = () => utils.handlers.start.forEach((cb) => cb("run"));
+const finishRun = (result: Parameters<Finish>[0]) =>
+  utils.handlers.finish.forEach((cb) => cb(result));
+
+beforeEach(() => {
+  utils.lamports = 0;
+  utils.PgWallet.state = "pg";
+  utils.PgCommand.run.execute.mockClear();
+  utils.PgCommand.connect.execute.mockClear();
+});
+
+afterEach(() => {
+  resetTelemetry();
+  vi.useRealTimers();
+});
+
+describe("PgClientRun", () => {
+  it("reads a run that ends well as done, with its time", async () => {
+    vi.useFakeTimers();
+    const { PgClientRun } = await load();
+    startRun();
+    vi.advanceTimersByTime(12_400);
+    finishRun({ ok: { ok: true } });
+
+    expect(PgClientRun.state).toEqual({ kind: "done", ms: 12_400 });
+    expect(sent.events.map((event) => event.name)).toEqual([
+      "docs_link_run_started",
+      "docs_link_run_finished",
+    ]);
+    expect(sent.events[1].params).toEqual({
+      source: "project",
+      outcome: "done",
+      seconds: 12,
+    });
+  });
+
+  it("reads a script's uncaught error as failed", async () => {
+    const { PgClientRun } = await load();
+    startRun();
+    finishRun({ ok: { ok: false, error: "fetch failed" } });
+
+    expect(PgClientRun.state).toEqual({
+      kind: "failed",
+      message: "fetch failed",
+    });
+  });
+
+  it("reads an import Playground lacks as a missing package", async () => {
+    const { PgClientRun } = await load();
+    startRun();
+    finishRun({
+      err: new Error("Package `@solana-program/memo` is not available."),
+    });
+
+    expect(PgClientRun.state).toEqual({
+      kind: "missing-package",
+      pkg: "@solana-program/memo",
+    });
+    expect(sent.events.at(-1)?.params).toMatchObject({
+      outcome: "missing-package",
+    });
+  });
+
+  it("shows a run typed in the terminal", async () => {
+    const { PgClientRun } = await load();
+    startRun();
+    expect(PgClientRun.state.kind).toBe("running");
+  });
+
+  it("asks for SOL before running a link that needs it", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.set(QUICKSTART);
+
+    await PgClientRun.start();
+
+    expect(utils.PgCommand.run.execute).not.toHaveBeenCalled();
+    expect(PgClientRun.state).toEqual({
+      kind: "funding",
+      address: "Wa11et",
+      balance: 0,
+      needed: 0.02,
+    });
+    expect(sent.events.at(-1)).toMatchObject({
+      name: "docs_link_run_funding_shown",
+      params: { wallet: "existing" },
+    });
+  });
+
+  it("runs once Check again finds the SOL", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.set(QUICKSTART);
+    await PgClientRun.start();
+
+    utils.lamports = 0.5e9;
+    await PgClientRun.checkAgain();
+
+    expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes back from the funding card on Not now", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.set(QUICKSTART);
+    await PgClientRun.start();
+
+    PgClientRun.dismissFunding();
+
+    expect(PgClientRun.state.kind).toBe("idle");
+  });
+
+  it("sets a new wallet up before checking its SOL", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    PgDocsLink.set(QUICKSTART);
+    utils.PgWallet.state = "setup";
+
+    await PgClientRun.start();
+
+    expect(utils.PgCommand.connect.execute).toHaveBeenCalledTimes(1);
+    expect(sent.events.at(-1)?.params).toEqual({ wallet: "new" });
+  });
+
+  it("runs a project from no link without asking for SOL", async () => {
+    const { PgClientRun } = await load();
+    await PgClientRun.start();
+    expect(utils.PgCommand.run.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts a run as the link's while the link's project is open", async () => {
+    const { PgDocsLink } = await load();
+    PgDocsLink.set(QUICKSTART);
+    startRun();
+    expect(sent.events.at(-1)?.params).toEqual({ source: "link" });
+  });
+
+  it("starts a new link from a clean callout", async () => {
+    const { PgClientRun, PgDocsLink } = await load();
+    startRun();
+    finishRun({ ok: { ok: true } });
+    PgDocsLink.set(QUICKSTART);
+    expect(PgClientRun.state.kind).toBe("idle");
+  });
+});
