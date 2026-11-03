@@ -20,9 +20,9 @@ const setEditorHeadHost = (el: HTMLElement | undefined) => {
 /**
  * The head's ref callback: takes the slot on mount, and on unmount gives it
  * up only if it still holds it, so a head that unmounts after another one
- * took the slot cannot send the row back into the stage
+ * took the slot cannot send the row back into the stage. `null` in the type:
+ * React's ref callbacks pass it
  */
-// `null` in the type: React's ref callbacks pass it
 export const editorHeadHost = (el: HTMLElement | null) => {
   if (!el) return;
   setEditorHeadHost(el);

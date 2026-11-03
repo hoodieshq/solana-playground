@@ -272,13 +272,13 @@ const savedFilesOpen = () =>
     })
   );
 
-/** The editor head's Files toggle, and whether it reads pressed */
 /** An element by id; a test that cannot find it says which */
 const byId = (id: string) => {
   const el = document.getElementById(id);
   if (!el) throw new Error(`no #${id}`);
   return el;
 };
+/** The editor head's Files toggle, and whether it reads pressed */
 const filesToggle = () => byId("editor-head-files");
 const filesPressed = () => filesToggle().getAttribute("aria-pressed");
 

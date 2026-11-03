@@ -208,7 +208,7 @@ export default defineConfig({
     // Every page starts as a visitor who left the file tree open: a first
     // visit opens it closed (client-v2-editor-head), and most specs drive
     // the tree. A spec about a first visit removes it and reloads
-    // (`client-v2-editor-head.e2e.spec.ts`).
+    // (`client-v2-editor-head.e2e.spec.ts`, `first-run.e2e.spec.ts`).
     storageState: {
       cookies: [],
       origins: [
