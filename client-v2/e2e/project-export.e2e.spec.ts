@@ -109,6 +109,8 @@ test("project-export: A project with no program", async ({
   ).toHaveCount(0);
   // The README the export wrote, shown after it
   await expect(
-    page.getByRole("dialog").getByRole("heading", { name: "Cluster and wallet" })
+    page
+      .getByRole("dialog")
+      .getByRole("heading", { name: "Cluster and wallet" })
   ).toBeVisible();
 });
