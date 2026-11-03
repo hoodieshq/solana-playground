@@ -1197,6 +1197,8 @@ if (import.meta.vitest) {
           beats: {},
           runs: { "s4.call": runs },
           times: {},
+          said: [],
+          proposals: [],
         },
         stage: null,
       });
