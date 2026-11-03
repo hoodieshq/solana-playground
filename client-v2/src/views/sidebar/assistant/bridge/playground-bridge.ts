@@ -81,7 +81,7 @@ export interface PlaygroundBridge {
    * when it cannot be estimated), and whether the Playground wallet pays
    */
   quoteDeploy(): Promise<{
-    network: string | null;
+    network: string | undefined;
     cost: number | null;
     playground: boolean;
   }>;

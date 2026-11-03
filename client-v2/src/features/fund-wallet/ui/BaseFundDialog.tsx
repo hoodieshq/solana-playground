@@ -97,7 +97,7 @@ const amountNoteFor =
         ok: true,
         error: false,
         text: `Sent on ${
-          networkInSentence(cluster ?? null) ?? "the Playground's cluster"
+          networkInSentence(cluster) ?? "the Playground's cluster"
         }.`,
       };
     }
