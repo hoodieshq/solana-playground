@@ -421,8 +421,8 @@ the card reads its usual record.
 
 ### The planned failure
 
-A step with a planned failure has `planned`, `failsWith` and `onFail`, all
-three or none. `planned` is the assistant's line inside the failed build's
+A step with a planned failure has `planned`, `failsWith` and `onFail`;
+`planned` needs the other two, and `onFail` needs `planned`. `planned` is the assistant's line inside the failed build's
 card ("This one's on purpose..."). `failsWith` is the log line that marks
 the failure. `onFail` holds the beats after the learner presses Explain: a
 `say` with the error quoted, the `Fix it` question, and a second `build`.

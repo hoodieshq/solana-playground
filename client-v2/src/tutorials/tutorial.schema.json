@@ -814,8 +814,7 @@
       },
       "dependencies": {
         "onFail": ["planned"],
-        "planned": ["onFail", "failsWith"],
-        "failsWith": ["planned"]
+        "planned": ["onFail", "failsWith"]
       }
     }
   }
