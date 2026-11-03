@@ -16,8 +16,10 @@ None yet.
 - On the Build failed screen the first error card's "Fix with assistant" has a gradient outline, the second card's is plain. Nikita asks Almaz and Slava whether this is a DS discrepancy.
 
 ## Open questions
-- Which "Fix with assistant" style is right, gradient or plain (asked of Slava and Almaz).
 - Which of the asks existing tickets already cover (Planner checking).
+
+## Follow-up
+Almaz's answers: see `2026-11-03-slack-almaz-tutorial-flow-answers.md`.
 
 ## Actions
 - Tutorial list on home: fewer at start, link to all or search, consistent covers -> lead (waits for Planner's coverage check).
