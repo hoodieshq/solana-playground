@@ -47,6 +47,7 @@ vi.mock("@/widgets/layout-shell", async () => ({
 }));
 
 import { editorHeadHost } from "@/widgets/layout-shell/model/editor-head-host";
+
 import { Tabs } from "./Tabs";
 
 // The head's ref callback, as React calls it: the host, then its cleanup

@@ -24,9 +24,9 @@ import { homeOf, isCovered, screenOf } from "../model/screen";
 import type { ToggleSource } from "../model/telemetry";
 import { layoutTelemetry } from "../model/telemetry";
 import { useLayoutState } from "../model/use-layout-state";
+import BaseEditorHead from "./BaseEditorHead";
 import type { AssistantWide } from "./BaseLayoutShell";
 import BaseLayoutShell from "./BaseLayoutShell";
-import BaseEditorHead from "./BaseEditorHead";
 import BaseStageBar from "./BaseStageBar";
 
 export interface LayoutShellProps {

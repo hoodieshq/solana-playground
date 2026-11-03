@@ -1,4 +1,3 @@
-import { PanelLeft } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 

@@ -3,8 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import BaseEditorHead from "./BaseEditorHead";
+
 import type { BaseEditorHeadProps } from "./BaseEditorHead";
+import BaseEditorHead from "./BaseEditorHead";
 
 /** The head's element; a test that cannot find it says so */
 const headElement = () => {

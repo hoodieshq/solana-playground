@@ -2,10 +2,10 @@ import type { Page } from "@playwright/test";
 
 import {
   expect,
+  filesToggle,
   home,
   homeRegion,
   LONG,
-  filesToggle,
   seedWorkspace,
   test,
 } from "./fixtures";

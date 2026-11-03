@@ -1,8 +1,9 @@
-import type { ReactNode, RefCallback } from "react";
 import { Folder, Terminal } from "lucide-react";
+import type { ReactNode, RefCallback } from "react";
 
 import { Button } from "@/shared/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+
 import type { BarToggle } from "./BaseStageBar";
 
 export interface BaseEditorHeadProps {
