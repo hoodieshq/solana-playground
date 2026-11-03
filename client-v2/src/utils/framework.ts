@@ -121,18 +121,20 @@ const SCRIPT_FILE_REGEX = /\.[jt]sx?$/;
  * JSON a project with no program keeps beside its scripts: an IDL a client
  * imports, a fixture a test reads
  */
-const DATA_FILE_REGEX = /\.json$/;
+const DATA_FILE_REGEX = /\.json$/i;
 
 /**
- * JSON that configures the repository's own tooling rather than holding
- * data: Playground resolves packages and compiler options itself, so these
- * would only sit in the tree. A dotfile, or anything in a dot folder
- * (`.vscode/`), counts too.
+ * JSON a project with no program leaves out as tool configuration rather
+ * than data: package manifests and lockfiles, `tsconfig` and `jsconfig`
+ * files, and any dotfile or file in a dot folder (`.vscode/`)
  */
 const TOOL_CONFIG_REGEX =
-  /(^|\/)(package\.json|(ts|js)config(\.[^/]+)?\.json)$|(^|\/)\./;
+  /(^|\/)(package\.json|[^/]*-lock\.json|(ts|js)config[^/]*\.json)$|(^|\/)\./i;
 
-/** Whether a project with no program keeps the file at `path` */
+/**
+ * Whether a project with no program keeps the file at `path`: every script,
+ * and JSON that is not tool configuration
+ */
 const isNoProgramFile = (path: string) =>
   SCRIPT_FILE_REGEX.test(path) ||
   (DATA_FILE_REGEX.test(path) && !TOOL_CONFIG_REGEX.test(path));
@@ -186,9 +188,12 @@ const freePath = (path: string, taken: Set<string>) => {
 /**
  * Lay out a repository with no program: tests under `tests/`, every other
  * TypeScript or JavaScript file under `client/`, each keeping its path below
- * the folder that placed it. JSON data goes by the same rule, so a relative
- * import of an IDL or a fixture still resolves; tool configuration
- * (`TOOL_CONFIG_REGEX`) and files of any other kind are left out. When two
+ * the folder that placed it. JSON data is placed by its folder alone (under
+ * `tests/` from a leading `tests/` or `test/`, else under `client/`), so an
+ * import of an IDL or a fixture from within the same folder still resolves;
+ * one that crosses from `client/` to `tests/` does not, as for scripts. Tool
+ * configuration (`TOOL_CONFIG_REGEX`) and files of any other kind are left
+ * out. When two
  * files want one path, the one `placementRank` puts first gets it and the
  * other keeps its whole path, so nothing is overwritten.
  *
@@ -501,7 +506,10 @@ if (import.meta.vitest) {
       });
     });
 
-    /** A repository no framework recognises: scripts are laid out, anything else refused */
+    /**
+     * A repository no framework recognises: scripts and their JSON data are
+     * laid out; a program in an unknown layout, or nothing to run, is refused
+     */
     describe("PgFramework.convertToPlaygroundLayout", () => {
       // The real frameworks import the settings, which need the app's
       // globals; one that claims `programs/` stands in for Anchor.
@@ -652,10 +660,7 @@ if (import.meta.vitest) {
         expect(paths).not.toContain("client/programs/p/src/lib.rs");
       });
 
-      /**
-       * Dropping every JSON file broke `import idl from "../idl/x.json"` and
-       * fixture reads at run time, long after an import that said nothing
-       */
+      /** A project with no program keeps the JSON its scripts import */
       describe("JSON files", () => {
         it("keeps an IDL and a fixture beside the scripts that read them", async () => {
           expect(
@@ -671,6 +676,13 @@ if (import.meta.vitest) {
             "tests/a.test.ts",
             "tests/fixtures/a.json",
           ]);
+          const [, idl] = (
+            await PgFramework.convertToPlaygroundLayout([
+              ["a.ts", "a"],
+              ["idl/x.json", '{"name":"x"}'],
+            ])
+          )[1];
+          expect(idl).toBe('{"name":"x"}');
         });
 
         it("places JSON from a test folder under tests", async () => {
@@ -695,8 +707,36 @@ if (import.meta.vitest) {
               [".eslintrc.json", "{}"],
               [".vscode/settings.json", "{}"],
               ["tests/.fixtures/a.json", "{}"],
+              ["package-lock.json", "{}"],
+              ["tsconfig-base.json", "{}"],
+              ["TSCONFIG.JSON", "{}"],
             ])
           ).toEqual(["client/index.ts"]);
+        });
+
+        it("keeps JSON whatever the case of its extension", async () => {
+          expect(
+            await pathsOf([
+              ["a.ts", "a"],
+              ["idl/X.JSON", "{}"],
+            ])
+          ).toEqual(["client/a.ts", "client/idl/X.JSON"]);
+        });
+
+        it("reads JSON paths from the imported folder", async () => {
+          const files = await PgFramework.convertToPlaygroundLayout(
+            [
+              ["token/client/index.ts", "a"],
+              ["token/client/idl/x.json", "{}"],
+              ["token/client/package.json", "{}"],
+              ["token/.config/y.json", "{}"],
+            ],
+            "token/client"
+          );
+          expect(files.map(([path]) => path).sort()).toEqual([
+            "client/idl/x.json",
+            "client/index.ts",
+          ]);
         });
 
         it("gives a contested JSON path to the top-level file", async () => {

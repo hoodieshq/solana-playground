@@ -54,10 +54,12 @@ under `client/` otherwise, so a script's relative import of an IDL or a
 fixture still resolves. Each keeps its path with that leading folder (or
 `client/`) dropped. When two files want one place, a top-level file takes
 it before one from `client/` or `tests/`, which takes it before one from
-`test/`, whatever their order; the other keeps its whole path. Tool
-configuration (`package.json`, `tsconfig*.json`, `jsconfig*.json`, and any
-file whose name or folder starts with a dot) and files of other kinds SHALL
-be left out. JSON alone SHALL count as nothing to open.
+`test/`, whatever their order; the other keeps its whole path. A JSON
+file that is tool configuration (`package.json`, a `*-lock.json`,
+`tsconfig*.json`, `jsconfig*.json`, or one whose name or folder starts with
+a dot) and files of other kinds SHALL be left out. JSON alone SHALL count
+as nothing to open. A relative import that crosses from `client/` to
+`tests/`, or out of a leading folder the placement drops, is not rewritten.
 
 #### Scenario: Folders are kept
 - **WHEN** a repository with no program holds `src/app/main.ts`,
