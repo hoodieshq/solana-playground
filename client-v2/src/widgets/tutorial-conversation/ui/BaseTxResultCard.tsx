@@ -1,9 +1,10 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import {
+  Check,
   ChevronDown,
-  CircleCheck,
   CircleX,
+  Copy,
   ExternalLink,
   Eye,
 } from "lucide-react";
@@ -13,14 +14,12 @@ import { devnetExplorerUrl } from "@/shared/lib/devnet-explorer";
 import { PROGRAM_LOG, programLogText } from "@/shared/lib/program-log";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
-import { Button } from "@/shared/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/shared/ui/collapsible";
-import { CopyButton } from "@/shared/ui/copy-button";
-import { READ, formatSeconds } from "./Prose";
+import { Prose, READ, formatSeconds } from "./Prose";
 
 type TxResult = Extract<RunResult, { act: "run" | "call" }>;
 type Landed = Extract<TxResult, { ok: true }>;
@@ -66,11 +65,11 @@ const Shell = ({
     <>
       {icon}
       <span className="flex min-w-0 flex-1 items-baseline gap-2">
-        <span className="shrink-0 text-[0.8125rem] font-label text-foreground">
+        <span className="shrink-0 font-heading text-[1rem] leading-[1.5rem] font-medium text-foreground">
           {title}
         </span>
         {meta && (
-          <span className="min-w-0 truncate text-caption text-muted-foreground">
+          <span className="min-w-0 truncate text-[0.875rem] leading-[1.125rem] text-muted-foreground">
             {meta}
           </span>
         )}
@@ -92,6 +91,7 @@ const Shell = ({
           <CollapsibleTrigger
             className={cn(
               row,
+              failed && "bg-error/[0.08]",
               "group transition-colors duration-150 hover:bg-foreground/[0.04] focus-visible:outline-2 focus-visible:outline-ring"
             )}
           >
@@ -106,9 +106,18 @@ const Shell = ({
             />
           </CollapsibleTrigger>
         ) : (
-          <div className={row}>{status}</div>
+          <div className={cn(row, failed && "bg-error/[0.08]")}>{status}</div>
         )}
-        {body && <div className="flex flex-col gap-3 px-3 pb-3">{body}</div>}
+        {body && (
+          <div
+            className={cn(
+              "flex flex-col gap-3 px-3 pb-3",
+              failed && "border-t border-error/20 pt-3"
+            )}
+          >
+            {body}
+          </div>
+        )}
       </div>
       {details && (
         <CollapsibleContent>
@@ -121,12 +130,39 @@ const Shell = ({
   );
 };
 
-/** The transaction's log, in mono, for the details' Log */
+/** The quiet text controls under the details' sentence, as the prototype sets them */
+const QUIET =
+  "inline-flex items-center gap-1.5 rounded-sm whitespace-nowrap text-[0.875rem] leading-[1.125rem] text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none";
+
+/** The transaction's log in a well of its own, for the details' Log */
 const LogLines = ({ lines }: { lines: string[] }) => (
-  <pre className="max-h-48 overflow-auto font-mono text-[0.75rem] leading-[1.6] whitespace-pre-wrap break-words text-muted-foreground">
+  <pre className="mt-3 max-h-48 overflow-auto rounded-[6px] bg-surface-well px-3 py-3 font-mono text-[0.75rem] leading-5 whitespace-pre text-muted-foreground">
     {lines.join("\n")}
   </pre>
 );
+
+/** Copy signature, reading "Copied" for a moment after it worked */
+const CopySignature = ({ value }: { value: string }) => {
+  const [copied, setCopied] = useState(false);
+  const onCopy = () =>
+    navigator.clipboard
+      .writeText(value)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1600);
+      })
+      .catch(reportButtonFailure("copy the signature"));
+  return (
+    <button type="button" onClick={onCopy} className={QUIET}>
+      {copied ? (
+        <Check aria-hidden="true" className="size-3.5" />
+      ) : (
+        <Copy aria-hidden="true" strokeWidth={1.75} className="size-3.5" />
+      )}
+      <span aria-live="polite">{copied ? "Copied" : "Copy signature"}</span>
+    </button>
+  );
+};
 
 /** A landed run or call: "Confirmed", the instruction, what the program said */
 const LandedCard = ({ result }: { result: Landed }) => {
@@ -155,63 +191,67 @@ const LandedCard = ({ result }: { result: Landed }) => {
   return (
     <Shell
       icon={
-        <CircleCheck
-          aria-hidden="true"
-          className="size-4 shrink-0 text-success"
-        />
+        <Check aria-hidden="true" className="size-4 shrink-0 text-success" />
       }
       title="Confirmed"
       meta={
         ix ? (
-          <code className="font-mono text-[0.75rem]">{ix}</code>
+          <code className="font-mono text-[0.8125rem]">{ix}</code>
         ) : (
           SENT_FROM[result.act]
         )
       }
       body={
         said !== null && (
-          <p className="border-l-2 border-success pl-3 font-mono text-[0.75rem] break-words">
+          <p className="border-l-2 border-success pl-3 font-mono text-[0.8125rem] leading-[1.6] break-words">
             <span className="text-muted-foreground">{PROGRAM_LOG}</span>
             <span className="text-foreground">{said}</span>
           </p>
         )
       }
       details={
-        <>
-          <p className="text-caption text-muted-foreground">{sentence}</p>
-          <div className="flex flex-wrap items-center gap-1">
+        <Collapsible open={showLog} onOpenChange={setShowLog}>
+          <p className={cn(READ, "text-pretty")}>
+            <Prose text={sentence} />
+          </p>
+          <div className="mt-2 flex items-center gap-4">
             {signature && (
               <>
-                <CopyButton
-                  value={signature}
-                  label="Copy signature"
-                  onError={reportButtonFailure("copy the signature")}
-                />
-                <Button variant="ghost" size="xs" asChild>
-                  <a
-                    href={devnetExplorerUrl({ kind: "tx", value: signature })}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Explorer
-                    <ExternalLink aria-hidden="true" />
-                  </a>
-                </Button>
+                <CopySignature value={signature} />
+                <a
+                  href={devnetExplorerUrl({ kind: "tx", value: signature })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={QUIET}
+                >
+                  <ExternalLink
+                    aria-hidden="true"
+                    strokeWidth={1.75}
+                    className="size-3.5"
+                  />
+                  Explorer
+                </a>
               </>
             )}
             {receipt.log && (
-              <Button
-                variant="ghost"
-                size="xs"
-                aria-expanded={showLog}
-                onClick={() => setShowLog(!showLog)}
-              >
+              <CollapsibleTrigger className={cn(QUIET, "group ml-auto")}>
                 Log
-              </Button>
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn(
+                    "size-4 transition-transform duration-150 motion-reduce:transition-none",
+                    showLog && "rotate-180"
+                  )}
+                />
+              </CollapsibleTrigger>
             )}
           </div>
-          {showLog && receipt.log && <LogLines lines={receipt.log} />}
-        </>
+          {receipt.log && (
+            <CollapsibleContent>
+              <LogLines lines={receipt.log} />
+            </CollapsibleContent>
+          )}
+        </Collapsible>
       }
     />
   );
@@ -253,9 +293,9 @@ const FailedCard = ({ result }: { result: Failed }) => {
     (result.reason && titles[result.reason]) ??
     (result.act === "run" ? "Run failed" : "Call failed");
   const error = result.refused?.error;
-  const meta = error?.name
-    ? `${error.name} · error ${error.code}`
-    : result.message;
+  // A card titled by its reason says the rest in its body, once
+  let meta: string | null = result.reason ? null : result.message;
+  if (error?.name) meta = `${error.name} · error ${error.code}`;
   const errorLine = errorLineOf(result.log);
   const lines = result.log ? result.log.split("\n") : [];
   return (
@@ -269,7 +309,7 @@ const FailedCard = ({ result }: { result: Failed }) => {
       body={
         <>
           {errorLine && (
-            <p className="border-l-2 border-error/40 pl-3 font-mono text-[0.75rem] break-words text-foreground/90">
+            <p className="border-l-2 border-error/40 pl-3 font-mono text-[0.8125rem] leading-[1.6] break-words text-foreground/90">
               {errorLine}
             </p>
           )}

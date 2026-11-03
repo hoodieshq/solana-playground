@@ -122,7 +122,7 @@ const attempt = async (
       ok: false,
       seconds: seconds(),
       reason: "no_wallet",
-      message: "No wallet",
+      message: "Create a Playground wallet or connect one, then try again.",
       log: "",
     };
   }

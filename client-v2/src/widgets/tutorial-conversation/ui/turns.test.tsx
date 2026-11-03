@@ -426,11 +426,16 @@ describe("BaseResultCard", () => {
   it("opens how it went from the head: the sentence, Copy signature and Explorer on devnet", async () => {
     txCard(HELLO_RUN);
     await userEvent.click(screen.getByRole("button", { name: /Details/ }));
+    // `hello` is set as code, so the sentence is read across its parts
     expect(
       screen.getByText(
-        "client.ts ran in 2.4 s and called `hello`. It used 389 compute units, and the fee was 0.000005 test SOL from your wallet."
+        (_, el) =>
+          el?.tagName === "P" &&
+          el.textContent ===
+            "client.ts ran in 2.4 s and called hello. It used 389 compute units, and the fee was 0.000005 test SOL from your wallet."
       )
     ).toBeTruthy();
+    expect(screen.getByText("hello", { selector: "p code" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copy signature" })).toBeTruthy();
     expect(
       screen.getByRole("link", { name: /Explorer/ }).getAttribute("href")
@@ -456,10 +461,15 @@ describe("BaseResultCard", () => {
       ok: false,
       seconds: 0,
       reason: "no_wallet",
-      message: "No wallet",
+      message: "Create a Playground wallet or connect one, then try again.",
       log: "",
     });
-    expect(screen.getAllByText("No wallet").length).toBeGreaterThan(0);
+    expect(screen.getByText("No wallet")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Create a Playground wallet or connect one, then try again."
+      )
+    ).toBeTruthy();
   });
 
   it("reads a run that sent nothing as no transaction, not a red card", () => {
