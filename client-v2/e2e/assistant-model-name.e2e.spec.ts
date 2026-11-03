@@ -18,9 +18,11 @@ const stubNoDefault = (page: Page) => stubAiStatus(page, "own");
  */
 const connectLong = (page: Page) =>
   page.evaluate((model) => {
-    (
+    const assistant = (
       window as Window & { __pgAssistant?: { connect: (c: unknown) => void } }
-    ).__pgAssistant!.connect({
+    ).__pgAssistant;
+    if (!assistant) throw new Error("the page exposes no __pgAssistant");
+    assistant.connect({
       id: "openrouter",
       apiKey: "sk-or-fake-0123456789",
       endpoint: { baseUrl: "https://openrouter.ai/api/v1", model },
