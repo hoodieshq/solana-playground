@@ -518,6 +518,19 @@ export const TutorialConversation = ({
   );
 };
 
+/**
+ * Whether the learner has pressed Start on `name`'s intro card. False while
+ * the conversation holds another tutorial or none, as on a cold load before
+ * the save is read: the intro offers nothing but Start until then.
+ */
+export const useConversationStarted = (name: string): boolean => {
+  const state = useConversationState();
+  return (
+    state.context?.definition.name === name &&
+    state.engine.progress.startedAt !== null
+  );
+};
+
 /** What the frame's head needs from the conversation: Start over, and the steps passed */
 export const useConversationStartOver = () => {
   const state = useConversationState();

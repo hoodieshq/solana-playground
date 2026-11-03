@@ -3,14 +3,6 @@ import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
 import Stepper from "./Stepper";
-import {
-  cursorStep,
-  foldRecord,
-  INITIAL_LESSON_STATE,
-  PgLesson,
-  targetStage,
-} from "../lessons";
-import type { LessonState } from "../lessons";
 import { INITIAL_FLOW_STATE, PgFlow, STAGES } from "../state/stage";
 import type { FlowState } from "../state/stage";
 import { useKeybind } from "../../../hooks";
@@ -20,22 +12,13 @@ import { useViewport } from "@/shared/lib/hooks/use-viewport";
  * The dev-loop stepper: in the frame, a full-width row of stage tabs under the
  * stage bar, across the files column and the stage (`LayoutShell`'s
  * `stageTabs`, design.md "Frame chrome (5.25)"); on a phone, across the
- * preview page's bar, without Write, which is the code's own page there. It owns the Ctrl+1..4 stage keys and
- * points the stepper at the stage the current lesson step is graded on. The
- * project list and the session footer live in the navigation (`AppNav`),
+ * preview page's bar, without Write, which is the code's own page there. It owns the Ctrl+1..4 stage keys,
+ * so a window without it has no stage to reach. The project list and the session footer live in the navigation (`AppNav`),
  * not here.
  */
 const StageBar: FC = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   useEffect(() => PgFlow.onDidChange(setState).dispose, []);
-
-  const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
-  useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
-
-  const step = lesson.path
-    ? cursorStep(lesson.path, foldRecord(lesson.path, lesson.record))
-    : null;
-  const target = step ? targetStage(step.verify) : null;
 
   // Cmd/Ctrl+1..4 jump to a stage. `PgKeybind` folds `metaKey` into CTRL, so
   // one binding covers both platforms.
@@ -58,7 +41,6 @@ const StageBar: FC = () => {
       <Stepper
         state={state}
         onSelect={PgFlow.setStage}
-        target={target}
         fill={row}
         phone={!row}
       />

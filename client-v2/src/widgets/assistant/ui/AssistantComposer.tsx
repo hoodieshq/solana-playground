@@ -1,15 +1,12 @@
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
 import { PgSession } from "@/features/auth";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
 import { PgBuildOutput } from "../../../views/sidebar/assistant/bridge/build-output";
-import { describeLesson } from "../../../views/sidebar/assistant/bridge/lesson-context";
 import { realBridge } from "../../../views/sidebar/assistant/bridge/playground-bridge";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
 import type { Connection } from "../../../views/sidebar/assistant/store";
-import { INITIAL_LESSON_STATE, PgLesson } from "../../../views/flow/lessons";
-import type { LessonState } from "../../../views/flow/lessons";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgProgramInfo } from "../../../utils/program-info";
 import { modelOptions, modelShown } from "../model/choice";
@@ -29,23 +26,15 @@ import { BaseModelMenu } from "./BaseModelMenu";
 const log = createLogger("assistant:composer");
 
 /** What the assistant reads each turn, as chips over the input */
-const contextChips = (lessonState: LessonState): ComposerContextChip[] => {
+const contextChips = (): ComposerContextChip[] => {
   // Mirror what `describeProject()` actually sends, so the row cannot claim
   // less than the model gets. Paths only — never file content, since this runs
   // on every render, including every streamed token.
   const currentFilePath = PgExplorer.currentFilePath;
   const filePaths = realBridge.listFiles();
   const openPaths = realBridge.listOpenFiles();
-  const lesson = describeLesson(lessonState);
-  // The prototype's order: where you are, what you are looking at, then
-  // what else is sent
+  // The prototype's order: what you are looking at, then what else is sent
   return [
-    lesson
-      ? {
-          label: `Step ${lesson.stepIndex} of ${lesson.stepCount}`,
-          title: lesson.objective,
-        }
-      : null,
     currentFilePath
       ? {
           label: PgExplorer.getItemNameFromPath(currentFilePath),
@@ -90,10 +79,6 @@ const PLACEHOLDERS: Record<TurnPhase, string> = {
 export function AssistantComposer({ turn }: { turn: Turn }) {
   const [, render] = useReducer((n: number) => n + 1, 0);
   useEffect(() => PgAssistant.onDidChange(render).dispose, []);
-
-  const [lessonState, setLessonState] =
-    useState<LessonState>(INITIAL_LESSON_STATE);
-  useEffect(() => PgLesson.onDidChange(setLessonState).dispose, []);
 
   const defaultBackend = useDefaultBackend();
   const connection = PgAssistant.connection;
@@ -189,7 +174,7 @@ export function AssistantComposer({ turn }: { turn: Turn }) {
         </Callout>
       )}
       <BaseAssistantComposer
-        chips={contextChips(lessonState)}
+        chips={contextChips()}
         value={turn.input}
         onValueChange={turn.setInput}
         onSend={(text) => {

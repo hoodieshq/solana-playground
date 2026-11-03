@@ -167,9 +167,10 @@ for; tasks with "after nothing" start at once.
 
 ## 7. Cleanup
 
-- [ ] 7.1 Retire the lesson band, rail, reader and phone bar, `PgLesson`'s
+- [x] 7.1 Retire the lesson band, rail, reader and phone bar, `PgLesson`'s
       key and `migrate.ts`, and the assistant's lesson suggestions
       (`SUGGESTIONS.lesson`), its "Step n of m" chip and `lesson-context.ts`,
       per the `client-v2-lessons` delta. Verify also the delta's "Suggestions
       outside a tutorial". Verify: `yarn run check` passes and no import of `views/flow/lessons` remains
-      (HOO-2365; fleet; XS 0.5; after 3.3, 6.2)
+      (HOO-2365; fleet; XS 0.5; after 3.3, 6.2). Plan:
+      [7.1-retire-lesson-layer](plans/7.1-retire-lesson-layer.md)
