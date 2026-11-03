@@ -203,26 +203,22 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
 
       return { ...item, isSelected };
     });
+  /** Whether a top-level item shows for what was typed */
+  const isShownOnTop = (item: NormalizedItem) => {
+    if (filter) {
+      return filter({ input: props.value, item, items: normalizedItems || [] });
+    }
+    if (item.onlyShowIfValid) return isValid(getItemValue(item));
+
+    // Show all options if the input is valid
+    if (isValid(props.value)) return true;
+
+    return isMatchFor(props.value)(item);
+  };
   const topRows: Row[] | undefined = normalizedItems
-    ? (filter
-        ? normalizedItems.filter((item) =>
-            filter({
-              input: props.value,
-              item,
-              items: normalizedItems,
-            })
-          )
-        : normalizedItems.filter((item) => {
-            if (item.onlyShowIfValid) {
-              return isValid(getItemValue(item));
-            }
-
-            // Show all options if the input is valid
-            if (isValid(props.value)) return true;
-
-            return matchesQuery(props.value)(item);
-          })
-      ).map((item) => ({ key: item.label, item }))
+    ? normalizedItems
+        .filter(isShownOnTop)
+        .map((item) => ({ key: item.label, item }))
     : undefined;
 
   // Typing on the top level also searches inside the groups, so an entry
@@ -253,7 +249,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
                 !child.items &&
                 !child.DropdownComponent &&
                 !child.onlyShowIfValid &&
-                matchesQuery(props.value)(withValueMatch(child))
+                isMatchFor(props.value)(withValueMatch(child))
             )
             .map(({ child, index }) => ({
               // Two entries of a group can share a label (feeds of one name)
@@ -657,7 +653,7 @@ const normalizeItem = (item: Item): NormalizedItem => {
 type Row = { key: string; item: NormalizedItem; group?: NormalizedItem };
 
 /** Whether `item` matches what was typed: its `matches`, else its label */
-const matchesQuery = (query: string) => (item: NormalizedItem) => {
+const isMatchFor = (query: string) => (item: NormalizedItem) => {
   if (typeof item.matches === "function") return item.matches(query);
 
   const matches = item.matches ?? [item.label];

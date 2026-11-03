@@ -359,7 +359,7 @@ describe("components/SearchBar", () => {
     expect(lastLabels(setSelectedItems)).toEqual(["Pyth", "Crypto.SOL/USD"]);
   });
 
-  it("a group that fails to load while typing is skipped, not reported", async () => {
+  it("skips a group that fails to load while typing, without reporting it", async () => {
     failures.actions.length = 0;
     render(
       <Harness
@@ -378,7 +378,7 @@ describe("components/SearchBar", () => {
     expect(failures.actions).toEqual([]);
   });
 
-  it("Enter on a nested match picks it with its group", async () => {
+  it("picks a nested match with its group on Enter", async () => {
     const setSelectedItems = vi.fn();
     render(
       <Harness
