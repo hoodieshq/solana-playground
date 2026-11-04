@@ -6,7 +6,8 @@ import BasePhoneHome from "./BasePhoneHome";
 
 // The entity's entry reaches the store; these tests need only its cover
 vi.mock("@/entities/tutorial", async () => ({
-  TutorialCover: (await import("@/entities/tutorial/ui/TutorialCover")).default,
+  TutorialCover: (await import("@/entities/tutorial/ui/art/TutorialCover"))
+    .default,
 }));
 
 const props = (): BasePhoneHomeProps => ({
@@ -69,8 +70,7 @@ it("leads the tutorial's quick start with its cover, the rest with a tile", () =
   const [project, , tutorial] = nav.getAllByRole("button");
   const cover = tutorial.firstElementChild as HTMLElement;
   expect(cover.getAttribute("aria-hidden")).toBe("true");
-  // TutorialCover's deep ground, which an Anchor tutorial gets
-  expect(cover.style.backgroundColor).toBe("rgb(104, 88, 210)");
+  expect(cover.querySelector("svg")?.classList).toContain("lucide-anchor");
   expect((project.firstElementChild as HTMLElement).style.backgroundColor).toBe(
     ""
   );

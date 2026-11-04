@@ -13,7 +13,8 @@ import BaseHome from "./BaseHome";
 
 // The entity's entry reaches the store; these tests need only its cover
 vi.mock("@/entities/tutorial", async () => ({
-  TutorialCover: (await import("@/entities/tutorial/ui/TutorialCover")).default,
+  TutorialCover: (await import("@/entities/tutorial/ui/art/TutorialCover"))
+    .default,
 }));
 
 const tutorial = (name: string): HomeTutorial => ({
@@ -72,7 +73,7 @@ it("shows four of the tutorials and links to all of them", () => {
   expect(p.onAllTutorials).toHaveBeenCalledTimes(1);
 });
 
-it("draws a tutorial's brand cover, on its framework's ground", () => {
+it("draws a tutorial's brand cover with the lesson's icon", () => {
   const home = draw(props());
   const media = home
     .getByRole("button", { name: "Hello Anchor" })
@@ -81,8 +82,7 @@ it("draws a tutorial's brand cover, on its framework's ground", () => {
   expect(media?.querySelector("img")).toBeNull();
   const cover = media?.firstElementChild as HTMLElement | null;
   expect(cover?.getAttribute("aria-hidden")).toBe("true");
-  // TutorialCover's deep ground, which an Anchor tutorial gets
-  expect(cover?.style.backgroundColor).toBe("rgb(104, 88, 210)");
+  expect(cover?.querySelector("svg")?.classList).toContain("lucide-anchor");
 });
 
 it("writes a tutorial's level and framework as one plain line", () => {
