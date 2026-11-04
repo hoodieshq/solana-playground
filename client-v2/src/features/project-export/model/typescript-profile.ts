@@ -401,26 +401,29 @@ const withMissing = (
 
 /**
  * A project's own `package.json`, completed with what the profile's would
- * hold: every field, script, config entry and package it already has is
+ * hold: every field, script, config entry (but `config.client`, below) and
+ * package it already has is
  * kept as it is, and only the missing ones are added, so `npm install` and
  * `npm run client` work with the converted code. `type` is set only when
  * absent: the project chose its module system. `config.client` comes only
  * with the `client` script it serves, and replaces the project's own then,
  * since that script reads it.
  *
- * @param own the project's `package.json`
  * @param ours the one the profile would write
+ * @param own the project's `package.json`
  * @returns the file to write, the scripts it held already, and whether it was
  * kept as it is: when it is not JSON, not an object, or holds a field the
  * profile fills in (`OBJECT_FIELDS`) that is not an object
  */
-const completePackageJson =
-  (own: string) => (ours: Record<string, unknown>) => {
+const completePackageJsonWith =
+  (ours: Record<string, unknown>) => (own: string) => {
     const kept = { text: own, ownScripts: [], isKept: true };
     let parsed: unknown;
     try {
       parsed = JSON.parse(own);
     } catch {
+      // Not JSON: the project's file is never destroyed, and the README
+      // says it was kept (`isPackageKept`)
       return kept;
     }
     if (!isRecord(parsed)) return kept;
@@ -474,7 +477,7 @@ const completePackageJson =
  * `package.json`, `tsconfig.json`, `README.md`, `.gitignore` and the shim,
  * `playground.ts`, added at the root. A file the project holds there already
  * is kept, except `package.json`, which is completed
- * (`completePackageJson`); a project that holds `playground` gets the shim
+ * (`completePackageJsonWith`); a project that holds `playground` gets the shim
  * under the next free name (`shimStemFor`).
  *
  * @param fetchDependencies the packages the given files use, with versions
@@ -567,7 +570,7 @@ export const toNodeProjectWith =
           ownScripts: [],
           isKept: false,
         }
-      : completePackageJson(ownPackage)(packageJson);
+      : completePackageJsonWith(packageJson)(ownPackage);
 
     const added: TupleFiles = [
       ["package.json", packageText],

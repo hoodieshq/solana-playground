@@ -94,7 +94,7 @@ SHALL run the project's client and tests with no other change.
 - **WHEN** a project with no program holds `README.md` at its root
 - **THEN** the exported `README.md` is the project's, unchanged
 
-#### Scenario: A project's own package.json is completed
+#### Scenario: A project's own package.json is completed (manual)
 - **WHEN** a project with no program holds `client/client.ts` and a root
   `package.json` with its own name, a `start` script and
   `@solana/web3.js` at its own version
@@ -102,7 +102,7 @@ SHALL run the project's client and tests with no other change.
   and that version, and adds `type: module`, the `client` script and `tsx`,
   so `npm install` and `npm run client` run the client
 
-#### Scenario: A project's own playground.ts is kept
+#### Scenario: A project's own playground.ts is kept (manual)
 - **WHEN** a project with no program holds a root `playground.ts` of its own
 - **THEN** that file is exported unchanged, the shim is
   `playground-shim.ts`, and the client imports `pg` from
