@@ -168,11 +168,18 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   };
   const openFile = (path: string, via: "tab" | "tree") => {
     setTreeOpen(false);
-    if (path === open) return;
-    PgExplorer.openFile(PgExplorer.convertToFullPath(path));
     // From the tree's popover, which keeps focus from an open (see
-    // `leavesFocusElsewhere`): the pick itself asks for the editor
-    if (via === "tree") PgEditor.focus();
+    // `leavesFocusElsewhere`): the pick itself asks for the editor, also when
+    // its file is the one already open
+    const pickFocus = () => {
+      if (via === "tree") PgEditor.focus();
+    };
+    if (path === open) {
+      pickFocus();
+      return;
+    }
+    PgExplorer.openFile(PgExplorer.convertToFullPath(path));
+    pickFocus();
     tutorialWorkspaceTelemetry.track("tutorial_workspace_file_opened", { via });
   };
 
