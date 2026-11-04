@@ -85,7 +85,9 @@ const SetupList = ({
     return done ? { step, done, value } : { step, done };
   });
   const done = steps.filter(counts).length;
-  const allDone = done === steps.length;
+  // Every step done, not every step counted: a warning network counts in
+  // "n of 4" but needs the user still, and completing hides the list for good
+  const allDone = steps.every((view) => view.done);
 
   useEffect(() => {
     if (!allDone || setupMarks.get().completed) return;
