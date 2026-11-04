@@ -29,7 +29,7 @@ None: nothing visible changes.
 2. `shimStemFor(paths)`: the first of `playground`, `playground-shim`,
    `playground-shim-<n>` no root file or folder resolves; thread it through
    `convertScriptWith` and `shimImport`.
-3. `completePackageJson(own)(ours)`; `toNodeProjectWith` writes its text in
+3. `completePackageJsonWith(ours)(own)`; `toNodeProjectWith` writes its text in
    place of the project's `package.json`.
 4. Verify: unit tests; generate the four cases with the real profile,
    `npm install`, `npm run client` against devnet with a fresh keypair, and
