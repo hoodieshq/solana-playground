@@ -4,6 +4,7 @@
  * with the same lines.
  */
 export {
+  ACCOUNT_LIMITS,
   checkProjectLimits,
   isSyncedPath,
   limitExceeded,

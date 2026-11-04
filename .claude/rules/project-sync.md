@@ -179,6 +179,17 @@ when a session reads a file matching the `paths` in the frontmatter.
   with `reason: "no-files"` (`NO_FILES_REASON`), never a 409; the browser
   only meets it against a row emptied before the server checked, and answers
   with its whole file set once (`_push`, `whole`).
+- **The account cap is the server's alone.** An account syncs at most
+  `ACCOUNT_LIMITS` projects and tutorials, counted apart: live rows of the
+  kind holding a synced file. `writeProject` counts only for a write that
+  makes a project count (a create, or a swap whose `had_files` is false),
+  after its writes, under a per-account `pg_advisory_xact_lock` taken in a
+  statement of its own so the count's snapshot starts after the wait. Over
+  the cap it is a 413 `too-many-projects`, which the client raises as a
+  `too-large` `Conflict` with the limit: no mark is written, so the project
+  stays local through reconcile and sign-out, and the outstanding question
+  stops its pushes until "Try again". The client never counts and the
+  explorer never refuses a project for the cap.
 - **`/api/projects` still takes the pre-#40 client's body.** A tab open
   across that deploy sends `{snapshot: {files}, baseUpdatedAt, force: false}`
   and drops every status but 409 and 413 silently, so `describeWrite` reads
