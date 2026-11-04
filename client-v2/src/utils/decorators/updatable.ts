@@ -168,9 +168,11 @@ export function updatable<T extends Record<string, any>>(params: {
           let value;
           try {
             value = PgCommon.getValue(state, migration.from);
-            // A stored `null` is no value to carry over: the new id keeps its
-            // own value or takes its default
-            if (value === undefined || value === null) continue;
+            const fallback = PgCommon.getValue(
+              params.defaultState,
+              migration.to
+            );
+            if (!canMigrate(fallback, value)) continue;
           } catch {
             // The value has already been migrated
             continue;
@@ -254,6 +256,17 @@ export function updatable<T extends Record<string, any>>(params: {
     };
   };
 }
+
+/**
+ * Whether a stored value may move to a new id with this default. Anything else
+ * is no value to carry over, so the new id keeps its own value or takes its
+ * default: `setMissingDefaults` throws on a `null` and writes the characters of
+ * a string default onto an object. A `null` default accepts any type.
+ */
+const canMigrate = (fallback: unknown, value: unknown) => {
+  if (value === undefined || value === null) return false;
+  return fallback === null || typeof value === typeof fallback;
+};
 
 /** Define proxy setters for properties recursively. */
 const recursivelyDefineSetters = (sClass: any, accessor: string[]) => {
@@ -409,6 +422,16 @@ if (import.meta.vitest) {
 
       expect(sClass[PROPS.INTERNAL_STATE]).toEqual({
         blockExplorer: { name: "Solscan" },
+      });
+    });
+
+    it("loads the default when the old id holds an object", async () => {
+      const sClass = settingsWith({ other: { blockExplorer: {} } });
+
+      await sClass[PROPS.REFRESH]();
+
+      expect(sClass[PROPS.INTERNAL_STATE]).toEqual({
+        blockExplorer: { name: "Solana Explorer" },
       });
     });
 
