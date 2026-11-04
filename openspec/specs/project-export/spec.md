@@ -59,7 +59,15 @@ export" and "Export without changes" SHALL keep their labels in both.
 The TypeScript profile SHALL keep every file of the project at its path and
 SHALL add, at the root, `package.json`, `tsconfig.json`, `README.md`,
 `.gitignore` and `playground.ts`, leaving out any of them the project
-already holds at that path. `package.json` SHALL be an ES module package
+already holds at that path, except two. A project's own `package.json`
+SHALL be completed, not replaced: every field, script and package it
+declares SHALL stay as it is, and the scripts, packages and `engines` the
+profile would write SHALL be added where missing, and `type` only when it
+has none; one that is not a JSON object SHALL be kept as it is. When the
+project holds `playground` at the root under any name an import of
+`../playground` resolves to, the shim SHALL be written as
+`playground-shim.ts`, or the first free `playground-shim-<n>.ts`, and the
+scripts and the README SHALL name that file. `package.json` SHALL be an ES module package
 whose dependencies are the packages the code imports or uses as Playground
 globals, except `assert` and `buffer`, which Node provides, plus
 `@solana/web3.js`, and SHALL hold the script `client`, which
@@ -68,7 +76,7 @@ which runs every script under `tests/` with mocha, when `tests/` holds one.
 Every TypeScript or JavaScript file under `client/` and `tests/` SHALL
 import the Playground globals it uses (`web3`, `anchor`, `BN`, `assert`,
 `borsh`, `BufferLayout`) from their packages, and `pg` and `sleep` from
-`playground.ts`. After `npm install`, `npm run client` and `npm test`
+the shim. After `npm install`, `npm run client` and `npm test`
 SHALL run the project's client and tests with no other change.
 
 #### Scenario: A client and its tests run locally (manual)
@@ -82,6 +90,20 @@ SHALL run the project's client and tests with no other change.
 #### Scenario: A project's own README is kept (manual)
 - **WHEN** a project with no program holds `README.md` at its root
 - **THEN** the exported `README.md` is the project's, unchanged
+
+#### Scenario: A project's own package.json is completed
+- **WHEN** a project with no program holds `client/client.ts` and a root
+  `package.json` with its own name, a `start` script and
+  `@solana/web3.js` at its own version
+- **THEN** the exported `package.json` keeps the name, the `start` script
+  and that version, and adds `type: module`, the `client` script and `tsx`,
+  so `npm install` and `npm run client` run the client
+
+#### Scenario: A project's own playground.ts is kept
+- **WHEN** a project with no program holds a root `playground.ts` of its own
+- **THEN** that file is exported unchanged, the shim is
+  `playground-shim.ts`, and the client imports `pg` from
+  `../playground-shim`
 
 ### Requirement: The exported code chooses its cluster and wallet locally
 

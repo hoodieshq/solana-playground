@@ -6,7 +6,7 @@ import type { TupleFiles } from "@/utils";
  * at the root, in order: `playground`, then `playground-shim`,
  * `playground-shim-2` and on, when the project holds that name already
  */
-const SHIM_STEMS = (n: number) =>
+const shimStemAt = (n: number) =>
   n === 0 ? "playground" : n === 1 ? "playground-shim" : `playground-shim-${n}`;
 
 /** The extensions an extensionless import can resolve to */
@@ -29,8 +29,8 @@ const shimStemFor = (paths: string[]) => {
           RESOLVED_EXTENSION_REGEX.test(path.slice(stem.length)))
     );
   let n = 0;
-  while (isTaken(SHIM_STEMS(n))) n++;
-  return SHIM_STEMS(n);
+  while (isTaken(shimStemAt(n))) n++;
+  return shimStemAt(n);
 };
 
 /** The variable that names the cluster `pg.connection` connects to */
@@ -398,7 +398,7 @@ const withMissing = (
  * is
  */
 const completePackageJson =
-  (own: string) => (ours: Record<string, Record<string, string> | string>) => {
+  (own: string) => (ours: Record<string, unknown>) => {
     const kept = { text: own, ownScripts: ["client", "test"] };
     let parsed: unknown;
     try {
@@ -418,7 +418,7 @@ const completePackageJson =
 
     const oursField = (name: string) => {
       const value = ours[name];
-      return typeof value === "object" ? value : {};
+      return isRecord(value) ? value : {};
     };
     const declared = new Set(
       DEPENDENCY_FIELDS.flatMap((name) => Object.keys(field(name)))
