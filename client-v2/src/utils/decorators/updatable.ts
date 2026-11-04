@@ -390,6 +390,7 @@ if (import.meta.vitest) {
     };
 
     it("loads the default when a migrated value is stored as null", async () => {
+      // eslint-disable-next-line unicorn/no-null -- the stored JSON under test holds null
       const sClass = settingsWith({ other: { blockExplorer: null } });
 
       await sClass[PROPS.REFRESH]();
@@ -400,6 +401,7 @@ if (import.meta.vitest) {
     });
 
     it("loads the default when a stored leaf is null", async () => {
+      // eslint-disable-next-line unicorn/no-null -- the stored JSON under test holds null
       const sClass = settingsWith({ blockExplorer: { name: null } });
 
       await sClass[PROPS.REFRESH]();
