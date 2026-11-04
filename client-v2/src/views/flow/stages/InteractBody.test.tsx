@@ -155,7 +155,7 @@ describe("InteractBody", () => {
       )
     );
     const history = screen.getByRole("region", { name: "Call history" });
-    expect(history.textContent).toContain("Calls you send show up here.");
+    expect(history.textContent).toContain("No calls yet");
     const columns = history.closest("[data-slot='interact-columns']");
     expect(columns).not.toBeNull();
     expect(columns?.contains(screen.getByText("form initialize"))).toBe(true);

@@ -109,7 +109,15 @@ export interface BaseDeployProps {
   onDismissBackup: () => void;
   onStaleBuildAnswer: (deploy: boolean) => void;
   onInteract: () => void;
-  /** The secondary "Upload IDL" action (`IdlActions mode="upload"`) */
+  /** Opens Settings on the network choice, from the chip over the empty stage */
+  onChangeNetwork: () => void;
+  /** Settings offers this cluster, so the stage can switch to it */
+  isNetworkOffered: (cluster: string) => boolean;
+  /** Switches the connection to an offered cluster */
+  onShowNetwork: (cluster: string) => void;
+  /** The IDL in use, by its program's name; undefined while there is none */
+  idlName: string | undefined;
+  /** The secondary "Upload IDL" action (`IdlActions mode="upload-button"`) */
   idlUpload: ReactNode;
   /**
    * The folded "Program id" block (`ProgramKeypair`): under the payer line
@@ -167,18 +175,62 @@ const payerLine = (p: BaseDeployProps) => {
  * own.
  */
 const description = (p: BaseDeployProps, latest: DeployRecord | undefined) => {
-  if (!p.built) {
-    return "Build the program first \u2014 the stepper unlocks Deploy once it compiles cleanly.";
-  }
+  if (!p.built) return "Build the program first.";
   if (latest) {
     return "The program id stays constant across deploys; redeploying upgrades it in place.";
   }
-  // Said only once the network is known: until then there is no "here" to
-  // set against the others
-  if (p.cluster && p.history.length > 0) {
-    return "Each network keeps its own deployments.";
-  }
   return `Deploying sends the compiled program to ${deployNetwork(p)}.`;
+};
+
+/**
+ * The newest deployment on another network, while the network picked has
+ * none (Spec 08's EMPTY-14). Said only once the network is known: until then
+ * there is no "here" to set against the others.
+ */
+const deployedElsewhere = (
+  p: BaseDeployProps,
+  latest: DeployRecord | undefined
+) =>
+  latest === undefined && p.cluster
+    ? p.history.find((r) => r.cluster !== p.cluster)
+    : undefined;
+
+/** The stage's title: "Nothing on testnet" while only other networks have deployments */
+const title = (p: BaseDeployProps, latest: DeployRecord | undefined) => {
+  if (latest) return "Deploy";
+  if (p.built && deployedElsewhere(p, latest)) {
+    return `Nothing on ${networkInSentence(p.cluster) ?? UNKNOWN_NETWORK}`;
+  }
+  return "Nothing deployed yet";
+};
+
+/**
+ * EMPTY-14's line, with Show {network} in it as a link when Settings offers
+ * that network: the pill keeps the stage's one way on, and the link sits with
+ * the sentence it answers
+ */
+const ElsewhereLine = ({
+  p,
+  elsewhere,
+}: {
+  p: BaseDeployProps;
+  elsewhere: DeployRecord;
+}) => {
+  const where = networkInSentence(elsewhere.cluster) ?? UNKNOWN_NETWORK;
+  return (
+    <StageEmptyDescription>
+      {`This project has deploys on ${where}. `}
+      {p.isNetworkOffered(elsewhere.cluster) && (
+        <Button
+          variant="link"
+          className="inline h-auto p-0 align-baseline text-[length:inherit] text-foreground"
+          onClick={() => p.onShowNetwork(elsewhere.cluster)}
+        >
+          {`Show ${where}`}
+        </Button>
+      )}
+    </StageEmptyDescription>
+  );
 };
 
 /** An Explorer link whose text names the network it opens */
@@ -193,10 +245,17 @@ const ExplorerLink = ({
   children: ReactNode;
   className?: string;
 }) => (
-  <Button size="sm" variant="ghost" className={className} asChild>
+  // The icon at cap height with a little air, not 14px squeezed against the text
+  <Button
+    size="sm"
+    variant="ghost"
+    className={cn("gap-1.5", className)}
+    asChild
+  >
     <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label}>
-      {children}
-      <ExternalLink data-icon="inline-end" />
+      {/* One flex item, so the gap sits only before the icon */}
+      <span>{children}</span>
+      <ExternalLink data-icon="inline-end" className="size-3" />
     </a>
   </Button>
 );
@@ -306,11 +365,10 @@ const HistoryLink = ({ p, r }: { p: BaseDeployProps; r: DeployRecord }) => {
   return (
     <ExplorerLink
       href={href}
-      // On a phone the link takes a row of its own, under the id
-      className="max-md:col-start-2 max-md:justify-self-start"
+      className="-mr-2"
       label={`View deployment (${r.programId}) on Explorer (${network})`}
     >
-      Explorer ({network})
+      Explorer<span className="max-md:hidden"> ({network})</span>
     </ExplorerLink>
   );
 };
@@ -321,21 +379,35 @@ const HistoryLink = ({ p, r }: { p: BaseDeployProps; r: DeployRecord }) => {
  * so a deployment elsewhere is never hidden
  */
 const History = ({ p }: { p: BaseDeployProps }) => (
-  <section aria-label="History" className="flex w-full flex-col gap-2">
-    <h3 className="text-caption font-act text-muted-foreground">History</h3>
-    <ul className="flex flex-col divide-y divide-border">
+  // A card of rows like the summary's, read from the left: the network, the
+  // program and when, its Explorer link at the end
+  <section
+    aria-label="History"
+    className="flex w-full max-w-[28rem] shrink-0 flex-col gap-2 text-left"
+  >
+    <h3 className="m-0 px-1 text-caption font-act text-muted-foreground">
+      History
+    </h3>
+    <ul className="m-0 flex list-none flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface-panel p-0">
       {p.history.map((r) => (
         <li
           key={r.id}
-          className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-3 py-1.5 text-caption max-md:grid-cols-[5.5rem_1fr]"
+          className="flex min-h-10 items-center gap-3 px-4 py-3 text-caption"
         >
-          <Badge variant="outline" className="font-mono">
+          <Badge variant="outline" className="shrink-0 font-mono">
             {networkName(r.cluster)}
           </Badge>
-          <span className="min-w-0 truncate font-mono" title={r.programId}>
-            {r.programId.slice(0, 8)}&hellip;{r.programId.slice(-4)}
-            <span className="ml-3 text-subtle">
-              {new Date(r.at).toLocaleString()}
+          {/* The id over its time, so neither is cut to a stray mark in a
+              narrow stage; the Explorer link keeps the row's end */}
+          <span className="flex min-w-0 flex-1 flex-col gap-1 leading-none">
+            <span className="truncate font-mono" title={r.programId}>
+              {r.programId.slice(0, 8)}&hellip;{r.programId.slice(-4)}
+            </span>
+            <span className="truncate text-subtle">
+              {new Date(r.at).toLocaleString(undefined, {
+                dateStyle: "short",
+                timeStyle: "short",
+              })}
             </span>
           </span>
           <HistoryLink p={p} r={r} />
@@ -343,6 +415,81 @@ const History = ({ p }: { p: BaseDeployProps }) => (
       ))}
     </ul>
   </section>
+);
+
+/** A row of the summary: what, then its value at the right */
+const SummaryRow = ({
+  name,
+  label,
+  children,
+}: {
+  name: string;
+  label?: string;
+  children: ReactNode;
+}) => (
+  <div
+    aria-label={label}
+    className="flex min-h-10 items-center justify-between gap-4 px-4 py-2"
+  >
+    <dt className="shrink-0 text-caption text-muted-foreground">{name}</dt>
+    <dd className="flex min-w-0 items-center gap-1.5 text-caption leading-none text-foreground">
+      {children}
+    </dd>
+  </div>
+);
+
+/**
+ * Before the first deploy on the network picked (Spec 08's EMPTY-03, Spec
+ * 03's "Deploy stage before a deploy"): the facts of the deploy in one card of
+ * rows, as review screens set them (PayPal, Remote, v0), not a stack of
+ * centred lines. The network row carries Change; the IDL in use is a fact
+ * here, not a note beside its button; who pays closes the card in Spec 03's
+ * words.
+ */
+const BeforeDeploySummary = ({
+  p,
+  running,
+}: {
+  p: BaseDeployProps;
+  running: boolean;
+}) => (
+  // 24 px under the title and its line (the stage's 16 and 8 more): the
+  // facts are a group of their own
+  <div className="mt-2 w-full max-w-[28rem] shrink-0 overflow-hidden rounded-xl border border-border bg-surface-panel text-left">
+    <dl className="m-0 divide-y divide-border">
+      {p.cluster && (
+        <SummaryRow name="Network" label="Network">
+          <StatusDot />
+          {networkName(p.cluster)}
+          <Button
+            variant="link"
+            size="xs"
+            // The value's own type and line, no edge, on the row's baseline;
+            // the link's colour, so the action reads apart from the fact
+            className="ml-2 h-auto border-0 px-1 py-0 text-[length:inherit] leading-[inherit]"
+            onClick={p.onChangeNetwork}
+          >
+            Change
+          </Button>
+        </SummaryRow>
+      )}
+      {p.idlName && (
+        <SummaryRow name="IDL">
+          <code className="min-w-0 truncate font-mono">{p.idlName}</code>
+        </SummaryRow>
+      )}
+    </dl>
+    {p.built && !running && (
+      <p
+        aria-label="Who pays"
+        className="m-0 border-t border-border px-4 py-2.5 text-caption font-read text-muted-foreground"
+      >
+        {payerLine(p)}
+      </p>
+    )}
+    {/* The last row: the program id, which unfolds into its keypair */}
+    <div className="border-t border-border">{p.programKeypair}</div>
+  </div>
 );
 
 /**
@@ -383,12 +530,17 @@ const BaseDeploy = (p: BaseDeployProps) => {
   const onNetwork = p.history.filter((r) => r.cluster === p.cluster);
   const latest = onNetwork[0];
   const n = onNetwork.length;
-  const meta = [
-    p.cluster && networkName(p.cluster),
-    latest && `${n} deployment${n === 1 ? "" : "s"}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // Before the first deploy here the network chip names the network, with
+  // Change; after one the meta line names it and counts the deployments
+  const meta = latest
+    ? [
+        p.cluster && networkName(p.cluster),
+        `${n} deployment${n === 1 ? "" : "s"}`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
+  const elsewhere = p.built ? deployedElsewhere(p, latest) : undefined;
   const running = p.deploy === "running";
 
   return (
@@ -399,17 +551,17 @@ const BaseDeploy = (p: BaseDeployProps) => {
             <Rocket />
           </StageEmptyMedia>
         )}
-        <StageEmptyTitle>
-          {latest ? "Deploy" : "Nothing deployed yet"}
-        </StageEmptyTitle>
+        <StageEmptyTitle>{title(p, latest)}</StageEmptyTitle>
         {meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
-        <StageEmptyDescription>{description(p, latest)}</StageEmptyDescription>
-        {p.built && !latest && p.programId && (
-          <p className="text-caption text-muted-foreground">
-            Program id <code className="font-mono">{p.programId}</code>
-          </p>
+        {elsewhere ? (
+          <ElsewhereLine p={p} elsewhere={elsewhere} />
+        ) : (
+          <StageEmptyDescription>
+            {description(p, latest)}
+          </StageEmptyDescription>
         )}
-        {p.built && !running && (
+        {!latest && <BeforeDeploySummary p={p} running={running} />}
+        {latest && p.built && !running && (
           <p
             aria-label="Who pays"
             className="text-caption text-muted-foreground"
@@ -417,7 +569,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
             {payerLine(p)}
           </p>
         )}
-        {!latest && p.programKeypair}
+
         {p.funding && (
           <BaseNotEnoughSol
             cluster={p.cluster ?? undefined}
@@ -448,12 +600,35 @@ const BaseDeploy = (p: BaseDeployProps) => {
         )}
         {latest && <DeployResult latest={latest} p={p} />}
         {p.history.length > 0 && <History p={p} />}
-        {latest && p.programKeypair}
+        {latest && (
+          // After a deploy the id's row stands alone, in the summary's card
+          <div className="w-full max-w-[28rem] shrink-0 overflow-hidden rounded-xl border border-border bg-surface-panel text-left">
+            {p.programKeypair}
+          </div>
+        )}
         <BaseStaleBuildDialog
           open={p.staleBuild}
           onAnswer={p.onStaleBuildAnswer}
         />
-        <StageEmptyActions className={cn(STAGE_FOOT, !latest && "flex-col")}>
+        {/* The other two ways on, one kind of button: outlines in the
+            pill's height and shape. On a desk they follow the pill (`order`);
+            on a phone they stay in the page, above the foot, and only the
+            pill is pinned, as review screens pin their one action */}
+        <div className="flex flex-wrap items-center justify-center gap-2 md:order-last max-md:grid max-md:w-full max-md:grid-cols-2 max-md:[&_[data-variant=outline]]:w-full max-md:[&_[data-variant=outline]]:px-3 max-md:[&_button]:text-sm! max-md:[&>span]:w-full max-md:[&>span>div]:w-full [&_[data-variant=outline]]:h-10 [&_[data-variant=outline]]:rounded-full [&_[data-variant=outline]]:px-5">
+          {p.idlUpload}
+          <Button
+            variant="outline"
+            onClick={() => p.onOpenCliGuide("deploy-stage")}
+          >
+            Deploy with the CLI
+          </Button>
+        </div>
+        <StageEmptyActions
+          // On a phone the foot is solid, so the history scrolling under it
+          // never shows through; no rule, which over an empty stage only
+          // cut the pill off from the page
+          className={cn(STAGE_FOOT, "max-md:bg-background max-md:bg-none")}
+        >
           {running && p.run.step && <BaseDeployProgress state={p.run} />}
           <BrandButton
             disabled={!p.built || running}
@@ -464,19 +639,6 @@ const BaseDeploy = (p: BaseDeployProps) => {
             {deployLabel(p, latest !== undefined)}
             {!running && <BrandButtonIcon />}
           </BrandButton>
-          {/* Upload IDL and the CLI guide: before the first deploy on this network, centred
-              under the pill on a desk and above it on a phone, where the row
-              stretches the pill to the screen's width; after one, beside the
-              pill */}
-          <div className="flex flex-wrap justify-center gap-2">
-            {p.idlUpload}
-            <Button
-              variant="ghost"
-              onClick={() => p.onOpenCliGuide("deploy-stage")}
-            >
-              Deploy with the CLI
-            </Button>
-          </div>
         </StageEmptyActions>
       </StageEmpty>
     </div>
