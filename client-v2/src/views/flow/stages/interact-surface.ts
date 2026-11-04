@@ -38,8 +38,11 @@ export interface InteractFacts {
 export const interactSurface = (f: InteractFacts): InteractSurface => {
   if (!f.hasProject) return "no-project";
   if (!f.idl) return f.imported ? "no-idl" : "not-built";
+  // Refused first: a program id would not help, and the id's notice sends the
+  // user to Build with no word about the IDL
+  if (f.refused) return "bad-idl";
   if (!f.hasProgramId) return "no-program-id";
-  if (!Array.isArray(f.idl.instructions) || f.refused) return "bad-idl";
+  if (!Array.isArray(f.idl.instructions)) return "bad-idl";
   if (f.onChain === undefined) return "checking";
   if (!f.onChain) return "unreachable";
   if (!f.onChain.deployed) return "not-deployed";
@@ -181,6 +184,19 @@ if (import.meta.vitest) {
         ).toBe("bad-idl");
       });
 
+      it("a refused IDL is said before a missing program id", () => {
+        expect(
+          interactSurface({
+            hasProject: true,
+            idl: { instructions: [] },
+            refused: true,
+            imported: false,
+            hasProgramId: false,
+            onChain: { deployed: true },
+          })
+        ).toBe("bad-idl");
+      });
+
       it("a missing program id is said before a bad IDL", () => {
         expect(
           interactSurface({
@@ -241,7 +257,9 @@ if (import.meta.vitest) {
             { name: "initialize", discriminator: [1], accounts: [], args: [] },
           ],
         };
-        const facts = (raw: typeof idl | { name: string; instructions: [] }) =>
+        const facts = (
+          raw: typeof idl | { name: string; version: string; instructions: [] }
+        ) =>
           interactFacts(
             { isTemporary: false, currentWorkspaceName: "p" },
             {
@@ -253,7 +271,9 @@ if (import.meta.vitest) {
             }
           );
         expect(facts(idl).refused).toBe(true);
-        expect(facts({ name: "p", instructions: [] }).refused).toBe(false);
+        expect(
+          facts({ name: "p", version: "0.1.0", instructions: [] }).refused
+        ).toBe(false);
       });
 
       it("a temporary explorer counts as a project", () => {

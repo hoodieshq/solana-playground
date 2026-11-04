@@ -124,10 +124,13 @@ const InstructionInput: FC<React.PropsWithChildren<InstructionInputProps>> = ({
               // From seed
               if (
                 instructionValue.generator.type === "From seed" &&
-                instructionValue.generator.seeds.some(
-                  (seed) =>
-                    seed.generator.type === refGeneratorType &&
-                    seed.generator.name === data.name
+                [
+                  ...instructionValue.generator.seeds,
+                  instructionValue.generator.programId,
+                ].some(
+                  ({ generator: dependency }) =>
+                    dependency.type === refGeneratorType &&
+                    dependency.name === data.name
                 )
               ) {
                 const inputEl = document.getElementById(

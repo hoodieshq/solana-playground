@@ -18,7 +18,9 @@ const isV1 = (
   Array.isArray(v.instructions);
 
 const isV029 = (v: Record<string, unknown>) =>
-  typeof v.name === "string" && Array.isArray(v.instructions);
+  typeof v.name === "string" &&
+  typeof v.version === "string" &&
+  Array.isArray(v.instructions);
 
 const NOT_AN_IDL: IdlReading = {
   kind: "refused",

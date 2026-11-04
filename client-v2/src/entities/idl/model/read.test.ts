@@ -131,16 +131,20 @@ describe("entities/idl/model/read", () => {
   });
 
   // eslint-disable-next-line unicorn/no-null -- a JSON `null` is one of the raw inputs under test
-  it.each([null, {}, { instructions: 1 }, "idl", { address: "x" }])(
-    "refuses %j as not an Anchor IDL",
-    (raw) => {
-      expect(readIdl(raw)).toEqual({
-        kind: "refused",
-        version: undefined,
-        reason: "not an Anchor IDL",
-      });
-    }
-  );
+  it.each([
+    null,
+    {},
+    { instructions: 1 },
+    "idl",
+    { address: "x" },
+    { name: "x", instructions: [] },
+  ])("refuses %j as not an Anchor IDL", (raw) => {
+    expect(readIdl(raw)).toEqual({
+      kind: "refused",
+      version: undefined,
+      reason: "not an Anchor IDL",
+    });
+  });
 
   it("reads the same object to the same conversion", () => {
     expect(legacy(pda)).toBe(legacy(pda));
