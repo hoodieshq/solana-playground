@@ -96,5 +96,5 @@ console.log(
   `Synced ${sourceFiles.length} files from ${path.relative(primaryRoot, SOURCE_PATH)}@${commit}` +
     `, dated ${Object.keys(timestamps).length} tutorials` +
     `, overlaid ${overlaid.length} from client-v2/static (${overlaid.join(", ")})` +
-    ", pointed index.html at the brand icons"
+    ", pointed index.html at the brand icons and share card"
 );

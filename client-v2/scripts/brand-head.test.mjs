@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
 import { test } from "node:test";
 
-import { BRAND_HEAD, brandHead } from "./brand-head.mjs";
+import { BRAND_HEAD, SITE_URL, brandHead } from "./brand-head.mjs";
 
 /** Upstream's `client/public/index.html` head, as mirrored */
 const UPSTREAM = `<!DOCTYPE html>
@@ -80,7 +81,7 @@ test("upstream's icons go whatever their quoting, case or rel tokens", () => {
   );
 
   assert.doesNotMatch(html, /old\.ico|logo192|#000000/);
-  assert.equal(iconTags(html).length, BRAND_HEAD.length);
+  assert.equal(iconTags(html).length, iconTags(BRAND_HEAD.join("")).length);
 });
 
 test("a tag split over lines goes too", () => {
@@ -98,13 +99,90 @@ test("an icon tag the strip cannot remove fails instead of shipping beside ours"
     '<link rel="icon" href="/old.png" /><title>'
   );
 
-  assert.throws(
-    () => brandHead(shared),
-    /icon link or theme-color the rewrite did not remove/
-  );
+  assert.throws(() => brandHead(shared), /the rewrite did not remove/);
 });
 
 test("a page whose head it cannot place the block in fails loudly", () => {
   assert.throws(() => brandHead("<html><head></head></html>"), /meta charset/);
   assert.throws(() => brandHead('<meta charset="utf-8" />'), /<\/head>/);
+});
+
+const DESCRIPTION = "Write, build and deploy Solana programs in your browser.";
+const ALT =
+  "Solana Playground logo on a dark background with the line: " + DESCRIPTION;
+
+/** The share card the spec names, as `[attribute, key, content]` */
+const CARD = [
+  ["property", "og:type", "website"],
+  ["property", "og:site_name", "Solana Playground"],
+  ["property", "og:title", "Solana Playground"],
+  ["property", "og:description", DESCRIPTION],
+  ["property", "og:url", `${SITE_URL}/`],
+  ["property", "og:image", `${SITE_URL}/og.png`],
+  ["property", "og:image:type", "image/png"],
+  ["property", "og:image:width", "1200"],
+  ["property", "og:image:height", "630"],
+  ["property", "og:image:alt", ALT],
+  ["name", "twitter:card", "summary_large_image"],
+  ["name", "twitter:title", "Solana Playground"],
+  ["name", "twitter:description", DESCRIPTION],
+  ["name", "twitter:image", `${SITE_URL}/og.png`],
+  ["name", "twitter:image:alt", ALT],
+];
+
+const cardTags = (html) =>
+  html.match(/<meta\b[^>]*(?:property="og:|name="twitter:)[^>]*>/g) ?? [];
+
+test("the head carries the share card, each tag once", () => {
+  const html = brandHead(UPSTREAM);
+
+  assert.deepEqual(
+    cardTags(html),
+    CARD.map(
+      ([attr, key, content]) => `<meta ${attr}="${key}" content="${content}" />`
+    )
+  );
+});
+
+test("every card URL is absolute, on the production base", () => {
+  assert.match(SITE_URL, /^https:\/\/[^/]+$/);
+  for (const tag of cardTags(brandHead(UPSTREAM))) {
+    assert.doesNotMatch(tag, /%PUBLIC_URL%/);
+  }
+});
+
+test("the card keeps upstream's title and description", () => {
+  const html = brandHead(UPSTREAM);
+
+  assert.ok(html.includes("<title>Solana Playground | Solana IDE</title>"));
+  assert.ok(html.includes("Easily Build, Deploy and Test Solana Programs"));
+});
+
+test("an upstream card tag gives way to ours", () => {
+  const html = brandHead(
+    UPSTREAM.replace(
+      "<title>",
+      '<meta property="og:title" content="Old" />\n    <meta\n      name="twitter:card"\n      content="summary"\n    />\n    <title>'
+    )
+  );
+
+  assert.doesNotMatch(html, /"Old"|"summary"/);
+  assert.equal(cardTags(html).length, CARD.length);
+});
+
+test("an upstream card tag the strip cannot remove fails instead of shipping beside ours", () => {
+  const shared = UPSTREAM.replace(
+    "<title>",
+    '<meta name="twitter:card" content="summary" /><title>'
+  );
+
+  assert.throws(() => brandHead(shared), /did not remove/);
+});
+
+test("the share image is a 1200x630 PNG in static/", async () => {
+  const png = await fs.readFile(new URL("../static/og.png", import.meta.url));
+
+  assert.equal(png.subarray(1, 4).toString("latin1"), "PNG");
+  assert.equal(png.readUInt32BE(16), 1200);
+  assert.equal(png.readUInt32BE(20), 630);
 });
