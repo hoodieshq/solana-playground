@@ -534,7 +534,7 @@ describe("Deploy stage", () => {
     mocks.signIn.mockImplementation(async () => {
       utils.PgExplorer.currentWorkspaceName = "other";
     });
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
     await act(async () =>
