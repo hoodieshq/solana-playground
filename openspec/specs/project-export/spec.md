@@ -63,11 +63,14 @@ already holds at that path, except two. A project's own `package.json`
 SHALL be completed, not replaced: every field, script and package it
 declares SHALL stay as it is, and the scripts, packages and `engines` the
 profile would write SHALL be added where missing, and `type` only when it
-has none; one that is not a JSON object SHALL be kept as it is. When the
+has none; one that is not JSON, not an object, or holds `scripts`,
+`config`, `engines` or a dependency field that is not an object SHALL be
+kept as it is, and the README SHALL say so. When the
 project holds `playground` at the root under any name an import of
 `../playground` resolves to, the shim SHALL be written as
 `playground-shim.ts`, or the first free `playground-shim-<n>.ts`, and the
-scripts and the README SHALL name that file. `package.json` SHALL be an ES module package
+scripts and the README SHALL name that file. The `package.json` the profile
+writes SHALL be an ES module package
 whose dependencies are the packages the code imports or uses as Playground
 globals, except `assert` and `buffer`, which Node provides, plus
 `@solana/web3.js`, and SHALL hold the script `client`, which
@@ -107,7 +110,7 @@ SHALL run the project's client and tests with no other change.
 
 ### Requirement: The exported code chooses its cluster and wallet locally
 
-`playground.ts` SHALL connect to the URL in the environment variable
+The shim SHALL connect to the URL in the environment variable
 `SOLANA_RPC_URL`, and without it to the public endpoint of the cluster the
 Playground was on when the project was exported
 (`https://api.devnet.solana.com`, `https://api.testnet.solana.com` or

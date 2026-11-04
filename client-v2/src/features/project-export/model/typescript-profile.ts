@@ -20,8 +20,11 @@ const RESOLVED_EXTENSION_REGEX = /^\.(?:(?:d\.)?[cm]?[jt]sx?|json)$/;
  * @returns the name, without `.ts`
  */
 const shimStemFor = (paths: string[]) => {
+  // Lowercase: a zip unpacked on macOS or Windows puts `Playground.ts` and
+  // `playground.ts` in one file
+  const lowerPaths = paths.map((path) => path.toLowerCase());
   const isTaken = (stem: string) =>
-    paths.some(
+    lowerPaths.some(
       (path) =>
         path === stem ||
         path.startsWith(`${stem}/`) ||
@@ -308,6 +311,7 @@ const readme = (opts: {
   hasTests: boolean;
   shimPath: string;
   ownScripts: string[];
+  isPackageKept: boolean;
 }) => {
   const isOwn = (script: string) => opts.ownScripts.includes(script);
   const run = [
@@ -334,7 +338,15 @@ ${[opts.client && "npm run client", opts.hasTests && "npm test"]
 \`\`\`
 
 ${run.join("\n")}
-
+${
+  opts.isPackageKept
+    ? `
+\`package.json\` is the project's own, kept as it is because it is not a JSON
+object the export can complete. Add \`tsx\`, \`@solana/web3.js\` and the
+scripts above to it before running them.
+`
+    : ""
+}
 ## Cluster and wallet
 
 In Playground, \`pg.connection\` and \`pg.wallet\` came from the browser. Here
@@ -380,7 +392,9 @@ const withMissing = (
   Object.assign(
     {},
     own,
-    Object.fromEntries(Object.entries(add).filter(([key]) => !(key in own)))
+    Object.fromEntries(
+      Object.entries(add).filter(([key]) => !Object.hasOwn(own, key))
+    )
   );
 
 /**
@@ -389,17 +403,18 @@ const withMissing = (
  * kept as it is, and only the missing ones are added, so `npm install` and
  * `npm run client` work with the converted code. `type` is set only when
  * absent: the project chose its module system. `config.client` comes only
- * with the `client` script it serves.
+ * with the `client` script it serves, and replaces the project's own then,
+ * since that script reads it.
  *
  * @param own the project's `package.json`
  * @param ours the one the profile would write
- * @returns the file to write, and the scripts it held already: all of them
- * when it is not a JSON object the profile can complete, which is kept as it
- * is
+ * @returns the file to write, the scripts it held already, and whether it was
+ * kept as it is: when it is not JSON, not an object, or holds a field the
+ * profile fills in (`OBJECT_FIELDS`) that is not an object
  */
 const completePackageJson =
   (own: string) => (ours: Record<string, unknown>) => {
-    const kept = { text: own, ownScripts: ["client", "test"] };
+    const kept = { text: own, ownScripts: [], isKept: true };
     let parsed: unknown;
     try {
       parsed = JSON.parse(own);
@@ -412,7 +427,11 @@ const completePackageJson =
       const value = pkg[name];
       return isRecord(value) ? value : {};
     };
-    if (OBJECT_FIELDS.some((name) => name in pkg && !isRecord(pkg[name]))) {
+    if (
+      OBJECT_FIELDS.some(
+        (name) => Object.hasOwn(pkg, name) && !isRecord(pkg[name])
+      )
+    ) {
       return kept;
     }
 
@@ -425,32 +444,33 @@ const completePackageJson =
     );
     const ownScripts = Object.keys(field("scripts"));
     const merged: Record<string, unknown> = { ...pkg };
-    if (!("type" in pkg)) merged.type = ours.type;
+    if (!Object.hasOwn(pkg, "type")) merged.type = ours.type;
     for (const name of ["engines", "scripts"]) {
       merged[name] = withMissing(field(name), oursField(name));
     }
-    if ("config" in ours && !ownScripts.includes("client")) {
-      merged.config = withMissing(field("config"), oursField("config"));
+    if (Object.hasOwn(ours, "config") && !ownScripts.includes("client")) {
+      merged.config = Object.assign({}, field("config"), oursField("config"));
     }
     for (const name of ["dependencies", "devDependencies"]) {
       const missing = Object.fromEntries(
         Object.entries(oursField(name)).filter(([dep]) => !declared.has(dep))
       );
-      if (name in pkg || Object.keys(missing).length) {
+      if (Object.hasOwn(pkg, name) || Object.keys(missing).length) {
         merged[name] = withMissing(field(name), missing);
       }
     }
     return {
       text: JSON.stringify(merged, undefined, 2) + "\n",
       ownScripts,
+      isKept: false,
     };
   };
 
 /**
  * Turn a project with no program into a Node project: every file kept at its
  * path, the scripts importing what Playground provided as globals, and
- * `package.json`, `tsconfig.json`, `README.md`, `.gitignore` and
- * `playground.ts` added at the root. A file the project holds there already
+ * `package.json`, `tsconfig.json`, `README.md`, `.gitignore` and the shim,
+ * `playground.ts`, added at the root. A file the project holds there already
  * is kept, except `package.json`, which is completed
  * (`completePackageJson`); a project that holds `playground` gets the shim
  * under the next free name (`shimStemFor`).
@@ -535,20 +555,32 @@ export const toNodeProjectWith =
     };
 
     const ownPackage = files.find(([path]) => path === "package.json")?.[1];
-    const { text: packageText, ownScripts } =
-      ownPackage === undefined
-        ? {
-            text: JSON.stringify(packageJson, undefined, 2) + "\n",
-            ownScripts: [],
-          }
-        : completePackageJson(ownPackage)(packageJson);
+    const {
+      text: packageText,
+      ownScripts,
+      isKept: isPackageKept,
+    } = ownPackage === undefined
+      ? {
+          text: JSON.stringify(packageJson, undefined, 2) + "\n",
+          ownScripts: [],
+          isKept: false,
+        }
+      : completePackageJson(ownPackage)(packageJson);
 
     const added: TupleFiles = [
       ["package.json", packageText],
       ["tsconfig.json", JSON.stringify(tsconfig, undefined, 2) + "\n"],
       [
         "README.md",
-        readme({ name, endpoint, client, hasTests, shimPath, ownScripts }),
+        readme({
+          name,
+          endpoint,
+          client,
+          hasTests,
+          shimPath,
+          ownScripts,
+          isPackageKept,
+        }),
       ],
       [".gitignore", "node_modules\n"],
       shimFile,
@@ -1017,12 +1049,52 @@ console.log(await pg.connection.getSlot());
         expect(pkg.config).toEqual({ port: 1, client: "client/my$file.ts" });
       });
 
-      it("keeps a package.json it cannot read as it is", async () => {
+      it.each(["{ not json", "[]", "null", '{ "scripts": "x" }'])(
+        "keeps the package.json %s as it is, and says so in the README",
+        async (own) => {
+          const files = await exportOf([
+            ["client/client.ts", CLIENT],
+            ["package.json", own],
+          ]);
+          expect(fileOf(files, "package.json")).toBe(own);
+          const text = fileOf(files, "README.md");
+          expect(text).toContain("kept as it is");
+          expect(text).toContain("runs `client/client.ts`");
+        }
+      );
+
+      it("names its own test script in the README", async () => {
         const files = await exportOf([
-          ["client/client.ts", CLIENT],
-          ["package.json", "{ not json"],
+          ["tests/a.test.ts", TEST],
+          ["package.json", JSON.stringify({ scripts: { test: "vitest" } })],
         ]);
-        expect(fileOf(files, "package.json")).toBe("{ not json");
+        expect(packageOf(files).scripts.test).toBe("vitest");
+        expect(fileOf(files, "README.md")).toContain(
+          "`test` script in `package.json`"
+        );
+      });
+
+      it("counts a peer dependency as declared", async () => {
+        const pkg = packageOf(
+          await exportOf([
+            ["client/client.ts", CLIENT],
+            [
+              "package.json",
+              JSON.stringify({ peerDependencies: { "@solana/web3.js": "*" } }),
+            ],
+          ])
+        );
+        expect(pkg.dependencies).toBeUndefined();
+      });
+
+      it("writes its client path over its own config.client", async () => {
+        const pkg = packageOf(
+          await exportOf([
+            ["client/my$file.ts", CLIENT],
+            ["package.json", JSON.stringify({ config: { client: "old.ts" } })],
+          ])
+        );
+        expect(pkg.config.client).toBe("client/my$file.ts");
       });
 
       it("keeps its playground.ts and imports pg from a shim beside it", async () => {
@@ -1040,6 +1112,33 @@ console.log(await pg.connection.getSlot());
         );
         expect(fileOf(files, "README.md")).toContain("`playground-shim.ts`");
         expect(fileOf(files, "README.md")).not.toContain("`playground.ts`");
+      });
+
+      it.each([
+        ["playground/index.ts"],
+        ["playground.d.ts"],
+        ["Playground.ts"],
+        ["playground.json"],
+      ])("takes playground-shim when %s holds the name", async (taken) => {
+        const files = await exportOf([
+          ["client/client.ts", CLIENT],
+          [taken, ""],
+        ]);
+        expect(fileOf(files, "client/client.ts")).toContain(
+          'from "../playground-shim"'
+        );
+      });
+
+      it.each([
+        ["playground.config.ts"],
+        ["playground.txt"],
+        ["client/playground.ts"],
+      ])("keeps the shim at playground.ts beside %s", async (other) => {
+        const files = await exportOf([
+          ["client/client.ts", CLIENT],
+          [other, ""],
+        ]);
+        expect(fileOf(files, "playground.ts")).toContain("export const pg");
       });
 
       it("takes the next free shim name, whatever extension holds a name", async () => {
