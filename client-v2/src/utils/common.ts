@@ -226,7 +226,7 @@ export class PgCommon {
    * as a valid file, which is how a missing `public/crates` asset reached Rust
    * Analyzer's WASM and panicked it. It can arrive as a 404's body, or as a 200
    * with the app shell: CRA's history fallback (`disableDotRule`) treats
-   * fetch's `Accept: *\/*` as a page request and answers every unknown path,
+   * fetch's wildcard `Accept` as a page request and answers every unknown path,
    * dotted ones included, with `index.html`.
    *
    * @param url URL

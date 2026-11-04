@@ -513,7 +513,8 @@ when its key file there matches its inputs:
 | `build-fast` (`generate-fast`) | not generated | not generated |
 
 `yarn dev` generates the crates itself unless rust-analyzer is a stub; the first run takes minutes, later ones skip by
-key. Without cargo or rustup it warns and starts anyway, and Rust Analyzer turns itself off with a warning.
+key. Outside CI, without cargo or rustup it warns and starts anyway, and Rust Analyzer turns itself off (no default
+crates) or skips the crate (a missing supported crate) with a warning.
 
 ### S-1. rust-analyzer default crates
 

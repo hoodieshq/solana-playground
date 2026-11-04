@@ -280,13 +280,18 @@ const loadDependency = async (
     ]);
   } catch (e) {
     // Only its name resolves then, as before its first use; a missing file
-    // must not reach the WASM, which panics on a manifest it cannot parse
+    // must not reach the WASM, which panics on a manifest it cannot parse.
+    // `fetch` rejects with a `TypeError` when the network fails: that crate is
+    // asked for again on its next use, where a missing file is not.
+    const isNetworkFailure = e instanceof TypeError;
     log.warn(
-      `Rust Analyzer: crate \`${name}\` did not load (\`yarn generate-crates\`)`,
+      isNetworkFailure
+        ? `Rust Analyzer: crate \`${name}\` did not load, retried on its next use`
+        : `Rust Analyzer: crate \`${name}\` is missing (\`yarn generate-crates\`)`,
       { context: { error: e } }
     );
     if (status !== "empty") await state.loadDependency(name);
-    cachedNames.set(name, "missing");
+    cachedNames.set(name, isNetworkFailure ? "empty" : "missing");
     return;
   }
 
