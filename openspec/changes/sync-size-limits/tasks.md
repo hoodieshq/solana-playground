@@ -85,6 +85,25 @@ the same time once 2.1 has merged.
   `project-restore.test.ts` cases for a changed `program-info.json`, an
   outstanding question, and a built project the account already holds.
 
+## 4. Account cap
+
+- [ ] 4.1 Cap the projects an account syncs (HOO-2538, depends on 2.2 and
+  3.1): `ACCOUNT_LIMITS` (`projects: 10`, `tutorials: 32`) and the
+  `too-many-projects` shape in `limits.mjs`, read by `readLimitExceeded`;
+  `SWAP` returns `had_files`; `writeProject` takes the per-account advisory
+  lock and counts for a write that makes a project count, throwing
+  `WriteRefused({limit})`; `limitBannerText` words the cap;
+  `sync_projects_count_limit_exceeded` declared in `model/telemetry.ts` and
+  sent from `_raise`. Verified by `model/projects.test.mjs` and
+  `api/projects.test.mjs` under `yarn test-api` with `DATABASE_URL` set: the
+  11th create refused with nothing written, an update at 10 accepted, a delete
+  then a create accepted, two concurrent creates at 9 letting exactly one
+  through, tutorials counted apart, an empty row filled by a swap refused; by
+  `project-sync.test.ts` and `project-restore.test.ts`: the refusal raises the
+  banner and the event, writes no mark, sends nothing more until "Try again",
+  and neither reconcile nor sign-out deletes the project; and by the e2e
+  scenario "The account is at the project cap".
+
 ## Workflow follow-up
 
 - Ask a human whether to archive the change before opening the PR that ticks
