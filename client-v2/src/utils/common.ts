@@ -241,8 +241,9 @@ export class PgCommon {
     }
     const isHtml = response.headers
       .get("content-type")
-      ?.startsWith("text/html");
-    if (isHtml && !/\.html?$/.test(new URL(url, "http://x").pathname)) {
+      ?.toLowerCase()
+      .startsWith("text/html");
+    if (isHtml && !/\.html?$/i.test(new URL(url, "http://x").pathname)) {
       throw new Error(
         `Request failed (${response.status}, the app shell): ${url}`
       );
@@ -1480,6 +1481,16 @@ if (import.meta.vitest) {
 
         await expect(PgCommon.fetchText("/crates/core.rs")).rejects.toThrow(
           "Request failed (200, the app shell): /crates/core.rs"
+        );
+      });
+
+      it("checks the path, not the query, for an HTML file", async () => {
+        respond({ body: "<p>hi</p>", contentType: "Text/HTML" });
+        await expect(PgCommon.fetchText("/docs/Page.HTML?x=1")).resolves.toBe(
+          "<p>hi</p>"
+        );
+        await expect(PgCommon.fetchText("/crates/core.rs?v=1")).rejects.toThrow(
+          "the app shell"
         );
       });
 

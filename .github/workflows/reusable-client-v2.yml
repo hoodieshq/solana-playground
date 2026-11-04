@@ -512,7 +512,8 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: yarn playwright install-deps chromium
 
-      # `yarn dev` runs `generate-fast` itself before `craco start`, and the
+      # `yarn dev` runs `generate-fast` and `generate-dev-crates` (current by key
+      # from the restored cache, skipped on stubs) itself before `craco start`, and the
       # config starts it (`webServer`), so there is no separate generate step.
       # On stubs the `@real-wasm` specs, which run the CLIs, are left out with
       # `--grep-invert`, not `test.skip`: a skip outside `e2e/known-skips.txt`
