@@ -8,12 +8,14 @@ import { Button } from "@/shared/ui/button";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import Grounding from "../../../views/sidebar/assistant/Component/Grounding";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
+import { aiOff } from "../model/ai-off";
 import { modelShown } from "../model/choice";
 import { connectLabel } from "../model/connection";
 import { useDefaultBackend } from "../model/default-backend";
 import { headLabel } from "../model/head-label";
 import { assistantTelemetry } from "../model/telemetry";
 import type { ConnectOpener } from "../model/use-turn";
+import { useSignedIn } from "../model/use-signed-in";
 import { useTurn } from "../model/use-turn";
 import { AssistantComposer } from "./AssistantComposer";
 import { BaseAssistantHead } from "./BaseAssistantHead";
@@ -81,6 +83,7 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
   const tutorial = useTutorialBeforeStart();
   const project = useProjectName() ?? tutorial;
   const defaultBackend = useDefaultBackend();
+  const signedIn = useSignedIn();
   // The head names the connected model, so a change of connection redraws it
   const [, render] = useReducer((n: number) => n + 1, 0);
   useEffect(() => PgAssistant.onDidChange(render).dispose, []);
@@ -134,6 +137,12 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
       <BaseAssistantHead
         // The composer's model, from the connection and the deployment's answer
         label={headLabel(modelShown(PgAssistant.connection, defaultBackend))}
+        // The same reading as the composer's off row, so the two never disagree
+        off={aiOff({
+          connected: PgAssistant.connection?.id,
+          backend: defaultBackend,
+          signedIn,
+        })}
         onSources={openSources}
         onConnect={() => turn.openConnect("menu")}
         connectLabel={connectLabel(PgAssistant.connection)}

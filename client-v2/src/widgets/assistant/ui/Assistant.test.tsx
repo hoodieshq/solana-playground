@@ -155,6 +155,23 @@ describe("Assistant", () => {
     expect(screen.getByText("composer")).toBeTruthy();
   });
 
+  it("says Off in the head where the deployment serves no model", () => {
+    deployment.backend = { state: "absent" };
+    setup();
+    expect(document.getElementById("assistant-status")?.textContent).toBe(
+      "Off"
+    );
+  });
+
+  it("shows no status in the head once a signed-in user has the hosted model", async () => {
+    deployment.backend = { state: "present", model: "m" };
+    await PgSession.refreshWith({ id: "u1", name: null, image: null, login: null });
+    setup();
+    await waitFor(() =>
+      expect(document.getElementById("assistant-status")).toBeNull()
+    );
+  });
+
   it("tells the thread there is no project before one opens", () => {
     explorer.name = undefined;
     setup();
