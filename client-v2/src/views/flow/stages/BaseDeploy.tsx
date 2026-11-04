@@ -81,10 +81,10 @@ export interface BaseDeployProps {
    * so the button is held.
    */
   deploy: DeployStatus;
-  /** The project's own program id, shown before the first deployment */
+  /** The project's own program id, shown until it has a deployment on the network picked */
   programId: string | null;
   details: DeployDetails;
-  /** Every deployment of the project, newest first */
+  /** Every deployment of the project on any network, newest first; the stage reads the network picked from it */
   history: DeployRecord[];
   /** The wallet that pays, Playground or connected; absent while none is current */
   payer: DeployPayer | undefined;
@@ -112,7 +112,8 @@ export interface BaseDeployProps {
   idlUpload: ReactNode;
   /**
    * The folded "Program id" block (`ProgramKeypair`): under the payer line
-   * before the first deploy, under the history after one
+   * before the first deploy on the network picked, under the history after
+   * one
    */
   programKeypair: ReactNode;
   /** Opens the CLI deploy guide; `from` is the control pressed */
@@ -159,12 +160,22 @@ const payerLine = (p: BaseDeployProps) => {
   return `From ${which} · ${shortKey(payer.address)}${balance}`;
 };
 
-const description = (p: BaseDeployProps, latest: DeployRecord | null) => {
+/**
+ * The stage's prose. `latest` is the latest deployment on the network picked
+ * now; a project deployed only on other networks is told that each keeps its
+ * own.
+ */
+const description = (p: BaseDeployProps, latest: DeployRecord | undefined) => {
   if (!p.built) {
     return "Build the program first \u2014 the stepper unlocks Deploy once it compiles cleanly.";
   }
   if (latest) {
     return "The program id stays constant across deploys; redeploying upgrades it in place.";
+  }
+  // Said only once the network is known: until then there is no "here" to
+  // set against the others
+  if (p.cluster && p.history.length > 0) {
+    return "Each network keeps its own deployments.";
   }
   return `Deploying sends the compiled program to ${deployNetwork(p)}.`;
 };
@@ -303,7 +314,11 @@ const HistoryLink = ({ p, r }: { p: BaseDeployProps; r: DeployRecord }) => {
   );
 };
 
-/** Every deployment, newest first; drawn once there is one */
+/**
+ * Every deployment on any network, newest first, each row under its own
+ * network; drawn whenever one exists, even while the network picked has none,
+ * so a deployment elsewhere is never hidden
+ */
 const History = ({ p }: { p: BaseDeployProps }) => (
   <section aria-label="History" className="flex w-full flex-col gap-2">
     <h3 className="text-caption font-act text-muted-foreground">History</h3>
@@ -353,15 +368,20 @@ const MainnetWarningBody = ({ p }: { p: BaseDeployProps }) => {
 };
 
 /**
- * The Deploy stage, drawn from props alone; `Deploy` connects it. Before the
- * first deploy it is the prototype's empty stage: centred, the pill with
- * "Upload IDL" and "Deploy with the CLI" under it, no history yet. After one
- * it shows the result and the history, read from the left. The CLI guide's
- * button shows on every cluster.
+ * The Deploy stage, drawn from props alone; `Deploy` connects it. It reads
+ * the network picked now: before the first deploy there it is the
+ * prototype's empty stage, centred, the pill with "Upload IDL" and "Deploy
+ * with the CLI" under it, and History below when other networks have
+ * deployments. After one it shows the result and the history, read from the
+ * left. The CLI guide's button shows on every cluster.
  */
 const BaseDeploy = (p: BaseDeployProps) => {
-  const latest = p.history[0] ?? null;
-  const n = p.history.length;
+  // Each network keeps its own deployments: the stage reads only the
+  // network picked now, so a program deployed elsewhere leaves it empty here.
+  // History still lists every network, each row under its own.
+  const onNetwork = p.history.filter((r) => r.cluster === p.cluster);
+  const latest = onNetwork[0];
+  const n = onNetwork.length;
   const meta = [
     p.cluster && networkName(p.cluster),
     latest && `${n} deployment${n === 1 ? "" : "s"}`,
@@ -426,7 +446,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
           </Callout>
         )}
         {latest && <DeployResult latest={latest} p={p} />}
-        {latest && <History p={p} />}
+        {p.history.length > 0 && <History p={p} />}
         {latest && p.programKeypair}
         <BaseStaleBuildDialog
           open={p.staleBuild}
@@ -440,10 +460,10 @@ const BaseDeploy = (p: BaseDeployProps) => {
             title={deployBlockedReason(p)}
             onClick={p.onDeploy}
           >
-            {deployLabel(p, latest !== null)}
+            {deployLabel(p, latest !== undefined)}
             {!running && <BrandButtonIcon />}
           </BrandButton>
-          {/* Upload IDL and the CLI guide: before the first deploy, centred
+          {/* Upload IDL and the CLI guide: before the first deploy on this network, centred
               under the pill on a desk and above it on a phone, where the row
               stretches the pill to the screen's width; after one, beside the
               pill */}

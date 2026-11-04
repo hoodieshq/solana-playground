@@ -394,6 +394,105 @@ describe("BaseDeploy", () => {
     expect(screen.getByText("2,048 bytes")).toBeTruthy();
   });
 
+  it("shows the empty stage with every network's history on a network with no deployment", () => {
+    const { container } = render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          cluster: "mainnet-beta",
+          history: [record("a", "5sig")],
+        })}
+      />
+    );
+
+    expect(
+      container.querySelector('[data-slot="stage-empty-meta"]')?.textContent
+    ).toBe("Mainnet");
+    expect(screen.getByText("Nothing deployed yet")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Deploy to mainnet" })
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Redeploy/ })).toBeNull();
+    expect(screen.queryByRole("status", { name: "Deploy result" })).toBeNull();
+    expect(
+      screen.getByText("Each network keeps its own deployments.")
+    ).toBeTruthy();
+    // The devnet deployment stays in the history, under its own network
+    const history = screen.getByRole("region", { name: "History" });
+    expect(within(history).getByText("Devnet")).toBeTruthy();
+  });
+
+  it("shows the latest deployment on the network picked, not the newest anywhere", () => {
+    const { container } = render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          cluster: "testnet",
+          history: [
+            recordFor("devnet")("d", "devsig"),
+            recordFor("testnet")("c", "testsig"),
+            recordFor("devnet")("b", NONE),
+            recordFor("testnet")("a", NONE),
+          ],
+        })}
+      />
+    );
+
+    expect(
+      container.querySelector('[data-slot="stage-empty-meta"]')?.textContent
+    ).toBe("Testnet · 2 deployments");
+    const result = screen.getByRole("status", { name: "Deploy result" });
+    expect(result.textContent).toContain("Deployed to testnet");
+    expect(
+      within(result).getByRole("link", {
+        name: "View latest deployment transaction (testsig) on Explorer (Testnet)",
+      })
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Redeploy to testnet" })
+    ).toBeTruthy();
+    expect(
+      screen.queryByText("Each network keeps its own deployments.")
+    ).toBeNull();
+  });
+
+  it("calls a first deploy on this network deploying, whatever is on the others", () => {
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "running",
+          cluster: "testnet",
+          history: [record("a", NONE)],
+        })}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Deploying..." })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Upgrading..." })).toBeNull();
+  });
+
+  it("does not set the network against the others until it is known", () => {
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          // eslint-disable-next-line unicorn/no-null -- the cluster is `null` until the endpoint is read
+          cluster: null,
+          history: [record("a", NONE)],
+        })}
+      />
+    );
+
+    expect(screen.getByText("Nothing deployed yet")).toBeTruthy();
+    expect(
+      screen.getByText("Deploying sends the compiled program to the network.")
+    ).toBeTruthy();
+  });
+
   it("lists every deployment in the history", () => {
     render(
       <BaseDeploy
