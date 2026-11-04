@@ -17,7 +17,8 @@ export type OpenKind = "mount" | "later";
  * already moved focus (the tree's field too: the new file the user is still
  * naming has not been created yet). It takes focus from the bare document,
  * so a fresh load lands in the editor, and from an item of the tree, whose
- * click opened the file with no tab open and so mounted the editor.
+ * click opened the file with no tab open and so mounted the editor. No open
+ * takes focus while the editor is off the screen (`isOffScreen`).
  *
  * @param opts -
  * - `open`: the mount's open or a later one
@@ -36,6 +37,9 @@ export const leavesFocusElsewhere = ({
   tree: Element | null;
   active?: Element | null;
 }): boolean => {
+  // Focus scrolls the editor into view: on a phone, a swipe away from the
+  // code before the file opened would be pulled back to it
+  if (isOffScreen(editor)) return true;
   if (open === "mount") {
     // A click in the tree opened the file: the editor mounts to show it
     if (
@@ -52,6 +56,18 @@ export const leavesFocusElsewhere = ({
   return !(tree && active && tree.contains(active));
 };
 
+/**
+ * The editor sits left or right of the screen, as it does on the phone's
+ * pager while another page shows or the pager is moving to one. A hidden
+ * editor has an empty box at the origin and counts as on the screen: focus
+ * cannot scroll to it
+ */
+const isOffScreen = (editor: Element) => {
+  const { left, right } = editor.getBoundingClientRect();
+  // A pixel's leeway for a box at fractional coordinates
+  return left < -1 || right > window.innerWidth + 1;
+};
+
 /** Focus sits on something outside the editor, not on the bare document */
 const isFocusedElsewhere = (editor: Element, active: Element | null) =>
   !!active &&
@@ -60,7 +76,7 @@ const isFocusedElsewhere = (editor: Element, active: Element | null) =>
   !editor.contains(active);
 
 if (import.meta.vitest) {
-  const { describe, it, expect, afterEach } = import.meta.vitest;
+  const { describe, it, expect, afterEach, vi } = import.meta.vitest;
 
   describe("components/Editor/Monaco/open-focus", () => {
     /**
@@ -88,6 +104,7 @@ if (import.meta.vitest) {
     describe("leavesFocusElsewhere", () => {
       afterEach(() => {
         document.body.innerHTML = "";
+        vi.restoreAllMocks();
       });
 
       it("leaves focus in the explorer's field on the mount's open", () => {
@@ -181,6 +198,26 @@ if (import.meta.vitest) {
             tree,
             active: inputarea,
           })
+        ).toBe(false);
+      });
+
+      it("leaves focus where it is while the editor is off the screen", () => {
+        const { editor, tree } = page();
+        const at = (left: number) =>
+          vi
+            .spyOn(editor, "getBoundingClientRect")
+            .mockReturnValue(new DOMRect(left, 0, window.innerWidth, 400));
+        at(-window.innerWidth / 2);
+        expect(
+          leavesFocusElsewhere({ open: "mount", editor, tree, active: null })
+        ).toBe(true);
+        at(window.innerWidth);
+        expect(
+          leavesFocusElsewhere({ open: "later", editor, tree, active: null })
+        ).toBe(true);
+        at(0);
+        expect(
+          leavesFocusElsewhere({ open: "mount", editor, tree, active: null })
         ).toBe(false);
       });
 
