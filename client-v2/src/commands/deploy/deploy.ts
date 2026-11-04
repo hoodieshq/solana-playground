@@ -339,7 +339,11 @@ const processDeploy = async (signal: AbortSignal, lockStop: () => void) => {
         report: true,
         context: { action: "close the buffer on stop" },
       });
-      left = { state: "kept", address: bufferKp.publicKey.toBase58() };
+      left = {
+        state: "kept",
+        address: bufferKp.publicKey.toBase58(),
+        lamports: await keptLamports(bufferKp.publicKey),
+      };
     }
     return new StoppedError(deployStoppedLine(left));
   };
@@ -574,6 +578,21 @@ const loadBufferWithControl = (
  * @param checkConfirmation only confirm the transaction if this callback returns truthy
  * @returns the transaction signature
  */
+/**
+ * What a buffer the stop could not close still holds, for the stopped line;
+ * `null` when the cluster does not answer, and the line says "its SOL"
+ */
+const keptLamports = async (buffer: PgWeb3.PublicKey) => {
+  try {
+    return await PgConnection.current.getBalance(buffer);
+  } catch (e) {
+    log.warn("Could not read the kept buffer's balance", {
+      context: { action: "read the kept buffer's balance", error: String(e) },
+    });
+    return null;
+  }
+};
+
 const sendAndConfirmTxWithRetries = async (
   sendTx: () => Promise<string>,
   checkConfirmation: () => SyncOrAsync<boolean>

@@ -8,6 +8,8 @@ import { isStopped } from "../../utils/stopped";
 const env = vi.hoisted(() => ({
   controller: new AbortController(),
   balance: 0,
+  /** The buffer account's balance, read when a stop could not close it */
+  bufferBalance: (async () => 0) as () => Promise<number>,
   waitForInput: (async () => true) as (msg: string) => Promise<unknown>,
   executeFromStr: (async () => undefined) as (cmd: string) => Promise<unknown>,
 }));
@@ -21,7 +23,9 @@ vi.mock("../../utils", () => ({
   PgCommon: { formatSeconds: String, makePlural: String, sleep: vi.fn() },
   PgConnection: {
     current: {
-      getBalance: async () => env.balance,
+      // The buffer's key is the only one with `toBase58` (`Keypair.generate`)
+      getBalance: async (key: { toBase58?: unknown }) =>
+        key?.toBase58 ? env.bufferBalance() : env.balance,
       getMinimumBalanceForRentExemption: async () => 2_000_000_000,
       getAccountInfo: async () => null,
     },
@@ -96,12 +100,14 @@ describe("commands/deploy", () => {
   beforeEach(() => {
     env.controller = new AbortController();
     env.balance = 0;
+    env.bufferBalance = async () => 0;
     env.waitForInput = async () => true;
     env.executeFromStr = async () => undefined;
     airdrop.mockClear();
     send.mockClear();
     loadBuffer.mockReset();
-    closeBuffer.mockClear();
+    closeBuffer.mockReset();
+    closeBuffer.mockImplementation(async () => "sig");
   });
 
   it("asks for nothing more once stopped during the airdrop question", async () => {
@@ -150,5 +156,43 @@ describe("commands/deploy", () => {
     expect(isStopped(failure)).toBe(true);
     expect(closeBuffer).toHaveBeenCalledTimes(1);
     expect((failure as Error).message).toContain("buffer account was closed");
+  });
+
+  /** A stop whose buffer close fails every retry, so the buffer is kept */
+  const stopKeepingTheBuffer = () => {
+    env.balance = 10_000_000_000;
+    loadBuffer.mockImplementation(async () => {
+      env.controller.abort();
+      throw new Error("the segment was aborted");
+    });
+    closeBuffer.mockImplementation(async () => {
+      throw new Error("blockhash not found");
+    });
+  };
+
+  it("names the SOL a buffer it could not close still holds", async () => {
+    stopKeepingTheBuffer();
+    env.bufferBalance = async () => 1_421_676_960;
+
+    const failure = await runDeploy();
+
+    expect(isStopped(failure)).toBe(true);
+    expect((failure as Error).message).toContain(
+      "The buffer account Buf1111 still holds 1.42 SOL."
+    );
+  });
+
+  it('keeps "its SOL" when the kept buffer\'s balance cannot be read', async () => {
+    stopKeepingTheBuffer();
+    env.bufferBalance = async () => {
+      throw new Error("429 Too Many Requests");
+    };
+
+    const failure = await runDeploy();
+
+    expect(isStopped(failure)).toBe(true);
+    expect((failure as Error).message).toContain(
+      "The buffer account Buf1111 still holds its SOL."
+    );
   });
 });
