@@ -66,9 +66,11 @@ export const describeTutorial = (facts: TutorialFacts): string => {
   }
   if (definition.docs?.length) {
     lines.push(
-      "Docs you may link, one page at most per answer: " +
+      "This tutorial's doc pages, which open beside the code: " +
         definition.docs.map((d) => `${d.title} (${d.url})`).join("; ") +
-        "."
+        ". When one of them covers what you explain, link it as a Markdown " +
+        "link with its address exactly as listed. Link another site only " +
+        "for what none of them covers, and one page at most per answer."
     );
   }
   lines.push(
@@ -251,7 +253,7 @@ if (import.meta.vitest) {
       expect(text).toContain("Do not give its answer away");
       expect(text).toContain(`${TOOLS.hint} posts the lesson's own hint`);
       expect(text).toContain(
-        "Docs you may link, one page at most per answer: The program log (https://solana.com/docs/programs/debugging)."
+        "This tutorial's doc pages, which open beside the code: The program log (https://solana.com/docs/programs/debugging). When one of them covers what you explain, link it as a Markdown link with its address exactly as listed. Link another site only for what none of them covers, and one page at most per answer."
       );
     });
 

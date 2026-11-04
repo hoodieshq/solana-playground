@@ -250,6 +250,22 @@ test.describe("tutorial-workspace", () => {
       page.locator("[inert]").filter({ has: page.locator(".monaco-editor") })
     ).toHaveCount(1);
 
+    // A second page opens at its top, wherever the first was scrolled to
+    const body = page
+      .getByTestId("tutorial-doc-page")
+      .locator(".overflow-y-auto");
+    await body.evaluate((el) => el.scrollTo(0, 600));
+    // With a page in front no file tab carries the tree's chevron
+    await page.keyboard.press("ControlOrMeta+e");
+    await tree
+      .getByRole("treeitem", { name: "Docs" })
+      .getByRole("treeitem", { name: "Transactions" })
+      .click();
+    await expect(
+      head(page).getByRole("tab", { name: "Transactions" })
+    ).toHaveAttribute("aria-selected", "true");
+    await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBe(0);
+
     // Back to lib.rs: the page keeps its tab
     await head(page).getByRole("tab", { name: "lib.rs" }).click();
     await expect(page.getByTestId("tutorial-doc-page")).toHaveCount(0);
@@ -259,6 +275,7 @@ test.describe("tutorial-workspace", () => {
     await expect(head(page).getByRole("tab")).toHaveText([
       "lib.rs",
       "Programs",
+      "Transactions",
     ]);
 
     await page.reload();
@@ -266,6 +283,7 @@ test.describe("tutorial-workspace", () => {
     await expect(head(page).getByRole("tab")).toHaveText([
       "lib.rs",
       "Programs",
+      "Transactions",
     ]);
   });
 });

@@ -414,7 +414,9 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
           </div>
           {active && frontDoc && (
             <div className="absolute inset-0 z-10 flex">
+              {/* One page per doc, so each opens at its top */}
               <BaseDocPage
+                key={frontDoc.file}
                 title={frontDoc.title}
                 url={frontDoc.url}
                 markdown={frontDoc.markdown}

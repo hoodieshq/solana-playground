@@ -1,5 +1,7 @@
 # Program Structure
 
+Learn about the structure of Anchor programs, including key macros and their roles in simplifying Solana program development
+
 The Anchor framework uses
 [Rust macros](https://rust-book.cs.brown.edu/ch20-05-macros.html?highlight=macros#macros) to reduce
 boilerplate code and simplify the implementation of common security checks

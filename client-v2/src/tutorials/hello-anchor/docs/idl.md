@@ -1,5 +1,7 @@
 # Program IDL File
 
+Learn about the Interface Description Language (IDL) file in Anchor, its purpose, benefits, and how it simplifies program-client interactions
+
 An Interface Description Language (IDL) file for an Anchor program provides a
 standardized JSON file describing the program's instructions and accounts. This
 file simplifies the process of integrating your on-chain program with client
