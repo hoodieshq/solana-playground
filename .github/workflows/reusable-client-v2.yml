@@ -418,7 +418,9 @@ jobs:
     runs-on: ubuntu-latest
     # Measured on run 40369790881 (2026-10-26, 278 tests): about 4 minutes
     # from checkout to the first test (install, browser, dev-server compile),
-    # and the slowest of four shards holds about 7 minutes of tests. The
+    # and the slowest of four shards holds about 7 minutes of tests. A fifth
+    # since run 41857666923 (2026-11-04, about 370 tests), where one of four
+    # reached `globalTimeout` at 15 minutes with 14 tests unrun. The
     # steps before `Browser tests` vary far more than the tests: on run
     # 40379245789 the apt downloads of `install-deps` took 11 minutes on one
     # shard and 20 seconds on another. This limit holds that variance;
@@ -435,7 +437,7 @@ jobs:
       # index the matrix skips is a slice nobody runs while this job stays
       # green. `e2e-report` fails on the gap.
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5]
 
     defaults:
       run:
