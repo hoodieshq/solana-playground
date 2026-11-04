@@ -401,7 +401,7 @@ if (import.meta.vitest) {
       return sClass;
     };
 
-    it("loads the default when a migrated value is stored as null", async () => {
+    it("loads without throwing when the old id holds null", async () => {
       // eslint-disable-next-line unicorn/no-null -- the stored JSON under test holds null
       const sClass = settingsWith({ other: { blockExplorer: null } });
 
