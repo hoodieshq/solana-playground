@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import { PgConversation } from "@/features/tutorial-conversation";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 import { mergeFeed } from "../model/merge";
@@ -37,8 +39,17 @@ export interface TutorialComposerProps {
  * the turn's own input, so a message the assistant could not send yet (no
  * model connected) comes back here.
  */
+/** Why a question typed while the assistant answers is still in the box */
+const HELD =
+  "The assistant is still answering. Press Enter again once it's done.";
+
 export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
   const state = useConversationState();
+  const [held, setHeld] = useState(false);
+  // The answer ended: the question can go now, so the note has done its job
+  useEffect(() => {
+    if (!turn.busy) setHeld(false);
+  }, [turn.busy]);
   const view = PgConversation.view();
   const context = state.context;
   if (!context || !view) return null;
@@ -59,9 +70,12 @@ export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
       turn.setInput("");
       return;
     }
-    // A question while the assistant answers waits in the box, uncounted:
-    // `useTurn` would refuse it
-    if (turn.busy) return;
+    // A question while the assistant answers waits in the box, uncounted,
+    // with a note saying so: `useTurn` would refuse it
+    if (turn.busy) {
+      setHeld(true);
+      return;
+    }
     // With no model, `send` opens Connect a model and keeps the text here,
     // with no note, as the panel's composer does for a typed message (its
     // "waiting" note is for prompts the product asked for); only a message
@@ -83,6 +97,7 @@ export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
       }
       onChip={(i) => PgConversation.chip(i)}
       waiting={waiting}
+      note={held ? HELD : null}
       onStart={answered ? () => PgConversation.start() : undefined}
     />
   );

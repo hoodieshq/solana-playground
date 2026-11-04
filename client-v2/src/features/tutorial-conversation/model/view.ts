@@ -359,7 +359,17 @@ export type Placeholder =
   | "Ask about this step"
   | "Or ask about this step"
   | "Ask while it builds"
+  | "Ask while it runs"
   | "Ask anything";
+
+/** The placeholder while an act runs, by its act (the prototype's `placeholderFor`) */
+const WHILE: Record<Act, Placeholder> = {
+  build: "Ask while it builds",
+  deploy: "Ask while it builds",
+  buildDeploy: "Ask while it builds",
+  run: "Ask while it runs",
+  call: "Ask while it runs",
+};
 
 export interface ConversationView {
   turns: Turn[];
@@ -832,7 +842,7 @@ export const view = (
   if (p.cursor.kind === "intro")
     placeholder = "Ask anything about this tutorial";
   else if (p.cursor.kind === "finished") placeholder = "Ask anything";
-  else if (running) placeholder = "Ask while it builds";
+  else if (running?.kind === "act") placeholder = WHILE[running.act.act];
   // Typing is the other way past an open question, beside its options
   else if (live?.kind === "ask" && live.open)
     placeholder = "Or ask about this step";
@@ -1345,6 +1355,16 @@ if (import.meta.vitest) {
         stage: { label: "Building", index: 1, count: 1 },
       });
       expect(v.placeholder).toBe("Ask while it builds");
+    });
+
+    it("says it runs while a run or a call goes, and builds for the rest", () => {
+      expect(WHILE.run).toBe("Ask while it runs");
+      expect(WHILE.call).toBe("Ask while it runs");
+      expect([WHILE.build, WHILE.deploy, WHILE.buildDeploy]).toEqual([
+        "Ask while it builds",
+        "Ask while it builds",
+        "Ask while it builds",
+      ]);
     });
 
     it("a planned failure posts an open result with the definition's line, then Explain's pill and the fix question", () => {

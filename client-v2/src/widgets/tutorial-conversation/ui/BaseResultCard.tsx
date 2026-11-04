@@ -217,7 +217,7 @@ const BaseResultCard = ({
           {open && (
             // One width for both, side by side where the card has room for
             // the wider one twice, as the prototype's (design audit, 3 Nov);
-            // stacked full width where it has not, a phone's column included
+            // stacked full width where it has not
             <div className="grid gap-2 @min-[23rem]:w-fit @min-[23rem]:auto-cols-fr @min-[23rem]:grid-flow-col">
               <Button onClick={onExplain}>
                 Explain the error
@@ -228,7 +228,13 @@ const BaseResultCard = ({
                   ⌘↵
                 </Kbd>
               </Button>
-              <Button variant="ghost" onClick={onFixMyself}>
+              {/* A phone can't type the fix, so it isn't offered there:
+                  Explain leads to the lines instead (the prototype's) */}
+              <Button
+                variant="ghost"
+                className="max-md:hidden"
+                onClick={onFixMyself}
+              >
                 I&apos;ll fix it myself
               </Button>
             </div>

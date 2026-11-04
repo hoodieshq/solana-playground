@@ -283,24 +283,48 @@ describe("TutorialComposer", () => {
     expect(store.asked).not.toHaveBeenCalled();
   });
 
-  it("keeps a question in the box, uncounted, while the assistant answers", () => {
+  it("keeps a question in the box, uncounted, while the assistant answers, and says why", () => {
     store.say.mockReturnValue("assistant");
     const t = turn();
-    render(
+    const answering = (busy: boolean) => (
       <TutorialComposer
         turn={{
           send: t.send,
           stop: t.stop,
-          busy: true,
+          busy,
           input: "why msg!?",
           setInput: vi.fn(),
         }}
       />
     );
+    const { rerender } = render(answering(true));
+    expect(screen.queryByRole("status")).toBeNull();
     fireEvent.keyDown(box(), { key: "Enter" });
     expect(store.say).toHaveBeenCalledWith("why msg!?");
     expect(store.asked).not.toHaveBeenCalled();
     expect(t.send).not.toHaveBeenCalled();
+    expect(screen.getByRole("status").textContent).toBe(
+      "The assistant is still answering. Press Enter again once it's done."
+    );
+    // The answer ended: the question can go, and the note leaves
+    rerender(answering(false));
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("is one line at rest, and the full box once focused or holding text", async () => {
+    const { container } = render(<Connected turn={turn()} />);
+    const form = () => container.querySelector("[data-slot=composer]");
+    expect(form()?.hasAttribute("data-open")).toBe(false);
+    fireEvent.focus(box());
+    expect(form()?.hasAttribute("data-open")).toBe(true);
+    await userEvent.type(box(), "why");
+    fireEvent.blur(box());
+    // Folding waits a tick, and text keeps it open
+    await waitFor(() => expect(form()?.hasAttribute("data-open")).toBe(true));
+    await userEvent.clear(box());
+    box().focus();
+    box().blur();
+    await waitFor(() => expect(form()?.hasAttribute("data-open")).toBe(false));
   });
 
   it("shows the finish chips only after the finish, and posts a chip's answer with no model call", async () => {

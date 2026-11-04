@@ -1,4 +1,5 @@
 import { ArrowUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Placeholder } from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
@@ -35,16 +36,31 @@ export interface BaseTutorialComposerProps {
    * suggests starting, with the intro card's button
    */
   onStart?: () => void;
+  /** A line over the box, such as why a question has not gone yet */
+  note?: string | null;
 }
 
 /**
- * The prototype's chat field (`f7d42bf2e`, design audit of 3 Nov): one row,
- * Send beside the words, 44 px tall with a 22 px line, so the lesson keeps
- * the column. Send sits at the foot as the words grow.
+ * Whether a pointer is down anywhere on the page. A press elsewhere blurs
+ * the field on its way down; folding then would move the button under the
+ * pointer before its click lands
  */
-const ROW = "flex-row items-end";
-const ROW_INPUT =
-  "min-h-10 px-4 pt-2.5 pb-2.5 leading-[22px] placeholder:text-muted-foreground/80 max-md:min-h-11";
+const usePressing = () => {
+  const pressing = useRef(false);
+  useEffect(() => {
+    const down = () => (pressing.current = true);
+    const up = () => (pressing.current = false);
+    window.addEventListener("pointerdown", down, { capture: true });
+    window.addEventListener("pointerup", up, { capture: true });
+    window.addEventListener("pointercancel", up, { capture: true });
+    return () => {
+      window.removeEventListener("pointerdown", down, { capture: true });
+      window.removeEventListener("pointerup", up, { capture: true });
+      window.removeEventListener("pointercancel", up, { capture: true });
+    };
+  }, []);
+  return pressing;
+};
 
 /**
  * The chat column's one composer (spec "One composer; free questions go to
@@ -54,6 +70,10 @@ const ROW_INPUT =
  * reads greyed until focused, and once the assistant has answered a
  * question it suggests starting, with "Start step 1"; both lift once the
  * lesson has begun (the designer's call, 3 Nov).
+ *
+ * The prototype's chat field (`f7d42bf2e`, design audit of 3 Nov): one line
+ * at rest, 44 px with a 22 px line and Send beside the words, so the lesson
+ * keeps the column; the full box once focused or holding text.
  */
 const BaseTutorialComposer = ({
   value,
@@ -66,69 +86,110 @@ const BaseTutorialComposer = ({
   onChip,
   waiting,
   onStart,
-}: BaseTutorialComposerProps) => (
-  <div className="flex flex-col gap-2">
-    {onStart && (
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-caption text-subtle">Ready to start the lesson?</p>
-        <Button size="sm" onClick={onStart}>
-          Start step 1
-        </Button>
-      </div>
-    )}
-    {chips && (
-      <div role="group" className="flex flex-wrap gap-2" aria-label="Ask next">
-        {chips.map((label, i) => (
-          <Button
-            key={label}
-            variant="outline"
-            size="sm"
-            onClick={() => onChip(i)}
-          >
-            {label}
+  note,
+}: BaseTutorialComposerProps) => {
+  const [focused, setFocused] = useState(false);
+  const pressing = usePressing();
+  const open = focused || value !== "";
+  return (
+    <div className="flex flex-col gap-2">
+      {onStart && (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-caption text-subtle">Ready to start the lesson?</p>
+          <Button size="sm" onClick={onStart}>
+            Start step 1
           </Button>
-        ))}
-      </div>
-    )}
-    <Composer
-      busy={busy}
-      onStop={onStop}
-      onSubmit={() => onSend(value)}
-      data-waiting={waiting || undefined}
-      className={cn(
-        ROW,
-        waiting && "opacity-50 transition-opacity focus-within:opacity-100"
+        </div>
       )}
-    >
-      <ComposerInput
-        className={ROW_INPUT}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.currentTarget.value)}
-        onKeyDown={(e) => {
-          if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) {
-            return;
-          }
-          // The composer's Enter would send on ⌘↵ too
-          if (e.metaKey || e.ctrlKey) {
-            e.preventDefault();
-            return;
-          }
-          // The composer holds every send while the assistant answers; a
-          // live action's word still runs then, so Enter routes it here
-          if (busy) {
-            e.preventDefault();
-            if (value.trim()) onSend(value);
-          }
+      {chips && (
+        <div
+          role="group"
+          className="flex flex-wrap gap-2"
+          aria-label="Ask next"
+        >
+          {chips.map((label, i) => (
+            <Button
+              key={label}
+              variant="outline"
+              size="sm"
+              onClick={() => onChip(i)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      )}
+      {note && (
+        <p role="status" className="text-caption text-subtle">
+          {note}
+        </p>
+      )}
+      <Composer
+        busy={busy}
+        onStop={onStop}
+        onSubmit={() => onSend(value)}
+        onFocus={() => setFocused(true)}
+        onBlur={(e) => {
+          if (e.currentTarget.contains(e.relatedTarget)) return;
+          const field = e.currentTarget.querySelector("textarea");
+          const fold = () => {
+            if (field === document.activeElement) return;
+            setFocused(false);
+            // The height it grew to while open would hold the one line open
+            if (field && !field.value) field.style.height = "";
+          };
+          // Folding moves everything above the box, so it waits for a press
+          // to end: the button under the pointer stays where it was pressed
+          if (pressing.current) {
+            window.addEventListener(
+              "pointerup",
+              () => requestAnimationFrame(fold),
+              { once: true }
+            );
+          } else window.setTimeout(fold, 0);
         }}
-      />
-      <ComposerToolbar className="self-end p-0 pr-1.5 pb-1.5 max-md:pb-[5px]">
-        <ComposerSend className="max-md:size-9">
-          <ArrowUp />
-        </ComposerSend>
-      </ComposerToolbar>
-    </Composer>
-  </div>
-);
+        data-open={open || undefined}
+        data-waiting={waiting || undefined}
+        className={cn(
+          !open && "flex-row items-center",
+          waiting && "opacity-50 transition-opacity focus-within:opacity-100"
+        )}
+      >
+        <ComposerInput
+          // A 22 px line, not 15 × 1.5: 22.5 made the box half a pixel off
+          className={cn(
+            "leading-[22px] placeholder:text-muted-foreground/80! max-md:max-h-[calc(4lh+1.25rem)]",
+            !open && "min-h-10 pt-2.5 pb-2.5 max-md:min-h-11"
+          )}
+          value={value}
+          placeholder={placeholder}
+          enterKeyHint="send"
+          onChange={(e) => onChange(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) {
+              return;
+            }
+            // The composer's Enter would send on ⌘↵ too
+            if (e.metaKey || e.ctrlKey) {
+              e.preventDefault();
+              return;
+            }
+            // The composer holds every send while the assistant answers; a
+            // live action's word still runs then, so Enter routes it here
+            if (busy) {
+              e.preventDefault();
+              if (value.trim()) onSend(value);
+            }
+          }}
+        />
+        <ComposerToolbar className={cn(!open && "py-1 pr-1")}>
+          <ComposerSend className="pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">
+            <ArrowUp />
+          </ComposerSend>
+        </ComposerToolbar>
+      </Composer>
+    </div>
+  );
+};
 
 export default BaseTutorialComposer;
