@@ -52,6 +52,7 @@ function Colour() {
           ["--card"],
           ["--popover"],
           ["--primary"],
+          ["--primary-edge"],
           ["--secondary"],
           ["--muted"],
           ["--muted-foreground"],

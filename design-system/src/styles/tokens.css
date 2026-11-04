@@ -7,7 +7,8 @@
  * tracks, layout sizes, elevation and motion.
  *
  * The values come from the product's former Solana theme and the deck's
- * tokens. Colours are hex on purpose: Studio's Design tab offers a
+ * tokens; the dark ramp, its text and status colours from the tutorial's
+ * cool palette (DES-160, 3 Nov 2026). Colours are hex on purpose: Studio's Design tab offers a
  * colour picker for a hex token and a text field for anything else.
  *
  * :root is paper: the product's Light theme, the landing and the deck's
@@ -24,6 +25,7 @@
   --popover-foreground: #151515;
   --primary: #8a3ff5;
   --primary-foreground: #ffffff;
+  /* never drawn in light: both buttons apply the edge under dark: only */
   --primary-edge: #8a3ff5;
   --secondary: #f2f2f3;
   --secondary-foreground: #151515;
@@ -91,8 +93,10 @@
   --popover-foreground: #e4e4e7;
   --primary: #8a3ff5;
   --primary-foreground: #ffffff;
-  /* a lighter purple hairline round the filled button: the fill alone is
-     2.9:1 on raised, the edge carries the 3:1 and keeps the white label */
+  /* a lighter purple hairline round the filled button. The fill is under
+     3:1 on raised and hover (2.9, 2.7), and a fill light enough for 3:1
+     would drop the white label under 4.5:1 (white on #b08cff is 2.61), so
+     the edge carries the 3:1 and the fill keeps the label */
   --primary-edge: #b08cff;
   --secondary: #27272b;
   --secondary-foreground: #e4e4e7;
@@ -121,7 +125,7 @@
   --sidebar-ring: #b08cff;
 
   /* ── Playground surfaces and text: a cool grey ramp ─────────────────── */
-  /* the tutorial's palette (3 Nov): every text tier reaches 4.5:1 on every
+  /* the tutorial's palette (DES-160, 3 Nov 2026): every text tier reaches 4.5:1 on every
      surface up to hover, tertiary included (#93939c, 4.56:1 on hover) */
   /* base is the ground (bg1). panel is bg2: cards, menus, dialogs, the
      composer, the stepper's track. well is the terminal's, one step below */
@@ -144,7 +148,8 @@
   --success-foreground: #08080a;
   --warning: #facc15;
   --warning-foreground: #08080a;
-  --warning-ink: #f2c36b;
+  /* the warning's own yellow for its text too, as the tutorial draws it */
+  --warning-ink: #facc15;
   --info: #38bdf8;
   --info-foreground: #08080a;
   --error: #f87171;
@@ -180,13 +185,14 @@
   --trail-4: #5a3fd9;
 
   /* ── syntax: VS Code's six roles, pulled into the product's palette ── */
+  /* plain and comment follow the dark ramp's primary and tertiary text */
   --syntax-keyword: #ec4899;
   --syntax-type: #38bdf8;
   --syntax-function: #14f195;
   --syntax-string: #f59e0b;
   --syntax-number: #8b5cf6;
-  --syntax-comment: #6b6b72;
-  --syntax-plain: #f2f2f3;
+  --syntax-comment: #93939c;
+  --syntax-plain: #e4e4e7;
 
   /* ── type ───────────────────────────────────────────────────────────── */
   --font-headline: "Stack Sans Headline", "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
