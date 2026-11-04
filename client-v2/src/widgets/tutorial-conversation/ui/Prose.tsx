@@ -62,7 +62,7 @@ export const Prose = ({
   className?: string;
   /** The code chip's size; the text around it keeps the caller's */
   chip?: keyof typeof CHIP_SIZE;
-  /** Overrides the chip's ground, as a result card's sentence sets it */
+  /** Classes merged over the chip's own, last, so a caller's ground wins */
   codeClassName?: string;
 }) => {
   const parts = textOf(text).split("`");

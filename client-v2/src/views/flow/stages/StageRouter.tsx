@@ -13,8 +13,8 @@ const Interact = lazy(() => import("./Interact"));
 interface StageRouterProps {
   stage: Stage;
   /**
-   * The stage tabs label the panels. A tutorial's frame draws none, so its
-   * panel is no tab panel (default true)
+   * The stage tabs label the panels. Where none are drawn (a tutorial's
+   * frame, or before Start), the panel is no tab panel (default true)
    */
   tabs?: boolean;
 }

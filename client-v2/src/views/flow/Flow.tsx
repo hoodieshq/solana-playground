@@ -55,7 +55,7 @@ import { markNetworkChosen, SetupList } from "@/widgets/setup-list";
  * cluster dot and account button), the assistant, the files
  * column, and the stage router over its collapsible console, with the shell's
  * stage bar (`BaseStageBar`) and then the `StageBar` stage tabs across the
- * last two. The sync banner sits above all four, full width. On `/` with no
+ * last two (a tutorial's frame draws neither the tabs nor the files column). The sync banner sits above all four, full width. On `/` with no
  * project, `useStartView` hands the shell `homeSlot`, and Home stands where
  * the assistant and the work go.
  *
@@ -384,7 +384,7 @@ const FlowFrame = () => {
                 <Stage>
                   <StageRouter
                     stage={inFrame || !stagesOffered ? "write" : state.stage}
-                    tabs={!inFrame}
+                    tabs={stagesOffered && !inFrame}
                   />
                 </Stage>
               </Center>
