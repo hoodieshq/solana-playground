@@ -1,3 +1,4 @@
+import { NetworkRefusedError } from "@/commands/deploy/network-refused";
 import type { ToolDefinition, ToolInput } from "@/shared/lib/ai";
 
 import { type PlaygroundBridge, realBridge } from "../bridge/playground-bridge";
@@ -213,6 +214,10 @@ export const createTools = (
         );
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
+        if (e instanceof NetworkRefusedError) {
+          PgAssistant.setApprovalOutcome(approvalId, "deploy did not start");
+          return `The deploy did not start, and nothing was sent: ${message}`;
+        }
         PgAssistant.setApprovalOutcome(approvalId, "deploy failed");
         return `The deployment failed: ${message}`;
       }

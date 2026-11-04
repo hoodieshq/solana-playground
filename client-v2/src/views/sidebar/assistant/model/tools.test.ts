@@ -1,3 +1,4 @@
+import { NetworkRefusedError } from "@/commands/deploy/network-refused";
 import { requireFor } from "@/test-utils/require-for";
 
 import type { PlaygroundBridge } from "../bridge/playground-bridge";
@@ -75,5 +76,28 @@ describe("write_file", () => {
       [expect.objectContaining({ path: "src/a.rs" }), "wrote src/a.rs"],
       [expect.objectContaining({ path: "src/b.rs" }), "wrote src/b.rs"],
     ]);
+  });
+});
+
+describe("deploy", () => {
+  it("says a deploy the network refused did not start, rather than failed", async () => {
+    const tool = requireFor("the deploy tool")(
+      createTools({
+        getProjectContext: () => ({ cluster: "devnet" }),
+        deploy: async () => {
+          throw new NetworkRefusedError(
+            "Devnet is not responding. Deploy waits for the network."
+          );
+        },
+      } as unknown as PlaygroundBridge).find((t) => t.name === "deploy")
+    );
+
+    const pending = tool.run({});
+    await Promise.resolve();
+    PgAssistant.resolveApproval(latestCard(), true);
+
+    expect(await pending).toBe(
+      "The deploy did not start, and nothing was sent: Devnet is not responding. Deploy waits for the network."
+    );
   });
 });

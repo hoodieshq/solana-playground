@@ -423,3 +423,48 @@ describe("BaseDeploy", () => {
     ).toHaveProperty("disabled", true);
   });
 });
+
+describe("BaseDeploy while the network is down", () => {
+  const ready = {
+    built: true,
+    deploy: "idle" as const,
+    history: [] as DeployRecord[],
+  };
+
+  it("holds the pill and gives the reason on it", () => {
+    const onDeploy = vi.fn();
+    render(
+      <BaseDeploy
+        {...props(ready)}
+        networkHold="Devnet is not responding"
+        onDeploy={onDeploy}
+      />
+    );
+    const pill = screen.getByRole("button", { name: /Deploy to devnet/ });
+    expect(pill).toHaveProperty("disabled", true);
+    expect(pill.getAttribute("title")).toBe("Devnet is not responding");
+    fireEvent.click(pill);
+    expect(onDeploy).not.toHaveBeenCalled();
+  });
+
+  it("leaves a program not built on its own reason", () => {
+    render(
+      <BaseDeploy
+        {...props({ built: false, deploy: "idle", history: [] })}
+        networkHold="You're offline"
+      />
+    );
+    expect(
+      screen
+        .getByRole("button", { name: /Deploy to devnet/ })
+        .getAttribute("title")
+    ).toBe("Build successfully first");
+  });
+
+  it("leaves the pill on while the network answers", () => {
+    render(<BaseDeploy {...props(ready)} />);
+    expect(
+      screen.getByRole("button", { name: /Deploy to devnet/ })
+    ).toHaveProperty("disabled", false);
+  });
+});
