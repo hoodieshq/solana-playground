@@ -65,7 +65,9 @@ export const initRustAnalyzer = async (): Promise<Disposable> => {
     ]);
   } catch (e) {
     log.warn(
-      "Rust Analyzer disabled: the default crates did not load (`yarn generate-default-crates`)",
+      PgCommon.isFileMissing(e)
+        ? "Rust Analyzer disabled: the default crates are missing (`yarn generate-default-crates`)"
+        : "Rust Analyzer disabled: the default crates did not load",
       { context: { error: e } }
     );
     return { dispose: () => {} };
