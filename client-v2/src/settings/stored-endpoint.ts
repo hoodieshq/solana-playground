@@ -74,6 +74,10 @@ const ENDPOINT_OPTIONS = buildEndpointOptions(NETWORKS, SERVER_URL);
 
 type State = Record<string, unknown>;
 
+/** Whether a parsed value is a plain object, the shape every settings group has */
+const isRecord = (value: unknown): value is State =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
 /** Replace one setting's value, if the state has it */
 const mapSetting = <T extends State>(
   state: T,
@@ -81,8 +85,9 @@ const mapSetting = <T extends State>(
   map: (value: unknown) => unknown
 ): T => {
   const [group, field] = id.split(".");
-  const inner = state[group] as State | undefined;
-  if (!inner || !(field in inner)) return state;
+  const inner = state[group];
+  // `in` throws on a primitive, and a stored group can be anything
+  if (!isRecord(inner) || !(field in inner)) return state;
 
   return { ...state, [group]: { ...inner, [field]: map(inner[field]) } };
 };
@@ -90,6 +95,23 @@ const mapSetting = <T extends State>(
 const defaultOf = (defaults: State, id: EndpointSettingId) => {
   const [group, field] = id.split(".");
   return (defaults[group] as State | undefined)?.[field];
+};
+
+/**
+ * Whether a stored custom value can be handed to a connection. Keep it in
+ * step with `PgCommon.isUrl`, which the custom field's `parse` applies when
+ * the user types the value and which this file cannot import: a value the
+ * field accepts must never read back as the default.
+ */
+const isAddress = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    // Not an address: the caller falls back to the default
+    return false;
+  }
 };
 
 /**
@@ -121,8 +143,11 @@ export const toStoredEndpoints = (
  * A key resolves to the address the env provides now; a key whose option
  * is gone falls back to the default. A plain string written before
  * endpoints were stored as keys resolves the same way when it is one of our
- * addresses; a custom address comes back untouched -- it may carry the
- * user's own API token.
+ * addresses; a custom address that parses comes back untouched -- it may
+ * carry the user's own API token. Anything that is not an address (a
+ * corrupted entry, a custom one whose URL does not parse) falls back to the
+ * default too: the offered Devnet for the RPC, the default build server for
+ * the server, so a broken profile still lands somewhere that works.
  *
  * @param stored the settings `localStorage` holds
  * @param defaults the default settings
@@ -139,23 +164,94 @@ export const fromStoredEndpoints = <T extends State>(
         if (typeof value === "string") {
           // A plain string is either one of our addresses, read back as its
           // key resolves now (a public URL moves to the offered network), or
-          // a custom one, kept as is
+          // a custom one, kept as is when it parses as a URL
           const ours = options[id].find((o) => o.url === value);
-          if (!ours) return value;
-          return options[id].find((o) => o.key === ours.key)?.url ?? value;
+          if (ours) {
+            return options[id].find((o) => o.key === ours.key)?.url ?? value;
+          }
+          return isAddress(value) ? value : defaultOf(defaults, id);
         }
 
-        const { option, url } = (value ?? {}) as {
-          option?: string;
-          url?: string;
+        const { option, url } = (isRecord(value) ? value : {}) as {
+          option?: unknown;
+          url?: unknown;
         };
-        if (option === "custom" && typeof url === "string") return url;
+        if (option === "custom") {
+          return isAddress(url) ? url : defaultOf(defaults, id);
+        }
 
         const known = options[id].find((o) => o.key === option);
         return known ? known.url : defaultOf(defaults, id);
       }),
     stored
   );
+
+/**
+ * The `settings` entry of `localStorage` as an object, or the reason it is
+ * not one. An entry that does not parse, or parses to something other than
+ * an object, must not stop the app from starting: the caller logs the error
+ * and loads the defaults.
+ *
+ * @param raw the entry as `localStorage` holds it
+ */
+export const parseStoredSettings = (raw: string): State | Error => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    // Handed back, not swallowed: the caller logs it
+    return error instanceof Error ? error : new Error(String(error));
+  }
+  if (!isRecord(parsed)) {
+    return new Error("The stored settings are not an object");
+  }
+  return parsed;
+};
+
+/**
+ * Whether a stored value can stand where the defaults hold a value that is
+ * not an object: `null` only where the default is `null`, and an object or
+ * array only as an array in place of an array
+ */
+const canReplaceDefault = (fallback: unknown, value: unknown): boolean => {
+  // eslint-disable-next-line unicorn/no-null -- `null` is what parsed JSON holds
+  if (value === null) return fallback === null;
+  if (typeof value !== "object") return true;
+  return Array.isArray(fallback) && Array.isArray(value);
+};
+
+/**
+ * Stored settings without the values that would break loading them, at any
+ * depth: a non-object where the defaults hold an object, a `null` where the
+ * default is not `null` (`setMissingDefaults` in `updatable` reads into it
+ * and throws), and an object or array where the default is a primitive
+ * (`handleFields` in `updatable` writes its keys onto the primitive and
+ * throws). Dropped, a setting loads its default, Devnet included. A key
+ * the defaults do not hold is kept as it is, for the migrations.
+ *
+ * Endpoints are stored as objects over string defaults, so this runs on
+ * settings `fromStoredEndpoints` has already turned back into addresses.
+ *
+ * @param defaults the default settings
+ * @param stored the settings `localStorage` holds, endpoints resolved
+ */
+export const dropBrokenSettingsFor =
+  (defaults: State) =>
+  (stored: State): State =>
+    Object.fromEntries(
+      Object.entries(stored).flatMap(([key, value]) => {
+        const fallback = defaults[key];
+        // No default: a setting since renamed, which a migration still reads
+        // (`other.blockExplorer`); `removeExtraProperties` drops it after
+        if (!Object.hasOwn(defaults, key)) return [[key, value]];
+        if (isRecord(fallback)) {
+          return isRecord(value)
+            ? [[key, dropBrokenSettingsFor(fallback)(value)]]
+            : [];
+        }
+        return canReplaceDefault(fallback, value) ? [[key, value]] : [];
+      })
+    );
 
 if (import.meta.vitest) {
   const { describe, it, expect, beforeAll } = import.meta.vitest;
@@ -350,6 +446,162 @@ if (import.meta.vitest) {
         const read = fromStoredEndpoints(stored, defaults, options);
         expect(read.connection.endpoint).toBe(defaults.connection.endpoint);
         expect(read.server.endpoint).toBe(LOCAL_ENDPOINT);
+      });
+
+      it.each([
+        ["a custom address that is not a URL", { option: "custom", url: "x" }],
+        ["a custom option with no address", { option: "custom" }],
+        ["a legacy plain string that is not a URL", "not a url"],
+        ["an empty string", ""],
+        ["a number", 42],
+        ["an array", ["devnet"]],
+        // eslint-disable-next-line unicorn/no-null -- stored JSON can hold null; this is what it reads back as
+        ["null", null],
+        ["an option that is not a string", { option: 5 }],
+        [
+          "a custom option with a null address",
+          // eslint-disable-next-line unicorn/no-null -- stored JSON can hold null; this is what it reads back as
+          { option: "custom", url: null },
+        ],
+        ["a custom option with a number address", { option: "custom", url: 5 }],
+      ])("lands on Devnet when the stored endpoint is %s", (_, endpoint) => {
+        const stored = {
+          connection: { endpoint },
+          server: { endpoint },
+        };
+
+        const read = fromStoredEndpoints(stored, defaults, options);
+        expect(read.connection.endpoint).toBe(Endpoint.DEVNET);
+        expect(read.server.endpoint).toBe(defaults.server.endpoint);
+      });
+
+      it.each([
+        ["not JSON", "{not json"],
+        ["JSON null", "null"],
+        ["a JSON number", "42"],
+        ["a JSON array", "[]"],
+      ])("reports stored settings that are %s as unreadable", (_, raw) => {
+        expect(parseStoredSettings(raw)).toBeInstanceOf(Error);
+      });
+
+      it("tells a value that is not an object apart from text that is not JSON", () => {
+        const notObject = parseStoredSettings("[]");
+        const notJson = parseStoredSettings("{not json");
+
+        expect(notObject).toBeInstanceOf(Error);
+        expect(notJson).toBeInstanceOf(SyntaxError);
+        expect((notObject as Error).message).not.toBe(
+          (notJson as Error).message
+        );
+      });
+
+      it.each([
+        ["a string", "x"],
+        ["a number", 5],
+        // eslint-disable-next-line unicorn/no-null -- stored JSON can hold null; this is what it reads back as
+        ["null", null],
+        ["an array", ["devnet"]],
+      ])("drops a stored group that is %s", (_, group) => {
+        const stored = { connection: group, ui: { theme: "Dark" } };
+
+        expect(dropBrokenSettingsFor(defaults)(stored)).toEqual({
+          ui: { theme: "Dark" },
+        });
+      });
+
+      it("reads a connection group that is not an object without throwing", () => {
+        // Endpoints resolve before `dropBrokenSettingsFor` drops the group
+        expect(
+          fromStoredEndpoints({ connection: "x" }, defaults, options)
+        ).toEqual({ connection: "x" });
+      });
+
+      it("keeps a stored option once it resolves, which the filter alone would drop", () => {
+        const stored = { connection: { endpoint: { option: "devnet" } } };
+
+        expect(
+          dropBrokenSettingsFor(defaults)(
+            fromStoredEndpoints(stored, defaults, options)
+          )
+        ).toEqual({ connection: { endpoint: PLATFORM_DEVNET } });
+        expect(dropBrokenSettingsFor(defaults)(stored)).toEqual({
+          connection: {},
+        });
+      });
+
+      describe("below the top level", () => {
+        const nested = {
+          build: { flags: { noDocs: true } },
+          ui: { theme: "Solana" },
+        };
+
+        it("drops a nested value that should be an object and is not", () => {
+          expect(
+            dropBrokenSettingsFor(nested)({ build: { flags: "x" } })
+          ).toEqual({ build: {} });
+        });
+
+        it("drops a stored null whose default is not null", () => {
+          const stored = JSON.parse('{"ui":{"theme":null}}');
+
+          expect(dropBrokenSettingsFor(nested)(stored)).toEqual({ ui: {} });
+        });
+
+        it.each([
+          ["an object", { x: 1 }],
+          ["an array", ["a"]],
+        ])("drops %s stored where the default is a string", (_, value) => {
+          expect(
+            dropBrokenSettingsFor(nested)({ ui: { theme: value } })
+          ).toEqual({ ui: {} });
+        });
+
+        it("keeps an array stored where the default is an array", () => {
+          const withList = { recent: ["a"] };
+
+          expect(dropBrokenSettingsFor(withList)({ recent: ["b"] })).toEqual({
+            recent: ["b"],
+          });
+        });
+
+        it("keeps nested values that fit the defaults", () => {
+          const stored = {
+            build: { flags: { noDocs: false } },
+            ui: { theme: "Dark" },
+          };
+
+          expect(dropBrokenSettingsFor(nested)(stored)).toEqual(stored);
+        });
+      });
+
+      it("keeps a group the defaults no longer hold, for its migration", () => {
+        const stored = { other: { blockExplorer: "Solscan" } };
+
+        expect(dropBrokenSettingsFor(defaults)(stored)).toEqual(stored);
+      });
+
+      it("keeps groups the defaults do not hold as objects", () => {
+        const stored = { connection: { endpoint: "x" }, extra: 5 };
+
+        expect(dropBrokenSettingsFor(defaults)(stored)).toEqual(stored);
+      });
+
+      it.each([
+        "https://my.rpc.test/?api-key=s3cr3t",
+        "http://localhost:8899",
+        "http://10.0.0.5:8080",
+      ])("keeps the valid custom address %s", (url) => {
+        const stored = { connection: { endpoint: { option: "custom", url } } };
+
+        expect(
+          fromStoredEndpoints(stored, defaults, options).connection.endpoint
+        ).toBe(url);
+      });
+
+      it("reads stored settings that are an object", () => {
+        expect(
+          parseStoredSettings('{"connection":{"endpoint":{"option":"devnet"}}}')
+        ).toEqual({ connection: { endpoint: { option: "devnet" } } });
       });
 
       it("reads the dropped SolPg build server as the default", () => {
