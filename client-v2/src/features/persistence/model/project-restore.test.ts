@@ -10,6 +10,7 @@ import { PgProjectSync } from "./project-sync";
 import type { Snapshot } from "./snapshot";
 import { hashFiles } from "./snapshot";
 import { PgSyncClaim } from "./sync-claim";
+import { PgSyncClient } from "./sync-client";
 import { PgSyncMark } from "./sync-mark";
 import * as tabReload from "./tab-reload";
 import { PgThreadIndex } from "./thread-index";
@@ -880,5 +881,83 @@ describe("releasing local projects at sign-out", () => {
     await releaseLocalProjects();
 
     expect(await PgSyncMark.read("p1")).not.toBeNull();
+  });
+});
+
+describe("a project the account cap refused", () => {
+  /** The ten projects the account already holds, none of them local */
+  const ten = () =>
+    Array.from({ length: 10 }, (_, i) => project(`s${i}`, `synced ${i}`));
+
+  const capReached = {
+    reason: "too-many-projects",
+    kind: "project",
+    limit: 10,
+    count: 11,
+  };
+
+  /** Answer the probe, and every create with the account cap's 413 */
+  const refusingCreates = () =>
+    vi.spyOn(global, "fetch").mockImplementation((async (url: string) =>
+      url === "/api/sync"
+        ? { ok: true, json: async () => ({ enabled: true, db: "ok" }) }
+        : {
+            ok: false,
+            status: 413,
+            json: async () => ({
+              error: "The account syncs as many projects as it can",
+              reason: capReached.reason,
+              kind: capReached.kind,
+              limit: capReached.limit,
+              count: capReached.count,
+            }),
+          }) as unknown as typeof fetch);
+
+  const putCount = () =>
+    (
+      global.fetch as unknown as { mock: { calls: [string, RequestInit?][] } }
+    ).mock.calls.filter(
+      ([url, init]) => url === "/api/projects" && init?.method === "PUT"
+    ).length;
+
+  beforeEach(async () => {
+    PgSession.reset();
+    PgSyncClient.reset();
+    PgProjectSync.reset();
+    storedFiles().clear();
+    await signedIn();
+    vi.spyOn(PgProjectSync, "isAvailable").mockResolvedValue(true);
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("keeps it local, unmarked, and asked about once, through reconcile and sign-out", async () => {
+    withLocal({ eleventh: "p11" });
+    withFiles("eleventh", { "src/lib.rs": "only here" });
+    serverHas(ten());
+    stubCreation();
+    refusingCreates();
+    const remove = vi
+      .spyOn(PgExplorer, "deleteWorkspace")
+      .mockResolvedValue(undefined as never);
+
+    const first = await reconcile();
+
+    expect(first.pushed).toEqual([]);
+    expect(putCount()).toBe(1);
+    expect(PgProjectSync.conflictFor("p11")).toEqual({
+      projectId: "p11",
+      kind: "too-large",
+      limit: capReached,
+    });
+    expect(await PgSyncMark.exists("p11")).toBe(false);
+
+    // A refocus or another tab's pass: the outstanding question holds pushes
+    await reconcile();
+    expect(putCount()).toBe(1);
+
+    expect(await releaseLocalProjects()).toEqual([]);
+    expect(remove).not.toHaveBeenCalled();
+    expect(storedFiles().get("/eleventh/src/lib.rs")).toBe("only here");
   });
 });

@@ -70,6 +70,18 @@ type PersistenceEvents = {
    * the counted files. Once per banner, as above.
    */
   sync_files_count_limit_exceeded: { by: LimitByParam; files: number };
+  /**
+   * A project's sync banner was raised for the account cap: the server
+   * refused its create because the account already syncs as many projects
+   * (`kind: "project"`) or tutorials (`kind: "tutorial"`) as it can.
+   * `projects` is the count the refused write would have made. `by` is always
+   * `server`, the one side that knows the count. Once per banner, as above.
+   */
+  sync_projects_count_limit_exceeded: {
+    by: LimitByParam;
+    kind: "project" | "tutorial";
+    projects: number;
+  };
 };
 
 export const persistenceTelemetry = createTracker<PersistenceEvents>();

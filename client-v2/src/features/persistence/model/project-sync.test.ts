@@ -2265,4 +2265,55 @@ describe("a project over a sync limit", () => {
     expect(putCalls()).toHaveLength(1);
     expect(syncEvents()).toEqual([]);
   });
+
+  describe("the account cap", () => {
+    const refusedForCap = (): StubResponse => ({
+      ok: false,
+      status: 413,
+      json: async () => ({
+        error: "The account syncs as many projects as it can",
+        reason: "too-many-projects",
+        kind: "project",
+        limit: 10,
+        count: 11,
+      }),
+    });
+
+    it("keeps a refused create unmarked and asks once, until Try again", async () => {
+      answering(refusedForCap);
+      onDisk(many(3));
+
+      expect(await PgProjectSync.pushCurrent()).toBe("conflict");
+      expect(markOf()).toBeUndefined();
+      expect(limitFor("p1")).toEqual({
+        reason: "too-many-projects",
+        kind: "project",
+        limit: 10,
+        count: 11,
+      });
+      expect(syncEvents()).toEqual([
+        {
+          name: "sync_projects_count_limit_exceeded",
+          params: { by: "server", kind: "project", projects: 11 },
+        },
+      ]);
+
+      // Editing on sends nothing: no retry loop against the cap
+      onDisk(many(4));
+      expect(await PgProjectSync.pushCurrent()).toBe("skipped");
+      expect(putCalls()).toHaveLength(1);
+    });
+
+    it("uploads on Try again once a place is free", async () => {
+      answering(refusedForCap);
+      onDisk(many(3));
+      await PgProjectSync.pushCurrent();
+
+      // The user deleted another project from the account
+      answering(accepted);
+      expect(await PgProjectSync.resolve("p1", "retry")).toBe(true);
+      expect(PgProjectSync.conflictFor("p1")).toBeNull();
+      expect(markOf()).toBeDefined();
+    });
+  });
 });

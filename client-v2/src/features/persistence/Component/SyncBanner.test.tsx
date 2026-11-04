@@ -419,6 +419,18 @@ describe("SyncBanner limit wording", () => {
     );
   });
 
+  it("names the account cap and says the project stays", async () => {
+    const { text } = await bannerFor({
+      reason: "too-many-projects",
+      kind: "project",
+      limit: 10,
+      count: 11,
+    });
+    expect(text).toBe(
+      "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a project you no longer need, then try again."
+    );
+  });
+
   it("names the body cap when the refusal names no limit", async () => {
     expect((await bannerFor()).text).toBe(
       "This project is over 1 MiB. Remove or shrink its largest files, then try again."

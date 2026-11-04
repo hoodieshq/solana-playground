@@ -87,7 +87,7 @@ the same time once 2.1 has merged.
 
 ## 4. Account cap
 
-- [ ] 4.1 Cap the projects an account syncs (HOO-2538, depends on 2.2 and
+- [x] 4.1 Cap the projects an account syncs (HOO-2538, depends on 2.2 and
   3.1): `ACCOUNT_LIMITS` (`projects: 10`, `tutorials: 32`) and the
   `too-many-projects` shape in `limits.mjs`, read by `readLimitExceeded`;
   `SWAP` returns `had_files`; `writeProject` takes the per-account advisory
