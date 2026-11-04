@@ -11,6 +11,12 @@ type SettingsEvents = {
   settings_closed: { via: SettingsExit };
   /** A user picked a section in the page's section list. */
   settings_section_picked: { section: string };
+  /** A custom RPC was saved in Settings, Network: a new one (`add`) or an edited one (`edit`). */
+  settings_custom_rpc_saved: { mode: "add" | "edit" };
+  /** A saved custom RPC was removed; `picked` says whether it was the network in use. */
+  settings_custom_rpc_removed: { picked: boolean };
+  /** Saving a custom RPC was refused: the URL fails the rule (`format`), it is saved or offered already (`duplicate`), or the browser refused the write (`storage`). */
+  settings_custom_rpc_refused: { reason: "format" | "duplicate" | "storage" };
 };
 
 export const settingsTelemetry = createTracker<SettingsEvents>();

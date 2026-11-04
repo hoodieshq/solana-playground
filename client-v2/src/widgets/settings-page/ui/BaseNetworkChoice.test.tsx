@@ -119,4 +119,38 @@ describe("BaseNetworkChoice", () => {
     expect(onPick).toHaveBeenCalledTimes(1);
     expect(onPick).toHaveBeenCalledWith(Endpoint.MAINNET_BETA);
   });
+  it("puts a chip for each saved RPC after Devnet and Mainnet, under its name", () => {
+    render(
+      <BaseNetworkChoice
+        endpoint="https://h.test/"
+        custom={[
+          { name: "Helius", url: "https://h.test/" },
+          { name: "Triton", url: "https://t.test/" },
+        ]}
+        onPick={() => {}}
+      />
+    );
+    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual([
+      "Devnet",
+      "Mainnet",
+      "Helius",
+      "Triton",
+    ]);
+    expect(
+      screen.getByRole("radio", { name: "Helius" }).getAttribute("aria-checked")
+    ).toBe("true");
+  });
+
+  it("picks a saved RPC's URL on a click on its chip", async () => {
+    const onPick = vi.fn();
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.DEVNET}
+        custom={[{ name: "Helius", url: "https://h.test/" }]}
+        onPick={onPick}
+      />
+    );
+    await userEvent.click(screen.getByRole("radio", { name: "Helius" }));
+    expect(onPick).toHaveBeenCalledWith("https://h.test/");
+  });
 });

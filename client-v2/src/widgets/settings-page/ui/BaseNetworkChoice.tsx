@@ -1,34 +1,46 @@
 import { useId } from "react";
 
 import { NETWORKS as OFFERED } from "@/constants";
+import type { CustomRpc } from "@/entities/custom-rpc";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 
 const REAL_SOL = "Deploys with real SOL";
 
-// `line` says how a network deploys; only Mainnet has one so far.
-const NETWORKS: ReadonlyArray<{
+/** A chip; `line` says how its network deploys, only Mainnet has one so far */
+interface Chip {
   label: string;
   endpoint: string;
   line?: string;
-}> = OFFERED.map(({ name, value, cluster }) => ({
-  label: name,
-  endpoint: value,
-  line: cluster === "mainnet-beta" ? REAL_SOL : undefined,
-}));
+}
+
+const NETWORKS: ReadonlyArray<Chip> = OFFERED.map(
+  ({ name, value, cluster }) => ({
+    label: name,
+    endpoint: value,
+    line: cluster === "mainnet-beta" ? REAL_SOL : undefined,
+  })
+);
 
 /**
- * The network chips, Devnet and Mainnet, with the checked network's line
- * under them. An endpoint no chip lists (Localnet, Testnet, Playnet, a custom
- * URL) leaves none checked.
+ * The network chips: Devnet and Mainnet, then each saved custom RPC under its
+ * name, with the checked network's line under them. An endpoint no chip
+ * lists (Playnet, or a URL not saved yet) leaves none checked.
  */
 const BaseNetworkChoice = ({
   endpoint,
+  custom = [],
   onPick,
 }: {
   endpoint: string;
+  /** The saved custom RPCs, in the order they were saved */
+  custom?: ReadonlyArray<CustomRpc>;
   onPick: (endpoint: string) => void;
 }) => {
-  const picked = NETWORKS.find((n) => n.endpoint === endpoint);
+  const chips: Chip[] = [
+    ...NETWORKS,
+    ...custom.map((rpc) => ({ label: rpc.name, endpoint: rpc.url })),
+  ];
+  const picked = chips.find((n) => n.endpoint === endpoint);
   const lineId = useId();
   return (
     <div className="flex flex-col gap-2">
@@ -39,7 +51,7 @@ const BaseNetworkChoice = ({
         value={picked ? endpoint : ""}
         onValueChange={onPick}
       >
-        {NETWORKS.map((n) => (
+        {chips.map((n) => (
           <SegmentedItem
             key={n.endpoint}
             value={n.endpoint}
