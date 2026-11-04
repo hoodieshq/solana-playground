@@ -38,6 +38,15 @@ export interface BaseTutorialComposerProps {
 }
 
 /**
+ * The prototype's chat field (`f7d42bf2e`, design audit of 3 Nov): one row,
+ * Send beside the words, 44 px tall with a 22 px line, so the lesson keeps
+ * the column. Send sits at the foot as the words grow.
+ */
+const ROW = "flex-row items-end";
+const ROW_INPUT =
+  "min-h-10 px-4 pt-2.5 pb-2.5 leading-[22px] placeholder:text-muted-foreground/80 max-md:min-h-11";
+
+/**
  * The chat column's one composer (spec "One composer; free questions go to
  * the live assistant"): never disabled, Enter sends, Shift+Enter breaks the
  * line, and ⌘↵ does nothing here, since in the column it presses the live
@@ -87,10 +96,12 @@ const BaseTutorialComposer = ({
       onSubmit={() => onSend(value)}
       data-waiting={waiting || undefined}
       className={cn(
+        ROW,
         waiting && "opacity-50 transition-opacity focus-within:opacity-100"
       )}
     >
       <ComposerInput
+        className={ROW_INPUT}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.currentTarget.value)}
@@ -111,8 +122,8 @@ const BaseTutorialComposer = ({
           }
         }}
       />
-      <ComposerToolbar>
-        <ComposerSend>
+      <ComposerToolbar className="self-end p-0 pr-1.5 pb-1.5 max-md:pb-[5px]">
+        <ComposerSend className="max-md:size-9">
           <ArrowUp />
         </ComposerSend>
       </ComposerToolbar>

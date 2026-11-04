@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -196,8 +196,9 @@ describe("TutorialComposer", () => {
       />
     );
   };
-  const turn = () => ({
-    send: vi.fn(async () => {}),
+  /** A turn whose sends reach the assistant, or (`reached` false) open Connect a model */
+  const turn = (reached = true) => ({
+    send: vi.fn(async () => reached),
     stop: vi.fn(),
     busy: false,
   });
@@ -240,7 +241,7 @@ describe("TutorialComposer", () => {
     store.state = stateAt("intro");
     store.view.mockReturnValue(view("Ask anything about this tutorial"));
     thread.items = [reply("A PDA is")];
-    const busy = { send: vi.fn(async () => {}), stop: vi.fn(), busy: true };
+    const busy = { send: vi.fn(async () => true), stop: vi.fn(), busy: true };
     render(<Connected turn={busy} />);
     expect(screen.queryByRole("button", { name: "Start step 1" })).toBeNull();
   });
@@ -268,8 +269,18 @@ describe("TutorialComposer", () => {
     const t = turn();
     render(<Connected turn={t} />);
     await userEvent.type(box(), "I'm stuck{Enter}");
-    expect(store.asked).toHaveBeenCalledTimes(1);
     expect(t.send).toHaveBeenCalledWith("I'm stuck");
+    await waitFor(() => expect(store.asked).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not count a question that opened Connect a model instead", async () => {
+    store.say.mockReturnValue("assistant");
+    const t = turn(false);
+    render(<Connected turn={t} />);
+    await userEvent.type(box(), "what is a PDA{Enter}");
+    expect(t.send).toHaveBeenCalledWith("what is a PDA");
+    await t.send.mock.results[0].value;
+    expect(store.asked).not.toHaveBeenCalled();
   });
 
   it("keeps a question in the box, uncounted, while the assistant answers", () => {

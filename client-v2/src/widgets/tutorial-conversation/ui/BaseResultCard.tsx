@@ -183,7 +183,7 @@ const BaseResultCard = ({
         </div>
       )}
       {expanded && failedBuild && !unreachable && (
-        <div className="flex flex-col gap-3 border-t border-error/20 px-3 py-3">
+        <div className="@container flex flex-col gap-3 border-t border-error/20 px-3 py-3">
           {/* The compiler's words on a red rule, a quote of its output with
               no well (the prototype's ResultCard, f7d42bf2e) */}
           {error && (
@@ -215,7 +215,10 @@ const BaseResultCard = ({
             </p>
           )}
           {open && (
-            <div className="flex flex-wrap items-center gap-2">
+            // One width for both, side by side where the card has room for
+            // the wider one twice, as the prototype's (design audit, 3 Nov);
+            // stacked full width where it has not, a phone's column included
+            <div className="grid gap-2 @min-[23rem]:w-fit @min-[23rem]:auto-cols-fr @min-[23rem]:grid-flow-col">
               <Button onClick={onExplain}>
                 Explain the error
                 <Kbd

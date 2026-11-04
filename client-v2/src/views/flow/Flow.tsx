@@ -87,6 +87,9 @@ const TutorialChat = ({
   onOpenMenu: () => void;
 }) => {
   const turn = useTurn({ open: openConnectDialog });
+  // The composer counts a question only once the assistant has it
+  const send = (text: string) =>
+    turn.send(text).then((outcome) => outcome === "sent");
   return (
     <>
       <TutorialConversation
@@ -94,7 +97,15 @@ const TutorialChat = ({
         onOpenMenu={onOpenMenu}
       />
       <div className="px-5 pb-4">
-        <TutorialComposer turn={turn} />
+        <TutorialComposer
+          turn={{
+            send,
+            stop: turn.stop,
+            busy: turn.busy,
+            input: turn.input,
+            setInput: turn.setInput,
+          }}
+        />
       </div>
     </>
   );

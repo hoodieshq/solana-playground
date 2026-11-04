@@ -278,8 +278,9 @@ definition SHALL carry none.
 The chat column SHALL have one composer at its foot, never disabled. Enter
 sends and Shift+Enter breaks the line. ⌘↵ in the composer SHALL do nothing.
 The placeholder SHALL follow the moment: "Ask anything about this tutorial"
-before Start, "Ask about this step", "Ask while it builds" while an act runs,
-and "Ask anything" after the finish. Before Start the composer SHALL read
+before Start, "Ask about this step", "Or ask about this step" while a
+question is open, "Ask while it builds" while an act runs, and "Ask
+anything" after the finish. Before Start the composer SHALL read
 greyed until it takes focus, still taking a question or a start word. Once
 the assistant has answered a question before Start, the composer SHALL
 suggest starting, "Ready to start the lesson?", with a "Start step 1" button
@@ -297,7 +298,9 @@ in this order:
    step, its objective, the open files, the last result and the tutorial's
    doc list as its context. Its answer SHALL post in the feed as the
    assistant's turn. With no model connected, the message SHALL route to
-   connecting a model.
+   connecting a model. While the assistant answers, a question SHALL wait in
+   the composer, unsent, until the answer ends; a live action's word still
+   runs then.
 
 There SHALL be no scripted answers matched from typed text: the assistant
 answers every free message. What does something in the interface SHALL be one
@@ -405,13 +408,16 @@ The tutorial slice SHALL emit:
   - `next`: the one opened, by slug.
 - `tutorial_receipt_copied` when Copy receipt is pressed on the finish card,
   with `tutorial`.
-- `tutorial_question_asked` when a composer message goes to the live
-  assistant or a finish chip is pressed, with:
+- `tutorial_question_asked` when a composer message reaches the live
+  assistant (not when it opens Connect a model, or waits while an answer
+  runs) or a finish chip is pressed, with:
   - `tutorial`;
   - `step`;
   - `source`: `typed`, or `chip` when a finish chip is pressed (the event
     fires for chips too, though their answer needs no model).
-- `tutorial_word_sent` when a composer message is only an action word, with:
+- `tutorial_word_sent` when a composer message is only an action word whose
+  action is live, or one an open question refuses, with (a word with
+  nothing live to run goes to the assistant as a question):
   - `tutorial`;
   - `step`;
   - `word`: the action word matched (`start`, `build`, `deploy`, `run`,

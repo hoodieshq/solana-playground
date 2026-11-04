@@ -12,8 +12,13 @@ import { useConversationState } from "./TutorialConversation";
  * message is in, so a send it refuses leaves the text in the box.
  */
 export interface ComposerTurn {
-  /** Send a prompt; with nothing connected, it opens Connect a model and puts the text back */
-  send: (text: string) => Promise<void>;
+  /**
+   * Send a prompt; with nothing connected, it opens Connect a model and puts
+   * the text back. Resolves `true` once the assistant has the message, after
+   * its answer, and `false` when it opened Connect a model instead, was
+   * refused or failed
+   */
+  send: (text: string) => Promise<boolean>;
   stop: () => void;
   busy: boolean;
   input: string;
@@ -57,15 +62,13 @@ export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
     // A question while the assistant answers waits in the box, uncounted:
     // `useTurn` would refuse it
     if (turn.busy) return;
-    // TODO(tutorial-flow-v2 3.6 follow-up): counted before `useTurn` says
-    // whether the message went out (with no model it opens Connect a model
-    // and keeps the text); counting only a started send needs `send` to
-    // report it
-    PgConversation.asked();
     // With no model, `send` opens Connect a model and keeps the text here,
     // with no note, as the panel's composer does for a typed message (its
-    // "waiting" note is for prompts the product asked for)
-    void turn.send(text);
+    // "waiting" note is for prompts the product asked for); only a message
+    // the assistant got is counted as asked
+    void turn.send(text).then((reached) => {
+      if (reached) PgConversation.asked();
+    });
   };
   return (
     <BaseTutorialComposer

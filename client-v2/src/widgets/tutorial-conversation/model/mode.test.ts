@@ -31,7 +31,6 @@ vi.mock("@/views/sidebar/assistant/store", () => ({
 
 const conversation = vi.mocked(PgConversation);
 
-/** The live card the view reports: an open question, or nothing */
 /** The live card the view reports: an open question (writing `writes`, if given), or nothing */
 const liveIs = (open: boolean, writes?: { file: string; block: string }) =>
   conversation.view.mockReturnValue({

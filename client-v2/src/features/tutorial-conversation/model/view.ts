@@ -357,6 +357,7 @@ export interface StepBarItem {
 export type Placeholder =
   | "Ask anything about this tutorial"
   | "Ask about this step"
+  | "Or ask about this step"
   | "Ask while it builds"
   | "Ask anything";
 
@@ -832,6 +833,9 @@ export const view = (
     placeholder = "Ask anything about this tutorial";
   else if (p.cursor.kind === "finished") placeholder = "Ask anything";
   else if (running) placeholder = "Ask while it builds";
+  // Typing is the other way past an open question, beside its options
+  else if (live?.kind === "ask" && live.open)
+    placeholder = "Or ask about this step";
 
   const lastTime = p.times[last.id];
   const finishAt =
@@ -954,6 +958,27 @@ if (import.meta.vitest) {
       const state = play([{ type: "start", at: 1000 }]);
       const v = view(hello, state, { now: 1e9, loadedAt: 1000 + TICK + 1 });
       expect(v.turns.map((t) => t.whole)).toEqual([true, true, true, false]);
+    });
+
+    it("offers typing as the other way past an open question, in the placeholder", () => {
+      const open = view(hello, play([{ type: "start", at: 1000 }]), LATE);
+      expect(open.live).toMatchObject({ kind: "ask", open: true });
+      expect(open.placeholder).toBe("Or ask about this step");
+      const answered = view(
+        hello,
+        play([
+          { type: "start", at: 1000 },
+          { type: "pick", beatId: "s1.q1", option: 1, at: 5000 },
+          {
+            type: "written",
+            beatId: "s1.q1",
+            wrote: { file: "src/lib.rs", lines: [5, 6, 7] },
+            at: 5000,
+          },
+        ]),
+        LATE
+      );
+      expect(answered.placeholder).toBe("Ask about this step");
     });
 
     it("a wrong then right pick reads as a retry with its echo, the right line and the wrote card", () => {

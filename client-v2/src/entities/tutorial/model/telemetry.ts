@@ -103,7 +103,8 @@ export type TutorialEvents = {
    */
   tutorial_step_back: { tutorial: string; step: number };
   /**
-   * A composer message went to the live assistant (`typed`), or a finish chip
+   * A composer message reached the live assistant (`typed`; not one that
+   * opened Connect a model or waited for an answer), or a finish chip
    * was pressed (`chip`), whose answer needs no model. `step` is 1-based, 0
    * before Start and the last step after the finish. The text is never sent.
    */
@@ -115,7 +116,8 @@ export type TutorialEvents = {
   /**
    * A message typed in the composer was only an action word ("build",
    * "deploy please", "start"): it ran that action, or, while a question was
-   * open, was refused (`refused`). `word` is the action word it matched,
+   * open, was refused (`refused`); a word with nothing live to run goes to
+   * the assistant as a question. `word` is the action word it matched,
    * whatever the case, "please" or punctuation ("begin" and "go" send
    * `start`), never the message itself. `step` is as in
    * `tutorial_question_asked`.
