@@ -1,5 +1,6 @@
 // The size and count limits a project is held to, read by the explorer, the
-// sync client and `PUT /api/projects`. `.mjs` so Node runs it as written, as
+// sync client and `PUT /api/projects`, and the account cap, read by the
+// server only. `.mjs` so Node runs it as written, as
 // `features/auth/config.mjs` is; `allowJs` lets the browser side import the
 // same file rather than restate a figure that must agree on both sides.
 //
@@ -75,7 +76,7 @@ export const isSyncedPath = (path) =>
 
 /**
  * The first limit a project is over, with what is over it: what the client's
- * check and the explorer report.
+ * check, the explorer and the server's measure report.
  *
  * @typedef {{reason: "path-too-long", limit: number, paths: string[]}
  *   | {reason: "file-too-large", limit: number, paths: string[],
@@ -86,8 +87,10 @@ export const isSyncedPath = (path) =>
  */
 
 /**
- * The account cap a create would break: `count` is the projects of `kind`
- * the account would hold with this one. Only the server finds it.
+ * The account cap a write would break by making a project count (a create,
+ * or a swap onto a row with no files): `count` is the projects of `kind` the
+ * account would hold with this one, so `limit + 1` unless the account was
+ * already over. Only the server finds it.
  *
  * @typedef {{reason: "too-many-projects", kind: "project" | "tutorial",
  *   limit: number, count: number}} AccountLimitExceeded
@@ -111,8 +114,9 @@ export const LIMIT_REASONS = [
 ];
 
 /**
- * The four `LimitExceeded` shapes, built here only, so the client's check and
+ * The five `LimitExceeded` shapes, built here only, so the client's check and
  * the server's measure send the same fields under the same names.
+ * `tooManyProjects` is the server's alone: no client can count the account.
  */
 export const limitExceeded = Object.freeze({
   /** @param {string[]} paths */

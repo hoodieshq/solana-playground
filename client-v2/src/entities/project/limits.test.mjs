@@ -250,7 +250,7 @@ describe("entities/project/limits", () => {
         files: 50,
       }
     );
-    assert.deepEqual({ ...ACCOUNT_LIMITS }, { projects: 10, tutorials: 32 });
+    assert.deepEqual(ACCOUNT_LIMITS, { projects: 10, tutorials: 32 });
   });
 });
 
