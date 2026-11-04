@@ -18,11 +18,20 @@ is added and leave when the last one is removed.
 On a phone, the "Preview the build" button SHALL bring such a project's
 Preview page (the region named "Preview") into view and keep it there while
 the stage stays Write, with the label "Client project" and the console in
-the viewport; the open console SHALL take the page below the bar. Before
+the viewport; showing that page SHALL open the console, and the open
+console SHALL take the page below the bar. Before
 anything has run, the console strip SHALL read "Run the client to see its
 output here." A client run (the `run` command) in such a project SHALL open
 the console at every width, and on a phone SHALL also bring the Preview page
 into view.
+
+The terminal's welcome SHALL name what such a project has: "Output from
+your client and your commands shows here." in place of "Output from Build,
+Deploy and your commands shows here.", followed by the line naming `help`.
+Whether the project has a program is known only after the terminal opens, and
+a project switch can change it: the welcome SHALL be reprinted with the right
+wording once that is known, while nothing else has been written to the
+terminal, and SHALL be left alone after any output.
 
 #### Scenario: An imported TypeScript project
 - **WHEN** the user opens a project that holds only `client/` and
@@ -42,6 +51,12 @@ into view.
 - **THEN** the Preview page is in the viewport and stays, the label "Client
   project" and the console strip reading "Run the client to see its output
   here." are in the viewport, and the Work page is not
+
+#### Scenario: The terminal's welcome in a project with no program
+- **WHEN** a project with no program is open and nothing has been written to
+  the terminal
+- **THEN** the terminal reads "Output from your client and your commands
+  shows here." and no line names Build or Deploy
 
 #### Scenario: A program is added
 - **WHEN** the user creates `src/lib.rs` in a project with no program
