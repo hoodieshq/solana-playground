@@ -1,6 +1,11 @@
+// The module, not the slice's entry: `PgSettings` is built on this decorator
+// and loads before everything else (see `utils/settings.ts`)
+import { createLogger } from "../../shared/lib/logger/logger";
 import { PgCommon } from "../common";
 import type { Disposable, KeyOf, SyncOrAsync } from "../types";
 import { addInit, addOnDidChange, getChangePropName, PROPS } from "./common";
+
+const log = createLogger("utils:decorators");
 
 /** Updatable decorator */
 export type Updatable<T> = {
@@ -194,8 +199,15 @@ export function updatable<T extends Record<string, any>>(params: {
         if (Array.isArray(node)) return;
 
         for (const prop in defaultState) {
-          // `typeof null` is "object", so a stored `null` would otherwise be
-          // recursed into and throw on its first property
+          // A stored `null` counts as missing and takes the default: `typeof
+          // null` is "object", so it would otherwise be recursed into and
+          // throw on its first property, failing the whole load. A prop that
+          // must keep a stored `null` needs a `null` default.
+          if (node[prop] === null && defaultState[prop] !== null) {
+            log.warn("stored null replaced by its default", {
+              context: { prop },
+            });
+          }
           if (node[prop] === undefined || node[prop] === null) {
             node[prop] = defaultState[prop];
           } else if (
@@ -403,6 +415,31 @@ if (import.meta.vitest) {
     it("loads the default when a stored leaf is null", async () => {
       // eslint-disable-next-line unicorn/no-null -- the stored JSON under test holds null
       const sClass = settingsWith({ blockExplorer: { name: null } });
+
+      await sClass[PROPS.REFRESH]();
+
+      expect(sClass[PROPS.INTERNAL_STATE]).toEqual({
+        blockExplorer: { name: "Solana Explorer" },
+      });
+    });
+
+    it("keeps the value under the new id when the old id holds null", async () => {
+      const sClass = settingsWith({
+        // eslint-disable-next-line unicorn/no-null -- the stored JSON under test holds null
+        other: { blockExplorer: null },
+        blockExplorer: { name: "Solscan" },
+      });
+
+      await sClass[PROPS.REFRESH]();
+
+      expect(sClass[PROPS.INTERNAL_STATE]).toEqual({
+        blockExplorer: { name: "Solscan" },
+      });
+    });
+
+    it("loads the default object when a stored group is null", async () => {
+      // eslint-disable-next-line unicorn/no-null -- the stored JSON under test holds null
+      const sClass = settingsWith({ blockExplorer: null });
 
       await sClass[PROPS.REFRESH]();
 
