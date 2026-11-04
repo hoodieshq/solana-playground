@@ -18,16 +18,16 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/shared/ui/input-group";
+import { Spinner } from "@/shared/ui/spinner";
 
-/** What saving answers: done, or the line to show under the URL */
-export type CustomRpcSaveAnswer = { ok: true } | { ok: false; error: string };
+import type { CustomRpcSaveAnswer } from "../model/save-custom-rpc";
 
 interface BaseCustomRpcsProps {
   rpcs: ReadonlyArray<CustomRpc>;
-  /** Save a new RPC */
-  onAdd: (input: CustomRpc) => CustomRpcSaveAnswer;
-  /** Save over the saved `rpc` */
-  onEdit: (rpc: CustomRpc, input: CustomRpc) => CustomRpcSaveAnswer;
+  /** Save a new RPC, once its URL is checked */
+  onAdd: (input: CustomRpc) => Promise<CustomRpcSaveAnswer>;
+  /** Save over the saved `rpc`, once a changed URL is checked */
+  onEdit: (rpc: CustomRpc, input: CustomRpc) => Promise<CustomRpcSaveAnswer>;
   onRemove: (rpc: CustomRpc) => void;
 }
 
@@ -117,26 +117,57 @@ const BaseCustomRpcs = ({
   );
 };
 
-/** Name, then URL with Save, the help line and the refusal under it */
+/** The form's state: typing, waiting on the URL's check, or showing why it did not save */
+type FormState =
+  | { kind: "editing" }
+  | { kind: "checking" }
+  | {
+      kind: "refused";
+      error: string;
+      /** Save without the check, when the URL could not be checked */
+      saveAnyway?: () => CustomRpcSaveAnswer;
+    };
+
+/**
+ * Name, then URL with Save, the help line and the refusal under it. While
+ * the URL is checked (up to 5 s) Save shows a spinner and nothing can be
+ * edited, cancelled or sent again; an unchecked URL offers "Use anyway".
+ */
 const RpcForm = ({
   initial,
   onSave,
   onClose,
 }: {
   initial?: CustomRpc;
-  onSave: (input: CustomRpc) => CustomRpcSaveAnswer;
+  onSave: (input: CustomRpc) => Promise<CustomRpcSaveAnswer>;
   onClose: () => void;
 }) => {
   const [name, setName] = useState(initial?.name ?? "");
   const [url, setUrl] = useState(initial?.url ?? "");
-  const [error, setError] = useState<string>();
+  const [state, setState] = useState<FormState>({ kind: "editing" });
   const id = useId();
+  const checking = state.kind === "checking";
+  const refused = state.kind === "refused" ? state : undefined;
+  const error = refused?.error;
+  const saveAnyway = refused?.saveAnyway;
 
-  const handleSubmit = (ev: FormEvent) => {
+  const settle = (answer: CustomRpcSaveAnswer) => {
+    if (answer.ok) {
+      onClose();
+      return;
+    }
+    setState({
+      kind: "refused",
+      error: answer.error,
+      saveAnyway: answer.useAnyway,
+    });
+  };
+
+  const handleSubmit = async (ev: FormEvent) => {
     ev.preventDefault();
-    const answer = onSave({ name, url });
-    if (answer.ok) onClose();
-    else setError(answer.error);
+    if (checking) return;
+    setState({ kind: "checking" });
+    settle(await onSave({ name, url }));
   };
 
   return (
@@ -153,6 +184,7 @@ const RpcForm = ({
           maxLength={RPC_NAME_MAX}
           autoFocus
           className="max-md:h-12"
+          readOnly={checking}
           onChange={(ev) => setName(ev.target.value)}
         />
       </Field>
@@ -169,25 +201,47 @@ const RpcForm = ({
             inputMode="url"
             autoComplete="off"
             spellCheck={false}
+            readOnly={checking}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? `${id}-help ${id}-error` : `${id}-help`}
             onChange={(ev) => {
               setUrl(ev.target.value);
-              setError(undefined);
+              setState({ kind: "editing" });
             }}
           />
           <InputGroupAddon align="inline-end">
-            <InputGroupButton type="submit">Save</InputGroupButton>
+            <InputGroupButton
+              type="submit"
+              disabled={checking}
+              aria-busy={checking || undefined}
+            >
+              {checking && <Spinner aria-label="Checking the URL" />}
+              Save
+            </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>
         <FieldDescription id={`${id}-help`}>{HELP}</FieldDescription>
-        <FieldError id={`${id}-error`}>{error}</FieldError>
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <FieldError id={`${id}-error`}>{error}</FieldError>
+          {saveAnyway && (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto p-0 max-md:min-h-12"
+              onClick={() => settle(saveAnyway())}
+            >
+              Use anyway
+            </Button>
+          )}
+        </div>
       </Field>
       <Button
         type="button"
         variant="ghost"
         size="sm"
         className="self-start max-md:h-12"
+        disabled={checking}
         onClick={onClose}
       >
         Cancel
