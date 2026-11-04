@@ -170,9 +170,10 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     setTreeOpen(false);
     // From the tree's popover, which keeps focus from an open (see
     // `leavesFocusElsewhere`): the pick itself asks for the editor, also when
-    // its file is the one already open
+    // its file is the one already open. The docked tree is no popover, and a
+    // pick there of the open file stays in it
     const pickFocus = () => {
-      if (via === "tree") PgEditor.focus();
+      if (via === "tree" && treeOpen) PgEditor.focus();
     };
     if (path === open) {
       pickFocus();

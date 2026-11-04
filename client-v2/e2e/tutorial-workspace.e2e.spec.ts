@@ -15,6 +15,10 @@ const chevron = (page: Page) =>
 const editorInput = (page: Page) =>
   page.locator(".monaco-editor textarea.inputarea");
 
+/** The open file's text: shown once the editor listens for opens and focus */
+const openFileLines = (page: Page) =>
+  page.locator(".monaco-editor .view-lines");
+
 /**
  * Hello Anchor has a definition: opening it opens the frame on its intro
  * card, and the card's Start begins step 1
@@ -81,7 +85,7 @@ test.describe("tutorial-workspace", () => {
     // ⌘E opens it too, and Enter on lib.rs opens the file and closes it
     await page.keyboard.press("ControlOrMeta+e");
     await expect(tree).toBeVisible();
-    await expect(editorInput(page)).toBeAttached();
+    await expect(openFileLines(page)).toContainText("use anchor_lang");
     await page.keyboard.press("Enter");
     await expect(tree).toBeHidden();
     await expect(
@@ -96,7 +100,7 @@ test.describe("tutorial-workspace", () => {
     page,
   }) => {
     await startHelloAnchor(page);
-    await expect(editorInput(page)).toBeAttached();
+    await expect(openFileLines(page)).toContainText("use anchor_lang");
     await chevron(page).click();
     const libRs = page
       .getByRole("tree", { name: "Files" })
