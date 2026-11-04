@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { expect, LONG, test } from "./fixtures";
+import { expect, startTutorialFromAbout, test } from "./fixtures";
 import {
   currentProject,
   home,
@@ -271,7 +271,7 @@ const startTutorial = async (page: Page, from: "home" | "navigation") => {
 
   // `exact` keeps the locator off any other name holding "Start", such as
   // Connect a model's own Start while that dialog is open
-  await page.getByRole("button", { name: "Start", exact: true }).click(LONG);
+  await startTutorialFromAbout(page);
   await expect(page.getByRole("radio", { name: "Steps" })).toBeVisible();
 };
 
