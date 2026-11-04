@@ -742,7 +742,7 @@ test.describe("on a phone", () => {
   // A held finger keeps the swipe from settling, so the work page is still not
   // inert when the editor opens its file: focus there would scroll the pager
   // back under the finger
-  test("a file opening under a swipe leaves the pager where it is", async ({
+  test("leaves the pager where it is when a file opens under a swipe", async ({
     page,
   }) => {
     await seedThenNarrow(page);
@@ -763,7 +763,9 @@ test.describe("on a phone", () => {
     );
     // Longer than a smooth scroll back would take to show
     await page.waitForTimeout(500);
-    expect(await pager.evaluate((el) => el.scrollLeft)).toBe(780);
+    expect(await pager.evaluate((el) => el.scrollLeft / el.clientWidth)).toBe(
+      2
+    );
   });
 
   test("client-v2-layout: Opening the preview on a phone", async ({ page }) => {
