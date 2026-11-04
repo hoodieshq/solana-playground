@@ -33,7 +33,8 @@ export interface PhonePagerState {
   onFilesOpenChange: (open: boolean) => void;
   /** The stage shows on the work page (Code) at `write`, else on the preview */
   stageOn: StagePage;
-  /** The console's height on the preview: open, or its folded bar */
+  /** The console's height on the preview: open (beside the stage, or the
+   * whole page when the stage stays on Code), or its folded bar */
   consoleOpen: boolean;
 }
 
@@ -449,7 +450,8 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
               node={props.consoleNode}
               // Closed, the console is its bar: the body stays mounted (the
               // terminal keeps its buffer) and is clipped, as on wide. Open
-              // beside no stage (a project with no program), it takes the page.
+              // with the stage on Code, it takes the page: the preview of a
+              // project with no program, the only one shown at `write`
               className={cn(
                 "flex min-h-0 flex-col",
                 consoleClass(props.consoleOpen, props.stageOn)

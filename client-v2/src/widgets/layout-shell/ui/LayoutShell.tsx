@@ -17,7 +17,12 @@ import type {
   WorkView,
   WorkViewSource,
 } from "../model/phone-pages";
-import { pageForStage, stageForPage, stagePageOf } from "../model/phone-pages";
+import {
+  isPreviewAtWrite,
+  pageForStage,
+  stageForPage,
+  stagePageOf,
+} from "../model/phone-pages";
 import { homeOf, isCovered, screenOf } from "../model/screen";
 import type { ToggleSource } from "../model/telemetry";
 import { layoutTelemetry } from "../model/telemetry";
@@ -260,7 +265,7 @@ const LayoutShell = ({
     if (toStage) PgFlow.setStage(toStage);
     // Without a program the console is all the preview shows: folded, the
     // page would be its strip over an empty screen
-    if (next === "preview" && !PgFlow.state.hasProgram) {
+    if (next === "preview" && isPreviewAtWrite(PgFlow.state)) {
       setPhoneConsoleOpen(true, "auto");
     }
   };
@@ -357,7 +362,7 @@ const LayoutShell = ({
    */
   const showClientRun = () => {
     if (isCovered(screenNow.current)) return;
-    if (phone && !PgFlow.state.hasProgram) showPage("preview", "auto");
+    if (phone && isPreviewAtWrite(PgFlow.state)) showPage("preview", "auto");
     openConsole();
   };
 

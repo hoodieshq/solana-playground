@@ -995,6 +995,20 @@ describe("on a phone", () => {
     expect(consoleButton().getAttribute("aria-expanded")).toBe("true");
   });
 
+  it("stays on its page and opens the console when a client run starts beside a program", () => {
+    phoneShell();
+    act(startRun);
+    expect(events("layout_page_shown")).toEqual([]);
+    expect(consoleButton().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("leaves the console folded when a program's preview opens", () => {
+    phoneShell();
+    fireEvent.click(button("Preview the build"));
+    expect(PgFlow.state.stage).toBe("build");
+    expect(consoleButton().getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("follows a stage set from elsewhere to its page", () => {
     phoneShell();
     act(() => PgFlow.setStage("build"));
@@ -1075,8 +1089,9 @@ describe("on a phone", () => {
     phoneShell();
     expect(consoleBox().classList.contains("h-2/5")).toBe(false);
     expect((consoleBox() as HTMLElement).style.height).toBe("28px");
+    act(() => PgFlow.setStage("build"));
     act(() => deploy.starts.forEach((cb) => cb(null)));
-    expect(consoleBox().classList.contains("overflow-hidden")).toBe(false);
+    expect(consoleBox().classList.contains("h-2/5")).toBe(true);
     expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
   });
 

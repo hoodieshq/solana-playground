@@ -22,20 +22,26 @@ export const stagePageOf = (stage: Stage): StagePage =>
 export type PagerFlow = Pick<FlowState, "stage" | "hasProgram">;
 
 /**
+ * Whether the preview holds `write`: a project with no program has no other
+ * stage, so its preview shows only the stage bar and the console, while the
+ * stage itself stays on Code
+ */
+export const isPreviewAtWrite = (flow: Pick<FlowState, "hasProgram">) =>
+  !flow.hasProgram;
+
+/**
  * The stage is one: Code shows it at `write`, the preview at any other. A
  * stage set from elsewhere (a key, a deploy, the stepper's Write tab) moves
- * the pager to the page that shows it, so no page is left without its stage.
- * The menu shows no stage, so `write` leaves it where it is. A project with
- * no program has only `write`, and its preview shows the stage bar and the
- * console beside it (the client's Run and its output), so `write` keeps the
- * preview there.
+ * the pager to the page that shows it. The menu shows no stage, so `write`
+ * leaves it where it is, and so does a preview that holds `write`
+ * (`isPreviewAtWrite`).
  */
 export const pageForStage = (
   flow: PagerFlow,
   page: PhonePage
 ): PhonePage | undefined => {
   if (stagePageOf(flow.stage) === "work") {
-    return page === "preview" && flow.hasProgram ? "work" : undefined;
+    return page === "preview" && !isPreviewAtWrite(flow) ? "work" : undefined;
   }
   return page === "preview" ? undefined : "preview";
 };
@@ -43,7 +49,8 @@ export const pageForStage = (
 /**
  * The stage a page sets when it comes into view. The menu shows no stage, so
  * it sets none; `lastPreview` is what the preview opens on from `write`,
- * unless the project has no program and so no other stage to open on.
+ * unless the preview holds `write` (`isPreviewAtWrite`): a project with no
+ * program does not offer that stage.
  */
 export const stageForPage = (
   page: PhonePage,
@@ -52,7 +59,9 @@ export const stageForPage = (
 ): Stage | undefined => {
   if (page === "work") return flow.stage === "write" ? undefined : "write";
   if (page === "preview") {
-    return flow.stage === "write" && flow.hasProgram ? lastPreview : undefined;
+    return flow.stage === "write" && !isPreviewAtWrite(flow)
+      ? lastPreview
+      : undefined;
   }
   return undefined;
 };
