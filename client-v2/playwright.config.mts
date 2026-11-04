@@ -210,8 +210,8 @@ export default defineConfig({
     launchOptions: { slowMo: Number(process.env.SLOWMO ?? 0) },
   },
   webServer: {
-    // `dev` runs `generate-fast`: still syncs public/, but skips
-    // `generate-crates`, which shells out to cargo and dominates the runtime
+    // `dev` runs `generate-fast`, then `generate-dev-crates`, which skips on
+    // the stubs and otherwise finds the crates CI restored current by key
     command: "yarn dev",
     url: origin,
     // Only this worktree's own dev server is reused. Any other server on the

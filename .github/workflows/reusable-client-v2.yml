@@ -111,8 +111,9 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-      # Rust Analyzer's crates in `public/crates`, which `yarn dev` skips (`generate-fast`) and the
-      # real analyzer panics without: the dev server answers a missing crate file with `index.html`.
+      # Rust Analyzer's crates in `public/crates`, which the real analyzer needs: the dev server
+      # answers a missing crate file with `index.html`. Restored into every e2e shard, where
+      # `yarn dev`'s `generate-dev-crates` then finds them current by key.
       # Generated with the runner's own rustup, outside `vercel-install.sh`'s Rust state.
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:

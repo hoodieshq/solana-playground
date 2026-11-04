@@ -509,10 +509,11 @@ when its key file there matches its inputs:
 | `yarn --cwd client-v2 generate` (`setup`, `build`, `start`) | `generate-default-crates.mjs` | `generate-crates.mjs` (`cargo fetch` first) |
 | Vercel build (S-6) | `vercel-install.sh`: Build Cache, then Remote Cache, else generated | `yarn generate` in every build, no cache |
 | Docker image build (S-7) | the crates step in `client-v2/Dockerfile` | the same step |
-| `yarn dev`, `build-fast` (`generate-fast`) | not generated | not generated |
+| `yarn dev`, `dev-vercel` (`generate-dev-crates`) | `generate-default-crates.mjs`, skipped on the stubs | `generate-crates.mjs`, skipped on the stubs |
+| `build-fast` (`generate-fast`) | not generated | not generated |
 
-Run S-1 to S-3 against a dev server only after `yarn --cwd client-v2 generate`: `yarn dev` serves whatever an earlier
-run left in `public/crates`.
+`yarn dev` generates the crates itself unless rust-analyzer is a stub; the first run takes minutes, later ones skip by
+key. Without cargo or rustup it warns and starts anyway, and Rust Analyzer turns itself off with a warning.
 
 ### S-1. rust-analyzer default crates
 

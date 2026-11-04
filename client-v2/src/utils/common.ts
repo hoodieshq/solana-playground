@@ -222,19 +222,30 @@ export class PgCommon {
   /**
    * Fetch the response from the given URL and return the text response.
    *
-   * A dev server answers an unknown path with the SPA shell, so without the
-   * status check callers get HTML that parses as a valid file -- which is how
-   * a missing `public/crates` asset reached Rust Analyzer's WASM and panicked
-   * it mid-borrow, leaving every later call to report recursive use.
+   * A missing file must fail here: HTML handed on as a file's content parses
+   * as a valid file, which is how a missing `public/crates` asset reached Rust
+   * Analyzer's WASM and panicked it. It can arrive as a 404's body, or as a 200
+   * with the app shell: CRA's history fallback (`disableDotRule`) treats
+   * fetch's `Accept: *\/*` as a page request and answers every unknown path,
+   * dotted ones included, with `index.html`.
    *
    * @param url URL
-   * @throws if the response status is not ok
+   * @throws if the response status is not ok, or is the app shell for a URL
+   * that does not name an HTML file
    * @returns the text response
    */
   static async fetchText(url: string) {
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Request failed (${response.status}): ${url}`);
+    }
+    const isHtml = response.headers
+      .get("content-type")
+      ?.startsWith("text/html");
+    if (isHtml && !/\.html?$/.test(new URL(url, "http://x").pathname)) {
+      throw new Error(
+        `Request failed (${response.status}, the app shell): ${url}`
+      );
     }
     return await response.text();
   }
@@ -1371,10 +1382,16 @@ if (import.meta.vitest) {
       ok?: boolean;
       status?: number;
       body?: string;
+      contentType?: string;
     }) => {
       mockFetch.mockResolvedValue({
         ok: over.ok ?? true,
         status: over.status ?? 200,
+        headers: new Headers(
+          over.contentType === undefined
+            ? {}
+            : { "content-type": over.contentType }
+        ),
         text: async () => over.body ?? "",
       });
     };
@@ -1449,6 +1466,27 @@ if (import.meta.vitest) {
 
         await expect(PgCommon.fetchText("/crates/core.rs")).rejects.toThrow(
           "Request failed (404): /crates/core.rs"
+        );
+      });
+
+      // CRA's history fallback (`disableDotRule`) treats fetch's `Accept: */*`
+      // as a page request, so a missing `/crates/x.rs` comes back 200 with
+      // `index.html`
+      it("throws when an ok response is the app shell", async () => {
+        respond({
+          body: "<!doctype html><html>",
+          contentType: "text/html; charset=utf-8",
+        });
+
+        await expect(PgCommon.fetchText("/crates/core.rs")).rejects.toThrow(
+          "Request failed (200, the app shell): /crates/core.rs"
+        );
+      });
+
+      it("returns an HTML file it asked for", async () => {
+        respond({ body: "<p>hi</p>", contentType: "text/html" });
+        await expect(PgCommon.fetchText("/docs/page.html")).resolves.toBe(
+          "<p>hi</p>"
         );
       });
 
