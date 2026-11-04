@@ -4,8 +4,8 @@ import { isTypingElsewhere } from "@/shared/lib/focus";
 export type OpenKind = "mount" | "later";
 
 /**
- * Whether opening a file leaves focus in the field the user is typing in,
- * rather than the editor taking it.
+ * Whether opening a file leaves focus where it is, rather than the editor
+ * taking it.
  *
  * An open the user started from a field in the explorer's tree (naming a new
  * file) ends in the editor, so a later open takes focus from that field. Any
