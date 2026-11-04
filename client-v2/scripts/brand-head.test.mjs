@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { test } from "node:test";
 
-import { BRAND_HEAD, SITE_URL, brandHead } from "./brand-head.mjs";
+import {
+  BRAND_HEAD,
+  DESCRIPTION,
+  IMAGE_ALT,
+  SITE_URL,
+  brandHead,
+} from "./brand-head.mjs";
 
 /** Upstream's `client/public/index.html` head, as mirrored */
 const UPSTREAM = `<!DOCTYPE html>
@@ -107,9 +113,20 @@ test("a page whose head it cannot place the block in fails loudly", () => {
   assert.throws(() => brandHead('<meta charset="utf-8" />'), /<\/head>/);
 });
 
-const DESCRIPTION = "Write, build and deploy Solana programs in your browser.";
-const ALT =
-  "Solana Playground logo on a dark background with the line: " + DESCRIPTION;
+// The spec's copy, spelled out here so an edit to the module's constants
+// fails this test instead of silently changing the card
+test("the card copy is the spec's", () => {
+  assert.equal(
+    DESCRIPTION,
+    "Write, build and deploy Solana programs in your browser."
+  );
+  assert.equal(
+    IMAGE_ALT,
+    "Solana Playground logo on a dark background with the line: Write, build and deploy Solana programs in your browser."
+  );
+});
+
+const ALT = IMAGE_ALT;
 
 /** The share card the spec names, as `[attribute, key, content]` */
 const CARD = [
@@ -131,7 +148,12 @@ const CARD = [
 ];
 
 const cardTags = (html) =>
-  html.match(/<meta\b[^>]*(?:property="og:|name="twitter:)[^>]*>/g) ?? [];
+  html.match(
+    /<meta\b[^>]*(?:name|property)\s*=\s*["']?(?:og|twitter):[^>]*>/gi
+  ) ?? [];
+
+const contentOf = (html, key) =>
+  html.match(new RegExp(`<meta [a-z]+="${key}" content="([^"]*)"`))?.[1];
 
 test("the head carries the share card, each tag once", () => {
   const html = brandHead(UPSTREAM);
@@ -145,9 +167,11 @@ test("the head carries the share card, each tag once", () => {
 });
 
 test("every card URL is absolute, on the production base", () => {
+  const html = brandHead(UPSTREAM);
+
   assert.match(SITE_URL, /^https:\/\/[^/]+$/);
-  for (const tag of cardTags(brandHead(UPSTREAM))) {
-    assert.doesNotMatch(tag, /%PUBLIC_URL%/);
+  for (const key of ["og:url", "og:image", "twitter:image"]) {
+    assert.ok(contentOf(html, key)?.startsWith(`${SITE_URL}/`), key);
   }
 });
 
@@ -156,6 +180,39 @@ test("the card keeps upstream's title and description", () => {
 
   assert.ok(html.includes("<title>Solana Playground | Solana IDE</title>"));
   assert.ok(html.includes("Easily Build, Deploy and Test Solana Programs"));
+});
+
+test("upstream card tags go whatever their attribute, quoting, case or spacing", () => {
+  const variants = [
+    "<META PROPERTY='OG:IMAGE' content='/old.png'>",
+    '<meta name="og:title" content="Old title" />',
+    '<meta property="twitter:card" content="summary" />',
+    '<meta property = "og:description" content="Old description" />',
+    "<meta name=twitter:site content=@old>",
+  ];
+  const html = brandHead(
+    UPSTREAM.replace(
+      "<title>",
+      `${variants.join("\n    ")}\n    <title>`
+    ).replace(/\n/g, "\r\n")
+  );
+
+  assert.doesNotMatch(
+    html,
+    /old\.png|Old title|"summary"|Old description|@old/
+  );
+  assert.equal(cardTags(html).length, CARD.length);
+});
+
+test("an icon link spaced around its equals sign goes too", () => {
+  const html = brandHead(
+    UPSTREAM.replace(
+      "<title>",
+      '<link rel = "icon" href="/old.ico" />\n    <title>'
+    )
+  );
+
+  assert.doesNotMatch(html, /old\.ico/);
 });
 
 test("an upstream card tag gives way to ours", () => {
@@ -171,12 +228,22 @@ test("an upstream card tag gives way to ours", () => {
 });
 
 test("an upstream card tag the strip cannot remove fails instead of shipping beside ours", () => {
-  const shared = UPSTREAM.replace(
-    "<title>",
-    '<meta name="twitter:card" content="summary" /><title>'
-  );
+  for (const tag of [
+    '<meta name="twitter:card" content="summary" />',
+    '<meta property="og:image" content="/old.png" />',
+  ]) {
+    assert.throws(
+      () => brandHead(UPSTREAM.replace("<title>", `${tag}<title>`)),
+      /did not remove/,
+      tag
+    );
+  }
+});
 
-  assert.throws(() => brandHead(shared), /did not remove/);
+test("every brand tag is well formed, its values escaped", () => {
+  for (const tag of BRAND_HEAD) {
+    assert.match(tag, /^<(?:link|meta)(?: [a-z:-]+="[^"<>]*")+ \/>$/);
+  }
 });
 
 test("the share image is a 1200x630 PNG in static/", async () => {
@@ -185,4 +252,6 @@ test("the share image is a 1200x630 PNG in static/", async () => {
   assert.equal(png.subarray(1, 4).toString("latin1"), "PNG");
   assert.equal(png.readUInt32BE(16), 1200);
   assert.equal(png.readUInt32BE(20), 630);
+  // Unfurlers skip large images (X caps them at 5 MB); stay well under
+  assert.ok(png.length < 1_000_000, `${png.length} bytes`);
 });

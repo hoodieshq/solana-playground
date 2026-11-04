@@ -14,15 +14,28 @@
 
 /**
  * Where the card's absolute URLs point: crawlers do not resolve relative
- * ones, so `%PUBLIC_URL%` cannot serve here. The current production host; the
- * production domain is not attached yet, and replaces it here when it is.
+ * ones, so `%PUBLIC_URL%` cannot serve here. The current production host,
+ * until the production domain is attached (HOO-2597 left it out of scope).
  */
 export const SITE_URL = "https://solana-playground-teal.vercel.app";
 
-const DESCRIPTION = "Write, build and deploy Solana programs in your browser.";
-const IMAGE_ALT = `Solana Playground logo on a dark background with the line: ${DESCRIPTION}`;
+/** Design's copy, and the line `og.png` itself carries */
+export const DESCRIPTION =
+  "Write, build and deploy Solana programs in your browser.";
+export const IMAGE_ALT = `Solana Playground logo on a dark background with the line: ${DESCRIPTION}`;
 
-/** Design's share card (Almaz, 4 Nov); the title is the manifest name */
+/** A value placed inside a double-quoted attribute, so copy cannot break the tag */
+const escapeAttr = (value) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
+/**
+ * The share card, as design delivered it; the title is the manifest name, so
+ * a preview and an installed app read the same
+ */
 const CARD = [
   ["property", "og:type", "website"],
   ["property", "og:site_name", "Solana Playground"],
@@ -40,10 +53,14 @@ const CARD = [
   ["name", "twitter:image", `${SITE_URL}/og.png`],
   ["name", "twitter:image:alt", IMAGE_ALT],
 ].map(
-  ([attr, key, content]) => `<meta ${attr}="${key}" content="${content}" />`
+  ([attr, key, content]) =>
+    `<meta ${attr}="${key}" content="${escapeAttr(content)}" />`
 );
 
-/** The tags that replace upstream's, in order; `#101011` is the DS `--background` */
+/**
+ * The tags that replace upstream's, in order: icons, theme colour, card;
+ * `#101011` is the DS `--background`
+ */
 export const BRAND_HEAD = [
   '<link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="32x32" />',
   '<link rel="icon" href="%PUBLIC_URL%/favicon.svg" type="image/svg+xml" />',
@@ -55,15 +72,16 @@ export const BRAND_HEAD = [
 
 /**
  * A whole line holding one icon link, theme colour or card tag, whatever its
- * attributes
+ * attributes. A card key counts under either attribute, `name` or `property`:
+ * pages use both, and crawlers read both.
  */
 const REPLACED =
-  /^[ \t]*<(?:link\b[^>]*\brel=["'][^"']*\bicon\b[^"']*["']|meta\b[^>]*\b(?:name=["']theme-color["']|property=["']og:|name=["']twitter:))[^>]*>[ \t]*\r?\n/gim;
+  /^[ \t]*<(?:link\b[^>]*\brel\s*=\s*["']?[^"'>]*\bicon\b[^>]*|meta\b[^>]*\b(?:name\s*=\s*["']?theme-color\b|(?:name|property)\s*=\s*["']?(?:og|twitter):)[^>]*)>[ \t]*\r?\n/gim;
 
-/** Any icon link or theme colour, wherever it sits, to check none survived */
-const ICON_TAG = /<link\b[^>]*\brel=["']?[^"'>]*\bicon\b/gi;
-const THEME_TAG = /<meta\b[^>]*\bname=["']?theme-color\b/gi;
-const CARD_TAG = /<meta\b[^>]*\b(?:property=["']?og:|name=["']?twitter:)/gi;
+/** Any icon link, theme colour or card tag, wherever it sits, to check none survived */
+const ICON_TAG = /<link\b[^>]*\brel\s*=\s*["']?[^"'>]*\bicon\b/gi;
+const THEME_TAG = /<meta\b[^>]*\bname\s*=\s*["']?theme-color\b/gi;
+const CARD_TAG = /<meta\b[^>]*\b(?:name|property)\s*=\s*["']?(?:og|twitter):/gi;
 
 const CHARSET = /^([ \t]*)<meta charset="[^"]*"\s*\/?>[ \t]*\r?\n/m;
 
@@ -73,21 +91,22 @@ const count = (html, re) => html.match(re)?.length ?? 0;
  * Idempotent: a second run strips the brand block and puts it back.
  *
  * @param {string} html the mirrored page
- * @returns {string} the page with the brand's icon and card block after its charset
+ * @returns {string} the page with the brand's icon and card block after its
+ *   charset
  * @throws when the page has no `<meta charset>` line or no `</head>`, or when
- *   an icon link, theme colour or card tag the line-wise strip missed (a tag split over
- *   lines, or sharing a line) survives beside the brand's, so a restructured
- *   upstream page fails the build instead of shipping a mixed head
+ *   an icon link, theme colour or card tag the line-wise strip missed (one
+ *   sharing a line) survives beside the brand's, so a restructured upstream
+ *   page fails the build instead of shipping a mixed head
  */
 export const brandHead = (html) => {
   if (!html.includes("</head>")) {
-    throw new Error("index.html has no </head>; cannot place the brand icons");
+    throw new Error("index.html has no </head>; cannot place the brand head");
   }
   const stripped = html.replace(REPLACED, "");
   const charset = stripped.match(CHARSET);
   if (!charset) {
     throw new Error(
-      "index.html has no <meta charset> line; cannot place the brand icons"
+      "index.html has no <meta charset> line; cannot place the brand head"
     );
   }
   const [line, indent] = charset;
