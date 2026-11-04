@@ -244,25 +244,52 @@ describe("checkFileWrite", () => {
     );
   });
 
-  it("counts a new path, not an overwrite", () => {
+  it("refuses a new path past the count limit, not an overwrite under it", () => {
     const fifty = emptyFiles(50);
     assert.deepEqual(checkFileWrite(fifty, "src/new.rs", ""), {
       reason: "too-many-files",
       limit: 50,
       count: 51,
     });
-    assert.equal(checkFileWrite(emptyFiles(60), "src/f1.rs", "x"), null);
+    assert.equal(checkFileWrite(fifty, "src/f1.rs", "x"), null);
     assert.equal(checkFileWrite(fifty, ".tutorial.json", "{}"), null);
   });
 
-  it("refuses growing a project past the size limit, not shrinking it", () => {
+  it("refuses an overwrite in a project still over the count limit", () => {
+    assert.deepEqual(checkFileWrite(emptyFiles(60), "src/f1.rs", "x"), {
+      reason: "too-many-files",
+      limit: 50,
+      count: 60,
+    });
+  });
+
+  it("refuses a shrink that leaves the project over the size limit", () => {
     const files = {};
     for (let i = 0; i < 5; i++) files[`src/f${i}.rs`] = "a".repeat(110_000);
+    // 550,000 bytes: growing, and shrinking by too little, are both refused
     assert.equal(
       checkFileWrite(files, "src/f0.rs", "a".repeat(110_001))?.reason,
       "project-too-large"
     );
+    assert.deepEqual(checkFileWrite(files, "src/f0.rs", "a".repeat(90_000)), {
+      reason: "project-too-large",
+      limit: 524_288,
+      size: 530_000,
+    });
+    // 441,000 bytes: back under
     assert.equal(checkFileWrite(files, "src/f0.rs", "a".repeat(1_000)), null);
+  });
+
+  it("refuses a shrink that leaves the file over the size limit", () => {
+    const files = { "src/big.rs": "a".repeat(200_000) };
+    assert.equal(
+      checkFileWrite(files, "src/big.rs", "a".repeat(150_000))?.reason,
+      "file-too-large"
+    );
+    assert.equal(
+      checkFileWrite(files, "src/big.rs", "a".repeat(131_072)),
+      null
+    );
   });
 
   it("does not blame the write for another file over a limit", () => {

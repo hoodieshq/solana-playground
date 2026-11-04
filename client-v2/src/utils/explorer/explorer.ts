@@ -330,7 +330,7 @@ export class PgExplorer {
 
     const itemType = PgExplorer.getItemTypeFromPath(fullPath);
 
-    // Before anything is written, and only for what this write makes worse
+    // Before anything is written, on the project as the write leaves it
     // (`checkFileWrite`). A folder holds no bytes and is not counted.
     if (itemType.file) {
       this._refuseOverLimit(

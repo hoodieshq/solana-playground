@@ -257,14 +257,16 @@ const measure = (files) => {
 };
 
 /**
- * The limit writing one file would break, or `null`: the file's own path or
- * size, the file count when the path is new, the project size when the write
- * grows it.
+ * The limit writing one file would leave broken, or `null`: the file's own
+ * path or size, then the project's file count and size as the write leaves
+ * them.
  *
- * Only what the write itself makes worse. A project restored over a limit is
- * not refused every write: an edit that adds no file and no bytes goes
- * through, so the user and the assistant can still bring it back under, and
- * a refusal never names a limit some other file broke.
+ * Judged on the result, not on the change, as the server judges a write: a
+ * write that shrinks a file or a project still over its limit is refused, so
+ * a project restored over a limit takes deletes, which are never checked, and
+ * only those writes that bring it back under. Another file's path or size is
+ * not the write's to answer for: the sync banner names that file on the next
+ * upload.
  *
  * @param {Record<string, string>} files the project before the write
  * @param {string} path workspace-relative
@@ -275,14 +277,13 @@ export const checkFileWrite = (files, path, content) => {
   const own = checkProjectLimits({ [path]: content });
   if (own || !isSyncedPath(path)) return own;
 
-  const before = measure(files);
   const after = measure(
     Object.assign(Object.create(null), files, { [path]: content })
   );
-  if (after.count > before.count && after.count > PROJECT_LIMITS.files) {
+  if (after.count > PROJECT_LIMITS.files) {
     return limitExceeded.tooManyFiles(after.count);
   }
-  if (after.size > before.size && after.size > PROJECT_LIMITS.projectBytes) {
+  if (after.size > PROJECT_LIMITS.projectBytes) {
     return limitExceeded.projectTooLarge(after.size);
   }
   return null;
