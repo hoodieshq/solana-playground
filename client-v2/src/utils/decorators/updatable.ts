@@ -168,7 +168,9 @@ export function updatable<T extends Record<string, any>>(params: {
           let value;
           try {
             value = PgCommon.getValue(state, migration.from);
-            if (value === undefined) continue;
+            // A stored `null` is no value to carry over: the new id takes its
+            // default instead
+            if (value === undefined || value === null) continue;
           } catch {
             // The value has already been migrated
             continue;
@@ -192,7 +194,9 @@ export function updatable<T extends Record<string, any>>(params: {
         if (Array.isArray(node)) return;
 
         for (const prop in defaultState) {
-          if (node[prop] === undefined) {
+          // `typeof null` is "object", so a stored `null` would otherwise be
+          // recursed into and throw on its first property
+          if (node[prop] === undefined || node[prop] === null) {
             node[prop] = defaultState[prop];
           } else if (
             typeof node[prop] === "object" &&
@@ -365,3 +369,54 @@ type PropertiesToUnionOfTuples<T, Acc extends string[] = []> = {
       : [[...Acc, K], T[K]]
     : never;
 }[keyof T];
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  describe("utils/decorators/updatable", () => {
+    /** A settings-shaped class whose storage holds `stored`. */
+    const settingsWith = (stored: Record<string, unknown>) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the decorator adds its methods at runtime, untyped
+      const sClass: any = class {};
+      updatable({
+        defaultState: { blockExplorer: { name: "Solana Explorer" } },
+        storage: { read: () => stored as never, write: () => {} },
+        recursive: true,
+        migrate: () => [
+          { from: "other.blockExplorer", to: "blockExplorer.name" },
+        ],
+      })(sClass);
+      return sClass;
+    };
+
+    it("loads the default when a migrated value is stored as null", async () => {
+      const sClass = settingsWith({ other: { blockExplorer: null } });
+
+      await sClass[PROPS.REFRESH]();
+
+      expect(sClass[PROPS.INTERNAL_STATE]).toEqual({
+        blockExplorer: { name: "Solana Explorer" },
+      });
+    });
+
+    it("loads the default when a stored leaf is null", async () => {
+      const sClass = settingsWith({ blockExplorer: { name: null } });
+
+      await sClass[PROPS.REFRESH]();
+
+      expect(sClass[PROPS.INTERNAL_STATE]).toEqual({
+        blockExplorer: { name: "Solana Explorer" },
+      });
+    });
+
+    it("still migrates a stored value from its old id", async () => {
+      const sClass = settingsWith({ other: { blockExplorer: "Solscan" } });
+
+      await sClass[PROPS.REFRESH]();
+
+      expect(sClass[PROPS.INTERNAL_STATE]).toEqual({
+        blockExplorer: { name: "Solscan" },
+      });
+    });
+  });
+}
