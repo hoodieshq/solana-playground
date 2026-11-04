@@ -243,6 +243,40 @@ describe("app/ShareGistDialog", () => {
     expect(gistRequests()).toEqual([]);
   });
 
+  it("cancels the gist grant and publishes nothing when the dialog closes while it waits", async () => {
+    await PgSession.refreshWith(USER);
+    fetchSpy.mockImplementation(async (url: unknown) => {
+      const path = String(url);
+      if (path.includes("/api/gists"))
+        return new Response(JSON.stringify({ reason: "needs-gist-scope" }), {
+          status: 403,
+        });
+      if (path.includes("/api/auth/sign-in/social"))
+        return { ok: true, json: async () => ({ url: "https://x/" }) };
+      return { ok: true, json: async () => ({ user: USER }) };
+    });
+    let approve = () => {};
+    const cancel = vi.fn();
+    PgSession.setOpenChannel(() => ({
+      receive: () =>
+        new Promise((resolve) => {
+          approve = () => resolve({ delivered: true as const, data: {} });
+        }),
+      cancel,
+    }));
+    await open();
+    await press("Create secret gist");
+    await press(/Allow gists on GitHub/);
+
+    await press(/^Close$/);
+    // The user approves on GitHub anyway, in the popup the dialog left open
+    await act(async () => approve());
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(PgView.getOpenModals()).toEqual([]);
+    expect(gistRequests()).toHaveLength(1);
+  });
+
   it("leaves alone a sign-in it did not start", async () => {
     // A sign-in from the account menu, still waiting when Share opens
     fetchSpy.mockResolvedValue({

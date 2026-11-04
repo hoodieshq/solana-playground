@@ -106,11 +106,20 @@ export const useShareGist = ({
   // not only at first render: StrictMode runs the cleanup and the effect
   // again on mount, and a ref left `false` drops every answer
   const mounted = useRef(true);
+  // Whether this dialog's own sign-in or grant waits on GitHub's popup
+  const isSigningIn = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      // Closed while the popup waits: the user gave up on sharing, so the
+      // sign-in ends here and nothing is published behind the closed dialog
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- the wait as it stands at close is what counts, not at mount
+      if (isSigningIn.current) cancelSignIn();
     };
+    // Mount and unmount only: the caller passes a fresh `cancelSignIn` on
+    // each render, and every one ends the same session sign-in
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
   }, []);
   const show = (next: ShareStep) => {
     if (mounted.current) setState(next);
@@ -188,6 +197,7 @@ export const useShareGist = ({
   ) => {
     show({ step: "waiting", for: scopes ? "grant" : "sign-in" });
     let ended: SignInEnding | undefined;
+    isSigningIn.current = true;
     try {
       if ((await signIn(scopes ? { scopes } : undefined)) === "cancelled") {
         // The user's own doing, said quietly
@@ -195,7 +205,12 @@ export const useShareGist = ({
       }
     } catch (e) {
       ended = { kind: "failed", message: signInFailureMessage(e) };
+    } finally {
+      isSigningIn.current = false;
     }
+    // A sign-in that settles after the dialog closed shares nothing: the
+    // user left before it answered
+    if (!mounted.current) return;
     if (ended) {
       // `signIn` counted its own ending (`auth_sign_in_failed`); this one is
       // the share's, a cancel included
