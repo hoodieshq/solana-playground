@@ -11,6 +11,7 @@ import {
   homeRegion,
   json,
   leaveEditor,
+  LONG,
   openFiles,
   projectRow,
   runInTerminal,
@@ -45,7 +46,7 @@ const startTutorial = async (page: Page) => {
     .getByRole("button", { name: "Open Hello Anchor" })
     .click();
   // `exact`: Connect a model's dialog has a "Start" of its own
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await page.getByRole("button", { name: "Start", exact: true }).click(LONG);
   // The lesson's switch is in the tree; open it whatever the saved layout
   await openFiles(page);
   await expect(page.getByRole("radio", { name: "Steps" })).toBeVisible();

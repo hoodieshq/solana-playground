@@ -29,7 +29,7 @@ test("client-v2-tutorials: The assistant beside Hello Anchor", async ({
 
 test("client-v2-tutorials: Starting from the About page", async ({ page }) => {
   await page.goto("/tutorials/hello-seahorse");
-  await startButton(page).click();
+  await startButton(page).click(LONG);
 
   await expect(page).toHaveURL(/\/tutorials\/hello-seahorse\/1$/, LONG);
   // The tutorial's project now exists, and the files column shows it once
