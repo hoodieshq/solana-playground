@@ -52,18 +52,14 @@ const storage = {
     }
 
     // The default state is what `read` returns for a missing file, so it has
-    // nothing to save. It is also what `refresh` reads while the tutorial's
-    // workspace is not yet current, and the batched write of it can land
-    // after `PgExplorer.createWorkspace` has made the workspace current but
-    // before its folder is on disk: ENOENT on a fresh profile's first open
-    // (HOO-2593). On a workspace that has progress, it would reset it.
-    // `updatable`'s own default check compares by identity and never matches
-    if (
-      state.pageNumber === defaultState.pageNumber &&
-      state.completed === defaultState.completed
-    ) {
-      return;
-    }
+    // nothing to save. `refresh` reads it while the tutorial's workspace is
+    // not yet current, and the batched write of it could land once
+    // `PgExplorer.createWorkspace` had made the workspace current but before
+    // its folder was on disk (ENOENT on a fresh profile's first open,
+    // HOO-2593), or over a saved page of a workspace that already had one.
+    // Checked here because `updatable`'s own default check compares by
+    // identity and never matches.
+    if (PgCommon.isEqual(state, defaultState)) return;
 
     await PgExplorer.fs.writeFile(this.PATH, JSON.stringify(state));
   },

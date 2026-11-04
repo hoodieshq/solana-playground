@@ -18,9 +18,9 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-// HOO-2593: a new user's first path. Every test runs in a fresh browser
-// context, so no workspace was ever selected before the gallery opens the
-// tutorial
+// HOO-2593: a new user's first path. Playwright gives each test a new
+// browser context and the fixtures seed no storage, so no workspace was ever
+// selected before the gallery opens the tutorial
 test("Build in Hello Anchor opened from the gallery in a fresh profile", async ({
   page,
 }) => {
@@ -31,7 +31,7 @@ test("Build in Hello Anchor opened from the gallery in a fresh profile", async (
 
   await page.goto("/");
   await expect(home(page)).toBeVisible(LONG);
-  // The navigation's item, which opens the gallery
+  // The navigation's New project, not Home's tile of the same name
   await page
     .getByRole("button", { name: "New project", exact: true })
     .first()
@@ -51,7 +51,8 @@ test("Build in Hello Anchor opened from the gallery in a fresh profile", async (
     .last()
     .click(LONG);
 
-  // The build reached the server and came back: the explorer had a workspace
+  // The stubbed build came back, so the command ran in a current workspace;
+  // the opening write that raced the workspace's folder threw ENOENT
   await expect(
     chat(page).getByRole("status").filter({ hasText: "Build successful" })
   ).toBeVisible(LONG);
