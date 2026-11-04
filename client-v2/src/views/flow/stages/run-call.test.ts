@@ -1,3 +1,4 @@
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 // How one Interact call becomes an outcome: sent and confirmed, failed on
 // chain, refused in preflight, or never sent; and what reaches the history.
@@ -37,7 +38,7 @@ vi.mock("../../../utils/program-interaction", () => ({
 }));
 
 import { PgCallHistory } from "../state/call-history";
-import { runCall } from "./run-call";
+import { runCall, useCallInFlight } from "./run-call";
 
 const IX = { name: "increment" } as Parameters<typeof runCall>[0];
 const ERROR_LINE = "Program log: Error Code: AccountNotInitialized.";
@@ -53,6 +54,33 @@ beforeEach(() => {
 });
 
 describe("runCall", () => {
+  // A form remounts on a chip or stage switch, so the call's "in flight" lives
+  // here: a returning form must not offer the same call twice
+  it("reads as in flight until the call settles", async () => {
+    let answer: (signature: string) => void = () => {};
+    h.test.mockReturnValue(
+      new Promise<string>((resolve) => {
+        answer = resolve;
+      })
+    );
+    h.confirm.mockResolvedValue(undefined);
+    h.getTransaction.mockResolvedValue({ meta: { logMessages: [] } });
+    const { result } = renderHook(useCallInFlight);
+    expect(result.current).toBe(false);
+
+    let call: Promise<unknown> = Promise.resolve();
+    act(() => {
+      call = runCall(IX);
+    });
+    expect(result.current).toBe(true);
+
+    await act(async () => {
+      answer("sig");
+      await call;
+    });
+    expect(result.current).toBe(false);
+  });
+
   it("a confirmed call succeeds with its logs, prints and joins the history", async () => {
     h.test.mockResolvedValue("sig");
     h.confirm.mockResolvedValue(undefined);

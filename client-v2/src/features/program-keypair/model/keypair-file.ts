@@ -1,3 +1,7 @@
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("program-keypair:file");
+
 /** The name Playground gives an exported program keypair file */
 export const KEYPAIR_FILE_NAME = "program-keypair.json";
 
@@ -24,6 +28,8 @@ export const parseKeypairFile = (text: string): KeypairFileRead => {
   try {
     parsed = JSON.parse(text);
   } catch {
+    // Never the text, nor the parser's error quoting it: it may be a secret key
+    log.info("a keypair file is not JSON");
     return { ok: false, reason: "not_json" };
   }
   if (

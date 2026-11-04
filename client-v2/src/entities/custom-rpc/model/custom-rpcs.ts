@@ -32,6 +32,8 @@ export const checkRpcUrl = (value: string): UrlCheck => {
   try {
     url = new URL(value.trim());
   } catch {
+    // Never the value, nor the error quoting it: an RPC URL often holds an API key
+    log.info("a typed RPC URL does not parse");
     return { ok: false, reason: "format" };
   }
   const secure = url.protocol === "https:";
@@ -53,6 +55,8 @@ const normalised = (value: string) => {
   try {
     return new URL(value).href;
   } catch {
+    // Never the value, nor the error quoting it: an RPC URL often holds an API key
+    log.info("an RPC URL does not parse, compared as written");
     return value;
   }
 };

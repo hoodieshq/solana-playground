@@ -48,6 +48,8 @@ export interface BaseProgramKeypairProps {
   onOpenChange: (open: boolean) => void;
   /** The New keypair dialog is open */
   confirming: boolean;
+  /** A deploy is running and reads the keypair again for its last transaction */
+  held: boolean;
   onNew: () => void;
   onConfirmNew: () => void;
   onCancelNew: () => void;
@@ -132,6 +134,7 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
                   setText(e.target.value);
                   p.onEdit();
                 }}
+                disabled={p.held}
                 spellCheck={false}
                 autoComplete="off"
               />
@@ -161,6 +164,7 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
                 size="sm"
                 variant="outline"
                 className="self-start"
+                disabled={p.held}
                 onClick={() => p.onChangeId(text.trim())}
               >
                 Change program id
@@ -170,11 +174,21 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
           {/* The actions on the id itself, one row, one quiet variant */}
           <div className="flex flex-wrap gap-2">
             {p.customId && (
-              <Button size="sm" variant="outline" onClick={p.onRemoveCustomId}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={p.held}
+                onClick={p.onRemoveCustomId}
+              >
                 Remove custom id
               </Button>
             )}
-            <Button size="sm" variant="outline" onClick={p.onNew}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={p.held}
+              onClick={p.onNew}
+            >
               New keypair
             </Button>
             {p.hasKeypair && !p.customId && (
@@ -187,6 +201,7 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
             aria-label="Import keypair"
             accept=".json,application/json"
             className="py-5"
+            disabled={p.held}
             onFiles={(files) => files[0] && p.onImport(files[0])}
           >
             <DropZoneIcon>
@@ -205,7 +220,7 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
         </CollapsibleContent>
       </Collapsible>
       <Dialog
-        open={p.confirming}
+        open={p.confirming && !p.held}
         onOpenChange={(open) => !open && p.onCancelNew()}
       >
         <DialogContent>

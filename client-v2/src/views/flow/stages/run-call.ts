@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from "react";
+
 import { createLogger } from "@/shared/lib/logger";
 
 import {
@@ -55,7 +57,10 @@ const readLogs = async (signature: string): Promise<string[]> => {
 const describe = (err: unknown) => {
   try {
     return JSON.stringify(err);
-  } catch {
+  } catch (e) {
+    log.info("A transaction error is not JSON, shown as text", {
+      context: { error: String(e) },
+    });
     return String(err);
   }
 };
@@ -105,6 +110,26 @@ const send = async (ix: GeneratableInstruction): Promise<CallOutcome> => {
   }
 };
 
+/** Calls under way: outside the form, which a chip or a stage switch remounts */
+let inFlight = 0;
+const inFlightListeners = new Set<() => void>();
+
+const moveInFlight = (by: 1 | -1) => {
+  inFlight += by;
+  inFlightListeners.forEach((listener) => listener());
+};
+
+const subscribeInFlight = (listener: () => void) => {
+  inFlightListeners.add(listener);
+  return () => {
+    inFlightListeners.delete(listener);
+  };
+};
+
+/** Whether a call is under way, so a remounted form cannot send it again */
+export const useCallInFlight = () =>
+  useSyncExternalStore(subscribeInFlight, () => inFlight > 0);
+
 /**
  * Calls one instruction of the program Interact targets and reports how it
  * went. Never rejects: a failure is an outcome the panel shows. The terminal
@@ -125,7 +150,8 @@ export const runCall = async (
   };
   print(PgTerminal.info(`Calling \`${ix.name}\`...`));
 
-  const outcome = await send(ix);
+  moveInFlight(1);
+  const outcome = await send(ix).finally(() => moveInFlight(-1));
 
   // Nothing after the send may turn a finished call into a rejection
   try {

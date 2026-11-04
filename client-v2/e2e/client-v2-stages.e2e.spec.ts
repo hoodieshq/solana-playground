@@ -77,10 +77,10 @@ const stubProgramAccount = (page: Page, account: object | null) =>
  * Builds the project as a user does, which gives it a program id, with the
  * build server's answer stubbed to carry the IDL; then opens Interact
  */
-const buildThenInteract = async (page: Page) => {
+const buildThenInteract = async (page: Page, idl: object = IDL) => {
   // CI has no build server: the request is answered here
   await page.route("**/build", (route) =>
-    json(route, { stderr: "", uuid: null, idl: IDL })
+    json(route, { stderr: "", uuid: null, idl })
   );
   await page.locator("#flow-stage-tab-build").click();
   const build = page.locator("#flow-stage-panel-build");
@@ -202,6 +202,33 @@ test.describe("client-v2-stages: Interact", () => {
       panel.getByRole("button", { name: "Call initialize" })
     ).toBeVisible();
     await expect(panel.locator('[data-slot="stage-empty"]')).toHaveCount(0);
+  });
+
+  test("Interact keeps a long instruction name inside the form's column", async ({
+    seededPage: page,
+  }) => {
+    const longName = "initialize_".repeat(12) + "account";
+    await stubProgramAccount(page, DEPLOYED_ACCOUNT);
+    const panel = await buildThenInteract(page, {
+      version: IDL.version,
+      name: IDL.name,
+      instructions: [
+        { name: longName, accounts: [], args: [] },
+        { name: "increment", accounts: [], args: [] },
+      ],
+    });
+
+    const chip = panel
+      .getByRole("radiogroup", { name: "Instruction" })
+      .getByRole("radio", { name: longName });
+    await expect(chip).toBeVisible(LONG);
+    const form = panel.getByRole("region", { name: `${longName} form` });
+    const chipBox = await chip.boundingBox();
+    const formBox = await form.boundingBox();
+    expect(chipBox && formBox).toBeTruthy();
+    expect(chipBox!.x + chipBox!.width).toBeLessThanOrEqual(
+      formBox!.x + formBox!.width + 0.5
+    );
   });
 });
 

@@ -14,11 +14,12 @@ import { isAirdropSignInGated } from "./sign-in-gate";
 
 /**
  * Command pre-check: a public faucet asks for a sign-in, a local one does not.
- * Before the cluster is read it asks nothing, so `handle` can say the network
- * is still loading instead of asking a local user to sign in.
+ * Before the cluster is read, or while it is the previous endpoint's, it asks
+ * nothing, so `handle` can say the network is still loading instead of asking a
+ * local user to sign in.
  */
 const checkSignedInWhereGated = () => {
-  if (PgConnection.cluster === null) return;
+  if (PgConnection.cluster === null || PgConnection.clusterIsStale) return;
   if (isAirdropSignInGated(PgConnection.cluster)) checkSignedIn();
 };
 
@@ -41,7 +42,7 @@ export const airdrop = createCmd({
   handle: async (input) => {
     // Until the endpoint is read every cluster looks faucet-less; saying so
     // then would be wrong
-    if (!PgConnection.cluster) {
+    if (!PgConnection.cluster || PgConnection.clusterIsStale) {
       throw new Error("The network is still loading. Try again in a moment.");
     }
     const defaultAmount = PgConnection.getAirdropAmount();

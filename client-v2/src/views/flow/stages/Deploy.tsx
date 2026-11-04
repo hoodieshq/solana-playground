@@ -74,11 +74,15 @@ const fundingHere = (stage: StageDeployState) => {
 
 /**
  * Sign in for the faucet, then run the deploy the funding card stopped. A
- * failed sign-in shows on the account row, which `PgSession` updates.
+ * failed sign-in shows on the account row, which `PgSession` updates. The
+ * popup can stay open long enough to move elsewhere: a deploy the user no
+ * longer looks at would pay for another project or network, so it stops.
  */
 const signInThenDeploy = async () => {
+  const cluster = PgConnection.cluster;
+  const workspace = PgExplorer.currentWorkspaceName;
   try {
-    await PgSession.signIn();
+    await PgSession.signIn({ from: "deploy" });
   } catch (error) {
     if (isSignInFailure(error)) {
       log.info("sign-in from the deploy stage failed", {
@@ -87,6 +91,13 @@ const signInThenDeploy = async () => {
       return;
     }
     reportButtonFailure("sign in")(error);
+    return;
+  }
+  if (
+    PgConnection.cluster !== cluster ||
+    PgExplorer.currentWorkspaceName !== workspace
+  ) {
+    log.info("the project or network changed during sign-in, deploy not run");
     return;
   }
   await PgStageDeploy.start((error) => markIfToldByStage("deploy", error));
