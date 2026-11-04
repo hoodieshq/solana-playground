@@ -870,7 +870,7 @@ describe("useTurn when the key is gone", () => {
       },
     ]);
 
-  it("opens Connect from the off row's Add a key on the thread's own backend", () => {
+  it("opens Connect from the off row's Add an API key on the thread's own backend", () => {
     defaultBackend(false);
     threadAnsweredBy(OPENAI);
     const { result } = renderHook(() => useTestTurn());
@@ -880,7 +880,7 @@ describe("useTurn when the key is gone", () => {
     expect(open).toHaveBeenCalledWith("ai-off", OPENAI);
   });
 
-  it("opens Connect plain from Add a key on a thread no key-based backend answered", () => {
+  it("opens Connect plain from Add an API key on a thread no key-based backend answered", () => {
     defaultBackend(false);
     const { result } = renderHook(() => useTestTurn());
 
