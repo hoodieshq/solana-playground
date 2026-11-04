@@ -14,7 +14,9 @@ change describes it as a contract the build sessions can split.
 
 The design source is Almaz's `SPEC.md` and his prototype (branch
 `almaz/mobile-tutorial-prototype`, `design-system/src/prototype/tutorial-v2`,
-commit `fb4b8e9ee`). The prototype mocks the model, the build server and
+commit `f7d42bf2e`, 2 Nov; it was `fb4b8e9ee`, 28 Oct, until Slava's 3 Nov
+word that tutorials target the branch's head: the 31 Oct type scale and step
+head supersede `fb4b8e9ee`'s, per `tutorial-frame-2nov`). The prototype mocks the model, the build server and
 devnet. This change keeps the lesson content scripted, as the prototype has it,
 and makes everything else real. The tutorial content is written in a JSON
 definition. Free questions go to the product's assistant. Build, deploy and

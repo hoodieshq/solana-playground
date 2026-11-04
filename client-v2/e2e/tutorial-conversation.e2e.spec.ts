@@ -6,6 +6,11 @@ const chat = (page: Page) =>
   page.getByRole("complementary", { name: "Tutorial chat" });
 const feed = (page: Page) => chat(page).getByRole("log");
 const editor = (page: Page) => page.locator(".monaco-editor .view-lines");
+/** Step 1's heading in the feed: its objective */
+const stepOne = (page: Page) =>
+  feed(page).getByRole("heading", {
+    name: "Define the hello instruction and log a message",
+  });
 
 test.beforeEach(async ({ page }) => {
   // No default backend, whatever the dev server is configured with
@@ -26,9 +31,9 @@ test("tutorial-conversation: Starting Hello Anchor", async ({ page }) => {
 
   await intro.getByRole("button", { name: /Start step 1/ }).click();
 
-  // The intro leaves the feed, the first divider arrives, and lib.rs opens on
+  // The intro leaves the feed, step 1's heading arrives, and lib.rs opens on
   // step 1's start: empty, then the import and the id the step writes first
-  await expect(feed(page).getByText("Step 1 of 4")).toBeVisible(LONG);
+  await expect(stepOne(page)).toBeVisible(LONG);
   await expect(intro).toHaveCount(0);
   await expect(editor(page)).toContainText("declare_id!", LONG);
   await expect(editor(page)).not.toContainText("msg!");
@@ -49,10 +54,10 @@ test("a reload opens on the step it left, with no intro", async ({ page }) => {
   await feed(page)
     .getByRole("button", { name: /Start step 1/ })
     .click(LONG);
-  await expect(feed(page).getByText("Step 1 of 4")).toBeVisible(LONG);
+  await expect(stepOne(page)).toBeVisible(LONG);
 
   await page.reload();
-  await expect(feed(page).getByText("Step 1 of 4")).toBeVisible(LONG);
+  await expect(stepOne(page)).toBeVisible(LONG);
   await expect(
     feed(page).getByRole("button", { name: /Start step 1/ })
   ).toHaveCount(0);

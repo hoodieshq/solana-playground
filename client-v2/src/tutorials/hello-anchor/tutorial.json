@@ -141,7 +141,7 @@
       },
       "win": {
         "id": "s1.win",
-        "headline": "Your program compiles.",
+        "headline": "Your program compiles",
         "line": "The build also made its IDL: one instruction, `hello`. That's what clients will call."
       },
       "explain": "This step writes the smallest Anchor program there is: one instruction, `hello`, that writes a line to the program log. I explain a piece, you pick the right line, and I write it in. Then the build checks it."
@@ -201,7 +201,7 @@
       },
       "win": {
         "id": "s2.win",
-        "headline": "Your program is live on devnet.",
+        "headline": "Your program is live on devnet",
         "line": "Its IDL also gave you the Call panel: a form for every instruction. You'll use it in a moment.",
         "extra": "openTest"
       },
@@ -277,7 +277,7 @@
       },
       "win": {
         "id": "s3.win",
-        "headline": "Your program answered from devnet.",
+        "headline": "Your program answered from devnet",
         "line": "That `Hello, World!` is the `msg!` line from lib.rs, coming back in the transaction's logs. The Call panel makes the same call without code.",
         "callPanelLine": "You called `hello` from the Call panel, which Playground built from the IDL. In code, the same call is one line.",
         "extra": "openTest"
@@ -362,14 +362,14 @@
       },
       "win": {
         "id": "s4.win",
-        "headline": "hello knows your name.",
+        "headline": "hello knows your name",
         "line": "You changed an instruction, shipped the new version and called it with an argument."
       },
       "explain": "Instructions can take arguments after their `Context`. This step adds a `name` to `hello`, ships the new version and calls it with your name."
     }
   ],
   "finish": {
-    "headline": "You built and called your first Solana program.",
+    "headline": "You built and called your first Solana program",
     "line": "Your greeting came back from devnet in a transaction your wallet signed.",
     "learned": [
       "Declaring a program and its instructions",

@@ -271,10 +271,10 @@ it("should hand the files column no toggle in the work group, from 768 px up", (
   const { rerender } = render(
     <BaseLayoutShell {...props("wide", { files })} />
   );
-  expect(files).toHaveBeenLastCalledWith({ isMobile: false, pinned: false });
+  expect(files).toHaveBeenLastCalledWith({ isMobile: false });
   files.mockClear();
   rerender(<BaseLayoutShell {...props("compact", { files })} />);
-  expect(files).toHaveBeenLastCalledWith({ isMobile: false, pinned: false });
+  expect(files).toHaveBeenLastCalledWith({ isMobile: false });
 });
 
 it("should keep a folded console mounted", () => {
@@ -1317,15 +1317,11 @@ describe("in a tutorial", () => {
     };
   };
 
-  it("lays out the rail, the chat, the files, then the stage over the console, with no stage bar or assistant", () => {
+  it("lays out the rail, the chat, then the stage over the console, with no stage bar, files or assistant", () => {
     render(<BaseLayoutShell {...inTutorial("wide")} />);
-    const order = [
-      "nav slot",
-      "chat slot",
-      "files slot",
-      "stage slot",
-      "console slot",
-    ].map((slot) => screen.getByText(slot));
+    const order = ["nav slot", "chat slot", "stage slot", "console slot"].map(
+      (slot) => screen.getByText(slot)
+    );
     order.slice(1).forEach((element, index) => {
       expect(
         order[index].compareDocumentPosition(element) &
@@ -1338,22 +1334,26 @@ describe("in a tutorial", () => {
     expect(screen.getByText("hint slot")).toBeTruthy();
   });
 
-  it("holds the files column open in the frame, whatever was saved, and pins it", () => {
+  it("has no files column in the frame, whatever was saved: the workspace head holds the tree", () => {
     const files = vi.fn(() => <aside>files slot</aside>);
     const shell = inTutorial("wide", tutorialNav("rail"), {
-      filesOpen: false,
+      filesOpen: true,
       files,
     });
     render(<BaseLayoutShell {...shell} />);
-    expect(screen.getByText("files slot")).toBeTruthy();
-    expect(files).toHaveBeenLastCalledWith({ isMobile: false, pinned: true });
+    expect(screen.queryByText("files slot")).toBeNull();
+    expect(files).not.toHaveBeenCalled();
+    expect(panelSpies.panels.files).toBeUndefined();
   });
 
-  it("lets no drag fold the held column in the frame", () => {
-    render(<BaseLayoutShell {...inTutorial("wide")} />);
-    expect(
-      (panelSpies.panels.files as { collapsible?: boolean }).collapsible
-    ).toBeFalsy();
+  it("brings the files column back on the way out of the frame", () => {
+    const { rerender } = render(
+      <BaseLayoutShell
+        {...inTutorial("wide", tutorialNav(), { filesOpen: true })}
+      />
+    );
+    rerender(<BaseLayoutShell {...props("wide", { filesOpen: true })} />);
+    expect(screen.getByText("files slot")).toBeTruthy();
   });
 
   it("keeps today's layout below a wide window, which no source draws", () => {
@@ -1368,19 +1368,6 @@ describe("in a tutorial", () => {
     expect(nav).toHaveBeenLastCalledWith(
       expect.objectContaining({ collapsed: false })
     );
-  });
-
-  it("saves no files width from a drag in the frame, where the group is narrower", () => {
-    const shell = inTutorial("wide");
-    render(<BaseLayoutShell {...shell} />);
-    act(() =>
-      panelSpies.groups["layout-work"].onLayoutChanged?.(
-        { files: 30, center: 70 },
-        { isUserInteraction: true }
-      )
-    );
-    expect(shell.onWorkLayout).not.toHaveBeenCalled();
-    expect(panelSpies.groups["layout-work"].defaultLayout).toBeUndefined();
   });
 
   it("keeps the stage mounted on the way in and out", () => {

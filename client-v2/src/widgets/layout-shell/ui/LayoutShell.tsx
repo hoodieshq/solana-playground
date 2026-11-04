@@ -55,14 +55,13 @@ export interface LayoutShellProps {
   stageTabs: ReactNode;
   /**
    * The files column. `collapsed` is never true in the phone's Files Sheet;
-   * `phone` says the column is in that Sheet, where `toggle` closes it.
-   * `pinned` says a tutorial's frame holds it open: it draws no fold control.
+   * `phone` says the column is in that Sheet, where `toggle` closes it. A
+   * tutorial's frame has no files column.
    */
   files: (panel: {
     collapsed: boolean;
     toggle: () => void;
     phone: boolean;
-    pinned: boolean;
   }) => ReactNode;
   /**
    * The stage. `console` is the console's state, for a stage that carries
@@ -168,8 +167,7 @@ const LayoutShell = ({
   // Read by the keys and the subscriptions, which outlive renders
   const screenNow = useRef(screen);
   screenNow.current = screen;
-  // The frame holds the work: no assistant panel, and a files column it
-  // holds open
+  // The frame holds the work: no assistant panel and no files column
   const tutorialNow = useRef(false);
   tutorialNow.current =
     tutorial !== undefined && viewport === "wide" && screen.kind === "work";
@@ -406,7 +404,7 @@ const LayoutShell = ({
     {
       handle: (ev) => {
         // Before `preventDefault`: under Home or a page the key is not the shell's
-        // The frame holds the column open: no fold there
+        // The frame has no column: ⌘E there is the workspace's tree
         if (isCovered(screenNow.current) || tutorialNow.current) return;
         if (
           PgCommon.getOS() === "MacOS" &&
@@ -569,15 +567,13 @@ const LayoutShell = ({
             collapsed: false,
             toggle: toggleNav(stock.toggle),
             phone: true,
-            pinned: false,
           });
         }
         return files({
-          collapsed: stock.pinned ? false : !state.open.files,
+          collapsed: !state.open.files,
           toggle: () =>
             setOpen("files", { open: !state.open.files, via: "button" }),
           phone: false,
-          pinned: stock.pinned,
         });
       }}
       // The product's text face, as the desktop's column has it: the code

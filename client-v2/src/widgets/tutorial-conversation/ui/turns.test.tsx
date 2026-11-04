@@ -80,42 +80,41 @@ describe("BaseIntroCard", () => {
 });
 
 describe("BaseStepDivider", () => {
-  it("reads the kicker, the title and the objective", () => {
+  it("heads the step with its objective alone, before and after it passes", () => {
     render(
-      <BaseStepDivider
-        index={1}
-        count={4}
-        title="Program"
-        objective="Define the hello instruction and log a message"
-        done={false}
-        took={null}
-      />
+      <BaseStepDivider objective="Define the hello instruction and log a message" />
     );
-    expect(screen.getByText("Step 1 of 4")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Program" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", {
+        name: "Define the hello instruction and log a message",
+      })
+    ).toBeTruthy();
+    expect(screen.queryByText(/Step \d of/)).toBeNull();
     expect(screen.queryByLabelText("Passed")).toBeNull();
-  });
-
-  it("gets a check and the step's time once passed", () => {
-    render(
-      <BaseStepDivider
-        index={1}
-        count={4}
-        title="Program"
-        objective="o"
-        done
-        took={41_000}
-      />
-    );
-    expect(screen.getByLabelText("Passed")).toBeTruthy();
-    expect(screen.getByText("41 s")).toBeTruthy();
   });
 });
 
 describe("BaseWroteCard", () => {
   const lines = [5, 6, 7, 8, 9, 10, 11, 12, 13];
 
-  it("is a button naming the lines, with the first three and the rest counted", async () => {
+  it("keeps a blank written line's row, so the numbers stay beside their code", () => {
+    render(
+      <BaseWroteCard
+        wrote={{ file: "src/lib.rs", lines: [1, 2, 3] }}
+        failed={false}
+        preview={["use x;", "", "fn f() {}"]}
+        onShow={vi.fn()}
+      />
+    );
+    const card = screen.getByRole("button", {
+      name: "Show lines 1 to 3 in src/lib.rs",
+    });
+    const rows = [...card.querySelectorAll("span.whitespace-pre")];
+    expect(rows).toHaveLength(3);
+    expect(rows[1].className).toContain("min-h-5");
+  });
+
+  it("is a button naming the lines, headed by the path alone, with the first three and '⋯ N more lines'", async () => {
     const onShow = vi.fn();
     render(
       <BaseWroteCard
@@ -128,10 +127,12 @@ describe("BaseWroteCard", () => {
     const card = screen.getByRole("button", {
       name: "Show lines 5 to 13 in src/lib.rs",
     });
-    expect(card.textContent).toContain("src/lib.rslines 5 to 13+9");
+    expect(card.textContent?.startsWith("src/lib.rs5")).toBe(true);
+    expect(card.textContent).not.toContain("lines 5 to 13");
+    expect(card.textContent).not.toContain("+9");
+    expect(card.textContent).not.toContain("Show in");
     expect(card.textContent).toContain("#[program]");
-    expect(card.textContent).toContain("6 more lines");
-    expect(card.textContent).toContain("Show in lib.rs");
+    expect(card.textContent).toContain("⋯6 more lines");
     await userEvent.click(card);
     expect(onShow).toHaveBeenCalledWith("src/lib.rs", 5);
   });
@@ -1123,7 +1124,7 @@ describe("TurnView's last win", () => {
         }}
       />
     );
-    expect(screen.getByText("hello knows your name.")).toBeTruthy();
+    expect(screen.getByText("hello knows your name")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
   });
 });

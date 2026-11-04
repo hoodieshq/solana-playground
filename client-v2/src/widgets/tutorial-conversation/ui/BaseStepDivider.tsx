@@ -1,50 +1,21 @@
-import { Check } from "lucide-react";
-
-import { formatTook } from "./Prose";
+import { Prose, TITLE, noStop } from "./Prose";
 
 export interface BaseStepDividerProps {
-  /** 1-based */
-  index: number;
-  count: number;
-  title: string;
+  /** The step's objective, which heads it */
   objective: string;
-  done: boolean;
-  /** ms, once done */
-  took: number | null;
 }
 
 /**
- * The head of a step in the feed, and the step bar's target: the kicker
- * "Step n of m", the title and the objective; once the step has passed, a
- * check and the step's time. It never acts.
+ * The head of a step in the feed, and the step bar's target: the step's
+ * objective as a 24/28 heading, Practicum's H2 at 400 px, as the prototype's
+ * `StepDivider` at `f7d42bf2e` sets it. Nothing more, before or after the
+ * step passes: the bar already names the step and says it is done, and its
+ * time beside the heading only took the line's room. It never acts.
  */
-const BaseStepDivider = ({
-  index,
-  count,
-  title,
-  objective,
-  done,
-  took,
-}: BaseStepDividerProps) => (
-  <div className="mt-1 flex items-start gap-3 border-t border-border pt-4">
-    <div className="min-w-0 flex-1">
-      <p className="text-[0.75rem] font-act text-muted-foreground tabular-nums">
-        Step {index} of {count}
-      </p>
-      <h2 className="font-heading text-title text-foreground">{title}</h2>
-      <p className="text-caption text-muted-foreground">{objective}</p>
-    </div>
-    {done && (
-      <p className="flex shrink-0 items-center gap-1 text-caption text-muted-foreground tabular-nums">
-        <Check
-          role="img"
-          aria-label="Passed"
-          className="size-3.5 text-success"
-        />
-        {took !== null && formatTook(took)}
-      </p>
-    )}
-  </div>
+const BaseStepDivider = ({ objective }: BaseStepDividerProps) => (
+  <h2 className={TITLE}>
+    <Prose text={noStop(objective)} />
+  </h2>
 );
 
 export default BaseStepDivider;

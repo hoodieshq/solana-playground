@@ -1,17 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode } from "react";
 
 import type { StepJumpVia } from "@/entities/tutorial";
 import type { StepBarItem, Turn } from "@/features/tutorial-conversation";
+import { gapBefore } from "../model/rhythm";
 import { liveStepIndex, stepBeside } from "../model/step-bar";
 import BaseBackPill from "./BaseBackPill";
 import BaseStepBar from "./BaseStepBar";
 import { typing } from "./keys";
 
-/** A jumped-to divider lands this far under the step bar, in px */
-export const UNDER_BAR = 12;
-/** Under 24rem of chat width the step bar is one button */
-const NARROW_PX = 24 * 16;
+/**
+ * A jumped-to heading lands this far under the feed's top, in px: the feed's
+ * own top padding, so it rests where the first heading sits on load
+ */
+export const HEADING_TOP = 22;
 const FLASH_MS = 700;
 const SCROLL_MS = 320;
 /** How long a jump's smooth scroll may take to settle before scrolling counts as the learner's */
@@ -22,8 +24,6 @@ export interface BaseFeedProps {
   /** The one card that acts, or null after the finish */
   live: Turn | null;
   steps: readonly StepBarItem[];
-  /** The step bar's hairline, 0 to 1 */
-  progress: number;
   /** Draw one turn; `live` says whether it is the card that acts */
   renderTurn: (turn: Turn, live: boolean) => ReactNode;
   /** The feed moved to step `index`'s divider, from the live step `from` */
@@ -40,27 +40,12 @@ const reducedMotion = () =>
 const FOCUSABLE =
   "button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
-/** Whether the element is under 24rem wide; false where nothing can measure it */
-const useNarrow = (ref: RefObject<HTMLElement | null>) => {
-  const [narrow, setNarrow] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(([entry]) =>
-      setNarrow(entry.contentRect.width < NARROW_PX)
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ref]);
-  return narrow;
-};
-
 /**
  * The lesson as one feed: the step bar, then the turns in a `role="log"`,
  * then the back pill while the live card is off screen or the feed is on
- * another step. A step bar segment, an item of its narrow menu or ⌥↑ / ⌥↓
- * (unless a field has focus) scrolls a divider to 12 px under the bar and
- * flashes it once; the lesson's progress is untouched. The step the feed is
+ * another step. A step bar segment, an item of its menu or ⌥↑ / ⌥↓
+ * (unless a field has focus) brings a step's heading to rest 22 px under the
+ * feed's top and flashes it once; the lesson's progress is untouched. The step the feed is
  * scrolled into is the bar's "viewing" one. Turns older than the page load
  * render whole.
  */
@@ -68,7 +53,6 @@ const BaseFeed = ({
   turns,
   live,
   steps,
-  progress,
   renderTurn,
   onJump,
   onBack,
@@ -81,7 +65,6 @@ const BaseFeed = ({
   /** Until when the feed's scroll is a jump's, in ms since the epoch */
   const jumping = useRef(0);
   const [liveOffScreen, setLiveOffScreen] = useState(false);
-  const narrow = useNarrow(root);
   const liveIndex = liveStepIndex(steps);
 
   const jump = (index: number, via: StepJumpVia) => {
@@ -89,7 +72,7 @@ const BaseFeed = ({
     const box = scroller.current;
     if (!divider || !box) return;
     box.scrollTo?.({
-      top: divider.offsetTop - UNDER_BAR,
+      top: divider.offsetTop - HEADING_TOP,
       behavior: reducedMotion() ? "auto" : "smooth",
     });
     if (!reducedMotion()) {
@@ -134,10 +117,10 @@ const BaseFeed = ({
     return () => document.removeEventListener("keydown", onKey);
   }, [steps]);
 
-  // Scrolling by hand moves "viewing" to the divider under the bar. A feed
-  // scrolled to its bottom is on the live step: a short live step never
-  // brings its divider up to the bar, so the divider test alone would name
-  // the step before it
+  // Scrolling by hand moves "viewing" to the step whose heading is at the
+  // feed's top. A feed scrolled to its bottom is on the live step: a short
+  // live step never brings its heading up to the top, so the heading test
+  // alone would name the step before it
   const onScroll = () => {
     const box = scroller.current;
     if (!box || Date.now() < jumping.current) return;
@@ -148,7 +131,7 @@ const BaseFeed = ({
     let under: number | null = null;
     steps.forEach((step, index) => {
       const divider = dividers.current.get(step.id);
-      if (divider && divider.offsetTop <= box.scrollTop + UNDER_BAR + 1) {
+      if (divider && divider.offsetTop <= box.scrollTop + HEADING_TOP + 1) {
         under = index;
       }
     });
@@ -221,8 +204,6 @@ const BaseFeed = ({
         steps={steps}
         live={liveIndex}
         viewing={viewing}
-        progress={progress}
-        narrow={narrow}
         onJump={jump}
       />
       <div
@@ -234,14 +215,15 @@ const BaseFeed = ({
           role="log"
           aria-live="polite"
           aria-label="Tutorial"
-          className="flex flex-col gap-5 px-5 pt-4 pb-4"
+          className="flex flex-col px-5 pt-[22px] pb-4"
         >
-          {turns.map((turn) => {
+          {turns.map((turn, index) => {
             const isLive = turn.id === live?.id;
             return (
               <div
                 key={turn.id}
                 data-turn={turn.kind}
+                style={{ marginTop: gapBefore(turns[index - 1], turn) }}
                 ref={(el) => {
                   if (turn.kind === "divider" && turn.step) {
                     if (el) dividers.current.set(turn.step, el);
@@ -249,10 +231,12 @@ const BaseFeed = ({
                   }
                   if (isLive) liveCard.current = el;
                 }}
+                // With reduced motion a new turn still fades in, whole: shown
+                // at once, a reply landed with no sign it was new
                 className={
                   turn.whole
                     ? "rounded-control"
-                    : "rounded-control motion-safe:animate-rise"
+                    : "rounded-control motion-safe:animate-rise motion-reduce:animate-fade"
                 }
               >
                 {renderTurn(turn, isLive)}

@@ -396,6 +396,27 @@ describe("the question card over the engine", () => {
     expect(world.engine.progress.beats["s1.q1"]?.kind).toBe("open");
   });
 
+  it("arriving under an open popover, leaves the focus in it", () => {
+    // The workspace's file tree is a dialog popover: a question that arrives
+    // while it is open must not take the focus, or the tree closes under the
+    // learner
+    const world = started();
+    const Page = ({ asked }: { asked: boolean }) => (
+      <>
+        <div role="dialog" aria-label="Files">
+          <button type="button">lib.rs</button>
+        </div>
+        {asked && <Lesson world={world} />}
+      </>
+    );
+    const { rerender } = render(<Page asked={false} />);
+    screen.getByRole("button", { name: "lib.rs" }).focus();
+    rerender(<Page asked />);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "lib.rs" })
+    );
+  });
+
   it("moves between the rows with the arrows, and Enter picks the focused one", () => {
     const world = started();
     render(<Lesson world={world} />);

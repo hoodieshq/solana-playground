@@ -109,16 +109,7 @@ const TurnView = ({
         />
       );
     case "divider":
-      return (
-        <BaseStepDivider
-          index={turn.index}
-          count={definition.steps.length}
-          title={turn.title}
-          objective={turn.objective}
-          done={turn.done}
-          took={turn.took}
-        />
-      );
+      return <BaseStepDivider objective={turn.objective} />;
     case "say":
       return (
         <BaseSay

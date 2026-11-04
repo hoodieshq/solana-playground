@@ -117,14 +117,7 @@ export type NavStock =
  */
 export type FilesStock =
   | { isMobile: true; toggle: () => void }
-  | {
-      isMobile: false;
-      /**
-       * Held open by a tutorial's frame, which has no stage bar to reopen it
-       * from: the column draws no fold control of its own then
-       */
-      pinned: boolean;
-    };
+  | { isMobile: false };
 
 /**
  * What the assistant is handed to widen itself: the panel sized to
@@ -523,13 +516,12 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   // layout, which snapped it open to its minimum when a drag of the
   // assistant's edge reflowed the work area. Opening mounts it at the width it
   // last had.
-  // In a tutorial's frame the column is held open whatever was saved: the
-  // frame has no stage bar, so nothing there could open it again. It stays
-  // until the feed (task 3.3) carries the steps and Skip it holds; the
-  // workspace's tree (2.2) carries the files only. A fold there is not saved.
+  // A tutorial's frame has no files column, whatever was saved: the feed's
+  // step head carries the steps and the workspace head the tree
+  // (`tutorial-frame-2nov`). Nothing there folds or saves it.
   // A fresh object each render; read only by `.open` in the effects below
   const filesState: PanelState = tutorialLayout
-    ? { open: true, onOpenChange: () => undefined }
+    ? { open: false, onOpenChange: () => undefined }
     : props.filesState;
   const filesShown = filesState.open;
   // A drag that folds the open column is the one fold left to the library
@@ -673,14 +665,14 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     </ResizablePanelGroup>
   );
 
-  // The files column beside the stage over the console: under the stage bar
-  // in the frame, beside the chat in a tutorial
+  // The files column beside the stage over the console, under the stage bar;
+  // in a tutorial's frame the stage alone, beside the chat
   const workGroup = (
     <ResizablePanelGroup
       orientation="horizontal"
       id="layout-work"
       className="h-auto min-h-0 flex-1"
-      defaultLayout={filesShown && !tutorialLayout ? props.work : undefined}
+      defaultLayout={filesShown ? props.work : undefined}
       onLayoutChanged={
         !filesShown
           ? undefined
@@ -691,9 +683,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                   state: filesState,
                   openSize: filesOpenSize.current,
                   settledOnce: filesSettled,
-                  // Beside the chat the group is narrower, so its share is not the
-                  // frame's to save: a drag there would resize the column outside it
-                  save: tutorialLayout ? () => undefined : props.onWorkLayout,
+                  save: props.onWorkLayout,
                 },
                 layout,
                 meta
@@ -704,9 +694,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
         <ResizablePanel
           id="files"
           panelRef={filesRef}
-          // Held open in the frame: a drag past the fold point would fold it
-          // where nothing could open it again
-          collapsible={!tutorialLayout}
+          collapsible
           collapsedSize={PANEL_SIZES.files.folded}
           defaultSize={filesOpenSize.current}
           minSize={PANEL_SIZES.files.min}
@@ -721,7 +709,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
             }
           }}
         >
-          {props.files({ isMobile: false, pinned: tutorialLayout })}
+          {props.files({ isMobile: false })}
         </ResizablePanel>
       )}
       {filesShown && <ResizableHandle />}
@@ -857,8 +845,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                       className="flex min-h-0 min-w-0 flex-1"
                     >
                       {props.tutorial?.chat}
-                      {/* The files column, held open (`filesState`), until the
-                      feed (task 3.3) carries the lesson's steps and Skip */}
+                      {/* The stage alone: the frame has no files column, the
+                      workspace head holds the tree */}
                       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                         {workGroup}
                       </div>
