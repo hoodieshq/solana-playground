@@ -93,6 +93,10 @@ for; tasks with "after nothing" start at once.
       Verify: unit tests for the routing order; typed "I'm stuck" posts the
       hint; a tool call to write a file is refused in tutorial mode (HOO-2354; fleet; L 2.5; after 3.1;
       plan: [plans/3.6-composer-and-assistant.md](plans/3.6-composer-and-assistant.md))
+- [x] 3.6a Composer: review leftovers from #271: the failed build's two buttons
+      and the folded composer at the prototype's sizes, and the question event
+      on the step it was asked on (HOO-2626; fleet; S 0.5; after 3.6;
+      plan: [plans/3.6a-composer-leftovers.md](plans/3.6a-composer-leftovers.md))
 
 ## 4. Runs
 

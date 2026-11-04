@@ -163,7 +163,7 @@ export type Action =
   | { type: "applyFailed"; id: string; reason: ApplyFailure; at: number }
   | { type: "keep"; id: string; at: number }
   /** A composer message went to the live assistant: counted, nothing saved */
-  | { type: "asked"; at: number };
+  | { type: "asked"; cursor: Cursor; at: number };
 
 /** What a typed action word may run: the same actions its buttons send */
 export type WordAction = Extract<
@@ -1494,7 +1494,7 @@ const reduceAction = (
             name: "tutorial_question_asked",
             params: {
               tutorial: ctx.slug,
-              step: stepNumber(definition, p.cursor),
+              step: stepNumber(definition, action.cursor),
               source: "typed",
             },
           },
@@ -3590,13 +3590,33 @@ if (import.meta.vitest) {
 
       it("a message to the assistant is counted and saves nothing", () => {
         const before = play([start]).state;
-        const r = reduce(ctx(), before, { type: "asked", at: 3000 });
+        const r = reduce(ctx(), before, {
+          type: "asked",
+          cursor: before.progress.cursor,
+          at: 3000,
+        });
         expect(r.state).toBe(before);
         expect(r.effects).toEqual([
           {
             kind: "event",
             name: "tutorial_question_asked",
             params: { tutorial: "hello-anchor", step: 1, source: "typed" },
+          },
+        ]);
+      });
+
+      it("counts a message on the step it was asked on, not the one its answer ended on", () => {
+        const intro = play([]).state.progress.cursor;
+        const r = reduce(ctx(), play([start]).state, {
+          type: "asked",
+          cursor: intro,
+          at: 3000,
+        });
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_question_asked",
+            params: { tutorial: "hello-anchor", step: 0, source: "typed" },
           },
         ]);
       });

@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 
+import { requireFor } from "../src/test-utils/require-for";
 import { expect, LONG, test } from "./fixtures";
 
 const chat = (page: Page) =>
@@ -61,4 +62,59 @@ test("a reload opens on the step it left, with no intro", async ({ page }) => {
   await expect(
     feed(page).getByRole("button", { name: /Start step 1/ })
   ).toHaveCount(0);
+});
+
+// HOO-2626: the prototype's sizes, at the widths the review measured them
+test("a failed build's two buttons hold one row of one width at 1280", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route("**/build", (route) =>
+    route.fulfill({
+      json: {
+        stderr:
+          "error[E0412]: cannot find type `Initialize` in this scope\n --> /src/lib.rs:9:27\nerror: could not compile `hello`\n",
+        uuid: null,
+        idl: null,
+      },
+    })
+  );
+  await page.goto("/tutorials/hello-anchor");
+  await feed(page)
+    .getByRole("button", { name: /Start step 1/ })
+    .click(LONG);
+  await feed(page).getByRole("button", { name: /^msg!/ }).click(LONG);
+  await feed(page)
+    .getByRole("button", { name: /^Build/ })
+    .click(LONG);
+
+  const explain = feed(page).getByRole("button", { name: /Explain the error/ });
+  const fix = feed(page).getByRole("button", { name: "I'll fix it myself" });
+  await expect(explain).toBeVisible(LONG);
+  const [a, b] = [
+    requireFor("Explain's box")(await explain.boundingBox()),
+    requireFor("the fix button's box")(await fix.boundingBox()),
+  ];
+  expect(a.y).toBe(b.y);
+  expect(a.width).toBe(b.width);
+});
+
+test("the folded composer is 46 px below md with a fine pointer", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 700, height: 800 });
+  await page.goto("/tutorials/hello-anchor");
+  // Under the frame's width the conversation is the Chat tab's
+  await page.getByText("Chat", { exact: true }).first().click(LONG);
+  await page.getByRole("button", { name: /Start step 1/ }).click(LONG);
+  await expect(
+    page.getByRole("button", { name: "Hint", exact: true })
+  ).toBeVisible(LONG);
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+  const composer = page.locator("form:has([data-slot=composer-send]):visible");
+  await expect
+    .poll(async () => (await composer.boundingBox())?.height, LONG)
+    .toBe(46);
 });

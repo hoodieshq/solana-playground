@@ -37,6 +37,10 @@ type TxResult = Extract<RunResult, { act: "run" | "call" }>;
 const isTxResult = (r: RunResult): r is TxResult =>
   r.act === "run" || r.act === "call";
 
+/** The prototype's `ACTION`, a failed build's two buttons (`f7d42bf2e`) */
+const ACTION =
+  "h-10 gap-2 px-4 font-heading text-[0.9375rem] font-medium pointer-coarse:h-11";
+
 type BuildFailed = Extract<RunResult, { act: "build"; ok: false }>;
 
 /**
@@ -184,7 +188,7 @@ const BaseResultCard = ({
         </div>
       )}
       {expanded && failedBuild && !unreachable && (
-        <div className="@container flex flex-col gap-3 border-t border-error/20 px-3 py-3">
+        <div className="flex flex-col gap-3 border-t border-error/20 px-3 py-3">
           {/* The compiler's words on a red rule, a quote of its output with
               no well (the prototype's ResultCard, f7d42bf2e) */}
           {error && (
@@ -216,24 +220,24 @@ const BaseResultCard = ({
             </p>
           )}
           {open && (
-            // One width for both, side by side where the card has room for
-            // the wider one twice, as the prototype's (design audit, 3 Nov);
-            // stacked full width where it has not
-            <div className="grid gap-2 @min-[23rem]:w-fit @min-[23rem]:auto-cols-fr @min-[23rem]:grid-flow-col">
-              <Button onClick={onExplain}>
+            // One width for both, one row on every desktop, stacked only on
+            // a phone. No key hint: ⌘↵ works here, but the prototype draws it
+            // on the act card's button alone (f7d42bf2e)
+            <div className="grid gap-2 md:w-fit md:auto-cols-fr md:grid-flow-col">
+              <Button
+                className={cn(ACTION, "hover:bg-(--accent-fill-hover)")}
+                onClick={onExplain}
+              >
                 Explain the error
-                <Kbd
-                  aria-hidden="true"
-                  className="bg-white/15 text-primary-foreground/80"
-                >
-                  ⌘↵
-                </Kbd>
               </Button>
               {/* A phone can't type the fix, so it isn't offered there:
                   Explain leads to the lines instead (the prototype's) */}
               <Button
                 variant="ghost"
-                className="max-md:hidden"
+                className={cn(
+                  ACTION,
+                  "bg-foreground/10 text-foreground/90 hover:bg-foreground/15 max-md:hidden"
+                )}
                 onClick={onFixMyself}
               >
                 I&apos;ll fix it myself

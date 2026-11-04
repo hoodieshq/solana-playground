@@ -640,7 +640,6 @@ export const TutorialConversation = ({
   );
   return (
     <BaseFeed
-      turns={view.turns}
       entries={mergeFeed(
         view.turns,
         PgAssistant.items,

@@ -14,6 +14,7 @@ import { failedResult } from "./ports";
 import type {
   ApplyFailure,
   ConversationProgress,
+  Cursor,
   PassedVia,
   RunResult,
 } from "./progress";
@@ -270,9 +271,13 @@ export class PgConversation {
     }
   }
 
-  /** A composer message reached the live assistant; it is only counted */
-  static asked() {
-    PgConversation._dispatch({ type: "asked", at: Date.now() });
+  /**
+   * A composer message reached the live assistant; it is only counted, on the
+   * step it was asked on: `cursor` is where the lesson stood at the send, since
+   * the answer that reports it can outlast that step
+   */
+  static asked(cursor: Cursor) {
+    PgConversation._dispatch({ type: "asked", cursor, at: Date.now() });
   }
 
   /** A finish chip pressed, by its index in the definition's chips */

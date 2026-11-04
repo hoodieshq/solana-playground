@@ -158,7 +158,7 @@ const BaseTutorialComposer = ({
         <ComposerInput
           // A 22 px line, not 15 × 1.5: 22.5 made the box half a pixel off
           className={cn(
-            "leading-[22px] placeholder:text-muted-foreground/80! max-md:max-h-[calc(4lh+1.25rem)]",
+            "leading-[22px] placeholder:text-muted-foreground/80! max-md:max-h-[calc(4lh+1.25rem)] pointer-fine:max-md:text-[0.9375rem] pointer-fine:max-md:font-[350]",
             !open && "min-h-10 pt-2.5 pb-2.5 max-md:min-h-11"
           )}
           value={value}
@@ -183,7 +183,9 @@ const BaseTutorialComposer = ({
           }}
         />
         <ComposerToolbar className={cn(!open && "py-1 pr-1")}>
-          <ComposerSend className="pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">
+          {/* The prototype's Send: 32 px at every width, 44 px for a finger.
+              The panel's composer keeps its own 48 px on a phone */}
+          <ComposerSend className="max-md:size-8 max-md:[&_svg]:size-4 pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">
             <ArrowUp />
           </ComposerSend>
         </ComposerToolbar>

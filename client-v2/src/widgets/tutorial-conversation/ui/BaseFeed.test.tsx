@@ -127,10 +127,18 @@ const handlers = (): TurnHandlers => ({
   createWallet: vi.fn(),
 });
 
-const feed = (over: Partial<BaseFeedProps> & { on?: TurnHandlers } = {}) => {
+const feed = (
+  over: Partial<BaseFeedProps> & {
+    turns?: readonly Turn[];
+    on?: TurnHandlers;
+  } = {}
+) => {
   const on = over.on ?? handlers();
   const props: BaseFeedProps = {
-    turns: over.turns ?? onStep3.turns,
+    entries:
+      over.entries ??
+      (over.turns ?? onStep3.turns).map((turn) => ({ kind: "lesson", turn })),
+    renderExchange: over.renderExchange ?? (() => null),
     live: over.live === undefined ? onStep3.live : over.live,
     steps: over.steps ?? onStep3.steps,
     renderTurn:
