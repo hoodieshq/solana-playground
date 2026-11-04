@@ -258,6 +258,11 @@ const LayoutShell = ({
     layoutTelemetry.track("layout_page_shown", { page: next, via });
     const toStage = stageForPage(next, PgFlow.state, lastPreview.current);
     if (toStage) PgFlow.setStage(toStage);
+    // Without a program the console is all the preview shows: folded, the
+    // page would be its strip over an empty screen
+    if (next === "preview" && !PgFlow.state.hasProgram) {
+      setPhoneConsoleOpen(true, "auto");
+    }
   };
   // The phone's Files sheet and console are the visit's: reported, never saved
   const setPhoneFiles = (open: boolean, via: ToggleSource) => {

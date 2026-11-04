@@ -975,6 +975,11 @@ describe("on a phone", () => {
     expect(events("layout_page_shown")).toEqual([
       { page: "preview", via: "button" },
     ]);
+    // The console is the page's only content, so it opens with it
+    expect(consoleButton().getAttribute("aria-expanded")).toBe("true");
+    expect(events("layout_panel_toggled")).toEqual([
+      { panel: "console", open: true, via: "auto" },
+    ]);
     expect(
       screen.getByRole("region", { name: "Preview" }).hasAttribute("inert")
     ).toBe(false);
@@ -1203,7 +1208,6 @@ describe("on a phone", () => {
     PgFlow["_dispatch"]({ type: "program", has: false });
     phoneShell();
     fireEvent.click(button("Preview the build"));
-    fireEvent.click(consoleButton());
     expect(consoleBox().classList.contains("flex-1")).toBe(true);
     expect(consoleBox().classList.contains("h-2/5")).toBe(false);
   });
