@@ -67,7 +67,7 @@ export interface BaseBuildProps {
   /** The last build's duration, `null` while unknown */
   ms: number | null;
   /** How long the running build has run, `null` while none runs */
-  elapsedMs: number | null;
+  elapsedMs: number | undefined;
   /** The browser has no network: Build waits, and the notice over the stage
    * says why (Spec 08 NET-01) */
   offline: boolean;
@@ -102,6 +102,7 @@ const Surface = ({
   progress,
   running = false,
   report = false,
+  alert = false,
 }: {
   icon?: ReactNode;
   title: string;
@@ -115,6 +116,11 @@ const Surface = ({
   /** A run in flight: a moving bar under the meta */
   running?: boolean;
   report?: boolean;
+  /**
+   * The description is why the stage stopped, so it is announced the moment
+   * it shows, as the error callout it replaced was (Spec 08)
+   */
+  alert?: boolean;
 }) => (
   <div className={STAGE_FRAME}>
     <StageEmpty
@@ -131,7 +137,9 @@ const Surface = ({
       {meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
       {running && <StageEmptyProgress />}
       {description && (
-        <StageEmptyDescription>{description}</StageEmptyDescription>
+        <StageEmptyDescription role={alert ? "alert" : undefined}>
+          {description}
+        </StageEmptyDescription>
       )}
       {children}
       {progress?.building && <SlowLine slow={progress.slow} />}
@@ -230,7 +238,7 @@ const Empty = (p: BaseBuildProps) => (
   <Surface
     title={p.building ? "Building…" : "Nothing built yet"}
     meta={
-      p.building && p.elapsedMs !== null
+      p.building && p.elapsedMs !== undefined
         ? `${Math.floor(p.elapsedMs / 1000)} s`
         : null
     }
@@ -266,6 +274,7 @@ const Unreached = (p: BaseBuildProps & { failure: BuildFailure | null }) => {
     <Surface
       icon={<CircleX className="text-error" />}
       title={noAnswer ? "Build did not start" : "Could not build"}
+      alert
       description={
         noAnswer
           ? "The Playground server did not answer. Your code is unchanged."

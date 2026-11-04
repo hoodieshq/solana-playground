@@ -38,7 +38,7 @@ const props = (
   surface: BuildSurfaceView,
   building = false,
   slow = false,
-  elapsedMs: number | null = null,
+  elapsedMs?: number,
   offline = false
 ): BaseBuildProps => ({
   surface,
@@ -158,6 +158,8 @@ describe("BaseBuild", () => {
       screen.getByRole("heading", { name: "Build succeeded" })
     ).toBeTruthy();
     expect(screen.getByText("Built in 2.9 s")).toBeTruthy();
+    // Only a build that never ran announces itself
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(brandButtons(container)).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Continue to Deploy" }));
     expect(p.onContinue).toHaveBeenCalled();
@@ -282,6 +284,24 @@ describe("BaseBuild", () => {
     }
   );
 
+  // Spec 08: the reason was an error callout's, announced as an alert; out
+  // of the callout it is still announced, with the description's look
+  it.each([
+    ["ANY-00", { kind: "other", message: "boom" }],
+    ["BUILD-04", { kind: "no-answer", message: "Failed to fetch" }],
+  ] as const)(
+    "announces the reason of a build that never ran (%s)",
+    (_, failure) => {
+      render(<BaseBuild {...props({ kind: "unreached", failure })} />);
+
+      const alert = screen.getByRole("alert");
+      expect(alert.getAttribute("data-slot")).toBe("stage-empty-description");
+      expect(alert.textContent).toMatch(
+        /did not answer|full log has the details/
+      );
+    }
+  );
+
   /** Try again is the surface's main action, the same pill as Continue to Deploy */
   it("offers Try again as the brand pill, the full log a link under it", async () => {
     const p = props({
@@ -340,7 +360,7 @@ describe("BaseBuild", () => {
       surface === "failed"
         ? failed([typeError("a", null)])
         : (surface as BuildSurfaceView);
-    render(<BaseBuild {...props(view, false, false, null, true)} />);
+    render(<BaseBuild {...props(view, false, false, undefined, true)} />);
     expect(
       (screen.getByRole("button", { name: label }) as HTMLButtonElement)
         .disabled
