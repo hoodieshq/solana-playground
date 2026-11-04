@@ -404,11 +404,9 @@ export const makeLocalProject = async (page: Page, name: string) => {
   await expect
     .poll(async () => (seen.id = await workspaceIdOf(page, name)), LONG)
     .toBeTruthy();
-  if (seen.id === undefined) {
-    throw new Error(`No workspace named ${name} in the browser's store`);
-  }
-  expect(isUuid(seen.id)).toBe(true);
-  return seen.id;
+  const workspaceId = requireFor(`the workspace id of ${name}`)(seen.id);
+  expect(isUuid(workspaceId)).toBe(true);
+  return workspaceId;
 };
 
 /**
