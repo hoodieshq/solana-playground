@@ -59,6 +59,10 @@ export interface BaseDeployProps {
   txUrl: (signature: string) => string;
   onDeploy: () => void;
   onInteract: () => void;
+  /** Opens the Build stage, offered while the program is not built */
+  onGoToBuild: () => void;
+  /** Opens the console, where the terminal has a failed deploy's whole log */
+  onShowLog: () => void;
   /** The "Upload IDL" action, an outline beside the pill (`IdlActions mode="upload"`) */
   idlUpload: ReactNode;
 }
@@ -70,8 +74,17 @@ const deployBlockedReason = (p: BaseDeployProps) => {
   return undefined;
 };
 
+/**
+ * A failed deploy of a built program: the stage maps no failure to a named
+ * state (Spec 08 ANY-00), so the pill runs the deploy again and says so. With
+ * no build the pill is faded, keeps naming where the deploy would go, and Go
+ * to Build is the way on instead.
+ */
+const offersRetry = (p: BaseDeployProps) => p.built && p.deploy === "failed";
+
 const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
   if (p.deploy === "running") return redeploy ? "Upgrading..." : "Deploying...";
+  if (offersRetry(p)) return "Try again";
   const where = clusterName(p);
   return redeploy ? `Redeploy to ${where}` : `Deploy to ${where}`;
 };
@@ -277,10 +290,22 @@ const BaseDeploy = (p: BaseDeployProps) => {
             {deployLabel(p, latest !== null)}
             {!running && <BrandButtonIcon />}
           </BrandButton>
-          {/* The second action, an outline beside the pill in its height
-              and shape, so the pill keeps the focus; above it on a phone,
-              where the pill keeps the foot */}
-          <div className="flex justify-center [&_[data-slot=button]]:h-10 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]]:px-5 max-md:[&_[data-slot=button]]:w-full max-md:[&>div]:w-full">
+          {/* The other ways on, after the pill: Go to Build (Spec 03 DEP-07)
+              while the pill is faded and Show full log (Spec 08 ANY-00)
+              after a failure, as links; then Upload IDL, an outline in the
+              pill's height and shape, so the pill keeps the focus. Above the
+              pill on a phone, where the pill keeps the foot */}
+          <div className="flex flex-wrap items-center justify-center gap-x-2 [&_[data-variant=outline]]:h-10 [&_[data-variant=outline]]:rounded-full [&_[data-variant=outline]]:px-5 max-md:[&_[data-variant=outline]]:w-full max-md:[&>div]:w-full">
+            {!p.built && (
+              <Button variant="link" onClick={p.onGoToBuild}>
+                Go to Build
+              </Button>
+            )}
+            {offersRetry(p) && (
+              <Button variant="link" onClick={p.onShowLog}>
+                Show full log
+              </Button>
+            )}
             {p.idlUpload}
           </div>
         </StageEmptyActions>
