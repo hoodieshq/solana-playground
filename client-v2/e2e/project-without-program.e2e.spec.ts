@@ -273,6 +273,10 @@ test("project-without-program: The preview of a project with no program on a pho
     preview.getByText("Run the client to see its output here.")
   ).toBeInViewport();
   await expect(page.getByRole("region", { name: "Work" })).not.toBeInViewport();
+  // The welcome names no Build or Deploy for a project that has none
+  await expect(preview.locator(".xterm-rows")).toContainText(
+    "Output from your client and your commands shows here."
+  );
 });
 
 test("project-without-program: A program is added", async ({
