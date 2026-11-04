@@ -985,6 +985,18 @@ describe("on a phone", () => {
     ).toBe(false);
   });
 
+  it("stays on a no-program preview when its workspace re-opens", () => {
+    PgFlow["_dispatch"]({ type: "program", has: false });
+    phoneShell();
+    fireEvent.click(button("Preview the build"));
+    // A sync adopt or another tab re-opens the project: the flow resets
+    // before the explorer answers again
+    act(() => PgFlow["_dispatch"]({ type: "workspace-change" }));
+    expect(events("layout_page_shown")).toEqual([
+      { page: "preview", via: "button" },
+    ]);
+  });
+
   it("moves to the preview with the console open when a client run starts with no program", () => {
     PgFlow["_dispatch"]({ type: "program", has: false });
     phoneShell();
