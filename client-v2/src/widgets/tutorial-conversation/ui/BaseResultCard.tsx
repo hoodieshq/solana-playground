@@ -5,6 +5,7 @@ import type { RunResult } from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
+import BaseTxResultCard from "./BaseTxResultCard";
 import { Prose, READ, formatSeconds } from "./Prose";
 
 export interface BaseResultCardProps {
@@ -23,8 +24,15 @@ export interface BaseResultCardProps {
 const sol = (lamports: number) =>
   `${Math.round((lamports / 1e9) * 10000) / 10000} devnet SOL from your wallet`;
 
-/** The head's title and meta for a result */
-const headOf = (r: RunResult): { title: string; meta: string } => {
+type TxResult = Extract<RunResult, { act: "run" | "call" }>;
+
+const isTxResult = (r: RunResult): r is TxResult =>
+  r.act === "run" || r.act === "call";
+
+/** The head's title and meta for a build's or a deploy's result */
+const headOf = (
+  r: Exclude<RunResult, TxResult>
+): { title: string; meta: string } => {
   if (r.act === "build") {
     if (r.ok) {
       const count = r.instructions.length;
@@ -46,40 +54,20 @@ const headOf = (r: RunResult): { title: string; meta: string } => {
       .join(" · ");
     return { title: "Build failed", meta: where };
   }
-  if (r.act === "deploy" || r.act === "buildDeploy") {
-    if (r.ok) {
-      return {
-        title: r.upgraded ? `Upgraded ${r.programId}` : "Deployed",
-        // A deploy recognised after a reload has no known cost
-        meta: r.lamports === null ? "" : sol(r.lamports),
-      };
-    }
-    const titles = {
-      no_funds: "Not enough devnet SOL",
-      no_wallet: "No wallet",
-      failed: "Deploy failed",
-    } as const;
-    return { title: titles[r.reason], meta: r.message };
-  }
+  // A deploy or a build-and-deploy
   if (r.ok) {
     return {
-      title: "Confirmed",
-      meta: r.act === "run" ? "from client.ts" : "from the chat",
+      title: r.upgraded ? `Upgraded ${r.programId}` : "Deployed",
+      // A deploy recognised after a reload has no known cost
+      meta: r.lamports === null ? "" : sol(r.lamports),
     };
   }
-  if ((r.act === "run" || r.act === "call") && r.refused) {
-    const { instruction, error } = r.refused;
-    return {
-      title: `${instruction} refused`,
-      meta: error
-        ? [error.name, String(error.code)].filter(Boolean).join(" · ")
-        : r.message,
-    };
-  }
-  return {
-    title: r.act === "run" ? "Run failed" : "Call failed",
-    meta: r.message,
-  };
+  const titles = {
+    no_funds: "Not enough devnet SOL",
+    no_wallet: "No wallet",
+    failed: "Deploy failed",
+  } as const;
+  return { title: titles[r.reason], meta: r.message };
 };
 
 /**
@@ -89,11 +77,12 @@ const headOf = (r: RunResult): { title: string; meta: string } => {
  * Explain and "I'll fix it myself" while it is open. The run tickets (4.1 to
  * 4.3) fill the bodies each result carries.
  *
- * TODO(tutorial-flow-v2 4.2): an open failed deploy, run or call draws no
- * button yet. Its card is the run tickets' (4.2: Try again and Open faucet;
- * 4.3: a failed transaction). In Hello Anchor, the one definition so far, no
- * deploy, run or call act is reachable before step 1's build passes, which
- * needs a wired runner.
+ * A run's or call's result is `BaseTxResultCard`'s.
+ *
+ * TODO(tutorial-flow-v2 4.2): an open failed deploy draws no button yet.
+ * Its card is 4.2's (Try again and Open faucet). In Hello Anchor, the one
+ * definition so far, no deploy act is reachable before step 1's build
+ * passes, which needs a wired runner.
  */
 const BaseResultCard = ({
   result,
@@ -103,6 +92,7 @@ const BaseResultCard = ({
   onFixMyself,
   onShowLine,
 }: BaseResultCardProps) => {
+  if (isTxResult(result)) return <BaseTxResultCard result={result} />;
   const { title, meta } = headOf(result);
   const Icon = result.ok ? CircleCheck : CircleX;
   const failedBuild = result.act === "build" && !result.ok ? result : null;
@@ -133,13 +123,6 @@ const BaseResultCard = ({
           </span>
         )}
       </div>
-      {result.ok &&
-        (result.act === "run" || result.act === "call") &&
-        result.line && (
-          <p className="mx-3 mb-3 border-l-2 border-success pl-3 font-mono text-[0.75rem] text-foreground">
-            {result.line}
-          </p>
-        )}
       {open && failedBuild && (
         <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
           {error && (

@@ -183,7 +183,11 @@ export interface ReceiptAccount {
   address: string;
 }
 
-/** A landed transaction's facts, each optional: see the call result's `receipt` */
+/**
+ * A landed transaction's facts, each optional: see a run's or a call's
+ * `receipt`. The shape is the finish card's "Transaction details";
+ * `computeUnits` is for the result card's details sentence.
+ */
 export interface Receipt {
   /** The fee in lamports */
   fee?: number;
@@ -192,6 +196,8 @@ export interface Receipt {
   accounts?: ReceiptAccount[];
   /** The transaction's log, line by line */
   log?: string[];
+  /** Compute units the transaction consumed */
+  computeUnits?: number;
 }
 
 /**
@@ -267,10 +273,9 @@ export type RunResult =
        */
       called: Called[];
       /**
-       * The receipt the finish card shows ("Transaction details"), of the
-       * transaction the signatures end on. Optional: the call runner
-       * (`tutorial-flow-v2` task 4.3) fills them, and the card draws only
-       * the rows it has.
+       * The receipt of the transaction the signatures end on: the result
+       * card's details sentence and the finish card's "Transaction details". Each
+       * field is optional, and the cards draw only the rows they have.
        */
       receipt?: Receipt;
     }
@@ -281,13 +286,30 @@ export type RunResult =
       message: string;
       log: string;
       /**
+       * Why nothing reached the chain: no wallet, or the run sent no
+       * transaction. Absent for a run that sent and failed, or that could not
+       * run at all.
+       */
+      reason?: "no_wallet" | "no_transaction";
+      /**
        * What the program refused, when the transaction reached it; absent
        * when it never did (no wallet, a send that failed). A `refused` goal
-       * is judged on it and on `log`. The runner fills it from the
-       * transaction's error (`tutorial-flow-v2` task 4.3); until then no real
-       * run carries it.
+       * is judged on it and on `log`. The runner fills it from the program's
+       * log: Anchor's error, else the custom code the runtime names.
        */
       refused?: Refusal;
+    }
+  | {
+      act: "run" | "call";
+      ok: false;
+      seconds: number;
+      message: string;
+      log: string;
+      /** The faucet refused the top-up and the wallet cannot pay a fee */
+      reason: "no_funds";
+      /** The "Not enough devnet SOL" card's facts, in lamports */
+      funding: { balance: number; cost: number; address: string };
+      refused?: undefined;
     };
 
 export const freshProgress = (

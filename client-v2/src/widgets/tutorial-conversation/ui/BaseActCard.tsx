@@ -1,14 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import {
-  Ban,
-  CircleCheck,
-  CircleX,
-  Hammer,
-  Play,
-  Rocket,
-  Send,
-} from "lucide-react";
+import { Check, Hammer, Play, Rocket, Send } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import type { Act, ActBeat } from "@/entities/tutorial";
@@ -47,26 +39,18 @@ const doneLine = (act: ActBeat, seconds: string) => {
   return act.record ? `${line} · ${seconds}` : `${line} in ${seconds}`;
 };
 
-/** How each ended run reads as its record */
+/**
+ * How each ended run reads as its record. A refused or failed run keeps the
+ * act's own icon, in grey, as the prototype's record does: a green check
+ * would say it went through.
+ */
 const RECORDS: Record<
   "done" | "refused" | "failed",
-  {
-    Icon: LucideIcon;
-    tone: string;
-    line: (act: ActBeat, seconds: string) => string;
-  }
+  { line: (act: ActBeat, seconds: string) => string }
 > = {
-  done: { Icon: CircleCheck, tone: "text-success", line: doneLine },
-  refused: {
-    Icon: Ban,
-    tone: "text-muted-foreground",
-    line: (act, s) => `${act.title} refused${s ? ` in ${s}` : ""}`,
-  },
-  failed: {
-    Icon: CircleX,
-    tone: "text-error",
-    line: (act, s) => `${act.title} failed${s ? ` in ${s}` : ""}`,
-  },
+  done: { line: doneLine },
+  refused: { line: (act, s) => `${act.title} refused${s ? ` in ${s}` : ""}` },
+  failed: { line: (act, s) => `${act.title} failed${s ? ` in ${s}` : ""}` },
 };
 
 export interface BaseActCardProps {
@@ -114,7 +98,11 @@ const BaseActCard = ({
     const seconds = took === null ? "" : formatSeconds(took / 1000);
     return (
       <p className="flex h-9 items-center gap-2 text-caption text-muted-foreground">
-        <record.Icon aria-hidden="true" className={cn("size-4", record.tone)} />
+        {state === "done" ? (
+          <Check aria-hidden="true" className="size-3.5 text-success" />
+        ) : (
+          <Icon aria-hidden="true" className="size-3.5 text-subtle" />
+        )}
         {record.line(act, seconds)}
       </p>
     );

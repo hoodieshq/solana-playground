@@ -113,11 +113,12 @@ for; tasks with "after nothing" start at once.
       [plan](plans/4.2-deploy-from-wallet.md))
 - [ ] 4.3 Client run and the call act: the run bound to the program and
       wallet, the signatures it sent captured, logs fetched and the
-      definition's line picked, the signature linked on the meta line and
-      Copy and Explorer on every receipt address row, failed
+      definition's line picked, Copy signature and Explorer in the result
+      card's details (the receipt rows are 3.4's), failed
       transactions, `tutorial_action_run` for runs and calls. Verify: unit tests for signature capture and log picking;
       Hello Anchor's step 3 on devnet by hand (HOO-2357; fleet; M 1.5;
-      after 3.1, 3.2)
+      after 3.1, 3.2; plan:
+      [plans/4.3-client-run-and-call.md](plans/4.3-client-run-and-call.md))
 - [ ] 4.4 The Call panel from the deployed IDL: the Form | IDL switch, the
       program row with Explorer, one form with the instruction chips (the
       step's own picked, none for one instruction), "New" fields, one call

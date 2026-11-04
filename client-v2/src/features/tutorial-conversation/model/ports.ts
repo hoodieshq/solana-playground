@@ -27,6 +27,12 @@ export interface RunInput {
   beatId: string;
   /** A call act's instruction and the argument values the learner gave */
   call?: { instruction: string; args: Record<string, string> };
+  /**
+   * The step's `call` goal's log pattern: a run or call picks its card's
+   * large line with it, so the line the card shows is the one the goal
+   * judges. Absent when the goal names none.
+   */
+  log?: string;
 }
 
 /** One stage of a run as it starts: its label, and "n of m" */

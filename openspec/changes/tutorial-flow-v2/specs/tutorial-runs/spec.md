@@ -100,26 +100,36 @@ Explorer on the devnet cluster in a new tab.
 
 A run act SHALL run the client file with Playground's client runner, the
 program and the wallet bound as the editor's Run binds them. The terminal
-SHALL show the runner's output. The result card SHALL show:
+SHALL show the runner's output. The result card, as Almaz's tutorial-v2
+prototype draws it, SHALL show:
 
-- the transactions the run sent and their confirmation;
-- the program's log line the definition names (for Hello Anchor, the first
-  line starting `Program log: Hello`), as the card's large line;
-- on its meta line, the signature as a short key with ↗ that is the Explorer
-  link, the compute units, the fee and the confirmation time.
+- a head reading "Confirmed" with the instruction it called, in mono, as
+  its meta ("from client.ts", or "from the chat" for a call act, when no
+  instruction decoded);
+- under the head, in view, the program's log line the definition names (for
+  Hello Anchor, the first line starting `Program log: Hello`);
+- behind the head's chevron, one sentence ("client.ts ran in {s} and called
+  `hello`. It used {n} compute units, and the fee was {fee} test SOL from
+  your wallet."), then Copy signature, Explorer ↗ (the transaction on
+  devnet) and Log.
 
 A call act SHALL send the instruction with the given arguments from the
-wallet and post the same card with "Sent from the chat". A Call panel call
-SHALL send it the same way and show the card in the panel (see
-`tutorial-workspace`). A transaction that fails SHALL post a failed card with
-its error and its log, and the step SHALL not pass.
+wallet and post the same card. A Call panel call SHALL send it the same way
+and show the card in the panel (see `tutorial-workspace`). A transaction
+that fails SHALL post a failed card, "Run failed" or "Call failed", whose
+meta is the program's error ("NotEnoughEnergy · error 6000") or else the
+plain reason, with the error line and the reason in view and the log behind
+the chevron; the step SHALL not pass. A run that sent no transaction SHALL
+post "No transaction", "client.ts sent none · see the terminal", not red,
+and the step SHALL not pass.
 
 #### Scenario: Hello from devnet
 
 - **WHEN** the learner runs `client.ts` on step 3 with the picked line
-- **THEN** the result reads "Confirmed · Sent from client.ts" with "Program
-  log: Hello, World!"
-- **AND** its signature opens the transaction in Explorer on devnet
+- **THEN** the result reads "Confirmed" with `hello` and "Program log:
+  Hello, World!"
+- **AND** its details' Explorer link opens the transaction in Explorer on
+  devnet
 
 ### Requirement: Wallet copy replaces every Kora line
 
@@ -135,7 +145,7 @@ the deploy and the transaction.
 | Deploy card context line    | From your Playground wallet · free devnet SOL                                                                                                                                            |
 | Deploy result               | {cost} devnet SOL from your wallet                                                                                                                                                       |
 | Terminal                    | Deploying from {wallet short} · {cost} SOL                                                                                                                                               |
-| Call result and Call panel  | fee {fee} from your wallet                                                                                                                                                               |
+| Call result and Call panel  | It used {n} compute units, and the fee was {fee} test SOL from your wallet                                                                                                               |
 | Receipt signer row          | Your wallet · signer, with its short address                                                                                                                                             |
 | Finish card meta            | {N} steps · {time} · devnet only, nothing real spent                                                                                                                                     |
 | Finish receipt              | Fee {fee} devnet SOL                                                                                                                                                                     |

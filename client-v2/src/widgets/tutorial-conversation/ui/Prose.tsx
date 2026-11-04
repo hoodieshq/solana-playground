@@ -1,3 +1,4 @@
+import { cn } from "@/shared/lib/utils";
 import type { Text } from "@/entities/tutorial";
 
 /** The desktop's copy of a definition's text; the phone's variant is 5.1's */
@@ -27,9 +28,12 @@ export const formatSeconds = (seconds: number): string =>
 export const Prose = ({
   text,
   className,
+  codeClassName,
 }: {
   text: Text | string;
   className?: string;
+  /** Overrides the code spans' ground, as a result card's sentence sets it */
+  codeClassName?: string;
 }) => {
   const parts = textOf(text).split("`");
   return (
@@ -39,7 +43,10 @@ export const Prose = ({
         i % 2 === 1 ? (
           <code
             key={i}
-            className="rounded-sm bg-surface-raised px-1 font-mono text-[0.875em] text-foreground"
+            className={cn(
+              "rounded-sm bg-surface-raised px-1 font-mono text-[0.875em] text-foreground",
+              codeClassName
+            )}
           >
             {part}
           </code>

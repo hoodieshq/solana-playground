@@ -16,6 +16,7 @@ import { createLogger } from "@/shared/lib/logger";
 import { actRunner } from "./act-runner";
 import type { ActRun } from "./act-runner";
 import { runDeploy } from "./deploy";
+import { runOnDevnet } from "./real-run";
 import { deploySlotOf, landedDeploy, recogniseDeploy } from "./recognise";
 import type { DeployPort, OnChain } from "./deploy";
 import type { FundingChain } from "./fund";
@@ -23,7 +24,7 @@ import type { FundingChain } from "./fund";
 const log = createLogger("tutorial-conversation:deploy");
 
 /** The faucet amount on devnet, in whole SOL (`PgConnection.getAirdropAmount`) */
-const DEVNET_FAUCET_SOL = 5;
+export const DEVNET_FAUCET_SOL = 5;
 
 /**
  * The Playground wallet that pays: the current account, or the first. A
@@ -39,7 +40,7 @@ const playgroundWallet = (): Wallet | null => {
 const pk = (address: string) => new PgWeb3.PublicKey(address);
 
 /** Devnet through the connection the settings hold, which `PgTx` sends on */
-const devnetFunding: FundingChain = {
+export const devnetFunding: FundingChain = {
   balance: (address) => PgConnection.current.getBalance(pk(address)),
   airdrop: (address, lamports) =>
     PgConnection.current.requestAirdrop(pk(address), lamports),
@@ -321,13 +322,15 @@ export const runDeployOnDevnet: ActRun = async (act, _input, onStage) => {
 };
 
 /**
- * The runner the tutorial frame passes to `PgConversation.init`. The acts
- * whose tickets have not landed answer "not wired yet".
+ * The runner the tutorial frame passes to `PgConversation.init`. The build
+ * act, whose ticket has not landed, answers "not wired yet".
  */
 export const tutorialRunner = actRunner(
   {
     deploy: runDeployOnDevnet,
     buildDeploy: runDeployOnDevnet,
+    run: runOnDevnet(devnetFunding, DEVNET_FAUCET_SOL),
+    call: runOnDevnet(devnetFunding, DEVNET_FAUCET_SOL),
   },
   async (act, startedAtMs) => {
     if (act !== "deploy" && act !== "buildDeploy") return null;

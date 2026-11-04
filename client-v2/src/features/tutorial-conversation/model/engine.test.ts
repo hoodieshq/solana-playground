@@ -283,6 +283,7 @@ describe("Hello Anchor through the engine", () => {
       input: {
         beatId: "s4.call",
         call: { instruction: "hello", args: { name: "Alex" } },
+        log: "Hello, .+!",
       },
     });
     expect(liveView().live).toMatchObject({

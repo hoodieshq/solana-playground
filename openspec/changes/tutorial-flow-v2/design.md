@@ -242,7 +242,10 @@ Q26). Its strings sit in `tutorial-runs`.
 On a result card's meta line the program id and the signature are the links
 (a short key with ↗), with no separate Explorer button. A receipt gives every
 address row Copy and Explorer. The Call panel keeps its link on the result
-line (Almaz, Q29).
+line (Almaz, Q29). A run's or a call's result card, which Almaz's tutorial-v2
+prototype redrew after Q29, keeps its signature in the details behind the
+head: Copy signature and Explorer ↗ beside the sentence with the compute
+units and the fee (task 4.3).
 
 ### D10. Docs are Markdown pages kept with the tutorial, opened as tabs
 

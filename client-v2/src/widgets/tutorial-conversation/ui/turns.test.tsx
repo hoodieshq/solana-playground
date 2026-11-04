@@ -16,7 +16,11 @@ import { BaseQuestionRecord } from "./BaseQuestionCard";
 import { textOf } from "./Prose";
 import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
-import type { LandedCall, Turn } from "@/features/tutorial-conversation";
+import type {
+  LandedCall,
+  RunResult,
+  Turn,
+} from "@/features/tutorial-conversation";
 
 const definition = hello as unknown as TutorialDefinition;
 const actOf = (id: string) =>
@@ -359,29 +363,137 @@ describe("BaseActCard", () => {
 });
 
 describe("BaseResultCard", () => {
-  it("heads a refused call with its instruction and error", () => {
+  /** The card for a run's or a call's result, with no failure open */
+  const txCard = (result: RunResult) =>
     render(
-      <BaseResultCard
-        result={{
-          act: "call",
-          ok: false,
-          seconds: 0.9,
-          message: "Not enough energy",
-          log: "",
-          refused: {
-            instruction: "chop_tree",
-            error: { code: 6000, name: "NotEnoughEnergy" },
-          },
-        }}
-        planned={null}
-        open={false}
-        onExplain={vi.fn()}
-        onFixMyself={vi.fn()}
-        onShowLine={vi.fn()}
-      />
+      // The app's root provides the tooltip Copy signature carries
+      <TooltipProvider>
+        <BaseResultCard
+          result={result}
+          planned={null}
+          open={false}
+          onExplain={vi.fn()}
+          onFixMyself={vi.fn()}
+          onShowLine={vi.fn()}
+        />
+      </TooltipProvider>
     );
-    expect(screen.getByText("chop_tree refused")).toBeTruthy();
-    expect(screen.getByText("NotEnoughEnergy · 6000")).toBeTruthy();
+
+  const CHOP_ERROR =
+    "Program log: AnchorError thrown in programs/lumberjack/src/lib.rs:31:9. Error Code: NotEnoughEnergy. Error Number: 6000. Error Message: Not enough energy.";
+
+  it("heads a refused call with its error and keeps the error line in view", () => {
+    txCard({
+      act: "call",
+      ok: false,
+      seconds: 0.9,
+      message: "Not enough energy",
+      log: ["Program log: Instruction: ChopTree", CHOP_ERROR].join("\n"),
+      refused: {
+        instruction: "chop_tree",
+        error: { code: 6000, name: "NotEnoughEnergy" },
+      },
+    });
+    expect(screen.getByText("Call failed")).toBeTruthy();
+    expect(screen.getByText("NotEnoughEnergy · error 6000")).toBeTruthy();
+    expect(screen.getByText(CHOP_ERROR)).toBeTruthy();
+    expect(screen.getByText("Not enough energy")).toBeTruthy();
+  });
+
+  const SIGNATURE = "5igHe11o";
+  const HELLO_RUN: RunResult = {
+    act: "run",
+    ok: true,
+    seconds: 2.4,
+    signatures: [SIGNATURE],
+    line: "Program log: Hello, World!",
+    called: [{ instruction: "hello", args: {} }],
+    receipt: {
+      fee: 5000,
+      computeUnits: 389,
+      signer: "Wa11et",
+      log: ["Program log: Instruction: Hello", "Program log: Hello, World!"],
+    },
+  };
+
+  it("Hello from devnet: Confirmed with the instruction and the program's line", () => {
+    txCard(HELLO_RUN);
+    expect(screen.getByText("Confirmed")).toBeTruthy();
+    expect(screen.getByText("hello")).toBeTruthy();
+    expect(screen.getByText("Hello, World!")).toBeTruthy();
+  });
+
+  it("opens how it went from the head: the sentence, Copy signature and Explorer on devnet", async () => {
+    txCard(HELLO_RUN);
+    await userEvent.click(screen.getByRole("button", { name: /Details/ }));
+    // `hello` is set as code, so the sentence is read across its parts
+    expect(
+      screen.getByText(
+        (_, el) =>
+          el?.tagName === "P" &&
+          el.textContent ===
+            "client.ts ran in 2.4 s and called hello. It used 389 compute units, and the fee was 0.000005 test SOL from your wallet."
+      )
+    ).toBeTruthy();
+    expect(screen.getByText("hello", { selector: "p code" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copy signature" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /Explorer/ }).getAttribute("href")
+    ).toBe(`https://explorer.solana.com/tx/${SIGNATURE}?cluster=devnet`);
+    await userEvent.click(screen.getByRole("button", { name: "Log" }));
+    expect(screen.getByText(/Program log: Instruction: Hello/)).toBeTruthy();
+  });
+
+  it("heads a run the faucet left short, and one with no wallet, by their reason", () => {
+    const { unmount } = txCard({
+      act: "run",
+      ok: false,
+      seconds: 1,
+      reason: "no_funds",
+      message: "The airdrop failed",
+      log: "",
+      funding: { balance: 0, cost: 500_000_000, address: "Wa11et" },
+    });
+    expect(screen.getByText("Not enough devnet SOL")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Your wallet has 0 SOL, and this run needs about 0.5 SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
+      )
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /Open faucet/ }).getAttribute("href")
+    ).toBe("https://faucet.solana.com");
+    unmount();
+    txCard({
+      act: "call",
+      ok: false,
+      seconds: 0,
+      reason: "no_wallet",
+      message: "Create a Playground wallet or connect one, then try again.",
+      log: "",
+    });
+    expect(screen.getByText("No wallet")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Create a Playground wallet or connect one, then try again."
+      )
+    ).toBeTruthy();
+  });
+
+  it("reads a run that sent nothing as no transaction, not a red card", () => {
+    txCard({
+      act: "run",
+      ok: false,
+      seconds: 1,
+      reason: "no_transaction",
+      message: "client.ts sent no transaction. See the terminal.",
+      log: "",
+    });
+    expect(screen.getByText("No transaction")).toBeTruthy();
+    expect(
+      screen.getByText("client.ts sent none · see the terminal")
+    ).toBeTruthy();
   });
 
   const failed = {
