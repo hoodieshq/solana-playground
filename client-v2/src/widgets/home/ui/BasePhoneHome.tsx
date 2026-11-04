@@ -93,12 +93,12 @@ const BasePhoneHome = ({
           onError={reportButtonFailure("open the quick start")}
           className="h-auto min-h-15.5 w-full justify-start gap-3 rounded-2xl bg-surface-panel py-2.5 pr-3 pl-2.5 text-left"
         >
-          {/* A tutorial shows its cover, square and at the catalog's size */}
+          {/* A tutorial shows its cover, at the other tiles' size */}
           {q.id === "tutorial" ? (
             <TutorialCover
               name={q.name}
               framework={q.framework}
-              className="size-14 rounded-lg"
+              className="size-10 rounded-lg"
             />
           ) : (
             <span
