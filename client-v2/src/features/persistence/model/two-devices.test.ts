@@ -1581,6 +1581,29 @@ describe("a project whose mark is one hash of the whole snapshot", () => {
     });
   });
 
+  it("merges nothing against an empty base when the rebased mark cannot be written", async () => {
+    await syncedUnderAWholeSnapshotMark({ "src/lib.rs": "as uploaded" });
+    localFilesAre(HELLO.name, { "src/lib.rs": "edited here since" });
+    const replace = captureWrites();
+    const write = vi.spyOn(PgSyncMark, "write").mockResolvedValueOnce(false);
+
+    const first = await reconcile();
+
+    expect(write).toHaveBeenCalled();
+    expect(first.conflicts).toEqual([]);
+    expect(replace).not.toHaveBeenCalled();
+    expect(serverRow(HELLO.id).snapshot).toEqual({
+      files: { "src/lib.rs": "as uploaded" },
+    });
+
+    const second = await reconcile();
+
+    expect(second.conflicts).toEqual([]);
+    expect(serverRow(HELLO.id).snapshot).toEqual({
+      files: { "src/lib.rs": "edited here since" },
+    });
+  });
+
   it("still asks, rather than guess, when the account moved past the mark", async () => {
     await syncedUnderAWholeSnapshotMark({ "src/lib.rs": "as uploaded" });
     otherDeviceWroteFiles(HELLO.id, { "src/lib.rs": "the other device" });

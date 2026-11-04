@@ -377,7 +377,9 @@ const rebaseWholeSnapshotMark = async (
 
   const { changed } = diffFiles(agreed, await hashFiles({ files: here }));
   await PgSyncBase.capture(project.id, changed, agreed, full.snapshot.files);
-  await PgSyncMark.write(project.id, mark);
+  // Not written, the old mark stays: `_push` finds no usable mark and sends
+  // the whole set with no token, which 409s and merges against an empty base
+  if (!(await PgSyncMark.write(project.id, mark))) return "retry";
   return mark;
 };
 

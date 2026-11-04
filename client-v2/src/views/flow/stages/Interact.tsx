@@ -62,9 +62,16 @@ const target = (record: DeployRecord) => {
 const Interact = () => {
   const [history, setHistory] = useState<DeployRecord[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  // Whether this component (not the project's own key) is the reason
-  // `PgProgramInfo.customPk` is set, so unmounting can hand control back.
-  const targetedRef = useRef(false);
+  // The project's target before this stage's first pick, so leaving hands it
+  // back: looking at another deployment must not cost the user a custom id
+  // they set in the Deploy stage, which a deploy goes to.
+  const heldRef = useRef<
+    | {
+        workspaceId: string | undefined;
+        customPk: typeof PgProgramInfo.customPk;
+      }
+    | undefined
+  >(undefined);
 
   useEffect(() => {
     const refresh = () => {
@@ -85,9 +92,11 @@ const Interact = () => {
     return () => {
       a.dispose();
       b.dispose();
-      if (targetedRef.current) {
-        PgProgramInfo.update({ customPk: null });
-        targetedRef.current = false;
+      const held = heldRef.current;
+      heldRef.current = undefined;
+      // Another project is open by now: its target is not this one's to set
+      if (held && held.workspaceId === PgExplorer.currentWorkspaceId) {
+        PgProgramInfo.update({ customPk: held.customPk });
       }
     };
   }, []);
@@ -96,8 +105,11 @@ const Interact = () => {
     setSelected(id);
     const record = history.find((r) => r.id === id);
     if (record) {
+      const workspaceId = PgExplorer.currentWorkspaceId;
+      if (heldRef.current?.workspaceId !== workspaceId) {
+        heldRef.current = { workspaceId, customPk: PgProgramInfo.customPk };
+      }
       target(record);
-      targetedRef.current = true;
     }
   };
 

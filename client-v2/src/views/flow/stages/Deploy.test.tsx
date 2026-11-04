@@ -251,8 +251,8 @@ describe("Deploy stage", () => {
     ).toBeTruthy();
   });
 
-  /** Interact may have pointed the project at an imported id */
-  it("redeploys the project's own key", async () => {
+  /** The Program id block's custom id is where the deploy goes */
+  it("leaves a custom program id in place", async () => {
     mocks.execute.mockResolvedValue(undefined);
     render(<Deploy />);
 
@@ -260,7 +260,7 @@ describe("Deploy stage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
     );
 
-    expect(mocks.update).toHaveBeenCalledWith({ customPk: null });
+    expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.execute).toHaveBeenCalled();
   });
 

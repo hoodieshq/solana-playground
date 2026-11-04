@@ -187,7 +187,7 @@ const put = (input: CustomRpc, replacing: string | undefined): SaveResult => {
 export const PgCustomRpcs = {
   list: read,
 
-  /** Save a new RPC; an empty name saves as the URL's host */
+  /** Save a new RPC; an empty name saves as `defaultName` gives it */
   save(input: CustomRpc): SaveResult {
     return put(input, undefined);
   },

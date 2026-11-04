@@ -72,8 +72,9 @@ const PAYER: Record<CliCluster, string> = {
  * What to do without the project's program keypair, per tool, said against
  * the commands `deployCommands` shows.
  *
- * TODO(HOO-2397): link the keypair's export from the Deploy stage once it
- * exists; until then a user without the file follows this text.
+ * TODO(HOO-2397): link the Deploy stage's keypair export from here, and align
+ * its file name: it saves `program-keypair.json`, these commands read
+ * `<name>-keypair.json`. Until then a user without the file follows this text.
  */
 const NO_KEYPAIR: Record<CliTool, (name: string) => string> = {
   solana: () =>

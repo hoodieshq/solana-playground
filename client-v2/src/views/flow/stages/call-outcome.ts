@@ -14,7 +14,7 @@ const FAILURE = /Error Code:|custom program error|failed:/;
 
 /**
  * The one log line that explains a failed call: the program's own error if a
- * line names one, else the last line, else the error message.
+ * line names one, else the last line; `undefined` with no logs.
  */
 export const failingLine = (logs: string[]): string | undefined =>
   logs.find((l) => FAILURE.test(l)) ?? logs.at(-1);

@@ -187,7 +187,7 @@ export class PgSyncMark {
    * merge base, and `read` returns `null` for it. Reconcile uses it only to
    * tell whether the row has moved since this device last agreed.
    *
-   * @returns the timestamp, or `undefined` when the mark is absent or any other
+   * @returns `{updatedAt}`, or `undefined` when the mark is absent or any other
    * shape
    */
   static async readWholeSnapshotMark(
@@ -214,12 +214,14 @@ export class PgSyncMark {
    * Drops the project's claim too once the mark is written: the mark says
    * whose it is from here on. Not when the write failed: with neither, the
    * project reads as another account's leftover and never uploads again.
+   *
+   * @returns whether the mark was written
    */
   static write(projectId: string, mark: SyncMark) {
     return PgSyncMark._serial(projectId, async () => {
-      if (await PgSyncMark._write(projectId, mark)) {
-        await PgSyncClaim.drop(projectId);
-      }
+      const written = await PgSyncMark._write(projectId, mark);
+      if (written) await PgSyncClaim.drop(projectId);
+      return written;
     });
   }
 
@@ -267,14 +269,17 @@ export class PgSyncMark {
    * Settles whatever the task does, so one that throws cannot wedge the
    * queue, and drops the entry once the queue is empty.
    */
-  private static _serial(
+  private static _serial<T>(
     projectId: string,
-    task: () => Promise<void>
-  ): Promise<void> {
+    task: () => Promise<T>
+  ): Promise<T> {
     const run = (PgSyncMark._tails.get(projectId) ?? Promise.resolve()).then(
       task
     );
-    const tail = run.catch(() => {});
+    const tail: Promise<void> = run.then(
+      () => undefined,
+      () => undefined
+    );
     PgSyncMark._tails.set(projectId, tail);
     void tail.then(() => {
       if (PgSyncMark._tails.get(projectId) === tail) {

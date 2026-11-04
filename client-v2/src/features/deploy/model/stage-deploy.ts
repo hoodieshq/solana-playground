@@ -138,11 +138,6 @@ export class PgStageDeploy {
     let reachedRun = false;
     let result: Awaited<ReturnType<typeof PgCommand.deploy.execute>>;
     try {
-      // Interact's deployment switcher may have pointed the project at an
-      // imported id; redeploying always targets the project's own key,
-      // never whatever Interact last selected.
-      // eslint-disable-next-line unicorn/no-null -- `customPk` is `null` in the program info when none is picked
-      PgProgramInfo.update({ customPk: null });
       if (cluster) {
         deployTelemetry.track("deploy_started", { cluster, redeploy });
       }

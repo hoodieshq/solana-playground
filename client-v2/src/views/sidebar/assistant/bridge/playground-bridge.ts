@@ -78,7 +78,7 @@ export interface PlaygroundBridge {
   deploy(): Promise<{ programId: string; explorerUrl: string } | null>;
   /**
    * @returns the network a deploy would go to, named as a sentence writes it
-   * ("devnet", `null` while unknown), its estimated cost in lamports (`null`
+   * ("devnet", `undefined` while unknown), its estimated cost in lamports (`null`
    * when it cannot be estimated), and whether the Playground wallet pays
    */
   quoteDeploy(): Promise<{

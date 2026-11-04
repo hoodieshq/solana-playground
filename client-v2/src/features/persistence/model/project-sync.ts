@@ -1236,8 +1236,9 @@ export class PgProjectSync {
         const server = full.snapshot.files;
         const local = carried ?? (await snapshotOf(localName)).files;
         first ??= local;
-        // The same window `push` refuses: the explorer mid-re-read
-        // reads as a project with every file deleted, and merging that would
+        // The same state `push` refuses: a store emptied by
+        // `replaceWorkspaceFiles` or another tab reads as a project with every
+        // file deleted, and merging that would
         // delete them on the server too
         if (!Object.keys(local).length) {
           report(

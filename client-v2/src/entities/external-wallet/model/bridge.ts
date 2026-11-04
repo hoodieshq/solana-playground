@@ -299,10 +299,22 @@ export const watchExternalWalletsWith =
   (onChange: (wallets: StandardWallet[]) => void): (() => void) => {
     const registry = getWalletsRegistry();
     const bridgeOne = bridgeWith(opts);
+    // A wallet that passes `isListed` can still throw subscribing to its
+    // events; one bad extension must not cost the user every other wallet
+    const bridgeListed = (wallet: WalletStandardWallet) => {
+      try {
+        return [bridgeOne(wallet)];
+      } catch (error: unknown) {
+        log.warn("skipped a malformed wallet", {
+          context: { name: String(wallet?.name), error: String(error) },
+        });
+        return [];
+      }
+    };
     let stopped = false;
     const publish = () => {
       if (stopped) return;
-      onChange(registry.get().filter(isListed).map(bridgeOne));
+      onChange(registry.get().filter(isListed).flatMap(bridgeListed));
     };
 
     publish();
@@ -556,6 +568,43 @@ if (import.meta.vitest) {
         new CustomEvent("wallet-standard:register-wallet", {
           detail: ({ register }: { register: (w: unknown) => () => void }) => {
             unregister = register({ name: "Broken", features: {} });
+          },
+        })
+      );
+      disposers.push(() => unregister());
+      const seen = watch();
+      await settle();
+
+      expect(seen.latest.map((w) => w.name)).toEqual(["Phantom"]);
+    });
+
+    it("skips a wallet that throws subscribing to its events, and lists the rest", async () => {
+      fake({ name: "Phantom", accounts: [Keypair.generate()] });
+      const usable = {
+        version: "1.0.0",
+        name: "Throws",
+        icon: "data:image/svg+xml,",
+        chains: ["solana:devnet"],
+        accounts: [],
+        features: {
+          "standard:connect": { connect: () => Promise.resolve() },
+          "standard:disconnect": { disconnect: () => Promise.resolve() },
+          "standard:events": {
+            on: () => {
+              throw new Error("no events here");
+            },
+          },
+          "solana:signTransaction": { signTransaction: () => [] },
+          "solana:signAndSendTransaction": {
+            signAndSendTransaction: () => [],
+          },
+        },
+      };
+      let unregister: () => void = () => undefined;
+      window.dispatchEvent(
+        new CustomEvent("wallet-standard:register-wallet", {
+          detail: ({ register }: { register: (w: unknown) => () => void }) => {
+            unregister = register(usable);
           },
         })
       );
