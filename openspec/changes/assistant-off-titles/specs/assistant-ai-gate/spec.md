@@ -51,7 +51,7 @@ While nothing usable is connected and the hosted model cannot answer this user, 
 
 ### Requirement: The head names the off state
 
-While `#assistant-ai-off` stands, the assistant's head SHALL show a status `#assistant-status`, a status dot beside a word, after the model label: "Off" when there is no hosted model or nobody is signed in, and "Not responding" when the hosted model's availability is unknown. These are the words the app's status row uses for the same states. The status SHALL NOT show while the row does not.
+While the assistant is off for one of the reasons `#assistant-ai-off` names, the assistant's head SHALL show a status `#assistant-status`, a status dot beside a word, after the model label: "Off" when there is no hosted model or nobody is signed in, and "Not responding" when the hosted model's availability is unknown. The head SHALL show it in Sources and tools too, where the composer and its row are not on screen. It SHALL NOT show while a model can answer or while the deployment's answer is still being read.
 
 #### Scenario: The head says the assistant is off
 
@@ -67,3 +67,8 @@ While `#assistant-ai-off` stands, the assistant's head SHALL show a status `#ass
 
 - **WHEN** the row stands and the person connects a key-based backend
 - **THEN** neither `#assistant-ai-off` nor `#assistant-status` shows
+
+#### Scenario: The head keeps the status in Sources and tools (manual)
+
+- **WHEN** the head shows "Off" and the person opens Sources and tools
+- **THEN** `#assistant-status` still reads "Off", though `#assistant-ai-off` is not on screen

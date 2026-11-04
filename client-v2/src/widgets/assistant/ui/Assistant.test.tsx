@@ -163,18 +163,35 @@ describe("Assistant", () => {
     );
   });
 
-  it("shows no status in the head once a signed-in user has the hosted model", async () => {
+  it("says Off to a signed-out user, and clears it once they sign in", async () => {
     deployment.backend = { state: "present", model: "m" };
-    await PgSession.refreshWith({
-      id: "u1",
-      name: null,
-      image: null,
-      login: null,
-    });
+    // eslint-disable-next-line unicorn/no-null -- `PgSession.refreshWith(null)` is a signed-out session
+    await PgSession.refreshWith(null);
     setup();
     await waitFor(() =>
-      expect(document.getElementById("assistant-status")).toBeNull()
+      expect(document.getElementById("assistant-status")?.textContent).toBe(
+        "Off"
+      )
     );
+    await act(() =>
+      PgSession.refreshWith({ id: "u1", name: null, image: null, login: null })
+    );
+    expect(document.getElementById("assistant-status")).toBeNull();
+  });
+
+  it("says Not responding where the deployment's answer could not be read", () => {
+    deployment.backend = { state: "unreachable" };
+    setup();
+    expect(document.getElementById("assistant-status")?.textContent).toBe(
+      "Not responding"
+    );
+  });
+
+  it("shows no status in the head while a key-based backend is connected", () => {
+    deployment.backend = { state: "absent" };
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-ant-fake" });
+    setup();
+    expect(document.getElementById("assistant-status")).toBeNull();
   });
 
   it("tells the thread there is no project before one opens", () => {

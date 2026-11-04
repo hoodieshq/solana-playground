@@ -4,8 +4,9 @@ import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
 import type { AiOffReason } from "../model/ai-off";
 
 /**
- * What each reason says (Spec 08 AI-01 and Spec 04's "Model unavailable"),
- * and the action it leads with. The key button follows on every reason; a
+ * What each reason says, and the action it leads with: the designers' Spec 08
+ * (AI-01) and Spec 04 ("Model unavailable") give the no-key and unreachable
+ * titles; the signed-out title is ours, as no spec gives one. The key button follows on every reason; a
  * reason whose first action is the key offers Try again after it.
  */
 const REASONS: Record<

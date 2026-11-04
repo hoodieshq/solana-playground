@@ -19,8 +19,8 @@ assistant's head. HOO-2577.
   asking `GET /api/ai/status` again.
 - While the row stands, the assistant's head shows a status beside the model
   label, a status dot with a word: "Off" (no hosted model, signed out) or
-  "Not responding" (the status route fails), the status row's words for the
-  same states (Spec 08 says "Assistant off" and Spec 04 "Unavailable"; one state
+  "Not responding" (the status route fails), the words the status row uses
+  (it gains "Not responding" for AI in HOO-2582) (Spec 08 says "Assistant off" and Spec 04 "Unavailable"; one state
   keeps one word across the app).
 - Body lines and button labels stay as they are. The key button keeps the design
   system's "Add an API key" over the specs' "Add OpenAI key", since Connect a

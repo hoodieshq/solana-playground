@@ -137,7 +137,7 @@ export function Assistant({ widen, onHide, openConnect }: AssistantProps) {
       <BaseAssistantHead
         // The composer's model, from the connection and the deployment's answer
         label={headLabel(modelShown(PgAssistant.connection, defaultBackend))}
-        // The same reading as the composer's off row, so the two never disagree
+        // `aiOff` over the composer's own inputs, so head and off row never disagree
         off={aiOff({
           connected: PgAssistant.connection?.id,
           backend: defaultBackend,

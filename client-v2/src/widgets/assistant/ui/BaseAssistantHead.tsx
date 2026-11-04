@@ -31,9 +31,10 @@ import { usePickedMenu } from "./use-picked-menu";
 export type DeleteKey = KeyHold;
 
 /**
- * The head's word for each off reason: the status row's words for the same
- * states (`aiIndicator` in `widgets/status`), without its "AI ·", so one state
- * keeps one word across the app. No model is a setup step, grey; a status
+ * The head's word for each off reason, the status row's word for the same
+ * state without its "AI ·", so one state keeps one word across the app:
+ * "Off" for no model, and "Not responding", the app's word for a service
+ * that does not answer while the browser is online. No model is a setup step, grey; a status
  * route that did not answer is a failure, red.
  */
 const OFF_STATUS: Record<AiOffReason, { word: string; dot: "idle" | "error" }> =
