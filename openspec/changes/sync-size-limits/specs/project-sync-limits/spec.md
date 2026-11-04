@@ -140,11 +140,18 @@ to the limit and files that apply now, and no upload SHALL be sent.
 `PUT /api/projects` SHALL refuse a write whose resulting project is over a limit,
 for a full write and for a patch alike, with status 413 and a JSON body carrying
 `reason`, one of `path-too-long`, `file-too-large`, `too-many-files`,
-`project-too-large`, chosen in that order. Every stored file SHALL be measured,
-not only the request's, so a write that shrinks a file or a project still over
-a limit SHALL be refused. A write whose own files are over a limit SHALL be
-refused before the stored project is read, and its body SHALL name those files
-only. A refused write SHALL change nothing
+`project-too-large`. It SHALL judge a write in two steps, and the first step
+that finds a limit broken SHALL answer:
+
+1. The request's own files, before the stored project is read. `reason` is the
+   first of the four, in that order, that those files break on their own, and
+   the body measures those files only.
+2. The resulting project, after the writes. Every stored file SHALL be
+   measured, not only the request's, so a write that shrinks a file or a
+   project still over a limit SHALL be refused. `reason` is the first of the
+   four, in that order, that the resulting project breaks.
+
+A refused write SHALL change nothing
 in the database. It SHALL refuse with 400 a write carrying a path under
 `.workspace/` other than the synced workspace files, and its measure of a
 project SHALL leave such stored rows out.
@@ -180,9 +187,12 @@ project SHALL leave such stored rows out.
 
 A 413 for a limit SHALL carry `limit` (the limit, in bytes, code points or files)
 and, by reason, `paths` (every path over it, sorted) for `path-too-long` and
+`file-too-large`, `sizes` (each of those paths to its size in bytes) for
 `file-too-large`, `count` for `too-many-files`, and `size` (bytes) for
-`project-too-large`. The client SHALL raise the same banner from this body as
-from its own check.
+`project-too-large`. Each SHALL be measured over the files of the step that
+refused the write ("The server refuses a write that leaves a project over a
+limit"): the request's own files, or the resulting project. The client SHALL
+raise the same banner from this body as from its own check.
 
 #### Scenario: The client check is bypassed
 - **WHEN** a client whose check passed receives 413 with `reason: "too-many-files"` and `count: 52`
