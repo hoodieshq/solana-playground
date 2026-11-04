@@ -49,4 +49,14 @@ describe("commands/deploy/stopped", () => {
         "still holds its SOL. Run `solana program close --buffers` to reclaim it."
     );
   });
+
+  it("rounds a half cent up to 0.01 SOL", () => {
+    expect(
+      deployStoppedLine({
+        state: "kept",
+        address: "Buf1111",
+        lamports: 5_000_000,
+      })
+    ).toContain("still holds 0.01 SOL.");
+  });
 });

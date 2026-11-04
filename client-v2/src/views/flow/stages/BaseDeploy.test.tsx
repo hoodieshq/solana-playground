@@ -416,4 +416,16 @@ describe("BaseDeploy", () => {
         .getAttribute("data-variant")
     ).toBe("outline");
   });
+
+  it("offers Go to Build, not Try again, when a failed deploy's build is gone", () => {
+    render(
+      <BaseDeploy {...props({ built: false, deploy: "failed", history: [] })} />
+    );
+
+    expect(screen.getByRole("button", { name: "Go to Build" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Show full log" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Deploy to devnet" })
+    ).toHaveProperty("disabled", true);
+  });
 });

@@ -58,7 +58,7 @@ export interface BaseDeployProps {
   txUrl: (signature: string) => string;
   onDeploy: () => void;
   onInteract: () => void;
-  /** Opens the Build stage, offered while there is nothing to deploy */
+  /** Opens the Build stage, offered while the program is not built */
   onGoToBuild: () => void;
   /** Opens the console, where the terminal has a failed deploy's whole log */
   onShowLog: () => void;
@@ -74,9 +74,10 @@ const deployBlockedReason = (p: BaseDeployProps) => {
 };
 
 /**
- * After a failure the stage maps to no named state (Spec 08 ANY-00) the pill
- * runs the deploy again, so it says so; a stage that cannot deploy keeps
- * naming where the deploy would go
+ * A failed deploy of a built program: the stage maps no failure to a named
+ * state (Spec 08 ANY-00), so the pill runs the deploy again and says so. With
+ * no build the pill is faded, keeps naming where the deploy would go, and Go
+ * to Build is the way on instead.
  */
 const offersRetry = (p: BaseDeployProps) => p.built && p.deploy === "failed";
 

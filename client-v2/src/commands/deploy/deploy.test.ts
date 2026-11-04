@@ -20,7 +20,12 @@ const closeBuffer = vi.hoisted(() => vi.fn(async () => "sig"));
 
 vi.mock("../../utils", () => ({
   PgCommand: { airdrop: { execute: airdrop }, build: { execute: vi.fn() } },
-  PgCommon: { formatSeconds: String, makePlural: String, sleep: vi.fn() },
+  PgCommon: {
+    formatSeconds: String,
+    makePlural: String,
+    sleep: vi.fn(),
+    timeout: <R>(promisable: Promise<R>) => promisable,
+  },
   PgConnection: {
     current: {
       // The buffer's key is the only one with `toBase58` (`Keypair.generate`)
@@ -194,5 +199,16 @@ describe("commands/deploy", () => {
     expect((failure as Error).message).toContain(
       "The buffer account Buf1111 still holds its SOL."
     );
+  });
+
+  it("calls a buffer that reads empty closed: the close landed unconfirmed", async () => {
+    stopKeepingTheBuffer();
+    // A missing account's balance is 0; a live buffer is rent-exempt
+    env.bufferBalance = async () => 0;
+
+    const failure = await runDeploy();
+
+    expect(isStopped(failure)).toBe(true);
+    expect((failure as Error).message).toContain("buffer account was closed");
   });
 });

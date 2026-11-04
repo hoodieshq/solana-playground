@@ -334,16 +334,23 @@ const processDeploy = async (signal: AbortSignal, lockStop: () => void) => {
       );
       left = { state: "closed" };
     } catch (e) {
-      // The line names the buffer and how to reclaim it by hand
+      // The line names the buffer, the SOL it holds and how to reclaim it
+      // by hand
       log.error(e, {
         report: true,
         context: { action: "close the buffer on stop" },
       });
-      left = {
-        state: "kept",
-        address: bufferKp.publicKey.toBase58(),
-        lamports: await keptLamports(bufferKp.publicKey),
-      };
+      const lamports = await keptLamports(bufferKp.publicKey);
+      // A live buffer is rent-exempt, so an empty one is gone: the close
+      // landed and only its confirmation failed
+      left =
+        lamports === 0
+          ? { state: "closed" }
+          : {
+              state: "kept",
+              address: bufferKp.publicKey.toBase58(),
+              lamports,
+            };
     }
     return new StoppedError(deployStoppedLine(left));
   };
@@ -568,6 +575,31 @@ const loadBufferWithControl = (
   });
 };
 
+/** How long a stop waits for the kept buffer's balance before it ends */
+const KEPT_BALANCE_MS = 5000;
+
+/**
+ * What a buffer the stop could not close still holds, for the stopped line.
+ * The RPC that failed the close may hang here too, so the read is bounded
+ * and the stop never waits on it for long.
+ *
+ * @returns the lamports, or `null` when the cluster did not answer in time,
+ * and the line says "its SOL"
+ */
+const keptLamports = async (buffer: PgWeb3.PublicKey) => {
+  try {
+    return await PgCommon.timeout(
+      PgConnection.current.getBalance(buffer),
+      KEPT_BALANCE_MS
+    );
+  } catch (e) {
+    // Not reported: the close failure just before it already is, and the
+    // line still says what to do
+    log.error(e, { context: { action: "read the kept buffer's balance" } });
+    return null;
+  }
+};
+
 /**
  * Send and confirm transaction with retries based on `checkConfirmation`
  * condition.
@@ -578,21 +610,6 @@ const loadBufferWithControl = (
  * @param checkConfirmation only confirm the transaction if this callback returns truthy
  * @returns the transaction signature
  */
-/**
- * What a buffer the stop could not close still holds, for the stopped line;
- * `null` when the cluster does not answer, and the line says "its SOL"
- */
-const keptLamports = async (buffer: PgWeb3.PublicKey) => {
-  try {
-    return await PgConnection.current.getBalance(buffer);
-  } catch (e) {
-    log.warn("Could not read the kept buffer's balance", {
-      context: { action: "read the kept buffer's balance", error: String(e) },
-    });
-    return null;
-  }
-};
-
 const sendAndConfirmTxWithRetries = async (
   sendTx: () => Promise<string>,
   checkConfirmation: () => SyncOrAsync<boolean>

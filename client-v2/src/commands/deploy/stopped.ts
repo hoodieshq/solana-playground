@@ -8,8 +8,9 @@ export type StoppedBuffer =
   | { state: "kept"; address: string; lamports: number | null };
 
 /**
- * What a kept buffer still holds, to two decimals as the account row shows a
- * balance; "its SOL" when the balance could not be read
+ * What a kept buffer still holds, to two decimals as the session footer's
+ * `formatBalance` shows a wallet's; under 0.005 SOL reads "less than 0.01
+ * SOL", and an unread balance "its SOL"
  */
 const heldSol = (lamports: number | null) => {
   if (lamports === null) return "its SOL";
