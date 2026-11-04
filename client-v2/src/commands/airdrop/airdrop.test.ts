@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { checkSignedIn } from "../../features/auth";
 import { PgConnection } from "../../utils";
 import { airdrop } from "./airdrop";
 import { NO_FAUCET } from "./no-faucet";
@@ -14,6 +15,23 @@ vi.mock("../../utils", () => ({
   PgWallet: {},
   PgWeb3: {},
 }));
+
+// Signed out: the session check throws, as the real one does
+vi.mock("../../features/auth", () => ({
+  checkSignedIn: vi.fn(() => {
+    throw new Error("Sign in with GitHub to request devnet SOL.");
+  }),
+}));
+
+/** The airdrop's pre-checks after the wallet's, run on `cluster` */
+const checkOn = async (cluster: string | null) => {
+  Object.defineProperty(PgConnection, "cluster", {
+    value: cluster,
+    configurable: true,
+  });
+  const checks = airdrop.preChecks as Array<() => Promise<void> | void>;
+  for (const check of checks.slice(1)) await check();
+};
 
 const runOn = (
   cluster: string | null,
@@ -39,5 +57,23 @@ describe("airdrop", () => {
     const run = runOn(null, null);
     await expect(run).rejects.toThrow("still loading");
     await expect(run).rejects.not.toThrow(NO_FAUCET);
+  });
+
+  // The local faucet is the user's own validator (Localnet, Surfpool)
+  it.each(["localnet", "playnet"])(
+    "airdrops on %s without a sign-in",
+    async (cluster) => {
+      await expect(checkOn(cluster)).resolves.toBeUndefined();
+      expect(checkSignedIn).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(["devnet", "testnet"])("asks to sign in on %s", async (cluster) => {
+    await expect(checkOn(cluster)).rejects.toThrow("Sign in with GitHub");
+  });
+
+  it("asks no sign-in before the cluster is read, so the handler can say it is loading", async () => {
+    // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` is `null` before the cluster is read
+    await expect(checkOn(null)).resolves.toBeUndefined();
   });
 });

@@ -1,4 +1,5 @@
 import { recheckWhileBad } from "@/shared/lib/backoff-recheck";
+import { createLogger } from "@/shared/lib/logger";
 import { NETWORKS } from "../constants";
 import { PgCommon } from "./common";
 import { createDerivable, declareDecorator, derivable } from "./decorators";
@@ -136,6 +137,23 @@ const recheckWhileStalled = (cb: () => void): Disposable =>
     maxMs: 60000,
   });
 
+const log = createLogger("connection:cluster");
+
+/** Hosts a local validator answers on */
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
+/** Whether `endpoint` points at this machine; an unparsable URL is not local */
+const isLocalEndpoint = (endpoint: string) => {
+  try {
+    return LOCAL_HOSTS.has(new URL(endpoint).hostname);
+  } catch {
+    // Not a URL, so not local: `getCluster` goes on to the genesis hash,
+    // which fails loudly with the endpoint
+    log.debug("endpoint is not a URL; not read as local");
+    return false;
+  }
+};
+
 @derivable(derive)
 class _PgConnection {
   /**
@@ -211,10 +229,10 @@ class _PgConnection {
     // Playnet
     if (PgPlaynet.isUrlPlaynet(endpoint)) return "playnet";
 
-    // Local
-    if (endpoint.includes("localhost") || endpoint.includes("127.0.0.1")) {
-      return "localnet";
-    }
+    // Local: Localnet and Surfpool, on any port. The host is compared, not
+    // the URL text, since a local endpoint opens the airdrop's sign-in gate
+    // (`isAirdropSignInGated`) and `https://localhost.example.com` is remote
+    if (isLocalEndpoint(endpoint)) return "localnet";
 
     // Public
     //

@@ -20,6 +20,7 @@ import { StoppedError, throwIfStopped } from "../../utils/stopped";
 import { checkWallet } from "../checks";
 import { createCmd } from "../create";
 import { additionalProgramLen } from "./additional-len";
+import { isAirdropSignInGated } from "../airdrop/sign-in-gate";
 import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
 import type { StoppedBuffer } from "./stopped";
@@ -233,9 +234,12 @@ const processDeploy = async (
     }
 
     if (answers) {
-      // The stage funds without a question; the airdrop's sign-in check
-      // would throw too, but its reason is read here, not from its message
-      if (!PgSession.get()) throw short("signed_out");
+      // The stage funds without a question. Only a public faucet needs a
+      // session (`isAirdropSignInGated`, as the airdrop's own pre-check);
+      // the reason is read here, not from that check's message
+      if (isAirdropSignInGated(PgConnection.cluster) && !PgSession.get()) {
+        throw short("signed_out");
+      }
       PgTerminal.println(`Warning: ${msg}`);
       throwIfStopped(signal, deployStoppedLine({ state: "none" }));
     } else {

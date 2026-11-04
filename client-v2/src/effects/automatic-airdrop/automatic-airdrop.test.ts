@@ -20,9 +20,11 @@ vi.mock("../../utils", () => ({
   isTerminalUnmounted: (error: unknown) => error === unmounted,
 }));
 vi.mock("../../features/auth", () => ({
-  PgSession: { get: () => ({ user: {} }) },
+  PgSession: { get: vi.fn(() => ({ user: {} })) },
 }));
 
+import { automaticAirdrop } from "./automatic-airdrop";
+import { PgSession } from "../../features/auth";
 import { PgCommand, PgConnection } from "../../utils";
 import { automaticAirdrop } from "./automatic-airdrop";
 
@@ -54,5 +56,25 @@ describe("automaticAirdrop", () => {
     await pass();
 
     expect(airdrop).toHaveBeenCalledTimes(1);
+  });
+
+  // The local validator's faucet asks for no sign-in (`isAirdropSignInGated`)
+  it("airdrops a signed-out user on localnet", async () => {
+    (PgConnection as { cluster: string }).cluster = "localnet";
+    // eslint-disable-next-line unicorn/no-null -- `PgSession.get()` is `null` when signed out
+    vi.mocked(PgSession.get).mockReturnValueOnce(null as never);
+    airdrop.mockResolvedValueOnce(undefined);
+    await pass();
+
+    expect(airdrop).toHaveBeenCalledOnce();
+  });
+
+  it("skips a signed-out user on devnet", async () => {
+    (PgConnection as { cluster: string }).cluster = "devnet";
+    // eslint-disable-next-line unicorn/no-null -- `PgSession.get()` is `null` when signed out
+    vi.mocked(PgSession.get).mockReturnValueOnce(null as never);
+    await pass();
+
+    expect(airdrop).not.toHaveBeenCalled();
   });
 });

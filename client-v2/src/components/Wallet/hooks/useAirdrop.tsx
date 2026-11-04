@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { isAirdropSignInGated } from "../../../commands/airdrop/sign-in-gate";
 import { PgSession } from "../../../features/auth";
 import { PgCommand, PgConnection } from "../../../utils";
 
@@ -28,9 +29,13 @@ export const useAirdrop = () => {
   }, []);
 
   const airdrop = async () => {
-    // A failed sign-in rejects to the caller, which tells the user: printed
-    // to a folded console, or to none under Home, it reached nobody
-    if (!PgSession.get()) await PgSession.signIn();
+    // Sign in only where the faucet is public (`isAirdropSignInGated`); a
+    // local validator needs none. A failed sign-in rejects to the caller,
+    // which tells the user: printed to a folded console, or to none under
+    // Home, it reached nobody
+    if (isAirdropSignInGated(PgConnection.cluster) && !PgSession.get()) {
+      await PgSession.signIn();
+    }
     await PgCommand.airdrop.execute();
   };
 

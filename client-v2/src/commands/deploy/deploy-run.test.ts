@@ -225,6 +225,25 @@ describe("deploy run", () => {
     expect(PgCommand.airdrop.execute).not.toHaveBeenCalled();
   });
 
+  it("funds a signed-out user from the local faucet on localnet", async () => {
+    const { PgConnection } = await import("../../utils");
+    Object.assign(PgConnection, { cluster: "localnet" });
+    vi.mocked(PgConnection.getAirdropAmount).mockReturnValueOnce(100);
+    balance.mockResolvedValueOnce(0);
+    // eslint-disable-next-line unicorn/no-null -- `PgSession.get()` is `null` when signed out
+    vi.mocked(PgSession.get).mockReturnValue(null as never);
+
+    try {
+      const run = PgDeployRun.runWith(answers(true))(handleDeploy);
+
+      await expect(run).resolves.toMatchObject({ signature: "sig-deploy" });
+      expect(PgCommand.airdrop.execute).toHaveBeenCalledWith("1");
+    } finally {
+      Object.assign(PgConnection, { cluster: "devnet" });
+      vi.mocked(PgSession.get).mockReturnValue({ id: "u1" } as never);
+    }
+  });
+
   it("says there is no faucet where the network has none", async () => {
     balance.mockResolvedValueOnce(0);
     const { PgConnection } = await import("../../utils");
