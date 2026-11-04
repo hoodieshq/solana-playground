@@ -270,7 +270,13 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
                       command is enough.
                     </>
                   )}
-                  {!p.programId && (
+                  {p.programId ? (
+                    <>
+                      {" "}
+                      After a deploy without the project&apos;s keypair, use the
+                      program id it printed instead of this one.
+                    </>
+                  ) : (
                     <>
                       {" "}
                       Put the program id the deploy printed in place of{" "}

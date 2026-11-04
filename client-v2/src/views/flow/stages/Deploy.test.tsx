@@ -509,8 +509,37 @@ describe("Deploy stage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Sign in" }))
     );
 
-    expect(mocks.signIn).toHaveBeenCalledOnce();
+    expect(mocks.signIn).toHaveBeenCalledExactlyOnceWith({ from: "deploy" });
     expect(mocks.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not deploy after a sign-in that ended on another project", async () => {
+    const utils = (await import("../../../utils")) as unknown as {
+      PgExplorer: { currentWorkspaceName: string };
+    };
+    mocks.wallet.current = pgWallet();
+    mocks.execute.mockRejectedValueOnce(
+      new DeployFundingError({
+        reason: "signed_out",
+        balance: 0,
+        needed: 1,
+        address: WALLET,
+        // eslint-disable-next-line unicorn/no-null -- `DeployFundingError`'s `cause` is `string | null`
+        cause: null,
+      })
+    );
+    mocks.signIn.mockImplementation(async () => {
+      utils.PgExplorer.currentWorkspaceName = "other";
+    });
+    render(<Deploy />);
+
+    await pressDeploy();
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Sign in" }))
+    );
+    utils.PgExplorer.currentWorkspaceName = "counter";
+
+    expect(mocks.execute).toHaveBeenCalledOnce();
   });
 
   it("connects the existing Playground account rather than adding one", async () => {

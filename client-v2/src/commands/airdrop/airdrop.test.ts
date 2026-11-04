@@ -52,6 +52,19 @@ describe("airdrop", () => {
     await expect(runOn("mainnet-beta", null)).rejects.toThrow(NO_FAUCET);
   });
 
+  it("waits while the cluster is the previous endpoint's", async () => {
+    Object.defineProperty(PgConnection, "clusterIsStale", {
+      value: true,
+      configurable: true,
+    });
+    await expect(checkOn("localnet")).resolves.toBeUndefined();
+    await expect(runOn("localnet", 100)).rejects.toThrow("still loading");
+    Object.defineProperty(PgConnection, "clusterIsStale", {
+      value: false,
+      configurable: true,
+    });
+  });
+
   it("does not claim there is no faucet before the cluster is read", async () => {
     // eslint-disable-next-line unicorn/no-null -- `PgConnection.cluster` and `getAirdropAmount()` are `null` before the cluster is read or where there is no faucet
     const run = runOn(null, null);

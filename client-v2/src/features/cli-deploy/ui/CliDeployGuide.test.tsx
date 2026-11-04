@@ -207,6 +207,18 @@ describe("features/cli-deploy/ui/CliDeployGuide", () => {
     expect(screen.getByRole("button", { name: "Download IDL" })).toBeTruthy();
   });
 
+  it("names the printed id for a deploy without the project's keypair", () => {
+    renderGuide(
+      <CliDeployGuide
+        {...props({ from: "deploy-stage", cluster: "devnet", built: true })}
+      />
+    );
+
+    expect(
+      screen.getByText(/a deploy without the project's keypair/i).textContent
+    ).toContain("the program id it printed");
+  });
+
   it("leaves the program id to fill in when the project has none", () => {
     renderGuide(
       <CliDeployGuide

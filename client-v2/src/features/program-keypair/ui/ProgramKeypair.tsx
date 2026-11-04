@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
-import { PgCommon, PgProgramInfo, PgWeb3 } from "@/utils";
+import { PgCommon, PgGlobal, PgProgramInfo, PgWeb3 } from "@/utils";
 
 import {
   KEYPAIR_FILE_NAME,
@@ -26,6 +26,9 @@ const isMismatch = () => {
   if (!kp || !customPk || kp.publicKey.equals(customPk)) return false;
   return onChain?.deployed !== true;
 };
+
+/** A deploy is running: it reads the keypair and the id again at its end */
+const deployRunning = () => PgGlobal.deployState !== "ready";
 
 /** Reads a file as a keypair; a decoded key that is not one is refused too */
 const keypairOf = (text: string) => {
@@ -53,6 +56,7 @@ const ProgramKeypair = () => {
   useRenderOnChange(PgProgramInfo.onDidChangeCustomPk);
   const pk = useRenderOnChange(PgProgramInfo.onDidChangePk);
   useRenderOnChange(PgProgramInfo.onDidChangeOnChain);
+  useRenderOnChange(PgGlobal.onDidChangeDeployState);
   const mismatch = isMismatch();
   const [open, setOpen] = useState(mismatch);
   const [confirming, setConfirming] = useState(false);
@@ -65,6 +69,7 @@ const ProgramKeypair = () => {
   }, [mismatch]);
 
   const generate = () => {
+    if (deployRunning()) return;
     const replaced = !!PgProgramInfo.kp;
     // eslint-disable-next-line unicorn/no-null -- `null` clears the persisted custom id in program-info.json
     PgProgramInfo.update({ kp: PgWeb3.Keypair.generate(), customPk: null });
@@ -93,6 +98,8 @@ const ProgramKeypair = () => {
       reportButtonFailure("read the keypair file")(error);
       return;
     }
+    // Checked after the read: a run may have started while it took
+    if (deployRunning()) return;
     const read = keypairOf(text);
     if (!read.ok) {
       log.info("keypair import refused", { context: { reason: read.reason } });
@@ -110,6 +117,7 @@ const ProgramKeypair = () => {
   };
 
   const changeId = (text: string) => {
+    if (deployRunning()) return;
     let customPk: InstanceType<typeof PgWeb3.PublicKey>;
     try {
       customPk = new PgWeb3.PublicKey(text);
@@ -123,6 +131,7 @@ const ProgramKeypair = () => {
   };
 
   const removeCustomId = () => {
+    if (deployRunning()) return;
     // eslint-disable-next-line unicorn/no-null -- `null` clears the persisted custom id in program-info.json
     PgProgramInfo.update({ customPk: null });
     programKeypairTelemetry.track("keypair_custom_id_removed", {});
@@ -139,6 +148,7 @@ const ProgramKeypair = () => {
       open={open}
       onOpenChange={setOpen}
       confirming={confirming}
+      held={deployRunning()}
       // Ask before anything is lost: an old keypair, or a custom id that
       // Generate removes
       onNew={() =>

@@ -639,7 +639,13 @@ describe("reconcile", () => {
     ]);
     vi.spyOn(PgProjectSync, "fetch").mockImplementation(async (id: string) =>
       id === "b"
-        ? { ...project("b", "beta"), snapshot: { files: { "src/lib.rs": "" } } }
+        ? {
+            id: "b",
+            name: "beta",
+            kind: "project",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+            snapshot: { files: { "src/lib.rs": "" } },
+          }
         : null
     );
 

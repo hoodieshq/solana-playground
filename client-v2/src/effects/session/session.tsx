@@ -257,9 +257,10 @@ export const session = (): Disposable => {
     // app has to keep working offline, and `__pgSyncDiagnostics.failures()` is
     // where a sync that did not happen can be found.
     if (nowSignedIn && !signedIn) {
-      // A panel sign-in happens mid-task, with a prompt written for the open project
-      const fromPanel = PgSession.signingInFrom === "assistant";
-      void adopt({ openLatest: restored && !fromPanel }).catch((e) =>
+      // A sign-in with an origin happens mid-task on the open project: a prompt
+      // written for it, or the deploy the funding card runs next
+      const midTask = PgSession.signingInFrom !== null;
+      void adopt({ openLatest: restored && !midTask }).catch((e) =>
         report("adopt", e)
       );
     }

@@ -17,7 +17,7 @@ import { PgCallHistory } from "../state/call-history";
 import BaseCallHistory from "./BaseCallHistory";
 import BaseCallResult from "./BaseCallResult";
 import type { CallOutcome } from "./call-outcome";
-import { runCall } from "./run-call";
+import { runCall, useCallInFlight } from "./run-call";
 
 export interface InteractBodyProps {
   idl: Idl;
@@ -59,6 +59,7 @@ const InteractBody = ({
   }>();
   const outcome = last?.target === target ? last.outcome : undefined;
   const history = useCallHistory(programId, cluster);
+  const callInFlight = useCallInFlight();
   const network = clusterName(cluster) ?? "the network";
   const explorer = useBlockExplorer();
   const txUrl = (sig: string) => explorer.getTxUrl?.(sig) ?? "";
@@ -85,7 +86,9 @@ const InteractBody = ({
                     <SegmentedItem
                       key={name}
                       value={name}
-                      className="font-mono"
+                      // A long name wraps inside the form's column: the
+                      // history track starts right after it
+                      className="h-auto min-h-7 max-w-full shrink py-1 text-left font-mono whitespace-normal [overflow-wrap:anywhere]"
                     >
                       {name}
                     </SegmentedItem>
@@ -101,7 +104,7 @@ const InteractBody = ({
                   <Instruction
                     key={JSON.stringify(idlInstruction)}
                     idlInstruction={idlInstruction}
-                    callBlocked={callBlocked}
+                    callBlocked={callBlocked || callInFlight}
                     feePayer={<FeePayer />}
                     onCall={async (ix) =>
                       setLast({ target, outcome: await runCall(ix) })

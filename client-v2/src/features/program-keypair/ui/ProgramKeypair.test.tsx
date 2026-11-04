@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   updates: [] as Partial<Info>[],
   exported: [] as { name: string; content: unknown }[],
   exportFails: false,
+  deployState: "ready",
   toast: vi.fn(),
 }));
 
@@ -35,6 +36,12 @@ vi.mock("@/utils", async () => {
   };
   return {
     PgWeb3: web3,
+    PgGlobal: {
+      get deployState() {
+        return mocks.deployState;
+      },
+      onDidChangeDeployState: on,
+    },
     PgCommon: {
       export: (name: string, content: unknown) => {
         if (mocks.exportFails) throw new Error("blocked");
@@ -99,6 +106,7 @@ beforeEach(() => {
   mocks.updates = [];
   mocks.exported = [];
   mocks.exportFails = false;
+  mocks.deployState = "ready";
   mocks.toast.mockReset();
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
@@ -139,6 +147,28 @@ const field = () =>
   screen.getByRole("textbox", { name: "Program id" }) as HTMLInputElement;
 
 describe("features/program-keypair/ui/ProgramKeypair", () => {
+  // The deploy reads the keypair and the id again for its last transaction:
+  // an import still reading its file when the run starts must not land
+  it("drops an import a deploy started during", async () => {
+    draw();
+    fireEvent.click(screen.getByRole("button", { name: "Program id" }));
+    const secret = JSON.stringify([...Keypair.generate().secretKey]);
+    const input = screen
+      .getByText("Drop a program keypair here")
+      .closest("label")
+      ?.querySelector("input");
+    if (!input) throw new Error("the keypair drop zone has no file input");
+
+    await act(async () => {
+      fireEvent.change(input, {
+        target: { files: [new File([secret], "program-keypair.json")] },
+      });
+      mocks.deployState = "loading";
+    });
+
+    expect(mocks.updates).toEqual([]);
+  });
+
   it("imports a CLI keypair file and clears the custom id", async () => {
     mocks.info.customPk = OTHER.publicKey;
     draw();

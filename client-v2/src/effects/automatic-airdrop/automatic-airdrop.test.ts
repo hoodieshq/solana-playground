@@ -57,6 +57,18 @@ describe("automaticAirdrop", () => {
     expect(airdrop).toHaveBeenCalledTimes(1);
   });
 
+  // A custom RPC's cluster takes a round trip to read. Until it answers the
+  // cached name is the previous endpoint's, and Localnet's would send a
+  // signed-out user's 100 SOL request to whatever the new RPC is
+  it("waits while the cluster is the previous endpoint's", async () => {
+    (PgConnection as { cluster: string }).cluster = "localnet";
+    (PgConnection as { clusterIsStale?: boolean }).clusterIsStale = true;
+    await pass();
+    (PgConnection as { clusterIsStale?: boolean }).clusterIsStale = false;
+
+    expect(airdrop).not.toHaveBeenCalled();
+  });
+
   // The local validator's faucet asks for no sign-in (`isAirdropSignInGated`)
   it("airdrops a signed-out user on localnet", async () => {
     (PgConnection as { cluster: string }).cluster = "localnet";

@@ -21,6 +21,7 @@ interface Shape {
   mismatch?: boolean;
   note?: KeypairNote;
   confirming?: boolean;
+  held?: boolean;
 }
 
 const props = (s: Shape): BaseProgramKeypairProps => ({
@@ -32,6 +33,7 @@ const props = (s: Shape): BaseProgramKeypairProps => ({
   open: s.open ?? true,
   onOpenChange: vi.fn(),
   confirming: s.confirming ?? false,
+  held: s.held ?? false,
   onNew: vi.fn(),
   onConfirmNew: vi.fn(),
   onCancelNew: vi.fn(),
@@ -63,6 +65,27 @@ const press = (name: string) =>
   fireEvent.click(screen.getByRole("button", { name }));
 
 describe("features/program-keypair/ui/BaseProgramKeypair", () => {
+  it("holds everything that changes the id while a deploy runs", () => {
+    draw(props({ held: true, customId: true }));
+
+    const field = screen.getByRole<HTMLInputElement>("textbox", {
+      name: "Program id",
+    });
+    expect(field.disabled).toBe(true);
+    for (const name of ["New keypair", "Remove custom id"]) {
+      expect(
+        screen.getByRole<HTMLButtonElement>("button", { name }).disabled
+      ).toBe(true);
+    }
+    expect(fileInput().disabled).toBe(true);
+  });
+
+  it("closes the New keypair question when a deploy starts", () => {
+    draw(props({ held: true, confirming: true }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("shows only the fold's trigger while closed", () => {
     const p = props({ open: false });
     draw(p);

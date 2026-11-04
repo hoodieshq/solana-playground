@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 // The Interact body: chips pick one instruction's form, a call's result shows
 // under it for the program and network it went to, and the history lists.
-const h = vi.hoisted(() => ({ runCall: vi.fn() }));
+const h = vi.hoisted(() => ({ runCall: vi.fn(), inFlight: false }));
 
-vi.mock("./run-call", () => ({ runCall: h.runCall }));
+vi.mock("./run-call", () => ({
+  runCall: h.runCall,
+  useCallInFlight: () => h.inFlight,
+}));
 vi.mock("../../../utils", () => ({
   PgProgramInfo: { onDidChangeIdl: () => ({ dispose: () => {} }) },
 }));
@@ -20,11 +23,15 @@ vi.mock("../../sidebar/test/Component/Instruction", () => ({
     idlInstruction: { name: string };
     onCall: (ix: { name: string }) => Promise<unknown>;
     feePayer: ReactNode;
+    callBlocked?: boolean;
   }) => (
     <div>
       <p>form {p.idlInstruction.name}</p>
       {p.feePayer}
-      <button onClick={() => p.onCall({ name: p.idlInstruction.name })}>
+      <button
+        disabled={p.callBlocked}
+        onClick={() => p.onCall({ name: p.idlInstruction.name })}
+      >
         Call {p.idlInstruction.name}
       </button>
     </div>
@@ -67,9 +74,34 @@ vi.stubGlobal("ResizeObserver", NoopResizeObserver);
 beforeEach(() => {
   localStorage.clear();
   h.runCall.mockReset();
+  h.inFlight = false;
 });
 
 describe("InteractBody", () => {
+  it("offers no call while another is in flight, on any chip", () => {
+    h.inFlight = true;
+    render(
+      wrap(
+        <InteractBody
+          idl={idl("initialize", "increment")}
+          programId="P"
+          cluster="devnet"
+        />
+      )
+    );
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Call initialize",
+      }).disabled
+    ).toBe(true);
+
+    fireEvent.click(screen.getByRole("radio", { name: "increment" }));
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: "Call increment" })
+        .disabled
+    ).toBe(true);
+  });
+
   it("picks the first instruction and draws only its form", () => {
     render(
       wrap(

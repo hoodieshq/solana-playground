@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PgConnection } from "./connection";
+import { PgSettings } from "./settings";
 
 // The real settings module reads build-time globals the unit runner lacks
 vi.mock("./settings", () => ({
@@ -52,5 +53,20 @@ describe("PgConnection.getCluster", () => {
       "did not match any cluster"
     );
     expect(getGenesisHash).toHaveBeenCalledOnce();
+  });
+});
+
+describe("PgConnection.clusterIsStale", () => {
+  // `cluster` lags the endpoint by a genesis-hash round trip on a custom RPC,
+  // and a faucet decision taken in between would use the old network's name
+  it("is true from the endpoint's change until its cluster is read", async () => {
+    await PgConnection.readCluster();
+    expect(PgConnection.clusterIsStale).toBe(false);
+
+    PgSettings.connection.endpoint = "http://127.0.0.1:18899";
+    expect(PgConnection.clusterIsStale).toBe(true);
+
+    await PgConnection.readCluster();
+    expect(PgConnection.clusterIsStale).toBe(false);
   });
 });

@@ -108,7 +108,7 @@ const derive = () => ({
 
   /** Current cluster name based on the current endpoint */
   cluster: createDerivable({
-    derive: _PgConnection.getCluster,
+    derive: () => _PgConnection.readCluster(),
     onChange: PgSettings.onDidChangeConnectionEndpoint,
   }),
 
@@ -216,6 +216,30 @@ class _PgConnection {
     } catch {
       return false;
     }
+  }
+
+  /** The endpoint `cluster` was last read from */
+  private static _clusterEndpoint: string | undefined;
+
+  /**
+   * Whether `cluster` still names the previous endpoint's network: a custom
+   * RPC takes a genesis-hash round trip to read. Anything spending a faucet on
+   * that name waits, as a Localnet name would ask a public RPC for 100 SOL.
+   */
+  static get clusterIsStale() {
+    return _PgConnection._clusterEndpoint !== PgSettings.connection.endpoint;
+  }
+
+  /**
+   * Read the current endpoint's cluster, remembering which endpoint it was.
+   *
+   * @returns the cluster name
+   */
+  static async readCluster(): Promise<Cluster> {
+    const endpoint = PgSettings.connection.endpoint;
+    const cluster = await _PgConnection.getCluster(endpoint);
+    _PgConnection._clusterEndpoint = endpoint;
+    return cluster;
   }
 
   /**

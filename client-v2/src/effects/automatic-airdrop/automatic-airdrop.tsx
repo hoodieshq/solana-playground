@@ -23,6 +23,10 @@ export const automaticAirdrop = () => {
       const cluster = PgConnection.cluster;
       if (!cluster || errorCache.has(cluster)) return;
 
+      // The name is the previous endpoint's until this one answers: its amount
+      // and its sign-in rule are not this RPC's. The next balance change tries
+      if (PgConnection.clusterIsStale) return;
+
       // A signed-out user can't airdrop from a public faucet; skip rather
       // than throw from the airdrop's pre-check. A local one needs no sign-in
       if (isAirdropSignInGated(cluster) && !PgSession.get()) return;
