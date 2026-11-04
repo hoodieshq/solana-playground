@@ -26,6 +26,13 @@ the platform's.
     files sync carries (`SYNCED_WORKSPACE_FILES`).
 - The file count limit also stops a project from being split into many tiny
   files, each of which is a row in `project_files`.
+- An account syncs at most 10 projects and 32 tutorials (HOO-2538). The four
+  limits above bound one project; without a count, one GitHub account could
+  still store any number of them. The server refuses the write that would make
+  the 11th project (or 33rd tutorial) with 413 and `reason:
+  "too-many-projects"`. The project stays in the browser, unsynced, and the
+  "too large" banner names the cap. Edits to projects already synced, and
+  deletes, are never refused by the count.
 - The explorer refuses to create a file, rename a path or import a project
   when the result is over a limit, and says which limit. This covers the New
   File dialog, the assistant's file writes, terminal commands that write files,
@@ -47,9 +54,9 @@ the platform's.
   which HOO-1729 set at 4 MB in place of the 8 MB above) drops to 1 MiB, which a
   512 KiB project fits inside with room for JSON escaping. A body over it keeps
   the `too-large` reason.
-- Telemetry: the persistence slice (`sync` prefix) adds three events,
-  `sync_file_limit_exceeded`, `sync_project_limit_exceeded` and
-  `sync_files_count_limit_exceeded`. The explorer, which has no tracker, gets
+- Telemetry: the persistence slice (`sync` prefix) adds four events,
+  `sync_file_limit_exceeded`, `sync_project_limit_exceeded`,
+  `sync_files_count_limit_exceeded` and `sync_projects_count_limit_exceeded`. The explorer, which has no tracker, gets
   one under a new `explorer` prefix with one event, `explorer_limit_refused`.
   No event is renamed or removed.
 
@@ -69,7 +76,8 @@ resolve view; the "too large" refusal is not specified there.
 ## Impact
 
 - `client-v2/api/projects.mjs`: the per-file and path checks in
-  `describeWrite`, and the 413 reasons. The body cap is
+  `describeWrite`, and the 413 reasons. The account cap is counted in
+  `writeProject` (`model/projects.mjs`), under a per-account advisory lock. The body cap is
   `MAX_PROJECT_BODY_BYTES` in `features/persistence/model/project-write.mjs`.
 - `client-v2/src/entities/project`: a new entity holding the limits, the
   generated workspace file list and the check, read by the server, the sync
@@ -100,5 +108,9 @@ Out of scope:
   what it counts can leave a stored project over it, and a refused restore
   would strand the user's own work.
 - A length `CHECK` on `project_files` (see design.md, "No database constraint").
+- A client check of the account cap before uploading, and refusing to create
+  an 11th project in the explorer (see design.md, "The account cap").
+- The empty project rows a chat turn creates (`ensureThread`): they hold no
+  code and do not count. Bounding them belongs to conversation sync.
 - Skipping the files over a limit and syncing the rest. The whole project stops
   syncing, as the "too large" refusal does already.
