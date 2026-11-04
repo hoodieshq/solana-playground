@@ -136,12 +136,12 @@ describe("BaseEditorTabs", () => {
 
 /**
  * Lays the row out `width` px wide from `rowLeft`, and each tab named in
- * `tabs` at its `[left, right]`; every other element is 0x0, as jsdom lays
+ * `bounds` at its `[left, right]`; every other element is 0x0, as jsdom lays
  * nothing out
  */
 const placeTabsFrom =
   (rowLeft: number) =>
-  (width: number, tabs: Record<string, [number, number]>) =>
+  (width: number, bounds: Record<string, [number, number]>) =>
     vi
       .spyOn(Element.prototype, "getBoundingClientRect")
       .mockImplementation(function (this: Element) {
@@ -149,7 +149,7 @@ const placeTabsFrom =
           return new DOMRect(rowLeft, 0, width, 40);
         }
         const name = this.querySelector('[role="tab"]')?.textContent ?? "";
-        const [left, right] = tabs[name] ?? [0, 0];
+        const [left, right] = bounds[name] ?? [0, 0];
         return new DOMRect(left, 0, right - left, 40);
       });
 

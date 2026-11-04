@@ -337,10 +337,12 @@ async function handler(req, res) {
       // have: a row already empty, or a client building patches wrongly. Ids
       // only; file contents never travel to the logs.
       if (result.refused) {
-        console.warn("api/projects: write refused", {
-          userId: user.id,
-          projectId: project.id,
-          reason: result.refused,
+        log.warn("write refused", {
+          context: {
+            userId: user.id,
+            projectId: project.id,
+            reason: result.refused,
+          },
         });
       }
       return sendJson(res, answer.status, answer.body);
