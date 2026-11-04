@@ -310,7 +310,7 @@ it("signs a signed-out user in, then shares without a second press", async () =>
 
   await press(/^Sign in with GitHub$/);
 
-  expect(signIn).toHaveBeenCalledWith(undefined);
+  expect(signIn).toHaveBeenCalledWith([]);
   expect(screen.getByLabelText("Playground link")).toHaveProperty(
     "value",
     LINK
@@ -466,7 +466,7 @@ it("asks for gist access once, then retries by itself with the same visibility",
 
   await press(/Allow gists on GitHub/);
 
-  expect(signIn).toHaveBeenCalledWith({ scopes: ["gist"] });
+  expect(signIn).toHaveBeenCalledWith(["gist"]);
   expect(postedPublic(fetch, 1)).toBe(true);
   expect(screen.getByLabelText("Playground link")).toHaveProperty(
     "value",

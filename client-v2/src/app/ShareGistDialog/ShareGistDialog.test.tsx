@@ -108,6 +108,13 @@ const gistRequests = () =>
 
 const reported = () => logs.entries.filter((entry) => entry.report);
 
+/** The share dialog's sign-in, `PgSession.signInFor("share")`, runs `run` */
+const shareSignIn = (run: () => Promise<void>) => {
+  const signIn = vi.fn<(scopes: string[]) => Promise<void>>(run);
+  vi.spyOn(PgSession, "signInFor").mockReturnValue(signIn);
+  return signIn;
+};
+
 describe("app/ShareGistDialog", () => {
   it("gist-sharing: Signed out, the prompt comes first", async () => {
     await open();
@@ -123,15 +130,15 @@ describe("app/ShareGistDialog", () => {
   });
 
   it("gist-sharing: Signed out, then signed in", async () => {
-    const signIn = vi
-      .spyOn(PgSession, "signIn")
-      .mockImplementation(() => PgSession.refreshWith(USER));
+    const signIn = shareSignIn(() => PgSession.refreshWith(USER));
     await open();
 
     const cancel = vi.spyOn(PgSession, "cancelSignIn");
     await press("Sign in with GitHub");
 
     expect(cancel).not.toHaveBeenCalled();
+    // From the share origin, so the session effect keeps the open project
+    expect(PgSession.signInFor).toHaveBeenCalledWith("share");
     expect(signIn).toHaveBeenCalledTimes(1);
     expect(
       screen.getByRole("heading", { name: "Share counter as a gist" })
@@ -323,7 +330,7 @@ describe("app/ShareGistDialog", () => {
   });
 
   it("gist-sharing: Cancel leaves without signing in", async () => {
-    const signIn = vi.spyOn(PgSession, "signIn");
+    const signIn = vi.spyOn(PgSession, "signInFor");
     await open();
 
     await press("Cancel");
@@ -333,7 +340,7 @@ describe("app/ShareGistDialog", () => {
   });
 
   it("shows and reports a sign-in error that is not a known failure", async () => {
-    vi.spyOn(PgSession, "signIn").mockRejectedValue(new Error("boom"));
+    shareSignIn(() => Promise.reject(new Error("boom")));
     await open();
 
     await press("Sign in with GitHub");
@@ -343,7 +350,7 @@ describe("app/ShareGistDialog", () => {
   });
 
   it("says it could not sign in when the failure carries no words", async () => {
-    vi.spyOn(PgSession, "signIn").mockRejectedValue(new Error(""));
+    shareSignIn(() => Promise.reject(new Error("")));
     await open();
 
     await press("Sign in with GitHub");
@@ -384,9 +391,7 @@ describe("app/ShareGistDialog", () => {
     await press("Sign in with GitHub");
     expectQuietCancel();
 
-    vi.spyOn(PgSession, "signIn").mockImplementation(() =>
-      PgSession.refreshWith(USER)
-    );
+    shareSignIn(() => PgSession.refreshWith(USER));
     await press("Sign in with GitHub");
 
     expect(screen.queryByText("Sign-in cancelled.")).toBeNull();

@@ -57,8 +57,12 @@ export interface SessionUser {
   login: string | null;
 }
 
-/** Where a sign-in started, when its listeners must tell it apart from the account footer's */
-export type SignInOrigin = "assistant";
+/**
+ * Where a sign-in started, when its listeners must tell it apart from the
+ * account footer's: a task under way in the assistant panel or the share
+ * dialog, which the sign-in must not navigate away from
+ */
+export type SignInOrigin = "assistant" | "share";
 
 /** Local cleanup that runs only after the server has ended the session */
 export type SignOutTeardown = () => Promise<void>;
@@ -191,39 +195,41 @@ export class PgSession {
    * side re-reads the session. Rejects when that read finds nobody signed in.
    */
   static signIn(): Promise<void> {
-    return PgSession.signInWith({});
+    return PgSession._signInWith(undefined, []);
   }
 
-  /** `signIn` with where it started and the extra scopes it asks for */
-  static signInWith({
-    from,
-    scopes,
-  }: {
-    from?: SignInOrigin;
-    /**
-     * GitHub scopes to ask for on top of sign-in's own, for a feature that
-     * needs more than identity (gist sharing asks for `gist`). Better Auth
-     * appends them to its defaults. Signing the same user in again only
-     * refreshes the stored token, so no user change fires.
-     */
-    scopes?: string[];
-  }): Promise<void> {
+  /**
+   * `signIn` from a task under way, asking for `scopes` on top of sign-in's
+   * own: a feature that needs more than identity (gist sharing asks for
+   * `gist`) names them, Better Auth appends them to its defaults, and signing
+   * the same user in again only refreshes the stored token, so no user change
+   * fires. `signInFor("share")` serves the share dialog's every sign-in.
+   */
+  static signInFor(from: SignInOrigin) {
+    return (scopes: string[]): Promise<void> =>
+      PgSession._signInWith(from, scopes);
+  }
+
+  private static _signInWith(
+    from: SignInOrigin | undefined,
+    scopes: string[]
+  ): Promise<void> {
     // One popup and one nonce at a time: a second click while the first flow
     // waits joins it instead of racing it for the session cookie, and keeps
     // the first one's origin. A flow that lacks scopes this caller needs
     // cannot answer it, so the caller waits for it to settle and asks again.
     const pending = PgSession._pending;
     if (pending) {
-      const isCovered = (scopes ?? []).every((scope) =>
+      const isCovered = scopes.every((scope) =>
         PgSession._pendingScopes.includes(scope)
       );
       if (isCovered) return pending;
       return pending.then(
-        () => PgSession.signInWith({ from, scopes }),
-        () => PgSession.signInWith({ from, scopes })
+        () => PgSession._signInWith(from, scopes),
+        () => PgSession._signInWith(from, scopes)
       );
     }
-    PgSession._pendingScopes = scopes ?? [];
+    PgSession._pendingScopes = scopes;
     PgSession._pending = PgSession._signIn(from, scopes).finally(() => {
       PgSession._pending = undefined;
       PgSession._pendingScopes = [];
@@ -238,7 +244,7 @@ export class PgSession {
 
   private static async _signIn(
     from: SignInOrigin | undefined,
-    scopes: string[] | undefined
+    scopes: string[]
   ) {
     authTelemetry.track("auth_sign_in_started", {});
     PgSession._signingInFrom = from ?? null;
@@ -276,7 +282,7 @@ export class PgSession {
   }
 
   private static async _signInThroughPopup(
-    scopes: string[] | undefined,
+    scopes: string[],
     cancelled: AbortSignal
   ) {
     const nonce = randomNonce();
@@ -293,7 +299,7 @@ export class PgSession {
         body: JSON.stringify({
           provider: "github",
           callbackURL: `${AUTH_COMPLETE_ROUTE}?nonce=${nonce}`,
-          ...(scopes?.length ? { scopes } : {}),
+          ...(scopes.length ? { scopes } : {}),
         }),
         signal: cancelled,
       });
@@ -816,7 +822,7 @@ if (import.meta.vitest) {
         }));
 
         await PgSession.signIn();
-        await PgSession.signInWith({ scopes: ["gist"] });
+        await PgSession.signInFor("share")(["gist"]);
 
         expect("scopes" in bodies[0]).toBe(false);
         expect(bodies[1].scopes).toEqual(["gist"]);
@@ -856,7 +862,7 @@ if (import.meta.vitest) {
         const users: Array<string | undefined> = [];
         PgSession.onDidChange(() => users.push(PgSession.get()?.id));
 
-        await PgSession.signInWith({ scopes: ["gist"] });
+        await PgSession.signInFor("share")(["gist"]);
 
         // Only the sign-in state moved (pending, then idle); the user did not
         expect(PgSession.get()?.id).toBe("u1");
@@ -1201,7 +1207,7 @@ if (import.meta.vitest) {
         );
 
         const plain = PgSession.signIn();
-        const scoped = PgSession.signInWith({ scopes: ["gist"] });
+        const scoped = PgSession.signInFor("share")(["gist"]);
         await vi.waitFor(() => expect(popup.open).toHaveBeenCalledTimes(1));
         popup.cancel();
         await expect(plain).rejects.toThrow(/cancelled/i);

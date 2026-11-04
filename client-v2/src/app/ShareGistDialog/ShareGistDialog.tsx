@@ -105,7 +105,7 @@ const SignInToShare = () => {
     }
     setEnded(undefined);
     ownSignIn.current = true;
-    PgSession.signIn()
+    PgSession.signInFor("share")([])
       .catch((error: unknown) => {
         // `PgSession` holds why its last sign-in failed. One the user ended
         // (cancelled, a blocked popup, a timeout) is theirs to see; one that
@@ -250,8 +250,8 @@ const ConnectedShare = ({
 }: ShareGistDialogProps & { signedIn: boolean }) => {
   const control = useShareGist(
     {
-      signIn: (options) =>
-        PgSession.signInWith({ scopes: options?.scopes }).then(
+      signIn: (scopes) =>
+        PgSession.signInFor("share")(scopes).then(
           () => "signed-in" as const,
           (error: unknown) => {
             if (isCancel(error)) return "cancelled" as const;
