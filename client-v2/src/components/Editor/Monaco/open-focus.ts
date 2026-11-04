@@ -209,15 +209,30 @@ if (import.meta.vitest) {
             .mockReturnValue(new DOMRect(left, 0, window.innerWidth, 400));
         at(-window.innerWidth / 2);
         expect(
-          leavesFocusElsewhere({ open: "mount", editor, tree, active: null })
+          leavesFocusElsewhere({
+            open: "mount",
+            editor,
+            tree,
+            active: document.body,
+          })
         ).toBe(true);
         at(window.innerWidth);
         expect(
-          leavesFocusElsewhere({ open: "later", editor, tree, active: null })
+          leavesFocusElsewhere({
+            open: "later",
+            editor,
+            tree,
+            active: document.body,
+          })
         ).toBe(true);
         at(0);
         expect(
-          leavesFocusElsewhere({ open: "mount", editor, tree, active: null })
+          leavesFocusElsewhere({
+            open: "mount",
+            editor,
+            tree,
+            active: document.body,
+          })
         ).toBe(false);
       });
 
