@@ -8,7 +8,8 @@ import BaseTutorialCard from "./BaseTutorialCard";
 
 // The entity's entry reaches the store; the card needs only its cover
 vi.mock("@/entities/tutorial", async () => ({
-  TutorialCover: (await import("@/entities/tutorial/ui/TutorialCover")).default,
+  TutorialCover: (await import("@/entities/tutorial/ui/art/TutorialCover"))
+    .default,
 }));
 
 /** Hello Anchor's card at `progress`, with this Open and busy state */

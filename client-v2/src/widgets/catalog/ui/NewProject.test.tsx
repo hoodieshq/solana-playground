@@ -47,7 +47,8 @@ vi.mock("@/utils", () => utils);
 // Each tutorial's progress, by name: new unless a test says otherwise
 const progress = vi.hoisted(() => new Map<string, unknown>());
 vi.mock("@/entities/tutorial", async () => ({
-  TutorialCover: (await import("@/entities/tutorial/ui/TutorialCover")).default,
+  TutorialCover: (await import("@/entities/tutorial/ui/art/TutorialCover"))
+    .default,
   useTutorialProgress: () => (name: string) =>
     progress.get(name) ?? { state: "new" },
 }));
