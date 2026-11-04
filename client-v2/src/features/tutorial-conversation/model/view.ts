@@ -171,6 +171,58 @@ export const STUCK = "I'm stuck";
 export const EXPLAIN = "Explain the error";
 /** The act card's line after a reload interrupted its run */
 export const INTERRUPTED = "Interrupted by a reload. Run it again.";
+
+/**
+ * When "Show me the fix" is offered for an explained failure: once the
+ * assistant's answer ended, or at the load that came after the press. The
+ * wait for the answer lives in the page, so a reload mid-answer would
+ * otherwise never offer it, with the failed card already closed.
+ */
+const fixOfferAt = (
+  run: { explainedAt?: number; answeredAt?: number },
+  loadedAt: number
+): number | null => {
+  if (run.answeredAt !== undefined) return run.answeredAt;
+  if (run.explainedAt !== undefined && loadedAt > run.explainedAt) {
+    return loadedAt;
+  }
+  return null;
+};
+
+/** The line after the assistant explained an unplanned build failure */
+export const FIX_OFFER =
+  "Fix it in the editor and build again, or I can show you the lines this step needs.";
+
+/** The button of the act card that runs a failed deploy again */
+export const TRY_AGAIN = "Try again";
+/** That card's line after the faucet stopped the deploy */
+export const ASKS_THE_FAUCET = "Asks the faucet again, then deploys";
+
+/** A deploy the faucet stopped: its card stands for the act that hit it */
+const isFaucetRefusal = (result: RunResult): boolean =>
+  (result.act === "deploy" || result.act === "buildDeploy") &&
+  !result.ok &&
+  result.reason === "no_funds";
+
+/**
+ * How a failed deploy is run again, as Almaz's prototype draws it
+ * (`tutorial-v2` SPEC 6.5.5, "Deploy, no SOL"): a live Try again act card
+ * under the result, asking the faucet again after a refusal (`faucet`), or
+ * with the act's own line after any other failure (`again`). Null for no
+ * wallet, whose result's own Create wallet runs it once the wallet is there,
+ * and for every other result.
+ * TODO(HOO-2356): the runner's authority and immutable-program refusals are
+ * `failed` too, and running again cannot fix them; they need a reason of
+ * their own in `RunResult`, as the build's `unreachable` has, before they
+ * can go without a Try again.
+ */
+const retryOf = (result: RunResult): "faucet" | "again" | null => {
+  if (isFaucetRefusal(result)) return "faucet";
+  if (result.act !== "deploy" && result.act !== "buildDeploy") return null;
+  if (!result.ok && result.reason === "failed") return "again";
+  return null;
+};
+
 /** The assistant's line on Skip when the question has none of its own */
 export const SKIPPED_DEFAULT =
   "No problem. Here's the line, and I'll walk you through the rest.";
@@ -213,7 +265,14 @@ export type Turn = TurnBase &
         /** ms, once done */
         took: number | null;
       }
-    | { kind: "say"; beatId: string; text: Text; quote?: Quote }
+    | {
+        kind: "say";
+        beatId: string;
+        text: Text;
+        quote?: Quote;
+        /** A quiet button after the line: "Show me the fix", done once used */
+        follow?: { kind: "showFix"; done: boolean };
+      }
     | { kind: "you"; text: string; code: boolean }
     /** The lesson's own answer to the composer: a refused word, or a finish
      * chip's answer with its quiet button */
@@ -587,21 +646,34 @@ export const view = (
           runs.forEach((run, n) => {
             const isLast = n === runs.length - 1;
             const cardAt = n === 0 ? r.at : run.at;
-            turn({
-              id: n === 0 ? b.id : `${b.id}:${n}`,
-              kind: "act",
-              step: step.id,
-              at: cardAt,
-              beatId: b.id,
-              act: b,
-              state: actStateOf(run),
-              note: run.status === "interrupted" ? INTERRUPTED : null,
-              stage:
-                isLast && state.stage?.beatId === b.id ? state.stage : null,
-              took: ended(run) ? run.took : null,
-            });
+            // The faucet's card stands for the act that hit it: the act's
+            // own record over it would say the same failure twice
+            const funding = ended(run) && isFaucetRefusal(run.result);
+            if (!funding)
+              turn({
+                id: n === 0 ? b.id : `${b.id}:${n}`,
+                kind: "act",
+                step: step.id,
+                at: cardAt,
+                beatId: b.id,
+                act: b,
+                state: actStateOf(run),
+                note: run.status === "interrupted" ? INTERRUPTED : null,
+                stage:
+                  isLast && state.stage?.beatId === b.id ? state.stage : null,
+                took: ended(run) ? run.took : null,
+              });
             if (ended(run)) {
               const planned = run.status === "failed" && run.planned === true;
+              // A planned failure closes once Explain or "I'll fix it
+              // myself" entered `onFail`; any other failure waits on this
+              // card while it is the act's latest run
+              const open =
+                run.status === "failed" &&
+                isLast &&
+                !done &&
+                run.explainedAt === undefined &&
+                !(planned && p.cursor.kind === "step" && p.cursor.fail);
               turn({
                 id: `result:${b.id}:${n}`,
                 kind: "result",
@@ -612,15 +684,59 @@ export const view = (
                 result: run.result,
                 took: run.took,
                 planned: planned ? step.planned ?? null : null,
-                // A planned failure closes once Explain or "I'll fix it
-                // myself" entered `onFail`; any other failure waits on this
-                // card while it is the act's latest run
-                open:
-                  run.status === "failed" &&
-                  isLast &&
-                  !done &&
-                  !(planned && p.cursor.kind === "step" && p.cursor.fail),
+                open,
               });
+              // An unplanned failure sent to the assistant: the press, then,
+              // once its answer ended, the offer to write the fix
+              if (run.status === "failed" && run.explainedAt !== undefined) {
+                turn({
+                  id: `you:explain:${b.id}:${n}`,
+                  kind: "you",
+                  step: step.id,
+                  at: run.explainedAt,
+                  text: EXPLAIN,
+                  code: false,
+                });
+              }
+              const offerAt =
+                run.status === "failed" && run.result.act === "build"
+                  ? fixOfferAt(run, loadedAt)
+                  : null;
+              if (run.status === "failed" && offerAt !== null) {
+                turn({
+                  id: `fix:${b.id}:${n}`,
+                  kind: "say",
+                  step: step.id,
+                  at: offerAt,
+                  beatId: b.id,
+                  text: FIX_OFFER,
+                  // Only the act's latest run can be fixed: an older offer
+                  // stays as a record
+                  follow: {
+                    kind: "showFix",
+                    done: run.fixedAt !== undefined || done || !isLast,
+                  },
+                });
+              }
+              const retry = open ? retryOf(run.result) : null;
+              if (retry !== null) {
+                turn({
+                  id: `${b.id}:retry`,
+                  kind: "act",
+                  step: step.id,
+                  at: run.at + run.took,
+                  beatId: b.id,
+                  act: {
+                    ...b,
+                    button: TRY_AGAIN,
+                    context: retry === "faucet" ? ASKS_THE_FAUCET : b.context,
+                  },
+                  state: "live",
+                  note: null,
+                  stage: null,
+                  took: null,
+                });
+              }
             }
           });
         }
@@ -767,6 +883,7 @@ if (import.meta.vitest) {
     const FAILED_BUILD: RunResult = {
       act: "build",
       ok: false,
+      reason: "compiler",
       seconds: 1.2,
       error: {
         code: "E0412",
@@ -775,7 +892,7 @@ if (import.meta.vitest) {
         column: 32,
         message: "no Hello",
       },
-      log: "error[E0412]",
+      log: "error[E0412]: cannot find type `Hello` in this scope",
     };
     const CALLED: RunResult = {
       act: "call",
@@ -1013,6 +1130,174 @@ if (import.meta.vitest) {
       { type: "ended", beatId: "s1.build", result: FAILED_BUILD, at: 8200 },
     ];
 
+    const toDeploy = (): Action[] => [
+      { type: "start", at: 1000 },
+      { type: "pick", beatId: "s1.q1", option: 1, at: 5000 },
+      { type: "act", beatId: "s1.build", at: 7000 },
+      { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+      { type: "next", at: 9000 },
+      { type: "skip", beatId: "s2.q2", at: 9500 },
+      { type: "act", beatId: "s2.deploy", at: 10000 },
+    ];
+    const NO_FUNDS: RunResult = {
+      act: "deploy",
+      ok: false,
+      seconds: 2,
+      reason: "no_funds",
+      message: "airdrop refused",
+      balance: 0,
+      cost: 1_270_000_000,
+      address: "WaLLet",
+    };
+    const deployEnded = (result: RunResult): Action => ({
+      type: "ended",
+      beatId: "s2.deploy",
+      result,
+      at: 12000,
+    });
+
+    it("a deploy the faucet stopped posts its open result, then a live Try again that asks the faucet again", () => {
+      const v = view(
+        hello,
+        play(toDeploy().concat([deployEnded(NO_FUNDS)])),
+        LATE
+      );
+      // The act before the failure is not drawn: its result is right under it
+      expect(ids(v).slice(-2)).toEqual([
+        "result:s2.deploy:0",
+        "s2.deploy:retry",
+      ]);
+      expect(v.turns.find((t) => t.id === "result:s2.deploy:0")).toMatchObject({
+        open: true,
+      });
+      expect(v.live).toMatchObject({
+        id: "s2.deploy:retry",
+        kind: "act",
+        beatId: "s2.deploy",
+        state: "live",
+        act: {
+          button: "Try again",
+          context: "Asks the faucet again, then deploys",
+        },
+      });
+    });
+
+    it("a deploy that failed keeps its record and offers Try again with the act's own line", () => {
+      const failed: RunResult = {
+        act: "deploy",
+        ok: false,
+        seconds: 4,
+        reason: "failed",
+        message: "Blockhash expired",
+      };
+      const v = view(
+        hello,
+        play(toDeploy().concat([deployEnded(failed)])),
+        LATE
+      );
+      expect(ids(v).slice(-3)).toEqual([
+        "s2.deploy",
+        "result:s2.deploy:0",
+        "s2.deploy:retry",
+      ]);
+      expect(v.live).toMatchObject({
+        id: "s2.deploy:retry",
+        act: {
+          button: "Try again",
+          context: "From your Playground wallet · free devnet SOL",
+        },
+      });
+    });
+
+    it("no wallet offers no Try again: the result's Create wallet runs it", () => {
+      const v = view(
+        hello,
+        play(
+          toDeploy().concat([
+            deployEnded({
+              act: "deploy",
+              ok: false,
+              seconds: 0,
+              reason: "no_wallet",
+              message: "No wallet",
+            }),
+          ])
+        ),
+        LATE
+      );
+      expect(ids(v)).not.toContain("s2.deploy:retry");
+      expect(v.live).toMatchObject({ id: "result:s2.deploy:0", open: true });
+    });
+
+    it("pressing Try again is a second run, and the retry card gives way to it", () => {
+      const v = view(
+        hello,
+        play(
+          toDeploy().concat([
+            deployEnded(NO_FUNDS),
+            { type: "act", beatId: "s2.deploy", at: 20000 },
+          ])
+        ),
+        LATE
+      );
+      expect(ids(v)).not.toContain("s2.deploy:retry");
+      expect(v.live).toMatchObject({ id: "s2.deploy:1", state: "running" });
+    });
+
+    it("a second refusal after Try again posts one more faucet card and one Try again", () => {
+      const v = view(
+        hello,
+        play(
+          toDeploy().concat([
+            deployEnded(NO_FUNDS),
+            { type: "act", beatId: "s2.deploy", at: 20000 },
+            {
+              type: "ended",
+              beatId: "s2.deploy",
+              result: NO_FUNDS,
+              at: 21000,
+            },
+          ])
+        ),
+        LATE
+      );
+      expect(ids(v).slice(-3)).toEqual([
+        "result:s2.deploy:0",
+        "result:s2.deploy:1",
+        "s2.deploy:retry",
+      ]);
+      expect(ids(v).filter((id) => id === "s2.deploy:retry")).toHaveLength(1);
+      expect(v.turns.find((t) => t.id === "result:s2.deploy:0")).toMatchObject({
+        open: false,
+      });
+      expect(v.live).toMatchObject({ id: "s2.deploy:retry" });
+    });
+
+    it("a deploy a reload cut short is the live act again, with no Try again", () => {
+      const state = play(toDeploy());
+      state.progress.runs["s2.deploy"] = [{ status: "interrupted", at: 10000 }];
+      const v = view(hello, state, LATE);
+      expect(ids(v)).not.toContain("s2.deploy:retry");
+      expect(v.live).toMatchObject({
+        id: "s2.deploy",
+        state: "interrupted",
+        note: INTERRUPTED,
+      });
+    });
+
+    it("a build-and-deploy that failed gets Try again with its own line", () => {
+      const result: RunResult = {
+        act: "buildDeploy",
+        ok: false,
+        seconds: 4,
+        reason: "failed",
+        message: "Blockhash expired",
+      };
+      expect(retryOf(result)).toBe("again");
+      expect(retryOf(NO_FUNDS)).toBe("faucet");
+      expect(retryOf(OK_BUILD)).toBeNull();
+    });
+
     it("a running act shows its stage and changes the placeholder", () => {
       const state = play(
         toFailed()
@@ -1130,6 +1415,107 @@ if (import.meta.vitest) {
         planned: hello.steps[0].planned,
         open: false,
       });
+    });
+
+    it("an unplanned failure explained by the assistant offers Show me the fix, once", () => {
+      const before = toFailed().concat([
+        { type: "explain", beatId: "s1.build", at: 9000 },
+        { type: "pick", beatId: "f1.q2", option: 2, at: 9500 },
+        { type: "act", beatId: "f1.build", at: 10000 },
+        { type: "ended", beatId: "f1.build", result: FAILED_BUILD, at: 11000 },
+        { type: "explain", beatId: "f1.build", at: 12000 },
+      ]);
+      const asked = view(hello, play(before), LATE);
+      expect(
+        asked.turns.find((t) => t.id === "result:f1.build:0")
+      ).toMatchObject({
+        open: false,
+      });
+      expect(ids(asked).slice(-1)).toEqual(["you:explain:f1.build:0"]);
+      expect(
+        asked.turns.find((t) => t.id === "fix:f1.build:0")
+      ).toBeUndefined();
+
+      const answered = before.concat([
+        { type: "answered", beatId: "f1.build", at: 13000 },
+      ]);
+      const offered = view(hello, play(answered), LATE);
+      expect(ids(offered).slice(-2)).toEqual([
+        "you:explain:f1.build:0",
+        "fix:f1.build:0",
+      ]);
+      expect(offered.turns.at(-1)).toMatchObject({
+        kind: "say",
+        text: FIX_OFFER,
+        follow: { kind: "showFix", done: false },
+      });
+
+      const used = view(
+        hello,
+        play(
+          answered.concat([{ type: "showFix", beatId: "f1.build", at: 14000 }])
+        ),
+        LATE
+      );
+      expect(used.turns.find((t) => t.id === "fix:f1.build:0")).toMatchObject({
+        follow: { kind: "showFix", done: true },
+      });
+    });
+
+    it("offers the fix after a reload that came while the assistant answered", () => {
+      const asked = play(
+        toFailed().concat([
+          { type: "explain", beatId: "s1.build", at: 9000 },
+          { type: "pick", beatId: "f1.q2", option: 2, at: 9500 },
+          { type: "act", beatId: "f1.build", at: 10000 },
+          {
+            type: "ended",
+            beatId: "f1.build",
+            result: FAILED_BUILD,
+            at: 11000,
+          },
+          { type: "explain", beatId: "f1.build", at: 12000 },
+        ])
+      );
+      const reloaded = view(hello, asked, { now: 1e9, loadedAt: 20000 });
+      expect(reloaded.turns.at(-1)).toMatchObject({
+        id: "fix:f1.build:0",
+        at: 20000,
+        follow: { kind: "showFix", done: false },
+      });
+      // Before any reload the offer waits for the answer
+      const live = view(hello, asked, { now: 1e9, loadedAt: 0 });
+      expect(live.turns.find((t) => t.id === "fix:f1.build:0")).toBeUndefined();
+    });
+
+    it("leaves an older run's fix offer as a record", () => {
+      const twice = play(
+        toFailed().concat([
+          { type: "explain", beatId: "s1.build", at: 9000 },
+          { type: "pick", beatId: "f1.q2", option: 2, at: 9500 },
+          { type: "act", beatId: "f1.build", at: 10000 },
+          {
+            type: "ended",
+            beatId: "f1.build",
+            result: FAILED_BUILD,
+            at: 11000,
+          },
+          { type: "explain", beatId: "f1.build", at: 12000 },
+          { type: "answered", beatId: "f1.build", at: 13000 },
+          { type: "act", beatId: "f1.build", at: 14000 },
+          {
+            type: "ended",
+            beatId: "f1.build",
+            result: FAILED_BUILD,
+            at: 15000,
+          },
+        ])
+      );
+      const v = view(hello, twice, LATE);
+      expect(v.turns.find((t) => t.id === "fix:f1.build:0")).toMatchObject({
+        follow: { kind: "showFix", done: true },
+      });
+      expect(v.live?.id).toBe("result:f1.build:1");
     });
 
     it("a write that could not land shows as a failed wrote card", () => {

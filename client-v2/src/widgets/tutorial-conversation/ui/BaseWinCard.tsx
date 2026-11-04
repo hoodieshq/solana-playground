@@ -8,7 +8,7 @@ import { Kbd } from "@/shared/ui/kbd";
 import { Tag } from "@/shared/ui/tag";
 import { BaseDrawnCheck } from "./BaseDrawnCheck";
 import { nothingFocused } from "./keys";
-import { Prose, READ } from "./Prose";
+import { HEADLINE, Prose, READ, noStop } from "./Prose";
 
 export interface BaseWinCardProps {
   win: Win;
@@ -92,8 +92,8 @@ const BaseWinCard = ({
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex flex-col gap-1">
             <Tag className="w-fit">Step {index} done</Tag>
-            <p className="font-heading text-title text-foreground">
-              <Prose text={win.headline} />
+            <p className={HEADLINE}>
+              <Prose text={noStop(win.headline)} />
             </p>
           </div>
           {live && (

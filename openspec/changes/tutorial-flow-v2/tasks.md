@@ -96,17 +96,19 @@ for; tasks with "after nothing" start at once.
 
 ## 4. Runs
 
-- [ ] 4.1 Build act and the planned failure: build through the server, the
+- [x] 4.1 Build act and the planned failure: build through the server, the
       error parsed to code, line and column, the failed card with Explain and
       "I'll fix it myself", the planned explanation and fix question, the
       unplanned failure through the assistant with "Show me the fix",
-      `tutorial_action_run` for builds. Verify: parser unit tests on real
-      server logs; Hello Anchor's E0412 path in a component test (HOO-2355; fleet; M 1.5; after 3.1, 3.2)
+      `tutorial_action_run` for builds (fired from the reducer for every act by
+      4.2, PR 241, agreed 3 Nov). Verify: parser unit tests on real
+      server logs; Hello Anchor's E0412 path in a component test (HOO-2355; fleet; M 1.5; after 3.1, 3.2;
+      plan: [plans/4.1-build-act.md](plans/4.1-build-act.md))
 - [ ] 4.2 Deploy from the wallet: no-wallet path, "Funding your wallet" as
       an extra first stage, the red "Not enough devnet SOL" card with its
-      address row, Try again and Open faucet, the program keypair kept,
+      address row and Open faucet, Try again as the act card under it, the program keypair kept,
       upgrade in place, the result with devnet SOL spent and the program id
-      and signature as Explorer links on its meta line, the wallet copy, the redeploy nudge,
+      and signature as Explorer and Transaction links in its details, the wallet copy, the redeploy nudge (split into its own PR, 3 Nov),
       a deploy recognised after a reload, `tutorial_action_run` for deploys.
       Verify: unit tests with a stubbed connection for funding and
       recognition, and `outcome: "no_funds"` on a refused airdrop; one devnet deploy and upgrade
@@ -114,11 +116,12 @@ for; tasks with "after nothing" start at once.
       [plan](plans/4.2-deploy-from-wallet.md))
 - [ ] 4.3 Client run and the call act: the run bound to the program and
       wallet, the signatures it sent captured, logs fetched and the
-      definition's line picked, the signature linked on the meta line and
-      Copy and Explorer on every receipt address row, failed
+      definition's line picked, Copy signature and Explorer in the result
+      card's details (the receipt rows are 3.4's), failed
       transactions, `tutorial_action_run` for runs and calls. Verify: unit tests for signature capture and log picking;
       Hello Anchor's step 3 on devnet by hand (HOO-2357; fleet; M 1.5;
-      after 3.1, 3.2)
+      after 3.1, 3.2; plan:
+      [plans/4.3-client-run-and-call.md](plans/4.3-client-run-and-call.md))
 - [ ] 4.4 The Call panel from the deployed IDL: the Form | IDL switch, the
       program row with Explorer, one form with the instruction chips (the
       step's own picked, none for one instruction), "New" fields, one call
@@ -168,9 +171,10 @@ for; tasks with "after nothing" start at once.
 
 ## 7. Cleanup
 
-- [ ] 7.1 Retire the lesson band, rail, reader and phone bar, `PgLesson`'s
+- [x] 7.1 Retire the lesson band, rail, reader and phone bar, `PgLesson`'s
       key and `migrate.ts`, and the assistant's lesson suggestions
       (`SUGGESTIONS.lesson`), its "Step n of m" chip and `lesson-context.ts`,
       per the `client-v2-lessons` delta. Verify also the delta's "Suggestions
       outside a tutorial". Verify: `yarn run check` passes and no import of `views/flow/lessons` remains
-      (HOO-2365; fleet; XS 0.5; after 3.3, 6.2)
+      (HOO-2365; fleet; XS 0.5; after 3.3, 6.2). Plan:
+      [7.1-retire-lesson-layer](plans/7.1-retire-lesson-layer.md)

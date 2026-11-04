@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -82,6 +82,17 @@ describe("BaseChatColumn", () => {
     const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
     expect(dialog.textContent).toContain("Run the live action");
     expect(dialog.textContent).toContain("Previous and next step");
+    // In three groups, each under its name, in order
+    expect(
+      within(dialog)
+        .getAllByRole("region")
+        .map((g) => g.getAttribute("aria-label"))
+    ).toEqual(["In the lesson", "Panels", "Steps"]);
+    expect(
+      within(within(dialog).getByRole("region", { name: "Panels" }))
+        .getAllByRole("term")
+        .map((t) => t.textContent)
+    ).toEqual(["Menu", "Files", "Terminal"]);
   });
 
   it("gives the handle its range and value", () => {

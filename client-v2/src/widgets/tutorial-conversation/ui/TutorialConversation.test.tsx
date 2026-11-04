@@ -32,13 +32,34 @@ vi.mock("@/features/tutorial-conversation", async () => ({
     onDidRequestFocus: vi.fn(),
     act: vi.fn(),
     explain: vi.fn(),
+    answered: vi.fn(),
+    showFix: vi.fn(),
+    onDidRequestExplain: vi.fn(),
     fixMyself: vi.fn(),
     next: vi.fn(),
     startOver: vi.fn(),
   },
   judgeGoal: "judgeGoal",
+  isUnreachable: (r: { act: string; ok: boolean; reason?: string }) =>
+    r.act === "build" && !r.ok && r.reason === "unreachable",
   realWorkspace: "realWorkspace",
-  unwiredRunner: "unwiredRunner",
+  tutorialRunner: {
+    run: vi.fn(async () => ({
+      act: "deploy",
+      ok: false,
+      seconds: 0,
+      reason: "failed",
+      message: "x",
+    })),
+    recognise: "recognise",
+  },
+}));
+vi.mock("@/views/flow/state/stage", () => ({
+  PgFlow: { deployStarted: vi.fn(), deployFinished: vi.fn() },
+}));
+vi.mock("@/utils", () => ({
+  PgProgramInfo: { idl: null, pk: null },
+  PgWallet: { accounts: [], add: vi.fn() },
 }));
 vi.mock("@/utils/explorer", () => ({
   PgExplorer: {
@@ -80,7 +101,11 @@ vi.mock("@/utils/tutorial", () => ({
   },
 }));
 
-import { PgConversation } from "@/features/tutorial-conversation";
+import {
+  PgConversation,
+  tutorialRunner,
+} from "@/features/tutorial-conversation";
+import { PgFlow } from "@/views/flow/state/stage";
 import { tutorialTelemetry } from "@/entities/tutorial/model/telemetry";
 import {
   markUnavailableHere,
@@ -105,6 +130,7 @@ const store = PgConversation as unknown as {
   typeIt: ReturnType<typeof vi.fn>;
   init: ReturnType<typeof vi.fn>;
   startOver: ReturnType<typeof vi.fn>;
+  onDidRequestExplain: ReturnType<typeof vi.fn>;
 };
 
 const step1 = definition.steps[0];
@@ -239,10 +265,11 @@ beforeEach(() => {
   store.onDidChange.mockReturnValue({ dispose: vi.fn() });
   store.onDidRequestFocus.mockReturnValue({ dispose: vi.fn() });
   vi.mocked(PgExplorer.onDidSaveFile).mockReturnValue({ dispose: vi.fn() });
+  store.onDidRequestExplain.mockReturnValue({ dispose: vi.fn() });
 });
 
 describe("TutorialConversation", () => {
-  it("starts the engine once with the real workspace, the unwired runner and 3.2's judge, and stops it on leaving", () => {
+  it("starts the engine once with the real workspace, the tutorial's runner and 3.2's judge, and stops it on leaving", () => {
     const { rerender, unmount } = render(
       <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
     );
@@ -252,7 +279,7 @@ describe("TutorialConversation", () => {
     expect(store.init).toHaveBeenCalledTimes(1);
     expect(store.init).toHaveBeenCalledWith({
       workspace: "realWorkspace",
-      runner: "unwiredRunner",
+      runner: expect.objectContaining({ recognise: "recognise" }),
       judge: "judgeGoal",
     });
     unmount();
@@ -290,6 +317,17 @@ describe("TutorialConversation", () => {
     } finally {
       PgAssistant.clear();
     }
+  });
+
+  it("runs a deploy on the tutorial's runner and tells the flow, for the terminal bar", async () => {
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    const { runner } = store.init.mock.calls[0][0];
+    await runner.run("deploy", { beatId: "s2.deploy" }, () => {});
+    expect(tutorialRunner.run).toHaveBeenCalled();
+    expect(PgFlow.deployStarted).toHaveBeenCalled();
+    expect(PgFlow.deployFinished).toHaveBeenCalledWith(false);
   });
 
   it("shows one spinner while the engine has no view", () => {
@@ -832,7 +870,14 @@ describe("TutorialConversation keys and the pill", () => {
       whole: true,
       beatId: "s2.deploy",
       act: "build",
-      result: { act: "build", ok: false, seconds: 1, error: null, log: "" },
+      result: {
+        act: "build",
+        ok: false,
+        reason: "compiler",
+        seconds: 1,
+        error: null,
+        log: "",
+      },
       took: 1000,
       planned: null,
       open: true,
@@ -850,6 +895,156 @@ describe("TutorialConversation keys and the pill", () => {
     );
     press();
     expect(PgConversation.explain).toHaveBeenCalledWith("s2.deploy");
+  });
+
+  it("asks the assistant about an unplanned failure, then offers the fix once it answered", () => {
+    // The real store, with no model connected; only the prompt is caught
+    const requestPrompt = vi
+      .spyOn(PgAssistant, "requestPrompt")
+      .mockImplementation(() => {});
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    const [onExplain] = store.onDidRequestExplain.mock.calls[0];
+    act(() =>
+      onExplain({
+        beatId: "s1.build",
+        result: {
+          act: "build",
+          ok: false,
+          seconds: 1,
+          reason: "compiler",
+          error: {
+            code: "E0308",
+            file: "src/lib.rs",
+            line: 10,
+            column: 9,
+            message: "mismatched types",
+          },
+          log: "error[E0308]: mismatched types",
+        },
+      })
+    );
+    expect(requestPrompt).toHaveBeenCalledWith(
+      expect.stringContaining("E0308: mismatched types at src/lib.rs:10:9"),
+      { send: true }
+    );
+    // No assistant connected in the test: its answer is taken as ended
+    expect(PgConversation.answered).toHaveBeenCalledWith("s1.build");
+    requestPrompt.mockRestore();
+  });
+
+  it("writes the fix on Show me the fix and shows where it lands", async () => {
+    const offer: Turn = {
+      id: "fix:s1.build:0",
+      kind: "say",
+      step: step1.id,
+      at: 4,
+      whole: true,
+      beatId: "s1.build",
+      text: "Fix it in the editor and build again, or I can show you the lines this step needs.",
+      follow: { kind: "showFix", done: false },
+    };
+    store.view.mockReturnValue({
+      turns: [offer],
+      live: null,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: null,
+      finishAt: null,
+    });
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Show me the fix" })
+    );
+    expect(PgConversation.showFix).toHaveBeenCalledWith("s1.build");
+    expect(PgExplorer.openFile).toHaveBeenCalledWith("/hello/src/lib.rs");
+  });
+
+  it("puts the caret on the compiler's line from the failed card's pointer", async () => {
+    const failure: Turn = {
+      id: "result:s1.build:0",
+      kind: "result",
+      step: step1.id,
+      at: 4,
+      whole: true,
+      beatId: "s1.build",
+      act: "build",
+      result: {
+        act: "build",
+        ok: false,
+        seconds: 6,
+        reason: "compiler",
+        error: {
+          code: "E0412",
+          file: "src/lib.rs",
+          line: 9,
+          column: 32,
+          message: "cannot find type `Hello` in this scope",
+        },
+        log: "",
+      },
+      took: 6000,
+      planned: null,
+      open: true,
+    };
+    store.view.mockReturnValue({
+      turns: [failure],
+      live: failure,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: null,
+      finishAt: null,
+    });
+    (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
+      "/hello/src/lib.rs";
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "--> src/lib.rs:9:32" })
+    );
+    expect(PgEditor.revealLine).toHaveBeenCalledWith("/hello/src/lib.rs", 9);
+    expect(PgEditor.focus).toHaveBeenCalled();
+  });
+
+  it("runs the build again on ⌘↵ when its server never answered", () => {
+    const unreachable: Turn = {
+      id: "result:s1.build:0",
+      kind: "result",
+      step: definition.steps[0].id,
+      at: 4,
+      whole: true,
+      beatId: "s1.build",
+      act: "build",
+      result: {
+        act: "build",
+        ok: false,
+        reason: "unreachable",
+        seconds: 0,
+        error: null,
+        log: "Failed to fetch",
+      },
+      took: 10,
+      planned: null,
+      open: true,
+    };
+    store.view.mockReturnValue({
+      turns: [unreachable],
+      live: unreachable,
+      steps: onStep2.steps,
+      placeholder: "Ask about this step",
+      nextAt: null,
+      finishAt: null,
+    });
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    press();
+    expect(PgConversation.act).toHaveBeenCalledWith("s1.build");
+    expect(PgConversation.explain).not.toHaveBeenCalled();
   });
 
   it("counts the pill's way back to the live step", async () => {

@@ -215,9 +215,22 @@ export type RunRecord =
       result: RunResult;
       /** The failure the step plans, judged once when the run ended */
       planned?: true;
+      /** An unplanned failure: when Explain sent it to the assistant */
+      explainedAt?: number;
+      /** When the assistant's answer to it ended: "Show me the fix" follows */
+      answeredAt?: number;
+      /** When "Show me the fix" wrote the step's target; it works once */
+      fixedAt?: number;
     };
 
-/** The first compiler error of a failed build, as the server's log names it */
+/** Why a build failed: the code, or a server that never answered */
+export type BuildFailure = "compiler" | "unreachable";
+
+/** A build whose server never answered: nothing to explain, only Try again */
+export const isUnreachable = (r: RunResult): boolean =>
+  r.act === "build" && !r.ok && r.reason === "unreachable";
+
+/** The compiler error a failed build's card shows, as the server's log names it */
 export interface BuildError {
   code: string | null;
   file: string | null;
@@ -244,7 +257,11 @@ export interface ReceiptAccount {
   address: string;
 }
 
-/** A landed transaction's facts, each optional: see the call result's `receipt` */
+/**
+ * A landed transaction's facts, each optional: see a run's or a call's
+ * `receipt`. The shape is the finish card's "Transaction details";
+ * `computeUnits` is for the result card's details sentence.
+ */
 export interface Receipt {
   /** The fee in lamports */
   fee?: number;
@@ -253,6 +270,8 @@ export interface Receipt {
   accounts?: ReceiptAccount[];
   /** The transaction's log, line by line */
   log?: string[];
+  /** Compute units the transaction consumed */
+  computeUnits?: number;
 }
 
 /**
@@ -275,6 +294,11 @@ export type RunResult =
       act: "build";
       ok: false;
       seconds: number;
+      /**
+       * `compiler`: the server answered and the build failed, or the server
+       * refused the request; `unreachable`: no answer reached the browser
+       */
+      reason: BuildFailure;
       error: BuildError | null;
       log: string;
     }
@@ -328,10 +352,9 @@ export type RunResult =
        */
       called: Called[];
       /**
-       * The receipt the finish card shows ("Transaction details"), of the
-       * transaction the signatures end on. Optional: the call runner
-       * (`tutorial-flow-v2` task 4.3) fills them, and the card draws only
-       * the rows it has.
+       * The receipt of the transaction the signatures end on: the result
+       * card's details sentence and the finish card's "Transaction details". Each
+       * field is optional, and the cards draw only the rows they have.
        */
       receipt?: Receipt;
     }
@@ -342,13 +365,30 @@ export type RunResult =
       message: string;
       log: string;
       /**
+       * Why nothing reached the chain: no wallet, or the run sent no
+       * transaction. Absent for a run that sent and failed, or that could not
+       * run at all.
+       */
+      reason?: "no_wallet" | "no_transaction";
+      /**
        * What the program refused, when the transaction reached it; absent
        * when it never did (no wallet, a send that failed). A `refused` goal
-       * is judged on it and on `log`. The runner fills it from the
-       * transaction's error (`tutorial-flow-v2` task 4.3); until then no real
-       * run carries it.
+       * is judged on it and on `log`. The runner fills it from the program's
+       * log: Anchor's error, else the custom code the runtime names.
        */
       refused?: Refusal;
+    }
+  | {
+      act: "run" | "call";
+      ok: false;
+      seconds: number;
+      message: string;
+      log: string;
+      /** The faucet refused the top-up and the wallet cannot pay a fee */
+      reason: "no_funds";
+      /** The "Not enough devnet SOL" card's facts, in lamports */
+      funding: { balance: number; cost: number; address: string };
+      refused?: undefined;
     };
 
 export const freshProgress = (
@@ -532,6 +572,10 @@ const parseResult = (v: unknown): RunResult | null => {
   ) {
     return null;
   }
+  // A failed build saved before `reason` existed failed in the compiler
+  if (v.act === "build" && !v.ok && v.reason !== "unreachable") {
+    return { ...v, reason: "compiler" } as unknown as RunResult;
+  }
   if ((v.act === "run" || v.act === "call") && v.ok) {
     const called = Array.isArray(v.called) ? v.called.filter(isCalled) : [];
     const signatures = isStrings(v.signatures) ? v.signatures : [];
@@ -657,9 +701,13 @@ const parseRun = (v: unknown): RunRecord | null => {
     case "failed": {
       const result = parseResult(v.result);
       if (!result || !isMs(v.took)) return null;
-      return v.planned === true
-        ? { status: "failed", at, took: v.took, result, planned: true }
-        : { status: "failed", at, took: v.took, result };
+      const run: RunRecord = { status: "failed", at, took: v.took, result };
+      if (v.planned === true) run.planned = true;
+      // The explain's moments, each kept only when it reads as a time
+      if (isMs(v.explainedAt)) run.explainedAt = v.explainedAt;
+      if (isMs(v.answeredAt)) run.answeredAt = v.answeredAt;
+      if (isMs(v.fixedAt)) run.fixedAt = v.fixedAt;
+      return run;
     }
     default:
       return null;
@@ -879,6 +927,7 @@ if (import.meta.vitest) {
                 act: "build",
                 ok: false,
                 seconds: 1,
+                reason: "compiler",
                 error: null,
                 log: "",
               },
@@ -931,6 +980,82 @@ if (import.meta.vitest) {
       expect(
         parseProgress(Object.assign(freshProgress(), { passed: "x" }))
       ).toBeNull();
+    });
+
+    it("reads a failed build saved before its reason as a compiler failure", () => {
+      const before: RunRecord = {
+        status: "failed",
+        at: 1,
+        took: 2,
+        result: {
+          act: "build",
+          ok: false,
+          seconds: 2,
+          error: null,
+          log: "x",
+        } as unknown as RunResult,
+      };
+      const unreachable: RunResult = {
+        act: "build",
+        ok: false,
+        seconds: 0,
+        reason: "unreachable",
+        error: null,
+        log: "down",
+      };
+      const saved = midway({
+        runs: {
+          "s1.build": [
+            before,
+            { status: "failed", at: 3, took: 0, result: unreachable },
+          ],
+        },
+      });
+      const runs = reload(saved)?.runs["s1.build"];
+      expect(runs?.map((r) => "result" in r && r.result)).toEqual([
+        {
+          act: "build",
+          ok: false,
+          seconds: 2,
+          reason: "compiler",
+          error: null,
+          log: "x",
+        },
+        unreachable,
+      ]);
+    });
+
+    it("reloads an explained failure's moments, and drops one that is not a time", () => {
+      const result: RunResult = {
+        act: "build",
+        ok: false,
+        seconds: 1,
+        reason: "compiler",
+        error: null,
+        log: "x",
+      };
+      const kept: RunRecord = {
+        status: "failed",
+        at: 1,
+        took: 2,
+        result,
+        explainedAt: 4,
+        answeredAt: 5,
+        fixedAt: 6,
+      };
+      const broken = {
+        status: "failed",
+        at: 7,
+        took: 2,
+        result,
+        explainedAt: 8,
+        answeredAt: "soon",
+      };
+      const saved = midway({ runs: { "s1.build": [kept, broken] } });
+      expect(reload(saved)?.runs["s1.build"]).toEqual([
+        kept,
+        { status: "failed", at: 7, took: 2, result, explainedAt: 8 },
+      ]);
     });
 
     it("turns a started run into an interrupted one", () => {

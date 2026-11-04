@@ -9,6 +9,7 @@ import {
   Terminal,
 } from "lucide-react";
 
+import { COARSE_HIT } from "@/shared/lib/hit-area";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import {
@@ -129,6 +130,7 @@ const Tool: FC<{
         onClick={onClick}
         {...(files ? { [FILES_TOGGLE]: "" } : {})}
         className={cn(
+          COARSE_HIT,
           "rounded-lg text-muted-foreground hover:text-foreground [&_svg]:size-[18px]! [&_svg]:stroke-[1.5]",
           pressed && "bg-surface-hover text-foreground"
         )}
@@ -221,7 +223,10 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
                         aria-expanded={shown}
                         onClick={() => tree.onToggle("tab")}
                         {...{ [FILES_TOGGLE]: "" }}
-                        className="mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        className={cn(
+                          COARSE_HIT,
+                          "mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        )}
                       >
                         <ChevronDown
                           aria-hidden="true"

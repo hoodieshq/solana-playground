@@ -1,3 +1,4 @@
+import { shortKey } from "@/shared/lib/short-key";
 import type { RunResult } from "../progress";
 import type { RunStage } from "../ports";
 import { fundForDeploy } from "./fund";
@@ -90,7 +91,6 @@ export interface DeployPort {
  */
 const DEFAULT_LENGTH = 400_000;
 
-const shortKey = (key: string) => `${key.slice(0, 4)}…${key.slice(-4)}`;
 const sol = (lamports: number) =>
   (lamports / 1_000_000_000).toFixed(lamports < 10_000_000 ? 4 : 2);
 
@@ -429,7 +429,7 @@ if (import.meta.vitest) {
       });
       expect(port.deploy).toHaveBeenCalledWith("Buffer1111", 120_000);
       expect(lines[0]).toMatch(/^Airdropping \d+ SOL\.\.\.$/);
-      expect(lines).toContain("Deploying from Wa11…1111 · about 1.22 SOL");
+      expect(lines).toContain("Deploying from Wa11et…111111 · about 1.22 SOL");
     });
 
     it("upgrades a program on chain in place, with three stages when funded and built", async () => {
@@ -585,7 +585,7 @@ if (import.meta.vitest) {
       await expect(runDeploy(port, "deploy", () => {})).resolves.toMatchObject({
         ok: false,
         reason: "failed",
-        message: expect.stringMatching(/upgrade authority is Othe…1111/),
+        message: expect.stringMatching(/upgrade authority is Other1…111111/),
       });
       expect(port.writeBuffer).not.toHaveBeenCalled();
     });

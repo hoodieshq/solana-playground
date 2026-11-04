@@ -25,8 +25,19 @@ export interface Workspace {
 export interface RunInput {
   /** The act beat's id, so a result can be matched to its run */
   beatId: string;
+  /**
+   * A build's step names this line for its planned failure: the runner shows
+   * the error that holds it. Absent inside the planned failure's own beats
+   */
+  failsWith?: string;
   /** A call act's instruction and the argument values the learner gave */
   call?: { instruction: string; args: Record<string, string> };
+  /**
+   * The step's `call` goal's log pattern: a run or call picks its card's
+   * large line with it, so the line the card shows is the one the goal
+   * judges. Absent when the goal names none.
+   */
+  log?: string;
 }
 
 /** One stage of a run as it starts: its label, and "n of m" */
@@ -58,7 +69,11 @@ export interface Runner {
   recognise?(act: Act, startedAtMs: number): Promise<RunResult | null>;
 }
 
-/** A run that could not happen, as that act's failed result */
+/**
+ * A run that could not happen, as that act's failed result. A build's is
+ * `unreachable`: no answer, or no output of its own, reached the browser,
+ * and its card offers Try again
+ */
 export const failedResult = (
   act: Act,
   message: string,
@@ -66,7 +81,14 @@ export const failedResult = (
 ): RunResult => {
   switch (act) {
     case "build":
-      return { act, ok: false, seconds, error: null, log: message };
+      return {
+        act,
+        ok: false,
+        seconds,
+        reason: "unreachable",
+        error: null,
+        log: message,
+      };
     case "deploy":
     case "buildDeploy":
       return { act, ok: false, seconds, reason: "failed", message };
@@ -172,6 +194,7 @@ if (import.meta.vitest) {
         act: "build",
         ok: false,
         seconds: 0,
+        reason: "unreachable",
         error: null,
         log: "down",
       });

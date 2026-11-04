@@ -26,6 +26,7 @@ import type {
   ApplyFailure,
   LandedCall,
   Proposal,
+  RunResult,
   Turn,
 } from "@/features/tutorial-conversation";
 
@@ -87,42 +88,41 @@ describe("BaseIntroCard", () => {
 });
 
 describe("BaseStepDivider", () => {
-  it("reads the kicker, the title and the objective", () => {
+  it("heads the step with its objective alone, before and after it passes", () => {
     render(
-      <BaseStepDivider
-        index={1}
-        count={4}
-        title="Program"
-        objective="Define the hello instruction and log a message"
-        done={false}
-        took={null}
-      />
+      <BaseStepDivider objective="Define the hello instruction and log a message" />
     );
-    expect(screen.getByText("Step 1 of 4")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Program" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", {
+        name: "Define the hello instruction and log a message",
+      })
+    ).toBeTruthy();
+    expect(screen.queryByText(/Step \d of/)).toBeNull();
     expect(screen.queryByLabelText("Passed")).toBeNull();
-  });
-
-  it("gets a check and the step's time once passed", () => {
-    render(
-      <BaseStepDivider
-        index={1}
-        count={4}
-        title="Program"
-        objective="o"
-        done
-        took={41_000}
-      />
-    );
-    expect(screen.getByLabelText("Passed")).toBeTruthy();
-    expect(screen.getByText("41 s")).toBeTruthy();
   });
 });
 
 describe("BaseWroteCard", () => {
   const lines = [5, 6, 7, 8, 9, 10, 11, 12, 13];
 
-  it("is a button naming the lines, with the first three and the rest counted", async () => {
+  it("keeps a blank written line's row, so the numbers stay beside their code", () => {
+    render(
+      <BaseWroteCard
+        wrote={{ file: "src/lib.rs", lines: [1, 2, 3] }}
+        failed={false}
+        preview={["use x;", "", "fn f() {}"]}
+        onShow={vi.fn()}
+      />
+    );
+    const card = screen.getByRole("button", {
+      name: "Show lines 1 to 3 in src/lib.rs",
+    });
+    const rows = [...card.querySelectorAll("span.whitespace-pre")];
+    expect(rows).toHaveLength(3);
+    expect(rows[1].className).toContain("min-h-5");
+  });
+
+  it("is a button naming the lines, headed by the path alone, with the first three and '⋯ N more lines'", async () => {
     const onShow = vi.fn();
     render(
       <BaseWroteCard
@@ -135,10 +135,12 @@ describe("BaseWroteCard", () => {
     const card = screen.getByRole("button", {
       name: "Show lines 5 to 13 in src/lib.rs",
     });
-    expect(card.textContent).toContain("src/lib.rslines 5 to 13+9");
+    expect(card.textContent?.startsWith("src/lib.rs5")).toBe(true);
+    expect(card.textContent).not.toContain("lines 5 to 13");
+    expect(card.textContent).not.toContain("+9");
+    expect(card.textContent).not.toContain("Show in");
     expect(card.textContent).toContain("#[program]");
-    expect(card.textContent).toContain("6 more lines");
-    expect(card.textContent).toContain("Show in lib.rs");
+    expect(card.textContent).toContain("⋯6 more lines");
     await userEvent.click(card);
     expect(onShow).toHaveBeenCalledWith("src/lib.rs", 5);
   });
@@ -370,35 +372,145 @@ describe("BaseActCard", () => {
 });
 
 describe("BaseResultCard", () => {
-  it("heads a refused call with its instruction and error", () => {
+  /** The card for a run's or a call's result, with no failure open */
+  const txCard = (result: RunResult) =>
     render(
-      <BaseResultCard
-        result={{
-          act: "call",
-          ok: false,
-          seconds: 0.9,
-          message: "Not enough energy",
-          log: "",
-          refused: {
-            instruction: "chop_tree",
-            error: { code: 6000, name: "NotEnoughEnergy" },
-          },
-        }}
-        planned={null}
-        open={false}
-        onExplain={vi.fn()}
-        onFixMyself={vi.fn()}
-        onShowLine={vi.fn()}
-      />
+      // The app's root provides the tooltip Copy signature carries
+      <TooltipProvider>
+        <BaseResultCard
+          result={result}
+          planned={null}
+          open={false}
+          onExplain={vi.fn()}
+          onFixMyself={vi.fn()}
+          onShowLine={vi.fn()}
+          onRetry={vi.fn()}
+        />
+      </TooltipProvider>
     );
-    expect(screen.getByText("chop_tree refused")).toBeTruthy();
-    expect(screen.getByText("NotEnoughEnergy · 6000")).toBeTruthy();
+
+  const CHOP_ERROR =
+    "Program log: AnchorError thrown in programs/lumberjack/src/lib.rs:31:9. Error Code: NotEnoughEnergy. Error Number: 6000. Error Message: Not enough energy.";
+
+  it("heads a refused call with its error and keeps the error line in view", () => {
+    txCard({
+      act: "call",
+      ok: false,
+      seconds: 0.9,
+      message: "Not enough energy",
+      log: ["Program log: Instruction: ChopTree", CHOP_ERROR].join("\n"),
+      refused: {
+        instruction: "chop_tree",
+        error: { code: 6000, name: "NotEnoughEnergy" },
+      },
+    });
+    expect(screen.getByText("Call failed")).toBeTruthy();
+    expect(screen.getByText("NotEnoughEnergy · error 6000")).toBeTruthy();
+    expect(screen.getByText(CHOP_ERROR)).toBeTruthy();
+    expect(screen.getByText("Not enough energy")).toBeTruthy();
+  });
+
+  const SIGNATURE = "5igHe11o";
+  const HELLO_RUN: RunResult = {
+    act: "run",
+    ok: true,
+    seconds: 2.4,
+    signatures: [SIGNATURE],
+    line: "Program log: Hello, World!",
+    called: [{ instruction: "hello", args: {} }],
+    receipt: {
+      fee: 5000,
+      computeUnits: 389,
+      signer: "Wa11et",
+      log: ["Program log: Instruction: Hello", "Program log: Hello, World!"],
+    },
+  };
+
+  it("Hello from devnet: Confirmed with the instruction and the program's line", () => {
+    txCard(HELLO_RUN);
+    expect(screen.getByText("Confirmed")).toBeTruthy();
+    expect(screen.getByText("hello")).toBeTruthy();
+    expect(screen.getByText("Hello, World!")).toBeTruthy();
+  });
+
+  it("opens how it went from the head: the sentence, Copy signature and Explorer on devnet", async () => {
+    txCard(HELLO_RUN);
+    await userEvent.click(screen.getByRole("button", { name: /Details/ }));
+    // `hello` is set as code, so the sentence is read across its parts
+    expect(
+      screen.getByText(
+        (_, el) =>
+          el?.tagName === "P" &&
+          el.textContent ===
+            "client.ts ran in 2.4 s and called hello. It used 389 compute units, and the fee was 0.000005 test SOL from your wallet."
+      )
+    ).toBeTruthy();
+    expect(screen.getByText("hello", { selector: "p code" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copy signature" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /Explorer/ }).getAttribute("href")
+    ).toBe(`https://explorer.solana.com/tx/${SIGNATURE}?cluster=devnet`);
+    await userEvent.click(screen.getByRole("button", { name: "Log" }));
+    expect(screen.getByText(/Program log: Instruction: Hello/)).toBeTruthy();
+  });
+
+  it("heads a run the faucet left short, and one with no wallet, by their reason", () => {
+    const { unmount } = txCard({
+      act: "run",
+      ok: false,
+      seconds: 1,
+      reason: "no_funds",
+      message: "The airdrop failed",
+      log: "",
+      funding: { balance: 0, cost: 500_000_000, address: "Wa11et" },
+    });
+    expect(screen.getByText("Not enough devnet SOL")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Your wallet has 0 SOL, and this run needs about 0.5 SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
+      )
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /Open faucet/ }).getAttribute("href")
+    ).toBe("https://faucet.solana.com");
+    unmount();
+    txCard({
+      act: "call",
+      ok: false,
+      seconds: 0,
+      reason: "no_wallet",
+      message: "Create a Playground wallet or connect one, then try again.",
+      log: "",
+    });
+    expect(screen.getByText("No wallet")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Create a Playground wallet or connect one, then try again."
+      )
+    ).toBeTruthy();
+  });
+
+  it("reads a run that sent nothing as no transaction, not a red card", () => {
+    txCard({
+      act: "run",
+      ok: false,
+      seconds: 1,
+      reason: "no_transaction",
+      message: "client.ts sent no transaction. See the terminal.",
+      log: "",
+    });
+    expect(screen.getByText("No transaction")).toBeTruthy();
+    expect(
+      screen.getByText("client.ts sent none · see the terminal")
+    ).toBeTruthy();
   });
 
   const failed = {
     act: "build" as const,
     ok: false as const,
     seconds: 1.6,
+    reason: "compiler" as const,
     log: "",
     error: {
       code: "E0412",
@@ -423,6 +535,7 @@ describe("BaseResultCard", () => {
         onExplain={vi.fn()}
         onFixMyself={vi.fn()}
         onShowLine={vi.fn()}
+        onRetry={vi.fn()}
       />
     );
     expect(screen.getByText("Build successful")).toBeTruthy();
@@ -447,6 +560,7 @@ describe("BaseResultCard", () => {
         onExplain={vi.fn()}
         onFixMyself={vi.fn()}
         onShowLine={vi.fn()}
+        onRetry={vi.fn()}
       />
     );
     const { unmount } = render(deployed(1_250_000_000));
@@ -469,6 +583,7 @@ describe("BaseResultCard", () => {
         onExplain={onExplain}
         onFixMyself={onFixMyself}
         onShowLine={onShowLine}
+        onRetry={vi.fn()}
       />
     );
     expect(screen.getByText("Build failed")).toBeTruthy();
@@ -487,7 +602,94 @@ describe("BaseResultCard", () => {
     expect(onFixMyself).toHaveBeenCalled();
   });
 
-  it("folds to its head, with no button, once it is a record", () => {
+  it("offers Try again, and no Explain, when the build server never answered", async () => {
+    const onRetry = vi.fn();
+    render(
+      <BaseResultCard
+        result={{
+          act: "build",
+          ok: false,
+          seconds: 0,
+          reason: "unreachable",
+          error: null,
+          log: "Server request failed: Failed to fetch",
+        }}
+        planned={null}
+        open
+        onExplain={vi.fn()}
+        onFixMyself={vi.fn()}
+        onShowLine={vi.fn()}
+        onRetry={onRetry}
+      />
+    );
+    expect(screen.getByText("Build server unreachable")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Build couldn't start. The Playground server didn't answer. Your code is unchanged."
+      )
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Explain/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Try again/ }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the log, with no line link, for a failure no line names", () => {
+    render(
+      <BaseResultCard
+        result={{
+          act: "build",
+          ok: false,
+          seconds: 0.4,
+          reason: "compiler",
+          error: null,
+          log: "Server request failed (https://api.solpg.io/build): Invalid path",
+        }}
+        planned={null}
+        open
+        onExplain={vi.fn()}
+        onFixMyself={vi.fn()}
+        onShowLine={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/Invalid path/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /-->/ })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /Explain the error/ })
+    ).toBeTruthy();
+  });
+
+  it("shows the log too when the error it names has no line", () => {
+    render(
+      <BaseResultCard
+        result={{
+          act: "build",
+          ok: false,
+          seconds: 2,
+          reason: "compiler",
+          error: {
+            code: null,
+            file: null,
+            line: null,
+            column: null,
+            message: "linking with `cc` failed",
+          },
+          log: "error: linking with `cc` failed: exit status: 1",
+        }}
+        planned={null}
+        open
+        onExplain={vi.fn()}
+        onFixMyself={vi.fn()}
+        onShowLine={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/exit status: 1/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /-->/ })).toBeNull();
+  });
+
+  it("folds to its head once it is a record, and the head opens it again", async () => {
+    const onShowLine = vi.fn();
     render(
       <BaseResultCard
         result={failed}
@@ -495,11 +697,24 @@ describe("BaseResultCard", () => {
         open={false}
         onExplain={vi.fn()}
         onFixMyself={vi.fn()}
-        onShowLine={vi.fn()}
+        onShowLine={onShowLine}
+        onRetry={vi.fn()}
       />
     );
-    expect(screen.getByText("Build failed")).toBeTruthy();
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByText("E0412 on line 9")).toBeTruthy();
+    expect(screen.queryByText(/cannot find type/)).toBeNull();
+    const head = screen.getByRole("button", { name: /Build failed/ });
+    expect(head.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(head);
+    expect(head.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("E0412 · line 9")).toBeTruthy();
+    expect(screen.getByText(/cannot find type/)).toBeTruthy();
+    // A record reveals its line too, but asks for nothing
+    await userEvent.click(
+      screen.getByRole("button", { name: "--> src/lib.rs:9:32" })
+    );
+    expect(onShowLine).toHaveBeenCalledWith("src/lib.rs", 9);
+    expect(screen.queryByRole("button", { name: /Explain/ })).toBeNull();
   });
 });
 
@@ -571,6 +786,7 @@ describe("TurnView", () => {
     act: vi.fn(),
     explain: vi.fn(),
     fixMyself: vi.fn(),
+    showFix: vi.fn(),
     next: vi.fn(),
     restartStep: vi.fn(),
     openNextTutorial: vi.fn(),
@@ -580,20 +796,129 @@ describe("TurnView", () => {
     apply: vi.fn(),
     keep: vi.fn(),
     showLine: vi.fn(),
+    revealError: vi.fn(),
+    showLog: vi.fn(),
+    createWallet: vi.fn(),
   });
-  const draw = (turn: Turn, live: boolean) =>
+  const draw = (turn: Turn, live: boolean, handlers = on()) =>
     render(
-      <TurnView
-        turn={turn}
-        definition={definition}
-        live={live}
-        running={false}
-        passed={[]}
-        read={() => null}
-        nextTutorial={null}
-        on={on()}
-      />
+      <TooltipProvider>
+        <TurnView
+          turn={turn}
+          definition={definition}
+          live={live}
+          running={false}
+          passed={[]}
+          read={() => null}
+          nextTutorial={null}
+          on={handlers}
+        />
+      </TooltipProvider>
     );
+
+  it("names the program step 4 upgrades in its act card, or says your program before there is one", () => {
+    const ship = actOf("s4.ship");
+    const turn: Turn = {
+      id: ship.id,
+      kind: "act",
+      step: "upgrade",
+      at: 1,
+      whole: true,
+      beatId: ship.id,
+      act: ship,
+      state: "live",
+      note: null,
+      stage: null,
+      took: null,
+    };
+    const drawn = (programId: string | null) =>
+      render(
+        <TurnView
+          turn={turn}
+          definition={definition}
+          live
+          running={false}
+          passed={[]}
+          read={() => null}
+          nextTutorial={null}
+          programId={programId}
+          on={on()}
+        />
+      );
+    const { unmount } = drawn("HeLLo1111111111111111111111111111111111Anch");
+    expect(
+      screen.getByText("Upgrades HeLLo1…11Anch in place · from your wallet")
+    ).toBeTruthy();
+    unmount();
+    drawn(null);
+    expect(
+      screen.getByText("Upgrades your program in place · from your wallet")
+    ).toBeTruthy();
+  });
+
+  it("draws a deploy's result as the deploy card, open under its live Try again", async () => {
+    const handlers = on();
+    draw(
+      {
+        id: "result:s2.deploy:0",
+        kind: "result",
+        step: "deploy",
+        at: 2,
+        whole: true,
+        beatId: "s2.deploy",
+        act: "deploy",
+        result: {
+          act: "deploy",
+          ok: false,
+          seconds: 0,
+          reason: "no_wallet",
+          message: "No wallet",
+        },
+        took: 0,
+        planned: null,
+        open: true,
+      },
+      false,
+      handlers
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Create wallet/ })
+    );
+    expect(handlers.createWallet).toHaveBeenCalledWith("s2.deploy");
+  });
+
+  it("opens the terminal from a landed deploy's Log", async () => {
+    const handlers = on();
+    draw(
+      {
+        id: "result:s2.deploy:0",
+        kind: "result",
+        step: "deploy",
+        at: 2,
+        whole: true,
+        beatId: "s2.deploy",
+        act: "deploy",
+        result: {
+          act: "deploy",
+          ok: true,
+          seconds: 9,
+          programId: "Prog1111",
+          signature: "sig",
+          upgraded: false,
+          lamports: 1_000_000_000,
+          instructions: ["hello"],
+        },
+        took: 9000,
+        planned: null,
+        open: false,
+      },
+      false,
+      handlers
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Details/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Log/ }));
+    expect(handlers.showLog).toHaveBeenCalled();
+  });
 
   const openAsk: Turn = {
     id: ask.id,
@@ -618,7 +943,14 @@ describe("TurnView", () => {
     whole: true,
     beatId: "s1.build",
     act: "build",
-    result: { act: "build", ok: false, seconds: 1, error: null, log: "" },
+    result: {
+      act: "build",
+      ok: false,
+      reason: "compiler",
+      seconds: 1,
+      error: null,
+      log: "",
+    },
     took: 1000,
     planned: null,
     open: true,
@@ -650,10 +982,17 @@ describe("TurnView", () => {
     ["a question", openAsk],
     ["a failed build", openFailure],
     ["a win", liveWin],
-  ])("draws %s with no button once another card is live", (_, turn) => {
-    draw(turn, false);
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
-  });
+  ])(
+    "draws %s with no button that acts once another card is live",
+    (_, turn) => {
+      draw(turn, false);
+      // A folded failed build's head only opens it again, to read
+      const acting = screen
+        .queryAllByRole("button")
+        .filter((b) => !b.hasAttribute("aria-expanded"));
+      expect(acting).toHaveLength(0);
+    }
+  );
 
   const appended: Turn = {
     id: "wrote:s1.q1",
@@ -1014,6 +1353,7 @@ describe("TurnView's last win", () => {
           act: vi.fn(),
           explain: vi.fn(),
           fixMyself: vi.fn(),
+          showFix: vi.fn(),
           next: vi.fn(),
           restartStep: vi.fn(),
           openNextTutorial: vi.fn(),
@@ -1023,10 +1363,13 @@ describe("TurnView's last win", () => {
           apply: vi.fn(),
           keep: vi.fn(),
           showLine: vi.fn(),
+          revealError: vi.fn(),
+          showLog: vi.fn(),
+          createWallet: vi.fn(),
         }}
       />
     );
-    expect(screen.getByText("hello knows your name.")).toBeTruthy();
+    expect(screen.getByText("hello knows your name")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
   });
 });
@@ -1133,6 +1476,10 @@ describe("TurnView's chip answer", () => {
     keep: vi.fn(),
     showLine: vi.fn(),
     openMenu: vi.fn(),
+    showFix: vi.fn(),
+    revealError: vi.fn(),
+    showLog: vi.fn(),
+    createWallet: vi.fn(),
   });
   const reply = (follow: Follow | null): Turn => ({
     id: "reply:0",

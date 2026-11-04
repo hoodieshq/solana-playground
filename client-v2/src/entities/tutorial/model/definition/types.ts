@@ -26,10 +26,15 @@ export interface Chip {
   follow?: Follow;
 }
 
-/** Code written into a file; it appears in its step's target for that file */
+/** Code written into a file; it appears in its step's target for that file,
+ * or once in its own `ref` */
 export interface Block {
   file: string;
   block: string;
+  /** The whole file the block lands in, when that is not the step's target */
+  ref?: string;
+  /** The file as this write finds it, when that is not the step's start */
+  start?: string;
 }
 
 export interface Quote {
@@ -138,10 +143,13 @@ export interface Win {
   extra?: "openTest";
 }
 
-/** A planned build failure: its card's line and the beats after it, both or neither */
+/**
+ * A planned build failure: its card's line, the log line that marks it and
+ * the beats after it, all three or none
+ */
 type PlannedFailure =
-  | { planned: Text; onFail: Beat[] }
-  | { planned?: never; onFail?: never };
+  | { planned: Text; failsWith: string; onFail: Beat[] }
+  | { planned?: never; failsWith?: never; onFail?: never };
 
 export type Step = PlannedFailure & {
   id: string;

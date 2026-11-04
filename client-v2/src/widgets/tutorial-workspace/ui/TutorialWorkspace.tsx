@@ -15,8 +15,9 @@ import type { TreeSource } from "../model/telemetry";
 import { createdIn, tabsOf, treeRows, tutorialFiles } from "../model/tree";
 import BaseDockedTree from "./BaseDockedTree";
 import BaseWorkspaceHead from "./BaseWorkspaceHead";
-import { firstDiagnostic } from "./use-terminal-facts";
+import { pickedDiagnostic } from "./use-terminal-facts";
 import { useEditorLines } from "./use-editor-lines";
+import { useLogRequests } from "./use-log-requests";
 
 const log = createLogger("tutorial-workspace:workspace");
 
@@ -229,13 +230,15 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     return () => sub.dispose();
   }, [active, name]);
 
+  useLogRequests(active, terminalNow, box);
+
   // The line states of the open file. A failed build's output lands a
   // moment after its event, and the squiggle reads it
   useRenderOnChange(PgFlow.onDidChange);
   useRenderOnChange(PgBuildOutput.onDidChange);
   const flow = PgFlow.state;
   const busy = flow.build === "running" || flow.deploy === "running";
-  const diagnostic = flow.build === "failed" ? firstDiagnostic() : null;
+  const diagnostic = flow.build === "failed" ? pickedDiagnostic() : null;
   const given = open && marks ? marks(open) : {};
   const lineMarks: LineMarks = {
     written: given.written ?? NO_MARKS.written,

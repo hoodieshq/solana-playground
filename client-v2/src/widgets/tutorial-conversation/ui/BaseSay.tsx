@@ -1,5 +1,3 @@
-import { ArrowUpRight } from "lucide-react";
-
 import type { Quote, Text } from "@/entities/tutorial";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
@@ -14,6 +12,11 @@ export interface BaseSayProps {
   settled?: boolean;
   /** Open the quoted line in the editor */
   onShowQuote?: (quote: Quote) => void;
+  /**
+   * "Show me the fix" after the line (SPEC.md 10.1): an outline button that
+   * works once, then stays disabled
+   */
+  fix?: { done: boolean; onFix: () => void };
 }
 
 const baseName = (path: string) => path.split("/").pop() ?? path;
@@ -29,10 +32,13 @@ const BaseSay = ({
   quoted,
   settled = false,
   onShowQuote,
+  fix,
 }: BaseSayProps) => {
   const error = quote?.tone === "error" && !settled;
   return (
-    <div className="flex flex-col gap-3">
+    // The text to the line it quotes 9, as Practicum sets a paragraph over
+    // its listing
+    <div className="flex flex-col gap-[9px]">
       <p className={READ}>
         <Prose text={text} />
       </p>
@@ -49,14 +55,13 @@ const BaseSay = ({
                 onClick={() => onShowQuote(quote)}
                 className="ml-auto h-6 gap-1 text-[0.75rem] text-muted-foreground"
               >
-                <ArrowUpRight aria-hidden="true" className="size-3.5" />
                 Show in {baseName(quote.file)}
               </Button>
             )}
           </figcaption>
           <pre
             className={cn(
-              "overflow-x-auto border-l-2 px-3 py-1.5 font-mono text-[0.75rem] leading-[1.6] text-foreground",
+              "overflow-x-auto border-l-2 px-3 py-1.5 font-mono text-[0.75rem] leading-5 text-foreground",
               error
                 ? "border-error bg-error/10"
                 : "border-primary bg-primary/10"
@@ -66,6 +71,17 @@ const BaseSay = ({
             {quoted ?? ""}
           </pre>
         </figure>
+      )}
+      {fix && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          disabled={fix.done}
+          onClick={fix.onFix}
+        >
+          Show me the fix
+        </Button>
       )}
     </div>
   );

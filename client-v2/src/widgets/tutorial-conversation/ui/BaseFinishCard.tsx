@@ -13,7 +13,7 @@ import { CopyButton } from "@/shared/ui/copy-button";
 import { Tag } from "@/shared/ui/tag";
 import BaseReceipt, { receiptText } from "./BaseReceipt";
 import { BaseDrawnCheck } from "./BaseDrawnCheck";
-import { Prose, READ, formatTook } from "./Prose";
+import { HEADLINE, Prose, READ, formatTook, noStop } from "./Prose";
 
 /** The finish card's tag, its "Step n done": the whole tutorial is a win */
 export const FINISH_TAG = "Tutorial complete";
@@ -75,8 +75,8 @@ const BaseFinishCard = ({
     <div className="flex min-w-0 flex-1 flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Tag className="w-fit">{FINISH_TAG}</Tag>
-        <h2 className="font-heading text-title text-foreground">
-          <Prose text={headline} />
+        <h2 className={HEADLINE}>
+          <Prose text={noStop(headline)} />
         </h2>
         <p className={READ}>
           <Prose text={line} />

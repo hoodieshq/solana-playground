@@ -2,21 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import styled, { css } from "styled-components";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
-import NewWorkspaceModal from "./gallery/NewWorkspaceModal";
 import StageBar from "./header/StageBar";
 import LeftPanel from "./left/LeftPanel";
-import LessonBar from "./lessons/LessonBar";
-import ObjectiveBand from "./lessons/ObjectiveBand";
-import Reader from "./lessons/Reader";
-// The barrel registers every lesson path as a side effect, so importing
-// it here is also what populates the registry for the whole app.
-import { describeStep, INITIAL_LESSON_STATE, PgLesson } from "./lessons";
-import type { LessonState } from "./lessons";
 import StageRouter from "./stages/StageRouter";
 import { PgDeployHistory } from "./state/deploy-history";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
 import type { FlowState } from "./state/stage";
 import { GAP } from "./tokens";
+import { useStagesOffered } from "./use-stages-offered";
 import { FeedbackHost } from "@/features/feedback";
 import {
   SETTINGS_TRIGGER_ATTR,
@@ -63,7 +56,7 @@ import { markNetworkChosen, SetupList } from "@/widgets/setup-list";
  * cluster dot and account button), the assistant, the files
  * column, and the stage router over its collapsible console, with the shell's
  * stage bar (`BaseStageBar`) and then the `StageBar` stage tabs across the
- * last two. The sync banner sits above all four, full width. On `/` with no
+ * last two (a tutorial's frame draws neither the tabs nor the files column). The sync banner sits above all four, full width. On `/` with no
  * project, `useStartView` hands the shell `homeSlot`, and Home stands where
  * the assistant and the work go.
  *
@@ -161,25 +154,19 @@ type SettingsState =
 
 const FlowFrame = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
-  const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
-  const [reading, setReading] = useState(false);
   const [settings, setSettings] = useState<SettingsState>({ open: false });
   const settingsOpen = settings.open;
   const viewport = useViewport();
-  const phone = viewport === "phone";
 
   useEffect(() => {
     const subs = [
       PgFlow.init(),
-      PgLesson.init(),
       PgDeployHistory.init(),
       PgFlow.onDidChange(setState),
-      PgLesson.onDidChange(setLesson),
     ];
     return () => subs.forEach((s) => s.dispose());
   }, []);
 
-  const openGallery = () => PgView.setModal(NewWorkspaceModal);
   // Back to the control that opened them, once the shell is no longer inert,
   // or, when that is gone or out of reach, to `fallbackFocus`. Only when they
   // close: on load, with the settings never opened, focus stays where the
@@ -264,8 +251,6 @@ const FlowFrame = () => {
   // The Tutorials or Programs page shown, if any (`widgets/catalog`)
   const catalog = useCatalogPage();
 
-  const described = describeStep(lesson);
-
   // A tutorial with a definition opens in its frame (`tutorial-flow-v2`
   // 2.1), its chat holding the conversation (3.3), whose engine runs Start
   // over, and the composer under the feed (3.6).
@@ -296,13 +281,14 @@ const FlowFrame = () => {
   const inFrame = tutorial.frame !== undefined && viewport === "wide";
   const terminal = useTutorialTerminal();
 
-  const read = () => setReading(true);
-
-  // A learner who fixes the code while the page is open should come back
-  // to the editor, not to the next step's prose.
-  useEffect(() => {
-    setReading(false);
-  }, [described?.step.id]);
+  // Under the frame's width a tutorial keeps the plain layout, and its
+  // conversation takes the assistant's column (the delta's "a conversation
+  // tutorial has no assistant panel of its own").
+  // TODO(HOO-2359): the column does not open itself, so a learner there opens
+  // the chat to find Start; the phone's own layout replaces this
+  const chatInColumn = tutorial.frame !== undefined && !inFrame;
+  // None before a tutorial's Start: its intro offers only Start
+  const stagesOffered = useStagesOffered();
 
   return (
     <Wrapper>
@@ -407,12 +393,12 @@ const FlowFrame = () => {
               />
             );
           }}
-          stageTabs={<StageBar />}
-          files={({ collapsed, toggle, phone, pinned }) => (
+          stageTabs={stagesOffered ? <StageBar /> : null}
+          files={({ collapsed, toggle, phone }) => (
             <LeftPanel
               collapsed={collapsed}
-              onHide={phone || pinned ? undefined : toggle}
-              startOn={phone ? "files" : undefined}
+              onHide={phone ? undefined : toggle}
+              sheet={phone}
             />
           )}
           stage={({ console }) => (
@@ -426,32 +412,23 @@ const FlowFrame = () => {
               }}
             >
               <Center>
-                <ObjectiveBand
-                  state={lesson}
-                  onRead={read}
-                  onOpenGallery={openGallery}
-                  phone={phone}
-                />
+                {/* A tutorial's frame shows the editor alone: its steps,
+                    builds and deploys are the chat's (`tutorial-frame-2nov`).
+                    The router stays mounted on the Write stage, whose editor
+                    must never unmount */}
                 <Stage>
-                  <StageRouter stage={state.stage} />
-                  {reading && described && (
-                    <Reader
-                      key={described.step.id}
-                      step={described.step}
-                      onLoaded={() => PgLesson.opened(described.step.id)}
-                      onClose={() => setReading(false)}
-                    />
-                  )}
-                </Stage>
-                {/* On a phone the step's controls sit at the foot of the code,
-                  under the thumb; the band above folds to the ask */}
-                {phone && (
-                  <LessonBar
-                    state={lesson}
-                    onRead={read}
-                    onOpenGallery={openGallery}
+                  {/* Narrow too: a tutorial's build state lives in the chat and
+                    the terminal strip, never on a Build page (Almaz, 3 Nov;
+                    HOO-2355) */}
+                  <StageRouter
+                    stage={
+                      tutorial.frame !== undefined || !stagesOffered
+                        ? "write"
+                        : state.stage
+                    }
+                    tabs={stagesOffered && tutorial.frame === undefined}
                   />
-                )}
+                </Stage>
               </Center>
             </TutorialWorkspace>
           )}
@@ -468,7 +445,8 @@ const FlowFrame = () => {
                 shell says it can widen. Hidden, the column takes no width and
                 the stage bar carries "Expand assistant" (design.md, "Frame
                 chrome (5.25)") */}
-              {open && (
+              {open && chatInColumn && tutorial.frame?.chat}
+              {open && !chatInColumn && (
                 <Assistant
                   widen={widen}
                   onHide={toggle}
@@ -554,8 +532,6 @@ const Stage = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* The lesson reader covers the stage, not the whole layout */
-  position: relative;
 `;
 
 // The assistant's column: no fill, so the conversation sits on the window's

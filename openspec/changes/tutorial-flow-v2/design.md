@@ -38,7 +38,9 @@ The "from" side, on `new-face-polish-2` at `bdd350ba7`:
   3.2, still open.
 
 The "to" side is Almaz's prototype (`almaz/mobile-tutorial-prototype`,
-`design-system/src/prototype/tutorial-v2`, `fb4b8e9ee`) and its `SPEC.md`. The
+`design-system/src/prototype/tutorial-v2`, `f7d42bf2e` since 3 Nov, was
+`fb4b8e9ee`; the 31 Oct type scale and step head supersede `fb4b8e9ee`'s, see
+`tutorial-frame-2nov`) and its `SPEC.md`. The
 prototype wins where they differ. The differences went to Almaz as a question
 batch (`questions-for-almaz.md`); he answered all 34 on 28 Oct, and the specs
 carry his answers. Nikita's "Spec 00 · Index and open decisions", in its decision D3, lists
@@ -146,8 +148,16 @@ separate PRs against fixtures.
 
 ### D4. Runs reuse the editor's commands; the result facts come from the chain
 
-**Build:** calls the build command and parses the first `error[Ennnn]` and
-`--> file:line:col` from the server's output.
+**Build:** calls the editor's build command, so the program's id, IDL and
+last-build state update as they do for the editor's Build, then reads the
+raw log the command keeps for the assistant (`PgBuildOutput`). It parses the
+error the step's `failsWith` names, else the first error that is not a
+`#[program]` macro symptom, with its `--> file:line:col` (the server's first
+error for Hello Anchor's planned failure is such a symptom, HOO-2355's spike
+on 2 Nov). The server is unreachable when the browser says no answer came
+(`Failed to fetch` and its Firefox and Safari wordings) or the command ends
+with no output of its own; any other throw, such as the server's own
+refusal, shows its text as the log, with no line.
 
 **Deploy:**
 
@@ -234,15 +244,20 @@ default, held to 340 if the window leaves the workspace under 560; from 768 to
 
 Funding is an extra first stage on the deploy act card, shown only when the
 balance is short; a refused airdrop is a red "Not enough devnet SOL" card with
-the balance, the cost, the address row, "Try again" and "Open faucet" (Almaz,
-Q26). Its strings sit in `tutorial-runs`.
+the balance, the cost, the address row and "Open faucet", and a live deploy
+act card under it, "Try again" (Almaz, Q26; her prototype's code, 3 Nov).
+Its strings sit in `tutorial-runs`.
 
-### D9. Explorer links are the keys themselves
+### D9. Explorer links: the key on a call, labelled links on a deploy
 
-On a result card's meta line the program id and the signature are the links
-(a short key with ↗), with no separate Explorer button. A receipt gives every
-address row Copy and Explorer. The Call panel keeps its link on the result
-line (Almaz, Q29).
+On a call's result card the signature is the link on the meta line (a short
+key with ↗). A landed deploy is one row whose details hold Copy id, Explorer
+(the program) and the deploy's Transaction (Almaz's prototype code, 3 Nov).
+A receipt gives every address row Copy and Explorer. The Call panel keeps its
+link on the result line (Almaz, Q29). A run's or a call's result card, which
+Almaz's tutorial-v2 prototype redrew after Q29, keeps its signature in the
+details behind the head: Copy signature and Explorer ↗ beside the sentence
+with the compute units and the fee (task 4.3).
 
 ### D10. Docs are Markdown pages kept with the tutorial, opened as tabs
 

@@ -71,6 +71,24 @@ test.describe("tutorial-workspace", () => {
     );
   }
 
+  test("the frame carries no stage tabs, stage area or Steps and Files column", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await startHelloAnchor(page);
+    await expect(page.getByTestId("tutorial-workspace")).toBeVisible(LONG);
+    await expect(page.locator("[id^='flow-stage-tab-']")).toHaveCount(0);
+    await expect(page.getByText("Nothing deployed")).toHaveCount(0);
+    await expect(page.getByLabel("Lesson panel")).toHaveCount(0);
+    await expect(page.getByLabel("Hide files")).toHaveCount(0);
+    // The step head: one line over four segments
+    const steps = chat(page).getByRole("navigation", {
+      name: "Tutorial steps",
+    });
+    await expect(steps.getByText("4 steps")).toBeVisible();
+    await expect(steps.locator("[data-step-segment]")).toHaveCount(4);
+  });
+
   test("tutorial-workspace: Opening the menu in a tutorial", async ({
     page,
   }) => {

@@ -255,6 +255,7 @@ if (import.meta.vitest) {
               act: "build",
               ok: false,
               seconds: 1,
+              reason: "compiler",
               error: {
                 code: "E0412",
                 file: "src/lib.rs",

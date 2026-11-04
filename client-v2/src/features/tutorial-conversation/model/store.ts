@@ -2,7 +2,7 @@ import { slugOf } from "@/entities/tutorial";
 import type { TutorialDefinition } from "@/entities/tutorial";
 import { createLogger } from "@/shared/lib/logger";
 
-import { insertBlock, typedKey, withOwnText } from "./landing";
+import { groundOf, insertBlock, typedKey, withOwnText } from "./landing";
 import { judgeGoal } from "./goals";
 import { failedResult } from "./ports";
 import type { Judge, Runner, Workspace } from "./ports";
@@ -51,7 +51,7 @@ export const INITIAL_CONVERSATION_STATE: ConversationState = {
   loadedAt: 0,
 };
 
-/** The key under which the engine saves, beside the old lesson's `lesson` */
+/** The key under which the engine saves in the tutorial's storage */
 export const STORAGE_KEY = "conversation";
 
 /**
@@ -128,6 +128,30 @@ export class PgConversation {
     return { dispose: () => PgConversation._explainListeners.delete(cb) };
   }
 
+  /**
+   * A result card's Log: the workspace that holds the terminal opens it.
+   * With no workspace listening (none mounted, or not active) a press does
+   * nothing.
+   */
+  static onDidRequestLog(cb: () => void): Disposable {
+    PgConversation._logListeners.add(cb);
+    return { dispose: () => PgConversation._logListeners.delete(cb) };
+  }
+
+  /**
+   * Open the terminal, where the run printed its lines. A listener that
+   * throws is logged, and the others still hear it.
+   */
+  static showLog() {
+    for (const cb of PgConversation._logListeners) {
+      try {
+        cb();
+      } catch (e) {
+        log.error(e, { report: true, context: { what: "open the terminal" } });
+      }
+    }
+  }
+
   static start() {
     PgConversation._dispatch({ type: "start", at: Date.now() });
   }
@@ -174,6 +198,16 @@ export class PgConversation {
 
   static explain(beatId: string) {
     PgConversation._dispatch({ type: "explain", beatId, at: Date.now() });
+  }
+
+  /** The assistant's answer to an unplanned failure's Explain has ended */
+  static answered(beatId: string) {
+    PgConversation._dispatch({ type: "answered", beatId, at: Date.now() });
+  }
+
+  /** "Show me the fix": write the step's target into its file */
+  static showFix(beatId: string) {
+    PgConversation._dispatch({ type: "showFix", beatId, at: Date.now() });
   }
 
   static fixMyself(beatId: string) {
@@ -858,12 +892,8 @@ export class PgConversation {
             rows.splice(at - 1, 1);
             base = rows.join("\n");
           }
-          const placed = insertBlock(
-            base,
-            block,
-            step?.target[effect.file],
-            step?.start[effect.file] ?? ""
-          );
+          const { reference, start } = groundOf(effect, step);
+          const placed = insertBlock(base, block, reference, start);
           await ports.workspace.write(effect.file, placed.code, name);
           if (!stillOpen()) {
             PgConversation._landedLate(name, effect.file);
@@ -1028,4 +1058,5 @@ export class PgConversation {
   private static readonly _explainListeners = new Set<
     (request: { beatId: string; result: RunResult }) => void
   >();
+  private static readonly _logListeners = new Set<() => void>();
 }

@@ -111,6 +111,7 @@ const handlers = (): TurnHandlers => ({
   act: vi.fn(),
   explain: vi.fn(),
   fixMyself: vi.fn(),
+  showFix: vi.fn(),
   next: vi.fn(),
   restartStep: vi.fn(),
   openNextTutorial: vi.fn(),
@@ -120,6 +121,9 @@ const handlers = (): TurnHandlers => ({
   apply: vi.fn(),
   keep: vi.fn(),
   showLine: vi.fn(),
+  revealError: vi.fn(),
+  showLog: vi.fn(),
+  createWallet: vi.fn(),
 });
 
 const feed = (over: Partial<BaseFeedProps> & { on?: TurnHandlers } = {}) => {
@@ -128,7 +132,6 @@ const feed = (over: Partial<BaseFeedProps> & { on?: TurnHandlers } = {}) => {
     turns: over.turns ?? onStep3.turns,
     live: over.live === undefined ? onStep3.live : over.live,
     steps: over.steps ?? onStep3.steps,
-    progress: over.progress ?? 0.5,
     renderTurn:
       over.renderTurn ??
       ((turn, live) => (
@@ -187,6 +190,28 @@ describe("BaseFeed", () => {
     const turns = container.querySelectorAll("[data-turn]");
     expect(turns[0].className).not.toContain("animate-rise");
     expect(turns[turns.length - 1].className).toContain("animate-rise");
+    // Under reduced motion a new turn fades in whole, with no rise
+    expect(turns[turns.length - 1].className).toContain(
+      "motion-reduce:animate-fade"
+    );
+    expect(turns[0].className).not.toContain("animate-fade");
+  });
+
+  it("sets each turn's gap from the one before it, the feed starting flush", () => {
+    const { container } = feed();
+    const turns = [...container.querySelectorAll<HTMLElement>("[data-turn]")];
+    expect(turns[0].style.marginTop).toBe("0px");
+    turns.slice(1).forEach((el, i) => {
+      if (el.dataset.turn === "divider")
+        expect(el.style.marginTop).toBe("30px");
+      if (
+        turns[i].dataset.turn === "divider" &&
+        el.dataset.turn !== "divider"
+      ) {
+        expect(el.style.marginTop).toBe("9px");
+      }
+    });
+    expect(turns.some((el) => el.dataset.turn === "divider")).toBe(true);
   });
 
   it("jumps from step 3 to step 1, and keeps step 3 the live one", async () => {
@@ -202,7 +227,7 @@ describe("BaseFeed", () => {
     await userEvent.click(segment(/^Step 1 of 4, Program, done$/));
 
     expect(Element.prototype.scrollTo).toHaveBeenCalledWith(
-      expect.objectContaining({ top: 100 - 12 })
+      expect.objectContaining({ top: 100 - 22 })
     );
     expect(onJump).toHaveBeenCalledWith(0, 2, "bar");
     expect(
@@ -292,7 +317,7 @@ describe("BaseFeed", () => {
   it("reads a feed scrolled to its bottom as on the live step, though step 3's divider never reached the bar", () => {
     const { container } = feed();
     // Scrolled by hand to the bottom: step 3's divider (900) is below the
-    // bar (600 + 12), so the divider rule alone would name step 2
+    // feed's top (600 + `HEADING_TOP`), so the divider rule alone would name step 2
     const box = layout(container, {
       scrollTop: 600,
       clientHeight: 400,

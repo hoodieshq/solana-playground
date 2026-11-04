@@ -1,3 +1,3 @@
-// Hello Anchor is listed from `tutorial.json`; this folder keeps its old lesson
-// component until tutorial-flow-v2 task 7.1 removes it
+// Hello Anchor is listed from `tutorial.json`; the folder holds its definition
+// and the files it writes
 export {};

@@ -185,6 +185,7 @@ describe("Hello Anchor through the engine", () => {
     const failed: RunResult = {
       act: "build",
       ok: false,
+      reason: "compiler",
       seconds: 1.2,
       error: {
         code: "E0412",
@@ -283,6 +284,7 @@ describe("Hello Anchor through the engine", () => {
       input: {
         beatId: "s4.call",
         call: { instruction: "hello", args: { name: "Alex" } },
+        log: "Hello, .+!",
       },
     });
     expect(liveView().live).toMatchObject({

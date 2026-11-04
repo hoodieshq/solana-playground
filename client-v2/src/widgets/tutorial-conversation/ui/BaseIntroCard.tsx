@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 
 import type { Text } from "@/entities/tutorial";
+import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
 import { nothingFocused } from "./keys";
-import { Prose, READ } from "./Prose";
+import { HEADING, Prose, READ, TITLE } from "./Prose";
 
 /** The wallet copy of `tutorial-runs`, Almaz's of 28 Oct, verbatim */
 export const INTRO_NOTE =
@@ -55,7 +56,7 @@ const BaseIntroCard = ({
   return (
     <section
       aria-labelledby="tutorial-intro-name"
-      className="flex flex-col gap-4 rounded-panel border border-border bg-surface-panel p-4"
+      className="flex flex-col rounded-panel border border-border bg-surface-panel p-5"
     >
       <div className="flex items-center gap-3">
         <img
@@ -66,7 +67,8 @@ const BaseIntroCard = ({
         <div className="min-w-0">
           <h2
             id="tutorial-intro-name"
-            className="font-heading text-base font-medium text-foreground"
+            title={name}
+            className={cn(TITLE, "truncate")}
           >
             {name}
           </h2>
@@ -75,23 +77,23 @@ const BaseIntroCard = ({
           </p>
         </div>
       </div>
-      <p className={READ}>{INTRO_NOTE}</p>
-      <div className="flex flex-col gap-1">
-        <h3 className="text-caption text-muted-foreground">
-          What you&apos;ll build
-        </h3>
-        <p className={READ}>
-          <Prose text={promise} />
-        </p>
-        <p className="rounded-control border-l-2 border-success bg-surface-well px-3 py-1.5 font-mono text-[0.75rem] text-foreground">
-          {log}
-        </p>
-      </div>
-      <div className="flex flex-col gap-1">
-        <h3 className="text-caption text-muted-foreground">How it goes</h3>
-        <p className={READ}>{HOW_IT_GOES}</p>
-      </div>
-      <div>
+      {/* 24 under the head, so the name and its meta read as the card's
+          head and not as the first line of the text */}
+      <p className={cn(READ, "mt-6")}>{INTRO_NOTE}</p>
+      {/* A heading has 30 over it and 9 under, so it belongs to what it heads */}
+      <h3 className={cn(HEADING, "mt-[30px]")}>What you&apos;ll build</h3>
+      <p className={cn(READ, "mt-[9px]")}>
+        <Prose text={promise} />
+      </p>
+      <p
+        aria-label="What your program prints at the end"
+        className="mt-[9px] rounded-lg bg-foreground/[0.05] px-3 py-2.5 font-mono text-[0.8125rem] leading-[1.5] text-foreground/90"
+      >
+        {log}
+      </p>
+      <h3 className={cn(HEADING, "mt-[30px]")}>How it goes</h3>
+      <p className={cn(READ, "mt-[9px]")}>{HOW_IT_GOES}</p>
+      <div className="mt-6">
         <Button size="lg" onClick={onStart}>
           Start step 1
           <Kbd
