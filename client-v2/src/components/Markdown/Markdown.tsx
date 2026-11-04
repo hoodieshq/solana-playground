@@ -95,7 +95,8 @@ const Markdown: FC<React.PropsWithChildren<MarkdownProps>> = ({
         pre: (preProps) => {
           const codeProps = first((preProps as any).children).props;
           const lang = codeProps.className?.split("-")?.at(1);
-          const code = first(codeProps.children);
+          // A fence with no lines yet (an answer mid-stream) has no child
+          const code = first(codeProps.children) ?? "";
 
           return <CodeBlock lang={lang}>{code}</CodeBlock>;
         },
