@@ -1,9 +1,5 @@
 import { Button } from "@/shared/ui/button";
-import {
-  Callout,
-  CalloutDescription,
-  CalloutTitle,
-} from "@/shared/ui/callout";
+import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
 
 import type { AiOffReason } from "../model/ai-off";
 

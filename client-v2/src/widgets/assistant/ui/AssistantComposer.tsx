@@ -28,8 +28,8 @@ import {
   useDefaultBackend,
 } from "../model/default-backend";
 import { assistantTelemetry } from "../model/telemetry";
-import { useSignedIn } from "../model/use-signed-in";
 import { withEffort, withModel } from "../model/tune";
+import { useSignedIn } from "../model/use-signed-in";
 import type { Turn, TurnPhase } from "../model/use-turn";
 import { AI_OFF_SEND_BLOCKED, BaseAiOffRow } from "./BaseAiOffRow";
 import {

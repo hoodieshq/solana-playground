@@ -165,7 +165,12 @@ describe("Assistant", () => {
 
   it("shows no status in the head once a signed-in user has the hosted model", async () => {
     deployment.backend = { state: "present", model: "m" };
-    await PgSession.refreshWith({ id: "u1", name: null, image: null, login: null });
+    await PgSession.refreshWith({
+      id: "u1",
+      name: null,
+      image: null,
+      login: null,
+    });
     setup();
     await waitFor(() =>
       expect(document.getElementById("assistant-status")).toBeNull()

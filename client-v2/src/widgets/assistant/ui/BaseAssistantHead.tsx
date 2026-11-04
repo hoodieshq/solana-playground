@@ -36,14 +36,12 @@ export type DeleteKey = KeyHold;
  * keeps one word across the app. No model is a setup step, grey; a status
  * route that did not answer is a failure, red.
  */
-const OFF_STATUS: Record<
-  AiOffReason,
-  { word: string; dot: "idle" | "error" }
-> = {
-  "no-key": { word: "Off", dot: "idle" },
-  "signed-out": { word: "Off", dot: "idle" },
-  unreachable: { word: "Not responding", dot: "error" },
-};
+const OFF_STATUS: Record<AiOffReason, { word: string; dot: "idle" | "error" }> =
+  {
+    "no-key": { word: "Off", dot: "idle" },
+    "signed-out": { word: "Off", dot: "idle" },
+    unreachable: { word: "Not responding", dot: "error" },
+  };
 
 export interface BaseAssistantHeadProps {
   /** The model in use, in the head's words (`headLabel`) */
