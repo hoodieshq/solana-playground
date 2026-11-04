@@ -41,7 +41,8 @@ export interface SetupListProps {
 /**
  * "Get set up": the four steps' live state, and their actions. Folded as the
  * user last left it on this device; gone for good on it once dismissed, or
- * once all four were done together.
+ * once all four were done together (a network that does not answer counts in
+ * "n of 4" but is not done).
  */
 const SetupList = ({
   onConnectAssistant,

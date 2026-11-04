@@ -154,6 +154,8 @@ describe("BaseBuild", () => {
       screen.getByRole("heading", { name: "Build succeeded" })
     ).toBeTruthy();
     expect(screen.getByText("Built in 2.9 s")).toBeTruthy();
+    // Only a build that never ran announces itself
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(brandButtons(container)).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Continue to Deploy" }));
     expect(p.onContinue).toHaveBeenCalled();
@@ -249,6 +251,7 @@ describe("BaseBuild", () => {
 
       const alert = screen.getByRole("alert");
       expect(alert.getAttribute("data-slot")).toBe("stage-empty-description");
+      expect(alert.textContent).toMatch(/did not answer|reason we can't name/);
     }
   );
 

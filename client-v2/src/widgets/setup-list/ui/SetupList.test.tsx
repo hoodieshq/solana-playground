@@ -376,6 +376,16 @@ describe("the network row", () => {
     }
   );
 
+  it("stays gone after completion when the cluster then stops answering", async () => {
+    await doAllFour();
+    setupMarks.mark("completed");
+    health.isConnected = false;
+    draw();
+    expect(title()).toBeNull();
+    expect(eventsNamed("setup_completed")).toEqual([]);
+    expect(setupMarks.get().completed).toBe(true);
+  });
+
   it("completes once the stalled cluster answers again", async () => {
     await doAllFour();
     health.isConnected = false;

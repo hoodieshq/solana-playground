@@ -306,6 +306,8 @@ describe("components/SearchBar", () => {
       />
     );
     const chevron = screen.getByRole("button", { name: "Show options" });
+    // A field with picks offers the chevron, never a magnifier
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
     await userEvent.click(chevron);
     expect(optionNames()).toEqual(["Custom"]);
     await userEvent.click(chevron);
