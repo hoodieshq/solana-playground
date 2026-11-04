@@ -65,6 +65,12 @@ export interface PhonePagerSlots {
 
 export type BasePhonePagerProps = PhonePagerState & PhonePagerSlots;
 
+/** The console's height on the preview: folded to its bar, beside the stage, or alone */
+const consoleClass = (open: boolean, stageOn: StagePage) => {
+  if (!open) return "overflow-hidden";
+  return stageOn === "preview" ? "h-2/5" : "flex-1";
+};
+
 /** A Chat or Code option, the prototype's `PaneOption`: filled when it shows */
 const PANE_OPTION =
   "h-12 rounded-xl px-3 text-control font-act data-[state=on]:bg-surface-hover";
@@ -442,10 +448,11 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
             <Outlet
               node={props.consoleNode}
               // Closed, the console is its bar: the body stays mounted (the
-              // terminal keeps its buffer) and is clipped, as on wide
+              // terminal keeps its buffer) and is clipped, as on wide. Open
+              // beside no stage (a project with no program), it takes the page.
               className={cn(
                 "flex min-h-0 flex-col",
-                props.consoleOpen ? "h-2/5" : "overflow-hidden"
+                consoleClass(props.consoleOpen, props.stageOn)
               )}
               style={props.consoleOpen ? undefined : { height: BOTTOM_BAR_PX }}
             />

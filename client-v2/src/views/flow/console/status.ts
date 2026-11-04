@@ -28,6 +28,9 @@ export interface ConsoleStatus {
   tone: ConsoleStatusTone;
 }
 
+/** The strip's words before a client run, in a project with no program */
+const CLIENT_RUN_HINT = "Run the client to see its output here.";
+
 /** A run's words, with its whole seconds so far when they are known */
 const running = (what: string, elapsedMs: number | null): ConsoleStatus => ({
   text:
@@ -53,7 +56,8 @@ const running = (what: string, elapsedMs: number | null): ConsoleStatus => ({
  * Precedence (most recent/relevant first): a run in progress, then a
  * stop, then a deploy result (it is always newer than the build that
  * unlocked it), then the last build's result, then nothing before the first
- * build.
+ * build. A project with no program never builds: before anything runs, the
+ * strip asks for the client's run, whose output the console shows.
  */
 export const describeConsoleStatus = (
   flow: FlowState,
@@ -84,6 +88,7 @@ export const describeConsoleStatus = (
     const time = msLabel(flow.buildMs);
     return { text: time ? `Built in ${time}` : "Built", tone: "success" };
   }
+  if (!flow.hasProgram) return { text: CLIENT_RUN_HINT, tone: "idle" };
   return { text: "", tone: "idle" };
 };
 

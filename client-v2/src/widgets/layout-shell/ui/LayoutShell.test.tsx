@@ -161,6 +161,7 @@ beforeEach(() => {
   vi.stubGlobal("ResizeObserver", NoopResizeObserver);
   localStorage.clear();
   PgFlow["_dispatch"]({ type: "workspace-change" });
+  PgFlow["_dispatch"]({ type: "program", has: true });
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
 });
@@ -182,6 +183,8 @@ const toggled = () =>
     .map((event) => event.params);
 
 const consoleButton = () => screen.getByRole("button", { name: "Console" });
+/** Starts a client run, as `run` typed in the terminal reports one */
+const startRun = () => run.starts.forEach((cb) => cb("run"));
 
 // `PgKeybind` listens on `document` and reads Ctrl or Meta as "Ctrl"; the
 // stock Sidebar listens on `window`, which an event on `document` reaches.
@@ -710,7 +713,7 @@ it("should open the console when a deploy starts, as auto", () => {
 
 it("should open the console when a script run starts, as auto", () => {
   shell();
-  act(() => run.starts.forEach((cb) => cb("run")));
+  act(startRun);
   expect(consoleButton().getAttribute("aria-expanded")).toBe("true");
   expect(toggled()).toEqual([{ panel: "console", open: true, via: "auto" }]);
 });
@@ -927,7 +930,10 @@ describe("on a phone", () => {
     requireFor("the outlet's box")(el.closest("div[class*='flex']"));
   const consoleBox = () =>
     requireFor("the console's box")(
-      consoleButton().closest("[class~='h-2/5'], [class~='overflow-hidden']")
+      consoleButton().closest("[class~='h-2/5'], [class~='overflow-hidden']") ??
+        // Open beside no stage, the outlet's box is `flex-1`, as is the node
+        // inside it: the box is the node's parent
+        consoleButton().closest("[class~='flex-1']")?.parentElement
     );
 
   it("hands the navigation the menu page, whose toggle brings the work back", () => {
@@ -959,6 +965,29 @@ describe("on a phone", () => {
     expect(PgFlow.state.stage).toBe("write");
     fireEvent.click(button("Preview the build"));
     expect(PgFlow.state.stage).toBe("deploy");
+  });
+
+  it("opens the preview at write for a project with no program, and stays there", () => {
+    PgFlow["_dispatch"]({ type: "program", has: false });
+    phoneShell();
+    fireEvent.click(button("Preview the build"));
+    expect(PgFlow.state.stage).toBe("write");
+    expect(events("layout_page_shown")).toEqual([
+      { page: "preview", via: "button" },
+    ]);
+    expect(
+      screen.getByRole("region", { name: "Preview" }).hasAttribute("inert")
+    ).toBe(false);
+  });
+
+  it("moves to the preview with the console open when a client run starts with no program", () => {
+    PgFlow["_dispatch"]({ type: "program", has: false });
+    phoneShell();
+    act(startRun);
+    expect(events("layout_page_shown")).toEqual([
+      { page: "preview", via: "auto" },
+    ]);
+    expect(consoleButton().getAttribute("aria-expanded")).toBe("true");
   });
 
   it("follows a stage set from elsewhere to its page", () => {
@@ -1042,7 +1071,7 @@ describe("on a phone", () => {
     expect(consoleBox().classList.contains("h-2/5")).toBe(false);
     expect((consoleBox() as HTMLElement).style.height).toBe("28px");
     act(() => deploy.starts.forEach((cb) => cb(null)));
-    expect(consoleBox().classList.contains("h-2/5")).toBe(true);
+    expect(consoleBox().classList.contains("overflow-hidden")).toBe(false);
     expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
   });
 
@@ -1165,8 +1194,18 @@ describe("on a phone", () => {
     expect((consoleBox() as HTMLElement).style.height).toBe("28px");
     expect(consoleBox().classList.contains("overflow-hidden")).toBe(true);
     fireEvent.click(consoleButton());
+    act(() => PgFlow.setStage("build"));
     expect(consoleBox().classList.contains("h-2/5")).toBe(true);
     expect((consoleBox() as HTMLElement).style.height).toBe("");
+  });
+
+  it("gives the open console the whole preview when no stage shows there", () => {
+    PgFlow["_dispatch"]({ type: "program", has: false });
+    phoneShell();
+    fireEvent.click(button("Preview the build"));
+    fireEvent.click(consoleButton());
+    expect(consoleBox().classList.contains("flex-1")).toBe(true);
+    expect(consoleBox().classList.contains("h-2/5")).toBe(false);
   });
 
   it("brings Work into view when Ctrl+R switches the view from the preview", () => {
