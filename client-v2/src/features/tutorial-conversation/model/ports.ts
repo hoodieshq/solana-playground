@@ -1,5 +1,6 @@
-import type { RunResult } from "./progress";
 import type { Act, Goal } from "@/entities/tutorial";
+
+import type { RunResult } from "./progress";
 
 /**
  * The engine's three doors to the world. The reducer never touches them: it

@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
+
 import { byLevel, LEVEL_FIRST } from "../lib/levels";
 import { tutorialCaption } from "../lib/tutorial-caption";
 import type { TutorialItem } from "../model/use-tutorial-list";

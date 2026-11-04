@@ -1,13 +1,18 @@
 import type {
   ActBeat,
   Ask,
+  Follow,
   Quote,
   TutorialDefinition,
 } from "@/entities/tutorial";
 import type { Turn } from "@/features/tutorial-conversation";
 import { shortKey } from "@/shared/lib/short-key";
+import { Button } from "@/shared/ui/button";
+
 import BaseActCard from "./BaseActCard";
+import BaseApplyCard from "./BaseApplyCard";
 import BaseDeployResultCard from "./BaseDeployResultCard";
+import BaseFinishCard from "./BaseFinishCard";
 import BaseIntroCard from "./BaseIntroCard";
 import BaseQuestionCard, {
   BaseQuestionRecord,
@@ -16,10 +21,9 @@ import BaseQuestionCard, {
 import BaseResultCard from "./BaseResultCard";
 import BaseSay from "./BaseSay";
 import BaseStepDivider from "./BaseStepDivider";
+import BaseWinCard from "./BaseWinCard";
 import BaseWroteCard from "./BaseWroteCard";
 import BaseYouPill from "./BaseYouPill";
-import BaseFinishCard from "./BaseFinishCard";
-import BaseWinCard from "./BaseWinCard";
 
 /** What the cards ask the conversation to do; each is one engine action */
 export interface TurnHandlers {
@@ -43,6 +47,8 @@ export interface TurnHandlers {
   revealError: (file: string, line: number) => void;
   /** Open the Call panel; absent until it can be opened (task 4.4) */
   openCall?: () => void;
+  /** Open the navigation overlay; absent where there is none */
+  openMenu?: () => void;
   /** Open the next tutorial, from the finish card */
   openNextTutorial: () => void;
   /** Open the catalog's Tutorials page, from the finish card */
@@ -51,6 +57,10 @@ export interface TurnHandlers {
   copyReceipt: () => void;
   /** A copy the clipboard refused */
   copyFailed: (error: unknown) => void;
+  /** The apply card's "Apply to <file>", by proposal id */
+  apply: (id: string) => void;
+  /** The apply card's "Keep it", by proposal id */
+  keep: (id: string) => void;
   /** Open the terminal, where a run printed its lines */
   showLog: () => void;
   /** Make the Playground wallet a deploy found missing, then run it again */
@@ -78,6 +88,46 @@ export interface TurnViewProps {
 /** The client file a Call panel pass sends the learner to write the call in */
 const CLIENT_FILE = "client/client.ts";
 
+/** A finish chip's quiet button: its label and what it opens */
+interface FollowButton {
+  label: string;
+  onClick: () => void;
+}
+
+/**
+ * What a chip's `follow` opens, through the handlers the cards already use,
+ * or null when it has nowhere to go here: no next tutorial, a handler not
+ * given yet, or `showFix`: after the finish there is no failure left to
+ * show the fix of.
+ */
+const followButton = (
+  follow: Follow,
+  nextTutorial: string | null,
+  on: TurnHandlers
+): FollowButton | null => {
+  const { openCall, openMenu } = on;
+  switch (follow) {
+    case "nextTutorial":
+      return nextTutorial
+        ? { label: `Open ${nextTutorial}`, onClick: on.openNextTutorial }
+        : null;
+    case "openTest":
+      return openCall ? { label: "Open Call", onClick: openCall } : null;
+    case "showMenu":
+      return openMenu ? { label: "Show the menu", onClick: openMenu } : null;
+    case "writeClient":
+      return {
+        label: "Write it in client.ts",
+        onClick: () => on.showLine(CLIENT_FILE, 1),
+      };
+    case "showFix":
+      return null;
+    default: {
+      const never: never = follow;
+      return never;
+    }
+  }
+};
 /** An act's context with `{program}` as the short program id, or "your program" */
 const withProgram = (act: ActBeat, programId: string | null): ActBeat =>
   act.context.includes("{program}")
@@ -164,6 +214,29 @@ const TurnView = ({
       );
     case "hint":
       return <BaseSay text={turn.text} />;
+    case "reply": {
+      const button = turn.follow
+        ? followButton(turn.follow, nextTutorial, on)
+        : null;
+      return (
+        <div className="flex flex-col items-start gap-2">
+          <BaseSay text={turn.text} />
+          {button && (
+            <Button variant="ghost" size="sm" onClick={button.onClick}>
+              {button.label}
+            </Button>
+          )}
+        </div>
+      );
+    }
+    case "apply":
+      return (
+        <BaseApplyCard
+          proposal={turn.proposal}
+          onApply={() => on.apply(turn.proposal.id)}
+          onKeep={() => on.keep(turn.proposal.id)}
+        />
+      );
     case "you":
       return <BaseYouPill text={turn.text} code={turn.code} />;
     case "wrote": {

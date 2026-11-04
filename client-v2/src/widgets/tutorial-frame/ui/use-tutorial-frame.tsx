@@ -1,13 +1,14 @@
-import { useEffect, useReducer, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 
 import { useRenderOnChange } from "@/hooks";
 import { PgExplorer } from "@/utils/explorer";
 import { PgTutorial } from "@/utils/tutorial";
-import { NAV_FOLD_ON_ENTRY, foldNav } from "../model/nav-fold";
+
 import type { NavFold } from "../model/nav-fold";
-import { tutorialFrameTelemetry } from "../model/telemetry";
+import { foldNav, NAV_FOLD_ON_ENTRY } from "../model/nav-fold";
 import type { MenuSource } from "../model/telemetry";
+import { tutorialFrameTelemetry } from "../model/telemetry";
 import BaseNavPin from "./BaseNavPin";
 import ChatColumn from "./ChatColumn";
 import NavHint from "./NavHint";

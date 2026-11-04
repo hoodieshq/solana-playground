@@ -1,7 +1,7 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
-import { Check, Hammer, Play, Rocket, Send } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Check, Hammer, Play, Rocket, Send } from "lucide-react";
+import type { FormEvent } from "react";
+import { useState } from "react";
 
 import type { Act, ActBeat } from "@/entities/tutorial";
 import type { ActState, Stage } from "@/features/tutorial-conversation";
@@ -10,6 +10,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Kbd } from "@/shared/ui/kbd";
 import { Spinner } from "@/shared/ui/spinner";
+
 import { formatSeconds } from "./Prose";
 
 /** A string argument stops at 32 characters */

@@ -8,8 +8,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { FRAMEWORKS } from "../lib/levels";
+
 import type { FrameworkFilter as Filter } from "../lib/levels";
+import { FRAMEWORKS } from "../lib/levels";
 
 export interface FrameworkFilterProps {
   value: Filter;

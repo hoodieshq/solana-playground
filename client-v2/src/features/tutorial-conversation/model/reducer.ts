@@ -2,8 +2,8 @@ import type {
   Act,
   ActBeat,
   Ask,
-  Block,
   Beat,
+  Block,
   CallArg,
   QuestionResult,
   Step,
@@ -14,18 +14,21 @@ import type {
 import { isPlannedLog } from "./build-error";
 import { TICK_MS } from "./clock";
 import { holds, keyOf, typedKey } from "./landing";
-import { answerOf, freshProgress, isUnreachable } from "./progress";
+import type { Judge, RunInput } from "./ports";
 import type {
+  ApplyFailure,
   ConversationProgress,
   Cursor,
   PassedVia,
+  Proposal,
   Resolution,
   RunRecord,
   RunResult,
   SkipVia,
   Wrote,
 } from "./progress";
-import type { Judge, RunInput } from "./ports";
+import { answerOf, freshProgress, hintOf, isUnreachable } from "./progress";
+import type { Word } from "./route";
 
 /**
  * The conversation engine's reducer: the lesson's rules over a definition
@@ -69,7 +72,13 @@ export const INITIAL_ENGINE_STATE: EngineState = {
 export type Action =
   | { type: "start"; at: number }
   | { type: "pick"; beatId: string; option: number; at: number }
-  | { type: "hint"; beatId: string; at: number }
+  | {
+      type: "hint";
+      beatId: string;
+      at: number;
+      /** The live assistant's Hint tool, not the card: no pill */
+      byAssistant?: true;
+    }
   /** The question's Skip button; a skip from elsewhere is `pass`'s to record */
   | { type: "skip"; beatId: string; at: number }
   | { type: "typeIt"; beatId: string; at: number }
@@ -132,7 +141,35 @@ export type Action =
   | { type: "next"; at: number }
   | { type: "finish"; at: number }
   | { type: "restartStep"; at: number }
-  | { type: "startOver"; at: number };
+  | { type: "startOver"; at: number }
+  /**
+   * A typed action word (task 3.6): the action it names, and its pill when
+   * that action changed something; a word the engine refuses is dropped
+   */
+  | { type: "word"; word: Word; text: string; then: WordAction; at: number }
+  /** An action word typed while a question is open: refused, not run */
+  | { type: "refuseWord"; word: Word; text: string; at: number }
+  /** A finish chip pressed, by its index in the definition's `finish.chips` */
+  | { type: "chip"; index: number; at: number }
+  /** The assistant proposed one line's change; it waits for Apply or Keep */
+  | {
+      type: "propose";
+      proposal: Pick<Proposal, "id" | "file" | "line" | "before" | "after">;
+      at: number;
+    }
+  | { type: "apply"; id: string; at: number }
+  /** The proposal's line was written (`apply`'s effect landed) */
+  | { type: "applied"; id: string; at: number }
+  | { type: "applyFailed"; id: string; reason: ApplyFailure; at: number }
+  | { type: "keep"; id: string; at: number }
+  /** A composer message went to the live assistant: counted, nothing saved */
+  | { type: "asked"; at: number };
+
+/** What a typed action word may run: the same actions its buttons send */
+export type WordAction = Extract<
+  Action,
+  { type: "start" } | { type: "act" } | { type: "next" } | { type: "explain" }
+>;
 
 export type Effect =
   | {
@@ -194,6 +231,41 @@ export type Effect =
       kind: "event";
       name: "tutorial_action_run";
       params: ActionRunParams;
+    }
+  | {
+      kind: "event";
+      name: "tutorial_question_asked";
+      /** `step` as `stepNumber` gives it: 1-based, 0 before Start, the last after the finish */
+      params: { tutorial: string; step: number; source: "typed" | "chip" };
+    }
+  | {
+      kind: "event";
+      name: "tutorial_word_sent";
+      params: {
+        tutorial: string;
+        step: number;
+        word: string;
+        refused: boolean;
+      };
+    }
+  | {
+      kind: "event";
+      name: "tutorial_change_applied";
+      params: { tutorial: string; file: string };
+    }
+  | {
+      kind: "event";
+      name: "tutorial_change_kept";
+      params: { tutorial: string };
+    }
+  /** Write a proposal's line over `before`, unless the line moved since */
+  | {
+      kind: "apply";
+      id: string;
+      file: string;
+      line: number;
+      before: string;
+      after: string;
     }
   /** Put the caret where the answer lands, or on the error's line */
   | { kind: "focus"; file: string; line: number | "landing" }
@@ -457,7 +529,7 @@ const pass = (
         at,
         openedAt: r.at,
         wrong: r.wrong,
-        ...(r.hintedAt ? { hintedAt: r.hintedAt } : {}),
+        ...hintOf(r),
       };
       if (fail) {
         beats[b.id] = { kind: "typed", ...base };
@@ -627,6 +699,81 @@ const answeredEvents = (
   return events;
 };
 
+/** The step a lesson event names: 1-based, 0 before Start, the last after
+ * the finish */
+const stepNumber = (definition: TutorialDefinition, cursor: Cursor) => {
+  if (cursor.kind === "intro") return 0;
+  if (cursor.kind === "finished") return definition.steps.length;
+  return definition.steps.findIndex((s) => s.id === cursor.stepId) + 1;
+};
+
+const wordSent = (
+  ctx: EngineContext,
+  cursor: Cursor,
+  action: Extract<Action, { type: "word" | "refuseWord" }>
+): Effect => ({
+  kind: "event",
+  name: "tutorial_word_sent",
+  params: {
+    tutorial: ctx.slug,
+    step: stepNumber(ctx.definition, cursor),
+    word: action.word,
+    refused: action.type === "refuseWord",
+  },
+});
+
+/**
+ * What answers an open proposal's Apply or Keep it: `applied` and `keep`
+ * settle it; `applyFailed` leaves it open, with the reason
+ */
+type Settling = Extract<Action, { type: "applied" | "applyFailed" | "keep" }>;
+
+/** A proposal once Apply landed, failed, or Keep it was pressed */
+const settle = (proposal: Proposal, action: Settling): Proposal => {
+  const base: Proposal = {
+    id: proposal.id,
+    file: proposal.file,
+    line: proposal.line,
+    before: proposal.before,
+    after: proposal.after,
+    at: proposal.at,
+    state: proposal.state,
+  };
+  if (action.type === "applied") {
+    return { ...base, state: "applied", settledAt: action.at };
+  }
+  if (action.type === "keep") {
+    return { ...base, state: "kept", settledAt: action.at };
+  }
+  return { ...base, applyFailed: action.reason };
+};
+
+const settledEvents = (
+  ctx: EngineContext,
+  proposal: Proposal,
+  how: "applied" | "applyFailed" | "keep"
+): Effect[] => {
+  if (how === "applied") {
+    return [
+      {
+        kind: "event",
+        name: "tutorial_change_applied",
+        params: { tutorial: ctx.slug, file: proposal.file },
+      },
+    ];
+  }
+  if (how === "keep") {
+    return [
+      {
+        kind: "event",
+        name: "tutorial_change_kept",
+        params: { tutorial: ctx.slug },
+      },
+    ];
+  }
+  return [];
+};
+
 export const reduce = (
   ctx: EngineContext,
   state: EngineState,
@@ -696,7 +843,7 @@ const reduceAction = (
         option: action.option,
         attempts: open.wrong.length + 1,
         wrong: open.wrong,
-        ...(open.hintedAt ? { hintedAt: open.hintedAt } : {}),
+        ...hintOf(open),
       };
       const flowed = flow(
         ctx,
@@ -716,7 +863,9 @@ const reduceAction = (
         ...p,
         beats: {
           ...p.beats,
-          [live.beat.id]: { ...live.open, hintedAt: action.at },
+          [live.beat.id]: action.byAssistant
+            ? { ...live.open, hintedAt: action.at, hintByAssistant: true }
+            : { ...live.open, hintedAt: action.at },
         },
       });
     }
@@ -731,7 +880,7 @@ const reduceAction = (
         openedAt: open.at,
         via: "button",
         wrong: open.wrong,
-        ...(open.hintedAt ? { hintedAt: open.hintedAt } : {}),
+        ...hintOf(open),
       };
       const flowed = flow(
         ctx,
@@ -777,7 +926,7 @@ const reduceAction = (
         at: action.at,
         openedAt: open.at,
         wrong: open.wrong,
-        ...(open.hintedAt ? { hintedAt: open.hintedAt } : {}),
+        ...hintOf(open),
       };
       const flowed = flow(
         ctx,
@@ -1223,6 +1372,135 @@ const reduceAction = (
       ]);
     }
 
+    case "word": {
+      const ran = reduceAction(ctx, state, action.then);
+      if (ran.state.progress === p && ran.effects.length === 0) {
+        return same(state);
+      }
+      const q = ran.state.progress;
+      return {
+        state: {
+          progress: {
+            ...q,
+            said: [
+              ...q.said,
+              { kind: "word", text: action.text, at: action.at },
+            ],
+          },
+          stage: ran.state.stage,
+        },
+        effects: [wordSent(ctx, p.cursor, action), ...ran.effects],
+      };
+    }
+
+    case "refuseWord":
+      return withProgress(
+        state,
+        {
+          ...p,
+          said: [
+            ...p.said,
+            { kind: "refused", text: action.text, at: action.at },
+          ],
+        },
+        [wordSent(ctx, p.cursor, action)]
+      );
+
+    case "chip": {
+      if (p.cursor.kind !== "finished") return same(state);
+      if (!definition.finish.chips[action.index]) return same(state);
+      return withProgress(
+        state,
+        {
+          ...p,
+          said: [
+            ...p.said,
+            { kind: "chip", index: action.index, at: action.at },
+          ],
+        },
+        [
+          {
+            kind: "event",
+            name: "tutorial_question_asked",
+            params: {
+              tutorial: ctx.slug,
+              step: stepNumber(definition, p.cursor),
+              source: "chip",
+            },
+          },
+        ]
+      );
+    }
+
+    case "propose": {
+      if (p.proposals.some((x) => x.id === action.proposal.id)) {
+        return same(state);
+      }
+      const proposal: Proposal = {
+        id: action.proposal.id,
+        file: action.proposal.file,
+        line: action.proposal.line,
+        before: action.proposal.before,
+        after: action.proposal.after,
+        at: action.at,
+        state: "open",
+      };
+      return withProgress(state, {
+        ...p,
+        proposals: [...p.proposals, proposal],
+      });
+    }
+
+    case "apply": {
+      const proposal = p.proposals.find((x) => x.id === action.id);
+      if (!proposal || proposal.state !== "open") return same(state);
+      return {
+        state,
+        effects: [
+          {
+            kind: "apply",
+            id: proposal.id,
+            file: proposal.file,
+            line: proposal.line,
+            before: proposal.before,
+            after: proposal.after,
+          },
+        ],
+      };
+    }
+
+    case "applied":
+    case "applyFailed":
+    case "keep": {
+      const proposal = p.proposals.find((x) => x.id === action.id);
+      if (!proposal || proposal.state !== "open") return same(state);
+      const settled = settle(proposal, action);
+      return withProgress(
+        state,
+        {
+          ...p,
+          proposals: p.proposals.map((x) => (x.id === action.id ? settled : x)),
+        },
+        settledEvents(ctx, proposal, action.type)
+      );
+    }
+
+    case "asked":
+      return {
+        state,
+        effects: [
+          {
+            kind: "event",
+            name: "tutorial_question_asked",
+            params: {
+              tutorial: ctx.slug,
+              step: stepNumber(definition, p.cursor),
+              source: "typed",
+            },
+          },
+        ],
+      };
+
     case "startOver":
       // Never a no-op: on a failed load the intro shows too, and this is the
       // learner's way out of it
@@ -1241,7 +1519,6 @@ const reduceAction = (
 
 if (import.meta.vitest) {
   const { describe, it, expect, beforeAll } = import.meta.vitest;
-  type CallArg = import("@/entities/tutorial").CallArg;
   type Goal = import("@/entities/tutorial").Goal;
   type Refusal = import("./progress").Refusal;
 
@@ -1535,6 +1812,19 @@ if (import.meta.vitest) {
         ).toBe(true);
       });
 
+      it("a hint the assistant asked for is marked so, through the skip", () => {
+        const { progress } = play([
+          start,
+          { type: "hint", beatId: "s1.q1", at: 3000, byAssistant: true },
+          { type: "skip", beatId: "s1.q1", at: 4000 },
+        ]);
+        expect(progress.beats["s1.q1"]).toMatchObject({
+          kind: "skipped",
+          hintedAt: 3000,
+          hintByAssistant: true,
+        });
+      });
+
       it("type it myself focuses the landing in the answer's file", () => {
         const { effects } = play([
           start,
@@ -1811,7 +2101,7 @@ if (import.meta.vitest) {
       });
 
       it("shows the stage while running and clears it when the run ends", () => {
-        const running = play([
+        const midRun = play([
           start,
           rightPick,
           build(7000),
@@ -1824,13 +2114,13 @@ if (import.meta.vitest) {
             at: 7100,
           },
         ]).state;
-        expect(running.stage).toEqual({
+        expect(midRun.stage).toEqual({
           beatId: "s1.build",
           label: "Building",
           index: 1,
           count: 1,
         });
-        const ended = reduce(ctx(), running, {
+        const ended = reduce(ctx(), midRun, {
           type: "ended",
           beatId: "s1.build",
           result: OK_BUILD,
@@ -1862,7 +2152,7 @@ if (import.meta.vitest) {
           effects.filter(
             (e) => e.kind === "event" && e.name === "tutorial_action_run"
           );
-        const FAILED_BUILD: RunResult = {
+        const FAILED_TEST_BUILD: RunResult = {
           act: "build",
           ok: false,
           seconds: 1,
@@ -1874,7 +2164,12 @@ if (import.meta.vitest) {
           start,
           rightPick,
           build(7000),
-          { type: "ended", beatId: "s1.build", result: FAILED_BUILD, at: 8000 },
+          {
+            type: "ended",
+            beatId: "s1.build",
+            result: FAILED_TEST_BUILD,
+            at: 8000,
+          },
           build(9000),
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 10600 },
           // A stale answer for a run no longer in flight records nothing
@@ -2130,7 +2425,7 @@ if (import.meta.vitest) {
       describe("recognised", () => {
         /** Step 2's deploy pressed, then a reload: the run reads interrupted */
         const interrupted = (): EngineState => {
-          const running = play([
+          const midRun = play([
             start,
             rightPick,
             build(7000),
@@ -2141,16 +2436,18 @@ if (import.meta.vitest) {
           ]).state;
           return {
             progress: {
-              version: running.progress.version,
-              passed: running.progress.passed,
-              finishedAt: running.progress.finishedAt,
-              startedAt: running.progress.startedAt,
-              restartedAt: running.progress.restartedAt,
-              cursor: running.progress.cursor,
-              beats: running.progress.beats,
-              times: running.progress.times,
+              version: midRun.progress.version,
+              passed: midRun.progress.passed,
+              finishedAt: midRun.progress.finishedAt,
+              startedAt: midRun.progress.startedAt,
+              restartedAt: midRun.progress.restartedAt,
+              said: midRun.progress.said,
+              proposals: midRun.progress.proposals,
+              cursor: midRun.progress.cursor,
+              beats: midRun.progress.beats,
+              times: midRun.progress.times,
               runs: Object.fromEntries(
-                Object.entries(running.progress.runs).map(([id, rs]) => [
+                Object.entries(midRun.progress.runs).map(([id, rs]) => [
                   id,
                   rs.map((r) =>
                     r.status === "started"
@@ -3093,6 +3390,35 @@ if (import.meta.vitest) {
         ).toBe(r.state);
       });
 
+      it("a finish chip posts only after the finish, and is counted as asked", () => {
+        const done = play(toFinish()).state;
+        expect(
+          reduce(ctx(), done, { type: "chip", index: 0, at: 12000 }).state
+        ).toBe(done);
+        const finished = reduce(ctx(), done, {
+          type: "finish",
+          at: 12000,
+        }).state;
+        const r = reduce(ctx(), finished, {
+          type: "chip",
+          index: 1,
+          at: 13000,
+        });
+        expect(r.state.progress.said).toEqual([
+          { kind: "chip", index: 1, at: 13000 },
+        ]);
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_question_asked",
+            params: { tutorial: "hello-anchor", step: 4, source: "chip" },
+          },
+        ]);
+        expect(
+          reduce(ctx(), finished, { type: "chip", index: 2, at: 13000 }).state
+        ).toBe(finished);
+      });
+
       it("finish before the last win is a no-op", () => {
         const before = play(toFinish().slice(0, 4)).state;
         expect(reduce(ctx(), before, { type: "finish", at: 9000 }).state).toBe(
@@ -3180,6 +3506,202 @@ if (import.meta.vitest) {
         expect(r.effects).toEqual([
           { kind: "restore", files: hello.intro.files, remove: [] },
         ]);
+      });
+    });
+
+    describe("the composer", () => {
+      const proposal = {
+        id: "p1",
+        file: "programs/hello/src/lib.rs",
+        line: 10,
+        before: "        old",
+        after: "        new",
+      };
+
+      it("a word runs its action and posts its pill, counted as sent", () => {
+        const r = play([
+          {
+            type: "word",
+            word: "start",
+            text: "Go!",
+            then: { type: "start", at: 1000 },
+            at: 1000,
+          },
+        ]);
+        expect(r.progress.startedAt).toBe(1000);
+        expect(r.progress.said).toEqual([
+          { kind: "word", text: "Go!", at: 1000 },
+        ]);
+        expect(r.effects).toContainEqual({
+          kind: "event",
+          name: "tutorial_word_sent",
+          params: {
+            tutorial: "hello-anchor",
+            step: 0,
+            word: "start",
+            refused: false,
+          },
+        });
+        expect(r.effects).toContainEqual({
+          kind: "event",
+          name: "tutorial_started",
+          params: { tutorial: "hello-anchor" },
+        });
+      });
+
+      it("a word whose action the engine refuses posts no pill", () => {
+        const before = play([start]).state;
+        const r = reduce(ctx(), before, {
+          type: "word",
+          word: "next",
+          text: "next",
+          then: { type: "next", at: 2000 },
+          at: 2000,
+        });
+        expect(r.state).toBe(before);
+        expect(r.effects).toEqual([]);
+      });
+
+      it("a refused word posts the refusal and runs nothing", () => {
+        const before = play([start]).state;
+        const r = reduce(ctx(), before, {
+          type: "refuseWord",
+          word: "build",
+          text: "build",
+          at: 3000,
+        });
+        expect(r.state.progress.said).toEqual([
+          { kind: "refused", text: "build", at: 3000 },
+        ]);
+        expect(r.state.progress.runs).toEqual(before.progress.runs);
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_word_sent",
+            params: {
+              tutorial: "hello-anchor",
+              step: 1,
+              word: "build",
+              refused: true,
+            },
+          },
+        ]);
+      });
+
+      it("a message to the assistant is counted and saves nothing", () => {
+        const before = play([start]).state;
+        const r = reduce(ctx(), before, { type: "asked", at: 3000 });
+        expect(r.state).toBe(before);
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_question_asked",
+            params: { tutorial: "hello-anchor", step: 1, source: "typed" },
+          },
+        ]);
+      });
+
+      it("a proposal waits; Apply asks for the write, and only the write applies it", () => {
+        const proposed = play([
+          start,
+          { type: "propose", proposal, at: 4000 },
+          { type: "propose", proposal, at: 4100 },
+        ]).state;
+        expect(proposed.progress.proposals).toEqual([
+          {
+            id: "p1",
+            file: "programs/hello/src/lib.rs",
+            line: 10,
+            before: "        old",
+            after: "        new",
+            at: 4000,
+            state: "open",
+          },
+        ]);
+        const asked = reduce(ctx(), proposed, {
+          type: "apply",
+          id: "p1",
+          at: 5000,
+        });
+        expect(asked.state).toBe(proposed);
+        expect(asked.effects).toEqual([
+          {
+            kind: "apply",
+            id: "p1",
+            file: "programs/hello/src/lib.rs",
+            line: 10,
+            before: "        old",
+            after: "        new",
+          },
+        ]);
+        const failed = reduce(ctx(), proposed, {
+          type: "applyFailed",
+          id: "p1",
+          reason: "moved",
+          at: 5100,
+        });
+        expect(failed.state.progress.proposals[0]).toMatchObject({
+          state: "open",
+          applyFailed: "moved",
+        });
+        // A write that failed sends nothing
+        expect(failed.effects).toEqual([]);
+        const applied = reduce(ctx(), failed.state, {
+          type: "applied",
+          id: "p1",
+          at: 5200,
+        });
+        expect(applied.state.progress.proposals[0].state).toBe("applied");
+        expect(applied.state.progress.proposals[0].applyFailed).toBeUndefined();
+        expect(applied.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_change_applied",
+            params: {
+              tutorial: "hello-anchor",
+              file: "programs/hello/src/lib.rs",
+            },
+          },
+        ]);
+        // Settled once: neither Apply nor Keep it moves it again
+        expect(
+          reduce(ctx(), applied.state, { type: "keep", id: "p1", at: 6000 })
+            .state
+        ).toBe(applied.state);
+        expect(
+          reduce(ctx(), applied.state, { type: "apply", id: "p1", at: 6000 })
+            .effects
+        ).toEqual([]);
+      });
+
+      it("Keep it leaves the file and is counted", () => {
+        const proposed = play([
+          start,
+          { type: "propose", proposal, at: 4000 },
+        ]).state;
+        const r = reduce(ctx(), proposed, { type: "keep", id: "p1", at: 5000 });
+        expect(r.state.progress.proposals[0].state).toBe("kept");
+        expect(r.effects).toEqual([
+          {
+            kind: "event",
+            name: "tutorial_change_kept",
+            params: { tutorial: "hello-anchor" },
+          },
+        ]);
+      });
+
+      it("a step's Reset keeps the records, and Start over clears them", () => {
+        const said = play([
+          start,
+          { type: "refuseWord", word: "build", text: "build", at: 3000 },
+          { type: "propose", proposal, at: 4000 },
+        ]).state;
+        const reset = reduce(ctx(), said, { type: "restartStep", at: 5000 });
+        expect(reset.state.progress.said).toEqual(said.progress.said);
+        expect(reset.state.progress.proposals).toEqual(said.progress.proposals);
+        const over = reduce(ctx(), said, { type: "startOver", at: 6000 });
+        expect(over.state.progress.said).toEqual([]);
+        expect(over.state.progress.proposals).toEqual([]);
       });
     });
 
@@ -3311,6 +3833,8 @@ if (import.meta.vitest) {
             finishedAt: null,
             startedAt: 1000,
             restartedAt: null,
+            said: [],
+            proposals: [],
             cursor: { kind: "step", stepId: here.id, beat: 1, fail: false },
             beats: { [here.beats[0].id]: { kind: "said", at: 1000 } },
             runs: {},
@@ -3421,6 +3945,8 @@ if (import.meta.vitest) {
             finishedAt: null,
             startedAt: 1000,
             restartedAt: null,
+            said: [],
+            proposals: [],
             cursor: at(2).progress.cursor,
             beats: at(2).progress.beats,
             runs: {
@@ -3499,7 +4025,7 @@ if (import.meta.vitest) {
       });
 
       it("a refused run offers no Explain and no fix", () => {
-        const passed = run(
+        const passedRun = run(
           [
             press("s3.chop", 2000),
             ended(
@@ -3516,7 +4042,7 @@ if (import.meta.vitest) {
               { type: "explain", beatId: "s3.chop", at: 4000 },
               { type: "fixMyself", beatId: "s3.chop", at: 4100 },
             ],
-            passed
+            passedRun
           ).effects
         ).toEqual([]);
       });

@@ -225,7 +225,10 @@ describe("PgFlow.reduce, a stopped run", () => {
   });
 
   it("a stopped deploy goes back to what Deploy showed before it", () => {
-    const deploying = PgFlow.reduce(builtOnce(), { type: "deploy-start" });
+    const deploying = PgFlow.reduce(builtOnce(), {
+      type: "deploy-start",
+      from: "command",
+    });
     expect(deploying.deploy).toBe("running");
 
     const s = PgFlow.reduce(deploying, { type: "deploy-stop" });
@@ -236,8 +239,14 @@ describe("PgFlow.reduce, a stopped run", () => {
   });
 
   it("a second Deploy click keeps what Deploy showed before the run", () => {
-    const deploying = PgFlow.reduce(builtOnce(), { type: "deploy-start" });
-    const pausedClick = PgFlow.reduce(deploying, { type: "deploy-start" });
+    const deploying = PgFlow.reduce(builtOnce(), {
+      type: "deploy-start",
+      from: "command",
+    });
+    const pausedClick = PgFlow.reduce(deploying, {
+      type: "deploy-start",
+      from: "command",
+    });
 
     const s = PgFlow.reduce(pausedClick, { type: "deploy-stop" });
 
@@ -279,7 +288,10 @@ describe("PgFlow.reduce, a stopped run", () => {
   });
 
   it("a stop of the build a deploy runs first reads as the build's", () => {
-    const deploying = PgFlow.reduce(builtOnce(), { type: "deploy-start" });
+    const deploying = PgFlow.reduce(builtOnce(), {
+      type: "deploy-start",
+      from: "command",
+    });
     const building = PgFlow.reduce(deploying, { type: "build-start", at: 9 });
     const buildStopped = PgFlow.reduce(building, { type: "build-stop" });
 
@@ -306,7 +318,9 @@ describe("PgFlow.reduce, a stopped run", () => {
     expect(
       PgFlow.reduce(stopped, { type: "build-start", at: 10 }).stopped
     ).toBeNull();
-    expect(PgFlow.reduce(stopped, { type: "deploy-start" }).stopped).toBeNull();
+    expect(
+      PgFlow.reduce(stopped, { type: "deploy-start", from: "command" }).stopped
+    ).toBeNull();
   });
 });
 

@@ -35,9 +35,8 @@ vi.mock("../../sidebar/explorer/Component/useCreateItem", () => ({
 }));
 
 import { requireFor } from "../../../test-utils/require-for";
-import LeftPanel from "./LeftPanel";
 import { forgetColumn } from "./kept-column";
-import LeftPanel, { isLessonTab } from "./LeftPanel";
+import LeftPanel from "./LeftPanel";
 
 // A theme that answers every key: the styles are not under test, and the
 // real theme's module needs the utils barrel.

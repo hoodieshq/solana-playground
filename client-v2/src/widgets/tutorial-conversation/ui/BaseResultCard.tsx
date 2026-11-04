@@ -6,8 +6,9 @@ import type { RunResult } from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
+
 import BaseTxResultCard from "./BaseTxResultCard";
-import { Prose, READ, formatSeconds } from "./Prose";
+import { formatSeconds, Prose, READ } from "./Prose";
 
 export interface BaseResultCardProps {
   result: RunResult;
@@ -183,7 +184,7 @@ const BaseResultCard = ({
         </div>
       )}
       {expanded && failedBuild && !unreachable && (
-        <div className="flex flex-col gap-3 border-t border-error/20 px-3 py-3">
+        <div className="@container flex flex-col gap-3 border-t border-error/20 px-3 py-3">
           {/* The compiler's words on a red rule, a quote of its output with
               no well (the prototype's ResultCard, f7d42bf2e) */}
           {error && (
@@ -215,7 +216,10 @@ const BaseResultCard = ({
             </p>
           )}
           {open && (
-            <div className="flex flex-wrap items-center gap-2">
+            // One width for both, side by side where the card has room for
+            // the wider one twice, as the prototype's (design audit, 3 Nov);
+            // stacked full width where it has not
+            <div className="grid gap-2 @min-[23rem]:w-fit @min-[23rem]:auto-cols-fr @min-[23rem]:grid-flow-col">
               <Button onClick={onExplain}>
                 Explain the error
                 <Kbd
@@ -225,7 +229,13 @@ const BaseResultCard = ({
                   ⌘↵
                 </Kbd>
               </Button>
-              <Button variant="ghost" onClick={onFixMyself}>
+              {/* A phone can't type the fix, so it isn't offered there:
+                  Explain leads to the lines instead (the prototype's) */}
+              <Button
+                variant="ghost"
+                className="max-md:hidden"
+                onClick={onFixMyself}
+              >
                 I&apos;ll fix it myself
               </Button>
             </div>

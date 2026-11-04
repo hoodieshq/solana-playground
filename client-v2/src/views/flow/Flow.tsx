@@ -19,15 +19,16 @@ import { LogoLockup } from "@/shared/ui/logo";
 import { Pattern } from "@/shared/ui/pattern";
 import { PgCommon, PgView } from "@/utils";
 import { AppNav, ProjectList } from "@/widgets/app-nav";
-import { Assistant } from "@/widgets/assistant";
+import { Assistant, useTurn } from "@/widgets/assistant";
 import { catalogPage, catalogSlot, useCatalogPage } from "@/widgets/catalog";
 import { homeSlot, useStartView } from "@/widgets/home";
 import { CONSOLE_KEY, keyLabel, LayoutShell } from "@/widgets/layout-shell";
 import { ModalHost, ToastHost } from "@/widgets/overlays";
 import { RailFooter, SessionFooter } from "@/widgets/session-footer";
 import { SettingsPage, settingsTelemetry } from "@/widgets/settings-page";
-import { markNetworkChosen, SetupList } from "@/widgets/setup-list";
+import { SetupList } from "@/widgets/setup-list";
 import {
+  TutorialComposer,
   TutorialConversation,
   useConversationMarks,
   useConversationStartOver,
@@ -72,6 +73,44 @@ const Flow = () => (
 );
 
 const log = createLogger("flow:settings");
+
+/**
+ * A tutorial's chat: the feed, and its composer at the foot (3.6). The frame
+ * has no assistant panel (`LayoutShellProps.tutorial`), so the one live
+ * assistant turn is held here while the chat shows, and the panel's own
+ * holds it again once the frame goes.
+ */
+const TutorialChat = ({
+  onAllTutorials,
+  onOpenMenu,
+}: {
+  onAllTutorials: () => void;
+  onOpenMenu: () => void;
+}) => {
+  const turn = useTurn({ open: openConnectDialog });
+  // The composer counts a question only once the assistant has it
+  const send = (text: string) =>
+    turn.send(text).then((outcome) => outcome === "sent");
+  return (
+    <>
+      <TutorialConversation
+        onAllTutorials={onAllTutorials}
+        onOpenMenu={onOpenMenu}
+      />
+      <div className="px-5 pb-4">
+        <TutorialComposer
+          turn={{
+            send,
+            stop: turn.stop,
+            busy: turn.busy,
+            input: turn.input,
+            setInput: turn.setInput,
+          }}
+        />
+      </div>
+    </>
+  );
+};
 
 /**
  * Whether focus can land on `el`: on screen, and not inside an `inert` part,
@@ -216,7 +255,8 @@ const FlowFrame = () => {
 
   // A tutorial with a definition opens in its frame (`tutorial-flow-v2`
   // 2.1), its chat holding the conversation (3.3), whose engine runs Start
-  // over. The composer under the feed is 3.6's.
+  // over, and the composer under the feed (3.6).
+  const openMenu = useRef<() => void>(() => {});
   const conversation = useConversationStartOver();
   const marks = useConversationMarks();
   const tutorial = useTutorialFrame({
@@ -226,10 +266,16 @@ const FlowFrame = () => {
     onStartOver: conversation.onStartOver,
     passed: conversation.passed,
     body: (
-      <TutorialConversation
+      <TutorialChat
         onAllTutorials={() => catalogPage.open("tutorials", "nav")}
+        onOpenMenu={() => openMenu.current()}
       />
     ),
+  });
+  // The live assistant's open_menu tool (3.6) opens the frame's navigation,
+  // which exists only once the frame is built from the body above
+  useEffect(() => {
+    openMenu.current = () => tutorial.frame?.nav.onOpenChange(true);
   });
 
   // The frame's workspace (2.2): its head and tree over the stage, and its

@@ -2,12 +2,13 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
 
+import type { Beat, TutorialDefinition } from "@/entities/tutorial";
 import {
   checkDefinition,
   formatError,
   slugOf,
 } from "@/entities/tutorial/model/definition/check";
-import type { Beat, TutorialDefinition } from "@/entities/tutorial";
+
 import hello from "./hello-anchor/tutorial.json";
 
 /**

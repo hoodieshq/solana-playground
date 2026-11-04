@@ -15,6 +15,8 @@ import {
   PgProgramInfo,
   PgWallet,
 } from "../../../../utils";
+import { applyFile } from "../../../../utils/explorer/apply-file";
+import { PgBuildOutput, stripKnownNoise } from "./build-output";
 
 /** A condensed view of the program's interface, cheaper than the whole IDL */
 export interface IdlSummary {

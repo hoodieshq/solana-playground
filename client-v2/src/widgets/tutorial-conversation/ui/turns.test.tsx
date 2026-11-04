@@ -2,25 +2,34 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ActBeat, Ask, TutorialDefinition } from "@/entities/tutorial";
+import type {
+  ActBeat,
+  Ask,
+  Follow,
+  TutorialDefinition,
+} from "@/entities/tutorial";
+import type {
+  ApplyFailure,
+  LandedCall,
+  Proposal,
+  RunResult,
+  Turn,
+} from "@/features/tutorial-conversation";
+import { TooltipProvider } from "@/shared/ui/tooltip";
+
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import BaseActCard from "./BaseActCard";
+import BaseApplyCard from "./BaseApplyCard";
 import BaseFinishCard from "./BaseFinishCard";
 import BaseIntroCard, { HOW_IT_GOES, INTRO_NOTE } from "./BaseIntroCard";
+import { BaseQuestionRecord } from "./BaseQuestionCard";
 import BaseResultCard from "./BaseResultCard";
 import BaseStepDivider from "./BaseStepDivider";
 import BaseWinCard from "./BaseWinCard";
 import BaseWroteCard from "./BaseWroteCard";
-import { BaseQuestionRecord } from "./BaseQuestionCard";
 import { textOf } from "./Prose";
-import { TooltipProvider } from "@/shared/ui/tooltip";
-import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
-import type {
-  LandedCall,
-  RunResult,
-  Turn,
-} from "@/features/tutorial-conversation";
+import TurnView from "./TurnView";
 
 const definition = hello as unknown as TutorialDefinition;
 const actOf = (id: string) =>
@@ -785,6 +794,8 @@ describe("TurnView", () => {
     allTutorials: vi.fn(),
     copyReceipt: vi.fn(),
     copyFailed: vi.fn(),
+    apply: vi.fn(),
+    keep: vi.fn(),
     showLine: vi.fn(),
     revealError: vi.fn(),
     showLog: vi.fn(),
@@ -1350,6 +1361,8 @@ describe("TurnView's last win", () => {
           allTutorials: vi.fn(),
           copyReceipt: vi.fn(),
           copyFailed: vi.fn(),
+          apply: vi.fn(),
+          keep: vi.fn(),
           showLine: vi.fn(),
           revealError: vi.fn(),
           showLog: vi.fn(),
@@ -1359,5 +1372,180 @@ describe("TurnView's last win", () => {
     );
     expect(screen.getByText("hello knows your name")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Next/ })).toBeNull();
+  });
+});
+
+describe("BaseApplyCard", () => {
+  const proposal = (
+    state: "open" | "applied" | "kept",
+    applyFailed?: ApplyFailure
+  ): Proposal => {
+    const p: Proposal = {
+      id: "p1",
+      file: "programs/hello/src/lib.rs",
+      line: 10,
+      before: '        msg!("Hello, {}!", name);',
+      after: '        msg!("Once upon a time on devnet");',
+      at: 1,
+      state,
+    };
+    if (applyFailed) p.applyFailed = applyFailed;
+    return p;
+  };
+
+  it("shows the line's diff with Apply to lib.rs and Keep it, and applies nothing itself", async () => {
+    const onApply = vi.fn();
+    const onKeep = vi.fn();
+    render(
+      <BaseApplyCard
+        proposal={proposal("open")}
+        onApply={onApply}
+        onKeep={onKeep}
+      />
+    );
+    expect(screen.getByText("programs/hello/src/lib.rs:10")).toBeTruthy();
+    expect(
+      screen.getByText('msg!("Once upon a time on devnet");', { exact: false })
+    ).toBeTruthy();
+    expect(onApply).not.toHaveBeenCalled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Apply to lib.rs" })
+    );
+    expect(onApply).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole("button", { name: "Keep it" }));
+    expect(onKeep).toHaveBeenCalledTimes(1);
+  });
+
+  it.each<[ApplyFailure, string]>([
+    ["moved", "the line changed since"],
+    ["write", "Could not write the file"],
+  ])(
+    "says why an Apply did not land (%s) and keeps its buttons",
+    (reason, said) => {
+      render(
+        <BaseApplyCard
+          proposal={proposal("open", reason)}
+          onApply={vi.fn()}
+          onKeep={vi.fn()}
+        />
+      );
+      expect(screen.getByRole("status").textContent).toContain(said);
+      expect(
+        screen.getByRole("button", { name: "Apply to lib.rs" })
+      ).toBeTruthy();
+    }
+  );
+
+  it("ends a settled card with what happened, and no buttons", () => {
+    const { rerender } = render(
+      <BaseApplyCard
+        proposal={proposal("applied")}
+        onApply={vi.fn()}
+        onKeep={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Applied.")).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
+    rerender(
+      <BaseApplyCard
+        proposal={proposal("kept")}
+        onApply={vi.fn()}
+        onKeep={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Kept yours.")).toBeTruthy();
+  });
+});
+
+describe("TurnView's chip answer", () => {
+  const handlers = (): TurnHandlers => ({
+    start: vi.fn(),
+    pick: vi.fn(),
+    hint: vi.fn(),
+    skip: vi.fn(),
+    typeIt: vi.fn(),
+    act: vi.fn(),
+    explain: vi.fn(),
+    fixMyself: vi.fn(),
+    next: vi.fn(),
+    restartStep: vi.fn(),
+    openNextTutorial: vi.fn(),
+    allTutorials: vi.fn(),
+    copyReceipt: vi.fn(),
+    copyFailed: vi.fn(),
+    apply: vi.fn(),
+    keep: vi.fn(),
+    showLine: vi.fn(),
+    openMenu: vi.fn(),
+    showFix: vi.fn(),
+    revealError: vi.fn(),
+    showLog: vi.fn(),
+    createWallet: vi.fn(),
+  });
+  const reply = (follow: Follow | null): Turn => ({
+    id: "reply:0",
+    kind: "reply",
+    step: null,
+    at: 1,
+    whole: true,
+    text: "Counter PDA Tutorial is a good next one.",
+    follow,
+  });
+  const draw = (
+    follow: Follow | null,
+    on: TurnHandlers,
+    nextTutorial: string | null
+  ) =>
+    render(
+      <TurnView
+        turn={reply(follow)}
+        definition={definition}
+        live={false}
+        running={false}
+        passed={[]}
+        read={() => null}
+        nextTutorial={nextTutorial}
+        on={on}
+      />
+    );
+
+  it("follows the answer with a quiet button that opens the next tutorial", async () => {
+    const on = handlers();
+    draw("nextTutorial", on, "Counter PDA Tutorial");
+    expect(
+      screen.getByText("Counter PDA Tutorial is a good next one.")
+    ).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open Counter PDA Tutorial" })
+    );
+    expect(on.openNextTutorial).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the menu through the frame's handler", async () => {
+    const on = handlers();
+    draw("showMenu", on, null);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Show the menu" })
+    );
+    expect(on.openMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the client file at its top, as the win card's button does", async () => {
+    const on = handlers();
+    draw("writeClient", on, null);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Write it in client.ts" })
+    );
+    expect(on.showLine).toHaveBeenCalledWith("client/client.ts", 1);
+  });
+
+  it.each<[string, Follow | null, string | null]>([
+    ["no follow", null, "Counter PDA Tutorial"],
+    ["a next tutorial that is not listed", "nextTutorial", null],
+    ["Open Call before the panel can open", "openTest", null],
+    ["a fix no tutorial shows", "showFix", null],
+  ])("draws no button for %s", (_, follow, nextTutorial) => {
+    draw(follow, handlers(), nextTutorial);
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 });

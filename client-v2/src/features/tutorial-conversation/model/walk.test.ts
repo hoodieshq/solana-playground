@@ -22,17 +22,6 @@ vi.mock("@/entities/tutorial", async () => ({
     .tutorialTelemetry,
 }));
 
-import hello from "../../../tutorials/hello-anchor/tutorial.json";
-import counter from "../../../tutorials/__tests__/counter-anchor/tutorial.json";
-import { memoryWorkspace } from "./ports";
-import type { Judge, Runner } from "./ports";
-import type { RunResult } from "./progress";
-import { PgConversation, STORAGE_KEY } from "./store";
-import { PgExplorer } from "../../../utils/explorer/explorer";
-import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
-import { PgTutorial } from "../../../utils/tutorial/tutorial";
-import type { Disposable } from "../../../utils/types";
-import { PgView } from "../../../utils/view";
 import { checkDefinition } from "@/entities/tutorial/model/definition/check";
 import type {
   ActBeat,
@@ -40,6 +29,18 @@ import type {
   TutorialDefinition,
 } from "@/entities/tutorial/model/definition/types";
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
+
+import counter from "../../../tutorials/__tests__/counter-anchor/tutorial.json";
+import hello from "../../../tutorials/hello-anchor/tutorial.json";
+import { PgExplorer } from "../../../utils/explorer/explorer";
+import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
+import { PgTutorial } from "../../../utils/tutorial/tutorial";
+import type { Disposable } from "../../../utils/types";
+import { PgView } from "../../../utils/view";
+import type { Judge, Runner } from "./ports";
+import { memoryWorkspace } from "./ports";
+import type { RunResult } from "./progress";
+import { PgConversation, STORAGE_KEY } from "./store";
 
 /**
  * The proof that a definition written from `AUTHORING.md` runs with no code

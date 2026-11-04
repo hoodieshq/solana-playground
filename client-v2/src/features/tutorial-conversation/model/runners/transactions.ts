@@ -40,7 +40,7 @@ export interface DecodedCall extends Called {
   accounts: ReceiptAccount[];
 }
 
-const log = createLogger("tutorial-conversation:transactions");
+const logger = createLogger("tutorial-conversation:transactions");
 
 /** Anchor logs the instruction's name first, in the program's own frame */
 const INSTRUCTION = /^Program log: Instruction: (\w+)/;
@@ -88,9 +88,12 @@ const matcher = (pattern: string | undefined): ((line: string) => boolean) => {
   } catch (e) {
     // The judge reports a broken pattern to the team; here the card still
     // shows the program's first line
-    log.warn("A step's log pattern does not compile; showing the first line", {
-      context: { pattern, error: e instanceof Error ? e.message : String(e) },
-    });
+    logger.warn(
+      "A step's log pattern does not compile; showing the first line",
+      {
+        context: { pattern, error: e instanceof Error ? e.message : String(e) },
+      }
+    );
     return () => true;
   }
 };

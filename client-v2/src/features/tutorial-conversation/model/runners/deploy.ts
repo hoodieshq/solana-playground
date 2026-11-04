@@ -1,8 +1,9 @@
 import { shortKey } from "@/shared/lib/short-key";
-import type { RunResult } from "../progress";
+
 import type { RunStage } from "../ports";
-import { fundForDeploy } from "./fund";
+import type { RunResult } from "../progress";
 import type { FundingChain } from "./fund";
+import { fundForDeploy } from "./fund";
 
 /** The stages' labels, as the act card shows them */
 export const DEPLOY_STAGES = {

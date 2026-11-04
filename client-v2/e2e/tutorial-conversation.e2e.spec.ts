@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { LONG, expect, test } from "./fixtures";
+import { expect, LONG, test } from "./fixtures";
 
 const chat = (page: Page) =>
   page.getByRole("complementary", { name: "Tutorial chat" });

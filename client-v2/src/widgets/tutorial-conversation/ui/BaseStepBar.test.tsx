@@ -3,8 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { StepBarItem } from "@/features/tutorial-conversation";
-import BaseStepBar from "./BaseStepBar";
+
 import type { BaseStepBarProps } from "./BaseStepBar";
+import BaseStepBar from "./BaseStepBar";
 
 const step = (
   id: string,

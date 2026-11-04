@@ -12,9 +12,9 @@ vi.mock("../../../utils/explorer/apply-file", () => ({
   applyFile: vi.fn(async () => {}),
 }));
 
-import { WorkspaceMovedError, realWorkspace } from "./real-workspace";
 import { applyFile } from "../../../utils/explorer/apply-file";
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import { realWorkspace, WorkspaceMovedError } from "./real-workspace";
 
 const setWorkspace = (name: string | null) => {
   (PgExplorer as { currentWorkspaceName: string | null }).currentWorkspaceName =

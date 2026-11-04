@@ -1,5 +1,7 @@
-import { BorshInstructionCoder } from "@coral-xyz/anchor";
 import type { Idl } from "@coral-xyz/anchor";
+import { BorshInstructionCoder } from "@coral-xyz/anchor";
+
+import { createLogger } from "@/shared/lib/logger";
 
 import {
   PgCommand,
@@ -10,13 +12,12 @@ import {
   PgWallet,
   PgWeb3,
 } from "../../../../utils";
-import { createLogger } from "@/shared/lib/logger";
 import type { ActRun } from "./act-runner";
-import { captureSends } from "./capture";
 import type { Sender } from "./capture";
-import { runOrCall } from "./run-call";
-import type { Landed, RunPort } from "./run-call";
+import { captureSends } from "./capture";
 import type { FundingChain } from "./fund";
+import type { Landed, RunPort } from "./run-call";
+import { runOrCall } from "./run-call";
 import type { DecodedCall } from "./transactions";
 
 const log = createLogger("tutorial-conversation:run");

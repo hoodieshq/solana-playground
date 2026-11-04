@@ -1,11 +1,11 @@
 import type { Goal } from "@/entities/tutorial";
-import { createLogger } from "@/shared/lib/logger";
 import { sameIdlName } from "@/shared/lib/idl-name";
+import { createLogger } from "@/shared/lib/logger";
 
 import type { Judge } from "./ports";
 import type { Called, RunResult } from "./progress";
 
-const log = createLogger("tutorial-conversation:goals");
+const goalsLog = createLogger("tutorial-conversation:goals");
 
 /**
  * Whether a run's result passes a step's goal: the real check, so no step
@@ -50,7 +50,7 @@ export const judgeGoal: Judge = (goal, result) => {
       // The loader drops a definition that fails `tutorial:check`, so a kind
       // this client does not know is a definition that skipped it
       const unknown: never = goal;
-      log.error("a step goal of a kind this client does not judge", {
+      goalsLog.error("a step goal of a kind this client does not judge", {
         report: true,
         context: { goal: unknown },
       });
@@ -106,7 +106,7 @@ const logMatches = (pattern: string, line: string | null): boolean => {
     // of it once
     if (!reported.has(pattern)) {
       reported.add(pattern);
-      log.error(e, { report: true, context: { pattern } });
+      goalsLog.error(e, { report: true, context: { pattern } });
     }
     return false;
   }

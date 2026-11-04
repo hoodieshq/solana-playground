@@ -1,5 +1,20 @@
 import type { Turn } from "@/features/tutorial-conversation";
 
+import type { FeedEntry } from "./merge";
+
+/** What the rhythm reads of a turn: its kind, and a say's quote */
+export type Spaced = Pick<Turn, "kind"> & { quote?: unknown };
+
+/**
+ * A feed entry as the rhythm reads it: a question to the assistant stands
+ * as the learner's turn, and its answer as the lesson's own text, since the
+ * two share one thread
+ */
+export const spacedOf = (entry: FeedEntry): Spaced => {
+  if (entry.kind === "lesson") return entry.turn;
+  return { kind: entry.kind === "asked" ? "you" : "say" };
+};
+
 /**
  * The feed's vertical rhythm, after the prototype's `Conversation` at
  * `f7d42bf2e` (Practicum's lesson at 400 px): how far, in px, a turn stands
@@ -10,7 +25,7 @@ import type { Turn } from "@/features/tutorial-conversation";
  * - A listing (a wrote card) sits 9 under the text it follows; text resuming
  *   after a listing, a quote or a card starts a new thought, 24 under it.
  */
-export const gapBefore = (prev: Turn | undefined, turn: Turn): number => {
+export const gapBefore = (prev: Spaced | undefined, turn: Spaced): number => {
   if (!prev) return 0;
   if (turn.kind === "divider") return 30;
   if (prev.kind === "divider") return 9;
@@ -98,6 +113,31 @@ if (import.meta.vitest) {
       expect(gapBefore(say(), wrote)).toBe(9);
       expect(gapBefore(wrote, say())).toBe(24);
       expect(gapBefore(say(true), say())).toBe(24);
+    });
+
+    it("spaces an exchange with the assistant as the learner's turn and the lesson's text", () => {
+      const asked: FeedEntry = {
+        kind: "asked",
+        id: "u",
+        at: 0,
+        whole: true,
+        text: "why?",
+      };
+      const answer: FeedEntry = {
+        kind: "answer",
+        id: "a",
+        at: 0,
+        whole: true,
+        text: "Because.",
+        tone: "reply",
+      };
+      expect(
+        gapBefore(spacedOf({ kind: "lesson", turn: say() }), spacedOf(asked))
+      ).toBe(24);
+      expect(gapBefore(spacedOf(asked), spacedOf(answer))).toBe(24);
+      expect(
+        gapBefore(spacedOf(answer), spacedOf({ kind: "lesson", turn: divider }))
+      ).toBe(30);
     });
   });
 }

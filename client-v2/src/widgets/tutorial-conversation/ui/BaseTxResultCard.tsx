@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import {
   Check,
   ChevronDown,
@@ -8,19 +6,22 @@ import {
   ExternalLink,
   Eye,
 } from "lucide-react";
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 import type { RunResult } from "@/features/tutorial-conversation";
 import { devnetExplorerUrl } from "@/shared/lib/devnet-explorer";
 import { PROGRAM_LOG, programLogText } from "@/shared/lib/program-log";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/shared/ui/collapsible";
-import { Button } from "@/shared/ui/button";
-import { Prose, READ, formatSeconds } from "./Prose";
+
+import { formatSeconds, Prose, READ } from "./Prose";
 
 type TxResult = Extract<RunResult, { act: "run" | "call" }>;
 type Landed = Extract<TxResult, { ok: true }>;

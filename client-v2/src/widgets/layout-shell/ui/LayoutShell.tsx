@@ -22,10 +22,9 @@ import { homeOf, isCovered, screenOf } from "../model/screen";
 import type { ToggleSource } from "../model/telemetry";
 import { layoutTelemetry } from "../model/telemetry";
 import { useLayoutState } from "../model/use-layout-state";
-import type { AssistantWide } from "./BaseLayoutShell";
+import type { AssistantWide, TutorialFrameSlot } from "./BaseLayoutShell";
 import BaseLayoutShell from "./BaseLayoutShell";
 import BaseStageBar from "./BaseStageBar";
-import type { AssistantWide, TutorialFrameSlot } from "./BaseLayoutShell";
 
 /** The console as the stage sees it (`LayoutShellProps.stage`) */
 export interface StageConsole {

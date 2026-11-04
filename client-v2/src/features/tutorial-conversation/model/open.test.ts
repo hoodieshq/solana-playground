@@ -13,8 +13,9 @@ vi.mock("./telemetry", () => ({
   tutorialTelemetry: { track: vi.fn() },
 }));
 
-import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import type { TutorialDefinition } from "@/entities/tutorial";
+
+import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
 import { openOnIntro } from "./open";
 import { tutorialTelemetry } from "./telemetry";

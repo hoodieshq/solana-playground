@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
+import type { StepJumpVia } from "@/entities/tutorial";
+import { slugOf } from "@/entities/tutorial";
+import type { ConversationState } from "@/features/tutorial-conversation";
 import {
-  PgConversation,
   isUnreachable,
   judgeGoal,
+  PgConversation,
   realWorkspace,
   stepOfBeat,
   tutorialRunner,
 } from "@/features/tutorial-conversation";
-import type { ConversationState } from "@/features/tutorial-conversation";
-import { slugOf } from "@/entities/tutorial";
-import type { StepJumpVia } from "@/entities/tutorial";
 import { createLogger } from "@/shared/lib/logger";
 import {
   markUnavailableHere,
@@ -20,18 +20,23 @@ import { Spinner } from "@/shared/ui/spinner";
 import { PgProgramInfo, PgWallet } from "@/utils";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
-import { marksOf } from "../model/marks";
-import type { FeedMarks } from "../model/marks";
 import { PgTutorial } from "@/utils/tutorial";
-import { PgAssistant } from "@/views/sidebar/assistant/store";
-import { explainPrompt, whenAnswered } from "../model/explain";
 import { PgFlow } from "@/views/flow/state/stage";
+import { PgAssistant } from "@/views/sidebar/assistant/store";
+
+import { explainPrompt, whenAnswered } from "../model/explain";
+import type { FeedMarks } from "../model/marks";
+import { marksOf } from "../model/marks";
+import { mergeFeed } from "../model/merge";
+import { tutorialMode } from "../model/mode";
 import { announceDeploys } from "../model/runner";
 import { tutorialTelemetry } from "../model/telemetry";
+import BaseAnswer from "./BaseAnswer";
 import BaseFeed from "./BaseFeed";
-import TurnView from "./TurnView";
-import type { TurnHandlers } from "./TurnView";
+import BaseYouPill from "./BaseYouPill";
 import { typing } from "./keys";
+import type { TurnHandlers } from "./TurnView";
+import TurnView from "./TurnView";
 
 const log = createLogger("tutorial-conversation:feed");
 
@@ -50,7 +55,7 @@ const EDIT_REST_MS = 300;
  * state object (`_set` in `PgConversation`), and the view it then answers is
  * what moved; React would skip a `setState` of an object it already holds.
  */
-const useConversationState = (): ConversationState => {
+export const useConversationState = (): ConversationState => {
   const [, render] = useReducer((n: number) => n + 1, 0);
   useEffect(() => PgConversation.onDidChange(render).dispose, []);
   return PgConversation.state;
@@ -383,16 +388,66 @@ const copyFailed = reportButtonFailure("copy it");
 export interface TutorialConversationProps {
   /** Open the catalog's Tutorials page */
   onAllTutorials: () => void;
+  /** Open the frame's navigation, for the live assistant's open_menu tool */
+  onOpenMenu: () => void;
 }
 
 /**
+ * The live assistant in its tutorial mode while the feed is shown: the
+ * lesson's context, reading tools and its four tools (`tutorialMode`), and
+ * none of the assistant's own writing or running tools. The menu opener may change between renders; the
+ * mode reads the latest.
+ */
+const useAssistantMode = (onOpenMenu: () => void) => {
+  // The thread's exchanges are part of the feed: a reply streaming in redraws it
+  const [, render] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => PgAssistant.onDidChange(render).dispose, []);
+  const openMenu = useRef(onOpenMenu);
+  useEffect(() => {
+    openMenu.current = onOpenMenu;
+  }, [onOpenMenu]);
+  useEffect(
+    () =>
+      PgAssistant.setMode(tutorialMode({ openMenu: () => openMenu.current() }))
+        .dispose,
+    []
+  );
+  // A turn begun before the tutorial opened keeps the tools it started with,
+  // and may still ask to write: a tutorial never allows it, and the feed
+  // draws no approval card, so it is declined at once and the model answers
+  useEffect(() => {
+    let scheduled = false;
+    const decline = () => {
+      scheduled = false;
+      const pending = PgAssistant.items.some(
+        (i) => i.kind === "approval" && i.status === "pending"
+      );
+      if (!pending) return;
+      log.info(
+        "declined an approval a turn begun before the tutorial asked for"
+      );
+      PgAssistant.cancelPending();
+    };
+    // After the change that announced it: `requestApproval` announces the
+    // card before it registers the answer that `cancelPending` gives
+    const schedule = () => {
+      if (scheduled) return;
+      scheduled = true;
+      queueMicrotask(decline);
+    };
+    schedule();
+    return PgAssistant.onDidChange(schedule).dispose;
+  }, []);
+};
+
+/**
  * The handlers that read no prop and no definition; `TutorialConversation`
- * adds the ones that do (the next tutorial, All tutorials) and Copy
+ * adds the ones that do (the next tutorial, All tutorials, the menu) and Copy
  * receipt's count
  */
 const handlers: Omit<
   TurnHandlers,
-  "openNextTutorial" | "allTutorials" | "copyReceipt"
+  "openNextTutorial" | "allTutorials" | "openMenu" | "copyReceipt"
 > = {
   start: () => PgConversation.start(),
   pick: (beatId, option) => PgConversation.pick(beatId, option),
@@ -411,6 +466,8 @@ const handlers: Omit<
   // win card shows no "Open Call"
   openCall: undefined,
   copyFailed: (error) => copyFailed(error),
+  apply: (id) => PgConversation.apply(id),
+  keep: (id) => PgConversation.keep(id),
   showLog: () => PgConversation.showLog(),
   createWallet,
 };
@@ -428,15 +485,20 @@ const nextTutorialOf = (next: string | null): string | null =>
 
 /**
  * The tutorial conversation in the frame's chat: it starts the engine for the
- * open workspace, draws the feed from the engine's view, and turns each
- * card's press into the engine's action. ⌘↵ presses the live act, or Explain
- * on an open failure, unless the learner is typing; a call act with arguments
- * waits for its own fields, where Enter sends. The finish card's "All
- * tutorials" opens the catalog, another widget's, so the frame passes it in.
+ * open workspace, draws the feed from the engine's view merged with the live
+ * assistant's thread (`mergeFeed`), and turns each card's press into the
+ * engine's action. While it is mounted the assistant runs in the tutorial's
+ * mode (`tutorialMode`): the lesson's context, reading tools, and no writing
+ * or running. ⌘↵ presses the live act, or Explain on an open failure, unless
+ * the learner is typing; a call act with arguments waits for its own fields,
+ * where Enter sends. The finish card's "All tutorials" and the assistant's
+ * menu open what other widgets own, so the frame passes both in.
  */
 export const TutorialConversation = ({
   onAllTutorials,
+  onOpenMenu,
 }: TutorialConversationProps) => {
+  useAssistantMode(onOpenMenu);
   useEffect(
     () =>
       PgConversation.init({
@@ -551,6 +613,7 @@ export const TutorialConversation = ({
           .catch(reportButtonFailure(`open ${nextTutorial}`));
       },
       allTutorials: onAllTutorials,
+      openMenu: onOpenMenu,
       copyReceipt: () => {
         const slug = PgConversation.state.context?.slug;
         if (slug) {
@@ -560,7 +623,7 @@ export const TutorialConversation = ({
         }
       },
     }),
-    [next, nextTutorial, onAllTutorials]
+    [next, nextTutorial, onAllTutorials, onOpenMenu]
   );
 
   if (!context || !view) {
@@ -578,6 +641,19 @@ export const TutorialConversation = ({
   return (
     <BaseFeed
       turns={view.turns}
+      entries={mergeFeed(
+        view.turns,
+        PgAssistant.items,
+        progress.restartedAt,
+        state.loadedAt
+      )}
+      renderExchange={(entry) =>
+        entry.kind === "asked" ? (
+          <BaseYouPill text={entry.text} code={false} />
+        ) : (
+          <BaseAnswer text={entry.text} tone={entry.tone} />
+        )
+      }
       live={view.live}
       steps={view.steps}
       onJump={onJump}

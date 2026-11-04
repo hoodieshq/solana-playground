@@ -3,15 +3,16 @@ import { useState } from "react";
 import { ladderLine, startTutorials } from "@/entities/tutorial";
 import { createLogger } from "@/shared/lib/logger";
 import { PgTutorial } from "@/utils";
+
 import { matchesTutorial } from "../lib/filter";
-import { frameworkCount } from "../lib/levels";
 import type { FrameworkFilter } from "../lib/levels";
+import { frameworkCount } from "../lib/levels";
 import { bannerOf, featuredOf } from "../model/banner";
 import { catalogTelemetry } from "../model/telemetry";
 import { useCardOpen } from "../model/use-card-open";
 import { useSearchTelemetry } from "../model/use-search-telemetry";
-import { useTutorialList } from "../model/use-tutorial-list";
 import type { TutorialItem } from "../model/use-tutorial-list";
+import { useTutorialList } from "../model/use-tutorial-list";
 import BaseTutorialsPage from "./BaseTutorialsPage";
 
 /** The id the banner's Open runs under, apart from its tutorial's card */

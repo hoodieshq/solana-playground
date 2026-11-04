@@ -1,10 +1,11 @@
-import { useState } from "react";
 import { render as rtl, screen, within } from "@testing-library/react";
-import type { ReactElement } from "react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
+
 import { treeRows } from "../model/tree";
 import BaseWorkspaceHead from "./BaseWorkspaceHead";
 

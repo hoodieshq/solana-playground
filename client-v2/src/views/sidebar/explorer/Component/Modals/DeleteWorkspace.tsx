@@ -69,7 +69,9 @@ const ContentText = styled.div`
 
 const Main = styled.span`
   font-weight: bold;
-  word-break: break-all;
+  /* Breaks inside a word only when it cannot fit a line of its own, such as
+     a long workspace name with no spaces */
+  overflow-wrap: anywhere;
 `;
 
 const Desc = styled.span`

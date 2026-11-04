@@ -1,9 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { StepJumpVia } from "@/entities/tutorial";
 import type { StepBarItem, Turn } from "@/features/tutorial-conversation";
-import { gapBefore } from "../model/rhythm";
+
+import type { FeedEntry } from "../model/merge";
+import { gapBefore, spacedOf } from "../model/rhythm";
 import { liveStepIndex, stepBeside } from "../model/step-bar";
 import BaseBackPill from "./BaseBackPill";
 import BaseStepBar from "./BaseStepBar";
@@ -26,6 +28,13 @@ export interface BaseFeedProps {
   steps: readonly StepBarItem[];
   /** Draw one turn; `live` says whether it is the card that acts */
   renderTurn: (turn: Turn, live: boolean) => ReactNode;
+  /**
+   * The turns merged with the live assistant's exchanges, by time
+   * (`mergeFeed`); without it the feed shows the turns alone
+   */
+  entries?: readonly FeedEntry[];
+  /** Draw one exchange with the assistant */
+  renderExchange?: (entry: Exclude<FeedEntry, { kind: "lesson" }>) => ReactNode;
   /** The feed moved to step `index`'s divider, from the live step `from` */
   onJump: (index: number, from: number, via: StepJumpVia) => void;
   /** The back pill took the learner to the live card; `step` is its index, null before Start */
@@ -41,7 +50,8 @@ const FOCUSABLE =
   "button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
 /**
- * The lesson as one feed: the step bar, then the turns in a `role="log"`,
+ * The lesson as one feed: the step bar, then the turns (merged with the live
+ * assistant's exchanges when `entries` is given) in a `role="log"`,
  * then the back pill while the live card is off screen or the feed is on
  * another step. A step bar segment, an item of its menu or ⌥↑ / ⌥↓
  * (unless a field has focus) brings a step's heading to rest 22 px under the
@@ -54,9 +64,13 @@ const BaseFeed = ({
   live,
   steps,
   renderTurn,
+  entries,
+  renderExchange,
   onJump,
   onBack,
 }: BaseFeedProps) => {
+  const shown: readonly FeedEntry[] =
+    entries ?? turns.map((turn) => ({ kind: "lesson", turn }));
   const root = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const dividers = useRef(new Map<string, HTMLElement>());
@@ -154,7 +168,8 @@ const BaseFeed = ({
   // A reload opens on the live card; a new turn scrolls into view unless the
   // learner is reading another step
   const opened = useRef(false);
-  const count = turns.length;
+  // An answer arriving scrolls like a turn does
+  const count = shown.length;
   useLayoutEffect(() => {
     const box = scroller.current;
     if (!box) return;
@@ -169,7 +184,7 @@ const BaseFeed = ({
         behavior: reducedMotion() ? "auto" : "smooth",
       });
     }
-    // Only a change in the number of turns scrolls; reading elsewhere holds
+    // Only a change in the number of entries scrolls; reading elsewhere holds
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count]);
 
@@ -217,13 +232,34 @@ const BaseFeed = ({
           aria-label="Tutorial"
           className="flex flex-col px-5 pt-[22px] pb-4"
         >
-          {turns.map((turn, index) => {
+          {shown.map((entry, index) => {
+            const marginTop = gapBefore(
+              index > 0 ? spacedOf(shown[index - 1]) : undefined,
+              spacedOf(entry)
+            );
+            if (entry.kind !== "lesson") {
+              return (
+                <div
+                  key={entry.id}
+                  data-turn={entry.kind}
+                  style={{ marginTop }}
+                  className={
+                    entry.whole
+                      ? "rounded-control"
+                      : "rounded-control motion-safe:animate-rise motion-reduce:animate-fade"
+                  }
+                >
+                  {renderExchange?.(entry)}
+                </div>
+              );
+            }
+            const { turn } = entry;
             const isLive = turn.id === live?.id;
             return (
               <div
                 key={turn.id}
                 data-turn={turn.kind}
-                style={{ marginTop: gapBefore(turns[index - 1], turn) }}
+                style={{ marginTop }}
                 ref={(el) => {
                   if (turn.kind === "divider" && turn.step) {
                     if (el) dividers.current.set(turn.step, el);

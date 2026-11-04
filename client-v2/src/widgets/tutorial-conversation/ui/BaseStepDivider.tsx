@@ -1,4 +1,4 @@
-import { Prose, TITLE, noStop } from "./Prose";
+import { noStop, Prose, TITLE } from "./Prose";
 
 export interface BaseStepDividerProps {
   /** The step's objective, which heads it */

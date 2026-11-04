@@ -3,6 +3,12 @@ import { useReducer, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Ask, TutorialDefinition } from "@/entities/tutorial";
+import type {
+  Action,
+  Effect,
+  EngineContext,
+  EngineState,
+} from "@/features/tutorial-conversation";
 import {
   INITIAL_ENGINE_STATE,
   insertBlock,
@@ -12,12 +18,7 @@ import {
   view,
   withOwnText,
 } from "@/features/tutorial-conversation";
-import type {
-  Action,
-  Effect,
-  EngineContext,
-  EngineState,
-} from "@/features/tutorial-conversation";
+
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 
 // The engine's entry also exports its store, which drags in the app's
@@ -162,6 +163,8 @@ const Lesson = ({ world }: { world: World }) => {
             allTutorials: vi.fn(),
             copyReceipt: vi.fn(),
             copyFailed: vi.fn(),
+            apply: vi.fn(),
+            keep: vi.fn(),
             showLine: vi.fn(),
             revealError: vi.fn(),
             showLog: vi.fn(),

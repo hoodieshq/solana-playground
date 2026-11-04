@@ -1,4 +1,3 @@
-import { useEffect, useId, useRef, useState } from "react";
 import {
   Check,
   ChevronRight,
@@ -7,11 +6,13 @@ import {
   SkipForward,
   X,
 } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import type { Ask } from "@/entities/tutorial";
 import type { AskOutcome } from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
+
 import { typing } from "./keys";
 import { HEADING, LISTING, Prose } from "./Prose";
 

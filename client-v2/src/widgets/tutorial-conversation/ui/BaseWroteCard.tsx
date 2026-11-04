@@ -1,9 +1,10 @@
-import { useState } from "react";
 import { FilePlus2, TriangleAlert } from "lucide-react";
+import { useState } from "react";
 
 import type { Wrote } from "@/features/tutorial-conversation";
 import { Button } from "@/shared/ui/button";
 import { Tag } from "@/shared/ui/tag";
+
 import BaseResetStepDialog from "./BaseResetStepDialog";
 
 export interface BaseWroteCardProps {

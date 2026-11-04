@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { LONG, expect, test } from "./fixtures";
+import { expect, LONG, test } from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
 /** The workspace's head, over the editor in the tutorial frame */

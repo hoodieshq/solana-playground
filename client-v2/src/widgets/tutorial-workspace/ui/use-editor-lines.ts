@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
 import * as monaco from "monaco-editor";
+import { useEffect, useState } from "react";
 
-import { GHOST_TEXT, arrivalMs, decorationsFor } from "../model/lines";
 import type { LineMarks } from "../model/lines";
+import { arrivalMs, decorationsFor, GHOST_TEXT } from "../model/lines";
 
 /**
  * The stage's code editor inside `root`: Monaco's editors are global, and a

@@ -14,6 +14,11 @@ interface MarkdownProps {
   children: string;
   /** Make all fonts the code font */
   codeFontOnly?: boolean;
+  /**
+   * Take the font and the text color from the parent, so the text reads as
+   * the prose around it does (the tutorial feed's assistant turns)
+   */
+  inheritFont?: boolean;
   /** Root for the `src` prop (defaults to the current path) */
   rootSrc?: string;
   /** Whether to support URL hashes `<URL>#<HASH>` */
@@ -112,7 +117,7 @@ const Markdown: FC<React.PropsWithChildren<MarkdownProps>> = ({
 };
 
 const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
-  ${({ theme, codeFontOnly }) => css`
+  ${({ theme, codeFontOnly, inheritFont }) => css`
     --border-radius: ${theme.default.borderRadius};
     --color-prettylights-syntax-comment: var(--syntax-comment);
     --color-prettylights-syntax-constant: var(--syntax-type);
@@ -188,6 +193,11 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
       `
         font-family: ${theme.font.code.family} !important;
         font-size: ${theme.font.code.size.medium} !important;
+      `}
+      ${inheritFont &&
+      `
+        font: inherit;
+        color: inherit;
       `}
     }
 

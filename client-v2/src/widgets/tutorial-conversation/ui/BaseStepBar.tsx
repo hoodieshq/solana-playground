@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
-import type { CSSProperties } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import type { CSSProperties } from "react";
+import { useEffect, useRef } from "react";
 
 import type { StepJumpVia } from "@/entities/tutorial";
 import type { StepBarItem } from "@/features/tutorial-conversation";

@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { LONG, expect, test } from "./fixtures";
+import { expect, LONG, test } from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
 /** The chat column, the navigation's column and the scrim over the chat */

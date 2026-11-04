@@ -1,5 +1,5 @@
-import { slugOf } from "@/entities/tutorial";
 import type { TutorialDefinition } from "@/entities/tutorial";
+import { slugOf } from "@/entities/tutorial";
 
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
 import { tutorialTelemetry } from "./telemetry";

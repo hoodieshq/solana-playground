@@ -1,5 +1,3 @@
-import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, FC, ReactNode, RefObject } from "react";
 import {
   Check,
   ChevronDown,
@@ -8,6 +6,8 @@ import {
   Pin,
   Terminal,
 } from "lucide-react";
+import type { CSSProperties, FC, ReactNode, RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { COARSE_HIT } from "@/shared/lib/hit-area";
 import { cn } from "@/shared/lib/utils";
@@ -28,6 +28,7 @@ import {
 import { Kbd } from "@/shared/ui/kbd";
 import { Popover, PopoverAnchor, PopoverContent } from "@/shared/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+
 import type { TreeSource } from "../model/telemetry";
 import type { TreeRow } from "../model/tree";
 import BaseFileTreeList from "./BaseFileTreeList";

@@ -1,6 +1,7 @@
-import { PgExplorer, PgTutorial } from "../../utils";
-import { useRenderOnChange } from "../../hooks";
 import { useConversationStarted } from "@/widgets/tutorial-conversation";
+
+import { useRenderOnChange } from "../../hooks";
+import { PgExplorer, PgTutorial } from "../../utils";
 import { offersStages } from "./stages-offered";
 
 /** `offersStages` for the tutorial in the URL, re-read as it changes */

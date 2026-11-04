@@ -2,11 +2,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
+import type { RunResult } from "@/features/tutorial-conversation";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 
-import type { RunResult } from "@/features/tutorial-conversation";
-import BaseDeployResultCard from "./BaseDeployResultCard";
 import type { DeployResult } from "./BaseDeployResultCard";
+import BaseDeployResultCard from "./BaseDeployResultCard";
 
 const PROGRAM = "HeLLo1111111111111111111111111111111111Anch";
 const SIGNATURE =

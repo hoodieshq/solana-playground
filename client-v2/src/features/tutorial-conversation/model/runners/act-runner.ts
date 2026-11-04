@@ -1,7 +1,7 @@
 import type { Act } from "@/entities/tutorial";
 
-import { failedResult } from "../ports";
 import type { Runner } from "../ports";
+import { failedResult } from "../ports";
 
 /** One act's runner, as the `Runner` port calls it */
 export type ActRun = Runner["run"];

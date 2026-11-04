@@ -2,19 +2,20 @@ import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
 
-import { checkDefinition } from "@/entities/tutorial/model/definition/check";
 import type {
   Beat,
   Block,
   Step,
   TutorialDefinition,
 } from "@/entities/tutorial";
+import { checkDefinition } from "@/entities/tutorial/model/definition/check";
 import {
   groundOf,
   insertBlock,
 } from "@/features/tutorial-conversation/model/landing";
-import hello from "./hello-anchor/tutorial.json";
+
 import prototype from "./__tests__/write-anchors/prototype-step1.json";
+import hello from "./hello-anchor/tutorial.json";
 
 /**
  * Step 1 of Lumberjack and Zero Copy, dumped from Almaz's prototype
