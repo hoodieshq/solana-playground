@@ -45,7 +45,7 @@ export const INITIAL_CONVERSATION_STATE: ConversationState = {
   loadedAt: 0,
 };
 
-/** The key under which the engine saves, beside the old lesson's `lesson` */
+/** The key under which the engine saves in the tutorial's storage */
 export const STORAGE_KEY = "conversation";
 
 /**

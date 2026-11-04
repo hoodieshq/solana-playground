@@ -1,17 +1,11 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider, type DefaultTheme } from "styled-components";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/** What the mocked explorer and lesson report; each test sets its own */
+/** What the mocked explorer reports; each test sets its own */
 const given = vi.hoisted(() => ({
   /** The project's stable id; a rename changes the name, never this */
   workspace: "a" as string | undefined,
-  lesson: { path: null as unknown, record: [] as unknown[] },
-  /** Whether the frontier step can be passed without proof */
-  canPass: false,
-  pass: vi.fn(),
-  /** The panel's lesson subscription, to fire a change */
-  listener: null as ((state: unknown) => void) | null,
   /** How many times the tree mounted */
   treeMounts: 0,
 }));
@@ -40,30 +34,7 @@ vi.mock("../../sidebar/explorer/Component/useCreateItem", () => ({
   useCreateItem: () => ({ createItem: vi.fn() }),
 }));
 
-// The lessons module reaches the `@/utils` barrel, whose generated globals
-// exist only in a booted app
-vi.mock("../lessons", () => ({
-  INITIAL_LESSON_STATE: { path: null, record: [] },
-  PgLesson: {
-    get state() {
-      return given.lesson;
-    },
-    onDidChange: (cb: (state: unknown) => void) => {
-      given.listener = cb;
-      cb(given.lesson);
-      return { dispose: () => {} };
-    },
-    canPass: () => given.canPass,
-    pass: () => given.pass(),
-  },
-  cursorStep: () => ({ verifiedBy: "a passing test" }),
-  foldRecord: () => null,
-}));
-vi.mock("../lessons/StepRail", () => ({
-  default: () => <div data-testid="step-rail" />,
-}));
-
-import LeftPanel, { isLessonTab } from "./LeftPanel";
+import LeftPanel from "./LeftPanel";
 import { forgetColumn } from "./kept-column";
 
 // A theme that answers every key: the styles are not under test, and the
@@ -85,98 +56,13 @@ const draw = (collapsed: boolean, onHide?: () => void) =>
     </ThemeProvider>
   );
 
-/** A lesson the panel shows its Steps and Files tabs for */
-const inLesson = () => {
-  given.lesson = { path: { id: "lesson" }, record: [] };
-};
 const body = () => document.getElementById("flow-left-tabpanel")!;
-const tab = (name: "steps" | "files") =>
-  document.getElementById(`flow-left-tab-${name}`)!;
-
 // Before, not after: Testing Library unmounts the last panel after this
 // file's own hooks, and that unmount keeps it again
 beforeEach(() => {
   forgetColumn();
   given.workspace = "a";
-  given.lesson = { path: null, record: [] };
-  given.canPass = false;
-  given.pass.mockReset();
-  given.listener = null;
   given.treeMounts = 0;
-  // The segmented measures its thumb with one; jsdom has none
-  vi.stubGlobal(
-    "ResizeObserver",
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    }
-  );
-});
-
-describe("LeftPanel in a lesson", () => {
-  beforeEach(inLesson);
-
-  it("holds Steps and Files in a Segmented named Lesson panel, marking the current tab", () => {
-    draw(false);
-    const group = document.querySelector('[data-slot="segmented"]');
-    expect(group?.getAttribute("aria-label")).toBe("Lesson panel");
-    expect(tab("steps").getAttribute("data-state")).toBe("on");
-    expect(tab("files").getAttribute("data-state")).toBe("off");
-  });
-
-  it("opens on the tab it is told to, over the kept one", () => {
-    render(
-      <ThemeProvider theme={anyTheme}>
-        <LeftPanel collapsed={false} startOn="files" />
-      </ThemeProvider>
-    );
-    expect(tab("files").getAttribute("data-state")).toBe("on");
-  });
-
-  it("keeps no tab from a column told where to open", () => {
-    const told = render(
-      <ThemeProvider theme={anyTheme}>
-        <LeftPanel collapsed={false} startOn="files" />
-      </ThemeProvider>
-    );
-    told.unmount();
-    draw(false);
-    expect(tab("steps").getAttribute("data-state")).toBe("on");
-  });
-
-  it("switches to the explorer when Files is pressed", () => {
-    draw(false);
-    expect(screen.queryByTestId("step-rail")).not.toBeNull();
-    expect(document.getElementById("root-dir")).toBeNull();
-
-    fireEvent.click(tab("files"));
-    expect(tab("files").getAttribute("data-state")).toBe("on");
-    expect(screen.queryByTestId("step-rail")).toBeNull();
-    expect(document.getElementById("root-dir")).not.toBeNull();
-  });
-
-  it("offers Skip this step only when the step can be passed, and passes it", () => {
-    draw(false);
-    const skip = () => screen.queryByRole("button", { name: "Skip this step" });
-    expect(skip()).toBeNull();
-
-    given.canPass = true;
-    // A new object: the same one would bail out of the re-render
-    act(() => given.listener?.({ path: { id: "lesson" }, record: [] }));
-    fireEvent.click(skip()!);
-    expect(given.pass).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("isLessonTab", () => {
-  it("accepts the two tabs and nothing else", () => {
-    expect(isLessonTab("steps")).toBe(true);
-    expect(isLessonTab("files")).toBe(true);
-    // The Segmented reports a plain string; anything but a tab is ignored
-    expect(isLessonTab("")).toBe(false);
-    expect(isLessonTab("settings")).toBe(false);
-  });
 });
 
 describe("LeftPanel in the flush frame", () => {
@@ -191,15 +77,12 @@ describe("LeftPanel in the flush frame", () => {
     }
   );
 
-  it("shows the tree and its New file footer, and no switch, outside a lesson", () => {
+  it("shows the tree under its Files head, and its New file footer", () => {
     draw(false);
     expect(document.getElementById("root-dir")).not.toBeNull();
+    expect(screen.getByText("Files")).toBeTruthy();
     expect(screen.getByRole("button", { name: "+ New file" })).toBeTruthy();
-    // No tab row outside a lesson
-    expect(document.querySelector('[data-slot="segmented"]')).toBeNull();
-    expect(screen.queryByRole("group", { name: "Lesson panel" })).toBeNull();
-    expect(document.getElementById("flow-left-tab-steps")).toBeNull();
-    expect(document.getElementById("flow-left-tab-files")).toBeNull();
+    expect(given.treeMounts).toBe(1);
   });
 
   /** The prototype's head: "Files" and a way to hide the column */
@@ -226,23 +109,28 @@ describe("LeftPanel in the flush frame", () => {
 });
 
 describe("LeftPanel across an unmount", () => {
-  it("draws a lesson's Steps tab from its first commit", () => {
-    // A first commit without the lesson drew the tree, and the kept scroll
-    // landed on it rather than on the step rail
-    inLesson();
-    draw(false);
-    expect(given.treeMounts).toBe(0);
-  });
-
   it("keeps nothing while no project is open", () => {
     given.workspace = undefined;
-    inLesson();
     const first = draw(false);
-    fireEvent.click(tab("files"));
+    body().scrollTop = 120;
     first.unmount();
 
+    given.workspace = "a";
     draw(false);
-    expect(tab("steps").getAttribute("data-state")).toBe("on");
+    expect(body().scrollTop).toBe(0);
+  });
+
+  it("keeps nothing from the phone's sheet", () => {
+    const sheet = render(
+      <ThemeProvider theme={anyTheme}>
+        <LeftPanel collapsed={false} sheet />
+      </ThemeProvider>
+    );
+    body().scrollTop = 120;
+    sheet.unmount();
+
+    draw(false);
+    expect(body().scrollTop).toBe(0);
   });
 
   it("keeps the scroll when it is hidden in place", () => {
@@ -273,16 +161,6 @@ describe("LeftPanel across an unmount", () => {
     expect(body().scrollTop).toBe(120);
   });
 
-  it("keeps the Files tab across an unmount", () => {
-    inLesson();
-    const first = draw(false);
-    fireEvent.click(tab("files"));
-    first.unmount();
-
-    draw(false);
-    expect(tab("files").getAttribute("data-state")).toBe("on");
-  });
-
   it("keeps the scroll across an unmount", () => {
     const first = draw(false);
     body().scrollTop = 120;
@@ -294,29 +172,25 @@ describe("LeftPanel across an unmount", () => {
   });
 
   it("keeps for the project open when the column hides", () => {
-    // A lesson mounts the column before the explorer has opened its project
+    // The column can mount before the explorer has opened its project
     given.workspace = undefined;
-    inLesson();
     const first = draw(false);
     given.workspace = "a";
-    fireEvent.click(tab("files"));
+    body().scrollTop = 120;
     first.unmount();
 
     draw(false);
-    expect(tab("files").getAttribute("data-state")).toBe("on");
+    expect(body().scrollTop).toBe(120);
   });
 
   it("ignores another project's memory", () => {
-    inLesson();
     const first = draw(false);
-    fireEvent.click(tab("files"));
     body().scrollTop = 120;
     fireEvent.scroll(body());
     first.unmount();
 
     given.workspace = "b";
     draw(false);
-    expect(tab("steps").getAttribute("data-state")).toBe("on");
     expect(body().scrollTop).toBe(0);
   });
 });

@@ -740,7 +740,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
       {/* Under Home only with `keepWork`, and then off the page: Home places
       no outlet, as the pager places none on a page it does not show */}
       {/* Off screen (under Home, kept, or under a page, inert), the work's own
-      keys (a tab's close, the console's, a lesson reader's Escape) would act
+      keys (a tab's close, the console's) would act
       on what is not seen */}
       <KeybindsActive.Provider value={screen.kind === "work"}>
         {workMounted && (
