@@ -22,6 +22,7 @@ import type { ProjectEntry } from "../model/project-entries";
 import { listProjects } from "../model/project-entries";
 import { navTelemetry } from "../model/telemetry";
 import { readWorkspaceFiles, rebaseFiles } from "../model/workspace-files";
+import type { BaseProjectListProps } from "./BaseProjectList";
 import BaseProjectList from "./BaseProjectList";
 import { useSyncMarkers } from "./use-sync-markers";
 
@@ -83,6 +84,8 @@ export type ProjectListProps = {
    * a page over the work makes way for it
    */
   onPicked?: () => void;
+  /** EMPTY-01's ways in, drawn once the explorer holds no project */
+  empty?: BaseProjectListProps["empty"];
 };
 
 /**
@@ -91,7 +94,7 @@ export type ProjectListProps = {
  * each menu item does. A failed action tells the
  * user, is logged for the team, and is counted.
  */
-const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
+const ProjectList = ({ onPickCurrent, onPicked, empty }: ProjectListProps) => {
   const [, refresh] = useReducer((n: number) => n + 1, 0);
   const [pins, setPins] = useState(readPins);
   const markers = useSyncMarkers();
@@ -314,6 +317,8 @@ const ProjectList = ({ onPickCurrent, onPicked }: ProjectListProps) => {
         setRenaming(undefined);
         setRenameError(undefined);
       }}
+      // A preview has no workspaces of its own, which is not "no projects"
+      empty={PgExplorer.isTemporary ? undefined : empty}
     />
   );
 };

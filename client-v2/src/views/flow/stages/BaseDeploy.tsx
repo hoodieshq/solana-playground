@@ -59,7 +59,7 @@ export interface BaseDeployProps {
   txUrl: (signature: string) => string;
   onDeploy: () => void;
   onInteract: () => void;
-  /** The rare "Upload IDL" action, a link under the pill (`IdlActions mode="upload"`) */
+  /** The "Upload IDL" action, an outline beside the pill (`IdlActions mode="upload"`) */
   idlUpload: ReactNode;
 }
 
@@ -80,7 +80,7 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
 const clusterName = (p: BaseDeployProps) => p.cluster ?? "the network";
 
 /** The cluster as the status row names it: "devnet" reads "Devnet" */
-const clusterTitle = (cluster: string) =>
+export const clusterTitle = (cluster: string) =>
   cluster.charAt(0).toUpperCase() + cluster.slice(1);
 
 const description = (p: BaseDeployProps, latest: DeployRecord | null) => {
@@ -267,7 +267,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
         )}
         {latest && <DeployResult latest={latest} p={p} />}
         {latest && <History p={p} />}
-        <StageEmptyActions className={cn(STAGE_FOOT, !latest && "flex-col")}>
+        <StageEmptyActions className={STAGE_FOOT}>
           <BrandButton
             disabled={!p.built || running}
             aria-busy={running || undefined}
@@ -277,11 +277,12 @@ const BaseDeploy = (p: BaseDeployProps) => {
             {deployLabel(p, latest !== null)}
             {!running && <BrandButtonIcon />}
           </BrandButton>
-          {/* A link, not a second button: loading an IDL by hand is rare.
-              Before the first deploy, centred under the pill on a desk and
-              above it on a phone, where the pill keeps the foot; after one,
-              beside the pill */}
-          <div className="flex justify-center">{p.idlUpload}</div>
+          {/* The second action, an outline beside the pill in its height
+              and shape, so the pill keeps the focus; above it on a phone,
+              where the pill keeps the foot */}
+          <div className="flex justify-center [&_[data-slot=button]]:h-10 [&_[data-slot=button]]:rounded-full [&_[data-slot=button]]:px-5 max-md:[&_[data-slot=button]]:w-full max-md:[&>div]:w-full">
+            {p.idlUpload}
+          </div>
         </StageEmptyActions>
       </StageEmpty>
     </div>

@@ -164,8 +164,8 @@ const EmptyThread = ({
         <h3>{project ? `Ask about ${project}` : "Ask the assistant"}</h3>
       </EmptyTitle>
       <EmptyDescription className="max-w-[21rem] text-sm leading-normal">
-        It reads the file you are looking at and the last build error, and
-        proposes patches you apply yourself.
+        It reads the open file and the last build error. It proposes changes you
+        apply yourself.
       </EmptyDescription>
     </EmptyHeader>
     {/* A row that wraps, as the prototype lays the questions out */}
