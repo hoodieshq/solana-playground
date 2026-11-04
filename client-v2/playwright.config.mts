@@ -210,8 +210,10 @@ export default defineConfig({
     launchOptions: { slowMo: Number(process.env.SLOWMO ?? 0) },
   },
   webServer: {
-    // `dev` runs `generate-fast`: still syncs public/, but skips
-    // `generate-crates`, which shells out to cargo and dominates the runtime
+    // `dev` runs `generate-fast`, then `generate-dev-crates`, which skips on
+    // the stubs and on CI finds the restored crates current by key. A machine's
+    // first local run generates them for about ten minutes, longer than the
+    // local timeout below: run `yarn generate-dev-crates` once first
     command: "yarn dev",
     url: origin,
     // Only this worktree's own dev server is reused. Any other server on the
