@@ -9,6 +9,7 @@ import {
   memoryProvider as logMemory,
   resetLogger,
 } from "@/shared/lib/logger";
+import { requireFor } from "@/test-utils/require-for";
 
 // `usePanelRef` is replaced, so the tests can see which imperative calls the
 // shell makes, and `Group` and `Panel` record their props; `Separator` is the
@@ -354,9 +355,9 @@ it("should show the assistant Sheet when it is open", () => {
 
 it("should set the design system's sidebar widths", () => {
   render(<BaseLayoutShell {...props("wide")} />);
-  const wrapper = document.querySelector<HTMLElement>(
-    '[data-slot="sidebar-wrapper"]'
-  )!;
+  const wrapper = requireFor("the sidebar wrapper")(
+    document.querySelector<HTMLElement>('[data-slot="sidebar-wrapper"]')
+  );
   expect(wrapper.style.getPropertyValue("--sidebar-width")).toBe("14.5rem");
   expect(wrapper.style.getPropertyValue("--sidebar-width-icon")).toBe(
     "3.25rem"
@@ -375,15 +376,17 @@ it("should draw the stage bar, then the stage tabs, over the work area", () => {
 describe("the flush frame", () => {
   it("has no inset on the provider and no gutter on the inset", () => {
     render(<BaseLayoutShell {...props("wide")} />);
-    const wrapper = document.querySelector<HTMLElement>(
-      '[data-slot="sidebar-wrapper"]'
-    )!;
+    const wrapper = requireFor("the sidebar wrapper")(
+      document.querySelector<HTMLElement>('[data-slot="sidebar-wrapper"]')
+    );
     expect(wrapper.style.padding).toBe("");
-    const inset = document.querySelector('[data-slot="sidebar-inset"]')!;
+    const inset = requireFor("the sidebar inset")(
+      document.querySelector('[data-slot="sidebar-inset"]')
+    );
     expect(inset.className).not.toMatch(/\bmd:ml-2\b/);
-    const sidebar = document.querySelector<HTMLElement>(
-      '[data-slot="sidebar-container"]'
-    )!;
+    const sidebar = requireFor("the sidebar container")(
+      document.querySelector<HTMLElement>('[data-slot="sidebar-container"]')
+    );
     expect(sidebar.style.top).toBe("");
     expect(sidebar.style.bottom).toBe("");
   });
@@ -416,7 +419,9 @@ describe("the flush frame", () => {
 
   it("lets the navigation draw its right line", () => {
     render(<BaseLayoutShell {...props("wide")} />);
-    const sidebar = document.querySelector('[data-slot="sidebar-container"]')!;
+    const sidebar = requireFor("the sidebar container")(
+      document.querySelector('[data-slot="sidebar-container"]')
+    );
     expect(sidebar.className).not.toMatch(/border-r-0/);
     // In the frame's line colour: a bare `border-r` is currentColor in
     // Tailwind 4 until the global reset (5.24) lands
@@ -447,19 +452,25 @@ it("should keep the console mounted when the window crosses 1024 px", () => {
 it("should mark the sidebar expanded or collapsed from navOpen", () => {
   const open = render(<BaseLayoutShell {...props("wide")} />);
   expect(
-    document.querySelector('[data-slot="sidebar"]')!.getAttribute("data-state")
+    requireFor("the sidebar")(
+      document.querySelector('[data-slot="sidebar"]')
+    ).getAttribute("data-state")
   ).toBe("expanded");
   open.unmount();
   render(<BaseLayoutShell {...props("wide", { navOpen: false })} />);
   expect(
-    document.querySelector('[data-slot="sidebar"]')!.getAttribute("data-state")
+    requireFor("the sidebar")(
+      document.querySelector('[data-slot="sidebar"]')
+    ).getAttribute("data-state")
   ).toBe("collapsed");
 });
 
 it("should report the Sheet closing", () => {
   const shell = props("compact", { assistantSheetOpen: true });
   render(<BaseLayoutShell {...shell} />);
-  const sheet = document.querySelector('[data-slot="sheet-content"]')!;
+  const sheet = requireFor("the sheet content")(
+    document.querySelector('[data-slot="sheet-content"]')
+  );
   fireEvent.keyDown(sheet, { key: "Escape" });
   expect(shell.assistantState.onOpenChange).toHaveBeenCalledWith(false);
 });
@@ -560,7 +571,7 @@ it("should take and save the horizontal layout on a wide screen", () => {
   render(<BaseLayoutShell {...wide} />);
   const group = panelSpies.groups["layout-horizontal"];
   expect(group.defaultLayout).toEqual({ assistant: 30, work: 70 });
-  group.onLayoutChanged!(
+  requireFor("the group's onLayoutChanged")(group.onLayoutChanged)(
     { assistant: 40, work: 60 },
     { isUserInteraction: true }
   );
@@ -575,18 +586,15 @@ it("should not save a layout the library settled on its own", () => {
   // saving that would pin the sizes of a window the user has since left
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
-  panelSpies.groups["layout-horizontal"].onLayoutChanged!(
-    { assistant: 40, work: 60 },
-    { isUserInteraction: false }
-  );
-  panelSpies.groups["layout-work"].onLayoutChanged!(
-    { files: 20, center: 80 },
-    { isUserInteraction: false }
-  );
-  panelSpies.groups["layout-vertical"].onLayoutChanged!(
-    { stage: 60, console: 40 },
-    { isUserInteraction: false }
-  );
+  requireFor("the onLayoutChanged of group layout-horizontal")(
+    panelSpies.groups["layout-horizontal"].onLayoutChanged
+  )({ assistant: 40, work: 60 }, { isUserInteraction: false });
+  requireFor("the onLayoutChanged of group layout-work")(
+    panelSpies.groups["layout-work"].onLayoutChanged
+  )({ files: 20, center: 80 }, { isUserInteraction: false });
+  requireFor("the onLayoutChanged of group layout-vertical")(
+    panelSpies.groups["layout-vertical"].onLayoutChanged
+  )({ stage: 60, console: 40 }, { isUserInteraction: false });
   expect(wide.onHorizontalLayout).not.toHaveBeenCalled();
   expect(wide.onWorkLayout).not.toHaveBeenCalled();
   expect(wide.onVerticalLayout).not.toHaveBeenCalled();
@@ -595,10 +603,9 @@ it("should not save a layout the library settled on its own", () => {
 it("should save a vertical layout the user dragged", () => {
   const wide = props("wide");
   render(<BaseLayoutShell {...wide} />);
-  panelSpies.groups["layout-vertical"].onLayoutChanged!(
-    { stage: 60, console: 40 },
-    { isUserInteraction: true }
-  );
+  requireFor("the onLayoutChanged of group layout-vertical")(
+    panelSpies.groups["layout-vertical"].onLayoutChanged
+  )({ stage: 60, console: 40 }, { isUserInteraction: true });
   expect(wide.onVerticalLayout).toHaveBeenCalledWith({
     stage: 60,
     console: 40,
@@ -631,7 +638,9 @@ const settled = (
   isUserInteraction: boolean
 ) =>
   act(() =>
-    panelSpies.groups[id].onLayoutChanged!(layout, { isUserInteraction })
+    requireFor("the group's onLayoutChanged")(
+      panelSpies.groups[id].onLayoutChanged
+    )(layout, { isUserInteraction })
   );
 
 it("should report a drag that folds the assistant, and save its layout", () => {
@@ -780,7 +789,11 @@ it("should settle the files column on its own, whichever group settled first", (
 it("should open a reopened files column at the width it was dragged to", () => {
   const { rerender } = render(<BaseLayoutShell {...props("wide")} />);
   // Dragged to 300 px while open
-  act(() => panelSpies.panels["files"].onResize!({ inPixels: 300 }));
+  act(() =>
+    requireFor("the onResize of panel files")(
+      panelSpies.panels["files"].onResize
+    )({ inPixels: 300 })
+  );
   rerender(<BaseLayoutShell {...props("wide", { filesOpen: false })} />);
   rerender(<BaseLayoutShell {...props("wide", { filesOpen: true })} />);
   expect(
@@ -853,6 +866,9 @@ it("renders the pager, not the sidebar frame, on a phone", () => {
 
 describe("widening the assistant", () => {
   /** The shell's assistant slot, recording what it was last handed */
+  const lastOf = (seen: { last: AssistantWide | null }) =>
+    requireFor("the widening handed to the assistant slot")(seen.last);
+
   const slot = () => {
     const seen: { last: AssistantWide | null } = { last: null };
     const assistant = (wide: AssistantWide) => {
@@ -866,22 +882,28 @@ describe("widening the assistant", () => {
     const { assistant: panel } = handles();
     const { seen, assistant } = slot();
     render(<BaseLayoutShell {...props("wide", { assistant })} />);
-    act(() => panelSpies.panels.assistant.onResize!({ inPixels: 400 }));
-    expect(seen.last!.wide).toBe(false);
-    expect(seen.last!.canWiden).toBe(true);
-
-    act(() => seen.last!.setWide(true));
-    expect(panel.resize).toHaveBeenLastCalledWith(PANEL_SIZES.assistant.max);
-    expect(seen.last!.wide).toBe(true);
     act(() =>
-      panelSpies.panels.assistant.onResize!({
+      requireFor("the assistant panel's onResize")(
+        panelSpies.panels.assistant.onResize
+      )({ inPixels: 400 })
+    );
+    expect(lastOf(seen).wide).toBe(false);
+    expect(lastOf(seen).canWiden).toBe(true);
+
+    act(() => lastOf(seen).setWide(true));
+    expect(panel.resize).toHaveBeenLastCalledWith(PANEL_SIZES.assistant.max);
+    expect(lastOf(seen).wide).toBe(true);
+    act(() =>
+      requireFor("the assistant panel's onResize")(
+        panelSpies.panels.assistant.onResize
+      )({
         inPixels: PANEL_SIZES.assistant.max,
       })
     );
 
-    act(() => seen.last!.setWide(false));
+    act(() => lastOf(seen).setWide(false));
     expect(panel.resize).toHaveBeenLastCalledWith(400);
-    expect(seen.last!.wide).toBe(false);
+    expect(lastOf(seen).wide).toBe(false);
   });
 
   it("should say whether it changed the panel, so only a real change is measured", () => {
@@ -889,12 +911,12 @@ describe("widening the assistant", () => {
     render(<BaseLayoutShell {...props("wide", { assistant })} />);
     let changed: boolean | undefined;
     act(() => {
-      changed = seen.last!.setWide(true);
+      changed = lastOf(seen).setWide(true);
     });
     expect(changed).toBe(true);
     // Already wide: nothing to do
     act(() => {
-      changed = seen.last!.setWide(true);
+      changed = lastOf(seen).setWide(true);
     });
     expect(changed).toBe(false);
   });
@@ -906,7 +928,7 @@ describe("widening the assistant", () => {
     render(<BaseLayoutShell {...props("wide", { assistant })} />);
     let changed: boolean | undefined;
     act(() => {
-      changed = seen.last!.setWide(true);
+      changed = lastOf(seen).setWide(true);
     });
     expect(changed).toBe(false);
   });
@@ -915,15 +937,14 @@ describe("widening the assistant", () => {
     const { seen, assistant } = slot();
     const wide = props("wide", { assistant });
     render(<BaseLayoutShell {...wide} />);
-    act(() => seen.last!.setWide(true));
+    act(() => lastOf(seen).setWide(true));
     act(() =>
-      panelSpies.groups["layout-horizontal"].onLayoutChanged!(
-        { assistant: 40, work: 60 },
-        { isUserInteraction: false }
-      )
+      requireFor("the onLayoutChanged of group layout-horizontal")(
+        panelSpies.groups["layout-horizontal"].onLayoutChanged
+      )({ assistant: 40, work: 60 }, { isUserInteraction: false })
     );
     expect(wide.onHorizontalLayout).not.toHaveBeenCalled();
-    expect(seen.last!.wide).toBe(true);
+    expect(lastOf(seen).wide).toBe(true);
   });
 
   it("should stop being wide on a drag, and leave the dragged size alone", () => {
@@ -931,15 +952,14 @@ describe("widening the assistant", () => {
     const { seen, assistant } = slot();
     const wide = props("wide", { assistant });
     render(<BaseLayoutShell {...wide} />);
-    act(() => seen.last!.setWide(true));
+    act(() => lastOf(seen).setWide(true));
     panel.resize.mockClear();
     act(() =>
-      panelSpies.groups["layout-horizontal"].onLayoutChanged!(
-        { assistant: 30, work: 70 },
-        { isUserInteraction: true }
-      )
+      requireFor("the onLayoutChanged of group layout-horizontal")(
+        panelSpies.groups["layout-horizontal"].onLayoutChanged
+      )({ assistant: 30, work: 70 }, { isUserInteraction: true })
     );
-    expect(seen.last!.wide).toBe(false);
+    expect(lastOf(seen).wide).toBe(false);
     expect(panel.resize).not.toHaveBeenCalled();
     expect(wide.onHorizontalLayout).toHaveBeenCalledWith({
       assistant: 30,
@@ -955,10 +975,10 @@ describe("widening the assistant", () => {
         {...props("compact", { assistant, assistantSheetOpen: true })}
       />
     );
-    act(() => seen.last!.setWide(true));
+    act(() => lastOf(seen).setWide(true));
     expect(panel.resize).not.toHaveBeenCalled();
-    expect(seen.last!.wide).toBe(false);
-    expect(seen.last!.canWiden).toBe(false);
+    expect(lastOf(seen).wide).toBe(false);
+    expect(lastOf(seen).canWiden).toBe(false);
   });
 
   it("should do nothing while the panel is folded", () => {
@@ -970,9 +990,9 @@ describe("widening the assistant", () => {
         {...props("wide", { assistant, assistantOpen: false })}
       />
     );
-    act(() => seen.last!.setWide(true));
+    act(() => lastOf(seen).setWide(true));
     expect(panel.resize).not.toHaveBeenCalled();
-    expect(seen.last!.wide).toBe(false);
+    expect(lastOf(seen).wide).toBe(false);
   });
 
   it("should reopen a panel folded while wide at the size it had before", () => {
@@ -981,9 +1001,11 @@ describe("widening the assistant", () => {
     const { rerender } = render(
       <BaseLayoutShell {...props("wide", { assistant })} />
     );
-    act(() => seen.last!.setWide(true));
+    act(() => lastOf(seen).setWide(true));
     act(() =>
-      panelSpies.panels.assistant.onResize!({
+      requireFor("the assistant panel's onResize")(
+        panelSpies.panels.assistant.onResize
+      )({
         inPixels: PANEL_SIZES.assistant.max,
       })
     );
@@ -993,7 +1015,7 @@ describe("widening the assistant", () => {
       />
     );
     expect(panel.collapse).toHaveBeenCalledTimes(1);
-    expect(seen.last!.wide).toBe(false);
+    expect(lastOf(seen).wide).toBe(false);
     panel.isCollapsed.mockReturnValue(true);
     panel.resize.mockClear();
     rerender(<BaseLayoutShell {...props("wide", { assistant })} />);
@@ -1005,19 +1027,19 @@ describe("widening the assistant", () => {
     const { rerender } = render(
       <BaseLayoutShell {...props("wide", { assistant })} />
     );
-    act(() => seen.last!.setWide(true));
+    act(() => lastOf(seen).setWide(true));
     rerender(<BaseLayoutShell {...props("compact", { assistant })} />);
     rerender(<BaseLayoutShell {...props("wide", { assistant })} />);
-    expect(seen.last!.wide).toBe(false);
+    expect(lastOf(seen).wide).toBe(false);
   });
 
   it("should do nothing on a phone, where the assistant is a page of the pager", () => {
     const { assistant: panel } = handles();
     const { seen, assistant } = slot();
     render(<BaseLayoutShell {...props("phone", { assistant })} />);
-    act(() => seen.last!.setWide(true));
+    act(() => lastOf(seen).setWide(true));
     expect(panel.resize).not.toHaveBeenCalled();
-    expect(seen.last!.wide).toBe(false);
+    expect(lastOf(seen).wide).toBe(false);
   });
 
   it("should not offer Widen under Home, where the assistant is its Sheet", () => {
@@ -1032,10 +1054,10 @@ describe("widening the assistant", () => {
         })}
       />
     );
-    expect(seen.last!.canWiden).toBe(false);
-    act(() => seen.last!.setWide(true));
+    expect(lastOf(seen).canWiden).toBe(false);
+    act(() => lastOf(seen).setWide(true));
     expect(panel.resize).not.toHaveBeenCalled();
-    expect(seen.last!.wide).toBe(false);
+    expect(lastOf(seen).wide).toBe(false);
   });
 });
 

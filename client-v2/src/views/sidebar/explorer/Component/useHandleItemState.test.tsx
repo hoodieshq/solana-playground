@@ -2,6 +2,7 @@ import { render } from "@testing-library/react";
 import { useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { requireFor } from "../../../../test-utils/require-for";
 import { PgExplorer } from "../../../../utils";
 import { forgetTree } from "./kept-tree";
 import { useHandleItemState } from "./useHandleItemState";
@@ -92,9 +93,9 @@ const Tree = ({
 const draw = (open?: boolean) => render(<Tree open={open} />);
 
 const srcIsOpen = (workspace = "w1") =>
-  document
-    .querySelector(`[data-path='/${workspace}/src/']`)!
-    .classList.contains("open");
+  requireFor(`${workspace}'s src folder`)(
+    document.querySelector(`[data-path='/${workspace}/src/']`)
+  ).classList.contains("open");
 
 // Before, not after: Testing Library unmounts the last tree after this file's
 // own `afterEach`, and that unmount keeps it again
@@ -182,7 +183,9 @@ describe("useHandleItemState when a project opens", () => {
     openFile("/w2/src/lib.rs");
     view.rerender(<Tree workspace="w2" />);
 
-    document.querySelector("[data-path='/w2/src/']")!.classList.remove("open");
+    requireFor("w2's src folder")(
+      document.querySelector("[data-path='/w2/src/']")
+    ).classList.remove("open");
     view.rerender(<Tree workspace="w2" />);
     expect(srcIsOpen("w2")).toBe(false);
   });
