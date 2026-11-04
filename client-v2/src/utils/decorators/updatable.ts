@@ -376,7 +376,7 @@ if (import.meta.vitest) {
     const settingsWith = (stored: Record<string, unknown>) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the decorator adds its methods at runtime, untyped
       const sClass: any = class {};
-      updatable({
+      updatable<{ blockExplorer: { name: string } }>({
         defaultState: { blockExplorer: { name: "Solana Explorer" } },
         storage: { read: () => stored as never, write: () => {} },
         recursive: true,
