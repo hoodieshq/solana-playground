@@ -12,7 +12,7 @@ import { PublicKey } from "@solana/web3.js";
 import { createHash } from "crypto";
 import { describe, expect, it } from "vitest";
 
-import { readIdl } from "./read";
+import { programName, readIdl } from "./read";
 import type { IdlV1 } from "./types";
 import ammV3 from "./__fixtures__/amm_v3.json";
 import generics from "./__fixtures__/generics.json";
@@ -459,5 +459,24 @@ describe("entities/idl/model/read", () => {
         reason,
       });
     });
+  });
+});
+
+describe("programName", () => {
+  it("reads a 1.x IDL's name from its metadata", () => {
+    expect(programName({ metadata: { name: "vault" }, name: "x" })).toBe(
+      "vault"
+    );
+  });
+
+  /** A deploy adds `metadata.address` to a legacy IDL, and no name */
+  it("reads a deployed legacy IDL's own name", () => {
+    expect(
+      programName({ name: "counter", metadata: { address: "6PNd" } })
+    ).toBe("counter");
+  });
+
+  it("has none for an IDL without a usable name", () => {
+    expect(programName({ name: "", metadata: { name: 5 } })).toBeUndefined();
   });
 });

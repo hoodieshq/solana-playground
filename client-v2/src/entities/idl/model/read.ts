@@ -53,8 +53,16 @@ export const readIdl = (raw: unknown): IdlReading => {
   return reading;
 };
 
-const programName = (raw: Record<string, unknown>) =>
-  isObject(raw.metadata) ? raw.metadata.name : raw.name;
+/**
+ * The program an IDL is for: a 1.x IDL names it under `metadata`; a legacy
+ * one at the top, even when a deploy added `metadata.address`
+ */
+export const programName = (raw: object): string | undefined => {
+  const { name, metadata } = raw as { name?: unknown; metadata?: unknown };
+  return [isObject(metadata) ? metadata.name : undefined, name].find(
+    (n): n is string => typeof n === "string" && n !== ""
+  );
+};
 
 const read = (raw: Record<string, unknown>): IdlReading => {
   if (isV1(raw)) {
