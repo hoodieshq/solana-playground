@@ -72,8 +72,12 @@ export interface SessionUser {
   login: string | undefined;
 }
 
-/** Where a sign-in started, when its listeners must tell it apart from the account footer's */
-export type SignInOrigin = "assistant";
+/**
+ * Where a sign-in started, when its listeners must tell it apart from the
+ * account footer's: the assistant panel, or a session that ended, whichever
+ * surface it was asked from. Neither moves the person off the open project.
+ */
+export type SignInOrigin = "assistant" | "expired";
 
 /** Local cleanup that runs only after the server has ended the session */
 export type SignOutTeardown = () => Promise<void>;
@@ -151,6 +155,61 @@ const notConfigured = async (response: Response) => {
 };
 
 /**
+ * Who is signed in on this browser, kept until a sign-out the server accepted.
+ * That is what tells a session that expired from one that was ended: a sign-out
+ * in another tab forgets the user here, and a tab opened after the cookie
+ * expired still finds them. It holds what the account row draws, nothing secret.
+ */
+const SIGNED_IN_USER_KEY = "auth.signed-in-user";
+
+const rememberUser = (user: SessionUser) => {
+  try {
+    localStorage.setItem(SIGNED_IN_USER_KEY, JSON.stringify(user));
+  } catch (error) {
+    // Blocked storage: `rememberedUserOr` falls back to the tab's own user
+    log.warn("could not remember the signed-in user", { context: { error } });
+  }
+};
+
+const forgetUser = () => {
+  try {
+    localStorage.removeItem(SIGNED_IN_USER_KEY);
+  } catch (error) {
+    log.warn("could not forget the signed-in user", { context: { error } });
+  }
+};
+
+const stringOr = (value: unknown) =>
+  typeof value === "string" ? value : undefined;
+
+/** The remembered user, or `known` when storage cannot be read at all */
+const rememberedUserOr = (
+  known: SessionUser | undefined
+): SessionUser | undefined => {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(SIGNED_IN_USER_KEY);
+  } catch (error) {
+    log.warn("could not read the signed-in user", { context: { error } });
+    return known;
+  }
+  if (raw === null) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.id !== "string") return undefined;
+    return {
+      id: parsed.id,
+      name: stringOr(parsed.name),
+      image: stringOr(parsed.image),
+      login: stringOr(parsed.login),
+    };
+  } catch (error) {
+    log.warn("the remembered user did not parse", { context: { error } });
+    return undefined;
+  }
+};
+
+/**
  * The signed-in user, from our backend rather than from GitHub.
  *
  * `GithubAuth` answers "which GitHub account is this", which is what the
@@ -175,7 +234,8 @@ export class PgSession {
    * not-configured 503, or JSON that does not parse is reported, any other
    * failing status only logged. A 401, a 404 and an HTML page (no auth route
    * here) are answers -- nobody -- except while a user is known, when the
-   * last two are a proxy's and fail.
+   * last two are a proxy's and fail. Only a 401 or JSON with no user can say a
+   * session expired (`expiredUser`).
    */
   static refresh(): Promise<void> {
     const read = PgSession._read().finally(() => {
@@ -192,6 +252,34 @@ export class PgSession {
    */
   static get readState(): ReadState {
     return PgSession._readState;
+  }
+
+  /**
+   * The user whose session ended without a sign-out, until a session is back.
+   * `get` answers `undefined` meanwhile, so nothing uploads; the account row
+   * keeps this user's name, and `PgSyncMark` keeps this user's marks, so an
+   * edit made meanwhile still reads as owed.
+   */
+  static get expiredUser(): SessionUser | undefined {
+    return PgSession._expiredUser;
+  }
+
+  /**
+   * `fetch` for a route that needs the session. A 401 for a known user asks for
+   * a session read, which decides: one route's answer signs nobody out. Not
+   * during a sign-out, whose own flush may race the cookie.
+   */
+  static async fetchAuthed(url: string, init: RequestInit) {
+    const response = await fetch(url, init);
+    if (
+      response.status === 401 &&
+      PgSession._user &&
+      !PgSession._signingOut &&
+      !PgSession._reading
+    ) {
+      void PgSession.refresh();
+    }
+    return response;
   }
 
   /** Whether a session read has settled, failed or answered */
@@ -215,6 +303,8 @@ export class PgSession {
   private static async _read() {
     let next: SessionUser | undefined;
     let failed = false;
+    // The route itself saying nobody: not a host without one, not a proxy
+    let saidNobody = false;
 
     try {
       const response = await fetch("/api/auth/get-session", {
@@ -240,6 +330,7 @@ export class PgSession {
                 login: body.user.login ?? undefined,
               }
             : undefined;
+          saidNobody = !next;
         }
       } else if (await notConfigured(response)) {
         // This deployment has no sign-in, so nobody is signed in: an answer
@@ -250,6 +341,7 @@ export class PgSession {
           context: { status: response.status },
         });
       } else if (ANSWERS.has(response.status)) {
+        saidNobody = response.status === 401;
         log.warn(`session read answered ${response.status}`, {
           context: { status: response.status },
         });
@@ -272,8 +364,19 @@ export class PgSession {
     }
 
     // A failed read keeps the user it had: it says nothing new about them
-    if (failed) PgSession._setRead("failed", PgSession._user);
-    else PgSession._setRead("answered", next);
+    if (failed) {
+      PgSession._setRead("failed", PgSession._user);
+      return;
+    }
+    const expired = saidNobody ? rememberedUserOr(PgSession._user) : undefined;
+    const justExpired = !!expired && !PgSession._expiredUser;
+    if (expired) PgSession._expiredUser = expired;
+    PgSession._setRead("answered", next);
+    if (justExpired) {
+      authTelemetry.track("auth_session_expired", {});
+      // With no user to lose (a fresh load), nothing above has said so
+      PgSession._emit();
+    }
   }
 
   /**
@@ -307,7 +410,8 @@ export class PgSession {
 
   private static async _signIn(from: SignInOrigin | undefined) {
     authTelemetry.track("auth_sign_in_started", {});
-    PgSession._signingInFrom = from;
+    PgSession._signingInFrom =
+      from ?? (PgSession._expiredUser ? "expired" : undefined);
     PgSession._setSignIn({ status: "pending" });
     try {
       await PgSession._signInThroughPopup();
@@ -478,6 +582,8 @@ export class PgSession {
       throw new Error("Could not sign out. Try again.");
     }
 
+    forgetUser();
+    PgSession._expiredUser = undefined;
     PgSession._ending = true;
     try {
       // While the user is still readable: what it removes is keyed by their id
@@ -530,6 +636,8 @@ export class PgSession {
   /** Test seam: drop all state without touching the network */
   static reset() {
     PgSession._user = undefined;
+    PgSession._expiredUser = undefined;
+    forgetUser();
     PgSession._onSignOut = undefined;
     PgSession._listeners.clear();
     PgSession._channel = undefined;
@@ -546,6 +654,7 @@ export class PgSession {
   private static _signingOut: Promise<void> | undefined;
   private static _ending = false;
   private static _user: SessionUser | undefined;
+  private static _expiredUser: SessionUser | undefined;
   private static _signingInFrom: SignInOrigin | undefined;
   private static _onSignOut: SignOutHook | undefined;
   private static readonly _listeners = new Set<() => void>();
@@ -569,7 +678,7 @@ export class PgSession {
 
   private static _setSignIn(state: SignInState) {
     PgSession._signInState = state;
-    for (const cb of PgSession._listeners) cb();
+    PgSession._emit();
   }
 
   /** Settle a read: its state, then its user, with one change for both */
@@ -580,9 +689,11 @@ export class PgSession {
         : state;
     const stateChanged = PgSession._readState !== next;
     PgSession._readState = next;
-    if (!PgSession._set(user) && stateChanged) {
-      for (const cb of PgSession._listeners) cb();
-    }
+    if (!PgSession._set(user) && stateChanged) PgSession._emit();
+  }
+
+  private static _emit() {
+    for (const cb of PgSession._listeners) cb();
   }
 
   /** Set the user; whether it changed, and so whether listeners heard */
@@ -595,7 +706,11 @@ export class PgSession {
     if (unchanged) return false;
 
     PgSession._user = user;
-    for (const cb of PgSession._listeners) cb();
+    if (user) {
+      rememberUser(user);
+      PgSession._expiredUser = undefined;
+    }
+    PgSession._emit();
     return true;
   }
 }
@@ -956,6 +1071,269 @@ if (import.meta.vitest) {
 
         expect(PgSession.get()).toBeUndefined();
         expect(PgSession.readState).toBe("answered");
+      });
+
+      describe("a session that ended without a sign-out", () => {
+        const ADA = {
+          id: "u1",
+          name: "Ada",
+          image: undefined,
+          login: "ada",
+        };
+        const REMEMBERED = JSON.stringify(ADA);
+        const answers = (response: unknown) =>
+          vi
+            .spyOn(globalThis, "fetch")
+            .mockImplementation(
+              vi.fn().mockResolvedValue(response) as unknown as typeof fetch
+            );
+        // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for nobody
+        const JSON_NULL = { ok: true, json: async () => null };
+
+        it.each<{ label: string; response: unknown }>([
+          { label: "JSON null", response: JSON_NULL },
+          { label: "a 401", response: { ok: false, status: 401 } },
+          {
+            label: "a body with no user",
+            response: { ok: true, json: async () => ({}) },
+          },
+        ])(
+          "reads as expired on $label, keeping who it was",
+          async ({ response }) => {
+            await PgSession.refreshWith(ADA);
+            answers(response);
+
+            await PgSession.refresh();
+
+            expect(PgSession.get()).toBeUndefined();
+            expect(PgSession.expiredUser).toEqual(ADA);
+          }
+        );
+
+        it.each<{ label: string; response: unknown }>([
+          {
+            label: "a page",
+            response: {
+              ok: true,
+              headers: new Headers({ "content-type": "text/html" }),
+              json: async () => ({}),
+            },
+          },
+          { label: "a 404", response: { ok: false, status: 404 } },
+          {
+            label: "the not-configured 503",
+            response: {
+              ok: false,
+              status: 503,
+              headers: new Headers({ "content-type": "application/json" }),
+              json: async () => ({ error: AUTH_NOT_CONFIGURED }),
+            },
+          },
+          { label: "a 500", response: { ok: false, status: 500 } },
+        ])("does not read as expired on $label", async ({ response }) => {
+          await PgSession.refreshWith(ADA);
+          answers(response);
+          initLogger({ providers: [memoryProvider()] });
+
+          await PgSession.refresh();
+
+          expect(PgSession.expiredUser).toBeUndefined();
+        });
+
+        it("says nothing for a browser nobody signed in on", async () => {
+          answers(JSON_NULL);
+
+          await PgSession.refresh();
+
+          expect(PgSession.expiredUser).toBeUndefined();
+        });
+
+        it("reads as expired on a fresh load, from the remembered user", async () => {
+          localStorage.setItem(SIGNED_IN_USER_KEY, REMEMBERED);
+          answers(JSON_NULL);
+
+          await PgSession.refresh();
+
+          expect(PgSession.expiredUser).toEqual(ADA);
+        });
+
+        it("ignores a remembered user it cannot parse", async () => {
+          localStorage.setItem(SIGNED_IN_USER_KEY, "{not json");
+          initLogger({ providers: [memoryProvider()] });
+          answers(JSON_NULL);
+
+          await PgSession.refresh();
+
+          expect(PgSession.expiredUser).toBeUndefined();
+        });
+
+        it("does not read as expired once another tab's sign-out forgot the user", async () => {
+          await PgSession.refreshWith(ADA);
+          localStorage.removeItem(SIGNED_IN_USER_KEY);
+          answers(JSON_NULL);
+
+          await PgSession.refresh();
+
+          expect(PgSession.get()).toBeUndefined();
+          expect(PgSession.expiredUser).toBeUndefined();
+        });
+
+        it("forgets the user on an accepted sign-out", async () => {
+          await PgSession.refreshWith(ADA);
+          answers({ ok: true });
+
+          await PgSession.signOut();
+
+          expect(localStorage.getItem(SIGNED_IN_USER_KEY)).toBeNull();
+        });
+
+        it("remembers the user through a refused sign-out", async () => {
+          await PgSession.refreshWith(ADA);
+          initLogger({ providers: [memoryProvider()] });
+          answers({ ok: false, status: 500 });
+
+          await expect(PgSession.signOut()).rejects.toThrow();
+
+          expect(localStorage.getItem(SIGNED_IN_USER_KEY)).toBe(REMEMBERED);
+        });
+
+        it("falls back to the user in memory when storage throws", async () => {
+          await PgSession.refreshWith(ADA);
+          initLogger({ providers: [memoryProvider()] });
+          vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+            throw new Error("blocked");
+          });
+          answers(JSON_NULL);
+
+          await PgSession.refresh();
+
+          expect(PgSession.expiredUser).toEqual(ADA);
+        });
+
+        it("ends when a session comes back", async () => {
+          await PgSession.refreshWith(ADA);
+          answers(JSON_NULL);
+          await PgSession.refresh();
+
+          await PgSession.refreshWith(ADA);
+
+          expect(PgSession.expiredUser).toBeUndefined();
+        });
+
+        it("tells listeners when a fresh load finds it, with no user to lose", async () => {
+          await PgSession.refreshWith(undefined);
+          localStorage.setItem(SIGNED_IN_USER_KEY, REMEMBERED);
+          const heard = vi.fn();
+          PgSession.onDidChange(heard);
+          answers(JSON_NULL);
+
+          await PgSession.refresh();
+
+          expect(heard).toHaveBeenCalled();
+          expect(PgSession.expiredUser).toEqual(ADA);
+        });
+
+        const originOf = async (
+          ...args: Parameters<typeof PgSession.signIn>
+        ) => {
+          await PgSession.refreshWith(ADA);
+          answers(JSON_NULL);
+          await PgSession.refresh();
+          let origin: string | undefined;
+          PgSession.setOpenChannel(() => {
+            origin = PgSession.signingInFrom;
+            return undefined;
+          });
+          answers({ ok: true, json: async () => ({ url: "https://gh" }) });
+          await expect(PgSession.signIn(...args)).rejects.toThrow();
+          return origin;
+        };
+
+        it("gives a sign-in started on it the origin `expired`", async () => {
+          expect(await originOf()).toBe("expired");
+        });
+
+        it("keeps a sign-in's own origin over `expired`", async () => {
+          expect(await originOf({ from: "assistant" })).toBe("assistant");
+        });
+      });
+
+      describe("fetchAuthed", () => {
+        const ADA = {
+          id: "u1",
+          name: "Ada",
+          image: undefined,
+          login: "ada",
+        };
+        /** The route answers `status`; the session read finds nobody. Counts the reads. */
+        const routeAnswers = (status: number) => {
+          const counted = { reads: 0 };
+          vi.spyOn(globalThis, "fetch").mockImplementation((async (
+            url: string
+          ) => {
+            if (url !== "/api/auth/get-session") {
+              return { ok: status < 400, status };
+            }
+            counted.reads += 1;
+            return { ok: true, json: async () => ({}) };
+          }) as unknown as typeof fetch);
+          return counted;
+        };
+
+        it("reads the session on a 401 for a known user, and hands the answer back", async () => {
+          await PgSession.refreshWith(ADA);
+          routeAnswers(401);
+
+          const response = await PgSession.fetchAuthed("/api/projects", {});
+          await vi.waitFor(() => expect(PgSession.get()).toBeUndefined());
+
+          expect(response.status).toBe(401);
+          expect(PgSession.expiredUser).toEqual(ADA);
+        });
+
+        it("reads nothing on any other answer", async () => {
+          await PgSession.refreshWith(ADA);
+          const counted = routeAnswers(500);
+
+          await PgSession.fetchAuthed("/api/projects", {});
+
+          expect(counted.reads).toBe(0);
+        });
+
+        it("reads nothing with nobody signed in", async () => {
+          const counted = routeAnswers(401);
+
+          await PgSession.fetchAuthed("/api/projects", {});
+
+          expect(counted.reads).toBe(0);
+        });
+
+        it("reads once for several 401s at once", async () => {
+          await PgSession.refreshWith(ADA);
+          const counted = routeAnswers(401);
+
+          await Promise.all([
+            PgSession.fetchAuthed("/api/projects", {}),
+            PgSession.fetchAuthed("/api/conversations", {}),
+          ]);
+          await vi.waitFor(() => expect(PgSession.get()).toBeUndefined());
+
+          expect(counted.reads).toBe(1);
+        });
+
+        it("reads nothing during a sign-out, whose own flush may meet a 401", async () => {
+          await PgSession.refreshWith(ADA);
+          const counted = routeAnswers(401);
+          PgSession.setOnSignOut(async () => {
+            await PgSession.fetchAuthed("/api/projects", {});
+            return undefined;
+          });
+          initLogger({ providers: [memoryProvider()] });
+
+          await PgSession.signOut().catch(() => undefined);
+
+          expect(counted.reads).toBe(0);
+        });
       });
 
       it("treats an empty session body as signed out", async () => {

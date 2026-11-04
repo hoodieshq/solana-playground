@@ -16,7 +16,7 @@ import type {
   AccountView,
   SignOutState,
 } from "../model/account";
-import { shownSignOutState } from "../model/account";
+import { sessionWith, shownSignOutState } from "../model/account";
 import { sessionTelemetry } from "../model/telemetry";
 import { useClusterStatus } from "../model/use-cluster-status";
 import BaseAccountMenu from "./BaseAccountMenu";
@@ -83,7 +83,7 @@ export const useAccount = ({
         status: "signed-in",
         user: { name: user.name, login: user.login, image: user.image },
       }
-    : PgSession.signInState();
+    : sessionWith(PgSession.expiredUser)(PgSession.signInState());
   const account: AccountView = {
     session,
     wallet: wallet

@@ -51,8 +51,13 @@ const pathOf = (userId: string, projectId: string) =>
 const projectIdOf = (fileName: string) =>
   decodeURIComponent(fileName.slice(0, -SUFFIX.length));
 
-/** Who the marks belong to, or `null` when nobody is signed in */
-const currentUserId = () => PgSession.get()?.id ?? null;
+/**
+ * Who the marks belong to, or `null` when nobody is signed in. A session that
+ * ended keeps its account's: without that `markDirty` did nothing, and an edit
+ * made meanwhile was skipped by reconcile's cheap path after the next sign-in.
+ */
+const currentUserId = () =>
+  PgSession.get()?.id ?? PgSession.expiredUser?.id ?? null;
 
 /** What this device and the server last agreed on, for one project */
 export interface SyncMark {
@@ -404,6 +409,42 @@ if (import.meta.vitest) {
           name: undefined,
           image: undefined,
           login: undefined,
+        });
+      });
+
+      describe("after a session ended", () => {
+        const MARK = {
+          files: { "a.ts": "h1" },
+          name: "one",
+          updatedAt: "t1",
+          dirty: false,
+        };
+
+        const expire = async () => {
+          vi.spyOn(globalThis, "fetch").mockResolvedValue({
+            ok: true,
+            json: async () => ({}),
+          } as Response);
+          await PgSession.refresh();
+          vi.restoreAllMocks();
+        };
+
+        it("still reads and flags the account's mark, so an edit made meanwhile uploads later", async () => {
+          await PgSyncMark.write("p1", MARK);
+          await expire();
+          expect(PgSession.get()).toBeUndefined();
+
+          await PgSyncMark.markDirty("p1");
+
+          expect((await PgSyncMark.read("p1"))?.dirty).toBe(true);
+        });
+
+        it("reads nothing once nobody is remembered", async () => {
+          await PgSyncMark.write("p1", MARK);
+          await PgSession.refreshWith(undefined);
+          localStorage.clear();
+
+          expect(await PgSyncMark.read("p1")).toBeNull();
         });
       });
 
