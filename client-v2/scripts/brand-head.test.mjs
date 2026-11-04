@@ -26,7 +26,9 @@ const UPSTREAM = `<!DOCTYPE html>
 `;
 
 const iconTags = (html) =>
-  html.match(/<link[^>]*rel="(?:icon|apple-touch-icon)"[^>]*>|<meta[^>]*name="theme-color"[^>]*>/g) ?? [];
+  html.match(
+    /<link[^>]*rel="(?:icon|apple-touch-icon)"[^>]*>|<meta[^>]*name="theme-color"[^>]*>/g
+  ) ?? [];
 
 test("upstream's icon links and theme colour give way to the brand's", () => {
   const html = brandHead(UPSTREAM);
@@ -44,7 +46,9 @@ test("upstream's icon links and theme colour give way to the brand's", () => {
 test("the brand block follows the charset, which stays first", () => {
   const html = brandHead(UPSTREAM);
 
-  assert.ok(html.indexOf('<meta charset="utf-8" />') < html.indexOf(BRAND_HEAD[0]));
+  assert.ok(
+    html.indexOf('<meta charset="utf-8" />') < html.indexOf(BRAND_HEAD[0])
+  );
 });
 
 test("everything else in the head stays upstream's", () => {
@@ -65,6 +69,39 @@ test("a second run changes nothing", () => {
   const once = brandHead(UPSTREAM);
 
   assert.equal(brandHead(once), once);
+});
+
+test("upstream's icons go whatever their quoting, case or rel tokens", () => {
+  const html = brandHead(
+    UPSTREAM.replace(
+      '<meta name="viewport"',
+      "<LINK REL='shortcut icon' href='/old.ico'>\n    <meta name=\"viewport\""
+    ).replace(/\n/g, "\r\n")
+  );
+
+  assert.doesNotMatch(html, /old\.ico|logo192|#000000/);
+  assert.equal(iconTags(html).length, BRAND_HEAD.length);
+});
+
+test("a tag split over lines goes too", () => {
+  const split = UPSTREAM.replace(
+    '<meta name="theme-color" content="#000000" />',
+    '<meta\n      name="theme-color"\n      content="#000000"\n    />'
+  );
+
+  assert.doesNotMatch(brandHead(split), /#000000/);
+});
+
+test("an icon tag the strip cannot remove fails instead of shipping beside ours", () => {
+  const shared = UPSTREAM.replace(
+    "<title>",
+    '<link rel="icon" href="/old.png" /><title>'
+  );
+
+  assert.throws(
+    () => brandHead(shared),
+    /icon link or theme-color the rewrite did not remove/
+  );
 });
 
 test("a page whose head it cannot place the block in fails loudly", () => {

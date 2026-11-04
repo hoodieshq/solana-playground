@@ -28,10 +28,12 @@ no runtime swap.
   `brand-head.mjs` instead removes every `<link rel="icon">`,
   `<link rel="apple-touch-icon">` and `<meta name="theme-color">` and inserts
   the brand block right after `<meta charset>`. It throws when the page has no
-  `<meta charset>` or `</head>`, so an upstream restructure fails `yarn
-  generate` instead of shipping an unbranded page. It is idempotent.
+  `<meta charset>` or `</head>`, or when an upstream icon or theme colour
+  survives the strip, so an upstream restructure fails `yarn generate` instead
+  of shipping an unbranded or mixed head. It is idempotent.
 - **Links use `%PUBLIC_URL%`,** like the rest of upstream's head, so CRA
-  resolves them for any public path.
+  resolves them for any public path; the manifest's icon paths are relative
+  to the manifest, like its `start_url`.
 - **`#101011`** is the product background (Almaz; the DS token `--background`, dark theme),
   used for `theme-color`, `theme_color` and `background_color`. The colour
   check scans `src/` only, so the literal in `scripts/` and `static/` needs no
@@ -41,7 +43,5 @@ no runtime swap.
 
 ## Risks / Trade-offs
 
-- The manifest's `name` / `short_name` are pending Kat's approved values; a
-  placeholder must not land. The PR stays a draft until they are filled.
 - Browsers cache favicons hard; a returning visitor may see the old icon until
   the cache expires. Not addressable from the page.

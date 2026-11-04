@@ -23,8 +23,8 @@ the Solana-brand mark from the first byte (HOO-2568).
   description and everything else stay upstream's.
 - `applyFavicon` and `src/app/favicon.svg` are removed; nothing sets the icon
   at runtime any more.
-- The manifest's `name` and `short_name` carry no "SolPg". Their values are the
-  ones Kat approved; until they arrive the manifest holds a marked placeholder.
+- The manifest names the app "Solana Playground", short name "Playground"
+  (approved by Kat, 4 Nov); no "SolPg" anywhere.
 - Telemetry: none added, renamed or removed.
 
 ## Capabilities
@@ -39,6 +39,7 @@ the Solana-brand mark from the first byte (HOO-2568).
 
 - `client-v2/static/` (new files), `client-v2/scripts/update-static.mjs`, a new
   `client-v2/scripts/brand-head.mjs` with its `node --test` file,
+  `client-v2/scripts/brand-manifest.test.mjs`,
   `client-v2/src/index.tsx`, `client-v2/src/app/index.ts`,
   `client-v2/src/app/favicon.ts` and `favicon.svg` (removed),
   `client-v2/scripts/check-colors.mjs` (its favicon exemption goes).

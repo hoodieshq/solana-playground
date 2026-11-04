@@ -4,9 +4,11 @@ Goal: the served `index.html` and `manifest.json` name the brand icons and
 `#101011`; nothing swaps the icon at runtime.
 
 1. **Test first.** `client-v2/scripts/brand-head.test.mjs` (`node --test`,
-   collected by `yarn test-api`'s `**/*.test.mjs`? check; else run directly):
-   upstream's head becomes the brand head; idempotent; throws without
-   `<meta charset>` or `</head>`; keeps title and description.
+   collected by `yarn test-api`): upstream's head becomes the brand head;
+   idempotent; throws without `<meta charset>` or `</head>`, or when an
+   upstream icon survives the strip; keeps title and description.
+   `brand-manifest.test.mjs` checks the manifest and fails while the names
+   are a placeholder.
 2. **`brand-head.mjs`**: `brandHead(html)` and `BRAND_HEAD` block; strip icon
    links, apple-touch links and theme-color metas; insert after `<meta charset>`.
 3. **`update-static.mjs`**: after the overlay, read `public/index.html`, write

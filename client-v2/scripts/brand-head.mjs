@@ -18,17 +18,27 @@ export const BRAND_HEAD = [
   '<meta name="theme-color" content="#101011" />',
 ];
 
-/** A whole line holding an icon link or a theme colour, whatever its attributes */
+/** A whole line holding one icon link or theme colour, whatever its attributes */
 const REPLACED =
-  /^[ \t]*<(?:link\b[^>]*\brel="(?:icon|shortcut icon|apple-touch-icon)"|meta\b[^>]*\bname="theme-color")[^>]*>[ \t]*\r?\n/gm;
+  /^[ \t]*<(?:link\b[^>]*\brel=["'][^"']*\bicon\b[^"']*["']|meta\b[^>]*\bname=["']theme-color["'])[^>]*>[ \t]*\r?\n/gim;
+
+/** Any icon link or theme colour, wherever it sits, to check none survived */
+const ICON_TAG = /<link\b[^>]*\brel=["']?[^"'>]*\bicon\b/gi;
+const THEME_TAG = /<meta\b[^>]*\bname=["']?theme-color\b/gi;
 
 const CHARSET = /^([ \t]*)<meta charset="[^"]*"\s*\/?>[ \t]*\r?\n/m;
 
+const count = (html, re) => html.match(re)?.length ?? 0;
+
 /**
+ * Idempotent: a second run strips the brand block and puts it back.
+ *
  * @param {string} html the mirrored page
  * @returns {string} the page with the brand's icon block after its charset
- * @throws when the page has no `<meta charset>` line or no `</head>`, so a
- *   restructured upstream page fails the build instead of shipping unbranded
+ * @throws when the page has no `<meta charset>` line or no `</head>`, or when
+ *   an icon link or theme colour the line-wise strip missed (a tag split over
+ *   lines, or sharing a line) survives beside the brand's, so a restructured
+ *   upstream page fails the build instead of shipping a mixed head
  */
 export const brandHead = (html) => {
   if (!html.includes("</head>")) {
@@ -43,5 +53,15 @@ export const brandHead = (html) => {
   }
   const [line, indent] = charset;
   const block = BRAND_HEAD.map((tag) => `${indent}${tag}\n`).join("");
-  return stripped.replace(line, line + block);
+  const branded = stripped.replace(line, () => line + block);
+  if (
+    count(branded, ICON_TAG) !== count(block, ICON_TAG) ||
+    count(branded, THEME_TAG) !== count(block, THEME_TAG)
+  ) {
+    throw new Error(
+      "index.html keeps an icon link or theme-color the rewrite did not remove; " +
+        "update REPLACED in scripts/brand-head.mjs for upstream's new markup"
+    );
+  }
+  return branded;
 };

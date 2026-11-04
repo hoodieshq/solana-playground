@@ -27,9 +27,10 @@ app icons. No script SHALL replace the page icon at runtime.
 #### Scenario: The manifest
 
 - **WHEN** DevTools > Application > Manifest reads `/manifest.json`
-- **THEN** it lists `/icon-192.png` and `/icon-512.png` with purpose `any` and
-  `/icon-maskable-512.png` with purpose `maskable`, `theme_color` and
-  `background_color` `#101011`, and no name containing "SolPg"
+- **THEN** it names the app "Solana Playground" (short name "Playground"),
+  lists `icon-192.png` and `icon-512.png` with purpose `any` and
+  `icon-maskable-512.png` with purpose `maskable`, and has `theme_color` and
+  `background_color` `#101011`
 
 #### Scenario: A hard reload
 

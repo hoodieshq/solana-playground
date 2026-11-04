@@ -1,21 +1,21 @@
 {
-  "short_name": "TODO(HOO-2568): short_name Kat approved",
-  "name": "TODO(HOO-2568): name Kat approved",
+  "short_name": "Playground",
+  "name": "Solana Playground",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable-512.png",
+      "src": "icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

@@ -35,7 +35,10 @@ const git = (args, cwd) =>
 // `--git-common-dir` resolves to the primary checkout's `.git` from a linked
 // worktree as well as from the primary itself, which is what makes this work.
 const primaryRoot = path.dirname(
-  git(["rev-parse", "--path-format=absolute", "--git-common-dir"], CLIENT_PATH).trim()
+  git(
+    ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+    CLIENT_PATH
+  ).trim()
 );
 
 const SOURCE_PATH = path.join(primaryRoot, "client", "public");
@@ -50,7 +53,9 @@ if (!(await exists(path.join(SOURCE_PATH, "index.html")))) {
 }
 
 /** Tracked paths only, so generated `crates`/`packages`/`content.json` never copy */
-const sourceFiles = git(["ls-files", "-z"], SOURCE_PATH).split("\0").filter(Boolean);
+const sourceFiles = git(["ls-files", "-z"], SOURCE_PATH)
+  .split("\0")
+  .filter(Boolean);
 
 for (const file of sourceFiles) {
   const to = path.join(DEST_PATH, file);
@@ -60,7 +65,10 @@ for (const file of sourceFiles) {
 
 // The fork's own copies of upstream files (the curated program gallery). After
 // the mirror, so the fork's copy wins.
-const overlaid = await overlayStatic(path.join(CLIENT_PATH, "static"), DEST_PATH);
+const overlaid = await overlayStatic(
+  path.join(CLIENT_PATH, "static"),
+  DEST_PATH
+);
 
 // The icons the overlay just copied are named only by the page's markup, so a
 // crawler or a home screen reads them without running the bundle.
@@ -93,8 +101,13 @@ await fs.writeFile(
 
 const commit = git(["rev-parse", "--short", "HEAD"], SOURCE_PATH).trim();
 console.log(
-  `Synced ${sourceFiles.length} files from ${path.relative(primaryRoot, SOURCE_PATH)}@${commit}` +
+  `Synced ${sourceFiles.length} files from ${path.relative(
+    primaryRoot,
+    SOURCE_PATH
+  )}@${commit}` +
     `, dated ${Object.keys(timestamps).length} tutorials` +
-    `, overlaid ${overlaid.length} from client-v2/static (${overlaid.join(", ")})` +
+    `, overlaid ${overlaid.length} from client-v2/static (${overlaid.join(
+      ", "
+    )})` +
     ", pointed index.html at the brand icons"
 );
