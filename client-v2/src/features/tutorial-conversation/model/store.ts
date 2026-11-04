@@ -162,6 +162,16 @@ export class PgConversation {
     PgConversation._dispatch({ type: "explain", beatId, at: Date.now() });
   }
 
+  /** The assistant's answer to an unplanned failure's Explain has ended */
+  static answered(beatId: string) {
+    PgConversation._dispatch({ type: "answered", beatId, at: Date.now() });
+  }
+
+  /** "Show me the fix": write the step's target into its file */
+  static showFix(beatId: string) {
+    PgConversation._dispatch({ type: "showFix", beatId, at: Date.now() });
+  }
+
   static fixMyself(beatId: string) {
     PgConversation._dispatch({ type: "fixMyself", beatId, at: Date.now() });
   }

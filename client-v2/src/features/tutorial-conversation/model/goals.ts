@@ -195,6 +195,7 @@ if (import.meta.vitest) {
           judgeGoal(BUILD_HELLO, {
             act: "build",
             ok: false,
+            reason: "compiler",
             seconds: 1,
             error: null,
             log: "error[E0412]",

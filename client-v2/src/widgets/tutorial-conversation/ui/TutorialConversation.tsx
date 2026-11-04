@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
 import {
   PgConversation,
+  isUnreachable,
   judgeGoal,
   realWorkspace,
+  stepOfBeat,
   tutorialRunner,
 } from "@/features/tutorial-conversation";
 import type { ConversationState } from "@/features/tutorial-conversation";
@@ -20,6 +22,8 @@ import { PgExplorer } from "@/utils/explorer";
 import { marksOf } from "../model/marks";
 import type { FeedMarks } from "../model/marks";
 import { PgTutorial } from "@/utils/tutorial";
+import { PgAssistant } from "@/views/sidebar/assistant/store";
+import { explainPrompt, whenAnswered } from "../model/explain";
 import { tutorialTelemetry } from "../model/telemetry";
 import BaseFeed from "./BaseFeed";
 import TurnView from "./TurnView";
@@ -258,6 +262,17 @@ const sendEdit = (path: string) => {
 };
 
 /**
+ * Show a file's line and put the caret there. The editor stays mounted and
+ * swaps its file as the open lands, so it takes focus a frame later; a
+ * refused open leaves the focus alone.
+ */
+const showLineWithCaret = (file: string, line: number) => {
+  const shown = showLine(file, line);
+  if (shown === "shown") PgEditor.focus();
+  if (shown === "opening") requestAnimationFrame(() => PgEditor.focus());
+};
+
+/**
  * The editor and the engine, both ways. A change to the open file reaches
  * the engine (`edit`) once the typing rests, so a question's key line typed
  * by hand resolves it; the file is taken when it changes, and a change to
@@ -287,11 +302,7 @@ const useEditorLink = () => {
     const focus = PgConversation.onDidRequestFocus(({ file, line }) => {
       const at =
         line === "landing" ? marksNow(file)?.landing?.lines[0] ?? 1 : line;
-      const shown = showLine(file, at);
-      if (shown === "shown") PgEditor.focus();
-      // The editor stays mounted and swaps its file as the open lands: it
-      // takes focus a frame later. A refused open leaves the focus alone
-      if (shown === "opening") requestAnimationFrame(() => PgEditor.focus());
+      showLineWithCaret(file, at);
     });
     return () => {
       if (pending) window.clearTimeout(pending.timer);
@@ -320,6 +331,28 @@ export const useConversationMarks = () => {
   };
 };
 
+/** The first line, counted from 1, where `after` differs from `before` */
+const firstChange = (before: string, after: string): number => {
+  const a = before.split("\n");
+  const b = after.split("\n");
+  const i = b.findIndex((line, n) => line !== a[n]);
+  return i === -1 ? 1 : i + 1;
+};
+
+/**
+ * "Show me the fix": the engine writes the step's target into its file, and
+ * the editor shows the first line that changes, where the fix lands.
+ */
+const showFix = (beatId: string) => {
+  const definition = PgConversation.state.context?.definition;
+  const step = definition ? stepOfBeat(definition, beatId) : null;
+  const target = step?.target[step.file];
+  if (!step || target === undefined) return;
+  const line = firstChange(read(step.file) ?? "", target);
+  PgConversation.showFix(beatId);
+  showLine(step.file, line);
+};
+
 /** Where a copy the clipboard refused is told */
 const copyFailed = reportButtonFailure("copy it");
 
@@ -345,9 +378,11 @@ const handlers: Omit<
   act: (beatId, args) => PgConversation.act(beatId, args),
   explain: (beatId) => PgConversation.explain(beatId),
   fixMyself: (beatId) => PgConversation.fixMyself(beatId),
+  showFix,
   next: () => PgConversation.next(),
   restartStep: () => PgConversation.restartStep(),
   showLine,
+  revealError: showLineWithCaret,
   // TODO(tutorial-flow-v2 4.4): the Call panel's opener; until it exists the
   // win card shows no "Open Call"
   openCall: undefined,
@@ -380,13 +415,32 @@ export const TutorialConversation = ({
     () =>
       PgConversation.init({
         workspace: realWorkspace,
-        // TODO(tutorial-flow-v2 4.1): the build act answers "not wired yet"
-        // until its runner lands; deploy, run and call are real
         runner: tutorialRunner,
         judge: judgeGoal,
       }).dispose,
     []
   );
+  // An unplanned failure's Explain goes to the assistant with its log; once
+  // its answer ends, the engine offers "Show me the fix"
+  useEffect(() => {
+    const waits = new Set<() => void>();
+    const sub = PgConversation.onDidRequestExplain(({ beatId, result }) => {
+      PgAssistant.requestPrompt(explainPrompt(result), { send: true });
+      // With no assistant connected the answer comes at once, inside the call
+      let answered = false;
+      let cancel: (() => void) | undefined;
+      cancel = whenAnswered(PgAssistant, () => {
+        answered = true;
+        if (cancel) waits.delete(cancel);
+        PgConversation.answered(beatId);
+      });
+      if (!answered) waits.add(cancel);
+    });
+    return () => {
+      sub.dispose();
+      waits.forEach((cancel) => cancel());
+    };
+  }, []);
   const state = useConversationState();
   const context = state.context;
   useOpenEnteredStep(state);
@@ -410,7 +464,9 @@ export const TutorialConversation = ({
         PgConversation.act(live.beatId);
       } else if (live?.kind === "result" && live.open) {
         e.preventDefault();
-        PgConversation.explain(live.beatId);
+        // A build server that never answered has nothing to explain
+        if (isUnreachable(live.result)) PgConversation.act(live.beatId);
+        else PgConversation.explain(live.beatId);
       }
     };
     document.addEventListener("keydown", onKey);

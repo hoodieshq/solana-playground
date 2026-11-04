@@ -65,6 +65,27 @@ export const STUCK = "I'm stuck";
 export const EXPLAIN = "Explain the error";
 /** The act card's line after a reload interrupted its run */
 export const INTERRUPTED = "Interrupted by a reload. Run it again.";
+
+/**
+ * When "Show me the fix" is offered for an explained failure: once the
+ * assistant's answer ended, or at the load that came after the press. The
+ * wait for the answer lives in the page, so a reload mid-answer would
+ * otherwise never offer it, with the failed card already closed.
+ */
+const fixOfferAt = (
+  run: { explainedAt?: number; answeredAt?: number },
+  loadedAt: number
+): number | null => {
+  if (run.answeredAt !== undefined) return run.answeredAt;
+  if (run.explainedAt !== undefined && loadedAt > run.explainedAt) {
+    return loadedAt;
+  }
+  return null;
+};
+
+/** The line after the assistant explained an unplanned build failure */
+export const FIX_OFFER =
+  "Fix it in the editor and build again, or I can show you the lines this step needs.";
 /** The assistant's line on Skip when the question has none of its own */
 export const SKIPPED_DEFAULT =
   "No problem. Here's the line, and I'll walk you through the rest.";
@@ -107,7 +128,14 @@ export type Turn = TurnBase &
         /** ms, once done */
         took: number | null;
       }
-    | { kind: "say"; beatId: string; text: Text; quote?: Quote }
+    | {
+        kind: "say";
+        beatId: string;
+        text: Text;
+        quote?: Quote;
+        /** A quiet button after the line: "Show me the fix", done once used */
+        follow?: { kind: "showFix"; done: boolean };
+      }
     | { kind: "you"; text: string; code: boolean }
     /** A block landed (`wrote`), or could not (`failed`, with `wrote` null) */
     | { kind: "wrote"; beatId: string; wrote: Wrote | null; failed: boolean }
@@ -500,8 +528,41 @@ export const view = (
                   run.status === "failed" &&
                   isLast &&
                   !done &&
+                  run.explainedAt === undefined &&
                   !(planned && p.cursor.kind === "step" && p.cursor.fail),
               });
+              // An unplanned failure sent to the assistant: the press, then,
+              // once its answer ended, the offer to write the fix
+              if (run.status === "failed" && run.explainedAt !== undefined) {
+                turn({
+                  id: `you:explain:${b.id}:${n}`,
+                  kind: "you",
+                  step: step.id,
+                  at: run.explainedAt,
+                  text: EXPLAIN,
+                  code: false,
+                });
+              }
+              const offerAt =
+                run.status === "failed" && run.result.act === "build"
+                  ? fixOfferAt(run, loadedAt)
+                  : null;
+              if (run.status === "failed" && offerAt !== null) {
+                turn({
+                  id: `fix:${b.id}:${n}`,
+                  kind: "say",
+                  step: step.id,
+                  at: offerAt,
+                  beatId: b.id,
+                  text: FIX_OFFER,
+                  // Only the act's latest run can be fixed: an older offer
+                  // stays as a record
+                  follow: {
+                    kind: "showFix",
+                    done: run.fixedAt !== undefined || done || !isLast,
+                  },
+                });
+              }
             }
           });
         }
@@ -645,6 +706,7 @@ if (import.meta.vitest) {
     const FAILED_BUILD: RunResult = {
       act: "build",
       ok: false,
+      reason: "compiler",
       seconds: 1.2,
       error: {
         code: "E0412",
@@ -653,7 +715,7 @@ if (import.meta.vitest) {
         column: 32,
         message: "no Hello",
       },
-      log: "error[E0412]",
+      log: "error[E0412]: cannot find type `Hello` in this scope",
     };
     const CALLED: RunResult = {
       act: "call",
@@ -887,6 +949,107 @@ if (import.meta.vitest) {
         planned: hello.steps[0].planned,
         open: false,
       });
+    });
+
+    it("an unplanned failure explained by the assistant offers Show me the fix, once", () => {
+      const before = toFailed().concat([
+        { type: "explain", beatId: "s1.build", at: 9000 },
+        { type: "pick", beatId: "f1.q2", option: 2, at: 9500 },
+        { type: "act", beatId: "f1.build", at: 10000 },
+        { type: "ended", beatId: "f1.build", result: FAILED_BUILD, at: 11000 },
+        { type: "explain", beatId: "f1.build", at: 12000 },
+      ]);
+      const asked = view(hello, play(before), LATE);
+      expect(
+        asked.turns.find((t) => t.id === "result:f1.build:0")
+      ).toMatchObject({
+        open: false,
+      });
+      expect(ids(asked).slice(-1)).toEqual(["you:explain:f1.build:0"]);
+      expect(
+        asked.turns.find((t) => t.id === "fix:f1.build:0")
+      ).toBeUndefined();
+
+      const answered = before.concat([
+        { type: "answered", beatId: "f1.build", at: 13000 },
+      ]);
+      const offered = view(hello, play(answered), LATE);
+      expect(ids(offered).slice(-2)).toEqual([
+        "you:explain:f1.build:0",
+        "fix:f1.build:0",
+      ]);
+      expect(offered.turns.at(-1)).toMatchObject({
+        kind: "say",
+        text: FIX_OFFER,
+        follow: { kind: "showFix", done: false },
+      });
+
+      const used = view(
+        hello,
+        play(
+          answered.concat([{ type: "showFix", beatId: "f1.build", at: 14000 }])
+        ),
+        LATE
+      );
+      expect(used.turns.find((t) => t.id === "fix:f1.build:0")).toMatchObject({
+        follow: { kind: "showFix", done: true },
+      });
+    });
+
+    it("offers the fix after a reload that came while the assistant answered", () => {
+      const asked = play(
+        toFailed().concat([
+          { type: "explain", beatId: "s1.build", at: 9000 },
+          { type: "pick", beatId: "f1.q2", option: 2, at: 9500 },
+          { type: "act", beatId: "f1.build", at: 10000 },
+          {
+            type: "ended",
+            beatId: "f1.build",
+            result: FAILED_BUILD,
+            at: 11000,
+          },
+          { type: "explain", beatId: "f1.build", at: 12000 },
+        ])
+      );
+      const reloaded = view(hello, asked, { now: 1e9, loadedAt: 20000 });
+      expect(reloaded.turns.at(-1)).toMatchObject({
+        id: "fix:f1.build:0",
+        at: 20000,
+        follow: { kind: "showFix", done: false },
+      });
+      // Before any reload the offer waits for the answer
+      const live = view(hello, asked, { now: 1e9, loadedAt: 0 });
+      expect(live.turns.find((t) => t.id === "fix:f1.build:0")).toBeUndefined();
+    });
+
+    it("leaves an older run's fix offer as a record", () => {
+      const twice = play(
+        toFailed().concat([
+          { type: "explain", beatId: "s1.build", at: 9000 },
+          { type: "pick", beatId: "f1.q2", option: 2, at: 9500 },
+          { type: "act", beatId: "f1.build", at: 10000 },
+          {
+            type: "ended",
+            beatId: "f1.build",
+            result: FAILED_BUILD,
+            at: 11000,
+          },
+          { type: "explain", beatId: "f1.build", at: 12000 },
+          { type: "answered", beatId: "f1.build", at: 13000 },
+          { type: "act", beatId: "f1.build", at: 14000 },
+          {
+            type: "ended",
+            beatId: "f1.build",
+            result: FAILED_BUILD,
+            at: 15000,
+          },
+        ])
+      );
+      const v = view(hello, twice, LATE);
+      expect(v.turns.find((t) => t.id === "fix:f1.build:0")).toMatchObject({
+        follow: { kind: "showFix", done: true },
+      });
+      expect(v.live?.id).toBe("result:f1.build:1");
     });
 
     it("a write that could not land shows as a failed wrote card", () => {

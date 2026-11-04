@@ -111,6 +111,7 @@ const handlers = (): TurnHandlers => ({
   act: vi.fn(),
   explain: vi.fn(),
   fixMyself: vi.fn(),
+  showFix: vi.fn(),
   next: vi.fn(),
   restartStep: vi.fn(),
   openNextTutorial: vi.fn(),
@@ -118,6 +119,7 @@ const handlers = (): TurnHandlers => ({
   copyReceipt: vi.fn(),
   copyFailed: vi.fn(),
   showLine: vi.fn(),
+  revealError: vi.fn(),
 });
 
 const feed = (over: Partial<BaseFeedProps> & { on?: TurnHandlers } = {}) => {

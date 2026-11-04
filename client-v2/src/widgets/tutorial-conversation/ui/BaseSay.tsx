@@ -12,6 +12,11 @@ export interface BaseSayProps {
   settled?: boolean;
   /** Open the quoted line in the editor */
   onShowQuote?: (quote: Quote) => void;
+  /**
+   * "Show me the fix" after the line (SPEC.md 10.1): an outline button that
+   * works once, then stays disabled
+   */
+  fix?: { done: boolean; onFix: () => void };
 }
 
 const baseName = (path: string) => path.split("/").pop() ?? path;
@@ -27,6 +32,7 @@ const BaseSay = ({
   quoted,
   settled = false,
   onShowQuote,
+  fix,
 }: BaseSayProps) => {
   const error = quote?.tone === "error" && !settled;
   return (
@@ -65,6 +71,17 @@ const BaseSay = ({
             {quoted ?? ""}
           </pre>
         </figure>
+      )}
+      {fix && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          disabled={fix.done}
+          onClick={fix.onFix}
+        >
+          Show me the fix
+        </Button>
       )}
     </div>
   );

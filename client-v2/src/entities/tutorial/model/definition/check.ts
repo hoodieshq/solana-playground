@@ -902,7 +902,11 @@ if (import.meta.vitest) {
 
     /** Step 1 with a planned failure whose beats are given */
     const withPlannedFailure = (d: TutorialDefinition, onFail: Beat[]) => {
-      Object.assign(d.steps[0], { planned: "On purpose.", onFail });
+      Object.assign(d.steps[0], {
+        planned: "On purpose.",
+        failsWith: "cannot find type",
+        onFail,
+      });
       return d;
     };
 
@@ -926,6 +930,12 @@ if (import.meta.vitest) {
       const d = minimal();
       Object.assign(d.steps[0], { onFail: [ask("f1.fix")] });
       expect(lines(d)).toEqual(['steps[0]: needs "planned", found none']);
+    });
+
+    it("needs the log line that marks a planned failure", () => {
+      const d = withPlannedFailure(minimal(), [ask("f1.fix")]);
+      delete d.steps[0].failsWith;
+      expect(lines(d)).toEqual(['steps[0]: needs "failsWith", found none']);
     });
 
     it("rejects a build goal naming an instruction no target defines", () => {

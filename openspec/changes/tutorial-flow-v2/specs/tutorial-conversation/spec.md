@@ -215,6 +215,9 @@ the compiler line, and the location as a link. The link jumps to the line in
 the editor and lights it on hover. The card SHALL offer a primary "Explain the
 error ⌘↵" and a ghost "I'll fix it myself".
 
+A build whose server never answered is not a compiler failure: its card
+offers "Try again" instead, as `tutorial-runs` has it.
+
 For a failure the definition plans:
 
 - the card SHALL carry the definition's line;
@@ -226,8 +229,10 @@ For a failure the definition plans:
 For a failure the definition does not plan:
 
 - Explain SHALL ask the live assistant about this error with the build log;
-- after its answer, a "Show me the fix" outline button SHALL write the step's
-  target lines.
+- once its answer ends, a `say` turn SHALL follow with an outline "Show me
+  the fix" button, which writes the step's target into its file, shows the
+  first line that changes, and works once. A reload while the assistant answers
+  offers it at once.
 
 #### Scenario: The planned E0412
 

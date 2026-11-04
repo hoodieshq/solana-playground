@@ -95,12 +95,14 @@ for; tasks with "after nothing" start at once.
 
 ## 4. Runs
 
-- [ ] 4.1 Build act and the planned failure: build through the server, the
+- [x] 4.1 Build act and the planned failure: build through the server, the
       error parsed to code, line and column, the failed card with Explain and
       "I'll fix it myself", the planned explanation and fix question, the
       unplanned failure through the assistant with "Show me the fix",
-      `tutorial_action_run` for builds. Verify: parser unit tests on real
-      server logs; Hello Anchor's E0412 path in a component test (HOO-2355; fleet; M 1.5; after 3.1, 3.2)
+      `tutorial_action_run` for builds (fired from the reducer for every act by
+      4.2, PR 241, agreed 3 Nov). Verify: parser unit tests on real
+      server logs; Hello Anchor's E0412 path in a component test (HOO-2355; fleet; M 1.5; after 3.1, 3.2;
+      plan: [plans/4.1-build-act.md](plans/4.1-build-act.md))
 - [ ] 4.2 Deploy from the wallet: no-wallet path, "Funding your wallet" as
       an extra first stage, the red "Not enough devnet SOL" card with its
       address row, Try again and Open faucet, the program keypair kept,

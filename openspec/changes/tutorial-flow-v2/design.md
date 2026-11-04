@@ -148,8 +148,16 @@ separate PRs against fixtures.
 
 ### D4. Runs reuse the editor's commands; the result facts come from the chain
 
-**Build:** calls the build command and parses the first `error[Ennnn]` and
-`--> file:line:col` from the server's output.
+**Build:** calls the editor's build command, so the program's id, IDL and
+last-build state update as they do for the editor's Build, then reads the
+raw log the command keeps for the assistant (`PgBuildOutput`). It parses the
+error the step's `failsWith` names, else the first error that is not a
+`#[program]` macro symptom, with its `--> file:line:col` (the server's first
+error for Hello Anchor's planned failure is such a symptom, HOO-2355's spike
+on 2 Nov). The server is unreachable when the browser says no answer came
+(`Failed to fetch` and its Firefox and Safari wordings) or the command ends
+with no output of its own; any other throw, such as the server's own
+refusal, shows its text as the log, with no line.
 
 **Deploy:**
 

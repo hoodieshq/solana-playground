@@ -382,9 +382,16 @@ const FlowFrame = () => {
                     The router stays mounted on the Write stage, whose editor
                     must never unmount */}
                 <Stage>
+                  {/* Narrow too: a tutorial's build state lives in the chat and
+                    the terminal strip, never on a Build page (Almaz, 3 Nov;
+                    HOO-2355) */}
                   <StageRouter
-                    stage={inFrame || !stagesOffered ? "write" : state.stage}
-                    tabs={stagesOffered && !inFrame}
+                    stage={
+                      tutorial.frame !== undefined || !stagesOffered
+                        ? "write"
+                        : state.stage
+                    }
+                    tabs={stagesOffered && tutorial.frame === undefined}
                   />
                 </Stage>
               </Center>

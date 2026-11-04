@@ -59,7 +59,7 @@ tutorial.json
   categories, thumbnail, minutes
   intro: promise, log, files
   steps[1..6]: id, title, short, objective, learned, file, start, target,
-               readOnly?, beats, planned?, onFail?, goal, win, explain
+               readOnly?, beats, planned?, failsWith?, onFail?, goal, win, explain
   finish: headline, line, learned, chips, next
   docs?: title, url, file
 ```
@@ -156,12 +156,12 @@ The rules:
 
 For the planned failure, the beats before the first build write a file that
 really fails with the error you want, and the fix question's block is what
-makes it build. The failure must be a compiler error Playground can read,
-with a code, a file and a line (`error[E0412]: ...`,
-`--> src/lib.rs:9:32`): a build that fails any other way is treated as
-unplanned. Any such error in that step before the fix counts as the planned
-one, so keep the step free of other errors. Ask the person to build that
-file in Playground before you write the failure's copy around it.
+makes it build. `failsWith` is a line of the build log that marks it, such as
+``cannot find type `Hello` in this scope``: a failed build whose log does not
+hold it is treated as unplanned. The error may have a code or not; the card
+shows the one holding `failsWith`, with its file and line when the log gives
+them. Ask the person to build that file in Playground and copy the line from
+its log before you write the failure's copy around it.
 
 **A write that builds something other than the target: `ref` and `start`.**
 The failing file is not the step's target, and its blocks may not be in the
@@ -421,9 +421,10 @@ the card reads its usual record.
 
 ### The planned failure
 
-A step with a planned failure has both `planned` and `onFail`. `planned` is
-the assistant's line inside the failed build's card ("This one's on
-purpose..."). `onFail` holds the beats after the learner presses Explain: a
+A step with a planned failure has `planned`, `failsWith` and `onFail`;
+`planned` needs the other two, and `onFail` needs `planned`. `planned` is the assistant's line inside the failed build's
+card ("This one's on purpose..."). `failsWith` is the log line that marks
+the failure. `onFail` holds the beats after the learner presses Explain: a
 `say` with the error quoted, the `Fix it` question, and a second `build`.
 
 ## Goals, wins and the explanation
@@ -761,6 +762,9 @@ example above, broken one way each:
   A `call` act without its `call`. Only a `call` act may have one.
 - `steps[0]: needs "planned", found none`
   `onFail` and `planned` come together.
+- `steps[0]: needs "failsWith", found none`
+  A planned failure names the log line that marks it, with `planned` and
+  `onFail`.
 - `steps[1].readOnly[1]: a file in the step's start or target, found "Anchor.toml"`
   A read-only file the step does not have.
 - `docs[0].file: a Markdown file in the tutorial's docs folder, found no "programs.md" there`

@@ -51,8 +51,12 @@ A beat SHALL be one of:
   instruction with arguments, with its title, context line and button label.
 
 A step MAY carry the beats that follow a planned build failure (the
-explanation, a fixing question and the second build) and the assistant's line
-inside the failed card. Text fields SHALL accept the inline Markdown the
+explanation, a fixing question and the second build), the assistant's line
+inside the failed card, and `failsWith`: a line of the build log that marks
+the planned failure, such as ``cannot find type `Hello` in this scope``. A
+planned failure needs all three; `onFail` needs `planned`. A failed build is the planned one only
+when its log contains `failsWith`, so a planned error with no code, like
+Lumberjack's, is recognised too. Text fields SHALL accept the inline Markdown the
 conversation renders: inline code, emphasis and links. A text MAY carry a
 shorter phone variant.
 
