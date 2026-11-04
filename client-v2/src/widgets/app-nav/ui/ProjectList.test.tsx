@@ -98,6 +98,7 @@ vi.mock("../model/workspace-files", async (importOriginal) => ({
   readWorkspaceFiles: files.readWorkspaceFiles,
 }));
 
+import { requireFor } from "@/test-utils/require-for";
 // The markers' reading is `use-sync-markers.test.tsx`'s; here, only where
 // they land
 const syncMarkers = vi.hoisted(() => ({
@@ -245,7 +246,9 @@ describe("ProjectList", () => {
 
     fireEvent.keyDown(menuOf("beta"), { key: "p" });
 
-    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual(["id-b"]);
+    expect(
+      JSON.parse(requireFor("the stored pins")(localStorage.getItem(PINS_KEY)))
+    ).toEqual(["id-b"]);
     expect(projectNames()).toEqual(["beta", "alpha"]);
     expect(events("nav_project_action")).toEqual([
       { action: "pin", via: "key" },
@@ -255,7 +258,9 @@ describe("ProjectList", () => {
   it("drops a stored pin no workspace has", () => {
     localStorage.setItem(PINS_KEY, JSON.stringify(["id-a", "gone"]));
     draw();
-    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual(["id-a"]);
+    expect(
+      JSON.parse(requireFor("the stored pins")(localStorage.getItem(PINS_KEY)))
+    ).toEqual(["id-a"]);
   });
 
   it("renames in place through the explorer, announced for sync", async () => {
@@ -488,10 +493,9 @@ describe("ProjectList", () => {
     localStorage.setItem(PINS_KEY, JSON.stringify(["id-a"]));
     fireEvent.keyDown(menuOf("beta"), { key: "p" });
 
-    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual([
-      "id-a",
-      "id-b",
-    ]);
+    expect(
+      JSON.parse(requireFor("the stored pins")(localStorage.getItem(PINS_KEY)))
+    ).toEqual(["id-a", "id-b"]);
   });
 
   it("keeps the pins while the explorer has no workspaces yet", () => {
@@ -499,7 +503,9 @@ describe("ProjectList", () => {
     app.state.names = [];
     app.state.ids = {};
     draw();
-    expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual(["id-a"]);
+    expect(
+      JSON.parse(requireFor("the stored pins")(localStorage.getItem(PINS_KEY)))
+    ).toEqual(["id-a"]);
 
     act(() => {
       app.state.names = ["beta", "alpha"];

@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
+import { requireFor } from "@/test-utils/require-for";
 
 import { PgSession } from "../../../../features/auth";
 import { PROVIDERS } from "../model/types";
@@ -26,6 +27,10 @@ const OWN: Connection = {
 
 /** What the form handed its host last, as the dialog's footer would draw it */
 let action: ConnectAction | null;
+
+/** Presses the action Connect handed its host */
+const connect = () =>
+  requireFor("the action Connect hands its host")(action).connect();
 
 const renderConnect = (props: Omit<ConnectProps, "frame">) =>
   render(
@@ -131,7 +136,7 @@ describe("Connect", () => {
       const signIn = vi.spyOn(PgSession, "signIn").mockResolvedValue();
       renderConnect({ defaultBackend: "present" });
 
-      await act(async () => action!.connect());
+      await act(async () => connect());
 
       expect(signIn).toHaveBeenCalledWith({ from: "assistant" });
       expect(PgAssistant.connection).toBeNull();
@@ -142,7 +147,7 @@ describe("Connect", () => {
       vi.spyOn(PgSession, "signIn").mockRejectedValue(failure);
       renderConnect({ defaultBackend: "present" });
 
-      await act(async () => action!.connect());
+      await act(async () => connect());
 
       expect((await screen.findByRole("alert")).textContent).toBe(
         "Allow popups for this site to sign in."
@@ -157,7 +162,7 @@ describe("Connect", () => {
       );
       renderConnect({ defaultBackend: "present" });
 
-      await act(async () => action!.connect());
+      await act(async () => connect());
 
       expect((await screen.findByRole("alert")).textContent).toBe(
         "Sign-in failed. Try again."
@@ -184,10 +189,10 @@ describe("Connect", () => {
         .mockRejectedValueOnce(failure)
         .mockReturnValueOnce(new Promise(() => {}));
       renderConnect({ defaultBackend: "present" });
-      await act(async () => action!.connect());
+      await act(async () => connect());
       await screen.findByRole("alert");
 
-      await act(async () => action!.connect());
+      await act(async () => connect());
 
       expect(screen.queryByRole("alert")).toBeNull();
     });
@@ -271,15 +276,20 @@ describe("Connect", () => {
       preset: { provider: "anthropic", model: "claude-unknown-9" },
     });
     await user.type(
-      document.querySelector<HTMLInputElement>("#assistant-api-key")!,
+      requireFor("the API key field")(
+        document.querySelector<HTMLInputElement>("#assistant-api-key")
+      ),
       "sk-ant-fake"
     );
 
-    act(() => action!.connect());
+    act(() => connect());
 
-    const anthropic = PROVIDERS.find((p) => p.id === "anthropic")!;
+    const anthropic = requireFor("the Anthropic provider")(
+      PROVIDERS.find((p) => p.id === "anthropic")
+    );
     expect(PgAssistant.connection?.settings?.model).toBe(
-      anthropic.modelSettings!.defaults.model
+      requireFor("Anthropic's model settings")(anthropic.modelSettings).defaults
+        .model
     );
   });
 
@@ -302,11 +312,13 @@ describe("Connect", () => {
     expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
 
     await user.type(
-      document.querySelector<HTMLInputElement>("#assistant-api-key")!,
+      requireFor("the API key field")(
+        document.querySelector<HTMLInputElement>("#assistant-api-key")
+      ),
       "sk-ant-fake"
     );
     expect(action).toMatchObject({ text: "Connect", ready: true });
-    act(() => action!.connect());
+    act(() => connect());
     expect(PgAssistant.connection).toMatchObject({
       id: "anthropic",
       apiKey: "sk-ant-fake",
