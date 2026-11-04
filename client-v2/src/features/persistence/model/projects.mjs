@@ -204,35 +204,54 @@ class WriteRefused extends Error {
 
 /**
  * The project a write produced, measured after its writes inside the same
- * transaction: the counted files (the generated workspace files left out) and
- * the bytes of every file, both over the files sync carries (`isSyncedPath`),
- * so a `.workspace/` row stored before the route refused them weighs nothing
- * the client cannot see. `octet_length` of a `text` column is its UTF-8 byte
- * count, the measure `checkProjectLimits` takes on the client.
+ * transaction: the paths over the path limit, the files over the file limit
+ * with their sizes, the counted files (the generated workspace files left
+ * out) and the bytes of every file, all over the files sync carries
+ * (`isSyncedPath`), so a `.workspace/` row stored before the route refused
+ * them weighs nothing the client cannot see. `octet_length` of a `text`
+ * column is its UTF-8 byte count and `char_length` its code points, the
+ * measures `checkProjectLimits` takes on the client.
+ *
+ * Every stored row is measured, not only the request's: `describeWrite`
+ * already refuses a request file over the path or file limit, so `long` and
+ * `large` find only a row stored before the limits, or by a path that skipped
+ * that check.
  *
  * Measured rather than predicted: computing the result in JavaScript from the
  * stored rows and the patch would be a second model of `DELETE_OTHERS` and
  * `UPSERT_FILES` that could disagree with the statements themselves.
  */
 const MEASURE = `
-  select count(*) filter (where not (path = any($3::text[])))::int as files,
+  select array_agg(path) filter (where char_length(path) > $4) as long,
+         jsonb_object_agg(path, octet_length(content))
+           filter (where octet_length(content) > $5) as large,
+         count(*) filter (where not (path = any($3::text[])))::int as files,
          coalesce(sum(octet_length(content)), 0)::bigint as bytes
     from project_files
    where user_id = $1 and project_id = $2
      and (path = any($3::text[]) or not starts_with(path, '.workspace/'))`;
 
 /**
- * Throw `WriteRefused` with `{limit}` when the project as written is over the
- * file count or size limit, so that the writes roll back. Count before size,
- * the order `checkProjectLimits` reports them in; the path and per-file checks
- * need only the request and run in `api/projects.mjs`.
+ * Throw `WriteRefused` with `{limit}` when the project as written is over a
+ * limit, so that the writes roll back. Path, file size, count, then project
+ * size: the order `checkProjectLimits` reports them in.
  */
 const refuseOverLimit = async (q, userId, id) => {
-  const { rows } = await q(MEASURE, [userId, id, SYNCED_WORKSPACE_FILES]);
-  const files = rows[0].files;
+  const { rows } = await q(MEASURE, [
+    userId,
+    id,
+    SYNCED_WORKSPACE_FILES,
+    PROJECT_LIMITS.pathChars,
+    PROJECT_LIMITS.fileBytes,
+  ]);
+  const { long, large, files } = rows[0];
   const bytes = Number(rows[0].bytes);
   let limit = null;
-  if (files > PROJECT_LIMITS.files) {
+  if (long) {
+    limit = limitExceeded.pathTooLong(long);
+  } else if (large) {
+    limit = limitExceeded.fileTooLarge(large);
+  } else if (files > PROJECT_LIMITS.files) {
     limit = limitExceeded.tooManyFiles(files);
   } else if (bytes > PROJECT_LIMITS.projectBytes) {
     limit = limitExceeded.projectTooLarge(bytes);
@@ -292,9 +311,9 @@ const DELETE_OTHERS = `
  * A patch is only ever accepted together with a token, so "what it differs
  * from" is always the row the caller read.
  *
- * A write that leaves the project over the file count or size limit is rolled
- * back and answered `{limit}`, the body of the route's 413. A patch is small
- * even when its project is not, so the project it produces is what counts.
+ * A write that leaves the project over any limit is rolled back and answered
+ * `{limit}`, the body of the route's 413. A patch is small even when its
+ * project is not, so the project it produces is what counts.
  *
  * A patch after which the row holds no files is refused and rolled back
  * (`refused: "no-files"`). Such a row reads back as no snapshot, so no device

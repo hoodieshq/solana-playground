@@ -27,7 +27,7 @@ the same time once 2.1 has merged.
 - [x] 2.2 Enforce the limits in `PUT /api/projects` (HOO-2418, depends on 2.1):
   `MAX_PROJECT_BODY_BYTES` becomes 1 MiB, `describeWrite` refuses a file or
   path over its limit, and `writeProject` measures the resulting project and
-  rolls back over the count or size limit, answering 413 with the body the
+  rolls back over any limit, measured over every stored row, answering 413 with the body the
   spec's "The refusal body says what is over" requires. Update the body cap figure
   in the `MAX_PROJECT_BODY_BYTES` comment, `.claude/rules/project-sync.md` and
   `docs/persistent-conversations-spec.md`. Verified by `api/projects.test.mjs`
@@ -50,8 +50,8 @@ the same time once 2.1 has merged.
   re-checking, and each event's parameters asserted through the memory
   provider; and by a `SyncBanner` test rendering each banner text in the spec.
 - [x] 3.2 Refuse explorer writes past a limit (HOO-2418, depends on 2.1):
-  `PgExplorer.createItem` calls `checkFileWrite` (only what the write makes
-  worse); `renameItem` and `createWorkspace` call `checkProjectLimits` on the
+  `PgExplorer.createItem` calls `checkFileWrite` (the written file, and the
+  project as the write leaves it); `renameItem` and `createWorkspace` call `checkProjectLimits` on the
   project as it would be; each throws the spec's message before any write; `CreateItem.tsx` shows the message instead of a
   boolean error; `CreateItem`, `RenameItem` and the import dialogs put it in
   `data-testid="explorer-limit-error"`. Add `src/utils/explorer/telemetry.ts`

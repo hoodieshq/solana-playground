@@ -692,7 +692,7 @@ describe("writes past a project limit", () => {
       expect(stored().has("/alpha/src/extra.rs")).toBe(false);
     });
 
-    it("writes an edit to an existing file in a project restored over the limit", async () => {
+    it("refuses an edit to an existing file in a project restored over the limit", async () => {
       await PgExplorer.createWorkspace("alpha", { files: many("alpha", 1) });
       await PgExplorer.replaceWorkspaceFiles(
         "alpha",
@@ -703,9 +703,10 @@ describe("writes past a project limit", () => {
       await PgExplorer.switchWorkspace("alpha");
 
       // What the assistant's file write does: `createItem` with `override`
-      await PgExplorer.createItem("src/f1.rs", "y", { override: true });
-      expect(stored().get("/alpha/src/f1.rs")).toBe("y");
-      expect(refusals()).toEqual([]);
+      await expect(
+        PgExplorer.createItem("src/f1.rs", "y", { override: true })
+      ).rejects.toThrow("A project can have at most 50 files.");
+      expect(stored().get("/alpha/src/f1.rs")).toBe("x");
     });
 
     it("creates a small file beside another file over the size limit", async () => {
@@ -722,7 +723,7 @@ describe("writes past a project limit", () => {
       expect(stored().has("/alpha/notes.md")).toBe(true);
     });
 
-    it("refuses an overwrite that grows a project already over the size limit", async () => {
+    it("refuses an overwrite that leaves a project over the size limit", async () => {
       await PgExplorer.createWorkspace("alpha", {
         files: [["/alpha/src/lib.rs", ""]],
       });
@@ -742,10 +743,17 @@ describe("writes past a project limit", () => {
           override: true,
         })
       ).rejects.toThrow("A project can be at most 512 KB.");
-      await PgExplorer.createItem("src/f0.rs", "a".repeat(100_000), {
+      // 540,000 bytes: smaller, still over
+      await expect(
+        PgExplorer.createItem("src/f0.rs", "a".repeat(100_000), {
+          override: true,
+        })
+      ).rejects.toThrow("A project can be at most 512 KB.");
+      // 441,000 bytes: back under
+      await PgExplorer.createItem("src/f0.rs", "a".repeat(1_000), {
         override: true,
       });
-      expect(stored().get("/alpha/src/f0.rs")).toHaveLength(100_000);
+      expect(stored().get("/alpha/src/f0.rs")).toHaveLength(1_000);
     });
 
     it("counts the generated files sync carries toward the project size", async () => {

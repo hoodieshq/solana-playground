@@ -352,6 +352,138 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       });
       assert.ok(result.updatedAt);
     });
+
+    /** Store one row as if written before the limits, then patch another file */
+    const patchBeside = async (path, content) => {
+      const { updatedAt } = await put({ files: many(2) });
+      await query(
+        `insert into project_files (user_id, project_id, path, content)
+         values ($1, 'p1', $2, $3)`,
+        [userId, path, content]
+      );
+      const before = await stored();
+      const result = await put({
+        changed: { "src/f0.rs": "y" },
+        removed: [],
+        baseUpdatedAt: updatedAt,
+      });
+      return { result, before };
+    };
+
+    it("refuses a patch to a project that stores a file over the file limit", async () => {
+      const { result, before } = await patchBeside(
+        "src/big.rs",
+        "a".repeat(200_000)
+      );
+      assert.deepEqual(result, {
+        limit: {
+          reason: "file-too-large",
+          limit: 131_072,
+          paths: ["src/big.rs"],
+          sizes: { "src/big.rs": 200_000 },
+        },
+      });
+      assert.deepEqual(await stored(), before);
+    });
+
+    it("refuses a patch to a project that stores a path over the path limit", async () => {
+      const long = `src/${"a".repeat(253)}`;
+      const { result, before } = await patchBeside(long, "x");
+      assert.deepEqual(result, {
+        limit: { reason: "path-too-long", limit: 256, paths: [long] },
+      });
+      assert.deepEqual(await stored(), before);
+    });
+
+    it("measures a stored path in code points, as the client does", async () => {
+      // 256 code points in 508 bytes: at the path limit, not over it
+      const { result } = await patchBeside(`src/${"é".repeat(252)}`, "x");
+      assert.ok(result.updatedAt);
+    });
+
+    it("measures a stored file in UTF-8 bytes, as the client does", async () => {
+      // 65,537 code points in 131,074 bytes: over the file limit
+      const { result } = await patchBeside("src/wide.rs", "é".repeat(65_537));
+      assert.equal(result.limit?.reason, "file-too-large");
+      assert.deepEqual(result.limit.sizes, { "src/wide.rs": 131_074 });
+    });
+
+    it("refuses a write that skipped the route's check with a file over the limit", async () => {
+      const result = await put({
+        files: { "src/lib.rs": "a".repeat(131_073) },
+      });
+      assert.equal(result.limit?.reason, "file-too-large");
+      assert.equal(await getProject(userId, "p1"), null);
+    });
+
+    it("takes a shrink of a stored file only once it is under the file limit", async () => {
+      const { updatedAt } = await put({ files: many(2) });
+      await query(
+        `insert into project_files (user_id, project_id, path, content)
+         values ($1, 'p1', 'src/big.rs', $2)`,
+        [userId, "a".repeat(200_000)]
+      );
+      const before = await stored();
+
+      const still = await put({
+        changed: { "src/big.rs": "a".repeat(150_000) },
+        removed: [],
+        baseUpdatedAt: updatedAt,
+      });
+      assert.equal(still.limit?.reason, "file-too-large");
+      assert.deepEqual(await stored(), before);
+
+      const under = await put({
+        changed: { "src/big.rs": "a".repeat(131_072) },
+        removed: [],
+        baseUpdatedAt: updatedAt,
+      });
+      assert.ok(under.updatedAt);
+    });
+
+    it("takes a shrink of a stored project only once it is under the size limit", async () => {
+      // 550,000 bytes stored before the limits
+      const { updatedAt } = await put({ files: many(1) });
+      await query(
+        `insert into project_files (user_id, project_id, path, content)
+         select $1, 'p1', 'old/' || g, repeat('a', 110000)
+           from generate_series(1, 5) g`,
+        [userId]
+      );
+      const before = await stored();
+
+      const still = await put({
+        changed: { "old/1": "a".repeat(90_000) },
+        removed: [],
+        baseUpdatedAt: updatedAt,
+      });
+      assert.deepEqual(still, {
+        limit: { reason: "project-too-large", limit: 524_288, size: 530_001 },
+      });
+      assert.deepEqual(await stored(), before);
+
+      const under = await put({
+        changed: { "old/1": "a".repeat(1_000) },
+        removed: [],
+        baseUpdatedAt: updatedAt,
+      });
+      assert.ok(under.updatedAt);
+    });
+
+    it("lets a patch remove a stored file over the file limit", async () => {
+      const { updatedAt } = await put({ files: many(2) });
+      await query(
+        `insert into project_files (user_id, project_id, path, content)
+         values ($1, 'p1', 'src/big.rs', $2)`,
+        [userId, "a".repeat(200_000)]
+      );
+      const result = await put({
+        changed: {},
+        removed: ["src/big.rs"],
+        baseUpdatedAt: updatedAt,
+      });
+      assert.ok(result.updatedAt);
+    });
   });
 
   it("replaces the file set on a full swap, deleting what it omits", async () => {

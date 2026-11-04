@@ -98,7 +98,8 @@ const refuse = (error, status = 400) => ({ error, status });
  * A body whose own files are over a limit is refused as `limit`, before the
  * database is touched: whatever is stored, the project those files land in is
  * over it too. The count and the total size of a patch's result depend on
- * rows already stored, so `writeProject` measures those after its writes.
+ * rows already stored, so `writeProject` measures every limit over the stored
+ * project after its writes.
  *
  * A file sync does not carry (`.workspace/metadata.json` and the rest of
  * `.workspace/` but `SYNCED_WORKSPACE_FILES`) is refused as a bad request:
@@ -360,8 +361,8 @@ async function handler(req, res) {
       if (write.error) {
         return sendJson(res, write.status, { error: write.error });
       }
-      // TODO(HOO-2418 follow-up): untested past the auth gate, and the only
-      // server check of the per-file and path limits; `answerWrite` is tested
+      // TODO(HOO-2418 follow-up): untested past the auth gate; `answerWrite`
+      // is tested, and `writeProject` checks every limit again on what it stores
       if (write.limit) {
         const answer = answerWrite(write);
         return sendJson(res, answer.status, answer.body);

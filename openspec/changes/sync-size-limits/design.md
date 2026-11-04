@@ -71,10 +71,13 @@ drift, and the rule "a string two places must agree on is declared once"
 `renameItem` and `createWorkspace` (with `files`) build the project's file map
 as it would be after the operation and call `checkProjectLimits` before their
 first write. `PgExplorer.createItem` calls `checkFileWrite` instead, which
-refuses only what the write itself breaks: its own path or size, the file count
-for a new path, the project size for a write that grows the project. A project
-restored over a limit must still take the edits that bring it back under, and a
-refusal must never name a file the write did not touch. Over a limit, the three
+judges the written file's own path and size, then the project's file count and
+size as the write leaves them. It judges the result, as the server does, so an
+overwrite that shrinks a file or a project still over its limit is refused: a
+project restored over a limit takes deletes, which are never checked, and only
+the writes that bring it back under. Another file's path or size never refuses
+the write, because a refusal must not name a file the write did not touch; the
+sync banner names that file on the next upload. Over a limit, the three
 methods throw an `Error` whose message is the spec's text, and write nothing. Checking in
 these methods rather than in each dialog covers every caller: the dialogs, the
 assistant's `applyPatch` in `views/sidebar/assistant/bridge/playground-bridge.ts`,
@@ -109,25 +112,35 @@ need the caller passed in.
 
 ### The server checks the resulting project after the writes, then rolls back
 
-Per-file and path checks need only the request, so `describeWrite` runs
-`checkProjectLimits` on `files` or `changed` and answers 413 before touching the
-database. The count and the total size depend on rows already stored, so
-`writeProject` runs one more statement after its writes:
+`describeWrite` runs `checkProjectLimits` on `files` or `changed` and answers
+413 before touching the database: a request file over the path or file limit
+puts the project over it whatever is stored. That is an early refusal, not the
+enforcement. The count and the total size depend on rows already stored, and a
+row stored before the limits, or by a path that skipped the route, can be over
+the path or file limit itself, so `writeProject` runs one more statement after
+its writes and measures every limit over the stored project:
 
 ```sql
-select count(*) filter (where not (path = any($3::text[])))::int as files,
+select array_agg(path) filter (where char_length(path) > $4) as long,
+       jsonb_object_agg(path, octet_length(content))
+         filter (where octet_length(content) > $5) as large,
+       count(*) filter (where not (path = any($3::text[])))::int as files,
        coalesce(sum(octet_length(content)), 0)::bigint as bytes
   from project_files
  where user_id = $1 and project_id = $2
    and (path = any($3::text[]) or not starts_with(path, '.workspace/'))
 ```
 
-`$3` is `SYNCED_WORKSPACE_FILES`. Only paths sync carries are measured, as on
-the client, so a `.workspace/` row stored before the route refused them weighs
-nothing the client cannot see. Over a limit, `writeProject` throws the
-existing `WriteRefused` with `{limit}`, and `saveProject` returns that outcome
-as it returns HOO-2326's no-files refusal, so the transaction rolls back and
-nothing is written.
+`$3` is `SYNCED_WORKSPACE_FILES`, `$4` the path limit and `$5` the file limit.
+Only paths sync carries are measured, as on the client, so a `.workspace/` row
+stored before the route refused them weighs nothing the client cannot see. The
+checks run in the client's order: path, file size, count, project size. Over a
+limit, `writeProject` throws the existing `WriteRefused` with `{limit}`, and
+`saveProject` returns that outcome as it returns HOO-2326's no-files refusal,
+so the transaction rolls back and nothing is written. Measuring the result
+means a write that shrinks a file or a project still over its limit is
+refused; a project that holds an oversized row takes only a write that brings
+it back under, such as one that removes the row.
 
 Alternative: compute the result before writing, by reading every stored row's
 path and size and applying the patch in JavaScript. That is a second model of
@@ -135,7 +148,8 @@ path and size and applying the patch in JavaScript. That is a second model of
 after the writes measures what the statements did.
 
 `octet_length` of a `text` column is its UTF-8 byte count in a UTF-8 database,
-which is the same measure as `TextEncoder` on the client.
+the same measure as `TextEncoder` on the client, and `char_length` counts code
+points, the same measure as `[...path].length`.
 
 ### The client checks the full snapshot, not the patch
 
@@ -202,9 +216,10 @@ as HOO-2418 asks.
   → it counts toward the project size. A 512 KiB project leaves room for any
   IDL the bundled tutorials produce, and a larger one raises the project size
   banner like any other file.
-- [The client and the server disagree on a measure] → both call
-  `checkProjectLimits` for the per-file checks, and the server test feeds the SQL
-  count and sum the same files the client unit test checks.
+- [The client and the server disagree on a measure] → `describeWrite` calls
+  `checkProjectLimits`, and the SQL takes the same measures: `octet_length` and
+  `char_length`. The server tests feed a multi-byte file and a multi-byte path
+  at the limit, so a measure that drifts fails there.
 - [A stale client without the check uploads a large project] → the server
   refuses it with a named reason, and a client from before this change shows
   its existing "too large" banner for any 413.

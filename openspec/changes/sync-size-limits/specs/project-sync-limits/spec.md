@@ -140,7 +140,9 @@ to the limit and files that apply now, and no upload SHALL be sent.
 `PUT /api/projects` SHALL refuse a write whose resulting project is over a limit,
 for a full write and for a patch alike, with status 413 and a JSON body carrying
 `reason`, one of `path-too-long`, `file-too-large`, `too-many-files`,
-`project-too-large`, chosen in that order. A refused write SHALL change nothing
+`project-too-large`, chosen in that order. Every stored file SHALL be measured,
+not only the request's, so a write that shrinks a file or a project still over
+a limit SHALL be refused. A refused write SHALL change nothing
 in the database. It SHALL refuse with 400 a write carrying a path under
 `.workspace/` other than the synced workspace files, and its measure of a
 project SHALL leave such stored rows out.
@@ -157,6 +159,16 @@ project SHALL leave such stored rows out.
 #### Scenario: A patch whose own files are small but whose project is large (manual)
 - **WHEN** the stored project holds 500,000 bytes and a patch changes one file from 1,000 to 30,000 bytes
 - **THEN** the response is 413 with `reason: "project-too-large"` and `size: 529000`
+
+#### Scenario: A stored file over the size limit (manual)
+- **WHEN** the stored project holds `src/big.rs` of 200,000 bytes and a patch changes another file
+- **THEN** the response is 413 with `reason: "file-too-large"` and `paths: ["src/big.rs"]`
+- **AND** the project's files and `updated_at` are unchanged
+
+#### Scenario: A patch that shrinks a file still over the size limit (manual)
+- **WHEN** the stored project holds `src/big.rs` of 200,000 bytes and a patch changes it to 150,000 bytes
+- **THEN** the response is 413 with `reason: "file-too-large"` and nothing is written
+- **AND** a patch changing it to 131,072 bytes is accepted
 
 #### Scenario: A .workspace/ file sync does not carry (manual)
 - **WHEN** a write carries `.workspace/metadata.json`
@@ -254,19 +266,20 @@ body did. A body cap refusal (`too-large`) SHALL send no limit event.
 ### Requirement: The explorer refuses to create a file past a limit
 
 Creating or overwriting a file (from the New File dialog, an assistant file
-write or a terminal command) SHALL be refused when the write breaks one of these
-limits, checked in this order:
+write or a terminal command) SHALL be refused when the write leaves one of these
+limits broken, checked in this order:
 
 1. Path: the file's path is longer than 256 characters.
 2. File size: the file's new content is larger than 128 KB.
-3. File count: the file is new, and adding it gives the project more than 50
-   files.
-4. Project size: the write makes the project bigger, and leaves it larger than
-   512 KB.
+3. File count: the project holds more than 50 files after the write.
+4. Project size: the project is larger than 512 KB after the write.
 
-An overwrite that adds no file and makes the project no bigger SHALL NOT be
-refused, even in a project already over a limit. A refused write SHALL change
-nothing. The refusal message SHALL be the rule of the first limit broken: "A
+The limits SHALL be judged on the result, not on the change: an overwrite that
+makes a file or a project smaller SHALL be refused while that file or project
+is still over its limit, and SHALL be written once it brings it back within
+every limit. Deleting a file SHALL NOT be refused. A file other than the one
+written SHALL NOT refuse the write by its own path or size. A refused write
+SHALL change nothing. The refusal message SHALL be the rule of the first limit broken: "A
 file path can be at most 256 characters.", "A file can be at most 128 KB.", "A
 project can have at most 50 files." or "A project can be at most 512 KB."
 
@@ -291,7 +304,12 @@ project can have at most 50 files." or "A project can be at most 512 KB."
 
 #### Scenario: An edit in a project already over a limit (manual)
 - **WHEN** a project restored from the account holds 60 counted files and the assistant overwrites an existing file with smaller content
-- **THEN** the file is written and nothing is refused
+- **THEN** the file keeps its previous content and the write fails with "A project can have at most 50 files."
+
+#### Scenario: Shrinking a file still over the size limit (manual)
+- **WHEN** a project restored from the account holds `src/big.rs` of 200,000 bytes and the assistant overwrites it with 150,000 bytes
+- **THEN** `src/big.rs` keeps its previous content and the write fails with "A file can be at most 128 KB."
+- **AND** an overwrite with 131,072 bytes is written
 
 #### Scenario: A small file beside a file over the size limit
 - **WHEN** `src/lib.rs` is 150,000 bytes after a paste and the user creates `notes.md` in the New File dialog
