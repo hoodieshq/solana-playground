@@ -107,7 +107,7 @@ test("assistant-ai-gate: A prompt sent from outside the panel while the assistan
   // Connect a model opens once the default backend and the session are
   // read: an Escape sent before it lands closes nothing, and the dialog then
   // covers the composer
-  const connect = page.getByRole("dialog");
+  const connect = page.getByRole("dialog", { name: "Connect a model" });
   await expect(connect).toBeVisible(LONG);
   await page.keyboard.press("Escape");
   await expect(connect).toHaveCount(0);
