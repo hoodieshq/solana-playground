@@ -76,10 +76,11 @@ export const BRAND_HEAD = [
  * pages use both, and crawlers read both.
  */
 const REPLACED =
-  /^[ \t]*<(?:link\b[^>]*\brel\s*=\s*["']?[^"'>]*\bicon\b[^>]*|meta\b[^>]*\b(?:name\s*=\s*["']?theme-color\b|(?:name|property)\s*=\s*["']?(?:og|twitter):)[^>]*)>[ \t]*\r?\n/gim;
+  /^[ \t]*<(?:link\b[^>]*\brel\s*=\s*(?:["'][^"']*\bicon\b[^"']*["']|[^\s"'>]*\bicon\b)[^>]*|meta\b[^>]*\b(?:name\s*=\s*["']?theme-color\b|(?:name|property)\s*=\s*["']?(?:og|twitter):)[^>]*)>[ \t]*\r?\n/gim;
 
 /** Any icon link, theme colour or card tag, wherever it sits, to check none survived */
-const ICON_TAG = /<link\b[^>]*\brel\s*=\s*["']?[^"'>]*\bicon\b/gi;
+const ICON_TAG =
+  /<link\b[^>]*\brel\s*=\s*(?:["'][^"']*\bicon\b|[^\s"'>]*\bicon\b)/gi;
 const THEME_TAG = /<meta\b[^>]*\bname\s*=\s*["']?theme-color\b/gi;
 const CARD_TAG = /<meta\b[^>]*\b(?:name|property)\s*=\s*["']?(?:og|twitter):/gi;
 

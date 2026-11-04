@@ -215,6 +215,13 @@ test("an icon link spaced around its equals sign goes too", () => {
   assert.doesNotMatch(html, /old\.ico/);
 });
 
+test("a link whose other attributes mention icon stays", () => {
+  const kept = "<link rel=stylesheet href=icon.css>";
+  const html = brandHead(UPSTREAM.replace("<title>", `${kept}\n    <title>`));
+
+  assert.ok(html.includes(kept));
+});
+
 test("an upstream card tag gives way to ours", () => {
   const html = brandHead(
     UPSTREAM.replace(
