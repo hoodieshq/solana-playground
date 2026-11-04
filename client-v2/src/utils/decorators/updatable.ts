@@ -168,8 +168,8 @@ export function updatable<T extends Record<string, any>>(params: {
           let value;
           try {
             value = PgCommon.getValue(state, migration.from);
-            // A stored `null` is no value to carry over: the new id takes its
-            // default instead
+            // A stored `null` is no value to carry over: the new id keeps its
+            // own value or takes its default
             if (value === undefined || value === null) continue;
           } catch {
             // The value has already been migrated
