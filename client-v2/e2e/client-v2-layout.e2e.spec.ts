@@ -100,8 +100,10 @@ const drag = async (
 /**
  * A project open at 1280, then the window at `size`. The editor focuses itself
  * when it opens the first file; that is waited for before the resize, so it
- * cannot land later, over a page the test opened. Moving the editor into the
- * narrow layout drops that focus, and nothing takes it back.
+ * cannot land later, over a page the test opened. The resize keeps the same
+ * editor (it is not mounted again): below 768 px moving it into the pager
+ * drops that focus to the document, and nothing takes it back; at a wider
+ * width it keeps it.
  */
 const seedThenResize = async (
   page: Page,
