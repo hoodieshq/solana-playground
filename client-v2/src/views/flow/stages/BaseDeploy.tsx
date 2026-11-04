@@ -140,10 +140,18 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
 const deployNetwork = (p: BaseDeployProps) =>
   networkInSentence(p.cluster) ?? UNKNOWN_NETWORK;
 
-/** Who pays, before a deploy */
-const payerLine = (payer: DeployPayer | undefined) => {
+/**
+ * Who pays, before a deploy. With no wallet current, the deploy makes the
+ * Playground wallet. Free SOL is promised on devnet only, the network Spec 03's
+ * line names; testnet, localnet and playnet airdrop too, but the line stays
+ * silent there, and so it does while the cluster is unknown.
+ */
+const payerLine = (p: BaseDeployProps) => {
+  const payer = p.payer;
   if (!payer) {
-    return "Deploys from a Playground wallet created on your first deploy.";
+    return p.cluster === "devnet"
+      ? "From your Playground wallet · free devnet SOL"
+      : "From your Playground wallet";
   }
   const balance =
     payer.balance === undefined ? "" : ` · ${payer.balance.toFixed(2)} SOL`;
@@ -385,7 +393,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
             aria-label="Who pays"
             className="text-caption text-muted-foreground"
           >
-            {payerLine(p.payer)}
+            {payerLine(p)}
           </p>
         )}
         {!latest && p.programKeypair}
