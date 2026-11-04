@@ -281,17 +281,17 @@ const loadDependency = async (
   } catch (e) {
     // Only its name resolves then, as before its first use; a missing file
     // must not reach the WASM, which panics on a manifest it cannot parse.
-    // `fetch` rejects with a `TypeError` when the network fails: that crate is
-    // asked for again on its next use, where a missing file is not.
-    const isNetworkFailure = e instanceof TypeError;
+    // A network failure or a 5xx is asked for again on its next use; a missing
+    // file is not.
+    const isMissing = PgCommon.isFileMissing(e);
     log.warn(
-      isNetworkFailure
-        ? `Rust Analyzer: crate \`${name}\` did not load, retried on its next use`
-        : `Rust Analyzer: crate \`${name}\` is missing (\`yarn generate-crates\`)`,
+      isMissing
+        ? `Rust Analyzer: crate \`${name}\` is missing (\`yarn generate-crates\`)`
+        : `Rust Analyzer: crate \`${name}\` did not load, retried on its next use`,
       { context: { error: e } }
     );
     if (status !== "empty") await state.loadDependency(name);
-    cachedNames.set(name, isNetworkFailure ? "empty" : "missing");
+    cachedNames.set(name, isMissing ? "missing" : "empty");
     return;
   }
 

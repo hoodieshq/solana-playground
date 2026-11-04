@@ -18,6 +18,9 @@ class FilePickerCancelledError extends Error {
   }
 }
 
+/** The file a request named is not there: a 404, or the app shell in its place */
+class FileMissingError extends Error {}
+
 export class PgCommon {
   /**
    * @param ms amount of time to sleep in ms
@@ -237,18 +240,29 @@ export class PgCommon {
   static async fetchText(url: string) {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Request failed (${response.status}): ${url}`);
+      const message = `Request failed (${response.status}): ${url}`;
+      throw response.status === 404
+        ? new FileMissingError(message)
+        : new Error(message);
     }
     const isHtml = response.headers
       .get("content-type")
       ?.toLowerCase()
       .startsWith("text/html");
     if (isHtml && !/\.html?$/i.test(new URL(url, "http://x").pathname)) {
-      throw new Error(
+      throw new FileMissingError(
         `Request failed (${response.status}, the app shell): ${url}`
       );
     }
     return await response.text();
+  }
+
+  /**
+   * @returns whether the error is `fetchText` saying the file is not there, as
+   * opposed to a failure that may pass on a later request
+   */
+  static isFileMissing(err: unknown) {
+    return err instanceof FileMissingError;
   }
 
   /**
@@ -1499,6 +1513,23 @@ if (import.meta.vitest) {
         await expect(PgCommon.fetchText("/docs/page.html")).resolves.toBe(
           "<p>hi</p>"
         );
+      });
+
+      it("tells a missing file from a failure that may pass", async () => {
+        const failureOf = (url: string) =>
+          PgCommon.fetchText(url).catch((e: unknown) => e);
+
+        respond({ ok: false, status: 404 });
+        expect(PgCommon.isFileMissing(await failureOf("/a.rs"))).toBe(true);
+
+        respond({ body: "<html>", contentType: "text/html" });
+        expect(PgCommon.isFileMissing(await failureOf("/a.rs"))).toBe(true);
+
+        respond({ ok: false, status: 503 });
+        expect(PgCommon.isFileMissing(await failureOf("/a.rs"))).toBe(false);
+
+        mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+        expect(PgCommon.isFileMissing(await failureOf("/a.rs"))).toBe(false);
       });
 
       it("names the status it got", async () => {
