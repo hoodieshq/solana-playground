@@ -66,7 +66,7 @@ export interface BaseBuildProps {
   /** The last build's duration, `null` while unknown */
   ms: number | null;
   /** How long the running build has run, `null` while none runs */
-  elapsedMs: number | null;
+  elapsedMs: number | undefined;
   /** The browser has no network: Build waits, and the notice over the stage
    * says why (Spec 08 NET-01) */
   offline: boolean;
@@ -100,6 +100,7 @@ const Surface = ({
   actions,
   progress,
   report = false,
+  alert = false,
 }: {
   icon?: ReactNode;
   title: string;
@@ -110,6 +111,11 @@ const Surface = ({
   /** The run behind the surface's Build button, for the slow line */
   progress?: Pick<BaseBuildProps, "building" | "slow">;
   report?: boolean;
+  /**
+   * The description is why the stage stopped, so it is announced the moment
+   * it shows, as the error callout it replaced was (Spec 08)
+   */
+  alert?: boolean;
 }) => (
   <div className={STAGE_FRAME}>
     <StageEmpty className={cn(STAGE_BODY, report && STAGE_REPORT)}>
@@ -117,7 +123,9 @@ const Surface = ({
       <StageEmptyTitle>{title}</StageEmptyTitle>
       {meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
       {description && (
-        <StageEmptyDescription>{description}</StageEmptyDescription>
+        <StageEmptyDescription role={alert ? "alert" : undefined}>
+          {description}
+        </StageEmptyDescription>
       )}
       {children}
       {progress?.building && <SlowLine slow={progress.slow} />}
@@ -197,7 +205,7 @@ const Empty = (p: BaseBuildProps) => (
   <Surface
     title={p.building ? "Building…" : "Nothing built yet"}
     meta={
-      p.building && p.elapsedMs !== null
+      p.building && p.elapsedMs !== undefined
         ? `${Math.floor(p.elapsedMs / 1000)} s`
         : null
     }
@@ -243,6 +251,7 @@ const Unreached = (p: BaseBuildProps & { failure: BuildFailure | null }) => {
     <Surface
       icon={<CircleX className="text-error" />}
       title={noAnswer ? "Build did not start" : "Could not build"}
+      alert
       description={
         noAnswer
           ? "The Playground server did not answer. Your code is unchanged."

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { requestConsole } from "@/widgets/layout-shell";
 
 import {
   useBlockExplorer,
@@ -97,6 +98,8 @@ const Deploy = () => {
           .catch(reportButtonFailure("deploy"));
       }}
       onInteract={() => PgFlow.setStage("interact")}
+      onGoToBuild={() => PgFlow.setStage("build")}
+      onShowLog={requestConsole}
       idlUpload={<IdlActions mode="upload" look="link" />}
     />
   );
