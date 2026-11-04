@@ -56,11 +56,14 @@ export const Prose = ({
   text,
   className,
   chip = "normal",
+  codeClassName,
 }: {
   text: Text | string;
   className?: string;
   /** The code chip's size; the text around it keeps the caller's */
   chip?: keyof typeof CHIP_SIZE;
+  /** Overrides the chip's ground, as a result card's sentence sets it */
+  codeClassName?: string;
 }) => {
   const parts = textOf(text).split("`");
   const out: ReactNode[] = [];
@@ -80,7 +83,8 @@ export const Prose = ({
           "inline-block rounded-[4px] font-mono font-[350] whitespace-nowrap text-current",
           CHIP,
           CHIP_SIZE[chip],
-          stop && "mr-[2px]"
+          stop && "mr-[2px]",
+          codeClassName
         )}
       >
         {part}
