@@ -3,8 +3,13 @@ import { CircleAlert, ExternalLink } from "lucide-react";
 import type { FundingFailure } from "@/commands/deploy/run";
 import { networkInSentence, solOn } from "@/constants";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
-import { Button } from "@/shared/ui/button";
-import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
+import {
+  Callout,
+  CalloutAction,
+  CalloutActions,
+  CalloutDescription,
+  CalloutTitle,
+} from "@/shared/ui/callout";
 import { CopyButton } from "@/shared/ui/copy-button";
 
 import { formatSol, shortKey } from "../model/format";
@@ -65,30 +70,22 @@ const BaseNotEnoughSol = (p: BaseNotEnoughSolProps) => {
             onError={reportButtonFailure("copy the wallet address")}
           />
         </span>
-        <span className="flex flex-wrap gap-2">
-          {p.reason === "signed_out" ? (
-            <Button size="sm" onClick={p.onSignIn}>
-              Sign in
-            </Button>
-          ) : (
-            <Button size="sm" onClick={p.onRetry}>
-              Try again
-            </Button>
-          )}
-          {hasWebFaucet && (
-            <Button size="sm" variant="outline" asChild>
-              <a
-                href={WEB_FAUCET_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open faucet
-                <ExternalLink data-icon="inline-end" />
-              </a>
-            </Button>
-          )}
-        </span>
       </CalloutDescription>
+      <CalloutActions>
+        {p.reason === "signed_out" ? (
+          <CalloutAction onClick={p.onSignIn}>Sign in</CalloutAction>
+        ) : (
+          <CalloutAction onClick={p.onRetry}>Try again</CalloutAction>
+        )}
+        {hasWebFaucet && (
+          <CalloutAction asChild>
+            <a href={WEB_FAUCET_URL} target="_blank" rel="noopener noreferrer">
+              Open faucet
+              <ExternalLink data-icon="inline-end" />
+            </a>
+          </CalloutAction>
+        )}
+      </CalloutActions>
     </Callout>
   );
 };

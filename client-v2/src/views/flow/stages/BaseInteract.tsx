@@ -4,8 +4,12 @@ import { UNKNOWN_NETWORK } from "@/constants";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { BrandButton, BrandButtonIcon } from "@/shared/ui/brand-button";
-import { Button } from "@/shared/ui/button";
-import { Callout, CalloutDescription } from "@/shared/ui/callout";
+import {
+  Callout,
+  CalloutAction,
+  CalloutActions,
+  CalloutDescription,
+} from "@/shared/ui/callout";
 import { CopyButton } from "@/shared/ui/copy-button";
 import { NativeSelect, NativeSelectOption } from "@/shared/ui/native-select";
 import {
@@ -182,34 +186,38 @@ const Callouts = ({ p }: { p: BaseInteractProps }) => {
     <div className="flex max-w-[42rem] flex-col gap-3 px-6 pt-6">
       {p.builtAfterDeploy && (
         <Callout variant="warning">
-          <CalloutDescription className="flex flex-wrap items-center justify-between gap-3">
+          <CalloutDescription>
             The deployed program is older than your code. Redeploy to call the
             latest version.
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => p.onGoTo("deploy")}
-            >
-              Redeploy
-            </Button>
           </CalloutDescription>
+          <CalloutActions>
+            <CalloutAction onClick={() => p.onGoTo("deploy")}>
+              Redeploy
+            </CalloutAction>
+          </CalloutActions>
         </Callout>
       )}
       {p.solNeeded && (
         <Callout variant="warning">
-          <CalloutDescription className="flex flex-wrap items-center justify-between gap-3">
+          <CalloutDescription>
             {`This call needs a small fee in ${p.solNeeded.cluster} SOL. Your wallet has ${p.solNeeded.balance} SOL.`}
-            {p.solNeeded.airdrop && (
-              <AsyncButton
-                size="sm"
-                variant="outline"
-                onClick={p.solNeeded.airdrop}
-                onError={reportButtonFailure(`get ${p.solNeeded.cluster} SOL`)}
-              >
-                Get {p.solNeeded.cluster} SOL
-              </AsyncButton>
-            )}
           </CalloutDescription>
+          {p.solNeeded.airdrop && (
+            <CalloutActions>
+              <CalloutAction asChild>
+                <AsyncButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={p.solNeeded.airdrop}
+                  onError={reportButtonFailure(
+                    `get ${p.solNeeded.cluster} SOL`
+                  )}
+                >
+                  Get {p.solNeeded.cluster} SOL
+                </AsyncButton>
+              </CalloutAction>
+            </CalloutActions>
+          )}
         </Callout>
       )}
     </div>
