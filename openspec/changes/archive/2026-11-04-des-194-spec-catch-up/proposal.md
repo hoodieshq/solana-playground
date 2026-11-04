@@ -17,7 +17,9 @@ design; the specs follow the code, not the other way round.
 - Themes: a border with no colour of its own draws in the hairline colour, never the text colour.
 - Overlays: a toast's Close sits inside the card at its end, on the first line.
 - Sync banner: its answers sit under the question, across the width on a phone.
-- Telemetry: none added, renamed or removed. The code already shipped; this change only writes it down.
+- Telemetry: this change's specs add, rename or remove no event. The code already shipped; this change only
+  writes it down. (The `wbdi-flow` edit in the same PR drops the planned `build_project_exported`, which never
+  shipped: no code emits it.)
 
 ## Capabilities
 
@@ -35,7 +37,7 @@ design; the specs follow the code, not the other way round.
 
 ## Impact
 
-- Docs only: `openspec/`. No code, test or telemetry change; the behaviour is already on `scope/interface-2`.
+- Docs only: `openspec/`. No code or test change, and no shipped event changes; the behaviour is already on `scope/interface-2`.
 - Also in this PR, outside this change: the ui-migration plan 5.12 and design.md (Interact's texts; Build
   succeeded no longer offers Export project), and `wbdi-flow` (no `build_project_exported`; Build again is the
   Build control), the #281 follow-ups from Design alignment.

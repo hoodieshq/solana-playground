@@ -78,7 +78,8 @@ say so before the user deploys them.
 
 After a build that produced an IDL, the user SHALL be able to download it as a
 JSON file from a Download IDL link under Build succeeded's Continue to Deploy
-and Build again. A build that produced no IDL SHALL show no Download IDL.
+and Build again, shown only while the project holds an IDL (the build's or an
+uploaded one); without one there is no Download IDL.
 
 #### Scenario: Download the IDL
 

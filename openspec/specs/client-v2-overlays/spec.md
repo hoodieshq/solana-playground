@@ -47,8 +47,8 @@ assistive technology.
 ### Requirement: A toast's Close sits inside it
 
 A toast that can be closed SHALL show its Close button inside the card, at its
-end, on the first line of the message, and the message SHALL leave room for it
-so a long line never runs under it. Close SHALL never hang off the card's
+end, on the first line of the message, and a toast's message SHALL always
+leave room at its end so a long line never runs under Close. Close SHALL never hang off the card's
 corner.
 
 #### Scenario: A long toast at the bottom left

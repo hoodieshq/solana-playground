@@ -2,8 +2,7 @@
 
 ## Purpose
 
-Which themes the product offers, which one it starts on, and how its base
-colours apply.
+How the theme's base colours apply where a part names none.
 
 ## ADDED Requirements
 
