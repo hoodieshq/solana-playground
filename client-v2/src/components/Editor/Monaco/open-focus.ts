@@ -250,10 +250,9 @@ if (import.meta.vitest) {
       });
 
       it("takes focus while off the screen outside the phone's pager", () => {
-        document.body.innerHTML =
-          '<div id="editor"><textarea id="inputarea"></textarea></div>';
-        const editor = document.getElementById("editor");
-        if (!editor) throw new Error("the editor's container is missing");
+        const { editor, tree } = page();
+        // Out of the pager, as the wide frame holds it
+        document.body.append(editor);
         vi.spyOn(editor, "getBoundingClientRect").mockReturnValue(
           new DOMRect(window.innerWidth, 0, window.innerWidth, 400)
         );
@@ -261,7 +260,7 @@ if (import.meta.vitest) {
           leavesFocusElsewhere({
             open: "mount",
             editor,
-            tree: null,
+            tree,
             active: document.body,
           })
         ).toBe(false);
