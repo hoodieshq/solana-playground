@@ -157,7 +157,7 @@
     "check-md": "markdownlint-cli2",
     "check-colors": "node scripts/check-colors.mjs",
     "ds-add": "node scripts/ds-add.mjs",
-    "lint": "eslint --max-warnings 2864 --ext .js,.ts,.tsx,.mjs,.mts src api e2e scripts eslint-plugin-layers",
+    "lint": "eslint --max-warnings 2536 --ext .js,.ts,.tsx,.mjs,.mts src api e2e scripts eslint-plugin-layers",
     "lint:layers": "eslint --quiet --ext .ts,.tsx,.mjs,.mts src/app src/widgets src/features src/entities src/shared api",
     "spec:validate": "openspec validate --all --strict --no-interactive",
     "spec:coverage": "node scripts/spec-coverage.mjs",
@@ -371,6 +371,58 @@
       },
       {
         "files": [
+          "api/**"
+        ],
+        "rules": {
+          "no-console": "error"
+        }
+      },
+      {
+        "files": [
+          "src/shared/lib/logger/providers/**"
+        ],
+        "excludedFiles": [
+          "src/shared/lib/logger/providers/sentry.ts",
+          "src/shared/lib/logger/providers/sentry.test.ts"
+        ],
+        "rules": {
+          "no-restricted-imports": [
+            "error",
+            {
+              "paths": [
+                {
+                  "name": "uuid",
+                  "message": "Import uuid() / isUuid() from src/shared/lib/ids; it is the one module that talks to the library."
+                },
+                {
+                  "name": "cn",
+                  "message": "Import cn from src/shared/lib/utils; it knows the theme type scale, the bare package drops text-control, font-act and the rest."
+                },
+                {
+                  "name": "styled-components",
+                  "message": "Style with Tailwind over the design-system tokens; styled-components is leaving (HOO-2077). Only the wallet, the layout shell and the theme provider keep it until they move."
+                }
+              ],
+              "patterns": [
+                {
+                  "group": [
+                    "uuid/*"
+                  ],
+                  "message": "Import uuid() / isUuid() from src/shared/lib/ids; it is the one module that talks to the library."
+                },
+                {
+                  "group": [
+                    "@sentry/*"
+                  ],
+                  "message": "The browser logger reaches Sentry only through providers/sentry.ts; the server logger is handed the SDK by with-observability.mjs. See the client-v2-logging spec."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "files": [
           "src/shared/lib/ids.ts",
           "src/shared/lib/ids.test.mts"
         ],
@@ -541,8 +593,8 @@
       },
       {
         "files": [
-          "src/**/*.mjs",
-          "src/shared/lib/logger/providers/console.ts"
+          "src/shared/lib/logger/providers/console.ts",
+          "src/shared/lib/logger/providers/server-console.mjs"
         ],
         "rules": {
           "no-console": "off"
