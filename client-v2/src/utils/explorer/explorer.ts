@@ -448,6 +448,7 @@ export class PgExplorer {
     );
     const moved: Record<string, string> = {};
     if (itemType.file) {
+      // TODO(HOO-2606): untested; only a folder rename past the limit is
       moved[this.getRelativePath(newPath)] = "";
     } else if (!renamesWorkspace) {
       const newPrefix = oldPath.endsWith("/")

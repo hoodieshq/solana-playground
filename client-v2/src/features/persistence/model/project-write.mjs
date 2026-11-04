@@ -16,6 +16,9 @@
  * its own 413 before the handler runs (https://vercel.com/docs/functions/limitations),
  * so a refusal for size is always this route's, never the platform's. Kept
  * in step with `PROJECT_LIMITS.projectBytes` by hand.
+ * TODO(HOO-2605): the cap is reached only when JSON escaping more than
+ * doubles the content, and a sender that skips the browser check still meets
+ * the platform's 413.
  *
  * The browser checks it before sending, the handler again on the way in; the
  * banner's `too-large` text names it.

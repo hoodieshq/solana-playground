@@ -7,6 +7,9 @@
  * is cheaper than a shared module. `isAllowedOrigin` comes from the auth slice,
  * because every route acting for a signed-in user needs it and its reasoning is
  * long.
+ *
+ * TODO(HOO-2604): the JSDoc types here are declared, not checked: `api/` is
+ * outside the tsconfig's `include`.
  */
 import {
   checkProjectLimits,

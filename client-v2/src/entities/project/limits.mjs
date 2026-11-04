@@ -6,6 +6,9 @@
 // A Playground project is an exercise: the largest bundled tutorial holds
 // 12.5 KB in 3 files, so these sit far above that and far below the 4.5 MB a
 // Vercel Function accepts as a request body.
+//
+// TODO(HOO-2604): the JSDoc types below are declared, not checked: the
+// tsconfig has no `checkJs`.
 
 /** The four limits, in bytes, code points and files */
 export const PROJECT_LIMITS = Object.freeze({

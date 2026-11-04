@@ -151,6 +151,8 @@ export const createTools = (
         PgAssistant.setApprovalOutcome(approvalId, `wrote ${path}`);
         return `Wrote ${path}.`;
       } catch (e) {
+        // TODO(HOO-2603): log an error that is not an `ExplorerLimitError`
+        // with `report: true`; a storage failure reaches no logger here
         const message = e instanceof Error ? e.message : String(e);
         PgAssistant.setApprovalFailure(approvalId, `not written: ${message}`);
         return `Could not write ${path}: ${message}`;
@@ -184,6 +186,8 @@ export const createTools = (
         PgAssistant.setApprovalOutcome(approvalId, "build succeeded");
         return "The build succeeded.";
       } catch (e) {
+        // TODO(HOO-2603): log the error with `report: true`; a build that
+        // could not run reaches no logger here
         const message = e instanceof Error ? e.message : String(e);
         PgAssistant.setApprovalFailure(
           approvalId,
@@ -234,6 +238,8 @@ export const createTools = (
           `a markdown link.`
         );
       } catch (e) {
+        // TODO(HOO-2603): log the error with `report: true`; a failed deploy
+        // reaches no logger here
         const message = e instanceof Error ? e.message : String(e);
         PgAssistant.setApprovalFailure(approvalId, `deploy failed: ${message}`);
         return `The deployment failed: ${message}`;
