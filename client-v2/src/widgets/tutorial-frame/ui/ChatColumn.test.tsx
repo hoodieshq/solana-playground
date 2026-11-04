@@ -6,6 +6,7 @@ import {
   memoryProvider,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
+
 import ChatColumn from "./ChatColumn";
 
 const handle = () =>

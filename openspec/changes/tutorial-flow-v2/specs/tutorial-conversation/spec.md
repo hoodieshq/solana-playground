@@ -213,7 +213,10 @@ m" counts every stage the run shows.
 A failed build SHALL post a red result card with the error code and the line,
 the compiler line, and the location as a link. The link jumps to the line in
 the editor and lights it on hover. The card SHALL offer a primary "Explain the
-error ⌘↵" and a ghost "I'll fix it myself".
+error ⌘↵" and a ghost "I'll fix it myself", one width side by side where the
+card has room for both, stacked full width where it has not. A phone SHALL
+not offer "I'll fix it myself": it cannot type the fix, and Explain leads to
+the lines instead.
 
 A build whose server never answered is not a compiler failure: its card
 offers "Try again" instead, as `tutorial-runs` has it.
@@ -275,10 +278,18 @@ definition SHALL carry none.
 
 ### Requirement: One composer; free questions go to the live assistant
 
-The chat column SHALL have one composer at its foot, never disabled. Enter
-sends and Shift+Enter breaks the line. ⌘↵ in the composer SHALL do nothing.
-The placeholder SHALL follow the moment: "Ask about this step", "Ask while it
-builds" while an act runs, and "Ask anything" after the finish. During the
+The chat column SHALL have one composer at its foot, never disabled: one 44 px
+line at rest with Send beside the words, and the full box once focused or
+holding text. Enter sends and Shift+Enter breaks the line. ⌘↵ in the composer SHALL do nothing.
+The placeholder SHALL follow the moment: "Ask anything about this tutorial"
+before Start, "Ask about this step", "Or ask about this step" while a
+question is open, "Ask while it builds" while a build or a deploy runs, "Ask
+while it runs" while a run or a call goes, and "Ask anything" after the
+finish. Before Start the composer SHALL read
+greyed until it takes focus, still taking a question or a start word. Once
+the assistant has answered a question before Start, the composer SHALL
+suggest starting, "Ready to start the lesson?", with a "Start step 1" button
+that starts the lesson as the intro card's does. Both lift on Start. During the
 lesson there SHALL be no chips row. After the finish, the definition's finish
 chips SHALL show above the composer. What the composer does with a message,
 in this order:
@@ -292,7 +303,10 @@ in this order:
    step, its objective, the open files, the last result and the tutorial's
    doc list as its context. Its answer SHALL post in the feed as the
    assistant's turn. With no model connected, the message SHALL route to
-   connecting a model.
+   connecting a model. While the assistant answers, a question SHALL wait in
+   the composer, unsent, until the answer ends, under the note "The assistant
+   is still answering. Press Enter again once it's done."; a live action's
+   word still runs then.
 
 There SHALL be no scripted answers matched from typed text: the assistant
 answers every free message. What does something in the interface SHALL be one
@@ -318,6 +332,15 @@ assistant MAY link one of the tutorial's doc pages in its answer (see
 
 - **WHEN** in step 1 the learner types "what does declare_id do?"
 - **THEN** the assistant answers in the feed, and no file changes
+
+#### Scenario: A question before Start
+
+- **WHEN** a learner on the intro card types "what is a PDA?"
+- **THEN** the composer read greyed until focused, with the placeholder
+  "Ask anything about this tutorial", and no "Start step 1" button
+- **AND** the assistant's answer posts in the feed, after which the composer
+  suggests starting, with a "Start step 1" button
+- **AND** after "Start step 1" the composer reads as usual, with no suggestion
 
 #### Scenario: Typed "I'm stuck"
 
@@ -391,12 +414,27 @@ The tutorial slice SHALL emit:
   - `next`: the one opened, by slug.
 - `tutorial_receipt_copied` when Copy receipt is pressed on the finish card,
   with `tutorial`.
-- `tutorial_question_asked` when a composer message goes to the live
-  assistant or a finish chip is pressed, with:
+- `tutorial_question_asked` when a composer message reaches the live
+  assistant (not when it opens Connect a model, or waits while an answer
+  runs) or a finish chip is pressed, with:
   - `tutorial`;
   - `step`;
   - `source`: `typed`, or `chip` when a finish chip is pressed (the event
     fires for chips too, though their answer needs no model).
+- `tutorial_word_sent` when a composer message is only an action word whose
+  action is live, or one an open question refuses, with (a word with
+  nothing live to run goes to the assistant as a question):
+  - `tutorial`;
+  - `step`;
+  - `word`: the action word matched (`start`, `build`, `deploy`, `run`,
+    `call`, `next` or `explain`), never the message itself;
+  - `refused`: whether an open question refused it.
+- `tutorial_change_applied` when "Apply to <file>" on the apply card writes
+  its line, with:
+  - `tutorial`;
+  - `file`: the workspace path.
+- `tutorial_change_kept` when "Keep it" on the apply card leaves the file as
+  it was, with `tutorial`.
 - `tutorial_step_reset` when a confirmed Reset on an appended wrote card
   puts the live step back as it was entered, with:
   - `tutorial`;

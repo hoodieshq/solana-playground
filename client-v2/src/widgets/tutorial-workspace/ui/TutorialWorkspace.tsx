@@ -1,23 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import type { FC, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EditorTabsShown } from "@/components/EditorWithTabs";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommon, PgExplorer, PgTutorial } from "@/utils";
-import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
 import { PgFlow } from "@/views/flow/state/stage";
-import { NO_MARKS } from "../model/lines";
+import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
+
 import type { LineMarks } from "../model/lines";
-import { autoOpenReason, resetsDeploys } from "../model/terminal";
-import { tutorialWorkspaceTelemetry } from "../model/telemetry";
+import { NO_MARKS } from "../model/lines";
 import type { TreeSource } from "../model/telemetry";
+import { tutorialWorkspaceTelemetry } from "../model/telemetry";
+import { autoOpenReason, resetsDeploys } from "../model/terminal";
 import { createdIn, tabsOf, treeRows, tutorialFiles } from "../model/tree";
 import BaseDockedTree from "./BaseDockedTree";
 import BaseWorkspaceHead from "./BaseWorkspaceHead";
-import { pickedDiagnostic } from "./use-terminal-facts";
 import { useEditorLines } from "./use-editor-lines";
 import { useLogRequests } from "./use-log-requests";
+import { pickedDiagnostic } from "./use-terminal-facts";
 
 const log = createLogger("tutorial-workspace:workspace");
 

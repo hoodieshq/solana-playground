@@ -11,9 +11,10 @@ import {
 } from "@/shared/ui/collapsible";
 import { CopyButton } from "@/shared/ui/copy-button";
 import { Tag } from "@/shared/ui/tag";
-import BaseReceipt, { receiptText } from "./BaseReceipt";
+
 import { BaseDrawnCheck } from "./BaseDrawnCheck";
-import { HEADLINE, Prose, READ, formatTook, noStop } from "./Prose";
+import BaseReceipt, { receiptText } from "./BaseReceipt";
+import { formatTook, HEADLINE, noStop, Prose, READ } from "./Prose";
 
 /** The finish card's tag, its "Step n done": the whole tutorial is a win */
 export const FINISH_TAG = "Tutorial complete";

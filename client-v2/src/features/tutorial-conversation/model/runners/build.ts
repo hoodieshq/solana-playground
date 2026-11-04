@@ -5,9 +5,10 @@ import {
   PgBuildOutput,
   stripKnownNoise,
 } from "@/views/sidebar/assistant/bridge/build-output";
+
 import { pickBuildError } from "../build-error";
-import { failedResult } from "../ports";
 import type { RunInput, RunStage } from "../ports";
+import { failedResult } from "../ports";
 import type { RunResult } from "../progress";
 
 /**

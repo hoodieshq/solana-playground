@@ -1,6 +1,6 @@
-import type { Workspace } from "./ports";
 import { applyFile } from "../../../utils/explorer/apply-file";
 import { PgExplorer } from "../../../utils/explorer/explorer";
+import type { Workspace } from "./ports";
 
 /** The workspace moved before the port could act: the effect is dropped */
 export class WorkspaceMovedError extends Error {

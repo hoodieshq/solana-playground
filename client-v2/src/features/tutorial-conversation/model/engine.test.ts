@@ -22,20 +22,6 @@ vi.mock("@/entities/tutorial", async () => ({
     .tutorialTelemetry,
 }));
 
-import hello from "../../../tutorials/hello-anchor/tutorial.json";
-import { judgeGoal } from "./goals";
-import { memoryWorkspace, stubRunner } from "./ports";
-import type { Runner } from "./ports";
-import { FINISH_DELAY_MS } from "./clock";
-import { parseProgress } from "./progress";
-import type { RunResult } from "./progress";
-import { PgConversation, STORAGE_KEY } from "./store";
-import { INTERRUPTED, view } from "./view";
-import type { ConversationView, Turn } from "./view";
-import { PgExplorer } from "../../../utils/explorer/explorer";
-import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
-import { PgTutorial } from "../../../utils/tutorial/tutorial";
-import type { Disposable } from "../../../utils/types";
 import type { TutorialDefinition } from "@/entities/tutorial";
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
 import {
@@ -43,6 +29,21 @@ import {
   memoryProvider as memoryEvents,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
+
+import hello from "../../../tutorials/hello-anchor/tutorial.json";
+import { PgExplorer } from "../../../utils/explorer/explorer";
+import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
+import { PgTutorial } from "../../../utils/tutorial/tutorial";
+import type { Disposable } from "../../../utils/types";
+import { FINISH_DELAY_MS } from "./clock";
+import { judgeGoal } from "./goals";
+import type { Runner } from "./ports";
+import { memoryWorkspace, stubRunner } from "./ports";
+import type { RunResult } from "./progress";
+import { parseProgress } from "./progress";
+import { PgConversation, STORAGE_KEY } from "./store";
+import type { ConversationView, Turn } from "./view";
+import { INTERRUPTED, view } from "./view";
 
 /**
  * The ticket's two acceptance criteria: Hello Anchor walks from the intro

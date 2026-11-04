@@ -8,6 +8,7 @@ import type {
   ConversationView,
   Turn,
 } from "@/features/tutorial-conversation";
+
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 
 const definition = hello as unknown as TutorialDefinition;
@@ -81,13 +82,9 @@ vi.mock("@/shared/lib/report-button-failure", () => ({
   reportButtonFailure: vi.fn(() => refuse),
   markUnavailableHere: vi.fn(),
 }));
-vi.mock("@/views/sidebar/assistant/store", () => ({
-  PgAssistant: {
-    requestPrompt: vi.fn(),
-    isConnected: false,
-    turnRunning: false,
-    onDidChange: vi.fn(),
-  },
+// The real one pulls in the editor's globals; the reply's text is what counts
+vi.mock("@/components/Markdown", () => ({
+  default: ({ children }: { children: string }) => <p>{children}</p>,
 }));
 vi.mock("@/utils/editor", () => ({
   PgEditor: { revealLine: vi.fn(), setReadOnly: vi.fn(), focus: vi.fn() },
@@ -105,21 +102,22 @@ vi.mock("@/utils/tutorial", () => ({
   },
 }));
 
+import { tutorialTelemetry } from "@/entities/tutorial/model/telemetry";
 import {
   PgConversation,
   tutorialRunner,
 } from "@/features/tutorial-conversation";
-import { PgFlow } from "@/views/flow/state/stage";
-import { tutorialTelemetry } from "@/entities/tutorial/model/telemetry";
 import {
   markUnavailableHere,
   reportButtonFailure,
 } from "@/shared/lib/report-button-failure";
+import { TooltipProvider } from "@/shared/ui/tooltip";
 import { PgEditor } from "@/utils/editor";
 import { PgExplorer } from "@/utils/explorer";
 import { PgTutorial } from "@/utils/tutorial";
-import { TooltipProvider } from "@/shared/ui/tooltip";
+import { PgFlow } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
+
 import {
   TutorialConversation,
   useConversationStartOver,
@@ -234,6 +232,8 @@ const loaded = (): ConversationState => ({
       finishedAt: null,
       startedAt: 1,
       restartedAt: null,
+      said: [],
+      proposals: [],
       cursor: {
         kind: "step",
         stepId: definition.steps[1].id,
@@ -273,9 +273,11 @@ beforeEach(() => {
 describe("TutorialConversation", () => {
   it("starts the engine once with the real workspace, the tutorial's runner and 3.2's judge, and stops it on leaving", () => {
     const { rerender, unmount } = render(
-      <TutorialConversation onAllTutorials={vi.fn()} />
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
     );
-    rerender(<TutorialConversation onAllTutorials={vi.fn()} />);
+    rerender(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     expect(store.init).toHaveBeenCalledTimes(1);
     expect(store.init).toHaveBeenCalledWith({
       workspace: "realWorkspace",
@@ -286,8 +288,43 @@ describe("TutorialConversation", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("puts the live assistant in its tutorial mode while shown", () => {
+    store.view.mockReturnValue(null);
+    const { unmount } = render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    expect(PgAssistant.mode?.name).toBe("tutorial");
+    expect(PgAssistant.mode?.allows("write_file")).toBe(false);
+    unmount();
+    expect(PgAssistant.mode).toBeNull();
+  });
+
+  it("declines an approval a turn begun before the tutorial asks for, at once", async () => {
+    PgAssistant.clear();
+    store.view.mockReturnValue(null);
+    try {
+      render(
+        <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+      );
+      let answer: Promise<{ allowed: boolean }> | undefined;
+      act(() => {
+        answer = PgAssistant.requestApproval({
+          type: "patch",
+          path: "src/lib.rs",
+          before: "a",
+          after: "b",
+        });
+      });
+      await expect(answer).resolves.toMatchObject({ allowed: false });
+    } finally {
+      PgAssistant.clear();
+    }
+  });
+
   it("runs a deploy on the tutorial's runner and tells the flow, for the terminal bar", async () => {
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     const { runner } = store.init.mock.calls[0][0];
     await runner.run("deploy", { beatId: "s2.deploy" }, () => {});
     expect(tutorialRunner.run).toHaveBeenCalled();
@@ -303,13 +340,35 @@ describe("TutorialConversation", () => {
       loadedAt: 0,
     };
     store.view.mockReturnValue(null);
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     expect(screen.getAllByRole("status")).toHaveLength(1);
     expect(screen.queryByRole("log")).toBeNull();
   });
 
+  it("shows the live assistant's exchanges in the feed as they arrive", () => {
+    PgAssistant.clear();
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
+    act(() => PgAssistant.addUserMessage("what does declare_id do?"));
+    expect(screen.getByText("what does declare_id do?")).toBeTruthy();
+    act(() => {
+      const reply = PgAssistant.startAssistantMessage();
+      PgAssistant.appendToAssistantMessage(
+        reply,
+        "It names the program's address."
+      );
+    });
+    expect(screen.getByText("It names the program's address.")).toBeTruthy();
+    PgAssistant.clear();
+  });
+
   it("opens a wrote card's file with its first line in view", async () => {
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Show lines 5 to 6 in src/lib.rs" })
     );
@@ -322,7 +381,9 @@ describe("TutorialConversation", () => {
 
   it("opens a step's file at the top from its segment, and counts the jump", async () => {
     const track = vi.spyOn(tutorialTelemetry, "track");
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     await userEvent.click(
       screen.getByRole("button", { name: `Step 1 of 4, ${step1.title}, done` })
     );
@@ -348,7 +409,9 @@ describe("TutorialConversation", () => {
       notify = cb;
       return { dispose: vi.fn() };
     });
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     // The first render is a load: the workspace keeps its own tabs
     expect(PgExplorer.openFile).not.toHaveBeenCalled();
 
@@ -388,7 +451,9 @@ describe("TutorialConversation", () => {
     const intro = loaded();
     intro.engine.progress.cursor = { kind: "intro" };
     store.state = intro;
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
 
     const started = loaded();
     started.context = intro.context;
@@ -410,7 +475,9 @@ describe("TutorialConversation", () => {
     const intro = loaded();
     intro.engine.progress.cursor = { kind: "intro" };
     store.state = intro;
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     expect(PgEditor.setReadOnly).toHaveBeenLastCalledWith(true);
 
     const started = loaded();
@@ -425,14 +492,16 @@ describe("TutorialConversation", () => {
     intro.engine.progress.cursor = { kind: "intro" };
     store.state = intro;
     const { unmount } = render(
-      <TutorialConversation onAllTutorials={vi.fn()} />
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
     );
     unmount();
     expect(PgEditor.setReadOnly).toHaveBeenLastCalledWith(false);
   });
 
   it("never locks the editor on a step", () => {
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     expect(PgEditor.setReadOnly).not.toHaveBeenCalled();
   });
 
@@ -450,7 +519,9 @@ describe("TutorialConversation", () => {
       nextAt: 5,
       finishAt: null,
     });
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     expect(screen.queryByRole("button", { name: /Show lines/ })).toBeNull();
 
     // The store's timer: the same state object, a view with the turn now due
@@ -483,7 +554,9 @@ describe("TutorialConversation", () => {
       loadedAt: 0,
     };
     store.view.mockReturnValue(null);
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
 
     // The save lands, on step 2
     store.state = loaded();
@@ -497,7 +570,9 @@ describe("TutorialConversation", () => {
   it("scrolls the file already open to the line, rather than reopening it", async () => {
     (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
       "/hello/src/lib.rs";
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Show lines 5 to 6 in src/lib.rs" })
     );
@@ -508,7 +583,9 @@ describe("TutorialConversation", () => {
 
   it("refuses to open a file the workspace does not hold, and says so", async () => {
     vi.mocked(PgExplorer.getFile).mockReturnValue(null);
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Show lines 5 to 6 in src/lib.rs" })
     );
@@ -528,7 +605,9 @@ describe("TutorialConversation", () => {
 
   it("leaves the editor as it is when a jumped-to step's file is gone, and says nothing", async () => {
     vi.mocked(PgExplorer.getFile).mockReturnValue(null);
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     await userEvent.click(
       screen.getByRole("button", { name: `Step 1 of 4, ${step1.title}, done` })
     );
@@ -547,7 +626,9 @@ describe("TutorialConversation", () => {
       "/hello/src/lib.rs";
     vi.mocked(PgExplorer.getFileContent).mockReturnValue('msg!("Hello");');
     try {
-      render(<TutorialConversation onAllTutorials={vi.fn()} />);
+      render(
+        <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+      );
       saved();
       saved();
       vi.advanceTimersByTime(299);
@@ -599,7 +680,9 @@ describe("TutorialConversation", () => {
     );
     (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
       "/hello/src/lib.rs";
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     act(() => focus({ file: "src/lib.rs", line: "landing" }));
     expect(PgEditor.revealLine).toHaveBeenCalledWith("/hello/src/lib.rs", 5);
     expect(PgEditor.focus).toHaveBeenCalled();
@@ -617,7 +700,9 @@ describe("TutorialConversation", () => {
     );
     const explorer = PgExplorer as unknown as { currentFilePath: string };
     try {
-      render(<TutorialConversation onAllTutorials={vi.fn()} />);
+      render(
+        <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+      );
       explorer.currentFilePath = "/hello/src/lib.rs";
       saved();
       // The learner switches tabs before the typing rests
@@ -649,7 +734,9 @@ describe("TutorialConversation", () => {
     });
     (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
       "/hello/src/lib.rs";
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     act(() => focus({ file: "src/lib.rs", line: 9 }));
     expect(PgEditor.revealLine).toHaveBeenCalledWith("/hello/src/lib.rs", 9);
     expect(PgEditor.focus).toHaveBeenCalled();
@@ -665,7 +752,9 @@ describe("TutorialConversation", () => {
       return { dispose: vi.fn() };
     });
     vi.mocked(PgExplorer.getFile).mockReturnValue(null);
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     act(() => focus({ file: "src/gone.rs", line: 3 }));
     expect(refuse).toHaveBeenCalled();
     expect(PgEditor.focus).not.toHaveBeenCalled();
@@ -697,7 +786,9 @@ describe("TutorialConversation", () => {
       finishAt: null,
     };
     store.view.mockReturnValue(onQuestion);
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Type it myself" })
     );
@@ -705,7 +796,9 @@ describe("TutorialConversation", () => {
   });
 
   it("presses the live act on ⌘↵", () => {
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     act(() => {
       document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", metaKey: true })
@@ -728,7 +821,9 @@ describe("TutorialConversation keys and the pill", () => {
     });
 
   it("leaves ⌘↵ to a field that has focus", () => {
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     const field = document.createElement("input");
     document.body.appendChild(field);
     press(field);
@@ -761,7 +856,9 @@ describe("TutorialConversation keys and the pill", () => {
       nextAt: null,
       finishAt: null,
     });
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     press();
     expect(PgConversation.act).not.toHaveBeenCalled();
   });
@@ -795,13 +892,21 @@ describe("TutorialConversation keys and the pill", () => {
       nextAt: null,
       finishAt: null,
     });
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     press();
     expect(PgConversation.explain).toHaveBeenCalledWith("s2.deploy");
   });
 
   it("asks the assistant about an unplanned failure, then offers the fix once it answered", () => {
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    // The real store, with no model connected; only the prompt is caught
+    const requestPrompt = vi
+      .spyOn(PgAssistant, "requestPrompt")
+      .mockImplementation(() => {});
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     const [onExplain] = store.onDidRequestExplain.mock.calls[0];
     act(() =>
       onExplain({
@@ -822,12 +927,13 @@ describe("TutorialConversation keys and the pill", () => {
         },
       })
     );
-    expect(PgAssistant.requestPrompt).toHaveBeenCalledWith(
+    expect(requestPrompt).toHaveBeenCalledWith(
       expect.stringContaining("E0308: mismatched types at src/lib.rs:10:9"),
       { send: true }
     );
     // No assistant connected in the test: its answer is taken as ended
     expect(PgConversation.answered).toHaveBeenCalledWith("s1.build");
+    requestPrompt.mockRestore();
   });
 
   it("writes the fix on Show me the fix and shows where it lands", async () => {
@@ -849,7 +955,9 @@ describe("TutorialConversation keys and the pill", () => {
       nextAt: null,
       finishAt: null,
     });
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Show me the fix" })
     );
@@ -894,7 +1002,9 @@ describe("TutorialConversation keys and the pill", () => {
     });
     (PgExplorer as unknown as { currentFilePath: string }).currentFilePath =
       "/hello/src/lib.rs";
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "--> src/lib.rs:9:32" })
     );
@@ -931,7 +1041,9 @@ describe("TutorialConversation keys and the pill", () => {
       nextAt: null,
       finishAt: null,
     });
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     press();
     expect(PgConversation.act).toHaveBeenCalledWith("s1.build");
     expect(PgConversation.explain).not.toHaveBeenCalled();
@@ -939,7 +1051,9 @@ describe("TutorialConversation keys and the pill", () => {
 
   it("counts the pill's way back to the live step", async () => {
     const track = vi.spyOn(tutorialTelemetry, "track");
-    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    render(
+      <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+    );
     await userEvent.click(
       screen.getByRole("button", { name: `Step 1 of 4, ${step1.title}, done` })
     );
@@ -991,7 +1105,7 @@ describe("useConversationStartOver", () => {
       const track = vi.spyOn(tutorialTelemetry, "track");
       render(
         <TooltipProvider>
-          <TutorialConversation onAllTutorials={vi.fn()} />
+          <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
         </TooltipProvider>
       );
       await userEvent.click(
@@ -1011,7 +1125,7 @@ describe("useConversationStartOver", () => {
       vi.mocked(PgTutorial.open).mockRejectedValueOnce(failed);
       render(
         <TooltipProvider>
-          <TutorialConversation onAllTutorials={vi.fn()} />
+          <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
         </TooltipProvider>
       );
       await userEvent.click(
@@ -1033,7 +1147,10 @@ describe("useConversationStartOver", () => {
       const onAllTutorials = vi.fn();
       render(
         <TooltipProvider>
-          <TutorialConversation onAllTutorials={onAllTutorials} />
+          <TutorialConversation
+            onAllTutorials={onAllTutorials}
+            onOpenMenu={vi.fn()}
+          />
         </TooltipProvider>
       );
       await userEvent.click(

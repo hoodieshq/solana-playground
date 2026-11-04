@@ -2,6 +2,7 @@
 // that reads the build's globals on import, which a unit test does not have
 import { slugOf } from "@/entities/tutorial/model/definition/check";
 import { loadDefinitions } from "@/entities/tutorial/model/definition/load";
+
 import type { TutorialData } from "../utils/tutorial/types";
 import { DEFINITION_FILES } from "./_definitions/generated";
 

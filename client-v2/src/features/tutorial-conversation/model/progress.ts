@@ -1,9 +1,10 @@
+import { z } from "zod";
+
 import type {
   Act,
   ConversationSave,
   QuestionResult,
 } from "@/entities/tutorial";
-import { z } from "zod";
 import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("tutorial-conversation:progress");
@@ -38,7 +39,59 @@ export interface ConversationProgress extends ConversationSave {
   runs: Record<string, RunRecord[]>;
   /** When each step started and passed, by step id, for the divider's time */
   times: Record<string, StepTime>;
+  /**
+   * What the composer posted in the lesson's own feed, oldest first (task
+   * 3.6). Added after version 1 shipped: a save without it reads as none.
+   */
+  said: Said[];
+  /** Changes the assistant proposed as apply cards, oldest first; added
+   * after version 1 shipped, like `said` */
+  proposals: Proposal[];
 }
+
+/**
+ * A composer message the lesson answered itself, with no model: a typed
+ * action word echoed as a pill (the act it ran records itself; "explain"
+ * has none, since Explain the error echoes itself), the same
+ * word refused while a question is open, or a finish chip pressed (its
+ * answer is the definition's, never saved).
+ */
+export type Said =
+  | { kind: "word"; text: string; at: number }
+  | { kind: "refused"; text: string; at: number }
+  | { kind: "chip"; index: number; at: number };
+
+/**
+ * One line the assistant proposed to change, as its apply card shows it. It
+ * is never applied by itself: Apply writes it, Keep it leaves the file.
+ */
+export interface Proposal {
+  id: string;
+  /** Workspace path: `programs/hello/src/lib.rs` */
+  file: string;
+  /** 1-based */
+  line: number;
+  /** The line as the assistant read it, to refuse an Apply after it moved */
+  before: string;
+  after: string;
+  at: number;
+  state: "open" | "applied" | "kept";
+  /** When Apply landed or Keep it was pressed */
+  settledAt?: number;
+  /**
+   * Why the last Apply did not land; the card stays open. After `write` a
+   * retry can land; after `moved` it lands only once the line reads `before`
+   * again, and after `gone` only once the file is back with that line.
+   */
+  applyFailed?: ApplyFailure;
+}
+
+/**
+ * Why an Apply did not land: the line no longer read as proposed (`moved`),
+ * the file is no longer there (`gone`), or reading or writing it failed
+ * (`write`)
+ */
+export type ApplyFailure = "moved" | "gone" | "write";
 
 /** Where the lesson stands: before Start, in a step, or past the last win */
 export type Cursor =
@@ -71,7 +124,15 @@ export type PassedVia = "chat" | "client" | "call_panel";
 export type Resolution =
   | { kind: "said"; at: number; writeFailed?: true }
   | { kind: "written"; at: number; wrote: Wrote }
-  | { kind: "open"; at: number; wrong: number[]; hintedAt?: number }
+  | {
+      kind: "open";
+      at: number;
+      wrong: number[];
+      hintedAt?: number;
+      /** The live assistant's Hint tool asked for it, after the learner's
+       * own message: no "I'm stuck" pill (task 3.6) */
+      hintByAssistant?: true;
+    }
   | ({
       kind: "picked";
       option: number;
@@ -122,6 +183,7 @@ interface Resolved {
   openedAt: number;
   wrong: number[];
   hintedAt?: number;
+  hintByAssistant?: true;
   /** The block the answer wrote, once it landed */
   wrote?: Wrote;
 }
@@ -342,6 +404,8 @@ export const freshProgress = (
   beats: {},
   runs: {},
   times: {},
+  said: [],
+  proposals: [],
 });
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -390,11 +454,36 @@ const parseWrote = (v: unknown): Wrote | null => {
   return wrote;
 };
 
+/** A question's hint fields as saved: its time, and who asked, when there
+ * was one */
+const parseHint = (
+  v: Record<string, unknown>
+): { hintedAt?: number; hintByAssistant?: true } => {
+  if (!isMs(v.hintedAt)) return {};
+  return v.hintByAssistant === true
+    ? { hintedAt: v.hintedAt, hintByAssistant: true }
+    : { hintedAt: v.hintedAt };
+};
+
+/**
+ * A question's hint fields, carried from its open state to its resolution
+ * unchanged
+ */
+export const hintOf = (r: {
+  hintedAt?: number;
+  hintByAssistant?: true;
+}): { hintedAt?: number; hintByAssistant?: true } => {
+  if (!r.hintedAt) return {};
+  return r.hintByAssistant
+    ? { hintedAt: r.hintedAt, hintByAssistant: true }
+    : { hintedAt: r.hintedAt };
+};
+
 /** The fields every resolved question carries, or null when one is off */
 const parseResolved = (v: Record<string, unknown>): Resolved | null => {
   if (!isMs(v.at) || !isMs(v.openedAt) || !isIndexes(v.wrong)) return null;
   const out: Resolved = { at: v.at, openedAt: v.openedAt, wrong: v.wrong };
-  if (isMs(v.hintedAt)) out.hintedAt = v.hintedAt;
+  Object.assign(out, parseHint(v));
   if (v.writeFailed === true) out.writeFailed = true;
   if (v.wrote !== undefined) {
     const wrote = parseWrote(v.wrote);
@@ -420,8 +509,7 @@ const parseResolution = (v: unknown): Resolution | null => {
     case "open": {
       if (!isIndexes(v.wrong)) return null;
       const open: Resolution = { kind: "open", at, wrong: v.wrong };
-      if (isMs(v.hintedAt)) open.hintedAt = v.hintedAt;
-      return open;
+      return Object.assign(open, parseHint(v));
     }
     case "picked": {
       const resolved = parseResolved(v);
@@ -660,6 +748,65 @@ const parseEach = <T>(
   return out;
 };
 
+/** A composer record as saved: `Said` */
+const saidSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.enum(["word", "refused"]),
+    text: z.string().min(1),
+    at: z.number(),
+  }),
+  z.object({
+    kind: z.literal("chip"),
+    index: z.number().int().nonnegative(),
+    at: z.number(),
+  }),
+]);
+
+/** A proposal as saved: `Proposal` */
+const proposalSchema = z.object({
+  id: z.string().min(1),
+  file: z.string().min(1),
+  line: z.number().int().positive(),
+  before: z.string(),
+  after: z.string(),
+  at: z.number(),
+  state: z.enum(["open", "applied", "kept"]),
+  settledAt: z.number().optional(),
+  applyFailed: z.enum(["moved", "gone", "write"]).optional(),
+});
+
+const parseSaid = (v: unknown): Said | null => {
+  const parsed = saidSchema.safeParse(v);
+  return parsed.success ? parsed.data : null;
+};
+
+const parseProposal = (v: unknown): Proposal | null => {
+  const parsed = proposalSchema.safeParse(v);
+  return parsed.success ? parsed.data : null;
+};
+
+/** A list added after version 1 shipped: absent reads as empty, and an
+ * unreadable entry is dropped and reported by its index */
+const parseList = <T>(
+  v: unknown,
+  parse: (entry: unknown) => T | null,
+  onDrop: (key: string) => void,
+  section: string
+): T[] => {
+  if (v === undefined) return [];
+  if (!Array.isArray(v)) {
+    onDrop(section);
+    return [];
+  }
+  const out: T[] = [];
+  v.forEach((entry, i) => {
+    const parsed = parse(entry);
+    if (parsed !== null) out.push(parsed);
+    else onDrop(`${section}[${i}]`);
+  });
+  return out;
+};
+
 const VIAS: readonly PassedVia[] = ["chat", "client", "call_panel"];
 
 const parseTime = (v: unknown): StepTime | null => {
@@ -705,6 +852,8 @@ export const parseProgress = (
       "runs"
     ),
     times: parseEach(saved.times, parseTime, onDrop, "times"),
+    said: parseList(saved.said, parseSaid, onDrop, "said"),
+    proposals: parseList(saved.proposals, parseProposal, onDrop, "proposals"),
   };
 };
 
@@ -726,6 +875,8 @@ if (import.meta.vitest) {
         beats?: Record<string, unknown>;
         runs?: Record<string, unknown>;
         times?: Record<string, unknown>;
+        said?: unknown[];
+        proposals?: unknown[];
       } = {}
     ) => ({
       version: 1 as const,
@@ -755,7 +906,14 @@ if (import.meta.vitest) {
               appended: true,
             },
           },
-          "s2.q2": { kind: "open", at: 2000, wrong: [1], hintedAt: 2050 },
+          // The live assistant's hint: no I'm stuck pill, on reload too
+          "s2.q2": {
+            kind: "open",
+            at: 2000,
+            wrong: [1],
+            hintedAt: 2050,
+            hintByAssistant: true,
+          },
         },
         opts.beats
       ),
@@ -797,6 +955,8 @@ if (import.meta.vitest) {
         },
         opts.times
       ),
+      said: opts.said ?? [],
+      proposals: opts.proposals ?? [],
     });
 
     /** Through JSON, as the file holds it */
@@ -1044,6 +1204,70 @@ if (import.meta.vitest) {
         "runs.s4.call[1]",
         "times.broken",
       ]);
+    });
+
+    it("reads a save from before the composer's records as having none", () => {
+      const before: Record<string, unknown> = midway();
+      delete before.said;
+      delete before.proposals;
+      const dropped: string[] = [];
+      expect(
+        parseProgress(JSON.parse(JSON.stringify(before)), (k) =>
+          dropped.push(k)
+        )
+      ).toEqual(midway());
+      expect(dropped).toEqual([]);
+    });
+
+    it("keeps the composer's records, and drops the ones it cannot read", () => {
+      const word = { kind: "word", text: "build", at: 3000 };
+      const refused = { kind: "refused", text: "deploy please", at: 3100 };
+      const chip = { kind: "chip", index: 1, at: 9000 };
+      const applied = {
+        id: "p1",
+        file: "programs/hello/src/lib.rs",
+        line: 10,
+        before: '        msg!("Hello, {}!", name);',
+        after: '        msg!("Once upon a time on devnet");',
+        at: 9100,
+        state: "applied",
+      };
+      const failed = {
+        id: "p2",
+        file: "programs/hello/src/lib.rs",
+        line: 10,
+        before: "",
+        after: "// one more",
+        at: 9200,
+        state: "open",
+        applyFailed: "write",
+      };
+      const saved = midway({
+        said: [
+          word,
+          { kind: "word", text: "", at: 1 },
+          refused,
+          { kind: "chip", index: -1, at: 1 },
+          chip,
+        ],
+        proposals: [applied, { id: "p3", file: "x", line: 0 }, failed],
+      });
+      const dropped: string[] = [];
+      expect(
+        parseProgress(JSON.parse(JSON.stringify(saved)), (k) => dropped.push(k))
+      ).toEqual(
+        midway({ said: [word, refused, chip], proposals: [applied, failed] })
+      );
+      expect(dropped).toEqual(["said[1]", "said[3]", "proposals[1]"]);
+      const notAList = midway();
+      (notAList as { said: unknown }).said = "build";
+      const named: string[] = [];
+      expect(
+        parseProgress(JSON.parse(JSON.stringify(notAList)), (k) =>
+          named.push(k)
+        )?.said
+      ).toEqual([]);
+      expect(named).toEqual(["said"]);
     });
 
     it("keeps a restart time and a question skipped from elsewhere, and refuses a malformed restart time", () => {

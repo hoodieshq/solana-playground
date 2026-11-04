@@ -1,11 +1,11 @@
-import type { RunResult } from "../progress";
 import type { RunInput, RunStage } from "../ports";
-import { isRetriedSend } from "./capture";
+import type { RunResult } from "../progress";
 import type { Captured } from "./capture";
-import { fundForDeploy } from "./fund";
+import { isRetriedSend } from "./capture";
 import type { FundingChain } from "./fund";
-import { resultOf } from "./transactions";
+import { fundForDeploy } from "./fund";
 import type { DecodedCall, SentTx } from "./transactions";
+import { resultOf } from "./transactions";
 
 /** A run's or a call's result */
 type TxResult = Extract<RunResult, { act: "run" | "call" }>;

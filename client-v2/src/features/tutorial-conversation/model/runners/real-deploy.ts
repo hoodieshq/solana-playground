@@ -1,6 +1,9 @@
+import { createLogger } from "@/shared/lib/logger";
+
 import { additionalProgramLen } from "../../../../commands/deploy/additional-len";
 import { BpfLoaderUpgradeable } from "../../../../commands/deploy/bpf-loader-upgradeable";
 import { sendAndConfirmTxWithRetries } from "../../../../commands/deploy/deploy";
+import type { Wallet } from "../../../../utils";
 import {
   PgConnection,
   PgProgramInfo,
@@ -10,17 +13,15 @@ import {
   PgWallet,
   PgWeb3,
 } from "../../../../utils";
-import type { Wallet } from "../../../../utils";
-import { createLogger } from "@/shared/lib/logger";
-import { actRunner } from "./act-runner";
-import { runBuild } from "./build";
 import type { RunResult } from "../progress";
 import type { ActRun } from "./act-runner";
+import { actRunner } from "./act-runner";
+import { runBuild } from "./build";
+import type { DeployPort, OnChain } from "./deploy";
 import { runDeploy } from "./deploy";
+import type { FundingChain } from "./fund";
 import { runOnDevnet } from "./real-run";
 import { deploySlotOf, landedDeploy, recogniseDeploy } from "./recognise";
-import type { DeployPort, OnChain } from "./deploy";
-import type { FundingChain } from "./fund";
 
 const log = createLogger("tutorial-conversation:deploy");
 

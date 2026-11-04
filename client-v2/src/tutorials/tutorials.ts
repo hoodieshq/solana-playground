@@ -1,6 +1,6 @@
 import { markdownTutorials } from "./create";
-import * as customTutorials from "./generated";
 import { definitionTutorials } from "./definitions";
+import * as customTutorials from "./generated";
 
 const others = Object.values(customTutorials).concat(markdownTutorials);
 

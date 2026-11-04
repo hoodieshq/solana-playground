@@ -297,12 +297,12 @@ if (import.meta.vitest) {
     const READ: Verdicts = { failedLine: 7, instructions: ["hello"] };
     const READY: TerminalFacts = { running: null, last: null, changed: null };
     const walk = (states: RunStates[], start: TerminalFacts = READY) => {
-      let facts = start;
+      let current = start;
       const steps: Step[] = [];
       for (let i = 1; i < states.length; i++) {
-        const step = stepFacts(facts, states[i - 1], states[i], READ);
+        const step = stepFacts(current, states[i - 1], states[i], READ);
         steps.push(step);
-        facts = step.facts;
+        current = step.facts;
       }
       return steps;
     };

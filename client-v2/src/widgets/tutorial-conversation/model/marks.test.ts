@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Ask, TutorialDefinition } from "@/entities/tutorial";
 import type { ConversationView, Turn } from "@/features/tutorial-conversation";
+
 import helloJson from "../../../tutorials/hello-anchor/tutorial.json";
 
 // The engine's entry also exports its store, which drags in the app's
@@ -63,26 +64,26 @@ describe("widgets/tutorial-conversation/model/marks", () => {
 
   it("lights the live step's last write, arriving when it was posted after the load", () => {
     const fresh = wroteCard([1, 2, 3], false, "write-program");
-    const ask = openAsk();
+    const opened = openAsk();
     const marks = marksOf(
       hello,
-      viewOf([fresh, ask], ask),
+      viewOf([fresh, opened], opened),
       () => BOILER
     )("src/lib.rs");
     expect(marks.written).toEqual([1, 2, 3]);
     expect(marks.arriving).toBe(true);
     const restored = marksOf(
       hello,
-      viewOf([wroteCard([1, 2, 3], true, "write-program"), ask], ask),
+      viewOf([wroteCard([1, 2, 3], true, "write-program"), opened], opened),
       () => BOILER
     )("src/lib.rs");
     expect(restored.arriving).toBe(false);
   });
 
   it("marks nothing in another file, or for a write from an earlier step", () => {
-    const ask = openAsk();
+    const opened = openAsk();
     expect(
-      marksOf(hello, viewOf([ask], ask), () => BOILER)("client/client.ts")
+      marksOf(hello, viewOf([opened], opened), () => BOILER)("client/client.ts")
     ).toEqual(NONE);
     const old = wroteCard([5, 6], false, "deploy");
     expect(
@@ -96,14 +97,14 @@ describe("widgets/tutorial-conversation/model/marks", () => {
       marksOf(hello, viewOf([answered], answered), () => BOILER)("src/lib.rs")
         .landing
     ).toBeNull();
-    const ask = openAsk();
+    const opened = openAsk();
     expect(
-      marksOf(hello, viewOf([ask], ask), () => null)("src/lib.rs")
+      marksOf(hello, viewOf([opened], opened), () => null)("src/lib.rs")
     ).toEqual(NONE);
   });
 
   it("lights the last of two writes in the file on the live step", () => {
-    const ask = openAsk();
+    const opened = openAsk();
     const first = wroteCard([1, 2, 3], true, "write-program");
     const second: Turn = {
       id: "wrote:second",
@@ -118,7 +119,7 @@ describe("widgets/tutorial-conversation/model/marks", () => {
     expect(
       marksOf(
         hello,
-        viewOf([first, second, ask], ask),
+        viewOf([first, second, opened], opened),
         () => BOILER
       )("src/lib.rs").written
     ).toEqual([5, 6]);

@@ -4,6 +4,7 @@ import type { Text } from "@/entities/tutorial";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
+
 import { nothingFocused } from "./keys";
 import { HEADING, Prose, READ, TITLE } from "./Prose";
 

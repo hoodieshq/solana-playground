@@ -1,4 +1,4 @@
-import { LONG, expect, test } from "./fixtures";
+import { expect, LONG, test } from "./fixtures";
 
 /**
  * What is left of `client-v2-lessons` once the band, rail, reader and phone

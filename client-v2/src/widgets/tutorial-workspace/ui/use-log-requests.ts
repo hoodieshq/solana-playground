@@ -1,7 +1,8 @@
-import { useEffect } from "react";
 import type { RefObject } from "react";
+import { useEffect } from "react";
 
 import { PgConversation } from "@/features/tutorial-conversation";
+
 import type { WorkspaceConsole } from "./TutorialWorkspace";
 
 /**

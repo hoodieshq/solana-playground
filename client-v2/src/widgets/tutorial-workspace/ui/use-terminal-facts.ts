@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 
 import { PgConversation } from "@/features/tutorial-conversation";
 import { PgExplorer, PgProgramInfo } from "@/utils";
-import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
 import {
   parseBuildReport,
   pickDiagnostic,
 } from "@/views/flow/stages/build-report";
 import { PgFlow } from "@/views/flow/state/stage";
-import { restoredRun, stepFacts } from "../model/terminal";
+import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
+
 import type { TerminalFacts, Verdicts } from "../model/terminal";
+import { restoredRun, stepFacts } from "../model/terminal";
 
 /**
  * The diagnostic of the open workspace's last failed build the card shows

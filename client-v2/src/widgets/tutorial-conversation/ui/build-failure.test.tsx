@@ -8,6 +8,8 @@ import type {
   RunResult,
   Turn,
 } from "@/features/tutorial-conversation";
+import { pickBuildError } from "@/features/tutorial-conversation/model/build-error";
+import { PLANNED } from "@/features/tutorial-conversation/model/build-logs.fixture";
 // Past the slice's entry, which would load the store and the app's globals:
 // the engine's pure parts are all this test drives
 import {
@@ -15,12 +17,11 @@ import {
   reduce,
 } from "@/features/tutorial-conversation/model/reducer";
 import { view } from "@/features/tutorial-conversation/model/view";
-import { pickBuildError } from "@/features/tutorial-conversation/model/build-error";
-import { PLANNED } from "@/features/tutorial-conversation/model/build-logs.fixture";
 import { stripKnownNoise } from "@/views/sidebar/assistant/bridge/build-output";
+
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
-import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
+import TurnView from "./TurnView";
 
 /**
  * Hello Anchor's planned failure from the build server's real log
@@ -80,6 +81,8 @@ const handlers = (): TurnHandlers => ({
   copyFailed: vi.fn(),
   showLog: vi.fn(),
   createWallet: vi.fn(),
+  apply: vi.fn(),
+  keep: vi.fn(),
 });
 
 const draw = (turn: Turn) => {

@@ -1,6 +1,7 @@
 import type { Quote, Text } from "@/entities/tutorial";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
+
 import { Prose, READ } from "./Prose";
 
 export interface BaseSayProps {

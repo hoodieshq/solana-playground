@@ -4,6 +4,7 @@ import type {
   Ask,
   Beat,
   Chip,
+  Follow,
   QuestionResult,
   Quote,
   Step,
@@ -13,16 +14,18 @@ import type {
 } from "@/entities/tutorial";
 
 import { FINISH_DELAY_MS } from "./clock";
-import { answerOf } from "./progress";
 import type {
   ConversationProgress,
   PassedVia,
+  Proposal,
   Resolution,
   RunRecord,
   RunResult,
   Wrote,
 } from "./progress";
+import { answerOf } from "./progress";
 import type { EngineState, Stage } from "./reducer";
+import { wordOf } from "./route";
 
 /**
  * The feed as a fold over the definition and the saved progress. The save
@@ -58,6 +61,109 @@ const lastLandedCall = (
   }
   return latest?.result ?? null;
 };
+
+/** The step a moment belongs to: the last one entered by then, or null */
+const stepAt = (
+  definition: TutorialDefinition,
+  p: ConversationProgress,
+  at: number
+): string | null => {
+  let found: { id: string; from: number } | null = null;
+  for (const step of definition.steps) {
+    const time = p.times[step.id];
+    // Strictly before: a record at the moment a step began is the word that
+    // began it, typed in the step before
+    if (time && time.from < at && (!found || time.from >= found.from)) {
+      found = { id: step.id, from: time.from };
+    }
+  }
+  return found?.id ?? null;
+};
+
+/**
+ * The composer's records as turns: a word's pill (the act it ran draws its
+ * own card), a refused word's pill and the lesson's answer, a finish chip's
+ * label and answer, and each proposal's apply card, with a wrote card once
+ * it was applied
+ */
+const composerTurns = (
+  definition: TutorialDefinition,
+  p: ConversationProgress
+): Posted[] => {
+  const out: Posted[] = [];
+  p.said.forEach((said, i) => {
+    const step = stepAt(definition, p, said.at);
+    if (said.kind === "chip") {
+      const chip = definition.finish.chips[said.index];
+      if (!chip) return;
+      out.push(
+        {
+          id: `said:${i}`,
+          kind: "you",
+          step: null,
+          at: said.at,
+          text: chip.label,
+          code: false,
+        },
+        {
+          id: `reply:${i}`,
+          kind: "reply",
+          step: null,
+          at: said.at,
+          text: chip.answer,
+          follow: chip.follow ?? null,
+        }
+      );
+      return;
+    }
+    // "explain" runs Explain the error, which echoes the learner itself
+    if (said.kind === "word" && wordOf(said.text) === "explain") return;
+    out.push({
+      id: `said:${i}`,
+      kind: "you",
+      step,
+      at: said.at,
+      text: said.text,
+      code: false,
+    });
+    if (said.kind === "refused") {
+      out.push({
+        id: `reply:${i}`,
+        kind: "reply",
+        step,
+        at: said.at,
+        text: PICK_FIRST,
+        follow: null,
+      });
+    }
+  });
+  for (const proposal of p.proposals) {
+    const step = stepAt(definition, p, proposal.at);
+    out.push({
+      id: `apply:${proposal.id}`,
+      kind: "apply",
+      step,
+      at: proposal.at,
+      proposal,
+    });
+    if (proposal.state === "applied") {
+      out.push({
+        id: `wrote:${proposal.id}`,
+        kind: "wrote",
+        step,
+        at: proposal.settledAt ?? proposal.at,
+        beatId: proposal.id,
+        wrote: { file: proposal.file, lines: [proposal.line] },
+        failed: false,
+      });
+    }
+  }
+  return out;
+};
+
+/** The lesson's answer to an action word typed while a question is open */
+export const PICK_FIRST =
+  "Pick an answer above first, or press Skip. Then the button's yours.";
 
 /** The learner's pill when they ask for the hint */
 export const STUCK = "I'm stuck";
@@ -168,6 +274,11 @@ export type Turn = TurnBase &
         follow?: { kind: "showFix"; done: boolean };
       }
     | { kind: "you"; text: string; code: boolean }
+    /** The lesson's own answer to the composer: a refused word, or a finish
+     * chip's answer with its quiet button */
+    | { kind: "reply"; text: Text; follow: Follow | null }
+    /** A change the live assistant proposed, waiting for Apply or Keep it */
+    | { kind: "apply"; proposal: Proposal }
     /** A block landed (`wrote`), or could not (`failed`, with `wrote` null) */
     | { kind: "wrote"; beatId: string; wrote: Wrote | null; failed: boolean }
     | {
@@ -244,9 +355,21 @@ export interface StepBarItem {
 }
 
 export type Placeholder =
+  | "Ask anything about this tutorial"
   | "Ask about this step"
+  | "Or ask about this step"
   | "Ask while it builds"
+  | "Ask while it runs"
   | "Ask anything";
+
+/** The placeholder while an act runs, by its act (the prototype's `placeholderFor`) */
+const WHILE: Record<Act, Placeholder> = {
+  build: "Ask while it builds",
+  deploy: "Ask while it builds",
+  buildDeploy: "Ask while it builds",
+  run: "Ask while it runs",
+  call: "Ask while it runs",
+};
 
 export interface ConversationView {
   turns: Turn[];
@@ -323,6 +446,9 @@ export const view = (
   if (p.cursor.kind === "intro") {
     turn({ id: "intro", kind: "intro", step: null, at: 0 });
   }
+  // Before the lesson's turns, so a typed word's pill goes first on a tie
+  // with what its action posted at the same moment
+  composerTurns(definition, p).forEach(turn);
 
   const last = definition.steps[definition.steps.length - 1];
   definition.steps.forEach((step, index) => {
@@ -414,14 +540,18 @@ export const view = (
             attempts: attemptsOf(r),
           });
           if ("hintedAt" in r && r.hintedAt !== undefined) {
-            turn({
-              id: `you:hint:${b.id}`,
-              kind: "you",
-              step: step.id,
-              at: r.hintedAt,
-              text: STUCK,
-              code: false,
-            });
+            // Asked through the assistant, the learner's own message is
+            // already in the feed
+            if (!r.hintByAssistant) {
+              turn({
+                id: `you:hint:${b.id}`,
+                kind: "you",
+                step: step.id,
+                at: r.hintedAt,
+                text: STUCK,
+                code: false,
+              });
+            }
             turn({
               id: `hint:${b.id}`,
               kind: "hint",
@@ -708,8 +838,14 @@ export const view = (
   });
 
   let placeholder: Placeholder = "Ask about this step";
-  if (p.cursor.kind === "finished") placeholder = "Ask anything";
-  else if (running) placeholder = "Ask while it builds";
+  // Before Start there is no step to ask about yet
+  if (p.cursor.kind === "intro")
+    placeholder = "Ask anything about this tutorial";
+  else if (p.cursor.kind === "finished") placeholder = "Ask anything";
+  else if (running?.kind === "act") placeholder = WHILE[running.act.act];
+  // Typing is the other way past an open question, beside its options
+  else if (live?.kind === "ask" && live.open)
+    placeholder = "Or ask about this step";
 
   const lastTime = p.times[last.id];
   const finishAt =
@@ -795,7 +931,7 @@ if (import.meta.vitest) {
         "not_reached",
         "not_reached",
       ]);
-      expect(v.placeholder).toBe("Ask about this step");
+      expect(v.placeholder).toBe("Ask anything about this tutorial");
       expect(v.finishAt).toBeNull();
     });
 
@@ -832,6 +968,27 @@ if (import.meta.vitest) {
       const state = play([{ type: "start", at: 1000 }]);
       const v = view(hello, state, { now: 1e9, loadedAt: 1000 + TICK + 1 });
       expect(v.turns.map((t) => t.whole)).toEqual([true, true, true, false]);
+    });
+
+    it("offers typing as the other way past an open question, in the placeholder", () => {
+      const open = view(hello, play([{ type: "start", at: 1000 }]), LATE);
+      expect(open.live).toMatchObject({ kind: "ask", open: true });
+      expect(open.placeholder).toBe("Or ask about this step");
+      const answered = view(
+        hello,
+        play([
+          { type: "start", at: 1000 },
+          { type: "pick", beatId: "s1.q1", option: 1, at: 5000 },
+          {
+            type: "written",
+            beatId: "s1.q1",
+            wrote: { file: "src/lib.rs", lines: [5, 6, 7] },
+            at: 5000,
+          },
+        ]),
+        LATE
+      );
+      expect(answered.placeholder).toBe("Ask about this step");
     });
 
     it("a wrong then right pick reads as a retry with its echo, the right line and the wrote card", () => {
@@ -879,6 +1036,93 @@ if (import.meta.vitest) {
         kind: "act",
         state: "live",
       });
+    });
+
+    it("the composer's records post as pills, the lesson's replies and apply cards, in their step", () => {
+      const v = view(
+        hello,
+        play([
+          { type: "start", at: 1000 },
+          { type: "refuseWord", word: "build", text: "build", at: 3000 },
+          {
+            type: "propose",
+            proposal: {
+              id: "p1",
+              file: "programs/hello/src/lib.rs",
+              line: 10,
+              before: "old",
+              after: "new",
+            },
+            at: 4000,
+          },
+          { type: "applied", id: "p1", at: 6000 },
+        ]),
+        LATE
+      );
+      const byId = (id: string) => v.turns.find((t) => t.id === id);
+      expect(byId("said:0")).toMatchObject({
+        kind: "you",
+        text: "build",
+        step: "write-program",
+      });
+      expect(byId("reply:0")).toMatchObject({
+        kind: "reply",
+        text: PICK_FIRST,
+      });
+      expect(byId("apply:p1")).toMatchObject({
+        kind: "apply",
+        at: 4000,
+        proposal: { state: "applied", settledAt: 6000 },
+      });
+      // The wrote card sits where Apply landed, not where the card was posted
+      expect(byId("wrote:p1")).toMatchObject({
+        kind: "wrote",
+        at: 6000,
+        wrote: { file: "programs/hello/src/lib.rs", lines: [10] },
+      });
+    });
+
+    it("a finish chip posts its label and the definition's answer, with its quiet button", () => {
+      const done: EngineState = {
+        progress: {
+          version: 1,
+          passed: hello.steps.map((s) => s.id),
+          finishedAt: 60000,
+          startedAt: 1000,
+          restartedAt: null,
+          cursor: { kind: "finished" },
+          beats: {},
+          runs: {},
+          times: {},
+          said: [{ kind: "chip", index: 0, at: 61000 }],
+          proposals: [],
+        },
+        stage: null,
+      };
+      const v = view(hello, done, LATE);
+      const chip = hello.finish.chips[0];
+      expect(v.turns.slice(-2)).toMatchObject([
+        { id: "said:0", kind: "you", text: chip.label, step: null },
+        {
+          id: "reply:0",
+          kind: "reply",
+          text: chip.answer,
+          follow: chip.follow ?? null,
+        },
+      ]);
+    });
+
+    it("a hint the assistant asked for posts with no I'm stuck pill", () => {
+      const v = view(
+        hello,
+        play([
+          { type: "start", at: 1000 },
+          { type: "hint", beatId: "s1.q1", at: 3000, byAssistant: true },
+        ]),
+        LATE
+      );
+      expect(v.turns.find((t) => t.id === "hint:s1.q1")).toBeTruthy();
+      expect(v.turns.find((t) => t.id === "you:hint:s1.q1")).toBeUndefined();
     });
 
     it("skip and typed read as their outcomes", () => {
@@ -1113,6 +1357,16 @@ if (import.meta.vitest) {
       expect(v.placeholder).toBe("Ask while it builds");
     });
 
+    it("says it runs while a run or a call goes, and builds for the rest", () => {
+      expect(WHILE.run).toBe("Ask while it runs");
+      expect(WHILE.call).toBe("Ask while it runs");
+      expect([WHILE.build, WHILE.deploy, WHILE.buildDeploy]).toEqual([
+        "Ask while it builds",
+        "Ask while it builds",
+        "Ask while it builds",
+      ]);
+    });
+
     it("a planned failure posts an open result with the definition's line, then Explain's pill and the fix question", () => {
       const failed = view(hello, play(toFailed()), LATE);
       expect(failed.turns.find((t) => t.id === "s1.build")).toMatchObject({
@@ -1147,6 +1401,40 @@ if (import.meta.vitest) {
         open: false,
       });
       expect(explained.live?.id).toBe("f1.q2");
+    });
+
+    it("a typed explain echoes once, as Explain the error", () => {
+      const typed = view(
+        hello,
+        play(
+          toFailed().concat([
+            {
+              type: "word",
+              word: "explain",
+              text: "explain",
+              then: { type: "explain", beatId: "s1.build", at: 9000 },
+              at: 9000,
+            },
+          ])
+        ),
+        LATE
+      );
+      expect(typed.turns.filter((t) => t.kind === "you")).toHaveLength(
+        view(
+          hello,
+          play(
+            toFailed().concat([
+              { type: "explain", beatId: "s1.build", at: 9000 },
+            ])
+          ),
+          LATE
+        ).turns.filter((t) => t.kind === "you").length
+      );
+      expect(ids(typed).slice(-3)).toEqual([
+        "you:explain:f1.explain",
+        "f1.explain",
+        "f1.q2",
+      ]);
     });
 
     it("a failed fix build is an ordinary failure with a live result card", () => {
@@ -1426,6 +1714,8 @@ if (import.meta.vitest) {
           finishedAt: null,
           startedAt: state.progress.startedAt,
           restartedAt: null,
+          said: [],
+          proposals: [],
           cursor: state.progress.cursor,
           beats: state.progress.beats,
           runs: {
@@ -1460,6 +1750,8 @@ if (import.meta.vitest) {
           finishedAt: null,
           startedAt: state.progress.startedAt,
           restartedAt: null,
+          said: [],
+          proposals: [],
           cursor: state.progress.cursor,
           beats: state.progress.beats,
           runs: { "s1.build": [{ status: "interrupted", at: 7000 }] },
@@ -1496,6 +1788,8 @@ if (import.meta.vitest) {
           finishedAt: 60000,
           startedAt: 1000,
           restartedAt: null,
+          said: [],
+          proposals: [],
           cursor: { kind: "finished" },
           beats: {},
           runs: {
@@ -1537,6 +1831,8 @@ if (import.meta.vitest) {
           finishedAt: 60000,
           startedAt: 1000,
           restartedAt: null,
+          said: [],
+          proposals: [],
           cursor: { kind: "finished" },
           beats: {},
           runs: { "s3.run": [ran(30000, "first")] },
@@ -1575,6 +1871,8 @@ if (import.meta.vitest) {
           beats: {},
           runs: { "s4.call": runs },
           times: {},
+          said: [],
+          proposals: [],
         },
         stage: null,
       });

@@ -1,5 +1,5 @@
-import { resultsLine, searchHint } from "../lib/levels";
 import type { FrameworkFilter as Filter } from "../lib/levels";
+import { resultsLine, searchHint } from "../lib/levels";
 import type { Banner } from "../model/banner";
 import type { TutorialItem } from "../model/use-tutorial-list";
 import type { CardOpen } from "./BaseCatalogGrid";

@@ -4,8 +4,8 @@ import {
   resetLogger,
 } from "../../shared/lib/logger";
 import { PgExplorer } from "../explorer";
-import { PgRouter } from "../router";
 import { writeWorkspaceFile } from "../explorer/workspace-file";
+import { PgRouter } from "../router";
 import { PgTutorial } from "./tutorial";
 
 vi.mock("../explorer/workspace-file", () => ({

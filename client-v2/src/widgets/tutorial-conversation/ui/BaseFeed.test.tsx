@@ -4,11 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ActBeat, TutorialDefinition } from "@/entities/tutorial";
 import type { StepBarItem, Turn } from "@/features/tutorial-conversation";
+
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
-import BaseFeed from "./BaseFeed";
 import type { BaseFeedProps } from "./BaseFeed";
-import TurnView from "./TurnView";
+import BaseFeed from "./BaseFeed";
 import type { TurnHandlers } from "./TurnView";
+import TurnView from "./TurnView";
 
 const definition = hello as unknown as TutorialDefinition;
 const actOf = (id: string) =>
@@ -118,6 +119,8 @@ const handlers = (): TurnHandlers => ({
   allTutorials: vi.fn(),
   copyReceipt: vi.fn(),
   copyFailed: vi.fn(),
+  apply: vi.fn(),
+  keep: vi.fn(),
   showLine: vi.fn(),
   revealError: vi.fn(),
   showLog: vi.fn(),

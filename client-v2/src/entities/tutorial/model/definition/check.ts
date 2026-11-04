@@ -1,18 +1,18 @@
-import Ajv from "ajv";
 import type { ErrorObject, ValidateFunction } from "ajv";
+import Ajv from "ajv";
 
 // Relative on purpose: `yarn tutorial:check` runs this module through tsx,
 // with no `@/` alias, and the schema sits beside the definitions it checks
 import schema from "../../../../tutorials/tutorial.schema.json";
-import { argName } from "./types";
 import type {
-  Block,
   Beat,
+  Block,
   DefinitionError,
   Files,
   Step,
   TutorialDefinition,
 } from "./types";
+import { argName } from "./types";
 
 let compiled: ValidateFunction | undefined;
 
@@ -519,10 +519,8 @@ const ruleErrors = (
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
-  type TutorialDefinition = import("./types").TutorialDefinition;
   type Ask = import("./types").Ask;
   type WriteBeat = import("./types").WriteBeat;
-  type Beat = import("./types").Beat;
 
   describe("entities/tutorial/model/definition/check", () => {
     const LIB =

@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import {
   Check,
   ChevronDown,
@@ -8,6 +6,8 @@ import {
   ExternalLink,
   Wallet,
 } from "lucide-react";
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 import type { RunResult } from "@/features/tutorial-conversation";
 import { devnetExplorerUrl } from "@/shared/lib/devnet-explorer";
@@ -22,7 +22,8 @@ import {
   CollapsibleTrigger,
 } from "@/shared/ui/collapsible";
 import { CopyButton } from "@/shared/ui/copy-button";
-import { Prose, READ, formatSeconds } from "./Prose";
+
+import { formatSeconds, Prose, READ } from "./Prose";
 
 /** A deploy's or a build-and-deploy's result, landed or not */
 export type DeployResult = Extract<

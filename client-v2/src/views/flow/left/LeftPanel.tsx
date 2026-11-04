@@ -1,14 +1,15 @@
+import { PanelLeft } from "lucide-react";
 import type { FC } from "react";
 import { useLayoutEffect, useRef } from "react";
-import { PanelLeft } from "lucide-react";
 import styled, { css } from "styled-components";
 
 import { Button } from "@/shared/ui/button";
+
+import { PgExplorer } from "../../../utils";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
 import { BOTTOM_BAR_HEIGHT } from "../tokens";
 import { keepColumn, keptColumn } from "./kept-column";
-import { PgExplorer } from "../../../utils";
 
 interface LeftPanelProps {
   /**

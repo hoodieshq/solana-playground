@@ -1,14 +1,15 @@
-import { useEffect } from "react";
 import { FileCode, Send } from "lucide-react";
+import { useEffect } from "react";
 
 import type { Win } from "@/entities/tutorial";
 import type { PassedVia } from "@/features/tutorial-conversation";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
 import { Tag } from "@/shared/ui/tag";
+
 import { BaseDrawnCheck } from "./BaseDrawnCheck";
 import { nothingFocused } from "./keys";
-import { HEADLINE, Prose, READ, noStop } from "./Prose";
+import { HEADLINE, noStop, Prose, READ } from "./Prose";
 
 export interface BaseWinCardProps {
   win: Win;

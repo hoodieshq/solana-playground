@@ -1,13 +1,12 @@
 import type { JSX } from "react";
 
+import type { TutorialDefinition } from "../../entities/tutorial/model/definition/types";
 import type { Nullable, RequiredKey } from "../types";
 import {
   TUTORIAL_CATEGORIES,
   TUTORIAL_LEVELS,
   TUTORIAL_PROGRESS,
 } from "./details";
-
-import type { TutorialDefinition } from "../../entities/tutorial/model/definition/types";
 
 type Author = {
   /** Author's name that will be displayed as one of the creators of the tutorial */

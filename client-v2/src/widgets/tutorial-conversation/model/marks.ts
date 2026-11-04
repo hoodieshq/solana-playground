@@ -1,9 +1,9 @@
 import type { TutorialDefinition } from "@/entities/tutorial";
-import { landingFor, stepOfBeat } from "@/features/tutorial-conversation";
 import type {
   ConversationView,
   Landing,
 } from "@/features/tutorial-conversation";
+import { landingFor, stepOfBeat } from "@/features/tutorial-conversation";
 
 /**
  * What the feed lights in a file of the editor (`tutorial-workspace`'s

@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { LONG, expect, test } from "./fixtures";
+import { expect, LONG, test } from "./fixtures";
 
 /** The stage tabs; on a narrow window they carry their key, so by prefix */
 const stageTab = (page: Page, name: string) =>

@@ -24,29 +24,30 @@ vi.mock("@/entities/tutorial", async () => ({
     .tutorialTelemetry,
 }));
 
-import hello from "../../../tutorials/hello-anchor/tutorial.json";
-import { judgeGoal } from "./goals";
-import { memoryWorkspace, stubRunner } from "./ports";
-import type { Runner, Workspace } from "./ports";
-import { freshProgress } from "./progress";
-import type { RunResult } from "./progress";
-import {
-  INITIAL_CONVERSATION_STATE,
-  PgConversation,
-  STORAGE_KEY,
-} from "./store";
-import { TICK_MS } from "./clock";
-import { PgExplorer } from "../../../utils/explorer/explorer";
-import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
-import { PgTutorial } from "../../../utils/tutorial/tutorial";
-import { PgView } from "../../../utils/view";
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
 import {
   initTelemetry,
   memoryProvider as memoryEvents,
   resetTelemetry,
 } from "@/shared/lib/telemetry";
+
+import hello from "../../../tutorials/hello-anchor/tutorial.json";
+import { PgExplorer } from "../../../utils/explorer/explorer";
+import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
+import { PgTutorial } from "../../../utils/tutorial/tutorial";
 import type { Disposable } from "../../../utils/types";
+import { PgView } from "../../../utils/view";
+import { TICK_MS } from "./clock";
+import { judgeGoal } from "./goals";
+import type { Runner, Workspace } from "./ports";
+import { memoryWorkspace, stubRunner } from "./ports";
+import type { RunResult } from "./progress";
+import { freshProgress } from "./progress";
+import {
+  INITIAL_CONVERSATION_STATE,
+  PgConversation,
+  STORAGE_KEY,
+} from "./store";
 
 const NAME = "Hello Anchor";
 /** A clock past every turn the tests post */
@@ -146,10 +147,10 @@ afterEach(async () => {
 describe("PgConversation", () => {
   it("passes a card's Log to whoever holds the terminal, until it lets go", () => {
     const opened = vi.fn();
-    const sub = PgConversation.onDidRequestLog(opened);
+    const logSub = PgConversation.onDidRequestLog(opened);
     PgConversation.showLog();
     expect(opened).toHaveBeenCalledTimes(1);
-    sub.dispose();
+    logSub.dispose();
     PgConversation.showLog();
     expect(opened).toHaveBeenCalledTimes(1);
   });
@@ -159,11 +160,11 @@ describe("PgConversation", () => {
       throw new Error("listener");
     });
     const opened = vi.fn();
-    const sub = PgConversation.onDidRequestLog(opened);
+    const logSub = PgConversation.onDidRequestLog(opened);
     expect(() => PgConversation.showLog()).not.toThrow();
     expect(opened).toHaveBeenCalledTimes(1);
     throws.dispose();
-    sub.dispose();
+    logSub.dispose();
   });
 
   it("is empty for a workspace without a definition", async () => {
@@ -1125,5 +1126,181 @@ describe("PgConversation", () => {
     expect(
       logged.entries.filter((e) => e.level === "error").length
     ).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("PgConversation's composer", () => {
+  /** A proposal for line 2 of src/lib.rs, which reads "old" when proposed */
+  const propose = () =>
+    PgConversation.propose({
+      id: "p1",
+      file: "src/lib.rs",
+      line: 2,
+      before: "old",
+      after: "new",
+    });
+  const proposal = () => PgConversation.state.engine.progress.proposals[0];
+  const named = (name: string) => events.events.filter((e) => e.name === name);
+
+  it("applies the line it proposed and leaves the others alone", async () => {
+    const workspace = memoryWorkspace({ "src/lib.rs": "a\nold\nc" });
+    open(NAME, { workspace });
+    await settle();
+    propose();
+    PgConversation.apply("p1");
+    await settle();
+    expect(workspace.files["src/lib.rs"]).toBe("a\nnew\nc");
+    expect(proposal().state).toBe("applied");
+    expect(named("tutorial_change_applied")).toHaveLength(1);
+  });
+
+  it("refuses an Apply once the learner changed the line, and writes nothing", async () => {
+    const workspace = memoryWorkspace({ "src/lib.rs": "a\nmine\nc" });
+    open(NAME, { workspace });
+    await settle();
+    propose();
+    PgConversation.apply("p1");
+    await settle();
+    expect(workspace.files["src/lib.rs"]).toBe("a\nmine\nc");
+    expect(proposal()).toMatchObject({ state: "open", applyFailed: "moved" });
+    expect(named("tutorial_change_applied")).toHaveLength(0);
+    // The failed Apply is over: Keep it answers again
+    PgConversation.keep("p1");
+    expect(proposal().state).toBe("kept");
+  });
+
+  it("says a file that is gone is gone, not a moved line", async () => {
+    open(NAME, { workspace: memoryWorkspace({}) });
+    await settle();
+    propose();
+    PgConversation.apply("p1");
+    await settle();
+    expect(proposal()).toMatchObject({ state: "open", applyFailed: "gone" });
+    expect(named("tutorial_change_applied")).toHaveLength(0);
+  });
+
+  it("says a write failed as a write, not as a moved line", async () => {
+    const workspace: Workspace = {
+      read: async () => "a\nold\nc",
+      write: async () => {
+        throw new Error("disk full");
+      },
+      remove: async () => {},
+    };
+    open(NAME, { workspace });
+    await settle();
+    propose();
+    PgConversation.apply("p1");
+    await settle();
+    expect(proposal()).toMatchObject({ state: "open", applyFailed: "write" });
+    expect(logged.entries.filter((e) => e.level === "error")).toHaveLength(1);
+  });
+
+  it("holds Keep it while an Apply is writing, so the card never says kept over a changed file", async () => {
+    const workspace = memoryWorkspace({ "src/lib.rs": "a\nold\nc" });
+    let land = () => {};
+    const slow: Workspace = {
+      read: workspace.read,
+      write: (path, content) =>
+        new Promise<void>((resolve) => {
+          land = () => {
+            workspace.files[path] = content;
+            resolve();
+          };
+        }),
+      remove: workspace.remove,
+    };
+    open(NAME, { workspace: slow });
+    await settle();
+    propose();
+    PgConversation.apply("p1");
+    await settle();
+    PgConversation.keep("p1");
+    PgConversation.apply("p1");
+    land();
+    await settle();
+    expect(workspace.files["src/lib.rs"]).toBe("a\nnew\nc");
+    expect(proposal().state).toBe("applied");
+    expect(named("tutorial_change_kept")).toHaveLength(0);
+    expect(named("tutorial_change_applied")).toHaveLength(1);
+  });
+
+  it("settles as applied when an earlier Apply already wrote the line", async () => {
+    const workspace = memoryWorkspace({ "src/lib.rs": "a\nnew\nc" });
+    open(NAME, { workspace });
+    await settle();
+    propose();
+    PgConversation.apply("p1");
+    await settle();
+    expect(proposal()).toMatchObject({ state: "applied" });
+    expect(proposal().applyFailed).toBeUndefined();
+  });
+
+  it("sends a typed word to the assistant when the engine does not act on it", async () => {
+    open(NAME);
+    await settle();
+    PgConversation.start();
+    await settle();
+    const before = PgConversation.state.engine.progress.said;
+    // The view and the engine disagree: the view still shows the intro
+    const intro = {
+      id: "intro",
+      kind: "intro",
+      step: null,
+      at: 0,
+      whole: true,
+    };
+    const view = vi
+      .spyOn(PgConversation, "view")
+      .mockReturnValue({ live: intro } as unknown as ReturnType<
+        typeof PgConversation.view
+      >);
+    try {
+      expect(PgConversation.say("go")).toBe("assistant");
+    } finally {
+      view.mockRestore();
+    }
+    expect(PgConversation.state.engine.progress.said).toBe(before);
+    expect(named("tutorial_word_sent")).toHaveLength(0);
+  });
+
+  it("routes a typed word to the lesson, a refused one to its refusal, and the rest to the assistant", async () => {
+    open(NAME);
+    await settle();
+    expect(PgConversation.say("what is declare_id?")).toBe("assistant");
+    expect(PgConversation.state.engine.progress.said).toEqual([]);
+
+    expect(PgConversation.say("  Go! ")).toBe("lesson");
+    await settle();
+    const progress = PgConversation.state.engine.progress;
+    expect(progress.startedAt).not.toBeNull();
+    expect(progress.said).toEqual([
+      { kind: "word", text: "Go!", at: progress.startedAt },
+    ]);
+    expect(named("tutorial_word_sent")[0].params).toMatchObject({
+      word: "start",
+      refused: false,
+      step: 0,
+    });
+    // The pill sits before what its action posted, outside step 1
+    const turns = PgConversation.view(LATER)?.turns ?? [];
+    const pill = turns.findIndex((t) => t.id === "said:0");
+    expect(turns[pill]).toMatchObject({ kind: "you", step: null });
+    expect(pill).toBeLessThan(
+      turns.findIndex((t) => t.id === "divider:write-program")
+    );
+
+    // The question is due once the lesson's paced lines have posted
+    const now = vi.spyOn(Date, "now").mockReturnValue(LATER);
+    try {
+      expect(PgConversation.view()?.live?.id).toBe("s1.q1");
+      expect(PgConversation.say("build")).toBe("lesson");
+    } finally {
+      now.mockRestore();
+    }
+    expect(PgConversation.state.engine.progress.said[1]).toMatchObject({
+      kind: "refused",
+      text: "build",
+    });
   });
 });

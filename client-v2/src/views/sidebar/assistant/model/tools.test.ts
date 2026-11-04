@@ -1,7 +1,8 @@
 import { requireFor } from "@/test-utils/require-for";
 
 import type { PlaygroundBridge } from "../bridge/playground-bridge";
-import { PgAssistant } from "../store";
+import { type AssistantMode, PgAssistant } from "../store";
+import { READING_TOOLS } from "./reading-tools";
 import { createTools } from "./tools";
 
 vi.mock("./skill-tools", () => ({ createSkillTools: () => [] }));
@@ -75,5 +76,108 @@ describe("write_file", () => {
       [expect.objectContaining({ path: "src/a.rs" }), "wrote src/a.rs"],
       [expect.objectContaining({ path: "src/b.rs" }), "wrote src/b.rs"],
     ]);
+  });
+});
+
+describe("a mode", () => {
+  const hint = {
+    name: "hint",
+    description: "Post the live question's hint",
+    schema: {
+      type: "object" as const,
+      properties: {},
+      additionalProperties: false as const,
+    },
+    run: () => "Posted.",
+  };
+  const tutorial: AssistantMode = {
+    name: "tutorial",
+    context: () => "Tutorial: Hello Anchor",
+    tools: [hint],
+    allows: (name) => name === "read_file",
+    refusal: "The lesson builds; offer a change instead.",
+  };
+  const names = (tools: { name: string }[]) => tools.map((t) => t.name);
+
+  it("leaves the tools as they are without one", () => {
+    expect(names(createTools(bridge("old"), null))).toEqual([
+      "list_files",
+      "read_file",
+      "get_build_error",
+      "write_file",
+      "build",
+      "deploy",
+    ]);
+  });
+
+  it("refuses a write-file call in tutorial mode, with no approval card", async () => {
+    const write = createTools(bridge("old"), tutorial).find(
+      (tool) => tool.name === "write_file"
+    );
+    const result = await write?.run({ path: "src/lib.rs", content: "new" });
+
+    expect(result).toBe(
+      "write_file is not available in this tutorial. The lesson builds; offer a change instead."
+    );
+    expect(PgAssistant.items).toHaveLength(0);
+    expect(PgAssistant.status).toBe("idle");
+  });
+
+  it("runs what it allows, and adds its own tools", async () => {
+    const tools = createTools(bridge("fn main() {}"), tutorial);
+    expect(names(tools)).toContain("hint");
+    const read = tools.find((tool) => tool.name === "read_file");
+    expect(await read?.run({ path: "src/lib.rs" })).toBe("fn main() {}");
+  });
+
+  it("is read by the next createTools, and clearing one leaves the latest other in force", () => {
+    const set = PgAssistant.setMode(tutorial);
+    expect(names(createTools(bridge("old")))).toContain("hint");
+    const other = PgAssistant.setMode({
+      name: "other",
+      context: () => "",
+      tools: [],
+      allows: () => true,
+      refusal: "",
+    });
+    try {
+      set.dispose();
+      expect(PgAssistant.mode?.name).toBe("other");
+    } finally {
+      other.dispose();
+    }
+    expect(PgAssistant.mode).toBeNull();
+  });
+
+  it("keeps an earlier mode when a later one clears first", () => {
+    const first = PgAssistant.setMode(tutorial);
+    const second = PgAssistant.setMode({
+      name: "other",
+      context: () => "",
+      tools: [],
+      allows: () => true,
+      refusal: "",
+    });
+    try {
+      second.dispose();
+      expect(PgAssistant.mode).toBe(tutorial);
+    } finally {
+      first.dispose();
+    }
+    expect(PgAssistant.mode).toBeNull();
+  });
+});
+
+describe("READING_TOOLS", () => {
+  it("names only tools the assistant has", async () => {
+    const { createSkillTools } = await vi.importActual<
+      typeof import("./skill-tools")
+    >("./skill-tools");
+    const real = new Set(
+      createTools(bridge(null), null)
+        .concat(createSkillTools())
+        .map((tool) => tool.name)
+    );
+    for (const name of READING_TOOLS) expect(real).toContain(name);
   });
 });

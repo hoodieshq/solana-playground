@@ -2,6 +2,7 @@ import { ArrowUpRight } from "lucide-react";
 
 import type { LandedCall } from "@/features/tutorial-conversation";
 import { CopyButton } from "@/shared/ui/copy-button";
+
 import {
   explorerAddress,
   explorerTx,

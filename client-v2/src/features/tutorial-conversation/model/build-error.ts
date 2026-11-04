@@ -1,8 +1,8 @@
-import type { BuildError } from "./progress";
 import {
   parseBuildReport,
   pickDiagnostic,
 } from "../../../views/flow/stages/build-report";
+import type { BuildError } from "./progress";
 
 /**
  * The error a failed build's card shows, from the server's raw log, by

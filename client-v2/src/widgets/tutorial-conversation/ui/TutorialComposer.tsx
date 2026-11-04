@@ -1,0 +1,105 @@
+import { useEffect, useState } from "react";
+
+import { PgConversation } from "@/features/tutorial-conversation";
+import { PgAssistant } from "@/views/sidebar/assistant/store";
+
+import { mergeFeed } from "../model/merge";
+import BaseTutorialComposer from "./BaseTutorialComposer";
+import { useConversationState } from "./TutorialConversation";
+
+/**
+ * The live assistant's turn as the composer needs it: the one `useTurn`
+ * (`widgets/assistant`) that `TutorialChat` in `views/flow/Flow.tsx` mounts
+ * while the frame shows, described here by shape, since a widget does not
+ * import another. Its `send` clears `input` itself, and only once the
+ * message is in, so a send it refuses leaves the text in the box.
+ */
+export interface ComposerTurn {
+  /**
+   * Send a prompt; with nothing connected, it opens Connect a model and puts
+   * the text back. Resolves `true` once the assistant has the message, after
+   * its answer, and `false` when it opened Connect a model instead, was
+   * refused or failed
+   */
+  send: (text: string) => Promise<boolean>;
+  stop: () => void;
+  busy: boolean;
+  input: string;
+  setInput: (value: string) => void;
+}
+
+export interface TutorialComposerProps {
+  turn: ComposerTurn;
+}
+
+/**
+ * The composer under the feed. A live action's word runs that action and a
+ * word the open question refuses gets the lesson's refusal
+ * (`PgConversation.say`); anything else goes to the live assistant, counted
+ * as asked. A finish chip posts its answer with no model call. The box holds
+ * the turn's own input, so a message the assistant could not send yet (no
+ * model connected) comes back here.
+ */
+/** Why a question typed while the assistant answers is still in the box */
+const HELD =
+  "The assistant is still answering. Press Enter again once it's done.";
+
+export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
+  const state = useConversationState();
+  const [held, setHeld] = useState(false);
+  // The answer ended: the question can go now, so the note has done its job
+  useEffect(() => {
+    if (!turn.busy) setHeld(false);
+  }, [turn.busy]);
+  const view = PgConversation.view();
+  const context = state.context;
+  if (!context || !view) return null;
+
+  const progress = state.engine.progress;
+  const finished = progress.cursor.kind === "finished";
+  const waiting = progress.cursor.kind === "intro";
+  // The feed's own reading of the thread, so a reply from before the last
+  // Start over does not count
+  const answered =
+    waiting &&
+    !turn.busy &&
+    mergeFeed([], PgAssistant.items, progress.restartedAt, state.loadedAt).some(
+      (e) => e.kind === "answer" && e.tone === "reply"
+    );
+  const send = (text: string) => {
+    if (PgConversation.say(text) === "lesson") {
+      turn.setInput("");
+      return;
+    }
+    // A question while the assistant answers waits in the box, uncounted,
+    // with a note saying so: `useTurn` would refuse it
+    if (turn.busy) {
+      setHeld(true);
+      return;
+    }
+    // With no model, `send` opens Connect a model and keeps the text here,
+    // with no note, as the panel's composer does for a typed message (its
+    // "waiting" note is for prompts the product asked for); only a message
+    // the assistant got is counted as asked
+    void turn.send(text).then((reached) => {
+      if (reached) PgConversation.asked();
+    });
+  };
+  return (
+    <BaseTutorialComposer
+      value={turn.input}
+      onChange={turn.setInput}
+      placeholder={view.placeholder}
+      busy={turn.busy}
+      onSend={send}
+      onStop={turn.stop}
+      chips={
+        finished ? context.definition.finish.chips.map((c) => c.label) : null
+      }
+      onChip={(i) => PgConversation.chip(i)}
+      waiting={waiting}
+      note={held ? HELD : null}
+      onStart={answered ? () => PgConversation.start() : undefined}
+    />
+  );
+};

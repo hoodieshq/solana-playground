@@ -100,7 +100,7 @@ describe("useTurn", () => {
     defaultBackend(true);
     const { result } = renderHook(() => useTestTurn());
 
-    await act(() => result.current.send("hi"));
+    expect(await act(() => result.current.send("hi"))).toBe("sent");
 
     expect(PgAssistant.connection?.id).toBe("default");
     expect(provider.send).toHaveBeenCalledTimes(1);
@@ -121,7 +121,7 @@ describe("useTurn", () => {
     const { result } = renderHook(() => useTestTurn());
     act(() => result.current.setInput("hello"));
 
-    await act(() => result.current.send("hello"));
+    expect(await act(() => result.current.send("hello"))).toBe("failed");
 
     expect(report).toHaveBeenCalledWith(failure);
     expect(reportFor).toHaveBeenCalledWith("send your message");
@@ -135,7 +135,7 @@ describe("useTurn", () => {
     const pick = vi.spyOn(PgAssistant, "pickBackend");
     const { result } = renderHook(() => useTestTurn());
 
-    await act(() => result.current.send("hi"));
+    expect(await act(() => result.current.send("hi"))).toBe("connecting");
 
     expect(createProvider).not.toHaveBeenCalled();
     expect(pick).toHaveBeenCalledTimes(1);
@@ -821,13 +821,13 @@ describe("useTurn across a project switch", () => {
     // Typed into the composer, as a send from it always is
     act(() => result.current.setInput("about project a"));
 
-    let sent!: Promise<void>;
+    let sent!: Promise<unknown>;
     act(() => {
       sent = result.current.send("about project a");
     });
     project.mockReturnValue("b");
     await release(true);
-    await act(() => sent);
+    expect(await act(() => sent)).toBe("refused");
 
     expect(provider.send).not.toHaveBeenCalled();
     expect(PgAssistant.items).toEqual([]);
@@ -871,7 +871,7 @@ describe("useTurn across a project switch", () => {
     inProject("a");
     const { result } = renderHook(() => useTestTurn());
 
-    let sent!: Promise<void>;
+    let sent!: Promise<unknown>;
     act(() => {
       sent = result.current.send("about project a");
     });
@@ -1030,7 +1030,7 @@ describe("useTurn's failures and races", () => {
   it("sends to what was connected while the default was probed, not the default", async () => {
     const release = heldProbe();
     const { result } = renderHook(() => useTestTurn());
-    let sent!: Promise<void>;
+    let sent!: Promise<unknown>;
     act(() => {
       sent = result.current.send("hi");
     });

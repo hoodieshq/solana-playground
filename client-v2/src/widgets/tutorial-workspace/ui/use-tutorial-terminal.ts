@@ -2,8 +2,9 @@ import { useMemo } from "react";
 
 import { useRenderOnChange } from "@/hooks";
 import { PgTutorial } from "@/utils";
-import { NOTHING_RUN, terminalStatus } from "../model/terminal";
+
 import type { TerminalStatus } from "../model/terminal";
+import { NOTHING_RUN, terminalStatus } from "../model/terminal";
 import { tutorialFiles } from "../model/tree";
 import { useTerminalFacts } from "./use-terminal-facts";
 

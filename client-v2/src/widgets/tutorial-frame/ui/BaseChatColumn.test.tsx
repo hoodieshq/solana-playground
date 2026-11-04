@@ -2,8 +2,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import BaseChatColumn from "./BaseChatColumn";
 import type { BaseChatColumnProps } from "./BaseChatColumn";
+import BaseChatColumn from "./BaseChatColumn";
 
 const props = (
   over: Partial<BaseChatColumnProps> = {}

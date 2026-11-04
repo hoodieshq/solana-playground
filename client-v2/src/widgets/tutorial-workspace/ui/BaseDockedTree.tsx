@@ -1,8 +1,9 @@
-import type { FC } from "react";
 import { PinOff } from "lucide-react";
+import type { FC } from "react";
 
 import { Button } from "@/shared/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+
 import type { TreeRow } from "../model/tree";
 import BaseFileTreeList from "./BaseFileTreeList";
 

@@ -5,6 +5,7 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog";
 import { Kbd } from "@/shared/ui/kbd";
+
 import { SHORTCUT_GROUPS, shortcutsFor } from "../model/shortcuts";
 
 interface ShortcutsDialogProps {

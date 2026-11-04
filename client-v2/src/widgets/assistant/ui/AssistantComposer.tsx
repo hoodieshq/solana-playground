@@ -6,15 +6,10 @@ import { Callout, CalloutDescription } from "@/shared/ui/callout";
 
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgProgramInfo } from "../../../utils/program-info";
-import type { LessonState } from "../../../views/flow/lessons";
-import { INITIAL_LESSON_STATE, PgLesson } from "../../../views/flow/lessons";
 import { PgBuildOutput } from "../../../views/sidebar/assistant/bridge/build-output";
 import { realBridge } from "../../../views/sidebar/assistant/bridge/playground-bridge";
 import type { Connection } from "../../../views/sidebar/assistant/store";
 import { PgAssistant } from "../../../views/sidebar/assistant/store";
-import { PgExplorer } from "../../../utils/explorer/explorer";
-import { PgProgramInfo } from "../../../utils/program-info";
-import { modelOptions, modelShown } from "../model/choice";
 import type { ModelOption } from "../model/choice";
 import { modelOptions, modelShown } from "../model/choice";
 import { DEFAULT_CONNECTION } from "../model/connection";

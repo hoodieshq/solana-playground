@@ -1,9 +1,10 @@
-import type { FC, KeyboardEvent } from "react";
 import { ChevronDown, FileCode } from "lucide-react";
+import type { FC, KeyboardEvent } from "react";
 
 import { cn } from "@/shared/lib/utils";
-import { moveFocus } from "../model/tree";
+
 import type { TreeRow } from "../model/tree";
+import { moveFocus } from "../model/tree";
 
 /** One row's shape, the navigation's: 28 px, 13 px, the glyph in a 16 px box */
 const ROW =

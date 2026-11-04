@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 import { PgCommon } from "@/utils/common";
+
 import {
   CHAT_WIDTH,
   chatDefaultWidth,

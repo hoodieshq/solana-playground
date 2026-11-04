@@ -12,10 +12,10 @@ import {
   TupleFiles,
 } from "../../utils";
 import { STOPPED, throwIfStopped } from "../../utils/stopped";
+import { isMacroSymptomText } from "../../views/flow/stages/build-report";
 import { PgBuildOutput } from "../../views/sidebar/assistant/bridge/build-output";
 import { createCmd } from "../create";
 import { emptySourceError, isEmptyProgram, PROGRAM_FILE } from "./empty-source";
-import { isMacroSymptomText } from "../../views/flow/stages/build-report";
 
 export const build = createCmd({
   name: "build",

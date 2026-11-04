@@ -5,6 +5,7 @@ import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
 import { BrandButton } from "@/shared/ui/brand-button";
 import { Button } from "@/shared/ui/button";
+
 import type { Banner } from "../model/banner";
 import { IsoVoxels } from "./art/IsoVoxels";
 import type { CardOpen } from "./BaseCatalogGrid";

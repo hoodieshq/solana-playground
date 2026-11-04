@@ -7,6 +7,8 @@ export type {
   ConversationProgress,
   Cursor,
   PassedVia,
+  ApplyFailure,
+  Proposal,
   Receipt,
   ReceiptAccount,
   Resolution,

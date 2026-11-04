@@ -1,4 +1,5 @@
 import { cn } from "@/shared/lib/utils";
+
 import { Prose } from "./Prose";
 
 export interface BaseYouPillProps {

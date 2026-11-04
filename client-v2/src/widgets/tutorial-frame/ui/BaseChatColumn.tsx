@@ -1,11 +1,12 @@
-import { useRef } from "react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
+import { useRef } from "react";
 
 import { cn } from "@/shared/lib/utils";
+
 import { CHAT_WIDTH } from "../model/chat-width";
 import type { ResizeSource } from "../model/telemetry";
-import BaseChatHead from "./BaseChatHead";
 import type { BaseChatHeadProps } from "./BaseChatHead";
+import BaseChatHead from "./BaseChatHead";
 
 export interface BaseChatColumnProps extends BaseChatHeadProps {
   /** The column's width in px, already held to its range */

@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { Prose, noStop } from "./Prose";
+import { noStop, Prose } from "./Prose";
 
 const draw = (text: string) => render(<Prose text={text} />).container;
 

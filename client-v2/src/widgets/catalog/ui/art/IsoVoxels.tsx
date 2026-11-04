@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { type CSSProperties, useEffect, useRef } from "react";
 
 import { createLogger } from "@/shared/lib/logger";
 import { cn } from "@/shared/lib/utils";
@@ -354,7 +354,7 @@ const paintSprites = (w: number, side: number) => {
       rightRamp.push(pixel(mix(right, INK, dark)));
     }
     const blendRamps = Array.from({ length: BLEND }, (_, j) =>
-      Array.from({ length: RAMP }, (_, r) => {
+      Array.from({ length: RAMP }, (__, r) => {
         const dark = 0.5 * (1 - r / (RAMP - 1));
         return pixel(
           mix(mix(left, INK, dark), mix(right, INK, dark), j / (BLEND - 1))
