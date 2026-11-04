@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { startTutorials } from "@/entities/tutorial";
 import { StartFromScratch } from "@/features/new-project";
 import { createLogger } from "@/shared/lib/logger";
 import { PgTutorial } from "@/utils";
@@ -32,7 +33,8 @@ const Home = ({ onAsk, onOpenPage }: HomeProps) => {
 
   return (
     <BaseHome
-      tutorials={PgTutorial.all}
+      // The start offers only its ladder, one tutorial per level
+      tutorials={startTutorials(PgTutorial.all)}
       programCount={programCount}
       scratch={<StartFromScratch />}
       onTile={openTile}

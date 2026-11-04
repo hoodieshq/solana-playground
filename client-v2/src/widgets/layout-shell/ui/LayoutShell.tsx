@@ -25,6 +25,13 @@ import { useLayoutState } from "../model/use-layout-state";
 import type { AssistantWide } from "./BaseLayoutShell";
 import BaseLayoutShell from "./BaseLayoutShell";
 import BaseStageBar from "./BaseStageBar";
+import type { AssistantWide, TutorialFrameSlot } from "./BaseLayoutShell";
+
+/** The console as the stage sees it (`LayoutShellProps.stage`) */
+export interface StageConsole {
+  open: boolean;
+  setOpen: (open: boolean, via: "button" | "auto") => void;
+}
 
 export interface LayoutShellProps {
   /**
@@ -50,15 +57,20 @@ export interface LayoutShellProps {
   stageTabs: ReactNode;
   /**
    * The files column. `collapsed` is never true in the phone's Files Sheet;
-   * `phone` says the column is in that Sheet, where `toggle` closes it.
+   * `phone` says the column is in that Sheet, where `toggle` closes it. A
+   * tutorial's frame has no files column.
    */
   files: (panel: {
     collapsed: boolean;
     toggle: () => void;
     phone: boolean;
   }) => ReactNode;
-  /** The stage */
-  stage: () => ReactNode;
+  /**
+   * The stage. `console` is the console's state, for a stage that carries
+   * its own Terminal control (a tutorial's workspace head); `setOpen` with
+   * `auto` is the stage opening it by its own rules.
+   */
+  stage: (panel: { console: StageConsole }) => ReactNode;
   console: (panel: { open: boolean; toggle: () => void }) => ReactNode;
   /**
    * The assistant, in its panel or, below `LAYOUT_BREAKPOINTS.compact`, its
@@ -94,6 +106,13 @@ export interface LayoutShellProps {
   cover?: { title: string; content: ReactNode; onClose: () => void };
   /** While Home shows, keep the work mounted (`BaseLayoutShellProps.keepWork`) */
   keepWork?: boolean;
+  /**
+   * A tutorial's frame (`BaseLayoutShellProps.tutorial`). On a wide window
+   * it has no assistant panel and holds the files column open, so Ctrl+R,
+   * ⌘E and the assistant's own requests to open do nothing while it holds
+   * the work; the frame's navigation state is its own and never saved.
+   */
+  tutorial?: TutorialFrameSlot;
 }
 
 /** Whether a key pressed on `target` is typed into something */
@@ -120,6 +139,7 @@ const LayoutShell = ({
   home,
   cover,
   keepWork,
+  tutorial,
 }: LayoutShellProps) => {
   const viewport = useViewport();
   const phone = viewport === "phone";
@@ -149,6 +169,10 @@ const LayoutShell = ({
   // Read by the keys and the subscriptions, which outlive renders
   const screenNow = useRef(screen);
   screenNow.current = screen;
+  // The frame holds the work: no assistant panel and no files column
+  const tutorialNow = useRef(false);
+  tutorialNow.current =
+    tutorial !== undefined && viewport === "wide" && screen.kind === "work";
   // The assistant's Sheet while Home shows: the visit's, never saved
   const [homeSheetOpen, setHomeSheetOpen] = useState(false);
   const homeSheetNow = useRef(false);
@@ -314,6 +338,9 @@ const LayoutShell = ({
   const pagerOrFrame = phone ? view === "chat" : wideOrSheet;
   const assistantShown = homeShown ? homeSheetOpen : pagerOrFrame;
   const setAssistant = (open: boolean, via: ToggleSource) => {
+    // The frame has no assistant panel: its chat holds the assistant's
+    // thread, whose `useTurn` takes a requested prompt itself
+    if (tutorialNow.current) return;
     const now = screenNow.current;
     // A page over the work covers the assistant: it makes way first
     if (open && now.kind === "page" && now.over === "work") now.cover.onClose();
@@ -332,10 +359,13 @@ const LayoutShell = ({
   };
   /**
    * The console opening on its own: the visit's on a phone, else saved. Not
-   * under Home or a page, which show no console to open.
+   * under Home or a page, which show no console to open, and not in a
+   * tutorial's frame, whose workspace opens its drawer by its own rules.
    */
   const openConsole = () => {
-    if (isCovered(screenNow.current)) return;
+    // A tutorial's workspace opens its drawer by its own rules (a failed
+    // build, the first deploy), not on every deploy
+    if (isCovered(screenNow.current) || tutorialNow.current) return;
     if (phone) setPhoneConsoleOpen(true, "auto");
     else setOpen("console", { open: true, via: "auto" });
   };
@@ -344,7 +374,7 @@ const LayoutShell = ({
   useKeybind(
     "Ctrl+R",
     () => {
-      if (isCovered(screenNow.current)) return;
+      if (isCovered(screenNow.current) || tutorialNow.current) return;
       if (phone) {
         // The view is shown on Work: bring it into view first
         showPage("work", "key");
@@ -376,7 +406,8 @@ const LayoutShell = ({
     {
       handle: (ev) => {
         // Before `preventDefault`: under Home or a page the key is not the shell's
-        if (isCovered(screenNow.current)) return;
+        // The frame has no column: ⌘E there is the workspace's tree
+        if (isCovered(screenNow.current) || tutorialNow.current) return;
         if (
           PgCommon.getOS() === "MacOS" &&
           ev.ctrlKey &&
@@ -495,6 +526,7 @@ const LayoutShell = ({
     <BaseLayoutShell
       viewport={viewport}
       keepWork={keepWork}
+      tutorial={tutorial}
       navOpen={navOpen}
       onNavOpenChange={onNavOpenChange}
       assistantState={{
@@ -593,7 +625,15 @@ const LayoutShell = ({
         />
       }
       stageTabs={stageTabs}
-      stage={stage()}
+      stage={stage({
+        console: {
+          open: phone ? phoneConsole : state.open.console,
+          setOpen: (open, via) => {
+            if (phone) setPhoneConsoleOpen(open, via);
+            else setOpen("console", { open, via });
+          },
+        },
+      })}
       console={console({
         open: phone ? phoneConsole : state.open.console,
         toggle: () => {

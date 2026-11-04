@@ -62,7 +62,7 @@ export type AssistantEvents = {
   };
   /** The user picked one of the empty thread's suggestions, which sends it (or, with nothing connected, opens Connect a model). */
   assistant_suggestion_picked: NoParams;
-  /** The user asked for a described change as a patch ("Make this change" or "Write it for me"). */
+  /** The user asked for a described change as a patch ("Make this change"). */
   assistant_make_change_requested: NoParams;
   /** The connection dropped during a turn: after text had streamed, cutting the reply off (`reason: "interrupted"`), or before any (`reason: "connection-lost"`). Other failures show their error and send nothing here. */
   assistant_reply_failed: { reason: "interrupted" | "connection-lost" };

@@ -204,8 +204,14 @@ test("client-v2-layout: A lesson's menu", async ({ seededPage: page }) => {
     .click();
   await page.getByRole("button", { name: "Open Hello Anchor" }).click();
   await expect(page).toHaveURL(/\/tutorials\/hello-anchor/, LONG);
-  // A lesson is a workspace only once it is started
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  // Opening a tutorial with a definition creates its workspace: it has no
+  // About page to Start from. Hello Anchor opens in the tutorial frame,
+  // which folds the navigation to its rail; ⌘B opens it over the chat
+  // (tutorial-workspace)
+  await expect(
+    page.getByRole("complementary", { name: "Tutorial chat" })
+  ).toBeVisible(LONG);
+  await page.keyboard.press("ControlOrMeta+b");
 
   // A started lesson is a row among the projects, as the prototype lists it
   const projects = page.getByRole("group", { name: "Projects" });

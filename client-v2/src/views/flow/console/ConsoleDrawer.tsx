@@ -8,6 +8,7 @@ import Terminal from "../../main/secondary/terminal/Component/Terminal";
 import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import { PgFlow } from "../state/stage";
 import BaseConsoleDrawer from "./BaseConsoleDrawer";
+import type { ConsoleStatus } from "./status";
 import { describeConsoleStatus, runToStop } from "./status";
 
 const log = createLogger("flow:console");
@@ -15,6 +16,11 @@ const log = createLogger("flow:console");
 interface ConsoleDrawerProps {
   open: boolean;
   onToggle: () => void;
+  /**
+   * A tutorial's own bar (`widgets/tutorial-workspace`): its status line in
+   * place of the dev loop's, no label, and a line before anything ran
+   */
+  tutorial?: { status: ConsoleStatus; empty: string | null };
 }
 
 /**
@@ -47,7 +53,11 @@ const useElapsed = (isRunning: boolean, startedAt: number | null) => {
  * the xterm buffer (scrollback, running process) survives while it is
  * closed.
  */
-const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
+const ConsoleDrawer: FC<ConsoleDrawerProps> = ({
+  open,
+  onToggle,
+  tutorial,
+}) => {
   const [flow, setFlow] = useState(() => PgFlow.state);
   // `PgBuildOutput` fills in slightly after the `build-finish` event that
   // sets `flow.build`, and it carries the diagnostic code a failed status
@@ -91,7 +101,9 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
       onOpenChange={(next) => {
         if (next !== open) onToggle();
       }}
-      status={status}
+      status={tutorial?.status ?? status}
+      bare={tutorial !== undefined}
+      empty={tutorial?.empty}
       shortcut={keyLabel(CONSOLE_KEY, PgCommon.getOS())}
       onClear={clear}
       stop={stop && { run: stop, onStop: () => PgCommandManager.stop() }}

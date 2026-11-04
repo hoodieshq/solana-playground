@@ -156,7 +156,11 @@ describe("PgFlow.reduce", () => {
       errorCount: 0,
       ms: 1,
     });
-    const s = PgFlow.reduce(built, { type: "deploy-finish", ok: true });
+    const s = PgFlow.reduce(built, {
+      type: "deploy-finish",
+      ok: true,
+      from: "command",
+    });
     expect(s.deploy).toBe("done");
     expect(s.interact).toBe("active");
     expect(s.stage).toBe("deploy");
@@ -836,5 +840,33 @@ describe("PgFlow.init, seeding a reloaded page", () => {
     PgProgramInfo.lastBuildFailed = null;
     PgProgramInfo.onChain = null;
     wiring.sub.dispose();
+  });
+});
+
+describe("PgFlow, a deploy run outside the deploy command", () => {
+  it("reads running, then done or failed, as the command's own would", () => {
+    PgFlow.deployStarted();
+    expect(PgFlow.state.deploy).toBe("running");
+    PgFlow.deployFinished(true);
+    expect(PgFlow.state.deploy).toBe("done");
+    PgFlow.deployStarted();
+    PgFlow.deployFinished(false);
+    expect(PgFlow.state.deploy).toBe("failed");
+  });
+
+  it("routes the command's deploy to the Deploy stage, as before", () => {
+    const s = PgFlow.reduce(INITIAL_FLOW_STATE, {
+      type: "deploy-start",
+      from: "command",
+    });
+    expect(s.stage).toBe("deploy");
+  });
+
+  it("leaves the stage where it is: a tutorial's editor stays on screen", () => {
+    PgFlow.setStage("write");
+    PgFlow.deployStarted();
+    expect(PgFlow.state.stage).toBe("write");
+    PgFlow.deployFinished(true);
+    expect(PgFlow.state.stage).toBe("write");
   });
 });
