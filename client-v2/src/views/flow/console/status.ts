@@ -33,8 +33,15 @@ export interface ConsoleStatus {
 const CLIENT_RUN_HINT = "Run the client to see its output here.";
 
 /** Whether the strip shows the hint that asks for a client run */
-export const isClientRunHint = (status: ConsoleStatus) =>
+const isClientRunHint = (status: ConsoleStatus) =>
   status.text === CLIENT_RUN_HINT;
+
+/** Nothing to report: the strip before the first build */
+const IDLE: ConsoleStatus = { text: "", tone: "idle" };
+
+/** The status with the client run hint left out, for after a client run */
+export const withoutClientRunHint = (status: ConsoleStatus) =>
+  isClientRunHint(status) ? IDLE : status;
 
 /** A run's words, with its whole seconds so far when they are known */
 const running = (what: string, elapsedMs: number | null): ConsoleStatus => ({
@@ -96,7 +103,7 @@ export const describeConsoleStatus = (
     return { text: time ? `Built in ${time}` : "Built", tone: "success" };
   }
   if (!flow.hasProgram) return { text: CLIENT_RUN_HINT, tone: "idle" };
-  return { text: "", tone: "idle" };
+  return IDLE;
 };
 
 /**
