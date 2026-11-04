@@ -162,6 +162,24 @@ describe("app/ShareGistDialog", () => {
     ).toBeNull();
   });
 
+  it("asks for gist access from the share origin", async () => {
+    await PgSession.refreshWith(USER);
+    fetchSpy.mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({ reason: "needs-gist-scope" }),
+    } as Response);
+    const signIn = shareSignIn(() => Promise.resolve());
+    await open();
+
+    await press("Share to GitHub");
+    await press("Allow gists on GitHub");
+
+    // The body's sign-ins keep the open project as the prompt's does
+    expect(PgSession.signInFor).toHaveBeenCalledWith("share");
+    expect(signIn).toHaveBeenCalledWith(["gist"]);
+  });
+
   it("shows why a sign-in ended, and keeps the prompt", async () => {
     // The authorize URL, then a popup that answers it was cancelled
     fetchSpy.mockResolvedValue({

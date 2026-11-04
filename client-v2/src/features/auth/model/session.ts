@@ -203,7 +203,8 @@ export class PgSession {
    * own: a feature that needs more than identity (gist sharing asks for
    * `gist`) names them, Better Auth appends them to its defaults, and signing
    * the same user in again only refreshes the stored token, so no user change
-   * fires. `signInFor("share")` serves the share dialog's every sign-in.
+   * fires. `signInFor(origin)` returns the sign-in for that origin;
+   * `SignInOrigin` lists the callers.
    */
   static signInFor(from: SignInOrigin) {
     return (scopes: string[]): Promise<void> =>
@@ -215,15 +216,23 @@ export class PgSession {
     scopes: string[]
   ): Promise<void> {
     // One popup and one nonce at a time: a second click while the first flow
-    // waits joins it instead of racing it for the session cookie, and keeps
-    // the first one's origin. A flow that lacks scopes this caller needs
-    // cannot answer it, so the caller waits for it to settle and asks again.
+    // waits joins it instead of racing it for the session cookie. A flow that
+    // lacks scopes this caller needs cannot answer it, so the caller waits for
+    // it to settle and asks again.
     const pending = PgSession._pending;
     if (pending) {
       const isCovered = scopes.every((scope) =>
         PgSession._pendingScopes.includes(scope)
       );
-      if (isCovered) return pending;
+      if (isCovered) {
+        // A task that joins a flow started without one makes it that task's,
+        // so the session effect keeps the project the task is about; between
+        // two tasks the first keeps its origin
+        if (PgSession._signingInFrom === null && from !== undefined) {
+          PgSession._signingInFrom = from;
+        }
+        return pending;
+      }
       return pending.then(
         () => PgSession._signInWith(from, scopes),
         () => PgSession._signInWith(from, scopes)
@@ -274,7 +283,8 @@ export class PgSession {
   }
 
   /**
-   * The origin passed to the `signIn` in progress, or `null` when none runs or it named none.
+   * The origin of the sign-in in progress (`signInFor`, or a task that joined
+   * it), or `null` when none runs or it came from plain `signIn`.
    * Still set when `onDidChange` fires for that sign-in; cleared once it settles.
    */
   static get signingInFrom(): SignInOrigin | null {
@@ -1219,6 +1229,36 @@ if (import.meta.vitest) {
           undefined,
           ["gist"],
         ]);
+      });
+
+      it("takes the origin of a task that joins a sign-in started without one", async () => {
+        const popup = heldPopup();
+
+        const plain = PgSession.signIn();
+        await vi.waitFor(() => expect(popup.open).toHaveBeenCalled());
+        expect(PgSession.signingInFrom).toBeNull();
+        const joined = PgSession.signInFor("share")([]);
+
+        // The share dialog waits on this sign-in too, so its listeners must
+        // keep the project the dialog is sharing
+        expect(PgSession.signingInFrom).toBe("share");
+        popup.cancel();
+        await expect(plain).rejects.toThrow(/cancelled/i);
+        await expect(joined).rejects.toThrow(/cancelled/i);
+        expect(popup.open).toHaveBeenCalledTimes(1);
+      });
+
+      it("keeps the first task's origin when another task joins", async () => {
+        const popup = heldPopup();
+
+        const assistant = PgSession.signInFor("assistant")([]);
+        await vi.waitFor(() => expect(popup.open).toHaveBeenCalled());
+        const share = PgSession.signInFor("share")([]);
+
+        expect(PgSession.signingInFrom).toBe("assistant");
+        popup.cancel();
+        await expect(assistant).rejects.toThrow(/cancelled/i);
+        await expect(share).rejects.toThrow(/cancelled/i);
       });
 
       it("clears a failed sign-in when the next one starts, and settles idle on success", async () => {

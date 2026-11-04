@@ -241,7 +241,9 @@ export const useShareGist = (
       await thenShare();
     };
   const signInThenShare = signInAtStepFor("sign-in")([])(share);
-  const grantThenShare = signInAtStepFor("grant")([GIST_SCOPE])(shareAfterGrant);
+  const grantThenShare = signInAtStepFor("grant")([GIST_SCOPE])(
+    shareAfterGrant
+  );
 
   const copy = async () => {
     if (state.step !== "created") return false;
