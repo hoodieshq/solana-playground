@@ -20,6 +20,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { cn } from "@/shared/lib/utils";
 import { Input } from "@/shared/ui/input";
 import { MenuItemText } from "@/shared/ui/menu-extras";
 import {
@@ -71,6 +72,21 @@ const LESSON_ACTIONS: ReadonlySet<ProjectAction> = new Set([
   "export",
   "delete",
 ]);
+
+/**
+ * A pinned row's right padding: room for the "⋮" and the pin, both drawn
+ * over the row, with a gap before the name. The pin's far side sits at
+ * `right-7` plus its own width; this is that and `gap-1`. `!` because the
+ * button's own padding (`SidebarMenuButton`) otherwise wins.
+ */
+const PIN_ROOM = "pr-11!";
+
+/**
+ * Below `md` the row is taller than the fixed top offset the pin and the
+ * "⋮" use on a desk, so both are centred on the row instead; `!` beats
+ * `SidebarMenuAction`'s own `peer-data-[size]` top.
+ */
+const ON_PHONE_ROW_MIDDLE = "max-md:top-1/2! max-md:-translate-y-1/2";
 
 const allowed = (entry: ProjectEntry, action: ProjectAction) =>
   !entry.isLesson || LESSON_ACTIONS.has(action);
@@ -165,6 +181,9 @@ const Row = ({
       <SidebarMenuButton
         isActive={isCurrent}
         aria-current={isCurrent ? "page" : undefined}
+        // The pin is drawn over the row, so a pinned row needs more room on
+        // the right than the "⋮" alone
+        className={entry.pinned ? PIN_ROOM : undefined}
         onClick={() => list.onAction(entry, "open", "click")}
       >
         <Folder
@@ -174,7 +193,12 @@ const Row = ({
         <span>{entry.name}</span>
       </SidebarMenuButton>
       {entry.pinned && (
-        <span className="pointer-events-none absolute top-1.5 right-7 flex items-center gap-1 text-xs text-muted-foreground group-focus-within/menu-item:hidden group-hover/menu-item:hidden">
+        <span
+          className={cn(
+            "pointer-events-none absolute top-1.5 right-7 flex items-center gap-1 text-xs text-muted-foreground group-focus-within/menu-item:hidden group-hover/menu-item:hidden",
+            ON_PHONE_ROW_MIDDLE
+          )}
+        >
           <span title="Pinned">
             <Pin aria-hidden className="size-3" />
           </span>
@@ -186,6 +210,7 @@ const Row = ({
               the others show on hover */}
           <SidebarMenuAction
             showOnHover={!isCurrent}
+            className={ON_PHONE_ROW_MIDDLE}
             aria-label={`Actions for ${entry.name}`}
           >
             <EllipsisVertical />
