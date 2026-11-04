@@ -2,12 +2,15 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CustomRpcSaveAnswer } from "../model/save-custom-rpc";
+import type {
+  CustomRpcSaveAnswer,
+  SettledAnswer,
+} from "../model/save-custom-rpc";
 import BaseCustomRpcs from "./BaseCustomRpcs";
 
 const HELIUS = { name: "Helius", url: "https://h.test/?api-key=s3cr3t" };
 
-const ok = async (): Promise<CustomRpcSaveAnswer> => ({ ok: true });
+const ok = async (): Promise<CustomRpcSaveAnswer> => ({ kind: "saved" });
 
 /** A save the test settles by hand, to look at the form while it is checked */
 const pendingSave = () => {
@@ -83,7 +86,7 @@ describe("BaseCustomRpcs", () => {
 
   it("shows a refusal under the field and keeps what was typed", async () => {
     const onAdd = vi.fn(async () => ({
-      ok: false as const,
+      kind: "refused" as const,
       error:
         "Enter a URL that starts with https://, or http:// for a local validator.",
     }));
@@ -152,18 +155,22 @@ describe("BaseCustomRpcs", () => {
     // Enter again while checking sends nothing more
     await userEvent.type(screen.getByLabelText("RPC URL"), "{Enter}");
     expect(onSave).toHaveBeenCalledTimes(1);
-    await act(async () => settle({ ok: true }));
+    await act(async () => settle({ kind: "saved" }));
     expect(screen.queryByLabelText("RPC URL")).toBeNull();
   });
 
   it("offers Use anyway for a URL that is not responding, and saves through it", async () => {
     const { onSave, settle } = pendingSave();
-    const useAnyway = vi.fn((): CustomRpcSaveAnswer => ({ ok: true }));
+    const useAnyway = vi.fn((): SettledAnswer => ({ kind: "saved" }));
     renderList({ rpcs: [], onAdd: onSave });
     await openAddForm("https://example.invalid");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await act(async () =>
-      settle({ ok: false, error: "This URL is not responding.", useAnyway })
+      settle({
+        kind: "unreachable",
+        error: "This URL is not responding.",
+        useAnyway,
+      })
     );
     expect(screen.getByText("This URL is not responding.")).toBeTruthy();
     const url = screen.getByLabelText("RPC URL") as HTMLInputElement;
@@ -177,9 +184,9 @@ describe("BaseCustomRpcs", () => {
   it("clears the line and Use anyway once the URL changes", async () => {
     const onAdd = vi.fn(
       async (): Promise<CustomRpcSaveAnswer> => ({
-        ok: false,
+        kind: "unreachable",
         error: "You're offline, so this URL can't be checked.",
-        useAnyway: () => ({ ok: true }),
+        useAnyway: () => ({ kind: "saved" }),
       })
     );
     renderList({ rpcs: [], onAdd });
@@ -197,9 +204,12 @@ describe("BaseCustomRpcs", () => {
   it("shows a refusal from Use anyway in place of the line", async () => {
     const onAdd = vi.fn(
       async (): Promise<CustomRpcSaveAnswer> => ({
-        ok: false,
+        kind: "unreachable",
         error: "This URL is not responding.",
-        useAnyway: () => ({ ok: false, error: "Already saved as Elsewhere." }),
+        useAnyway: () => ({
+          kind: "refused",
+          error: "Already saved as Elsewhere.",
+        }),
       })
     );
     renderList({ rpcs: [], onAdd });
@@ -207,6 +217,77 @@ describe("BaseCustomRpcs", () => {
     await userEvent.click(screen.getByRole("button", { name: "Use anyway" }));
     expect(screen.getByText("Already saved as Elsewhere.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Use anyway" })).toBeNull();
+  });
+
+  it("keeps the rest of the list still while a URL is checked", async () => {
+    const { onSave, settle } = pendingSave();
+    renderList({ onAdd: onSave });
+    await openAddForm("https://t.test{Enter}");
+    for (const name of ["Edit Helius", "Remove Helius"]) {
+      expect(
+        (screen.getByRole("button", { name }) as HTMLButtonElement).disabled
+      ).toBe(true);
+    }
+    await act(async () =>
+      settle({ kind: "refused", error: "Already saved as Helius." })
+    );
+    expect(
+      (screen.getByRole("button", { name: "Edit Helius" }) as HTMLButtonElement)
+        .disabled
+    ).toBe(false);
+  });
+
+  it("unlocks the form with a line when the save throws", async () => {
+    const onAdd = vi.fn(async (): Promise<CustomRpcSaveAnswer> => {
+      throw new Error("a listener threw");
+    });
+    renderList({ rpcs: [], onAdd });
+    await openAddForm("https://t.test{Enter}");
+    expect(screen.getByText("Could not save in this browser.")).toBeTruthy();
+    expect(
+      (screen.getByLabelText("RPC URL") as HTMLInputElement).readOnly
+    ).toBe(false);
+    expect(
+      (screen.getByRole("button", { name: "Save" }) as HTMLButtonElement)
+        .disabled
+    ).toBe(false);
+  });
+
+  it("takes Use anyway back when the name changes, since it saves what was checked", async () => {
+    const useAnyway = vi.fn((): SettledAnswer => ({ kind: "saved" }));
+    const onAdd = vi.fn(
+      async (): Promise<CustomRpcSaveAnswer> => ({
+        kind: "unreachable",
+        error: "This URL is not responding.",
+        useAnyway,
+      })
+    );
+    renderList({ rpcs: [], onAdd });
+    await openAddForm("https://t.test{Enter}");
+    await userEvent.type(screen.getByLabelText("Name"), "Triton");
+    expect(screen.queryByRole("button", { name: "Use anyway" })).toBeNull();
+    expect(useAnyway).not.toHaveBeenCalled();
+  });
+
+  it("offers Use anyway in the edit form too", async () => {
+    const useAnyway = vi.fn((): SettledAnswer => ({ kind: "saved" }));
+    const onEdit = vi.fn(
+      async (): Promise<CustomRpcSaveAnswer> => ({
+        kind: "unreachable",
+        error: "This URL is not responding.",
+        useAnyway,
+      })
+    );
+    renderList({ onEdit });
+    await userEvent.click(screen.getByRole("button", { name: "Edit Helius" }));
+    await userEvent.clear(screen.getByLabelText("RPC URL"));
+    await userEvent.type(
+      screen.getByLabelText("RPC URL"),
+      "https://dead.test{Enter}"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Use anyway" }));
+    expect(useAnyway).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText("RPC URL")).toBeNull();
   });
 
   it("removes a saved RPC from its row", async () => {

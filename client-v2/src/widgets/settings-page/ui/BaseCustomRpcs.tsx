@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 
 import type { CustomRpc } from "@/entities/custom-rpc";
 import { hostOf, RPC_NAME_MAX } from "@/entities/custom-rpc";
+import { createLogger } from "@/shared/lib/logger";
 import { Button } from "@/shared/ui/button";
 import {
   Field,
@@ -20,7 +21,12 @@ import {
 } from "@/shared/ui/input-group";
 import { Spinner } from "@/shared/ui/spinner";
 
-import type { CustomRpcSaveAnswer } from "../model/save-custom-rpc";
+import type {
+  CustomRpcSaveAnswer,
+  SettledAnswer,
+} from "../model/save-custom-rpc";
+
+const log = createLogger("settings-page:custom-rpcs");
 
 interface BaseCustomRpcsProps {
   rpcs: ReadonlyArray<CustomRpc>;
@@ -49,7 +55,13 @@ const BaseCustomRpcs = ({
   onRemove,
 }: BaseCustomRpcsProps) => {
   const [editing, setEditing] = useState<Editing>();
-  const handleClose = () => setEditing(undefined);
+  // While a form waits on its URL's check, nothing else in the list moves:
+  // the save still lands when it answers, and must not close another form
+  const [checking, setChecking] = useState(false);
+  const handleClose = () => {
+    setChecking(false);
+    setEditing(undefined);
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -61,6 +73,7 @@ const BaseCustomRpcs = ({
                 <RpcForm
                   initial={rpc}
                   onSave={(input) => onEdit(rpc, input)}
+                  onCheckingChange={setChecking}
                   onClose={handleClose}
                 />
               </li>
@@ -82,6 +95,7 @@ const BaseCustomRpcs = ({
                   size="icon"
                   aria-label={`Edit ${rpc.name}`}
                   className="max-md:size-12"
+                  disabled={checking}
                   onClick={() => setEditing({ url: rpc.url })}
                 >
                   <Pencil />
@@ -91,6 +105,7 @@ const BaseCustomRpcs = ({
                   size="icon"
                   aria-label={`Remove ${rpc.name}`}
                   className="max-md:size-12"
+                  disabled={checking}
                   onClick={() => onRemove(rpc)}
                 >
                   <Trash2 />
@@ -101,12 +116,17 @@ const BaseCustomRpcs = ({
         </ul>
       )}
       {editing === "new" ? (
-        <RpcForm onSave={onAdd} onClose={handleClose} />
+        <RpcForm
+          onSave={onAdd}
+          onCheckingChange={setChecking}
+          onClose={handleClose}
+        />
       ) : (
         <Button
           variant="ghost"
           size="sm"
           className="self-start max-md:h-12"
+          disabled={checking}
           onClick={() => setEditing("new")}
         >
           <Plus data-icon="inline-start" />
@@ -117,29 +137,36 @@ const BaseCustomRpcs = ({
   );
 };
 
-/** The form's state: typing, waiting on the URL's check, or showing why it did not save */
+/**
+ * The form's state: typing, waiting on the URL's check, or the answer that
+ * did not save, with "Use anyway" when the URL could not be checked
+ */
 type FormState =
   | { kind: "editing" }
   | { kind: "checking" }
-  | {
-      kind: "refused";
-      error: string;
-      /** Save without the check, when the URL could not be checked */
-      saveAnyway?: () => CustomRpcSaveAnswer;
-    };
+  | Exclude<CustomRpcSaveAnswer, { kind: "saved" }>;
+
+/** What the form shows when a save throws instead of answering */
+const SAVE_FAILED: SettledAnswer = {
+  kind: "refused",
+  error: "Could not save in this browser.",
+};
 
 /**
  * Name, then URL with Save, the help line and the refusal under it. While
  * the URL is checked (up to 5 s) Save shows a spinner and nothing can be
- * edited, cancelled or sent again; an unchecked URL offers "Use anyway".
+ * edited, cancelled or sent again; an unchecked URL offers "Use anyway",
+ * which saves what was checked, so changing either field takes it away.
  */
 const RpcForm = ({
   initial,
   onSave,
+  onCheckingChange,
   onClose,
 }: {
   initial?: CustomRpc;
   onSave: (input: CustomRpc) => Promise<CustomRpcSaveAnswer>;
+  onCheckingChange: (checking: boolean) => void;
   onClose: () => void;
 }) => {
   const [name, setName] = useState(initial?.name ?? "");
@@ -147,27 +174,47 @@ const RpcForm = ({
   const [state, setState] = useState<FormState>({ kind: "editing" });
   const id = useId();
   const checking = state.kind === "checking";
-  const refused = state.kind === "refused" ? state : undefined;
-  const error = refused?.error;
-  const saveAnyway = refused?.saveAnyway;
+  const error =
+    state.kind === "refused" || state.kind === "unreachable"
+      ? state.error
+      : undefined;
 
   const settle = (answer: CustomRpcSaveAnswer) => {
-    if (answer.ok) {
+    if (answer.kind === "saved") {
       onClose();
       return;
     }
-    setState({
-      kind: "refused",
-      error: answer.error,
-      saveAnyway: answer.useAnyway,
-    });
+    onCheckingChange(false);
+    setState(answer);
+  };
+
+  /** A save that throws unlocks the form with a line, never a spinner for good */
+  const settleFrom = async (save: () => Promise<CustomRpcSaveAnswer>) => {
+    try {
+      settle(await save());
+    } catch (failure) {
+      log.error(failure, { report: true });
+      settle(SAVE_FAILED);
+    }
   };
 
   const handleSubmit = async (ev: FormEvent) => {
     ev.preventDefault();
     if (checking) return;
     setState({ kind: "checking" });
-    settle(await onSave({ name, url }));
+    onCheckingChange(true);
+    await settleFrom(() => onSave({ name, url }));
+  };
+
+  const handleUseAnyway = () => {
+    if (state.kind !== "unreachable") return;
+    const saveAnyway = state.useAnyway;
+    void settleFrom(async () => saveAnyway());
+  };
+
+  /** Typing takes back a line about what was typed before */
+  const handleEdit = () => {
+    if (state.kind !== "checking") setState({ kind: "editing" });
   };
 
   return (
@@ -185,7 +232,10 @@ const RpcForm = ({
           autoFocus
           className="max-md:h-12"
           readOnly={checking}
-          onChange={(ev) => setName(ev.target.value)}
+          onChange={(ev) => {
+            setName(ev.target.value);
+            handleEdit();
+          }}
         />
       </Field>
       <Field data-invalid={error ? true : undefined}>
@@ -206,7 +256,7 @@ const RpcForm = ({
             aria-describedby={error ? `${id}-help ${id}-error` : `${id}-help`}
             onChange={(ev) => {
               setUrl(ev.target.value);
-              setState({ kind: "editing" });
+              handleEdit();
             }}
           />
           <InputGroupAddon align="inline-end">
@@ -223,13 +273,13 @@ const RpcForm = ({
         <FieldDescription id={`${id}-help`}>{HELP}</FieldDescription>
         <div className="flex flex-wrap items-baseline gap-x-2">
           <FieldError id={`${id}-error`}>{error}</FieldError>
-          {saveAnyway && (
+          {state.kind === "unreachable" && (
             <Button
               type="button"
               variant="link"
               size="sm"
               className="h-auto p-0 max-md:min-h-12"
-              onClick={() => settle(saveAnyway())}
+              onClick={handleUseAnyway}
             >
               Use anyway
             </Button>

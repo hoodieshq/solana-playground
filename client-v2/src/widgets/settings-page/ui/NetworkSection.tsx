@@ -84,8 +84,7 @@ const Removed = ({
  * each saved custom RPC, and the list that adds, edits and removes them.
  */
 const NetworkSection = () => {
-  // The chips follow an endpoint picked elsewhere too, such as another tab
-  // or the terminal
+  // The chips follow an endpoint picked elsewhere too, such as the terminal
   useRenderOnChange(PgSettings.onDidChangeConnectionEndpoint);
   const endpoint = PgSettings.connection.endpoint;
 
@@ -125,7 +124,7 @@ const NetworkSection = () => {
       !canSwitchNetwork(PgGlobal.deployState)
     ) {
       return {
-        ok: false as const,
+        kind: "refused" as const,
         error: "A deploy is running. Change the URL when it ends.",
       };
     }

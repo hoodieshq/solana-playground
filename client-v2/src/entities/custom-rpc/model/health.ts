@@ -56,7 +56,7 @@ export const fetchRpcHealthWithin =
     }
   };
 
-/** `fetchRpcHealthWithin` Spec 07's 5 s */
+/** `fetchRpcHealthWithin` at Spec 07's 5 s */
 export const fetchRpcHealth = fetchRpcHealthWithin(RPC_CHECK_TIMEOUT_MS);
 
 if (import.meta.vitest) {
@@ -121,6 +121,23 @@ if (import.meta.vitest) {
       await vi.advanceTimersByTimeAsync(1);
       expect(await health).toBe("no_answer");
       expect(signal?.aborted).toBe(true);
+    });
+
+    it("counts an answer just inside 5 s, and stops its timer", async () => {
+      vi.useFakeTimers();
+      vi.spyOn(globalThis, "fetch").mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () => resolve(new Response("{}")),
+              RPC_CHECK_TIMEOUT_MS - 1
+            )
+          )
+      );
+      const health = fetchRpcHealth(URL);
+      await vi.advanceTimersByTimeAsync(RPC_CHECK_TIMEOUT_MS - 1);
+      expect(await health).toBe("answered");
+      expect(vi.getTimerCount()).toBe(0);
     });
 
     it("sends nothing while the browser is offline", async () => {

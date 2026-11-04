@@ -8,6 +8,8 @@
 
 **Architecture:** The entity gains a write-free pre-check and the health request. A widget model function runs pre-check → offline → health → save and answers the form; the form awaits it and draws the checking, no-answer and offline states. The page filters `connection.endpoint` out of the generic rows.
 
+**Names as shipped** (the review of 4 Nov aligned the code; where a line below differs, the code wins): `fetchRpcHealth`/`fetchRpcHealthWithin(ms)(url)`, `saveCheckedWith(fetchHealth)(input, replacing)` → `CheckedSave` (`saved` | `refused` | `unreachable`), `answerFor(onSaved)(mode)(checked)` → `CustomRpcSaveAnswer` (`saved` | `refused` | `unreachable` with `useAnyway`), `NETWORK_SECTION_SETTINGS` (not exported). Cancel and the list's other buttons are disabled while a URL is checked.
+
 **Tech Stack:** React 19, vitest (in-source and `*.test.tsx`), Testing Library, the DS `Field`/`FieldError`/`Spinner`/`InputGroupButton`.
 
 **Spec:** `openspec/changes/rpc-health-check/` (proposal, design, `specs/client-v2-custom-rpcs/spec.md`), Spec 07 in `.claude/lead/intake/designers-spec/07-settings.md`.
@@ -21,7 +23,7 @@
 
 ## Review Focus
 
-- Form unmounted (Cancel) while the check runs → no state update after unmount, no save. Test in Task 3.
+- Another control of the list used while a URL is checked → disabled, so no form is closed by a late answer. Test in Task 3.
 - The URL edited after "No answer" → error and "Use anyway" clear. Test in Task 3.
 - Another tab saves the same URL during the 5 s → the final `put` still refuses it as a duplicate. Test in Task 2 (`checkThenSave` with a list changed between check and save).
 - Enter pressed twice while checking → one request. Test in Task 3 (Save disabled while checking).
