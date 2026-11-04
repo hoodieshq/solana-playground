@@ -164,6 +164,8 @@ const Lesson = ({ world }: { world: World }) => {
             copyFailed: vi.fn(),
             showLine: vi.fn(),
             revealError: vi.fn(),
+            showLog: vi.fn(),
+            createWallet: vi.fn(),
           }}
         />
       ))}

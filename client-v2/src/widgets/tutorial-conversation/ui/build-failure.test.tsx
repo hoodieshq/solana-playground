@@ -78,6 +78,8 @@ const handlers = (): TurnHandlers => ({
   allTutorials: vi.fn(),
   copyReceipt: vi.fn(),
   copyFailed: vi.fn(),
+  showLog: vi.fn(),
+  createWallet: vi.fn(),
 });
 
 const draw = (turn: Turn) => {

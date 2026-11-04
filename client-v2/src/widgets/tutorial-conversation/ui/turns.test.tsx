@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ActBeat, Ask, TutorialDefinition } from "@/entities/tutorial";
-import { TooltipProvider } from "@/shared/ui/tooltip";
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import BaseActCard from "./BaseActCard";
 import BaseFinishCard from "./BaseFinishCard";
@@ -14,6 +13,7 @@ import BaseWinCard from "./BaseWinCard";
 import BaseWroteCard from "./BaseWroteCard";
 import { BaseQuestionRecord } from "./BaseQuestionCard";
 import { textOf } from "./Prose";
+import { TooltipProvider } from "@/shared/ui/tooltip";
 import TurnView from "./TurnView";
 import type { TurnHandlers } from "./TurnView";
 import type {
@@ -787,20 +787,128 @@ describe("TurnView", () => {
     copyFailed: vi.fn(),
     showLine: vi.fn(),
     revealError: vi.fn(),
+    showLog: vi.fn(),
+    createWallet: vi.fn(),
   });
-  const draw = (turn: Turn, live: boolean) =>
+  const draw = (turn: Turn, live: boolean, handlers = on()) =>
     render(
-      <TurnView
-        turn={turn}
-        definition={definition}
-        live={live}
-        running={false}
-        passed={[]}
-        read={() => null}
-        nextTutorial={null}
-        on={on()}
-      />
+      <TooltipProvider>
+        <TurnView
+          turn={turn}
+          definition={definition}
+          live={live}
+          running={false}
+          passed={[]}
+          read={() => null}
+          nextTutorial={null}
+          on={handlers}
+        />
+      </TooltipProvider>
     );
+
+  it("names the program step 4 upgrades in its act card, or says your program before there is one", () => {
+    const ship = actOf("s4.ship");
+    const turn: Turn = {
+      id: ship.id,
+      kind: "act",
+      step: "upgrade",
+      at: 1,
+      whole: true,
+      beatId: ship.id,
+      act: ship,
+      state: "live",
+      note: null,
+      stage: null,
+      took: null,
+    };
+    const drawn = (programId: string | null) =>
+      render(
+        <TurnView
+          turn={turn}
+          definition={definition}
+          live
+          running={false}
+          passed={[]}
+          read={() => null}
+          nextTutorial={null}
+          programId={programId}
+          on={on()}
+        />
+      );
+    const { unmount } = drawn("HeLLo1111111111111111111111111111111111Anch");
+    expect(
+      screen.getByText("Upgrades HeLLo1…11Anch in place · from your wallet")
+    ).toBeTruthy();
+    unmount();
+    drawn(null);
+    expect(
+      screen.getByText("Upgrades your program in place · from your wallet")
+    ).toBeTruthy();
+  });
+
+  it("draws a deploy's result as the deploy card, open under its live Try again", async () => {
+    const handlers = on();
+    draw(
+      {
+        id: "result:s2.deploy:0",
+        kind: "result",
+        step: "deploy",
+        at: 2,
+        whole: true,
+        beatId: "s2.deploy",
+        act: "deploy",
+        result: {
+          act: "deploy",
+          ok: false,
+          seconds: 0,
+          reason: "no_wallet",
+          message: "No wallet",
+        },
+        took: 0,
+        planned: null,
+        open: true,
+      },
+      false,
+      handlers
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Create wallet/ })
+    );
+    expect(handlers.createWallet).toHaveBeenCalledWith("s2.deploy");
+  });
+
+  it("opens the terminal from a landed deploy's Log", async () => {
+    const handlers = on();
+    draw(
+      {
+        id: "result:s2.deploy:0",
+        kind: "result",
+        step: "deploy",
+        at: 2,
+        whole: true,
+        beatId: "s2.deploy",
+        act: "deploy",
+        result: {
+          act: "deploy",
+          ok: true,
+          seconds: 9,
+          programId: "Prog1111",
+          signature: "sig",
+          upgraded: false,
+          lamports: 1_000_000_000,
+          instructions: ["hello"],
+        },
+        took: 9000,
+        planned: null,
+        open: false,
+      },
+      false,
+      handlers
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Details/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Log/ }));
+    expect(handlers.showLog).toHaveBeenCalled();
+  });
 
   const openAsk: Turn = {
     id: ask.id,
@@ -1244,6 +1352,8 @@ describe("TurnView's last win", () => {
           copyFailed: vi.fn(),
           showLine: vi.fn(),
           revealError: vi.fn(),
+          showLog: vi.fn(),
+          createWallet: vi.fn(),
         }}
       />
     );

@@ -120,6 +120,8 @@ const handlers = (): TurnHandlers => ({
   copyFailed: vi.fn(),
   showLine: vi.fn(),
   revealError: vi.fn(),
+  showLog: vi.fn(),
+  createWallet: vi.fn(),
 });
 
 const feed = (over: Partial<BaseFeedProps> & { on?: TurnHandlers } = {}) => {

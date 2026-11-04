@@ -144,6 +144,28 @@ afterEach(async () => {
 });
 
 describe("PgConversation", () => {
+  it("passes a card's Log to whoever holds the terminal, until it lets go", () => {
+    const opened = vi.fn();
+    const sub = PgConversation.onDidRequestLog(opened);
+    PgConversation.showLog();
+    expect(opened).toHaveBeenCalledTimes(1);
+    sub.dispose();
+    PgConversation.showLog();
+    expect(opened).toHaveBeenCalledTimes(1);
+  });
+
+  it("still opens the terminal when another Log listener throws", () => {
+    const throws = PgConversation.onDidRequestLog(() => {
+      throw new Error("listener");
+    });
+    const opened = vi.fn();
+    const sub = PgConversation.onDidRequestLog(opened);
+    expect(() => PgConversation.showLog()).not.toThrow();
+    expect(opened).toHaveBeenCalledTimes(1);
+    throws.dispose();
+    sub.dispose();
+  });
+
   it("is empty for a workspace without a definition", async () => {
     vi.mocked(PgTutorial).all = [] as never;
     open(NAME);

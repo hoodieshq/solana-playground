@@ -43,7 +43,23 @@ vi.mock("@/features/tutorial-conversation", async () => ({
   isUnreachable: (r: { act: string; ok: boolean; reason?: string }) =>
     r.act === "build" && !r.ok && r.reason === "unreachable",
   realWorkspace: "realWorkspace",
-  tutorialRunner: "tutorialRunner",
+  tutorialRunner: {
+    run: vi.fn(async () => ({
+      act: "deploy",
+      ok: false,
+      seconds: 0,
+      reason: "failed",
+      message: "x",
+    })),
+    recognise: "recognise",
+  },
+}));
+vi.mock("@/views/flow/state/stage", () => ({
+  PgFlow: { deployStarted: vi.fn(), deployFinished: vi.fn() },
+}));
+vi.mock("@/utils", () => ({
+  PgProgramInfo: { idl: null, pk: null },
+  PgWallet: { accounts: [], add: vi.fn() },
 }));
 vi.mock("@/utils/explorer", () => ({
   PgExplorer: {
@@ -89,7 +105,11 @@ vi.mock("@/utils/tutorial", () => ({
   },
 }));
 
-import { PgConversation } from "@/features/tutorial-conversation";
+import {
+  PgConversation,
+  tutorialRunner,
+} from "@/features/tutorial-conversation";
+import { PgFlow } from "@/views/flow/state/stage";
 import { tutorialTelemetry } from "@/entities/tutorial/model/telemetry";
 import {
   markUnavailableHere,
@@ -259,11 +279,20 @@ describe("TutorialConversation", () => {
     expect(store.init).toHaveBeenCalledTimes(1);
     expect(store.init).toHaveBeenCalledWith({
       workspace: "realWorkspace",
-      runner: "tutorialRunner",
+      runner: expect.objectContaining({ recognise: "recognise" }),
       judge: "judgeGoal",
     });
     unmount();
     expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs a deploy on the tutorial's runner and tells the flow, for the terminal bar", async () => {
+    render(<TutorialConversation onAllTutorials={vi.fn()} />);
+    const { runner } = store.init.mock.calls[0][0];
+    await runner.run("deploy", { beatId: "s2.deploy" }, () => {});
+    expect(tutorialRunner.run).toHaveBeenCalled();
+    expect(PgFlow.deployStarted).toHaveBeenCalled();
+    expect(PgFlow.deployFinished).toHaveBeenCalledWith(false);
   });
 
   it("shows one spinner while the engine has no view", () => {

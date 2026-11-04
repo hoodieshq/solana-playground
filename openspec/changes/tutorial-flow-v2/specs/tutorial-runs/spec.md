@@ -51,8 +51,12 @@ tutorial reads it from the chain (Slava, 3 Nov; a follow-up ticket brings the
 stage back). The first deploy SHALL write the program id into `declare_id!` and light
 that line. Before the first deploy:
 
-- **No wallet:** the act card SHALL offer to create or connect one in place,
-  and run nothing until there is one.
+- **No wallet:** the deploy SHALL run nothing and post a red result card,
+  "No wallet", with the line "A deploy pays from a Playground wallet. Create
+  one in this browser and the deploy runs." and "Create wallet", which makes
+  the Playground wallet and runs the deploy again. There is no connect
+  option: a tutorial deploys from the Playground wallet, never an
+  extension's.
 - **Too little balance:** the deploy SHALL top up the wallet by airdrop, the
   way the editor's deploy does, as an extra first stage on the act card,
   "Funding your wallet". The stage shows only when the balance is short, and
@@ -61,22 +65,41 @@ that line. Before the first deploy:
   a tutorial promises a wallet with free test SOL (Slava, 3 Nov).
 - **Airdrop refused or rate limited:** a failed result card SHALL post, red
   like a failed build, titled "Not enough devnet SOL", with the line "Your
-  wallet has {balance} SOL, this deploy needs about {cost}. The devnet faucet
-  is at its limit for now". Under it sits the wallet's address row (short
-  address, Copy). Its buttons are a primary "Try again" and "Open faucet",
-  which opens `https://faucet.solana.com` in a new tab. Typing "deploy" in the
-  composer retries too.
+  wallet has {balance} SOL, and this deploy needs about {cost} SOL. The devnet
+  faucet is at its limit for now: try again in a minute, or top the wallet up
+  yourself." Under it sit "Your wallet" with the short address and Copy, and
+  "Open faucet", which opens `https://faucet.solana.com` in a new tab. The
+  card has no Try again, and the act that hit the faucet draws no record
+  over it: a live deploy act card follows it, "Asks the faucet again, then
+  deploys" with the button "Try again" (Almaz's prototype, 3 Nov). A deploy
+  that failed otherwise keeps its record and gets the same Try again card
+  with the act's own line. Typing "deploy" in the composer retries too.
 
 A deploy SHALL keep the program's keypair in the workspace, so the program
 keeps its address. Every later deploy of that tutorial's program SHALL upgrade
-it in place. The result card SHALL read "Deployed" (or "Upgraded <short id>"),
-with "Show log" opening the terminal, and:
+it in place. The result card SHALL be one row, "Deployed to devnet" (or
+"Upgraded <short id>"), and a chevron that opens its details, as Almaz's
+prototype draws it (3 Nov; where the prototype's table and its code differ,
+the code wins):
 
-- the devnet SOL the deploy spent (left out for a deploy recognised from the
-  chain after a reload, whose cost is not known);
-- on its meta line, the program id and the deploy signature, each a short key
-  with ↗ that is itself the Explorer link, with no separate Explorer button;
-- the IDL's instructions and their arguments.
+- one sentence of where the program lives and what the deploy took, "Your
+  program now lives on devnet at <short id>. The deploy took 5.6 s and
+  {cost} test SOL from your wallet." ("Your program at <short id> now runs
+  the new code. The upgrade took ..." for an upgrade, "The build and deploy
+  took ..." for a first build-and-deploy); the cost is left out
+  for a deploy recognised from the chain after a reload, whose cost is not
+  known;
+- then one row of quiet controls: Copy id, Explorer (the program), the
+  deploy's Transaction on Explorer, and Log, which opens the terminal.
+
+Keys on the deploy cards and in the terminal read six and six
+(`9hJqVk…FxCvBz`).
+
+A deploy act's context may name the program as `{program}`, which the card
+fills with its short id, or "your program" before a build gives it one. The
+terminal bar and the drawer follow a tutorial's deploy as they follow the
+editor's: "Deploying" while it runs, the drawer opening on the first deploy,
+and amber after an edit; the stage stays on the editor.
 
 In a receipt (the finish card's Transaction details), every address row SHALL
 carry Copy and an Explorer link. Every Explorer link SHALL open Solana
@@ -88,21 +111,22 @@ Explorer on the devnet cluster in a new tab.
   Anchor's step 2
 - **THEN** the card shows "Funding your wallet" (1 of 4), then the three
   deploy stages to "4 of 4"
-- **AND** the result's meta line shows the program id and the deploy
-  signature as links to `https://explorer.solana.com/...?cluster=devnet`
+- **AND** the result's details link the program and the deploy's
+  transaction to `https://explorer.solana.com/...?cluster=devnet`
 
 #### Scenario: The faucet is at its limit
 
 - **WHEN** the deploy's airdrop is refused
 - **THEN** a red card reads "Not enough devnet SOL" with the wallet's balance,
-  the deploy's cost, the address row with Copy, "Try again" and "Open faucet"
-- **AND** typing "deploy" runs the deploy again
+  the deploy's cost, the address with Copy, and "Open faucet"
+- **AND** a deploy act card under it, "Try again", runs the deploy again, as
+  typing "deploy" does
 
 #### Scenario: The upgrade keeps the address
 
 - **WHEN** step 4's build and deploy lands
 - **THEN** the result reads "Upgraded" with the same program id as step 2
-- **AND** its IDL line reads `hello(name: string)`
+- **AND** its details read "Your program at <short id> now runs the new code."
 
 ### Requirement: Client runs and calls send real transactions
 
@@ -151,7 +175,7 @@ the deploy and the transaction.
 | Intro note                  | A devnet wallet is set up for you with free test SOL. Your progress stays in this browser                                                                                                |
 | Deploy explanation (step 2) | Deploying costs devnet SOL. It's test money with no value, and Playground tops your wallet up for free when it runs low                                                                  |
 | Deploy card context line    | From your Playground wallet · free devnet SOL                                                                                                                                            |
-| Deploy result               | {cost} devnet SOL from your wallet                                                                                                                                                       |
+| Deploy result               | {cost} test SOL from your wallet                                                                                                                                                         |
 | Terminal                    | Deploying from {wallet short} · {cost} SOL                                                                                                                                               |
 | Call result and Call panel  | It used {n} compute units, and the fee was {fee} test SOL from your wallet                                                                                                               |
 | Receipt signer row          | Your wallet · signer, with its short address                                                                                                                                             |
@@ -167,8 +191,8 @@ There SHALL be no "Why 7 days?" chip.
 - **WHEN** Hello Anchor runs from the intro to the finish
 - **THEN** no card, chip, terminal line or receipt reads "Kora", "0 SOL" or
   "7 days"
-- **AND** the deploy result reads "{cost} devnet SOL from your wallet" with
-  the real cost
+- **AND** the deploy result's details read "{cost} test SOL from your
+  wallet" with the real cost
 
 ### Requirement: A step passes on what happened
 
