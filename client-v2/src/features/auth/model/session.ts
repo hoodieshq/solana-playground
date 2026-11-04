@@ -313,7 +313,7 @@ export class PgSession {
     if (!channel) {
       throw new SignInFailed(
         "popup-blocked",
-        "Allow popups for this site to sign in."
+        "Allow pop-ups for this site to sign in with GitHub."
       );
     }
 
@@ -905,7 +905,9 @@ if (import.meta.vitest) {
         );
         PgSession.setOpenChannel(() => undefined);
 
-        await expect(PgSession.signIn()).rejects.toThrow(/allow popups/i);
+        await expect(PgSession.signIn()).rejects.toThrow(
+          "Allow pop-ups for this site to sign in with GitHub."
+        );
       });
 
       it("surfaces a cancelled popup as a cancellation", async () => {
