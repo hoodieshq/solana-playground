@@ -237,6 +237,21 @@ describe("BaseBuild", () => {
     }
   );
 
+  // Spec 08: the reason was an error callout's, announced as an alert; out
+  // of the callout it is still announced, with the description's look
+  it.each([
+    ["ANY-00", { kind: "other", message: "boom" }],
+    ["BUILD-04", { kind: "no-answer", message: "Failed to fetch" }],
+  ] as const)(
+    "announces the reason of a build that never ran (%s)",
+    (_, failure) => {
+      render(<BaseBuild {...props({ kind: "unreached", failure })} />);
+
+      const alert = screen.getByRole("alert");
+      expect(alert.getAttribute("data-slot")).toBe("stage-empty-description");
+    }
+  );
+
   /** Try again is the surface's main action, the same pill as Continue to Deploy */
   it("offers Try again as the brand pill, the full log a link under it", async () => {
     const p = props({
