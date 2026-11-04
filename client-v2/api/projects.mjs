@@ -173,7 +173,9 @@ export const describeWrite = (body) => {
     return refuse(UNSYNCED_ERROR);
   }
   // Every changed file is in the project the patch produces, so their count
-  // and size are a floor under its own
+  // and size are a floor under its own. Answered here, without a database
+  // round trip, so the 413 names the request's files only; a stored row also
+  // over a limit is named by `writeProject` on the next write.
   const limit = checkProjectLimits(changed);
   return limit ? { limit } : { changed, removed };
 };
@@ -306,6 +308,62 @@ export const describeDriverError = (e) => {
 };
 
 /**
+ * The status and body for a signed-in user's `PUT` of a parsed body.
+ *
+ * A body whose own files are over a limit is answered 413 here, without a
+ * database round trip; `writeProject` measures every limit again over the
+ * stored project. Exported for `api/projects.test.mjs`: the handler is behind
+ * the auth gate.
+ *
+ * @param {string} userId
+ * @param {Record<string, unknown>} body
+ * @returns {Promise<{status: number, body: object}>}
+ */
+export const putProject = async (userId, body) => {
+  const project = describeProject(body);
+  if (project.error) return { status: 400, body: { error: project.error } };
+
+  const write = describeWrite(body);
+  if (write.error)
+    return { status: write.status, body: { error: write.error } };
+  if (write.limit) return answerWrite(write);
+
+  // Reaches SQL as a timestamptz. Unchecked, a malformed one is a cast
+  // error from the driver, which is a 500 for what is really a bad request.
+  if (
+    body.baseUpdatedAt !== undefined &&
+    (typeof body.baseUpdatedAt !== "string" ||
+      Number.isNaN(Date.parse(body.baseUpdatedAt)))
+  ) {
+    return {
+      status: 400,
+      body: { error: "baseUpdatedAt must be a timestamp" },
+    };
+  }
+
+  // Named fields rather than the body passed through, so nothing a client
+  // adds reaches the write without this handler having checked it
+  const result = await saveProject(userId, {
+    ...project,
+    baseUpdatedAt: body.baseUpdatedAt,
+    ...write,
+  });
+  // The one refusal that says something reached a state it should not
+  // have: a row already empty, or a client building patches wrongly. Ids
+  // only; file contents never travel to the logs.
+  if (result.refused) {
+    log.warn("write refused", {
+      context: {
+        userId,
+        projectId: project.id,
+        reason: result.refused,
+      },
+    });
+  }
+  return answerWrite(result);
+};
+
+/**
  * @param {import("node:http").IncomingMessage} req
  * @param {import("node:http").ServerResponse} res
  */
@@ -355,54 +413,7 @@ async function handler(req, res) {
         });
       }
       if (read.error) return sendJson(res, 400, { error: "Body must be JSON" });
-      const { body } = read;
-
-      const project = describeProject(body);
-      if (project.error) return sendJson(res, 400, { error: project.error });
-
-      const write = describeWrite(body);
-      if (write.error) {
-        return sendJson(res, write.status, { error: write.error });
-      }
-      // TODO(HOO-2418 follow-up): untested past the auth gate; `answerWrite`
-      // is tested, and `writeProject` checks every limit again on what it stores
-      if (write.limit) {
-        const answer = answerWrite(write);
-        return sendJson(res, answer.status, answer.body);
-      }
-
-      // Reaches SQL as a timestamptz. Unchecked, a malformed one is a cast
-      // error from the driver, which is a 500 for what is really a bad request.
-      if (
-        body.baseUpdatedAt !== undefined &&
-        (typeof body.baseUpdatedAt !== "string" ||
-          Number.isNaN(Date.parse(body.baseUpdatedAt)))
-      ) {
-        return sendJson(res, 400, {
-          error: "baseUpdatedAt must be a timestamp",
-        });
-      }
-
-      // Named fields rather than the body passed through, so nothing a client
-      // adds reaches the write without this handler having checked it
-      const result = await saveProject(user.id, {
-        ...project,
-        baseUpdatedAt: body.baseUpdatedAt,
-        ...write,
-      });
-      const answer = answerWrite(result);
-      // The one refusal that says something reached a state it should not
-      // have: a row already empty, or a client building patches wrongly. Ids
-      // only; file contents never travel to the logs.
-      if (result.refused) {
-        log.warn("write refused", {
-          context: {
-            userId: user.id,
-            projectId: project.id,
-            reason: result.refused,
-          },
-        });
-      }
+      const answer = await putProject(user.id, read.body);
       return sendJson(res, answer.status, answer.body);
     }
 

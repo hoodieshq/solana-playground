@@ -142,7 +142,9 @@ for a full write and for a patch alike, with status 413 and a JSON body carrying
 `reason`, one of `path-too-long`, `file-too-large`, `too-many-files`,
 `project-too-large`, chosen in that order. Every stored file SHALL be measured,
 not only the request's, so a write that shrinks a file or a project still over
-a limit SHALL be refused. A refused write SHALL change nothing
+a limit SHALL be refused. A write whose own files are over a limit SHALL be
+refused before the stored project is read, and its body SHALL name those files
+only. A refused write SHALL change nothing
 in the database. It SHALL refuse with 400 a write carrying a path under
 `.workspace/` other than the synced workspace files, and its measure of a
 project SHALL leave such stored rows out.

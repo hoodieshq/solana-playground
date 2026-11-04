@@ -634,6 +634,62 @@ describe("/api/projects", () => {
     });
   });
 
+  describe("putProject", () => {
+    const UUID = "4f1c9a52-5d0e-4c55-9a3b-2d6f0b8e7c11";
+    // No `DATABASE_URL` (cleared in `beforeEach`): a case that reached
+    // `saveProject` would reject instead of answering
+
+    it("answers a patch whose own file is over a limit 413, without the database", async () => {
+      const mod = await load();
+      const answer = await mod.putProject("u1", {
+        id: UUID,
+        name: "mine",
+        kind: "project",
+        changed: { "src/big.rs": "a".repeat(200_000) },
+        removed: [],
+        baseUpdatedAt: "2026-11-04T00:00:00.000Z",
+      });
+      assert.deepEqual(answer, {
+        status: 413,
+        body: {
+          error: "The project is over a sync limit",
+          reason: "file-too-large",
+          limit: 131_072,
+          paths: ["src/big.rs"],
+          sizes: { "src/big.rs": 200_000 },
+        },
+      });
+    });
+
+    it("answers a full write over the path limit 413, without the database", async () => {
+      const mod = await load();
+      const path = "p".repeat(257);
+      const answer = await mod.putProject("u1", {
+        id: UUID,
+        name: "mine",
+        kind: "project",
+        files: { [path]: "" },
+      });
+      assert.equal(answer.status, 413);
+      assert.equal(answer.body.reason, "path-too-long");
+      assert.deepEqual(answer.body.paths, [path]);
+    });
+
+    it("answers a bad project before its files are measured", async () => {
+      const mod = await load();
+      const answer = await mod.putProject("u1", {
+        id: UUID,
+        name: "",
+        kind: "project",
+        files: { "src/big.rs": "a".repeat(200_000) },
+      });
+      assert.deepEqual(answer, {
+        status: 400,
+        body: { error: "name must not be empty" },
+      });
+    });
+  });
+
   describe("describeSaved", () => {
     it("answers an accepted write with a 200 and its token", async () => {
       const mod = await load();

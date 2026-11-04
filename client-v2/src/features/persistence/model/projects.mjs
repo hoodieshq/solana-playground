@@ -178,14 +178,15 @@ const UPSERT_FILES = `
  * patch that adds nothing, the only `saveProject` write that can empty a row,
  * so it sees that patch's own `DELETE_NAMED`.
  *
- * TODO(HOO-2418 follow-up): counts every row, where `MEASURE` counts only the
- * paths sync carries, so a stored `.workspace/` row sync does not carry would
- * let a patch remove every synced file. No such row is stored today: the
- * client never sent one and `describeWrite` refuses one.
+ * Only the paths sync carries count, as in `MEASURE`: a stored `.workspace/`
+ * row sync does not carry is no file to a client, so a patch that removes
+ * every synced file beside one is still refused.
  */
 const HAS_FILES = `
   select exists(
-    select 1 from project_files where user_id = $1 and project_id = $2
+    select 1 from project_files
+     where user_id = $1 and project_id = $2
+       and (path = any($3::text[]) or not starts_with(path, '.workspace/'))
   ) as has_files`;
 
 /**
@@ -366,7 +367,11 @@ export const writeProject = async (q, userId, input) => {
     // A new statement gets a fresh snapshot, and the row lock this
     // transaction now holds means any earlier writer has committed, so its
     // files are visible here and were not to the adopting statement itself.
-    const { rows: seen } = await q(HAS_FILES, [userId, id]);
+    const { rows: seen } = await q(HAS_FILES, [
+      userId,
+      id,
+      SYNCED_WORKSPACE_FILES,
+    ]);
     if (seen[0].has_files) {
       // The other writer's `updated_at` is gone -- this transaction just
       // overwrote it -- so the token is null, which only makes the client
@@ -390,7 +395,11 @@ export const writeProject = async (q, userId, input) => {
       // Nothing added, so the row may now be empty -- or was already, and a
       // swap would bump its token over an empty project. A full write needs
       // no check: `saveProject`'s caller refuses an empty `files`.
-      const { rows: left } = await q(HAS_FILES, [userId, id]);
+      const { rows: left } = await q(HAS_FILES, [
+        userId,
+        id,
+        SYNCED_WORKSPACE_FILES,
+      ]);
       if (!left[0].has_files) {
         throw new WriteRefused({ refused: NO_FILES_REASON });
       }
