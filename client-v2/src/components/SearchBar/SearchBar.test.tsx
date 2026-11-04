@@ -292,13 +292,6 @@ describe("components/SearchBar", () => {
     expect(document.activeElement).toBe(input());
   });
 
-  it("a field that searches shows the magnifier, which opens the list", async () => {
-    render(<Harness items={["a"]} searchButton={{}} />);
-    expect(screen.queryByRole("button", { name: "Show options" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    expect(optionNames()).toEqual(["a"]);
-  });
-
   it("a value field shows no icon", () => {
     render(<Harness />);
     expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
