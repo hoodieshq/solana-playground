@@ -11,7 +11,14 @@ export { tutorialTelemetry } from "./model/telemetry";
 export type { QuestionResult, StepJumpVia } from "./model/telemetry";
 export type { TutorialEvents } from "./model/telemetry";
 export { checkDefinition, formatError, slugOf } from "./model/definition/check";
-export { loadDefinitions } from "./model/definition/load";
+export { loadDefinitionsWith } from "./model/definition/load";
+export {
+  docForLink,
+  onCodeRequest,
+  onDocRequest,
+  requestCode,
+  requestDoc,
+} from "./model/docs";
 export type { LoadedDefinition } from "./model/definition/load";
 export type {
   Act,

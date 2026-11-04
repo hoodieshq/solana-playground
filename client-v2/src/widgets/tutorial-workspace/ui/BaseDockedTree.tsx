@@ -14,6 +14,8 @@ export interface BaseDockedTreeProps {
   open: boolean;
   rows: TreeRow[];
   onPick: (path: string) => void;
+  /** A doc page picked, by its Markdown file */
+  onPickDoc: (file: string) => void;
   onUndock: () => void;
 }
 
@@ -26,6 +28,7 @@ const BaseDockedTree: FC<BaseDockedTreeProps> = ({
   open,
   rows,
   onPick,
+  onPickDoc,
   onUndock,
 }) => (
   <div
@@ -56,7 +59,7 @@ const BaseDockedTree: FC<BaseDockedTreeProps> = ({
         </Tooltip>
       </div>
       <div className="px-1.5 pb-2">
-        <BaseFileTreeList rows={rows} onPick={onPick} />
+        <BaseFileTreeList rows={rows} onPick={onPick} onPickDoc={onPickDoc} />
       </div>
     </div>
   </div>

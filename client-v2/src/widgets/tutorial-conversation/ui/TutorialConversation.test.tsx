@@ -91,11 +91,17 @@ vi.mock("@/components/Markdown", () => ({
 vi.mock("@/utils/editor", () => ({
   PgEditor: { revealLine: vi.fn(), setReadOnly: vi.fn(), focus: vi.fn() },
 }));
-vi.mock("@/entities/tutorial", async () => ({
-  tutorialTelemetry: (await import("@/entities/tutorial/model/telemetry"))
-    .tutorialTelemetry,
-  slugOf: (await import("@/entities/tutorial/model/definition/check")).slugOf,
-}));
+vi.mock("@/entities/tutorial", async () => {
+  const docs = await import("@/entities/tutorial/model/docs");
+  return {
+    tutorialTelemetry: (await import("@/entities/tutorial/model/telemetry"))
+      .tutorialTelemetry,
+    slugOf: (await import("@/entities/tutorial/model/definition/check")).slugOf,
+    docForLink: docs.docForLink,
+    requestDoc: docs.requestDoc,
+    requestCode: docs.requestCode,
+  };
+});
 // The listed tutorials, for the finish card's "Next: <tutorial>"
 vi.mock("@/utils/tutorial", () => ({
   PgTutorial: {

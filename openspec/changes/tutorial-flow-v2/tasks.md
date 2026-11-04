@@ -35,12 +35,14 @@ for; tasks with "after nothing" start at once.
       for the line states and the tree keys (HOO-2349; fleet; M 1.5;
       after nothing; mounts in 2.1's slot;
       plan: [plans/2.2-tutorial-workspace.md](plans/2.2-tutorial-workspace.md))
-- [ ] 2.3 Docs as read-only tabs: the definition's docs list and its
+- [x] 2.3 Docs as read-only tabs: the definition's docs list and its
       Markdown, the tree's `Docs` folder, the closable doc tab with its link
       to the source page, assistant links that open it, docs in the phone's
       Code list, Hello Anchor's four pages. Verify: the spec's "A doc from the
       assistant's answer"; the check fails on a missing doc file (HOO-2381;
-      Natalia; M 1.5; after 1.1, 2.2)
+      Natalia; M 1.5; after 1.1, 2.2; the phone's Code list moved to
+      HOO-2359, which builds the phone layout;
+      plan: [plans/2.3-docs-tabs.md](plans/2.3-docs-tabs.md))
 
 ## 3. Conversation
 

@@ -392,9 +392,11 @@ in the workspace's `.workspace/tutorial-storage.json`:
 
 Project sync SHALL carry it to another device. The workspace's own state (the
 open tab, the open doc tabs, the docked tree, whether the terminal and the
-Call panel are open, and the Call form's values) is local to the device: it
-SHALL be kept in `.workspace/metadata.json`, which sync leaves out, so
-opening a panel never makes the other device see a change. The assistant exchanges SHALL
+Call panel are open, and the Call form's values) is local to the device:
+sync SHALL leave it out, so opening a panel never makes the other device see
+a change. The open file tab SHALL be kept in `.workspace/metadata.json`, which
+sync leaves out; the explorer reopens every entry there as a file, so the
+rest SHALL be kept in the browser's storage. The assistant exchanges SHALL
 live in the assistant's thread for that workspace. A reload SHALL restore the
 feed scrolled to the live card, render turns whole with no typing or rise
 animation, and restore the files and the workspace state. "Start over" in the

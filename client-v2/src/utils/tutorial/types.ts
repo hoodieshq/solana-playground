@@ -76,6 +76,11 @@ export interface TutorialDataParam {
    * tutorial without one opens upstream's pages.
    */
   definition?: TutorialDefinition;
+  /**
+   * Every Markdown file in the tutorial's `docs/` folder, by file name
+   * (`idl.md`); the definition's `docs` says which of them it lists
+   */
+  docPages?: Readonly<Record<string, string>>;
 }
 
 /** Tutorial data with optional fields filled with defaults. */

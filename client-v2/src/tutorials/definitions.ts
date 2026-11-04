@@ -1,7 +1,7 @@
 // By module, not the barrels: `@/entities/tutorial` and `../utils` load UI
 // that reads the build's globals on import, which a unit test does not have
 import { slugOf } from "@/entities/tutorial/model/definition/check";
-import { loadDefinitions } from "@/entities/tutorial/model/definition/load";
+import { loadDefinitionsWith } from "@/entities/tutorial/model/definition/load";
 
 import type { TutorialData } from "../utils/tutorial/types";
 import { DEFINITION_FILES } from "./_definitions/generated";
@@ -9,7 +9,7 @@ import { DEFINITION_FILES } from "./_definitions/generated";
 /**
  * The conversation tutorials, one per valid `src/tutorials/<slug>/tutorial.json`.
  * A definition that fails its check is left out (and reported) by
- * `loadDefinitions`; `others` are the tutorials its `next` may also name, by
+ * `loadDefinitionsWith`; `others` are the tutorials its `next` may also name, by
  * the slug of their name, as `yarn tutorial:check` reads them.
  */
 export const definitionTutorials = (others: TutorialData[]): TutorialData[] => {
@@ -20,7 +20,16 @@ export const definitionTutorials = (others: TutorialData[]): TutorialData[] => {
   const raw = Object.fromEntries(
     Object.entries(DEFINITION_FILES).map(([slug, file]) => [slug, file.json])
   );
-  return loadDefinitions(raw, known).map(({ slug, definition: d }) => ({
+  const docPages = Object.fromEntries(
+    Object.entries(DEFINITION_FILES).map(([slug, file]) => [
+      slug,
+      file.docPages,
+    ])
+  );
+  return loadDefinitionsWith(
+    known,
+    docPages
+  )(raw).map(({ slug, definition: d }) => ({
     name: d.name,
     description: d.description,
     authors: d.authors,
@@ -38,6 +47,7 @@ export const definitionTutorials = (others: TutorialData[]): TutorialData[] => {
         new Error(`${d.name} opens in the conversation, not as a component`)
       ),
     definition: d,
+    docPages: DEFINITION_FILES[slug].docPages,
   }));
 };
 
@@ -61,6 +71,22 @@ if (import.meta.vitest) {
       expect(hello?.pageCount).toBe(4);
       expect(hello?.level).toBe("Beginner");
       expect(hello?.thumbnail).toBe("/tutorials/hello-anchor/thumbnail.jpg");
+    });
+
+    it("carries Hello Anchor's four doc pages with their Markdown", () => {
+      const hello = definitionTutorials([counterPda]).find(
+        (t) => t.name === "Hello Anchor"
+      );
+      const docs = hello?.definition?.docs ?? [];
+      expect(docs.map((doc) => doc.title)).toEqual([
+        "Program Structure",
+        "IDL",
+        "Programs",
+        "Transactions",
+      ]);
+      for (const doc of docs) {
+        expect(hello?.docPages?.[doc.file]).toMatch(/^# /);
+      }
     });
 
     it("gives Hello Anchor four questions and the planned failure in step 1", () => {

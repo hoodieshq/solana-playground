@@ -200,6 +200,9 @@ The tutorial workspace slice SHALL emit, under the prefix
   puts it back, with `docked`;
 - `tutorial_workspace_file_opened` when the learner opens a file other than
   the open one, with `via`: `tab` or `tree`;
+- `tutorial_workspace_doc_opened` when the learner brings a doc page to the
+  front from the tree or from a link in the assistant's answer, with `doc`
+  (its Markdown file) and `via`: `tree` or `assistant`;
 - `tutorial_workspace_terminal_opened` when the drawer opens by itself, with
   `reason`: `build_failed` or `first_deploy`.
 

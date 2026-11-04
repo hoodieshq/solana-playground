@@ -230,6 +230,10 @@ export default defineConfig({
     // early".
     stdout: "pipe",
     stderr: "pipe",
-    env: { BROWSER: "none", PORT: String(port) },
+    // `TUTORIAL_TEST_DOCS`: a tutorial that lists no doc pages of its own gets
+    // the test pages (`scripts/generate-tutorials.mjs`), so the doc tests
+    // still run should Hello Anchor's list go. Hello Anchor lists its own
+    // today, and the tests run on those
+    env: { BROWSER: "none", PORT: String(port), TUTORIAL_TEST_DOCS: "1" },
   },
 });

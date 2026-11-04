@@ -6,6 +6,12 @@ export type TreeSource = "tab" | "button" | "key";
 /** Where a file was opened from: its tab in the head, or a row of the tree */
 export type FileSource = "tab" | "tree";
 
+/** Where a doc page was opened from: the tree's `Docs` folder, or a link in the assistant's answer */
+export type DocSource = "tree" | "assistant";
+
+/** What brought a doc page to the front: a source, or its own tab, which is not counted */
+export type DocOpenVia = DocSource | "tab";
+
 /** Why the terminal opened by itself */
 export type TerminalReason = "build_failed" | "first_deploy";
 
@@ -25,6 +31,13 @@ type TutorialWorkspaceEvents = {
    * file already open.
    */
   tutorial_workspace_file_opened: { via: FileSource };
+  /**
+   * The learner brought a doc page to the front from the tree or from a
+   * link in the assistant's answer; `doc` is its Markdown file (`idl.md`).
+   * Not sent for the page already in front, nor from its tab or the All
+   * tabs menu.
+   */
+  tutorial_workspace_doc_opened: { doc: string; via: DocSource };
   /**
    * The terminal's drawer opened on its own: a build failed, or the
    * tutorial's first deploy landed. The learner's own toggles are the

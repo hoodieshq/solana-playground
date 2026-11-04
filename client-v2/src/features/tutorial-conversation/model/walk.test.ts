@@ -32,6 +32,10 @@ import type {
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
 
 import counter from "../../../tutorials/__tests__/counter-anchor/tutorial.json";
+import helloIdl from "../../../tutorials/hello-anchor/docs/idl.md";
+import helloProgramStructure from "../../../tutorials/hello-anchor/docs/program-structure.md";
+import helloPrograms from "../../../tutorials/hello-anchor/docs/programs.md";
+import helloTransactions from "../../../tutorials/hello-anchor/docs/transactions.md";
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
@@ -241,15 +245,29 @@ afterEach(() => {
 });
 
 describe.each([
-  ["Counter Anchor, written from AUTHORING.md alone", counter],
-  ["Hello Anchor", hello],
-])("%s through the engine", (_name, json) => {
+  [
+    "Counter Anchor, written from AUTHORING.md alone",
+    { json: counter, docs: {} },
+  ],
+  [
+    "Hello Anchor",
+    {
+      json: hello,
+      docs: {
+        "idl.md": helloIdl,
+        "program-structure.md": helloProgramStructure,
+        "programs.md": helloPrograms,
+        "transactions.md": helloTransactions,
+      },
+    },
+  ],
+])("%s through the engine", (_name, { json, docs }) => {
   it("passes the check", () => {
     const d = json as unknown as TutorialDefinition;
     // Hello Anchor's next is upstream's Counter PDA Tutorial, which only the
     // catalog knows
     const known = new Set(d.finish.next === null ? [] : [d.finish.next]);
-    expect(checkDefinition(d, known, { docs: {} })).toEqual([]);
+    expect(checkDefinition(d, known, { docs })).toEqual([]);
   });
 
   it("walks from the intro to the finish", async () => {

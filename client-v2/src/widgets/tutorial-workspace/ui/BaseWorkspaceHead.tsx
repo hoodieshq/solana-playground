@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Check,
   ChevronDown,
   Ellipsis,
@@ -21,6 +22,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import {
   EditorTab,
+  EditorTabClose,
   EditorTabLabel,
   EditorTabs,
   EditorTabTrigger,
@@ -30,7 +32,7 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/shared/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 
 import type { TreeSource } from "../model/telemetry";
-import type { TreeRow } from "../model/tree";
+import type { DocTab, TreeRow } from "../model/tree";
 import BaseFileTreeList from "./BaseFileTreeList";
 
 /** The open tab on the code's own ground, without the coloured bar */
@@ -45,9 +47,18 @@ const FILES_TOGGLE = "data-files-toggle";
 export interface BaseWorkspaceHeadProps {
   /** The tabs, in the project's order, by path */
   tabs: string[];
-  /** The open file's path, or null when no file is open */
+  /** The open file's path, or null when no file is open. While
+   * `docs.active` is set, this file keeps its tab but is not in front */
   active: string | null;
   onOpen: (path: string) => void;
+  /** The open doc pages, after the files; each closes */
+  docs: {
+    tabs: readonly DocTab[];
+    /** The page in front, by file; none while a file is */
+    active?: string;
+    onOpen: (file: string) => void;
+    onClose: (file: string) => void;
+  };
   tree: {
     /** The popover is up */
     open: boolean;
@@ -60,6 +71,8 @@ export interface BaseWorkspaceHeadProps {
     onToggle: (via: TreeSource) => void;
     onClose: () => void;
     onPick: (path: string) => void;
+    /** A doc page picked in the tree, by its Markdown file */
+    onPickDoc: (file: string) => void;
     onDock: () => void;
   };
   /** The Call button, once the program is deployed (task 4.4) */
@@ -148,7 +161,8 @@ const Tool: FC<{
 
 /**
  * The workspace head (prototype `WorkspaceTabs`): the file tabs, which never
- * close, then at the right end the Call slot, Files and Terminal. Files is
+ * close, then the doc tabs, which do (spec "Docs open as read-only tabs"),
+ * then at the right end the Call slot, Files and Terminal. Files is
  * the tree's one way in: a popover off the tabs whose pin docks it beside
  * the editor. No Build, Deploy or Run here; those live in the chat.
  */
@@ -156,6 +170,7 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
   tabs,
   active,
   onOpen,
+  docs,
   tree,
   call,
   terminal,
@@ -165,7 +180,11 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
   const strip = useRef<HTMLDivElement>(null);
   const chevron = useRef<HTMLButtonElement>(null);
   const escaped = useRef(false);
-  const edges = useEdges(strip, tabs.length);
+  const count = tabs.length + docs.tabs.length;
+  const edges = useEdges(strip, count);
+  // A doc in front: the open file keeps its tab but not the front
+  const isFileInFront = (tab: string) =>
+    docs.active === undefined && tab === active;
   const shown = tree.open || tree.docked;
 
   // The open tab is always in view, and so it stays as the strip narrows
@@ -180,7 +199,7 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
     const ro = new ResizeObserver(bring);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [active, tabs.length]);
+  }, [active, docs.active, count]);
 
   return (
     <div
@@ -202,18 +221,18 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
             {tabs.map((tab) => (
               <EditorTab
                 key={tab}
-                active={tab === active}
+                active={isFileInFront(tab)}
                 className={cn(TAB, "shrink-0 px-0!")}
               >
                 <EditorTabTrigger
-                  className={cn("gap-1.5 px-3", tab === active && "pr-0.5")}
+                  className={cn("gap-1.5 px-3", isFileInFront(tab) && "pr-0.5")}
                   onClick={() => onOpen(tab)}
                 >
                   <EditorTabLabel>{baseName(tab)}</EditorTabLabel>
                 </EditorTabTrigger>
                 {/* The tree from beside the open file's name, to step back
                     from client.ts to lib.rs; it turns over while shown */}
-                {tab === active && (
+                {isFileInFront(tab) && (
                   <Tooltip delayDuration={300}>
                     <TooltipTrigger asChild>
                       <button
@@ -244,6 +263,26 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
                     </TooltipContent>
                   </Tooltip>
                 )}
+              </EditorTab>
+            ))}
+            {docs.tabs.map((doc) => (
+              <EditorTab
+                key={`doc:${doc.file}`}
+                active={doc.file === docs.active}
+                className={cn(TAB, "shrink-0 pl-0!")}
+              >
+                <EditorTabTrigger
+                  className="gap-1.5 pl-3"
+                  onClick={() => docs.onOpen(doc.file)}
+                >
+                  <BookOpen aria-hidden="true" className="text-subtle" />
+                  <EditorTabLabel>{doc.title}</EditorTabLabel>
+                </EditorTabTrigger>
+                <EditorTabClose
+                  aria-label={`Close ${doc.title}`}
+                  onClick={() => docs.onClose(doc.file)}
+                  className={COARSE_HIT}
+                />
               </EditorTab>
             ))}
           </EditorTabs>
@@ -300,7 +339,11 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
               </Tooltip>
             </div>
           )}
-          <BaseFileTreeList rows={tree.rows} onPick={tree.onPick} />
+          <BaseFileTreeList
+            rows={tree.rows}
+            onPick={tree.onPick}
+            onPickDoc={tree.onPickDoc}
+          />
         </PopoverContent>
       </Popover>
       {/* Every tab, when the strip cannot show them all */}
@@ -310,7 +353,7 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              aria-label={`All tabs, ${tabs.length}`}
+              aria-label={`All tabs, ${count}`}
               className="my-auto ml-0.5 shrink-0 rounded-lg text-muted-foreground hover:text-foreground data-[state=open]:bg-surface-hover data-[state=open]:text-foreground [&_svg]:size-[18px]! [&_svg]:stroke-[1.5]"
             >
               <Ellipsis />
@@ -318,7 +361,7 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-80 min-w-56">
             <DropdownMenuLabel className="text-caption text-muted-foreground">
-              Open tabs · {tabs.length}
+              Open tabs · {count}
             </DropdownMenuLabel>
             {tabs.map((tab) => {
               const at = tab.lastIndexOf("/");
@@ -332,7 +375,7 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
                     aria-hidden="true"
                     className={cn(
                       "size-3.5 shrink-0",
-                      tab === active ? "opacity-100" : "opacity-0"
+                      isFileInFront(tab) ? "opacity-100" : "opacity-0"
                     )}
                   />
                   <span className="truncate font-mono text-[0.8125rem]">
@@ -346,6 +389,25 @@ const BaseWorkspaceHead: FC<BaseWorkspaceHeadProps> = ({
                 </DropdownMenuItem>
               );
             })}
+            {docs.tabs.map((doc) => (
+              <DropdownMenuItem
+                key={`doc:${doc.file}`}
+                onSelect={() => docs.onOpen(doc.file)}
+                className="gap-2"
+              >
+                <Check
+                  aria-hidden="true"
+                  className={cn(
+                    "size-3.5 shrink-0",
+                    doc.file === docs.active ? "opacity-100" : "opacity-0"
+                  )}
+                />
+                <span className="truncate text-[0.8125rem]">{doc.title}</span>
+                <span className="ml-auto pl-3 text-caption text-muted-foreground">
+                  Docs
+                </span>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       )}

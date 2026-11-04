@@ -1,5 +1,5 @@
 /* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
-import type { TutorialDefinition } from "@/entities/tutorial";
+import type { Doc, TutorialDefinition } from "@/entities/tutorial";
 
 /**
  * The tutorial's files, by their path from the project root (`src/lib.rs`):
@@ -50,9 +50,23 @@ export const createdIn = (
 export const tabsOf = (files: string[], present: ReadonlySet<string>) =>
   files.filter((path) => present.has(path));
 
-/** One row of the tree: a folder's label, or a file */
+/** A doc page as the tree and the tabs list it: its Markdown file and its title */
+export type DocTab = Pick<Doc, "file" | "title">;
+
+/** The tree's last folder, holding the tutorial's doc pages */
+const DOCS_FOLDER = "Docs";
+
+/** One row of the tree: a folder's label, a file, or a doc page */
 export type TreeRow =
   | { kind: "folder"; name: string; depth: number }
+  | {
+      kind: "doc";
+      file: string;
+      name: string;
+      depth: number;
+      /** The page is the tab in front */
+      open: boolean;
+    }
   | {
       kind: "file";
       path: string;
@@ -71,12 +85,18 @@ export interface TreeInput {
   open: string | null;
   live: string | null;
   createdIn: (path: string) => number | null;
+  /** The doc pages, under the `Docs` folder; none for a tutorial without */
+  docs: readonly DocTab[];
+  /** The doc page in front, by file; none while a file is. While set, no
+   * file row reads as open */
+  openDoc?: string;
 }
 
 /**
  * The tree's rows: each folder in the order its first file comes (`src`,
- * then `client`), its files under it, then the files at the root. One level
- * deep, as a tutorial's project is.
+ * then `client`), its files under it, then the files at the root, then the
+ * `Docs` folder with the doc pages. One level deep, as a tutorial's project
+ * is.
  */
 export const treeRows = ({
   files,
@@ -84,6 +104,8 @@ export const treeRows = ({
   open,
   live,
   createdIn: stepOf,
+  docs,
+  openDoc,
 }: TreeInput): TreeRow[] => {
   const file = (path: string, depth: number): TreeRow => {
     const there = present.has(path);
@@ -92,7 +114,7 @@ export const treeRows = ({
       path,
       name: path.split("/").pop() ?? path,
       depth,
-      open: path === open,
+      open: openDoc === undefined && path === open,
       live: there && path === live,
       waiting: there ? null : stepOf(path),
     };
@@ -108,12 +130,26 @@ export const treeRows = ({
       ...files.filter((f) => f.startsWith(`${name}/`)).map((f) => file(f, 1)),
     ]),
     ...files.filter((f) => !f.includes("/")).map((f) => file(f, 0)),
+    ...(docs.length
+      ? [
+          { kind: "folder", name: DOCS_FOLDER, depth: 0 } as TreeRow,
+          ...docs.map(
+            (doc): TreeRow => ({
+              kind: "doc",
+              file: doc.file,
+              name: doc.title,
+              depth: 1,
+              open: doc.file === openDoc,
+            })
+          ),
+        ]
+      : []),
   ];
 };
 
 /** Whether a row can take the focus and be opened */
 export const pickable = (row: TreeRow) =>
-  row.kind === "file" && row.waiting === null;
+  row.kind === "doc" || (row.kind === "file" && row.waiting === null);
 
 /**
  * Where ↑ or ↓ moves the focus among the pickable rows, as an index into
@@ -164,6 +200,7 @@ if (import.meta.vitest) {
         open,
         live: LIB,
         createdIn: (path) => createdIn(definition, path),
+        docs: [],
       });
 
     it("lists the starter files, then the created ones, and never tests", () => {
@@ -204,6 +241,42 @@ if (import.meta.vitest) {
       );
       expect(client).toMatchObject({ waiting: 3, live: false });
       expect(client && pickable(client)).toBe(false);
+    });
+
+    it("shows no Docs folder for a tutorial without doc pages", () => {
+      expect(
+        rowsAt([LIB]).some((r) => r.kind === "folder" && r.name === DOCS_FOLDER)
+      ).toBe(false);
+    });
+
+    it("lists the doc pages last, under Docs, and marks the one in front", () => {
+      const rows = treeRows({
+        files: tutorialFiles(definition),
+        present: new Set([LIB]),
+        open: LIB,
+        live: LIB,
+        createdIn: (path) => createdIn(definition, path),
+        docs: [
+          { file: "idl.md", title: "IDL" },
+          { file: "programs.md", title: "Programs" },
+        ],
+        openDoc: "idl.md",
+      });
+      expect(
+        rows.map((r) =>
+          r.kind === "folder" ? `${r.name}/` : `  ${r.name}${r.open ? "*" : ""}`
+        )
+      ).toEqual([
+        "src/",
+        "  lib.rs",
+        "client/",
+        "  client.ts",
+        "Docs/",
+        "  IDL*",
+        "  Programs",
+      ]);
+      // The pages are stops for the arrows, after the files
+      expect(moveFocus(rows, 1, "ArrowDown")).toBe(5);
     });
 
     it("moves the focus with the arrows, clamped, past folders and waiting files", () => {

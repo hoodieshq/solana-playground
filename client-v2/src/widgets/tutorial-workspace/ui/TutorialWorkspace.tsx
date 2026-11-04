@@ -3,6 +3,8 @@ import type { FC, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EditorTabsShown } from "@/components/EditorWithTabs";
+import type { Doc } from "@/entities/tutorial";
+import { onCodeRequest, onDocRequest } from "@/entities/tutorial";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommon, PgExplorer, PgTutorial } from "@/utils";
@@ -12,17 +14,22 @@ import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
 
 import type { LineMarks } from "../model/lines";
 import { NO_MARKS } from "../model/lines";
-import type { TreeSource } from "../model/telemetry";
+import { readOpenDocs, writeOpenDocs } from "../model/open-docs";
+import type { DocOpenVia, TreeSource } from "../model/telemetry";
 import { tutorialWorkspaceTelemetry } from "../model/telemetry";
 import { autoOpenReason, resetsDeploys } from "../model/terminal";
 import { createdIn, tabsOf, treeRows, tutorialFiles } from "../model/tree";
 import BaseDockedTree from "./BaseDockedTree";
+import BaseDocPage from "./BaseDocPage";
 import BaseWorkspaceHead from "./BaseWorkspaceHead";
 import { useEditorLines } from "./use-editor-lines";
 import { useLogRequests } from "./use-log-requests";
 import { pickedDiagnostic } from "./use-terminal-facts";
 
 const log = createLogger("tutorial-workspace:workspace");
+
+/** A doc page the tutorial lists, with the Markdown it carries */
+type DocPage = Doc & { markdown: string };
 
 /** The workspace is wide enough to dock the tree beside the editor from here */
 export const DOCK_MIN_PX = 1100;
@@ -121,6 +128,28 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   const present = new Set(
     files.filter((f) => PgExplorer.files[PgExplorer.convertToFullPath(f)])
   );
+  // The pages the tutorial lists and carries; one whose Markdown is not in
+  // the bundle never shows (the loader rejects such a tutorial anyway).
+  // TODO(HOO-2359): the phone's Code space lists these beside the files
+  const pages = tutorial?.docPages;
+  const docs = useMemo<DocPage[]>(
+    () =>
+      (definition?.docs ?? []).flatMap((doc) => {
+        const markdown = pages?.[doc.file];
+        return markdown === undefined ? [] : [{ ...doc, markdown }];
+      }),
+    [definition, pages]
+  );
+  const [openDocs, setOpenDocs] = useState<string[]>([]);
+  const [doc, setDoc] = useState<string>();
+  useEffect(() => {
+    setOpenDocs(readOpenDocs()[name] ?? []);
+    setDoc(undefined);
+  }, [name]);
+  const docTabs = docs.filter((d) => openDocs.includes(d.file));
+  const frontDoc = docTabs.find((d) => d.file === doc);
+  const front = frontDoc?.file;
+
   const open = relOf(PgExplorer.currentFilePath);
   const page = PgTutorial.pageNumber;
   const live =
@@ -131,6 +160,8 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     open,
     live,
     createdIn: (path) => (definition ? createdIn(definition, path) : null),
+    docs,
+    openDoc: front,
   });
 
   const box = useRef<HTMLDivElement>(null);
@@ -169,6 +200,8 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   };
   const openFile = (path: string, via: "tab" | "tree") => {
     setTreeOpen(false);
+    // The file comes back in front of the page, which keeps its tab
+    setDoc(undefined);
     // From the tree's popover, which keeps focus from an open (see
     // `leavesFocusElsewhere`): the pick itself asks for the editor, also when
     // its file is the one already open. The docked tree is no popover, and a
@@ -184,6 +217,59 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     pickFocus();
     tutorialWorkspaceTelemetry.track("tutorial_workspace_file_opened", { via });
   };
+
+  /** Brings a doc page to the front; false for a page this tutorial lacks */
+  const showDoc = (file: string, via: DocOpenVia): boolean => {
+    if (!docs.some((d) => d.file === file)) {
+      // The link matched the definition's list, but the bundle has no page
+      log.warn("asked for a doc page this tutorial does not carry", {
+        context: { file, tutorial: name },
+      });
+      return false;
+    }
+    setTreeOpen(false);
+    const next = openDocs.includes(file) ? openDocs : [...openDocs, file];
+    if (next !== openDocs) {
+      setOpenDocs(next);
+      writeOpenDocs(name, next);
+    }
+    if (file === front) return true;
+    setDoc(file);
+    if (via !== "tab") {
+      tutorialWorkspaceTelemetry.track("tutorial_workspace_doc_opened", {
+        doc: file,
+        via,
+      });
+    }
+    return true;
+  };
+  const closeDoc = (file: string) => {
+    const next = openDocs.filter((f) => f !== file);
+    setOpenDocs(next);
+    writeOpenDocs(name, next);
+    if (file === front) setDoc(undefined);
+  };
+
+  // The assistant's doc links reach the workspace here; a page never opens
+  // by itself
+  const showDocNow = useRef(showDoc);
+  showDocNow.current = showDoc;
+  useEffect(() => {
+    if (!active) return;
+    return onDocRequest((file) => showDocNow.current(file, "assistant"));
+  }, [active]);
+
+  // The code comes back in front of a page whenever the lesson shows it: a
+  // file it opens (a step's file, a quote's) or a line in the open one
+  useEffect(() => {
+    if (!active) return;
+    const opened = PgExplorer.onDidOpenFile(() => setDoc(undefined));
+    const stop = onCodeRequest(() => setDoc(undefined));
+    return () => {
+      opened.dispose();
+      stop();
+    };
+  }, [active]);
 
   // ⌘E (Ctrl E off a Mac), even from the editor, the composer or the tree's
   // own popover: Monaco's own ⌘E (find with the selection) loses to it here,
@@ -277,6 +363,12 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
           tabs={tabsOf(files, present)}
           active={open}
           onOpen={(path) => openFile(path, "tab")}
+          docs={{
+            tabs: docTabs,
+            active: front,
+            onOpen: (file) => showDoc(file, "tab"),
+            onClose: closeDoc,
+          }}
           tree={{
             open: treeOpen,
             docked: dockedShown,
@@ -285,6 +377,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
             onToggle: toggleTree,
             onClose: () => setTreeOpen(false),
             onPick: (path) => openFile(path, "tree"),
+            onPickDoc: (file) => showDoc(file, "tree"),
             onDock: () => dock(true),
           }}
           call={call}
@@ -302,13 +395,32 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
             open={dockedShown}
             rows={rows}
             onPick={(path) => openFile(path, "tree")}
+            onPickDoc={(file) => showDoc(file, "tree")}
             onUndock={() => dock(false)}
           />
         )}
-        <div ref={setStage} className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <EditorTabsShown.Provider value={!active}>
-            {children}
-          </EditorTabsShown.Provider>
+        {/* A doc page covers the editor, which stays mounted under it and
+            inert (no focus, no pointer, hidden from assistive tech) while a
+            page is in front */}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+          <div
+            ref={setStage}
+            inert={(active && front !== undefined) || undefined}
+            className="flex min-h-0 min-w-0 flex-1 flex-col"
+          >
+            <EditorTabsShown.Provider value={!active}>
+              {children}
+            </EditorTabsShown.Provider>
+          </div>
+          {active && frontDoc && (
+            <div className="absolute inset-0 z-10 flex">
+              <BaseDocPage
+                title={frontDoc.title}
+                url={frontDoc.url}
+                markdown={frontDoc.markdown}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

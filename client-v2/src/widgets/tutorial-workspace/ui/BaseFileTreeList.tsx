@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
-import { ChevronDown, FileCode } from "lucide-react";
+import { BookOpen, ChevronDown, FileCode } from "lucide-react";
 import type { FC, KeyboardEvent } from "react";
 
 import { cn } from "@/shared/lib/utils";
@@ -19,11 +19,15 @@ const indentOf = (depth: number) => ({
 });
 
 type FileRow = Extract<TreeRow, { kind: "file" }>;
+type DocRow = Extract<TreeRow, { kind: "doc" }>;
 type FolderRow = Extract<TreeRow, { kind: "folder" }>;
 
-/** The rows as the tree nests them: each folder with its files, then the root's */
+/**
+ * The rows as the tree nests them: each folder with its files, the root's
+ * files, then the `Docs` folder with its pages
+ */
 const groups = (rows: TreeRow[]) => {
-  const out: { folder: FolderRow | null; files: FileRow[] }[] = [];
+  const out: { folder: FolderRow | null; files: (FileRow | DocRow)[] }[] = [];
   for (const row of rows) {
     const last = out[out.length - 1];
     if (row.kind === "folder") out.push({ folder: row, files: [] });
@@ -36,16 +40,23 @@ const groups = (rows: TreeRow[]) => {
 export interface BaseFileTreeListProps {
   rows: TreeRow[];
   onPick: (path: string) => void;
+  /** A doc page picked, by its Markdown file */
+  onPickDoc: (file: string) => void;
 }
 
 /**
  * The tutorial's files by folder (prototype `FileTreeList`). The open file
  * is marked, the live step's file carries a dot, and a file a later step
- * creates says so and cannot be picked. ↑ and ↓ move between the files;
+ * creates says so and cannot be picked. The `Docs` folder comes last, its
+ * pages opening as tabs that close. ↑ and ↓ move between the files and pages;
  * Enter is the row's own button. A folder is an expanded treeitem owning a
  * group of its files, so the tree holds treeitems only.
  */
-const BaseFileTreeList: FC<BaseFileTreeListProps> = ({ rows, onPick }) => {
+const BaseFileTreeList: FC<BaseFileTreeListProps> = ({
+  rows,
+  onPick,
+  onPickDoc,
+}) => {
   // Every row, folders' labels included, in `rows`' order: `moveFocus` counts
   // in that order and never lands on a label
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -105,6 +116,31 @@ const BaseFileTreeList: FC<BaseFileTreeListProps> = ({ rows, onPick }) => {
     );
   };
 
+  const docRow = (row: DocRow) => (
+    <button
+      key={`doc:${row.file}`}
+      type="button"
+      role="treeitem"
+      data-tree-row
+      data-doc={row.file}
+      aria-selected={row.open}
+      onClick={() => onPickDoc(row.file)}
+      style={indentOf(row.depth)}
+      className={cn(
+        ROW,
+        row.open ? "bg-surface-hover text-foreground" : "text-muted-foreground"
+      )}
+    >
+      <BookOpen
+        aria-hidden="true"
+        className="size-[15px] shrink-0 text-subtle"
+      />
+      <span className="min-w-0 truncate">{row.name}</span>
+    </button>
+  );
+  const row = (r: FileRow | DocRow) =>
+    r.kind === "doc" ? docRow(r) : fileRow(r);
+
   return (
     <div
       role="tree"
@@ -135,11 +171,11 @@ const BaseFileTreeList: FC<BaseFileTreeListProps> = ({ rows, onPick }) => {
               {group.folder.name}
             </div>
             <div role="group" className="flex flex-col gap-px">
-              {group.files.map(fileRow)}
+              {group.files.map(row)}
             </div>
           </div>
         ) : (
-          group.files.map(fileRow)
+          group.files.map(row)
         )
       )}
     </div>

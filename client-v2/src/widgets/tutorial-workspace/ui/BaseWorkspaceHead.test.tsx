@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
 
+import type { DocTab } from "../model/tree";
 import { treeRows } from "../model/tree";
 import BaseWorkspaceHead from "./BaseWorkspaceHead";
 
@@ -25,14 +26,18 @@ afterEach(() => vi.unstubAllGlobals());
 const LIB = "src/lib.rs";
 const CLIENT = "client/client.ts";
 
-const rows = (open: string) =>
+const rows = (docs: DocTab[], open: string) =>
   treeRows({
     files: [LIB, CLIENT],
     present: new Set([LIB, CLIENT]),
     open,
     live: LIB,
     createdIn: () => null,
+    docs,
   });
+
+/** No doc tab open */
+const noDocs = () => ({ tabs: [], onOpen: vi.fn(), onClose: vi.fn() });
 
 /** The head with the tree's open state held as the connected part holds it */
 const Harness = ({
@@ -53,11 +58,12 @@ const Harness = ({
       tabs={[LIB, CLIENT]}
       active={file}
       onOpen={setFile}
+      docs={noDocs()}
       tree={{
         open,
         docked: false,
         canDock,
-        rows: rows(file),
+        rows: rows([], file),
         onToggle: () => setOpen(!open),
         onClose: () => setOpen(false),
         onPick: (path) => {
@@ -65,6 +71,7 @@ const Harness = ({
           setFile(path);
           setOpen(false);
         },
+        onPickDoc: vi.fn(),
         onDock,
       }}
       terminal={{ open: terminalOpen, onToggle: vi.fn() }}
@@ -177,6 +184,7 @@ describe("BaseWorkspaceHead", () => {
         tabs={[LIB]}
         active={LIB}
         onOpen={vi.fn()}
+        docs={noDocs()}
         tree={{
           open: true,
           docked: false,
@@ -187,10 +195,12 @@ describe("BaseWorkspaceHead", () => {
             open: LIB,
             live: LIB,
             createdIn: () => 3,
+            docs: [],
           }),
           onToggle: vi.fn(),
           onClose: vi.fn(),
           onPick,
+          onPickDoc: vi.fn(),
           onDock: vi.fn(),
         }}
         terminal={{ open: false, onToggle: vi.fn() }}
@@ -202,5 +212,85 @@ describe("BaseWorkspaceHead", () => {
     expect(client.textContent).toContain("Created in step 3");
     expect((client as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole("img", { name: "This step's file" })).toBeTruthy();
+  });
+
+  it("draws an open doc after the files, with a close button the files lack", async () => {
+    const onClose = vi.fn();
+    const onOpen = vi.fn();
+    render(
+      <BaseWorkspaceHead
+        tabs={[LIB]}
+        active={LIB}
+        onOpen={vi.fn()}
+        docs={{
+          tabs: [{ file: "idl.md", title: "IDL" }],
+          active: "idl.md",
+          onOpen,
+          onClose,
+        }}
+        tree={{
+          open: false,
+          docked: false,
+          canDock: false,
+          rows: rows([], LIB),
+          onToggle: vi.fn(),
+          onClose: vi.fn(),
+          onPick: vi.fn(),
+          onPickDoc: vi.fn(),
+          onDock: vi.fn(),
+        }}
+        terminal={{ open: false, onToggle: vi.fn() }}
+        filesKey="⌘E"
+        terminalKey="⌘J"
+      />
+    );
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "lib.rs",
+      "IDL",
+    ]);
+    expect(
+      screen.getByRole("tab", { name: "IDL" }).getAttribute("aria-selected")
+    ).toBe("true");
+    // lib.rs keeps its tab, out of the front, and with no tree toggle
+    expect(
+      screen.getByRole("tab", { name: "lib.rs" }).getAttribute("aria-selected")
+    ).toBe("false");
+    expect(
+      screen.queryByRole("button", { name: "Files", expanded: false })
+    ).toBeNull();
+    expect(screen.getAllByRole("button", { name: /^Close/ })).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Close IDL" }));
+    expect(onClose).toHaveBeenCalledWith("idl.md");
+    await userEvent.click(screen.getByRole("tab", { name: "IDL" }));
+    expect(onOpen).toHaveBeenCalledWith("idl.md");
+  });
+
+  it("picks a doc page from the tree's Docs folder", async () => {
+    const onPickDoc = vi.fn();
+    render(
+      <BaseWorkspaceHead
+        tabs={[LIB]}
+        active={LIB}
+        onOpen={vi.fn()}
+        docs={noDocs()}
+        tree={{
+          open: true,
+          docked: false,
+          canDock: false,
+          rows: rows([{ file: "idl.md", title: "IDL" }], LIB),
+          onToggle: vi.fn(),
+          onClose: vi.fn(),
+          onPick: vi.fn(),
+          onPickDoc,
+          onDock: vi.fn(),
+        }}
+        terminal={{ open: false, onToggle: vi.fn() }}
+        filesKey="⌘E"
+        terminalKey="⌘J"
+      />
+    );
+    const docs = await screen.findByRole("treeitem", { name: "Docs" });
+    await userEvent.click(within(docs).getByRole("treeitem", { name: "IDL" }));
+    expect(onPickDoc).toHaveBeenCalledWith("idl.md");
   });
 });

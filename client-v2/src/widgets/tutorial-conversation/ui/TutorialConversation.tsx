@@ -2,7 +2,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
 import type { StepJumpVia } from "@/entities/tutorial";
-import { slugOf } from "@/entities/tutorial";
+import {
+  docForLink,
+  requestCode,
+  requestDoc,
+  slugOf,
+} from "@/entities/tutorial";
 import type { ConversationState } from "@/features/tutorial-conversation";
 import {
   isUnreachable,
@@ -120,6 +125,8 @@ const showLine = (file: string, line: number): "shown" | "opening" | null => {
     }
     // Saved too for the open file: an editor not mounted yet reads it later
     savePosition(path, line);
+    // The line is the point: a doc page in front gives way to the code
+    requestCode();
     if (PgExplorer.currentFilePath === path) {
       PgEditor.revealLine(path, line);
       return "shown";
@@ -636,6 +643,12 @@ export const TutorialConversation = ({
   }
 
   const progress = state.engine.progress;
+  // A link to one of the tutorial's docs opens it as a tab beside the files;
+  // with no workspace to show it, the link opens as a link
+  const handleLink = (href: string) => {
+    const doc = docForLink(context.definition.docs, href);
+    return doc ? requestDoc(doc.file) : false;
+  };
   const running = view.turns.some(
     (t) => t.kind === "act" && t.state === "running"
   );
@@ -651,7 +664,7 @@ export const TutorialConversation = ({
         entry.kind === "asked" ? (
           <BaseYouPill text={entry.text} code={false} />
         ) : (
-          <BaseAnswer text={entry.text} tone={entry.tone} />
+          <BaseAnswer text={entry.text} tone={entry.tone} onLink={handleLink} />
         )
       }
       live={view.live}

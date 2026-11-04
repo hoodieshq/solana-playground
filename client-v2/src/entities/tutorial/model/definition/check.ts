@@ -561,7 +561,7 @@ const ruleErrors = (
 };
 
 if (import.meta.vitest) {
-  const { describe, it, expect } = import.meta.vitest;
+  const { describe, it, expect, beforeAll } = import.meta.vitest;
   type Ask = import("./types").Ask;
   type WriteBeat = import("./types").WriteBeat;
 
@@ -1125,6 +1125,52 @@ if (import.meta.vitest) {
       ];
       return checkDefinition(d, KNOWN, { docs: folder }).map(formatError);
     };
+
+    // Pages written to test the doc tabs, not shipped: the browser suite
+    // gives them to Hello Anchor should it list no pages of its own, and one
+    // that failed the check would then drop the tutorial from every e2e run
+    let testList: import("./types").Doc[];
+    let testPages: Record<string, string>;
+    beforeAll(async () => {
+      testList = (
+        await import(
+          "../../../../tutorials/__tests__/docs/hello-anchor/docs.json"
+        )
+      ).default;
+      testPages = {
+        "idl.md": (
+          await import(
+            "../../../../tutorials/__tests__/docs/hello-anchor/idl.md"
+          )
+        ).default,
+        "program-structure.md": (
+          await import(
+            "../../../../tutorials/__tests__/docs/hello-anchor/program-structure.md"
+          )
+        ).default,
+        "programs.md": (
+          await import(
+            "../../../../tutorials/__tests__/docs/hello-anchor/programs.md"
+          )
+        ).default,
+        "transactions.md": (
+          await import(
+            "../../../../tutorials/__tests__/docs/hello-anchor/transactions.md"
+          )
+        ).default,
+      };
+    });
+
+    it("passes every test page written for Hello Anchor, as its list names them", () => {
+      const d = minimal();
+      d.docs = testList;
+      expect(
+        checkDefinition(d, KNOWN, { docs: testPages }).map(formatError)
+      ).toEqual([]);
+      expect(testList.map((doc) => doc.file).sort()).toEqual(
+        Object.keys(testPages).sort()
+      );
+    });
 
     it("passes docs whose pages are there and link to https", () => {
       expect(

@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { Page } from "@playwright/test";
 
-import { expect, LONG, test } from "./fixtures";
+import { expect, json, LONG, stubSession, test } from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
 /** The workspace's head, over the editor in the tutorial frame */
@@ -36,6 +36,31 @@ const startHelloAnchor = async (page: Page) => {
     .getByRole("button", { name: /Start step 1/ })
     .click(LONG);
   await expect(head(page)).toBeVisible(LONG);
+};
+
+/** The chat-completions stream `/api/agent` answers with: `text`, then stop */
+const streamed = (text: string) =>
+  [
+    { choices: [{ index: 0, delta: { role: "assistant", content: text } }] },
+    { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+  ]
+    .map((c) => `data: ${JSON.stringify(c)}\n\n`)
+    .join("") + "data: [DONE]\n\n";
+
+/**
+ * Hello Anchor's tree holds a Docs folder: its own pages, or, should it list
+ * none, the test pages a dev server started with `TUTORIAL_TEST_DOCS` gives
+ * it (a reused `yarn dev` does not)
+ */
+const expectDocs = async (page: Page) => {
+  await chevron(page).click();
+  await expect(
+    page.getByRole("tree", { name: "Files" }).getByRole("treeitem", {
+      name: "Docs",
+    }),
+    "no Docs folder: Hello Anchor lists no doc pages, and the dev server was not started with TUTORIAL_TEST_DOCS=1 (playwright.config.mts)"
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
 };
 
 test.describe("tutorial-workspace", () => {
@@ -129,5 +154,118 @@ test.describe("tutorial-workspace", () => {
     await expect
       .poll(() => lineOf(lines, "tutorial_workspace_tree_opened"))
       .toContain("via: key");
+  });
+
+  // The scenario reads "on step 2"; step 1 holds the same head, and getting
+  // past it takes a real build. What it proves is the link, not the step
+  test("tutorial-workspace: A doc from the assistant's answer", async ({
+    page,
+  }) => {
+    const lines = linesOn(page);
+    await stubSession(page);
+    await page.route("**/api/agent", (route) =>
+      route.request().method() === "GET"
+        ? json(route, { configured: true, model: "test-model" })
+        : route.fulfill({
+            status: 200,
+            contentType: "text/event-stream",
+            body: streamed(
+              "The [IDL](https://www.anchor-lang.com/docs/basics/idl) lists `hello` and its arguments."
+            ),
+          })
+    );
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tutorials/hello-anchor");
+    const chat = page.getByRole("complementary", { name: "Tutorial chat" });
+    await chat.getByRole("button", { name: /Start step 1/ }).click(LONG);
+    await expect(head(page)).toBeVisible(LONG);
+    await expectDocs(page);
+
+    const composer = chat.getByRole("textbox");
+    await composer.fill("what is the IDL?");
+    await composer.press("Enter");
+    // With no model picked yet, the question opens Connect a model first;
+    // whichever comes, it is waited for
+    const dialog = page.getByRole("dialog", { name: "Connect a model" });
+    const link = chat.getByRole("link", { name: "IDL" });
+    await expect(dialog.or(link)).toBeVisible(LONG);
+    if (await dialog.isVisible()) {
+      await dialog.getByRole("button", { name: "Start", exact: true }).click();
+      await expect(dialog).toBeHidden(LONG);
+      await composer.press("Enter");
+    }
+
+    // The page never opens by itself; the link opens it, beside lib.rs
+    await expect(link).toBeVisible(LONG);
+    await expect(head(page).getByRole("tab", { name: "IDL" })).toHaveCount(0);
+    await link.click();
+    const tab = head(page).getByRole("tab", { name: "IDL" });
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    await expect(head(page).getByRole("tab")).toHaveText(["lib.rs", "IDL"]);
+    const doc = page.getByTestId("tutorial-doc-page");
+    await expect(
+      doc.getByRole("heading", { name: "Program IDL File", exact: true })
+    ).toBeVisible();
+    await expect(
+      doc.getByRole("link", { name: /Open on anchor-lang\.com/ })
+    ).toHaveAttribute("href", "https://www.anchor-lang.com/docs/basics/idl");
+    // Read only: the page is Markdown, not an editor
+    await expect(doc.getByRole("textbox")).toHaveCount(0);
+    await expect
+      .poll(() => lineOf(lines, "tutorial_workspace_doc_opened"))
+      .toContain("via: assistant");
+
+    await head(page).getByRole("button", { name: "Close IDL" }).click();
+    await expect(tab).toHaveCount(0);
+    await expect(doc).toHaveCount(0);
+    await expect(
+      head(page).getByRole("tab", { name: "lib.rs" })
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("a doc opens from the tree's Docs folder and stays open across a reload", async ({
+    page,
+  }) => {
+    const lines = linesOn(page);
+    await startHelloAnchor(page);
+    await expectDocs(page);
+    await chevron(page).click();
+    const tree = page.getByRole("tree", { name: "Files" });
+    await tree
+      .getByRole("treeitem", { name: "Docs" })
+      .getByRole("treeitem", { name: "Programs" })
+      .click();
+    await expect(tree).toBeHidden();
+    await expect(
+      head(page).getByRole("tab", { name: "Programs" })
+    ).toHaveAttribute("aria-selected", "true");
+    await expect
+      .poll(() => lineOf(lines, "tutorial_workspace_doc_opened"))
+      .toContain("via: tree");
+    expect(lineOf(lines, "tutorial_workspace_doc_opened")).toContain(
+      "doc: programs.md"
+    );
+    // The editor under the page takes no focus until a file is in front
+    await expect(
+      page.locator("[inert]").filter({ has: page.locator(".monaco-editor") })
+    ).toHaveCount(1);
+
+    // Back to lib.rs: the page keeps its tab
+    await head(page).getByRole("tab", { name: "lib.rs" }).click();
+    await expect(page.getByTestId("tutorial-doc-page")).toHaveCount(0);
+    await expect(
+      page.locator("[inert]").filter({ has: page.locator(".monaco-editor") })
+    ).toHaveCount(0);
+    await expect(head(page).getByRole("tab")).toHaveText([
+      "lib.rs",
+      "Programs",
+    ]);
+
+    await page.reload();
+    await expect(head(page)).toBeVisible(LONG);
+    await expect(head(page).getByRole("tab")).toHaveText([
+      "lib.rs",
+      "Programs",
+    ]);
   });
 });
