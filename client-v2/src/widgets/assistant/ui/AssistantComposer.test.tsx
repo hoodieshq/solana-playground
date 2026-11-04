@@ -699,7 +699,8 @@ describe("AssistantComposer, the off row", () => {
     const { retryDefaultBackend } = await import("../model/default-backend");
     vi.mocked(retryDefaultBackend).mockClear();
     render(<Harness />);
-    const names = [...(row()?.querySelectorAll("button") ?? [])].map(
+    const names = Array.from(
+      row()?.querySelectorAll("button") ?? [],
       (button) => button.textContent
     );
     expect(names).toEqual(["Add an API key", "Try again"]);

@@ -174,6 +174,7 @@ describe("Assistant", () => {
       )
     );
     await act(() =>
+      // eslint-disable-next-line unicorn/no-null -- `SessionUser` types these fields `| null`
       PgSession.refreshWith({ id: "u1", name: null, image: null, login: null })
     );
     expect(document.getElementById("assistant-status")).toBeNull();
