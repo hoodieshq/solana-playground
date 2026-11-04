@@ -502,6 +502,16 @@ test("gist-sharing: Too large is caught before sending", async ({ page }) => {
   await expect(
     page.getByText(`${big} is too large to share as a gist`)
   ).toBeVisible(LONG);
+  // Sending again would fail the same way, so the footer offers Close only
+  await expect(
+    dialog(page).getByRole("button", { name: "Try again" })
+  ).toHaveCount(0);
+  await expect(
+    dialog(page).getByRole("button", { name: /^Create .* gist$/ })
+  ).toHaveCount(0);
+  await expect(
+    dialog(page).getByRole("button", { name: "Close", exact: true })
+  ).not.toHaveCount(0);
   expect(requests).toHaveLength(0);
 });
 

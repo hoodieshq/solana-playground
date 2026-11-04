@@ -19,7 +19,10 @@ export interface BaseShareButtonProps {
 const BAR_CONTROL =
   "size-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground dark:hover:bg-accent [&_svg:not([class*='size-'])]:size-[18px] [&_svg]:stroke-[1.6]";
 
-/** The frame header's Share, drawn from what it is given: its name is the tooltip */
+/**
+ * The frame header's Share, drawn from what it is given: its name says which
+ * project it shares, its tooltip reads "Share as a gist"
+ */
 const BaseShareButton = ({ name, onShare }: BaseShareButtonProps) => (
   <Tooltip>
     <TooltipTrigger asChild>

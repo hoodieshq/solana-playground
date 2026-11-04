@@ -67,7 +67,7 @@ export interface BaseShareGistProps {
   onVisibilityChange: (visibility: GistVisibility) => void;
   /** Whether an export request runs, which locks the visibility */
   busy: boolean;
-  /** `null` while the project is still being read */
+  /** `undefined` while the project is still being read */
   files: ShareFiles | undefined;
   /** Whether the last copy was refused by the clipboard */
   copyFailed: boolean;

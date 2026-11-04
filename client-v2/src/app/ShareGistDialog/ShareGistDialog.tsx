@@ -70,8 +70,8 @@ const signInIcon = (waiting: boolean, cancellable: boolean) => {
  * say it was closed (`popup-channel`), so a submit that waited on it would
  * hold the dialog busy, with Cancel off, until the flow expires. While it
  * waits the submit reads "Cancel sign-in" and stops it, keeping the prompt
- * open, as the prototype's own sign-in control does; the frame's Cancel
- * closes the dialog and cancels it too.
+ * open, as the prototype's own sign-in control does. The footer has no Cancel
+ * then; the header's Close closes the dialog and cancels the sign-in too.
  */
 const SignInToShare = () => {
   useRenderOnChange(PgSession.onDidChange);

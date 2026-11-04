@@ -37,8 +37,8 @@ export interface PhonePagerState {
   /** The console's height on the preview: open (beside the stage, or the
    * whole page when the stage stays on Code), or its folded bar */
   consoleOpen: boolean;
-  /** Shares the open project as a gist; null with no project open */
-  onShare?: (() => void) | null;
+  /** Shares the open project as a gist; absent with no project open */
+  onShare?: () => void;
 }
 
 /** The content and the outlets' nodes the pager lays out */
