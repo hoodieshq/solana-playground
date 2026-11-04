@@ -233,10 +233,11 @@ const sendJson = (res, status, body) => {
  */
 export const answerWrite = (outcome) => {
   if ("limit" in outcome) {
-    return {
-      status: 413,
-      body: { error: "The project is over a sync limit", ...outcome.limit },
-    };
+    const error =
+      outcome.limit.reason === "too-many-projects"
+        ? "The account syncs as many projects as it can"
+        : "The project is over a sync limit";
+    return { status: 413, body: { error, ...outcome.limit } };
   }
   return describeSaved(outcome);
 };

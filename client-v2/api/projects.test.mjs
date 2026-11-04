@@ -623,6 +623,30 @@ describe("/api/projects", () => {
       });
     });
 
+    it("answers the account cap 413 with its kind, figure and count", async () => {
+      const mod = await load();
+      assert.deepEqual(
+        mod.answerWrite({
+          limit: {
+            reason: "too-many-projects",
+            kind: "project",
+            limit: 10,
+            count: 11,
+          },
+        }),
+        {
+          status: 413,
+          body: {
+            error: "The account syncs as many projects as it can",
+            reason: "too-many-projects",
+            kind: "project",
+            limit: 10,
+            count: 11,
+          },
+        }
+      );
+    });
+
     it("answers a missed swap 409 and a write 200", async () => {
       const mod = await load();
       const missed = { conflict: true, updatedAt: null };

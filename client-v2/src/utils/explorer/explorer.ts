@@ -1,10 +1,10 @@
 import {
   checkFileWrite,
   checkProjectLimits,
-  type LimitExceeded,
   limitKind,
   limitRule,
   limitSummary,
+  type ProjectLimitExceeded,
   SYNCED_WORKSPACE_FILES,
 } from "../../entities/project";
 import {
@@ -1163,7 +1163,7 @@ export class PgExplorer {
    */
   private static _refuseOverLimit(
     action: LimitActionParam,
-    limit: LimitExceeded | null
+    limit: ProjectLimitExceeded | null
   ) {
     if (!limit) return;
     explorerTelemetry.track("explorer_limit_refused", {

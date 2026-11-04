@@ -23,6 +23,26 @@ export const PROJECT_LIMITS = Object.freeze({
 });
 
 /**
+ * How many projects one account syncs, by kind (HOO-2538). The limits above
+ * bound one project; without a count one account could store any number.
+ *
+ * Tutorials count apart: the client ships 16, so counting them with projects
+ * would leave an account that had started ten tutorials unable to sync a
+ * project of its own. They are capped all the same, because a tutorial's id
+ * is `tut:<name>` with the name chosen by the client. 32 is twice the
+ * catalogue.
+ *
+ * Only the server applies these: it is the one place that knows what the
+ * account holds.
+ */
+export const ACCOUNT_LIMITS = Object.freeze({
+  /** Live projects of kind `project` that hold at least one synced file */
+  projects: 10,
+  /** The same, for kind `tutorial` */
+  tutorials: 32,
+});
+
+/**
  * Workspace files that travel with the code.
  *
  * `program-info.json` carries the program keypair. Syncing it is deliberate:
@@ -57,14 +77,29 @@ export const isSyncedPath = (path) =>
   SYNCED_WORKSPACE_FILES.includes(path) || !path.startsWith(".workspace/");
 
 /**
- * The first limit a project is over, with what is over it: the shape of a
- * limit 413's body.
+ * The first limit a project is over, with what is over it: what the client's
+ * check and the explorer report.
  *
  * @typedef {{reason: "path-too-long", limit: number, paths: string[]}
  *   | {reason: "file-too-large", limit: number, paths: string[],
  *      sizes: Record<string, number>}
  *   | {reason: "too-many-files", limit: number, count: number}
- *   | {reason: "project-too-large", limit: number, size: number}} LimitExceeded
+ *   | {reason: "project-too-large", limit: number, size: number}
+ * } ProjectLimitExceeded
+ */
+
+/**
+ * The account cap a create would break: `count` is the projects of `kind`
+ * the account would hold with this one. Only the server finds it.
+ *
+ * @typedef {{reason: "too-many-projects", kind: "project" | "tutorial",
+ *   limit: number, count: number}} AccountLimitExceeded
+ */
+
+/**
+ * Any limit a write is refused for: the shape of a limit 413's body.
+ *
+ * @typedef {ProjectLimitExceeded | AccountLimitExceeded} LimitExceeded
  */
 
 /** @typedef {LimitExceeded["reason"]} LimitReason */
@@ -75,6 +110,7 @@ export const LIMIT_REASONS = [
   "file-too-large",
   "too-many-files",
   "project-too-large",
+  "too-many-projects",
 ];
 
 /**
@@ -106,6 +142,17 @@ export const limitExceeded = Object.freeze({
     reason: /** @type {const} */ ("project-too-large"),
     limit: PROJECT_LIMITS.projectBytes,
     size,
+  }),
+  /**
+   * @param {"project" | "tutorial"} kind
+   * @param {number} count the projects of `kind` with the one refused
+   */
+  tooManyProjects: (kind, count) => ({
+    reason: /** @type {const} */ ("too-many-projects"),
+    kind,
+    limit:
+      kind === "tutorial" ? ACCOUNT_LIMITS.tutorials : ACCOUNT_LIMITS.projects,
+    count,
   }),
 });
 
@@ -168,6 +215,15 @@ export const readLimitExceeded = (body) => {
         limit,
         count: /** @type {number} */ (b.count),
       };
+    case "too-many-projects":
+      if (!isCount(b.count)) return null;
+      if (b.kind !== "project" && b.kind !== "tutorial") return null;
+      return {
+        reason: "too-many-projects",
+        kind: b.kind,
+        limit,
+        count: /** @type {number} */ (b.count),
+      };
     default:
       if (!isCount(b.size)) return null;
       return {
@@ -201,7 +257,7 @@ const pathLength = (path) => [...path].length;
  * at a time, and the cheapest to name first.
  *
  * @param {Record<string, string>} files
- * @returns {LimitExceeded | null}
+ * @returns {ProjectLimitExceeded | null}
  */
 export const checkProjectLimits = (files) => {
   const entries = Object.entries(files).filter(([path]) => isSyncedPath(path));
@@ -274,7 +330,7 @@ const measure = (files) => {
  * @param {Record<string, string>} files the project before the write
  * @param {string} path workspace-relative
  * @param {string} content
- * @returns {LimitExceeded | null}
+ * @returns {ProjectLimitExceeded | null}
  */
 export const checkFileWrite = (files, path, content) => {
   const own = checkProjectLimits({ [path]: content });

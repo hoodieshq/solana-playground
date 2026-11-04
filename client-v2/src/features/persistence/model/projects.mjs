@@ -7,6 +7,7 @@
  * device's work is gone".
  */
 import {
+  ACCOUNT_LIMITS,
   limitExceeded,
   PROJECT_LIMITS,
   SYNCED_WORKSPACE_FILES,
@@ -105,11 +106,25 @@ const TOMBSTONED = `(select deleted_at is not null from projects
  * another write can land, and the token handed back with the conflict would
  * already be the wrong one to retry with. The CTEs share a single snapshot, so
  * `current` is the value that was there when the swap missed.
+ *
+ * `had_files` says whether the row held a synced file before the swap, from
+ * the same snapshot: a swap onto an empty row (the parent a chat turn makes)
+ * makes a project count toward the account cap, as a create does. A swap
+ * that lands read a snapshot no other write to this row has moved since: one
+ * that committed meanwhile would have bumped `updated_at` and missed this
+ * swap's predicate.
  */
 const SWAP = `
   with target as (
     select updated_at from projects
      where user_id = $1 and id = $2 and deleted_at is null
+  ),
+  had as (
+    select exists(
+      select 1 from project_files
+       where user_id = $1 and project_id = $2
+         and (path = any($6::text[]) or not starts_with(path, '.workspace/'))
+    ) as had_files
   ),
   swapped as (
     update projects
@@ -120,7 +135,8 @@ const SWAP = `
   )
   select (select updated_at from swapped) as written,
          (select updated_at from target)  as current,
-         ${TOMBSTONED}                    as deleted`;
+         ${TOMBSTONED}                    as deleted,
+         (select had_files from had)      as had_files`;
 
 /**
  * Create-only: a new row, a live row that holds no files yet, or a tutorial's
@@ -262,6 +278,57 @@ const refuseOverLimit = async (q, userId, id) => {
   if (limit) throw new WriteRefused({ limit });
 };
 
+/**
+ * Serialises one account's writes that make a project count, so two creates
+ * at 9 cannot each count 9 others and both pass. Transaction-scoped: released
+ * at commit or rollback, never held past the write.
+ *
+ * A statement of its own, before `COUNT_PROJECTS` in the next: under READ
+ * COMMITTED a statement's snapshot is taken when it starts, so a count in
+ * the same statement would read from before the wait. Keyed by a hash of the
+ * user id; two users whose keys collide only queue behind each other.
+ */
+const LOCK_ACCOUNT = `
+  select pg_advisory_xact_lock(hashtextextended('projects-cap:' || $1, 0))`;
+
+/**
+ * The account's live projects of one kind that hold a synced file, this
+ * write's own included: a tombstone and an empty parent row do not count.
+ * Served by `projects_user_idx` and the `project_files` key.
+ */
+const COUNT_PROJECTS = `
+  select count(*)::int as projects
+    from projects p
+   where p.user_id = $1 and p.kind = $2 and p.deleted_at is null
+     and exists (
+       select 1 from project_files f
+        where f.user_id = p.user_id and f.project_id = p.id
+          and (f.path = any($3::text[]) or not starts_with(f.path, '.workspace/'))
+     )`;
+
+/**
+ * Throw `WriteRefused` with `{limit}` when the write takes the account past
+ * its cap for the project's kind (`ACCOUNT_LIMITS`), so that the writes roll
+ * back. Called only for a write that makes a project count, after its writes:
+ * the lock is taken last and nothing waits on a row while holding it, so it
+ * cannot deadlock with the row locks another write holds.
+ */
+const refuseOverAccountCap = async (q, userId, kind) => {
+  await q(LOCK_ACCOUNT, [userId]);
+  const { rows } = await q(COUNT_PROJECTS, [
+    userId,
+    kind,
+    SYNCED_WORKSPACE_FILES,
+  ]);
+  const cap =
+    kind === "tutorial" ? ACCOUNT_LIMITS.tutorials : ACCOUNT_LIMITS.projects;
+  if (rows[0].projects > cap) {
+    throw new WriteRefused({
+      limit: limitExceeded.tooManyProjects(kind, rows[0].projects),
+    });
+  }
+};
+
 const DELETE_NAMED = `
   delete from project_files
    where user_id = $1 and project_id = $2 and path = any($3::text[])`;
@@ -316,7 +383,10 @@ const DELETE_OTHERS = `
  *
  * A write that leaves the project over any limit is rolled back and answered
  * `{limit}`, the body of the route's 413. A patch is small even when its
- * project is not, so the project it produces is what counts.
+ * project is not, so the project it produces is what counts. A write that
+ * makes a project count toward the account cap (`ACCOUNT_LIMITS`) and takes
+ * the account past it is rolled back the same way, answered with
+ * `too-many-projects`; see `refuseOverAccountCap`.
  * TODO(HOO-2605): `answerWrite` spreads the fields of `{limit}` into the 413
  * body; the body has no `limit` object.
  *
@@ -361,7 +431,14 @@ export const writeProject = async (q, userId, input) => {
   const creating = !baseUpdatedAt;
 
   const { rows } = baseUpdatedAt
-    ? await q(SWAP, [userId, id, name, kind, baseUpdatedAt])
+    ? await q(SWAP, [
+        userId,
+        id,
+        name,
+        kind,
+        baseUpdatedAt,
+        SYNCED_WORKSPACE_FILES,
+      ])
     : await q(CREATE, [userId, id, name, kind]);
 
   const outcome = settle(rows[0]);
@@ -412,6 +489,13 @@ export const writeProject = async (q, userId, input) => {
     }
   }
   await refuseOverLimit(q, userId, id);
+  // A write that makes the project count toward the account cap: one to a
+  // row with no synced file before it. `CREATE` lets only such a row through;
+  // a swap reaches one when a client swaps files into an empty parent row. A
+  // project that already counts is never refused by the count.
+  if (creating || !rows[0].had_files) {
+    await refuseOverAccountCap(q, userId, kind);
+  }
   return outcome;
 };
 

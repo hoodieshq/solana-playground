@@ -229,7 +229,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     assert.notEqual(after["src/lib.rs"], versionsBefore["src/lib.rs"]);
   });
 
-  it("creates a template-sized project in three statements, not one per file", async () => {
+  it("creates a template-sized project in five statements, not one per file", async () => {
     // Counted through the real database: a regression to per-file inserts
     // would still pass every other case here, just slowly
     const statements = [];
@@ -247,8 +247,9 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       kind: "project",
       files: many,
     });
-    // The insert, the upsert and the measure
-    assert.equal(statements.length, 3);
+    // The insert, the upsert, the measure, and the account cap's lock and
+    // count
+    assert.equal(statements.length, 5);
     assert.equal(
       Object.keys((await getProject(userId, "p1")).snapshot.files).length,
       50
@@ -501,6 +502,194 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
         baseUpdatedAt: updatedAt,
       });
       assert.ok(result.updatedAt);
+    });
+  });
+
+  describe("account cap", () => {
+    /** Create project `p<n>` (or tutorial `tut:t<n>`) with one file */
+    const create = (n, kind = "project") =>
+      saveProject(userId, {
+        id: kind === "tutorial" ? `tut:t${n}` : `p${n}`,
+        name: `${kind} ${n}`,
+        kind,
+        files: { "src/lib.rs": `// ${n}` },
+      });
+
+    /** Create `count` projects of `kind`, numbered from 1, one at a time */
+    const fill = async (count, kind = "project") => {
+      const made = [];
+      for (let n = 1; n <= count; n++) {
+        const result = await create(n, kind);
+        assert.ok(result.updatedAt, JSON.stringify(result));
+        made.push(result);
+      }
+      return made;
+    };
+
+    const liveIds = async () => (await listProjects(userId)).map((p) => p.id);
+
+    it("takes the tenth project and refuses the eleventh, writing nothing", async () => {
+      await fill(10);
+
+      const result = await create(11);
+
+      assert.deepEqual(result, {
+        limit: {
+          reason: "too-many-projects",
+          kind: "project",
+          limit: 10,
+          count: 11,
+        },
+      });
+      const { rows } = await query(
+        `select (select count(*)::int from projects
+                  where user_id = $1 and id = 'p11') as projects,
+                (select count(*)::int from project_files
+                  where user_id = $1 and project_id = 'p11') as files`,
+        [userId]
+      );
+      assert.deepEqual(rows[0], { projects: 0, files: 0 });
+    });
+
+    it("keeps taking edits to the projects it holds at the cap", async () => {
+      const [first] = await fill(10);
+      const result = await saveProject(userId, {
+        id: "p1",
+        name: "project 1",
+        kind: "project",
+        changed: { "src/lib.rs": "// edited", "src/new.rs": "// added" },
+        removed: [],
+        baseUpdatedAt: first.updatedAt,
+      });
+      assert.ok(result.updatedAt, JSON.stringify(result));
+    });
+
+    it("keeps taking edits to an account already over the cap", async () => {
+      // Stored past the cap, as a lowered figure would leave it
+      await fill(10);
+      await query(
+        `insert into projects (id, user_id, name, kind) values ('p11', $1, 'p11', 'project')`,
+        [userId]
+      );
+      await query(
+        `insert into project_files (user_id, project_id, path, content)
+         values ($1, 'p11', 'src/lib.rs', 'x')`,
+        [userId]
+      );
+      const [row] = (await listProjects(userId)).filter((p) => p.id === "p11");
+      const result = await saveProject(userId, {
+        id: "p11",
+        name: "p11",
+        kind: "project",
+        changed: { "src/lib.rs": "y" },
+        removed: [],
+        baseUpdatedAt: row.updatedAt,
+      });
+      assert.ok(result.updatedAt, JSON.stringify(result));
+    });
+
+    it("frees a place when a project is deleted", async () => {
+      await fill(10);
+      await deleteProject(userId, "p3");
+
+      const result = await create(11);
+
+      assert.ok(result.updatedAt, JSON.stringify(result));
+      assert.equal((await liveIds()).length, 10);
+    });
+
+    it("does not count a row with no files, and counts it once filled", async () => {
+      await fill(10);
+      // The parent a chat turn makes
+      await query(
+        `insert into projects (id, user_id, name, kind) values ('p11', $1, 'p11', 'project')`,
+        [userId]
+      );
+
+      // Adopted by a create
+      const created = await create(11);
+      assert.equal(created.limit?.reason, "too-many-projects");
+
+      // Or reached by a swap with the empty row's token
+      const [row] = (await listProjects(userId)).filter((p) => p.id === "p11");
+      const swapped = await saveProject(userId, {
+        id: "p11",
+        name: "p11",
+        kind: "project",
+        files: { "src/lib.rs": "// 11" },
+        baseUpdatedAt: row.updatedAt,
+      });
+      assert.equal(swapped.limit?.reason, "too-many-projects");
+      assert.equal((await getProject(userId, "p11")).snapshot, null);
+    });
+
+    it("counts tutorials apart, at their own figure", async () => {
+      await fill(10);
+      assert.ok((await create(1, "tutorial")).updatedAt);
+
+      await query("delete from projects where user_id = $1", [userId]);
+      await fill(32, "tutorial");
+      assert.deepEqual((await create(33, "tutorial")).limit, {
+        reason: "too-many-projects",
+        kind: "tutorial",
+        limit: 32,
+        count: 33,
+      });
+      assert.ok((await create(1)).updatedAt);
+    });
+
+    it("counts a tutorial started again after its delete", async () => {
+      await fill(32, "tutorial");
+      await deleteProject(userId, "tut:t1");
+      await create(33, "tutorial");
+
+      const restarted = await create(1, "tutorial");
+
+      assert.equal(restarted.limit?.reason, "too-many-projects");
+    });
+
+    it("lets exactly one of two creates racing at nine through", async () => {
+      await fill(9);
+      // A holds its transaction open after its writes, the lock taken; B
+      // must wait for A's commit and then count A's project
+      let release;
+      const gate = new Promise((resolve) => (release = resolve));
+      let aWritten;
+      const written = new Promise((resolve) => (aWritten = resolve));
+
+      const a = transaction(async (q) => {
+        const result = await writeProject(q, userId, {
+          id: "p10",
+          name: "project 10",
+          kind: "project",
+          files: { "src/lib.rs": "// 10" },
+        });
+        aWritten();
+        await gate;
+        return result;
+      });
+      await written;
+
+      const b = create(11);
+
+      // Polled rather than slept: B is ready once Postgres reports it
+      // waiting on the advisory lock. Without the lock it never waits, the
+      // poll runs out, and both creates pass.
+      for (let i = 0; i < 100; i++) {
+        const { rows } = await query(
+          `select 1 from pg_stat_activity
+            where datname = current_database()
+              and wait_event_type = 'Lock' and wait_event = 'advisory'`
+        );
+        if (rows.length) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+
+      release();
+      const results = await Promise.all([a, b]);
+      assert.ok(results[0].updatedAt, JSON.stringify(results[0]));
+      assert.equal(results[1].limit?.reason, "too-many-projects");
+      assert.equal((await liveIds()).length, 10);
     });
   });
 
