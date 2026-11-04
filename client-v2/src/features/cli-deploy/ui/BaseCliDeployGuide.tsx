@@ -18,8 +18,13 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
-import { deployCommands } from "../model/commands";
-import type { CliCluster, CliTool } from "../model/commands";
+import {
+  deployCommands,
+  idlCommands,
+  PROGRAM_ID_PLACEHOLDER,
+} from "../model/commands";
+import type { CliCluster, CliTool, IdlCommandKind } from "../model/commands";
+import type { CommandStep } from "../model/telemetry";
 
 export interface BaseCliDeployGuideProps {
   open: boolean;
@@ -36,8 +41,14 @@ export interface BaseCliDeployGuideProps {
   built: boolean;
   /** The binary download, shown once `built` */
   download: ReactNode;
-  /** A command's copy button was pressed */
-  onCopy: () => void;
+  /** Playground holds an IDL for the program, so step 3.1 has one to upload */
+  hasIdl: boolean;
+  /** The IDL download, beside the binary's; shown with or without a build */
+  downloadIdl: ReactNode;
+  /** The id of step 3.1's "no IDL" line, which describes the off download */
+  noIdlId: string;
+  /** A command's copy button was pressed, in step 3 or 3.1 */
+  onCopy: (step: CommandStep) => void;
 }
 
 const TOOLS: Record<CliTool, string> = {
@@ -70,6 +81,66 @@ const NO_KEYPAIR: Record<CliTool, (name: string) => string> = {
     `Without that file, drop ${name}-keypair.json from the cp: anchor deploy uses the workspace's own keypair and its program id.`,
 };
 
+/** Each step 3.1 command block's title and copy button label */
+const IDL_COMMANDS: Record<
+  IdlCommandKind,
+  { title: string; copy: string; failure: string }
+> = {
+  "program-metadata": {
+    title: "Program Metadata",
+    copy: "Copy the IDL upload command",
+    failure: "copy the IDL upload command",
+  },
+  anchor: {
+    title: "Anchor before 1.0 · legacy IDL account",
+    copy: "Copy the Anchor IDL command",
+    failure: "copy the Anchor IDL command",
+  },
+};
+
+/**
+ * A command block with its copy button. `onCopy` fires on the copy button's
+ * press only, not a click beside it.
+ */
+const Commands = (p: {
+  title: string;
+  copyLabel: string;
+  /** What did not happen when the copy fails, for its toast */
+  failure: string;
+  lines: string[];
+  onCopy: () => void;
+}) => (
+  <CodeBlock>
+    <CodeBlockHeader>
+      <CodeBlockTitle>{p.title}</CodeBlockTitle>
+      <CodeBlockActions
+        onClickCapture={(e) => {
+          const target = e.target as Element;
+          if (target.closest('[data-slot="copy-button"]')) p.onCopy();
+        }}
+      >
+        <CopyButton
+          value={p.lines.join("\n")}
+          label={p.copyLabel}
+          onError={reportButtonFailure(p.failure)}
+        />
+      </CodeBlockActions>
+    </CodeBlockHeader>
+    <CodeBlockContent>
+      {p.lines.map((line) => (
+        // A command wraps rather than scrolls: the dialog is narrow on a
+        // phone, and a hidden tail is a wrong command copied by eye
+        <CodeBlockLine
+          key={line}
+          className="whitespace-pre-wrap [overflow-wrap:anywhere]"
+        >
+          {line}
+        </CodeBlockLine>
+      ))}
+    </CodeBlockContent>
+  </CodeBlock>
+);
+
 /** A numbered step of the guide */
 const Step = ({ title, children }: { title: string; children: ReactNode }) => (
   <li className="flex flex-col gap-2">
@@ -85,7 +156,12 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
     cluster: p.cluster,
     name: p.name,
   });
-  const script = commands.join("\n");
+  const uploads = idlCommands({
+    tool: p.tool,
+    cluster: p.cluster,
+    name: p.name,
+    programId: p.programId,
+  });
   return (
     <Dialog open={p.open} onOpenChange={p.onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -122,13 +198,15 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
         </div>
         <ol className="flex min-w-0 flex-col gap-4">
           <Step title="1. Download the program">
-            {p.built ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {p.download}
-              </div>
-            ) : (
+            {/* The IDL can be loaded without a build, so its download does
+                not wait for one; step 3.1 names the file it saves */}
+            <div className="flex flex-wrap items-center gap-2">
+              {p.built && p.download}
+              {p.downloadIdl}
+            </div>
+            {!p.built && (
               <p className="text-caption text-muted-foreground">
-                Build successfully first.
+                Build successfully first to download the program.
               </p>
             )}
           </Step>
@@ -147,39 +225,13 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
             </p>
           </Step>
           <Step title="3. Run the deploy">
-            <CodeBlock>
-              <CodeBlockHeader>
-                <CodeBlockTitle>
-                  {TOOLS[p.tool]} · {CLUSTERS[p.cluster]}
-                </CodeBlockTitle>
-                <CodeBlockActions
-                  onClickCapture={(e) => {
-                    // Only the copy button's press, not a click beside it
-                    const target = e.target as Element;
-                    if (target.closest('[data-slot="copy-button"]')) p.onCopy();
-                  }}
-                >
-                  <CopyButton
-                    value={script}
-                    label="Copy the deploy command"
-                    onError={reportButtonFailure("copy the deploy command")}
-                  />
-                </CodeBlockActions>
-              </CodeBlockHeader>
-              <CodeBlockContent>
-                {commands.map((line) => (
-                  // A command wraps rather than scrolls: the dialog is narrow
-                  // on a phone, and a hidden tail is a wrong command copied
-                  // by eye
-                  <CodeBlockLine
-                    key={line}
-                    className="whitespace-pre-wrap [overflow-wrap:anywhere]"
-                  >
-                    {line}
-                  </CodeBlockLine>
-                ))}
-              </CodeBlockContent>
-            </CodeBlock>
+            <Commands
+              title={`${TOOLS[p.tool]} · ${CLUSTERS[p.cluster]}`}
+              copyLabel="Copy the deploy command"
+              failure="copy the deploy command"
+              lines={commands}
+              onCopy={() => p.onCopy("deploy")}
+            />
             {p.tool === "anchor" && (
               <p className="text-caption text-muted-foreground">
                 Run it in an Anchor workspace whose program is named{" "}
@@ -189,6 +241,50 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
             <p className="text-caption text-muted-foreground">
               {PAYER[p.cluster]}
             </p>
+          </Step>
+          <Step title="3.1 Upload the IDL">
+            {p.hasIdl ? (
+              <>
+                {uploads.map((c) => (
+                  <Commands
+                    key={c.kind}
+                    title={IDL_COMMANDS[c.kind].title}
+                    copyLabel={IDL_COMMANDS[c.kind].copy}
+                    failure={IDL_COMMANDS[c.kind].failure}
+                    lines={c.lines}
+                    onCopy={() => p.onCopy("idl")}
+                  />
+                ))}
+                <p className="text-caption text-muted-foreground">
+                  Run it beside <code className="font-mono">{p.name}.json</code>{" "}
+                  once the deploy finished, with the wallet that deployed:
+                  Explorer then names the program&apos;s instructions.
+                  {p.tool === "anchor" && (
+                    <>
+                      {" "}
+                      <code className="font-mono">anchor idl init</code> signs
+                      with the wallet in Anchor.toml; on Anchor 1.0 and later it
+                      writes the same Program Metadata account, so the first
+                      command is enough.
+                    </>
+                  )}
+                  {!p.programId && (
+                    <>
+                      {" "}
+                      Put the program id the deploy printed in place of{" "}
+                      <code className="font-mono">
+                        {PROGRAM_ID_PLACEHOLDER}
+                      </code>
+                      .
+                    </>
+                  )}
+                </p>
+              </>
+            ) : (
+              <p id={p.noIdlId} className="text-caption text-muted-foreground">
+                This program has no IDL to upload.
+              </p>
+            )}
           </Step>
         </ol>
       </DialogContent>
