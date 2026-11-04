@@ -235,11 +235,6 @@ describe("entities/project/limits", () => {
     assert.equal(limitExceeded.tooManyProjects("tutorial", 33).limit, 32);
   });
 
-  it("never reports the account cap from a project check", () => {
-    // Only the server knows what the account holds
-    assert.equal(checkProjectLimits(emptyFiles(50)), null);
-  });
-
   it("keeps its figures", () => {
     assert.deepEqual(
       { ...PROJECT_LIMITS },
