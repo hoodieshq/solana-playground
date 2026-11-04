@@ -22,7 +22,7 @@ export type AssistantEvents = {
   };
   /** The user picked one of the empty thread's suggestions, which sends it (or, with nothing connected, opens Connect a model). */
   assistant_suggestion_picked: NoParams;
-  /** The user asked for a described change as a patch ("Make this change" or "Write it for me"). */
+  /** The user asked for a described change as a patch ("Make this change"). */
   assistant_make_change_requested: NoParams;
 };
 

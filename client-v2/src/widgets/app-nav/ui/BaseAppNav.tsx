@@ -48,6 +48,11 @@ export interface BaseAppNavProps {
   onOpen: (item: NavItem) => void;
   /** The item whose page shows, marked as the current one */
   current?: NavItem;
+  /**
+   * Before the fold button in the open head: in a tutorial, the pin that
+   * docks the navigation open beside the chat (`widgets/tutorial-frame`)
+   */
+  pin?: ReactNode;
 }
 
 const BaseAppNav = ({
@@ -61,6 +66,7 @@ const BaseAppNav = ({
   setup,
   onOpen,
   current,
+  pin,
 }: BaseAppNavProps) => (
   <>
     {phone ? (
@@ -85,6 +91,7 @@ const BaseAppNav = ({
       <SidebarHeader>
         <div className="flex items-center justify-between gap-2">
           {!collapsed && logo}
+          {!collapsed && pin && <div className="ml-auto flex">{pin}</div>}
           <Button
             variant="ghost"
             size="icon"

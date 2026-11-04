@@ -13,7 +13,7 @@ export type OpenKind = "mount" | "later";
  * keeps focus, because nothing typed there asked for the open: sync
  * re-opening the workspace after an adoption, a merge or another tab's
  * write. The mount's open keeps focus wherever the user put it, a field or
- * a control: under load it lands late, after a click on the lesson band
+ * a control: under load it lands late, after a click on another control
  * already moved focus (the tree's field too: the new file the user is still
  * naming has not been created yet). It takes focus from the bare document,
  * so a fresh load lands in the editor, and from an item of the tree, whose

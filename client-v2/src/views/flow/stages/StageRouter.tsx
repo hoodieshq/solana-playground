@@ -12,6 +12,11 @@ const Interact = lazy(() => import("./Interact"));
 
 interface StageRouterProps {
   stage: Stage;
+  /**
+   * The stage tabs label the panels. Where none are drawn (a tutorial's
+   * frame, or before Start), the panel is no tab panel (default true)
+   */
+  tabs?: boolean;
 }
 
 /**
@@ -24,13 +29,14 @@ interface StageRouterProps {
  */
 const StageRouter: FC<React.PropsWithChildren<StageRouterProps>> = ({
   stage,
+  tabs = true,
 }) => (
   <>
     <WriteSlot
       $hidden={stage !== "write"}
       id="flow-stage-panel-write"
-      role="tabpanel"
-      aria-labelledby="flow-stage-tab-write"
+      role={tabs ? "tabpanel" : undefined}
+      aria-labelledby={tabs ? "flow-stage-tab-write" : undefined}
     >
       <Write />
     </WriteSlot>

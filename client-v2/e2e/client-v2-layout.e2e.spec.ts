@@ -6,7 +6,6 @@ import {
   expect,
   HELP_TAIL,
   home,
-  homeRegion,
   json,
   leaveEditor,
   projectRow,
@@ -30,20 +29,6 @@ const onlyLineOf = async (page: Page, lines: string[], name: string) => {
   );
   expect(all).toHaveLength(1);
   return all[0];
-};
-
-/**
- * Starts Hello Anchor's first lesson on a fresh profile, which opens on Home,
- * from Home's tutorial card
- */
-const startTutorial = async (page: Page) => {
-  await expect(home(page)).toBeVisible({ timeout: 20_000 });
-  await homeRegion(page)
-    .getByRole("button", { name: "Open Hello Anchor" })
-    .click();
-  // `exact`: Connect a model's dialog has a "Start" of its own
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await expect(page.getByRole("radio", { name: "Steps" })).toBeVisible();
 };
 
 const assistantPanel = (page: Page) => page.locator("#assistant[data-panel]");
@@ -395,26 +380,6 @@ test("client-v2-layout: The files column keeps its tree", async ({
         .toBe(scrolled);
     });
   }
-});
-
-test("client-v2-layout: A lesson's column keeps its tab", async ({ page }) => {
-  // Opening a tutorial boots the dev server's tutorial chunk and imports it
-  test.setTimeout(120_000);
-  await page.goto("/");
-  await startTutorial(page);
-
-  const filesTab = page.getByRole("radio", { name: "Files" });
-  await filesTab.click();
-  await expect(filesTab).toHaveAttribute("aria-checked", "true");
-
-  await page.getByRole("button", { name: "Collapse project panel" }).click();
-  await expect(filesPanel(page)).toHaveCount(0);
-  await page.getByRole("button", { name: "Expand project panel" }).click();
-
-  await expect(page.getByRole("radio", { name: "Files" })).toHaveAttribute(
-    "aria-checked",
-    "true"
-  );
 });
 
 test("client-v2-layout: Folding the navigation", async ({

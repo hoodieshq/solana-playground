@@ -121,9 +121,8 @@ the browser, behind the same approval gates. See `decisions.md` → D19.
   changed without losing the conversation, **Stop** ends a turn in flight (and
   denies anything waiting on your approval), and when a reply describes an edit
   in prose instead of writing it, **Make this change** asks for the same edit as
-  a patch — which still arrives as a diff you accept or reject. Inside a lesson
-  step it reads **Write it for me**, because taking it skips the rest of the
-  hints. See `decisions.md` → D14.
+  a patch — which still arrives as a diff you accept or reject. See
+  `decisions.md` → D14.
 
 **One gap we had to close.** The client did not keep the compiler's output
 anywhere — the raw `stderr` was printed to the terminal and discarded, leaving
@@ -185,7 +184,8 @@ Done:
   of Work, not a Sheet. The editor edits at every width. A start with no
   project opens Home ("Where should we begin?"), not a popup. From 768 px
   Home has a composer, New project, Follow a tutorial and Open a program
-  tiles, and four tutorial cards; below 768 px it has quick starts (a new
+  tiles, and the three start tutorials (Hello Anchor, Lumberjack, Zero
+  Copy, one per level); below 768 px it has quick starts (a new
   Anchor project, a beginner tutorial), a Browse button that opens the
   Tutorials page, and the composer. The navigation's Home opens Home from an
   open project too, and deleting the last project lands there; picking the
@@ -194,7 +194,10 @@ Done:
   Programs in the navigation (and Home's tiles, and the `/tutorials` and
   `/programs` links) open pages with a search field and cards, over the open
   project, which comes back as it was; opening a card opens the tutorial or
-  imports the program. The New Workspace gallery (New project) starts a
+  imports the program. The Tutorials page lists the same three start
+  tutorials by level under a Start here banner, which features the first
+  not completed ("Start here", "Continue · Step n of m", or "Completed" once
+  all three are done); the other tutorials stay reachable from New project. The New Workspace gallery (New project) starts a
   project from scratch, 34 upstream programs or 16 tutorials. The cluster
   row, the account menu's Settings or Cmd+, open Settings as a page of its
   own over the whole window: a list of sections (Network, Project, Block

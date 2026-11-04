@@ -1,22 +1,14 @@
-import { PanelLeft } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
+import { PanelLeft } from "lucide-react";
 import styled, { css } from "styled-components";
 
 import { Button } from "@/shared/ui/button";
-import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
-
-import { PgExplorer } from "../../../utils";
 import Explorer from "../../sidebar/explorer/Component";
 import { useCreateItem } from "../../sidebar/explorer/Component/useCreateItem";
-import { cursorStep, foldRecord, PgLesson } from "../lessons";
-import StepRail from "../lessons/StepRail";
 import { BOTTOM_BAR_HEIGHT } from "../tokens";
-import { keepColumn, keptColumn, type Tab } from "./kept-column";
-
-/** Narrows the Segmented's plain string to a tab */
-export const isLessonTab = (value: string): value is Tab =>
-  value === "steps" || value === "files";
+import { keepColumn, keptColumn } from "./kept-column";
+import { PgExplorer } from "../../../utils";
 
 interface LeftPanelProps {
   /**
@@ -30,12 +22,8 @@ interface LeftPanelProps {
    * phone's Files sheet has its own close).
    */
   onHide?: () => void;
-  /**
-   * The tab to open on, over the kept one. The phone's Files sheet opens
-   * from the files row, so in a lesson it lands on Files, with Steps one
-   * tap away, as the prototype's sheet does.
-   */
-  startOn?: Tab;
+  /** The phone's Files sheet, which keeps no scroll for the wide column */
+  sheet?: boolean;
 }
 
 /** The head's way to hide the column */
@@ -62,35 +50,21 @@ const HideButton = ({ onHide }: { onHide: () => void }) => (
 const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   collapsed,
   onHide,
-  startOn,
+  sheet = false,
 }) => {
-  // From the first commit, not from the subscription's first call: a commit
-  // without the lesson draws the tree, and the scroll put back below would
-  // land on it rather than on the step rail
-  const [lesson, setLesson] = useState(() => PgLesson.state);
-  useEffect(() => PgLesson.onDidChange(setLesson).dispose, []);
-
-  const [tab, setTab] = useState<Tab>(
-    () => startOn ?? keptColumn(PgExplorer.currentWorkspaceId)?.tab ?? "steps"
-  );
-
   // Hidden, the column unmounts (design.md, "Frame chrome (5.25)"), so its
-  // tab and scroll are kept for the next mount (`kept-column.ts`). Both are
-  // tracked as they change, for a body already out of the document, where
-  // its scroll reads 0.
-  const kept = useRef({ tab, scrollTop: 0 });
-  // A column told where to open (the phone's sheet) keeps nothing: it is
-  // mounted fresh each time, and its tab must not become the wide column's
-  const told = useRef(startOn !== undefined);
-  useLayoutEffect(() => {
-    kept.current.tab = tab;
-  }, [tab]);
+  // scroll is kept for the next mount (`kept-column.ts`). It is tracked as it
+  // changes, for a body already out of the document, where it reads 0.
+  const kept = useRef({ scrollTop: 0 });
+  // The phone's sheet keeps nothing: it is mounted fresh each time, and its
+  // scroll must not become the wide column's
+  const told = useRef(sheet);
   const bodyRef = useRef<HTMLDivElement>(null);
   // A layout effect: the tree, a child, has reopened its folders by now
   // (`useHandleItemState`), so the scroll lands where it was rather than on
   // a shut tree too short for it
   useLayoutEffect(() => {
-    // The one object `onScroll` and the tab effect write to
+    // The one object `onScroll` writes to
     const memory = kept.current;
     const keeps = !told.current;
     const body = bodyRef.current;
@@ -100,15 +74,15 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
       memory.scrollTop = body.scrollTop;
     }
     return () => {
-      // Read now, not at mount: a lesson mounts the column before the
-      // explorer has opened its project
+      // Read now, not at mount: the column can mount before the explorer
+      // has opened its project
       const workspace = PgExplorer.currentWorkspaceId;
       if (!workspace || !keeps) return;
       // Read from the body while it is still in the document: `scroll`
       // arrives a frame late, so ⌘E right after a scroll would otherwise
       // keep the scroll before it
       const scrollTop = body?.isConnected ? body.scrollTop : memory.scrollTop;
-      keepColumn({ workspace, tab: memory.tab, scrollTop });
+      keepColumn({ workspace, scrollTop });
     };
     // Defensive: the frame unmounts a hidden column rather than passing
     // `collapsed`, but a `collapsed` column draws no body either
@@ -118,16 +92,6 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   // upstream edit, no programmatic `.click()` of a hidden button.
   const { createItem } = useCreateItem();
 
-  const inLesson = !!lesson.path;
-  const showSteps = inLesson && tab === "steps";
-  // The pass edge exists only at the frontier, so the valve is only
-  // offered there -- a step the learner walked back onto has no edge
-  // for the click to travel, and the control is absent rather than inert
-  const frontierStep =
-    lesson.path && PgLesson.canPass()
-      ? cursorStep(lesson.path, foldRecord(lesson.path, lesson.record))
-      : null;
-
   // Hidden, the column takes no width: no landmark either, since an empty,
   // unnamed <aside> is still listed by a screen reader
   if (collapsed) return null;
@@ -135,34 +99,13 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
   return (
     <Wrapper>
       <>
-        {inLesson && (
-          <div className="flex items-center gap-2 border-b border-border px-2 py-1.5">
-            <Segmented
-              aria-label="Lesson panel"
-              value={tab}
-              onValueChange={(v) => {
-                if (isLessonTab(v)) setTab(v);
-              }}
-            >
-              <SegmentedItem id="flow-left-tab-steps" value="steps">
-                Steps
-              </SegmentedItem>
-              <SegmentedItem id="flow-left-tab-files" value="files">
-                Files
-              </SegmentedItem>
-            </Segmented>
-            {onHide && <HideButton onHide={onHide} />}
-          </div>
-        )}
         {/* The prototype's head: the column's name and a way to hide it */}
-        {!inLesson && (
-          <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border pr-1.5 pl-3">
-            <span className="truncate text-[0.8125rem] font-medium text-muted-foreground">
-              Files
-            </span>
-            {onHide && <HideButton onHide={onHide} />}
-          </div>
-        )}
+        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border pr-1.5 pl-3">
+          <span className="truncate text-[0.8125rem] font-medium text-muted-foreground">
+            Files
+          </span>
+          {onHide && <HideButton onHide={onHide} />}
+        </div>
         <Body
           ref={bodyRef}
           onScroll={(e) => {
@@ -170,37 +113,13 @@ const LeftPanel: FC<React.PropsWithChildren<LeftPanelProps>> = ({
           }}
           id="flow-left-tabpanel"
         >
-          {showSteps ? (
-            <StepRail state={lesson} />
-          ) : (
-            <>
-              <ExplorerContainer>
-                <Explorer />
-              </ExplorerContainer>
-            </>
-          )}
+          <ExplorerContainer>
+            <Explorer />
+          </ExplorerContainer>
         </Body>
-        {/* Pinned below the rail for the same reason as the files footer:
-              a way out that scrolls away is not a way out. */}
-        {showSteps && frontierStep && (
-          // The prototype's `SkipFooter`: a full-width row under the rail,
-          // underlined from the phone width up, plain and thumb-sized below
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 w-full shrink-0 rounded-none border-t border-border px-3.5 text-[0.8125rem] font-normal text-muted-foreground underline max-md:h-auto max-md:min-h-[calc(3.25rem+env(safe-area-inset-bottom,0px))] max-md:px-5 max-md:pb-[env(safe-area-inset-bottom,0px)] max-md:text-control max-md:font-act max-md:no-underline"
-            title={`Nothing has proved this step yet — ${frontierStep.verifiedBy}. Moving on now is recorded as a skip, and clears itself if you come back and prove it.`}
-            onClick={() => PgLesson.pass()}
-          >
-            Skip this step
-          </Button>
-        )}
-        {!showSteps && (
-          <Footer type="button" onClick={createItem}>
-            + New file
-          </Footer>
-        )}
+        <Footer type="button" onClick={createItem}>
+          + New file
+        </Footer>
       </>
     </Wrapper>
   );
