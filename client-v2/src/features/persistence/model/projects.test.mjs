@@ -135,6 +135,25 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     assert.equal(after.updatedAt, first.updatedAt);
   });
 
+  it("refuses a patch that leaves only a .workspace/ row sync does not carry", async () => {
+    const first = await put({ files });
+    // Stored before the route refused such paths
+    await query(
+      `insert into project_files (user_id, project_id, path, content)
+       values ($1, 'p1', '.workspace/metadata.json', '{}')`,
+      [userId]
+    );
+    const result = await put({
+      changed: {},
+      removed: Object.keys(files),
+      baseUpdatedAt: first.updatedAt,
+    });
+    assert.deepEqual(result, { refused: NO_FILES_REASON });
+    const after = await getProject(userId, "p1");
+    assert.equal(after.snapshot.files["src/lib.rs"], files["src/lib.rs"]);
+    assert.equal(after.updatedAt, first.updatedAt);
+  });
+
   it("takes a patch that only removes a file, keeping the rest", async () => {
     // The common delete-one-file push, which reaches the emptiness check
     const first = await put({
