@@ -36,7 +36,7 @@ import { AsyncButton } from "@/components/ui/async-button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { BrandButton, BrandButtonIcon } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
-import { Callout, CalloutActions, CalloutDescription, CalloutTitle } from "@/components/ui/callout"
+import { Callout, CalloutAction, CalloutActions, CalloutDescription, CalloutTitle } from "@/components/ui/callout"
 import { CodeBlock, CodeBlockActions, CodeBlockContent, CodeBlockHeader, CodeBlockLine, CodeBlockTitle } from "@/components/ui/code-block"
 import {
   Composer,
@@ -746,7 +746,7 @@ function PlaygroundComponents() {
         </div>
       </Block>
 
-      <Block id="callout" title="Callout" source="playground" registry="callout" note="A note in a page or a form: a tint and a hairline, calm enough to read past. Alert speaks for the whole page. A callout speaks for the place it sits." className="block">
+      <Block id="callout" title="Callout" source="playground" registry="callout" note="A note in a page or a form: a tint and a hairline, calm enough to read past. Alert speaks for the whole page. A callout speaks for the place it sits. Its actions are CalloutAction, which has no surface of its own and takes the callout's tone, never a Button." className="block">
         <div className="grid max-w-xl gap-3">
           <Callout variant="info">
             <Info />
@@ -762,6 +762,28 @@ function PlaygroundComponents() {
             <CircleAlert />
             <CalloutTitle>The paymaster said no</CalloutTitle>
             <CalloutDescription>The program is over the size Kora will pay for. Try a smaller build.</CalloutDescription>
+          </Callout>
+          <Callout variant="error">
+            <CalloutDescription>OpenAI did not accept this key.</CalloutDescription>
+            <CalloutActions>
+              <CalloutAction>Change key</CalloutAction>
+              <CalloutAction>Use hosted model</CalloutAction>
+            </CalloutActions>
+          </Callout>
+          <Callout variant="warning">
+            <CalloutTitle>The model is busy</CalloutTitle>
+            <CalloutDescription>Trying again in 12 s.</CalloutDescription>
+            <CalloutActions>
+              <CalloutAction>Try now</CalloutAction>
+              <CalloutAction>Stop</CalloutAction>
+            </CalloutActions>
+          </Callout>
+          <Callout variant="info">
+            <CalloutDescription>Sign in with GitHub to use the hosted model, or add a key of your own.</CalloutDescription>
+            <CalloutActions>
+              <CalloutAction>Sign in with GitHub</CalloutAction>
+              <CalloutAction>Add an API key</CalloutAction>
+            </CalloutActions>
           </Callout>
         </div>
       </Block>
@@ -1102,23 +1124,23 @@ function PlaygroundBlocks() {
         ))}
       </Block>
 
-      <Block id="block-sync-conflict" title="Sync conflict" source="block" note="The banner over the stage when this project changed on another device and here too. It says what happened in one sentence and asks for one answer: the expected one filled, the others outlined, and Resolve… first when the changed lines are known. Buttons under the text, across the width on a phone." className="block">
+      <Block id="block-sync-conflict" title="Sync conflict" source="block" note="The banner over the stage when this project changed on another device and here too. It says what happened in one sentence and asks for one answer: CalloutAction buttons of equal weight in the callout's tone, Resolve… first when the changed lines are known, then the expected answer. Buttons under the text." className="block">
         <div className="flex w-full flex-col gap-3">
           <Callout variant="warning">
             <TriangleAlert />
             <CalloutDescription className="text-foreground opacity-100">This project changed on another device, and this one has unsaved changes.</CalloutDescription>
             <CalloutActions>
-              <Button variant="outline" size="sm">Resolve…</Button>
-              <Button size="sm">Keep this version</Button>
-              <Button variant="outline" size="sm">Take the other version</Button>
+              <CalloutAction>Resolve…</CalloutAction>
+              <CalloutAction>Keep this version</CalloutAction>
+              <CalloutAction>Take the other version</CalloutAction>
             </CalloutActions>
           </Callout>
           <Callout variant="warning">
             <TriangleAlert />
             <CalloutDescription className="text-foreground opacity-100">This project was deleted on another device, but this one has unsaved changes.</CalloutDescription>
             <CalloutActions>
-              <Button size="sm">Keep a copy</Button>
-              <Button variant="outline" size="sm">Delete anyway</Button>
+              <CalloutAction>Keep a copy</CalloutAction>
+              <CalloutAction>Delete anyway</CalloutAction>
             </CalloutActions>
           </Callout>
         </div>
