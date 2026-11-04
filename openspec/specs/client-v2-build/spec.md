@@ -186,7 +186,7 @@ brand theme colour in its markup, so a browser, a crawler or a home screen
 reads them without running the bundle. `manifest.json` SHALL list the brand
 app icons. No script SHALL replace the page icon at runtime.
 
-#### Scenario: The generated head
+#### Scenario: The generated head (manual)
 
 - **WHEN** `scripts/update-static.mjs` has run
 - **THEN** `public/index.html` has `<link rel="icon">` for `/favicon.ico`
@@ -195,13 +195,13 @@ app icons. No script SHALL replace the page icon at runtime.
   `/apple-touch-icon.png`, and `<meta name="theme-color" content="#101011">`,
   and no other icon link or theme colour
 
-#### Scenario: Served icon files are the brand renders
+#### Scenario: Served icon files are the brand renders (manual)
 
 - **WHEN** `scripts/update-static.mjs` has run
 - **THEN** each icon file and `manifest.json` in `public/` is byte-identical
   to its copy under `client-v2/static/`
 
-#### Scenario: The manifest
+#### Scenario: The manifest (manual)
 
 - **WHEN** DevTools > Application > Manifest reads `/manifest.json`
 - **THEN** it names the app "Solana Playground" (short name "Playground"),
