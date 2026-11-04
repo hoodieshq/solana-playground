@@ -134,12 +134,12 @@ it, with one "Try again" action, and name the cap.
 
 #### Scenario: The account is at the project cap
 - **WHEN** the server refuses a project's create with `reason: "too-many-projects"`, `kind: "project"` and `limit: 10`
-- **THEN** the banner reads "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a project you no longer need, then try again."
+- **THEN** the banner reads "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a synced project you no longer need, then try again."
 - **AND** further edits to the project send no request until "Try again"
 
 #### Scenario: The account is at the tutorial cap (manual)
 - **WHEN** the server refuses a tutorial's create with `reason: "too-many-projects"`, `kind: "tutorial"` and `limit: 32`
-- **THEN** the banner reads "An account can sync at most 32 tutorials. This one stays in this browser and is not synced. Delete a tutorial you no longer need, then try again."
+- **THEN** the banner reads "An account can sync at most 32 tutorials. This one stays in this browser and is not synced. Delete a synced tutorial you no longer need, then try again."
 
 #### Scenario: Try again after a delete (manual)
 - **WHEN** the banner names the project cap, the user deletes another project, and presses "Try again"

@@ -960,4 +960,45 @@ describe("a project the account cap refused", () => {
     expect(remove).not.toHaveBeenCalled();
     expect(storedFiles().get("/eleventh/src/lib.rs")).toBe("only here");
   });
+
+  it("goes on to the next project past a refusal", async () => {
+    withLocal({ alpha: "pa", beta: "pb", gamma: "pc" });
+    withFiles("alpha", { "src/lib.rs": "a" });
+    withFiles("beta", { "src/lib.rs": "b" });
+    withFiles("gamma", { "src/lib.rs": "c" });
+    serverHas([]);
+    stubCreation();
+    // The account takes the first and last; the middle one meets the cap,
+    // as a create racing another device's would
+    const refusedFor = (id: string) => id === "pb";
+    vi.spyOn(global, "fetch").mockImplementation((async (
+      url: string,
+      init?: RequestInit
+    ) => {
+      if (url === "/api/sync") {
+        return { ok: true, json: async () => ({ enabled: true, db: "ok" }) };
+      }
+      const { id } = JSON.parse(String(init?.body));
+      return refusedFor(id)
+        ? {
+            ok: false,
+            status: 413,
+            json: async () => ({
+              reason: capReached.reason,
+              kind: capReached.kind,
+              limit: capReached.limit,
+              count: capReached.count,
+            }),
+          }
+        : { ok: true, status: 200, json: async () => ({ updatedAt: "t2" }) };
+    }) as unknown as typeof fetch);
+
+    const result = await reconcile();
+
+    expect(result.pushed).toEqual(["alpha", "gamma"]);
+    expect(await PgSyncMark.exists("pa")).toBe(true);
+    expect(await PgSyncMark.exists("pc")).toBe(true);
+    expect(await PgSyncMark.exists("pb")).toBe(false);
+    expect(PgProjectSync.conflictFor("pb")?.kind).toBe("too-large");
+  });
 });

@@ -398,7 +398,8 @@ const DELETE_OTHERS = `
  * refuses an empty `files` before it gets here, and only a patch needs the
  * row to judge.
  *
- * @param {{id: string, name: string, kind: string, baseUpdatedAt?: string,
+ * @param {{id: string, name: string, kind: "project" | "tutorial",
+ *          baseUpdatedAt?: string,
  *          files?: Record<string, string>,
  *          changed?: Record<string, string>, removed?: string[]}} input
  * @returns {Promise<{updatedAt: string} |
@@ -421,8 +422,9 @@ export const saveProject = async (userId, input) => {
  * A constant number of statements whatever the file count: every file of a
  * write travels as one `jsonb` parameter and is expanded by
  * `jsonb_each_text` inside a single upsert, and one more measures the result.
- * A project created from a template is three statements, not one per file.
- * Exported so a test can count them.
+ * A write that makes a project count adds two, the account cap's lock and
+ * count, so a project created from a template is five statements, not one per
+ * file. Exported so a test can count them.
  *
  * @param {(text: string, params?: unknown[]) => Promise<import("pg").QueryResult>} q
  */
@@ -492,7 +494,9 @@ export const writeProject = async (q, userId, input) => {
   // A write that makes the project count toward the account cap: one to a
   // row with no synced file before it. `CREATE` lets only such a row through;
   // a swap reaches one when a client swaps files into an empty parent row. A
-  // project that already counts is never refused by the count.
+  // project that already counts is never refused by the count. A swap never
+  // moves a counted row to the other kind's count: the route binds `kind` to
+  // the id (`projectKindOf`).
   if (creating || !rows[0].had_files) {
     await refuseOverAccountCap(q, userId, kind);
   }

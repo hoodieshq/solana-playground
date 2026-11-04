@@ -606,9 +606,12 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
         [userId]
       );
 
-      // Adopted by a create
+      // Adopted by a create, and rolled back: the row keeps its name, empty
       const created = await create(11);
       assert.equal(created.limit?.reason, "too-many-projects");
+      const adopted = await getProject(userId, "p11");
+      assert.equal(adopted.name, "p11");
+      assert.equal(adopted.snapshot, null);
 
       // Or reached by a swap with the empty row's token
       const [row] = (await listProjects(userId)).filter((p) => p.id === "p11");
@@ -646,6 +649,41 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       const restarted = await create(1, "tutorial");
 
       assert.equal(restarted.limit?.reason, "too-many-projects");
+      // Rolled back: the tombstone stands, so other devices still see the
+      // delete
+      const { rows } = await query(
+        `select deleted_at is not null as deleted,
+                (select count(*)::int from project_files
+                  where user_id = $1 and project_id = 'tut:t1') as files
+           from projects where user_id = $1 and id = 'tut:t1'`,
+        [userId]
+      );
+      assert.deepEqual(rows[0], { deleted: true, files: 0 });
+    });
+
+    it("counts each account apart", async () => {
+      const otherUser = "test-user-projects-cap-2";
+      await query(
+        `insert into "user" (id, name, email, "emailVerified", "createdAt", "updatedAt")
+         values ($1, 'Test', 'projects-cap-2@example.com', false, now(), now())
+         on conflict (id) do nothing`,
+        [otherUser]
+      );
+      await query("delete from projects where user_id = $1", [otherUser]);
+      try {
+        for (let n = 1; n <= 10; n++) {
+          await saveProject(otherUser, {
+            id: `p${n}`,
+            name: `project ${n}`,
+            kind: "project",
+            files: { "src/lib.rs": `// ${n}` },
+          });
+        }
+
+        assert.ok((await create(1)).updatedAt);
+      } finally {
+        await query("delete from projects where user_id = $1", [otherUser]);
+      }
     });
 
     it("lets exactly one of two creates racing at nine through", async () => {

@@ -108,7 +108,7 @@ const limitAction = (limit: ProjectLimitExceeded) => {
  */
 const accountCapText = ({ kind, limit }: AccountLimitExceeded) => {
   const noun = kind === "tutorial" ? "tutorial" : "project";
-  return `An account can sync at most ${limit} ${noun}s. This one stays in this browser and is not synced. Delete a ${noun} you no longer need, then try again.`;
+  return `An account can sync at most ${limit} ${noun}s. This one stays in this browser and is not synced. Delete a synced ${noun} you no longer need, then try again.`;
 };
 
 /** The sync banner's text for a project stopped by a limit */
@@ -209,7 +209,7 @@ if (import.meta.vitest) {
           count: 11,
         })
       ).toBe(
-        "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a project you no longer need, then try again."
+        "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a synced project you no longer need, then try again."
       );
       expect(
         limitBannerText({
@@ -219,7 +219,7 @@ if (import.meta.vitest) {
           count: 33,
         })
       ).toBe(
-        "An account can sync at most 32 tutorials. This one stays in this browser and is not synced. Delete a tutorial you no longer need, then try again."
+        "An account can sync at most 32 tutorials. This one stays in this browser and is not synced. Delete a synced tutorial you no longer need, then try again."
       );
     });
 

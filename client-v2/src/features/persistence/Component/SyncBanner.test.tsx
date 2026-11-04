@@ -427,7 +427,7 @@ describe("SyncBanner limit wording", () => {
       count: 11,
     });
     expect(text).toBe(
-      "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a project you no longer need, then try again."
+      "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a synced project you no longer need, then try again."
     );
   });
 

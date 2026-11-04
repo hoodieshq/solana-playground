@@ -199,7 +199,9 @@ const SyncBanner = () => {
 
   const refresh = useCallback(() => {
     // TODO(HOO-2602): a project refused while not open (reconcile,
-    // `pushNeverSynced`) shows nothing until it is opened
+    // `pushNeverSynced`) shows nothing until it is opened. The account cap
+    // (HOO-2538) meets this most: a device signing in with more unsynced
+    // projects than the account can take learns of each only on opening it.
     setConflict(PgProjectSync.conflictFor(PgExplorer.currentWorkspaceId));
   }, []);
 
