@@ -101,13 +101,14 @@ vi.mock("@/shared/lib/report-button-failure", () => ({
   markFailureShown: mocks.markShown,
 }));
 
+import { PgStageDeploy } from "@/features/deploy";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+
 import {
   DeployCancelledError,
   DeployFundingError,
   PgDeployRun,
 } from "../../../commands/deploy/run";
-import { PgStageDeploy } from "@/features/deploy";
 import Deploy from "./Deploy";
 
 /** The app gives every screen a tooltip provider; the copy button needs one */

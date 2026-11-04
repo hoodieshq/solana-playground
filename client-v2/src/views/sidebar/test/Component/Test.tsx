@@ -1,7 +1,7 @@
-import InteractBody from "../../../flow/stages/InteractBody";
+import { useProgramInfo, useRenderOnChange } from "../../../../hooks";
 import { PgConnection, PgProgramInfo } from "../../../../utils";
 import type { Idl } from "../../../../utils/program-interaction";
-import { useProgramInfo, useRenderOnChange } from "../../../../hooks";
+import InteractBody from "../../../flow/stages/InteractBody";
 
 /**
  * The sidebar's Test page: the Interact stage's body for the project's own

@@ -25,12 +25,13 @@ import {
 } from "@/shared/lib/telemetry";
 import { requireFor } from "@/test-utils/require-for";
 
-import { PgProjectSync } from "../model/project-sync";
-import type { FileConflict } from "../model/merge";
-import type { Conflict } from "../model/project-sync";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgView } from "../../../utils/view";
 import { RenameWorkspace } from "../../../views/sidebar/explorer/Component/Modals/RenameWorkspace";
+import type { FileConflict } from "../model/merge";
+import type { Conflict } from "../model/project-sync";
+import { PgProjectSync } from "../model/project-sync";
+import SyncBanner from "./SyncBanner";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }

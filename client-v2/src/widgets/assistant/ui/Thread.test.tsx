@@ -3,8 +3,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PgSession } from "@/features/auth";
 import type { SessionUser } from "@/features/auth";
+import { PgSession } from "@/features/auth";
 import { PgSyncClient } from "@/features/persistence";
 import {
   initLogger,

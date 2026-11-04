@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
 
 import { StatusDot } from "@/shared/ui/status-dot";
+
 import type { CallRecord } from "../state/call-history";
 
 export interface BaseCallHistoryProps {

@@ -1,18 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
 import { CircleAlertIcon, TriangleAlertIcon } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
-import { ConflictResolver } from "../ui/ConflictResolver";
-import { PgProjectSync } from "../model/project-sync";
-import { MAX_PROJECT_BODY_LABEL } from "../model/project-write.mjs";
-import { persistenceTelemetry } from "../model/telemetry";
+
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgView } from "../../../utils/view";
 import { RenameWorkspace } from "../../../views/sidebar/explorer/Component/Modals/RenameWorkspace";
 import type { Conflict, Resolution } from "../model/project-sync";
+import { PgProjectSync } from "../model/project-sync";
+import { MAX_PROJECT_BODY_LABEL } from "../model/project-write.mjs";
+import { persistenceTelemetry } from "../model/telemetry";
+import { ConflictResolver } from "../ui/ConflictResolver";
 
 /** `src/lib.rs`, or `src/lib.rs and 2 other files` */
 const describePaths = (paths: string[]) =>

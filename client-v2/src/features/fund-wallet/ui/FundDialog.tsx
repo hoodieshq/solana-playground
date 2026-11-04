@@ -4,6 +4,8 @@ import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgConnection, PgView, PgWallet, PgWeb3 } from "@/utils";
 import type { StandardWallet } from "@/utils/wallet/types";
+
+import type { FailureReason } from "../model/fund";
 import {
   classify,
   DEFAULT_AMOUNT,
@@ -11,12 +13,11 @@ import {
   parseAmount,
   receiverOf,
 } from "../model/fund";
-import type { FailureReason } from "../model/fund";
-import { fundTelemetry } from "../model/telemetry";
 import type { FundCluster } from "../model/telemetry";
+import { fundTelemetry } from "../model/telemetry";
 import { sendFunds, TransferNotConfirmedError } from "../model/transfer";
-import BaseFundDialog from "./BaseFundDialog";
 import type { FundFailure, FundPayer } from "./BaseFundDialog";
+import BaseFundDialog from "./BaseFundDialog";
 
 const log = createLogger("fund-wallet:dialog");
 

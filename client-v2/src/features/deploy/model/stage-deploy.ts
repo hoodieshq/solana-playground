@@ -5,10 +5,11 @@ import {
   DeployFundingError,
   PgDeployRun,
 } from "@/commands/deploy/run";
+import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import type { Cluster } from "@/utils";
 import { isStopped } from "@/utils/stopped";
-import { createLogger } from "@/shared/lib/logger";
+
 import { answerBackup, isBackupAnswered } from "./backup";
 import { deployTelemetry } from "./telemetry";
 

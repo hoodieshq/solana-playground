@@ -1,5 +1,5 @@
-import { Keypair, VersionedTransaction } from "@solana/web3.js";
 import * as ed25519 from "@noble/ed25519";
+import { Keypair, VersionedTransaction } from "@solana/web3.js";
 
 /**
  * A Wallet Standard wallet for tests under jsdom, registered the way an

@@ -12,18 +12,21 @@ import { PublicKey } from "@solana/web3.js";
 import { createHash } from "crypto";
 import { describe, expect, it } from "vitest";
 
-import { programName, readIdl } from "./read";
-import type { IdlV1 } from "./types";
 import ammV3 from "./__fixtures__/amm_v3.json";
 import generics from "./__fixtures__/generics.json";
-import idl from "./__fixtures__/idl.json";
+import idlFixture from "./__fixtures__/idl.json";
 import pda from "./__fixtures__/pda.json";
 import relations from "./__fixtures__/relations.json";
+import { programName, readIdl } from "./read";
+import type { IdlV1 } from "./types";
 
-const FIXTURES = { ammV3, generics, idl, pda, relations } as unknown as Record<
-  string,
-  IdlV1
->;
+const FIXTURES = {
+  ammV3,
+  generics,
+  idl: idlFixture,
+  pda,
+  relations,
+} as unknown as Record<string, IdlV1>;
 
 /** The converted IDL, failing the test when the reading is not `v1` */
 const legacy = (raw: unknown): Idl => {

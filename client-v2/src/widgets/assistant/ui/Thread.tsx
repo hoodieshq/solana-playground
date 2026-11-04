@@ -11,7 +11,12 @@ import {
   PgLesson,
   verifyingStage,
 } from "../../../views/flow/lessons";
-import type { LessonState } from "../../../views/flow/lessons";
+import { describeLesson } from "../../../views/sidebar/assistant/bridge/lesson-context";
+import {
+  PgAssistant,
+  turnAppliedApproval,
+  turnProducedApproval,
+} from "../../../views/sidebar/assistant/store";
 import { useSignInOffer } from "../model/sign-in-offer";
 import { assistantTelemetry } from "../model/telemetry";
 import type { Turn } from "../model/use-turn";

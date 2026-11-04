@@ -1,11 +1,12 @@
 import { CircleAlert, ExternalLink } from "lucide-react";
 
+import type { FundingFailure } from "@/commands/deploy/run";
+import { networkInSentence, solOn } from "@/constants";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
 import { CopyButton } from "@/shared/ui/copy-button";
-import type { FundingFailure } from "@/commands/deploy/run";
-import { networkInSentence, solOn } from "@/constants";
+
 import { formatSol, shortKey } from "../model/format";
 
 /** Solana's web faucet; it serves devnet and testnet */

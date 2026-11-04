@@ -1,5 +1,5 @@
-import { Keypair } from "@solana/web3.js";
 import type { Page } from "@playwright/test";
+import { Keypair } from "@solana/web3.js";
 
 /**
  * A Wallet Standard wallet injected into the page before the app loads, the
@@ -54,7 +54,7 @@ export const installFakeWallet = async (
 
   const inject = ({
     name,
-    address,
+    address: accountAddress,
     publicKey,
     sign,
     chains,
@@ -74,7 +74,7 @@ export const installFakeWallet = async (
       features: string[];
     };
     const account: Account = {
-      address,
+      address: accountAddress,
       publicKey: Uint8Array.from(publicKey),
       chains,
       features: ["solana:signTransaction"],
@@ -150,8 +150,11 @@ export const installFakeWallet = async (
       },
     };
 
-    const register = ({ register }: { register: (w: unknown) => () => void }) =>
-      register(wallet);
+    const register = ({
+      register: registerWallet,
+    }: {
+      register: (w: unknown) => () => void;
+    }) => registerWallet(wallet);
     window.dispatchEvent(
       new CustomEvent("wallet-standard:register-wallet", { detail: register })
     );

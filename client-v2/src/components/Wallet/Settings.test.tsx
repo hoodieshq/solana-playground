@@ -10,8 +10,8 @@ import {
 
 import { PgCommand, PgView, PgWallet } from "../../utils";
 import { KeypairFileError } from "../../utils/wallet/keypair-file";
-import Settings from "./Settings";
 import type { Faucet } from "./hooks";
+import Settings from "./Settings";
 
 // The utils barrel needs build-time globals the unit runner does not define.
 vi.mock("../../utils", () => ({

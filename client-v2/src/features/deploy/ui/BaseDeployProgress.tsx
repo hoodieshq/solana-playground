@@ -1,6 +1,6 @@
-import { StatusDot } from "@/shared/ui/status-dot";
-import { cn } from "@/shared/lib/utils";
 import type { DeployRunState, DeployStep } from "@/commands/deploy/run";
+import { cn } from "@/shared/lib/utils";
+import { StatusDot } from "@/shared/ui/status-dot";
 
 export interface BaseDeployProgressProps {
   state: DeployRunState;

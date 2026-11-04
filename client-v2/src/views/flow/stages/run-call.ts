@@ -1,4 +1,5 @@
 import { createLogger } from "@/shared/lib/logger";
+
 import {
   PgCommand,
   PgCommon,
@@ -13,8 +14,8 @@ import {
   PgProgramInteraction,
 } from "../../../utils/program-interaction";
 import { PgCallHistory } from "../state/call-history";
-import { failingLineWith } from "./call-outcome";
 import type { CallOutcome } from "./call-outcome";
+import { failingLineWith } from "./call-outcome";
 
 const log = createLogger("flow:run-call");
 

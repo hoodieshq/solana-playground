@@ -5,10 +5,11 @@ import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
+
+import type { CallRecord } from "../state/call-history";
 import BaseCallHistory from "./BaseCallHistory";
 import BaseCallResult from "./BaseCallResult";
 import type { CallOutcome } from "./call-outcome";
-import type { CallRecord } from "../state/call-history";
 
 const render = (ui: ReactElement) =>
   rtlRender(<TooltipProvider>{ui}</TooltipProvider>);

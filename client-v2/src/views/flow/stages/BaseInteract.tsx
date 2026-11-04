@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { UNKNOWN_NETWORK } from "@/constants";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { BrandButton, BrandButtonIcon } from "@/shared/ui/brand-button";
@@ -14,7 +15,7 @@ import {
   StageEmptyNotice,
   StageEmptyTitle,
 } from "@/shared/ui/stage-empty";
-import { UNKNOWN_NETWORK } from "@/constants";
+
 import type { Stage } from "../state/stage";
 import { shortenId } from "./interact-callouts";
 import type { InteractSurface } from "./interact-surface";

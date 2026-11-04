@@ -36,8 +36,8 @@ vi.mock("../../../utils/program-interaction", () => ({
   PgProgramInteraction: { test: h.test },
 }));
 
-import { runCall } from "./run-call";
 import { PgCallHistory } from "../state/call-history";
+import { runCall } from "./run-call";
 
 const IX = { name: "increment" } as Parameters<typeof runCall>[0];
 const ERROR_LINE = "Program log: Error Code: AccountNotInitialized.";

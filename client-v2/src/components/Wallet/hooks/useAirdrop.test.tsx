@@ -16,8 +16,8 @@ vi.mock("../../../features/auth", () => ({
 }));
 
 import { PgSession } from "../../../features/auth";
-import { useAirdrop } from "./useAirdrop";
 import { PgCommand, PgConnection } from "../../../utils";
+import { useAirdrop } from "./useAirdrop";
 
 /** The hook's faucet once the cluster changes to `cluster` */
 const faucetOn = (

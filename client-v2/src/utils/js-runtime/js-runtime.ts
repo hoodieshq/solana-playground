@@ -487,8 +487,12 @@ export class PgJsRuntime {
             get: () => {
               let program = this._getPg().program;
               if (program) {
-                const { idl, programId } = program;
-                program = new anchor.Program(idl, programId, pkg.getProvider());
+                const { idl: programIdl, programId } = program;
+                program = new anchor.Program(
+                  programIdl,
+                  programId,
+                  pkg.getProvider()
+                );
               }
               return program;
             },
@@ -510,8 +514,8 @@ export class PgJsRuntime {
             PgCommon.toKebabFromSnake(snakeCaseName),
             snakeCaseName,
           ]);
-          for (const name of names) {
-            Object.defineProperty(pkg.workspace, name, {
+          for (const workspaceName of names) {
+            Object.defineProperty(pkg.workspace, workspaceName, {
               get: () => {
                 throw new Error(PgProgramInfo.noCallableIdlMessage());
               },

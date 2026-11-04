@@ -23,7 +23,6 @@ vi.mock("../../features/auth", () => ({
   PgSession: { get: vi.fn(() => ({ user: {} })) },
 }));
 
-import { automaticAirdrop } from "./automatic-airdrop";
 import { PgSession } from "../../features/auth";
 import { PgCommand, PgConnection } from "../../utils";
 import { automaticAirdrop } from "./automatic-airdrop";

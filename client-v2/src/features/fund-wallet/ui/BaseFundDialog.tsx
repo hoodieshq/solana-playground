@@ -19,8 +19,9 @@ import {
   FieldLabel,
 } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
-import { canSend, formatSol, parseAmount } from "../model/fund";
+
 import type { Receiver, SendCheck } from "../model/fund";
+import { canSend, formatSol, parseAmount } from "../model/fund";
 
 /** The amount field's id, which the spec and the tests find it by */
 export const AMOUNT_ID = "fund-amount";

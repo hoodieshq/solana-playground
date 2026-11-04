@@ -2,8 +2,8 @@
 // block (AGENTS.md, "a module's unit tests live in the module")
 import { describe, expect, it, vi } from "vitest";
 
-import { getPrograms } from "./program";
 import { PgWeb3 } from "../../web3";
+import { getPrograms } from "./program";
 
 // `utils` reads `GLOBAL_SETTINGS`, a global only webpack defines, absent
 // under vitest

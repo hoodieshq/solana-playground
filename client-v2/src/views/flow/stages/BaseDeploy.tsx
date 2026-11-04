@@ -1,6 +1,19 @@
-import type { ReactNode } from "react";
 import { ExternalLink, Rocket, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 
+import type { DeployFundingError, DeployRunState } from "@/commands/deploy/run";
+import { UNKNOWN_NETWORK } from "@/constants";
+import type { GuideFrom } from "@/features/cli-deploy";
+import {
+  BaseBackupLine,
+  BaseDeployProgress,
+  BaseNotEnoughSol,
+  BaseStaleBuildDialog,
+  formatSol,
+  networkInSentence,
+  networkName,
+  shortKey,
+} from "@/features/deploy";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
@@ -17,25 +30,13 @@ import {
   StageEmptyTitle,
 } from "@/shared/ui/stage-empty";
 import { StatusDot } from "@/shared/ui/status-dot";
-import {
-  BaseBackupLine,
-  BaseDeployProgress,
-  BaseNotEnoughSol,
-  BaseStaleBuildDialog,
-  formatSol,
-  networkInSentence,
-  networkName,
-  shortKey,
-} from "@/features/deploy";
-import { UNKNOWN_NETWORK } from "@/constants";
-import type { DeployRunState, DeployFundingError } from "@/commands/deploy/run";
+
 import {
   MAINNET_DEPLOY_WARNING_BODY,
   MAINNET_DEPLOY_WARNING_GUIDE,
   MAINNET_DEPLOY_WARNING_TITLE,
   warnsOnDeploy,
 } from "../../../commands/deploy/mainnet-warning";
-import type { GuideFrom } from "@/features/cli-deploy";
 import type { DeployRecord } from "../state/deploy-history";
 import {
   STAGE_BODY,

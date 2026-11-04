@@ -1,11 +1,12 @@
 import { FC, useEffect } from "react";
 
 import {
-  watchExternalWalletsWith,
   type SigningCluster,
+  watchExternalWalletsWith,
 } from "@/entities/external-wallet";
-import { PgConnection, PgWallet } from "../../utils";
+
 import { useWallet } from "../../hooks";
+import { PgConnection, PgWallet } from "../../utils";
 
 /** ConnectorKit's cluster ids by the Playground's; the rest sign without a hint */
 const SIGNING_CLUSTER_IDS: Partial<Record<string, SigningCluster["id"]>> = {

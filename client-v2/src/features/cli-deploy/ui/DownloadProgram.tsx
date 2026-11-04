@@ -3,13 +3,14 @@ import { useEffect, useState } from "react";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgProgramInfo, PgServer } from "@/utils";
+
 import { saveFile } from "../lib/save-file";
-import { downloadFailure, programName } from "../model/program";
 import type { DownloadFailure } from "../model/program";
-import { cliDeployTelemetry } from "../model/telemetry";
+import { downloadFailure, programName } from "../model/program";
 import type { DownloadFrom } from "../model/telemetry";
-import BaseDownloadProgram from "./BaseDownloadProgram";
+import { cliDeployTelemetry } from "../model/telemetry";
 import type { DownloadNote } from "./BaseDownloadProgram";
+import BaseDownloadProgram from "./BaseDownloadProgram";
 
 const log = createLogger("cli-deploy:download");
 

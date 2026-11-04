@@ -2,8 +2,9 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import BaseDeployProgress from "./BaseDeployProgress";
 import type { DeployRunState } from "@/commands/deploy/run";
+
+import BaseDeployProgress from "./BaseDeployProgress";
 
 const at = (state: DeployRunState) => {
   render(<BaseDeployProgress state={state} />);

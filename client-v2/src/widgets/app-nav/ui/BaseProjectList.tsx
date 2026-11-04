@@ -12,6 +12,7 @@ import {
 import type { ComponentType, KeyboardEvent } from "react";
 import { useId, useRef, useState } from "react";
 
+import { cn } from "@/shared/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +21,6 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { cn } from "@/shared/lib/utils";
 import { Input } from "@/shared/ui/input";
 import { MenuItemText } from "@/shared/ui/menu-extras";
 import {

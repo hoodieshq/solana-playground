@@ -27,8 +27,8 @@ vi.mock("@/hooks", () => ({
   useRenderOnChange: () => idl,
 }));
 
-import CliDeployGuide from "./CliDeployGuide";
 import type { CliDeployGuideProps } from "./CliDeployGuide";
+import CliDeployGuide from "./CliDeployGuide";
 
 const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 

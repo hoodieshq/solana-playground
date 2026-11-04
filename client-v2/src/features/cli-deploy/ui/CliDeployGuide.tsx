@@ -1,9 +1,9 @@
 import { useEffect, useId, useState } from "react";
 
-import { cliClusterOf } from "../model/commands";
 import type { CliCluster, CliTool } from "../model/commands";
-import { cliDeployTelemetry } from "../model/telemetry";
+import { cliClusterOf } from "../model/commands";
 import type { GuideFrom } from "../model/telemetry";
+import { cliDeployTelemetry } from "../model/telemetry";
 import BaseCliDeployGuide from "./BaseCliDeployGuide";
 import DownloadIdl from "./DownloadIdl";
 import DownloadProgram, { useIdl, useProgramName } from "./DownloadProgram";

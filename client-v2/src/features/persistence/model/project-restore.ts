@@ -10,13 +10,11 @@ import {
 import { diffFiles, hashFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { withSyncLock } from "./sync-lock";
+import type { SyncMark } from "./sync-mark";
 import { PgSyncMark } from "./sync-mark";
 import { reloadCurrentFromDisk } from "./tab-reload";
 import { PgThreadIndex } from "./thread-index";
 import { PgWorkspaceRegistry } from "./workspace-registry";
-import { PgExplorer } from "../../../utils/explorer/explorer";
-import type { Conflict, ServerProject } from "./project-sync";
-import type { SyncMark } from "./sync-mark";
 
 /** What one reconcile pass did */
 export interface SyncResult {

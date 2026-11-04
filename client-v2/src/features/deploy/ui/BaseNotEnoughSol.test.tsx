@@ -3,8 +3,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import BaseNotEnoughSol, { WEB_FAUCET_URL } from "./BaseNotEnoughSol";
+
 import type { BaseNotEnoughSolProps } from "./BaseNotEnoughSol";
+import BaseNotEnoughSol, { WEB_FAUCET_URL } from "./BaseNotEnoughSol";
 
 const ADDRESS = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 

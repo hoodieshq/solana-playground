@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildNetworks, clusterName, Endpoint } from "../connection";
 import type { Network } from "../connection";
+import { buildNetworks, clusterName, Endpoint } from "../connection";
 
 describe("buildNetworks", () => {
   it("offers Devnet and Mainnet on the public URLs when nothing is configured", () => {

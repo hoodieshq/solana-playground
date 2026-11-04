@@ -25,6 +25,7 @@ import {
   NO_FILES_REASON,
   projectKindOf,
 } from "./project-write.mjs";
+import type { FileHashes, Snapshot } from "./snapshot";
 import { diffFiles, hashFiles, sameUserFiles, snapshotOf } from "./snapshot";
 import { PgSyncBase } from "./sync-base";
 import { PgSyncClient } from "./sync-client";

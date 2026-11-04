@@ -1,4 +1,4 @@
-import { AnchorProvider, Program, type Idl } from "@coral-xyz/anchor";
+import { AnchorProvider, type Idl, Program } from "@coral-xyz/anchor";
 
 import { PgCommon } from "../common";
 import { PgConnection } from "../connection";

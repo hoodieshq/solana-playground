@@ -4,11 +4,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import BaseProgramKeypair from "./BaseProgramKeypair";
+
 import type {
   BaseProgramKeypairProps,
   KeypairNote,
 } from "./BaseProgramKeypair";
+import BaseProgramKeypair from "./BaseProgramKeypair";
 
 const ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 const OTHER = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";

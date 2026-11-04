@@ -41,8 +41,9 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
-import InteractBody from "./InteractBody";
+
 import type { InteractBodyProps } from "./InteractBody";
+import InteractBody from "./InteractBody";
 
 type Idl = InteractBodyProps["idl"];
 

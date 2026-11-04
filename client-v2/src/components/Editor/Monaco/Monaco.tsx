@@ -29,9 +29,9 @@ import {
   resolveTextMateTheme,
 } from "../../../utils";
 import { SpinnerWithBg } from "../../Loading";
+import { createAutosave } from "./autosave";
 import { editorBuffersOf } from "./editor-buffers";
 import { initLanguages } from "./languages";
-import { createAutosave } from "./autosave";
 import { createMountOpen } from "./mount-open";
 import { leavesFocusElsewhere } from "./open-focus";
 

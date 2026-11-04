@@ -1,7 +1,7 @@
-import { clusterName } from "@/constants";
 import { useEffect } from "react";
 
 import { isSetupRejected } from "@/commands/connect/setup-rejected";
+import { clusterName } from "@/constants";
 import { isSignInFailure, PgSession } from "@/features/auth";
 import { useRenderOnChange, useWallet } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";

@@ -1,25 +1,14 @@
+import { useEffect, useRef, useState } from "react";
+
+import type { IdlReading } from "@/entities/idl";
+import { createLogger } from "@/shared/lib/logger";
+
+import { useAirdrop } from "../../../components/Wallet/hooks/useAirdrop";
 import {
   clusterName,
   networkInSentence,
   UNKNOWN_NETWORK,
 } from "../../../constants";
-import { useEffect, useRef, useState } from "react";
-
-import BaseInteract from "./BaseInteract";
-import IdlActions from "./IdlActions";
-import InteractBody from "./InteractBody";
-import { builtAfterDeploy, solNeeded } from "./interact-callouts";
-import { interactFacts, interactSurface } from "./interact-surface";
-import type { IdlReading } from "@/entities/idl";
-import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
-import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
-import { useAirdrop } from "../../../components/Wallet/hooks/useAirdrop";
-import {
-  PgConnection,
-  PgExplorer,
-  PgProgramInfo,
-  PgWeb3,
-} from "../../../utils";
 import {
   useBalance,
   useExplorer,
@@ -27,14 +16,22 @@ import {
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
-import { PgFlow } from "../state/stage";
-import { PgDeployHistory } from "../state/deploy-history";
+import {
+  PgConnection,
+  PgExplorer,
+  PgProgramInfo,
+  PgWeb3,
+} from "../../../utils";
+import type { BuildOutput } from "../../sidebar/assistant/bridge/build-output";
+import { PgBuildOutput } from "../../sidebar/assistant/bridge/build-output";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgDeployHistory } from "../state/deploy-history";
 import { PgFlow } from "../state/stage";
 import BaseInteract from "./BaseInteract";
 import IdlActions from "./IdlActions";
+import { builtAfterDeploy, solNeeded } from "./interact-callouts";
 import { interactFacts, interactSurface } from "./interact-surface";
+import InteractBody from "./InteractBody";
 
 const log = createLogger("flow:interact");
 

@@ -17,8 +17,10 @@ import { Spinner } from "@/shared/ui/spinner";
 
 import type { ChatItem } from "../../../views/sidebar/assistant/store";
 import { THREAD_NOT_SAVED } from "../../../views/sidebar/assistant/store";
-import type { ApprovalAnswer } from "./BaseApprovalCard";
 import type { SignInOffer } from "../model/sign-in-offer";
+import type { ApprovalAnswer } from "./BaseApprovalCard";
+import type { ReplyActions } from "./BaseThreadItem";
+import { BaseThreadItem } from "./BaseThreadItem";
 
 /** A message the model turned away for load, counting down to its next send */
 export interface BusyRetryView {

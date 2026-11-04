@@ -58,7 +58,7 @@ beforeEach(() => {
   ) {
     saved.push({ download: this.download, href: this.href });
   });
-  URL.createObjectURL = vi.fn((_blob: Blob) => "blob:binary");
+  URL.createObjectURL = vi.fn(() => "blob:binary");
   URL.revokeObjectURL = vi.fn();
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });

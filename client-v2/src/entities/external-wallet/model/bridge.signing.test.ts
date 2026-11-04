@@ -3,9 +3,9 @@
 // (its `Uint8Array` is another realm's), so these run in node with the one
 // browser global Wallet Standard registration needs. The rest of the bridge's
 // tests are in-source, under jsdom.
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import * as ed25519 from "@noble/ed25519";
 import { Keypair, SystemProgram, Transaction } from "@solana/web3.js";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { StandardWallet } from "../../../utils/wallet/types";
 import type { SigningCluster } from "./bridge";

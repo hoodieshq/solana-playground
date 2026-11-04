@@ -18,12 +18,13 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
+
+import type { CliCluster, CliTool, IdlCommandKind } from "../model/commands";
 import {
   deployCommands,
   idlCommands,
   PROGRAM_ID_PLACEHOLDER,
 } from "../model/commands";
-import type { CliCluster, CliTool, IdlCommandKind } from "../model/commands";
 import type { CommandStep } from "../model/telemetry";
 
 export interface BaseCliDeployGuideProps {

@@ -1,5 +1,6 @@
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
+
 import type { DownloadFailure } from "../model/program";
 
 /** A failure the user is told about beside the button rather than in a toast */

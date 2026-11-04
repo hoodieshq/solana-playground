@@ -1,5 +1,6 @@
 import { createLogger } from "@/shared/lib/logger";
 
+import { PgSession } from "../../features/auth";
 import {
   PgCommand,
   PgCommon,
@@ -14,20 +15,18 @@ import {
   PgWeb3,
   SyncOrAsync,
 } from "../../utils";
-import { PgSession } from "../../features/auth";
-import { checkWallet } from "../checks";
 import { StoppedError, throwIfStopped } from "../../utils/stopped";
+import { isAirdropSignInGated } from "../airdrop/sign-in-gate";
 import { checkWallet } from "../checks";
 import { createCmd } from "../create";
 import { additionalProgramLen } from "./additional-len";
-import { isAirdropSignInGated } from "../airdrop/sign-in-gate";
 import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
-import type { StoppedBuffer } from "./stopped";
 import { MAINNET_DEPLOY_WARNING, warnsOnDeploy } from "./mainnet-warning";
-import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
 import type { DeployResult, FundingFailure } from "./run";
-import { createLogger } from "@/shared/lib/logger";
+import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
+import type { StoppedBuffer } from "./stopped";
+import { deployStoppedLine } from "./stopped";
 
 const log = createLogger("commands:deploy");
 

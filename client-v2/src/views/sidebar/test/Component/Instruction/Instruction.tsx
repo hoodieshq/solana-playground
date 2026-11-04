@@ -7,26 +7,25 @@ import {
   useState,
 } from "react";
 
-import { hasInstructionErrors } from "./instruction-errors";
-import InstructionInput from "./InstructionInput";
-import InstructionProvider from "./InstructionProvider";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { AsyncButton } from "@/shared/ui/async-button";
+import { Button } from "@/shared/ui/button";
 import {
   Collapsible,
   CollapsibleChevron,
   CollapsibleContent,
   CollapsibleHeading,
 } from "@/shared/ui/collapsible";
+
+import { useWallet } from "../../../../../hooks";
 import { PgCommon } from "../../../../../utils";
-import { AsyncButton } from "@/shared/ui/async-button";
-import { Button } from "@/shared/ui/button";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import {
   GeneratableInstruction,
   IdlInstruction,
   PgProgramInteraction,
 } from "../../.././../../utils/program-interaction";
 import { useIdl } from "../IdlProvider";
-import Interaction from "../Interaction";
+import { hasInstructionErrors } from "./instruction-errors";
 import InstructionInput from "./InstructionInput";
 import InstructionProvider from "./InstructionProvider";
 

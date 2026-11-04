@@ -1,7 +1,6 @@
 import type { FC } from "react";
 import { useState } from "react";
 
-import ImportButton from "../../../components/ImportButton";
 import { programName } from "@/entities/idl";
 import { createLogger } from "@/shared/lib/logger";
 import { Button } from "@/shared/ui/button";

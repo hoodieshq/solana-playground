@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
-import { PgDeployRun } from "@/commands/deploy/run";
 import type { DeployRunState } from "@/commands/deploy/run";
+import { PgDeployRun } from "@/commands/deploy/run";
 
 const subscribe = (cb: () => void) => {
   const { dispose } = PgDeployRun.onDidChange(cb);

@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 
 import { DEFAULT_ENDPOINT } from "@/constants";
-import { PgCustomRpcs } from "@/entities/custom-rpc";
 import type { CustomRpc, SaveResult } from "@/entities/custom-rpc";
-import { Button } from "@/shared/ui/button";
+import { PgCustomRpcs } from "@/entities/custom-rpc";
 import { useRenderOnChange } from "@/hooks";
+import { Button } from "@/shared/ui/button";
 import { PgSettings, PgView } from "@/utils";
 import type { ToastChildProps } from "@/utils/view";
+
 import { settingsTelemetry } from "../model/telemetry";
-import BaseCustomRpcs from "./BaseCustomRpcs";
 import type { CustomRpcSaveAnswer } from "./BaseCustomRpcs";
+import BaseCustomRpcs from "./BaseCustomRpcs";
 import BaseNetworkChoice from "./BaseNetworkChoice";
 
 /** The line under the URL field for a refused save (Spec 07's copy) */

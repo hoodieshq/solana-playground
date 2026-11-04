@@ -1,21 +1,22 @@
-import { clusterName } from "../../../constants";
-import { useEffect, useState } from "react";
 import BN from "bn.js";
+import { useEffect, useState } from "react";
 
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
-import BaseCallHistory from "./BaseCallHistory";
-import BaseCallResult from "./BaseCallResult";
-import { runCall } from "./run-call";
-import type { CallOutcome } from "./call-outcome";
+
+import { clusterName } from "../../../constants";
+import { useBalance, useBlockExplorer, useWallet } from "../../../hooks";
+import { PgProgramInfo } from "../../../utils";
+import { Idl, PgProgramInteraction } from "../../../utils/program-interaction";
 import Account from "../../sidebar/test/Component/Account";
 import Event from "../../sidebar/test/Component/Event";
 import IdlProvider from "../../sidebar/test/Component/IdlProvider";
 import Instruction from "../../sidebar/test/Component/Instruction";
-import { PgProgramInfo } from "../../../utils";
-import { Idl, PgProgramInteraction } from "../../../utils/program-interaction";
-import { useBalance, useBlockExplorer, useWallet } from "../../../hooks";
-import { PgCallHistory } from "../state/call-history";
 import type { CallRecord } from "../state/call-history";
+import { PgCallHistory } from "../state/call-history";
+import BaseCallHistory from "./BaseCallHistory";
+import BaseCallResult from "./BaseCallResult";
+import type { CallOutcome } from "./call-outcome";
+import { runCall } from "./run-call";
 
 export interface InteractBodyProps {
   idl: Idl;

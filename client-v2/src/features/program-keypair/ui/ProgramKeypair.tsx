@@ -4,15 +4,16 @@ import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { PgCommon, PgProgramInfo, PgWeb3 } from "@/utils";
+
 import {
   KEYPAIR_FILE_NAME,
   keypairFileContent,
   parseKeypairFile,
 } from "../model/keypair-file";
-import { programKeypairTelemetry } from "../model/telemetry";
 import type { KeypairExportFrom } from "../model/telemetry";
-import BaseProgramKeypair from "./BaseProgramKeypair";
+import { programKeypairTelemetry } from "../model/telemetry";
 import type { KeypairNote } from "./BaseProgramKeypair";
+import BaseProgramKeypair from "./BaseProgramKeypair";
 
 const log = createLogger("program-keypair:ui");
 

@@ -1,14 +1,11 @@
+import { solOn, UNKNOWN_NETWORK } from "@/constants";
+import { formatSol } from "@/features/deploy";
 import type { ToolDefinition, ToolInput } from "@/shared/lib/ai";
 
 import { type PlaygroundBridge, realBridge } from "../bridge/playground-bridge";
 import { PgAssistant } from "../store";
 import { createMcpTools } from "./mcp-tools";
 import { createSkillTools } from "./skill-tools";
-import { PgAssistant } from "../store";
-import { realBridge, type PlaygroundBridge } from "../bridge/playground-bridge";
-import { formatSol } from "@/features/deploy";
-import { solOn, UNKNOWN_NETWORK } from "@/constants";
-import type { ToolDefinition, ToolInput } from "@/shared/lib/ai";
 
 /** The project's name, as the approval cards name the program */
 const programName = (bridge: PlaygroundBridge) =>

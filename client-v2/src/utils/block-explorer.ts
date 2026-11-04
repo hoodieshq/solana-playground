@@ -1,6 +1,6 @@
+import type { Cluster } from "./connection";
 import { createDerivable, declareDecorator, derivable } from "./decorators";
 import { PgSettings } from "./settings";
-import type { Cluster } from "./connection";
 
 /** Block explorer creation parameter */
 interface BlockExplorerParam {

@@ -6,16 +6,17 @@
 import { createHash } from "crypto";
 import { describe, expect, it, vi } from "vitest";
 
-import { readIdl, type IdlV1 } from "@/entities/idl";
+import { type IdlV1, readIdl } from "@/entities/idl";
 import amm from "@/entities/idl/model/__fixtures__/amm_v3.json";
 import generics from "@/entities/idl/model/__fixtures__/generics.json";
 import idlJson from "@/entities/idl/model/__fixtures__/idl.json";
 import pda from "@/entities/idl/model/__fixtures__/pda.json";
 import relations from "@/entities/idl/model/__fixtures__/relations.json";
+
+import { PgWeb3 } from "../web3";
 import { generateValue } from "./generator";
 import type { Idl, IdlInstruction } from "./idl-types";
 import { createGeneratableInstruction } from "./instruction";
-import { PgWeb3 } from "../web3";
 
 // generator.ts and instruction.ts import the wallet, the program-info store
 // and the known-programs list; stub them so only the seed code loads

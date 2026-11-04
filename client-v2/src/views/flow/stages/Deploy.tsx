@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 
-import { CliDeployGuide } from "@/features/cli-deploy";
+import { isSignInFailure, PgSession } from "@/features/auth";
 import type { GuideFrom } from "@/features/cli-deploy";
+import { CliDeployGuide } from "@/features/cli-deploy";
+import type { StageDeployState } from "@/features/deploy";
+import { PgStageDeploy, useDeployRun, useStageDeploy } from "@/features/deploy";
+import { ProgramKeypair } from "@/features/program-keypair";
+import { createLogger } from "@/shared/lib/logger";
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 
-import BaseDeploy from "./BaseDeploy";
-import type { DeployDetails, DeployPayer, DeployStatus } from "./BaseDeploy";
-import IdlActions from "./IdlActions";
 import {
   useBalance,
   useBlockExplorer,
@@ -13,24 +16,16 @@ import {
   useRenderOnChange,
   useWallet,
 } from "../../../hooks";
-import { PgConnection, PgExplorer, PgGlobal, PgWallet } from "../../../utils";
 import type { Cluster } from "../../../utils";
-import { isSignInFailure, PgSession } from "@/features/auth";
-import { PgStageDeploy, useDeployRun, useStageDeploy } from "@/features/deploy";
-import { ProgramKeypair } from "@/features/program-keypair";
-import type { StageDeployState } from "@/features/deploy";
-import { createLogger } from "@/shared/lib/logger";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
-import { markIfToldByStage } from "./stage-failure";
-import { PgDeployHistory } from "../state/deploy-history";
+import { PgConnection, PgExplorer, PgGlobal, PgWallet } from "../../../utils";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgDeployHistory } from "../state/deploy-history";
 import type { FlowState } from "../state/stage";
 import { PgFlow } from "../state/stage";
-import type { DeployDetails, DeployStatus } from "./BaseDeploy";
+import type { DeployDetails, DeployPayer, DeployStatus } from "./BaseDeploy";
 import BaseDeploy from "./BaseDeploy";
 import IdlActions from "./IdlActions";
-import { toldByStage } from "./stage-failure";
+import { markIfToldByStage } from "./stage-failure";
 
 const log = createLogger("flow:deploy");
 

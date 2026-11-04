@@ -1,5 +1,5 @@
-import { createTracker } from "@/shared/lib/telemetry";
 import type { NoParams } from "@/shared/lib/telemetry";
+import { createTracker } from "@/shared/lib/telemetry";
 
 /** The network a deploy went to, as `PgConnection.cluster` names it */
 export type DeployCluster =

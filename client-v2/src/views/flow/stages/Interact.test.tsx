@@ -54,8 +54,9 @@ vi.mock("../state/deploy-history", () => ({
   PgDeployHistory: { list: () => [], onDidChange: mocks.noop },
 }));
 
-import Interact from "./Interact";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+
+import Interact from "./Interact";
 
 const renderInteract = () =>
   render(

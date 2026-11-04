@@ -1,5 +1,6 @@
-import { createTracker } from "@/shared/lib/telemetry";
 import type { NoParams } from "@/shared/lib/telemetry";
+import { createTracker } from "@/shared/lib/telemetry";
+
 import type { KeypairFileRefusal } from "./keypair-file";
 
 /** Where a keypair file was saved from: the block, or the New keypair dialog */

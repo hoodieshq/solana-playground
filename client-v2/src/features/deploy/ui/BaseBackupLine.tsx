@@ -1,8 +1,8 @@
 import { KeyRound } from "lucide-react";
 
+import { networkInSentence, UNKNOWN_NETWORK } from "@/constants";
 import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription } from "@/shared/ui/callout";
-import { networkInSentence, UNKNOWN_NETWORK } from "@/constants";
 
 export interface BaseBackupLineProps {
   cluster: string | null;

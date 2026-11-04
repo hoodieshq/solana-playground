@@ -1,6 +1,7 @@
 import type { Idl } from "@coral-xyz/anchor";
 
 import { createLogger } from "@/shared/lib/logger";
+
 import { IdlRefusal, toLegacyIdl } from "./to-legacy";
 import type { IdlReading, IdlV1 } from "./types";
 

@@ -26,7 +26,7 @@ const leaveAndRead = async (page: Page, paths: string[]) => {
   );
   await page.goto(PROBE);
 
-  return page.evaluate(async (paths) => {
+  return page.evaluate(async (wanted) => {
     const db: IDBDatabase = await new Promise((resolve, reject) => {
       const request = indexedDB.open("solana-playground");
       request.onsuccess = () => resolve(request.result);
@@ -52,7 +52,7 @@ const leaveAndRead = async (page: Page, paths: string[]) => {
       }
       return node !== undefined;
     };
-    return paths.map(reaches);
+    return wanted.map(reaches);
   }, paths);
 };
 
@@ -65,7 +65,7 @@ const waitForStored = (page: Page, parts: string[]) =>
   expect
     .poll(
       () =>
-        page.evaluate(async (parts) => {
+        page.evaluate(async (needles) => {
           const db: IDBDatabase = await new Promise((resolve, reject) => {
             const request = indexedDB.open("solana-playground");
             request.onsuccess = () => resolve(request.result);
@@ -84,7 +84,7 @@ const waitForStored = (page: Page, parts: string[]) =>
           return values.some((value) => {
             if (!(value instanceof Uint8Array)) return false;
             const text = new TextDecoder().decode(value);
-            return parts.every((part) => text.includes(part));
+            return needles.every((part) => text.includes(part));
           });
         }, parts),
       LONG

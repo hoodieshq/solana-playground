@@ -9,6 +9,7 @@ import {
 import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { DeployRunState } from "@/commands/deploy/run";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { requireFor } from "@/test-utils/require-for";
 
@@ -18,8 +19,7 @@ import type {
   DeployDetails,
   DeployStatus,
 } from "./BaseDeploy";
-import type { DeployRecord } from "../state/deploy-history";
-import type { DeployRunState } from "@/commands/deploy/run";
+import BaseDeploy from "./BaseDeploy";
 
 const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 

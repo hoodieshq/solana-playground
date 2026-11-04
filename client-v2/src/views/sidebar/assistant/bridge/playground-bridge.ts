@@ -1,3 +1,6 @@
+import { networkInSentence } from "@/features/deploy";
+
+import { estimateDeployCostWithin } from "../../../../commands/deploy/estimate";
 import {
   PgBlockExplorer,
   PgCommand,
@@ -7,8 +10,6 @@ import {
   PgProgramInfo,
   PgWallet,
 } from "../../../../utils";
-import { estimateDeployCostWithin } from "../../../../commands/deploy/estimate";
-import { networkInSentence } from "@/features/deploy";
 import { PgLesson } from "../../../flow/lessons";
 import { PgBuildOutput, stripKnownNoise } from "./build-output";
 import type { LessonContext } from "./lesson-context";

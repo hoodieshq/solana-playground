@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 
+import { createLogger } from "../../shared/lib/logger";
 import { PgCommon, PgExplorer, PgTheme, PgView } from "../../utils";
 import { SpinnerWithBg } from "../Loading";
-import { createLogger } from "../../shared/lib/logger";
 
 const log = createLogger("editor:editor");
 

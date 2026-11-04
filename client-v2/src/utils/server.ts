@@ -3,6 +3,7 @@ import type { Idl } from "@coral-xyz/anchor";
 import { PgCommon } from "./common";
 import type { TupleFiles } from "./explorer";
 import { PgServerError, UNREADABLE_BODY } from "./server-error";
+import { PgSettings } from "./settings";
 
 export { PgServerError };
 

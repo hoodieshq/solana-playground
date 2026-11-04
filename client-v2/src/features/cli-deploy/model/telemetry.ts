@@ -1,5 +1,6 @@
-import { createTracker } from "@/shared/lib/telemetry";
 import type { NoParams } from "@/shared/lib/telemetry";
+import { createTracker } from "@/shared/lib/telemetry";
+
 import type { CliCluster, CliTool } from "./commands";
 import type { DownloadFailure } from "./program";
 

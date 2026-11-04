@@ -16,10 +16,10 @@ import {
   InstructionValueGenerator,
   PgProgramInteraction,
 } from "../../../../../utils/program-interaction";
-import { hasInstructionErrors } from "./instruction-errors";
 import { useIdl } from "../IdlProvider";
 import Label from "../InputLabel";
 import FromSeed from "./FromSeed";
+import { hasInstructionErrors } from "./instruction-errors";
 import { useInstruction } from "./InstructionProvider";
 
 const log = createLogger("test:instruction-input");

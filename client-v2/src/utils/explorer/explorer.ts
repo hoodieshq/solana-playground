@@ -1,14 +1,10 @@
-import { PgFs } from "./fs";
-import { PgWorkspace } from "./workspace";
-import { forgetFlushed, writeWorkspaceFile } from "./workspace-file";
 import {
   isMissing,
   report,
 } from "../../features/persistence/model/diagnostics";
+import { createLogger } from "../../shared/lib/logger";
 import { PgCommon } from "../common";
 import { PgLanguage } from "../language";
-import { PgView } from "../view";
-import { createLogger } from "../../shared/lib/logger";
 import type { Disposable } from "../types";
 import { PgView } from "../view";
 import { PgFs } from "./fs";
@@ -24,8 +20,7 @@ import type {
   TupleFiles,
 } from "./types";
 import { PgWorkspace } from "./workspace";
-
-const log = createLogger("explorer:explorer");
+import { forgetFlushed, writeWorkspaceFile } from "./workspace-file";
 
 const log = createLogger("explorer:explorer");
 

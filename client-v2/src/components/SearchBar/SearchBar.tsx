@@ -266,6 +266,7 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
         })
       : [];
   /** Every row the list shows, in its visual (and keyboard) order */
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt each render, as the list always was; the effect only re-checks the keyboard index
   const filteredItems = topRows ? [...topRows, ...nestedRows] : undefined;
 
   const [loading, setLoading] = useState(false);
@@ -335,7 +336,8 @@ const SearchBar: FC<React.PropsWithChildren<SearchBarProps>> = ({
   /** Pick a row; a nested one with its group recorded as the pending parent */
   const pickRow = (row: Row) => {
     const { group } = row;
-    if (group) setSelectedItems((items) => ({ ...items, pending: [group] }));
+    if (group)
+      setSelectedItems((selected) => ({ ...selected, pending: [group] }));
     pick(row.item);
   };
   const searchTopResult = () => {
@@ -745,7 +747,8 @@ const useGroupLists = (items: Item[] | null | undefined) => {
   return {
     get: (label: string) => {
       const item = items?.find(
-        (item) => typeof item === "object" && item.label === label
+        (candidate) =>
+          typeof candidate === "object" && candidate.label === label
       );
       if (typeof item !== "object") return undefined;
       return Array.isArray(item.items) ? item.items : loaded.current.get(label);

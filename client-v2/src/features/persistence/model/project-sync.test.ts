@@ -8,6 +8,7 @@ import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgFs } from "../../../utils/explorer/fs";
 import { PgWorkspace } from "../../../utils/explorer/workspace";
 import { clearFailures, getFailures } from "./diagnostics";
+import { PgProjectSync } from "./project-sync";
 import { MAX_PROJECT_BODY_BYTES } from "./project-write.mjs";
 import { hashFiles } from "./snapshot";
 import { PgSyncBase } from "./sync-base";

@@ -1,10 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PgSession } from "../../features/auth";
 import { PgCommand, PgProgramInfo, PgTerminal } from "../../utils";
 import { deploy } from "./deploy";
-import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
 import type { DeployRunState } from "./run";
+import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
 
 const WALLET = "Wa11et1111111111111111111111111111111111111";
 const balance = vi.fn(async () => 10_000_000_000);

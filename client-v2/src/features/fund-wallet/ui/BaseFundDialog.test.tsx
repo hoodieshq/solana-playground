@@ -2,8 +2,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import BaseFundDialog from "./BaseFundDialog";
 import type { BaseFundDialogProps, FundPayer } from "./BaseFundDialog";
+import BaseFundDialog from "./BaseFundDialog";
 
 const RECEIVER = {
   name: "Wallet 1",

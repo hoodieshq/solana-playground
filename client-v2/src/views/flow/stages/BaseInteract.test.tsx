@@ -10,6 +10,7 @@ import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
+
 import { requireFor } from "../../../test-utils/require-for";
 import type { BaseInteractProps, DeploymentOption } from "./BaseInteract";
 import BaseInteract from "./BaseInteract";

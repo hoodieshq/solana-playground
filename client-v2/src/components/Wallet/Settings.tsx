@@ -15,6 +15,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { MenuItemText } from "@/shared/ui/menu-extras";
 
+import { NO_FAUCET } from "../../commands/airdrop/no-faucet";
 import { isSignInFailure } from "../../features/auth";
 import { useCopy } from "../../hooks";
 import { Fn, PgCommand, PgView, PgWallet } from "../../utils";
@@ -31,9 +32,7 @@ import {
 } from "../Icons";
 import Img from "../Img";
 import { useAirdrop, useDarken } from "./hooks";
-import { isSignInFailure } from "../../features/auth";
-import { NO_FAUCET } from "../../commands/airdrop/no-faucet";
-import { useCopy } from "../../hooks";
+import { importedText } from "./imported-text";
 
 const log = createLogger("wallet:settings");
 

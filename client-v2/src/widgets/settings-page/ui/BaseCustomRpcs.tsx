@@ -1,9 +1,9 @@
-import { useId, useState } from "react";
-import type { FormEvent } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import type { FormEvent } from "react";
+import { useId, useState } from "react";
 
-import { hostOf, RPC_NAME_MAX } from "@/entities/custom-rpc";
 import type { CustomRpc } from "@/entities/custom-rpc";
+import { hostOf, RPC_NAME_MAX } from "@/entities/custom-rpc";
 import { Button } from "@/shared/ui/button";
 import {
   Field,

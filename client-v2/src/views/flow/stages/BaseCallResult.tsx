@@ -10,6 +10,7 @@ import {
 } from "@/shared/ui/collapsible";
 import { CopyButton } from "@/shared/ui/copy-button";
 import { StatusDot } from "@/shared/ui/status-dot";
+
 import type { CallOutcome } from "./call-outcome";
 
 export interface BaseCallResultProps {

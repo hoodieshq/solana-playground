@@ -1,11 +1,14 @@
 import type { JSX } from "react";
 
 import {
+  dropBrokenSettingsFor,
   fromStoredEndpoints,
   parseStoredSettings,
   toStoredEndpoints,
-  dropBrokenSettingsFor,
 } from "../settings/stored-endpoint";
+// The module, not the slice's entry: the entry pulls in React and Sentry, and
+// this file loads before everything else
+import { createLogger } from "../shared/lib/logger/logger";
 import { declareDecorator, updatable } from "./decorators";
 import type {
   Arrayable,
@@ -14,10 +17,6 @@ import type {
   RequiredKey,
   UnionToTuple,
 } from "./types";
-
-// The module, not the slice's entry: the entry pulls in React and Sentry, and
-// this file loads before everything else
-import { createLogger } from "../shared/lib/logger/logger";
 
 const log = createLogger("settings:storage");
 

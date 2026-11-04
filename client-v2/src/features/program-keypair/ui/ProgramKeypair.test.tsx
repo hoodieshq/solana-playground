@@ -1,7 +1,7 @@
 // The program id block, connected: what each action writes to the program
 // info, and the events it sends.
-import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Keypair, PublicKey } from "@solana/web3.js";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {

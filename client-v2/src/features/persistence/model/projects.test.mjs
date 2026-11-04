@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { before, beforeEach, describe, it } from "node:test";
-
 import pg from "pg";
 
 import {

@@ -1,8 +1,8 @@
 // @vitest-environment node
 // The transfer builds a web3.js instruction, whose byte checks fail under
 // jsdom (another realm's `Uint8Array`); `PgTx` itself is mocked.
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { Keypair, SystemInstruction, SystemProgram } from "@solana/web3.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const tx = vi.hoisted(() => ({ send: vi.fn(), confirm: vi.fn() }));
 // Each read of `current` is a new connection, as after a cluster change

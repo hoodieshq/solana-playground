@@ -1,10 +1,10 @@
+import type { Page } from "@playwright/test";
 import {
   Keypair,
   SystemInstruction,
   SystemProgram,
   Transaction,
 } from "@solana/web3.js";
-import type { Page } from "@playwright/test";
 
 import { installFakeWallet } from "./fake-wallet";
 import { expect, LONG, runInTerminal, test } from "./fixtures";
