@@ -4,8 +4,8 @@ import { isTypingElsewhere } from "@/shared/lib/focus";
 export type OpenKind = "mount" | "later";
 
 /**
- * Whether opening a file leaves focus in the field the user is typing in,
- * rather than the editor taking it.
+ * Whether opening a file leaves focus where it is, rather than the editor
+ * taking it.
  *
  * An open the user started from a field in the explorer's tree (naming a new
  * file) ends in the editor, so a later open takes focus from that field. Any
@@ -59,8 +59,8 @@ export const leavesFocusElsewhere = ({
 /**
  * The editor sits left or right of the screen, as it does on the phone's
  * pager while another page shows or the pager is moving to one. A hidden
- * editor has an empty box at the origin and counts as on the screen: focus
- * cannot scroll to it
+ * editor has an empty box at the origin, so it is not reported: focus there
+ * scrolls nothing
  */
 const isOffScreen = (editor: Element) => {
   const { left, right } = editor.getBoundingClientRect();
@@ -226,6 +226,31 @@ if (import.meta.vitest) {
           })
         ).toBe(true);
         at(0);
+        expect(
+          leavesFocusElsewhere({
+            open: "mount",
+            editor,
+            tree,
+            active: document.body,
+          })
+        ).toBe(false);
+      });
+
+      it("leaves focus while off the screen even from the tree's item", () => {
+        const { editor, tree, item } = page();
+        vi.spyOn(editor, "getBoundingClientRect").mockReturnValue(
+          new DOMRect(window.innerWidth, 0, window.innerWidth, 400)
+        );
+        expect(
+          leavesFocusElsewhere({ open: "mount", editor, tree, active: item })
+        ).toBe(true);
+      });
+
+      it("takes focus when the editor is hidden, with an empty box", () => {
+        const { editor, tree } = page();
+        vi.spyOn(editor, "getBoundingClientRect").mockReturnValue(
+          new DOMRect(0, 0, 0, 0)
+        );
         expect(
           leavesFocusElsewhere({
             open: "mount",
