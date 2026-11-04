@@ -14,7 +14,7 @@ import {
 import { StatusDot } from "@/shared/ui/status-dot";
 
 import type { Stage } from "../state/stage";
-import { clusterTitle } from "./BaseDeploy";
+import { clusterTitle } from "./cluster-title";
 import type { InteractSurface } from "./interact-surface";
 import { STAGE_BODY, STAGE_FOOT, STAGE_FRAME } from "./stage-layout";
 

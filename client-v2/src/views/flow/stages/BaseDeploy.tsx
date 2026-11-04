@@ -20,6 +20,7 @@ import {
 import { StatusDot } from "@/shared/ui/status-dot";
 
 import type { DeployRecord } from "../state/deploy-history";
+import { clusterTitle } from "./cluster-title";
 import {
   STAGE_BODY,
   STAGE_FOOT,
@@ -91,10 +92,6 @@ const deployLabel = (p: BaseDeployProps, redeploy: boolean) => {
 
 /** The cluster for prose; "the network" until the endpoint has been read */
 const clusterName = (p: BaseDeployProps) => p.cluster ?? "the network";
-
-/** The cluster as the status row names it: "devnet" reads "Devnet" */
-export const clusterTitle = (cluster: string) =>
-  cluster.charAt(0).toUpperCase() + cluster.slice(1);
 
 const description = (p: BaseDeployProps, latest: DeployRecord | null) => {
   if (!p.built) {

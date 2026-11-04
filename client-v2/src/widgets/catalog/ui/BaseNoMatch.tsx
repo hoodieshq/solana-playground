@@ -33,7 +33,11 @@ const BaseNoMatch = ({ label, query, onClear }: BaseNoMatchProps) => (
       <EmptyMedia className="mb-2 text-muted-foreground">
         <Search className="size-6" aria-hidden />
       </EmptyMedia>
-      <EmptyTitle className="text-lg leading-tight text-foreground">
+      <EmptyTitle
+        role="heading"
+        aria-level={2}
+        className="text-lg leading-tight text-foreground"
+      >
         {`No ${label} match “${query}”`}
       </EmptyTitle>
       <EmptyDescription className="font-read">
