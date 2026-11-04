@@ -6,8 +6,10 @@ import type { TupleFiles } from "@/utils";
  * at the root, in order: `playground`, then `playground-shim`,
  * `playground-shim-2` and on, when the project holds that name already
  */
-const shimStemAt = (n: number) =>
-  n === 0 ? "playground" : n === 1 ? "playground-shim" : `playground-shim-${n}`;
+const shimStemAt = (n: number) => {
+  if (n === 0) return "playground";
+  return n === 1 ? "playground-shim" : `playground-shim-${n}`;
+};
 
 /** The extensions an extensionless import can resolve to */
 const RESOLVED_EXTENSION_REGEX = /^\.(?:(?:d\.)?[cm]?[jt]sx?|json)$/;
