@@ -5,6 +5,7 @@ import { EditorTabsShown } from "@/components/EditorWithTabs";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommon, PgExplorer, PgTutorial } from "@/utils";
+import { PgEditor } from "@/utils/editor";
 import { PgFlow } from "@/views/flow/state/stage";
 import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
 
@@ -169,6 +170,9 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     setTreeOpen(false);
     if (path === open) return;
     PgExplorer.openFile(PgExplorer.convertToFullPath(path));
+    // From the tree's popover, which keeps focus from an open (see
+    // `leavesFocusElsewhere`): the pick itself asks for the editor
+    if (via === "tree") PgEditor.focus();
     tutorialWorkspaceTelemetry.track("tutorial_workspace_file_opened", { via });
   };
 
