@@ -94,21 +94,12 @@ const flowState = (
 });
 
 /** A flow before anything ran, in a project with no program */
-const noProgram = (): FlowState => ({
-  stage: "write",
-  build: "upcoming",
-  buildSettled: "upcoming",
-  deploy: "upcoming",
-  interact: "upcoming",
-  buildErrorCount: 0,
-  buildMs: null,
-  buildStartedAt: null,
-  buildStartedBefore: null,
-  buildFailure: null,
-  deployBeforeRun: null,
-  stopped: null,
-  hasProgram: false,
-});
+const noProgram = (): FlowState => {
+  const state = flowState("upcoming");
+  state.stage = "write";
+  state.hasProgram = false;
+  return state;
+};
 
 beforeEach(() => {
   flow.state = flowState("upcoming");
