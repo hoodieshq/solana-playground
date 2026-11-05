@@ -52,6 +52,6 @@ listed:
 - **THEN** `auth_signed_out` is not tracked, the user stays signed in, and the
   error reaches the caller
 
-#### Scenario: A session expires
+#### Scenario: A session expires (manual)
 - **WHEN** a session read finds that the session ended without a sign-out
 - **THEN** `auth_session_expired` is tracked once, however many reads follow

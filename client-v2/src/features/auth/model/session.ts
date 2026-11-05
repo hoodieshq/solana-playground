@@ -1311,7 +1311,14 @@ if (import.meta.vitest) {
         });
 
         it("is not resuming when another account signs in", async () => {
-          expect(await resumingAs({ ...ADA, id: "u2" })).toBe(false);
+          expect(
+            await resumingAs({
+              id: "u2",
+              name: ADA.name,
+              image: ADA.image,
+              login: ADA.login,
+            })
+          ).toBe(false);
         });
 
         it("clears once the remembered user is forgotten, telling listeners", async () => {
@@ -1375,7 +1382,12 @@ if (import.meta.vitest) {
           initLogger({ providers: [memoryProvider()] });
           await PgSession.refreshWith(ADA);
           await PgSession.refreshWith(undefined);
-          const bob = { ...ADA, id: "u2" };
+          const bob = {
+            id: "u2",
+            name: ADA.name,
+            image: ADA.image,
+            login: ADA.login,
+          };
           const setItem = vi
             .spyOn(Storage.prototype, "setItem")
             .mockImplementation(() => {

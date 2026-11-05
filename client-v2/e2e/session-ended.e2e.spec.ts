@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page, Route } from "@playwright/test";
 
 import {
   expect,
@@ -33,11 +33,10 @@ const signedInThenExpires = async (page: Page) => {
   // eslint-disable-next-line unicorn/no-null -- the auth route's wire JSON answers `null` for nobody
   const user = () => (expired ? null : TEST_USER);
   await page.route("**/api/auth/get-session", (r) => json(r, { user: user() }));
-  for (const route of ["**/api/projects*", "**/api/conversations*"]) {
-    await page.route(route, (r) =>
-      expired ? r.fulfill({ status: 401, body: "" }) : r.fallback()
-    );
-  }
+  const refuseOnceExpired = (r: Route) =>
+    expired ? r.fulfill({ status: 401, body: "" }) : r.fallback();
+  await page.route("**/api/projects*", refuseOnceExpired);
+  await page.route("**/api/conversations*", refuseOnceExpired);
   // Answers with the callback itself: GitHub's part of the flow, approved
   await page.route("**/api/auth/sign-in/social", (r) => {
     expired = false;
