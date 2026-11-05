@@ -28,8 +28,9 @@ const reasonOf = (error: unknown): SignInFailure =>
   error instanceof SignInFailed ? error.reason : "request-failed";
 
 /**
- * Whether a rejected `PgSession.signIn` or `signInFor` ended at a known step (cancelled,
- * blocked, refused); anything else is an error the team should hear of
+ * Whether a rejected `PgSession.signIn` or `signInFor` ended at a known step
+ * (cancelled, blocked, refused); anything else is an error the team should hear
+ * of
  */
 export const isSignInFailure = (error: unknown) =>
   error instanceof SignInFailed;
@@ -58,9 +59,9 @@ export interface SessionUser {
 }
 
 /**
- * Where a sign-in started, when its listeners must tell it apart from the
- * account footer's: a task under way in the assistant panel or the share
- * dialog, which the sign-in must not navigate away from
+ * The task a sign-in is for, under way in the assistant panel or the share
+ * dialog. A sign-in that carries one keeps the open project; a task can claim
+ * one it did not start (`PgSession.claimPendingSignIn`).
  */
 export type SignInOrigin = "assistant" | "share";
 
@@ -203,8 +204,8 @@ export class PgSession {
    * own: a feature that needs more than identity (gist sharing asks for
    * `gist`) names them, Better Auth appends them to its defaults, and signing
    * the same user in again only refreshes the stored token, so no user change
-   * fires. `signInFor(origin)` returns the sign-in for that origin;
-   * `SignInOrigin` lists the callers.
+   * fires. A sign-in already running is joined, and claimed for this origin
+   * (`claimPendingSignIn`).
    */
   static signInFor(from: SignInOrigin) {
     return (scopes: string[]): Promise<void> =>
@@ -219,7 +220,8 @@ export class PgSession {
    * prompt waits on the account menu's sign-in, calls it directly.
    */
   static claimPendingSignIn(from: SignInOrigin) {
-    if (PgSession._pending && PgSession._signingInFrom === null) {
+    const isRunning = PgSession._signInState.status === "pending";
+    if (isRunning && PgSession._signingInFrom === null) {
       PgSession._signingInFrom = from;
     }
   }
@@ -1269,6 +1271,35 @@ if (import.meta.vitest) {
         await vi.waitFor(() => expect(popup.open).toHaveBeenCalledTimes(2));
         popup.cancel();
         await expect(scoped).rejects.toThrow(/cancelled/i);
+      });
+
+      it("claims no sign-in that has already ended", async () => {
+        vi.spyOn(globalThis, "fetch").mockImplementation(
+          vi.fn().mockImplementation((url: string) =>
+            Promise.resolve({
+              ok: true,
+              json: async () =>
+                url === "/api/auth/sign-in/social"
+                  ? { url: "https://x/" }
+                  : { user: { id: "u1" } },
+            })
+          ) as unknown as typeof fetch
+        );
+        PgSession.setOpenChannel(() => ({
+          receive: async () => ({ delivered: true as const, data: {} }),
+          cancel: () => {},
+        }));
+        // Idle fires after the flow ended, while its promise is yet to settle
+        const dispose = PgSession.onDidChange(() => {
+          if (PgSession.signInState().status === "idle") {
+            PgSession.claimPendingSignIn("share");
+          }
+        });
+
+        await PgSession.signIn();
+        dispose.dispose();
+
+        expect(PgSession.signingInFrom).toBeNull();
       });
 
       it("claims no sign-in when none is running", () => {

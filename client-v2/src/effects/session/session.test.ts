@@ -354,6 +354,18 @@ describe("the session effect", () => {
       effect.dispose();
     });
 
+    it("keeps the open project when the share prompt claims a sign-in from the header", async () => {
+      const effect = await signedOutAfterLoad();
+
+      const signingIn = PgSession.signIn();
+      PgSession.claimPendingSignIn("share");
+      await signingIn;
+      await settle();
+
+      expect(switchWorkspace).not.toHaveBeenCalledWith("Newest");
+      effect.dispose();
+    });
+
     it("opens the newest project when the sign-in started from the header", async () => {
       const effect = await signedOutAfterLoad();
 

@@ -427,7 +427,8 @@ it("counts and hands on an unreadable project after a grant too", async () => {
     signedIn: true,
     signIn: resolvingSignIn(),
     cancelSignIn: noCancel(),
-    // The file list and the first export read it; the export after the grant fails
+    // The file list twice (StrictMode) and the first export read it; the export
+    // after the grant fails
     readFiles: async () => {
       reads += 1;
       if (reads > 3) throw new Error("store unreadable");

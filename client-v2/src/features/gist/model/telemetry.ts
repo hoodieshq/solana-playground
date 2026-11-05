@@ -51,9 +51,10 @@ type GistEvents = {
   /** GitHub made the gist; `files` as in `gist_export_started` */
   gist_export_succeeded: { files: number; visibility: GistVisibility };
   /**
-   * A share ended without a gist; the dialog said why. A sign-in or a grant
-   * the user cancelled counts as `sign-in-failed`. A project that could not be
-   * read counts as `read-failed`, with no `gist_export_started` before it.
+   * A share ended without a gist; the dialog, or for `read-failed` the frame's
+   * toast, said why. A sign-in or a grant the user cancelled counts as
+   * `sign-in-failed`. A project that could not be read counts as `read-failed`,
+   * with no `gist_export_started` before it.
    */
   gist_export_failed: {
     reason: GistExportFailure;

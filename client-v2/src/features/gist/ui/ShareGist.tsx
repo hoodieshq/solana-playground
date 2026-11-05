@@ -36,9 +36,9 @@ export interface ShareGistOptions {
   signedIn: boolean;
   /**
    * Sign in with GitHub, asking for `scopes` on top of sign-in's own (`[]`
-   * asks for none). Passed in because this feature may not import `auth`. Answers `"cancelled"`
-   * when the user ended it (here or on GitHub), and rejects, with a message
-   * fit to show, when it failed.
+   * asks for none). Passed in because this feature may not import `auth`.
+   * Answers `"cancelled"` when the user ended it (here or on GitHub), and
+   * rejects, with a message fit to show, when it failed.
    */
   signIn: (scopes: string[]) => Promise<"signed-in" | "cancelled">;
   /**

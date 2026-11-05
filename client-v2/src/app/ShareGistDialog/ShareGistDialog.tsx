@@ -116,7 +116,8 @@ const SignInToShare = () => {
   }, []);
 
   // A sign-in from the account menu ends with the session arriving under this
-  // dialog, which must keep the project it is sharing
+  // dialog, which must keep the project it is sharing. It stays claimed if the
+  // dialog closes first: the user stays on the open project, which loses nothing
   useEffect(() => {
     if (waiting) PgSession.claimPendingSignIn("share");
   }, [waiting]);
