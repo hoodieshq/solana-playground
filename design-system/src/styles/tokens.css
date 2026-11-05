@@ -82,7 +82,7 @@
   --track-brand: #00a36c;
   --track-product: #9945ff;
 
-  /* ── syntax: VS Code's six roles, dark enough to read on paper ───────── */
+  /* ── syntax: VS Code's six roles and plain text, dark enough for paper */
   --syntax-keyword: #be185d;
   --syntax-type: #0369a1;
   --syntax-function: #047857;
@@ -167,7 +167,7 @@
   --track-brand: #14f195;
   --track-product: #ae7bff;
 
-  /* ── syntax: VS Code's six roles, pulled into the product's palette ── */
+  /* ── syntax: VS Code's six roles and plain text, in the product's palette */
   /* plain and comment follow the dark ramp's primary and tertiary text */
   --syntax-keyword: #ec4899;
   --syntax-type: #38bdf8;

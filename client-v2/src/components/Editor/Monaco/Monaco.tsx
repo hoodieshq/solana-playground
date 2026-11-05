@@ -145,14 +145,19 @@ const Monaco = () => {
         // match and a yellow line round it, which no token reaches
         "editorBracketHighlight.foreground1":
           theme.colors.default.textSecondary,
-        "editorBracketHighlight.foreground2": theme.highlight.integer.color!,
-        "editorBracketHighlight.foreground3": theme.highlight.typeName.color!,
+        "editorBracketHighlight.foreground2":
+          theme.highlight.integer.color ?? theme.colors.default.textSecondary,
+        "editorBracketHighlight.foreground3":
+          theme.highlight.typeName.color ?? theme.colors.default.textSecondary,
         "editorBracketHighlight.unexpectedBracket.foreground":
           theme.colors.state.error.color,
         "editor.findMatchBackground": editorStyles.default.selection.bg,
         "editor.findMatchHighlightBackground":
           editorStyles.default.searchMatch.bg,
-        "editor.rangeHighlightBackground": theme.colors.state.hover.bg!,
+        "editor.rangeHighlightBackground": PgTheme.alpha(
+          theme.colors.default.textSecondary,
+          "low"
+        ),
         "editorOverviewRuler.findMatchForeground":
           theme.colors.default.textSecondary,
         "minimap.findMatchHighlight": theme.colors.default.textSecondary,

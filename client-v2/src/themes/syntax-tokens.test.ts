@@ -12,6 +12,12 @@ const TOKENS = fs.readFileSync(
   "utf8"
 );
 
+/** Where the tokens are made; the client's copy is installed from it */
+const DESIGN_SYSTEM_TOKENS = fs.readFileSync(
+  path.join(__dirname, "../../../design-system/src/styles/tokens.css"),
+  "utf8"
+);
+
 const SYNTAX = [
   "--syntax-keyword",
   "--syntax-type",
@@ -28,8 +34,17 @@ const blocks = (selector: string) =>
     .filter((part) => part.startsWith(`${selector} {`))
     .map((part) => part.slice(0, part.indexOf("\n}")));
 
-const value = (block: string, token: string) =>
+const find = (block: string, token: string) =>
   block.match(new RegExp(`${token}:\\s*(#[0-9a-f]{6})`, "i"))?.[1];
+
+const value = (block: string, token: string) => {
+  const hex = find(block, token);
+  if (!hex) throw new Error(`${token} has no hex value in this block`);
+  return hex;
+};
+
+/** Every syntax declaration in a tokens file, in order */
+const syntaxLines = (css: string) => css.match(/--syntax-[\w-]+:\s*#\w+/g);
 
 const luminance = (hex: string) => {
   const [r, g, b] = [1, 3, 5]
@@ -47,10 +62,14 @@ describe("syntax tokens", () => {
   const [light, shared] = blocks(":root");
   const [dark] = blocks(".dark");
 
-  it.each(SYNTAX)("%s has a value of its own in each theme", (token) => {
-    expect(value(light, token)).toBeDefined();
-    expect(value(dark, token)).toBeDefined();
-    expect(value(shared, token)).toBeUndefined();
+  it.each(SYNTAX)("defines %s in each theme and not in both", (token) => {
+    expect(find(light, token)).toBeDefined();
+    expect(find(dark, token)).toBeDefined();
+    expect(find(shared, token)).toBeUndefined();
+  });
+
+  it("matches the design system's tokens", () => {
+    expect(syntaxLines(TOKENS)).toEqual(syntaxLines(DESIGN_SYSTEM_TOKENS));
   });
 
   describe.each([
@@ -58,9 +77,10 @@ describe("syntax tokens", () => {
     "--surface-panel",
     "--surface",
     "--surface-raised",
+    "--surface-well",
   ])("on Light's %s", (ground) => {
-    it.each(SYNTAX)("%s reaches 4.5:1", (token) => {
-      const ratio = contrast(value(light, token)!, value(light, ground)!);
+    it.each(SYNTAX)("gives %s 4.5:1", (token) => {
+      const ratio = contrast(value(light, token), value(light, ground));
       expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
   });

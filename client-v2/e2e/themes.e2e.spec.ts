@@ -148,6 +148,7 @@ test.describe("client-v2-themes", () => {
       const expected: [string, string][] = [
         [".bracket-highlighting-0", "--text-secondary"],
         [".bracket-highlighting-1", "--syntax-number"],
+        [".bracket-highlighting-2", "--syntax-type"],
         [".active-line-number", "--text-secondary"],
       ];
       for (const [selector, name] of expected) {
@@ -158,6 +159,17 @@ test.describe("client-v2-themes", () => {
     };
 
     await expectOnTokens();
+
+    // Monaco's own find match is orange, in both themes
+    await page.keyboard.press("ControlOrMeta+f");
+    await page.keyboard.type("data");
+    await expect
+      .poll(() =>
+        computed(page, ".monaco-editor .findMatch", "backgroundColor")
+      )
+      .not.toBe("rgba(234, 92, 0, 0.33)");
+    await page.keyboard.press("Escape");
+
     await pickTheme(page, "Light");
     await expectOnTokens();
   });

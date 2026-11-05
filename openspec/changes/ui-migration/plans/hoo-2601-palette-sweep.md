@@ -3,7 +3,8 @@
 **Goal:** Light code reads again, and nothing in the dark theme still shows the
 old colours.
 
-**Spec:** the ticket, HOO-2601. It is the proposal; no new OpenSpec change.
+**Spec:** the ticket, HOO-2601. It is the proposal; no new OpenSpec change, and
+so no task line in `tasks.md` to number this plan or link it from.
 
 **Approach:** one token change in the design system, installed with
 `yarn ds-add`. The audit on `scope/interface-2` @ ee60fba5b found no warm literal
@@ -27,13 +28,15 @@ in art, gradients, Monaco, `og.png` or docs, so everything else is verification.
 ## Task 1: syntax tokens per theme
 
 **Files:** `design-system/src/styles/tokens.css`,
-`design-system/src/ds/pg-blocks.tsx`, `client-v2/src/themes/tokens-defined.test.ts`,
+`design-system/src/ds/pg-blocks.tsx`, `client-v2/src/themes/syntax-tokens.test.ts`,
 `client-v2/src/app/styles/playground-tokens.css` (installed)
 
 - [ ] Write the failing test: each `--syntax-*` is defined in both the `:root`
-      and `.dark` blocks, and each Light value reaches 4.5:1 on `--surface-base`,
-      `--surface-panel`, `--surface` and `--surface-raised`.
-- [ ] Run `yarn vitest run src/themes/tokens-defined.test.ts`; it fails.
+      and `.dark` blocks and not in the shared block, the client's copy matches
+      the design system's, and each Light value reaches 4.5:1 on
+      `--surface-base`, `--surface-panel`, `--surface`, `--surface-raised` and
+      `--surface-well`.
+- [ ] Run `yarn vitest run src/themes/syntax-tokens.test.ts`; it fails.
 - [ ] Move the seven `--syntax-*` out of the shared `:root` into the two theme
       blocks. Drop `SYNTAX_BOTH` from `pg-blocks.tsx`: its reason was that the
       colours only worked on dark.
@@ -49,7 +52,7 @@ match, and the active line number.
 `client-v2/e2e/themes.e2e.spec.ts`
 
 - [ ] Add an e2e test: bracket levels and the active line number compute to their
-      tokens in both themes.
+      tokens in both themes, and the find match is no longer Monaco's orange.
 - [ ] Name them in `defineTheme`: brackets 1 to 3 are `--text-secondary`,
       `--syntax-number` and `--syntax-type`; the unexpected bracket is the error
       colour; the active number is `gutter.activeColor`; find uses the selection
