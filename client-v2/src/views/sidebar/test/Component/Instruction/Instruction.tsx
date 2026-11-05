@@ -95,7 +95,10 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
 
       try {
         const txHash = await PgCommon.transition(
-          PgProgramInteraction.test(instruction)
+          PgProgramInteraction.test(
+            instruction,
+            PgProgramInteraction.getAnchorProgram()
+          )
         );
         if (PgSettings.testUi.showTxDetailsInTerminal) return txHash;
 
