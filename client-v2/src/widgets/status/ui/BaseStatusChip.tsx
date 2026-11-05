@@ -20,6 +20,8 @@ export interface BaseStatusChipProps {
   onOpenChange: (open: boolean) => void;
   /** A row's action was picked; the sheet closes first */
   onAction: (indicator: StatusIndicator) => void;
+  /** A row's Try again; the sheet stays open to show what it found */
+  onRetry: (indicator: StatusIndicator) => Promise<unknown>;
 }
 
 /**
@@ -35,6 +37,7 @@ const BaseStatusChip = ({
   open,
   onOpenChange,
   onAction,
+  onRetry,
 }: BaseStatusChipProps) => (
   <Sheet open={open} onOpenChange={onOpenChange}>
     <SheetTrigger asChild>
@@ -81,6 +84,7 @@ const BaseStatusChip = ({
                 onOpenChange(false);
                 onAction(picked);
               }}
+              onRetry={onRetry}
             />
           </li>
         ))}
