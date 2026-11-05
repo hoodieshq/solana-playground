@@ -654,7 +654,6 @@ export function IsoVoxels({
     // sculpture
     const mark = (() => {
       try {
-        getPalette();
         return buildMark();
       } catch (e) {
         log.warn("the voxel mark could not be drawn", {
@@ -664,6 +663,14 @@ export function IsoVoxels({
       }
     })();
     if (!root || !canvas || !ctx || !mark || mark.count === 0) return;
+    try {
+      getPalette();
+    } catch (e) {
+      log.warn("the voxel mark could not be drawn", {
+        context: { error: String(e) },
+      });
+      return;
+    }
     const host = root.parentElement;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
