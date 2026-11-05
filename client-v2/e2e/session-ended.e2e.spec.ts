@@ -90,7 +90,10 @@ test("client-v2-account: A session ended", async ({ page }) => {
   await expect(
     page.locator(".monaco-editor .view-lines").first()
   ).toContainText("typed after the session ended");
-  await expect(projectRow(page, PROJECT)).toContainText("Not synced", LONG);
+  await expect(projectRow(page, PROJECT)).toHaveAccessibleDescription(
+    "Not synced",
+    LONG
+  );
 });
 
 test("client-v2-account: Signing in again", async ({ page }) => {
@@ -116,7 +119,7 @@ test("client-v2-account: Signing in again", async ({ page }) => {
   await expect(
     page.locator(".monaco-editor .view-lines").first()
   ).toContainText("typed after the session ended");
-  await expect(projectRow(page, PROJECT)).not.toContainText("Not synced", LONG);
+  await expect(projectRow(page, PROJECT)).toHaveAccessibleDescription("", LONG);
 });
 
 test("client-v2-account: A sign-out in another tab", async ({
@@ -142,6 +145,9 @@ test("client-v2-account: A sign-out in another tab", async ({
   await menu.getByRole("menuitem", { name: "Sign out" }).click();
   await menu.getByRole("menuitem", { name: /^Sign out/ }).click();
   await expect.poll(() => signedOut, LONG).toBe(true);
+  // The menu stays open, signed out; the page behind it is read once it closes
+  await expect(menu.getByText("Sign out of Playground?")).toBeHidden(LONG);
+  await page.keyboard.press("Escape");
   await expect(account(page)).toHaveAccessibleName("Account, signed out", LONG);
 
   const other = await context.newPage();
