@@ -1,4 +1,5 @@
 import { createLogger } from "@/shared/lib/logger";
+import { networkHold } from "@/widgets/status";
 
 import {
   PgCommand,
@@ -20,6 +21,7 @@ import { createCmd } from "../create";
 import { additionalProgramLen } from "./additional-len";
 import { airdropTopUp } from "./airdrop-top-up";
 import { BpfLoaderUpgradeable } from "./bpf-loader-upgradeable";
+import { NetworkRefusedError } from "./network-refused";
 import type { StoppedBuffer } from "./stopped";
 import { deployStoppedLine } from "./stopped";
 
@@ -29,7 +31,7 @@ export const deploy = createCmd({
   name: "deploy",
   description: "Deploy your program",
   needsConnection: true,
-  preChecks: [checkWallet, checkProgram],
+  preChecks: [checkNetwork, checkWallet, checkProgram],
   stoppable: true,
   handle: async ({ signal, lockStop }) => {
     switch (PgGlobal.deployState) {
@@ -68,6 +70,26 @@ export const deploy = createCmd({
     }
   },
 });
+
+/**
+ * Refuses a deploy the status says cannot reach the network, wherever it was
+ * asked for: the stage's pill is held, but the assistant's tool, the file menu
+ * and the terminal all come through here. Only a fresh start is refused: the
+ * same command pauses and resumes a run under way.
+ */
+function checkNetwork() {
+  if (PgGlobal.deployState !== "ready") return;
+  const hold = networkHold(
+    {
+      name: PgConnection.cluster ?? "unknown",
+      isConnected: PgConnection.isConnected,
+      slotStalled: PgConnection.isClusterDown,
+    },
+    navigator.onLine
+  );
+  if (hold)
+    throw new NetworkRefusedError(`${hold}. Deploy waits for the network.`);
+}
 
 /** Check whether the state is valid for deployment. */
 async function checkProgram() {

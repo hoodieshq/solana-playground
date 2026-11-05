@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   markShown: vi.fn(),
   flow: { build: "done", deploy: "active" },
   deployState: "ready",
+  hold: undefined as string | undefined,
   history: [] as unknown[],
   update: vi.fn(),
   setStage: vi.fn(),
@@ -57,6 +58,7 @@ vi.mock("@/widgets/layout-shell", () => ({
 vi.mock("../state/deploy-history", () => ({
   PgDeployHistory: { list: () => mocks.history, onDidChange: mocks.noop },
 }));
+vi.mock("@/widgets/status", () => ({ useNetworkHold: () => mocks.hold }));
 vi.mock("./IdlActions", () => ({ default: () => null }));
 vi.mock("@/shared/lib/report-button-failure", () => ({
   reportButtonFailure: (action: string) =>
@@ -73,6 +75,7 @@ const render = (ui: ReactElement) =>
   rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
 
 afterEach(() => {
+  mocks.hold = undefined;
   mocks.flow = { build: "done", deploy: "active" };
   mocks.deployState = "ready";
   mocks.history = [];
@@ -80,6 +83,15 @@ afterEach(() => {
 });
 
 describe("Deploy stage", () => {
+  it("holds the pill on what the status reads", () => {
+    mocks.hold = "You're offline";
+    render(<Deploy />);
+    expect(screen.getByRole("button", { name: /Deploy to/ })).toHaveProperty(
+      "disabled",
+      true
+    );
+  });
+
   it("reports a deploy that fails", async () => {
     const failure = new Error("insufficient balance");
     mocks.execute.mockRejectedValue(failure);
