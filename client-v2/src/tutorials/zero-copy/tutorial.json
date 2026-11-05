@@ -252,7 +252,7 @@
           "act": "buildDeploy",
           "say": "Build and deploy, so the program on devnet has `grow`.",
           "title": "Build and deploy",
-          "context": "Upgrades your program in place · from your wallet",
+          "context": "Upgrades {program} in place · from your wallet",
           "button": "Build and deploy"
         },
         {
@@ -368,7 +368,7 @@
           "act": "buildDeploy",
           "say": "Build and deploy the zero copy map.",
           "title": "Build and deploy",
-          "context": "Upgrades your program in place · from your wallet",
+          "context": "Upgrades {program} in place · from your wallet",
           "button": "Build and deploy"
         },
         {
@@ -473,7 +473,24 @@
       "realloc, and the 32 KB heap",
       "Zero copy accounts with AccountLoader"
     ],
-    "chips": [],
+    "chips": [
+      {
+        "label": "What is devnet SOL?",
+        "answer": "Devnet is Solana's public test network. Its SOL is free and worth nothing, so you can deploy and call as much as you like. Playground keeps your wallet topped up from the devnet faucet"
+      }
+    ],
     "next": null
-  }
+  },
+  "docs": [
+    {
+      "title": "Zero Copy",
+      "url": "https://www.anchor-lang.com/docs/features/zero-copy",
+      "file": "zero-copy.md"
+    },
+    {
+      "title": "Account Constraints",
+      "url": "https://www.anchor-lang.com/docs/references/account-constraints",
+      "file": "account-constraints.md"
+    }
+  ]
 }

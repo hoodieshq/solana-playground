@@ -139,6 +139,17 @@ if (import.meta.vitest) {
       ]);
     });
 
+    it("carries Zero Copy's doc pages with their Markdown", () => {
+      const zero = definitionTutorials([counterPda]).find(
+        (t) => t.name === "Zero Copy"
+      );
+      const docs = zero?.definition?.docs ?? [];
+      expect(docs.length).toBeGreaterThan(0);
+      for (const doc of docs) {
+        expect(zero?.docPages?.[doc.file]).toMatch(/^# /);
+      }
+    });
+
     it("lists one card per slug: a definition replaces the tutorial of its name", () => {
       // Cased apart from the definition's name: the match is by slug
       const markdownZeroCopy = { name: "zero copy" } as TutorialData;
