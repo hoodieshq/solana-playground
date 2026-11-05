@@ -1,6 +1,7 @@
 /* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { FC, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { EditorTabsShown } from "@/components/EditorWithTabs";
 import type { Doc } from "@/entities/tutorial";
@@ -200,8 +201,10 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   };
   const openFile = (path: string, via: "tab" | "tree") => {
     setTreeOpen(false);
-    // The file comes back in front of the page, which keeps its tab
-    setDoc(undefined);
+    // The file comes back in front of the page, which keeps its tab; at once,
+    // so the editor is no longer inert when `pickFocus` asks for it
+    if (front === undefined) setDoc(undefined);
+    else flushSync(() => setDoc(undefined));
     // From the tree's popover, which keeps focus from an open (see
     // `leavesFocusElsewhere`): the pick itself asks for the editor, also when
     // its file is the one already open. The docked tree is no popover, and a

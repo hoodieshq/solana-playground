@@ -266,7 +266,16 @@ test.describe("tutorial-workspace", () => {
     ).toHaveAttribute("aria-selected", "true");
     await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBe(0);
 
-    // Back to lib.rs: the page keeps its tab
+    // A pick of lib.rs from the tree brings the editor back with focus, though
+    // it was inert under the page when the pick asked for it
+    await page.keyboard.press("ControlOrMeta+e");
+    await tree.getByRole("treeitem", { name: /lib\.rs/ }).click();
+    await expect(page.getByTestId("tutorial-doc-page")).toHaveCount(0);
+    await expect(editorInput(page)).toBeFocused();
+
+    // Back to lib.rs by its tab: the page keeps its tab
+    await head(page).getByRole("tab", { name: "Programs" }).click();
+    await expect(page.getByTestId("tutorial-doc-page")).toHaveCount(1);
     await head(page).getByRole("tab", { name: "lib.rs" }).click();
     await expect(page.getByTestId("tutorial-doc-page")).toHaveCount(0);
     await expect(
