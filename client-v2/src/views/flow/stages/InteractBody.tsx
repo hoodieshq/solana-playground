@@ -187,7 +187,7 @@ const FeePayer = () => {
   const who = wallet.isPg ? "Playground wallet" : wallet.name;
   const sol = typeof balance === "number" ? `${+balance.toFixed(4)} SOL` : "—";
   return (
-    <p className="m-0 mt-4 text-xs text-muted-foreground">
+    <p className="m-0 text-xs text-muted-foreground">
       Fee payer · {who} · {sol}
     </p>
   );

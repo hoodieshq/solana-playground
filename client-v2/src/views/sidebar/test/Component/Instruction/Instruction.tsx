@@ -151,93 +151,97 @@ const Instruction: FC<InstructionProps> = ({
         open={open}
         onOpenChange={onOpenChange}
       >
-        {hasInputs && (
-          <fieldset
-            disabled={calling}
-            className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0"
-          >
-            {args.length > 0 && (
-              <Group title="Arguments">
-                {args.map((arg) => (
-                  <InstructionInput
-                    key={arg.name + refreshCount}
-                    prefix="args"
-                    updateInstruction={({
-                      updateGenerator,
-                      updateRefs,
-                      checkErrors,
-                    }) => {
-                      updateGenerator(arg);
-                      updateRefs(arg, "Arguments");
-                      setDisabled(checkErrors());
-                      refresh();
-                    }}
-                    {...arg}
-                  />
-                ))}
-              </Group>
-            )}
-
-            {accounts.length > 0 && (
-              <Group title="Accounts">
-                {accounts.map((acc) => (
-                  <InstructionInput
-                    key={acc.name + refreshCount}
-                    prefix="accounts"
-                    type="publicKey"
-                    updateInstruction={({
-                      updateGenerator,
-                      updateRefs,
-                      checkErrors,
-                    }) => {
-                      updateGenerator(acc);
-                      updateRefs(acc, "Accounts");
-                      setDisabled(checkErrors());
-                      refresh();
-                    }}
-                    {...acc}
-                  />
-                ))}
-              </Group>
-            )}
-          </fieldset>
-        )}
-
-        {feePayer}
-
-        {/* Test is the card's one action; filling and clearing the fields
-            are quiet beside it, and a held Test says what it waits for */}
-        <div
-          className={cn(
-            "flex flex-wrap items-center gap-x-2 gap-y-3",
-            hasInputs && "mt-5 border-t border-border pt-4"
-          )}
-        >
-          <AsyncButton
-            onClick={call}
-            onError={reportButtonFailure(`test ${instruction.name}`)}
-            disabled={!!held}
-            loadingText="Testing…"
-          >
-            Test
-          </AsyncButton>
-
+        {/* One gap between the inputs, the fee payer and the row, so a card
+            without inputs does not open on an empty band */}
+        <div className="flex flex-col gap-4">
           {hasInputs && (
-            <>
-              <Button variant="ghost" onClick={fillRandom} disabled={calling}>
-                Fill with Random
-              </Button>
-              <Button variant="ghost" onClick={reset} disabled={calling}>
-                Reset
-              </Button>
-            </>
+            <fieldset
+              disabled={calling}
+              className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0"
+            >
+              {args.length > 0 && (
+                <Group title="Arguments">
+                  {args.map((arg) => (
+                    <InstructionInput
+                      key={arg.name + refreshCount}
+                      prefix="args"
+                      updateInstruction={({
+                        updateGenerator,
+                        updateRefs,
+                        checkErrors,
+                      }) => {
+                        updateGenerator(arg);
+                        updateRefs(arg, "Arguments");
+                        setDisabled(checkErrors());
+                        refresh();
+                      }}
+                      {...arg}
+                    />
+                  ))}
+                </Group>
+              )}
+
+              {accounts.length > 0 && (
+                <Group title="Accounts">
+                  {accounts.map((acc) => (
+                    <InstructionInput
+                      key={acc.name + refreshCount}
+                      prefix="accounts"
+                      type="publicKey"
+                      updateInstruction={({
+                        updateGenerator,
+                        updateRefs,
+                        checkErrors,
+                      }) => {
+                        updateGenerator(acc);
+                        updateRefs(acc, "Accounts");
+                        setDisabled(checkErrors());
+                        refresh();
+                      }}
+                      {...acc}
+                    />
+                  ))}
+                </Group>
+              )}
+            </fieldset>
           )}
 
-          {held && (
-            <p className="m-0 ml-auto text-caption text-muted-foreground">
-              {held}
-            </p>
-          )}
+          {feePayer}
+
+          {/* Test is the card's one action; filling and clearing the fields
+            are quiet beside it, and a held Test says what it waits for */}
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-x-2 gap-y-3",
+              hasInputs && "mt-1 border-t border-border pt-4"
+            )}
+          >
+            <AsyncButton
+              onClick={call}
+              onError={reportButtonFailure(`test ${instruction.name}`)}
+              disabled={!!held}
+              loadingText="Testing…"
+            >
+              Test
+            </AsyncButton>
+
+            {hasInputs && (
+              <>
+                <Button variant="ghost" onClick={fillRandom} disabled={calling}>
+                  Fill with Random
+                </Button>
+                <Button variant="ghost" onClick={reset} disabled={calling}>
+                  Reset
+                </Button>
+              </>
+            )}
+
+            {held && (
+              <p className="m-0 ml-auto text-caption text-muted-foreground">
+                {held}
+              </p>
+            )}
+          </div>
         </div>
       </Interaction>
     </InstructionProvider>
