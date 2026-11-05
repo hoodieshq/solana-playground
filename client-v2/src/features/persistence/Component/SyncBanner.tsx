@@ -72,7 +72,7 @@ const PROMPTS: Record<
   {
     message: (conflict: Conflict) => string;
     // Only the answers a button can give alone; `resolved` carries content.
-    // The first is the one the banner expects
+    // The first is the one the banner expects, after Resolve… where that shows
     actions: {
       label: string;
       resolution: Extract<Resolution, string>;
@@ -223,7 +223,6 @@ const SyncBanner = () => {
             {prompt.actions.map((action) => (
               <CalloutAction key={action.resolution} asChild>
                 <AsyncButton
-                  variant="ghost"
                   size="sm"
                   disabled={busy}
                   onClick={() => answer(action.resolution)}
