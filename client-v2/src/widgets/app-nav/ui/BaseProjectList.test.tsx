@@ -148,7 +148,7 @@ describe("BaseProjectList", () => {
     const hidden = (name: string) =>
       screen
         .getByRole("button", { name: `Actions for ${name}` })
-        .className.includes("md:opacity-0");
+        .className.includes("md:pointer-fine:opacity-0");
     expect(hidden("alpha")).toBe(false);
     expect(hidden("beta")).toBe(true);
   });
