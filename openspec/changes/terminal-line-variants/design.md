@@ -34,6 +34,11 @@ was cut before it and does not have them.
   base. Resolution: `lineTone` checks a stop, then `TonedLineError`'s tone, then
   answers `error`. #313's test "gives any other failure no tone" goes.
 
+- **A toned line skips the highlighter (`noColor`).** `PgTty`'s highlighter rewrites
+  text around "error", "warning" and any leading "word:". On a coloured line it reads
+  the code's digits as words ("31mProcess error:") and its own resets end the colour.
+  Every line given a variant here prints with `noColor`, as sugar's lines do.
+
 ## Risks / Trade-offs
 
 - A thrown message carrying its own ANSI reset ends the colour early, so the two

@@ -656,7 +656,8 @@ Available subcommands: ${cmd.subcommands
       ? "This step can't be stopped."
       : `\`${last.name}\` can't be stopped.`;
     PgTerminal.println(
-      `^C\n${PgTerminal.warning(`${why} Wait for it to finish.`)}`
+      `^C\n${PgTerminal.warning(`${why} Wait for it to finish.`)}`,
+      { noColor: true }
     );
     return false;
   }

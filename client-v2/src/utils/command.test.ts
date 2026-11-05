@@ -185,7 +185,8 @@ describe("PgCommandManager.stop", () => {
     expect(println).toHaveBeenCalledWith(
       `^C\n${PgTerminal.warning(
         "This step can't be stopped. Wait for it to finish."
-      )}`
+      )}`,
+      { noColor: true }
     );
 
     finish();
@@ -205,7 +206,8 @@ describe("PgCommandManager.stop", () => {
     expect(println).toHaveBeenCalledWith(
       `^C\n${PgTerminal.warning(
         "`probe` can't be stopped. Wait for it to finish."
-      )}`
+      )}`,
+      { noColor: true }
     );
 
     finish();

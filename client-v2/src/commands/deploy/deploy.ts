@@ -93,7 +93,9 @@ function checkNetwork() {
 /** Check whether the state is valid for deployment. */
 async function checkProgram() {
   if (!PgProgramInfo.uuid && !PgProgramInfo.importedProgram?.bytes.length) {
-    PgTerminal.println(PgTerminal.warning("Warning: Program is not built."));
+    PgTerminal.println(PgTerminal.warning("Warning: Program is not built."), {
+      noColor: true,
+    });
     await PgCommand.build.execute();
   }
 
@@ -107,7 +109,8 @@ async function checkProgram() {
     PgTerminal.println(
       PgTerminal.warning(
         "Warning: Your last build failed. Deploying now will upload the last successful build, not the current sources."
-      )
+      ),
+      { noColor: true }
     );
     const term = await PgTerminal.get();
     const proceed = await term.waitForInput(
@@ -219,7 +222,7 @@ const processDeploy = async (signal: AbortSignal, lockStop: () => void) => {
     if (typeof airdropAmount !== "number") throw new Error(msg);
 
     const term = await PgTerminal.get();
-    term.println(PgTerminal.warning(`Warning: ${msg}`));
+    term.println(PgTerminal.warning(`Warning: ${msg}`), { noColor: true });
     throwIfStopped(signal, deployStoppedLine({ state: "none" }));
     // A stop while the question is open answers it, as "no" would; the
     // check below then ends the deploy as stopped, before any SOL moves
@@ -332,7 +335,8 @@ const processDeploy = async (signal: AbortSignal, lockStop: () => void) => {
               "transaction",
               missingCount
             )} not confirmed, retrying...`
-          )
+          ),
+          { noColor: true }
         );
       },
       onRateLimit: (retryAfter) => {
@@ -341,7 +345,8 @@ const processDeploy = async (signal: AbortSignal, lockStop: () => void) => {
             `Warning: Reached rate-limits, waiting (${PgCommon.formatSeconds(
               retryAfter
             )})...`
-          )
+          ),
+          { noColor: true }
         );
       },
     }

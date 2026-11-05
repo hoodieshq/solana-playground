@@ -181,7 +181,7 @@ describe("PgTerm.process, a line's variant", () => {
 
     await expect(failWith(term, failure)).rejects.toBe(failure);
 
-    expect(term.println).toHaveBeenCalledWith(printed);
+    expect(term.println).toHaveBeenCalledWith(printed, { noColor: true });
   });
 
   it("keeps the thrown message plain for toasts and the assistant", async () => {

@@ -695,7 +695,11 @@ export class PgTerm {
       const msg = processErrorLine(e);
       // Compared plain: xterm's text carries no colour codes
       const previousLine = this._tty.getLine(1)?.translateToString().trim();
-      if (previousLine !== msg) this.println(toneWith(lineTone(e))(msg));
+      if (previousLine !== msg) {
+        // The highlighter reads a colour code's digits as words, and its own
+        // colours end this one early
+        this.println(toneWith(lineTone(e))(msg), { noColor: true });
+      }
 
       throw e;
     } finally {

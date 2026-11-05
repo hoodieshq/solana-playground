@@ -189,7 +189,8 @@ describe("commands/deploy", () => {
     await runDeploy();
 
     expect(printed).toHaveBeenCalledWith(
-      expect.stringMatching(/^warning: Warning: /)
+      expect.stringMatching(/^warning: Warning: /),
+      { noColor: true }
     );
   });
 
@@ -213,12 +214,13 @@ describe("commands/deploy", () => {
 
     await runDeploy();
 
-    const lines = printed.mock.calls.map(([line]) => String(line));
-    expect(lines).toContainEqual(
-      expect.stringMatching(/^warning: Warning: 2 .* not confirmed/)
+    expect(printed).toHaveBeenCalledWith(
+      expect.stringMatching(/^warning: Warning: 2 .* not confirmed/),
+      { noColor: true }
     );
-    expect(lines).toContainEqual(
-      expect.stringMatching(/^warning: Warning: Reached rate-limits/)
+    expect(printed).toHaveBeenCalledWith(
+      expect.stringMatching(/^warning: Warning: Reached rate-limits/),
+      { noColor: true }
     );
   });
 
@@ -243,7 +245,8 @@ describe("commands/deploy", () => {
       await checkProgram({ importedProgram: undefined, uuid: undefined });
 
       expect(printed).toHaveBeenCalledWith(
-        "warning: Warning: Program is not built."
+        "warning: Warning: Program is not built.",
+        { noColor: true }
       );
     });
 
@@ -255,7 +258,8 @@ describe("commands/deploy", () => {
       });
 
       expect(printed).toHaveBeenCalledWith(
-        expect.stringMatching(/^warning: Warning: Your last build failed/)
+        expect.stringMatching(/^warning: Warning: Your last build failed/),
+        { noColor: true }
       );
     });
   });
