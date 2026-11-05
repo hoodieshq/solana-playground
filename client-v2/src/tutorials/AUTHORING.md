@@ -471,17 +471,16 @@ the failure. `onFail` holds the beats after the learner presses Explain: a
   your own `msg!` prints, and use `.+` where the learner's input goes. Leave
   `log` out when the instruction prints nothing; Anchor's automatic
   `Instruction: ...` lines are not a goal. `$` anchors to the line's end
-  (`Count: 1$` refuses `Count: 10`); the line starts with `Program log:`,
+  (`Echo: gm$` refuses `Echo: gmail`); the line starts with `Program log:`,
   so `^` needs it (`^Program log: Count`) or is better left out. `args` is
   optional too; each named argument needs a value that is not blank. A step
   with several calls passes on the first one that meets its goal, in
   whatever order they run. Accounts live on devnet, so a learner who calls
   again, or comes back to the step, may find the account an earlier call
   made: a counter prints `Counter is now 2` the second time, so its goal's
-  `log` is `Counter is now \\d+` as written in JSON, not `1`. An `init` on an account that
-  exists is refused, so make the goal the call that works every time
-  (`increment`), and the one-time call (`initialize`) a `call` act before
-  it.
+  `log` is `"Counter is now \\d+"` in JSON, not `1`. Make the goal the
+  call that works on every run (`increment`), never a one-time call
+  (`initialize`), which Anchor's `init` refuses once the account exists.
 - `{ "kind": "refused", "instruction": "chop_tree", "error": { "name": "NotEnoughEnergy", "code": 6000 } }`:
   the program refused a call of the instruction with this error. Give the
   error's `name` (the variant of your `#[error_code]` enum), its `code`
@@ -822,13 +821,14 @@ yarn dev:with-stubs
 
 `stub-packages.sh` stands in for the Rust-built WASM packages, which take
 about an hour to compile and are not needed to check or open a tutorial;
-plain `yarn dev` refuses to start on them, so use `yarn dev:with-stubs`. Run
-`yarn generate-fast` again after adding or renaming a tutorial's folder: it
-writes the list the app reads definitions from.
+plain `yarn dev` refuses to start on them, so use `yarn dev:with-stubs`
+(it runs `yarn generate-fast` first, which picks up a new folder).
 
 Open `http://localhost:3000/tutorials`: the card shows under its level with
 its thumbnail and its level and framework. Opening it starts the
-conversation on its intro card.
+conversation on its intro card. The deploy, call and Call panel cards are
+still being built in November 2026, so a run may stop there; until they
+land, the check and the pull request's review are the gate.
 
 ## The pull request
 

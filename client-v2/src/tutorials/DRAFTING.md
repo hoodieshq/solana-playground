@@ -29,9 +29,11 @@ teach; the format is its job.
 
 ## 2. Check the draft
 
-Once, in a clone of this repository, from `client-v2/` (Node 22, Yarn 1):
+Once, with Node 22 and Yarn 1 installed:
 
 ```sh
+git clone https://github.com/solana-foundation/solana-playground.git
+cd solana-playground/client-v2
 git submodule update --init ../client/public
 ../wasm/stub-packages.sh
 yarn install --frozen-lockfile
@@ -39,8 +41,8 @@ yarn generate-fast
 ```
 
 Put the draft at `src/tutorials/<slug>/tutorial.json`, where `<slug>` is the
-tutorial's name in lower case with `-` for spaces ("Hello Counter" is
-`hello-counter`), and run:
+tutorial's name in lower case with `-` for spaces and no punctuation
+("Hello Counter" is `hello-counter`), and run:
 
 ```sh
 yarn tutorial:check <slug>
@@ -51,12 +53,13 @@ expected, what it found. Paste the errors back to the LLM and ask it to fix
 them; repeat until `ok`. "Reading the check's errors" in `AUTHORING.md`
 explains each kind.
 
-To see the card and open the tutorial, run `yarn generate-fast` again, then
-`yarn dev:with-stubs`, and open `http://localhost:3000/tutorials`.
+To see the card, run `yarn dev:with-stubs` and open
+`http://localhost:3000/tutorials`.
 
 ## 3. Send it back
 
-Send the `<slug>/` folder to the person who asked you to try this, or the
+Send the `<slug>/` folder, with a 4:3 `thumbnail.jpg` if you have one, to
+the person who asked you to try this, or the
 last check output and where you got stuck. Either is useful: a stuck point
 tells us what to fix in `AUTHORING.md`. To publish it, open a pull request
 as "The pull request" in `AUTHORING.md` describes.
