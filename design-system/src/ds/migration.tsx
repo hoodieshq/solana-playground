@@ -79,9 +79,9 @@ function Rows({ rows }: { rows: Row[] }) {
           <span
             className={cn(
               "text-caption font-label",
-              r.state === "built" && "text-success",
+              r.state === "built" && "text-success-ink",
               r.state === "stock" && "text-muted-foreground",
-              r.state === "planned" && "text-warning"
+              r.state === "planned" && "text-warning-ink"
             )}
           >
             {STATE_LABEL[r.state]}
