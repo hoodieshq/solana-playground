@@ -34,7 +34,7 @@
 **Interfaces:**
 - `credentialsIn(server): CredentialField[]`
 - `encodeToolConfig(state: ToolConfigState): string`, `decodeToolConfig(text: string): ToolConfig` (throws when not JSON)
-- `readToolConfig(): Promise<ToolConfig | null>`, `writeToolConfig(text: string): Promise<void>`: report failures, never reject
+- `readToolConfig(): Promise<ToolConfigRead>`, `writeToolConfig(text: string): Promise<void>`: report failures, never reject
 - `PgAssistant.missingMcpCredentials: ReadonlyMap<string, readonly CredentialField[]>`
 
 - [ ] **Step 1:** in-source tests of `tool-config.ts` over stubs: fail.

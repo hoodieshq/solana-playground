@@ -38,6 +38,7 @@ import {
   type CredentialField,
   encodeToolConfig,
   readToolConfig,
+  type ToolConfig,
   writeToolConfig,
 } from "./model/tool-config";
 import {
@@ -642,7 +643,7 @@ export class PgAssistant {
     return PgAssistant._localServers;
   }
 
-  /** Per local entry, the credentials a reload took from it, until the list is next applied */
+  /** Per local entry, the credentials a reload took from it, until that entry is next applied with a change */
   static get missingMcpCredentials(): ReadonlyMap<
     string,
     readonly CredentialField[]
@@ -657,11 +658,17 @@ export class PgAssistant {
 
   /** Replace the local additions — edited as one JSON document */
   static setMcpServers(servers: readonly McpServerEntry[]) {
+    const before = new Map(PgAssistant._localServers.map((s) => [s.id, s]));
     PgAssistant._replaceServers(() => {
       PgAssistant._localServers = servers;
     });
-    // Applying the list is the user's answer, with or without those fields
-    PgAssistant._missingCredentials = new Map();
+    // Applying an entry is the user's answer, with or without those fields; one they left as it was is still owed
+    PgAssistant._missingCredentials = new Map(
+      Array.from(PgAssistant._missingCredentials).filter(([id]) => {
+        const next = servers.find((s) => s.id === id);
+        return next && JSON.stringify(next) === JSON.stringify(before.get(id));
+      })
+    );
     PgAssistant._writeToolConfig();
     PgAssistant._emit();
   }
@@ -761,27 +768,37 @@ export class PgAssistant {
 
   /** Layer the stored edits under anything already edited this session, once per page */
   private static _readToolConfig() {
-    PgAssistant._toolConfigRead ??= readToolConfig().then((config) => {
-      if (!config) return;
-      PgAssistant._skillChoices = new Map(
-        Array.from(config.skillChoices).concat(
-          Array.from(PgAssistant._skillChoices)
-        )
-      );
-      PgAssistant._gatewayServersOff = new Set(
-        Array.from(config.gatewayServersOff).concat(
-          Array.from(PgAssistant._gatewayServersOff)
-        )
-      );
-      if (!PgAssistant._localServers.length) {
-        PgAssistant._replaceServers(() => {
-          PgAssistant._localServers = config.servers;
-        });
-        PgAssistant._missingCredentials = config.missing;
-      }
-      PgAssistant._emit();
-    });
+    PgAssistant._toolConfigRead ??= readToolConfig()
+      .then((read) => {
+        PgAssistant._toolConfigWritable = read.kind !== "unreadable";
+        if (read.kind === "found") PgAssistant._layerToolConfig(read.config);
+      })
+      // Remembered for the page, so a throw here would stop every later `initMcp` and write
+      .catch((e) => report("apply tool config", e));
     return PgAssistant._toolConfigRead;
+  }
+
+  private static _layerToolConfig(config: ToolConfig) {
+    PgAssistant._skillChoices = new Map(
+      Array.from(config.skillChoices).concat(
+        Array.from(PgAssistant._skillChoices)
+      )
+    );
+    PgAssistant._gatewayServersOff = new Set(
+      Array.from(config.gatewayServersOff).concat(
+        Array.from(PgAssistant._gatewayServersOff)
+      )
+    );
+    const edited = new Set(PgAssistant._localServers.map((s) => s.id));
+    PgAssistant._replaceServers(() => {
+      PgAssistant._localServers = config.servers
+        .filter((s) => !edited.has(s.id))
+        .concat(PgAssistant._localServers);
+    });
+    PgAssistant._missingCredentials = new Map(
+      Array.from(config.missing).filter(([id]) => !edited.has(id))
+    );
+    PgAssistant._emit();
   }
 
   /**
@@ -794,6 +811,8 @@ export class PgAssistant {
     PgAssistant._lastWrite = PgAssistant._afterWrites()
       .then(() => PgAssistant._readToolConfig())
       .then(() => {
+        // Storage failed the read: what it holds may be fine, and this delta lacks it
+        if (!PgAssistant._toolConfigWritable) return;
         const account = PgSession.get()?.id;
         return writeToolConfig(
           encodeToolConfig({
@@ -1857,6 +1876,7 @@ export class PgAssistant {
   private static _skillsListedFor: string | undefined;
   private static _gatewayServersListedFor: string | undefined;
   private static _toolConfigRead: Promise<void> | undefined;
+  private static _toolConfigWritable = true;
   private static _missingCredentials: ReadonlyMap<
     string,
     readonly CredentialField[]

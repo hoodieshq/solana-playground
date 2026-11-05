@@ -67,7 +67,7 @@ export interface ToolConfigState {
   /** Whether `gatewayServerIds` is this account's whole list */
   gatewayServersListed: boolean;
   servers: readonly McpServerEntry[];
-  /** Per server, the fields a restored entry lost and the list has not been applied since */
+  /** Per server, the fields a restored entry lost and has not been applied with a change since */
   missing: ReadonlyMap<string, readonly CredentialField[]>;
 }
 
@@ -134,7 +134,9 @@ export const decodeToolConfig = (text: string): ToolConfig => {
     let server: McpServerEntry;
     try {
       [server] = parseServers(JSON.stringify([raw]));
-    } catch {
+    } catch (e) {
+      // One bad entry must not cost the rest; the next write leaves it out
+      report("drop stored MCP server", e);
       continue;
     }
     if (servers.some((entry) => entry.id === server.id)) continue;
@@ -168,13 +170,30 @@ const isMissing = (error: unknown) => {
   return e?.code === "ENOENT" || !!e?.message?.includes("ENOENT");
 };
 
-/** The stored edits, or `undefined` when there are none or they cannot be read, which is reported */
-export const readToolConfig = async (): Promise<ToolConfig | undefined> => {
+/**
+ * What a read found. `unreadable` is storage failing, not the file: what it
+ * holds may be fine, so it must not be written over. A file that does not parse
+ * has nothing left to save and counts as `none`, reported.
+ */
+export type ToolConfigRead =
+  | { kind: "found"; config: ToolConfig }
+  | { kind: "none" }
+  | { kind: "unreadable" };
+
+export const readToolConfig = async (): Promise<ToolConfigRead> => {
+  let text: string;
   try {
-    return decodeToolConfig(await PgFs.readToString(TOOL_CONFIG_PATH));
+    text = await PgFs.readToString(TOOL_CONFIG_PATH);
   } catch (e) {
-    if (!isMissing(e)) report("read tool config", e);
-    return undefined;
+    if (isMissing(e)) return { kind: "none" };
+    report("read tool config", e);
+    return { kind: "unreadable" };
+  }
+  try {
+    return { kind: "found", config: decodeToolConfig(text) };
+  } catch (e) {
+    report("parse tool config", e);
+    return { kind: "none" };
   }
 };
 
@@ -190,7 +209,7 @@ export const writeToolConfig = async (text: string) => {
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
-  const state = (over: Partial<ToolConfigState> = {}): ToolConfigState => ({
+  const state = (over: Partial<ToolConfigState>): ToolConfigState => ({
     skillChoices: over.skillChoices ?? new Map(),
     skills: over.skills ?? [],
     skillsListed: over.skillsListed ?? true,
@@ -200,7 +219,7 @@ if (import.meta.vitest) {
     servers: over.servers ?? [],
     missing: over.missing ?? new Map(),
   });
-  const server = (over: Partial<McpServerEntry> = {}): McpServerEntry => ({
+  const server = (over: Partial<McpServerEntry>): McpServerEntry => ({
     id: "mine",
     name: "Mine",
     url: over.url ?? "https://mcp.test/mcp",
@@ -282,7 +301,7 @@ if (import.meta.vitest) {
     it("keeps naming a field the entry was not given again", () => {
       expect(
         stored({
-          servers: [server()],
+          servers: [server({})],
           missing: new Map([["mine", ["authToken"]]]),
         }).mcpServers[0].missing
       ).toEqual(["authToken"]);

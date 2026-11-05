@@ -274,7 +274,7 @@ describe("Grounding", () => {
     });
   });
 
-  it("names the credentials a restored server lost until the list is applied", () => {
+  it("names the credentials a restored server lost until the entry is applied changed", () => {
     PgAssistant.setMcpServers([
       {
         id: "docs",
@@ -298,7 +298,7 @@ describe("Grounding", () => {
       PgAssistant.setMcpServers([
         {
           id: "docs",
-          name: "Docs",
+          name: "Renamed",
           url: "https://docs.test/mcp",
           enabled: true,
         },

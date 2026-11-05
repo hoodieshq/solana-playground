@@ -296,8 +296,7 @@ Honesty rule for the demo — never present a mocked step as working.
   — including in a console with no model connected. The Explorer MCP goes
   through the same gateway and is listed for everyone, signed in or not. Each
   server and each skill has a checkbox in the Sources tab; one switched off
-  offers nothing to the next turn, and the choice lasts until the page
-  reloads.
+  offers nothing to the next turn, and the choice survives a reload.
 - **Real, stubbed only on request:** Rust intellisense and the `solana`,
   `anchor`, `spl-token`, `sugar` terminal commands. A deployment always ships
   the real packages. Local UI work may stub them with `USE_WASM_STUBS=true` to

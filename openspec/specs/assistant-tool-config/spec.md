@@ -1,18 +1,18 @@
-# Spec Delta
+# assistant-tool-config Specification
 
 ## Purpose
-
 What of the user's skill and MCP server configuration survives a reload, how it layers over the deployment's defaults,
 and what never reaches storage.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: The user's edits survive a reload
 
 The client SHALL keep, in `/.config/assistant-tools.json` through `PgFs`, the skills whose choice differs from their
 default, the ids of gateway servers turned off, and the user's own server list, and SHALL apply them on load before it
-discovers any server's tools. A file that does not parse SHALL be reported and read as no edits. It SHALL be left in
-place until the next edit replaces it.
+discovers any server's tools. A file that does not parse SHALL be reported and read as no edits, and left in place until
+the next edit replaces it. When storage fails the read itself, the failure SHALL be reported and the file SHALL NOT be
+written for the rest of the page's life, since it may hold edits this page never saw.
 
 #### Scenario: A reload after turning a skill off and adding a server
 
@@ -50,8 +50,8 @@ keep it.
 
 The file SHALL NOT hold a user server's `authToken`, `headers`, `queryParams`, `protection` or the query of its `url`.
 They SHALL stay in memory for the session. A restored entry SHALL record which of them it lost in a `missing` list
-naming fields only, and the editor SHALL show those names in a `role="status"` line until the list is next applied,
-with or without those fields.
+naming fields only, and the editor SHALL show those names in a `role="status"` line until that entry is next applied with a change,
+with or without those fields; an entry applied unchanged beside another keeps its line.
 
 #### Scenario: The stored file after adding a server with a token
 
@@ -67,5 +67,5 @@ with or without those fields.
 
 #### Scenario: Applying the entry without the token (manual)
 
-- **WHEN** the user applies the restored entry and leaves `authToken` out
+- **WHEN** the user changes the restored entry, leaves `authToken` out, and applies it
 - **THEN** the line naming it is gone, and it does not come back after a reload

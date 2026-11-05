@@ -24,8 +24,8 @@ hold one too. Storing those would break the rule in all but name. Our call, and 
 re-entered too.
 
 **Restored entries say what they lost, by field name.** The `missing` list is stored per entry, so it survives more
-reloads. Applying the list is the user's answer and clears it, with or without those fields, as Tool - Design alignment
-set on 2026-11-05. A restored entry stays as the user left it, on or off: a failed listing is already logged and shown
+reloads. Applying an entry with a change is the user's answer and clears it, with or without those fields, as Tool - Design
+alignment set on 2026-11-05; an entry left as it was beside the one edited keeps its line. A restored entry stays as the user left it, on or off: a failed listing is already logged and shown
 by the console.
 
 **Pruning only signed in.** A signed-out list lacks `signedIn` sources, so pruning against it would lose a choice.
@@ -37,3 +37,4 @@ equal to the last applied text moves with it.
 
 - Two tabs write last-wins. `tab-sync` could announce it later; a lost toggle costs one click.
 - A file that does not parse reads as no edits and the next edit replaces it. Reported through `persistence:diagnostics`.
+- A secret in a URL's path cannot be told from an address, so it is stored. The docs say to put one in a field instead.

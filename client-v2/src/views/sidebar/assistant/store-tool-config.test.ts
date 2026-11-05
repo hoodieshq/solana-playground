@@ -49,6 +49,7 @@ const reloadPage = () => {
     _skillsListedFor: undefined,
     _gatewayServersListedFor: undefined,
     _toolConfigRead: undefined,
+    _toolConfigWritable: true,
   };
   Object.entries(fresh).forEach(([key, value]) =>
     Reflect.set(PgAssistant, key, value)
@@ -207,5 +208,80 @@ describe("PgAssistant tool config", () => {
 
     expect(PgAssistant.enabledSkillIds).toEqual(["a"]);
     expect(files().get(TOOL_CONFIG_PATH)).toBe("{ not json");
+  });
+
+  it("keeps the stored servers when one is added before the read lands", async () => {
+    files().set(
+      TOOL_CONFIG_PATH,
+      JSON.stringify({
+        mcpServers: [
+          { id: "old", url: "https://old.test/mcp", missing: ["authToken"] },
+        ],
+      })
+    );
+
+    PgAssistant.setMcpServers([DOCS]);
+    await PgAssistant.whenPersisted();
+
+    expect(PgAssistant.localMcpServers.map((s) => s.id)).toEqual([
+      "old",
+      "docs",
+    ]);
+    expect(stored().mcpServers.map((s: { id: string }) => s.id)).toEqual([
+      "old",
+      "docs",
+    ]);
+    expect(PgAssistant.missingMcpCredentials.get("old")).toEqual(["authToken"]);
+  });
+
+  it("does not write over a file storage could not read", async () => {
+    const stuck = JSON.stringify({ skills: { a: false } });
+    files().set(TOOL_CONFIG_PATH, stuck);
+    vi.spyOn(PgFs, "readToString").mockRejectedValueOnce(new Error("EIO"));
+
+    PgAssistant.setMcpServers([DOCS]);
+    await PgAssistant.whenPersisted();
+
+    expect(files().get(TOOL_CONFIG_PATH)).toBe(stuck);
+    expect(PgAssistant.localMcpServers.map((s) => s.id)).toEqual(["docs"]);
+  });
+
+  it("settles when a write fails, and keeps the edit in memory", async () => {
+    vi.spyOn(PgFs, "writeFile").mockRejectedValueOnce(new Error("quota"));
+
+    PgAssistant.setMcpServers([DOCS]);
+
+    await expect(PgAssistant.whenPersisted()).resolves.toBeUndefined();
+    expect(PgAssistant.localMcpServers.map((s) => s.id)).toEqual(["docs"]);
+  });
+
+  it("stops asking for a credential once its entry is applied changed, and only that entry", async () => {
+    const restored = (id: string) => ({
+      id,
+      url: `https://${id}.test/mcp`,
+      missing: ["authToken"],
+    });
+    files().set(
+      TOOL_CONFIG_PATH,
+      JSON.stringify({ mcpServers: [restored("a"), restored("b")] })
+    );
+    serve({ skills: [], servers: [] });
+    await PgAssistant.initMcp();
+    const [a, b] = PgAssistant.localMcpServers;
+
+    PgAssistant.setMcpServers([
+      a,
+      {
+        id: b.id,
+        name: "Renamed",
+        url: b.url,
+        enabled: b.enabled,
+      },
+    ]);
+    await PgAssistant.whenPersisted();
+    reloadPage();
+    await PgAssistant.initMcp();
+
+    expect([...PgAssistant.missingMcpCredentials.keys()]).toEqual(["a"]);
   });
 });
