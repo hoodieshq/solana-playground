@@ -48,7 +48,7 @@ The `settings-page` widget SHALL send `settings_custom_rpc_saved` when an RPC is
 - **WHEN** a person adds, edits, refuses and removes a custom RPC
 - **THEN** each event fires with only the parameters above
 
-#### Scenario: Use anyway is told apart
+#### Scenario: Use anyway is told apart (manual)
 
 - **WHEN** a URL does not answer and the person presses "Use anyway"
 - **THEN** `settings_custom_rpc_refused` fires with `reason: no_answer`, then `settings_custom_rpc_saved` with `check: used_anyway`
