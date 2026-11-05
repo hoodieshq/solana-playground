@@ -3,7 +3,13 @@ import { CirclePlayIcon } from "lucide-react";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
-import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
+import {
+  Callout,
+  CalloutAction,
+  CalloutActions,
+  CalloutDescription,
+  CalloutTitle,
+} from "@/shared/ui/callout";
 import { Marker, MarkerIcon } from "@/shared/ui/marker";
 import {
   MessageScroller,
@@ -103,15 +109,14 @@ export const BaseThread = ({
               <CalloutDescription>
                 Sign in to keep this conversation on your other devices.
               </CalloutDescription>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 justify-self-start"
-                disabled={signIn.pending}
-                onClick={signIn.onSignIn}
-              >
-                Sign in with GitHub
-              </Button>
+              <CalloutActions>
+                <CalloutAction
+                  disabled={signIn.pending}
+                  onClick={signIn.onSignIn}
+                >
+                  Sign in with GitHub
+                </CalloutAction>
+              </CalloutActions>
             </Callout>
           )}
           {working && (
@@ -134,19 +139,20 @@ const BusyRetry = ({ retry }: { retry: BusyRetryView }) => (
     <CalloutDescription>
       Trying again in {retry.secondsLeft} s.
     </CalloutDescription>
-    <div className="flex gap-2">
-      <AsyncButton
-        size="sm"
-        disabled={!retry.canTryNow}
-        onClick={retry.onTryNow}
-        onError={reportButtonFailure("send your message again")}
-      >
-        Try now
-      </AsyncButton>
-      <Button size="sm" variant="ghost" onClick={retry.onStop}>
-        Stop
-      </Button>
-    </div>
+    <CalloutActions>
+      <CalloutAction asChild>
+        <AsyncButton
+          variant="ghost"
+          size="sm"
+          disabled={!retry.canTryNow}
+          onClick={retry.onTryNow}
+          onError={reportButtonFailure("send your message again")}
+        >
+          Try now
+        </AsyncButton>
+      </CalloutAction>
+      <CalloutAction onClick={retry.onStop}>Stop</CalloutAction>
+    </CalloutActions>
   </Callout>
 );
 

@@ -3,8 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
-import { Button } from "@/shared/ui/button";
-import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
+import {
+  Callout,
+  CalloutAction,
+  CalloutDescription,
+  CalloutTitle,
+} from "@/shared/ui/callout";
 
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { PgView } from "../../../utils/view";
@@ -71,7 +75,7 @@ const divergentMessage = (conflict: Conflict) => {
  * button can give alone, since `resolved` carries content), or open the rename
  * dialog for the open project, which is the project the banner is about
  */
-type Action = { label: string; primary?: boolean } & (
+type Action = { label: string } & (
   | { kind: "answer"; resolution: Extract<Resolution, string> }
   | { kind: "rename" }
 );
@@ -80,7 +84,7 @@ type Action = { label: string; primary?: boolean } & (
  * What the user is shown, and what each answer does. Titles and tones follow
  * the designers' failure-states spec (Spec 08, ACCT-06 to ACCT-09): a question
  * about two copies is a warning, a project that has stopped uploading is an
- * error
+ * error. The first action is the one the banner expects
  */
 const PROMPTS: Record<
   Conflict["kind"],
@@ -96,12 +100,7 @@ const PROMPTS: Record<
     variant: "warning",
     message: divergentMessage,
     actions: [
-      {
-        label: "Keep this version",
-        kind: "answer",
-        resolution: "keep-local",
-        primary: true,
-      },
+      { label: "Keep this version", kind: "answer", resolution: "keep-local" },
       {
         label: "Take the other version",
         kind: "answer",
@@ -115,12 +114,7 @@ const PROMPTS: Record<
     message: () =>
       "This project was deleted on another device, but this one has unsaved changes.",
     actions: [
-      {
-        label: "Keep a copy",
-        kind: "answer",
-        resolution: "keep-as-new",
-        primary: true,
-      },
+      { label: "Keep a copy", kind: "answer", resolution: "keep-as-new" },
       { label: "Delete anyway", kind: "answer", resolution: "delete-local" },
     ],
   },
@@ -137,7 +131,7 @@ const PROMPTS: Record<
     message: () =>
       "Another project in your account uses this name. Rename this one, then try again.",
     actions: [
-      { label: "Rename", kind: "rename", primary: true },
+      { label: "Rename", kind: "rename" },
       { label: "Try again", kind: "answer", resolution: "retry" },
     ],
   },
@@ -146,14 +140,7 @@ const PROMPTS: Record<
     variant: "error",
     message: () =>
       `This project is over ${MAX_PROJECT_BODY_LABEL}. Remove or shrink its largest files, then try again.`,
-    actions: [
-      {
-        label: "Try again",
-        kind: "answer",
-        resolution: "retry",
-        primary: true,
-      },
-    ],
+    actions: [{ label: "Try again", kind: "answer", resolution: "retry" }],
   },
 };
 
@@ -270,28 +257,27 @@ const SyncBanner = () => {
           </p>
           <div className="flex flex-wrap gap-2">
             {resolvable && (
-              <Button
-                variant="outline"
-                size="sm"
+              <CalloutAction
                 disabled={busy || !!resolving}
                 onClick={() => setResolving(shown.projectId)}
               >
                 Resolve…
-              </Button>
+              </CalloutAction>
             )}
             {prompt.actions.map((action) => {
               const { run, failure } = pressOf(action);
               return (
-                <AsyncButton
-                  key={action.label}
-                  variant={action.primary ? "default" : "outline"}
-                  size="sm"
-                  disabled={busy}
-                  onClick={run}
-                  onError={reportButtonFailure(failure)}
-                >
-                  {action.label}
-                </AsyncButton>
+                <CalloutAction key={action.label} asChild>
+                  <AsyncButton
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    onClick={run}
+                    onError={reportButtonFailure(failure)}
+                  >
+                    {action.label}
+                  </AsyncButton>
+                </CalloutAction>
               );
             })}
           </div>
