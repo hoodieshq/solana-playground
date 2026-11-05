@@ -37,7 +37,7 @@ listed on your GitHub profile.") and Public (`share-gist-visibility-public`,
 "Listed on your GitHub profile, anyone can find it."). Secret SHALL be
 selected each time the dialog opens. Under the choice the dialog SHALL say
 how many files go to the gist and their size, list them on request together
-with the manifest, and say that the program keypair and workspace settings
+with the title and the manifest, and say that the program keypair and workspace settings
 stay in the browser. To list the files the dialog reads the project in the
 browser; nothing SHALL reach GitHub until the user presses the footer's
 action. That action SHALL read "Create secret gist" or "Create public gist",
@@ -218,7 +218,7 @@ may write.
 
 A gist cannot hold `/` in a file name, so each exported file SHALL go in under
 its path with every `/` replaced by `__` (`src/lib.rs` becomes `src__lib.rs`).
-A name already taken, or equal to the manifest's, SHALL get `-2`, `-3`, ...
+A name already taken, or equal to the manifest's or the title's, SHALL get `-2`, `-3`, ...
 before its extension. Names SHALL be assigned in path order, so the same
 project always gives the same names.
 
@@ -540,7 +540,7 @@ copied.
 
 ### Requirement: Head the gist with the project's name
 
-Every exported gist SHALL hold a file named `!` followed by the project's name, with `/` replaced by `__`, cut to 60 code points. It sorts ahead of the manifest, so GitHub heads the gist's page with it. A project file of the same name SHALL get a counter. The share dialog SHALL name this file beside the manifest. An import SHALL NOT write it, and a gist without it SHALL open as before.
+Every exported gist SHALL hold a file named `!` followed by the project's name, with `/` replaced by `__`, trimmed and cut to 60 code points. It sorts ahead of the manifest, so GitHub heads the gist's page with it. A project file of the same name SHALL get a counter. The share dialog SHALL name this file beside the manifest. An import SHALL NOT write it, and a gist without it SHALL open as before.
 
 #### Scenario: The title sorts first (manual)
 

@@ -2,7 +2,7 @@
 
 ### Requirement: Head the gist with the project's name
 
-Every exported gist SHALL hold a file named `!` followed by the project's name, with `/` replaced by `__`, cut to 60 code points. It sorts ahead of the manifest, so GitHub heads the gist's page with it. A project file of the same name SHALL get a counter. The share dialog SHALL name this file beside the manifest. An import SHALL NOT write it, and a gist without it SHALL open as before.
+Every exported gist SHALL hold a file named `!` followed by the project's name, with `/` replaced by `__`, trimmed and cut to 60 code points. It sorts ahead of the manifest, so GitHub heads the gist's page with it. A project file of the same name SHALL get a counter. The share dialog SHALL name this file beside the manifest. An import SHALL NOT write it, and a gist without it SHALL open as before.
 
 #### Scenario: The title sorts first (manual)
 

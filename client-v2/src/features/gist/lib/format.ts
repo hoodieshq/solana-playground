@@ -94,8 +94,9 @@ export const titleFileName = (projectName: string) =>
  * manifest that reverses the flattening.
  *
  * Names are the path with `/` replaced by `__`, readable on the gist's page;
- * a name already taken (or the manifest's or the title's) gets a counter. Paths are taken in
- * sorted order so the same project always gets the same names.
+ * a name already taken (or the manifest's or the title's) gets a counter.
+ * Paths are taken in sorted order so the same project always gets the same
+ * names.
  *
  * @param project files keyed by path relative to the project root
  */
@@ -361,6 +362,7 @@ if (import.meta.vitest) {
     it("a title's name holds no slash and stays short", () => {
       expect(titleFileName("a/b")).toBe("!a__b");
       expect(titleFileName(" a ")).toBe("!a");
+      expect(titleFileName("a".repeat(60))).toBe(`!${"a".repeat(60)}`);
       expect(Array.from(titleFileName("😀".repeat(100)))).toHaveLength(61);
     });
 

@@ -322,6 +322,22 @@ if (import.meta.vitest) {
       expect(fetch).not.toHaveBeenCalled();
     });
 
+    it("shares the most files that fit beside the manifest and the title", async () => {
+      const fetch = answer(201, {
+        url: "https://gist.github.com/a/b0",
+        id: "b0",
+      });
+      const files: Record<string, string> = {};
+      for (let i = 0; i < MAX_GIST_FILES - FRAME_FILES; i++) {
+        files[`f${i}.rs`] = "x";
+      }
+
+      const result = await share({ name: "most", files });
+
+      expect(result.status).toBe("created");
+      expect(fetch).toHaveBeenCalledOnce();
+    });
+
     it("refuses a project of too many files without a request", async () => {
       const fetch = vi.spyOn(globalThis, "fetch");
       const files: Record<string, string> = {};
