@@ -1104,7 +1104,11 @@ describe("PgFlow source tracking", () => {
     w.sub.dispose();
   });
 
-  it.each([
+  it.each<{
+    what: string;
+    event: "create" | "reload";
+    files: Record<string, { content?: string }>;
+  }>([
     {
       what: "creating a file",
       event: "create",
@@ -1118,7 +1122,7 @@ describe("PgFlow source tracking", () => {
       event: "reload",
       files: { [LIB]: { content: "theirs" } },
     },
-  ] as const)("hears $what", async ({ event, files }) => {
+  ])("hears $what", async ({ event, files }) => {
     const w = await wire();
     w.buildStarts();
     w.buildReports();
