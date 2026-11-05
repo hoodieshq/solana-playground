@@ -13,7 +13,7 @@ The client SHALL keep, in `/.config/assistant-tools.json` through `PgFs`, the sk
 default, the ids of gateway servers turned off, and the user's own server list, and SHALL apply them on load before it
 discovers any server's tools. A file that does not parse SHALL be reported and read as no edits, and left in place until
 the next edit replaces it. When storage fails the read itself, the failure SHALL be reported and the file SHALL NOT be
-written for the rest of the page's life, since it may hold edits this page never saw.
+written until a later read succeeds, since it may hold edits this page never saw.
 
 #### Scenario: A reload after turning a skill off and adding a server
 

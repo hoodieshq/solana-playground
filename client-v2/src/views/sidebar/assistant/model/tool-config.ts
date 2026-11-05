@@ -36,25 +36,23 @@ const URL_QUERY = /[?#].*$/;
 const bareUrl = (url: string) =>
   url.replace(URL_LOGIN, "$1").replace(URL_QUERY, "");
 
-const isFilled = (map?: Record<string, string>) =>
+const isFilled = (map: Record<string, string> | undefined) =>
   !!map && Object.keys(map).length > 0;
+
+const HOLDS_CREDENTIAL: Record<
+  CredentialField,
+  (server: McpServerEntry) => boolean
+> = {
+  authToken: (server) => !!server.authToken,
+  headers: (server) => isFilled(server.headers),
+  queryParams: (server) => isFilled(server.queryParams),
+  protection: (server) => !!server.protection,
+  "url query": (server) => bareUrl(server.url) !== server.url,
+};
 
 /** The fields of an entry that hold a credential right now */
 export const credentialsIn = (server: McpServerEntry): CredentialField[] =>
-  CREDENTIAL_FIELDS.filter((field) => {
-    switch (field) {
-      case "authToken":
-        return !!server.authToken;
-      case "headers":
-        return isFilled(server.headers);
-      case "queryParams":
-        return isFilled(server.queryParams);
-      case "protection":
-        return !!server.protection;
-      case "url query":
-        return bareUrl(server.url) !== server.url;
-    }
-  });
+  CREDENTIAL_FIELDS.filter((field) => HOLDS_CREDENTIAL[field](server));
 
 /** What is in memory, and what the deployment listed for it to be a delta over */
 export interface ToolConfigState {
@@ -110,6 +108,7 @@ export const encodeToolConfig = (state: ToolConfigState): string => {
         };
       }),
     },
+    // eslint-disable-next-line unicorn/no-null -- JSON.stringify's signature: no replacer
     null,
     2
   );
@@ -346,8 +345,8 @@ if (import.meta.vitest) {
         })
       );
 
-      expect([...config.skillChoices.keys()]).toEqual(["a"]);
-      expect([...config.gatewayServersOff]).toEqual(["g"]);
+      expect(Array.from(config.skillChoices.keys())).toEqual(["a"]);
+      expect(Array.from(config.gatewayServersOff)).toEqual(["g"]);
       expect(config.servers.map((s) => s.url)).toEqual(["https://mcp.test"]);
       expect(config.missing.get("ok")).toEqual(["authToken"]);
     });

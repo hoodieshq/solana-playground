@@ -49,7 +49,7 @@ const reloadPage = () => {
     _skillsListedFor: undefined,
     _gatewayServersListedFor: undefined,
     _toolConfigRead: undefined,
-    _toolConfigWritable: true,
+    _canWriteToolConfig: true,
   };
   Object.entries(fresh).forEach(([key, value]) =>
     Reflect.set(PgAssistant, key, value)
@@ -57,6 +57,7 @@ const reloadPage = () => {
 };
 
 const signIn = (id: string) =>
+  // eslint-disable-next-line unicorn/no-null -- the session's wire shape
   PgSession.refreshWith({ id, name: id, image: null, login: null });
 
 const DOCS = {
@@ -74,6 +75,7 @@ describe("PgAssistant tool config", () => {
 
   afterEach(async () => {
     await PgAssistant.whenPersisted();
+    // eslint-disable-next-line unicorn/no-null -- the session's wire shape
     await PgSession.refreshWith(null);
     vi.restoreAllMocks();
   });
@@ -234,7 +236,7 @@ describe("PgAssistant tool config", () => {
     expect(PgAssistant.missingMcpCredentials.get("old")).toEqual(["authToken"]);
   });
 
-  it("does not write over a file storage could not read", async () => {
+  it("does not write over a file storage could not read, and reads again on the next edit", async () => {
     const stuck = JSON.stringify({ skills: { a: false } });
     files().set(TOOL_CONFIG_PATH, stuck);
     vi.spyOn(PgFs, "readToString").mockRejectedValueOnce(new Error("EIO"));
@@ -244,6 +246,12 @@ describe("PgAssistant tool config", () => {
 
     expect(files().get(TOOL_CONFIG_PATH)).toBe(stuck);
     expect(PgAssistant.localMcpServers.map((s) => s.id)).toEqual(["docs"]);
+
+    PgAssistant.setMcpServerEnabled("docs", true);
+    await PgAssistant.whenPersisted();
+
+    expect(stored().skills).toEqual({ a: false });
+    expect(stored().mcpServers[0].enabled).toBe(true);
   });
 
   it("settles when a write fails, and keeps the edit in memory", async () => {
@@ -282,6 +290,6 @@ describe("PgAssistant tool config", () => {
     reloadPage();
     await PgAssistant.initMcp();
 
-    expect([...PgAssistant.missingMcpCredentials.keys()]).toEqual(["a"]);
+    expect(Array.from(PgAssistant.missingMcpCredentials.keys())).toEqual(["a"]);
   });
 });

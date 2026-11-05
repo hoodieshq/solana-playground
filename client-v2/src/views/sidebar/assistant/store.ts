@@ -770,7 +770,9 @@ export class PgAssistant {
   private static _readToolConfig() {
     PgAssistant._toolConfigRead ??= readToolConfig()
       .then((read) => {
-        PgAssistant._toolConfigWritable = read.kind !== "unreadable";
+        PgAssistant._canWriteToolConfig = read.kind !== "unreadable";
+        // Storage failing may pass, so the next write reads again
+        if (read.kind === "unreadable") PgAssistant._toolConfigRead = undefined;
         if (read.kind === "found") PgAssistant._layerToolConfig(read.config);
       })
       // Remembered for the page, so a throw here would stop every later `initMcp` and write
@@ -812,7 +814,7 @@ export class PgAssistant {
       .then(() => PgAssistant._readToolConfig())
       .then(() => {
         // Storage failed the read: what it holds may be fine, and this delta lacks it
-        if (!PgAssistant._toolConfigWritable) return;
+        if (!PgAssistant._canWriteToolConfig) return;
         const account = PgSession.get()?.id;
         return writeToolConfig(
           encodeToolConfig({
@@ -1876,7 +1878,7 @@ export class PgAssistant {
   private static _skillsListedFor: string | undefined;
   private static _gatewayServersListedFor: string | undefined;
   private static _toolConfigRead: Promise<void> | undefined;
-  private static _toolConfigWritable = true;
+  private static _canWriteToolConfig = true;
   private static _missingCredentials: ReadonlyMap<
     string,
     readonly CredentialField[]
