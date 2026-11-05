@@ -279,7 +279,8 @@ definition SHALL carry none.
 ### Requirement: One composer; free questions go to the live assistant
 
 The chat column SHALL have one composer at its foot, never disabled: one 44 px
-line at rest with Send beside the words, and the full box once focused or
+line at rest with Send beside the words (46 px below `md`, 54 px under a
+finger, whose Send keeps 44 px), and the full box once focused or
 holding text. Enter sends and Shift+Enter breaks the line. ⌘↵ in the composer SHALL do nothing.
 The placeholder SHALL follow the moment: "Ask anything about this tutorial"
 before Start, "Ask about this step", "Or ask about this step" while a
