@@ -47,9 +47,10 @@ const BaseNoFiles = ({ onAddFile, onStartProject }: BaseNoFilesProps) => (
       </EmptyDescription>
     </EmptyHeader>
     <EmptyContent className="flex-row flex-wrap justify-center max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:max-w-none max-md:flex-col-reverse max-md:flex-nowrap max-md:items-stretch max-md:gap-3 max-md:px-4 max-md:pb-4">
-      {/* A finger's 44 on a phone, as No file open's button is */}
+      {/* A finger's 44 on a touch screen, as No file open's button is;
+          48 on a phone, where they sit at the foot as StageEmpty's pill does */}
       <AsyncButton
-        className="pointer-coarse:h-11 pointer-coarse:px-5"
+        className="pointer-coarse:h-11 pointer-coarse:px-5 max-md:h-12"
         onClick={onAddFile}
         onError={reportButtonFailure("add a file")}
       >
@@ -58,7 +59,7 @@ const BaseNoFiles = ({ onAddFile, onStartProject }: BaseNoFilesProps) => (
       <Button
         type="button"
         variant="outline"
-        className="pointer-coarse:h-11 pointer-coarse:px-5"
+        className="pointer-coarse:h-11 pointer-coarse:px-5 max-md:h-12"
         onClick={onStartProject}
       >
         Start a project

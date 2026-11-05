@@ -1379,13 +1379,13 @@ describe("on a phone", () => {
   it("folds the console to its bar and opens it as a sheet the scrim and Escape close", () => {
     phoneShell();
     const barSlot = () => consoleBox().parentElement as HTMLElement;
-    expect(barSlot().style.height).toBe("28px");
+    expect(barSlot().style.height).toBe("44px");
     expect(isSheetOpen()).toBe(false);
     fireEvent.click(consoleButton());
     expect(isSheetOpen()).toBe(true);
     expect(consoleBox().classList.contains("fixed")).toBe(true);
     // The slot keeps the bar's height, so the stage does not move
-    expect(barSlot().style.height).toBe("28px");
+    expect(barSlot().style.height).toBe("44px");
     fireEvent.click(
       requireFor("the scrim")(
         document.querySelector("[data-slot='console-sheet-scrim']")

@@ -8,12 +8,14 @@ import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import { Sheet, SheetContent, SheetTitle } from "@/shared/ui/sheet";
-import { BOTTOM_BAR_PX } from "@/views/flow/tokens";
 
 import type { PhonePage, StagePage, WorkView } from "../model/phone-pages";
 import { isWorkView, PHONE_PAGES } from "../model/phone-pages";
 import { isCovered, isWorkInFrame, screenOf } from "../model/screen";
 import { PHONE_ICONS } from "./phone-icons";
+
+/** The folded console's bar on a phone: a finger's 44 px, not the wide 28 */
+const PHONE_CONSOLE_BAR_PX = 44;
 
 /** How long a scroll must rest before it counts as a swipe that settled */
 export const SWIPE_SETTLE_MS = 120;
@@ -73,9 +75,13 @@ export interface PhonePagerSlots {
 
 export type BasePhonePagerProps = PhonePagerState & PhonePagerSlots;
 
-/** A Chat or Code option, the prototype's `PaneOption`: filled when it shows */
+/**
+ * A Chat or Code option, the prototype's `PaneOption`: filled when it shows.
+ * 32 px drawn in a 40 px switch, as the stage tabs are, so the 60 px bar has
+ * air above and below it; the invisible `before` keeps the tap 48 px.
+ */
 const PANE_OPTION =
-  "h-12 rounded-xl px-3 text-control font-act data-[state=on]:bg-surface-hover";
+  "relative h-8 rounded-lg px-3 text-control font-act data-[state=on]:bg-surface-hover before:absolute before:inset-x-0 before:-inset-y-2";
 
 /** The pages under Home: `PHONE_PAGES` without the preview, indices kept */
 const HOME_PAGES: readonly PhonePage[] = PHONE_PAGES.filter(
@@ -356,11 +362,11 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
           {!covered && (
             <>
               {/* Two views of one session, one filled: the prototype's
-                `PaneSwitch`, 48 tall at the control type */}
+                `PaneSwitch`, 40 tall in the bar at the control type */}
               <Segmented
                 aria-label="Show"
                 variant="boxed"
-                className="shrink-0 gap-0.5 rounded-xl bg-surface-panel p-0.5"
+                className="shrink-0 gap-0.5 rounded-xl bg-surface-panel p-1"
                 value={props.view}
                 onValueChange={(v) => {
                   if (isWorkView(v)) props.onView(v);
@@ -488,14 +494,15 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
                 (Spec 08, "Show full log" opens a sheet below 768 px), so the
                 stage keeps its size under it; the slot keeps the bar's height
                 so nothing below moves. */}
-            <div className="shrink-0" style={{ height: BOTTOM_BAR_PX }}>
-              {/* The scrim and the motion are the design system's Sheet's */}
+            <div className="shrink-0" style={{ height: PHONE_CONSOLE_BAR_PX }}>
+              {/* The Sheet's motion; the scrim darker than the Sheet's 10%,
+                  which does not read on the dark ground */}
               {props.consoleOpen && (
                 <div
                   aria-hidden
                   data-slot="console-sheet-scrim"
                   onClick={() => props.onConsoleClose("button")}
-                  className="fixed inset-0 z-50 bg-black/10 duration-100 animate-in fade-in-0 supports-backdrop-filter:backdrop-blur-xs motion-reduce:animate-none"
+                  className="fixed inset-0 z-50 bg-black/60 duration-100 animate-in fade-in-0 supports-backdrop-filter:backdrop-blur-xs motion-reduce:animate-none"
                 />
               )}
               <div
@@ -504,7 +511,7 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
                 className={cn(
                   "flex h-full min-h-0 flex-col overflow-hidden",
                   props.consoleOpen &&
-                    "fixed inset-x-0 bottom-0 z-50 h-[85dvh] rounded-t-2xl shadow-lg duration-200 animate-in fade-in-0 slide-in-from-bottom-10 motion-reduce:animate-none"
+                    "fixed inset-x-0 bottom-0 z-50 h-[85dvh] rounded-t-2xl border border-b-0 border-border shadow-lg duration-200 animate-in fade-in-0 slide-in-from-bottom-10 motion-reduce:animate-none"
                 )}
               >
                 <Outlet
