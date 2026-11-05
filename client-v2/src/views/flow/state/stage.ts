@@ -328,7 +328,7 @@ export class PgFlow {
         const run = PgFlow._running;
         if (run && out.at >= run.at) {
           if (!out.failed) PgFlow._built = run.source;
-          PgFlow._running = null;
+          PgFlow._running = undefined;
         }
         PgFlow._recheckSource();
         PgFlow._dispatch({
@@ -345,7 +345,7 @@ export class PgFlow {
       // *this* run already arrived and handled it.
       PgCommand.build.onDidFinish((result) => {
         if (!("err" in result)) return;
-        PgFlow._running = null;
+        PgFlow._running = undefined;
         if (isStopped(result.err)) {
           PgFlow._dispatch({ type: "build-stop" });
           return;
@@ -428,7 +428,7 @@ export class PgFlow {
   private static _recheckSource() {
     const built = PgFlow._built;
     const changed =
-      built !== null &&
+      built !== undefined &&
       built.workspace === PgExplorer.currentWorkspaceName &&
       built.source !== PgFlow._currentSource().source;
     if (changed !== PgFlow._state.sourceChanged) {
@@ -442,12 +442,12 @@ export class PgFlow {
   }
 
   private static _state: FlowState = INITIAL_FLOW_STATE;
-  /** What the build in flight was given; `null` once it settles */
-  private static _running: { at: number; source: BuiltSource } | null = null;
+  /** What the build in flight was given, until it settles */
+  private static _running?: { at: number; source: BuiltSource };
   /** What the last successful build was given. A stopped or failed build
    * leaves it, so a stopped rebuild goes back to the surface it left with the
    * same answer. Static, as `_state` is: the layout re-subscribes on a remount
    * with both still on screen. */
-  private static _built: BuiltSource | null = null;
+  private static _built?: BuiltSource;
   private static readonly _listeners = new Set<(s: FlowState) => void>();
 }
