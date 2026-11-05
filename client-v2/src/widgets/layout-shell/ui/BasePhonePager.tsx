@@ -214,12 +214,21 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
   // Covered (Home or a page), the preview has no section: Work shows
   const page = pages.includes(props.page) ? props.page : "work";
   const index = pages.indexOf(page);
+  // The console's sheet is fixed to the window, so it rises only while the
+  // preview, the page that holds it, is the one shown: a run or a funding
+  // prompt can move to Work with the console still open, and the sheet would
+  // cover Work over an inert preview that no tap reaches
+  // TODO(intake: SF#116 carry #379 review): the sheet is hand-rolled, with no
+  // dialog role, focus trap or return, and its Escape also folds it under a
+  // dialog opened above it; the design system's Sheet (side="bottom") brings
+  // all of that
+  const sheetShown = props.consoleOpen && page === "preview";
   // Escape folds the console's sheet before anything under it hears the key
   // (Spec 08: Escape closes the log). The Files sheet opens over it and
   // takes its own Escape.
-  const { consoleOpen, filesOpen, onConsoleClose } = props;
+  const { filesOpen, onConsoleClose } = props;
   useEffect(() => {
-    if (!consoleOpen || filesOpen) return;
+    if (!sheetShown || filesOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.stopPropagation();
@@ -227,7 +236,7 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [consoleOpen, filesOpen, onConsoleClose]);
+  }, [sheetShown, filesOpen, onConsoleClose]);
   // Smooth by CSS (`motion-safe:scroll-smooth`: with reduced motion the page
   // changes at once, and the jump settles the same way). The scroll this
   // causes settles on the page given, so the settle finds the page already
@@ -497,7 +506,7 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
             <div className="shrink-0" style={{ height: PHONE_CONSOLE_BAR_PX }}>
               {/* The Sheet's motion; the scrim darker than the Sheet's 10%,
                   which does not read on the dark ground */}
-              {props.consoleOpen && (
+              {sheetShown && (
                 <div
                   aria-hidden
                   data-slot="console-sheet-scrim"
@@ -507,10 +516,10 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
               )}
               <div
                 data-slot="console-sheet"
-                data-state={props.consoleOpen ? "open" : "closed"}
+                data-state={sheetShown ? "open" : "closed"}
                 className={cn(
                   "flex h-full min-h-0 flex-col overflow-hidden",
-                  props.consoleOpen &&
+                  sheetShown &&
                     "fixed inset-x-0 bottom-0 z-50 h-[85dvh] rounded-t-2xl border border-b-0 border-border shadow-lg duration-200 animate-in fade-in-0 slide-in-from-bottom-10 motion-reduce:animate-none"
                 )}
               >

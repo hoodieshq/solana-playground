@@ -1248,6 +1248,8 @@ describe("on a phone", () => {
 
   it("opens the console on a request, for the visit and unsaved", () => {
     phoneShell();
+    // "Show full log" sits on the stage, which the preview shows
+    fireEvent.click(button("Preview the build"));
     act(() => requestConsole());
     expect(isSheetOpen()).toBe(true);
     expect(localStorage.getItem(LAYOUT_STORAGE_KEY)).toBeNull();
@@ -1378,6 +1380,8 @@ describe("on a phone", () => {
 
   it("folds the console to its bar and opens it as a sheet the scrim and Escape close", () => {
     phoneShell();
+    // The bar is the preview's foot
+    fireEvent.click(button("Preview the build"));
     const barSlot = () => consoleBox().parentElement as HTMLElement;
     expect(barSlot().style.height).toBe("44px");
     expect(isSheetOpen()).toBe(false);

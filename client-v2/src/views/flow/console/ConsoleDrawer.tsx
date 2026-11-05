@@ -102,6 +102,9 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
   // Copy takes the log as it is when the console opens and again whenever a
   // run's stage moves: a deploy opens the console before it has printed, and
   // the run's whole text lands only as it ends
+  // TODO(intake: SF#116 carry #379 review): output a client Run or a typed
+  // command prints after the status settles is not re-read; reading at the
+  // click needs a value getter on the design system's CopyButton
   const [logText, setLogText] = useState("");
   useEffect(() => {
     if (!open) return;

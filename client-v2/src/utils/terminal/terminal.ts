@@ -515,8 +515,12 @@ export class PgTerm {
     for (let i = 0; i < buffer.length; i++) {
       const line = buffer.getLine(i);
       if (!line) continue;
+      // A row the next one continues keeps its trailing space: the wrap may
+      // have broken the line there
+      const isContinued = buffer.getLine(i + 1)?.isWrapped ?? false;
       text +=
-        (line.isWrapped || i === 0 ? "" : "\n") + line.translateToString(true);
+        (line.isWrapped || i === 0 ? "" : "\n") +
+        line.translateToString(!isContinued);
     }
     return text.trimEnd();
   }
@@ -819,10 +823,13 @@ if (import.meta.vitest) {
           buffer: {
             active: {
               length: rows.length,
-              getLine: (i: number) => ({
-                isWrapped: rows[i][1],
-                translateToString: () => rows[i][0],
-              }),
+              getLine: (i: number) =>
+                rows[i] && {
+                  isWrapped: rows[i][1],
+                  // xterm pads a row to the terminal's width
+                  translateToString: (trimRight: boolean) =>
+                    trimRight ? rows[i][0].trimEnd() : rows[i][0],
+                },
             },
           },
         },
@@ -837,6 +844,16 @@ if (import.meta.vitest) {
       ]);
       expect(PgTerm.prototype.getText.call(term)).toBe(
         "$ build\nCompiling a very long line\nDone"
+      );
+    });
+
+    it("getText keeps the space a wrapped row breaks at", () => {
+      const term = termOf([
+        ["Compiling a very ", false],
+        ["long line", true],
+      ]);
+      expect(PgTerm.prototype.getText.call(term)).toBe(
+        "Compiling a very long line"
       );
     });
 
