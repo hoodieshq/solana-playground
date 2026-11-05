@@ -15,7 +15,12 @@ import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
 
 import type { LineMarks } from "../model/lines";
 import { NO_MARKS } from "../model/lines";
-import { readOpenDocs, writeOpenDocs } from "../model/open-docs";
+import {
+  readFrontDoc,
+  readOpenDocs,
+  writeFrontDoc,
+  writeOpenDocs,
+} from "../model/open-docs";
 import type { DocOpenVia, TreeSource } from "../model/telemetry";
 import { tutorialWorkspaceTelemetry } from "../model/telemetry";
 import { autoOpenReason, resetsDeploys } from "../model/terminal";
@@ -145,7 +150,9 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   const [doc, setDoc] = useState<string>();
   useEffect(() => {
     setOpenDocs(readOpenDocs()[name] ?? []);
-    setDoc(undefined);
+    // The page that was in front comes back in front, as a reload restores
+    // the rest of the workspace
+    setDoc(readFrontDoc(name));
   }, [name]);
   const docTabs = docs.filter((d) => openDocs.includes(d.file));
   const frontDoc = docTabs.find((d) => d.file === doc);
@@ -204,7 +211,10 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     // The file comes back in front of the page, which keeps its tab; at once,
     // so the editor is no longer inert when `pickFocus` asks for it
     if (front === undefined) setDoc(undefined);
-    else flushSync(() => setDoc(undefined));
+    else {
+      flushSync(() => setDoc(undefined));
+      writeFrontDoc(name, undefined);
+    }
     // From the tree's popover, which keeps focus from an open (see
     // `leavesFocusElsewhere`): the pick itself asks for the editor, also when
     // its file is the one already open. The docked tree is no popover, and a
@@ -238,6 +248,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     }
     if (file === front) return true;
     setDoc(file);
+    writeFrontDoc(name, file);
     if (via !== "tab") {
       tutorialWorkspaceTelemetry.track("tutorial_workspace_doc_opened", {
         doc: file,
@@ -250,7 +261,9 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     const next = openDocs.filter((f) => f !== file);
     setOpenDocs(next);
     writeOpenDocs(name, next);
-    if (file === front) setDoc(undefined);
+    if (file !== front) return;
+    setDoc(undefined);
+    writeFrontDoc(name, undefined);
   };
 
   // The assistant's doc links reach the workspace here; a page never opens
@@ -266,13 +279,23 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   // file it opens (a step's file, a quote's) or a line in the open one
   useEffect(() => {
     if (!active) return;
-    const opened = PgExplorer.onDidOpenFile(() => setDoc(undefined));
-    const stop = onCodeRequest(() => setDoc(undefined));
+    const toCode = () => {
+      setDoc(undefined);
+      writeFrontDoc(name, undefined);
+    };
+    // `onDidOpenFile` replays the open file as it subscribes, in the call
+    // itself: that shows nothing new, and would hide the page a reload restores
+    let isReplay = true;
+    const opened = PgExplorer.onDidOpenFile(() => {
+      if (!isReplay) toCode();
+    });
+    isReplay = false;
+    const stop = onCodeRequest(toCode);
     return () => {
       opened.dispose();
       stop();
     };
-  }, [active]);
+  }, [active, name]);
 
   // ⌘E (Ctrl E off a Mac), even from the editor, the composer or the tree's
   // own popover: Monaco's own ⌘E (find with the selection) loses to it here,

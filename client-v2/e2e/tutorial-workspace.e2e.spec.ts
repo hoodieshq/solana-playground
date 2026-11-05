@@ -288,6 +288,8 @@ test.describe("tutorial-workspace", () => {
       "Transactions",
     ]);
 
+    // A reload brings back the tabs, and the page that was in front
+    await head(page).getByRole("tab", { name: "Transactions" }).click();
     await page.reload();
     await expect(head(page)).toBeVisible(LONG);
     await expect(head(page).getByRole("tab")).toHaveText([
@@ -295,5 +297,23 @@ test.describe("tutorial-workspace", () => {
       "Programs",
       "Transactions",
     ]);
+    await expect(
+      head(page).getByRole("tab", { name: "Transactions" })
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(
+      page
+        .getByTestId("tutorial-doc-page")
+        .getByRole("heading", { name: "Transactions", level: 1 })
+    ).toBeVisible();
+
+    // and a page closed from the front leaves the code in front for good
+    await head(page)
+      .getByRole("button", { name: "Close Transactions" })
+      .click();
+    await page.reload();
+    await expect(head(page)).toBeVisible(LONG);
+    await expect(
+      head(page).getByRole("tab", { name: "lib.rs" })
+    ).toHaveAttribute("aria-selected", "true");
   });
 });
