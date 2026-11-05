@@ -183,7 +183,7 @@ describe("BaseBuild", () => {
     });
 
     it("lands on the title when a rebuild from a failed build succeeds", () => {
-      const p = props(failed([typeError("a", null)]));
+      const p = props(failed([typeError("a", "expected u32")]));
       const { rerender } = render(<BaseBuild {...p} />);
       screen.getByRole("button", { name: "Try again" }).focus();
 

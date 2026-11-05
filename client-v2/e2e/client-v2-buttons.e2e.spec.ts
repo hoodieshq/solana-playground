@@ -14,6 +14,9 @@ const CODE = "anchor build\nanchor deploy";
 /** Longer than a toast takes to appear once it is raised */
 const TOAST_RENDER_MS = 1000;
 
+/** What the build server answers for a clean build */
+const BUILT = JSON.stringify({ stderr: "", uuid: "e2e-build", idl: null });
+
 /**
  * A ring brand button at rest, on the page itself rather than in a dialog:
  * the Build stage's Continue to Deploy, after a build the stub answers.
@@ -22,7 +25,7 @@ const ringAction = async (page: Page) => {
   await page.route("**/build", (route) =>
     route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ stderr: "", uuid: "e2e-build", idl: null }),
+      body: BUILT,
     })
   );
   await page.locator("#flow-stage-tab-build").click();
@@ -211,7 +214,7 @@ test.describe("client-v2-buttons", () => {
       await held;
       await route.fulfill({
         contentType: "application/json",
-        body: JSON.stringify({ stderr: "", uuid: "e2e-build", idl: null }),
+        body: BUILT,
       });
     });
 
@@ -265,7 +268,7 @@ test.describe("client-v2-buttons", () => {
       await route
         .fulfill({
           contentType: "application/json",
-          body: JSON.stringify({ stderr: "", uuid: "e2e-late", idl: null }),
+          body: BUILT,
         })
         // The stop aborted the request, so the page may no longer take
         // this reply; what the page shows afterwards is the assertion
@@ -306,7 +309,7 @@ test.describe("client-v2-buttons", () => {
     await page.route("**/build", (route) =>
       route.fulfill({
         contentType: "application/json",
-        body: JSON.stringify({ stderr: "", uuid: "e2e-build", idl: null }),
+        body: BUILT,
       })
     );
 
