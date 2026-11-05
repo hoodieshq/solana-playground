@@ -618,7 +618,7 @@ const keptLamportsOn =
  * @param checkConfirmation only confirm the transaction if this callback returns truthy
  * @returns the transaction signature
  */
-const sendAndConfirmTxWithRetries = async (
+export const sendAndConfirmTxWithRetries = async (
   sendTx: () => Promise<string>,
   checkConfirmation: () => SyncOrAsync<boolean>
 ) => {
