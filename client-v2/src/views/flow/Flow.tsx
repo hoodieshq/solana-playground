@@ -19,7 +19,11 @@ import { LogoLockup } from "@/shared/ui/logo";
 import { Pattern } from "@/shared/ui/pattern";
 import { PgExplorer, PgView } from "@/utils";
 import { AppNav, ProjectList, readProjectFiles } from "@/widgets/app-nav";
-import { Assistant, probeDefaultBackend } from "@/widgets/assistant";
+import {
+  Assistant,
+  probeDefaultBackend,
+  useDefaultBackend,
+} from "@/widgets/assistant";
 import { catalogPage, catalogSlot, useCatalogPage } from "@/widgets/catalog";
 import { homeSlot, useStartView } from "@/widgets/home";
 import { LayoutShell } from "@/widgets/layout-shell";
@@ -148,6 +152,7 @@ const FlowFrame = () => {
   const [reading, setReading] = useState(false);
   const [settings, setSettings] = useState<SettingsState>({ open: false });
   const settingsOpen = settings.open;
+  const hosted = useDefaultBackend().state;
   const viewport = useViewport();
   const phone = viewport === "phone";
 
@@ -486,7 +491,11 @@ const FlowFrame = () => {
       </div>
 
       {settings.open && (
-        <SettingsPage focus={settings.focus} onClose={closeSettings} />
+        <SettingsPage
+          focus={settings.focus}
+          hosted={hosted}
+          onClose={closeSettings}
+        />
       )}
 
       <ModalHost />
