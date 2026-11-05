@@ -139,6 +139,11 @@ export const Thread = ({
     lastWord?.kind === "error"
       ? backendParamsFrom(lastWord.recover)
       : undefined;
+  // Moved to another backend, the refusal is answered too. Nothing connected is
+  // not a move: the key lives in memory, so a reload ends there, still refused
+  const connected = PgAssistant.connection;
+  const recoverable =
+    refused && (!connected || connected.id === refused.provider);
 
   /**
    * Use hosted model on a refused key: the thread moves to the hosted model
@@ -149,7 +154,7 @@ export const Thread = ({
    */
   const handleUseHosted = () => {
     if (!PgSession.get()) {
-      turn.openConnect("key-rejected", { provider: "default" });
+      turn.openConnect("use-hosted", { provider: "default" });
       return;
     }
     PgAssistant.connect(DEFAULT_CONNECTION);
@@ -165,7 +170,7 @@ export const Thread = ({
 
   const actionsFor = (id: string): ReplyActions | undefined => {
     const actions: ReplyActions = {};
-    if (refused && id === lastWord?.id) {
+    if (recoverable && id === lastWord?.id) {
       actions.changeKey = () => turn.openConnect("key-rejected", refused);
       if (defaultBackend.state === "present") {
         actions.useHosted = handleUseHosted;
