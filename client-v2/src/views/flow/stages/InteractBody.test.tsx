@@ -133,7 +133,9 @@ describe("InteractBody", () => {
     fireEvent.click(screen.getByRole("button", { name: "increment" }));
     expect(screen.getByText("form initialize")).toBeTruthy();
     expect(screen.getByText("form increment")).toBeTruthy();
-    expect(screen.getAllByText("Fee payer · Playground wallet · 0.5 SOL")).toHaveLength(2);
+    expect(
+      screen.getAllByText("Fee payer · Playground wallet · 0.5 SOL")
+    ).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("button", { name: "initialize" }));
     expect(screen.queryByText("form initialize")).toBeNull();
@@ -251,9 +253,7 @@ describe("InteractBody", () => {
     expect(history.textContent).toContain("Calls you send show up here.");
     const columns = history.closest("[data-slot='interact-columns']");
     expect(columns).not.toBeNull();
-    expect(columns?.contains(screen.getByTestId("card initialize"))).toBe(
-      true
-    );
+    expect(columns?.contains(screen.getByTestId("card initialize"))).toBe(true);
     // One column shows no history before the first call
     expect(history.className).toContain("@max-[40rem]:hidden");
   });

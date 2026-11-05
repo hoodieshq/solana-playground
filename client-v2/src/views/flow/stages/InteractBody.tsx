@@ -48,8 +48,8 @@ const InteractBody = ({
   useSyncInstructionStorage();
 
   const names = idl.instructions.map((ix) => ix.name);
-  // Every card folded on arrival, each one folding on its own (Almaz's #272
-  // card); a name a rebuild dropped simply matches no card
+  // Every card folded on arrival, each one folding on its own (Almaz's card
+  // from hoodieshq PR 272); a name a rebuild dropped simply matches no card
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   const toggle = (name: string, isOpen: boolean) =>
     setOpen((prev) => {

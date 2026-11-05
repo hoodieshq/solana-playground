@@ -114,7 +114,12 @@ it("tests the instruction through onCall", () => {
 it("holds Test for a wallet first, and says so", () => {
   session.wallet = null;
   render(
-    <Instruction idlInstruction={IX} onCall={vi.fn()} open solNeededOn="devnet" />
+    <Instruction
+      idlInstruction={IX}
+      onCall={vi.fn()}
+      open
+      solNeededOn="devnet"
+    />
   );
 
   expect(testButton().disabled).toBe(true);
@@ -124,7 +129,12 @@ it("holds Test for a wallet first, and says so", () => {
 it("holds Test for the fee before the fields, and names the network", () => {
   stored.amount = { value: "", error: false };
   render(
-    <Instruction idlInstruction={IX} onCall={vi.fn()} open solNeededOn="devnet" />
+    <Instruction
+      idlInstruction={IX}
+      onCall={vi.fn()}
+      open
+      solNeededOn="devnet"
+    />
   );
 
   expect(testButton().disabled).toBe(true);
