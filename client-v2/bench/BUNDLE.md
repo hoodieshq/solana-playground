@@ -8,7 +8,7 @@ Sizes are rounded: to 10 B under 1 kB, up to the next 10 kB under 1000 kB, and t
 
 | Files | Count | Raw | Gzipped |
 | --- | --- | --- | --- |
-| `*.js` | 199 | 28.76 MB | 7.66 MB |
+| `*.js` | 199 | 28.78 MB | 7.66 MB |
 | `*.css` | 2 | 290 kB | 50 kB |
 
 | Chunk | Count | Gzipped |
