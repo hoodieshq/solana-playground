@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { Page } from "@playwright/test";
 
-import { expect, LONG, test } from "./fixtures";
+import { expect, json, LONG, stubSession, test } from "./fixtures";
 
 /** The stage tabs; on a narrow window they carry their key, so by prefix */
 const stageTab = (page: Page, name: string) =>
@@ -63,6 +63,64 @@ test("typing a start word starts step 1", async ({ page }) => {
   await box.fill("Begin");
   await box.press("Enter");
   await expect(chat(page).getByText("Step 1 of 4")).toBeVisible(LONG);
+});
+
+// A model that only opens the menu and then writes nothing: the context still
+// asks for the invitation, and the composer leaves the learner a next move
+test("a menu-only turn before Start still suggests starting", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const sse = (chunks: unknown[]) =>
+    [...chunks.map((c) => `data: ${JSON.stringify(c)}`), "data: [DONE]"].join(
+      "\n\n"
+    ) + "\n\n";
+  const sent: string[] = [];
+  await stubSession(page);
+  await page.route("**/api/agent", (route) => {
+    if (route.request().method() === "GET") {
+      return json(route, { configured: true, model: "stub" });
+    }
+    sent.push(route.request().postData() ?? "");
+    return route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body:
+        sent.length === 1
+          ? sse([
+              {
+                choices: [
+                  {
+                    delta: {
+                      tool_calls: [
+                        {
+                          index: 0,
+                          id: "call_menu",
+                          type: "function",
+                          function: { name: "open_menu", arguments: "{}" },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+              { choices: [{ delta: {}, finish_reason: "tool_calls" }] },
+            ])
+          : sse([{ choices: [{ delta: {}, finish_reason: "stop" }] }]),
+    });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/tutorials/hello-anchor");
+  const box = chat(page).getByPlaceholder("Ask anything about this tutorial");
+  await expect(box).toBeVisible(LONG);
+  await box.fill("show me the menu");
+  await box.press("Enter");
+  await expect(chat(page).getByText("Ready to start the lesson?")).toBeVisible(
+    LONG
+  );
+  expect(sent[0]).toContain("press Start step 1 or type start");
+  // The tool's own result asks for it too, on the request that follows it
+  expect(sent[1]).toContain("They have not started");
 });
 
 test("no stage before Hello Anchor's Start, under the frame's width", async ({
