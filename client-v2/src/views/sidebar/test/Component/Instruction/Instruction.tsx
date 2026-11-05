@@ -1,8 +1,18 @@
 import { FC, useCallback, useEffect, useReducer, useState } from "react";
 
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import {
+  markFailureShown,
+  reportButtonFailure,
+} from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
+import {
+  Callout,
+  CalloutAction,
+  CalloutActions,
+  CalloutDescription,
+  CalloutTitle,
+} from "@/shared/ui/callout";
 import {
   Collapsible,
   CollapsibleChevron,
@@ -24,6 +34,7 @@ import {
   IdlInstruction,
   PgProgramInteraction,
 } from "../../.././../../utils/program-interaction";
+import { PgAssistant } from "../../../assistant/store";
 import { useIdl } from "../IdlProvider";
 import Interaction from "../Interaction";
 import InstructionInput from "./InstructionInput";
@@ -41,6 +52,7 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
   );
   const [disabled, setDisabled] = useState(true);
   const [refreshCount, refreshFields] = useReducer((r) => r + 1, 0);
+  const [failure, setFailure] = useState<CallFailure>();
 
   const { idl } = useIdl();
 
@@ -95,6 +107,7 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
   }, [idlInstruction]);
 
   const handleTest = async () => {
+    setFailure(undefined);
     const showLogTxHash = await PgTerminal.process(async () => {
       PgTerminal.println(PgTerminal.info(`Testing \`${instruction.name}\`...`));
 
@@ -106,6 +119,7 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
 
         const txResult = await PgTx.confirm(txHash);
         if (txResult?.err) {
+          setFailure({ message: String(txResult.err), logs: [] });
           throw new Error(`${Emoji.CROSSMARK} Test failed: ${txResult.err}`);
         }
 
@@ -127,6 +141,9 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
           }
         }
 
+        // The Call panel says it under the form (Spec 04), so no toast
+        setFailure((f) => f ?? { message: e.message, logs: e.logs ?? [] });
+        markFailureShown(e);
         throw e;
       }
     });
@@ -231,9 +248,46 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
             </>
           )}
         </div>
+
+        {failure && (
+          <Callout variant="error" className="mt-4">
+            <CalloutTitle>Call failed</CalloutTitle>
+            <CalloutDescription className="font-mono text-xs break-words">
+              {failure.message}
+            </CalloutDescription>
+            <CalloutActions>
+              <CalloutAction
+                onClick={() =>
+                  PgAssistant.requestPrompt(
+                    explainPrompt(instruction.name, failure)
+                  )
+                }
+              >
+                Explain this failure
+              </CalloutAction>
+            </CalloutActions>
+          </Callout>
+        )}
       </Interaction>
     </InstructionProvider>
   );
 };
+
+/** A failed call, as the Call panel shows it and the assistant reads it */
+interface CallFailure {
+  message: string;
+  /** The program's logs, when the cluster sent any */
+  logs: string[];
+}
+
+/** Spec 04's "Explain this failure": the error and the logs, quoted */
+const explainPrompt = (name: string, failure: CallFailure) =>
+  [
+    `Explain why this call to \`${name}\` failed: name the failing instruction and the likely cause.`,
+    failure.message,
+    ...(failure.logs.length
+      ? ["Program logs:", "```", ...failure.logs, "```"]
+      : []),
+  ].join("\n");
 
 export default Instruction;
