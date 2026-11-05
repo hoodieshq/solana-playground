@@ -65,7 +65,7 @@ const BaseStartHereBanner = ({
         background:
           "radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--brand-purple) 14%, transparent), transparent 62%), var(--surface-panel)",
       }}
-      className="relative isolate overflow-hidden rounded-card border border-border"
+      className="relative isolate mb-4 overflow-hidden rounded-card border border-border"
     >
       <IsoVoxels corner={!wide} />
       <div className="relative p-7 max-md:p-5">
