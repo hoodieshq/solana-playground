@@ -167,7 +167,6 @@ const BaseInteract = (p: BaseInteractProps) => (
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           Deployment
           <NativeSelect
-            size="sm"
             className="[&_select]:font-mono [&_select]:text-xs [&_select]:tabular-nums"
             value={p.selected ?? ""}
             onChange={(ev) => p.onPick(ev.target.value)}
