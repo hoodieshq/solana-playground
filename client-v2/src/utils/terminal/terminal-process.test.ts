@@ -6,7 +6,8 @@ import {
 } from "@/shared/lib/report-button-failure";
 
 import { StoppedError } from "../stopped";
-import { isTerminalUnmounted, PgTerminal } from "./terminal";
+import { TerminalLineError } from "./line-error";
+import { isTerminalUnmounted, PgTerm, PgTerminal } from "./terminal";
 
 beforeEach(() => {
   PgTerminal.setConsoleOpen(true);
@@ -133,5 +134,74 @@ describe.each([
     vi.spyOn(PgTerminal, "run").mockRejectedValue(failure);
 
     await expect(call()).rejects.toBe(failure);
+  });
+});
+
+describe("PgTerm.process, a line's variant", () => {
+  const fakeTerm = (previousLine: string | undefined) => ({
+    disable: vi.fn(),
+    enable: vi.fn(),
+    scrollToBottom: vi.fn(),
+    println: vi.fn(),
+    _tty: {
+      getLine: () =>
+        previousLine ? { translateToString: () => previousLine } : undefined,
+    },
+  });
+
+  const failWith = (term: ReturnType<typeof fakeTerm>, failure: Error) =>
+    PgTerm.prototype.process.call(term as never, () => {
+      throw failure;
+    });
+
+  it.each([
+    {
+      name: "an unknown command",
+      failure: new TerminalLineError("`biuld` is not a command."),
+      printed: PgTerminal.error("`biuld` is not a command."),
+    },
+    {
+      name: "a shell habit",
+      failure: new TerminalLineError("This terminal runs Playground commands."),
+      printed: PgTerminal.error("This terminal runs Playground commands."),
+    },
+    {
+      name: "a declined wallet question",
+      failure: new TerminalLineError("Run `connect` to connect a wallet."),
+      printed: PgTerminal.error("Run `connect` to connect a wallet."),
+    },
+    {
+      name: "a failure",
+      failure: new Error("boom"),
+      printed: PgTerminal.error("Process error: boom"),
+    },
+    {
+      name: "a stopped run",
+      failure: new StoppedError("Stopped."),
+      printed: PgTerminal.warning("Stopped."),
+    },
+  ])("prints $name in its variant", async ({ failure, printed }) => {
+    const term = fakeTerm(undefined);
+
+    await expect(failWith(term, failure)).rejects.toBe(failure);
+
+    expect(term.println).toHaveBeenCalledWith(printed, { noColor: true });
+  });
+
+  it("keeps the thrown message plain for toasts and the assistant", async () => {
+    const failure = new TerminalLineError("`ls` is not a command.");
+
+    await expect(failWith(fakeTerm(undefined), failure)).rejects.toBe(failure);
+
+    expect(failure.message).toBe("`ls` is not a command.");
+  });
+
+  it("does not repeat a line already on screen, whatever its colour", async () => {
+    const term = fakeTerm("Stopped.");
+    const failure = new StoppedError("Stopped.");
+
+    await expect(failWith(term, failure)).rejects.toBe(failure);
+
+    expect(term.println).not.toHaveBeenCalled();
   });
 });

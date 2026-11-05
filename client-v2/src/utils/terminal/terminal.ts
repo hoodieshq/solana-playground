@@ -14,7 +14,7 @@ import type { ClassReturnType, Methods, SyncOrAsync } from "../types";
 import { PgAutocomplete } from "./autocomplete";
 import { confirmReply, confirmSuffix } from "./confirm";
 import { PgHistory } from "./history";
-import { processErrorLine } from "./line-error";
+import { lineTone, processErrorLine, toneWith } from "./line-error";
 import { PgShell } from "./shell";
 import { PgTty } from "./tty";
 import type { CommandManager, Prefixes, PrintOptions } from "./types";
@@ -54,15 +54,15 @@ export class PgTerminal {
   }
 
   static error(text: string) {
-    return `\x1b[1;31m${text}\x1b[0m`;
+    return toneWith("error")(text);
   }
 
   static warning(text: string) {
-    return `\x1b[1;33m${text}\x1b[0m`;
+    return toneWith("warning")(text);
   }
 
   static info(text: string) {
-    return `\x1b[1;34m${text}\x1b[0m`;
+    return toneWith("info")(text);
   }
 
   static primary(text: string) {
@@ -693,8 +693,13 @@ export class PgTerm {
 
       // A stop, and a failure that is its own line, print with no prefix
       const msg = processErrorLine(e);
+      // Compared plain: xterm's text carries no colour codes
       const previousLine = this._tty.getLine(1)?.translateToString().trim();
-      if (previousLine !== msg) this.println(msg);
+      if (previousLine !== msg) {
+        // The highlighter reads a colour code's digits as words, and its own
+        // colours end this one early
+        this.println(toneWith(lineTone(e))(msg), { noColor: true });
+      }
 
       throw e;
     } finally {
