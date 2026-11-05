@@ -297,7 +297,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
               so the pill keeps the focus: Show full log after a failure
               (Spec 08 ANY-00), then Upload IDL. Above the pill on a phone,
               where the pill keeps the foot */}
-          <div className="flex flex-wrap items-center justify-center gap-2 [&_[data-variant=outline]]:h-10 [&_[data-variant=outline]]:rounded-full [&_[data-variant=outline]]:px-5 max-md:[&_[data-variant=outline]]:w-full max-md:[&>div]:w-full">
+          <div className="flex flex-wrap items-center justify-center gap-2 [&_[data-variant=outline]]:h-10 [&_[data-variant=outline]]:rounded-full [&_[data-variant=outline]]:px-5 max-md:[&_[data-variant=outline]]:h-12 max-md:[&_[data-variant=outline]]:w-full max-md:[&>div]:w-full">
             {offersRetry(p) && (
               <Button variant="outline" onClick={p.onShowLog}>
                 Show full log

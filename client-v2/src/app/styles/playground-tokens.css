@@ -194,11 +194,11 @@
 
   /* ── syntax: VS Code's six roles, pulled into the product's palette ── */
   /* plain and comment follow the dark ramp's primary and tertiary text */
-  --syntax-keyword: #ec4899;
+  --syntax-keyword: #f472b6;
   --syntax-type: #38bdf8;
   --syntax-function: #14f195;
   --syntax-string: #f59e0b;
-  --syntax-number: #8b5cf6;
+  --syntax-number: #a78bfa;
   --syntax-comment: #93939c;
   --syntax-plain: #e4e4e7;
 

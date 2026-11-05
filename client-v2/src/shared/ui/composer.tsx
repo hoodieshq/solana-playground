@@ -39,7 +39,7 @@ function Composer({
           if (!busy && !empty) onSubmit?.(e);
         }}
         className={cn(
-          "group/composer @container/composer flex w-full min-w-0 flex-col rounded-2xl border border-border bg-surface-panel shadow-composer transition-[border-color,box-shadow] duration-150 hover:border-muted-foreground/20 focus-within:border-primary/45 focus-within:ring-3 focus-within:ring-primary/12",
+          "group/composer @container/composer flex w-full min-w-0 flex-col rounded-2xl border border-border bg-surface-panel shadow-composer transition-[border-color,box-shadow] duration-150 hover:border-muted-foreground/20 focus-within:border-ring focus-within:ring-3 focus-within:ring-primary/12",
           className
         )}
         {...props}
