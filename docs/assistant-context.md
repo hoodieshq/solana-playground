@@ -207,6 +207,9 @@ Done:
   to app", Escape or Cmd+, to return to the work as it was.
 - Deploy history is new: a client-side store in `localStorage`, keyed by
   workspace, that records each real deploy as it happens.
+- The user's choices in Sources and tools are kept on the device: skills
+  switched, gateway servers turned off, and servers added. Credentials of an
+  added server are not kept, so a reload asks for them again.
 - Conversations and project code are persisted. Threads are keyed by project
   or tutorial, kept in IndexedDB on the device, and synced to Postgres when
   signed in. A restored thread is history the model can read back, not a

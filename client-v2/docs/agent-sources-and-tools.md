@@ -140,6 +140,13 @@ In the gateway's list, an entry's `authToken`, `headers`, `queryParams`, and `pr
 deployment. The gateway sends them only for a caller signed in on this site. Any other caller reaches the same
 server without them. A user with their own key for that server adds it to the editor with the key.
 
+### What the browser keeps
+
+The editor's list, the skills you switched, and the gateway servers you turned off are kept on this device in
+`/.config/assistant-tools.json`, so they survive a reload. A skill you did not switch follows its entry's `enabled`.
+Credentials are not kept: `authToken`, `headers`, `queryParams`, `protection` and a query in `url` last until the
+reload, and the editor then names the ones to enter again.
+
 ### Protection
 
 `protection` names a bot-protection provider and the secret that gets past it:
