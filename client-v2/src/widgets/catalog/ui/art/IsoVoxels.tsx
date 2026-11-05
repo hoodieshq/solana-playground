@@ -1,11 +1,11 @@
 /* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import { type CSSProperties, useEffect, useRef } from "react";
 
-import { resolveColor, TRANSPARENT } from "@/shared/lib/css-color";
 import { createLogger } from "@/shared/lib/logger";
 import { cn } from "@/shared/lib/utils";
 
 import { VOXEL_SHADES } from "./voxel-shades";
+import { BRAND, brandHex } from "./voxel-tokens";
 
 const log = createLogger("catalog:voxels");
 
@@ -15,14 +15,6 @@ const MARK_PATH =
 
 /* Ported from the tutorial-v2 prototype (ui/IsoVoxels.tsx), which took it from Almaz's stand
    (views/flow/gallery/banner-art/IsoVoxels.tsx): the cubes are the brand pattern's rounded, low tiles */
-
-/** The brand tokens the sculpture is shaded in, resolved to hex for the canvas */
-const BRAND = {
-  purple: "var(--brand-purple)",
-  violet: "var(--brand-violet)",
-  green: "var(--brand-green)",
-  paper: "var(--brand-paper)",
-} as const;
 
 /* Masks read only alpha, so they are written in `black` and `color-mix`, not
    colour literals (`yarn check-colors`).
@@ -160,13 +152,6 @@ type Palette = {
   shadeMid: Lab;
   shadeDeep: Lab;
   ink: Lab;
-};
-
-/** A brand token as hex; throws when it does not resolve, rather than shade the cubes black */
-const brandHex = (token: string) => {
-  const hex = resolveColor(token);
-  if (hex === TRANSPARENT) throw new Error(`${token} did not resolve`);
-  return hex;
 };
 
 /**
