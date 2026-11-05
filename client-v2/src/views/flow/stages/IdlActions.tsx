@@ -19,7 +19,7 @@ const LOAD_HINT =
  * loads a file picked through a button, the prototype's secondary action
  * under Deploy's pill and in Interact's toolbar.
  */
-export type IdlActionsMode = "download" | "upload";
+export type IdlActionsMode = "download" | "upload" | "upload-button";
 
 /** Parses an Anchor IDL file's text; throws when it is not one */
 const parseIdl = (text: string) => {
@@ -62,7 +62,7 @@ const idlLabel = (idl: object) => {
  * use is shared state, so Deploy and Interact, each with its own instance,
  * name the same one; only a refused pick stays with the instance it hit.
  */
-const UploadIdl = () => {
+const UploadIdl = ({ withName }: { withName: boolean }) => {
   const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl);
   // The IDL that was in use when a pick here was refused. The refusal shows
   // only while that IDL still is: any new IDL, from a pick here, on the
@@ -112,7 +112,7 @@ const UploadIdl = () => {
           That file is not an Anchor IDL.
         </span>
       )}
-      {idl && (
+      {withName && idl && (
         <span role="status" className="font-mono text-xs text-muted-foreground">
           {idlLabel(idl)}
         </span>
@@ -127,6 +127,19 @@ const UploadIdl = () => {
  * this app uses -- neither touches the chain.
  */
 const IdlActions: FC<{ mode: IdlActionsMode }> = ({ mode }) =>
-  mode === "download" ? <DownloadIdl /> : <UploadIdl />;
+  mode === "download" ? (
+    <DownloadIdl />
+  ) : (
+    // "upload-button" leaves the IDL's name to the stage, which shows it
+    // among its facts (`useIdlName`)
+    <UploadIdl withName={mode === "upload"} />
+  );
+
+/** The IDL in use, by its program's name, for a stage that lists it; undefined while none */
+export const useIdlName = () => {
+  const idl = useRenderOnChange(PgProgramInfo.onDidChangeIdl);
+  if (!idl) return undefined;
+  return programName(idl) ?? "loaded";
+};
 
 export default IdlActions;

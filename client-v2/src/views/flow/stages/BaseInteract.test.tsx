@@ -181,11 +181,11 @@ describe("BaseInteract", () => {
     expect(onPick).toHaveBeenCalledWith("b");
   });
 
-  it("with no deployments the select is off and says none yet", () => {
+  it("with no deployments the select is off and says None yet", () => {
     render(<BaseInteract {...props("not-deployed")} />);
     const select = screen.getByLabelText("Deployment") as HTMLSelectElement;
     expect(select.disabled).toBe(true);
-    expect(select.textContent).toBe("none yet");
+    expect(select.textContent).toBe("None yet");
   });
 
   it("without a program id it offers Go to Build", () => {

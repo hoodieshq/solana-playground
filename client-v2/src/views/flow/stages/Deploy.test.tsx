@@ -94,7 +94,10 @@ vi.mock("../state/stage", () => ({
 vi.mock("../state/deploy-history", () => ({
   PgDeployHistory: { list: () => mocks.history, onDidChange: mocks.noop },
 }));
-vi.mock("./IdlActions", () => ({ default: () => null }));
+vi.mock("./IdlActions", () => ({
+  default: () => null,
+  useIdlName: () => undefined,
+}));
 vi.mock("@/shared/lib/report-button-failure", () => ({
   reportButtonFailure: (action: string) =>
     action === "deploy" ? mocks.report : vi.fn(),
@@ -163,7 +166,7 @@ describe("Deploy stage", () => {
     mocks.flow = { build: "failed", deploy: "active" };
     // eslint-disable-next-line unicorn/no-null -- `useProgramInfo()` answers `null` for a failed chain read and no keypair
     mocks.programInfo = { onChain: null, pk: null, uuid: "previous-build" };
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     const button = screen.getByRole("button", { name: "Deploy to devnet" });
     expect(button).toHaveProperty("disabled", false);
@@ -171,7 +174,7 @@ describe("Deploy stage", () => {
 
   it("holds Deploy after a failed build when no binary exists", () => {
     mocks.flow = { build: "failed", deploy: "active" };
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     const button = screen.getByRole("button", { name: "Deploy to devnet" });
     expect(button).toHaveProperty("disabled", true);
@@ -180,7 +183,7 @@ describe("Deploy stage", () => {
   it("reports a deploy that fails", async () => {
     const failure = new Error("insufficient balance");
     mocks.execute.mockRejectedValue(failure);
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
@@ -196,7 +199,7 @@ describe("Deploy stage", () => {
       mocks.flow = { build: "done", deploy: "failed" };
       throw failure;
     });
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
@@ -208,7 +211,7 @@ describe("Deploy stage", () => {
   it("leaves a deploy that never started to the toast", async () => {
     const failure = new Error("no terminal");
     mocks.execute.mockRejectedValue(failure);
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
@@ -220,7 +223,7 @@ describe("Deploy stage", () => {
 
   it("holds the button while a deploy is under way", () => {
     mocks.deployState = "loading";
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     const button = screen.getByRole("button", { name: "Deploying..." });
     expect(button).toHaveProperty("disabled", true);
@@ -241,7 +244,7 @@ describe("Deploy stage", () => {
         at: 1,
       },
     ];
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     expect(
       screen.getByRole("status", { name: "Deploy result" }).textContent
@@ -254,7 +257,7 @@ describe("Deploy stage", () => {
   /** The Program id block's custom id is where the deploy goes */
   it("leaves a custom program id in place", async () => {
     mocks.execute.mockResolvedValue(undefined);
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }))
@@ -272,7 +275,7 @@ describe("Deploy stage", () => {
     mocks.execute.mockImplementation(async () => {
       walletAtDeploy = mocks.wallet.current?.publicKey.toBase58();
     });
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
     await act(async () => new Promise((r) => setTimeout(r, 10)));
@@ -289,7 +292,7 @@ describe("Deploy stage", () => {
       answer = confirmStaleBuild();
       if (!(await answer)) throw new DeployCancelledError();
     });
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
     expect(
@@ -316,7 +319,7 @@ describe("Deploy stage", () => {
         cause: "429",
       })
     );
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
 
@@ -346,7 +349,7 @@ describe("Deploy stage", () => {
         at: 1,
       },
     ];
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await act(async () =>
       fireEvent.click(
@@ -380,11 +383,11 @@ describe("Deploy stage", () => {
       answer = confirmStaleBuild();
       await answer;
     });
-    const first = render(<Deploy />);
+    const first = render(<Deploy onChangeNetwork={() => {}} />);
     await pressDeploy();
     first.unmount();
 
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
     expect(
       screen.getByRole("dialog", { name: "The last build failed" })
     ).toBeTruthy();
@@ -401,7 +404,7 @@ describe("Deploy stage", () => {
     mocks.execute.mockImplementation(
       () => new Promise<void>((resolve) => (finish = resolve))
     );
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
     fireEvent.click(screen.getByRole("button", { name: "Deploying..." }));
@@ -417,7 +420,7 @@ describe("Deploy stage", () => {
       PgDeployRun.reset();
       throw new Error("write failed");
     });
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
 
@@ -448,7 +451,7 @@ describe("Deploy stage", () => {
         at: 1,
       },
     ];
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
     await act(async () =>
       fireEvent.click(
         screen.getByRole("button", { name: "Redeploy to devnet" })
@@ -481,7 +484,7 @@ describe("Deploy stage", () => {
       cost: 1,
       upgraded: false,
     });
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
 
@@ -502,7 +505,7 @@ describe("Deploy stage", () => {
     );
     mocks.execute.mockResolvedValueOnce(undefined);
     mocks.signIn.mockResolvedValue(undefined);
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
     await act(async () =>
@@ -531,7 +534,7 @@ describe("Deploy stage", () => {
     mocks.signIn.mockImplementation(async () => {
       utils.PgExplorer.currentWorkspaceName = "other";
     });
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
     await act(async () =>
@@ -546,7 +549,7 @@ describe("Deploy stage", () => {
     mocks.wallet.accounts = [{}];
     mocks.wallet.switch.mockImplementation(becomeCurrent);
     mocks.execute.mockResolvedValue(undefined);
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
 
@@ -556,7 +559,7 @@ describe("Deploy stage", () => {
 
   it("starts nothing while a deploy typed in the terminal runs", async () => {
     mocks.deployState = "loading";
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await act(async () => PgStageDeploy.start());
 
@@ -566,7 +569,7 @@ describe("Deploy stage", () => {
   it("names the checks when a deploy fails before any step", async () => {
     mocks.wallet.current = pgWallet();
     mocks.execute.mockRejectedValue(new Error("not built"));
-    render(<Deploy />);
+    render(<Deploy onChangeNetwork={() => {}} />);
 
     await pressDeploy();
 
@@ -578,7 +581,7 @@ describe("Deploy stage", () => {
     vi.useFakeTimers();
     try {
       mocks.wallet.add.mockImplementation(() => undefined);
-      render(<Deploy />);
+      render(<Deploy onChangeNetwork={() => {}} />);
 
       await pressDeploy();
       await act(async () => vi.advanceTimersByTimeAsync(15_000));
@@ -608,14 +611,14 @@ describe("Deploy stage", () => {
         cause: "429",
       })
     );
-    const view = render(<Deploy />);
+    const view = render(<Deploy onChangeNetwork={() => {}} />);
     await pressDeploy();
     expect(screen.getByRole("alert", { name: "Not enough SOL" })).toBeTruthy();
 
     const rerender = () =>
       view.rerender(
         <TooltipProvider>
-          <Deploy />
+          <Deploy onChangeNetwork={() => {}} />
         </TooltipProvider>
       );
     try {

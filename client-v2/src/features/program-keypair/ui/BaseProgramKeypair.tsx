@@ -77,8 +77,10 @@ const MISMATCH =
   "This program id does not match the program keypair. A first deploy needs the keypair for this id: import it, remove the custom id, or create a new keypair.";
 
 /**
- * The legacy sidebar's program id controls, folded under the Deploy stage's
- * facts. Every control is quiet: Deploy is the stage's one accent action.
+ * The legacy sidebar's program id controls, folded as the last row of the
+ * Deploy stage's facts: "Program id" and the id, a press away from its field
+ * and keypair actions. Every control is quiet: Deploy is the stage's one
+ * accent action.
  */
 const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
   const [text, setText] = useState(p.programId ?? "");
@@ -93,18 +95,28 @@ const BaseProgramKeypair = (p: BaseProgramKeypairProps) => {
       : undefined;
 
   return (
-    // The bottom gap keeps the stage's own actions, sticky on a phone, off
-    // the drop zone once the page is scrolled to its end
-    <section
-      aria-label="Program id"
-      className="flex w-full flex-col gap-3 pb-3"
-    >
+    <section aria-label="Program id" className="flex w-full flex-col">
       <Collapsible open={p.open} onOpenChange={p.onOpenChange}>
-        <CollapsibleHeading className="text-caption">
-          <CollapsibleChevron />
-          Program id
+        {/* A row of the stage's summary: the name at the left, the id and
+            the fold's mark at the right; named "Program id" alone, so the id
+            is read once, in the field */}
+        <CollapsibleHeading
+          aria-label="Program id"
+          className="min-h-10 w-full justify-between gap-4 px-4 py-2 text-caption font-normal"
+        >
+          <span className="shrink-0 whitespace-nowrap">Program id</span>
+          <span className="flex min-w-0 items-center gap-1.5 text-foreground">
+            {p.programId && (
+              <code className="min-w-0 truncate font-mono" title={p.programId}>
+                {p.programId}
+              </code>
+            )}
+            <CollapsibleChevron />
+          </span>
         </CollapsibleHeading>
-        <CollapsibleContent className="mt-3 flex flex-col gap-3 text-left">
+        {/* Closed, the content keeps no edge or padding of its own, so the
+            card ends at the row */}
+        <CollapsibleContent className="flex flex-col gap-3 border-t border-border px-4 py-3 text-left data-[state=closed]:hidden">
           {p.mismatch && (
             <Callout variant="warning" aria-label="Program id mismatch">
               <TriangleAlert />

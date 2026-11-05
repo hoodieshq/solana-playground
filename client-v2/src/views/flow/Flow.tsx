@@ -363,7 +363,16 @@ const FlowFrame = () => {
                 phone={phone}
               />
               <Stage>
-                <StageRouter stage={state.stage} />
+                <StageRouter
+                  stage={state.stage}
+                  // As the cluster row in the footer opens it
+                  onChangeNetwork={() =>
+                    toggleSettings(closeNavSheet.current)({
+                      from: "cluster",
+                      focus: "network",
+                    })
+                  }
+                />
                 {reading && described && (
                   <Reader
                     key={described.step.id}

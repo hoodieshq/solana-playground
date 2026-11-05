@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { NETWORKS } from "@/constants";
 import { isSignInFailure, PgSession } from "@/features/auth";
 import type { GuideFrom } from "@/features/cli-deploy";
 import { CliDeployGuide } from "@/features/cli-deploy";
@@ -17,14 +18,20 @@ import {
   useWallet,
 } from "../../../hooks";
 import type { Cluster } from "../../../utils";
-import { PgConnection, PgExplorer, PgGlobal, PgWallet } from "../../../utils";
+import {
+  PgConnection,
+  PgExplorer,
+  PgGlobal,
+  PgSettings,
+  PgWallet,
+} from "../../../utils";
 import type { DeployRecord } from "../state/deploy-history";
 import { PgDeployHistory } from "../state/deploy-history";
 import type { FlowState } from "../state/stage";
 import { PgFlow } from "../state/stage";
 import type { DeployDetails, DeployPayer, DeployStatus } from "./BaseDeploy";
 import BaseDeploy from "./BaseDeploy";
-import IdlActions from "./IdlActions";
+import IdlActions, { useIdlName } from "./IdlActions";
 import { markIfToldByStage } from "./stage-failure";
 
 const log = createLogger("flow:deploy");
@@ -97,7 +104,16 @@ const signInThenDeploy = async () => {
 };
 
 /** The Deploy stage, connected: the flow, the history, the chain, commands */
-const Deploy = () => {
+/**
+ * Switches the connection to the offered network of this cluster, as a pick
+ * in Settings does
+ */
+const showNetwork = (cluster: string) => {
+  const network = NETWORKS.find((n) => n.cluster === cluster);
+  if (network) PgSettings.connection.endpoint = network.value;
+};
+
+const Deploy = ({ onChangeNetwork }: { onChangeNetwork: () => void }) => {
   const [flow, setFlow] = useState<FlowState>(PgFlow.state);
   // Read on mount, not only on change: the stage router remounts this stage
   // on every switch, and no event fires to fill it again.
@@ -106,6 +122,7 @@ const Deploy = () => {
   const stage = useStageDeploy();
   const explorer = useBlockExplorer();
   const programInfo = useProgramInfo();
+  const idlName = useIdlName();
   const run = useDeployRun();
   const wallet = useWallet();
   const balance = useBalance();
@@ -201,7 +218,13 @@ const Deploy = () => {
         onDismissBackup={() => PgStageDeploy.answerBackup(false)}
         onStaleBuildAnswer={(answer) => PgStageDeploy.answerStaleBuild(answer)}
         onInteract={() => PgFlow.setStage("interact")}
-        idlUpload={<IdlActions mode="upload" />}
+        onChangeNetwork={onChangeNetwork}
+        isNetworkOffered={(cluster) =>
+          NETWORKS.some((n) => n.cluster === cluster)
+        }
+        onShowNetwork={showNetwork}
+        idlUpload={<IdlActions mode="upload-button" />}
+        idlName={idlName}
         // Keyed on the project: an open dialog or a note never carries over
         // to another project's keypair
         programKeypair={

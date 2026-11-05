@@ -42,9 +42,17 @@ const BaseCallHistory = ({
         Call history
       </h3>
       {records.length === 0 ? (
-        <p className="m-0 text-xs text-muted-foreground">
-          Calls you send show up here.
-        </p>
+        // Spec 08's EMPTY-05: a quiet note in the list's own frame, so the
+        // column keeps its shape when the first call lands; the title a
+        // step above its line, as the nav's empty project list sets them
+        <div className="flex flex-col gap-1 rounded-xl border border-border bg-surface-panel/60 px-3 py-3">
+          <p className="m-0 text-sm font-medium text-foreground">
+            No calls yet
+          </p>
+          <p className="m-0 text-xs/normal font-read text-muted-foreground">
+            Calls you make here show with their result.
+          </p>
+        </div>
       ) : (
         <ul className="m-0 flex min-h-0 list-none flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border p-0">
           {records.map((r) => (

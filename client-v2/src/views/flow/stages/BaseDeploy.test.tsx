@@ -91,6 +91,10 @@ const props = (state: {
   onDismissBackup: vi.fn(),
   onStaleBuildAnswer: vi.fn(),
   onInteract: vi.fn(),
+  onChangeNetwork: vi.fn(),
+  isNetworkOffered: (cluster) => cluster === "devnet" || cluster === "testnet",
+  onShowNetwork: vi.fn(),
+  idlName: undefined,
   idlUpload: <button>Upload IDL</button>,
   programKeypair: <section aria-label="Program id" />,
   onOpenCliGuide: state.onOpenCliGuide ?? vi.fn(),
@@ -281,13 +285,16 @@ describe("BaseDeploy", () => {
     expect(lastIsActions(container)).toBe("stage-empty-actions");
   });
 
-  it("deploys a built program and names its id", () => {
+  it("deploys a built program, its id the summary's last row", () => {
     const p = props({ built: true, deploy: "idle", history: [] });
     const { container } = render(<BaseDeploy {...p} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }));
     expect(p.onDeploy).toHaveBeenCalled();
-    expect(screen.getByText(PROGRAM_ID)).toBeTruthy();
+    // The keypair's row closes the card the network opens
+    const network = screen.getByLabelText("Network");
+    const row = screen.getByRole("region", { name: "Program id" });
+    expect(network.closest(".rounded-xl")).toBe(row.closest(".rounded-xl"));
     expect(brandButtons(container)).toHaveLength(1);
   });
 
@@ -406,17 +413,23 @@ describe("BaseDeploy", () => {
       />
     );
 
+    // No meta line before a deploy here: the summary's Network row names it
     expect(
-      container.querySelector('[data-slot="stage-empty-meta"]')?.textContent
-    ).toBe("Mainnet");
-    expect(screen.getByText("Nothing deployed yet")).toBeTruthy();
+      container.querySelector('[data-slot="stage-empty-meta"]')
+    ).toBeNull();
+    expect(screen.getByLabelText("Network").textContent).toBe(
+      "NetworkMainnetChange"
+    );
+    expect(
+      screen.getByRole("heading", { name: "Nothing on mainnet" })
+    ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Deploy to mainnet" })
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Redeploy/ })).toBeNull();
     expect(screen.queryByRole("status", { name: "Deploy result" })).toBeNull();
     expect(
-      screen.getByText("Each network keeps its own deployments.")
+      screen.getByText(/This project has deploys on devnet\./)
     ).toBeTruthy();
     // The devnet deployment stays in the history, under its own network
     const history = screen.getByRole("region", { name: "History" });
@@ -700,17 +713,17 @@ describe("BaseDeploy", () => {
     );
 
     expect(screen.queryByRole("region", { name: "History" })).toBeNull();
+    // Only the pill is pinned; the two others stay in the page beside it
     const actions = requireFor("the stage's actions")(
       container.querySelector<HTMLElement>('[data-slot="stage-empty-actions"]')
     );
-    const labels = [...actions.querySelectorAll("button")].map(
-      (b) => b.textContent
-    );
-    expect(labels).toEqual([
-      "Deploy to devnet",
-      "Upload IDL",
-      "Deploy with the CLI",
-    ]);
+    expect(
+      [...actions.querySelectorAll("button")].map((b) => b.textContent)
+    ).toEqual(["Deploy to devnet"]);
+    expect(screen.getByRole("button", { name: "Upload IDL" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Deploy with the CLI" })
+    ).toBeTruthy();
   });
 
   /** After a deploy the stage reports: the history, and Upload IDL beside the pill */
@@ -726,24 +739,18 @@ describe("BaseDeploy", () => {
     );
 
     expect(screen.getByRole("region", { name: "History" })).toBeTruthy();
-    const actions = requireFor("the stage's actions")(
-      container.querySelector<HTMLElement>('[data-slot="stage-empty-actions"]')
-    );
     expect(
-      within(actions).getByRole("button", { name: "Upload IDL" })
+      container.querySelector('[data-slot="stage-empty-actions"]')
     ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Upload IDL" })).toBeTruthy();
   });
 
-  it("writes a dash, not two hyphens", () => {
+  it("asks for a build in Spec 08's words before one passed", () => {
     render(
       <BaseDeploy {...props({ built: false, deploy: "idle", history: [] })} />
     );
 
-    expect(
-      screen.getByText(
-        "Build the program first \u2014 the stepper unlocks Deploy once it compiles cleanly."
-      )
-    ).toBeTruthy();
+    expect(screen.getByText("Build the program first.")).toBeTruthy();
   });
 
   it("says nothing deployed once", () => {
@@ -771,5 +778,62 @@ describe("BaseDeploy", () => {
         .getByRole("button", { name: "Interact" })
         .getAttribute("data-variant")
     ).toBe("outline");
+  });
+});
+
+describe("BaseDeploy before a deploy on this network", () => {
+  it("changes the network from the summary's Network row", () => {
+    const onChangeNetwork = vi.fn();
+    render(
+      <BaseDeploy
+        {...props({ built: true, deploy: "idle", history: [] })}
+        onChangeNetwork={onChangeNetwork}
+      />
+    );
+
+    const chip = screen.getByLabelText("Network");
+    expect(chip.textContent).toBe("NetworkDevnetChange");
+    fireEvent.click(within(chip).getByRole("button", { name: "Change" }));
+    expect(onChangeNetwork).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the network that has the deploys, when Settings offers it", () => {
+    const onShowNetwork = vi.fn();
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          cluster: "testnet",
+          history: [record("a", "5sig")],
+        })}
+        onShowNetwork={onShowNetwork}
+      />
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Nothing on testnet" })
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Show devnet" }));
+    expect(onShowNetwork).toHaveBeenCalledWith("devnet");
+  });
+
+  it("offers no Show for a network Settings does not offer", () => {
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "idle",
+          cluster: "testnet",
+          history: [record("a", "5sig")],
+        })}
+        isNetworkOffered={() => false}
+      />
+    );
+
+    expect(
+      screen.getByText(/This project has deploys on devnet\./)
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Show / })).toBeNull();
   });
 });

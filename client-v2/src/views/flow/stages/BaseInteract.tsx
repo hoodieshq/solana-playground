@@ -285,7 +285,7 @@ const BaseInteract = (p: BaseInteractProps) => (
             disabled={p.deployments.length === 0}
           >
             {p.deployments.length === 0 && (
-              <NativeSelectOption value="">none yet</NativeSelectOption>
+              <NativeSelectOption value="">None yet</NativeSelectOption>
             )}
             {p.deployments.map((d) => (
               <NativeSelectOption key={d.id} value={d.id}>

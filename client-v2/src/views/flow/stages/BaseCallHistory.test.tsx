@@ -21,7 +21,10 @@ describe("BaseCallHistory", () => {
   it("keeps its heading and an empty line when asked to show the empty state", () => {
     render(<BaseCallHistory {...props} showEmpty />);
     const region = screen.getByRole("region", { name: "Call history" });
-    expect(region.textContent).toContain("Calls you send show up here.");
+    expect(region.textContent).toContain("No calls yet");
+    expect(region.textContent).toContain(
+      "Calls you make here show with their result."
+    );
     expect(screen.queryByRole("list")).toBeNull();
   });
 
@@ -50,7 +53,7 @@ describe("BaseCallHistory", () => {
     );
     const region = screen.getByRole("region", { name: "Call history" });
     expect(screen.getByRole("list")).toBeTruthy();
-    expect(region.textContent).not.toContain("Calls you send show up here.");
+    expect(region.textContent).not.toContain("No calls yet");
     expect(region.className).toContain("sticky");
   });
 });
