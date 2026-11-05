@@ -1,7 +1,14 @@
 /* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { Page } from "@playwright/test";
 
-import { expect, json, LONG, streamed, stubSession, test } from "./fixtures";
+import {
+  expect,
+  LONG,
+  streamed,
+  stubAiStatus,
+  stubSession,
+  test,
+} from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
 /** The workspace's head, over the editor in the tutorial frame */
@@ -154,16 +161,16 @@ test.describe("tutorial-workspace", () => {
   }) => {
     const lines = linesOn(page);
     await stubSession(page);
+    // A hosted model, whatever the dev server is configured with
+    await stubAiStatus(page, "test-model");
     await page.route("**/api/agent", (route) =>
-      route.request().method() === "GET"
-        ? json(route, { configured: true, model: "test-model" })
-        : route.fulfill({
-            status: 200,
-            contentType: "text/event-stream",
-            body: streamed(
-              "The [IDL](https://www.anchor-lang.com/docs/basics/idl) lists `hello` and its arguments."
-            ),
-          })
+      route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: streamed(
+          "The [IDL](https://www.anchor-lang.com/docs/basics/idl) lists `hello` and its arguments."
+        ),
+      })
     );
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/tutorials/hello-anchor");

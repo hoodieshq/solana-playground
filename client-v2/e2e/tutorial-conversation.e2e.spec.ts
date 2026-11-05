@@ -2,7 +2,14 @@
 import type { Page } from "@playwright/test";
 
 import { requireFor } from "../src/test-utils/require-for";
-import { expect, json, LONG, streamed, stubSession, test } from "./fixtures";
+import {
+  expect,
+  LONG,
+  streamed,
+  stubAiStatus,
+  stubSession,
+  test,
+} from "./fixtures";
 
 const chat = (page: Page) =>
   page.getByRole("complementary", { name: "Tutorial chat" });
@@ -167,14 +174,14 @@ test("the back pill leaves the feed's last line clear at its end", async ({
     { length: 30 },
     (_, i) => `Paragraph ${i + 1} of a long answer.`
   ).join("\n\n");
+  // A hosted model, whatever the dev server is configured with
+  await stubAiStatus(page, "test-model");
   await page.route("**/api/agent", (route) =>
-    route.request().method() === "GET"
-      ? json(route, { configured: true, model: "test-model" })
-      : route.fulfill({
-          status: 200,
-          contentType: "text/event-stream",
-          body: streamed(answer),
-        })
+    route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: streamed(answer),
+    })
   );
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/tutorials/hello-anchor");
