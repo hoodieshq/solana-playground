@@ -469,7 +469,8 @@ const FlowFrame = () => {
           )}
           stage={({ console }) => (
             <TutorialWorkspace
-              active={inFrame}
+              // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
+              layout={inFrame ? "frame" : null}
               console={console}
               marks={marks}
               keys={{
