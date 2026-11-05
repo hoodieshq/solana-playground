@@ -756,8 +756,9 @@ test("client-v2-layout: The navigation on a narrow window", async ({
   await navigation
     .getByRole("button", { name: "Tutorials", exact: true })
     .click();
+  // A phone folds the field to its glass
   await expect(
-    page.getByRole("searchbox", { name: "Search tutorials" })
+    page.getByRole("button", { name: "Search tutorials" })
   ).toBeVisible();
 });
 

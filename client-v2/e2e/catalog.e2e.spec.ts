@@ -176,8 +176,14 @@ test.describe("on a phone", () => {
       .getByRole("button", { name: "Tutorials" })
       .click();
 
-    await expect(work.getByTestId("phone-bar")).toContainText("Tutorials");
-    await expect(search(page, "tutorials")).toBeInViewport();
+    // The page's own heading names it, so the bar keeps only the menu
+    await expect(
+      work.getByRole("heading", { level: 1, name: "Tutorials" })
+    ).toBeVisible();
+    await expect(work.getByTestId("phone-bar")).not.toContainText("Tutorials");
+    await expect(
+      work.getByRole("button", { name: "Search tutorials" })
+    ).toBeInViewport();
     const cards = work.locator('[data-slot="action-card"]');
     await expect(cards.first()).toBeVisible();
     // Both boxes in one frame: the pager may still be scrolling to the work
@@ -195,5 +201,28 @@ test.describe("on a phone", () => {
     // The tutorial card is one button over the whole card, on a phone too
     await work.getByRole("button", { name: "Open Hello Anchor" }).click();
     await expect(page).toHaveURL(/\/tutorials\/hello-anchor/, LONG);
+  });
+
+  test("client-v2-tutorials: Searching on a phone", async ({ page }) => {
+    await page.goto("/tutorials");
+    const heading = page.getByRole("heading", {
+      level: 1,
+      name: "Tutorials",
+    });
+    await expect(heading).toBeVisible(LONG);
+
+    await page.getByRole("button", { name: "Search tutorials" }).click();
+    await expect(search(page, "tutorials")).toBeFocused();
+    await expect(heading).toBeHidden();
+    await search(page, "tutorials").pressSequentially("lumber");
+    const cards = page.locator('[data-slot="action-card"]');
+    await expect(cards).toHaveCount(1);
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(heading).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Search tutorials" })
+    ).toBeVisible();
+    await expect(cards).toHaveCount(3);
   });
 });

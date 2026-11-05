@@ -1,4 +1,8 @@
 /* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
+import { useState } from "react";
+
+import { cn } from "@/shared/lib/utils";
+
 import type { FrameworkFilter as Filter } from "../lib/levels";
 import { resultsLine, searchHint } from "../lib/levels";
 import type { Banner } from "../model/banner";
@@ -6,7 +10,7 @@ import type { TutorialItem } from "../model/use-tutorial-list";
 import type { CardOpen } from "./BaseCatalogGrid";
 import BaseStartHereBanner from "./BaseStartHereBanner";
 import BaseTutorialLevels from "./BaseTutorialLevels";
-import CatalogSearch from "./CatalogSearch";
+import FoldingSearch from "./FoldingSearch";
 import FrameworkFilter from "./FrameworkFilter";
 
 export interface BaseTutorialsPageProps {
@@ -50,24 +54,35 @@ const BaseTutorialsPage = ({
   busy,
   onOpen,
 }: BaseTutorialsPageProps) => {
+  const [searchPressed, setSearchPressed] = useState(false);
+  // A query always keeps its field in sight, whatever the window's width was
+  const searchOpen = searchPressed || query !== "";
   const searching = query.trim() !== "";
   const browsing = !searching && framework === "all";
   return (
-    <section className="mx-auto flex w-full max-w-[50rem] flex-col gap-4 px-8 pt-8 pb-16 max-md:px-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto font-heading text-[1.75rem] font-normal tracking-[-0.015em] text-foreground">
+    <section className="mx-auto flex w-full max-w-[50rem] flex-col gap-4 px-8 pt-14 pb-16 max-md:px-4 max-md:pt-1">
+      <div className="mb-4 flex items-center gap-2 max-md:mb-1 max-md:min-h-11">
+        <h1
+          className={cn(
+            "mr-auto font-heading text-[1.75rem] font-normal tracking-[-0.015em] text-foreground",
+            searchOpen && "max-md:hidden"
+          )}
+        >
           Tutorials
         </h1>
-        <CatalogSearch
+        <FoldingSearch
           label="tutorials"
           placeholder={searchHint(count, framework)}
           query={query}
           onQuery={onQuery}
-          className="w-80 max-sm:w-full max-sm:max-w-none"
+          open={searchOpen}
+          onOpen={setSearchPressed}
         />
-        {filterable ? (
-          <FrameworkFilter value={framework} onChange={onFramework} />
-        ) : null}
+        {filterable && (
+          <div className={cn("flex", searchOpen && "max-md:hidden")}>
+            <FrameworkFilter value={framework} onChange={onFramework} />
+          </div>
+        )}
       </div>
       {browsing && banner ? (
         <BaseStartHereBanner
