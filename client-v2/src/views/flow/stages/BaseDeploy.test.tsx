@@ -14,12 +14,10 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import { requireFor } from "@/test-utils/require-for";
 
 import type { DeployRecord } from "../state/deploy-history";
-import type {
-  BaseDeployProps,
-  DeployDetails,
-  DeployStatus,
-} from "./BaseDeploy";
+import type { BaseDeployProps, DeployDetails } from "./BaseDeploy";
 import BaseDeploy from "./BaseDeploy";
+import type { DeployView } from "./deploy-view";
+import { IDLE_VIEW } from "./deploy-view";
 
 const PROGRAM_ID = "6PNd3SLJU8V6mqVmDNaV6x2UR6A8ZedA3p5FPrBjAVkj";
 
@@ -49,6 +47,9 @@ const IDLE_RUN: DeployRunState = {
   upgrade: false,
 };
 
+const RUNNING: DeployView = { kind: "running", askingStaleBuild: false };
+const FAILED: DeployView = { kind: "failed" };
+
 const NO_DETAILS: DeployDetails = {
   upgradable: undefined,
   authority: undefined,
@@ -58,20 +59,19 @@ const NO_DETAILS: DeployDetails = {
 /** Every prop, named; each test passes what it is about */
 const props = (state: {
   built: boolean;
-  deploy: DeployStatus;
+  /** Idle, with no backup line, unless the test is about the stage's state */
+  view?: DeployView;
   history: DeployRecord[];
   details?: DeployDetails;
   /** devnet unless the test is about the cluster */
   cluster?: string | null;
   onOpenCliGuide?: BaseDeployProps["onOpenCliGuide"];
   run?: DeployRunState;
-  funding?: BaseDeployProps["funding"];
-  backup?: boolean;
   payer?: BaseDeployProps["payer"];
 }): BaseDeployProps => ({
   cluster: state.cluster === undefined ? "devnet" : state.cluster,
   built: state.built,
-  deploy: state.deploy,
+  view: state.view ?? IDLE_VIEW,
   details: state.details ?? NO_DETAILS,
   history: state.history,
   payer:
@@ -79,9 +79,6 @@ const props = (state: {
       ? state.payer
       : { address: WALLET, balance: 4.2, playground: true },
   run: state.run ?? IDLE_RUN,
-  funding: state.funding,
-  backup: state.backup ?? false,
-  staleBuild: false,
   addressUrl: (id, cluster) => `https://explorer.test/${cluster}/address/${id}`,
   txUrl: (sig, cluster) => `https://explorer.test/${cluster}/tx/${sig}`,
   onDeploy: vi.fn(),
@@ -116,19 +113,30 @@ const render = (ui: ReactElement) => {
 const brandButtons = (container: HTMLElement) =>
   container.querySelectorAll('[data-slot="brand-button"]');
 
+/**
+ * The pill's row follows the stage's content; only the outline buttons come
+ * after it, so focus reaches the pill first
+ */
 const lastIsActions = (container: HTMLElement) =>
-  container
-    .querySelector('[data-slot="stage-empty"]')
-    ?.lastElementChild?.getAttribute("data-slot");
+  [...(container.querySelector('[data-slot="stage-empty"]')?.children ?? [])]
+    .slice(-2)
+    .map((el) => el.getAttribute("data-slot"))
+    .join(" then ")
+    .replace(
+      /^stage-empty-actions then deploy-outlines$/,
+      "stage-empty-actions"
+    );
+
+/** The stage's buttons in focus (document) order */
+const focusOrder = () =>
+  screen.getAllByRole("button").map((b) => b.textContent);
 
 const mainnetWarning = () =>
   screen.queryByRole("alert", { name: "Mainnet deploy warning" });
 
 describe("BaseDeploy", () => {
   it("places the Program id block under the payer line before a deploy", () => {
-    render(
-      <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
-    );
+    render(<BaseDeploy {...props({ built: true, history: [] })} />);
 
     const payer = screen.getByLabelText("Who pays");
     const block = screen.getByRole("region", { name: "Program id" });
@@ -142,7 +150,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [record("r1", "sig1")],
         })}
       />
@@ -161,7 +168,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [],
           cluster: "mainnet-beta",
         })}
@@ -185,7 +191,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [],
           cluster: "mainnet-beta",
           onOpenCliGuide,
@@ -215,7 +220,6 @@ describe("BaseDeploy", () => {
         <BaseDeploy
           {...props({
             built: false,
-            deploy: "idle",
             history: [],
             cluster,
             onOpenCliGuide,
@@ -235,7 +239,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: false,
-          deploy: "idle",
           history: [],
           cluster: "mainnet-beta",
         })}
@@ -250,7 +253,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "failed",
+          view: FAILED,
           history: [record("a", NONE)],
           cluster: "mainnet-beta",
         })}
@@ -263,18 +266,14 @@ describe("BaseDeploy", () => {
 
   // eslint-disable-next-line unicorn/no-null -- `BaseDeployProps.cluster` is `null` until the endpoint has been read
   it.each(["devnet", null])("does not warn on %s", (cluster) => {
-    render(
-      <BaseDeploy
-        {...props({ built: true, deploy: "idle", history: [], cluster })}
-      />
-    );
+    render(<BaseDeploy {...props({ built: true, history: [], cluster })} />);
 
     expect(mainnetWarning()).toBeNull();
   });
 
   it("offers no Deploy until a build succeeded", () => {
     const { container } = render(
-      <BaseDeploy {...props({ built: false, deploy: "idle", history: [] })} />
+      <BaseDeploy {...props({ built: false, history: [] })} />
     );
 
     expect(
@@ -287,7 +286,7 @@ describe("BaseDeploy", () => {
   });
 
   it("offers Go to Build, with Upload IDL, while nothing is built (Spec 03 DEP-07)", () => {
-    const p = props({ built: false, deploy: "idle", history: [] });
+    const p = props({ built: false, history: [] });
     const { container } = render(<BaseDeploy {...p} />);
 
     expect(screen.getByText("Build the program first.")).toBeTruthy();
@@ -302,15 +301,13 @@ describe("BaseDeploy", () => {
   });
 
   it("offers no Go to Build once the program is built", () => {
-    render(
-      <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
-    );
+    render(<BaseDeploy {...props({ built: true, history: [] })} />);
 
     expect(screen.queryByRole("button", { name: "Go to Build" })).toBeNull();
   });
 
   it("deploys a built program, its id the summary's last row", () => {
-    const p = props({ built: true, deploy: "idle", history: [] });
+    const p = props({ built: true, history: [] });
     const { container } = render(<BaseDeploy {...p} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Deploy to devnet" }));
@@ -324,7 +321,7 @@ describe("BaseDeploy", () => {
 
   it("holds the button while a first deploy runs", () => {
     render(
-      <BaseDeploy {...props({ built: true, deploy: "running", history: [] })} />
+      <BaseDeploy {...props({ built: true, view: RUNNING, history: [] })} />
     );
 
     const busy = screen.getByRole("button", { name: "Deploying..." });
@@ -337,7 +334,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "running",
+          view: RUNNING,
           history: [record("a", NONE)],
         })}
       />
@@ -348,7 +345,7 @@ describe("BaseDeploy", () => {
 
   it("says a failed deploy failed", () => {
     render(
-      <BaseDeploy {...props({ built: true, deploy: "failed", history: [] })} />
+      <BaseDeploy {...props({ built: true, view: FAILED, history: [] })} />
     );
 
     expect(screen.getByRole("alert").textContent).toContain(
@@ -359,7 +356,7 @@ describe("BaseDeploy", () => {
   it("offers Try again and Show full log after a failed deploy (Spec 08 ANY-00)", () => {
     const p = props({
       built: true,
-      deploy: "failed",
+      view: FAILED,
       history: [record("a", null)],
     });
     const { container } = render(<BaseDeploy {...p} />);
@@ -378,9 +375,7 @@ describe("BaseDeploy", () => {
   });
 
   it("offers no Show full log while no deploy failed", () => {
-    render(
-      <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
-    );
+    render(<BaseDeploy {...props({ built: true, history: [] })} />);
 
     expect(screen.queryByRole("button", { name: "Show full log" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
@@ -389,7 +384,6 @@ describe("BaseDeploy", () => {
   it("shows the latest deployment's program id to copy", () => {
     const p = props({
       built: true,
-      deploy: "idle",
       history: [record("a", "5sig")],
     });
     const { container } = render(<BaseDeploy {...p} />);
@@ -428,7 +422,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [record("a", NONE)],
         })}
       />
@@ -440,7 +433,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [record("a", NONE)],
           details: {
             upgradable: true,
@@ -460,7 +452,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           cluster: "mainnet-beta",
           history: [record("a", "5sig")],
         })}
@@ -495,7 +486,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           cluster: "testnet",
           history: [
             recordFor("devnet")("d", "devsig"),
@@ -530,7 +520,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "running",
+          view: RUNNING,
           cluster: "testnet",
           history: [record("a", NONE)],
         })}
@@ -546,7 +536,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           // eslint-disable-next-line unicorn/no-null -- the cluster is `null` until the endpoint is read
           cluster: null,
           history: [record("a", NONE)],
@@ -565,7 +554,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [record("a", NONE), record("b", NONE)],
         })}
       />
@@ -584,7 +572,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           cluster: "testnet",
           history: [
             recordFor("testnet")("a", NONE),
@@ -608,7 +595,6 @@ describe("BaseDeploy", () => {
   it("leaves out an Explorer link the explorer cannot open", () => {
     const p = props({
       built: true,
-      deploy: "idle",
       history: [recordFor("playnet")("a", "5sig")],
     });
     p.addressUrl = () => undefined;
@@ -629,11 +615,7 @@ describe("BaseDeploy", () => {
       cost: 1_420_000_000,
       upgraded: true,
     };
-    render(
-      <BaseDeploy
-        {...props({ built: true, deploy: "idle", history: [upgraded] })}
-      />
-    );
+    render(<BaseDeploy {...props({ built: true, history: [upgraded] })} />);
 
     const result = screen.getByRole("status", { name: "Deploy result" });
     expect(result.textContent).toContain(
@@ -644,7 +626,7 @@ describe("BaseDeploy", () => {
 
   it("names the wallet that pays, or the Playground wallet before the first deploy", () => {
     const { rerender } = render(
-      <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
+      <BaseDeploy {...props({ built: true, history: [] })} />
     );
     expect(screen.getByLabelText("Who pays").textContent).toBe(
       "From your Playground wallet · 7xKX…gAsU · 4.20 SOL"
@@ -657,7 +639,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [],
           payer: { address: WALLET, balance: 4.2, playground: false },
         })}
@@ -671,7 +652,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [],
           payer: undefined,
         })}
@@ -693,7 +673,6 @@ describe("BaseDeploy", () => {
         <BaseDeploy
           {...props({
             built: true,
-            deploy: "idle",
             history: [],
             payer: undefined,
             cluster,
@@ -711,7 +690,7 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "running",
+          view: RUNNING,
           history: [],
           run: { step: "write", percent: 40, funds: true, upgrade: false },
         })}
@@ -727,15 +706,17 @@ describe("BaseDeploy", () => {
   it("shows why the wallet could not be funded, not a console failure", () => {
     const p = props({
       built: true,
-      deploy: "failed",
-      history: [],
-      funding: {
-        reason: "airdrop_failed",
-        balance: 0,
-        needed: 1_000_000_000,
-        address: WALLET,
-        cause: "429",
+      view: {
+        kind: "funding",
+        stop: {
+          reason: "airdrop_failed",
+          balance: 0,
+          needed: 1_000_000_000,
+          address: WALLET,
+          cause: "429",
+        },
       },
+      history: [],
     });
     render(<BaseDeploy {...p} />);
 
@@ -749,9 +730,8 @@ describe("BaseDeploy", () => {
   it("offers the keypair backup under the result when asked to", () => {
     const p = props({
       built: true,
-      deploy: "idle",
+      view: { kind: "idle", backup: true },
       history: [record("a", NONE)],
-      backup: true,
     });
     render(<BaseDeploy {...p} />);
 
@@ -763,7 +743,7 @@ describe("BaseDeploy", () => {
   /** The prototype's first deploy: the pill, Upload IDL and the CLI guide under it */
   it("before the first deploy it has no history, only Upload IDL and the CLI guide", () => {
     const { container } = render(
-      <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
+      <BaseDeploy {...props({ built: true, history: [] })} />
     );
 
     expect(screen.queryByRole("region", { name: "History" })).toBeNull();
@@ -786,7 +766,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [record("a", NONE)],
         })}
       />
@@ -799,13 +778,35 @@ describe("BaseDeploy", () => {
     expect(screen.getByRole("button", { name: "Upload IDL" })).toBeTruthy();
   });
 
+  it.each([
+    ["before the first deploy", []],
+    ["after a deploy", [record("a", NONE)]],
+  ])("reaches the pill before the outlines %s", (_, history) => {
+    render(
+      <BaseDeploy
+        {...props({ built: true, view: FAILED, history })}
+        idlName={history.length > 0 ? "counter.json" : undefined}
+      />
+    );
+
+    const order = focusOrder();
+    const pill = order.indexOf("Try again");
+    expect(pill).toBeGreaterThanOrEqual(0);
+    for (const outline of [
+      "Show full log",
+      "Upload IDL",
+      "Deploy with the CLI",
+    ]) {
+      expect(order.indexOf(outline)).toBeGreaterThan(pill);
+    }
+  });
+
   /** Replacing an IDL after a deploy must not hide which one is loaded */
   it("names the loaded IDL after a deploy too", () => {
     render(
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [record("a", NONE)],
         })}
         idlName="counter.json"
@@ -816,17 +817,13 @@ describe("BaseDeploy", () => {
   });
 
   it("asks for a build in Spec 08's words before one passed", () => {
-    render(
-      <BaseDeploy {...props({ built: false, deploy: "idle", history: [] })} />
-    );
+    render(<BaseDeploy {...props({ built: false, history: [] })} />);
 
     expect(screen.getByText("Build the program first.")).toBeTruthy();
   });
 
   it("says nothing deployed once", () => {
-    render(
-      <BaseDeploy {...props({ built: true, deploy: "idle", history: [] })} />
-    );
+    render(<BaseDeploy {...props({ built: true, history: [] })} />);
 
     expect(screen.getAllByText(/Nothing deployed yet/)).toHaveLength(1);
   });
@@ -837,7 +834,6 @@ describe("BaseDeploy", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           history: [record("a", NONE)],
         })}
       />
@@ -852,7 +848,7 @@ describe("BaseDeploy", () => {
 
   it("offers Go to Build, not Try again, when a failed deploy's build is gone", () => {
     render(
-      <BaseDeploy {...props({ built: false, deploy: "failed", history: [] })} />
+      <BaseDeploy {...props({ built: false, view: FAILED, history: [] })} />
     );
 
     expect(screen.getByRole("button", { name: "Go to Build" })).toBeTruthy();
@@ -868,7 +864,7 @@ describe("BaseDeploy before a deploy on this network", () => {
     const onChangeNetwork = vi.fn();
     render(
       <BaseDeploy
-        {...props({ built: true, deploy: "idle", history: [] })}
+        {...props({ built: true, history: [] })}
         onChangeNetwork={onChangeNetwork}
       />
     );
@@ -885,7 +881,6 @@ describe("BaseDeploy before a deploy on this network", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           cluster: "testnet",
           history: [record("a", "5sig")],
         })}
@@ -906,7 +901,7 @@ describe("BaseDeploy before a deploy on this network", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "running",
+          view: RUNNING,
           cluster: "testnet",
           history: [record("a", "5sig")],
         })}
@@ -927,7 +922,6 @@ describe("BaseDeploy before a deploy on this network", () => {
       <BaseDeploy
         {...props({
           built: true,
-          deploy: "idle",
           cluster: "testnet",
           history: [record("a", "5sig")],
         })}
