@@ -10,7 +10,7 @@ const log = createLogger("custom-rpc:health");
 export type RpcHealth = "answered" | "no_answer" | "offline";
 
 /** How long a typed RPC URL has to answer before it is saved (Spec 07) */
-export const RPC_CHECK_TIMEOUT_MS = 5000;
+const RPC_CHECK_TIMEOUT_MS = 5000;
 
 /** JSON-RPC `getHealth`: every Solana RPC serves it, and it costs nothing */
 const GET_HEALTH = JSON.stringify({
@@ -21,11 +21,12 @@ const GET_HEALTH = JSON.stringify({
 
 /**
  * Send one `getHealth` to `url` and wait at most `timeoutMs`. Any HTTP
- * answer counts, whatever its status: a provider's 401 or an unhealthy node
- * is still an RPC that answered. A request that fails (DNS, TLS, CORS) or
- * runs out of time is no answer; the browser does not say which.
+ * answer the browser lets through counts, whatever its status: a provider's
+ * 401 or an unhealthy node is still an RPC that answered. A request that
+ * fails (DNS, TLS, CORS) or runs out of time is no answer; the browser does
+ * not say which.
  */
-export const fetchRpcHealthWithin =
+const fetchRpcHealthWithin =
   (timeoutMs: number) =>
   async (url: string): Promise<RpcHealth> => {
     if (!navigator.onLine) return "offline";

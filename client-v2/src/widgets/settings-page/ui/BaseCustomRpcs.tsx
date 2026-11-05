@@ -186,6 +186,9 @@ const RpcForm = ({
     }
     onCheckingChange(false);
     setState(answer);
+    // Save, disabled during the check, may have held the focus: the keyboard
+    // comes back to the field the line is about, and a reader hears the line
+    document.getElementById(`${id}-url`)?.focus();
   };
 
   /** A save that throws unlocks the form with a line, never a spinner for good */

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -69,6 +69,24 @@ describe("NetworkSection", () => {
     expect(connection.endpoint).toBe(DEVNET);
     await userEvent.click(screen.getByRole("button", { name: "Use anyway" }));
     expect(connection.endpoint).toBe("https://dead.test/");
+  });
+
+  it("leaves the connection alone when an RPC not in use is edited", async () => {
+    localStorage.setItem(
+      "customRpcs",
+      JSON.stringify([{ name: "Other", url: "https://other.test/" }])
+    );
+    stubRpcAnswering();
+    render(<NetworkSection />);
+    await userEvent.click(screen.getByRole("button", { name: "Edit Other" }));
+    await userEvent.clear(screen.getByLabelText("RPC URL"));
+    await userEvent.type(
+      screen.getByLabelText("RPC URL"),
+      "https://other2.test{Enter}"
+    );
+    await screen.findByRole("radio", { name: "Other" });
+    await waitFor(() => expect(screen.queryByLabelText("RPC URL")).toBeNull());
+    expect(connection.endpoint).toBe(DEVNET);
   });
 
   it("moves the connection with an edit of the RPC in use, through Use anyway", async () => {

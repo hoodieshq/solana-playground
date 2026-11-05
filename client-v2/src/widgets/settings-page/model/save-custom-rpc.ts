@@ -70,7 +70,7 @@ export const saveCheckedWith =
   };
 
 /** The line under the URL field for a refused save (Spec 07's copy) */
-const refusal = (result: Refused): string => {
+const refusalLine = (result: Refused): string => {
   switch (result.reason) {
     case "format":
       return "Enter a URL that starts with https://, or http:// for a local validator.";
@@ -94,7 +94,7 @@ const refuse = (result: Refused): SettledAnswer => {
   settingsTelemetry.track("settings_custom_rpc_refused", {
     reason: result.reason,
   });
-  return { kind: "refused", error: refusal(result) };
+  return { kind: "refused", error: refusalLine(result) };
 };
 
 /** Track a save, run `onSaved`, and answer it */
@@ -238,6 +238,35 @@ if (import.meta.vitest) {
         });
       });
 
+      describe("when the browser refuses the write", () => {
+        beforeEach(() => {
+          vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+            throw new DOMException("full", "QuotaExceededError");
+          });
+        });
+        afterEach(() => {
+          vi.restoreAllMocks();
+        });
+
+        it("refuses a URL that answered", async () => {
+          expect(
+            await saveCheckedWith(healthOf("answered"))(TRITON, undefined)
+          ).toEqual({
+            kind: "refused",
+            refusal: { ok: false, reason: "storage" },
+          });
+        });
+
+        it("refuses through Use anyway", async () => {
+          const checked = await saveCheckedWith(healthOf("no_answer"))(
+            TRITON,
+            undefined
+          );
+          if (checked.kind !== "unreachable") throw new Error(checked.kind);
+          expect(checked.useAnyway()).toEqual({ ok: false, reason: "storage" });
+        });
+      });
+
       it("refuses Use anyway for a URL another tab saved meanwhile", async () => {
         const checked = await saveCheckedWith(healthOf("no_answer"))(
           TRITON,
@@ -309,6 +338,17 @@ if (import.meta.vitest) {
           ]);
         }
       );
+
+      it("tracks an edit that kept its URL with check none", () => {
+        answerFor(vi.fn())("edit")({
+          kind: "saved",
+          rpc: SAVED_TRITON,
+          check: "none",
+        });
+        expect(tracked()).toEqual([
+          ["settings_custom_rpc_saved", { mode: "edit", check: "none" }],
+        ]);
+      });
 
       it("answers and tracks a Use anyway the list refuses", () => {
         const onSaved = vi.fn();

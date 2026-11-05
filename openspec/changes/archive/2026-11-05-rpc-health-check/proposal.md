@@ -28,5 +28,5 @@ None.
 
 - `client-v2/src/entities/custom-rpc`: a pre-save check that answers format and duplicate refusals without writing, and the health request.
 - `client-v2/src/widgets/settings-page`: the form's checking and no-answer states, `NetworkSection`'s save path, the page's settings list without `connection.endpoint`, the two telemetry parameters.
-- One extra request to a URL the person typed, only on save. A user's RPC with a key in its path receives the same request it would get on the first real call.
+- One extra request to a URL the person typed, only on save. A user's RPC with a key in its path receives a `getHealth` POST at the same URL and key.
 - Out of scope: the "{Network} is not responding" state for a network already picked, the Deploys line, Surfpool as a chip, and the OpenAI key check, all elsewhere in Spec 07. The terminal's `solana config set --url` is untouched.

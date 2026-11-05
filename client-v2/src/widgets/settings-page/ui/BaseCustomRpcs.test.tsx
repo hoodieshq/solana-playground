@@ -269,6 +269,17 @@ describe("BaseCustomRpcs", () => {
     expect(useAnyway).not.toHaveBeenCalled();
   });
 
+  it("moves focus to the URL when an answer leaves the form open", async () => {
+    const { onSave, settle } = pendingSave();
+    renderList({ rpcs: [], onAdd: onSave });
+    await openAddForm("https://t.test");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await act(async () =>
+      settle({ kind: "refused", error: "Already saved as Helius." })
+    );
+    expect(document.activeElement).toBe(screen.getByLabelText("RPC URL"));
+  });
+
   it("keeps a refusal when only the name changes", async () => {
     const onAdd = vi.fn(
       async (): Promise<CustomRpcSaveAnswer> => ({
