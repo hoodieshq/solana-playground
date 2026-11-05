@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { Page } from "@playwright/test";
 
-import { expect, json, LONG, stubSession, test } from "./fixtures";
+import { expect, json, LONG, streamed, stubSession, test } from "./fixtures";
 import { lineOf, linesOn } from "./telemetry";
 
 /** The workspace's head, over the editor in the tutorial frame */
@@ -37,15 +37,6 @@ const startHelloAnchor = async (page: Page) => {
     .click(LONG);
   await expect(head(page)).toBeVisible(LONG);
 };
-
-/** The chat-completions stream `/api/agent` answers with: `text`, then stop */
-const streamed = (text: string) =>
-  [
-    { choices: [{ index: 0, delta: { role: "assistant", content: text } }] },
-    { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
-  ]
-    .map((c) => `data: ${JSON.stringify(c)}\n\n`)
-    .join("") + "data: [DONE]\n\n";
 
 /**
  * Hello Anchor's tree holds a Docs folder: its own pages, or, should it list
@@ -198,6 +189,9 @@ test.describe("tutorial-workspace", () => {
     // The page never opens by itself; the link opens it, beside lib.rs
     await expect(link).toBeVisible(LONG);
     await expect(head(page).getByRole("tab", { name: "IDL" })).toHaveCount(0);
+    // One underline on hover: the link's own border, which runs under its icon
+    await link.hover();
+    await expect(link).toHaveCSS("text-decoration-line", "none");
     await link.click();
     const tab = head(page).getByRole("tab", { name: "IDL" });
     await expect(tab).toHaveAttribute("aria-selected", "true");

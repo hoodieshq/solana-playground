@@ -385,10 +385,6 @@ const StyledMarkdown = styled(ReactMarkdown)<MarkdownProps>`
       font: inherit;
     }
 
-    a:hover {
-      text-decoration: underline;
-    }
-
     hr::before {
       display: table;
       content: "";
