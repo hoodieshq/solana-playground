@@ -38,7 +38,12 @@ const isChunkLoadFailure = (error: unknown) =>
 type Retry = "user" | "network" | "reopen";
 
 /** The load in progress or last finished, and why it was started */
-type Attempt = { why: Retry | "first"; failed?: "offline" | "online" };
+type Attempt = {
+  why: Retry | "first";
+  failed?: "offline" | "online";
+  /** The failure reached the screen, so opening the stage again is a new try */
+  isFailureShown?: boolean;
+};
 
 type BaseStageLoadFailedProps = {
   stage: LazyStageName;
@@ -137,6 +142,8 @@ type BoundaryProps = {
   hasFailedOffline: () => boolean;
   /** Makes the next render of a failed stage load it again */
   reset: (why: Retry) => void;
+  onOpen: () => void;
+  onFailureShown: () => void;
   children: ReactNode;
 };
 
@@ -150,12 +157,21 @@ class StageLoadBoundary extends Component<BoundaryProps, { error?: Error }> {
   static getDerivedStateFromError = (error: Error) => ({ error });
 
   /**
-   * Leaving a failed stage: opening it again tries again. `Suspense` calls this
-   * too when it hides the boundary during a retry, so `reset` keeps an attempt
-   * that has not failed.
+   * A boundary is new only when the stage is opened: `StrictMode` replays a mount
+   * and `Suspense` hides and shows the same instance, both through the unmount
+   * and mount methods, which therefore say nothing about leaving.
    */
-  componentWillUnmount() {
-    if (this.state.error instanceof StageLoadError) this.props.reset("reopen");
+  constructor(props: BoundaryProps) {
+    super(props);
+    props.onOpen();
+  }
+
+  componentDidUpdate() {
+    if (this.state.error instanceof StageLoadError) this.props.onFailureShown();
+  }
+
+  componentDidMount() {
+    this.componentDidUpdate();
   }
 
   handleRetry = (why: Retry) => {
@@ -183,12 +199,11 @@ class StageLoadBoundary extends Component<BoundaryProps, { error?: Error }> {
  * down the app. `lazy` remembers a rejection forever, so a retry needs a new one.
  * That happens only once the failure has been committed: replacing it where the
  * import fails would hand React's synchronous re-render of the error a fresh
- * `lazy`, and so a new import, without end. An attempt that has not failed is kept,
- * as `Suspense` unmounts the boundary while it hides it during a retry.
+ * `lazy`, and so a new import, without end.
  *
  * With a network, a chunk that does not arrive is ours to know about, once per
- * stage per page load. The retry a returning network starts often fails too, before the
- * route is up, and says nothing about the release.
+ * stage per page load. The retry a returning network starts often fails too,
+ * before the route is up, and says nothing about the release.
  *
  * @param load the stage's dynamic import
  * @param stage the stage, which names it in the failed state
@@ -220,15 +235,23 @@ export const lazyStage = (
   let Panel = attemptLoad();
   const Current = () => <Panel />;
 
+  const reset = (why: Retry) => {
+    if (!current.failed) return;
+    current = { why };
+    Panel = attemptLoad();
+  };
+
   const LazyStage: FC = () => (
     <StageLoadBoundary
       stage={stage}
       hasRetried={() => current.why === "user"}
       hasFailedOffline={() => current.failed === "offline"}
-      reset={(why) => {
-        if (!current.failed) return;
-        current = { why };
-        Panel = attemptLoad();
+      reset={reset}
+      onOpen={() => {
+        if (current.isFailureShown) reset("reopen");
+      }}
+      onFailureShown={() => {
+        current = { ...current, isFailureShown: true };
       }}
     >
       <Current />

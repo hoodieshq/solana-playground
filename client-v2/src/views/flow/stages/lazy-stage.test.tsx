@@ -2,7 +2,7 @@
 // stage says so in its own panel and the rest of the app stays up.
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentType, ReactNode } from "react";
-import { Component, Suspense } from "react";
+import { Component, StrictMode, Suspense } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { initLogger, resetLogger } from "@/shared/lib/logger";
@@ -39,11 +39,14 @@ class AppBoundary extends Component<
 
 const show = async (Stage: ComponentType) => {
   const view = render(
-    <AppBoundary>
-      <Suspense fallback={<p>loading</p>}>
-        <Stage />
-      </Suspense>
-    </AppBoundary>
+    // As the app mounts: it replays every mount, which is no one leaving a stage
+    <StrictMode>
+      <AppBoundary>
+        <Suspense fallback={<p>loading</p>}>
+          <Stage />
+        </Suspense>
+      </AppBoundary>
+    </StrictMode>
   );
   await act(async () => {
     await Promise.resolve();
@@ -233,6 +236,22 @@ describe("lazyStage", () => {
 
     await show(Stage);
     expect(await screen.findByText(/Check your connection/)).toBeTruthy();
+  });
+
+  it("points to a reload when a retry takes time to fail", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+    const load = vi.fn<() => Promise<Module>>(failed);
+    await show(lazyStage(load, "deploy"));
+    await screen.findByText(/Check your connection/);
+    load.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(chunkError()), 30);
+        })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText(/Reload the page/)).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the first words after a returning network's retry fails", async () => {
