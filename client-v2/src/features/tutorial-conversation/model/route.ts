@@ -1,3 +1,4 @@
+/* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { Act, ActBeat } from "@/entities/tutorial";
 
 import type { WordAction } from "./reducer";

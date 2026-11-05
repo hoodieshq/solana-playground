@@ -1,3 +1,4 @@
+/* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import { Check, ChevronDown } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useRef } from "react";

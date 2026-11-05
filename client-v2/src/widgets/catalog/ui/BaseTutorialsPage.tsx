@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { FrameworkFilter as Filter } from "../lib/levels";
 import { resultsLine, searchHint } from "../lib/levels";
 import type { Banner } from "../model/banner";

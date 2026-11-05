@@ -1295,6 +1295,7 @@ describe("with a page", () => {
 
 describe("in a tutorial", () => {
   const tutorialNav = (
+    // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
     fold: NonNullable<BaseLayoutShellProps["tutorial"]>["nav"]["fold"] = "rail"
   ): NonNullable<BaseLayoutShellProps["tutorial"]>["nav"] => ({
     fold,
@@ -1303,8 +1304,11 @@ describe("in a tutorial", () => {
   });
   const inTutorial = (
     viewport: BaseLayoutShellProps["viewport"],
+    // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
     nav = tutorialNav(),
+    // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
     choice: PropsChoice = {}
+    // eslint-disable-next-line max-params -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   ): BaseLayoutShellProps => {
     const base = props(viewport, choice);
     return {
@@ -1379,6 +1383,7 @@ describe("in a tutorial", () => {
   });
 
   it("keeps today's layout below a wide window, which no source draws", () => {
+    // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
     const nav = vi.fn(() => null);
     render(
       <BaseLayoutShell
@@ -1413,6 +1418,7 @@ describe("in a tutorial", () => {
   });
 
   it("takes the navigation's open state from the frame, not the saved layout", () => {
+    // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
     const nav = vi.fn(() => null);
     const shell = inTutorial("wide", tutorialNav("rail"), {
       navOpen: true,
@@ -1428,6 +1434,7 @@ describe("in a tutorial", () => {
     let toggle: (() => void) | undefined;
     const nav = vi.fn((stock: { toggle: () => void }) => {
       toggle = stock.toggle;
+      // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
       return null;
     });
     const frameNav = tutorialNav("rail");
@@ -1587,6 +1594,7 @@ describe("in a tutorial", () => {
   });
 
   it("follows the saved layout under a page, where the frame does not show", () => {
+    // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
     const nav = vi.fn(() => null);
     render(
       <BaseLayoutShell

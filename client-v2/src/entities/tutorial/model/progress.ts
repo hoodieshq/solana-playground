@@ -57,11 +57,13 @@ export const conversationProgressOf = (
   saved: unknown,
   stepIds: readonly string[]
 ): TutorialProgress | null => {
+  // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   if (typeof saved !== "object" || saved === null) return null;
   const { version, passed, finishedAt, startedAt } = saved as Record<
     string,
     unknown
   >;
+  // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   if (version !== 1 || !Array.isArray(passed)) return null;
   if (typeof finishedAt === "number") return { state: "completed" };
   if (typeof startedAt !== "number") return { state: "new" };
@@ -108,8 +110,11 @@ if (import.meta.vitest) {
       const STEPS = ["program", "deploy", "client", "name"];
       const saved = (
         passed: unknown,
+        // eslint-disable-next-line layers/curry-order, unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
         finishedAt: unknown = null,
+        // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
         startedAt: unknown = 1000
+        // eslint-disable-next-line max-params -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
       ) => ({
         version: 1,
         passed,
@@ -136,6 +141,7 @@ if (import.meta.vitest) {
       });
 
       it("is new until Start is pressed, and again after Start over", () => {
+        // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
         expect(conversationProgressOf(saved([], null, null), STEPS)).toEqual({
           state: "new",
         });

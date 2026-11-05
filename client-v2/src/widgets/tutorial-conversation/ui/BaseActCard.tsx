@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { LucideIcon } from "lucide-react";
 import { Check, Hammer, Play, Rocket, Send } from "lucide-react";
 import type { FormEvent } from "react";

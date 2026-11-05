@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order, max-params -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import { airdropTopUp } from "../../../../commands/deploy/airdrop-top-up";
 
 const LAMPORTS_PER_SOL = 1_000_000_000;

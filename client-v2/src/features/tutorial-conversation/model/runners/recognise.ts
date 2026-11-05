@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { RunResult } from "../progress";
 
 /** One signature that touched the program, newest first, as the RPC lists it */

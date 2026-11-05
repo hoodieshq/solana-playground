@@ -45,6 +45,7 @@ const tutorial = (
   level: string,
   framework: string,
   description: string
+  // eslint-disable-next-line max-params -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
 ) => ({
   name,
   description,

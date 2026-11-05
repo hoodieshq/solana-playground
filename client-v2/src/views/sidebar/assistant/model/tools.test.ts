@@ -239,8 +239,8 @@ describe("a mode", () => {
   const names = (tools: { name: string }[]) => tools.map((t) => t.name);
 
   it("leaves the tools as they are without one", () => {
+    // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
     expect(names(createTools(bridge("old"), null))).toEqual([
-      "list_files",
       "read_file",
       "get_build_error",
       "write_file",
@@ -313,6 +313,7 @@ describe("READING_TOOLS", () => {
       typeof import("./skill-tools")
     >("./skill-tools");
     const real = new Set(
+      // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
       createTools(bridge(null), null)
         .concat(createSkillTools())
         .map((tool) => tool.name)

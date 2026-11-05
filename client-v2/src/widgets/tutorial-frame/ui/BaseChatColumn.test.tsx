@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";

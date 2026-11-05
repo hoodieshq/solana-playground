@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { RunResult } from "@/features/tutorial-conversation";
 
 /** The log the prompt carries at most, from its end: the error sits there */

@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { Turn } from "@/features/tutorial-conversation";
 
 import type { FeedEntry } from "./merge";

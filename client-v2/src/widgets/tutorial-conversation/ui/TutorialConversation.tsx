@@ -1,3 +1,4 @@
+/* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
 import type { StepJumpVia } from "@/entities/tutorial";

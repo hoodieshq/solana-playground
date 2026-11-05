@@ -1,3 +1,4 @@
+/* eslint-disable max-params -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { RefObject } from "react";
 import { useEffect } from "react";
 

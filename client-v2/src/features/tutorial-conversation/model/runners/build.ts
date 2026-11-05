@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { Act } from "@/entities/tutorial";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommand, PgExplorer, PgProgramInfo } from "@/utils";

@@ -1,3 +1,4 @@
+/* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import { applyFile } from "../../../utils/explorer/apply-file";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import type { Workspace } from "./ports";

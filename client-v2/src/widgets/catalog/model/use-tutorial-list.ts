@@ -42,6 +42,7 @@ const plain = (text: string | { text: string }) =>
 export const useTutorialList = (
   query: string,
   cardOpen: CardOpenOf,
+  // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   pool: readonly TutorialData[] = PgTutorial.all
 ): CardList<TutorialItem> => {
   const progressFor = useTutorialProgress();

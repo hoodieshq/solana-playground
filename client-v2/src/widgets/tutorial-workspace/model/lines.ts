@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 /**
  * The editor's line states (`tutorial-workspace`, "The editor shows written,
  * landing, error and busy lines") as Monaco decorations. Pure: the

@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import { ArrowRight, Check } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 

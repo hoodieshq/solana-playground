@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { TutorialItem } from "./use-tutorial-list";
 
 /** Which of its three states the banner is in, as `catalog_banner_opened` sends it */

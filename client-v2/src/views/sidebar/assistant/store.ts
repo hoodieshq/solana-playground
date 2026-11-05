@@ -754,6 +754,7 @@ export class PgAssistant {
 
   /** The mode narrowing the assistant to one surface, or null (`AssistantMode`) */
   static get mode(): AssistantMode | null {
+    // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
     return PgAssistant._modes[PgAssistant._modes.length - 1] ?? null;
   }
 

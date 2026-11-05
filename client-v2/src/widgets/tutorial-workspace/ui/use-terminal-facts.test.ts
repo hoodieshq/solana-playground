@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({

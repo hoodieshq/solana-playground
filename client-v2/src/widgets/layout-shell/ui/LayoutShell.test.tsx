@@ -198,7 +198,9 @@ const theme = {
 const shellTree = (
   home?: LayoutShellProps["home"],
   work: { keepWork?: boolean; stage?: ReactNode } = {},
+  // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   cover?: LayoutShellProps["cover"],
+  // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   tutorial?: LayoutShellProps["tutorial"]
 ) => (
   <ThemeProvider theme={theme}>

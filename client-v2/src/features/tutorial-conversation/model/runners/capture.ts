@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 /**
  * One transaction a run handed to the chain: the signature the RPC
  * answered, or the refusal it threw (the preflight's simulation failed, or

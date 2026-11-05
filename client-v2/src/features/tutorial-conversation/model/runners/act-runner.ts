@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order, max-params -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { Act } from "@/entities/tutorial";
 
 import type { Runner } from "../ports";

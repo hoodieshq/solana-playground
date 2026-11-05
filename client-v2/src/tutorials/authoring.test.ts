@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import { readFileSync } from "fs";
 import { join } from "path";
 import { describe, expect, it } from "vitest";

@@ -56,6 +56,7 @@ export const isMacroSymptom = (d: BuildDiagnostic) =>
  */
 export const pickDiagnostic = (
   diagnostics: readonly BuildDiagnostic[],
+  // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   mark?: string
 ): BuildDiagnostic | null => {
   const marked = mark
@@ -67,6 +68,7 @@ export const pickDiagnostic = (
     marked ??
     diagnostics.find((d) => !isMacroSymptom(d)) ??
     diagnostics[0] ??
+    // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
     null
   );
 };

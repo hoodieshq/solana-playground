@@ -6,7 +6,6 @@
  * follows.
  */
 export const READING_TOOLS: ReadonlySet<string> = new Set([
-  "list_files",
   "read_file",
   "get_build_error",
   "list_skills",

@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import { PgConversation } from "@/features/tutorial-conversation";
 import type { ToolInput } from "@/shared/lib/ai";
 import { uuid } from "@/shared/lib/ids";

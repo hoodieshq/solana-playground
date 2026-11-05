@@ -1,3 +1,4 @@
+/* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { Act, Goal } from "@/entities/tutorial";
 
 import type { RunResult } from "./progress";

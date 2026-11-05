@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { ReactNode } from "react";
 import { useEffect, useReducer, useRef, useState } from "react";
 

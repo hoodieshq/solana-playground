@@ -54,7 +54,9 @@ export const notInContext = (path: string) =>
  * @returns vendor-neutral tool definitions
  */
 export const createTools = (
+  // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   bridge: PlaygroundBridge = realBridge,
+  // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   mode: AssistantMode | null = PgAssistant.mode
 ): ToolDefinition[] => {
   const own = projectTools(bridge);

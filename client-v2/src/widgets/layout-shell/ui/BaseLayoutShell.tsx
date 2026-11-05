@@ -323,6 +323,7 @@ const createFoldedOf = (): FoldedOf => {
  */
 const useOverlayFocus = (
   fold: TutorialNavFold | undefined,
+  // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   onClose?: () => void
 ) => {
   const overlay = fold === "overlay";
@@ -336,10 +337,12 @@ const useOverlayFocus = (
     const before =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
-        : null;
+        : // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
+          null;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       // A menu or dialog opened from the navigation takes its own Escape
+      // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
       const target = e.target instanceof Element ? e.target : null;
       if (target?.closest(OWNS_ESCAPE)) return;
       e.preventDefault();
@@ -869,6 +872,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                           wide
                             ? (layout, meta) => {
                                 // A drag of the panel's edge takes over from Widen
+                                // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
                                 if (meta.isUserInteraction) setWideFrom(null);
                                 settle(
                                   {
