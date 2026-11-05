@@ -26,12 +26,15 @@ region says the build started, and the stage offers Stop and "Show full log".
    - `Surface` takes `{ run: { onStop, onShowLog } }` or `{ actions? }`, a
      discriminated union; the running row is drawn by `Surface` itself, so the
      phone layout keys on "no row" only for a surface that has none;
-   - `live` on the description: `role="status"` for the first build;
+   - `announce` on the description: `"status"` for the first build;
+   - Stop that stops nothing opens the console, where the terminal says why;
    - `BaseBuild` keeps focus that was in the stage when a surface swap removes
      the focused element: Stop while running, else the title (`tabIndex=-1`).
-3. **e2e** `client-v2-buttons: Build cannot be started twice`: try a second
-   start (Enter on the focused control, a click on every stage button), assert
-   one build request, focus inside the stage, then Stop works.
+3. **e2e** `client-v2-buttons: Build cannot be started twice`: start from
+   the keyboard, assert focus on Stop, that Stop and "Show full log" are the
+   stage's only buttons, and one build request. New: `A first build stops
+   from the stage`: Stop returns to "Nothing built yet" with focus on the
+   title, and a late reply is dropped.
 4. **Spec text:** the scenario says Build gives way to Stop on a first build
    and stays busy on the other surfaces.
 

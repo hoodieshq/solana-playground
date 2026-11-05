@@ -104,7 +104,7 @@ type SurfaceEnd =
     }
   | { run?: never; actions?: ReactNode };
 
-/** Marks the control focus goes to when a surface swap drops it */
+/** Marks the control focus goes to when a surface swap drops it; one per surface */
 const FOCUS_HERE = { "data-stage-focus": "" } as const;
 
 /**
@@ -120,8 +120,7 @@ const Surface = ({
   children,
   progress,
   report = false,
-  alert = false,
-  live = false,
+  announce,
   ...end
 }: {
   icon?: ReactNode;
@@ -133,15 +132,12 @@ const Surface = ({
   progress?: Pick<BaseBuildProps, "building" | "slow">;
   report?: boolean;
   /**
-   * The description is why the stage stopped, so it is announced the moment
-   * it shows, as the error callout it replaced was (Spec 08)
+   * How the description is announced. `alert`: it is why the stage stopped,
+   * read the moment it shows, as the error callout it replaced was (Spec 08).
+   * `status`: it says how the run goes, politely; mounted before the run, so
+   * its first change (the run started) is heard, then its slow line.
    */
-  alert?: boolean;
-  /**
-   * The description says how the run goes, politely: mounted before the run,
-   * so its first change (the run started) is heard, then its slow line
-   */
-  live?: boolean;
+  announce?: "alert" | "status";
 } & SurfaceEnd) => {
   const actions = end.run ? (
     <>
@@ -166,16 +162,15 @@ const Surface = ({
       >
         {icon && <StageEmptyMedia>{icon}</StageEmptyMedia>}
         {/* Focusable from code only: where focus lands when the surface
-            that held it is replaced */}
+            that held it is replaced. No ring: the heading is not a control,
+            and a screen reader reads it out */}
         <StageEmptyTitle tabIndex={-1} className="outline-none">
           {title}
         </StageEmptyTitle>
         {meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
         {end.run && <StageEmptyProgress />}
         {description && (
-          <StageEmptyDescription
-            role={alert ? "alert" : live ? "status" : undefined}
-          >
+          <StageEmptyDescription role={announce}>
             {description}
           </StageEmptyDescription>
         )}
@@ -306,11 +301,11 @@ const Empty = (p: BaseBuildProps) => (
     description={emptyDescription(p)}
     // A first build says it started and that it is slow in its own words
     // (Spec 06), so it has no Spec 08 line: two would say it twice
-    live
+    announce="status"
     // The bar and Stop take the button's place while it runs: a disabled
     // "Building…" only repeated the title
     {...(p.building
-      ? { run: p }
+      ? { run: { onStop: p.onStop, onShowLog: p.onShowLog } }
       : { actions: <BrandBuildButton p={p} label="Build" icon /> })}
   />
 );
@@ -334,7 +329,7 @@ const Unreached = (p: BaseBuildProps & { failure: BuildFailure | null }) => {
     <Surface
       icon={<CircleX className="text-error" />}
       title={noAnswer ? "Build did not start" : "Could not build"}
-      alert
+      announce="alert"
       description={
         noAnswer
           ? "The Playground server did not answer. Your code is unchanged."
@@ -616,20 +611,30 @@ const Failed = (p: BaseBuildProps & FailedView) => {
  * Puts focus back in the stage when a surface swap removed the element that
  * held it (Build giving way to Stop, Stop to the next surface): on the new
  * surface's `FOCUS_HERE` control, else its title. Focus the person moved out
- * of the stage stays where they put it.
+ * of the stage stays where they put it. Keyed on the surface and the run
+ * only: a swap inside one surface (a card's details) keeps its own focus.
  */
 const useKeptFocus = (key: string) => {
   const root = useRef<HTMLDivElement>(null);
   const inside = useRef(false);
 
+  // A press anywhere outside the stage lets go at once, even on something
+  // that takes no focus: a removal fires no press, so the two never mix
+  useEffect(() => {
+    const press = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) inside.current = false;
+    };
+    document.addEventListener("pointerdown", press, true);
+    return () => document.removeEventListener("pointerdown", press, true);
+  }, []);
+
   useLayoutEffect(() => {
     const el = root.current;
     if (!el || !inside.current) return;
     const active = document.activeElement;
-    if (active && active !== document.body && el.contains(active)) return;
-    // Something outside the stage took focus meanwhile
     if (active && active !== document.body) {
-      inside.current = false;
+      // Still in the stage, or something outside took it meanwhile
+      if (!el.contains(active)) inside.current = false;
       return;
     }
     // Two queries: one selector list would return the title, which comes first
@@ -644,22 +649,11 @@ const useKeptFocus = (key: string) => {
     onFocus: () => {
       inside.current = true;
     },
+    // Focus moving to another element outside lets go; moving to nothing is
+    // a removal or the window losing focus, and keeps it
     onBlur: (e: FocusEvent) => {
       const next = e.relatedTarget;
-      // Moving to nothing is either a removal (keep it) or a click on the
-      // page (let go); only a later frame can tell them apart
-      if (next === null) {
-        const from = e.target;
-        requestAnimationFrame(() => {
-          if (
-            from.isConnected &&
-            !root.current?.contains(document.activeElement)
-          )
-            inside.current = false;
-        });
-        return;
-      }
-      if (!root.current?.contains(next as Node)) inside.current = false;
+      if (next && !root.current?.contains(next as Node)) inside.current = false;
     },
   };
 };

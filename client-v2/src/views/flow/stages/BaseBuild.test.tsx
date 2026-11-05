@@ -166,7 +166,35 @@ describe("BaseBuild", () => {
       );
     });
 
-    // Design alignment: a finished build never pulls anyone out of typing
+    // A finished build never pulls anyone out of their typing
+    // A press on the page, on nothing focusable, lets go of the stage too
+    it("leaves focus alone after a press outside the stage", () => {
+      const p = props({ kind: "empty" }, true);
+      const { rerender } = render(<BaseBuild {...p} />);
+      const stop = screen.getByRole("button", { name: "Stop" });
+      stop.focus();
+      fireEvent.pointerDown(document.body);
+      stop.blur();
+
+      rerender(
+        <BaseBuild {...p} building={false} surface={{ kind: "succeeded" }} />
+      );
+
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it("lands on the title when a rebuild from a failed build succeeds", () => {
+      const p = props(failed([typeError("a", null)]));
+      const { rerender } = render(<BaseBuild {...p} />);
+      screen.getByRole("button", { name: "Try again" }).focus();
+
+      rerender(<BaseBuild {...p} surface={{ kind: "succeeded" }} />);
+
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { name: "Build succeeded" })
+      );
+    });
+
     it("leaves focus that is outside the stage alone", () => {
       const p = props({ kind: "empty" }, true);
       const { rerender } = render(

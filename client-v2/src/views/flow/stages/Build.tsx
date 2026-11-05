@@ -92,8 +92,11 @@ const Build = () => {
       onAsk={(prompt) => PgAssistant.requestPrompt(prompt)}
       onOpenFile={(path) => PgExplorer.openFile(path)}
       onShowLog={requestConsole}
-      // The console's own Stop: the stage goes back to how it was
-      onStop={() => PgCommandManager.stop()}
+      // The console's own Stop. When nothing stoppable runs, the terminal
+      // says why, so the console opens to show it
+      onStop={() => {
+        if (!PgCommandManager.stop()) requestConsole();
+      }}
       idlActions={<IdlActions mode="download" look="link" />}
     />
   );

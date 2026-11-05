@@ -234,8 +234,8 @@ test.describe("client-v2-buttons", () => {
     );
     // Focus went from Build to Stop, never to the page
     await expect(stage.getByRole("button", { name: "Stop" })).toBeFocused();
-    // A second start: Enter again, and every control on the stage. None
-    // builds; Stop is the only one left and stops instead
+    // Nothing on the stage can start a second build: Stop and the log are
+    // all it holds. Tab to "Show full log" and press it: no second request
     await expect(stage.getByRole("button")).toHaveText([
       "Stop",
       "Show full log",
@@ -256,9 +256,18 @@ test.describe("client-v2-buttons", () => {
   }) => {
     test.setTimeout(120_000);
     let builds = 0;
-    // A build server that never answers
-    await page.route("**/build", () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    // A build server that hangs, then answers after the stop
+    await page.route("**/build", async (route) => {
       builds += 1;
+      await held;
+      await route
+        .fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({ stderr: "", uuid: "e2e-late", idl: null }),
+        })
+        .catch(() => undefined);
     });
 
     await page.locator("#flow-stage-tab-build").click();
@@ -278,6 +287,13 @@ test.describe("client-v2-buttons", () => {
       stage.getByRole("button", { name: "Build", exact: true })
     ).toBeEnabled();
     await expect(stage.getByRole("alert")).toHaveCount(0);
+
+    // The late reply is dropped: the stage stays as it was
+    release();
+    await page.waitForTimeout(500);
+    await expect(
+      stage.getByRole("heading", { name: "Nothing built yet" })
+    ).toBeVisible();
     expect(builds).toBe(1);
   });
 
