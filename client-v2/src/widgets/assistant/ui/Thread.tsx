@@ -8,6 +8,7 @@ import {
   isConnectionLost,
   isStoppedNotice,
   PgAssistant,
+  turnAppliedApproval,
   turnProducedApproval,
 } from "../../../views/sidebar/assistant/store";
 import { DEFAULT_CONNECTION } from "../model/connection";

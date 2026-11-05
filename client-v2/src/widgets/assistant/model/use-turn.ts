@@ -510,7 +510,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
       if (backend.kind === "ask") {
         setInput(text);
         openConnect(backend.via, backend.preset);
-        return true;
+        return "connecting";
       }
     }
     // Nothing connected: the thread's own backend, or the default. Connected
@@ -521,7 +521,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
       if (backend.kind === "ask") {
         setInput(text);
         openConnect(backend.via, backend.preset);
-        return true;
+        return "connecting";
       }
       const project = PgExplorer.currentWorkspaceId;
       starting.current = true;
