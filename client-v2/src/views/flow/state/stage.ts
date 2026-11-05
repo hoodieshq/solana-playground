@@ -1,4 +1,5 @@
 import { emptyFileOf } from "../../../commands/build/empty-source";
+import { NetworkRefusedError } from "../../../commands/deploy/network-refused";
 import type { Disposable } from "../../../utils";
 import { PgCommand, PgExplorer, PgGlobal, PgProgramInfo } from "../../../utils";
 import { isStopped } from "../../../utils/stopped";
@@ -73,6 +74,8 @@ export type FlowEvent =
   /** The person stopped the deploy before its last step: the program on
    * chain is as it was, and the stage goes back to where it was */
   | { type: "deploy-stop" }
+  /** The network was down, so the deploy never started: nothing changed */
+  | { type: "deploy-refused" }
   | { type: "set-stage"; stage: Stage }
   | { type: "workspace-change" }
   /**
@@ -221,6 +224,9 @@ export class PgFlow {
           // A stop of the build a deploy runs first is the build's stop
           stopped: state.stopped === "build" ? "build" : "deploy",
         };
+      case "deploy-refused":
+        if (state.deploy !== "running") return state;
+        return { ...state, deploy: state.deployBeforeRun ?? "active" };
       case "deploy-finish":
         return ev.ok
           ? { ...state, stage: "deploy", deploy: "done", interact: "active" }
@@ -315,6 +321,10 @@ export class PgFlow {
         if (PgGlobal.deployState !== "ready") return;
         if ("err" in result && isStopped(result.err)) {
           PgFlow._dispatch({ type: "deploy-stop" });
+          return;
+        }
+        if ("err" in result && result.err instanceof NetworkRefusedError) {
+          PgFlow._dispatch({ type: "deploy-refused" });
           return;
         }
         PgFlow._dispatch({

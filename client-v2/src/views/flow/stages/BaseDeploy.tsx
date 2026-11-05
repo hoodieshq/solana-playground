@@ -63,6 +63,9 @@ export interface BaseDeployProps {
   onGoToBuild: () => void;
   /** Opens the console, where the terminal has a failed deploy's whole log */
   onShowLog: () => void;
+  /** Why the network holds a deploy, while it does; the notice over the stage
+   * says it too */
+  networkHold?: string;
   /** The rare "Upload IDL" action, a link under the pill (`IdlActions mode="upload"`) */
   idlUpload: ReactNode;
 }
@@ -71,7 +74,7 @@ export interface BaseDeployProps {
 const deployBlockedReason = (p: BaseDeployProps) => {
   if (!p.built) return "Build successfully first";
   if (p.deploy === "running") return "A deploy is already running";
-  return undefined;
+  return p.networkHold;
 };
 
 /**
@@ -282,7 +285,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
         {latest && <History p={p} />}
         <StageEmptyActions className={cn(STAGE_FOOT, !latest && "flex-col")}>
           <BrandButton
-            disabled={!p.built || running}
+            disabled={deployBlockedReason(p) !== undefined}
             aria-busy={running || undefined}
             title={deployBlockedReason(p)}
             onClick={p.onDeploy}

@@ -4,6 +4,7 @@ import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Button } from "@/shared/ui/button";
+import { useNetworkHold } from "@/widgets/status";
 
 import { Emoji } from "../../../../../constants";
 import { useWallet } from "../../../../../hooks";
@@ -137,7 +138,8 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
   const wallet = useWallet();
   const { args, accounts } = instruction.values;
   const hasInputs = args.length > 0 || accounts.length > 0;
-  const held = heldBecause({ wallet: !!wallet, filled: !disabled });
+  const network = useNetworkHold();
+  const held = heldBecause({ network, wallet: !!wallet, filled: !disabled });
 
   return (
     <InstructionProvider
@@ -203,7 +205,7 @@ const Instruction: FC<React.PropsWithChildren<InstructionProps>> = ({
           <AsyncButton
             onClick={handleTest}
             onError={reportButtonFailure("run the test")}
-            disabled={!wallet || disabled}
+            disabled={!!held}
           >
             Test
           </AsyncButton>
@@ -239,12 +241,15 @@ const plural = (n: number, word: string) =>
 
 /** Why Test is held, said beside it; nothing once it can run */
 const heldBecause = ({
+  network,
   wallet,
   filled,
 }: {
+  network: string | undefined;
   wallet: boolean;
   filled: boolean;
 }) => {
+  if (network) return network;
   if (!wallet) return "Connect a wallet to test";
   if (!filled) return "Fill every field to test";
   return null;
