@@ -696,7 +696,7 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
       for (const id of mine) watchers.delete(id);
     });
     /** Sends `message`, a whole JSON-RPC 2.0 frame, unless the page closed */
-    const reply = (message: { jsonrpc: "2.0" }) => {
+    const reply = (message: { jsonrpc: "2.0"; [field: string]: unknown }) => {
       if (isOpen) ws.send(JSON.stringify(message));
     };
     const subscribe = (id: number) => {
