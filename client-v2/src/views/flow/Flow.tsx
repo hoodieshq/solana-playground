@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { openConnectDialog } from "@/app/ConnectDialog";
@@ -146,13 +147,21 @@ const shareFromCodeHead = (name: string) =>
     name
   );
 
+/**
+ * The settings page with whether the hosted model answers. Its own component,
+ * so the probe is read only while the page is open and the frame does not
+ * re-render on its answer.
+ */
+const LiveSettings = (
+  props: Omit<ComponentProps<typeof SettingsPage>, "hosted">
+) => <SettingsPage {...props} hosted={useDefaultBackend().state} />;
+
 const FlowFrame = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [lesson, setLesson] = useState<LessonState>(INITIAL_LESSON_STATE);
   const [reading, setReading] = useState(false);
   const [settings, setSettings] = useState<SettingsState>({ open: false });
   const settingsOpen = settings.open;
-  const hosted = useDefaultBackend().state;
   const viewport = useViewport();
   const phone = viewport === "phone";
 
@@ -491,11 +500,7 @@ const FlowFrame = () => {
       </div>
 
       {settings.open && (
-        <SettingsPage
-          focus={settings.focus}
-          hosted={hosted}
-          onClose={closeSettings}
-        />
+        <LiveSettings focus={settings.focus} onClose={closeSettings} />
       )}
 
       <ModalHost />
