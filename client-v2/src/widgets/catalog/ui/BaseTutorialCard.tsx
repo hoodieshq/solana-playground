@@ -69,14 +69,14 @@ const BaseTutorialCard = ({
         <div className="flex min-w-0 items-baseline gap-2">
           <ActionCardTitle className="min-w-0">{title}</ActionCardTitle>
           {progress.state === "started" ? (
-            <span className="ml-auto shrink-0 text-caption text-muted-foreground tabular-nums">
+            <span className="ml-auto shrink-0 text-caption font-label text-muted-foreground tabular-nums">
               {`${progress.page} of ${progress.pages}`}
             </span>
           ) : null}
         </div>
         <ActionCardDescription>{description}</ActionCardDescription>
         {caption ? (
-          <p className="mt-1.5 text-caption text-subtle tabular-nums">
+          <p className="mt-1.5 text-caption font-label text-subtle tabular-nums">
             {caption}
           </p>
         ) : null}

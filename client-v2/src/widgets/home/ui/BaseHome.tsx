@@ -195,7 +195,10 @@ const Recent = ({
   onOpen: (entry: RecentEntry) => Promise<void>;
 }) => (
   <section aria-labelledby="home-recent" className="flex flex-col gap-2">
-    <h2 id="home-recent" className="text-caption text-muted-foreground">
+    <h2
+      id="home-recent"
+      className="text-caption font-label text-muted-foreground"
+    >
       Pick up where you left off
     </h2>
     <ActionCardGroup>
@@ -342,7 +345,7 @@ const BaseHome = ({
       {unfolded ? scratch : null}
 
       <div className="flex items-center justify-between">
-        <p className="text-caption text-muted-foreground">
+        <p className="text-caption font-label text-muted-foreground">
           Or learn from one of these
         </p>
         <Button variant="ghost" onClick={onAllTutorials}>
