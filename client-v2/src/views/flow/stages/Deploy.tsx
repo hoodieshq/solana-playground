@@ -157,7 +157,7 @@ const Deploy = ({ onChangeNetwork }: { onChangeNetwork: () => void }) => {
   // either run holds the button (a second press would pause it, a toggle
   // upstream's sidebar offers and Flow does not) and hides the last outcome
   const view = deployViewFor({
-    cluster: PgConnection.cluster,
+    cluster: PgConnection.cluster ?? undefined,
     workspace: PgExplorer.currentWorkspaceName ?? undefined,
     wallet: wallet?.publicKey.toBase58(),
   })({ stage, deployState, flowDeploy: flow.deploy });

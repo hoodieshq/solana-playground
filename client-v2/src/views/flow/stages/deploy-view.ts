@@ -22,7 +22,8 @@ export const IDLE_VIEW: Readonly<DeployView> = { kind: "idle", backup: false };
 
 /** Where the stage is open now: the funding card and backup line belong to one place */
 export interface DeployHere {
-  cluster: string | null;
+  /** The network picked; absent until the endpoint has been read */
+  cluster: string | undefined;
   workspace: string | undefined;
   /** The current wallet's address; absent while none is current */
   wallet: string | undefined;
@@ -64,7 +65,7 @@ export const deployViewFor =
       kind: "idle",
       backup:
         stage.phase === "done" &&
-        stage.backupFor !== null &&
+        stage.backupFor !== undefined &&
         stage.backupFor === here.wallet,
     };
   };
@@ -222,6 +223,20 @@ if (import.meta.vitest) {
           stage: { phase: "stopped", stop: { kind: "cancelled" } },
           deployState: "ready",
           flowDeploy: "failed",
+        })
+      ).toEqual(IDLE_VIEW);
+    });
+
+    it("shows no backup line with no wallet current and none asked for", () => {
+      expect(
+        deployViewFor({
+          cluster: "devnet",
+          workspace: "counter",
+          wallet: undefined,
+        })({
+          stage: { phase: "done" },
+          deployState: "ready",
+          flowDeploy: "done",
         })
       ).toEqual(IDLE_VIEW);
     });
