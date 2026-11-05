@@ -60,9 +60,14 @@ export const fetchRpcHealthWithin =
 export const fetchRpcHealth = fetchRpcHealthWithin(RPC_CHECK_TIMEOUT_MS);
 
 if (import.meta.vitest) {
-  const { describe, it, expect, vi, afterEach } = import.meta.vitest;
+  const { describe, it, expect, vi, afterEach, beforeAll } = import.meta.vitest;
 
   describe("entities/custom-rpc/model/health", () => {
+    let logger: typeof import("@/shared/lib/logger");
+    beforeAll(async () => {
+      logger = await import("@/shared/lib/logger");
+    });
+
     afterEach(() => {
       vi.useRealTimers();
       vi.restoreAllMocks();
@@ -148,8 +153,6 @@ if (import.meta.vitest) {
     });
 
     it("never logs the URL, which can hold a provider key", async () => {
-      let logger: typeof import("@/shared/lib/logger");
-      logger = await import("@/shared/lib/logger");
       const logged = logger.memoryProvider();
       logger.initLogger({ providers: [logged] });
       vi.spyOn(globalThis, "fetch").mockRejectedValue(

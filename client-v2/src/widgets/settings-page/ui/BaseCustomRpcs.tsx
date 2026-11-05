@@ -57,9 +57,9 @@ const BaseCustomRpcs = ({
   const [editing, setEditing] = useState<Editing>();
   // While a form waits on its URL's check, nothing else in the list moves:
   // the save still lands when it answers, and must not close another form
-  const [checking, setChecking] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
   const handleClose = () => {
-    setChecking(false);
+    setIsChecking(false);
     setEditing(undefined);
   };
 
@@ -73,7 +73,7 @@ const BaseCustomRpcs = ({
                 <RpcForm
                   initial={rpc}
                   onSave={(input) => onEdit(rpc, input)}
-                  onCheckingChange={setChecking}
+                  onCheckingChange={setIsChecking}
                   onClose={handleClose}
                 />
               </li>
@@ -95,7 +95,7 @@ const BaseCustomRpcs = ({
                   size="icon"
                   aria-label={`Edit ${rpc.name}`}
                   className="max-md:size-12"
-                  disabled={checking}
+                  disabled={isChecking}
                   onClick={() => setEditing({ url: rpc.url })}
                 >
                   <Pencil />
@@ -105,7 +105,7 @@ const BaseCustomRpcs = ({
                   size="icon"
                   aria-label={`Remove ${rpc.name}`}
                   className="max-md:size-12"
-                  disabled={checking}
+                  disabled={isChecking}
                   onClick={() => onRemove(rpc)}
                 >
                   <Trash2 />
@@ -118,7 +118,7 @@ const BaseCustomRpcs = ({
       {editing === "new" ? (
         <RpcForm
           onSave={onAdd}
-          onCheckingChange={setChecking}
+          onCheckingChange={setIsChecking}
           onClose={handleClose}
         />
       ) : (
@@ -126,7 +126,7 @@ const BaseCustomRpcs = ({
           variant="ghost"
           size="sm"
           className="self-start max-md:h-12"
-          disabled={checking}
+          disabled={isChecking}
           onClick={() => setEditing("new")}
         >
           <Plus data-icon="inline-start" />
@@ -166,14 +166,14 @@ const RpcForm = ({
 }: {
   initial?: CustomRpc;
   onSave: (input: CustomRpc) => Promise<CustomRpcSaveAnswer>;
-  onCheckingChange: (checking: boolean) => void;
+  onCheckingChange: (isChecking: boolean) => void;
   onClose: () => void;
 }) => {
   const [name, setName] = useState(initial?.name ?? "");
   const [url, setUrl] = useState(initial?.url ?? "");
   const [state, setState] = useState<FormState>({ kind: "editing" });
   const id = useId();
-  const checking = state.kind === "checking";
+  const isChecking = state.kind === "checking";
   const error =
     state.kind === "refused" || state.kind === "unreachable"
       ? state.error
@@ -200,7 +200,7 @@ const RpcForm = ({
 
   const handleSubmit = async (ev: FormEvent) => {
     ev.preventDefault();
-    if (checking) return;
+    if (isChecking) return;
     setState({ kind: "checking" });
     onCheckingChange(true);
     await settleFrom(() => onSave({ name, url }));
@@ -212,9 +212,14 @@ const RpcForm = ({
     void settleFrom(async () => saveAnyway());
   };
 
-  /** Typing takes back a line about what was typed before */
-  const handleEdit = () => {
+  /** A new URL takes back the line about the old one */
+  const handleUrlEdit = () => {
     if (state.kind !== "checking") setState({ kind: "editing" });
+  };
+
+  /** A new name keeps a refusal, which is about the URL, but not "Use anyway" */
+  const handleNameEdit = () => {
+    if (state.kind === "unreachable") setState({ kind: "editing" });
   };
 
   return (
@@ -231,10 +236,10 @@ const RpcForm = ({
           maxLength={RPC_NAME_MAX}
           autoFocus
           className="max-md:h-12"
-          readOnly={checking}
+          readOnly={isChecking}
           onChange={(ev) => {
             setName(ev.target.value);
-            handleEdit();
+            handleNameEdit();
           }}
         />
       </Field>
@@ -251,21 +256,21 @@ const RpcForm = ({
             inputMode="url"
             autoComplete="off"
             spellCheck={false}
-            readOnly={checking}
+            readOnly={isChecking}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? `${id}-help ${id}-error` : `${id}-help`}
             onChange={(ev) => {
               setUrl(ev.target.value);
-              handleEdit();
+              handleUrlEdit();
             }}
           />
           <InputGroupAddon align="inline-end">
             <InputGroupButton
               type="submit"
-              disabled={checking}
-              aria-busy={checking || undefined}
+              disabled={isChecking}
+              aria-busy={isChecking || undefined}
             >
-              {checking && <Spinner aria-label="Checking the URL" />}
+              {isChecking && <Spinner aria-label="Checking the URL" />}
               Save
             </InputGroupButton>
           </InputGroupAddon>
@@ -291,7 +296,7 @@ const RpcForm = ({
         variant="ghost"
         size="sm"
         className="self-start max-md:h-12"
-        disabled={checking}
+        disabled={isChecking}
         onClick={onClose}
       >
         Cancel

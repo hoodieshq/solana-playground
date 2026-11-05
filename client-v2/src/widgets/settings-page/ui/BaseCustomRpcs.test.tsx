@@ -269,6 +269,19 @@ describe("BaseCustomRpcs", () => {
     expect(useAnyway).not.toHaveBeenCalled();
   });
 
+  it("keeps a refusal when only the name changes", async () => {
+    const onAdd = vi.fn(
+      async (): Promise<CustomRpcSaveAnswer> => ({
+        kind: "refused",
+        error: "Already saved as Helius.",
+      })
+    );
+    renderList({ rpcs: [], onAdd });
+    await openAddForm("https://h.test{Enter}");
+    await userEvent.type(screen.getByLabelText("Name"), "Mine");
+    expect(screen.getByText("Already saved as Helius.")).toBeTruthy();
+  });
+
   it("offers Use anyway in the edit form too", async () => {
     const useAnyway = vi.fn((): SettledAnswer => ({ kind: "saved" }));
     const onEdit = vi.fn(

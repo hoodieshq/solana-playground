@@ -17,15 +17,15 @@ import NetworkSection from "./NetworkSection";
 
 const DEVNET = "https://api.devnet.solana.com/";
 
-/** Every health request answers, or none does */
-const rpcAnswers = (answers: boolean) =>
+const stubRpcAnswering = () =>
   vi
     .spyOn(globalThis, "fetch")
-    .mockImplementation(async () =>
-      answers
-        ? new Response('{"result":"ok"}')
-        : Promise.reject(new TypeError("Failed to fetch"))
-    );
+    .mockImplementation(async () => new Response('{"result":"ok"}'));
+
+const stubRpcNotAnswering = () =>
+  vi
+    .spyOn(globalThis, "fetch")
+    .mockRejectedValue(new TypeError("Failed to fetch"));
 
 const addRpc = async (name: string, url: string) => {
   await userEvent.click(screen.getByRole("button", { name: "Add custom RPC" }));
@@ -53,7 +53,7 @@ describe("NetworkSection", () => {
   });
 
   it("picks a new RPC whose URL answers", async () => {
-    rpcAnswers(true);
+    stubRpcAnswering();
     render(<NetworkSection />);
     await addRpc("Triton", "https://t.test");
     // Its chip and its row in the list
@@ -62,7 +62,7 @@ describe("NetworkSection", () => {
   });
 
   it("picks a new RPC saved through Use anyway, and not before", async () => {
-    rpcAnswers(false);
+    stubRpcNotAnswering();
     render(<NetworkSection />);
     await addRpc("Dead", "https://dead.test");
     await screen.findByText("This URL is not responding.");
@@ -77,7 +77,7 @@ describe("NetworkSection", () => {
       JSON.stringify([{ name: "Mine", url: "https://mine.test/" }])
     );
     connection.endpoint = "https://mine.test/";
-    rpcAnswers(false);
+    stubRpcNotAnswering();
     render(<NetworkSection />);
     await userEvent.click(screen.getByRole("button", { name: "Edit Mine" }));
     await userEvent.clear(screen.getByLabelText("RPC URL"));
