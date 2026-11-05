@@ -13,6 +13,7 @@ import {
 import type { ComponentType, KeyboardEvent } from "react";
 import { useId, useRef, useState } from "react";
 
+import { cn } from "@/shared/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,6 +85,13 @@ const isAllowedFor =
   (isCurrent: boolean) => (entry: ProjectEntry, action: ProjectAction) =>
     (!entry.isLesson || LESSON_ACTIONS.has(action)) &&
     (action !== "share-gist" || isCurrent);
+
+/**
+ * On the row's middle at both its heights, 28 px on a desk and 52 on a phone;
+ * `!` beats `SidebarMenuAction`'s own `peer-data-[size]` top, which fits a
+ * 32 px row
+ */
+const ROW_MIDDLE = "top-1/2! -translate-y-1/2";
 
 const pinAction = (entry: ProjectEntry): ProjectAction =>
   entry.pinned ? "unpin" : "pin";
@@ -184,7 +192,12 @@ const Row = ({
         <span>{entry.name}</span>
       </SidebarMenuButton>
       {entry.pinned && (
-        <span className="pointer-events-none absolute top-1.5 right-7 flex items-center gap-1 text-xs text-muted-foreground group-focus-within/menu-item:hidden group-hover/menu-item:hidden">
+        <span
+          className={cn(
+            "pointer-events-none absolute right-7 flex items-center gap-1 text-xs text-muted-foreground group-focus-within/menu-item:hidden group-hover/menu-item:hidden",
+            ROW_MIDDLE
+          )}
+        >
           <span title="Pinned">
             <Pin aria-hidden className="size-3" />
           </span>
@@ -196,6 +209,7 @@ const Row = ({
               the others show on hover */}
           <SidebarMenuAction
             showOnHover={!isCurrent}
+            className={ROW_MIDDLE}
             aria-label={`Actions for ${entry.name}`}
           >
             <EllipsisVertical />
