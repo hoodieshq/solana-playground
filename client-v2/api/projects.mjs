@@ -222,7 +222,8 @@ const sendJson = (res, status, body) => {
  * The status and body a write is answered with, from `describeWrite`'s limit
  * or `saveProject`'s outcome. A limit is 413 with its `reason` and measure at
  * the top level, so the client raises the same banner from this body as from
- * its own check; every other outcome is `describeSaved`'s. Both sources come
+ * its own check (the account cap has no client check; its banner comes from
+ * this body only); every other outcome is `describeSaved`'s. Both sources come
  * through here so neither can reach a 200 with a limit.
  *
  * Exported for `api/projects.test.mjs`: the handler is behind the auth gate.
@@ -233,10 +234,11 @@ const sendJson = (res, status, body) => {
  */
 export const answerWrite = (outcome) => {
   if ("limit" in outcome) {
-    return {
-      status: 413,
-      body: { error: "The project is over a sync limit", ...outcome.limit },
-    };
+    const error =
+      outcome.limit.reason === "too-many-projects"
+        ? "The account syncs as many projects as it can"
+        : "The project is over a sync limit";
+    return { status: 413, body: { error, ...outcome.limit } };
   }
   return describeSaved(outcome);
 };
@@ -360,6 +362,19 @@ export const putProject = async (userId, body) => {
         userId,
         projectId: project.id,
         reason: result.refused,
+      },
+    });
+  }
+  // The account cap: the only record on the server of who meets it, since
+  // the client's event can be blocked. Ids and figures only.
+  if (result.limit?.reason === "too-many-projects") {
+    log.warn("account cap", {
+      context: {
+        userId,
+        projectId: project.id,
+        kind: result.limit.kind,
+        count: result.limit.count,
+        limit: result.limit.limit,
       },
     });
   }

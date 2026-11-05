@@ -656,6 +656,41 @@ test("project-sync-limits: The client check is bypassed", async ({ page }) => {
   );
 });
 
+/* ---------------------------- The account cap --------------------------- */
+
+test("project-sync-limits: The account is at the project cap", async ({
+  page,
+}) => {
+  const account = await stubAccount(page, [], (r) =>
+    r.fulfill({
+      status: 413,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "The account syncs as many projects as it can",
+        reason: "too-many-projects",
+        kind: "project",
+        limit: 10,
+        count: 11,
+      }),
+    })
+  );
+  await page.goto("/");
+  await startProject(page, "eleventh", LONG);
+  await expect(editor(page)).toContainText("declare_id", LONG);
+
+  await expect(bannerText(page)).toHaveText(
+    "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a synced project you no longer need, then try again.",
+    LONG
+  );
+  await expect(currentProject(page)).toContainText("eleventh");
+
+  // No retry loop: the banner holds the project's pushes
+  const refused = account.writes.length;
+  await editFile(page);
+  await page.waitForTimeout(5000);
+  expect(account.writes).toHaveLength(refused);
+});
+
 /* --------------------------- Under every limit -------------------------- */
 
 test("project-sync-limits: A tutorial project", async ({ page }) => {

@@ -7,6 +7,7 @@
  * restates these measures in SQL and must change with them.
  */
 export {
+  ACCOUNT_LIMITS,
   checkProjectLimits,
   isSyncedPath,
   limitExceeded,

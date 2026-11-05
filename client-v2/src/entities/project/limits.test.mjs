@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  ACCOUNT_LIMITS,
   checkFileWrite,
   checkProjectLimits,
   limitExceeded,
@@ -184,6 +185,9 @@ describe("entities/project/limits", () => {
       { reason: "too-many-files", limit: 50, count: "51" },
       { reason: "project-too-large", limit: 524288 },
       { reason: "project-too-large", size: 600000 },
+      { reason: "too-many-projects", limit: 10, count: 11 },
+      { reason: "too-many-projects", kind: "repo", limit: 10, count: 11 },
+      { reason: "too-many-projects", kind: "project", limit: 10 },
     ]) {
       assert.equal(readLimitExceeded(body), null, JSON.stringify(body));
     }
@@ -214,9 +218,21 @@ describe("entities/project/limits", () => {
       limitExceeded.fileTooLarge({ "a.rs": 140000 }),
       limitExceeded.tooManyFiles(51),
       limitExceeded.projectTooLarge(600000),
+      limitExceeded.tooManyProjects("project", 11),
+      limitExceeded.tooManyProjects("tutorial", 33),
     ]) {
       assert.deepEqual(readLimitExceeded(limit), limit);
     }
+  });
+
+  it("caps each kind at its own figure", () => {
+    assert.deepEqual(limitExceeded.tooManyProjects("project", 11), {
+      reason: "too-many-projects",
+      kind: "project",
+      limit: 10,
+      count: 11,
+    });
+    assert.equal(limitExceeded.tooManyProjects("tutorial", 33).limit, 32);
   });
 
   it("keeps its figures", () => {
@@ -229,6 +245,7 @@ describe("entities/project/limits", () => {
         files: 50,
       }
     );
+    assert.deepEqual(ACCOUNT_LIMITS, { projects: 10, tutorials: 32 });
   });
 });
 

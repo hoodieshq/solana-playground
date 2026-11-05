@@ -1,16 +1,20 @@
-import type { LimitExceeded } from "../limits.mjs";
+import type {
+  AccountLimitExceeded,
+  LimitExceeded,
+  ProjectLimitExceeded,
+} from "../limits.mjs";
 
 /** Which limit a refusal names, as the telemetry events report it */
 export type LimitKind = "path" | "size" | "count" | "project";
 
-const KINDS: Record<LimitExceeded["reason"], LimitKind> = {
+const KINDS: Record<ProjectLimitExceeded["reason"], LimitKind> = {
   "path-too-long": "path",
   "file-too-large": "size",
   "too-many-files": "count",
   "project-too-large": "project",
 };
 
-export const limitKind = (limit: LimitExceeded): LimitKind =>
+export const limitKind = (limit: ProjectLimitExceeded): LimitKind =>
   KINDS[limit.reason];
 
 /** Bytes as the user reads them: KB, rounded up so 1 byte over never reads as at the limit */
@@ -32,7 +36,7 @@ const listPaths = (paths: string[]) => {
  * The limit's rule on its own, for a refusal where what is over it is the
  * thing the user just tried: "A project can have at most 50 files."
  */
-export const limitRule = (limit: LimitExceeded) => {
+export const limitRule = (limit: ProjectLimitExceeded) => {
   switch (limit.reason) {
     case "path-too-long":
       return `A file path can be at most ${limit.limit} characters.`;
@@ -49,7 +53,7 @@ export const limitRule = (limit: LimitExceeded) => {
  * What is over the limit, then the limit: "This project has 64 files. A
  * project can have at most 50." An import refusal shows this.
  */
-export const limitSummary = (limit: LimitExceeded) => {
+export const limitSummary = (limit: ProjectLimitExceeded) => {
   switch (limit.reason) {
     case "path-too-long": {
       const [first] = limit.paths;
@@ -79,7 +83,7 @@ export const limitSummary = (limit: LimitExceeded) => {
 };
 
 /** What the user does about it, the sync banner's last sentence */
-const limitAction = (limit: LimitExceeded) => {
+const limitAction = (limit: ProjectLimitExceeded) => {
   switch (limit.reason) {
     case "path-too-long":
       return limit.paths.length === 1
@@ -96,9 +100,22 @@ const limitAction = (limit: LimitExceeded) => {
   }
 };
 
+/**
+ * The account cap, named by its figure only: the count the server sends
+ * includes the project refused, which reads as "you have 11" to a user who
+ * sees ten. The project is the user's work whether or not it syncs, so the
+ * banner says it stays.
+ */
+const accountCapText = ({ kind, limit }: AccountLimitExceeded) => {
+  const noun = kind === "tutorial" ? "tutorial" : "project";
+  return `An account can sync at most ${limit} ${noun}s. This one stays in this browser and is not synced. Delete a synced ${noun} you no longer need, then try again.`;
+};
+
 /** The sync banner's text for a project stopped by a limit */
 export const limitBannerText = (limit: LimitExceeded) =>
-  `${limitSummary(limit)} ${limitAction(limit)}`;
+  limit.reason === "too-many-projects"
+    ? accountCapText(limit)
+    : `${limitSummary(limit)} ${limitAction(limit)}`;
 
 if (import.meta.vitest) {
   const { describe, it, expect, beforeAll } = import.meta.vitest;
@@ -183,6 +200,29 @@ if (import.meta.vitest) {
       ).toBe("This project is 513 KB. A project can be at most 512 KB.");
     });
 
+    it("names the account cap by its figure and says the project stays", () => {
+      expect(
+        limitBannerText({
+          reason: "too-many-projects",
+          kind: "project",
+          limit: 10,
+          count: 11,
+        })
+      ).toBe(
+        "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a synced project you no longer need, then try again."
+      );
+      expect(
+        limitBannerText({
+          reason: "too-many-projects",
+          kind: "tutorial",
+          limit: 32,
+          count: 33,
+        })
+      ).toBe(
+        "An account can sync at most 32 tutorials. This one stays in this browser and is not synced. Delete a synced tutorial you no longer need, then try again."
+      );
+    });
+
     it("states each rule on its own", () => {
       expect(
         [
@@ -199,7 +239,7 @@ if (import.meta.vitest) {
             limit: limits.projectBytes,
             size: 1,
           },
-        ].map((limit) => limitRule(limit as LimitExceeded))
+        ].map((limit) => limitRule(limit as ProjectLimitExceeded))
       ).toEqual([
         "A file path can be at most 256 characters.",
         "A file can be at most 128 KB.",

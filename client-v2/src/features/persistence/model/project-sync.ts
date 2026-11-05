@@ -115,7 +115,9 @@ const trimmedName = <T extends ServerProject>(project: T): T =>
  *   name, which the unique index on `(user_id, name)` will not have twice.
  * - `too-large`: the project is over a limit (`limit` says which), or the
  *   request body is over `MAX_PROJECT_BODY_BYTES` (no `limit`). `push` refuses
- *   either before sending; the endpoint refuses either it receives.
+ *   either before sending; the endpoint refuses either it receives. The
+ *   account cap (`too-many-projects`) arrives here too, from the server only:
+ *   the project stays local, writes no mark, and waits for "Try again".
  *
  * They share the conflict machinery because they need exactly what it gives:
  * pushes for the project stop (there is no point re-uploading every three
@@ -149,9 +151,10 @@ type Refusal =
   | {
       kind: "too-large";
       /**
-       * The project limit it is over and what is over it, from the client's
-       * own check or a 413's body. Absent for the body cap, which names no
-       * limit. A field rather than four more kinds: every one of them stops
+       * The limit it is over and what is over it: a project limit, from the
+       * client's own check or a 413's body, or the account cap, from a 413's
+       * body only. Absent for the body cap, which names no
+       * limit. A field rather than five more kinds: every one of them stops
        * pushes and offers "Try again", as `too-large` does.
        */
       limit?: LimitExceeded;
@@ -295,8 +298,9 @@ const answers = (
  *
  * A 413 comes here too, and is `too-large` whether or not its body says so.
  * A limit's reason (`too-many-files` and the rest) is `too-large` with the
- * body read into its `limit`, so the banner names the limit as the client's
- * own check would. A limit body this client cannot read is reported and asked
+ * body read into its `limit`, so the banner names a project limit as the
+ * client's own check would, and names the account cap, which no client
+ * check finds. A limit body this client cannot read is reported and asked
  * as the plain `too-large`: the banner still goes up, without the measure.
  *
  * An unreadable body falls back to the older meaning, whose prompt is at least
@@ -2051,6 +2055,13 @@ const trackLimit = (limit: LimitExceeded, by: LimitByParam) => {
       persistenceTelemetry.track("sync_project_limit_exceeded", {
         by,
         kib: Math.ceil(limit.size / 1024),
+      });
+      return;
+    case "too-many-projects":
+      persistenceTelemetry.track("sync_projects_count_limit_exceeded", {
+        by,
+        kind: limit.kind,
+        projects: limit.count,
       });
       return;
   }

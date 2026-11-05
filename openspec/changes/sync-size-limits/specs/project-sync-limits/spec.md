@@ -69,6 +69,90 @@ file count limit, whatever the files' sizes.
 - **WHEN** a project holds 51 files of its own, each of them empty
 - **THEN** the project is over the file count limit and no upload is sent
 
+### Requirement: An account syncs at most 10 projects and 32 tutorials
+
+An account's project count SHALL be the number of its live projects (not
+deleted) of kind `project` that hold at least one synced file; its tutorial
+count SHALL be the same for kind `tutorial`. A project the account holds counts
+whether or not the device writing holds it. A deleted project, and a project
+row that holds no file (the parent a chat turn creates), SHALL NOT count.
+
+`PUT /api/projects` SHALL refuse a write that makes a project count, and so
+brings its kind's count to 11 projects or 33 tutorials, with status 413 and a
+JSON body carrying `reason: "too-many-projects"`, `kind` (`project` |
+`tutorial`), `limit` (10 or 32) and `count` (the count the write would have
+made). A write makes a project count when the project held no synced file
+before it: a create, an adoption of an empty row, a tutorial started again
+after its delete, or a swap onto an empty row. A refused write SHALL change
+nothing in the database.
+
+A write to a project that already counts SHALL NOT be refused by the count,
+also when the account is over the cap. A delete SHALL NOT be refused by the
+count. Two creates that race at 9 projects SHALL let exactly one through.
+
+The client SHALL NOT check the count before uploading: only the server knows
+what the account holds. The explorer SHALL NOT refuse to create a project or
+start a tutorial for the count, signed in or not.
+
+#### Scenario: The tenth project syncs (manual)
+- **WHEN** an account holds 9 projects and a device creates another
+- **THEN** the create is accepted and the account holds 10
+
+#### Scenario: The eleventh project is refused (manual)
+- **WHEN** an account holds 10 projects and a device creates another
+- **THEN** the response is 413 with `reason: "too-many-projects"`, `kind: "project"`, `limit: 10` and `count: 11`
+- **AND** no row or file is written for it
+
+#### Scenario: Edits at the cap keep syncing (manual)
+- **WHEN** an account holds 10 projects and one of them is edited
+- **THEN** the patch is accepted
+
+#### Scenario: A delete frees a place (manual)
+- **WHEN** an account holds 10 projects, deletes one, and creates another
+- **THEN** the create is accepted
+
+#### Scenario: Two creates race at nine (manual)
+- **WHEN** an account holds 9 projects and two creates arrive at the same time
+- **THEN** exactly one is accepted and the other is refused with `reason: "too-many-projects"`
+
+#### Scenario: Tutorials have their own count (manual)
+- **WHEN** an account holds 10 projects and starts a tutorial
+- **THEN** the tutorial's create is accepted
+
+#### Scenario: An empty row does not count, and filling it does (manual)
+- **WHEN** an account holds 10 projects and a chat turn creates an empty row for an 11th
+- **THEN** the row is created
+- **AND** a write that puts files in that row is refused with `reason: "too-many-projects"`
+
+### Requirement: A project over the account cap stays in the browser
+
+A project whose create the server refused for the count SHALL stay in the
+browser with every file, and SHALL NOT be uploaded again until the user
+presses "Try again" or the page loads again. No sync mark SHALL be written for
+it. Reconcile and sign-out SHALL NOT delete it. The sync banner SHALL show for
+it, with one "Try again" action, and name the cap.
+
+#### Scenario: The account is at the project cap
+- **WHEN** the server refuses a project's create with `reason: "too-many-projects"`, `kind: "project"` and `limit: 10`
+- **THEN** the banner reads "An account can sync at most 10 projects. This one stays in this browser and is not synced. Delete a synced project you no longer need, then try again."
+- **AND** further edits to the project send no request until "Try again"
+
+#### Scenario: The account is at the tutorial cap (manual)
+- **WHEN** the server refuses a tutorial's create with `reason: "too-many-projects"`, `kind: "tutorial"` and `limit: 32`
+- **THEN** the banner reads "An account can sync at most 32 tutorials. This one stays in this browser and is not synced. Delete a synced tutorial you no longer need, then try again."
+
+#### Scenario: Try again after a delete (manual)
+- **WHEN** the banner names the project cap, the user deletes another project, and presses "Try again"
+- **THEN** the banner closes and the project's create is accepted
+
+#### Scenario: Signing out keeps the refused project (manual)
+- **WHEN** a project's create was refused for the count and the user signs out
+- **THEN** the project stays in the browser
+
+#### Scenario: Eleven projects on a device that signs in (manual)
+- **WHEN** a device holding 11 projects never synced signs in to an empty account
+- **THEN** 10 are uploaded, the 11th stays in the browser unsynced, and no local project is deleted
+
 ### Requirement: The client checks the whole project before every upload
 
 Before each upload, the client SHALL check the project's full file set against
@@ -270,6 +354,10 @@ body did. A body cap refusal (`too-large`) SHALL send no limit event.
 #### Scenario: sync_files_count_limit_exceeded
 - **WHEN** the banner is raised for the file count limit
 - **THEN** `sync_files_count_limit_exceeded` fires once with `by` (`client` | `server`) and `files` (the counted files, an integer above 50)
+
+#### Scenario: sync_projects_count_limit_exceeded
+- **WHEN** the banner is raised for the account's project or tutorial cap
+- **THEN** `sync_projects_count_limit_exceeded` fires once with `by` (always `server`), `kind` (`project` | `tutorial`) and `projects` (the count the refused write would have made, an integer above the cap)
 
 #### Scenario: A banner already up sends nothing more
 - **WHEN** a project's limit banner is up and the user keeps editing it
