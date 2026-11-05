@@ -85,7 +85,7 @@ const withCounter = (name: string, n: number) => {
  * ignores this file, since only what the manifest lists is written.
  */
 export const titleFileName = (projectName: string) =>
-  `!${[...projectName.replaceAll("/", "__").trim()]
+  `!${Array.from(projectName.replaceAll("/", "__").trim())
     .slice(0, MAX_TITLE_NAME)
     .join("")}`;
 
@@ -361,7 +361,7 @@ if (import.meta.vitest) {
     it("a title's name holds no slash and stays short", () => {
       expect(titleFileName("a/b")).toBe("!a__b");
       expect(titleFileName(" a ")).toBe("!a");
-      expect([...titleFileName("😀".repeat(100))]).toHaveLength(61);
+      expect(Array.from(titleFileName("😀".repeat(100)))).toHaveLength(61);
     });
 
     it("a project file named like the title gets a counter", () => {

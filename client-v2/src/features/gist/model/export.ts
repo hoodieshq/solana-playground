@@ -7,8 +7,8 @@ import {
   NEEDS_GIST_SCOPE,
 } from "../config.mjs";
 import {
-  MAX_GIST_BYTES,
   FRAME_FILES,
+  MAX_GIST_BYTES,
   MAX_GIST_FILES,
   measureGist,
   toGistFiles,
