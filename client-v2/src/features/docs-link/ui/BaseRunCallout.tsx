@@ -192,6 +192,7 @@ const BaseRunCallout: FC<BaseRunCalloutProps> = ({
                 value={shown.address}
                 label="Copy address"
                 onError={onCopyError}
+                className="max-md:size-11"
               />
               <CalloutAction onClick={onCheckAgain}>Check again</CalloutAction>
               <CalloutAction onClick={onNotNow}>Not now</CalloutAction>
