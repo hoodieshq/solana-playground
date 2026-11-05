@@ -603,7 +603,7 @@ export class PgProjectSync {
     }
 
     try {
-      const response = await fetch("/api/projects", {
+      const response = await PgSession.fetchAuthed("/api/projects", {
         method: "PUT",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -695,7 +695,7 @@ export class PgProjectSync {
     if (!(await PgProjectSync._ready())) return null;
 
     try {
-      const response = await fetch("/api/projects", {
+      const response = await PgSession.fetchAuthed("/api/projects", {
         credentials: "include",
         cache: "no-store",
         signal: timeoutSignal(LOCKED_REQUEST_MS),
@@ -746,7 +746,7 @@ export class PgProjectSync {
     if (!(await PgProjectSync._ready())) return null;
 
     try {
-      const response = await fetch(
+      const response = await PgSession.fetchAuthed(
         `/api/projects?id=${encodeURIComponent(projectId)}`,
         {
           credentials: "include",
@@ -784,7 +784,7 @@ export class PgProjectSync {
     if (!(await PgProjectSync._ready())) return false;
 
     try {
-      const response = await fetch(
+      const response = await PgSession.fetchAuthed(
         `/api/projects?id=${encodeURIComponent(projectId)}`,
         { method: "DELETE", credentials: "include" }
       );
@@ -1621,6 +1621,15 @@ export class PgProjectSync {
    */
   static async isAvailable() {
     return await PgProjectSync._ready();
+  }
+
+  /**
+   * Whether the project rows go on reading marks with nobody signed in: a
+   * session that ended keeps its account's (`currentUserId` in `sync-mark`).
+   * Apart from `isAvailable`, because reconcile asks that, and must not run.
+   */
+  static async hasExpiredMarks() {
+    return !!PgSession.expiredUser && (await PgSyncClient.available());
   }
 
   /** Remember a name for a project whose workspace may not exist locally yet */
