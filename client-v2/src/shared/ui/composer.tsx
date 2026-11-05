@@ -94,6 +94,7 @@ function ComposerInput({
   onKeyDown,
   onInput,
   value,
+  placeholder,
   ...props
 }: React.ComponentProps<"textarea">) {
   const { setEmpty } = React.useContext(ComposerContext);
@@ -110,11 +111,13 @@ function ComposerInput({
     [setEmpty]
   );
   // A controlled value can change without an input event (a prompt the
-  // product puts in, a send that clears it), so emptiness follows it too.
+  // product puts in, a send that clears it), so emptiness follows it too. An
+  // empty field is as tall as its placeholder, which can change as well: a
+  // shorter one must not keep the height a longer one wrapped to.
   React.useLayoutEffect(() => {
     if (value === undefined || !ref.current) return;
     grow(ref.current);
-  }, [value, grow]);
+  }, [value, placeholder, grow]);
   // The height follows the width too. An input measured in a narrow column
   // (a panel that mounts it while still folded, then opens) wraps its
   // placeholder per character and would keep that height once the column
@@ -136,6 +139,7 @@ function ComposerInput({
     <textarea
       ref={ref}
       value={value}
+      placeholder={placeholder}
       data-slot="composer-input"
       rows={1}
       aria-label="Message"

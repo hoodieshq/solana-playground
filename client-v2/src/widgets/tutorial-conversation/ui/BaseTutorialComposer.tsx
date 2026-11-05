@@ -72,7 +72,7 @@ const usePressing = () => {
  * lesson has begun (the designer's call, 3 Nov).
  *
  * The prototype's chat field (`f7d42bf2e`, design audit of 3 Nov): one line
- * at rest, 44 px with a 22 px line and Send beside the words, so the lesson
+ * at rest, 44 px (46 below `md`) with a 22 px line and Send beside the words, so the lesson
  * keeps the column; the full box once focused or holding text.
  */
 const BaseTutorialComposer = ({
@@ -156,9 +156,10 @@ const BaseTutorialComposer = ({
         )}
       >
         <ComposerInput
-          // A 22 px line, not 15 × 1.5: 22.5 made the box half a pixel off
+          // A 22 px line, not 15 × 1.5: 22.5 made the box half a pixel off.
+          // A coarse pointer keeps its 16 px text, which stops iOS zooming in
           className={cn(
-            "leading-[22px] placeholder:text-muted-foreground/80! max-md:max-h-[calc(4lh+1.25rem)]",
+            "leading-[22px] placeholder:text-muted-foreground/80! max-md:max-h-[calc(4lh+1.25rem)] pointer-fine:max-md:text-[0.9375rem] pointer-fine:max-md:font-[350]",
             !open && "min-h-10 pt-2.5 pb-2.5 max-md:min-h-11"
           )}
           value={value}
@@ -183,7 +184,9 @@ const BaseTutorialComposer = ({
           }}
         />
         <ComposerToolbar className={cn(!open && "py-1 pr-1")}>
-          <ComposerSend className="pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">
+          {/* The prototype's Send: 32 px at every width, 44 px for a finger.
+              The panel's composer keeps its own 48 px on a phone */}
+          <ComposerSend className="max-md:size-8 max-md:data-[slot=composer-send]:[&_svg]:size-4 pointer-coarse:size-11 disabled:bg-surface-hover disabled:text-subtle disabled:opacity-100">
             <ArrowUp />
           </ComposerSend>
         </ComposerToolbar>

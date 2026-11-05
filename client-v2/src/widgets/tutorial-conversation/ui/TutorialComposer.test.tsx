@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -273,6 +279,29 @@ describe("TutorialComposer", () => {
     await userEvent.type(box(), "I'm stuck{Enter}");
     expect(t.send).toHaveBeenCalledWith("I'm stuck");
     await waitFor(() => expect(store.asked).toHaveBeenCalledTimes(1));
+  });
+
+  it("counts a question on the step it was asked on, with Start pressed mid-answer", async () => {
+    store.say.mockReturnValue("assistant");
+    store.state = stateAt("intro");
+    let answered: (reached: boolean) => void = () => {};
+    const t = {
+      send: vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            answered = resolve;
+          })
+      ),
+      stop: vi.fn(),
+      busy: false,
+    };
+    const { rerender } = render(<Connected turn={t} />);
+    await userEvent.type(box(), "what is a PDA{Enter}");
+    store.state = stateAt("step");
+    rerender(<Connected turn={t} />);
+    await act(async () => answered(true));
+    expect(store.asked).toHaveBeenCalledTimes(1);
+    expect(store.asked).toHaveBeenCalledWith(CURSORS.intro);
   });
 
   it("does not count a question that opened Connect a model instead", async () => {

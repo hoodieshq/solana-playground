@@ -32,6 +32,10 @@ export interface TutorialComposerProps {
   turn: ComposerTurn;
 }
 
+/** Why a question typed while the assistant answers is still in the box */
+const HELD =
+  "The assistant is still answering. Press Enter again once it's done.";
+
 /**
  * The composer under the feed. A live action's word runs that action and a
  * word the open question refuses gets the lesson's refusal
@@ -40,10 +44,6 @@ export interface TutorialComposerProps {
  * the turn's own input, so a message the assistant could not send yet (no
  * model connected) comes back here.
  */
-/** Why a question typed while the assistant answers is still in the box */
-const HELD =
-  "The assistant is still answering. Press Enter again once it's done.";
-
 export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
   const state = useConversationState();
   const [held, setHeld] = useState(false);
@@ -80,9 +80,11 @@ export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
     // With no model, `send` opens Connect a model and keeps the text here,
     // with no note, as the panel's composer does for a typed message (its
     // "waiting" note is for prompts the product asked for); only a message
-    // the assistant got is counted as asked
+    // the assistant got is counted as asked, on the step it was asked on:
+    // `send` resolves after the answer, and Start can come during it
+    const askedAt = progress.cursor;
     void turn.send(text).then((reached) => {
-      if (reached) PgConversation.asked();
+      if (reached) PgConversation.asked(askedAt);
     });
   };
   return (

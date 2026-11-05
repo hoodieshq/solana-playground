@@ -2,6 +2,7 @@ import { ArrowRight, Check } from "lucide-react";
 
 import type { Text } from "@/entities/tutorial";
 import type { LandedCall } from "@/features/tutorial-conversation";
+import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import {
   Collapsible,
@@ -14,6 +15,7 @@ import { Tag } from "@/shared/ui/tag";
 
 import { BaseDrawnCheck } from "./BaseDrawnCheck";
 import BaseReceipt, { receiptText } from "./BaseReceipt";
+import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA } from "./card-action";
 import { formatTook, HEADLINE, noStop, Prose, READ } from "./Prose";
 
 /** The finish card's tag, its "Step n done": the whole tutorial is a win */
@@ -133,12 +135,19 @@ const BaseFinishCard = ({
 
       <div className="flex flex-wrap items-center gap-2">
         {next && (
-          <Button onClick={onNext}>
+          <Button
+            className={cn(ACTION, ACTION_FILL, PHONE_CTA)}
+            onClick={onNext}
+          >
             Next: {next}
             <ArrowRight aria-hidden="true" />
           </Button>
         )}
-        <Button variant="outline" onClick={onAllTutorials}>
+        <Button
+          variant="ghost"
+          className={cn(ACTION, ACTION_SOFT, PHONE_CTA)}
+          onClick={onAllTutorials}
+        >
           All tutorials
         </Button>
       </div>
