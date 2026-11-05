@@ -18,7 +18,7 @@ export interface DeployWatchPort {
    * finished. A second Deploy press while one runs pauses or resumes it,
    * starting and finishing at once with no deploy behind it
    */
-  idle(): boolean;
+  isIdle(): boolean;
   /** The open workspace, by name */
   workspace(): string | undefined;
   cluster(): string | undefined;
@@ -44,12 +44,12 @@ export const watchDeploys = (
   const subs = [
     port.onDidStart(() => {
       // A pause or resume press starts too: keep the running deploy's
-      if (port.idle()) {
+      if (port.isIdle()) {
         started = { workspace: port.workspace(), cluster: port.cluster() };
       }
     }),
     port.onDidFinish((result) => {
-      if (!port.idle()) return;
+      if (!port.isIdle()) return;
       const run = started;
       started = undefined;
       if (result.err || !run) return;
@@ -114,7 +114,7 @@ if (import.meta.vitest) {
         finish = cb;
         return { dispose };
       },
-      idle: () => world.idle,
+      isIdle: () => world.idle,
       workspace: () => world.workspace,
       cluster: () => world.cluster,
       idl: () => world.idl,

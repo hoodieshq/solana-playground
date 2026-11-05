@@ -381,7 +381,7 @@ export const realDeployWatch = (): DeployWatchPort => ({
   onDidFinish: (cb) => PgCommand.deploy.onDidFinish(cb),
   // The command sets "ready" in its own `finally`, before `onDidFinish`
   // fires; `PgDeployHistory.init` relies on the same order
-  idle: () => PgGlobal.deployState === "ready",
+  isIdle: () => PgGlobal.deployState === "ready",
   workspace: () => PgExplorer.currentWorkspaceName ?? undefined,
   cluster: () => PgConnection.cluster ?? undefined,
   idl: () => PgProgramInfo.idl ?? undefined,
