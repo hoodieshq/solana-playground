@@ -1223,12 +1223,10 @@ sends: T-1 is the same walk against the real ones, which only a real network sho
 ### T-1. Hello Anchor on the build server and devnet
 
 Precondition: a network that reaches the build server and `api.devnet.solana.com`, and a devnet faucet that is not at
-its daily limit for this machine; a free slot port from "Slots" in [Parallel runs](#8-parallel-runs).
+its daily limit for this machine. Like the rest of the browser suite it takes no slot: leave `PORT` unset.
 
 ```sh
-k=6
-PORT=$((13000 + 10 * k)) PG_AI_API_KEY= E2E_LIVE=1 yarn --cwd client-v2 test-e2e:with-stubs \
-  e2e/tutorial-hello-anchor.e2e.spec.ts
+PG_AI_API_KEY= E2E_LIVE=1 yarn --cwd client-v2 test-e2e:with-stubs e2e/tutorial-hello-anchor.e2e.spec.ts
 ```
 
 Expect:

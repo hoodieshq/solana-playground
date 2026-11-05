@@ -60,19 +60,29 @@ export const fakeBuildServer = async (page: Page): Promise<FakeBuildServer> => {
   const builds: string[] = [];
   const unhandled: string[] = [];
   await page.route("**/build", async (route) => {
-    const body = route.request().postDataJSON() as {
-      files: [string, string][];
-    };
-    const lib = body.files.find(([path]) => path.endsWith("src/lib.rs"))?.[1];
+    let files: [string, string][] | undefined;
+    try {
+      files = (
+        route.request().postDataJSON() as { files?: [string, string][] } | null
+      )?.files;
+    } catch {
+      files = undefined;
+    }
+    if (!Array.isArray(files)) {
+      unhandled.push("build with no `files` in its body");
+      return route.fulfill({ status: 400, body: "no files" });
+    }
+    const lib = files.find(([path]) => path.endsWith("src/lib.rs"))?.[1];
     if (lib === undefined) {
       // Not the planned failure: the app sent no lib.rs at all
       unhandled.push(
-        `build without src/lib.rs: ${body.files.map(([p]) => p).join(", ")}`
+        `build without src/lib.rs: ${files.map(([p]) => p).join(", ")}`
       );
       return route.fulfill({ status: 400, body: "no src/lib.rs" });
     }
     builds.push(lib);
-    if (!/struct Hello\b/.test(lib)) {
+    // Comments aside, so a mention of the struct in one does not compile it
+    if (!/struct Hello\b/.test(lib.replace(/\/\/.*$/gm, ""))) {
       return route.fulfill({
         // eslint-disable-next-line unicorn/no-null -- the server's JSON for a failed build
         json: { stderr: PLANNED, uuid: null, idl: null },

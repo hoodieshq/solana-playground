@@ -12,15 +12,18 @@ import { HELLO_NAME, HELLO_WORLD } from "./fake-build-server";
  * A devnet for the tutorial specs, answered in the test: the JSON-RPC calls
  * the tutorial's deploy, run and call acts make, and the websocket their
  * confirmations wait on. It keeps accounts, applies what a sent transaction
- * does to them (system transfers into new accounts, the upgradeable loader's
+ * does to them (the system program's createAccount and transfer, the upgradeable loader's
  * buffer, deploy, upgrade and extend, a call to Hello Anchor's `hello`) and
  * writes each call's program log, so the app's own code runs end to end with
  * no network.
  *
  * Signatures are taken as sent. A transaction applies whole or not at all: one
  * that would leave a balance below zero is refused with a JSON-RPC error, as
- * the cluster's preflight refuses it. `accountSubscribe` hears of every
- * change to its account. A call logs only on a program the loader
+ * the cluster's preflight refuses it; so is a write past an account's end, a
+ * program bigger than the space it is given, an instruction on an account that
+ * does not exist and a createAccount over one that does. `accountSubscribe`
+ * hears of every change to its account. `simulateTransaction` always passes
+ * and every landed signature reads finalized. A call logs only on a program the loader
  * deployed, and its log follows the bytes deployed there (`HELLO_WORLD` or
  * `HELLO_NAME`, from `fake-build-server.ts`). Anything the fake does not model
  * (a method, a program, an instruction, a subscription) fails and is listed in
@@ -125,6 +128,8 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
   const unhandled: string[] = [];
   /** Notifies a `signatureSubscribe` that came before its transaction landed */
   const waiting = new Map<string, (() => void)[]>();
+  /** Subscription ids, unique across every socket the page opens */
+  let nextSubscription = 1;
   /** `accountSubscribe` watchers, by subscription id */
   const watchers = new Map<number, { address: string; notify: () => void }>();
   /** Tells every watcher of `keys` their account's state now */
@@ -138,6 +143,7 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
     return new Unhandled(`the fake devnet does not model ${what}`);
   };
   const started = Date.now();
+  let airdrops = 0;
   // A slot every 400 ms, as on the cluster: the app reads a slot that does
   // not move as a stalled cluster, and web3 waits for a blockhash to change
   const slot = () => 1000 + Math.floor((Date.now() - started) / 400);
@@ -172,6 +178,31 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
     return found;
   };
 
+  /** The account at `key`, which an instruction needs to exist already */
+  const existing = (key: string): Account => {
+    const found = accounts.get(key);
+    if (!found) throw new Error(`account ${key} does not exist`);
+    return found;
+  };
+
+  /** Copies `bytes` into `into` at `at`, refusing a write past its end */
+  const write = ({
+    bytes,
+    into,
+    at,
+  }: {
+    bytes: Buffer;
+    into: Buffer;
+    at: number;
+  }) => {
+    if (at + bytes.length > into.length) {
+      throw new Error(
+        `account data too small: ${at + bytes.length} bytes into ${into.length}`
+      );
+    }
+    bytes.copy(into, at);
+  };
+
   /** Lists the transaction `at` under `key`, for `getSignaturesForAddress` */
   const touch = (key: string, at: { signature: string; slot: number }) => {
     const list = touched.get(key) ?? [];
@@ -191,6 +222,10 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
         const lamports = Number(data.readBigUInt64LE(4));
         const space = Number(data.readBigUInt64LE(12));
         const owner = new PublicKey(data.subarray(20, 52)).toBase58();
+        const taken = accounts.get(keys[1]);
+        if (taken && (taken.lamports > 0 || taken.data.length > 0)) {
+          throw new Error(`account ${keys[1]} already in use`);
+        }
         account(keys[0]).lamports -= lamports;
         accounts.set(keys[1], {
           lamports,
@@ -238,7 +273,7 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
     switch (tag) {
       case 0: {
         // InitializeBuffer: [buffer, authority]
-        const buffer = account(keys[0]);
+        const buffer = existing(keys[0]);
         buffer.data.writeUInt32LE(1, 0);
         buffer.data[4] = 1;
         new PublicKey(keys[1]).toBuffer().copy(buffer.data, 5);
@@ -248,9 +283,11 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
         // Write: offset, then bincode bytes (u64 length first)
         const offset = data.readUInt32LE(4);
         const length = Number(data.readBigUInt64LE(8));
-        data
-          .subarray(16, 16 + length)
-          .copy(account(keys[0]).data, BUFFER_HEADER + offset);
+        write({
+          bytes: data.subarray(16, 16 + length),
+          into: existing(keys[0]).data,
+          at: BUFFER_HEADER + offset,
+        });
         break;
       }
       case 2: {
@@ -259,18 +296,18 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
         const maxDataLen = Number(data.readBigUInt64LE(4));
         const [, programDataKey, programKey, bufferKey] = keys;
         const authority = keys[7];
-        const buffer = account(bufferKey);
+        const buffer = existing(bufferKey);
         const bytes = buffer.data.subarray(BUFFER_HEADER);
         const programData = Buffer.alloc(PROGRAM_DATA_HEADER + maxDataLen);
         writeProgramDataHeader(programData, { slot: s, authority });
-        bytes.copy(programData, PROGRAM_DATA_HEADER);
+        write({ bytes, into: programData, at: PROGRAM_DATA_HEADER });
         accounts.set(programDataKey, {
           lamports: buffer.lamports,
           owner: LOADER,
           data: programData,
           executable: false,
         });
-        const programAccount = account(programKey);
+        const programAccount = existing(programKey);
         programAccount.data = Buffer.alloc(36);
         programAccount.data.writeUInt32LE(2, 0);
         new PublicKey(programDataKey).toBuffer().copy(programAccount.data, 4);
@@ -284,11 +321,15 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
         // authority]
         const [programDataKey, , bufferKey, spillKey] = keys;
         const authority = keys[6];
-        const buffer = account(bufferKey);
-        const programData = account(programDataKey);
+        const buffer = existing(bufferKey);
+        const programData = existing(programDataKey);
         const fresh = Buffer.alloc(programData.data.length);
         writeProgramDataHeader(fresh, { slot: s, authority });
-        buffer.data.subarray(BUFFER_HEADER).copy(fresh, PROGRAM_DATA_HEADER);
+        write({
+          bytes: buffer.data.subarray(BUFFER_HEADER),
+          into: fresh,
+          at: PROGRAM_DATA_HEADER,
+        });
         programData.data = fresh;
         account(spillKey).lamports += buffer.lamports;
         accounts.delete(bufferKey);
@@ -297,7 +338,7 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
       case 6: {
         // ExtendProgram: [programData, program, system, payer]
         const additional = data.readUInt32LE(4);
-        const programData = account(keys[0]);
+        const programData = existing(keys[0]);
         programData.data = Buffer.concat([
           programData.data,
           Buffer.alloc(additional),
@@ -319,6 +360,9 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
     wire: string
   ): { result: string } | { error: { code: number; message: string } } => {
     const tx = VersionedTransaction.deserialize(Buffer.from(wire, "base64"));
+    if (!tx.signatures[0] || tx.signatures[0].every((byte) => byte === 0)) {
+      throw new Error("the transaction carries no fee payer signature");
+    }
     const signature = bs58.encode(tx.signatures[0]);
     if (landed.has(signature)) return { result: signature };
     const message = tx.message;
@@ -477,7 +521,9 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
         const before = accounts.get(to)?.lamports ?? 0;
         account(to).lamports += lamports;
         const signature = bs58.encode(
-          createHash("sha512").update(`airdrop:${to}:${Date.now()}`).digest()
+          createHash("sha512")
+            .update(`airdrop:${to}:${(airdrops += 1)}`)
+            .digest()
         );
         const s = slot();
         touch(to, { signature, slot: s });
@@ -603,14 +649,29 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
   };
 
   await page.route(`${RPC}/**`, async (route: Route) => {
-    const body = route.request().postDataJSON() as
+    let body:
       | { id: unknown; method: string; params?: unknown[] }
       | { id: unknown; method: string; params?: unknown[] }[]
-      | null;
-    if (!body) return route.fulfill({ status: 405, body: "" });
+      | undefined;
+    try {
+      body = (route.request().postDataJSON() ?? undefined) as typeof body;
+    } catch {
+      body = undefined;
+    }
+    if (!body) {
+      unhandled.push(`RPC ${route.request().method()} with no JSON-RPC body`);
+      return route.fulfill({ status: 405, body: "" });
+    }
     const one = (b: { id: unknown; method: string; params?: unknown[] }) => {
       calls.push(b.method);
-      const a = answer(b.method, b.params ?? []);
+      let a: ReturnType<typeof answer>;
+      try {
+        a = answer(b.method, b.params ?? []);
+      } catch (error) {
+        // The app sent something the fake cannot read: say so, and fail the call
+        unhandled.push(`RPC ${b.method} threw: ${String(error)}`);
+        a = { error: { code: -32603, message: String(error) } };
+      }
       return "error" in a
         ? { jsonrpc: "2.0", id: b.id, error: a.error }
         : { jsonrpc: "2.0", id: b.id, result: a.result };
@@ -624,84 +685,99 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
   });
 
   await page.routeWebSocket(`${WS}/**`, (ws: WebSocketRoute) => {
-    let next = 1;
-    ws.onMessage((raw) => {
+    // A socket the page closed (a reload) hears nothing more, and its
+    // subscriptions stop counting
+    let open = true;
+    const mine = new Set<number>();
+    ws.onClose(() => {
+      open = false;
+      for (const id of mine) watchers.delete(id);
+    });
+    /** Sends `message`, a whole JSON-RPC 2.0 frame, unless the page closed */
+    const reply = (message: { jsonrpc: "2.0" }) => {
+      if (open) ws.send(JSON.stringify(message));
+    };
+    const subscribe = (id: number) => {
+      const subscription = nextSubscription++;
+      mine.add(subscription);
+      reply({ jsonrpc: "2.0", result: subscription, id });
+      return subscription;
+    };
+
+    const onMessage = (raw: string | Buffer) => {
       const message = JSON.parse(String(raw)) as {
         id?: number;
         method?: string;
         params?: unknown[];
       };
-      if (message.id === undefined || !message.method) return;
+      // web3's keep-alive, a notification that wants no answer
+      if (message.id === undefined && message.method === "ping") return;
+      if (message.id === undefined || !message.method) {
+        unhandled.push(`websocket message ${String(raw).slice(0, 80)}`);
+        return;
+      }
+      const params = message.params ?? [];
       if (message.method.endsWith("Unsubscribe")) {
-        watchers.delete((message.params ?? [])[0] as number);
-        ws.send(
-          JSON.stringify({ jsonrpc: "2.0", result: true, id: message.id })
-        );
+        const id = params[0] as number;
+        if (mine.delete(id)) watchers.delete(id);
+        reply({ jsonrpc: "2.0", result: true, id: message.id });
         return;
       }
       if (message.method === "accountSubscribe") {
-        const subscription = next++;
-        const address = (message.params ?? [])[0] as string;
-        ws.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            result: subscription,
-            id: message.id,
-          })
-        );
+        const subscription = subscribe(message.id);
+        const address = params[0] as string;
         watchers.set(subscription, {
           address,
           notify: () =>
-            ws.send(
-              JSON.stringify({
-                jsonrpc: "2.0",
-                method: "accountNotification",
-                params: {
-                  subscription,
-                  result: {
-                    context: context(),
-                    value: encoded(accounts.get(address)),
-                  },
+            reply({
+              jsonrpc: "2.0",
+              method: "accountNotification",
+              params: {
+                subscription,
+                result: {
+                  context: context(),
+                  value: encoded(accounts.get(address)),
                 },
-              })
-            ),
+              },
+            }),
         });
         return;
       }
       if (message.method !== "signatureSubscribe") {
         unhandled.push(`websocket ${message.method}`);
-        ws.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            error: { code: -32601, message: "Method not found" },
-            id: message.id,
-          })
-        );
+        reply({
+          jsonrpc: "2.0",
+          error: { code: -32601, message: "Method not found" },
+          id: message.id,
+        });
         return;
       }
-      const subscription = next++;
-      ws.send(
-        JSON.stringify({ jsonrpc: "2.0", result: subscription, id: message.id })
-      );
-      const signature = (message.params ?? [])[0] as string;
+      const subscription = subscribe(message.id);
+      const signature = params[0] as string;
       const notify = () =>
-        ws.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            method: "signatureNotification",
-            params: {
-              subscription,
-              result: {
-                context: { slot: landed.get(signature)?.slot ?? slot() },
-                // eslint-disable-next-line unicorn/no-null -- it landed
-                value: { err: null },
-              },
+        reply({
+          jsonrpc: "2.0",
+          method: "signatureNotification",
+          params: {
+            subscription,
+            result: {
+              context: { slot: landed.get(signature)?.slot ?? slot() },
+              // eslint-disable-next-line unicorn/no-null -- it landed
+              value: { err: null },
             },
-          })
-        );
+          },
+        });
       if (landed.has(signature)) notify();
       else
         waiting.set(signature, (waiting.get(signature) ?? []).concat(notify));
+    };
+
+    ws.onMessage((raw) => {
+      try {
+        onMessage(raw);
+      } catch (error) {
+        unhandled.push(`websocket message threw: ${String(error)}`);
+      }
     });
   });
 

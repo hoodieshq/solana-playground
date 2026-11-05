@@ -19,8 +19,9 @@ import { expect, LONG, test } from "./fixtures";
  * `fake-devnet.ts`): the scenarios of `tutorial-conversation` and
  * `tutorial-runs` in `tutorial-flow-v2` that need a whole run. The copy is
  * read from the definition, so tuning the lesson's words breaks nothing here;
- * the cards' own strings are the spec's. Every test ends with both fakes'
- * `unhandled` empty: a request they do not model fails the test that made it.
+ * the cards' own strings are the spec's. Every test that runs on the fakes
+ * ends with both fakes' `unhandled` empty: a request they do not model fails
+ * the test that made it.
  *
  * `E2E_LIVE=1` runs the first test on the real build server and devnet
  * instead (`docs/testing.md`, T-1) and skips the rest, which steer the fakes.
@@ -79,6 +80,17 @@ const won = async (page: Page, id: string) => {
   ).toBeVisible(LONG);
 };
 /** The live Next, "Next: <the next step's title>" */
+/** A passed step's act keeps no live button: only the latest card acts */
+const spent = async (page: Page, ...ids: string[]) => {
+  for (const id of ids) {
+    await expect(
+      feed(page).getByRole("button", {
+        name: beat(id, "act").button,
+        exact: true,
+      })
+    ).toHaveCount(0);
+  }
+};
 const next = (page: Page) =>
   feed(page).getByRole("button", { name: /^Next/ }).last();
 
@@ -100,6 +112,7 @@ const passStepOne = async (page: Page) => {
   await answer(page, beat("f1.q2", "ask"));
   await act(page, "f1.build").click(LONG);
   await won(page, "write-program");
+  await spent(page, "s1.build", "f1.build");
 };
 
 /** Step 2: a deploy from a wallet made on the card, funded by the faucet */
@@ -109,6 +122,7 @@ const passStepTwo = async (page: Page) => {
   const create = feed(page).getByRole("button", { name: "Create wallet" });
   await create.click(LONG);
   await won(page, "deploy");
+  await spent(page, "s2.deploy");
 };
 
 test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () => {
@@ -127,7 +141,8 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
   });
 
   test.afterEach(() => {
-    if (live) return;
+    // Unset when beforeEach failed, whose own error is the one to read
+    if (live || !builds || !devnet) return;
     expect(builds.unhandled).toEqual([]);
     expect(devnet.unhandled).toEqual([]);
   });
@@ -154,6 +169,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     const programId = /address\/(\w+)/.exec(
       (await program.getAttribute("href")) ?? ""
     )?.[1];
+    expect(programId).toBeDefined();
     if (!live) expect(devnet.programs()).toEqual([programId]);
     await next(page).click();
 
@@ -214,9 +230,10 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
         feed(page).getByRole("button", { name: `Next: ${title}`, exact: true })
       ).toHaveCount(0);
     }
-    await feed(page).getByText("Transaction details").click();
+    const finished = feed(page).getByRole("region", { name: "Finished" });
+    await finished.getByText("Transaction details").click();
     await expect(
-      feed(page).getByText("Program log: Hello, Alex!").last()
+      finished.getByText("Program log: Hello, Alex!").first()
     ).toBeVisible();
   });
 
@@ -247,9 +264,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     await expect(feed(page).getByText(/· 2nd try/)).toBeVisible(LONG);
   });
 
-  test("tutorial-conversation: The planned E0412, explained", async ({
-    page,
-  }) => {
+  test("tutorial-conversation: The planned E0412", async ({ page }) => {
     test.skip(live, "steers the fakes");
     test.setTimeout(120_000);
     await start(page);
@@ -258,11 +273,11 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     await expect(feed(page).getByText("E0412 · line 9").last()).toBeVisible(
       LONG
     );
-    // The definition's line on the card, then its explanation and question
+    // The definition's line on the card, then Explain's explanation and question
+    const planned = step("write-program").planned;
+    if (!planned) throw new Error("Hello Anchor's step 1 plans no failure");
     await expect(
-      feed(page).getByText(words(step("write-program").planned ?? ""), {
-        exact: false,
-      })
+      feed(page).getByText(words(planned), { exact: false })
     ).toBeVisible();
     await feed(page)
       .getByRole("button", { name: /Explain the error/ })
