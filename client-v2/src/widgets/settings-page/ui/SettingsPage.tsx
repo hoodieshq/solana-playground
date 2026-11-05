@@ -270,6 +270,7 @@ const Project = ({ phone, onImported }: ProjectProps) => {
             variant="outline"
             size={size}
             className={phone ? PHONE_BUTTON : undefined}
+            aria-label="Export project"
             onClick={() => PgFramework.exportWorkspace()}
             onError={reportButtonFailure("export the project")}
           >
@@ -288,6 +289,7 @@ const Project = ({ phone, onImported }: ProjectProps) => {
               variant="outline"
               size={size}
               className={phone ? PHONE_BUTTON : undefined}
+              aria-label="Import from GitHub"
               onClick={open(ImportGithub)}
               onError={reportButtonFailure("open the GitHub import")}
             >
@@ -298,6 +300,7 @@ const Project = ({ phone, onImported }: ProjectProps) => {
               variant="outline"
               size={size}
               className={phone ? PHONE_BUTTON : undefined}
+              aria-label="Import from files"
               onClick={open(ImportFs)}
               onError={reportButtonFailure("open the file import")}
             >

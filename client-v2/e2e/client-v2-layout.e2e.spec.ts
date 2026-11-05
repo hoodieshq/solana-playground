@@ -1901,17 +1901,13 @@ const sectionList = (page: Page) =>
 const SECTIONS = [
   "Network",
   "Assistant",
-  "Project",
-  "Block Explorer",
-  "Build",
-  "Connection",
   "Editor",
-  "Notification",
-  "Server",
-  "Test UI",
-  "UI",
+  "Build",
   "Wallet",
-  "Experimental",
+  "Appearance",
+  "Keyboard shortcuts",
+  "Project",
+  "Advanced",
 ];
 
 test.describe("the settings page", () => {
@@ -1927,7 +1923,7 @@ test.describe("the settings page", () => {
     // Each setting's control carries its own name: two of one name ("Endpoint"
     // twice, once) cannot be told apart by a screen reader or a test
     const names = await settingsPage(page)
-      .locator('[role="combobox"], [role="checkbox"]')
+      .locator('[role="combobox"], [role="switch"]')
       .evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
     expect(names.length).toBeGreaterThan(5);
     expect(names.filter((n, i) => names.indexOf(n) !== i)).toEqual([]);
@@ -1940,7 +1936,7 @@ test.describe("the settings page", () => {
     await expect(editor).toHaveAttribute("aria-current", "true");
 
     // The last section cannot scroll to the top, and still takes the mark
-    const last = list.getByRole("button", { name: "Experimental" });
+    const last = list.getByRole("button", { name: "Advanced" });
     await last.click();
     await expect(last).toHaveAttribute("aria-current", "true");
   });
@@ -2090,10 +2086,9 @@ test.describe("the settings page at 1440 by 900", () => {
 
     for (const theme of ["Dark", "Light"]) {
       if (theme === "Light") {
-        const row = settingsPage(page)
-          .locator("span", { hasText: /^Theme$/ })
-          .locator("xpath=../..");
-        await row.getByRole("combobox").click();
+        await settingsPage(page)
+          .getByRole("combobox", { name: "Theme" })
+          .click();
         await page.getByRole("option", { name: "Light", exact: true }).click();
         await expect
           .poll(() =>
