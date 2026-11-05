@@ -10,14 +10,8 @@ import {
 
 import type { FlowState, Stage, StageStatus } from "../state/stage";
 import { STAGES } from "../state/stage";
+import { STAGE_LABEL } from "../state/stage-label";
 import { STEPPER_FULL_WIDTH_PX } from "./stepper-width";
-
-const LABEL: Record<Stage, string> = {
-  write: "Write",
-  build: "Build",
-  deploy: "Deploy",
-  interact: "Interact",
-};
 
 /**
  * Writing has no completion signal of its own, so it is inferred: reaching a
@@ -126,7 +120,7 @@ const Stepper: FC<StepperProps> = ({
               }
               id={`flow-stage-tab-${stage}`}
               aria-controls={`flow-stage-panel-${stage}`}
-              aria-label={`${LABEL[stage]}: ${status}${
+              aria-label={`${STAGE_LABEL[stage]}: ${status}${
                 // Spoken here as well as drawn: a pre-compiler failure has no
                 // count, so saying "0 errors" would mislead.
                 stage === "build" &&
@@ -138,7 +132,7 @@ const Stepper: FC<StepperProps> = ({
                   : ""
               }${stage === target ? ", current lesson target" : ""}`}
             >
-              {LABEL[stage]}
+              {STAGE_LABEL[stage]}
             </StepperItem>
           );
         })}
