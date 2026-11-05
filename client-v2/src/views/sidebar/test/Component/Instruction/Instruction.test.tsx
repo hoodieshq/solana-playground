@@ -37,7 +37,7 @@ vi.mock("../../../../../utils/program-interaction", () => ({
     saveInstruction: vi.fn(),
   },
 }));
-const session = vi.hoisted(() => ({ wallet: {} as object | null }));
+const session = vi.hoisted(() => ({ wallet: {} as object | undefined }));
 vi.mock("../../../../../hooks", () => ({ useWallet: () => session.wallet }));
 vi.mock("./InstructionInput", () => ({ default: () => null }));
 vi.mock("../IdlProvider", () => ({ useIdl: () => ({ idl: {} }) }));
@@ -112,7 +112,7 @@ it("tests the instruction through onCall", () => {
 });
 
 it("holds Test for a wallet first, and says so", () => {
-  session.wallet = null;
+  session.wallet = undefined;
   render(
     <Instruction
       idlInstruction={IX}
