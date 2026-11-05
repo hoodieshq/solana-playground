@@ -103,7 +103,6 @@ const signInThenDeploy = async () => {
   await PgStageDeploy.start((error) => markIfToldByStage("deploy", error));
 };
 
-/** The Deploy stage, connected: the flow, the history, the chain, commands */
 /**
  * Switches the connection to the offered network of this cluster, as a pick
  * in Settings does
@@ -113,6 +112,7 @@ const showNetwork = (cluster: string) => {
   if (network) PgSettings.connection.endpoint = network.value;
 };
 
+/** The Deploy stage, connected: the flow, the history, the chain, commands */
 const Deploy = ({ onChangeNetwork }: { onChangeNetwork: () => void }) => {
   const [flow, setFlow] = useState<FlowState>(PgFlow.state);
   // Read on mount, not only on change: the stage router remounts this stage

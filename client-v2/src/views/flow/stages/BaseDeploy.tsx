@@ -120,9 +120,9 @@ export interface BaseDeployProps {
   /** The secondary "Upload IDL" action (`IdlActions mode="upload-button"`) */
   idlUpload: ReactNode;
   /**
-   * The folded "Program id" block (`ProgramKeypair`): under the payer line
-   * before the first deploy on the network picked, under the history after
-   * one
+   * The folded "Program id" block (`ProgramKeypair`): the last row of the
+   * facts card before the first deploy on the network picked, a card of its
+   * own under the history after one
    */
   programKeypair: ReactNode;
   /** Opens the CLI deploy guide; `from` is the control pressed */
@@ -171,8 +171,7 @@ const payerLine = (p: BaseDeployProps) => {
 
 /**
  * The stage's prose. `latest` is the latest deployment on the network picked
- * now; a project deployed only on other networks is told that each keeps its
- * own.
+ * now; a project deployed only on other networks gets `ElsewhereLine` instead.
  */
 const description = (p: BaseDeployProps, latest: DeployRecord | undefined) => {
   if (!p.built) return "Build the program first.";
@@ -207,7 +206,8 @@ const title = (p: BaseDeployProps, latest: DeployRecord | undefined) => {
 /**
  * EMPTY-14's line, with Show {network} in it as a link when Settings offers
  * that network: the pill keeps the stage's one way on, and the link sits with
- * the sentence it answers
+ * the sentence it answers. Off while a deploy runs: the deploy's record takes
+ * the network read when it ends, so a switch here would file it under this one.
  */
 const ElsewhereLine = ({
   p,
@@ -224,6 +224,7 @@ const ElsewhereLine = ({
         <Button
           variant="link"
           className="inline h-auto p-0 align-baseline text-[length:inherit] text-foreground"
+          disabled={p.deploy === "running"}
           onClick={() => p.onShowNetwork(elsewhere.cluster)}
         >
           {`Show ${where}`}

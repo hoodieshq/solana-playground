@@ -818,6 +818,28 @@ describe("BaseDeploy before a deploy on this network", () => {
     expect(onShowNetwork).toHaveBeenCalledWith("devnet");
   });
 
+  it("turns Show off while a deploy runs", () => {
+    const onShowNetwork = vi.fn();
+    render(
+      <BaseDeploy
+        {...props({
+          built: true,
+          deploy: "running",
+          cluster: "testnet",
+          history: [record("a", "5sig")],
+        })}
+        onShowNetwork={onShowNetwork}
+      />
+    );
+
+    const show = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Show devnet",
+    });
+    expect(show.disabled).toBe(true);
+    fireEvent.click(show);
+    expect(onShowNetwork).not.toHaveBeenCalled();
+  });
+
   it("offers no Show for a network Settings does not offer", () => {
     render(
       <BaseDeploy
