@@ -8,6 +8,7 @@ import type {
   ConversationView,
   Turn,
 } from "@/features/tutorial-conversation";
+import { requireFor } from "@/test-utils/require-for";
 
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 
@@ -165,7 +166,9 @@ const live: Turn = {
   at: 3,
   whole: true,
   beatId: "s2.deploy",
-  act: definition.steps[1].beats.find((b): b is ActBeat => b.kind === "act")!,
+  act: requireFor("an act beat")(
+    definition.steps[1].beats.find((b): b is ActBeat => b.kind === "act")
+  ),
   state: "live",
   note: null,
   stage: null,
@@ -404,7 +407,7 @@ describe("TutorialConversation", () => {
     });
     vi.mocked(PgExplorer.getFile).mockReturnValue(null);
     let notify: (s: ConversationState) => void = () => {};
-    const context = store.state!.context;
+    const context = requireFor("the store's state")(store.state).context;
     store.onDidChange.mockImplementation((cb) => {
       notify = cb;
       return { dispose: vi.fn() };
@@ -526,7 +529,7 @@ describe("TutorialConversation", () => {
 
     // The store's timer: the same state object, a view with the turn now due
     store.view.mockReturnValue(onStep2);
-    act(() => notify(store.state!));
+    act(() => notify(requireFor("the store's state")(store.state)));
     expect(
       screen.getByRole("button", { name: "Show lines 5 to 6 in src/lib.rs" })
     ).toBeTruthy();
@@ -561,7 +564,7 @@ describe("TutorialConversation", () => {
     // The save lands, on step 2
     store.state = loaded();
     store.view.mockReturnValue(onStep2);
-    act(() => notify(store.state!));
+    act(() => notify(requireFor("the store's state")(store.state)));
     act(() => created.forEach((cb) => cb()));
     expect(PgExplorer.openFile).not.toHaveBeenCalled();
     expect(PgExplorer.onDidCreateItem).not.toHaveBeenCalled();
@@ -650,7 +653,9 @@ describe("TutorialConversation", () => {
       focus = cb;
       return { dispose: vi.fn() };
     });
-    const ask = step1.beats.find((b): b is Ask => b.kind === "ask")!;
+    const ask = requireFor("a question beat")(
+      step1.beats.find((b): b is Ask => b.kind === "ask")
+    );
     const question: Turn = {
       id: ask.id,
       kind: "ask",
@@ -761,7 +766,9 @@ describe("TutorialConversation", () => {
   });
 
   it("sends Type it myself to the engine for the live question", async () => {
-    const ask = step1.beats.find((b): b is Ask => b.kind === "ask")!;
+    const ask = requireFor("a question beat")(
+      step1.beats.find((b): b is Ask => b.kind === "ask")
+    );
     const question: Turn = {
       id: ask.id,
       kind: "ask",
@@ -832,9 +839,11 @@ describe("TutorialConversation keys and the pill", () => {
   });
 
   it("leaves ⌘↵ to a call act's own fields, where Enter sends its arguments", () => {
-    const callAct = definition.steps[3].beats.find(
-      (b): b is ActBeat => b.kind === "act" && b.act === "call"
-    )!;
+    const callAct = requireFor("the call act")(
+      definition.steps[3].beats.find(
+        (b): b is ActBeat => b.kind === "act" && b.act === "call"
+      )
+    );
     const callTurn: Turn = {
       id: callAct.id,
       kind: "act",

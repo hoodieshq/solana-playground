@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ActBeat, TutorialDefinition } from "@/entities/tutorial";
 import type { StepBarItem, Turn } from "@/features/tutorial-conversation";
+import { requireFor } from "@/test-utils/require-for";
 
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import type { BaseFeedProps } from "./BaseFeed";
@@ -13,9 +14,11 @@ import TurnView from "./TurnView";
 
 const definition = hello as unknown as TutorialDefinition;
 const actOf = (id: string) =>
-  definition.steps
-    .flatMap((s) => s.beats)
-    .find((b): b is ActBeat => b.kind === "act" && b.id === id)!;
+  requireFor(`the act ${id}`)(
+    definition.steps
+      .flatMap((s) => s.beats)
+      .find((b): b is ActBeat => b.kind === "act" && b.id === id)
+  );
 
 const divider = (index: number, done: boolean, at: number): Turn => {
   const step = definition.steps[index - 1];
@@ -208,7 +211,9 @@ describe("BaseFeed", () => {
 
   it("sets each turn's gap from the one before it, the feed starting flush", () => {
     const { container } = feed();
-    const turns = [...container.querySelectorAll<HTMLElement>("[data-turn]")];
+    const turns = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-turn]")
+    );
     expect(turns[0].style.marginTop).toBe("0px");
     turns.slice(1).forEach((el, i) => {
       if (el.dataset.turn === "divider")
@@ -254,8 +259,13 @@ describe("BaseFeed", () => {
     const log = within(screen.getByRole("log"));
     expect(log.getByText("Built in 1.6 s")).toBeTruthy();
 
-    const step1 = [...container.querySelectorAll("[data-turn]")].slice(0, 3);
-    const buttons = step1.flatMap((el) => [...el.querySelectorAll("button")]);
+    const step1 = Array.from(container.querySelectorAll("[data-turn]")).slice(
+      0,
+      3
+    );
+    const buttons = step1.flatMap((el) =>
+      Array.from(el.querySelectorAll("button"))
+    );
     expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual([
       "Show lines 5 to 7 in src/lib.rs",
     ]);
@@ -315,8 +325,9 @@ describe("BaseFeed", () => {
       .forEach((el, i) =>
         Object.defineProperty(el, "offsetTop", { value: [0, 300, 900][i] })
       );
-    const scroller = container.querySelector("[role='log']")!
-      .parentElement as HTMLElement;
+    const scroller = requireFor("the log")(
+      container.querySelector("[role='log']")
+    ).parentElement as HTMLElement;
     for (const [key, value] of Object.entries(box)) {
       Object.defineProperty(scroller, key, { value, configurable: true });
     }

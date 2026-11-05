@@ -9,9 +9,9 @@ describe("Prose", () => {
   it("keeps the text whole, with each tick pair as a chip", () => {
     const box = draw("Yours is `hello`, in `#[program]`.");
     expect(box.textContent).toBe("Yours is hello, in #[program].");
-    expect([...box.querySelectorAll("code")].map((c) => c.textContent)).toEqual(
-      ["hello", "#[program]"]
-    );
+    expect(
+      Array.from(box.querySelectorAll("code")).map((c) => c.textContent)
+    ).toEqual(["hello", "#[program]"]);
   });
 
   it("glues a stop after a chip to it in one unbreakable run, and only once", () => {

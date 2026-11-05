@@ -262,8 +262,10 @@ if (import.meta.vitest) {
         programId: () =>
           over.programId === undefined ? PROGRAM : over.programId,
         funding: {
-          balance: vi.fn(async () =>
-            balances.length > 1 ? balances.shift()! : balances[0]
+          balance: vi.fn(
+            async () =>
+              (balances.length > 1 ? balances.shift() : undefined) ??
+              balances[0]
           ),
           airdrop: vi.fn(over.airdrop ?? (async () => "airdrop")),
           confirm: async () => true,

@@ -177,7 +177,7 @@ export const BaseQuestionRecord = ({
                   <OptionText ask={ask} i={i} ruled={ruled} />
                   {ask.why[i] && (
                     <span className="mt-1 block text-caption text-muted-foreground">
-                      <Prose text={ask.why[i]!} />
+                      <Prose text={ask.why[i] ?? ""} />
                     </span>
                   )}
                 </span>
@@ -456,7 +456,7 @@ const BaseQuestionCard = ({
                     <span className="font-medium text-foreground">
                       Not quite.
                     </span>{" "}
-                    <Prose text={ask.why[i]!} chip="small" />
+                    <Prose text={ask.why[i] ?? ""} chip="small" />
                   </span>
                 )}
               </span>

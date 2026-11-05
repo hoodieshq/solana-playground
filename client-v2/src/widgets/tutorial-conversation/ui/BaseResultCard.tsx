@@ -198,6 +198,7 @@ const BaseResultCard = ({
                 <Button
                   variant="link"
                   size="xs"
+                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- the guard above narrows both; a closure loses it
                   onClick={() => onShowLine(error.file!, error.line!)}
                   className="h-auto w-fit px-0 font-mono text-[0.8125rem] text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground"
                 >

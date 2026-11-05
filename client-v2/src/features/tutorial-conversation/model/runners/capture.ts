@@ -162,14 +162,14 @@ if (import.meta.vitest) {
 
     it("refuses a second capture while one is in flight, and sends untouched", async () => {
       const conn = new FakeConnection();
-      let inner: Awaited<ReturnType<typeof captureSends>> | null = null;
+      let inner = null as Awaited<ReturnType<typeof captureSends>> | null;
       const outer = await captureSends(FakeConnection.prototype, async () => {
         inner = await captureSends(FakeConnection.prototype, async () =>
           conn.sendEncodedTransaction("b")
         );
         return conn.sendEncodedTransaction("a");
       });
-      expect(inner!.error).toEqual(new Error(CAPTURE_BUSY));
+      expect(inner?.error).toEqual(new Error(CAPTURE_BUSY));
       expect(outer.captured.map((c) => c.encoded)).toEqual(["a"]);
       const after = await captureSends(FakeConnection.prototype, async () =>
         conn.sendEncodedTransaction("c")

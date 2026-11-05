@@ -16,6 +16,7 @@ import type {
   Turn,
 } from "@/features/tutorial-conversation";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+import { requireFor } from "@/test-utils/require-for";
 
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 import BaseActCard from "./BaseActCard";
@@ -33,9 +34,11 @@ import TurnView from "./TurnView";
 
 const definition = hello as unknown as TutorialDefinition;
 const actOf = (id: string) =>
-  definition.steps
-    .flatMap((s) => s.beats)
-    .find((b): b is ActBeat => b.kind === "act" && b.id === id)!;
+  requireFor(`the act ${id}`)(
+    definition.steps
+      .flatMap((s) => s.beats)
+      .find((b): b is ActBeat => b.kind === "act" && b.id === id)
+  );
 const build = () => actOf("s1.build");
 const call = () => actOf("s4.call");
 
@@ -118,7 +121,7 @@ describe("BaseWroteCard", () => {
     const card = screen.getByRole("button", {
       name: "Show lines 1 to 3 in src/lib.rs",
     });
-    const rows = [...card.querySelectorAll("span.whitespace-pre")];
+    const rows = Array.from(card.querySelectorAll("span.whitespace-pre"));
     expect(rows).toHaveLength(3);
     expect(rows[1].className).toContain("min-h-5");
   });
@@ -720,9 +723,11 @@ describe("BaseResultCard", () => {
 });
 
 describe("BaseQuestionRecord", () => {
-  const ask = definition.steps
-    .flatMap((s) => s.beats)
-    .find((b): b is Ask => b.kind === "ask")!;
+  const ask = requireFor("a question beat")(
+    definition.steps
+      .flatMap((s) => s.beats)
+      .find((b): b is Ask => b.kind === "ask")
+  );
 
   it.each([
     ["first_try", 1, "· first try"],
@@ -777,7 +782,9 @@ describe("BaseQuestionRecord", () => {
 
 describe("TurnView", () => {
   const step = definition.steps[0];
-  const ask = step.beats.find((b): b is Ask => b.kind === "ask")!;
+  const ask = requireFor("a question beat")(
+    step.beats.find((b): b is Ask => b.kind === "ask")
+  );
   const on = (): TurnHandlers => ({
     start: vi.fn(),
     pick: vi.fn(),

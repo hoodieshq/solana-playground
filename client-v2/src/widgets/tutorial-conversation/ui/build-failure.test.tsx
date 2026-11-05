@@ -17,6 +17,7 @@ import {
   reduce,
 } from "@/features/tutorial-conversation/model/reducer";
 import { view } from "@/features/tutorial-conversation/model/view";
+import { requireFor } from "@/test-utils/require-for";
 import { stripKnownNoise } from "@/views/sidebar/assistant/bridge/build-output";
 
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
@@ -115,7 +116,9 @@ describe("Hello Anchor's planned E0412", () => {
 
   it("draws Build failed with E0412 · line 9, the planned line and the link to it", () => {
     const v = view(definition, play(toFailure), LATE);
-    const on = draw(v.turns.find((t) => t.kind === "result")!);
+    const on = draw(
+      requireFor("a result turn")(v.turns.find((t) => t.kind === "result"))
+    );
     expect(screen.getByText("Build failed")).toBeTruthy();
     expect(screen.getByText("E0412 · line 9")).toBeTruthy();
     expect(

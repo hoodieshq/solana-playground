@@ -1447,7 +1447,9 @@ describe("in a tutorial", () => {
 
   it("keeps the overlay's column at the rail's width beside the chat", () => {
     render(<BaseLayoutShell {...inTutorial("wide", tutorialNav("overlay"))} />);
-    const wrapper = document.querySelector('[data-slot="sidebar-wrapper"]')!;
+    const wrapper = requireFor("the sidebar wrapper")(
+      document.querySelector('[data-slot="sidebar-wrapper"]')
+    );
     expect(wrapper.getAttribute("data-nav-overlay")).toBe("true");
   });
 

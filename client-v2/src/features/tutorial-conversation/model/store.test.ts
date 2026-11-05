@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { requireFor } from "@/test-utils/require-for";
+
 vi.mock("../../../utils/explorer/explorer", () => ({
   PgExplorer: {
     currentWorkspaceName: null as string | null,
@@ -542,7 +544,7 @@ describe("PgConversation", () => {
     setWorkspace("Other");
     // Start persists twice (the start, then s1.boil written), one at a time
     while (releases.length) {
-      releases.shift()!();
+      requireFor("a held release")(releases.shift())();
       await settle();
     }
     expect(writtenTo).toEqual([SAVE_PATH, SAVE_PATH]);
@@ -633,7 +635,7 @@ describe("PgConversation", () => {
     // The reload has not replaced the state with the older file
     expect(PgConversation.state.engine.progress.startedAt).not.toBeNull();
     while (releases.length) {
-      releases.shift()!();
+      requireFor("a held release")(releases.shift())();
       await settle();
     }
     expect(PgConversation.state.engine.progress.startedAt).not.toBeNull();

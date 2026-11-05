@@ -23,11 +23,11 @@ const AUTHORING = readFileSync(join(__dirname, "AUTHORING.md"), "utf8");
 
 /** The fenced blocks whose info string is `json <tag>`, parsed */
 const blocks = (tag: string): unknown[] =>
-  [
-    ...AUTHORING.matchAll(
+  Array.from(
+    AUTHORING.matchAll(
       new RegExp("^```json " + tag + "\\n([\\s\\S]*?)^```$", "gm")
-    ),
-  ].map((m) => JSON.parse(m[1]));
+    )
+  ).map((m) => JSON.parse(m[1]));
 
 const helloBeats = new Map<string, Beat>(
   (hello as unknown as TutorialDefinition).steps
@@ -48,7 +48,9 @@ const quotedErrors = (): string[] => {
   const section = AUTHORING.split(/^## /m).find((s) =>
     s.startsWith("Reading the check's errors")
   );
-  return [...(section ?? "").matchAll(/^- `([^`]+)`$/gm)].map((m) => m[1]);
+  return Array.from((section ?? "").matchAll(/^- `([^`]+)`$/gm)).map(
+    (m) => m[1]
+  );
 };
 
 describe("tutorials/AUTHORING.md", () => {

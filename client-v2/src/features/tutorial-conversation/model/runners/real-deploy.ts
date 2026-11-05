@@ -23,6 +23,14 @@ import type { FundingChain } from "./fund";
 import { runOnDevnet } from "./real-run";
 import { deploySlotOf, landedDeploy, recogniseDeploy } from "./recognise";
 
+/** What a deploy step cannot go on without; saying which beats a `TypeError` */
+const needed = <T>(value: T | null | undefined, what: string): T => {
+  if (value === null || value === undefined) {
+    throw new Error(`The deploy needs ${what}`);
+  }
+  return value;
+};
+
 const log = createLogger("tutorial-conversation:deploy");
 
 /** The faucet amount on devnet, in whole SOL (`PgConnection.getAirdropAmount`) */
@@ -162,7 +170,8 @@ export const realDeployPort = (): DeployPort => {
       if (built.ok || built.act !== "build") return { ok: true };
       return { ok: false, message: buildFailureOf(built) };
     },
-    bytes: async () => PgServer.deploy(PgProgramInfo.uuid!),
+    bytes: async () =>
+      PgServer.deploy(needed(PgProgramInfo.uuid, "the build's uuid")),
     onChain: onChainOf,
     rent: async (length, onChain) => {
       const conn = PgConnection.current;
@@ -189,8 +198,8 @@ export const realDeployPort = (): DeployPort => {
     funding: devnetFunding,
     capSol: DEVNET_FAUCET_SOL,
     writeBuffer: async (bytes, onChain) => {
-      const payer = wallet!;
-      const programPk = PgProgramInfo.pk!;
+      const payer = needed(wallet, "a wallet");
+      const programPk = needed(PgProgramInfo.pk, "the program id");
       const conn = PgConnection.current;
       const extra = additionalProgramLen({
         programLen: bytes.length,
@@ -257,15 +266,15 @@ export const realDeployPort = (): DeployPort => {
           sendAndConfirmTxWithRetries(
             () =>
               BpfLoaderUpgradeable.deployProgram(
-                PgProgramInfo.kp!,
+                needed(PgProgramInfo.kp, "the program keypair"),
                 pk(buffer),
                 length,
-                { wallet: wallet! }
+                { wallet: needed(wallet, "a wallet") }
               ),
             async () => !(await conn.getAccountInfo(pk(buffer)))
           ),
         buffer,
-        PgProgramInfo.pk!.toBase58(),
+        needed(PgProgramInfo.pk, "the program id").toBase58(),
         "deploy"
       );
     },
@@ -276,18 +285,18 @@ export const realDeployPort = (): DeployPort => {
           sendAndConfirmTxWithRetries(
             () =>
               BpfLoaderUpgradeable.upgradeProgram(
-                PgProgramInfo.pk!,
+                needed(PgProgramInfo.pk, "the program id"),
                 pk(buffer),
-                { wallet: wallet! }
+                { wallet: needed(wallet, "a wallet") }
               ),
             async () => !(await conn.getAccountInfo(pk(buffer)))
           ),
         buffer,
-        PgProgramInfo.pk!.toBase58(),
+        needed(PgProgramInfo.pk, "the program id").toBase58(),
         "upgrade"
       );
     },
-    closeBuffer: (buffer) => closeBuffer(buffer, wallet!),
+    closeBuffer: (buffer) => closeBuffer(buffer, needed(wallet, "a wallet")),
     instructions: () =>
       (PgProgramInfo.idl?.instructions ?? []).map((ix) => ix.name),
     print: (line) => PgTerminal.println(line),

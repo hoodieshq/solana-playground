@@ -102,8 +102,8 @@ if (import.meta.vitest) {
     ) => {
       const reads = balances.slice();
       return {
-        balance: vi.fn(async () =>
-          reads.length > 1 ? reads.shift()! : reads[0]
+        balance: vi.fn(
+          async () => (reads.length > 1 ? reads.shift() : undefined) ?? reads[0]
         ),
         airdrop: vi.fn(airdrop),
         confirm: vi.fn(async () => confirmed),

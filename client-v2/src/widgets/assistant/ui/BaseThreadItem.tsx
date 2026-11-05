@@ -1,8 +1,6 @@
 import { CheckIcon } from "lucide-react";
 
 import { isToolCallRecord } from "@/features/persistence";
-import { reportButtonFailure } from "@/shared/lib/report-button-failure";
-import { AsyncButton } from "@/shared/ui/async-button";
 import { Bubble, BubbleContent } from "@/shared/ui/bubble";
 import { Button } from "@/shared/ui/button";
 import {

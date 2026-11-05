@@ -18,6 +18,7 @@ import {
   view,
   withOwnText,
 } from "@/features/tutorial-conversation";
+import { requireFor } from "@/test-utils/require-for";
 
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
 
@@ -57,7 +58,9 @@ const ctx: EngineContext = {
   slug: "hello-anchor",
   judge: (_goal, result) => result.ok,
 };
-const q1 = definition.steps[0].beats.find((b): b is Ask => b.kind === "ask")!;
+const q1 = requireFor("a question beat")(
+  definition.steps[0].beats.find((b): b is Ask => b.kind === "ask")
+);
 
 interface World {
   engine: EngineState;
@@ -114,7 +117,7 @@ const carryOut = (world: World, effect: Effect, at: number): Action[] => {
 const apply = (world: World, action: Action) => {
   const queue: Action[] = [action];
   while (queue.length) {
-    const next = queue.shift()!;
+    const next = requireFor("a queued answer")(queue.shift());
     const r = reduce(ctx, world.engine, next);
     world.engine = r.state;
     for (const effect of r.effects) {
@@ -219,7 +222,9 @@ describe("the question card over the engine", () => {
       "Not quite. println! prints to a terminal, and a program on Solana has none. On chain, a program talks through msg!."
     );
     const reason = document.getElementById(
-      rows[0].getAttribute("aria-describedby")!
+      requireFor("the row's reason id")(
+        rows[0].getAttribute("aria-describedby")
+      )
     );
     expect(reason?.textContent).toContain("Not quite.");
     expect(rows[0].className).toContain("pg-shake");
@@ -440,7 +445,7 @@ describe("the question card over the engine", () => {
     expect(document.activeElement).toBe(rows[0]);
     // Enter on a focused button is the browser's click
     press("ArrowDown");
-    fireEvent.click(document.activeElement!);
+    fireEvent.click(requireFor("the focused element")(document.activeElement));
     act(() => {
       vi.advanceTimersByTime(RIGHT_HOLD_MS);
     });

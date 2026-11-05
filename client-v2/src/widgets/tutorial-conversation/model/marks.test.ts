@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Ask, TutorialDefinition } from "@/entities/tutorial";
 import type { ConversationView, Turn } from "@/features/tutorial-conversation";
+import { requireFor } from "@/test-utils/require-for";
 
 import helloJson from "../../../tutorials/hello-anchor/tutorial.json";
 
@@ -18,7 +19,9 @@ import { marksOf } from "./marks";
 
 describe("widgets/tutorial-conversation/model/marks", () => {
   const hello = helloJson as unknown as TutorialDefinition;
-  const ask = hello.steps[0].beats.find((b): b is Ask => b.kind === "ask")!;
+  const ask = requireFor("a question beat")(
+    hello.steps[0].beats.find((b): b is Ask => b.kind === "ask")
+  );
   const NONE = { written: [], arriving: false, landing: null };
 
   const BOILER =

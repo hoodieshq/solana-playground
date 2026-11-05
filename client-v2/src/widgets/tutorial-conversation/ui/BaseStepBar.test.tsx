@@ -31,11 +31,11 @@ const props = (over: Partial<BaseStepBarProps> = {}): BaseStepBarProps => ({
 
 /** The step bar's segments, first to last */
 const segments = () =>
-  [
-    ...screen
+  Array.from(
+    screen
       .getByRole("navigation", { name: "Tutorial steps" })
-      .querySelectorAll("[data-step-segment]"),
-  ] as HTMLButtonElement[];
+      .querySelectorAll("[data-step-segment]")
+  ) as HTMLButtonElement[];
 
 /** The one line over the segments, which opens the steps' menu */
 const trigger = () =>

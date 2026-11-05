@@ -116,6 +116,7 @@ const BaseFileTreeList: FC<BaseFileTreeListProps> = ({ rows, onPick }) => {
           <div
             key={`folder:${group.folder.name}`}
             role="treeitem"
+            aria-selected={false}
             aria-expanded="true"
             aria-label={group.folder.name}
             className="flex flex-col gap-px"

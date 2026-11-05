@@ -337,8 +337,9 @@ if (import.meta.vitest) {
             : { deployed: false },
         rent: async (length) => length * 10_000,
         funding: {
-          balance: vi.fn(async () =>
-            reads.length > 1 ? reads.shift()! : reads[0]
+          balance: vi.fn(
+            async () =>
+              (reads.length > 1 ? reads.shift() : undefined) ?? reads[0]
           ),
           airdrop: vi.fn(fake.airdrop ?? (async () => "airdropSig")),
           confirm: async () => true,

@@ -1873,7 +1873,7 @@ if (import.meta.vitest) {
           {
             type: "edit",
             file: "src/lib.rs",
-            content: lib(ask.writes!.block),
+            content: lib(ask.writes?.block ?? ""),
             at: 6000,
           },
         ]);

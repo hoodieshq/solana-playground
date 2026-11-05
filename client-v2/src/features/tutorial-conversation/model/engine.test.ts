@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { requireFor } from "@/test-utils/require-for";
+
 vi.mock("../../../utils/explorer/explorer", () => ({
   PgExplorer: {
     currentWorkspaceName: null as string | null,
@@ -309,7 +311,9 @@ describe("Hello Anchor through the engine", () => {
     const lastWin = done.turns.find((t) => t.id === "win:greet-by-name");
     const finish = done.turns.find((t) => t.kind === "finish");
     expect(finish).toBeDefined();
-    expect(finish!.at).toBeGreaterThanOrEqual(lastWin!.at + FINISH_DELAY_MS);
+    expect(requireFor("the finish")(finish).at).toBeGreaterThanOrEqual(
+      requireFor("the last win")(lastWin).at + FINISH_DELAY_MS
+    );
     expect(done.placeholder).toBe("Ask anything");
     expect(done.steps.map((s) => s.state)).toEqual([
       "done",
