@@ -2,6 +2,7 @@ import { XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
 
+import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import {
   Composer,
@@ -126,7 +127,9 @@ export function BaseAssistantComposer({
   }, [focusRequest]);
 
   return (
-    <div className="flex flex-col gap-1.5">
+    // The note under the box is set off from it (10 px) and as quiet as the
+    // chips, so it reads as a footnote and not as part of the box
+    <div className="flex flex-col gap-2.5">
       <Composer
         ref={form}
         busy={busy}
@@ -141,7 +144,11 @@ export function BaseAssistantComposer({
               <Tooltip key={`${chip.label}\n${chip.title}`}>
                 {/* Focusable, so the explanation reaches keyboard users too */}
                 <TooltipTrigger asChild>
-                  <ComposerChip tabIndex={0} className={CHIP_TARGET}>
+                  {/* The quietest text in the box: what it reads, not what to do */}
+                  <ComposerChip
+                    tabIndex={0}
+                    className={cn(CHIP_TARGET, "text-subtle")}
+                  >
                     {/* The short label is for the eye; a screen reader
                         reads what is sent, in full */}
                     <span aria-hidden="true">{chip.label}</span>
@@ -268,7 +275,7 @@ export function BaseAssistantComposer({
           </span>
         )}
       </Composer>
-      <p className="px-1 text-center text-xs text-muted-foreground">
+      <p className="px-1 text-center text-xs text-subtle">
         Nothing is written to your project without your click
       </p>
     </div>
