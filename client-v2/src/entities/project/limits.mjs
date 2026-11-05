@@ -220,7 +220,9 @@ export const readLimitExceeded = (body) => {
         count: /** @type {number} */ (b.count),
       };
     case "too-many-projects":
+      // eslint-disable-next-line unicorn/no-null -- the function's contract: `null` is "not a limit body"
       if (!isCount(b.count)) return null;
+      // eslint-disable-next-line unicorn/no-null -- the function's contract: `null` is "not a limit body"
       if (b.kind !== "project" && b.kind !== "tutorial") return null;
       return {
         reason: "too-many-projects",

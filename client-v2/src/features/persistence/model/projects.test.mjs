@@ -507,16 +507,18 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
 
   describe("account cap", () => {
     /** Create project `p<n>` (or tutorial `tut:t<n>`) with one file */
-    const create = (n, kind = "project") =>
-      saveProject(userId, {
-        id: kind === "tutorial" ? `tut:t${n}` : `p${n}`,
-        name: `${kind} ${n}`,
-        kind,
+    const create = (n, kind) => {
+      const of = kind ?? "project";
+      return saveProject(userId, {
+        id: of === "tutorial" ? `tut:t${n}` : `p${n}`,
+        name: `${of} ${n}`,
+        kind: of,
         files: { "src/lib.rs": `// ${n}` },
       });
+    };
 
     /** Create `count` projects of `kind`, numbered from 1, one at a time */
-    const fill = async (count, kind = "project") => {
+    const fill = async (count, kind) => {
       const made = [];
       for (let n = 1; n <= count; n++) {
         const result = await create(n, kind);
@@ -611,7 +613,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       assert.equal(created.limit?.reason, "too-many-projects");
       const adopted = await getProject(userId, "p11");
       assert.equal(adopted.name, "p11");
-      assert.equal(adopted.snapshot, null);
+      assert.ok(adopted.snapshot === null);
 
       // Or reached by a swap with the empty row's token
       const [row] = (await listProjects(userId)).filter((p) => p.id === "p11");
@@ -623,7 +625,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
         baseUpdatedAt: row.updatedAt,
       });
       assert.equal(swapped.limit?.reason, "too-many-projects");
-      assert.equal((await getProject(userId, "p11")).snapshot, null);
+      assert.ok((await getProject(userId, "p11")).snapshot === null);
     });
 
     it("counts tutorials apart, at their own figure", async () => {

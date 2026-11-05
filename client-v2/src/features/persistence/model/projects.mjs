@@ -313,7 +313,7 @@ const COUNT_PROJECTS = `
  * the lock is taken last and nothing waits on a row while holding it, so it
  * cannot deadlock with the row locks another write holds.
  */
-const refuseOverAccountCap = async (q, userId, kind) => {
+const refuseOverAccountCap = async (q, { userId, kind }) => {
   await q(LOCK_ACCOUNT, [userId]);
   const { rows } = await q(COUNT_PROJECTS, [
     userId,
@@ -498,7 +498,7 @@ export const writeProject = async (q, userId, input) => {
   // moves a counted row to the other kind's count: the route binds `kind` to
   // the id (`projectKindOf`).
   if (creating || !rows[0].had_files) {
-    await refuseOverAccountCap(q, userId, kind);
+    await refuseOverAccountCap(q, { userId, kind });
   }
   return outcome;
 };

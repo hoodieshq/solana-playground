@@ -368,12 +368,14 @@ export const putProject = async (userId, body) => {
   // The account cap: the only record on the server of who meets it, since
   // the client's event can be blocked. Ids and figures only.
   if (result.limit?.reason === "too-many-projects") {
-    console.warn("api/projects: account cap", {
-      userId,
-      projectId: project.id,
-      kind: result.limit.kind,
-      count: result.limit.count,
-      limit: result.limit.limit,
+    log.warn("account cap", {
+      context: {
+        userId,
+        projectId: project.id,
+        kind: result.limit.kind,
+        count: result.limit.count,
+        limit: result.limit.limit,
+      },
     });
   }
   return answerWrite(result);

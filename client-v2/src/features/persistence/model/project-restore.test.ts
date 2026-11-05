@@ -973,7 +973,7 @@ describe("a project the account cap refused", () => {
     const refusedFor = (id: string) => id === "pb";
     vi.spyOn(global, "fetch").mockImplementation((async (
       url: string,
-      init?: RequestInit
+      init: RequestInit | undefined
     ) => {
       if (url === "/api/sync") {
         return { ok: true, json: async () => ({ enabled: true, db: "ok" }) };
