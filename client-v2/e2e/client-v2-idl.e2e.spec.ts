@@ -105,16 +105,13 @@ test.describe("client-v2-idl", () => {
   test("client-v2-idl: A 1.x IDL", async ({ seededPage: page }) => {
     const panel = await buildThenInteract(page, IDL_V1);
 
-    const chips = panel.getByRole("radiogroup", { name: "Instruction" });
-    await expect(chips.getByRole("radio", { name: "initialize" })).toBeChecked(
-      LONG
-    );
+    const initialize = panel.getByRole("button", { name: /^initialize/ });
+    await expect(initialize).toBeVisible(LONG);
     await expect(
-      chips.getByRole("radio", { name: "incrementBy" })
+      panel.getByRole("button", { name: /^incrementBy/ })
     ).toBeVisible();
-    await expect(
-      panel.getByRole("button", { name: "Call initialize" })
-    ).toBeVisible();
+    await initialize.click();
+    await expect(panel.getByRole("button", { name: "Test" })).toBeVisible();
     await expect(panel.locator('[data-slot="stage-empty"]')).toHaveCount(0);
   });
 });
@@ -144,7 +141,7 @@ test.describe("client-v2-interact", () => {
       "This IDL uses a custom discriminator on initialize, which Interact cannot call yet."
     );
     await expect(
-      panel.getByRole("radiogroup", { name: "Instruction" })
+      panel.getByRole("button", { name: /^initialize/ })
     ).toHaveCount(0);
   });
 });
@@ -163,13 +160,9 @@ test.describe("client-v2-idl, 0.29", () => {
       ],
     });
 
-    await expect(
-      panel
-        .getByRole("radiogroup", { name: "Instruction" })
-        .getByRole("radio", { name: "incrementBy" })
-    ).toBeChecked(LONG);
-    await expect(
-      panel.getByRole("button", { name: "Call incrementBy" })
-    ).toBeVisible();
+    const card = panel.getByRole("button", { name: /^incrementBy/ });
+    await expect(card).toContainText("1 arg · 1 account", LONG);
+    await card.click();
+    await expect(panel.getByRole("button", { name: "Test" })).toBeVisible();
   });
 });
