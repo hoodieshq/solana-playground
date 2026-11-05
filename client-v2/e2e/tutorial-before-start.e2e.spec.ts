@@ -175,7 +175,7 @@ const openChat: Record<number, (page: Page) => Promise<void>> = {
     page.getByRole("button", { name: "Expand assistant" }).click(LONG),
 };
 for (const width of [700, 900]) {
-  test(`the composer stays in the window at ${width}x${HEIGHT}, before and after Start`, async ({
+  test(`keeps the composer in the window at ${width}x${HEIGHT}, before and after Start`, async ({
     page,
   }) => {
     test.setTimeout(120_000);
