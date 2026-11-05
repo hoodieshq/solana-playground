@@ -94,6 +94,12 @@ test("client-v2-account: A session ended", async ({ page }) => {
     "Not synced",
     LONG
   );
+  // A name truncates before its marker, on the row with its menu in view
+  const name = projectRow(page, PROJECT).locator("span").last();
+  const marker = page.locator("[data-sync-marker]");
+  const right = await name.evaluate((el) => el.getBoundingClientRect().right);
+  const left = await marker.evaluate((el) => el.getBoundingClientRect().left);
+  expect(right).toBeLessThanOrEqual(left);
 });
 
 test("client-v2-account: Signing in again", async ({ page }) => {

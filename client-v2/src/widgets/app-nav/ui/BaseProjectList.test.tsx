@@ -237,7 +237,7 @@ describe("BaseProjectList", () => {
     expect(
       screen.getByRole("button", { name: "A lesson with a long name" })
         .className
-    ).toContain("pr-46");
+    ).toContain("group-has-data-[sidebar=menu-action]/menu-item:pr-50");
   });
 
   it("draws Not synced with a warning dot, beside the pin", () => {

@@ -362,10 +362,24 @@ const Progress = ({
 
 /** Right padding for what sits at the row's end, so the name stops short */
 const roomFor = (entry: ProjectEntry) => {
+  // Under the same variant as the sidebar button's own `pr-8`, which a plain
+  // `pr-*` loses to whenever the row has its menu
   // The marker, "12 of 12" and a pin side by side
-  if (entry.marker && entry.progress) return entry.pinned ? "pr-46" : "pr-42";
-  if (entry.marker) return "pr-24";
-  if (entry.progress) return entry.pinned ? "pr-26" : "pr-22";
+  if (entry.marker && entry.progress) {
+    return entry.pinned
+      ? "group-has-data-[sidebar=menu-action]/menu-item:pr-50"
+      : "group-has-data-[sidebar=menu-action]/menu-item:pr-46";
+  }
+  if (entry.marker) {
+    return entry.pinned
+      ? "group-has-data-[sidebar=menu-action]/menu-item:pr-32"
+      : "group-has-data-[sidebar=menu-action]/menu-item:pr-28";
+  }
+  if (entry.progress) {
+    return entry.pinned
+      ? "group-has-data-[sidebar=menu-action]/menu-item:pr-26"
+      : "group-has-data-[sidebar=menu-action]/menu-item:pr-22";
+  }
   return undefined;
 };
 
