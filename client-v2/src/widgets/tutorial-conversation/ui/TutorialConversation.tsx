@@ -14,9 +14,11 @@ import {
   judgeGoal,
   PgCallPanel,
   PgConversation,
+  realDeployWatch,
   realWorkspace,
   stepOfBeat,
   tutorialRunner,
+  watchDeploys,
 } from "@/features/tutorial-conversation";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { createLogger } from "@/shared/lib/logger";
@@ -514,6 +516,14 @@ export const TutorialConversation = ({
         runner,
         judge: judgeGoal,
       }).dispose,
+    []
+  );
+  // A deploy outside the cards (the terminal, the explorer's menu, the
+  // assistant) is the program the Call panel and the call acts talk to
+  useEffect(
+    () =>
+      watchDeploys(realDeployWatch(), (idl) => PgConversation.deployed(idl))
+        .dispose,
     []
   );
   // An unplanned failure's Explain goes to the assistant with its log; once

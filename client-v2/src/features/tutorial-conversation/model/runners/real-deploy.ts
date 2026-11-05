@@ -6,7 +6,9 @@ import { BpfLoaderUpgradeable } from "../../../../commands/deploy/bpf-loader-upg
 import { sendAndConfirmTxWithRetries } from "../../../../commands/deploy/deploy";
 import type { Wallet } from "../../../../utils";
 import {
+  PgCommand,
   PgConnection,
+  PgGlobal,
   PgProgramInfo,
   PgServer,
   PgTerminal,
@@ -20,6 +22,7 @@ import { actRunner } from "./act-runner";
 import { runBuild } from "./build";
 import type { DeployPort, OnChain } from "./deploy";
 import { runDeploy } from "./deploy";
+import type { DeployWatchPort } from "./deploy-watch";
 import type { FundingChain } from "./fund";
 import { runOnDevnet } from "./real-run";
 import { deploySlotOf, landedDeploy, recogniseDeploy } from "./recognise";
@@ -370,3 +373,13 @@ export const tutorialRunner = actRunner(
     return recognised && withIdl(recognised);
   }
 );
+
+/** The deploy command and the open program, for `watchDeploys` */
+export const realDeployWatch = (): DeployWatchPort => ({
+  onDidFinish: (cb) => PgCommand.deploy.onDidFinish(cb),
+  // "ready" again only once the command has really finished, as the deploy
+  // history reads it
+  finished: () => PgGlobal.deployState === "ready",
+  cluster: () => PgConnection.cluster,
+  idl: () => PgProgramInfo.idl,
+});
