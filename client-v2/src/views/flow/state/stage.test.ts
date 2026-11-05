@@ -239,7 +239,10 @@ describe("PgFlow.reduce, a stopped run", () => {
   });
 
   it("a tutorial's deploy leaves the stage where it is, however it ends", () => {
-    const writing = { ...builtOnce(), stage: "write" as const };
+    const writing = PgFlow.reduce(builtOnce(), {
+      type: "set-stage",
+      stage: "write",
+    });
     const deploying = PgFlow.reduce(writing, {
       type: "deploy-start",
       from: "tutorial",

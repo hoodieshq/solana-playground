@@ -44,6 +44,7 @@ export const useTutorialList = (
   cardOpen: CardOpenOf,
   // eslint-disable-next-line layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
   pool: readonly TutorialData[] = PgTutorial.all
+  // eslint-disable-next-line max-params -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
 ): CardList<TutorialItem> => {
   const progressFor = useTutorialProgress();
   return {
