@@ -18,7 +18,11 @@ export const TOOLS = {
   propose: "propose_change",
 } as const;
 
-/** How an answer before Start ends: the lesson is one press or one word away */
+/**
+ * How an answer before Start ends: the lesson is one press or one word away.
+ * Names the intro card's button and a start word (`route.ts`), so it changes
+ * with them
+ */
 export const BEGIN_INVITATION =
   "When you're ready, press Start step 1 or type start.";
 

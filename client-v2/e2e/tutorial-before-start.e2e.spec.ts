@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { Page } from "@playwright/test";
 
-import { expect, json, LONG, stubSession, test } from "./fixtures";
+import { expect, LONG, stubAiStatus, stubSession, test } from "./fixtures";
 
 /** The stage tabs; on a narrow window they carry their key, so by prefix */
 const stageTab = (page: Page, name: string) =>
@@ -77,10 +77,8 @@ test("a menu-only turn before Start still suggests starting", async ({
     ) + "\n\n";
   const sent: string[] = [];
   await stubSession(page);
+  await stubAiStatus(page, "stub");
   await page.route("**/api/agent", (route) => {
-    if (route.request().method() === "GET") {
-      return json(route, { configured: true, model: "stub" });
-    }
     sent.push(route.request().postData() ?? "");
     return route.fulfill({
       status: 200,
@@ -120,7 +118,7 @@ test("a menu-only turn before Start still suggests starting", async ({
   );
   expect(sent[0]).toContain("press Start step 1 or type start");
   // The tool's own result asks for it too, on the request that follows it
-  expect(sent[1]).toContain("They have not started");
+  expect(sent[1]).toContain("The menu is open. They have not started");
 });
 
 test("no stage before Hello Anchor's Start, under the frame's width", async ({

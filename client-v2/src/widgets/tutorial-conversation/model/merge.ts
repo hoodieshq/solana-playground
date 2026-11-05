@@ -68,7 +68,8 @@ export const hasAnswered = (
   since: number | null
 ): boolean =>
   items.some((item) => {
-    if (since !== null && !(Date.parse(item.createdAt) > since)) return false;
+    const at = Date.parse(item.createdAt);
+    if (!Number.isFinite(at) || (since !== null && at <= since)) return false;
     return (
       item.kind === "tool" || (item.kind === "assistant" && !!item.text.trim())
     );
@@ -151,6 +152,12 @@ if (import.meta.vitest) {
       expect(
         hasAnswered([{ ...base, kind: "user", text: "the menu" }], null)
       ).toBe(false);
+    });
+
+    it("does not count an item whose time cannot be read, as the feed drops it", () => {
+      expect(hasAnswered([{ ...tool, createdAt: "not a date" }], null)).toBe(
+        false
+      );
     });
 
     it("does not count what came before the last Start over", () => {

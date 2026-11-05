@@ -261,6 +261,18 @@ describe("TutorialComposer", () => {
     expect(screen.getByRole("button", { name: "Start step 1" })).toBeTruthy();
   });
 
+  it("does not count a turn from before the last Start over", () => {
+    const at = stateAt("intro");
+    store.state = {
+      ...at,
+      engine: { progress: { ...at.engine.progress, restartedAt: 2000 } },
+    } as typeof at;
+    store.view.mockReturnValue(view("Ask anything about this tutorial"));
+    thread.items = [reply("A PDA is an address a program signs for.")];
+    render(<Connected turn={turn()} />);
+    expect(screen.queryByRole("button", { name: "Start step 1" })).toBeNull();
+  });
+
   it("holds the suggestion while the answer is still coming", () => {
     store.state = stateAt("intro");
     store.view.mockReturnValue(view("Ask anything about this tutorial"));

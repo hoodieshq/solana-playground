@@ -297,8 +297,9 @@ in this order:
 
 1. A message that is only a live action's word ("start", "begin" or "go"
    before Start, "build", "deploy", "run", "call", "next", "explain", alone or
-   with "please", in any case) SHALL run that action and be echoed as a pill. While a question is open, the answer is instead
-   "Pick an answer above first, or press Skip. Then the button's yours."
+   with "please", in any case) SHALL run that action and be echoed as a pill.
+   While a question is open, the answer is instead "Pick an answer above
+   first, or press Skip. Then the button's yours."
 2. A finish chip SHALL get the definition's answer, with no model call.
 3. Anything else SHALL go to the product's assistant, with the tutorial, the
    step, its objective, the open files, the last result and the tutorial's

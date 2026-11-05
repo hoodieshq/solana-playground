@@ -59,7 +59,8 @@ export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
   const progress = state.engine.progress;
   const finished = progress.cursor.kind === "finished";
   const waiting = progress.cursor.kind === "intro";
-  // A reply from before the last Start over does not count
+  // In words or with a tool, since the last Start over: a turn that only
+  // opens the menu writes nothing, and the row is what still suggests starting
   const answered =
     waiting &&
     !turn.busy &&
