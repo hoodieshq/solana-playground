@@ -155,7 +155,7 @@ describe("SyncBanner wording", () => {
       container.querySelector('[data-slot="callout-actions"]')
     );
     expect(
-      [...actions.querySelectorAll("button")].map((b) => b.textContent)
+      Array.from(actions.querySelectorAll("button"), (b) => b.textContent)
     ).toEqual(["Keep this version", "Take the other version", "Resolve…"]);
     expect(actions.parentElement?.getAttribute("data-slot")).toBe("callout");
   });
@@ -163,9 +163,10 @@ describe("SyncBanner wording", () => {
   it("offers no Resolve… on a conflict that names no files", async () => {
     await messageFor([]);
     expect(
-      [
-        ...container.querySelectorAll('[data-slot="callout-actions"] button'),
-      ].map((b) => b.textContent)
+      Array.from(
+        container.querySelectorAll('[data-slot="callout-actions"] button'),
+        (b) => b.textContent
+      )
     ).toEqual(["Keep this version", "Take the other version"]);
   });
 

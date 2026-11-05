@@ -209,17 +209,19 @@ included (a valid key without access to the model), keep their current error.
 - **THEN** the thread is connected to the hosted model, nothing is sent, and
   the refused message is back in the composer
 
-#### Scenario: The buttons go once the thread has moved
+#### Scenario: The buttons go once the thread has moved (manual)
 
 - **WHEN** a signed-in user has pressed **Use hosted model** on a refused key's
   error
 - **THEN** the error shows neither **Change key** nor **Use hosted model**
 
-#### Scenario: The buttons survive a reload
+#### Scenario: The buttons survive a reload (manual)
 
 - **WHEN** a thread whose last word is a refused key's error loads with nothing
   connected
 - **THEN** the error still offers **Change key**
+
+Both checked by unit tests in `client-v2/src/widgets/assistant/ui/Thread.test.tsx`.
 
 #### Scenario: A 403 or a 500 keeps the ordinary error (manual)
 

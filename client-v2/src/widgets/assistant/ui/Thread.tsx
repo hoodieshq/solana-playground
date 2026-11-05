@@ -144,7 +144,7 @@ export const Thread = ({
   // pick. Nothing connected is not a move: the key lives in memory, so a reload
   // ends there, still refused
   const connected = PgAssistant.connection;
-  const recoverable =
+  const canRecover =
     refused && (!connected || connected.id === refused.provider);
 
   /**
@@ -172,7 +172,7 @@ export const Thread = ({
 
   const actionsFor = (id: string): ReplyActions | undefined => {
     const actions: ReplyActions = {};
-    if (recoverable && id === lastWord?.id) {
+    if (canRecover && id === lastWord?.id) {
       actions.changeKey = () => turn.openConnect("key-rejected", refused);
       if (defaultBackend.state === "present") {
         actions.useHosted = handleUseHosted;
