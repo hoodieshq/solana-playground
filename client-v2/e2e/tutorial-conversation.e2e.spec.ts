@@ -163,48 +163,57 @@ test("the folded composer is 46 px below md with a fine pointer", async ({
   await expect(composer.locator("textarea")).toHaveCSS("font-size", "15px");
 });
 
+/**
+ * Hello Anchor's step 1 with a hosted model stubbed to answer `answer`, after
+ * a question is sent from the composer. Resolves once a model has it: with
+ * no model picked yet, the question opens Connect a model first
+ */
+const askOnStepOneWith =
+  (answer: string) => async (page: Page, question: string) => {
+    await stubSession(page);
+    // A hosted model, whatever the dev server is configured with
+    await stubAiStatus(page, "test-model");
+    await page.route("**/api/agent", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: streamed(answer),
+      })
+    );
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tutorials/hello-anchor");
+    await feed(page)
+      .getByRole("button", { name: /Start step 1/ })
+      .click(LONG);
+    await expect(
+      feed(page).getByRole("button", { name: "Hint", exact: true })
+    ).toBeVisible(LONG);
+
+    const composer = chat(page).getByRole("textbox");
+    await composer.fill(question);
+    await composer.press("Enter");
+    const dialog = page.getByRole("dialog", { name: "Connect a model" });
+    const answered = feed(page).getByText(answer.split("\n")[0]);
+    await expect(dialog.or(answered)).toBeVisible(LONG);
+    if (await dialog.isVisible()) {
+      await dialog.getByRole("button", { name: "Start", exact: true }).click();
+      await expect(dialog).toBeHidden(LONG);
+      await composer.press("Enter");
+    }
+  };
+
 // An answer longer than the feed puts the live card off screen, so the pill
 // floats over the feed's foot while it is scrolled to its end
 test("the back pill leaves the feed's last line clear at its end", async ({
   page,
 }) => {
   test.setTimeout(120_000);
-  await stubSession(page);
   const answer = Array.from(
     { length: 30 },
     (_, i) => `Paragraph ${i + 1} of a long answer.`
   ).join("\n\n");
-  // A hosted model, whatever the dev server is configured with
-  await stubAiStatus(page, "test-model");
-  await page.route("**/api/agent", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "text/event-stream",
-      body: streamed(answer),
-    })
-  );
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/tutorials/hello-anchor");
-  await feed(page)
-    .getByRole("button", { name: /Start step 1/ })
-    .click(LONG);
-  await expect(
-    feed(page).getByRole("button", { name: "Hint", exact: true })
-  ).toBeVisible(LONG);
-
-  const composer = chat(page).getByRole("textbox");
-  await composer.fill("tell me more");
-  await composer.press("Enter");
-  // With no model picked yet, the question opens Connect a model first
-  const dialog = page.getByRole("dialog", { name: "Connect a model" });
+  await askOnStepOneWith(answer)(page, "tell me more");
   const last = feed(page).getByText("Paragraph 30 of a long answer.");
-  await expect(dialog.or(last)).toBeVisible(LONG);
-  if (await dialog.isVisible()) {
-    await dialog.getByRole("button", { name: "Start", exact: true }).click();
-    await expect(dialog).toBeHidden(LONG);
-    await composer.press("Enter");
-  }
-
   await expect(last).toBeVisible(LONG);
   await feed(page).evaluate((log) => {
     const box = log.parentElement;
@@ -219,6 +228,39 @@ test("the back pill leaves the feed's last line clear at its end", async ({
       return line && over ? over.y - (line.y + line.height) : undefined;
     })
     .toBeGreaterThanOrEqual(8);
+});
+
+// What Explain sends: a fenced build log, its lines long and full of
+// backticks, which the learner's bubble shows as written
+test("a question carrying a build log keeps its lines and the feed its width", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const log = [
+    "error: expected item, found keyword `let`",
+    " --> ../src/lib.rs:5:1 | 5 | let broken = ; | ^^^ consider using `const` or `static` instead of `let` for global variables",
+    "error: could not compile `solpg` (lib) due to previous error; Compiling solpg v0.1.0 (/home/solpg/programs/solpg-a-long-path-that-runs-past-the-column)",
+  ].join("\n");
+  const question = `My build failed.\n\nBuild log:\n\`\`\`\n${log}\n\`\`\``;
+  await askOnStepOneWith("The keyword let cannot start an item.")(
+    page,
+    question
+  );
+
+  const bubble = feed(page).getByText("My build failed.", { exact: false });
+  await expect(bubble).toBeVisible(LONG);
+  // As written: the fence and every line of the log, none made a chip
+  await expect(bubble).toContainText("```");
+  await expect(bubble).toContainText("consider using `const` or `static`");
+  // and inside the column: the feed never scrolls sideways
+  await expect
+    .poll(() =>
+      feed(page).evaluate((el) => {
+        const box = el.parentElement;
+        return box ? box.scrollWidth - box.clientWidth : -1;
+      })
+    )
+    .toBe(0);
 });
 
 test.describe("on a coarse pointer", () => {

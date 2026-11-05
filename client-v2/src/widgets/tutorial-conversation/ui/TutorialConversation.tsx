@@ -38,8 +38,8 @@ import { tutorialMode } from "../model/mode";
 import { announceDeploys } from "../model/runner";
 import { tutorialTelemetry } from "../model/telemetry";
 import BaseAnswer from "./BaseAnswer";
+import BaseAskedBubble from "./BaseAskedBubble";
 import BaseFeed from "./BaseFeed";
-import BaseYouPill from "./BaseYouPill";
 import { typing } from "./keys";
 import type { TurnHandlers } from "./TurnView";
 import TurnView from "./TurnView";
@@ -662,7 +662,7 @@ export const TutorialConversation = ({
       )}
       renderExchange={(entry) =>
         entry.kind === "asked" ? (
-          <BaseYouPill text={entry.text} code={false} />
+          <BaseAskedBubble text={entry.text} />
         ) : (
           <BaseAnswer text={entry.text} tone={entry.tone} onLink={handleLink} />
         )
