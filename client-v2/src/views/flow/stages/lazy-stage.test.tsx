@@ -13,7 +13,12 @@ import { lazyStage, StageLoadFailed } from "./lazy-stage";
 type Module = { default: ComponentType };
 
 const Loaded = () => <p>stage content</p>;
-const failed = () => Promise.reject(new Error("Loading chunk 7 failed"));
+/** What webpack rejects with when a chunk does not arrive */
+const chunkError = () =>
+  Object.assign(new Error("Loading chunk 7 failed"), {
+    name: "ChunkLoadError",
+  });
+const failed = () => Promise.reject(chunkError());
 const loaded = () => Promise.resolve<Module>({ default: Loaded });
 
 /** Stands in for the app's own boundary, the screen this must not reach */
@@ -87,19 +92,39 @@ describe("lazyStage", () => {
     expect(await screen.findByText("Deploy couldn't load")).toBeTruthy();
   });
 
-  it("reports a failed load only when the browser reports a network", async () => {
-    const logged = memoryProvider();
-    initLogger({ providers: [logged] });
-    await show(lazyStage(failed, "deploy"));
-    await screen.findByText("Deploy needs a connection");
-    expect(logged.entries).toEqual([]);
+  describe("reporting", () => {
+    let logged: ReturnType<typeof memoryProvider>;
+    beforeEach(() => {
+      logged = memoryProvider();
+      initLogger({ providers: [logged] });
+    });
+    afterEach(() => resetLogger());
 
-    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
-    await show(lazyStage(failed, "interact"));
-    await screen.findByText("Interact couldn't load");
-    expect(logged.entries).toHaveLength(1);
-    expect(logged.entries[0].report).toBe(true);
-    resetLogger();
+    it("logs an offline failure without reporting it", async () => {
+      await show(lazyStage(failed, "deploy"));
+      await screen.findByText("Deploy needs a connection");
+      expect(logged.entries.map((entry) => entry.report)).toEqual([false]);
+    });
+
+    it("reports a failure with a network, once however often it is retried", async () => {
+      vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+      await show(lazyStage(failed, "interact"));
+      fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+      await screen.findByText(/Reload the page/);
+      expect(logged.entries.filter((entry) => entry.report)).toHaveLength(1);
+      expect(logged.entries[0].context).toEqual({ stage: "interact" });
+    });
+
+    it("does not report the retry a returning network starts, which often fails", async () => {
+      await show(lazyStage(failed, "deploy"));
+      await screen.findByText("Deploy needs a connection");
+      goOnline();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await screen.findByText("Deploy couldn't load");
+      expect(logged.entries.filter((entry) => entry.report)).toEqual([]);
+    });
   });
 
   it("loads the stage on Try again", async () => {
@@ -130,6 +155,92 @@ describe("lazyStage", () => {
     load.mockImplementation(loaded);
     await show(Stage);
     expect(await screen.findByText("stage content")).toBeTruthy();
+  });
+
+  it("leaves a chunk that arrives and throws to the app's boundary", async () => {
+    await show(
+      lazyStage(() => Promise.reject(new Error("top level")), "deploy")
+    );
+    expect(await screen.findByText(/app crashed: top level/)).toBeTruthy();
+  });
+
+  it("shows the failure again when Try again fails offline", async () => {
+    const load = vi.fn(failed);
+    await show(lazyStage(load, "deploy"));
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(await screen.findByText("Deploy needs a connection")).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("makes one load of a retry that takes time", async () => {
+    let arrive: (module: Module) => void = () => undefined;
+    const load = vi.fn<() => Promise<Module>>(failed);
+    await show(lazyStage(load, "deploy"));
+    load.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          arrive = resolve;
+        })
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    await screen.findByText("loading");
+    expect(load).toHaveBeenCalledTimes(2);
+
+    await act(async () => arrive({ default: Loaded }));
+    expect(await screen.findByText("stage content")).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores an online event when the failure came with a network", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+    const load = vi.fn(failed);
+    await show(lazyStage(load, "deploy"));
+    await screen.findByText("Deploy couldn't load");
+    goOnline();
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("loads by itself when the stage is opened online after failing offline unseen", async () => {
+    // Left before the import rejected: nothing on screen ever showed the failure
+    let fail: (error: Error) => void = () => undefined;
+    const load = vi.fn<() => Promise<Module>>(
+      () =>
+        new Promise((_, reject) => {
+          fail = reject;
+        })
+    );
+    const Stage = lazyStage(load, "deploy");
+    const left = await show(Stage);
+    left.unmount();
+    await act(async () => fail(chunkError()));
+
+    load.mockImplementation(loaded);
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+    await show(Stage);
+    expect(await screen.findByText("stage content")).toBeTruthy();
+  });
+
+  it("starts over on the words for a reload when the stage is opened again", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+    const Stage = lazyStage(failed, "deploy");
+    const first = await show(Stage);
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    await screen.findByText(/Reload the page/);
+    first.unmount();
+
+    await show(Stage);
+    expect(await screen.findByText(/Check your connection/)).toBeTruthy();
+  });
+
+  it("keeps the first words after a returning network's retry fails", async () => {
+    await show(lazyStage(failed, "deploy"));
+    await screen.findByText("Deploy needs a connection");
+    goOnline();
+    await screen.findByText("Deploy couldn't load");
+    expect(screen.getByText(/Check your connection/)).toBeTruthy();
   });
 
   it("leaves an error thrown while the stage renders to the app's boundary", async () => {
@@ -164,6 +275,7 @@ describe("StageLoadFailed", () => {
   const failure = {
     stage: "deploy" as const,
     retried: false,
+    failedOffline: false,
     onRetry: () => undefined,
   };
 
