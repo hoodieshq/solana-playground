@@ -117,15 +117,16 @@ const brandButtons = (container: HTMLElement) =>
  * The pill's row follows the stage's content; only the outline buttons come
  * after it, so focus reaches the pill first
  */
-const lastIsActions = (container: HTMLElement) =>
-  [...(container.querySelector('[data-slot="stage-empty"]')?.children ?? [])]
-    .slice(-2)
-    .map((el) => el.getAttribute("data-slot"))
-    .join(" then ")
-    .replace(
-      /^stage-empty-actions then deploy-outlines$/,
+const endsWithPill = (container: HTMLElement) => {
+  const outlines = container.querySelector(
+    '[data-slot="stage-empty"]'
+  )?.lastElementChild;
+  return (
+    outlines?.getAttribute("data-slot") === "deploy-outlines" &&
+    outlines.previousElementSibling?.getAttribute("data-slot") ===
       "stage-empty-actions"
-    );
+  );
+};
 
 /** The stage's buttons in focus (document) order */
 const focusOrder = () =>
@@ -182,7 +183,7 @@ describe("BaseDeploy", () => {
       name: "Deploy to mainnet",
     });
     expect(deploy).toHaveProperty("disabled", false);
-    expect(lastIsActions(container)).toBe("stage-empty-actions");
+    expect(endsWithPill(container)).toBe(true);
   });
 
   it("opens the CLI guide from the warning's own words", () => {
@@ -282,7 +283,7 @@ describe("BaseDeploy", () => {
     expect(
       screen.queryByRole("button", { name: "Deploy to devnet" })
     ).toBeNull();
-    expect(lastIsActions(container)).toBe("stage-empty-actions");
+    expect(endsWithPill(container)).toBe(true);
   });
 
   it("offers Go to Build, with Upload IDL, while nothing is built (Spec 03 DEP-07)", () => {
@@ -414,7 +415,7 @@ describe("BaseDeploy", () => {
     expect(
       screen.getByRole("button", { name: "Redeploy to devnet" })
     ).toBeTruthy();
-    expect(lastIsActions(container)).toBe("stage-empty-actions");
+    expect(endsWithPill(container)).toBe(true);
   });
 
   it("shows on-chain details only when they are known", () => {
