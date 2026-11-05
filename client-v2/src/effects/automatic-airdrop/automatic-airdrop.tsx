@@ -52,10 +52,17 @@ export const automaticAirdrop = () => {
           log.info("no terminal mounted, airdrop deferred");
           return;
         }
+        // Off for this cluster until a reload; the terminal said why
+        log.warn("automatic airdrop failed, off for this cluster", {
+          context: { cluster, error: String(e) },
+        });
         errorCache.add(cluster);
         PgTerminal.println(
           [
             "Note: This was an automatic airdrop request.",
+            ...(FAUCET_CLUSTERS.has(cluster)
+              ? [`Visit ${FAUCET_URL} to obtain SOL.`]
+              : []),
             `To disable, run \`${PgCommand.setting.name} set wallet.automaticAirdrop false\`.`,
           ].join(" ")
         );
@@ -66,3 +73,9 @@ export const automaticAirdrop = () => {
 };
 
 const errorCache = new Set<Cluster>();
+
+/** Solana's faucet site, a link in the terminal: its addon links `https://` addresses */
+const FAUCET_URL = "https://faucet.solana.com";
+
+/** The clusters the faucet site serves; a local validator has none */
+const FAUCET_CLUSTERS = new Set<Cluster>(["devnet", "testnet"]);
