@@ -221,7 +221,7 @@ it("should hand Copy the log as it is once the run ends", async () => {
   text = "Building…\nBuild successful";
   act(() =>
     requireFor("the flow listener ConsoleDrawer subscribed")(flow.listener)(
-      flowState("succeeded")
+      flowState("done")
     )
   );
 
