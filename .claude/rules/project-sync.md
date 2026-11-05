@@ -184,8 +184,10 @@ when a session reads a file matching the `paths` in the frontmatter.
   finds nobody, with no accepted sign-out, sets `PgSession.expiredUser`. `PgSyncMark`
   falls back to that id, so `markDirty` still flags an edit made meanwhile: without
   the flag, reconcile's cheap path skips the project on the next sign-in and the edit
-  never uploads. `get()` stays `undefined`, so `_ready` keeps pushes and reconcile
-  off; `PgSyncBase` and `PgSyncClaim` read the signed-in id only.
+  waits for the next edit. `get()` stays `undefined`, so `_ready` keeps pushes and
+  reconcile off; `PgSyncBase` and `PgSyncClaim` read the signed-in id only, and
+  `settleLocalDeletes` stands down: a delete made meanwhile cannot reach the account,
+  so the project comes back on the next sign-in with its mark and chat. The chat effect leaves the thread open: closing it would cut a running turn.
 - **Persistence failures are reported, not swallowed.** `chat-storage`,
   `chat-sync`, `project-sync` and `project-restore` all catch, because a lost
   write must not take the panel down. Every failure still goes through

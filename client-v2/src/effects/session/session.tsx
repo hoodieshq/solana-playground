@@ -282,9 +282,10 @@ export const session = (): Disposable => {
         PgProjectSync.holdPushes();
       }
       // A panel sign-in happens mid-task, with a prompt written for the open
-      // project; signing in again after a session ended picks up where it stopped
-      const midWork = PgSession.signingInFrom !== undefined;
-      void adopt({ openLatest: !restoring && !midWork }).catch((e) =>
+      // project; the account whose session ended picks up where it stopped
+      const isMidWork =
+        PgSession.signingInFrom !== undefined || PgSession.isResuming;
+      void adopt({ openLatest: !restoring && !isMidWork }).catch((e) =>
         report("adopt", e)
       );
     }
@@ -292,6 +293,7 @@ export const session = (): Disposable => {
     if (restoring || PgSession.readState === "answered") restored = true;
   };
   const onChange = PgSession.onDidChange(onSessionChange);
+  const otherTabs = PgSession.followOtherTabs();
   // Effects mount after a delay, and Home starts the page's read as it draws:
   // a read that settled before this effect existed fired its change unheard
   if (PgSession.hasRead) onSessionChange();
@@ -309,6 +311,7 @@ export const session = (): Disposable => {
   return {
     dispose: () => {
       onChange.dispose();
+      otherTabs.dispose();
       PgSession.setOnSignOut(undefined);
       // Nothing is left to release the gate once this is gone
       releaseHold();

@@ -76,8 +76,8 @@ export const useAccount = ({
   const menuOpen = useRef(false);
 
   const user = PgSession.get();
-  // A session wins over the sign-in state: a sign-in that failed before the
-  // session arrived (another tab, a reload) stays failed in `PgSession`
+  // A session wins over the sign-in state: a sign-in may still wait here on a
+  // popup when the session arrives from another tab
   const session: AccountSession = user
     ? {
         status: "signed-in",

@@ -151,7 +151,7 @@ the row's actions while the row is hovered or focused, as the pin does.
 The client SHALL treat a session read that finds nobody (a 401, or JSON with no user) as a session that ended when this browser's last session was not ended by an accepted sign-out, in any tab. An HTML page, a 404 or a not-configured answer SHALL NOT read as an ended session. A 401 from `/api/projects` or `/api/conversations` SHALL prompt a session read and SHALL NOT end the session by itself.
 
 #### Scenario: A sign-out in another tab
-- **WHEN** a person signs out in one tab, and another tab then reads the session
+- **WHEN** a person signs out in one tab, and another tab then reads the session, which a tab whose session ended does as soon as the remembered user changes
 - **THEN** that other tab reads "Sign in" over "Saved in this browser"
 
 #### Scenario: A tab opened after the session ended (manual)
@@ -160,7 +160,7 @@ The client SHALL treat a session read that finds nobody (a 401, or JSON with no 
 
 ### Requirement: Signing in again keeps the work and the place
 
-After a session ended, the account menu's first sign-in item SHALL read "Sign in again" and start the same sign-in as "Sign in with GitHub"; offline it reads "You're offline" and is disabled, and after a failure it reads "Try again". The session's end SHALL delete, reload and upload nothing. After the sign-in the open project SHALL stay open, and edits made meanwhile SHALL upload with no question unless another device changed the same project.
+After a session ended, the account menu's first sign-in item SHALL read "Sign in again" and start the same sign-in as "Sign in with GitHub"; offline it reads "You're offline" and is disabled, and after a failure it reads "Try again". The session's end SHALL delete, reload and upload nothing. When the same account signs in again, in this tab or another, the open project SHALL stay open, and edits made meanwhile SHALL upload with no question unless another device changed the same project. The session's end SHALL NOT close the assistant's open thread. Another account's sign-in is an ordinary sign-in.
 
 #### Scenario: Signing in again
 - **WHEN** a person edits a project after the session ended and presses "Sign in again"

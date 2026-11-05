@@ -113,7 +113,7 @@ it("keeps the name over the session's end in warning tone, and announces it", ()
   draw({
     account: view({
       session: {
-        status: "ended",
+        status: "expired",
         user: { name: "Tester", login: "t", image: undefined },
       },
     }),

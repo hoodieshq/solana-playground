@@ -175,7 +175,7 @@ export class PgSyncMark {
   }
 
   /**
-   * Fires after a mark of the signed-in account is written, flagged dirty or
+   * Fires after a mark of the current account (`currentUserId`) is written, flagged dirty or
    * removed (or found already gone), with which; never for a write or removal
    * that failed. In this tab only. Read-only listeners: the project list's markers
    * (`sync-marker.ts`) re-read on it, and must never write a mark back.
@@ -266,7 +266,7 @@ export class PgSyncMark {
 
   /**
    * Whether this device has any record of syncing this project for the
-   * signed-in account -- in any shape, readable or not.
+   * current account (`currentUserId`) -- in any shape, readable or not.
    *
    * The question `projectIds` answers per project. A mark `read` cannot use
    * is still the difference between "deleted elsewhere" and "never uploaded".
@@ -316,7 +316,7 @@ export class PgSyncMark {
   }
 
   /**
-   * Every project this device has ever synced for the signed-in account.
+   * Every project this device has ever synced for the current account (`currentUserId`).
    *
    * Reconcile needs this to spot the projects the server *no longer* lists: a
    * mark with no server row is a project deleted on another device, which is a

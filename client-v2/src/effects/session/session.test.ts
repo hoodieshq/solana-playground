@@ -469,8 +469,7 @@ describe("the session effect", () => {
 
     it("keeps the open project when signing in again after the session ended", async () => {
       const effect = await signedOutAfterLoad();
-      // `PgSession` gives such a sign-in this origin, whatever asked for it
-      vi.spyOn(PgSession, "signingInFrom", "get").mockReturnValue("expired");
+      vi.spyOn(PgSession, "isResuming", "get").mockReturnValue(true);
 
       await PgSession.signIn();
       await settle();

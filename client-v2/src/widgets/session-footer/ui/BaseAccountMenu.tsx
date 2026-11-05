@@ -185,14 +185,14 @@ const SessionItems = ({
 const signInLabel = (account: AccountView) => {
   if (!account.online) return "You're offline";
   if (failureOf(account)) return "Try again";
-  if (account.session.status === "ended") return "Sign in again";
+  if (account.session.status === "expired") return "Sign in again";
   return "Sign in with GitHub";
 };
 
 /** Whether the page's foot offers signing in: nobody signed in, no sign-in under way */
 const signsIn = (account: AccountView) =>
   account.session.status === "idle" ||
-  account.session.status === "ended" ||
+  account.session.status === "expired" ||
   account.session.status === "failed";
 
 /**
@@ -365,7 +365,7 @@ const BaseAccountMenu = ({
         {!(
           page &&
           (account.session.status === "idle" ||
-            account.session.status === "ended")
+            account.session.status === "expired")
         ) && <DropdownMenuSeparator />}
         <DropdownMenuItem
           {...settingsTrigger}

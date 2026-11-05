@@ -30,4 +30,4 @@ Code: `features/auth/model/session.ts`, `features/persistence/model/{project-syn
 
 Browser storage: one small `localStorage` value holding the signed-in account's id, name, login and avatar URL, removed by an accepted sign-out.
 
-Out of scope: refreshing or extending sessions, a read on refocus, "GitHub access removed" (Spec 02 flow 9, a separate state), and any server change. Edits made while expired do not capture a merge base, so if another device changed the same file meanwhile, the merge asks about that whole file.
+Out of scope: refreshing or extending sessions, a read on refocus, "GitHub access removed" (Spec 02 flow 9, a separate state), and any server change. After a reload, edits made while expired have no merge base, so if another device changed the same file meanwhile, the merge asks about that whole file.

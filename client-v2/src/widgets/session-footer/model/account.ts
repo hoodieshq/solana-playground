@@ -27,7 +27,7 @@ export type AccountUser = Pick<SessionUser, "name" | "login" | "image">;
 export type AccountSession =
   | { status: "signed-in"; user: AccountUser }
   /** The session ended without a sign-out; `user` is the account it held */
-  | { status: "ended"; user: AccountUser }
+  | { status: "expired"; user: AccountUser }
   | SignInState;
 
 export interface AccountWallet {
@@ -119,7 +119,7 @@ export const accountUser = ({ session }: AccountView) =>
 
 /** The avatar's image: a session that ended keeps its account's */
 export const accountImage = ({ session }: AccountView) =>
-  session.status === "signed-in" || session.status === "ended"
+  session.status === "signed-in" || session.status === "expired"
     ? session.user.image
     : undefined;
 
@@ -134,7 +134,7 @@ export const sessionWith =
     if (signIn.status === "failed" && signIn.reason !== "cancelled") {
       return signIn;
     }
-    return { status: "ended", user: expired };
+    return { status: "expired", user: expired };
   };
 
 /** The short name in the account controls' label: the handle first */
@@ -146,7 +146,7 @@ export const profileName = (user: AccountUser) =>
 
 /** The account controls' name: the visible text alone would not say what they open */
 export const accountLabel = (view: AccountView) => {
-  if (view.session.status === "ended") {
+  if (view.session.status === "expired") {
     return `Account: ${displayName(view.session.user)}, session ended`;
   }
   const user = accountUser(view);
@@ -197,7 +197,7 @@ export const accountLines = (
     };
   }
   // Outranks offline: the browser's network is not what stopped the sync
-  if (view.session.status === "ended") {
+  if (view.session.status === "expired") {
     return {
       primary: profileName(view.session.user),
       line: { kind: "session-ended" },
@@ -274,7 +274,7 @@ if (import.meta.vitest) {
       name: null,
     };
 
-    const ENDED = { status: "ended", user: TESTER } as const;
+    const ENDED = { status: "expired", user: TESTER } as const;
 
     describe("accountLabel", () => {
       it("names the login, then the name, then says signed out", () => {
@@ -335,9 +335,9 @@ if (import.meta.vitest) {
         const image = "https://avatars/t.png";
         const user = { name: "Tester", login: "t", image };
         expect(accountImage(view({ session: signedIn(user) }))).toBe(image);
-        expect(accountImage(view({ session: { status: "ended", user } }))).toBe(
-          image
-        );
+        expect(
+          accountImage(view({ session: { status: "expired", user } }))
+        ).toBe(image);
         expect(accountImage(view({}))).toBeUndefined();
       });
     });
