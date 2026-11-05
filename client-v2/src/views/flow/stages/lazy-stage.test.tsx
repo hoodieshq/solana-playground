@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initLogger, resetLogger } from "@/shared/lib/logger";
 import { memoryProvider } from "@/shared/lib/logger/providers/memory";
 
-import { lazyStage, StageLoadFailed } from "./lazy-stage";
+import { BaseStageLoadFailed, lazyStage } from "./lazy-stage";
 
 type Module = { default: ComponentType };
 
@@ -269,27 +269,22 @@ describe("lazyStage", () => {
   });
 });
 
-describe("StageLoadFailed", () => {
-  afterEach(() => vi.restoreAllMocks());
-
+describe("BaseStageLoadFailed", () => {
   const failure = {
     stage: "deploy" as const,
-    retried: false,
-    failedOffline: false,
+    hasRetried: false,
     onRetry: () => undefined,
   };
 
   it("offers Reload page with a network and reloads", () => {
-    vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
-    const reload = vi.fn();
-    render(<StageLoadFailed {...failure} reload={reload} />);
+    const onReload = vi.fn();
+    render(<BaseStageLoadFailed {...failure} isOnline onReload={onReload} />);
     fireEvent.click(screen.getByRole("button", { name: "Reload page" }));
-    expect(reload).toHaveBeenCalledTimes(1);
+    expect(onReload).toHaveBeenCalledTimes(1);
   });
 
   it("keeps Try again offline and offers no reload, which would lose the app", () => {
-    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
-    render(<StageLoadFailed {...failure} />);
+    render(<BaseStageLoadFailed {...failure} isOnline={false} />);
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Reload page" })).toBeNull();
     expect(
