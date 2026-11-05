@@ -5,6 +5,7 @@ import { EditorTabsShown } from "@/components/EditorWithTabs";
 import { useRenderOnChange } from "@/hooks";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommon, PgExplorer, PgTutorial } from "@/utils";
+import { PgEditor } from "@/utils/editor";
 import { PgFlow } from "@/views/flow/state/stage";
 import { PgBuildOutput } from "@/views/sidebar/assistant/bridge/build-output";
 
@@ -167,8 +168,19 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   };
   const openFile = (path: string, via: "tab" | "tree") => {
     setTreeOpen(false);
-    if (path === open) return;
+    // From the tree's popover, which keeps focus from an open (see
+    // `leavesFocusElsewhere`): the pick itself asks for the editor, also when
+    // its file is the one already open. The docked tree is no popover, and a
+    // pick there of the open file stays in it
+    const pickFocus = () => {
+      if (via === "tree" && treeOpen) PgEditor.focus();
+    };
+    if (path === open) {
+      pickFocus();
+      return;
+    }
     PgExplorer.openFile(PgExplorer.convertToFullPath(path));
+    pickFocus();
     tutorialWorkspaceTelemetry.track("tutorial_workspace_file_opened", { via });
   };
 

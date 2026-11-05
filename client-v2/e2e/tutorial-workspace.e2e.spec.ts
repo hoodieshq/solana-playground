@@ -11,6 +11,14 @@ const chevron = (page: Page) =>
     .getByRole("button", { name: "Files", expanded: false })
     .or(head(page).getByRole("button", { name: "Files", expanded: true }));
 
+/** Monaco's own text field, focused when the editor has focus */
+const editorInput = (page: Page) =>
+  page.locator(".monaco-editor textarea.inputarea");
+
+/** The open file's text: shown once the editor listens for opens and focus */
+const openFileLines = (page: Page) =>
+  page.locator(".monaco-editor .view-lines");
+
 /**
  * Hello Anchor has a definition: opening it opens the frame on its intro
  * card, and the card's Start begins step 1
@@ -77,11 +85,39 @@ test.describe("tutorial-workspace", () => {
     // ⌘E opens it too, and Enter on lib.rs opens the file and closes it
     await page.keyboard.press("ControlOrMeta+e");
     await expect(tree).toBeVisible();
+    await expect(openFileLines(page)).toContainText("use anchor_lang");
     await page.keyboard.press("Enter");
     await expect(tree).toBeHidden();
     await expect(
       head(page).getByRole("tab", { name: "lib.rs" })
     ).toHaveAttribute("aria-selected", "true");
+    await expect(editorInput(page)).toBeFocused();
+  });
+
+  // Starting a step writes its start files and opens the step's file again,
+  // whenever that lands: the event stands in for it, so it always lands here
+  test("keeps the tree open when an open nobody asked for lands", async ({
+    page,
+  }) => {
+    await startHelloAnchor(page);
+    await expect(openFileLines(page)).toContainText("use anchor_lang");
+    await chevron(page).click();
+    const libRs = page
+      .getByRole("tree", { name: "Files" })
+      .getByRole("treeitem", { name: /lib\.rs/ });
+    await expect(libRs).toBeFocused();
+
+    await page.evaluate(() =>
+      document.dispatchEvent(
+        new CustomEvent("explorerondidopenfile", {
+          detail: { path: "/Hello Anchor/src/lib.rs", content: "" },
+        })
+      )
+    );
+    // The editor would have taken focus by now, closing the tree
+    await page.waitForTimeout(500);
+    await expect(libRs).toBeFocused();
+    await expect(chevron(page)).toHaveAttribute("aria-expanded", "true");
   });
 
   test("tutorial-workspace: Opening the tree with ⌘E", async ({ page }) => {
