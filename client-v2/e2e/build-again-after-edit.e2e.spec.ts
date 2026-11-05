@@ -25,14 +25,23 @@ const answerBuilds = async (page: Page) => {
 const button = (page: Page, name: string) =>
   page.locator("#flow-stage-panel-build").getByRole("button", { name });
 
-const expectLeader = async (page: Page, lead: string, other: string) => {
-  await expect(button(page, lead)).toHaveAttribute(
+const expectLeader = async (
+  page: Page,
+  order: { lead: string; other: string }
+) => {
+  await expect(button(page, order.lead)).toHaveAttribute(
     "data-slot",
     "brand-button",
     LONG
   );
-  await expect(button(page, other)).toHaveAttribute("data-variant", "outline");
+  await expect(button(page, order.other)).toHaveAttribute(
+    "data-variant",
+    "outline"
+  );
 };
+
+const DEPLOY_LEADS = { lead: "Continue to Deploy", other: "Build again" };
+const BUILD_LEADS = { lead: "Build again", other: "Continue to Deploy" };
 
 const builtPage = async (page: Page) => {
   const builds = await answerBuilds(page);
@@ -41,22 +50,23 @@ const builtPage = async (page: Page) => {
     .locator("#flow-stage-panel-build")
     .getByRole("button", { name: "Build", exact: true })
     .click();
-  await expectLeader(page, "Continue to Deploy", "Build again");
+  await expectLeader(page, DEPLOY_LEADS);
   await expect(page.getByText(CHANGED)).toHaveCount(0);
   return builds;
 };
 
 /** Build's stage takes the editor's place, so an edit goes through Write */
-const edit = async (page: Page, keys: () => Promise<void>) => {
+const edit = (keys: (page: Page) => Promise<void>) => async (page: Page) => {
   await page.locator("#flow-stage-tab-write").click();
   await page.locator(".monaco-editor .view-lines").first().click();
   await page.keyboard.press("ControlOrMeta+End");
-  await keys();
+  await keys(page);
   await page.locator("#flow-stage-tab-build").click();
 };
 
-const typeEdit = (page: Page) =>
-  edit(page, () => page.keyboard.type("\n// an edit after the build"));
+const typeEdit = edit((page) =>
+  page.keyboard.type("\n// an edit after the build")
+);
 
 test.describe("Build succeeded after an edit", () => {
   test.setTimeout(120_000);
@@ -67,7 +77,7 @@ test.describe("Build succeeded after an edit", () => {
     await builtPage(page);
 
     await typeEdit(page);
-    await expectLeader(page, "Build again", "Continue to Deploy");
+    await expectLeader(page, BUILD_LEADS);
     await expect(page.getByText(CHANGED)).toBeVisible();
 
     await button(page, "Continue to Deploy").click();
@@ -88,7 +98,7 @@ test.describe("Build succeeded after an edit", () => {
     await page.waitForTimeout(AUTOSAVE_MS);
     await page.locator("#flow-stage-tab-build").click();
 
-    await expectLeader(page, "Continue to Deploy", "Build again");
+    await expectLeader(page, DEPLOY_LEADS);
     await expect(page.getByText(CHANGED)).toHaveCount(0);
   });
 
@@ -109,7 +119,7 @@ test.describe("Build succeeded after an edit", () => {
       page.locator('#root-dir [data-path$="/src/renamed.rs"]')
     ).toBeVisible();
 
-    await expectLeader(page, "Continue to Deploy", "Build again");
+    await expectLeader(page, DEPLOY_LEADS);
     await expect(page.getByText(CHANGED)).toHaveCount(0);
   });
 
@@ -118,11 +128,11 @@ test.describe("Build succeeded after an edit", () => {
   }) => {
     await builtPage(page);
 
-    await edit(page, () => page.keyboard.type("x"));
-    await expectLeader(page, "Build again", "Continue to Deploy");
+    await edit((p) => p.keyboard.type("x"))(page);
+    await expectLeader(page, BUILD_LEADS);
 
-    await edit(page, () => page.keyboard.press("Backspace"));
-    await expectLeader(page, "Continue to Deploy", "Build again");
+    await edit((p) => p.keyboard.press("Backspace"))(page);
+    await expectLeader(page, DEPLOY_LEADS);
   });
 
   test("client-v2-program-build: A rebuild settles it", async ({
@@ -131,11 +141,11 @@ test.describe("Build succeeded after an edit", () => {
     const builds = await builtPage(page);
 
     await typeEdit(page);
-    await expectLeader(page, "Build again", "Continue to Deploy");
+    await expectLeader(page, BUILD_LEADS);
 
     await button(page, "Build again").click();
     await expect.poll(() => builds.length).toBe(2);
-    await expectLeader(page, "Continue to Deploy", "Build again");
+    await expectLeader(page, DEPLOY_LEADS);
     await expect(page.getByText(CHANGED)).toHaveCount(0);
   });
 });

@@ -980,8 +980,12 @@ describe("PgFlow source tracking", () => {
       PgExplorer,
       sub,
       buildStarts: () => need(start.cb)(),
-      buildReports: (failed = false, at = Date.now()) =>
-        need(report.cb)({ failed, at, stderr: "" }),
+      buildReports: () =>
+        need(report.cb)({ failed: false, at: Date.now(), stderr: "" }),
+      buildFails: () =>
+        need(report.cb)({ failed: true, at: Date.now(), stderr: "" }),
+      olderReportReplays: () =>
+        need(report.cb)({ failed: false, at: 0, stderr: "" }),
       edit: (content: string) => {
         PgExplorer.files[LIB].content = content;
         need(save.cb)();
@@ -1039,7 +1043,7 @@ describe("PgFlow source tracking", () => {
 
   // The binary on hand is still the old one
   it.each([
-    ["failed", (w: Awaited<ReturnType<typeof wire>>) => w.buildReports(true)],
+    ["failed", (w: Awaited<ReturnType<typeof wire>>) => w.buildFails()],
     ["stopped", (w: Awaited<ReturnType<typeof wire>>) => w.stop()],
     ["unreached", (w: Awaited<ReturnType<typeof wire>>) => w.unreached()],
   ])("keeps the last success's baseline through a %s build", async (_, end) => {
@@ -1081,7 +1085,7 @@ describe("PgFlow source tracking", () => {
     w.edit("v2");
 
     w.buildStarts();
-    w.buildReports(false, 0);
+    w.olderReportReplays();
     w.stop();
     expect(PgFlow.state.sourceChanged).toBe(true);
     w.sub.dispose();
@@ -1101,16 +1105,20 @@ describe("PgFlow source tracking", () => {
   });
 
   it.each([
-    [
-      "creating a file",
-      "create",
-      {
+    {
+      what: "creating a file",
+      event: "create",
+      files: {
         [LIB]: { content: "v1" },
         "/proj/src/new.rs": { content: "x" },
       },
-    ],
-    ["another tab's edit", "reload", { [LIB]: { content: "theirs" } }],
-  ] as const)("hears %s", async (_, event, files) => {
+    },
+    {
+      what: "another tab's edit",
+      event: "reload",
+      files: { [LIB]: { content: "theirs" } },
+    },
+  ] as const)("hears $what", async ({ event, files }) => {
     const w = await wire();
     w.buildStarts();
     w.buildReports();
