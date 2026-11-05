@@ -18,6 +18,14 @@ export const TOOLS = {
   propose: "propose_change",
 } as const;
 
+/**
+ * How an answer before Start ends: the lesson is one press or one word away.
+ * Names the intro card's button and a start word (`route.ts`), so it changes
+ * with them
+ */
+export const BEGIN_INVITATION =
+  "When you're ready, press Start step 1 or type start.";
+
 export interface TutorialFacts {
   definition: TutorialDefinition;
   progress: ConversationProgress;
@@ -69,6 +77,13 @@ export const describeTutorial = (facts: TutorialFacts): string => {
       "the learner applies it or keeps their own. To show the steps, use " +
       `${TOOLS.openMenu}. You never judge whether a step passed: the lesson does.`
   );
+  if (progress.cursor.kind === "intro") {
+    lines.push(
+      "Before Start, answer what they asked, then end your reply with this " +
+        `invitation to begin: "${BEGIN_INVITATION}" Write it after a tool too: ` +
+        `${TOOLS.openMenu} never ends your turn here.`
+    );
+  }
   return lines.join("\n");
 };
 
@@ -181,6 +196,7 @@ if (import.meta.vitest) {
       expect(text).toContain(`Objective: ${hello.steps[1].objective}.`);
       expect(text).toContain("in front: programs/hello/src/lib.rs");
       expect(text).toContain("you cannot change files, build, deploy");
+      expect(text).not.toContain(BEGIN_INVITATION);
     });
 
     it("guards an open question's answer and lists the tutorial's docs", () => {
@@ -293,6 +309,7 @@ if (import.meta.vitest) {
           currentFile: null,
         });
       expect(facts(freshProgress())).toContain("They have not started yet");
+      expect(facts(freshProgress())).toContain(BEGIN_INVITATION);
       const done = freshProgress();
       done.cursor = { kind: "finished" };
       expect(facts(done)).toContain("They finished every step.");

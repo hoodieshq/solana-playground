@@ -28,12 +28,12 @@ export interface BaseTutorialComposerProps {
   onChip: (index: number) => void;
   /**
    * Before Start: the box reads greyed until it takes focus, though it still
-   * takes a question or "start"
+   * takes a question or a start word
    */
   waiting: boolean;
   /**
-   * Given once the assistant has answered before Start: the composer
-   * suggests starting, with the intro card's button
+   * Given once the assistant has answered before Start, in words or with a
+   * tool: the composer suggests starting, with the intro card's button
    */
   onStart?: () => void;
   /** A line over the box, such as why a question has not gone yet */
@@ -67,8 +67,8 @@ const usePressing = () => {
  * the live assistant"): never disabled, Enter sends, Shift+Enter breaks the
  * line, and ⌘↵ does nothing here, since in the column it presses the live
  * act. After the finish, the finish chips sit above it. Before Start it
- * reads greyed until focused, and once the assistant has answered a
- * question it suggests starting, with "Start step 1"; both lift once the
+ * reads greyed until focused, and once the assistant has answered, in
+ * words or with a tool, it suggests starting, with "Start step 1"; both lift once the
  * lesson has begun (the designer's call, 3 Nov).
  *
  * The prototype's chat field (`f7d42bf2e`, design audit of 3 Nov): one line

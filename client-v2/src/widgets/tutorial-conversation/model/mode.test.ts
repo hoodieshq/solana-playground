@@ -1,6 +1,7 @@
 /* eslint-disable layers/curry-order, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import { PgConversation } from "@/features/tutorial-conversation";
 
+import { BEGIN_INVITATION } from "./context";
 import { tutorialMode } from "./mode";
 
 vi.mock("@/features/tutorial-conversation", () => ({
@@ -102,6 +103,13 @@ describe("the tutorial's assistant mode", () => {
     );
     await tool?.run({});
     expect(openMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("has the menu invite the learner to begin before Start, and only then", async () => {
+    liveIs(false);
+    expect(await toolOf("open_menu").run({})).toContain(BEGIN_INVITATION);
+    liveIs(true);
+    expect(await toolOf("open_menu").run({})).toBe("The menu is open.");
   });
 
   it("proposes one line with the line as it reads now, and writes nothing", async () => {

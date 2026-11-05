@@ -8,7 +8,7 @@ import { READING_TOOLS } from "@/views/sidebar/assistant/model/reading-tools";
 import type { AssistantMode } from "@/views/sidebar/assistant/store";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 
-import { describeTutorial, TOOLS } from "./context";
+import { BEGIN_INVITATION, describeTutorial, TOOLS } from "./context";
 
 const log = createLogger("tutorial-conversation:mode");
 
@@ -76,7 +76,9 @@ export const tutorialMode = ({
       run: () => {
         PgAssistant.addToolCall("opened the menu");
         openMenu();
-        return "The menu is open.";
+        return PgConversation.view()?.live?.kind === "intro"
+          ? `The menu is open. They have not started: end your reply with "${BEGIN_INVITATION}"`
+          : "The menu is open.";
       },
     },
     {

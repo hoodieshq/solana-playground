@@ -170,12 +170,17 @@ describe("TutorialComposer", () => {
     step: { kind: "step", stepId: definition.steps[0].id },
     finished: { kind: "finished" },
   } as const;
-  const stateAt = (cursor: keyof typeof CURSORS) =>
+  const stateRestartedAt = (
+    restartedAt: number | null,
+    cursor: keyof typeof CURSORS
+  ) =>
     ({
       context: { definition, slug: "hello-anchor" },
       loadedAt: 0,
-      engine: { progress: { cursor: CURSORS[cursor], restartedAt: null } },
+      engine: { progress: { cursor: CURSORS[cursor], restartedAt } },
     } as unknown as ConversationState);
+  const stateAt = (cursor: keyof typeof CURSORS) =>
+    stateRestartedAt(null, cursor);
   const thread = PgAssistant as unknown as {
     items: import("@/views/sidebar/assistant/store").ChatItem[];
   };
@@ -244,6 +249,29 @@ describe("TutorialComposer", () => {
     expect(screen.getByText("Ready to start the lesson?")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Start step 1" }));
     expect(store.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("suggests starting after a turn that only opened the menu", () => {
+    store.state = stateAt("intro");
+    store.view.mockReturnValue(view("Ask anything about this tutorial"));
+    thread.items = [
+      {
+        id: "t1",
+        createdAt: new Date(1000).toISOString(),
+        kind: "tool",
+        label: "opened the menu",
+      },
+    ];
+    render(<Connected turn={turn()} />);
+    expect(screen.getByRole("button", { name: "Start step 1" })).toBeTruthy();
+  });
+
+  it("does not count a turn from before the last Start over", () => {
+    store.state = stateRestartedAt(2000, "intro");
+    store.view.mockReturnValue(view("Ask anything about this tutorial"));
+    thread.items = [reply("A PDA is an address a program signs for.")];
+    render(<Connected turn={turn()} />);
+    expect(screen.queryByRole("button", { name: "Start step 1" })).toBeNull();
   });
 
   it("holds the suggestion while the answer is still coming", () => {

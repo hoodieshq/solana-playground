@@ -58,6 +58,23 @@ export const mergeFeed = (
   return out.concat(exchanges.slice(next));
 };
 
+/**
+ * Whether the assistant has answered since `since` (the last Start over; null
+ * reads the whole thread): in words, or with a tool it ran, since a turn that
+ * only opens the menu writes nothing
+ */
+export const hasAnswered = (
+  items: readonly ChatItem[],
+  since: number | null
+): boolean =>
+  items.some((item) => {
+    const at = Date.parse(item.createdAt);
+    if (!Number.isFinite(at) || (since !== null && at <= since)) return false;
+    return (
+      item.kind === "tool" || (item.kind === "assistant" && !!item.text.trim())
+    );
+  });
+
 /** What a pending approval reads as in the tutorial feed */
 export const APPROVAL_WAITING =
   "The assistant asked to change the project, which a tutorial does not " +
@@ -121,6 +138,63 @@ if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
   describe("widgets/tutorial-conversation/model/merge", () => {
+    describe("hasAnswered", () => {
+      const createdAt = new Date(2000).toISOString();
+      const tool: ChatItem = {
+        id: "t",
+        createdAt,
+        kind: "tool",
+        label: "opened the menu",
+      };
+      const reply: ChatItem = {
+        id: "a",
+        createdAt,
+        kind: "assistant",
+        text: "A PDA is",
+      };
+
+      it("counts a written reply or a tool the assistant ran", () => {
+        expect(hasAnswered([reply], null)).toBe(true);
+        expect(hasAnswered([tool], null)).toBe(true);
+      });
+
+      it("does not count a reply with no words yet, or the learner's message", () => {
+        expect(
+          hasAnswered(
+            [{ id: "a", createdAt, kind: "assistant", text: " " }],
+            null
+          )
+        ).toBe(false);
+        expect(
+          hasAnswered(
+            [{ id: "u", createdAt, kind: "user", text: "the menu" }],
+            null
+          )
+        ).toBe(false);
+      });
+
+      it("does not count an item whose time cannot be read, as the feed drops it", () => {
+        expect(
+          hasAnswered(
+            [
+              {
+                id: "t",
+                createdAt: "not a date",
+                kind: "tool",
+                label: "opened the menu",
+              },
+            ],
+            null
+          )
+        ).toBe(false);
+      });
+
+      it("does not count what came before the last Start over", () => {
+        expect(hasAnswered([reply, tool], 2000)).toBe(false);
+        expect(hasAnswered([reply, tool], 1999)).toBe(true);
+      });
+    });
+
     const say = (id: string, at: number): Turn => ({
       id,
       kind: "say",
