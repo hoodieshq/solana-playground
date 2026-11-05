@@ -11,8 +11,9 @@ import { PgExplorer } from "./explorer";
  * put the old text back. Setting the model's value also gives the user a
  * normal editor undo.
  *
- * Shared by the assistant's `write_file` tool and the tutorial conversation's
- * writes, which both put code under a live editor.
+ * For the tutorial conversation's writes, which put code under a live editor.
+ * The assistant's `applyPatch` (`playground-bridge.ts`) does the same and also
+ * folds in what the user typed since its proposal.
  *
  * @param path relative to the workspace, e.g. `src/lib.rs`
  * @param content the file's whole new content

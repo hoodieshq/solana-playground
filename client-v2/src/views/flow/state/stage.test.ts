@@ -238,6 +238,38 @@ describe("PgFlow.reduce, a stopped run", () => {
     expect(s.stopped).toBe("deploy");
   });
 
+  it("a tutorial's deploy leaves the stage where it is, however it ends", () => {
+    const writing = { ...builtOnce(), stage: "write" as const };
+    const deploying = PgFlow.reduce(writing, {
+      type: "deploy-start",
+      from: "tutorial",
+    });
+    expect(deploying.stage).toBe("write");
+    expect(deploying.deploy).toBe("running");
+
+    for (const ok of [true, false]) {
+      const s = PgFlow.reduce(deploying, {
+        type: "deploy-finish",
+        ok,
+        from: "tutorial",
+      });
+      expect(s.stage).toBe("write");
+      expect(s.deploy).toBe(ok ? "done" : "failed");
+    }
+  });
+
+  it("a stop during a tutorial's deploy goes back to what Deploy showed", () => {
+    const deploying = PgFlow.reduce(builtOnce(), {
+      type: "deploy-start",
+      from: "tutorial",
+    });
+
+    const s = PgFlow.reduce(deploying, { type: "deploy-stop" });
+
+    expect(s.deploy).toBe("active");
+    expect(s.stopped).toBe("deploy");
+  });
+
   it("a second Deploy click keeps what Deploy showed before the run", () => {
     const deploying = PgFlow.reduce(builtOnce(), {
       type: "deploy-start",
