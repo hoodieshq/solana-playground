@@ -45,8 +45,9 @@ export interface FlowState {
    * `null` once the next run starts */
   stopped: RunKind | null;
   /** The program's source differs from what the last successful build was
-   * given, so Build leads with building again. Always `false` with no such
-   * build in this session. */
+   * given, so Build succeeded leads with Build again. `false` with no such
+   * build in this session for the open workspace: a reload's "Built earlier"
+   * claims no comparison, and this reads only on Build succeeded. */
   sourceChanged: boolean;
 }
 
@@ -146,20 +147,25 @@ const buildFailureOf = (err: unknown): BuildFailure => {
   return { kind: answered === false ? "no-answer" : "other", message: text };
 };
 
+interface BuiltSource {
+  workspace: string | undefined;
+  source: string;
+}
+
 /**
- * What a build compares against: the text of the files it sends, the non-empty
- * ones under `src/`. Paths are left out, so a rename alone is no change.
+ * What a build is compared by: the stored text of the files it sends, the
+ * non-empty ones under `src/`, before it writes the program id into them. Paths
+ * are left out, so a rename alone is no change, and so neither is moving a file
+ * within `src/` or swapping two files' text.
  */
-export const programSource = (
-  files: Record<string, { content?: string }>,
-  srcPath: string
-) =>
-  JSON.stringify(
-    Object.entries(files)
-      .filter(([path, { content }]) => path.startsWith(srcPath) && content)
-      .map(([, { content }]) => content)
-      .sort()
-  );
+export const programSourceIn =
+  (srcPath: string) => (files: Record<string, { content?: string }>) =>
+    JSON.stringify(
+      Object.entries(files)
+        .filter(([path, { content }]) => path.startsWith(srcPath) && content)
+        .map(([, { content }]) => content)
+        .sort()
+    );
 
 /**
  * The dev loop as state. Pure reducer plus a tiny store; `init` wires the
@@ -296,44 +302,27 @@ export class PgFlow {
   /** Subscribe to client events. Call once from the Flow layout. */
   static init(): Disposable {
     let startedAt = 0;
-    const currentSource = () => ({
-      workspace: PgExplorer.currentWorkspaceName,
-      source: programSource(PgExplorer.files, PgExplorer.getCurrentSrcPath()),
-    });
-    // What the running build was given, and what the last successful one was.
-    // A stopped or failed build leaves the latter, so a stopped rebuild goes
-    // back to the surface it left with the same answer.
-    let running: ReturnType<typeof currentSource> | null = null;
-    let built: ReturnType<typeof currentSource> | null = null;
-    // In memory only: this runs on every save, and nothing here may touch the
-    // filesystem. By the workspace's name, as `ownOutput` keeps the report.
-    const recheckSource = () => {
-      const changed =
-        built !== null &&
-        built.workspace === PgExplorer.currentWorkspaceName &&
-        built.source !== currentSource().source;
-      if (changed !== PgFlow._state.sourceChanged) {
-        PgFlow._dispatch({ type: "source-change", changed });
-      }
-    };
+    const recheckSource = () => PgFlow._recheckSource();
     const subs: Disposable[] = [
       PgCommand.build.onDidStart(() => {
         startedAt = Date.now();
-        running = currentSource();
         PgFlow._dispatch({ type: "build-start", at: startedAt });
+        PgFlow._running = PgFlow._currentSource();
       }),
       PgBuildOutput.onDidChange((out) => {
         if (!out) return;
+        // Subscribing replays the latest report, whose run has settled, so
+        // only a run still open moves the baseline. Before `build-finish`, so
+        // the surface never shows the success beside the old answer.
+        if (!out.failed && PgFlow._running) PgFlow._built = PgFlow._running;
+        PgFlow._running = null;
+        PgFlow._recheckSource();
         PgFlow._dispatch({
           type: "build-finish",
           failed: out.failed,
           errorCount: out.failed ? Math.max(1, countErrors(out.stderr)) : 0,
           ms: startedAt === 0 ? 0 : out.at - startedAt,
         });
-        if (!out.failed) {
-          built = running;
-          recheckSource();
-        }
       }),
       // `PgBuildOutput` only fills in once `buildProgram()` resolves, so a
       // build that never reaches the compiler (e.g. the build server is
@@ -342,6 +331,7 @@ export class PgFlow {
       // *this* run already arrived and handled it.
       PgCommand.build.onDidFinish((result) => {
         if (!("err" in result)) return;
+        PgFlow._running = null;
         if (isStopped(result.err)) {
           PgFlow._dispatch({ type: "build-stop" });
           return;
@@ -390,9 +380,7 @@ export class PgFlow {
       PgExplorer.onDidCreateItem(recheckSource),
       PgExplorer.onDidDeleteItem(recheckSource),
       PgExplorer.onDidRenameItem(recheckSource),
-      // Another tab's edit reaches this tab's state with no save event; when
-      // it is the open file, `reloadCurrentFromDisk` re-announces that file
-      PgExplorer.onDidOpenFile(recheckSource),
+      PgExplorer.onDidReloadFiles(recheckSource),
       // A reload drops this state but not the workspace's own: the build
       // verdict is in `program-info.json` and the deployment is on the
       // cluster. `onChain` is fetched asynchronously and re-derives on a
@@ -406,7 +394,32 @@ export class PgFlow {
         })
       ),
     ];
+    // The layout may have been away while files changed
+    recheckSource();
     return { dispose: () => subs.forEach((s) => s.dispose()) };
+  }
+
+  private static _currentSource(): BuiltSource {
+    return {
+      workspace: PgExplorer.currentWorkspaceName,
+      source: programSourceIn(PgExplorer.getCurrentSrcPath())(PgExplorer.files),
+    };
+  }
+
+  /**
+   * In memory only: this runs on every change to the tree or a file, and
+   * nothing here may touch the filesystem. By the workspace's name, as
+   * `ownOutput` keeps the report.
+   */
+  private static _recheckSource() {
+    const built = PgFlow._built;
+    const changed =
+      built !== null &&
+      built.workspace === PgExplorer.currentWorkspaceName &&
+      built.source !== PgFlow._currentSource().source;
+    if (changed !== PgFlow._state.sourceChanged) {
+      PgFlow._dispatch({ type: "source-change", changed });
+    }
   }
 
   private static _dispatch(ev: FlowEvent) {
@@ -415,5 +428,12 @@ export class PgFlow {
   }
 
   private static _state: FlowState = INITIAL_FLOW_STATE;
+  /** What the build in flight was given; `null` once it settles */
+  private static _running: BuiltSource | null = null;
+  /** What the last successful build was given. A stopped or failed build
+   * leaves it, so a stopped rebuild goes back to the surface it left with the
+   * same answer. Static, as `_state` is: the layout re-subscribes on a remount
+   * with both still on screen. */
+  private static _built: BuiltSource | null = null;
   private static readonly _listeners = new Set<(s: FlowState) => void>();
 }

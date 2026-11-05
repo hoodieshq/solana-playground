@@ -26,7 +26,7 @@ vi.mock("../../../utils", () => ({
     onDidCreateItem: vi.fn(() => ({ dispose: vi.fn() })),
     onDidDeleteItem: vi.fn(() => ({ dispose: vi.fn() })),
     onDidRenameItem: vi.fn(() => ({ dispose: vi.fn() })),
-    onDidOpenFile: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidReloadFiles: vi.fn(() => ({ dispose: vi.fn() })),
   },
   PgGlobal: {
     deployState: "ready",
@@ -46,7 +46,7 @@ import {
   countErrors,
   INITIAL_FLOW_STATE,
   PgFlow,
-  programSource,
+  programSourceIn,
 } from "./stage";
 
 /** The mocked build-output module, in the shape the factory above gives it:
@@ -865,53 +865,53 @@ describe("PgFlow.init, seeding a reloaded page", () => {
   });
 });
 
-describe("programSource", () => {
-  const SRC = "/proj/src/";
+describe("programSourceIn", () => {
+  const source = programSourceIn("/proj/src/");
+  const LIB = { content: "fn a() {}" };
 
   it("holds the text of what a build sends, and nothing else", () => {
-    const with_ = (extra: Record<string, { content?: string }>) =>
-      programSource(
-        { "/proj/src/lib.rs": { content: "fn a() {}" }, ...extra },
-        SRC
-      );
-    const base = with_({});
+    const base = source({ "/proj/src/lib.rs": LIB });
 
     // A generated workspace file, a client script, an empty file, a folder
     expect(
-      with_({
+      source({
+        "/proj/src/lib.rs": LIB,
         "/proj/.workspace/program-info.json": { content: "{}" },
         "/proj/client/client.ts": { content: "x" },
         "/proj/src/empty.rs": { content: "" },
         "/proj/src/folder/": {},
       })
     ).toBe(base);
-    expect(with_({ "/proj/src/more.rs": { content: "x" } })).not.toBe(base);
+    expect(
+      source({ "/proj/src/lib.rs": LIB, "/proj/src/more.rs": { content: "x" } })
+    ).not.toBe(base);
   });
 
   it("does not hear a rename", () => {
-    expect(programSource({ "/proj/src/a.rs": { content: "x" } }, SRC)).toBe(
-      programSource({ "/proj/src/b.rs": { content: "x" } }, SRC)
+    expect(source({ "/proj/src/a.rs": { content: "x" } })).toBe(
+      source({ "/proj/src/b.rs": { content: "x" } })
     );
   });
 
   // Joined naively, ["ab", "c"] and ["a", "bc"] would read as the same source
   it("keeps files apart", () => {
     expect(
-      programSource(
-        { "/proj/src/1": { content: "ab" }, "/proj/src/2": { content: "c" } },
-        SRC
-      )
+      source({
+        "/proj/src/1": { content: "ab" },
+        "/proj/src/2": { content: "c" },
+      })
     ).not.toBe(
-      programSource(
-        { "/proj/src/1": { content: "a" }, "/proj/src/2": { content: "bc" } },
-        SRC
-      )
+      source({
+        "/proj/src/1": { content: "a" },
+        "/proj/src/2": { content: "bc" },
+      })
     );
   });
 });
 
 describe("PgFlow source tracking", () => {
   const LIB = "/proj/src/lib.rs";
+  let workspaces = 0;
 
   const wire = async () => {
     const utils = await import("../../../utils");
@@ -920,6 +920,10 @@ describe("PgFlow source tracking", () => {
       currentWorkspaceName: string;
       files: Record<string, { content?: string }>;
       onDidSaveFile: Mock;
+      onDidCreateItem: Mock;
+      onDidDeleteItem: Mock;
+      onDidRenameItem: Mock;
+      onDidReloadFiles: Mock;
       onDidSwitchWorkspace: Mock;
     };
     const output = await mockedBuildOutput();
@@ -940,8 +944,15 @@ describe("PgFlow source tracking", () => {
     );
     const save = box<() => void>(PgExplorer.onDidSaveFile);
     const swap = box<() => void>(PgExplorer.onDidSwitchWorkspace);
+    const treeEvents = {
+      create: box<() => void>(PgExplorer.onDidCreateItem),
+      delete: box<() => void>(PgExplorer.onDidDeleteItem),
+      rename: box<() => void>(PgExplorer.onDidRenameItem),
+      reload: box<() => void>(PgExplorer.onDidReloadFiles),
+    };
 
-    PgExplorer.currentWorkspaceName = "proj";
+    // The baseline is static, and follows its workspace by name
+    PgExplorer.currentWorkspaceName = `proj-${++workspaces}`;
     PgExplorer.files = { [LIB]: { content: "v1" } };
     const sub = PgFlow.init();
     const need = requireFor("a listener PgFlow.init subscribed");
@@ -958,6 +969,8 @@ describe("PgFlow source tracking", () => {
         need(save.cb)();
       },
       stop: () => need(finish.cb)({ err: new StoppedError("Stopped.") }),
+      unreached: () => need(finish.cb)({ err: new Error("Failed to fetch") }),
+      fire: (event: keyof typeof treeEvents) => need(treeEvents[event].cb)(),
       switchWorkspace: () => need(swap.cb)(),
     };
   };
@@ -1010,6 +1023,7 @@ describe("PgFlow source tracking", () => {
   it.each([
     ["failed", (w: Awaited<ReturnType<typeof wire>>) => w.buildReports(true)],
     ["stopped", (w: Awaited<ReturnType<typeof wire>>) => w.stop()],
+    ["unreached", (w: Awaited<ReturnType<typeof wire>>) => w.unreached()],
   ])("keeps the last success's baseline through a %s build", async (_, end) => {
     const w = await wire();
     w.buildStarts();
@@ -1020,6 +1034,76 @@ describe("PgFlow source tracking", () => {
     end(w);
     expect(PgFlow.state.sourceChanged).toBe(true);
     w.edit("v1");
+    expect(PgFlow.state.sourceChanged).toBe(false);
+    w.sub.dispose();
+  });
+
+  // A remount subscribes again, with the report and the state still on screen
+  it("keeps the baseline through a remount of the layout", async () => {
+    const first = await wire();
+    first.buildStarts();
+    first.buildReports();
+    first.edit("v2");
+    const { currentWorkspaceName, files } = first.PgExplorer;
+    first.sub.dispose();
+
+    const second = await wire();
+    second.PgExplorer.currentWorkspaceName = currentWorkspaceName;
+    second.PgExplorer.files = files;
+    second.fire("reload");
+    expect(PgFlow.state.sourceChanged).toBe(true);
+    second.sub.dispose();
+  });
+
+  // A replayed older report must not adopt a run that never reported
+  it("does not take an unreached run's text from a later report", async () => {
+    const w = await wire();
+    w.buildStarts();
+    w.buildReports();
+    w.edit("v2");
+    w.buildStarts();
+    w.unreached();
+    w.buildReports();
+    expect(PgFlow.state.sourceChanged).toBe(true);
+    w.sub.dispose();
+  });
+
+  it.each([
+    [
+      "creating a file",
+      "create",
+      {
+        [LIB]: { content: "v1" },
+        "/proj/src/new.rs": { content: "x" },
+      },
+    ],
+    ["another tab's edit", "reload", { [LIB]: { content: "theirs" } }],
+  ] as const)("hears %s", async (_, event, files) => {
+    const w = await wire();
+    w.buildStarts();
+    w.buildReports();
+    w.PgExplorer.files = files;
+    w.fire(event);
+    expect(PgFlow.state.sourceChanged).toBe(true);
+    w.sub.dispose();
+  });
+
+  it("hears a deleted file", async () => {
+    const w = await wire();
+    w.buildStarts();
+    w.buildReports();
+    w.PgExplorer.files = {};
+    w.fire("delete");
+    expect(PgFlow.state.sourceChanged).toBe(true);
+    w.sub.dispose();
+  });
+
+  it("does not hear a rename through its event", async () => {
+    const w = await wire();
+    w.buildStarts();
+    w.buildReports();
+    w.PgExplorer.files = { "/proj/src/renamed.rs": { content: "v1" } };
+    w.fire("rename");
     expect(PgFlow.state.sourceChanged).toBe(false);
     w.sub.dispose();
   });

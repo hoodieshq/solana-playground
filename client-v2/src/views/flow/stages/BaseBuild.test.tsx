@@ -176,7 +176,7 @@ describe("BaseBuild", () => {
     expect(p.onBuild).toHaveBeenCalled();
   });
 
-  // So nobody deploys an old build: the screen has one brand action
+  // The screen has one brand action, and it steers away from an old build
   describe("once the code changed after the build", () => {
     const changed = () => {
       const p = props({ kind: "succeeded" });

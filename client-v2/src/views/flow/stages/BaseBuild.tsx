@@ -183,8 +183,9 @@ const OutlineContinueButton = ({ p }: { p: BaseBuildProps }) => (
 
 /**
  * Build as the surface's brand pill: the first build, with the play mark,
- * and Try again after a build that never reached the compiler, which is
- * that surface's main action as Continue to Deploy is the success's. A
+ * Try again after a build that never reached the compiler, which is that
+ * surface's main action as Continue to Deploy is the success's, and Build again
+ * once the code changed after a success. A
  * `BrandButton` rather than `AsyncButton`, which is a `Button` and has no
  * brand look, so the busy state and the failure report are kept here.
  */
@@ -355,18 +356,21 @@ const Restored = (p: BaseBuildProps & { failed: boolean }) => (
   />
 );
 
+const successLine = ({ sourceChanged, hasIdl }: BaseBuildProps) => {
+  if (sourceChanged) {
+    return "Your code changed after the last build. Build again before you deploy.";
+  }
+  return hasIdl
+    ? "The program and its IDL are ready to deploy."
+    : "The program is ready to deploy.";
+};
+
 const Succeeded = (p: BaseBuildProps) => (
   <Surface
     icon={<CircleCheck className="text-success" />}
     title="Build succeeded"
     meta={p.ms === null ? null : `Built in ${msLabel(p.ms)}`}
-    description={
-      p.sourceChanged
-        ? "Your code changed after the last build. Build again before you deploy."
-        : p.hasIdl
-        ? "The program and its IDL are ready to deploy."
-        : "The program is ready to deploy."
-    }
+    description={successLine(p)}
     actions={
       <>
         {/* What comes next: go on, or build again once the code moved on.
