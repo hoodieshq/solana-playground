@@ -60,7 +60,7 @@ const BaseTutorialsPage = ({
   const searching = query.trim() !== "";
   const browsing = !searching && framework === "all";
   return (
-    <section className="mx-auto flex w-full max-w-[50rem] flex-col gap-4 px-8 pt-14 pb-16 max-md:px-4 max-md:pt-3">
+    <section className="mx-auto flex w-full max-w-[50rem] flex-col gap-4 px-8 pt-14 pb-16 max-md:px-4 max-md:pt-1">
       <div className="mb-4 flex items-center gap-2 max-md:mb-1 max-md:min-h-11">
         <h1
           className={cn(

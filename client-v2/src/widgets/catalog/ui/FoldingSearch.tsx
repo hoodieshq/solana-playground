@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { flushSync } from "react-dom";
 
 import { cn } from "@/shared/lib/utils";
@@ -39,9 +39,14 @@ const FoldingSearch = ({
 }: FoldingSearchProps) => {
   const input = useRef<HTMLInputElement>(null);
   const glass = useRef<HTMLButtonElement>(null);
-  // Back to the glass, or a phone's keyboard keeps typing into a hidden field
+  // A hidden field holds no focus, or a keyboard keeps typing into it. Whatever
+  // folded it: Esc, Cancel, or a query cleared after the window narrowed
+  useLayoutEffect(() => {
+    const el = input.current;
+    if (open || !el || getComputedStyle(el).visibility !== "hidden") return;
+    el.blur();
+  }, [open]);
   const fold = () => {
-    input.current?.blur();
     flushSync(() => onOpen(false));
     glass.current?.focus();
   };
@@ -79,11 +84,7 @@ const FoldingSearch = ({
           placeholder={placeholder}
           aria-label={`Search ${label}`}
           value={query}
-          onChange={(e) => {
-            onQuery(e.target.value);
-            // Clearing it by hand keeps the row: only Cancel and Esc fold it
-            onOpen(true);
-          }}
+          onChange={(e) => onQuery(e.target.value)}
           onKeyDown={(e) => {
             // Esc takes back what was typed, then the open row
             if (e.key !== "Escape") return;
@@ -97,13 +98,12 @@ const FoldingSearch = ({
           )}
         />
         {!open && (
-          // A bare overlay on the field: `Button` would draw a face over the glass
-          <button
+          <Button
             ref={glass}
-            type="button"
+            variant="ghost"
             aria-label={`Search ${label}`}
             onClick={handleGlass}
-            className="absolute inset-0 hidden rounded-[inherit] outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple max-md:block"
+            className="absolute inset-0 hidden size-auto rounded-[inherit] p-0 hover:bg-transparent max-md:block dark:hover:bg-transparent"
           />
         )}
       </InputGroup>

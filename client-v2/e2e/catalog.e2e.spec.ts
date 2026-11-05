@@ -176,7 +176,11 @@ test.describe("on a phone", () => {
       .getByRole("button", { name: "Tutorials" })
       .click();
 
-    await expect(work.getByTestId("phone-bar")).toContainText("Tutorials");
+    // The page's own heading names it, so the bar keeps only the menu
+    await expect(
+      work.getByRole("heading", { level: 1, name: "Tutorials" })
+    ).toBeVisible();
+    await expect(work.getByTestId("phone-bar")).not.toContainText("Tutorials");
     await expect(
       work.getByRole("button", { name: "Search tutorials" })
     ).toBeInViewport();

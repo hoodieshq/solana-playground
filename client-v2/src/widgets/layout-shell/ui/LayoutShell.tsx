@@ -102,7 +102,13 @@ export interface LayoutShellProps {
    * the work, `onClose` is called first, since the assistant is under the
    * page. On a phone the work page shows it, and opening it goes there.
    */
-  cover?: { title: string; content: ReactNode; onClose: () => void };
+  cover?: {
+    title: string;
+    /** It draws its own large title, so a phone's bar names nothing */
+    hasOwnHeading?: boolean;
+    content: ReactNode;
+    onClose: () => void;
+  };
   /** While Home shows, keep the work mounted (`BaseLayoutShellProps.keepWork`) */
   keepWork?: boolean;
   /**
@@ -513,7 +519,9 @@ const LayoutShell = ({
 
   let phoneTitle = PgExplorer.currentWorkspaceName ?? "";
   if (screen.kind === "home") phoneTitle = homeTitle ?? "";
-  if (screen.kind === "page") phoneTitle = screen.cover.title;
+  if (screen.kind === "page") {
+    phoneTitle = screen.cover.hasOwnHeading ? "" : screen.cover.title;
+  }
 
   // The bar names the project while the assistant is out of view, since its
   // head cannot; under Home it names Home, as the phone's bar does

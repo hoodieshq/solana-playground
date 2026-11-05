@@ -6,7 +6,9 @@ On a screen under 768 px the Tutorials page's search SHALL fold to a 44 px glass
 labelled "Search tutorials", beside the heading and the filter. Pressing it
 SHALL open the field across the whole row, with the focus in it, and a Cancel
 button beside it, hiding the heading and the filter. Cancel SHALL clear the
-search and fold it back. Esc SHALL clear what was typed, then fold it back.
+search and fold it back. Esc SHALL clear what was typed, then fold it back. The
+phone's bar over the page SHALL keep only the menu, with no name and no rule: the
+page's own heading names it.
 
 #### Scenario: Searching on a phone
 
