@@ -787,12 +787,20 @@ describe("BaseDeploy", () => {
   };
 
   it.each([
-    ["idle, before the first deploy", IDLE_VIEW, []],
-    ["idle, after a deploy", IDLE_VIEW, [record("a", NONE)]],
-    ["failed, before the first deploy", FAILED, []],
-    ["failed, after a deploy", FAILED, [record("a", NONE)]],
-    ["stopped for funds", FUNDING, []],
-  ])("reaches the pill before the outlines: %s", (_, view, history) => {
+    { name: "idle, before the first deploy", view: IDLE_VIEW, history: [] },
+    {
+      name: "idle, after a deploy",
+      view: IDLE_VIEW,
+      history: [record("a", NONE)],
+    },
+    { name: "failed, before the first deploy", view: FAILED, history: [] },
+    {
+      name: "failed, after a deploy",
+      view: FAILED,
+      history: [record("a", NONE)],
+    },
+    { name: "stopped for funds", view: FUNDING, history: [] },
+  ])("reaches the pill before the outlines: $name", ({ view, history }) => {
     const { container } = render(
       <BaseDeploy {...props({ built: true, view, history })} />
     );
