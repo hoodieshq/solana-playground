@@ -760,9 +760,8 @@ describe("both devices changed it", () => {
     // Hunk by hunk, as the view does it: every settled line, and both sides
     // of each conflict, this device's first
     const [file] = requireFor("the conflict's files")(
-      requireFor("a conflict for the project")(
-        PgProjectSync.conflictFor(HELLO.id)
-      ).files
+      requireFor("a divergent conflict for the project")(divergentFor(HELLO.id))
+        .files
     );
     if (file.kind !== "lines") throw new Error("expected a line conflict");
     const content = file.chunks

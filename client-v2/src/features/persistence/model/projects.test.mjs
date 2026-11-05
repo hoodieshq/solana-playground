@@ -287,7 +287,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
 
     it("refuses a patch that adds the 51st file, and changes nothing", async () => {
       const first = await put({ files: many(50) });
-      const before = await stored();
+      const earlier = await stored();
 
       const result = await put({
         changed: { "src/extra.rs": "x" },
@@ -298,23 +298,23 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       assert.deepEqual(result, {
         limit: { reason: "too-many-files", limit: 50, count: 51 },
       });
-      assert.deepEqual(await stored(), before);
+      assert.deepEqual(await stored(), earlier);
     });
 
     it("leaves the generated workspace files out of the count", async () => {
-      const files = many(50);
-      files[".tutorial.json"] = "{}";
-      files[".workspace/tutorial-storage.json"] = "{}";
-      files[".workspace/program-info.json"] = "{}";
-      assert.ok((await put({ files })).updatedAt);
+      const withGenerated = many(50);
+      withGenerated[".tutorial.json"] = "{}";
+      withGenerated[".workspace/tutorial-storage.json"] = "{}";
+      withGenerated[".workspace/program-info.json"] = "{}";
+      assert.ok((await put({ files: withGenerated })).updatedAt);
     });
 
     it("refuses a small patch whose project it makes too large", async () => {
       // 500,000 bytes stored; the patch grows one file from 1,000 to 30,000
-      const files = many(5, "a".repeat(99_800));
-      files["src/small.rs"] = "a".repeat(1_000);
-      const first = await put({ files });
-      const before = await stored();
+      const nearLimit = many(5, "a".repeat(99_800));
+      nearLimit["src/small.rs"] = "a".repeat(1_000);
+      const first = await put({ files: nearLimit });
+      const earlier = await stored();
 
       const result = await put({
         changed: { "src/small.rs": "a".repeat(30_000) },
@@ -325,7 +325,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       assert.deepEqual(result, {
         limit: { reason: "project-too-large", limit: 524_288, size: 529_000 },
       });
-      assert.deepEqual(await stored(), before);
+      assert.deepEqual(await stored(), earlier);
     });
 
     it("refuses a create over the size limit and leaves no row", async () => {
@@ -335,8 +335,8 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
     });
 
     it("takes a project at the size limit", async () => {
-      const files = many(4, "a".repeat(131_072));
-      assert.ok((await put({ files })).updatedAt);
+      const atLimit = many(4, "a".repeat(131_072));
+      assert.ok((await put({ files: atLimit })).updatedAt);
     });
 
     it("leaves a stored .workspace/ row sync does not carry out of the measure", async () => {
@@ -379,17 +379,17 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
          values ($1, 'p1', $2, $3)`,
         [userId, path, content]
       );
-      const before = await stored();
+      const earlier = await stored();
       const result = await put({
         changed: { "src/f0.rs": "y" },
         removed: [],
         baseUpdatedAt: updatedAt,
       });
-      return { result, before };
+      return { result, earlier };
     };
 
     it("refuses a patch to a project that stores a file over the file limit", async () => {
-      const { result, before } = await patchBeside(
+      const { result, earlier } = await patchBeside(
         "src/big.rs",
         "a".repeat(200_000)
       );
@@ -401,16 +401,16 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
           sizes: { "src/big.rs": 200_000 },
         },
       });
-      assert.deepEqual(await stored(), before);
+      assert.deepEqual(await stored(), earlier);
     });
 
     it("refuses a patch to a project that stores a path over the path limit", async () => {
       const long = `src/${"a".repeat(253)}`;
-      const { result, before } = await patchBeside(long, "x");
+      const { result, earlier } = await patchBeside(long, "x");
       assert.deepEqual(result, {
         limit: { reason: "path-too-long", limit: 256, paths: [long] },
       });
-      assert.deepEqual(await stored(), before);
+      assert.deepEqual(await stored(), earlier);
     });
 
     it("measures a stored path in code points, as the client does", async () => {
@@ -441,7 +441,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
          values ($1, 'p1', 'src/big.rs', $2)`,
         [userId, "a".repeat(200_000)]
       );
-      const before = await stored();
+      const earlier = await stored();
 
       const still = await put({
         changed: { "src/big.rs": "a".repeat(150_000) },
@@ -449,7 +449,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
         baseUpdatedAt: updatedAt,
       });
       assert.equal(still.limit?.reason, "file-too-large");
-      assert.deepEqual(await stored(), before);
+      assert.deepEqual(await stored(), earlier);
 
       const under = await put({
         changed: { "src/big.rs": "a".repeat(131_072) },
@@ -468,7 +468,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
            from generate_series(1, 5) g`,
         [userId]
       );
-      const before = await stored();
+      const earlier = await stored();
 
       const still = await put({
         changed: { "old/1": "a".repeat(90_000) },
@@ -478,7 +478,7 @@ describe("projects", { skip: !DB && "DATABASE_URL not set" }, () => {
       assert.deepEqual(still, {
         limit: { reason: "project-too-large", limit: 524_288, size: 530_001 },
       });
-      assert.deepEqual(await stored(), before);
+      assert.deepEqual(await stored(), earlier);
 
       const under = await put({
         changed: { "old/1": "a".repeat(1_000) },

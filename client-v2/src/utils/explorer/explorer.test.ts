@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";
-import path from "path";
+import nodePath from "path";
 
 import {
   clearFailures,
@@ -626,7 +626,7 @@ describe("PgExplorer.getElFromPath", () => {
 });
 
 describe("writes past a project limit", () => {
-  const stored = () =>
+  const storedFiles = () =>
     (PgExplorer.fs as unknown as { __files: Map<string, string> }).__files;
   let sent: ReturnType<typeof memoryProvider>;
 
@@ -651,7 +651,7 @@ describe("writes past a project limit", () => {
       await expect(PgExplorer.createItem("src/extra.rs")).rejects.toThrow(
         "A project can have at most 50 files."
       );
-      expect(stored().has("/alpha/src/extra.rs")).toBe(false);
+      expect(storedFiles().has("/alpha/src/extra.rs")).toBe(false);
       expect(PgExplorer.files["/alpha/src/extra.rs"]).toBeUndefined();
       expect(refusals()).toEqual([
         {
@@ -680,7 +680,7 @@ describe("writes past a project limit", () => {
           override: true,
         })
       ).rejects.toThrow("A file can be at most 128 KB.");
-      expect(stored().get("/alpha/src/lib.rs")).toBe("before");
+      expect(storedFiles().get("/alpha/src/lib.rs")).toBe("before");
       expect(PgExplorer.files["/alpha/src/lib.rs"].content).toBe("before");
       expect(refusals()[0].params).toEqual({
         action: "create",
@@ -703,7 +703,7 @@ describe("writes past a project limit", () => {
       await expect(PgExplorer.createItem("src/extra.rs")).rejects.toThrow(
         "A project can have at most 50 files."
       );
-      expect(stored().has("/alpha/src/extra.rs")).toBe(false);
+      expect(storedFiles().has("/alpha/src/extra.rs")).toBe(false);
     });
 
     it("refuses an edit to an existing file in a project restored over the limit", async () => {
@@ -720,7 +720,7 @@ describe("writes past a project limit", () => {
       await expect(
         PgExplorer.createItem("src/f1.rs", "y", { override: true })
       ).rejects.toThrow("A project can have at most 50 files.");
-      expect(stored().get("/alpha/src/f1.rs")).toBe("x");
+      expect(storedFiles().get("/alpha/src/f1.rs")).toBe("x");
     });
 
     it("creates a small file beside another file over the size limit", async () => {
@@ -734,7 +734,7 @@ describe("writes past a project limit", () => {
       await PgExplorer.switchWorkspace("alpha");
 
       await PgExplorer.createItem("notes.md");
-      expect(stored().has("/alpha/notes.md")).toBe(true);
+      expect(storedFiles().has("/alpha/notes.md")).toBe(true);
     });
 
     it("refuses an overwrite that leaves a project over the size limit", async () => {
@@ -767,7 +767,7 @@ describe("writes past a project limit", () => {
       await PgExplorer.createItem("src/f0.rs", "a".repeat(1_000), {
         override: true,
       });
-      expect(stored().get("/alpha/src/f0.rs")).toHaveLength(1_000);
+      expect(storedFiles().get("/alpha/src/f0.rs")).toHaveLength(1_000);
     });
 
     it("counts the generated files sync carries toward the project size", async () => {
@@ -789,7 +789,7 @@ describe("writes past a project limit", () => {
       await expect(
         PgExplorer.createItem("notes.md", "a".repeat(100))
       ).rejects.toThrow("A project can be at most 512 KB.");
-      expect(stored().has("/alpha/notes.md")).toBe(false);
+      expect(storedFiles().has("/alpha/notes.md")).toBe(false);
     });
   });
 
@@ -807,7 +807,7 @@ describe("writes past a project limit", () => {
       await expect(
         PgExplorer.renameItem("/alpha/dir/", `/alpha/${"d".repeat(13)}`)
       ).rejects.toThrow("A file path can be at most 256 characters.");
-      expect(stored().get(`/alpha/dir/${file}`)).toBe("x");
+      expect(storedFiles().get(`/alpha/dir/${file}`)).toBe("x");
       expect(PgExplorer.files[`/alpha/dir/${file}`]).toBeDefined();
       expect(refusals()[0].params).toEqual({
         action: "rename",
@@ -828,7 +828,7 @@ describe("writes past a project limit", () => {
       const renamed = "r".repeat(20);
 
       await PgExplorer.renameWorkspace(renamed);
-      expect(stored().get(`/${renamed}/src/${file}`)).toBe("x");
+      expect(storedFiles().get(`/${renamed}/src/${file}`)).toBe("x");
       expect(refusals()).toEqual([]);
     });
 
@@ -843,7 +843,7 @@ describe("writes past a project limit", () => {
       await PgExplorer.switchWorkspace("alpha");
 
       await PgExplorer.renameItem("/alpha/src/f1.rs", "/alpha/src/g1.rs");
-      expect(stored().has("/alpha/src/g1.rs")).toBe(true);
+      expect(storedFiles().has("/alpha/src/g1.rs")).toBe(true);
     });
   });
 
@@ -855,7 +855,7 @@ describe("writes past a project limit", () => {
         "This project has 64 files. A project can have at most 50."
       );
       expect(PgExplorer.allWorkspaceNames).not.toContain("big");
-      expect([...stored().keys()].some((k) => k.startsWith("/big/"))).toBe(
+      expect([...storedFiles().keys()].some((k) => k.startsWith("/big/"))).toBe(
         false
       );
       expect(refusals()[0].params).toEqual({
@@ -876,12 +876,12 @@ describe("writes past a project limit", () => {
     });
 
     it("measures the project size of an import", async () => {
-      const files = Array.from(
+      const imported = Array.from(
         { length: 6 },
         (_, i) => [`src/f${i}.rs`, "a".repeat(100_000)] as [string, string]
       );
       await expect(
-        PgExplorer.createWorkspace("big", { files })
+        PgExplorer.createWorkspace("big", { files: imported })
       ).rejects.toThrow(
         "This project is 586 KB. A project can be at most 512 KB."
       );
@@ -892,11 +892,11 @@ describe("writes past a project limit", () => {
     });
 
     it("refuses a temporary project over a limit and keeps it temporary", async () => {
-      const files = Array.from(
+      const temporary = Array.from(
         { length: 51 },
         (_, i) => [`/src/f${i}.rs`, "x"] as [string, string]
       );
-      await PgExplorer.init({ files });
+      await PgExplorer.init({ files: temporary });
 
       await expect(
         PgExplorer.createWorkspace("kept", { fromTemporary: true })
@@ -907,12 +907,12 @@ describe("writes past a project limit", () => {
 
   describe("every bundled template and tutorial", () => {
     // `client-v2/`
-    const root = path.join(__dirname, "../../..");
+    const root = nodePath.join(__dirname, "../../..");
 
     /** Every file under `dir`, relative to it, `.raw` dropped */
     const read = (dir: string, prefix = ""): Array<[string, string]> =>
       readdirSync(dir).flatMap((name) => {
-        const full = path.join(dir, name);
+        const full = nodePath.join(dir, name);
         const rel = prefix + name;
         if (statSync(full).isDirectory()) return read(full, `${rel}/`);
         return [[rel.replace(/\.raw$/, ""), readFileSync(full, "utf8")]];
@@ -922,17 +922,18 @@ describe("writes past a project limit", () => {
     const sources = () => {
       const found: Array<[string, string]> = [];
       for (const base of ["src/frameworks", "src/tutorials"]) {
-        for (const name of readdirSync(path.join(root, base))) {
-          const files = path.join(root, base, name, "files");
-          if (existsSync(files)) found.push([`${base}/${name}`, files]);
+        for (const name of readdirSync(nodePath.join(root, base))) {
+          const filesDir = nodePath.join(root, base, name, "files");
+          if (existsSync(filesDir)) found.push([`${base}/${name}`, filesDir]);
         }
       }
       // Markdown tutorials ship from `public/`, which `yarn generate-fast`
       // copies out of `client/public`
-      const pub = path.join(root, "public/tutorials");
+      const pub = nodePath.join(root, "public/tutorials");
       for (const name of readdirSync(pub)) {
-        const files = path.join(pub, name, "files");
-        if (existsSync(files)) found.push([`public/tutorials/${name}`, files]);
+        const filesDir = nodePath.join(pub, name, "files");
+        if (existsSync(filesDir))
+          found.push([`public/tutorials/${name}`, filesDir]);
       }
       return found;
     };
@@ -941,11 +942,11 @@ describe("writes past a project limit", () => {
       const all = sources();
       expect(all.length).toBeGreaterThan(10);
       for (const [i, [source, dir]] of all.entries()) {
-        const files = read(dir)
+        const workspaceFiles = read(dir)
           .filter(([p]) => p !== "index.ts")
           .map(([p, content]): [string, string] => [`/w${i}/${p}`, content]);
         await expect(
-          PgExplorer.createWorkspace(`w${i}`, { files }),
+          PgExplorer.createWorkspace(`w${i}`, { files: workspaceFiles }),
           source
         ).resolves.toBeUndefined();
       }
@@ -971,7 +972,7 @@ describe("writes past a project limit", () => {
       const big = "a".repeat(150_000);
 
       await PgExplorer.replaceWorkspaceFiles("alpha", { "src/lib.rs": big });
-      expect(stored().get("/alpha/src/lib.rs")).toBe(big);
+      expect(storedFiles().get("/alpha/src/lib.rs")).toBe(big);
       expect(refusals()).toEqual([]);
     });
   });
