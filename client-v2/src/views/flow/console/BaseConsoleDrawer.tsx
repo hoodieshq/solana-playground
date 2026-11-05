@@ -66,14 +66,19 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
     {open && (
       <div
         aria-hidden
-        className="frosted flex shrink-0 justify-center pt-2 md:hidden"
+        className="flex shrink-0 justify-center bg-surface-well pt-2 md:hidden"
       >
         <span className="h-1 w-9 rounded-full bg-border" />
       </div>
     )}
     <ConsoleDrawerBar
       triggerLabel="Terminal"
-      className="shrink-0 max-md:group-data-[state=open]/console-drawer:h-12 max-md:group-data-[state=open]/console-drawer:border-t-0"
+      // A finger's 44 px on a phone, the bar and every control on it, with
+      // 20 px glyphs and 14 px words; the chevron is the drawer's own, so it
+      // is sized from here. Open, the bar is the sheet's head: one surface
+      // with the log under it, a hairline between them, and 12 px more under
+      // its row so the words sit as far from the hairline as from the edge
+      className="shrink-0 max-md:h-11 max-md:px-3 max-md:text-sm max-md:[&_[data-slot=console-drawer-trigger]]:size-11 max-md:[&_[data-slot=console-drawer-trigger]_svg]:size-5 max-md:group-data-[state=open]/console-drawer:h-14 max-md:group-data-[state=open]/console-drawer:pb-3 max-md:group-data-[state=open]/console-drawer:border-t-0 max-md:group-data-[state=open]/console-drawer:border-b max-md:group-data-[state=open]/console-drawer:bg-surface-well"
     >
       <ConsoleDrawerStatus>
         <StatusDot variant={status.tone} />
@@ -89,7 +94,7 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
           </span>
         )}
       </ConsoleDrawerStatus>
-      <ConsoleDrawerActions>
+      <ConsoleDrawerActions className="gap-2 max-md:gap-0">
         {/* No keyboard on a phone to press it with */}
         <Kbd aria-hidden className="max-md:hidden">
           {shortcut}
@@ -99,7 +104,7 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
           <CopyButton
             value={log}
             label="Copy log"
-            className="max-md:min-h-11 max-md:min-w-11"
+            className="max-md:min-h-11 max-md:min-w-11 max-md:[&_svg]:size-5!"
             onError={reportButtonFailure("copy the log")}
           />
         )}
@@ -113,7 +118,11 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
             variant="ghost"
             size="xs"
             disabled={!!stop}
-            className={stop ? "max-md:hidden" : undefined}
+            className={
+              stop
+                ? "max-md:hidden"
+                : "max-md:min-h-11 max-md:min-w-11 max-md:text-sm"
+            }
             onClick={onClear}
           >
             Clear
