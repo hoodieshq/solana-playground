@@ -1,6 +1,7 @@
 import { createLogger } from "@/shared/lib/logger";
 
 import { emptyFileOf } from "../../../commands/build/empty-source";
+import { NetworkRefusedError } from "../../../commands/deploy/network-refused";
 import type { Disposable } from "../../../utils";
 import {
   PgCommand,
@@ -93,6 +94,8 @@ export type FlowEvent =
   | { type: "deploy-stop" }
   | { type: "airdrop-start" }
   | { type: "airdrop-finish" }
+  /** The network was down, so the deploy never started: nothing changed */
+  | { type: "deploy-refused" }
   | { type: "set-stage"; stage: Stage }
   | { type: "workspace-change" }
   /** What the open project's files say: whether `src/` holds a program */
@@ -270,6 +273,9 @@ export class PgFlow {
           // A stop of the build a deploy runs first is the build's stop
           stopped: state.stopped === "build" ? "build" : "deploy",
         };
+      case "deploy-refused":
+        if (state.deploy !== "running") return state;
+        return { ...state, deploy: state.deployBeforeRun ?? "active" };
       case "deploy-finish":
         return ev.ok
           ? {
@@ -391,6 +397,10 @@ export class PgFlow {
         if (PgGlobal.deployState !== "ready") return;
         if ("err" in result && isStopped(result.err)) {
           PgFlow._dispatch({ type: "deploy-stop" });
+          return;
+        }
+        if ("err" in result && result.err instanceof NetworkRefusedError) {
+          PgFlow._dispatch({ type: "deploy-refused" });
           return;
         }
         PgFlow._dispatch({
