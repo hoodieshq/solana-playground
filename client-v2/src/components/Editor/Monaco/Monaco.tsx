@@ -333,7 +333,17 @@ const Monaco = () => {
         run: askFor("Fix"),
       }),
     ];
-    return () => disposables.forEach(({ dispose }) => dispose());
+    // Unmounting disposes the editor first (the effect above), which takes
+    // its actions with it; disposing them again throws inside Monaco
+    let isEditorDisposed = false;
+    const watch = editor.onDidDispose(() => {
+      isEditorDisposed = true;
+    });
+    return () => {
+      if (isEditorDisposed) return;
+      watch.dispose();
+      disposables.forEach(({ dispose }) => dispose());
+    };
   }, [editor]);
 
   // Set editor state
