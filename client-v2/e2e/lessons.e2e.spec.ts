@@ -1,7 +1,13 @@
 import type { Locator, Page } from "@playwright/test";
 
 import { requireFor } from "../src/test-utils/require-for";
-import { expect, home, homeRegion, test } from "./fixtures";
+import {
+  expect,
+  home,
+  homeRegion,
+  startTutorialFromAbout,
+  test,
+} from "./fixtures";
 
 const FIRST = "Define the hello instruction and log a message";
 
@@ -31,7 +37,7 @@ const startHelloAnchor = async (page: Page) => {
     })
     .click();
   await expect(home(page)).toBeHidden();
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await startTutorialFromAbout(page);
   await expect(bandOrFold(page)).toBeVisible();
 };
 
