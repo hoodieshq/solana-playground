@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-// The Interact body: chips pick one instruction's form, a call's result shows
-// under it for the program and network it went to, and the history lists.
+// The Interact body: a card per instruction, each folding on its own, a
+// call's result under the card that made it for the program and network it
+// went to, and the history beside them.
 const h = vi.hoisted(() => ({ runCall: vi.fn() }));
 
 vi.mock("./run-call", () => ({ runCall: h.runCall }));
@@ -20,13 +21,27 @@ vi.mock("../../sidebar/test/Component/Instruction", () => ({
     idlInstruction: { name: string };
     onCall: (ix: { name: string }) => Promise<unknown>;
     feePayer: ReactNode;
+    solNeededOn?: string;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
   }) => (
-    <div>
-      <p>form {p.idlInstruction.name}</p>
-      {p.feePayer}
-      <button onClick={() => p.onCall({ name: p.idlInstruction.name })}>
-        Call {p.idlInstruction.name}
+    <div data-testid={`card ${p.idlInstruction.name}`}>
+      <button
+        aria-expanded={!!p.open}
+        onClick={() => p.onOpenChange?.(!p.open)}
+      >
+        {p.idlInstruction.name}
       </button>
+      {p.open && (
+        <>
+          <p>form {p.idlInstruction.name}</p>
+          {p.feePayer}
+          {p.solNeededOn && <p>held for {p.solNeededOn}</p>}
+          <button onClick={() => p.onCall({ name: p.idlInstruction.name })}>
+            Test {p.idlInstruction.name}
+          </button>
+        </>
+      )}
     </div>
   ),
 }));
@@ -56,21 +71,39 @@ const idl = (...names: string[]) =>
 
 const wrap = (ui: ReactElement) => <TooltipProvider>{ui}</TooltipProvider>;
 
-// The chips measure their current item to place the indicator
-class NoopResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-vi.stubGlobal("ResizeObserver", NoopResizeObserver);
-
+const scrolled = vi.fn();
 beforeEach(() => {
   localStorage.clear();
   h.runCall.mockReset();
+  scrolled.mockReset();
+  Element.prototype.scrollIntoView = function (this: Element) {
+    scrolled(this);
+  };
 });
 
+const expanded = (name: string) =>
+  screen.getByRole("button", { name }).getAttribute("aria-expanded");
+
+const record = (instruction: string) =>
+  localStorage.setItem(
+    "flow.calls",
+    JSON.stringify([
+      {
+        id: "a",
+        programId: "P",
+        cluster: "devnet",
+        instruction,
+        ok: true,
+        signature: "sig",
+        // eslint-disable-next-line unicorn/no-null -- a stored record writes a missing failing line as null
+        failingLine: null,
+        at: 1,
+      },
+    ])
+  );
+
 describe("InteractBody", () => {
-  it("picks the first instruction and draws only its form", () => {
+  it("draws a card per instruction, no chips, every card folded on arrival", () => {
     render(
       wrap(
         <InteractBody
@@ -80,23 +113,34 @@ describe("InteractBody", () => {
         />
       )
     );
-    expect(
-      screen
-        .getByRole("radio", { name: "initialize" })
-        .getAttribute("aria-checked")
-    ).toBe("true");
-    expect(screen.getByText("form initialize")).toBeTruthy();
-    expect(screen.queryByText("form increment")).toBeNull();
-    expect(
-      screen.getByText("Fee payer · Playground wallet · 0.5 SOL")
-    ).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("radio", { name: "increment" }));
-    expect(screen.getByText("form increment")).toBeTruthy();
-    expect(screen.queryByText("form initialize")).toBeNull();
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(expanded("initialize")).toBe("false");
+    expect(expanded("increment")).toBe("false");
+    expect(screen.queryByText(/^form /)).toBeNull();
   });
 
-  it("falls back to the first instruction when the picked one leaves the IDL", () => {
+  it("folds each card on its own, so two may be open", () => {
+    render(
+      wrap(
+        <InteractBody
+          idl={idl("initialize", "increment")}
+          programId="P"
+          cluster="devnet"
+        />
+      )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "initialize" }));
+    fireEvent.click(screen.getByRole("button", { name: "increment" }));
+    expect(screen.getByText("form initialize")).toBeTruthy();
+    expect(screen.getByText("form increment")).toBeTruthy();
+    expect(screen.getAllByText("Fee payer · Playground wallet · 0.5 SOL")).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "initialize" }));
+    expect(screen.queryByText("form initialize")).toBeNull();
+    expect(screen.getByText("form increment")).toBeTruthy();
+  });
+
+  it("keeps an open card open across a rebuilt IDL that still has it", () => {
     const { rerender } = render(
       wrap(
         <InteractBody
@@ -106,17 +150,65 @@ describe("InteractBody", () => {
         />
       )
     );
-    fireEvent.click(screen.getByRole("radio", { name: "increment" }));
+    fireEvent.click(screen.getByRole("button", { name: "increment" }));
     rerender(
       wrap(
         <InteractBody
-          idl={idl("initialize", "reset")}
+          idl={idl("increment", "reset")}
           programId="P"
           cluster="devnet"
         />
       )
     );
-    expect(screen.getByText("form initialize")).toBeTruthy();
+    expect(screen.getByText("form increment")).toBeTruthy();
+  });
+
+  it("tells every card the network whose SOL the fee needs", () => {
+    render(
+      wrap(
+        <InteractBody
+          idl={idl("initialize")}
+          programId="P"
+          cluster="devnet"
+          solNeededOn="devnet"
+        />
+      )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "initialize" }));
+    expect(screen.getByText("held for devnet")).toBeTruthy();
+  });
+
+  it("puts the result right under the card that made the call", async () => {
+    h.runCall.mockResolvedValue({
+      instruction: "increment",
+      ok: true,
+      signature: "sig",
+      logs: [],
+      failingLine: undefined,
+    });
+    render(
+      wrap(
+        <InteractBody
+          idl={idl("initialize", "increment", "reset")}
+          programId="P"
+          cluster="devnet"
+        />
+      )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "increment" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Test increment" }));
+    });
+    const result = screen.getByRole("region", { name: "Call result" });
+    // The card sits in a wrapper the history scrolls to; the result follows it
+    const card = screen.getByTestId("card increment").parentElement;
+    expect(card?.nextElementSibling).toBe(result);
+
+    // Folding the card keeps its result in place
+    fireEvent.click(screen.getByRole("button", { name: "increment" }));
+    expect(card?.nextElementSibling).toBe(
+      screen.getByRole("region", { name: "Call result" })
+    );
   });
 
   it("shows a call's result and history only for the program and network it went to", async () => {
@@ -133,8 +225,9 @@ describe("InteractBody", () => {
       )
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "initialize" }));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Call initialize" }));
+      fireEvent.click(screen.getByRole("button", { name: "Test initialize" }));
     });
     expect(
       screen.getByRole("region", { name: "Call result" }).textContent
@@ -148,7 +241,7 @@ describe("InteractBody", () => {
     expect(screen.queryByRole("region", { name: "Call result" })).toBeNull();
   });
 
-  it("keeps a Call history column beside the form before the first call", () => {
+  it("keeps a Call history column beside the cards before the first call", () => {
     render(
       wrap(
         <InteractBody idl={idl("initialize")} programId="P" cluster="devnet" />
@@ -158,28 +251,15 @@ describe("InteractBody", () => {
     expect(history.textContent).toContain("Calls you send show up here.");
     const columns = history.closest("[data-slot='interact-columns']");
     expect(columns).not.toBeNull();
-    expect(columns?.contains(screen.getByText("form initialize"))).toBe(true);
+    expect(columns?.contains(screen.getByTestId("card initialize"))).toBe(
+      true
+    );
     // One column shows no history before the first call
     expect(history.className).toContain("@max-[40rem]:hidden");
   });
 
-  it("keeps a populated history in the column, shown at every width, and its rows pick the form", () => {
-    localStorage.setItem(
-      "flow.calls",
-      JSON.stringify([
-        {
-          id: "a",
-          programId: "P",
-          cluster: "devnet",
-          instruction: "increment",
-          ok: true,
-          signature: "sig",
-          // eslint-disable-next-line unicorn/no-null -- a stored record writes a missing failing line as null
-          failingLine: null,
-          at: 1,
-        },
-      ])
-    );
+  it("keeps a populated history in the column, shown at every width, and its rows open their card", () => {
+    record("increment");
     render(
       wrap(
         <InteractBody
@@ -192,8 +272,15 @@ describe("InteractBody", () => {
     const history = screen.getByRole("region", { name: "Call history" });
     expect(history.closest("[data-slot='interact-columns']")).not.toBeNull();
     expect(history.className).not.toContain("@max-[40rem]:hidden");
+
+    fireEvent.click(screen.getByRole("button", { name: "initialize" }));
     fireEvent.click(screen.getByRole("button", { name: "Open increment" }));
     expect(screen.getByText("form increment")).toBeTruthy();
+    // The other open card stays as it was
+    expect(screen.getByText("form initialize")).toBeTruthy();
+    expect(scrolled).toHaveBeenCalledWith(
+      screen.getByTestId("card increment").parentElement
+    );
   });
 
   it("puts Accounts and Events below the columns, full width", () => {
@@ -216,23 +303,8 @@ describe("InteractBody", () => {
     }
   });
 
-  it("a history row of an instruction the IDL lost leaves the form alone", () => {
-    localStorage.setItem(
-      "flow.calls",
-      JSON.stringify([
-        {
-          id: "a",
-          programId: "P",
-          cluster: "devnet",
-          instruction: "removed",
-          ok: true,
-          signature: "sig",
-          // eslint-disable-next-line unicorn/no-null -- a stored record writes a missing failing line as null
-          failingLine: null,
-          at: 1,
-        },
-      ])
-    );
+  it("a history row of an instruction the IDL lost leaves the cards alone", () => {
+    record("removed");
     render(
       wrap(
         <InteractBody
@@ -242,8 +314,9 @@ describe("InteractBody", () => {
         />
       )
     );
-    fireEvent.click(screen.getByRole("radio", { name: "increment" }));
     fireEvent.click(screen.getByRole("button", { name: "Open removed" }));
-    expect(screen.getByText("form increment")).toBeTruthy();
+    expect(expanded("initialize")).toBe("false");
+    expect(expanded("increment")).toBe("false");
+    expect(scrolled).not.toHaveBeenCalled();
   });
 });
