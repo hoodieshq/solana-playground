@@ -1,8 +1,11 @@
 /* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import { type CSSProperties, useEffect, useRef } from "react";
 
+import { resolveColor } from "@/shared/lib/css-color";
 import { createLogger } from "@/shared/lib/logger";
 import { cn } from "@/shared/lib/utils";
+
+import { VOXEL_SHADES } from "./voxel-shades";
 
 const log = createLogger("catalog:voxels");
 
@@ -13,24 +16,25 @@ const MARK_PATH =
 /* Ported from the tutorial-v2 prototype (ui/IsoVoxels.tsx), which took it from Almaz's stand
    (views/flow/gallery/banner-art/IsoVoxels.tsx): the cubes are the brand pattern's rounded, low tiles */
 
-/** The brand colours the sculpture is shaded in: literal on purpose, since canvas pixels cannot read CSS variables; they match `--brand-purple` and `--brand-green` */
+/** The brand tokens the sculpture is shaded in, resolved to hex for the canvas */
 const BRAND = {
-  purple: "#9945FF",
-  violet: "#7A56DA",
-  green: "#14F195",
+  purple: "var(--brand-purple)",
+  violet: "var(--brand-violet)",
+  green: "var(--brand-green)",
+  paper: "var(--brand-paper)",
 } as const;
 
 /* The words own the left of the banner: the art fades out before it. In the corner it fades out
    down and to the left, towards the words under it, so they read over its faint end */
 const SIDE_MASK: CSSProperties = {
-  WebkitMaskImage: "linear-gradient(90deg, transparent 42%, #000 54%)",
-  maskImage: "linear-gradient(90deg, transparent 42%, #000 54%)",
+  WebkitMaskImage: "linear-gradient(90deg, transparent 42%, black 54%)",
+  maskImage: "linear-gradient(90deg, transparent 42%, black 54%)",
 };
 const CORNER_MASK: CSSProperties = {
   WebkitMaskImage:
-    "radial-gradient(130% 80% at 100% 0%, #000 30%, rgba(0, 0, 0, 0.25) 58%, transparent 78%)",
+    "radial-gradient(130% 80% at 100% 0%, black 30%, color-mix(in srgb, black 25%, transparent) 58%, transparent 78%)",
   maskImage:
-    "radial-gradient(130% 80% at 100% 0%, #000 30%, rgba(0, 0, 0, 0.25) 58%, transparent 78%)",
+    "radial-gradient(130% 80% at 100% 0%, black 30%, color-mix(in srgb, black 25%, transparent) 58%, transparent 78%)",
 };
 
 /** Grid the mark is sampled into; rows follow the mark's 970 × 574 box */
@@ -107,7 +111,7 @@ const toLinear = (c: number) =>
 const toSrgb = (c: number) =>
   c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055;
 
-const lab = (hex: string): Lab => {
+const toLab = (hex: string): Lab => {
   const n = parseInt(hex.slice(1), 16);
   const r = toLinear(((n >> 16) & 255) / 255);
   const g = toLinear(((n >> 8) & 255) / 255);
@@ -134,20 +138,40 @@ const pixel = ([L, A, B]: Lab) => {
   return ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
 };
 
+/** A packed pixel back to `#rrggbb` for a canvas `fillStyle` */
+const toHex = (c: number) =>
+  `#${[c & 255, (c >> 8) & 255, (c >> 16) & 255]
+    .map((v) => v.toString(16).padStart(2, "0"))
+    .join("")}`;
+
 const mix = (a: Lab, b: Lab, t: number): Lab => [
   a[0] + (b[0] - a[0]) * t,
   a[1] + (b[1] - a[1]) * t,
   a[2] + (b[2] - a[2]) * t,
 ];
 
-const PURPLE = lab(BRAND.purple);
-const VIOLET = lab(BRAND.violet);
-const GREEN = lab(BRAND.green);
-const WHITE = lab("#ffffff");
-/** Shadows lean cool and violet rather than going grey */
-const SHADE_MID = lab("#241a52");
-const SHADE_DEEP = lab("#0d0a20");
-const INK = lab("#0a0a0f");
+type Palette = {
+  purple: Lab;
+  violet: Lab;
+  green: Lab;
+  white: Lab;
+  shadeMid: Lab;
+  shadeDeep: Lab;
+  ink: Lab;
+};
+
+/** Read once, on the first paint: the brand tokens are the same on every theme */
+let palette: Palette | null = null;
+const getPalette = (): Palette =>
+  (palette ??= {
+    purple: toLab(resolveColor(BRAND.purple)),
+    violet: toLab(resolveColor(BRAND.violet)),
+    green: toLab(resolveColor(BRAND.green)),
+    white: toLab(resolveColor(BRAND.paper)),
+    shadeMid: toLab(VOXEL_SHADES.mid),
+    shadeDeep: toLab(VOXEL_SHADES.deep),
+    ink: toLab(VOXEL_SHADES.ink),
+  });
 
 const chroma = (c: Lab) => Math.hypot(c[1], c[2]);
 
@@ -159,10 +183,12 @@ const blend = (a: Lab, b: Lab, t: number): Lab => {
   return [c[0], c[1] * k, c[2] * k];
 };
 
-const gradient = (t: number): Lab =>
-  t < 0.4
-    ? blend(PURPLE, VIOLET, t / 0.4)
-    : blend(VIOLET, GREEN, (t - 0.4) / 0.6);
+const gradient = (t: number): Lab => {
+  const { purple, violet, green } = getPalette();
+  return t < 0.4
+    ? blend(purple, violet, t / 0.4)
+    : blend(violet, green, (t - 0.4) / 0.6);
+};
 
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(
   (n) => (n + 0.5) / 16
@@ -343,41 +369,42 @@ const paintSprites = (w: number, side: number) => {
   const BLEND = 8;
   const soft = round * w * 0.9;
 
+  const { white, shadeMid, shadeDeep, ink } = getPalette();
   for (let k = 0; k < TONES; k++) {
     const base = gradient(k / (TONES - 1));
-    const left = mix(base, SHADE_MID, 0.36);
-    const right = mix(base, SHADE_DEEP, 0.6);
+    const left = mix(base, shadeMid, 0.36);
+    const right = mix(base, shadeDeep, 0.6);
     const leftRamp: number[] = [];
     const rightRamp: number[] = [];
     for (let r = 0; r < RAMP; r++) {
       const dark = 0.5 * (1 - r / (RAMP - 1));
-      leftRamp.push(pixel(mix(left, INK, dark)));
-      rightRamp.push(pixel(mix(right, INK, dark)));
+      leftRamp.push(pixel(mix(left, ink, dark)));
+      rightRamp.push(pixel(mix(right, ink, dark)));
     }
     const blendRamps = Array.from({ length: BLEND }, (_, j) =>
       Array.from({ length: RAMP }, (__, r) => {
         const dark = 0.5 * (1 - r / (RAMP - 1));
         return pixel(
-          mix(mix(left, INK, dark), mix(right, INK, dark), j / (BLEND - 1))
+          mix(mix(left, ink, dark), mix(right, ink, dark), j / (BLEND - 1))
         );
       })
     );
 
     for (let gl = 0; gl < GLINTS; gl++) {
-      const top = mix(base, WHITE, 0.07 + gl * 0.075);
+      const top = mix(base, white, 0.07 + gl * 0.075);
       const ramp: number[] = [];
       for (let r = 0; r < RAMP; r++) {
         const t = r / (RAMP - 1);
         ramp.push(
           pixel(
             t < 0.5
-              ? mix(top, INK, (0.5 - t) * 0.2)
-              : mix(top, WHITE, (t - 0.5) * 0.12)
+              ? mix(top, ink, (0.5 - t) * 0.2)
+              : mix(top, white, (t - 0.5) * 0.12)
           )
         );
       }
-      const lipLeft = pixel(mix(top, WHITE, 0.4));
-      const lipRight = pixel(mix(top, WHITE, 0.16));
+      const lipLeft = pixel(mix(top, white, 0.4));
+      const lipRight = pixel(mix(top, white, 0.16));
       const x0 = gl * 2 * w;
       const y0 = k * w;
       for (let y = 0; y < w; y++) {
@@ -481,7 +508,7 @@ const paintFloor = (
           rhombus(ty, tinyScale, i, 1.6, 0, step * 0.8);
       }
       const c = pixel(gradient(Math.min(1, k / (TONES - 1))));
-      ty.fillStyle = `rgb(${c & 255}, ${(c >> 8) & 255}, ${(c >> 16) & 255})`;
+      ty.fillStyle = toHex(c);
       ty.fill();
     }
     pg.imageSmoothingEnabled = true;
@@ -514,7 +541,7 @@ const paintFloor = (
     for (let i = 0; i < mark.count; i++) {
       rhombus(lg, lowScale, i, 1.05, step * 0.45, step * 0.3);
     }
-    lg.fillStyle = "#050507";
+    lg.fillStyle = VOXEL_SHADES.contact;
     lg.fill();
     fg.imageSmoothingEnabled = true;
     fg.globalAlpha = 0.7;

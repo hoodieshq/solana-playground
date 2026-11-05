@@ -27,6 +27,9 @@ const ALLOWED = [
   // Brand art: a tutorial cover's grounds are the brand deck's own colours,
   // the same on every theme, and no token describes them
   /^entities\/tutorial\/ui\/art\//,
+  // The catalog banner's voxel shadows: violet-leaning darks the canvas mixes
+  // into the brand hues, the same on every theme. The hues come from tokens
+  /^widgets\/catalog\/ui\/art\/voxel-shades\.ts$/,
 ];
 
 const EXTENSIONS = new Set([
