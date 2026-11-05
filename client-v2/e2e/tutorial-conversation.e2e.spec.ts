@@ -75,7 +75,9 @@ test("a failed build's two buttons hold one row of one width at 1280", async ({
       json: {
         stderr:
           "error[E0412]: cannot find type `Initialize` in this scope\n --> /src/lib.rs:9:27\nerror: could not compile `hello`\n",
+        // eslint-disable-next-line unicorn/no-null -- the build server's JSON says null on a failed build
         uuid: null,
+        // eslint-disable-next-line unicorn/no-null -- the same answer's other field
         idl: null,
       },
     })

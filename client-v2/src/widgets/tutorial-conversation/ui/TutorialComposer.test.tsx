@@ -286,13 +286,14 @@ describe("TutorialComposer", () => {
     store.state = stateAt("intro");
     let answered: (reached: boolean) => void = () => {};
     const t = {
-      ...turn(),
       send: vi.fn(
         () =>
           new Promise<boolean>((resolve) => {
             answered = resolve;
           })
       ),
+      stop: vi.fn(),
+      busy: false,
     };
     render(<Connected turn={t} />);
     await userEvent.type(box(), "what is a PDA{Enter}");

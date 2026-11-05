@@ -138,7 +138,7 @@ const feed = (
     entries:
       over.entries ??
       (over.turns ?? onStep3.turns).map((turn) => ({ kind: "lesson", turn })),
-    renderExchange: over.renderExchange ?? (() => null),
+    renderExchange: over.renderExchange ?? (() => undefined),
     live: over.live === undefined ? onStep3.live : over.live,
     steps: over.steps ?? onStep3.steps,
     renderTurn:
