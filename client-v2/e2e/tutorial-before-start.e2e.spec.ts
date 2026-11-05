@@ -51,7 +51,7 @@ test("no stage before Hello Anchor's Start, in the frame", async ({ page }) => {
 });
 
 // HOO-2571: a start word does what the Start step 1 button does
-test("typing a start word starts step 1", async ({ page }) => {
+test("tutorial-conversation: A start word before Start", async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/tutorials/hello-anchor");
@@ -67,14 +67,13 @@ test("typing a start word starts step 1", async ({ page }) => {
 
 // A model that only opens the menu and then writes nothing: the context still
 // asks for the invitation, and the composer leaves the learner a next move
-test("a menu-only turn before Start still suggests starting", async ({
-  page,
-}) => {
+test("tutorial-conversation: The menu before Start", async ({ page }) => {
   test.setTimeout(120_000);
   const sse = (chunks: unknown[]) =>
-    [...chunks.map((c) => `data: ${JSON.stringify(c)}`), "data: [DONE]"].join(
-      "\n\n"
-    ) + "\n\n";
+    chunks
+      .map((c) => `data: ${JSON.stringify(c)}`)
+      .concat("data: [DONE]")
+      .join("\n\n") + "\n\n";
   const sent: string[] = [];
   await stubSession(page);
   await stubAiStatus(page, "stub");

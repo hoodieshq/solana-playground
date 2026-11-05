@@ -170,15 +170,17 @@ describe("TutorialComposer", () => {
     step: { kind: "step", stepId: definition.steps[0].id },
     finished: { kind: "finished" },
   } as const;
-  const stateAt = (
-    cursor: keyof typeof CURSORS,
-    restartedAt: number | null = null
+  const stateRestartedAt = (
+    restartedAt: number | null,
+    cursor: keyof typeof CURSORS
   ) =>
     ({
       context: { definition, slug: "hello-anchor" },
       loadedAt: 0,
       engine: { progress: { cursor: CURSORS[cursor], restartedAt } },
     } as unknown as ConversationState);
+  const stateAt = (cursor: keyof typeof CURSORS) =>
+    stateRestartedAt(null, cursor);
   const thread = PgAssistant as unknown as {
     items: import("@/views/sidebar/assistant/store").ChatItem[];
   };
@@ -265,7 +267,7 @@ describe("TutorialComposer", () => {
   });
 
   it("does not count a turn from before the last Start over", () => {
-    store.state = stateAt("intro", 2000);
+    store.state = stateRestartedAt(2000, "intro");
     store.view.mockReturnValue(view("Ask anything about this tutorial"));
     thread.items = [reply("A PDA is an address a program signs for.")];
     render(<Connected turn={turn()} />);
