@@ -33,6 +33,7 @@ import { editorBuffersOf } from "./editor-buffers";
 import { initLanguages } from "./languages";
 import { createMountOpen } from "./mount-open";
 import { leavesFocusElsewhere } from "./open-focus";
+import { rewritePythonProgramId, rewriteRustProgramId } from "./program-id";
 import { revealAtThird } from "./reveal-line";
 
 const log = createLogger("editor:monaco");
@@ -794,21 +795,10 @@ const Monaco = () => {
   useEffect(() => {
     if (!editor) return;
 
-    const getProgramIdStartAndEndIndex = (
-      content: string,
-      isPython: boolean
-    ) => {
-      const findText = isPython ? "declare_id" : "declare_id!";
-      const findTextIndex = content.indexOf(findText);
-      if (!content || !findTextIndex || findTextIndex === -1) return;
-      const quoteStartIndex = findTextIndex + findText.length + 1;
-      const quoteChar = content[quoteStartIndex];
-      const quoteEndIndex = content.indexOf(quoteChar, quoteStartIndex + 1);
-
-      return [quoteStartIndex, quoteEndIndex];
-    };
-
     const updateId = async () => {
+      // The tutorial's intro preview: a file nobody writes to until Start
+      if (PgEditor.readOnly) return;
+
       const programPkStr = PgProgramInfo.getPkStr();
       if (!programPkStr) return;
 
@@ -818,26 +808,15 @@ const Monaco = () => {
       const isPython = currentLang?.name === "Python";
       if (!isRust && !isPython) return;
 
-      const editorContent = editor.getValue();
-      const indices = getProgramIdStartAndEndIndex(editorContent, isPython);
-      if (!indices) return;
-      const [quoteStartIndex, quoteEndIndex] = indices;
-
       const model = editor.getModel();
       if (!model) return;
-
-      const startPos = model.getPositionAt(quoteStartIndex + 1);
-      const endPos = model.getPositionAt(quoteEndIndex);
-      const range = monaco.Range.fromPositions(startPos, endPos);
 
       // Reported: a program id left unwritten builds the old id, and the
       // deploy that then fails has no other clue
       try {
-        if (!editor.executeEdits(null, [{ range, text: programPkStr }])) {
-          log.error(new Error("The editor refused the program id edit"), {
-            report: true,
-          });
-        }
+        (isPython ? rewritePythonProgramId : rewriteRustProgramId)(
+          programPkStr
+        )(model);
       } catch (error) {
         log.error(error, { report: true, context: { edit: "program id" } });
       }

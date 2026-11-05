@@ -85,6 +85,37 @@ const failTheBuild = async (page: Page) => {
     .click(LONG);
 };
 
+test("a build writes the program id into the open buffer while the editor is busy", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  // Answers late, so the id is written while the build holds the editor. The
+  // request carries the id the build used, which the buffer must then show
+  let builtId = "";
+  await page.route("**/build", async (route) => {
+    builtId =
+      /declare_id!\(\\?"(\w+)\\?"\)/.exec(
+        route.request().postData() ?? ""
+      )?.[1] ?? "";
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await route.fulfill({ json: FAILED_BUILD });
+  });
+  await page.goto("/tutorials/hello-anchor");
+  await failTheBuild(page);
+
+  await expect.poll(() => builtId, LONG).not.toBe("");
+  expect(builtId).not.toBe("11111111111111111111111111111111");
+  await expect(editor(page)).toContainText(builtId, LONG);
+  await expect(
+    feed(page).getByRole("button", { name: /Explain the error/ })
+  ).toBeVisible(LONG);
+  expect(errors.filter((text) => text.includes("program id"))).toEqual([]);
+});
+
 test("a failed build's two buttons hold one row of one width at 1280", async ({
   page,
 }) => {
