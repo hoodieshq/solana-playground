@@ -1,6 +1,6 @@
 import { CircleAlert, CircleCheck, CircleX, History } from "lucide-react";
-import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import type { FocusEvent, ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
@@ -85,9 +85,27 @@ export interface BaseBuildProps {
   onOpenFile: (path: string) => void;
   /** Opens the console, where the terminal holds the whole output */
   onShowLog: () => void;
+  /** Stops the build in flight, as the console's Stop does */
+  onStop: () => void;
   /** Download IDL, a link under Build succeeded's pills, drawn only with `hasIdl` */
   idlActions: ReactNode;
 }
+
+/**
+ * What a surface ends with: its own action row, or, while a run with no
+ * known end goes on, the moving bar and the run's way out. Never both: a
+ * running surface has nothing to press but Stop and the log.
+ */
+type SurfaceEnd =
+  | {
+      /** A run in flight: a moving bar under the meta, Stop and the log */
+      run: Pick<BaseBuildProps, "onStop" | "onShowLog">;
+      actions?: never;
+    }
+  | { run?: never; actions?: ReactNode };
+
+/** Marks the control focus goes to when a surface swap drops it */
+const FOCUS_HERE = { "data-stage-focus": "" } as const;
 
 /**
  * What every surface is made of; the action row comes last. Centred, as the
@@ -100,55 +118,88 @@ const Surface = ({
   meta,
   description,
   children,
-  actions,
   progress,
-  running = false,
   report = false,
   alert = false,
+  live = false,
+  ...end
 }: {
   icon?: ReactNode;
   title: string;
   meta?: string | null;
   description?: ReactNode;
   children?: ReactNode;
-  /** None while `running`: the bar says the run goes on */
-  actions?: ReactNode;
   /** The run behind the surface's Build button, for the slow line */
   progress?: Pick<BaseBuildProps, "building" | "slow">;
-  /** A run in flight: a moving bar under the meta */
-  running?: boolean;
   report?: boolean;
   /**
    * The description is why the stage stopped, so it is announced the moment
    * it shows, as the error callout it replaced was (Spec 08)
    */
   alert?: boolean;
-}) => (
-  <div className={STAGE_FRAME}>
-    <StageEmpty
-      className={cn(
-        STAGE_BODY,
-        report && STAGE_REPORT,
-        // No action row to push to the foot on a phone: the words take the
-        // middle, not the foot
-        !actions && "max-md:[&>:last-child]:mb-auto"
-      )}
-    >
-      {icon && <StageEmptyMedia>{icon}</StageEmptyMedia>}
-      <StageEmptyTitle>{title}</StageEmptyTitle>
-      {meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
-      {running && <StageEmptyProgress />}
-      {description && (
-        <StageEmptyDescription role={alert ? "alert" : undefined}>
-          {description}
-        </StageEmptyDescription>
-      )}
-      {children}
-      {progress?.building && <SlowLine slow={progress.slow} />}
-      {actions && (
-        <StageEmptyActions className={STAGE_FOOT}>{actions}</StageEmptyActions>
-      )}
-    </StageEmpty>
+  /**
+   * The description says how the run goes, politely: mounted before the run,
+   * so its first change (the run started) is heard, then its slow line
+   */
+  live?: boolean;
+} & SurfaceEnd) => {
+  const actions = end.run ? (
+    <>
+      <Button variant="outline" {...FOCUS_HERE} onClick={end.run.onStop}>
+        Stop
+      </Button>
+      <LogLink onShowLog={end.run.onShowLog} />
+    </>
+  ) : (
+    end.actions
+  );
+  return (
+    <div className={STAGE_FRAME}>
+      <StageEmpty
+        className={cn(
+          STAGE_BODY,
+          report && STAGE_REPORT,
+          // No action row to push to the foot on a phone: the words take the
+          // middle, not the foot
+          !actions && "max-md:[&>:last-child]:mb-auto"
+        )}
+      >
+        {icon && <StageEmptyMedia>{icon}</StageEmptyMedia>}
+        {/* Focusable from code only: where focus lands when the surface
+            that held it is replaced */}
+        <StageEmptyTitle tabIndex={-1} className="outline-none">
+          {title}
+        </StageEmptyTitle>
+        {meta && <StageEmptyMeta>{meta}</StageEmptyMeta>}
+        {end.run && <StageEmptyProgress />}
+        {description && (
+          <StageEmptyDescription
+            role={alert ? "alert" : live ? "status" : undefined}
+          >
+            {description}
+          </StageEmptyDescription>
+        )}
+        {children}
+        {progress?.building && <SlowLine slow={progress.slow} />}
+        {actions && (
+          <StageEmptyActions className={STAGE_FOOT}>
+            {actions}
+          </StageEmptyActions>
+        )}
+      </StageEmpty>
+    </div>
+  );
+};
+
+/**
+ * "Show full log" as a link under the row's button, as Deploy's Upload IDL.
+ * Full width, so the row wraps and the link takes a line of its own.
+ */
+const LogLink = ({ onShowLog }: Pick<BaseBuildProps, "onShowLog">) => (
+  <div className="flex w-full justify-center">
+    <Button variant="link" onClick={onShowLog}>
+      Show full log
+    </Button>
   </div>
 );
 
@@ -253,15 +304,14 @@ const Empty = (p: BaseBuildProps) => (
         : null
     }
     description={emptyDescription(p)}
-    // The bar takes the button's place while it runs: a disabled
-    // "Building…" only repeated the title, and Stop is the console's
-    running={p.building}
-    actions={
-      p.building ? undefined : <BrandBuildButton p={p} label="Build" icon />
-    }
-    // A first build says it is slow in its own words (Spec 06), so Spec
-    // 08's line stays empty here: two lines would say it twice
-    progress={{ building: p.building, slow: false }}
+    // A first build says it started and that it is slow in its own words
+    // (Spec 06), so it has no Spec 08 line: two would say it twice
+    live
+    // The bar and Stop take the button's place while it runs: a disabled
+    // "Building…" only repeated the title
+    {...(p.building
+      ? { run: p }
+      : { actions: <BrandBuildButton p={p} label="Build" icon /> })}
   />
 );
 
@@ -293,16 +343,8 @@ const Unreached = (p: BaseBuildProps & { failure: BuildFailure | null }) => {
       actions={
         <>
           <BrandBuildButton p={p} label="Try again" />
-          {!noAnswer && (
-            // A link under the pill, as Deploy's Upload IDL: the log is
-            // there if wanted, Try again is the way on. Full width, so the
-            // row wraps and the link takes a line of its own
-            <div className="flex w-full justify-center">
-              <Button variant="link" onClick={p.onShowLog}>
-                Show full log
-              </Button>
-            </div>
-          )}
+          {/* The log is there if wanted, Try again is the way on */}
+          {!noAnswer && <LogLink onShowLog={p.onShowLog} />}
         </>
       }
       progress={p}
@@ -570,8 +612,70 @@ const Failed = (p: BaseBuildProps & FailedView) => {
   );
 };
 
+/**
+ * Puts focus back in the stage when a surface swap removed the element that
+ * held it (Build giving way to Stop, Stop to the next surface): on the new
+ * surface's `FOCUS_HERE` control, else its title. Focus the person moved out
+ * of the stage stays where they put it.
+ */
+const useKeptFocus = (key: string) => {
+  const root = useRef<HTMLDivElement>(null);
+  const inside = useRef(false);
+
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!el || !inside.current) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && el.contains(active)) return;
+    // Something outside the stage took focus meanwhile
+    if (active && active !== document.body) {
+      inside.current = false;
+      return;
+    }
+    // Two queries: one selector list would return the title, which comes first
+    (
+      el.querySelector<HTMLElement>("[data-stage-focus]") ??
+      el.querySelector<HTMLElement>('[data-slot="stage-empty-title"]')
+    )?.focus();
+  }, [key]);
+
+  return {
+    ref: root,
+    onFocus: () => {
+      inside.current = true;
+    },
+    onBlur: (e: FocusEvent) => {
+      const next = e.relatedTarget;
+      // Moving to nothing is either a removal (keep it) or a click on the
+      // page (let go); only a later frame can tell them apart
+      if (next === null) {
+        const from = e.target;
+        requestAnimationFrame(() => {
+          if (
+            from.isConnected &&
+            !root.current?.contains(document.activeElement)
+          )
+            inside.current = false;
+        });
+        return;
+      }
+      if (!root.current?.contains(next as Node)) inside.current = false;
+    },
+  };
+};
+
 /** The Build stage, drawn from props alone; `Build` connects it */
 const BaseBuild = (p: BaseBuildProps) => {
+  const kept = useKeptFocus(`${p.surface.kind}:${p.building}`);
+  return (
+    // `contents`: the frame inside keeps the stage's height
+    <div className="contents" {...kept}>
+      <BaseBuildSurface {...p} />
+    </div>
+  );
+};
+
+const BaseBuildSurface = (p: BaseBuildProps) => {
   const s = p.surface;
   switch (s.kind) {
     case "empty":

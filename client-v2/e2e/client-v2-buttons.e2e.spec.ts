@@ -216,25 +216,68 @@ test.describe("client-v2-buttons", () => {
     });
 
     await page.locator("#flow-stage-tab-build").click();
-    await page.getByRole("button", { name: "Build", exact: true }).click();
+    const stage = page.locator("#flow-stage-panel-build");
+    // From the keyboard, so the test sees where focus goes (HOO-2648)
+    await stage.getByRole("button", { name: "Build", exact: true }).focus();
+    await page.keyboard.press("Enter");
 
-    // While the run is in flight the surface shows its progress in the
-    // button's place (DES-199), so nothing on it can start a second build
+    // While the run is in flight the surface shows its progress and Stop in
+    // the button's place (DES-199, HOO-2648)
     await expect(
-      page.getByRole("heading", { name: "Building…" })
+      stage.getByRole("heading", { name: "Building…" })
     ).toBeVisible();
     await expect(
-      page.locator('[data-slot="stage-empty-progress"]')
+      stage.locator('[data-slot="stage-empty-progress"]')
     ).toBeVisible();
+    await expect(stage.getByRole("status")).toHaveText(
+      /^Compiling on the build server\./
+    );
+    // Focus went from Build to Stop, never to the page
+    await expect(stage.getByRole("button", { name: "Stop" })).toBeFocused();
+    // A second start: Enter again, and every control on the stage. None
+    // builds; Stop is the only one left and stops instead
+    await expect(stage.getByRole("button")).toHaveText([
+      "Stop",
+      "Show full log",
+    ]);
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Enter");
     await expect(
-      page.getByRole("button", { name: "Build", exact: true })
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole("button", { name: "Building…", exact: true })
-    ).toHaveCount(0);
+      stage.getByRole("heading", { name: "Building…" })
+    ).toBeVisible();
 
     release();
     await expect(page.getByText("Build succeeded")).toBeVisible();
+    expect(builds).toBe(1);
+  });
+
+  test("client-v2-buttons: A first build stops from the stage", async ({
+    seededPage: page,
+  }) => {
+    test.setTimeout(120_000);
+    let builds = 0;
+    // A build server that never answers
+    await page.route("**/build", () => {
+      builds += 1;
+    });
+
+    await page.locator("#flow-stage-tab-build").click();
+    const stage = page.locator("#flow-stage-panel-build");
+    await stage.getByRole("button", { name: "Build", exact: true }).click();
+    await expect(
+      stage.getByRole("heading", { name: "Building…" })
+    ).toBeVisible();
+
+    await stage.getByRole("button", { name: "Stop" }).click();
+
+    // Back to how it was, with no failure card, focus on the title
+    await expect(
+      stage.getByRole("heading", { name: "Nothing built yet" })
+    ).toBeFocused();
+    await expect(
+      stage.getByRole("button", { name: "Build", exact: true })
+    ).toBeEnabled();
+    await expect(stage.getByRole("alert")).toHaveCount(0);
     expect(builds).toBe(1);
   });
 
