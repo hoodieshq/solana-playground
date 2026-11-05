@@ -930,7 +930,10 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
                         <ResizablePanel
                           id="work"
                           minSize={PANEL_SIZES.work.min}
-                          className="flex min-w-0 flex-col"
+                          // Over the stage the bar and the stage tabs read as one
+                          // head, so the bar drops its line here; over Home and
+                          // a page it keeps it
+                          className="flex min-w-0 flex-col [&>[data-slot=stage-bar]]:border-b-transparent"
                         >
                           {/* Over the files column and the stage both, as the prototype
                 draws them: the column bar, then the stage tabs */}
