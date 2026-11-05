@@ -163,6 +163,12 @@ export const useShareGist = (
         name,
         files: await readFiles(),
       });
+    } catch (e) {
+      // Nothing went to GitHub, so the export's failure text would mislead:
+      // the frame's toast tells the user, and the team hears of it here
+      log.error(e, { report: true, context: { item: "share" } });
+      failed("request-failed");
+      throw e;
     } finally {
       if (mounted.current) setBusy(false);
     }

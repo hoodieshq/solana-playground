@@ -45,6 +45,28 @@ const isCancel = (error: unknown) => {
   );
 };
 
+/**
+ * Log why a sign-in ended without a session. `PgSession` holds why its last
+ * sign-in failed. One the user ended (cancelled, a blocked popup, a timeout)
+ * is theirs to see; one that could not start, or any other error, the team
+ * hears of too.
+ */
+const logSignInEnding = (error: unknown) => {
+  const state = PgSession.signInState();
+  const userEnded =
+    isSignInFailure(error) &&
+    state.status === "failed" &&
+    state.reason !== "request-failed";
+  if (userEnded) {
+    // `auth_sign_in_failed` has counted it with its reason
+    log.info("sign-in to share ended without a session", {
+      context: { reason: state.reason },
+    });
+  } else {
+    log.error(error, { report: true, context: { item: "sign-in" } });
+  }
+};
+
 /** The prompt's one button: sign in, cancel its own wait, or wait on another's */
 const buttonText = (waiting: boolean, cancellable: boolean) => {
   if (cancellable) return "Cancel sign-in";
@@ -107,22 +129,7 @@ const SignInToShare = () => {
     ownSignIn.current = true;
     PgSession.signInFor("share")([])
       .catch((error: unknown) => {
-        // `PgSession` holds why its last sign-in failed. One the user ended
-        // (cancelled, a blocked popup, a timeout) is theirs to see; one that
-        // could not start, or any other error, the team hears of too
-        const state = PgSession.signInState();
-        const userEnded =
-          isSignInFailure(error) &&
-          state.status === "failed" &&
-          state.reason !== "request-failed";
-        if (userEnded) {
-          // `auth_sign_in_failed` has counted it with its reason
-          log.info("sign-in to share ended without a session", {
-            context: { reason: state.reason },
-          });
-        } else {
-          log.error(error, { report: true, context: { item: "sign-in" } });
-        }
+        logSignInEnding(error);
         if (mounted.current) {
           setEnded({
             kind: isCancel(error) ? "cancelled" : "failed",
@@ -254,6 +261,7 @@ const ConnectedShare = ({
         PgSession.signInFor("share")(scopes).then(
           () => "signed-in" as const,
           (error: unknown) => {
+            logSignInEnding(error);
             if (isCancel(error)) return "cancelled" as const;
             throw error;
           }

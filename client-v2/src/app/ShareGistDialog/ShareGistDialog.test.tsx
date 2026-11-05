@@ -172,12 +172,71 @@ describe("app/ShareGistDialog", () => {
     const signIn = shareSignIn(() => Promise.resolve());
     await open();
 
-    await press("Share to GitHub");
+    await press("Create secret gist");
     await press("Allow gists on GitHub");
 
     // The body's sign-ins keep the open project as the prompt's does
     expect(PgSession.signInFor).toHaveBeenCalledWith("share");
     expect(signIn).toHaveBeenCalledWith(["gist"]);
+  });
+
+  it("reports a grant that fails unexpectedly, beside saying so", async () => {
+    await PgSession.refreshWith(USER);
+    fetchSpy.mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({ reason: "needs-gist-scope" }),
+    } as Response);
+    shareSignIn(() => Promise.reject(new Error("boom")));
+    await open();
+
+    await press("Create secret gist");
+    await press("Allow gists on GitHub");
+
+    expect(screen.getByText("boom")).toBeTruthy();
+    expect(reported()).toHaveLength(1);
+  });
+
+  it("reports nothing for a grant the user cancelled", async () => {
+    await PgSession.refreshWith(USER);
+    fetchSpy.mockImplementation(async (url: unknown) =>
+      String(url).includes("/api/gists")
+        ? ({
+            ok: false,
+            status: 403,
+            json: async () => ({ reason: "needs-gist-scope" }),
+          } as Response)
+        : ({ ok: true, json: async () => ({ url: "https://x/" }) } as Response)
+    );
+    PgSession.setOpenChannel(() => ({
+      receive: async () => ({
+        delivered: false as const,
+        reason: "cancelled" as const,
+      }),
+      cancel: () => {},
+    }));
+    await open();
+
+    await press("Create secret gist");
+    await press("Allow gists on GitHub");
+
+    expectQuietCancel();
+    expect(reported()).toEqual([]);
+  });
+
+  it("reports an unreadable project and says so in a toast", async () => {
+    await PgSession.refreshWith(USER);
+    const setToast = vi.spyOn(PgView, "setToast").mockImplementation(vi.fn());
+    readFiles
+      .mockRejectedValueOnce(new Error("store unreadable"))
+      .mockRejectedValueOnce(new Error("store unreadable"));
+    await open();
+
+    await press("Create secret gist");
+
+    expect(reported()).toHaveLength(1);
+    expect(setToast).toHaveBeenCalledTimes(1);
+    expect(gistRequests()).toEqual([]);
   });
 
   it("shows why a sign-in ended, and keeps the prompt", async () => {

@@ -49,7 +49,7 @@ const Dialog = (options: ShareGistOptions) => {
         return run.create().catch((e: unknown) => frameFailures.push(e));
       case "sign-in":
       case "grant":
-        void run[action.run]();
+        void run[action.run]().catch((e: unknown) => frameFailures.push(e));
         return;
       default:
         return run[action.run]();
@@ -412,7 +412,26 @@ it("stays ready when the project cannot be read, and leaves the failure to the f
   expect(
     screen.getByRole("button", { name: "Create secret gist" })
   ).toBeTruthy();
-  expect(sent.events).toEqual([]);
+  expect(sent.events).toEqual([
+    {
+      name: "gist_export_failed",
+      params: { reason: "request-failed", visibility: "secret" },
+    },
+  ]);
+});
+
+it("counts and hands on an unreadable project after a sign-in too", async () => {
+  renderShareWith({
+    signedIn: false,
+    signIn: resolvingSignIn(),
+    cancelSignIn: noCancel(),
+    readFiles: () => Promise.reject(new Error("store unreadable")),
+  });
+
+  await press(/^Sign in with GitHub$/);
+
+  expect(frameFailures).toEqual([new Error("store unreadable")]);
+  expect(names()).toEqual(["gist_export_failed"]);
 });
 
 it("lists what goes to the gist, folded, with the manifest named", async () => {
