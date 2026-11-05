@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Code reads these tokens on both grounds, so a value tuned for one theme and
- * shared with the other comes out unreadable: #284's left Light's plain code
- * at 1.27:1 on white.
+ * shared with the other comes out unreadable: the dark values once left
+ * Light's plain code at 1.27:1 on white.
  */
 const TOKENS = fs.readFileSync(
   path.join(__dirname, "../app/styles/playground-tokens.css"),
