@@ -9,7 +9,7 @@ import {
 } from "@/shared/ui/sidebar";
 
 import type { StatusIndicator } from "../model/indicators";
-import { IndicatorDot, StatusPanel } from "./parts";
+import { IndicatorDot, StatusPanel, useFocusAfterPanel } from "./parts";
 
 export interface BaseStatusRowProps {
   /** Network, AI, Rust analyzer, in that order */
@@ -45,8 +45,9 @@ const BaseStatusRow = ({
   settingsOpen,
 }: BaseStatusRowProps) => {
   const isMobile = useIsMobile();
+  const { ref, onGone } = useFocusAfterPanel<HTMLUListElement>();
   return (
-    <SidebarMenu className="w-full">
+    <SidebarMenu ref={ref} className="w-full">
       <SidebarMenuItem
         data-testid="status-row"
         // A little more room before the account row than between the lines
@@ -99,6 +100,7 @@ const BaseStatusRow = ({
               onPick={onPick}
               onAction={onAction}
               onRetry={onRetry}
+              onGone={onGone}
             />
           );
         })}

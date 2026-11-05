@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
@@ -140,7 +140,8 @@ export const IndicatorDot = ({
  * line and buttons. It closes when an action is picked, since the action goes
  * elsewhere (the settings, Connect a model). Try again keeps it open while it
  * asks and when the answer is still down; once it is answered the indicator
- * has no panel any more, so the panel goes with it.
+ * has no panel any more, so the panel goes with it, and `onGone` hands focus
+ * back to the indicator (see `useFocusAfterPanel`).
  */
 export const StatusPanel = ({
   indicator,
@@ -151,6 +152,7 @@ export const StatusPanel = ({
   onPick,
   onAction,
   onRetry,
+  onGone,
 }: {
   indicator: StatusIndicator;
   /** The indicator's button, which the panel hangs from */
@@ -162,8 +164,20 @@ export const StatusPanel = ({
   onPick: (indicator: StatusIndicator) => void;
   onAction: (indicator: StatusIndicator) => void;
   onRetry: (indicator: StatusIndicator) => Promise<unknown>;
+  /** The panel went while it was open: its indicator no longer has one */
+  onGone: (indicator: StatusIndicator) => void;
 }) => {
   const [open, setOpen] = useState(false);
+  // Read when the panel goes, so the cleanup sees the last state, not the first
+  const last = useRef({ open, indicator, onGone });
+  last.current = { open, indicator, onGone };
+  useEffect(
+    () => () => {
+      const panel = last.current;
+      if (panel.open) panel.onGone(panel.indicator);
+    },
+    []
+  );
   // The installed title is a plain element, so the panel names itself by it
   const titleId = useId();
   return (
@@ -197,4 +211,29 @@ export const StatusPanel = ({
       </PopoverContent>
     </Popover>
   );
+};
+
+/**
+ * Where focus goes when an open panel goes with its indicator's panel (Try
+ * again answered): back to that indicator's button, whose name now says its
+ * new state, rather than to the page's body with the panel's own buttons.
+ * The panel's cleanup runs before the row's effects, so the row's effect finds
+ * the plain button already drawn in the panel's trigger's place. Focus the
+ * user has since put somewhere else stays there.
+ */
+export const useFocusAfterPanel = <T extends HTMLElement>() => {
+  const ref = useRef<T>(null);
+  const gone = useRef<StatusIndicator["id"]>(undefined);
+  useEffect(() => {
+    const id = gone.current;
+    if (!id) return;
+    gone.current = undefined;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    ref.current?.querySelector<HTMLElement>(`[data-status="${id}"]`)?.focus();
+  });
+  const onGone = (indicator: StatusIndicator) => {
+    gone.current = indicator.id;
+  };
+  return { ref, onGone };
 };
