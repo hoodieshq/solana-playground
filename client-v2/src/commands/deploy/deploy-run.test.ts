@@ -41,6 +41,7 @@ vi.mock("../../utils", () => {
     PgCommon: { formatSeconds: () => "1s", makePlural: (s: string) => s },
     PgConnection: {
       cluster: "devnet",
+      getCluster: vi.fn(async () => "devnet"),
       getAirdropAmount: vi.fn((): number | null => 5),
       current: {
         getBalance: (...args: unknown[]) => balance(...(args as [])),
@@ -176,24 +177,35 @@ describe("deploy run", () => {
     });
   });
 
-  it("reports the network it took its connection on, not the one selected at its end", async () => {
+  it("reports the network of the connection it used, not the one selected", async () => {
     const { PgConnection } = await import("../../utils");
+    // The selected network is derived later and still names the old one
     Object.assign(PgConnection, { cluster: "devnet" });
+    vi.mocked(PgConnection.getCluster).mockResolvedValueOnce("testnet");
     balance
-      .mockImplementationOnce(async () => {
-        // The user switches networks once the run has its connection
-        Object.assign(PgConnection, { cluster: "testnet" });
-        return 10_000_000_000;
-      })
+      .mockResolvedValueOnce(10_000_000_000)
       .mockResolvedValueOnce(10_000_000_000)
       .mockResolvedValueOnce(9_000_000_000);
 
-    try {
-      const result = await handleDeploy();
-      expect(result?.cluster).toBe("devnet");
-    } finally {
-      Object.assign(PgConnection, { cluster: "devnet" });
-    }
+    const result = await handleDeploy();
+
+    expect(result?.cluster).toBe("testnet");
+  });
+
+  it("reports the selected network when the connection's cannot be read", async () => {
+    const { PgConnection } = await import("../../utils");
+    vi.mocked(PgConnection.getCluster).mockRejectedValueOnce(
+      new Error("genesis hash unreadable")
+    );
+    balance
+      .mockResolvedValueOnce(10_000_000_000)
+      .mockResolvedValueOnce(10_000_000_000)
+      .mockResolvedValueOnce(9_000_000_000);
+
+    const result = await handleDeploy();
+
+    expect(result?.signature).toBe("sig-deploy");
+    expect(result?.cluster).toBe("devnet");
   });
 
   it("funds first, without a question, when the stage started it", async () => {

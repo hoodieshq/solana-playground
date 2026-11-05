@@ -89,7 +89,7 @@ export class PgDeployHistory {
       const workspace = PgExplorer.currentWorkspaceName;
       // The network the deploy ran on: the user may have selected another
       // one before it finished
-      const cluster = ran ? ran.cluster : PgConnection.cluster;
+      const cluster = ran?.cluster ?? PgConnection.cluster;
       if (!programId || !workspace || !cluster) return;
 
       PgDeployHistory.add({

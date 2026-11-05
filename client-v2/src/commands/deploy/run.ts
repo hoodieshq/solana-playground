@@ -25,8 +25,9 @@ export interface DeployResult {
   cost: number | undefined;
   upgraded: boolean;
   /**
-   * The network the run deployed to, read together with its connection: the
-   * user may select another one while the deploy runs
+   * The network the run deployed to, read from the endpoint of the
+   * connection it used: the user may select another one while it runs.
+   * `null` when neither that endpoint nor the selected network could be read.
    */
   cluster: Cluster | null;
 }

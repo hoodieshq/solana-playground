@@ -185,6 +185,28 @@ describe("PgDeployHistory deploy result", () => {
     sub.dispose();
   });
 
+  it("records the selected network when the deploy could not name its own", async () => {
+    const { PgCommand, PgConnection, PgExplorer, PgGlobal, PgProgramInfo } =
+      await mockedUtils();
+    let deployCallback = undefined as ((result: unknown) => void) | undefined;
+    PgCommand.deploy.onDidFinish.mockImplementation((cb) => {
+      deployCallback = cb;
+      return { dispose: vi.fn() };
+    });
+    PgGlobal.deployState = "ready";
+    PgConnection.cluster = "devnet";
+    PgExplorer.currentWorkspaceName = "w";
+    PgProgramInfo.getPkStr.mockReturnValue("Prog111");
+
+    const sub = PgDeployHistory.init();
+    requireFor("the deploy listener")(deployCallback)({
+      ok: { signature: "sig1", cost: 1, upgraded: false, cluster: NONE },
+    });
+
+    expect(PgDeployHistory.list("w").map((r) => r.cluster)).toEqual(["devnet"]);
+    sub.dispose();
+  });
+
   it("keeps the signature, cost and upgrade the deploy reported", async () => {
     const { PgCommand, PgConnection, PgExplorer, PgGlobal, PgProgramInfo } =
       await mockedUtils();
