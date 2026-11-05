@@ -6,16 +6,25 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 
+import { HELLO_NAME, HELLO_WORLD } from "./fake-build-server";
+
 /**
  * A devnet for the tutorial specs, answered in the test: the JSON-RPC calls
  * the tutorial's deploy, run and call acts make, and the websocket their
  * confirmations wait on. It keeps accounts, applies what a sent transaction
  * does to them (system transfers into new accounts, the upgradeable loader's
- * buffer, deploy, upgrade and extend, an Anchor call) and writes each call's
- * program log, so the app's own code runs end to end with no network.
+ * buffer, deploy, upgrade and extend, a call to Hello Anchor's `hello`) and
+ * writes each call's program log, so the app's own code runs end to end with
+ * no network.
  *
- * Nothing is verified: signatures are taken as sent, and a transaction to a
- * program the fake does not know lands with no effect.
+ * Signatures are taken as sent. A transaction applies whole or not at all: one
+ * that would leave a balance below zero is refused with a JSON-RPC error, as
+ * the cluster's preflight refuses it. `accountSubscribe` hears of every
+ * change to its account. A call logs only on a program the loader
+ * deployed, and its log follows the bytes deployed there (`HELLO_WORLD` or
+ * `HELLO_NAME`, from `fake-build-server.ts`). Anything the fake does not model
+ * (a method, a program, an instruction, a subscription) fails and is listed in
+ * `unhandled`, which the specs assert empty.
  */
 
 const ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -84,6 +93,9 @@ interface Landed {
 const discriminator = (name: string) =>
   createHash("sha256").update(`global:${name}`).digest().subarray(0, 8);
 
+/** Something the fake does not model, listed in `unhandled` */
+class Unhandled extends Error {}
+
 /** Rent the way the runtime charges it: two years of 3480 lamports a byte-year */
 const rentFor = (bytes: number) => (bytes + 128) * 6960;
 
@@ -92,6 +104,8 @@ export interface FakeDevnet {
   faucet: "ok" | "refuse";
   /** Every JSON-RPC method the app called, in order */
   readonly calls: string[];
+  /** What the app asked for that the fake does not model, in order */
+  readonly unhandled: string[];
   /** The wallet's balance in SOL, or 0 for an account the fake never saw */
   balance(address: string): number;
   /** The programs the fake holds, by program id */
@@ -102,11 +116,27 @@ export interface FakeDevnet {
  * Routes devnet's JSON-RPC and websocket on `page` to a fresh fake chain.
  */
 export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
-  const accounts = new Map<string, Account>();
+  // Replaced by a draft while a transaction applies; see `send`
+  let accounts = new Map<string, Account>();
   const landed = new Map<string, Landed>();
   /** Signatures by the address they touched, newest last */
   const touched = new Map<string, { signature: string; slot: number }[]>();
   const calls: string[] = [];
+  const unhandled: string[] = [];
+  /** Notifies a `signatureSubscribe` that came before its transaction landed */
+  const waiting = new Map<string, (() => void)[]>();
+  /** `accountSubscribe` watchers, by subscription id */
+  const watchers = new Map<number, { address: string; notify: () => void }>();
+  /** Tells every watcher of `keys` their account's state now */
+  const changed = (keys: string[]) => {
+    for (const watcher of watchers.values()) {
+      if (keys.includes(watcher.address)) watcher.notify();
+    }
+  };
+  const unknown = (what: string) => {
+    unhandled.push(what);
+    return new Unhandled(`the fake devnet does not model ${what}`);
+  };
   const started = Date.now();
   // A slot every 400 ms, as on the cluster: the app reads a slot that does
   // not move as a stalled cluster, and web3 waits for a blockhash to change
@@ -116,8 +146,10 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
   const blockTime = () => Math.floor(Date.now() / 1000);
 
   const fake: FakeDevnet = {
+    // Read on every `requestAirdrop`, so a spec may flip it mid-run
     faucet: "ok",
     calls,
+    unhandled,
     balance: (address) =>
       (accounts.get(address)?.lamports ?? 0) / LAMPORTS_PER_SOL,
     programs: () =>
@@ -170,17 +202,32 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
         const lamports = Number(data.readBigUInt64LE(4));
         account(keys[0]).lamports -= lamports;
         account(keys[1]).lamports += lamports;
+      } else {
+        throw unknown(`system instruction ${tag}`);
       }
       return [];
     }
     if (program === LOADER) return applyLoader({ program, keys, data, s });
     if (program.startsWith("ComputeBudget")) return [];
-    // An Anchor program: its log, framed as the runtime frames it
-    if (!discriminator("hello").equals(data.subarray(0, 8))) return [];
+    // A deployed program: Hello Anchor's `hello`, logged as the bytes the
+    // loader holds for it would log, framed as the runtime frames it
+    const target = accounts.get(program);
+    if (target?.owner !== LOADER || !target.executable) {
+      throw unknown(`a call to ${program}, which the loader never deployed`);
+    }
+    if (!discriminator("hello").equals(data.subarray(0, 8))) {
+      throw unknown(`instruction ${data.subarray(0, 8).toString("hex")}`);
+    }
+    const programData = new PublicKey(target.data.subarray(4, 36)).toBase58();
+    const code = accounts.get(programData)?.data[PROGRAM_DATA_HEADER];
+    const log = helloLog(code, data.subarray(8));
+    if (!log) {
+      throw unknown(`a hello call on program code ${code}`);
+    }
     return [
       `Program ${program} invoke [1]`,
       `Program log: Instruction: Hello`,
-      `Program log: ${helloLog(data.subarray(8))}`,
+      `Program log: ${log}`,
       `Program ${program} consumed 1000 of 200000 compute units`,
       `Program ${program} success`,
     ];
@@ -258,31 +305,71 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
         break;
       }
       default:
-        break;
+        throw unknown(`loader instruction ${tag}`);
     }
     return [];
   };
 
-  const send = (wire: string): string => {
+  /**
+   * Lands `wire` whole, or answers the error the cluster would and changes
+   * nothing: the instructions apply to a draft of the accounts, which replaces
+   * them only once every balance is still at or above zero
+   */
+  const send = (
+    wire: string
+  ): { result: string } | { error: { code: number; message: string } } => {
     const tx = VersionedTransaction.deserialize(Buffer.from(wire, "base64"));
     const signature = bs58.encode(tx.signatures[0]);
-    if (landed.has(signature)) return signature;
+    if (landed.has(signature)) return { result: signature };
     const message = tx.message;
     const keys = message.staticAccountKeys.map((k) => k.toBase58());
     const s = slot();
     const pre = keys.map((k) => accounts.get(k)?.lamports ?? 0);
     const fee = FEE * message.header.numRequiredSignatures;
-    account(keys[0]).lamports -= fee;
+    const committed = accounts;
+    accounts = new Map(
+      Array.from(committed, ([key, a]) => [
+        key,
+        {
+          lamports: a.lamports,
+          owner: a.owner,
+          data: Buffer.from(a.data),
+          executable: a.executable,
+        },
+      ])
+    );
     const logs: string[] = [];
-    for (const ix of message.compiledInstructions) {
-      const program = keys[ix.programIdIndex];
-      const written = apply({
-        program,
-        keys: ix.accountKeyIndexes.map((i) => keys[i]),
-        data: Buffer.from(ix.data),
-        s,
-      });
-      logs.push(...written);
+    try {
+      account(keys[0]).lamports -= fee;
+      for (const ix of message.compiledInstructions) {
+        const program = keys[ix.programIdIndex];
+        const written = apply({
+          program,
+          keys: ix.accountKeyIndexes.map((i) => keys[i]),
+          data: Buffer.from(ix.data),
+          s,
+        });
+        logs.push(...written);
+      }
+      const short = Array.from(accounts).find(([, a]) => a.lamports < 0);
+      if (short) {
+        accounts = committed;
+        return {
+          error: {
+            code: -32002,
+            message: `Transaction simulation failed: insufficient lamports in ${short[0]}`,
+          },
+        };
+      }
+    } catch (error) {
+      accounts = committed;
+      if (!(error instanceof Unhandled)) unhandled.push(String(error));
+      return {
+        error: {
+          code: -32002,
+          message: `Transaction simulation failed: ${String(error)}`,
+        },
+      };
     }
     landed.set(signature, {
       slot: s,
@@ -301,7 +388,10 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
       postBalances: keys.map((k) => accounts.get(k)?.lamports ?? 0),
     });
     for (const key of keys) touch(key, { signature, slot: s });
-    return signature;
+    for (const notify of waiting.get(signature) ?? []) notify();
+    waiting.delete(signature);
+    changed(keys);
+    return { result: signature };
   };
 
   const encoded = (a: Account | undefined) =>
@@ -384,11 +474,14 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
           };
         }
         const [to, lamports] = params as [string, number];
+        const before = accounts.get(to)?.lamports ?? 0;
         account(to).lamports += lamports;
         const signature = bs58.encode(
           createHash("sha512").update(`airdrop:${to}:${Date.now()}`).digest()
         );
         const s = slot();
+        touch(to, { signature, slot: s });
+        changed([to]);
         landed.set(signature, {
           slot: s,
           blockTime: blockTime(),
@@ -402,13 +495,13 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
           },
           instructions: [],
           recentBlockhash: blockhash(s),
-          preBalances: [],
-          postBalances: [],
+          preBalances: [before],
+          postBalances: [before + lamports],
         });
         return { result: signature };
       }
       case "sendTransaction":
-        return { result: send(params[0] as string) };
+        return send(params[0] as string);
       case "getSignatureStatuses":
         return {
           result: {
@@ -429,11 +522,13 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
             }),
           },
         };
-      case "getSignaturesForAddress":
+      case "getSignaturesForAddress": {
+        const limit = (params[1] as { limit?: number } | undefined)?.limit;
         return {
           result: (touched.get(params[0] as string) ?? [])
             .slice()
             .reverse()
+            .slice(0, limit ?? 1000)
             .map((t) => ({
               signature: t.signature,
               slot: t.slot,
@@ -445,6 +540,7 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
               confirmationStatus: "finalized",
             })),
         };
+      }
       case "getTransaction": {
         const tx = landed.get(params[0] as string);
         if (!tx) {
@@ -501,8 +597,8 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
         };
       }
       default:
-        // eslint-disable-next-line unicorn/no-null -- a call the tutorial does not need
-        return { result: null };
+        unhandled.push(`RPC ${method}`);
+        return { error: { code: -32601, message: "Method not found" } };
     }
   };
 
@@ -537,8 +633,49 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
       };
       if (message.id === undefined || !message.method) return;
       if (message.method.endsWith("Unsubscribe")) {
+        watchers.delete((message.params ?? [])[0] as number);
         ws.send(
           JSON.stringify({ jsonrpc: "2.0", result: true, id: message.id })
+        );
+        return;
+      }
+      if (message.method === "accountSubscribe") {
+        const subscription = next++;
+        const address = (message.params ?? [])[0] as string;
+        ws.send(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            result: subscription,
+            id: message.id,
+          })
+        );
+        watchers.set(subscription, {
+          address,
+          notify: () =>
+            ws.send(
+              JSON.stringify({
+                jsonrpc: "2.0",
+                method: "accountNotification",
+                params: {
+                  subscription,
+                  result: {
+                    context: context(),
+                    value: encoded(accounts.get(address)),
+                  },
+                },
+              })
+            ),
+        });
+        return;
+      }
+      if (message.method !== "signatureSubscribe") {
+        unhandled.push(`websocket ${message.method}`);
+        ws.send(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: { code: -32601, message: "Method not found" },
+            id: message.id,
+          })
         );
         return;
       }
@@ -546,22 +683,25 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
       ws.send(
         JSON.stringify({ jsonrpc: "2.0", result: subscription, id: message.id })
       );
-      if (message.method === "signatureSubscribe") {
-        const signature = (message.params ?? [])[0] as string;
-        const tx = landed.get(signature);
-        if (!tx) return;
+      const signature = (message.params ?? [])[0] as string;
+      const notify = () =>
         ws.send(
           JSON.stringify({
             jsonrpc: "2.0",
             method: "signatureNotification",
             params: {
               subscription,
-              // eslint-disable-next-line unicorn/no-null -- it landed
-              result: { context: { slot: tx.slot }, value: { err: null } },
+              result: {
+                context: { slot: landed.get(signature)?.slot ?? slot() },
+                // eslint-disable-next-line unicorn/no-null -- it landed
+                value: { err: null },
+              },
             },
           })
         );
-      }
+      if (landed.has(signature)) notify();
+      else
+        waiting.set(signature, (waiting.get(signature) ?? []).concat(notify));
     });
   });
 
@@ -580,11 +720,17 @@ const writeProgramDataHeader = (
 };
 
 /**
- * What Hello Anchor's `hello` logs: "Hello, World!" with no argument, and
- * "Hello, <name>!" once step 4 gives it a borsh string
+ * What the deployed `hello` logs: "Hello, World!" for step 2's program, and
+ * "Hello, <name>!" from its borsh string argument for step 4's
  */
-const helloLog = (args: Buffer): string => {
-  if (args.length < 4) return "Hello, World!";
-  const length = args.readUInt32LE(0);
-  return `Hello, ${args.subarray(4, 4 + length).toString("utf8")}!`;
+const helloLog = (
+  code: number | undefined,
+  args: Buffer
+): string | undefined => {
+  if (code === HELLO_WORLD) return "Hello, World!";
+  if (code === HELLO_NAME && args.length >= 4) {
+    const length = args.readUInt32LE(0);
+    return `Hello, ${args.subarray(4, 4 + length).toString("utf8")}!`;
+  }
+  return undefined;
 };

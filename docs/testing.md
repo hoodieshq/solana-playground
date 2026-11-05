@@ -1217,8 +1217,8 @@ Expect: the same answers as locally, and `429` once a loop passes the `/api/agen
 CI walks Hello Anchor from the intro card to the finish card in
 [tutorial-hello-anchor.e2e.spec.ts](../client-v2/e2e/tutorial-hello-anchor.e2e.spec.ts), with the build server and
 devnet answered in the test ([fake-build-server.ts](../client-v2/e2e/fake-build-server.ts),
-[fake-devnet.ts](../client-v2/e2e/fake-devnet.ts)). The fakes take what the app sends as it is: T-1 is the same walk
-against the real ones, which only a real network shows (the server's logs, devnet's answers and its faucet).
+[fake-devnet.ts](../client-v2/e2e/fake-devnet.ts)). The fakes check no signature and model only what Hello Anchor
+sends: T-1 is the same walk against the real ones, which only a real network shows (the server's logs, devnet's answers and its faucet).
 
 ### T-1. Hello Anchor on the build server and devnet
 

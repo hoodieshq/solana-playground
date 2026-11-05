@@ -7,6 +7,7 @@ import type {
   TutorialDefinition,
 } from "../src/entities/tutorial";
 import hello from "../src/tutorials/hello-anchor/tutorial.json";
+import type { FakeBuildServer } from "./fake-build-server";
 import { fakeBuildServer } from "./fake-build-server";
 import type { FakeDevnet } from "./fake-devnet";
 import { fakeDevnet } from "./fake-devnet";
@@ -18,7 +19,8 @@ import { expect, LONG, test } from "./fixtures";
  * `fake-devnet.ts`): the scenarios of `tutorial-conversation` and
  * `tutorial-runs` in `tutorial-flow-v2` that need a whole run. The copy is
  * read from the definition, so tuning the lesson's words breaks nothing here;
- * the cards' own strings are the spec's.
+ * the cards' own strings are the spec's. Every test ends with both fakes'
+ * `unhandled` empty: a request they do not model fails the test that made it.
  *
  * `E2E_LIVE=1` runs the first test on the real build server and devnet
  * instead (`docs/testing.md`, T-1) and skips the rest, which steer the fakes.
@@ -71,9 +73,12 @@ const act = (page: Page, id: string) => {
 /** The step's win card has landed: its headline is in the feed */
 const won = async (page: Page, id: string) => {
   await expect(
-    feed(page).getByText(words(step(id).win.headline), { exact: false })
+    feed(page)
+      .getByText(words(step(id).win.headline), { exact: false })
+      .first()
   ).toBeVisible(LONG);
 };
+/** The live Next, "Next: <the next step's title>" */
 const next = (page: Page) =>
   feed(page).getByRole("button", { name: /^Next/ }).last();
 
@@ -108,6 +113,7 @@ const passStepTwo = async (page: Page) => {
 
 test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () => {
   let devnet: FakeDevnet;
+  let builds: FakeBuildServer;
 
   test.beforeEach(async ({ page }) => {
     // No default backend, whatever the dev server is configured with
@@ -116,8 +122,14 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
       route.fulfill({ json: { configured: false, model: null } })
     );
     if (live) return;
-    await fakeBuildServer(page);
+    builds = await fakeBuildServer(page);
     devnet = await fakeDevnet(page);
+  });
+
+  test.afterEach(() => {
+    if (live) return;
+    expect(builds.unhandled).toEqual([]);
+    expect(devnet.unhandled).toEqual([]);
   });
 
   test("from the intro to the finish, with a reload in step 3", async ({
@@ -145,11 +157,23 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     if (!live) expect(devnet.programs()).toEqual([programId]);
     await next(page).click();
 
-    // Step 3 creates client.ts, then asks; a reload opens on that question
+    // Step 3 creates client.ts, then asks; a wrong pick, then a reload, which
+    // opens on that question with the pick still ruled out and step 2's win
+    // still in the feed
     const q3 = beat("s3.q3", "ask");
-    await expect(option(q3, q3.answer)(page)).toBeVisible(LONG);
+    const wrong = q3.why.findIndex((why) => why !== null);
+    await option(q3, wrong)(page).click(LONG);
+    await expect(option(q3, wrong)(page)).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
     await page.reload();
     await expect(option(q3, q3.answer)(page)).toBeVisible(LONG);
+    await expect(option(q3, wrong)(page)).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+    await won(page, "deploy");
     await expect(
       feed(page).getByRole("button", { name: /Start step 1/ })
     ).toHaveCount(0);
@@ -177,14 +201,19 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     ).toBeVisible();
     if (!live) expect(devnet.programs()).toEqual([programId]);
     await feed(page).getByRole("textbox", { name: "name" }).fill("Alex");
-    await act(page, "s4.call").click();
+    await act(page, "s4.call").click(LONG);
     await won(page, "greet-by-name");
-    await expect(next(page)).toHaveCount(0);
 
-    // The finish card, with the last call's receipt
+    // The finish card, with the last call's receipt, and no step's Next after
+    // it (the card's own "Next: <tutorial>" points past the lesson)
     await expect(
       feed(page).getByText(words(lesson.finish.headline), { exact: false })
     ).toBeVisible(LONG);
+    for (const { title } of lesson.steps) {
+      await expect(
+        feed(page).getByRole("button", { name: `Next: ${title}`, exact: true })
+      ).toHaveCount(0);
+    }
     await feed(page).getByText("Transaction details").click();
     await expect(
       feed(page).getByText("Program log: Hello, Alex!").last()
@@ -200,7 +229,14 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     const wrong = q1.why.findIndex((why) => why !== null);
     await start(page);
     await option(q1, wrong)(page).click(LONG);
-    // The row is ruled out with the definition's reason under it
+    // The row is ruled out with the definition's reason under it, and the
+    // build waits for the right pick
+    await expect(
+      feed(page).getByRole("button", {
+        name: beat("s1.build", "act").button,
+        exact: true,
+      })
+    ).toHaveCount(0);
     const ruled = option(q1, wrong)(page);
     await expect(ruled).toHaveAttribute("aria-disabled", "true");
     await expect(ruled.getByText("Not quite.", { exact: true })).toBeVisible();
@@ -269,9 +305,15 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     expect(devnet.programs()).toHaveLength(1);
   });
 
-  // HOO-2358 (#357) brings the Call panel into scope/tutorial-flow
-  test.fixme(
-    "tutorial-runs: Passing step 3 from the Call panel",
-    async () => {}
-  );
+  // HOO-2358 (#357) brings the Call panel into scope/tutorial-flow; the
+  // body is the scenario, to be written against the panel once it lands
+  test.fixme("tutorial-runs: Passing step 3 from the Call panel", async () => {
+    // 1. Pass steps 1 and 2 (passStepOne, passStepTwo) and press Next.
+    // 2. With q3 still open, call `hello` from the Call panel.
+    // 3. The panel shows the result; step 3's win follows in the feed with
+    //    the definition's Call line and "Write it in client.ts".
+    // 4. After Next, q3's record reads "· skipped, called from the Call
+    //    panel".
+    throw new Error("the Call panel scenario is not written yet");
+  });
 });
