@@ -1,7 +1,7 @@
 /**
- * The darks the voxel banner shades its cubes with. No token describes them:
- * they lean cool and violet so shadows on the brand hues never go grey, and
- * they are the same on every theme. The hues themselves come from the brand
+ * The darks of the voxel banner. No token describes them: the face shades
+ * lean cool and violet so shadows on the brand hues never go grey, and all
+ * four are the same on every theme. The hues themselves come from the brand
  * tokens (`--brand-purple`, `--brand-violet`, `--brand-green`).
  */
 export const VOXEL_SHADES = {

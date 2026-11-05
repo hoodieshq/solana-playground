@@ -1,7 +1,7 @@
 /* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import { type CSSProperties, useEffect, useRef } from "react";
 
-import { resolveColor } from "@/shared/lib/css-color";
+import { resolveColor, TRANSPARENT } from "@/shared/lib/css-color";
 import { createLogger } from "@/shared/lib/logger";
 import { cn } from "@/shared/lib/utils";
 
@@ -24,7 +24,9 @@ const BRAND = {
   paper: "var(--brand-paper)",
 } as const;
 
-/* The words own the left of the banner: the art fades out before it. In the corner it fades out
+/* Masks read only alpha, so they are written in `black` and `color-mix`, not
+   colour literals (`yarn check-colors`).
+   The words own the left of the banner: the art fades out before it. In the corner it fades out
    down and to the left, towards the words under it, so they read over its faint end */
 const SIDE_MASK: CSSProperties = {
   WebkitMaskImage: "linear-gradient(90deg, transparent 42%, black 54%)",
@@ -112,7 +114,7 @@ const toSrgb = (c: number) =>
   c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055;
 
 const toLab = (hex: string): Lab => {
-  const n = parseInt(hex.slice(1), 16);
+  const n = parseInt(hex.slice(1, 7), 16);
   const r = toLinear(((n >> 16) & 255) / 255);
   const g = toLinear(((n >> 8) & 255) / 255);
   const b = toLinear((n & 255) / 255);
@@ -139,7 +141,7 @@ const pixel = ([L, A, B]: Lab) => {
 };
 
 /** A packed pixel back to `#rrggbb` for a canvas `fillStyle` */
-const toHex = (c: number) =>
+const pixelToHex = (c: number) =>
   `#${[c & 255, (c >> 8) & 255, (c >> 16) & 255]
     .map((v) => v.toString(16).padStart(2, "0"))
     .join("")}`;
@@ -160,14 +162,25 @@ type Palette = {
   ink: Lab;
 };
 
-/** Read once, on the first paint: the brand tokens are the same on every theme */
+/** A brand token as hex; throws when it does not resolve, rather than shade the cubes black */
+const brandHex = (token: string) => {
+  const hex = resolveColor(token);
+  if (hex === TRANSPARENT) throw new Error(`${token} did not resolve`);
+  return hex;
+};
+
+/**
+ * Read once, on the first paint: the brand tokens are the same on every
+ * theme. A token that does not resolve throws and caches nothing, so the
+ * banner draws no sculpture and the next mount tries again
+ */
 let palette: Palette | null = null;
 const getPalette = (): Palette =>
   (palette ??= {
-    purple: toLab(resolveColor(BRAND.purple)),
-    violet: toLab(resolveColor(BRAND.violet)),
-    green: toLab(resolveColor(BRAND.green)),
-    white: toLab(resolveColor(BRAND.paper)),
+    purple: toLab(brandHex(BRAND.purple)),
+    violet: toLab(brandHex(BRAND.violet)),
+    green: toLab(brandHex(BRAND.green)),
+    white: toLab(brandHex(BRAND.paper)),
     shadeMid: toLab(VOXEL_SHADES.mid),
     shadeDeep: toLab(VOXEL_SHADES.deep),
     ink: toLab(VOXEL_SHADES.ink),
@@ -508,7 +521,7 @@ const paintFloor = (
           rhombus(ty, tinyScale, i, 1.6, 0, step * 0.8);
       }
       const c = pixel(gradient(Math.min(1, k / (TONES - 1))));
-      ty.fillStyle = toHex(c);
+      ty.fillStyle = pixelToHex(c);
       ty.fill();
     }
     pg.imageSmoothingEnabled = true;
@@ -651,10 +664,12 @@ export function IsoVoxels({
     const root = rootRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    // Decorative: where the canvas cannot be read (blocked, or no Path2D) the
-    // banner keeps its words and draws no sculpture
+    // Decorative: where the canvas cannot be read (blocked, or no Path2D) or
+    // a brand token does not resolve, the banner keeps its words and draws no
+    // sculpture
     const mark = (() => {
       try {
+        getPalette();
         return buildMark();
       } catch (e) {
         log.warn("the voxel mark could not be drawn", {
