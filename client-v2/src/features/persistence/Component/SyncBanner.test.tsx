@@ -160,6 +160,15 @@ describe("SyncBanner wording", () => {
     expect(actions.parentElement?.getAttribute("data-slot")).toBe("callout");
   });
 
+  it("offers no Resolve… on a conflict that names no files", async () => {
+    await messageFor([]);
+    expect(
+      [
+        ...container.querySelectorAll('[data-slot="callout-actions"] button'),
+      ].map((b) => b.textContent)
+    ).toEqual(["Keep this version", "Take the other version"]);
+  });
+
   it("names only the files still in conflict as changed in the same place", async () => {
     expect(await messageFor([open("src/lib.rs"), open("Cargo.toml")])).toBe(
       "src/lib.rs and 1 other file changed on another device and on this one, in the same place. Everything else was merged."

@@ -510,6 +510,20 @@ describe("Thread, a refused key", () => {
     ).toHaveLength(1);
   });
 
+  it("drops Change key once the thread moved to another key's backend", () => {
+    act(() =>
+      PgAssistant.connect({
+        id: "anthropic",
+        model: "claude-x",
+        apiKey: "sk-test",
+      } as Parameters<typeof PgAssistant.connect>[0])
+    );
+    refuse();
+    render(<Thread turn={withOpener(vi.fn())} project="Counter" />);
+
+    expect(screen.queryByRole("button", { name: "Change key" })).toBeNull();
+  });
+
   it("keeps Change key while the refused backend is still connected", () => {
     act(() =>
       PgAssistant.connect({

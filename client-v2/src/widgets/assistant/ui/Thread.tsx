@@ -139,8 +139,10 @@ export const Thread = ({
     lastWord?.kind === "error"
       ? backendParamsFrom(lastWord.recover)
       : undefined;
-  // Moved to another backend, the refusal is answered too. Nothing connected is
-  // not a move: the key lives in memory, so a reload ends there, still refused
+  // The refusal, whether or not it still wants an answer. Moving to another
+  // backend answers it, which is what stops a second press counting a second
+  // pick. Nothing connected is not a move: the key lives in memory, so a reload
+  // ends there, still refused
   const connected = PgAssistant.connection;
   const recoverable =
     refused && (!connected || connected.id === refused.provider);

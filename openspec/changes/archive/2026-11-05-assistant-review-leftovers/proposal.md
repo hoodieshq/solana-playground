@@ -17,7 +17,8 @@ instead of the answer it expects.
   signed-out **Use hosted model**; `"key-rejected"` now means **Change key**
   only. No event is added, renamed or removed. `assistant_model_picked` is
   unchanged.
-- The scenario "A 401 offers Enter key" and two code comments say Change key.
+- The scenario "A 401 offers Enter key" is renamed for Change key, and two code
+  comments are corrected.
 - `CalloutAction` keeps one look when lent to an `AsyncButton`: no edge, no
   press nudge, and the callout's tone on hover in both themes. The design
   system's `callout` changes, installed with `yarn ds-add callout`.
