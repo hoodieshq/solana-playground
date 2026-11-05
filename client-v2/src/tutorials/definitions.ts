@@ -51,6 +51,20 @@ export const definitionTutorials = (others: TutorialData[]): TutorialData[] => {
   }));
 };
 
+/**
+ * Every tutorial the page lists: the conversation ones first, then `others`
+ * without any a definition replaces. A definition named like an upstream
+ * tutorial (Zero Copy, Markdown in `client/public`) is the one card of that
+ * slug; listing both showed the tutorial twice.
+ */
+export const listTutorials = (others: TutorialData[]): TutorialData[] => {
+  const conversation = definitionTutorials(others);
+  const replaced = new Set(conversation.map((t) => slugOf(t.name)));
+  return conversation.concat(
+    others.filter((t) => !replaced.has(slugOf(t.name)))
+  );
+};
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -106,8 +120,35 @@ if (import.meta.vitest) {
 
     it("leaves out a definition whose next names no listed tutorial", () => {
       // Without Counter PDA Tutorial among the others, Hello Anchor's next
-      // names nothing
-      expect(definitionTutorials([]).map((t) => t.name)).toEqual([]);
+      // names nothing; Zero Copy's next is null, so it stays
+      expect(definitionTutorials([]).map((t) => t.name)).toEqual(["Zero Copy"]);
+    });
+
+    it("lists Zero Copy under Advanced, in four steps", () => {
+      const zero = definitionTutorials([counterPda]).find(
+        (t) => t.name === "Zero Copy"
+      );
+      expect(zero?.level).toBe("Advanced");
+      expect(zero?.definition?.steps.map((s) => s.id)).toEqual([
+        "create",
+        "deploy",
+        "grow",
+        "zero-copy",
+      ]);
+    });
+
+    it("lists one card per slug: a definition replaces the tutorial of its name", () => {
+      const markdownZeroCopy = { name: "Zero Copy" } as TutorialData;
+      const names = listTutorials([counterPda, markdownZeroCopy]).map(
+        (t) => t.name
+      );
+      expect(names.filter((n) => n === "Zero Copy")).toHaveLength(1);
+      expect(names).toContain("Counter PDA Tutorial");
+      expect(
+        listTutorials([counterPda, markdownZeroCopy]).find(
+          (t) => t.name === "Zero Copy"
+        )?.definition
+      ).toBeDefined();
     });
   });
 }
