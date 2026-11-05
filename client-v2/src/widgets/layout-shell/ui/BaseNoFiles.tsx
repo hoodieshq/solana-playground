@@ -27,7 +27,9 @@ export interface BaseNoFilesProps {
 const BaseNoFiles = ({ onAddFile, onStartProject }: BaseNoFilesProps) => (
   // Spaced by group: the icon 12 px over the title, the title and its line
   // a tight pair (4 px), the actions set off from them (24 px)
-  <Empty className="h-full gap-6">
+  // Below 768 px the actions pin to the foot, full width, the primary
+  // nearest the thumb, as StageEmpty's do (Spec 08, EMPTY-13)
+  <Empty className="relative h-full gap-6">
     <EmptyHeader className="gap-1">
       <EmptyMedia variant="icon" className="mb-2">
         <FilePlus aria-hidden />
@@ -44,7 +46,7 @@ const BaseNoFiles = ({ onAddFile, onStartProject }: BaseNoFilesProps) => (
         Add a file to start, or start from a template.
       </EmptyDescription>
     </EmptyHeader>
-    <EmptyContent className="flex-row flex-wrap justify-center">
+    <EmptyContent className="flex-row flex-wrap justify-center max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:max-w-none max-md:flex-col-reverse max-md:flex-nowrap max-md:items-stretch max-md:gap-3 max-md:px-4 max-md:pb-4">
       {/* A finger's 44 on a phone, as No file open's button is */}
       <AsyncButton
         className="pointer-coarse:h-11 pointer-coarse:px-5"

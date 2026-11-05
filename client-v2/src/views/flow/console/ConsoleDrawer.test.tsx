@@ -43,7 +43,11 @@ vi.mock("../../../shared/lib/logger", () => ({
 // exist only in a booted app, and the drawer's imports pull it in. This
 // stubs only what the drawer calls: every other `Pg*` export is undefined.
 vi.mock("@/utils", () => ({
-  PgTerminal: { clear: vi.fn(), setConsoleOpen: vi.fn() },
+  PgTerminal: {
+    clear: vi.fn(),
+    setConsoleOpen: vi.fn(),
+    get: vi.fn(() => Promise.resolve({ getText: () => "" })),
+  },
   PgCommon: { getOS: vi.fn(() => "MacOS") },
   PgExplorer: {
     onDidSwitchWorkspace: vi.fn(() => ({ dispose: () => {} })),

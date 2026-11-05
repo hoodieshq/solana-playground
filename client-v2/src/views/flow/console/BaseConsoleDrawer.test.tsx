@@ -25,6 +25,7 @@ const draw = (
       onClear={handlers.onClear ?? vi.fn()}
       stop={handlers.stop ?? null}
       shortcut="⌘J"
+      log=""
     >
       <div className="xterm" />
     </BaseConsoleDrawer>
@@ -120,6 +121,7 @@ it("shows the status text with a dot of its tone", () => {
       onClear={vi.fn()}
       stop={null}
       shortcut="⌘J"
+      log=""
     />
   );
   expect(screen.getByText("build failed")).toBeTruthy();

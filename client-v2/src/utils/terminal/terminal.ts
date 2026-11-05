@@ -508,6 +508,19 @@ export class PgTerm {
     this._xterm.scrollToBottom();
   }
 
+  /** The whole buffer as plain text, wrapped lines joined: the log's Copy */
+  getText() {
+    const buffer = this._xterm.buffer.active;
+    let text = "";
+    for (let i = 0; i < buffer.length; i++) {
+      const line = buffer.getLine(i);
+      if (!line) continue;
+      text +=
+        (line.isWrapped || i === 0 ? "" : "\n") + line.translateToString(true);
+    }
+    return text.trimEnd();
+  }
+
   /** Destroy the current xterm instance. */
   destroy() {
     this._xterm.dispose();
