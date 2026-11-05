@@ -47,7 +47,7 @@ New project dialog's Tutorials list SHALL use the same card, with the "<level> Â
 
 - **WHEN** a user opens Tutorials
 - **THEN** Hello Anchor's card shows "Anchor" over its name, and "by acheron"
-  nowhere on it
+  nowhere on it (manual: the look)
 
 #### Scenario: A card on a phone
 
