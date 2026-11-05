@@ -117,6 +117,31 @@ test.describe("client-v2-idl", () => {
 });
 
 test.describe("client-v2-interact", () => {
+  test("client-v2-interact: Arriving on the stage", async ({
+    seededPage: page,
+  }) => {
+    const panel = await buildThenInteract(page, IDL_V1);
+
+    for (const name of [/^initialize/, /^incrementBy/]) {
+      await expect(panel.getByRole("button", { name })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+        LONG
+      );
+    }
+    await expect(panel.getByRole("button", { name: "Test" })).toHaveCount(0);
+  });
+
+  test("client-v2-interact: Two cards open", async ({ seededPage: page }) => {
+    const panel = await buildThenInteract(page, IDL_V1);
+
+    const initialize = panel.getByRole("button", { name: /^initialize/ });
+    await initialize.click(LONG);
+    await panel.getByRole("button", { name: /^incrementBy/ }).click();
+    await expect(initialize).toHaveAttribute("aria-expanded", "true");
+    await expect(panel.getByRole("button", { name: "Test" })).toHaveCount(2);
+  });
+
   test("client-v2-interact: A 1.x IDL with a custom discriminator", async ({
     seededPage: page,
   }) => {
