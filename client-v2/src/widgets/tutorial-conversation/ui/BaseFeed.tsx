@@ -228,7 +228,8 @@ const BaseFeed = ({
           role="log"
           aria-live="polite"
           aria-label="Tutorial"
-          className="flex flex-col px-5 pt-[22px] pb-4"
+          // The foot clears the back pill floating over it (`BaseBackPill`)
+          className="flex flex-col px-5 pt-[22px] pb-14"
         >
           {entries.map((entry, index) => {
             const marginTop = gapBefore(

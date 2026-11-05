@@ -2,7 +2,7 @@
 import type { Page } from "@playwright/test";
 
 import { requireFor } from "../src/test-utils/require-for";
-import { expect, LONG, test } from "./fixtures";
+import { expect, json, LONG, streamed, stubSession, test } from "./fixtures";
 
 const chat = (page: Page) =>
   page.getByRole("complementary", { name: "Tutorial chat" });
@@ -154,6 +154,64 @@ test("the folded composer is 46 px below md with a fine pointer", async ({
     .poll(async () => (await composer.boundingBox())?.height, LONG)
     .toBe(46);
   await expect(composer.locator("textarea")).toHaveCSS("font-size", "15px");
+});
+
+// An answer longer than the feed puts the live card off screen, so the pill
+// floats over the feed's foot while it is scrolled to its end
+test("the back pill leaves the feed's last line clear at its end", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await stubSession(page);
+  const answer = Array.from(
+    { length: 30 },
+    (_, i) => `Paragraph ${i + 1} of a long answer.`
+  ).join("\n\n");
+  await page.route("**/api/agent", (route) =>
+    route.request().method() === "GET"
+      ? json(route, { configured: true, model: "test-model" })
+      : route.fulfill({
+          status: 200,
+          contentType: "text/event-stream",
+          body: streamed(answer),
+        })
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/tutorials/hello-anchor");
+  await feed(page)
+    .getByRole("button", { name: /Start step 1/ })
+    .click(LONG);
+  await expect(
+    feed(page).getByRole("button", { name: "Hint", exact: true })
+  ).toBeVisible(LONG);
+
+  const composer = chat(page).getByRole("textbox");
+  await composer.fill("tell me more");
+  await composer.press("Enter");
+  // With no model picked yet, the question opens Connect a model first
+  const dialog = page.getByRole("dialog", { name: "Connect a model" });
+  const last = feed(page).getByText("Paragraph 30 of a long answer.");
+  await expect(dialog.or(last)).toBeVisible(LONG);
+  if (await dialog.isVisible()) {
+    await dialog.getByRole("button", { name: "Start", exact: true }).click();
+    await expect(dialog).toBeHidden(LONG);
+    await composer.press("Enter");
+  }
+
+  await expect(last).toBeVisible(LONG);
+  await feed(page).evaluate((log) => {
+    const box = log.parentElement;
+    box?.scrollTo(0, box.scrollHeight);
+  });
+  const pill = chat(page).getByRole("button", { name: "Back to step 1" });
+  await expect(pill).toBeVisible();
+  await expect
+    .poll(async () => {
+      const line = await last.boundingBox();
+      const over = await pill.boundingBox();
+      return line && over ? over.y - (line.y + line.height) : undefined;
+    })
+    .toBeGreaterThanOrEqual(8);
 });
 
 test.describe("on a coarse pointer", () => {
