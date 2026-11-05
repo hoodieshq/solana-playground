@@ -178,8 +178,8 @@ for; tasks with "after nothing" start at once.
 - [ ] 6.5 e2e for the flow: Hello Anchor from intro to finish on desktop
       and at 390 px with the build server and devnet as an `env` case; the
       wrong pick, planned failure and Call panel paths. Verify: the specs run green
-      in CI's e2e job (HOO-2364; Natalia; M 1.5; after 3.5, 4.1, 4.2,
-      4.4, 5.1, 6.2)
+      in CI's e2e job (HOO-2364 desktop, fleet; HOO-2510 phone; M 1.5; after 3.5, 4.1, 4.2,
+      4.4, 5.1, 6.2; plan: [plans/6.5-e2e-desktop.md](plans/6.5-e2e-desktop.md))
 
 ## 7. Cleanup
 

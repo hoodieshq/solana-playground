@@ -1,0 +1,277 @@
+import type { Page } from "@playwright/test";
+
+import type {
+  Ask,
+  Beat,
+  Text,
+  TutorialDefinition,
+} from "../src/entities/tutorial";
+import hello from "../src/tutorials/hello-anchor/tutorial.json";
+import { fakeBuildServer } from "./fake-build-server";
+import type { FakeDevnet } from "./fake-devnet";
+import { fakeDevnet } from "./fake-devnet";
+import { expect, LONG, test } from "./fixtures";
+
+/**
+ * Hello Anchor from the intro card to the finish card on the desktop, with
+ * the build server and devnet answered in the test (`fake-build-server.ts`,
+ * `fake-devnet.ts`): the scenarios of `tutorial-conversation` and
+ * `tutorial-runs` in `tutorial-flow-v2` that need a whole run. The copy is
+ * read from the definition, so tuning the lesson's words breaks nothing here;
+ * the cards' own strings are the spec's.
+ *
+ * `E2E_LIVE=1` runs the first test on the real build server and devnet
+ * instead (`docs/testing.md`, T-1) and skips the rest, which steer the fakes.
+ */
+const live = Boolean(process.env.E2E_LIVE);
+
+/** The lesson as the app reads it */
+const lesson = hello as unknown as TutorialDefinition;
+
+const beat = <K extends Beat["kind"]>(id: string, kind: K) => {
+  const all = lesson.steps.flatMap((s) => s.beats.concat(s.onFail ?? []));
+  const found = all.find((b) => b.id === id);
+  if (!found || found.kind !== kind)
+    throw new Error(`Hello Anchor has no ${kind} beat "${id}"`);
+  return found as Extract<Beat, { kind: K }>;
+};
+const step = (id: string) => {
+  const found = lesson.steps.find((s) => s.id === id);
+  if (!found) throw new Error(`Hello Anchor has no step "${id}"`);
+  return found;
+};
+/** A text's desktop words */
+const words = (text: Text) => (typeof text === "string" ? text : text.text);
+
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const chat = (page: Page) =>
+  page.getByRole("complementary", { name: "Tutorial chat" });
+const feed = (page: Page) => chat(page).getByRole("log");
+
+/** Markdown's inline code as the page reads it: the words, no backticks */
+const plain = (text: string) => text.replace(/`/g, "");
+
+/** The option `index` of a question, as its button */
+const option = (ask: Ask, index: number) => (page: Page) =>
+  feed(page).getByRole("button", {
+    name: new RegExp(`^${escape(plain(ask.options[index]))}`),
+  });
+/** Picks the right answer of `ask` once it is in the feed */
+const answer = async (page: Page, ask: Ask) => {
+  await option(ask, ask.answer)(page).click(LONG);
+};
+
+/** The live act card of `id`, and its button */
+const act = (page: Page, id: string) => {
+  const a = beat(id, "act");
+  return feed(page).getByRole("button", { name: a.button, exact: true }).last();
+};
+
+/** The step's win card has landed: its headline is in the feed */
+const won = async (page: Page, id: string) => {
+  await expect(
+    feed(page).getByText(words(step(id).win.headline), { exact: false })
+  ).toBeVisible(LONG);
+};
+const next = (page: Page) =>
+  feed(page).getByRole("button", { name: /^Next/ }).last();
+
+const start = async (page: Page) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/tutorials/hello-anchor");
+  await feed(page)
+    .getByRole("button", { name: /Start step 1/ })
+    .click(LONG);
+};
+
+/** Step 1 through the planned E0412, fixed by the learner's own pick */
+const passStepOne = async (page: Page) => {
+  await answer(page, beat("s1.q1", "ask"));
+  await act(page, "s1.build").click(LONG);
+  await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
+  await expect(feed(page).getByText("E0412 · line 9").last()).toBeVisible();
+  await feed(page).getByRole("button", { name: "I'll fix it myself" }).click();
+  await answer(page, beat("f1.q2", "ask"));
+  await act(page, "f1.build").click(LONG);
+  await won(page, "write-program");
+};
+
+/** Step 2: a deploy from a wallet made on the card, funded by the faucet */
+const passStepTwo = async (page: Page) => {
+  await answer(page, beat("s2.q2", "ask"));
+  await act(page, "s2.deploy").click(LONG);
+  const create = feed(page).getByRole("button", { name: "Create wallet" });
+  await create.click(LONG);
+  await won(page, "deploy");
+};
+
+test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () => {
+  let devnet: FakeDevnet;
+
+  test.beforeEach(async ({ page }) => {
+    // No default backend, whatever the dev server is configured with
+    await page.route("**/api/agent", (route) =>
+      // eslint-disable-next-line unicorn/no-null -- the endpoint's JSON says null
+      route.fulfill({ json: { configured: false, model: null } })
+    );
+    if (live) return;
+    await fakeBuildServer(page);
+    devnet = await fakeDevnet(page);
+  });
+
+  test("from the intro to the finish, with a reload in step 3", async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
+    await start(page);
+    await passStepOne(page);
+    await next(page).click();
+
+    await passStepTwo(page);
+    // The result's details link the program to Explorer on devnet
+    await feed(page)
+      .getByRole("button", { name: /^Deployed to devnet/ })
+      .click();
+    const program = feed(page)
+      .locator(
+        "a[href*='explorer.solana.com/address/'][href*='cluster=devnet']"
+      )
+      .first();
+    await expect(program).toBeVisible();
+    const programId = /address\/(\w+)/.exec(
+      (await program.getAttribute("href")) ?? ""
+    )?.[1];
+    if (!live) expect(devnet.programs()).toEqual([programId]);
+    await next(page).click();
+
+    // Step 3 creates client.ts, then asks; a reload opens on that question
+    const q3 = beat("s3.q3", "ask");
+    await expect(option(q3, q3.answer)(page)).toBeVisible(LONG);
+    await page.reload();
+    await expect(option(q3, q3.answer)(page)).toBeVisible(LONG);
+    await expect(
+      feed(page).getByRole("button", { name: /Start step 1/ })
+    ).toHaveCount(0);
+    await answer(page, q3);
+    await act(page, "s3.run").click(LONG);
+    await expect(feed(page).getByText("Confirmed").last()).toBeVisible(LONG);
+    await expect(
+      feed(page).getByText("Program log: Hello, World!").last()
+    ).toBeVisible();
+    await won(page, "call-client");
+    await next(page).click();
+
+    // Step 4: the new argument, an upgrade at the same address, the call
+    await answer(page, beat("s4.q4", "ask"));
+    await act(page, "s4.ship").click(LONG);
+    await expect(feed(page).getByText("Upgraded").last()).toBeVisible(LONG);
+    // The upgrade keeps the address
+    await feed(page)
+      .getByRole("button", { name: /^Upgraded/ })
+      .click();
+    await expect(
+      feed(page)
+        .locator(`a[href*='explorer.solana.com/address/${programId}']`)
+        .last()
+    ).toBeVisible();
+    if (!live) expect(devnet.programs()).toEqual([programId]);
+    await feed(page).getByRole("textbox", { name: "name" }).fill("Alex");
+    await act(page, "s4.call").click();
+    await won(page, "greet-by-name");
+    await expect(next(page)).toHaveCount(0);
+
+    // The finish card, with the last call's receipt
+    await expect(
+      feed(page).getByText(words(lesson.finish.headline), { exact: false })
+    ).toBeVisible(LONG);
+    await feed(page).getByText("Transaction details").click();
+    await expect(
+      feed(page).getByText("Program log: Hello, Alex!").last()
+    ).toBeVisible();
+  });
+
+  test("tutorial-conversation: A wrong pick, then the right one", async ({
+    page,
+  }) => {
+    test.skip(live, "steers the fakes");
+    test.setTimeout(120_000);
+    const q1 = beat("s1.q1", "ask");
+    const wrong = q1.why.findIndex((why) => why !== null);
+    await start(page);
+    await option(q1, wrong)(page).click(LONG);
+    // The row is ruled out with the definition's reason under it
+    const ruled = option(q1, wrong)(page);
+    await expect(ruled).toHaveAttribute("aria-disabled", "true");
+    await expect(ruled.getByText("Not quite.", { exact: true })).toBeVisible();
+    await expect(ruled).toHaveAccessibleDescription(
+      new RegExp(escape(plain(q1.why[wrong] ?? "").slice(0, 30)))
+    );
+    await answer(page, q1);
+    await expect(feed(page).getByText(/· 2nd try/)).toBeVisible(LONG);
+  });
+
+  test("tutorial-conversation: The planned E0412, explained", async ({
+    page,
+  }) => {
+    test.skip(live, "steers the fakes");
+    test.setTimeout(120_000);
+    await start(page);
+    await answer(page, beat("s1.q1", "ask"));
+    await act(page, "s1.build").click(LONG);
+    await expect(feed(page).getByText("E0412 · line 9").last()).toBeVisible(
+      LONG
+    );
+    // The definition's line on the card, then its explanation and question
+    await expect(
+      feed(page).getByText(words(step("write-program").planned ?? ""), {
+        exact: false,
+      })
+    ).toBeVisible();
+    await feed(page)
+      .getByRole("button", { name: /Explain the error/ })
+      .click();
+    const explain = beat("f1.explain", "say");
+    await expect(
+      feed(page).getByText(plain(words(explain.text)).slice(0, 40), {
+        exact: false,
+      })
+    ).toBeVisible(LONG);
+    const fix = beat("f1.q2", "ask");
+    await expect(
+      feed(page).getByRole("group", { name: plain(words(fix.question)) })
+    ).toBeVisible(LONG);
+  });
+
+  test("tutorial-runs: The faucet is at its limit", async ({ page }) => {
+    test.skip(live, "steers the fakes");
+    test.setTimeout(240_000);
+    await start(page);
+    await passStepOne(page);
+    await next(page).click();
+
+    devnet.faucet = "refuse";
+    await answer(page, beat("s2.q2", "ask"));
+    await act(page, "s2.deploy").click(LONG);
+    await feed(page).getByRole("button", { name: "Create wallet" }).click(LONG);
+    await expect(feed(page).getByText("Not enough devnet SOL")).toBeVisible(
+      LONG
+    );
+    await expect(
+      feed(page).getByRole("link", { name: /Open faucet/ })
+    ).toBeVisible();
+    expect(devnet.programs()).toEqual([]);
+
+    // Try again, under the red card, deploys once the faucet pays
+    devnet.faucet = "ok";
+    await feed(page).getByRole("button", { name: "Try again" }).last().click();
+    await won(page, "deploy");
+    expect(devnet.programs()).toHaveLength(1);
+  });
+
+  // HOO-2358 (#357) brings the Call panel into scope/tutorial-flow
+  test.fixme(
+    "tutorial-runs: Passing step 3 from the Call panel",
+    async () => {}
+  );
+});
