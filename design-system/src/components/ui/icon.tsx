@@ -1,6 +1,7 @@
 import * as React from "react"
 import {
   ArrowLeft,
+  ArrowRight,
   ArrowUpRight,
   Check,
   ChevronDown,
@@ -110,6 +111,7 @@ const ICONS = {
   show: Eye,
   // Direction
   back: ArrowLeft,
+  forward: ArrowRight,
   "chevron-left": ChevronLeft,
   "chevron-right": ChevronRight,
   "chevron-up": ChevronUp,

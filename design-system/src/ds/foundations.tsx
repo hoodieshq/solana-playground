@@ -224,7 +224,7 @@ const ICON_GROUPS: [string, IconName[]][] = [
       "airdrop", "pin", "unpin", "show",
     ],
   ],
-  ["Direction", ["back", "chevron-left", "chevron-right", "chevron-up", "chevron-down"]],
+  ["Direction", ["back", "forward", "chevron-left", "chevron-right", "chevron-up", "chevron-down"]],
   [
     "Places and things",
     [
