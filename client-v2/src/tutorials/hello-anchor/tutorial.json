@@ -11,10 +11,7 @@
   ],
   "level": "Beginner",
   "framework": "Anchor",
-  "languages": [
-    "Rust",
-    "TypeScript"
-  ],
+  "languages": ["Rust", "TypeScript"],
   "thumbnail": "/tutorials/hello-anchor/thumbnail.jpg",
   "minutes": 10,
   "intro": {
@@ -141,9 +138,7 @@
       ],
       "goal": {
         "kind": "build",
-        "instructions": [
-          "hello"
-        ]
+        "instructions": ["hello"]
       },
       "win": {
         "id": "s1.win",
@@ -356,18 +351,14 @@
           "button": "Call hello",
           "call": {
             "instruction": "hello",
-            "args": [
-              "name"
-            ]
+            "args": ["name"]
           }
         }
       ],
       "goal": {
         "kind": "call",
         "instruction": "hello",
-        "args": [
-          "name"
-        ],
+        "args": ["name"],
         "log": "Hello, .+!"
       },
       "win": {
