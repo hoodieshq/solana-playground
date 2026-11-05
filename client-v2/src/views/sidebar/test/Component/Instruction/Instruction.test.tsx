@@ -1,4 +1,7 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
+
+const network = vi.hoisted(() => ({ hold: undefined as string | undefined }));
+vi.mock("@/widgets/status", () => ({ useNetworkHold: () => network.hold }));
 
 // The utils and hooks barrels read build-time globals jsdom lacks, and the
 // inputs need a connected program; the folds under test need none of it.
@@ -59,6 +62,10 @@ it("names the arguments and the accounts as plain groups, not folds", () => {
   expect(screen.queryByRole("button", { name: "Args" })).toBeNull();
 });
 
+afterEach(() => {
+  network.hold = undefined;
+});
+
 it("says why Test waits while a field is empty", () => {
   draw();
   fireEvent.click(screen.getByRole("button", { name: /^increment/ }));
@@ -68,4 +75,16 @@ it("says why Test waits while a field is empty", () => {
     true
   );
   expect(screen.getByText("Fill every field to test")).toBeTruthy();
+});
+
+it("holds Test while the network is down, and says why first", () => {
+  network.hold = "Devnet is not responding";
+  draw();
+  fireEvent.click(screen.getByRole("button", { name: /^increment/ }));
+  expect(screen.getByRole("button", { name: "Test" })).toHaveProperty(
+    "disabled",
+    true
+  );
+  expect(screen.getByText("Devnet is not responding")).toBeTruthy();
+  expect(screen.queryByText("Fill every field to test")).toBeNull();
 });

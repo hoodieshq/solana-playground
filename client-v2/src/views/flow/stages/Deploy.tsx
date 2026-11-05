@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { requestConsole } from "@/widgets/layout-shell";
+import { useNetworkHold } from "@/widgets/status";
 
 import {
   useBlockExplorer,
@@ -50,6 +51,7 @@ const Deploy = () => {
   const explorer = useBlockExplorer();
   const programInfo = useProgramInfo();
   const deployState = useRenderOnChange(PgGlobal.onDidChangeDeployState);
+  const networkHold = useNetworkHold();
   useRenderOnChange(PgConnection.onDidChangeCluster);
 
   useEffect(() => {
@@ -80,6 +82,7 @@ const Deploy = () => {
     <BaseDeploy
       cluster={PgConnection.cluster}
       built={flow.build === "done"}
+      networkHold={networkHold}
       deploy={deployStatus(deployState, flow)}
       programId={programInfo.pk?.toBase58() ?? null}
       details={details}
