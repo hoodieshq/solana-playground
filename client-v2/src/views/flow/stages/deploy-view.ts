@@ -42,7 +42,7 @@ export interface DeployInputs {
 }
 
 /** The stage's one view, for the project and network open now (`here`) */
-export const deployView =
+export const deployViewFor =
   (here: DeployHere) =>
   ({ stage, deployState, flowDeploy }: DeployInputs): DeployView => {
     if (deployState === "loading" || stage.phase === "running") {
@@ -54,10 +54,10 @@ export const deployView =
     if (stage.phase === "stopped") {
       const { stop } = stage;
       if (stop.kind === "cancelled") return IDLE_VIEW;
-      const onThisProject =
+      const isOnThisProject =
         stop.cluster === here.cluster &&
         (stop.workspace ?? undefined) === here.workspace;
-      if (onThisProject) return { kind: "funding", stop: stop.detail };
+      if (isOnThisProject) return { kind: "funding", stop: stop.detail };
     }
     if (flowDeploy === "failed") return { kind: "failed" };
     return {
@@ -68,3 +68,178 @@ export const deployView =
         stage.backupFor === here.wallet,
     };
   };
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  const WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
+
+  /** The stage open on devnet, project "counter", the Playground wallet current */
+  const here = deployViewFor({
+    cluster: "devnet",
+    workspace: "counter",
+    wallet: WALLET,
+  });
+
+  const DETAIL = {
+    reason: "airdrop_failed",
+    balance: 0,
+    needed: 1_000_000_000,
+    address: WALLET,
+    cause: "429",
+  } as const;
+
+  const fundingStopOn = (
+    cluster: string,
+    workspace: string
+  ): StageDeployState => ({
+    phase: "stopped",
+    stop: { kind: "funding", detail: DETAIL, cluster, workspace },
+  });
+  const FUNDING_HERE = fundingStopOn("devnet", "counter");
+
+  const DONE_WITH_BACKUP: StageDeployState = {
+    phase: "done",
+    backupFor: WALLET,
+  };
+
+  describe("views/flow/stages/deploy-view", () => {
+    it("shows only the running deploy when the terminal deploys over a funding stop", () => {
+      expect(
+        here({
+          stage: FUNDING_HERE,
+          deployState: "loading",
+          flowDeploy: "failed",
+        })
+      ).toEqual({ kind: "running", askingStaleBuild: false });
+    });
+
+    it("shows only the running deploy when the terminal deploys after a backup line", () => {
+      expect(
+        here({
+          stage: DONE_WITH_BACKUP,
+          deployState: "loading",
+          flowDeploy: "done",
+        })
+      ).toEqual({ kind: "running", askingStaleBuild: false });
+    });
+
+    it("asks about the stale build only while the stage's own run waits on it", () => {
+      expect(
+        here({
+          stage: { phase: "running", askingStaleBuild: true },
+          deployState: "loading",
+          flowDeploy: "active",
+        })
+      ).toEqual({ kind: "running", askingStaleBuild: true });
+    });
+
+    it("shows the funding card for a stop on the project and network open now", () => {
+      expect(
+        here({
+          stage: FUNDING_HERE,
+          deployState: "ready",
+          flowDeploy: "failed",
+        })
+      ).toEqual({ kind: "funding", stop: DETAIL });
+    });
+
+    it("shows a failure, not the card, for a funding stop on another network", () => {
+      expect(
+        here({
+          stage: fundingStopOn("testnet", "counter"),
+          deployState: "ready",
+          flowDeploy: "failed",
+        })
+      ).toEqual({ kind: "failed" });
+    });
+
+    it("shows no card for a funding stop in another project", () => {
+      expect(
+        here({
+          stage: fundingStopOn("devnet", "other"),
+          deployState: "ready",
+          flowDeploy: "active",
+        })
+      ).toEqual(IDLE_VIEW);
+    });
+
+    it("shows a failure for a funding stop in another project after a failed deploy", () => {
+      expect(
+        here({
+          stage: fundingStopOn("devnet", "other"),
+          deployState: "ready",
+          flowDeploy: "failed",
+        })
+      ).toEqual({ kind: "failed" });
+    });
+
+    it("drops the backup line once the last deploy failed", () => {
+      expect(
+        here({
+          stage: DONE_WITH_BACKUP,
+          deployState: "ready",
+          flowDeploy: "failed",
+        })
+      ).toEqual({ kind: "failed" });
+    });
+
+    it("keeps the stage's own run running while the global state lags", () => {
+      expect(
+        here({
+          stage: { phase: "running", askingStaleBuild: true },
+          deployState: "ready",
+          flowDeploy: "active",
+        })
+      ).toEqual({ kind: "running", askingStaleBuild: true });
+    });
+
+    it("matches a funding stop with no project open to a stage with none", () => {
+      expect(
+        deployViewFor({
+          cluster: "devnet",
+          workspace: undefined,
+          wallet: WALLET,
+        })({
+          stage: {
+            phase: "stopped",
+            stop: {
+              kind: "funding",
+              detail: DETAIL,
+              cluster: "devnet",
+              workspace: undefined,
+            },
+          },
+          deployState: "ready",
+          flowDeploy: "failed",
+        })
+      ).toEqual({ kind: "funding", stop: DETAIL });
+    });
+
+    it("treats a cancelled run as no failure", () => {
+      expect(
+        here({
+          stage: { phase: "stopped", stop: { kind: "cancelled" } },
+          deployState: "ready",
+          flowDeploy: "failed",
+        })
+      ).toEqual(IDLE_VIEW);
+    });
+
+    it("offers the backup line for the wallet it was shown for, after a deploy", () => {
+      const run = {
+        stage: DONE_WITH_BACKUP,
+        deployState: "ready",
+        flowDeploy: "done",
+      } as const;
+      expect(here(run)).toEqual({ kind: "idle", backup: true });
+      expect(
+        deployViewFor({
+          cluster: "devnet",
+          workspace: "counter",
+          wallet: "another wallet",
+        })(run)
+      ).toEqual(IDLE_VIEW);
+    });
+  });
+}

@@ -73,7 +73,7 @@ export interface BaseDeployProps {
    */
   built: boolean;
   /**
-   * What the stage shows, one at a time (`deployView`). While a deploy runs,
+   * What the stage shows, one at a time (`deployViewFor`). While a deploy runs,
    * a second press would pause it, so the button is held.
    */
   view: DeployView;

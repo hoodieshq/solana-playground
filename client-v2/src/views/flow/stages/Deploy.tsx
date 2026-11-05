@@ -31,7 +31,7 @@ import type { FlowState } from "../state/stage";
 import { PgFlow } from "../state/stage";
 import type { DeployDetails, DeployPayer } from "./BaseDeploy";
 import BaseDeploy from "./BaseDeploy";
-import { deployView } from "./deploy-view";
+import { deployViewFor } from "./deploy-view";
 import IdlActions, { useIdlName } from "./IdlActions";
 import { markIfToldByStage } from "./stage-failure";
 
@@ -156,7 +156,7 @@ const Deploy = ({ onChangeNetwork }: { onChangeNetwork: () => void }) => {
   // stage's phase stays where its last run left it; the view reads both, so
   // either run holds the button (a second press would pause it, a toggle
   // upstream's sidebar offers and Flow does not) and hides the last outcome
-  const view = deployView({
+  const view = deployViewFor({
     cluster: PgConnection.cluster,
     workspace: PgExplorer.currentWorkspaceName ?? undefined,
     wallet: wallet?.publicKey.toBase58(),
