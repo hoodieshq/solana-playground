@@ -22,19 +22,15 @@ const SCROLL_MS = 320;
 const JUMP_SETTLE_MS = 700;
 
 export interface BaseFeedProps {
-  turns: readonly Turn[];
   /** The one card that acts, or null after the finish */
   live: Turn | null;
   steps: readonly StepBarItem[];
   /** Draw one turn; `live` says whether it is the card that acts */
   renderTurn: (turn: Turn, live: boolean) => ReactNode;
-  /**
-   * The turns merged with the live assistant's exchanges, by time
-   * (`mergeFeed`); without it the feed shows the turns alone
-   */
-  entries?: readonly FeedEntry[];
+  /** The turns merged with the live assistant's exchanges, by time (`mergeFeed`) */
+  entries: readonly FeedEntry[];
   /** Draw one exchange with the assistant */
-  renderExchange?: (entry: Exclude<FeedEntry, { kind: "lesson" }>) => ReactNode;
+  renderExchange: (entry: Exclude<FeedEntry, { kind: "lesson" }>) => ReactNode;
   /** The feed moved to step `index`'s divider, from the live step `from` */
   onJump: (index: number, from: number, via: StepJumpVia) => void;
   /** The back pill took the learner to the live card; `step` is its index, null before Start */
@@ -50,9 +46,8 @@ const FOCUSABLE =
   "button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
 /**
- * The lesson as one feed: the step bar, then the turns (merged with the live
- * assistant's exchanges when `entries` is given) in a `role="log"`,
- * then the back pill while the live card is off screen or the feed is on
+ * The lesson as one feed: the step bar, then the turns merged with the live
+ * assistant's exchanges in a `role="log"`, then the back pill while the live card is off screen or the feed is on
  * another step. A step bar segment, an item of its menu or ⌥↑ / ⌥↓
  * (unless a field has focus) brings a step's heading to rest 22 px under the
  * feed's top and flashes it once; the lesson's progress is untouched. The step the feed is
@@ -60,7 +55,6 @@ const FOCUSABLE =
  * render whole.
  */
 const BaseFeed = ({
-  turns,
   live,
   steps,
   renderTurn,
@@ -69,8 +63,6 @@ const BaseFeed = ({
   onJump,
   onBack,
 }: BaseFeedProps) => {
-  const shown: readonly FeedEntry[] =
-    entries ?? turns.map((turn) => ({ kind: "lesson", turn }));
   const root = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const dividers = useRef(new Map<string, HTMLElement>());
@@ -169,7 +161,7 @@ const BaseFeed = ({
   // learner is reading another step
   const opened = useRef(false);
   // An answer arriving scrolls like a turn does
-  const count = shown.length;
+  const count = entries.length;
   useLayoutEffect(() => {
     const box = scroller.current;
     if (!box) return;
@@ -232,9 +224,9 @@ const BaseFeed = ({
           aria-label="Tutorial"
           className="flex flex-col px-5 pt-[22px] pb-4"
         >
-          {shown.map((entry, index) => {
+          {entries.map((entry, index) => {
             const marginTop = gapBefore(
-              index > 0 ? spacedOf(shown[index - 1]) : undefined,
+              index > 0 ? spacedOf(entries[index - 1]) : undefined,
               spacedOf(entry)
             );
             if (entry.kind !== "lesson") {
@@ -249,7 +241,7 @@ const BaseFeed = ({
                       : "rounded-control motion-safe:animate-rise motion-reduce:animate-fade"
                   }
                 >
-                  {renderExchange?.(entry)}
+                  {renderExchange(entry)}
                 </div>
               );
             }

@@ -38,7 +38,7 @@ for (const name of await fs.readdir(srcPath)) {
     const dir = pathModule.join(itemPath, item.base);
     if (!(await fs.stat(dir)).isDirectory()) return false;
     const names = await fs.readdir(dir);
-    if (names.some((name) => name.startsWith("index."))) return true;
+    if (names.some((file) => file.startsWith("index."))) return true;
     if (item.base.startsWith("_") || names.includes("tutorial.json")) {
       return false;
     }

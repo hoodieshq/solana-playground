@@ -28,7 +28,7 @@ const folders = (dir: string) =>
         .map((e) => e.name)
     : [];
 
-const holds = (dir: string, test: (name: string) => boolean) =>
+const holds = (dir: string, test: Parameters<string[]["some"]>[0]) =>
   fs.readdirSync(dir).some(test);
 
 /** Upstream's tutorials, copied into `public/` by `yarn generate` */

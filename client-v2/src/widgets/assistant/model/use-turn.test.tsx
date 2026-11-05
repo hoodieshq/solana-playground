@@ -199,6 +199,17 @@ describe("useTurn", () => {
     expect(turnEvents()).toEqual([]);
   });
 
+  it("sends nothing for a message of only whitespace", async () => {
+    defaultBackend(true);
+    const { result } = renderHook(() => useTestTurn());
+
+    expect(await act(() => result.current.send("  \n "))).toBe("empty");
+
+    expect(createProvider).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+    expect(PgAssistant.items.length).toBe(0);
+  });
+
   it("starts one turn for two sends in the same tick", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     provider.send.mockImplementation(untilAborted);

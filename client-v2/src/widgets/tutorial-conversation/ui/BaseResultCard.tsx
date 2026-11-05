@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
 
 import BaseTxResultCard from "./BaseTxResultCard";
+import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA } from "./card-action";
 import { formatSeconds, Prose, READ } from "./Prose";
 
 export interface BaseResultCardProps {
@@ -172,7 +173,10 @@ const BaseResultCard = ({
       {open && unreachable && (
         <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
           <p className={READ}>{UNREACHABLE}</p>
-          <Button className="w-fit" onClick={onRetry}>
+          <Button
+            className={cn(ACTION, ACTION_FILL, PHONE_CTA, "w-fit")}
+            onClick={onRetry}
+          >
             Try again
             <Kbd
               aria-hidden="true"
@@ -184,7 +188,7 @@ const BaseResultCard = ({
         </div>
       )}
       {expanded && failedBuild && !unreachable && (
-        <div className="@container flex flex-col gap-3 border-t border-error/20 px-3 py-3">
+        <div className="flex flex-col gap-3 border-t border-error/20 px-3 py-3">
           {/* The compiler's words on a red rule, a quote of its output with
               no well (the prototype's ResultCard, f7d42bf2e) */}
           {error && (
@@ -216,24 +220,22 @@ const BaseResultCard = ({
             </p>
           )}
           {open && (
-            // One width for both, side by side where the card has room for
-            // the wider one twice, as the prototype's (design audit, 3 Nov);
-            // stacked full width where it has not
-            <div className="grid gap-2 @min-[23rem]:w-fit @min-[23rem]:auto-cols-fr @min-[23rem]:grid-flow-col">
-              <Button onClick={onExplain}>
+            // One width for both, in one row from `md` up: in a narrow column
+            // they give up padding, not the row. Below `md`, Explain alone at
+            // the full width and 48 px. No key hint
+            // (Design alignment, 5 Nov), though ⌘↵ still presses Explain
+            <div className="grid gap-2 md:w-fit md:auto-cols-fr md:grid-flow-col">
+              <Button
+                className={cn(ACTION, ACTION_FILL, PHONE_CTA)}
+                onClick={onExplain}
+              >
                 Explain the error
-                <Kbd
-                  aria-hidden="true"
-                  className="bg-white/15 text-primary-foreground/80"
-                >
-                  ⌘↵
-                </Kbd>
               </Button>
               {/* A phone can't type the fix, so it isn't offered there:
                   Explain leads to the lines instead (the prototype's) */}
               <Button
                 variant="ghost"
-                className="max-md:hidden"
+                className={cn(ACTION, ACTION_SOFT, "max-md:hidden")}
                 onClick={onFixMyself}
               >
                 I&apos;ll fix it myself
