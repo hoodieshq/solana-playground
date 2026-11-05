@@ -67,8 +67,17 @@ export interface ApprovalAnswer {
  * question was still on screen. Kept apart from `denied` because the user
  * never said no, and history that puts words in their mouth is worse than
  * history that admits the turn was cut short.
+ *
+ * `failed` is a card the user allowed whose tool then did not do it: a write
+ * the explorer refused, a build or a deploy that failed. Kept apart from
+ * `allowed`, which the card shows as "Applied".
  */
-export type ApprovalStatus = "pending" | "allowed" | "denied" | "unanswered";
+export type ApprovalStatus =
+  | "pending"
+  | "allowed"
+  | "denied"
+  | "unanswered"
+  | "failed";
 
 /** What every rendered item carries, whatever its kind */
 interface ChatItemBase {
@@ -162,7 +171,8 @@ export const turnProducedApproval = (items: readonly ChatItem[]) => {
 /**
  * Whether the turn ending at the last item actually wrote something.
  *
- * Stricter than `turnProducedApproval`, which counts a card the user denied.
+ * Stricter than `turnProducedApproval`, which counts a card the user denied
+ * or whose tool failed.
  * An action offered on the strength of a rejected patch would point at code
  * that is not there.
  */
@@ -1012,6 +1022,20 @@ export class PgAssistant {
     }
   }
 
+  /**
+   * Record that an approved tool ran and did not do what the card proposed,
+   * with the reason, so the card says so whether or not the model relays it
+   */
+  static setApprovalFailure(id: string, outcome: string) {
+    const item = PgAssistant._items.find((i) => i.id === id);
+    if (item?.kind === "approval") {
+      item.status = "failed";
+      item.outcome = outcome;
+      stamp(item);
+      PgAssistant._emit();
+    }
+  }
+
   /** Deny everything still waiting — used when a turn is abandoned */
   static cancelPending() {
     PgAssistant._denyPending();
@@ -1808,6 +1832,25 @@ if (import.meta.vitest) {
         PgAssistant.setApprovalOutcome(id, "built");
 
         expect(versionTimeOf(find(id))).toBeGreaterThan(answered);
+      });
+
+      it("marks an approval failed with its reason, and stamps it", () => {
+        void PgAssistant.requestApproval({
+          type: "command",
+          name: "deploy",
+          effect: "deploys",
+        });
+        const id = latestCard();
+        PgAssistant.resolveApproval(id, true);
+        const answered = versionOf(find(id));
+
+        PgAssistant.setApprovalFailure(id, "deploy failed: no wallet");
+
+        expect(find(id)).toMatchObject({
+          status: "failed",
+          outcome: "deploy failed: no wallet",
+        });
+        expect(versionOf(find(id))).toBeGreaterThan(answered);
       });
 
       it("stamps an approval denied because the turn was stopped", () => {

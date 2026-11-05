@@ -7,6 +7,8 @@ export const EVENT_PREFIXES = {
   catalog: "catalog",
   "cli-deploy": "cli",
   deploy: "deploy",
+  // The legacy `utils/explorer`, which has no slice yet
+  explorer: "explorer",
   feedback: "feedback",
   "fund-wallet": "fund",
   home: "home",
