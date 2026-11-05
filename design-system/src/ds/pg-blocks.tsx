@@ -1054,7 +1054,7 @@ function PlaygroundBlocks() {
             <StatusDot variant="success" size="lg" />
             Deployed to devnet
           </div>
-          <div className="flex items-center gap-2 rounded-lg bg-surface-base px-3 py-2">
+          <div className="flex items-center gap-2 rounded-lg bg-surface-well px-3 py-2">
             <span className="text-caption text-subtle">Program id</span>
             <code className="font-mono text-code text-foreground" title={PROGRAM_ID}>7Hq5…Xk2P</code>
             <CopyButton value={PROGRAM_ID} label="Copy the program id" className="ml-auto" />
