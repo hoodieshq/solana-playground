@@ -218,7 +218,7 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
   // preview, the page that holds it, is the one shown: a run or a funding
   // prompt can move to Work with the console still open, and the sheet would
   // cover Work over an inert preview that no tap reaches
-  // TODO(intake: SF#116 carry #379 review): the sheet is hand-rolled, with no
+  // TODO(intake: interface-2 carry review, PR 379): the sheet is hand-rolled, with no
   // dialog role, focus trap or return, and its Escape also folds it under a
   // dialog opened above it; the design system's Sheet (side="bottom") brings
   // all of that
