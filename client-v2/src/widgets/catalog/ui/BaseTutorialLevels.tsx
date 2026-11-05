@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 
 import { byLevel, LEVEL_FIRST } from "../lib/levels";
-import { tutorialEyebrow } from "../lib/tutorial-eyebrow";
+import { groupedEyebrow } from "../lib/tutorial-eyebrow";
 import type { TutorialItem } from "../model/use-tutorial-list";
 import BaseTutorialCard from "./BaseTutorialCard";
 
@@ -80,7 +80,7 @@ const BaseTutorialLevels = ({
                   key={t.id}
                   title={t.title}
                   description={t.description}
-                  eyebrow={tutorialEyebrow(t, true)}
+                  eyebrow={groupedEyebrow(t)}
                   framework={t.framework}
                   progress={t.progress}
                   open={t.open}

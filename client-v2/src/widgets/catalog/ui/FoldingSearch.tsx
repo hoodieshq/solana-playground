@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { flushSync } from "react-dom";
 
 import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
 import {
   InputGroup,
   InputGroupAddon,
@@ -37,13 +38,20 @@ const FoldingSearch = ({
   onOpen,
 }: FoldingSearchProps) => {
   const input = useRef<HTMLInputElement>(null);
-  const close = () => {
-    onQuery("");
-    onOpen(false);
+  const glass = useRef<HTMLButtonElement>(null);
+  // Back to the glass, or a phone's keyboard keeps typing into a hidden field
+  const fold = () => {
+    input.current?.blur();
+    flushSync(() => onOpen(false));
+    glass.current?.focus();
   };
   const handleGlass = () => {
     flushSync(() => onOpen(true));
     input.current?.focus();
+  };
+  const handleCancel = () => {
+    onQuery("");
+    fold();
   };
   return (
     <>
@@ -71,17 +79,16 @@ const FoldingSearch = ({
           placeholder={placeholder}
           aria-label={`Search ${label}`}
           value={query}
-          onChange={(e) => onQuery(e.target.value)}
+          onChange={(e) => {
+            onQuery(e.target.value);
+            // Clearing it by hand keeps the row: only Cancel and Esc fold it
+            onOpen(true);
+          }}
           onKeyDown={(e) => {
             // Esc takes back what was typed, then the open row
             if (e.key !== "Escape") return;
-            if (query) {
-              onQuery("");
-            } else if (open) {
-              // Out of the field too: typing must not land in a folded one
-              input.current?.blur();
-              onOpen(false);
-            }
+            if (query) onQuery("");
+            else if (open) fold();
           }}
           // 16 px on a phone: under it the browser zooms the page in on focus
           className={cn(
@@ -90,7 +97,9 @@ const FoldingSearch = ({
           )}
         />
         {!open && (
+          // A bare overlay on the field: `Button` would draw a face over the glass
           <button
+            ref={glass}
             type="button"
             aria-label={`Search ${label}`}
             onClick={handleGlass}
@@ -99,13 +108,13 @@ const FoldingSearch = ({
         )}
       </InputGroup>
       {open && (
-        <button
-          type="button"
-          onClick={close}
-          className="-mr-2 hidden h-11 shrink-0 px-2 text-[0.9375rem] text-foreground/80 transition-opacity active:opacity-60 max-md:block"
+        <Button
+          variant="ghost"
+          onClick={handleCancel}
+          className="-mr-2 hidden h-11 shrink-0 px-2 text-[0.9375rem] font-normal text-foreground/80 max-md:inline-flex"
         >
           Cancel
-        </button>
+        </Button>
       )}
     </>
   );

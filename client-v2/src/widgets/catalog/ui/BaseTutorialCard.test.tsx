@@ -107,6 +107,7 @@ describe("BaseTutorialCard", () => {
     expect(container.querySelector('[data-slot="action-card"]')).not.toBeNull();
     expect(screen.getAllByRole("button")).toHaveLength(1);
     const corner = container.querySelector("[data-card-corner]");
+    expect(corner).not.toBeNull();
     expect(corner?.className).not.toContain("max-md:hidden");
   });
 

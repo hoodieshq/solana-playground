@@ -13,8 +13,8 @@ at `f7d42bf2e`. The phone draws the same card through `TutorialsBody`.
   description under the text and the square. `ActionCard` itself does not change,
   because the Programs tab and the sample cards share it.
 - **`caption` becomes `eyebrow`,** in `ActionCardEyebrow`. `tutorialCaption`
-  becomes `tutorialEyebrow`: the framework in a level, "<level> · <framework>"
-  elsewhere.
+  becomes `groupedEyebrow` (the framework, in a level) and `flatEyebrow`
+  ("<level> · <framework>", elsewhere).
 - **Progress stays page of pages.** The prototype counts passed steps because
   its data has them; ours has pages, and the spec already says "its page of its
   pages".

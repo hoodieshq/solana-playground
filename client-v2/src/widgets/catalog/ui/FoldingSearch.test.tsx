@@ -46,6 +46,14 @@ it("gives the row back on Cancel, with what was typed gone", () => {
   expect(glass()).toBeTruthy();
 });
 
+it("keeps the row while the field is cleared by hand", () => {
+  render(<Page />);
+  fireEvent.click(glass());
+  fireEvent.change(field(), { target: { value: "a" } });
+  fireEvent.change(field(), { target: { value: "" } });
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+});
+
 it("takes back what was typed on Esc, then the open row", () => {
   render(<Page />);
   fireEvent.click(glass());
@@ -58,5 +66,5 @@ it("takes back what was typed on Esc, then the open row", () => {
   fireEvent.keyDown(field(), { key: "Escape" });
   expect(glass()).toBeTruthy();
   // Folded, the field is out of sight: typing must not land in it
-  expect(document.activeElement).not.toBe(field());
+  expect(document.activeElement).toBe(glass());
 });

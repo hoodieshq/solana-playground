@@ -19,7 +19,7 @@ import type { CardOpen } from "./BaseCatalogGrid";
 export interface BaseTutorialCardProps {
   title: string;
   description: string;
-  /** The word over the name: `tutorialEyebrow` */
+  /** The word over the name: `groupedEyebrow` or `flatEyebrow` */
   eyebrow: string;
   /** Picks the cover's ground */
   framework?: FrameworkName;

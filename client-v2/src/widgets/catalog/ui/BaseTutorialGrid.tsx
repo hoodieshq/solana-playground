@@ -1,7 +1,7 @@
 import { Button } from "@/shared/ui/button";
 import { Empty, EmptyDescription } from "@/shared/ui/empty";
 
-import { tutorialEyebrow } from "../lib/tutorial-eyebrow";
+import { flatEyebrow } from "../lib/tutorial-eyebrow";
 import type { TutorialItem } from "../model/use-tutorial-list";
 import type { CatalogList } from "./BaseCatalogGrid";
 import BaseTutorialCard from "./BaseTutorialCard";
@@ -22,8 +22,8 @@ export interface BaseTutorialGridProps {
 /**
  * Tutorials as the stand lays them out: as many columns of at least 20 rem
  * as fit, one card each (`BaseTutorialCard`), with the level and the
- * framework over its name. One Open at a time: while one runs (`busy`) every card
- * waits.
+ * framework over its name. One Open at a time: while one runs (`busy`) every
+ * card waits.
  */
 const BaseTutorialGrid = ({
   query,
@@ -61,7 +61,7 @@ const BaseTutorialGrid = ({
           key={t.id}
           title={t.title}
           description={t.description}
-          eyebrow={tutorialEyebrow(t, false)}
+          eyebrow={flatEyebrow(t)}
           framework={t.framework}
           progress={t.progress}
           open={t.open}
