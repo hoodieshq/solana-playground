@@ -8,7 +8,7 @@ Sizes are rounded: to 10 B under 1 kB, up to the next 10 kB under 1000 kB, and t
 
 | Files | Count | Raw | Gzipped |
 | --- | --- | --- | --- |
-| `*.js` | 203 | 29.15 MB | 7.76 MB |
+| `*.js` | 208 | 29.20 MB | 7.78 MB |
 | `*.css` | 2 | 310 kB | 50 kB |
 
 | Chunk | Count | Gzipped |
@@ -19,4 +19,4 @@ Sizes are rounded: to 10 B under 1 kB, up to the next 10 kB under 1000 kB, and t
 | `worker:html` | 1 | 190 kB |
 | `worker:json` | 1 | 130 kB |
 | `worker:ts` | 1 | 1.25 MB |
-| `other chunks` | 197 | 5.74 MB |
+| `other chunks` | 202 | 5.76 MB |
