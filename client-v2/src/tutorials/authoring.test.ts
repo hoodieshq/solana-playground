@@ -40,7 +40,7 @@ const helloBeats = new Map<string, Beat>(
 const EXAMPLE_SLUG = "echo-anchor";
 
 /** A definition as plain JSON, for breaking one field at a time */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- a definition is edited as raw JSON, one field at a time
 type Mutable = any;
 type Docs = Record<string, string>;
 

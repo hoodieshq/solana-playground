@@ -6,8 +6,8 @@
 
 The assistant's empty thread SHALL offer "What does this program do?", "Why
 did my build fail?" and "How do I deploy this?". The composer's context chips
-SHALL read the active file's name, then the file count. A conversation
-tutorial has no assistant panel of its own; its composer is the
+SHALL read one chip per file in the context (`assistant-composer-context`). A
+conversation tutorial has no assistant panel of its own; its composer is the
 conversation's (`tutorial-conversation`).
 
 #### Scenario: Suggestions in a lesson
