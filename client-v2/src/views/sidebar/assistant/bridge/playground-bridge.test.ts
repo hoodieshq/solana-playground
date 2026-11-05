@@ -32,7 +32,6 @@ vi.mock("monaco-editor", () => ({
   editor: { getModels: () => [model] },
 }));
 vi.mock("../../../../utils", () => ({ PgExplorer: explorer }));
-vi.mock("../../../flow/lessons", () => ({ PgLesson: {} }));
 
 import { realBridge } from "./playground-bridge";
 
