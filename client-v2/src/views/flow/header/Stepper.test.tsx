@@ -23,6 +23,7 @@ const failedBuild: FlowState = {
   buildFailure: null,
   deployBeforeRun: null,
   stopped: null,
+  sourceChanged: false,
 };
 
 /** Every element a `ResizeObserver` watches (the fold's stepper root, the
