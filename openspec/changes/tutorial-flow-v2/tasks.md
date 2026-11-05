@@ -98,9 +98,10 @@ for; tasks with "after nothing" start at once.
       the intro, act, result and finish cards, and the question event on the
       step it was asked on (HOO-2626; fleet; S 0.5; after 3.6;
       plan: [plans/3.6a-composer-leftovers.md](plans/3.6a-composer-leftovers.md))
-- [x] 3.6b Composer before Start: the start words in the spec, and an answer
-      before Start ends by inviting the learner to begin, a menu-only turn
-      included (HOO-2571; fleet; S 0.5; after 3.6;
+- [x] 3.6b Composer before Start, bug-fix sized: an answer before Start ends by
+      inviting the learner to begin, a menu-only turn included; the requirement
+      "One composer" naming the start words and the invitation is part of the
+      deliverable, per the ticket (HOO-2571; fleet; S 0.5; after 3.6;
       plan: [plans/3.6b-composer-before-start.md](plans/3.6b-composer-before-start.md))
 
 ## 4. Runs

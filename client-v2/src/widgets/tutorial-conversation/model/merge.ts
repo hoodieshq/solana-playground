@@ -137,36 +137,64 @@ const entryOf = (
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
-  describe("hasAnswered", () => {
-    const base = { id: "i", createdAt: new Date(2000).toISOString() };
-    const tool: ChatItem = { ...base, kind: "tool", label: "opened the menu" };
-    const reply: ChatItem = { ...base, kind: "assistant", text: "A PDA is" };
-
-    it("counts a written reply or a tool the assistant ran", () => {
-      expect(hasAnswered([reply], null)).toBe(true);
-      expect(hasAnswered([tool], null)).toBe(true);
-    });
-
-    it("does not count a reply with no words yet, or the learner's message", () => {
-      expect(hasAnswered([{ ...reply, text: " " }], null)).toBe(false);
-      expect(
-        hasAnswered([{ ...base, kind: "user", text: "the menu" }], null)
-      ).toBe(false);
-    });
-
-    it("does not count an item whose time cannot be read, as the feed drops it", () => {
-      expect(hasAnswered([{ ...tool, createdAt: "not a date" }], null)).toBe(
-        false
-      );
-    });
-
-    it("does not count what came before the last Start over", () => {
-      expect(hasAnswered([reply, tool], 2000)).toBe(false);
-      expect(hasAnswered([reply, tool], 1999)).toBe(true);
-    });
-  });
-
   describe("widgets/tutorial-conversation/model/merge", () => {
+    describe("hasAnswered", () => {
+      const createdAt = new Date(2000).toISOString();
+      const tool: ChatItem = {
+        id: "t",
+        createdAt,
+        kind: "tool",
+        label: "opened the menu",
+      };
+      const reply: ChatItem = {
+        id: "a",
+        createdAt,
+        kind: "assistant",
+        text: "A PDA is",
+      };
+
+      it("counts a written reply or a tool the assistant ran", () => {
+        expect(hasAnswered([reply], null)).toBe(true);
+        expect(hasAnswered([tool], null)).toBe(true);
+      });
+
+      it("does not count a reply with no words yet, or the learner's message", () => {
+        expect(
+          hasAnswered(
+            [{ id: "a", createdAt, kind: "assistant", text: " " }],
+            null
+          )
+        ).toBe(false);
+        expect(
+          hasAnswered(
+            [{ id: "u", createdAt, kind: "user", text: "the menu" }],
+            null
+          )
+        ).toBe(false);
+      });
+
+      it("does not count an item whose time cannot be read, as the feed drops it", () => {
+        expect(
+          hasAnswered(
+            [
+              {
+                id: "t",
+                createdAt: "not a date",
+                kind: "tool",
+                label: "opened the menu",
+              },
+            ],
+            null
+          )
+        ).toBe(false);
+      });
+
+      it("does not count what came before the last Start over", () => {
+        expect(hasAnswered([reply, tool], 2000)).toBe(false);
+        expect(hasAnswered([reply, tool], 1999)).toBe(true);
+      });
+    });
+
     const say = (id: string, at: number): Turn => ({
       id,
       kind: "say",
