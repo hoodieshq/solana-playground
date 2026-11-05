@@ -481,6 +481,10 @@ the failure. `onFail` holds the beats after the learner presses Explain: a
   `log` is `"Counter is now \\d+"` in JSON, not `1`. Make the goal the
   call that works on every run (`increment`), never a one-time call
   (`initialize`), which Anchor's `init` refuses once the account exists.
+  Put the one-time call in a `call` act before the goal's; a learner
+  whose account already exists gets that refusal, and the step does not
+  move on from it yet, so keep one-time calls to the step that creates the
+  account.
 - `{ "kind": "refused", "instruction": "chop_tree", "error": { "name": "NotEnoughEnergy", "code": 6000 } }`:
   the program refused a call of the instruction with this error. Give the
   error's `name` (the variant of your `#[error_code]` enum), its `code`
@@ -827,8 +831,7 @@ plain `yarn dev` refuses to start on them, so use `yarn dev:with-stubs`
 Open `http://localhost:3000/tutorials`: the card shows under its level with
 its thumbnail and its level and framework. Opening it starts the
 conversation on its intro card. The deploy, call and Call panel cards are
-still being built in November 2026, so a run may stop there; until they
-land, the check and the pull request's review are the gate.
+not all built yet, so a run may stop there; until they land, the check and the pull request's review are the gate.
 
 ## The pull request
 
