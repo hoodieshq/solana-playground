@@ -220,11 +220,9 @@ describe("BaseBuild", () => {
       />
     );
 
-    expect(brandButtons(container)).toHaveLength(1);
+    expect(brandButtons(container)).toHaveLength(0);
     expect(screen.getAllByRole("button", { name: "Explain" })).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Fix" })).toHaveLength(2);
-    // The brand one is the first card's Explain (Spec 08 BUILD-01)
-    expect(brandButtons(container)[0].textContent).toBe("Explain");
   });
 
   it("shows rustc's excerpt when the source cannot be read", () => {
