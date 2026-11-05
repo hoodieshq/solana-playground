@@ -47,7 +47,7 @@ const label = (title: string, progress: TutorialProgress): string => {
  * `Card`), the same on a phone: a 44 px cover beside the word and the name,
  * the page the user is on once started, the corner square that says what a
  * press does (↗ to open, a tick once completed), and the description under
- * both. The card has one button, stretched over the whole card, so the square
+ * the word and the name. The card has one button, stretched over the whole card, so the square
  * only draws it.
  */
 const BaseTutorialCard = ({
@@ -103,7 +103,7 @@ const BaseTutorialCard = ({
               "grid size-7 place-items-center rounded-lg",
               completed
                 ? "bg-brand-green/12 text-brand-green"
-                : "bg-foreground/[0.06] text-muted-foreground/70 transition-colors duration-100 group-hover/action-card:bg-foreground/[0.1] group-hover/action-card:text-foreground motion-reduce:transition-none"
+                : "bg-foreground/[0.06] text-muted-foreground/70 transition-colors duration-100 group-hover/action-card:bg-foreground/[0.1] group-hover/action-card:text-foreground in-focus-visible:text-foreground motion-reduce:transition-none"
             )}
           >
             {completed ? (

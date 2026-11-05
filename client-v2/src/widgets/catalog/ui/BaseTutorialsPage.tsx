@@ -54,7 +54,9 @@ const BaseTutorialsPage = ({
   busy,
   onOpen,
 }: BaseTutorialsPageProps) => {
-  const [searchOpen, setSearchOpen] = useState(query !== "");
+  const [searchPressed, setSearchPressed] = useState(false);
+  // A query always keeps its field in sight, whatever the window's width was
+  const searchOpen = searchPressed || query !== "";
   const searching = query.trim() !== "";
   const browsing = !searching && framework === "all";
   return (
@@ -74,7 +76,7 @@ const BaseTutorialsPage = ({
           query={query}
           onQuery={onQuery}
           open={searchOpen}
-          onOpen={setSearchOpen}
+          onOpen={setSearchPressed}
         />
         {filterable && (
           <div className={cn("flex", searchOpen && "max-md:hidden")}>

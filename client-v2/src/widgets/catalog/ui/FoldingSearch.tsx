@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import { useRef } from "react";
+import { flushSync } from "react-dom";
 
 import { cn } from "@/shared/lib/utils";
 import {
@@ -23,8 +24,9 @@ export interface FoldingSearchProps {
  * The Tutorials page's search, as the tutorial-v2 prototype folds it
  * (`desktop/Gallery.tsx`, `TutorialsBody`): a field on a wide screen, a 44 px
  * glass on a phone that opens into the whole row, with Cancel to give it back.
- * The field is mounted all along and only hidden, so the focus can go to it
- * inside the press: a phone raises its keyboard only for a focus the tap made.
+ * The field is put back on the page inside the press and focused there: a phone
+ * raises its keyboard only for a focus the tap made. Folded on a phone it is
+ * `invisible`, so neither Tab nor a screen reader finds a field nobody can see.
  */
 const FoldingSearch = ({
   label,
@@ -38,6 +40,10 @@ const FoldingSearch = ({
   const close = () => {
     onQuery("");
     onOpen(false);
+  };
+  const handleGlass = () => {
+    flushSync(() => onOpen(true));
+    input.current?.focus();
   };
   return (
     <>
@@ -66,24 +72,28 @@ const FoldingSearch = ({
           aria-label={`Search ${label}`}
           value={query}
           onChange={(e) => onQuery(e.target.value)}
-          onFocus={() => onOpen(true)}
           onKeyDown={(e) => {
             // Esc takes back what was typed, then the open row
             if (e.key !== "Escape") return;
-            if (query) onQuery("");
-            else onOpen(false);
+            if (query) {
+              onQuery("");
+            } else if (open) {
+              // Out of the field too: typing must not land in a folded one
+              input.current?.blur();
+              onOpen(false);
+            }
           }}
           // 16 px on a phone: under it the browser zooms the page in on focus
           className={cn(
             "max-md:text-[1rem]",
-            !open && "max-md:absolute max-md:w-px max-md:opacity-0"
+            !open && "max-md:invisible max-md:absolute max-md:w-px"
           )}
         />
         {!open && (
           <button
             type="button"
             aria-label={`Search ${label}`}
-            onClick={() => input.current?.focus()}
+            onClick={handleGlass}
             className="absolute inset-0 hidden rounded-[inherit] outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple max-md:block"
           />
         )}

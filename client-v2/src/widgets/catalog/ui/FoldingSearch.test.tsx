@@ -57,4 +57,6 @@ it("takes back what was typed on Esc, then the open row", () => {
 
   fireEvent.keyDown(field(), { key: "Escape" });
   expect(glass()).toBeTruthy();
+  // Folded, the field is out of sight: typing must not land in it
+  expect(document.activeElement).not.toBe(field());
 });
