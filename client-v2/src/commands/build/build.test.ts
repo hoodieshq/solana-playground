@@ -87,8 +87,7 @@ describe("commands/build/build", () => {
 
     const output = utils.PgTerminal.println.mock.calls.at(-1)?.[0];
     expect(output).toContain("Compiling probe");
-    // eslint-disable-next-line no-control-regex -- the codes are the point
-    expect(output).not.toMatch(/\x1b/);
+    expect(output).not.toContain("\x1b");
   });
 
   describe("stopped", () => {

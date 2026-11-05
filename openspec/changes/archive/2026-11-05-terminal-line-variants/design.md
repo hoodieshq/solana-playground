@@ -41,7 +41,7 @@ was cut before it and does not have them.
 
 ## Risks / Trade-offs
 
-- A thrown message carrying its own ANSI reset ends the colour early, so the two
-  deploy messages that embedded `PgTerminal.bold` lose it, as does the "not
-  confirmed" count. The words are unchanged, and the toasts that read those two
-  messages no longer get raw codes.
+- A thrown message carrying its own ANSI reset ends the colour early, so deploy's
+  notices and failures lose their inner `PgTerminal.bold`: the program ID hint, the
+  RPC command, the SOL amounts, and the retry and "not confirmed" counts. The words
+  are unchanged, and the toasts that read those messages no longer get raw codes.

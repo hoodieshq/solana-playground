@@ -522,7 +522,9 @@ const loadBufferWithControl = (
       const term = await PgTerminal.get();
       // This load segment's stop; a pause ends the segment and removes it
       const stopLoad = () => {
-        term.println(PgTerminal.info("Stopping after this step…"));
+        term.println(PgTerminal.info("Stopping after this step…"), {
+          noColor: true,
+        });
         abortController.abort();
       };
       signal.addEventListener("abort", stopLoad, { once: true });

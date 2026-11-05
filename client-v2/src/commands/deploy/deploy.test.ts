@@ -229,15 +229,21 @@ describe("commands/deploy", () => {
     const checkProgram = async (state: Record<string, unknown>) => {
       const { PgProgramInfo } = await import("../../utils");
       const { deploy } = await import("./deploy");
-      const original = { ...PgProgramInfo };
+      const { importedProgram } = PgProgramInfo;
       Object.assign(PgProgramInfo, state);
       try {
         const { preChecks } = deploy as unknown as {
           preChecks: Array<() => Promise<unknown>>;
         };
-        await preChecks[2]();
+        // The stub has no keypair, so the check goes on to refuse after the
+        // notice these tests are about
+        await preChecks[2]().catch(() => undefined);
       } finally {
-        Object.assign(PgProgramInfo, original);
+        Object.assign(PgProgramInfo, {
+          importedProgram,
+          uuid: undefined,
+          lastBuildFailed: undefined,
+        });
       }
     };
 
@@ -310,7 +316,9 @@ describe("commands/deploy", () => {
     expect(isStopped(failure)).toBe(true);
     expect(closeBuffer).toHaveBeenCalledTimes(1);
     expect((failure as Error).message).toContain("buffer account was closed");
-    expect(printed).toHaveBeenCalledWith("info: Stopping after this step…");
+    expect(printed).toHaveBeenCalledWith("info: Stopping after this step…", {
+      noColor: true,
+    });
   });
 
   /** A stop whose buffer close fails every retry, so the buffer is kept */
