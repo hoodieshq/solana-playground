@@ -100,7 +100,7 @@ type StageLoadFailedProps = {
   stage: LazyStageName;
   hasRetried: boolean;
   /** The load failed offline, whether or not the panel was up to see it */
-  didFailOffline: boolean;
+  hasFailedOffline: boolean;
   onRetry: (why: Exclude<Retry, "reopen">) => void;
 };
 
@@ -111,14 +111,14 @@ type StageLoadFailedProps = {
 const StageLoadFailed = ({
   stage,
   hasRetried,
-  didFailOffline,
+  hasFailedOffline,
   onRetry,
 }: StageLoadFailedProps) => {
   const isOnline = useOnline();
-  const wasOffline = useRef(didFailOffline || !isOnline);
+  const isAwaitingNetwork = useRef(hasFailedOffline || !isOnline);
   useEffect(() => {
-    if (isOnline && wasOffline.current) onRetry("network");
-    wasOffline.current = !isOnline;
+    if (isOnline && isAwaitingNetwork.current) onRetry("network");
+    isAwaitingNetwork.current = !isOnline;
   }, [isOnline, onRetry]);
 
   return (
@@ -134,7 +134,7 @@ const StageLoadFailed = ({
 type BoundaryProps = {
   stage: LazyStageName;
   hasRetried: () => boolean;
-  didFailOffline: () => boolean;
+  hasFailedOffline: () => boolean;
   /** Makes the next render of a failed stage load it again */
   reset: (why: Retry) => void;
   children: ReactNode;
@@ -171,7 +171,7 @@ class StageLoadBoundary extends Component<BoundaryProps, { error?: Error }> {
       <StageLoadFailed
         stage={this.props.stage}
         hasRetried={this.props.hasRetried()}
-        didFailOffline={this.props.didFailOffline()}
+        hasFailedOffline={this.props.hasFailedOffline()}
         onRetry={this.handleRetry}
       />
     );
@@ -187,7 +187,7 @@ class StageLoadBoundary extends Component<BoundaryProps, { error?: Error }> {
  * as `Suspense` unmounts the boundary while it hides it during a retry.
  *
  * With a network, a chunk that does not arrive is ours to know about, once per
- * page load. The retry a returning network starts often fails too, before the
+ * stage per page load. The retry a returning network starts often fails too, before the
  * route is up, and says nothing about the release.
  *
  * @param load the stage's dynamic import
@@ -199,7 +199,7 @@ export const lazyStage = (
   stage: LazyStageName
 ): FC => {
   let current: Attempt = { why: "first" };
-  let wasReported = false;
+  let isReported = false;
 
   const attemptLoad = () =>
     lazy(() =>
@@ -208,10 +208,10 @@ export const lazyStage = (
         const isOffline = !navigator.onLine;
         current = { ...current, failed: isOffline ? "offline" : "online" };
         const context = { stage };
-        if (isOffline || current.why === "network" || wasReported) {
+        if (isOffline || current.why === "network" || isReported) {
           log.warn("A stage's code did not load", { context });
         } else {
-          wasReported = true;
+          isReported = true;
           log.error(error, { report: true, context });
         }
         throw new StageLoadError(error);
@@ -224,7 +224,7 @@ export const lazyStage = (
     <StageLoadBoundary
       stage={stage}
       hasRetried={() => current.why === "user"}
-      didFailOffline={() => current.failed === "offline"}
+      hasFailedOffline={() => current.failed === "offline"}
       reset={(why) => {
         if (!current.failed) return;
         current = { why };
