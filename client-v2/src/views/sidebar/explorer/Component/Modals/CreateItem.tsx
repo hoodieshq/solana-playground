@@ -130,7 +130,8 @@ const Wrapper = styled.div<{ depth: number }>`
   display: flex;
   align-items: center;
   padding: 0.25rem 0;
-  padding-left: ${({ depth }) => depth + "rem"};
+  /* The same step as the tree rows' indent (PaddingLeft in Folders.tsx), so the input lines up with its siblings */
+  padding-left: ${({ depth }) => depth * 1.375}rem;
 
   & > input {
     height: 1.5rem;
