@@ -158,7 +158,7 @@ for; tasks with "after nothing" start at once.
       tutorial", Show in switching to Code, the Call sheet, no typing
       paths, touch sizes. Verify: component tests at 390 px;
       the same turns as desktop from one saved progress (HOO-2359;
-      fleet; L 2.5; after 3.3, 3.5, 4.4)
+      fleet; L 2.5; after 3.3, 3.5, 4.4; plan: [plans/5.1-phone.md](plans/5.1-phone.md))
 
 ## 6. Tutorials page and content
 
