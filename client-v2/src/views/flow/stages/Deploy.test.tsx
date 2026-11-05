@@ -620,7 +620,6 @@ describe("Deploy stage", () => {
     }
   });
 
-  /** HOO-2654's steps: a terminal deploy after the stage stopped for funds */
   it("shows only the running deploy when the terminal deploys over a funding stop", async () => {
     mocks.wallet.current = pgWallet();
     mocks.execute.mockRejectedValue(

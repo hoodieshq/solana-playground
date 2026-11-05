@@ -656,8 +656,10 @@ const BaseDeploy = (p: BaseDeployProps) => {
         {/* The other ways on, one kind of button: outlines in the
             pill's height and shape. They follow the pill in the page, so
             focus reaches the pill first; on a desk they are drawn after it,
-            on a phone above the foot (the foot's `order`), and only the
-            pill is pinned, as review screens pin their one action */}
+            on a phone above the foot (the foot's `order-last`, which must
+            stay the last child drawn), and only the pill is pinned, as review
+            screens pin their one action. There focus still meets the pill
+            first: it is the stage's one way on */}
         <div
           data-slot="deploy-outlines"
           className="flex flex-wrap items-center justify-center gap-2 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:[&_[data-variant=outline]]:w-full max-md:[&_[data-variant=outline]]:px-3 max-md:[&_button]:text-sm! max-md:[&>span]:w-full max-md:[&>span>div]:w-full [&_[data-variant=outline]]:h-10 [&_[data-variant=outline]]:rounded-full [&_[data-variant=outline]]:px-5"

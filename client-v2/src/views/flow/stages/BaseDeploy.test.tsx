@@ -128,10 +128,6 @@ const endsWithPill = (container: HTMLElement) => {
   );
 };
 
-/** The stage's buttons in focus (document) order */
-const focusOrder = () =>
-  screen.getAllByRole("button").map((b) => b.textContent);
-
 const mainnetWarning = () =>
   screen.queryByRole("alert", { name: "Mainnet deploy warning" });
 
@@ -779,26 +775,43 @@ describe("BaseDeploy", () => {
     expect(screen.getByRole("button", { name: "Upload IDL" })).toBeTruthy();
   });
 
+  const FUNDING: DeployView = {
+    kind: "funding",
+    stop: {
+      reason: "airdrop_failed",
+      balance: 0,
+      needed: 1_000_000_000,
+      address: WALLET,
+      cause: "429",
+    },
+  };
+
   it.each([
-    ["before the first deploy", []],
-    ["after a deploy", [record("a", NONE)]],
-  ])("reaches the pill before the outlines %s", (_, history) => {
-    render(
-      <BaseDeploy
-        {...props({ built: true, view: FAILED, history })}
-        idlName={history.length > 0 ? "counter.json" : undefined}
-      />
+    ["idle, before the first deploy", IDLE_VIEW, []],
+    ["idle, after a deploy", IDLE_VIEW, [record("a", NONE)]],
+    ["failed, before the first deploy", FAILED, []],
+    ["failed, after a deploy", FAILED, [record("a", NONE)]],
+    ["stopped for funds", FUNDING, []],
+  ])("reaches the pill before the outlines: %s", (_, view, history) => {
+    const { container } = render(
+      <BaseDeploy {...props({ built: true, view, history })} />
     );
 
-    const order = focusOrder();
-    const pill = order.indexOf("Try again");
-    expect(pill).toBeGreaterThanOrEqual(0);
-    for (const outline of [
-      "Show full log",
-      "Upload IDL",
-      "Deploy with the CLI",
-    ]) {
-      expect(order.indexOf(outline)).toBeGreaterThan(pill);
+    const pill = requireFor("the pill")(
+      container.querySelector('[data-slot="brand-button"]')
+    );
+    const outlines = screen
+      .getAllByRole("button")
+      .filter((b) =>
+        ["Show full log", "Upload IDL", "Deploy with the CLI"].includes(
+          b.textContent ?? ""
+        )
+      );
+    expect(outlines.length).toBeGreaterThanOrEqual(2);
+    for (const outline of outlines) {
+      expect(
+        pill.compareDocumentPosition(outline) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
     }
   });
 

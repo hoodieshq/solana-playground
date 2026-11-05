@@ -152,20 +152,22 @@ const Deploy = ({ onChangeNetwork }: { onChangeNetwork: () => void }) => {
     (flow.build === "failed" && Boolean(programInfo.uuid));
   const programId = programInfo.pk?.toBase58();
 
+  // A deploy typed in the terminal sets `deployState` to "loading" while the
+  // stage's phase stays where its last run left it; the view reads both, so
+  // either run holds the button (a second press would pause it, a toggle
+  // upstream's sidebar offers and Flow does not) and hides the last outcome
+  const view = deployView({
+    cluster: PgConnection.cluster,
+    workspace: PgExplorer.currentWorkspaceName ?? undefined,
+    wallet: wallet?.publicKey.toBase58(),
+  })({ stage, deployState, flowDeploy: flow.deploy });
+
   return (
     <>
       <BaseDeploy
         cluster={PgConnection.cluster}
         built={built}
-        // A second press on Deploy while one runs would pause it (upstream's
-        // sidebar offers that as a pause toggle; Flow does not), so a deploy
-        // started here or in the terminal holds the button: the view is
-        // "running" either way, and shows nothing else
-        view={deployView({
-          cluster: PgConnection.cluster,
-          workspace: PgExplorer.currentWorkspaceName ?? undefined,
-          wallet: wallet?.publicKey.toBase58(),
-        })({ stage, deployState, flowDeploy: flow.deploy })}
+        view={view}
         details={details}
         history={history}
         payer={payer}

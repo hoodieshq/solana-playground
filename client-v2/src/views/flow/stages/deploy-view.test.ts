@@ -91,6 +91,54 @@ describe("deployView", () => {
     ).toEqual(IDLE_VIEW);
   });
 
+  it("shows a failure for a funding stop in another project after a failed deploy", () => {
+    expect(
+      here({
+        stage: fundingStopOn("devnet", "other"),
+        deployState: "ready",
+        flowDeploy: "failed",
+      })
+    ).toEqual({ kind: "failed" });
+  });
+
+  it("drops the backup line once the last deploy failed", () => {
+    expect(
+      here({
+        stage: DONE_WITH_BACKUP,
+        deployState: "ready",
+        flowDeploy: "failed",
+      })
+    ).toEqual({ kind: "failed" });
+  });
+
+  it("keeps the stage's own run running while the global state lags", () => {
+    expect(
+      here({
+        stage: { phase: "running", askingStaleBuild: true },
+        deployState: "ready",
+        flowDeploy: "active",
+      })
+    ).toEqual({ kind: "running", askingStaleBuild: true });
+  });
+
+  it("matches a funding stop with no project open to a stage with none", () => {
+    expect(
+      deployView({ cluster: "devnet", workspace: undefined, wallet: WALLET })({
+        stage: {
+          phase: "stopped",
+          stop: {
+            kind: "funding",
+            detail: DETAIL,
+            cluster: "devnet",
+            workspace: undefined,
+          },
+        },
+        deployState: "ready",
+        flowDeploy: "failed",
+      })
+    ).toEqual({ kind: "funding", stop: DETAIL });
+  });
+
   it("treats a cancelled run as no failure", () => {
     expect(
       here({

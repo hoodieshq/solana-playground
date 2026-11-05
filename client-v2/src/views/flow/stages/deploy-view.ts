@@ -1,6 +1,7 @@
 import type { DeployFundingError } from "@/commands/deploy/run";
 import type { StageDeployState } from "@/features/deploy";
 
+import type { PgGlobal } from "../../../utils";
 import type { StageStatus } from "../state/stage";
 
 /** Why the last run could not fund its wallet */
@@ -16,8 +17,8 @@ export type DeployView =
   | { kind: "funding"; stop: FundingStop }
   | { kind: "failed" };
 
-/** The stage's view while nothing runs, stopped or failed */
-export const IDLE_VIEW: DeployView = { kind: "idle", backup: false };
+/** The idle stage without a backup line, which a cancelled run also leaves */
+export const IDLE_VIEW: Readonly<DeployView> = { kind: "idle", backup: false };
 
 /** Where the stage is open now: the funding card and backup line belong to one place */
 export interface DeployHere {
@@ -28,14 +29,14 @@ export interface DeployHere {
 }
 
 /** What the view is read from */
-export interface DeployRun {
+export interface DeployInputs {
   /** The stage's own run */
   stage: StageDeployState;
   /**
    * The global deploy state: a terminal `deploy` sets it to "loading" while
    * the stage's phase stays where its last run left it
    */
-  deployState: unknown;
+  deployState: typeof PgGlobal["deployState"] | undefined;
   /** The flow's last deploy result */
   flowDeploy: StageStatus;
 }
@@ -43,7 +44,7 @@ export interface DeployRun {
 /** The stage's one view, for the project and network open now (`here`) */
 export const deployView =
   (here: DeployHere) =>
-  ({ stage, deployState, flowDeploy }: DeployRun): DeployView => {
+  ({ stage, deployState, flowDeploy }: DeployInputs): DeployView => {
     if (deployState === "loading" || stage.phase === "running") {
       return {
         kind: "running",
