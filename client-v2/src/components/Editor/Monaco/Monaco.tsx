@@ -136,8 +136,26 @@ const Monaco = () => {
           editorStyles.default.searchMatch.bg,
         "editorGutter.background": editorStyles.gutter.bg,
         "editorLineNumber.foreground": editorStyles.gutter.color,
+        "editorLineNumber.activeForeground": editorStyles.gutter.activeColor,
         "editorError.foreground": theme.colors.state.error.color,
         "editorWarning.foreground": theme.colors.state.warning.color,
+        "editorUnicodeHighlight.border": theme.colors.state.warning.color,
+
+        // Monaco's own defaults are gold and brown brackets, an orange find
+        // match and a yellow line round it, which no token reaches
+        "editorBracketHighlight.foreground1":
+          theme.colors.default.textSecondary,
+        "editorBracketHighlight.foreground2": theme.highlight.integer.color!,
+        "editorBracketHighlight.foreground3": theme.highlight.typeName.color!,
+        "editorBracketHighlight.unexpectedBracket.foreground":
+          theme.colors.state.error.color,
+        "editor.findMatchBackground": editorStyles.default.selection.bg,
+        "editor.findMatchHighlightBackground":
+          editorStyles.default.searchMatch.bg,
+        "editor.rangeHighlightBackground": theme.colors.state.hover.bg!,
+        "editorOverviewRuler.findMatchForeground":
+          theme.colors.default.textSecondary,
+        "minimap.findMatchHighlight": theme.colors.default.textSecondary,
 
         ////////////////////////////// Dropdown //////////////////////////////
         "dropdown.background": editorStyles.tooltip.bg,
