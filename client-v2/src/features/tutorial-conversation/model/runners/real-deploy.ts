@@ -8,6 +8,7 @@ import type { Wallet } from "../../../../utils";
 import {
   PgCommand,
   PgConnection,
+  PgExplorer,
   PgGlobal,
   PgProgramInfo,
   PgServer,
@@ -376,10 +377,12 @@ export const tutorialRunner = actRunner(
 
 /** The deploy command and the open program, for `watchDeploys` */
 export const realDeployWatch = (): DeployWatchPort => ({
+  onDidStart: (cb) => PgCommand.deploy.onDidStart(() => cb()),
   onDidFinish: (cb) => PgCommand.deploy.onDidFinish(cb),
-  // "ready" again only once the command has really finished, as the deploy
-  // history reads it
-  finished: () => PgGlobal.deployState === "ready",
-  cluster: () => PgConnection.cluster,
-  idl: () => PgProgramInfo.idl,
+  // The command sets "ready" in its own `finally`, before `onDidFinish`
+  // fires; `PgDeployHistory.init` relies on the same order
+  idle: () => PgGlobal.deployState === "ready",
+  workspace: () => PgExplorer.currentWorkspaceName ?? undefined,
+  cluster: () => PgConnection.cluster ?? undefined,
+  idl: () => PgProgramInfo.idl ?? undefined,
 });

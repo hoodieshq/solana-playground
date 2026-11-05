@@ -518,11 +518,11 @@ export const TutorialConversation = ({
       }).dispose,
     []
   );
-  // A deploy outside the cards (the terminal, the explorer's menu, the
-  // assistant) is the program the Call panel and the call acts talk to
+  // A deploy outside the cards, through the deploy command, is the program
+  // the Call panel and the call acts talk to (`watchDeploys`)
   useEffect(
     () =>
-      watchDeploys(realDeployWatch(), (idl) => PgConversation.deployed(idl))
+      watchDeploys((idl) => PgConversation.deployed(idl), realDeployWatch())
         .dispose,
     []
   );

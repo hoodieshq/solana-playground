@@ -310,7 +310,7 @@ describe("TutorialConversation", () => {
     const { unmount } = render(
       <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
     );
-    const [port, onIdl] = vi.mocked(watchDeploys).mock.calls[0];
+    const [onIdl, port] = vi.mocked(watchDeploys).mock.calls[0];
     expect(port).toBe("realDeployWatch");
     const idl = { version: "0.1.0", name: "p", instructions: [] };
     onIdl(idl as never);

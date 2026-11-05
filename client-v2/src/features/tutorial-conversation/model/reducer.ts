@@ -131,8 +131,8 @@ export type Action =
    */
   | { type: "recognised"; beatId: string; result: RunResult; at: number }
   /**
-   * The program deployed outside the cards (the terminal, the explorer's
-   * menu, the assistant): the Call panel reads its IDL. No step passes on it
+   * The program deployed outside the cards, through the deploy command
+   * (`watchDeploys`): the Call panel reads its IDL. No step passes on it
    */
   | { type: "deployed"; idl: Idl; at: number }
   /** A step's goal met outside the feed: a Call panel call or a client run */
@@ -2473,7 +2473,7 @@ if (import.meta.vitest) {
           idl: idlWith([]),
           added: [],
         });
-        // Nothing else moves: no step passes, nothing is measured
+        // Nothing else moves: no step passes, no telemetry
         expect(first.effects).toEqual([]);
         expect(first.state.progress.passed).toEqual(before.progress.passed);
         expect(first.state.progress.cursor).toEqual(before.progress.cursor);
