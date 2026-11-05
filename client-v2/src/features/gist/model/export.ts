@@ -8,6 +8,7 @@ import {
 } from "../config.mjs";
 import {
   MAX_GIST_BYTES,
+  FRAME_FILES,
   MAX_GIST_FILES,
   measureGist,
   toGistFiles,
@@ -92,8 +93,11 @@ export const exportProjectWith =
       visibility,
       source,
     });
-    // The manifest is one more file against GitHub's limit
-    if (size.bytes > MAX_GIST_BYTES || size.files + 1 > MAX_GIST_FILES) {
+    // The manifest and the title count against GitHub's limit too
+    if (
+      size.bytes > MAX_GIST_BYTES ||
+      size.files + FRAME_FILES > MAX_GIST_FILES
+    ) {
       return { status: "failed", reason: "too-large" };
     }
     const body = JSON.stringify({
@@ -237,6 +241,7 @@ if (import.meta.vitest) {
       expect(body.description).toBe("counter");
       expect(body.public).toBe(false);
       expect(Object.keys(body.files).sort()).toEqual([
+        "!counter",
         ".playground.json",
         "README.md",
         "client__client.ts",
@@ -320,8 +325,8 @@ if (import.meta.vitest) {
     it("refuses a project of too many files without a request", async () => {
       const fetch = vi.spyOn(globalThis, "fetch");
       const files: Record<string, string> = {};
-      // With the manifest, 300 project files make 301 gist files
-      for (let i = 0; i < MAX_GIST_FILES; i++) files[`f${i}.rs`] = "x";
+      // One past what fits beside the manifest and the title
+      for (let i = 0; i < MAX_GIST_FILES - 1; i++) files[`f${i}.rs`] = "x";
 
       const result = await share({ name: "many", files });
 
