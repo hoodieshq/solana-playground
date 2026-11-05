@@ -198,13 +198,16 @@ describe("commands/deploy", () => {
     env.balance = 10_000_000_000;
     loadBuffer.mockImplementation(
       async (
-        _key: unknown,
-        _bytes: unknown,
-        opts: {
-          onMissing: (count: number) => void;
-          onRateLimit: (retryAfter: number) => void;
-        }
+        ...args: [
+          key: unknown,
+          bytes: unknown,
+          opts: {
+            onMissing: (count: number) => void;
+            onRateLimit: (retryAfter: number) => void;
+          }
+        ]
       ) => {
+        const opts = args[2];
         opts.onMissing(2);
         opts.onRateLimit(3);
         env.controller.abort();

@@ -138,7 +138,7 @@ describe.each([
 });
 
 describe("PgTerm.process, a line's variant", () => {
-  const fakeTerm = (previousLine?: string) => ({
+  const fakeTerm = (previousLine: string | undefined) => ({
     disable: vi.fn(),
     enable: vi.fn(),
     scrollToBottom: vi.fn(),
@@ -155,29 +155,33 @@ describe("PgTerm.process, a line's variant", () => {
     });
 
   it.each([
-    [
-      "an unknown command",
-      new TerminalLineError("`biuld` is not a command."),
-      PgTerminal.error("`biuld` is not a command."),
-    ],
-    [
-      "a shell habit",
-      new TerminalLineError("This terminal runs Playground commands."),
-      PgTerminal.error("This terminal runs Playground commands."),
-    ],
-    [
-      "a declined wallet question",
-      new TerminalLineError("Run `connect` to connect a wallet."),
-      PgTerminal.error("Run `connect` to connect a wallet."),
-    ],
-    ["a failure", new Error("boom"), PgTerminal.error("Process error: boom")],
-    [
-      "a stopped run",
-      new StoppedError("Stopped."),
-      PgTerminal.warning("Stopped."),
-    ],
-  ])("prints %s in its variant", async (_name, failure, printed) => {
-    const term = fakeTerm();
+    {
+      name: "an unknown command",
+      failure: new TerminalLineError("`biuld` is not a command."),
+      printed: PgTerminal.error("`biuld` is not a command."),
+    },
+    {
+      name: "a shell habit",
+      failure: new TerminalLineError("This terminal runs Playground commands."),
+      printed: PgTerminal.error("This terminal runs Playground commands."),
+    },
+    {
+      name: "a declined wallet question",
+      failure: new TerminalLineError("Run `connect` to connect a wallet."),
+      printed: PgTerminal.error("Run `connect` to connect a wallet."),
+    },
+    {
+      name: "a failure",
+      failure: new Error("boom"),
+      printed: PgTerminal.error("Process error: boom"),
+    },
+    {
+      name: "a stopped run",
+      failure: new StoppedError("Stopped."),
+      printed: PgTerminal.warning("Stopped."),
+    },
+  ])("prints $name in its variant", async ({ failure, printed }) => {
+    const term = fakeTerm(undefined);
 
     await expect(failWith(term, failure)).rejects.toBe(failure);
 
@@ -187,7 +191,7 @@ describe("PgTerm.process, a line's variant", () => {
   it("keeps the thrown message plain for toasts and the assistant", async () => {
     const failure = new TerminalLineError("`ls` is not a command.");
 
-    await expect(failWith(fakeTerm(), failure)).rejects.toBe(failure);
+    await expect(failWith(fakeTerm(undefined), failure)).rejects.toBe(failure);
 
     expect(failure.message).toBe("`ls` is not a command.");
   });

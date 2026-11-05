@@ -79,8 +79,8 @@ describe("commands/build/build", () => {
     utils.PgExplorer.files = { "/p/src/lib.rs": { content: PROGRAM } };
     utils.PgServer.build.mockResolvedValue({
       stderr: "Compiling probe v0.1.0",
-      idl: null,
-      uuid: null,
+      idl: undefined,
+      uuid: undefined,
     });
 
     await run();
