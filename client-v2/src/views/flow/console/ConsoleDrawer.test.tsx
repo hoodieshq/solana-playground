@@ -100,6 +100,7 @@ const flowState = (
   stopped: null,
   airdrops: 0,
   hasProgram: true,
+  sourceChanged: false,
 });
 
 /** A flow before anything ran, in a project with no program */
