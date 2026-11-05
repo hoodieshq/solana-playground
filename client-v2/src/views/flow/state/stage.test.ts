@@ -887,6 +887,24 @@ describe("programSourceIn", () => {
     ).not.toBe(base);
   });
 
+  // A build's start writes it into the open file, autosaved after the baseline
+  it.each([
+    ['declare_id!("1111")', 'declare_id!("9f3kQ")'],
+    ["declare_id('1111')", "declare_id('9f3kQ')"],
+  ])("does not hear the program id in %s", (before, after) => {
+    expect(source({ "/proj/src/lib.rs": { content: `a\n${before}\nb` } })).toBe(
+      source({ "/proj/src/lib.rs": { content: `a\n${after}\nb` } })
+    );
+  });
+
+  it("hears an edit beside the program id", () => {
+    expect(
+      source({ "/proj/src/lib.rs": { content: 'declare_id!("1")\na' } })
+    ).not.toBe(
+      source({ "/proj/src/lib.rs": { content: 'declare_id!("1")\nb' } })
+    );
+  });
+
   it("does not hear a rename", () => {
     expect(source({ "/proj/src/a.rs": { content: "x" } })).toBe(
       source({ "/proj/src/b.rs": { content: "x" } })
@@ -962,8 +980,8 @@ describe("PgFlow source tracking", () => {
       PgExplorer,
       sub,
       buildStarts: () => need(start.cb)(),
-      buildReports: (failed = false) =>
-        need(report.cb)({ failed, at: Date.now(), stderr: "" }),
+      buildReports: (failed = false, at = Date.now()) =>
+        need(report.cb)({ failed, at, stderr: "" }),
       edit: (content: string) => {
         PgExplorer.files[LIB].content = content;
         need(save.cb)();
@@ -1053,6 +1071,20 @@ describe("PgFlow source tracking", () => {
     second.fire("reload");
     expect(PgFlow.state.sourceChanged).toBe(true);
     second.sub.dispose();
+  });
+
+  // Subscribing mid-build replays the last run's report, not this run's
+  it("keeps the baseline when a remount replays an older report", async () => {
+    const w = await wire();
+    w.buildStarts();
+    w.buildReports();
+    w.edit("v2");
+
+    w.buildStarts();
+    w.buildReports(false, 0);
+    w.stop();
+    expect(PgFlow.state.sourceChanged).toBe(true);
+    w.sub.dispose();
   });
 
   // A replayed older report must not adopt a run that never reported

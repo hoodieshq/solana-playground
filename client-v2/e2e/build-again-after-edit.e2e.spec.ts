@@ -5,6 +5,9 @@ import { expect, LONG, openFiles, test } from "./fixtures";
 const CHANGED =
   "Your code changed after the last build. Build again before you deploy.";
 
+/** Longer than the editor's autosave debounce */
+const AUTOSAVE_MS = 3000;
+
 /** Every build answered with success, counted */
 const answerBuilds = async (page: Page) => {
   const builds: string[] = [];
@@ -43,10 +46,13 @@ const builtPage = async (page: Page) => {
   return builds;
 };
 
+/** Build's stage takes the editor's place, so an edit goes through Write */
 const edit = async (page: Page, keys: () => Promise<void>) => {
+  await page.locator("#flow-stage-tab-write").click();
   await page.locator(".monaco-editor .view-lines").first().click();
   await page.keyboard.press("ControlOrMeta+End");
   await keys();
+  await page.locator("#flow-stage-tab-build").click();
 };
 
 const typeEdit = (page: Page) =>
@@ -66,6 +72,24 @@ test.describe("Build succeeded after an edit", () => {
 
     await button(page, "Continue to Deploy").click();
     await expect(page.locator("#flow-stage-panel-deploy")).toBeVisible();
+  });
+
+  test("client-v2-program-build: The program id a build writes is not a change", async ({
+    seededPage: page,
+  }) => {
+    await builtPage(page);
+
+    // The id is in the editor by now, and autosave stores it soon after
+    await page.locator("#flow-stage-tab-write").click();
+    await expect(page.locator(".monaco-editor .view-lines")).not.toContainText(
+      "1111111111",
+      LONG
+    );
+    await page.waitForTimeout(AUTOSAVE_MS);
+    await page.locator("#flow-stage-tab-build").click();
+
+    await expectLeader(page, "Continue to Deploy", "Build again");
+    await expect(page.getByText(CHANGED)).toHaveCount(0);
   });
 
   test("client-v2-program-build: A rename is not a change", async ({
@@ -97,7 +121,7 @@ test.describe("Build succeeded after an edit", () => {
     await edit(page, () => page.keyboard.type("x"));
     await expectLeader(page, "Build again", "Continue to Deploy");
 
-    await page.keyboard.press("Backspace");
+    await edit(page, () => page.keyboard.press("Backspace"));
     await expectLeader(page, "Continue to Deploy", "Build again");
   });
 

@@ -152,18 +152,28 @@ interface BuiltSource {
   source: string;
 }
 
+/** A program id's declaration, in Rust and in Python */
+const DECLARED_ID = /declare_id(!?)\(\s*(["'])\w*\2\s*\)/g;
+
 /**
  * What a build is compared by: the stored text of the files it sends, the
- * non-empty ones under `src/`, before it writes the program id into them. Paths
- * are left out, so a rename alone is no change, and so neither is moving a file
- * within `src/` or swapping two files' text.
+ * non-empty ones under `src/`. Two things are left out:
+ *
+ * - The declared program id. A build's start writes it into the open file
+ *   (`Monaco.tsx`), which autosave stores after the build has its baseline, and
+ *   the build sends the keypair's id whatever the file says; with it left in,
+ *   every first build read as changed code moments after it succeeded.
+ * - Paths, so a rename alone is no change, and so neither is moving a file
+ *   within `src/` or swapping two files' text.
  */
 export const programSourceIn =
   (srcPath: string) => (files: Record<string, { content?: string }>) =>
     JSON.stringify(
       Object.entries(files)
         .filter(([path, { content }]) => path.startsWith(srcPath) && content)
-        .map(([, { content }]) => content)
+        .map(([, { content }]) =>
+          content?.replace(DECLARED_ID, "declare_id$1()")
+        )
         .sort()
     );
 
@@ -307,15 +317,19 @@ export class PgFlow {
       PgCommand.build.onDidStart(() => {
         startedAt = Date.now();
         PgFlow._dispatch({ type: "build-start", at: startedAt });
-        PgFlow._running = PgFlow._currentSource();
+        PgFlow._running = { at: startedAt, source: PgFlow._currentSource() };
       }),
       PgBuildOutput.onDidChange((out) => {
         if (!out) return;
-        // Subscribing replays the latest report, whose run has settled, so
-        // only a run still open moves the baseline. Before `build-finish`, so
-        // the surface never shows the success beside the old answer.
-        if (!out.failed && PgFlow._running) PgFlow._built = PgFlow._running;
-        PgFlow._running = null;
+        // Subscribing replays the latest report, which may be older than the
+        // build in flight, so only this run's own report settles it. Before
+        // `build-finish`, so the surface never shows the success beside the
+        // old answer.
+        const run = PgFlow._running;
+        if (run && out.at >= run.at) {
+          if (!out.failed) PgFlow._built = run.source;
+          PgFlow._running = null;
+        }
         PgFlow._recheckSource();
         PgFlow._dispatch({
           type: "build-finish",
@@ -429,7 +443,7 @@ export class PgFlow {
 
   private static _state: FlowState = INITIAL_FLOW_STATE;
   /** What the build in flight was given; `null` once it settles */
-  private static _running: BuiltSource | null = null;
+  private static _running: { at: number; source: BuiltSource } | null = null;
   /** What the last successful build was given. A stopped or failed build
    * leaves it, so a stopped rebuild goes back to the surface it left with the
    * same answer. Static, as `_state` is: the layout re-subscribes on a remount

@@ -8,8 +8,14 @@ change, and an edit undone back to the built text is no change either. A
 
 The cost of leaving paths out: moving a file within `src/`, or swapping two
 files' text, reads as no change. The ticket asks for a rename not to count, and
-these are rare enough to accept. The comparison is of stored text, before a
-build writes the program id in.
+these are rare enough to accept.
+
+**The declared program id is left out too.** A build's start writes it into the
+open file (`Monaco.tsx`) and autosave stores that after the baseline is taken, so
+with it left in every first build reads as changed code moments after it
+succeeds. The build sends the keypair's id whatever the file says, so the text
+there decides nothing. A new keypair after a build therefore reads as no change;
+that is not an edit to the program's code.
 
 **Only a success moves the baseline.** A stopped or failed build leaves it, so
 a stopped rebuild returns to the surface it left, with the same answer.
