@@ -443,7 +443,8 @@ it.each([
   }
 );
 
-it("leaves focus where it is when an indicator's closed panel goes", () => {
+it("leaves focus where the user put it while Try again was asking", async () => {
+  let answer: () => void = () => {};
   const draw = (indicators: StatusIndicator[]) => (
     <TooltipProvider>
       <SidebarProvider>
@@ -451,15 +452,26 @@ it("leaves focus where it is when an indicator's closed panel goes", () => {
           indicators={indicators}
           onPick={vi.fn()}
           onAction={vi.fn()}
-          onRetry={vi.fn()}
+          onRetry={() => new Promise<void>((resolve) => (answer = resolve))}
           settingsOpen={false}
         />
       </SidebarProvider>
+      <input aria-label="Elsewhere" />
     </TooltipProvider>
   );
   const { rerender } = render(draw([DOWN, AI_OFF, STARTING]));
+  (document.querySelector('[data-status="network"]') as HTMLElement).focus();
+  await userEvent.keyboard("{Enter}");
+  const panel = await screen.findByRole("dialog");
+  within(panel).getByRole("button", { name: "Try again" }).focus();
+  await userEvent.keyboard("{Enter}");
+  const elsewhere = screen.getByRole("textbox", { name: "Elsewhere" });
+  elsewhere.focus();
+
+  answer();
   rerender(draw([UP, AI_OFF, STARTING]));
-  expect(document.activeElement).toBe(document.body);
+
+  expect(document.activeElement).toBe(elsewhere);
 });
 
 it("opens a panel on the AI's limit, whose Add an API key opens Connect a model", async () => {

@@ -7,7 +7,7 @@ import {
 import { StatusDot } from "@/shared/ui/status-dot";
 
 import type { BaseStatusRowProps } from "./BaseStatusRow";
-import { DOT, StatusPanel, useFocusAfterPanel } from "./parts";
+import { DOT, indicatorMark, StatusPanel, useFocusAfterPanel } from "./parts";
 
 /**
  * The status row on the rail: the three dots, one button each, doing what
@@ -23,14 +23,14 @@ const BaseStatusRail = ({
   onRetry,
   settingsOpen,
 }: BaseStatusRowProps) => {
-  const { ref, onGone } = useFocusAfterPanel<HTMLUListElement>();
+  const { ref, handleGone } = useFocusAfterPanel<HTMLUListElement>();
   return (
     <SidebarMenu ref={ref} data-testid="status-rail">
       {indicators.map((indicator) => {
         const dot = <StatusDot variant={DOT[indicator.state]} size="lg" />;
         const common = {
           "aria-label": indicator.railLabel,
-          "data-status": indicator.id,
+          ...indicatorMark(indicator.id),
           "data-state-kind": indicator.state,
           // A fingertip wide and tall on a touch screen (Spec 06,
           // "Accessibility"). The stock rail fixes its buttons at 32 px with an
@@ -61,7 +61,7 @@ const BaseStatusRail = ({
                 onPick={onPick}
                 onAction={onAction}
                 onRetry={onRetry}
-                onGone={onGone}
+                onGone={handleGone}
               />
             </SidebarMenuItem>
           );

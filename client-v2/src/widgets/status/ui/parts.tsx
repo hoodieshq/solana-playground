@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
@@ -164,13 +164,17 @@ export const StatusPanel = ({
   onPick: (indicator: StatusIndicator) => void;
   onAction: (indicator: StatusIndicator) => void;
   onRetry: (indicator: StatusIndicator) => Promise<unknown>;
-  /** The panel went while it was open: its indicator no longer has one */
+  /** The panel unmounted while open, usually because its indicator no
+   * longer has one (Try again answered) */
   onGone: (indicator: StatusIndicator) => void;
 }) => {
   const [open, setOpen] = useState(false);
-  // Read when the panel goes, so the cleanup sees the last state, not the first
+  // Read when the panel goes, so the cleanup sees the last committed state,
+  // not the first
   const last = useRef({ open, indicator, onGone });
-  last.current = { open, indicator, onGone };
+  useLayoutEffect(() => {
+    last.current = { open, indicator, onGone };
+  });
   useEffect(
     () => () => {
       const panel = last.current;
@@ -213,27 +217,33 @@ export const StatusPanel = ({
   );
 };
 
+/** Marks an indicator's button in the row and on the rail, which
+ * `useFocusAfterPanel` looks up by it */
+const INDICATOR_ATTR = "data-status";
+export const indicatorMark = (id: IndicatorId) => ({ [INDICATOR_ATTR]: id });
+
 /**
- * Where focus goes when an open panel goes with its indicator's panel (Try
- * again answered): back to that indicator's button, whose name now says its
- * new state, rather than to the page's body with the panel's own buttons.
- * The panel's cleanup runs before the row's effects, so the row's effect finds
- * the plain button already drawn in the panel's trigger's place. Focus the
- * user has since put somewhere else stays there.
+ * When an open panel unmounts because Try again was answered, focus falls to
+ * the body with the panel's buttons. This moves it to that indicator's button,
+ * whose name now says the new state. The panel's cleanup runs before the
+ * row's effects, so the row's effect finds the plain button already committed
+ * in the trigger's place. Focus that is anywhere but the body stays put.
  */
 export const useFocusAfterPanel = <T extends HTMLElement>() => {
   const ref = useRef<T>(null);
-  const gone = useRef<StatusIndicator["id"]>(undefined);
+  const gone = useRef<IndicatorId>(undefined);
   useEffect(() => {
     const id = gone.current;
     if (!id) return;
     gone.current = undefined;
     const active = document.activeElement;
     if (active && active !== document.body) return;
-    ref.current?.querySelector<HTMLElement>(`[data-status="${id}"]`)?.focus();
+    ref.current
+      ?.querySelector<HTMLElement>(`[${INDICATOR_ATTR}="${id}"]`)
+      ?.focus();
   });
-  const onGone = (indicator: StatusIndicator) => {
+  const handleGone = (indicator: StatusIndicator) => {
     gone.current = indicator.id;
   };
-  return { ref, onGone };
+  return { ref, handleGone };
 };
