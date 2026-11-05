@@ -49,11 +49,11 @@ const listeners = new Set<DocListener>();
  *   link instead
  */
 export const requestDoc = (file: string): boolean => {
-  let wasShown = false;
+  let isShown = false;
   listeners.forEach((listen) => {
-    if (listen(file)) wasShown = true;
+    if (listen(file)) isShown = true;
   });
-  return wasShown;
+  return isShown;
 };
 
 /** Listens for `requestDoc`; returns what stops listening */

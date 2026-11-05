@@ -54,8 +54,8 @@ const DOCS = "docs";
 // tutorial that lists no docs of its own gets the pages and the list in
 // `__tests__/docs/<slug>/`, so the doc tabs stay tested should its own list
 // go; a tutorial with pages of its own keeps them. Every other run, and
-// every build, leaves the test pages out; the generated module keeps
-// whatever the last run wrote
+// every build, leaves the test pages out, and every run writes the module
+// anew, so a build never carries the pages an e2e run put there
 const TEST_DOCS = process.env.TUTORIAL_TEST_DOCS === "1";
 const TEST_DOCS_PATH = pathModule.join(DEFINITIONS_PATH, "__tests__", DOCS);
 const definitionSlugs = (
