@@ -34,8 +34,10 @@ export interface PhonePagerState {
   onFilesOpenChange: (open: boolean) => void;
   /** The stage shows on the work page (Code) at `write`, else on the preview */
   stageOn: StagePage;
-  /** The console's height on the preview: open, or its folded bar */
+  /** The console on the preview: open as a sheet, or its folded bar */
   consoleOpen: boolean;
+  /** The sheet's scrim (a button) or Escape (a key) asked to fold the console */
+  onConsoleClose: (via: "button" | "key") => void;
 }
 
 /** The content and the outlets' nodes the pager lays out */
@@ -203,6 +205,20 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
   // Covered (Home or a page), the preview has no section: Work shows
   const page = pages.includes(props.page) ? props.page : "work";
   const index = pages.indexOf(page);
+  // Escape folds the console's sheet before anything under it hears the key
+  // (Spec 08: Escape closes the log). The Files sheet opens over it and
+  // takes its own Escape.
+  const { consoleOpen, filesOpen, onConsoleClose } = props;
+  useEffect(() => {
+    if (!consoleOpen || filesOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      onConsoleClose("key");
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [consoleOpen, filesOpen, onConsoleClose]);
   // Smooth by CSS (`motion-safe:scroll-smooth`: with reduced motion the page
   // changes at once, and the jump settles the same way). The scroll this
   // causes settles on the page given, so the settle finds the page already
@@ -448,16 +464,37 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
                 className="flex min-h-0 flex-1 flex-col"
               />
             )}
-            <Outlet
-              node={props.consoleNode}
-              // Closed, the console is its bar: the body stays mounted (the
-              // terminal keeps its buffer) and is clipped, as on wide
-              className={cn(
-                "flex min-h-0 flex-col",
-                props.consoleOpen ? "h-2/5" : "overflow-hidden"
+            {/* Closed, the console is its bar at the foot: the body stays
+                mounted (the terminal keeps its buffer) and is clipped, as on
+                wide. Open, the same outlet rises as a sheet over the stage
+                (Spec 08, "Show full log" opens a sheet below 768 px), so the
+                stage keeps its size under it; the slot keeps the bar's height
+                so nothing below moves. */}
+            <div className="shrink-0" style={{ height: BOTTOM_BAR_PX }}>
+              {/* The scrim and the motion are the design system's Sheet's */}
+              {props.consoleOpen && (
+                <div
+                  aria-hidden
+                  data-slot="console-sheet-scrim"
+                  onClick={() => props.onConsoleClose("button")}
+                  className="fixed inset-0 z-50 bg-black/10 duration-100 animate-in fade-in-0 supports-backdrop-filter:backdrop-blur-xs motion-reduce:animate-none"
+                />
               )}
-              style={props.consoleOpen ? undefined : { height: BOTTOM_BAR_PX }}
-            />
+              <div
+                data-slot="console-sheet"
+                data-state={props.consoleOpen ? "open" : "closed"}
+                className={cn(
+                  "flex h-full min-h-0 flex-col overflow-hidden",
+                  props.consoleOpen &&
+                    "fixed inset-x-0 bottom-0 z-50 h-[85dvh] rounded-t-2xl shadow-lg duration-200 animate-in fade-in-0 slide-in-from-bottom-10 motion-reduce:animate-none"
+                )}
+              >
+                <Outlet
+                  node={props.consoleNode}
+                  className="flex min-h-0 flex-1 flex-col"
+                />
+              </div>
+            </div>
           </section>
           <Sheet open={props.filesOpen} onOpenChange={props.onFilesOpenChange}>
             <SheetContent

@@ -68,6 +68,7 @@ const Harness = (choice: Choice) => {
     stageNode,
     consoleNode,
     consoleOpen: choice.consoleOpen ?? false,
+    onConsoleClose: choice.onConsoleClose ?? vi.fn(),
     home: choice.home,
     cover: choice.cover,
   };

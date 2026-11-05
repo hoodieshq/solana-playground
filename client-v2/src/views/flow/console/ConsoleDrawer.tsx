@@ -78,6 +78,18 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
     return () => PgTerminal.setConsoleOpen(false);
   }, [open]);
 
+  // Copy takes the log as it was when the console opened: "Show full log"
+  // opens it after the run, so that is the run's whole text
+  const [logText, setLogText] = useState("");
+  useEffect(() => {
+    if (!open) return;
+    PgTerminal.get()
+      .then((term) => setLogText(term.getText()))
+      .catch((error: unknown) =>
+        log.error(error, { context: { action: "read the log for Copy" } })
+      );
+  }, [open]);
+
   const clear = () => {
     PgTerminal.clear().catch((error: unknown) =>
       log.error(error, { report: true, context: { action: "clear" } })
@@ -94,6 +106,7 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
       status={status}
       shortcut={keyLabel(CONSOLE_KEY, PgCommon.getOS())}
       onClear={clear}
+      log={logText}
       stop={stop && { run: stop, onStop: () => PgCommandManager.stop() }}
     >
       <Terminal />

@@ -593,6 +593,7 @@ const LayoutShell = ({
         onFilesOpenChange: (open) => setPhoneFiles(open, lastInput.current),
         stageOn: stagePageOf(flowStage),
         consoleOpen: phoneConsole,
+        onConsoleClose: (via) => setPhoneConsoleOpen(false, via),
       }}
       stageBar={
         <BaseStageBar
