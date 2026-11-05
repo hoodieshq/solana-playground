@@ -807,3 +807,50 @@ export class PgTerm {
     return true;
   };
 }
+
+if (import.meta.vitest) {
+  const { describe, it, expect } = import.meta.vitest;
+
+  describe("utils/terminal/terminal", () => {
+    /** A terminal whose buffer holds these rows, each `[text, isWrapped]` */
+    const termOf = (rows: Array<[string, boolean]>) =>
+      ({
+        _xterm: {
+          buffer: {
+            active: {
+              length: rows.length,
+              getLine: (i: number) => ({
+                isWrapped: rows[i][1],
+                translateToString: () => rows[i][0],
+              }),
+            },
+          },
+        },
+      } as unknown as PgTerm);
+
+    it("getText joins a wrapped row to the line it continues", () => {
+      const term = termOf([
+        ["$ build", false],
+        ["Compiling a very long ", false],
+        ["line", true],
+        ["Done", false],
+      ]);
+      expect(PgTerm.prototype.getText.call(term)).toBe(
+        "$ build\nCompiling a very long line\nDone"
+      );
+    });
+
+    it("getText drops the empty rows under the last output", () => {
+      const term = termOf([
+        ["Done", false],
+        ["", false],
+        ["", false],
+      ]);
+      expect(PgTerm.prototype.getText.call(term)).toBe("Done");
+    });
+
+    it("getText reads an empty buffer as no text", () => {
+      expect(PgTerm.prototype.getText.call(termOf([]))).toBe("");
+    });
+  });
+}

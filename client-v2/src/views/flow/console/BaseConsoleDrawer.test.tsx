@@ -3,6 +3,8 @@ import path from "node:path";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
+import { TooltipProvider } from "@/shared/ui/tooltip";
+
 import { requireFor } from "../../../test-utils/require-for";
 import { BOTTOM_BAR_PX } from "../tokens";
 import BaseConsoleDrawer, { CONSOLE_BODY_ID } from "./BaseConsoleDrawer";
@@ -98,6 +100,35 @@ it.each([
 });
 
 // Spec 13 (TRM-28): Clear is off beside Stop; a phone hides it for Stop
+/** The drawer with this log for Copy, in the provider Copy's tooltip needs */
+const drawWithLog = (open: boolean, log: string) =>
+  render(
+    <BaseConsoleDrawer
+      open={open}
+      status={idle}
+      onOpenChange={vi.fn()}
+      onClear={vi.fn()}
+      stop={null}
+      shortcut="⌘J"
+      log={log}
+    >
+      <div className="xterm" />
+    </BaseConsoleDrawer>,
+    { wrapper: TooltipProvider }
+  );
+
+it("offers Copy log only while open with a log to copy", () => {
+  const { unmount } = drawWithLog(true, "Done");
+  expect(screen.getByRole("button", { name: "Copy log" })).toBeTruthy();
+  unmount();
+
+  drawWithLog(true, "").unmount();
+  expect(screen.queryByRole("button", { name: "Copy log" })).toBeNull();
+
+  drawWithLog(false, "Done");
+  expect(screen.queryByRole("button", { name: "Copy log" })).toBeNull();
+});
+
 it("turns Clear off while a run can be stopped", () => {
   draw(true, { stop: { run: "build", onStop: vi.fn() } });
 

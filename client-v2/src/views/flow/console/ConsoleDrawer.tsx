@@ -99,22 +99,32 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({ open, onToggle }) => {
     return () => PgTerminal.setConsoleOpen(false);
   }, [open]);
 
-  // Copy takes the log as it was when the console opened: "Show full log"
-  // opens it after the run, so that is the run's whole text
+  // Copy takes the log as it is when the console opens and again whenever a
+  // run's stage moves: a deploy opens the console before it has printed, and
+  // the run's whole text lands only as it ends
   const [logText, setLogText] = useState("");
   useEffect(() => {
     if (!open) return;
+    let live = true;
     PgTerminal.get()
-      .then((term) => setLogText(term.getText()))
+      .then((term) => {
+        if (live) setLogText(term.getText());
+      })
       .catch((error: unknown) =>
         log.error(error, { context: { action: "read the log for Copy" } })
       );
-  }, [open]);
+    return () => {
+      live = false;
+    };
+  }, [open, flow.build, flow.deploy]);
 
   const clear = () => {
-    PgTerminal.clear().catch((error: unknown) =>
-      log.error(error, { report: true, context: { action: "clear" } })
-    );
+    PgTerminal.clear()
+      // A cleared log has nothing left to copy
+      .then(() => setLogText(""))
+      .catch((error: unknown) =>
+        log.error(error, { report: true, context: { action: "clear" } })
+      );
   };
 
   return (

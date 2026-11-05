@@ -31,7 +31,7 @@ interface BaseConsoleDrawerProps {
   status: ConsoleStatus;
   /** The toggle's key: "⌘J" on a Mac, "Ctrl+J" elsewhere */
   shortcut: string;
-  /** The terminal's text as it was when the console opened, for Copy */
+  /** The terminal's text for Copy, read when the console opens and as a run moves */
   log: string;
   children?: ReactNode;
 }
