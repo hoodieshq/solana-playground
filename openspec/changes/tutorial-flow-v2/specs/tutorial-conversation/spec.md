@@ -46,7 +46,8 @@ skeleton of the column.
 Every action the learner takes in the feed SHALL sit on the latest card that
 asks for it: Start, a question's options, Build, Deploy, Run, Call, Explain
 the error and Next. A resolved card SHALL become a record: one line, no
-primary button. Navigation links in a record ("Show in lib.rs", "Open Call")
+primary button, except an act whose result card stands right under it, which is
+not drawn. Navigation links in a record ("Show in lib.rs", "Open Call")
 SHALL stay live. The ring and the shadow SHALL mark at most one card on screen:
 the live question, the live win or the finish. A click that speaks for the
 learner (a right pick, "Explain the error", a chip) SHALL be echoed as the
@@ -58,7 +59,7 @@ resolve a question.
 #### Scenario: Records keep no buttons
 
 - **WHEN** step 1 has passed and the learner scrolls back to it
-- **THEN** its act cards read "Built in <n> s" with no button
+- **THEN** its result cards read "Build successful" with no button to run it
 - **AND** its wrote card's "Show in lib.rs" opens the lines
 
 ### Requirement: Each step opens with a divider and the step bar jumps to it
@@ -188,8 +189,14 @@ context line and a primary button carrying ⌘↵. While the act runs:
 
 A call act with arguments SHALL show one field per argument and keep its
 button disabled while a required field is empty; a string field stops at 32
-characters, and Enter sends. When the act ends, the card SHALL become its
-record and a result card SHALL follow. A deploy act's button SHALL read the
+characters, and Enter sends. When the act ends, a result card SHALL follow,
+and the act SHALL not be drawn while its result card stands right under it:
+one line per action, with the time in the card's details where the card has
+details. If another turn stands between them, the card SHALL become its record.
+An act whose landed result the step's goal refused, with nothing left to do in
+the step, SHALL come back under the result as a live act card with its own
+button, and one line from the assistant between them SHALL say what the goal
+missed, built from the goal and never printing a log pattern. A deploy act's button SHALL read the
 definition's label ("Deploy to devnet"), and "Build and deploy" when the
 program changed since the last build, in which case it builds first. "n of
 m" counts every stage the run shows.

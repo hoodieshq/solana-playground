@@ -402,7 +402,16 @@ const FailedCard = ({ result }: { result: Failed }) => {
           <p className={READ}>{result.message}</p>
         </>
       }
-      details={lines.length ? <LogLines lines={lines} /> : undefined}
+      details={
+        lines.length ? (
+          <>
+            <p className={READ}>
+              {`${FROM[result.act]} ran in ${formatSeconds(result.seconds)}.`}
+            </p>
+            <LogLines lines={lines} />
+          </>
+        ) : undefined
+      }
     />
   );
 };

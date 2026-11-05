@@ -28,6 +28,8 @@ export type SentTx =
       signer: string | null;
       /** The instructions it sent to the tutorial's program, decoded */
       calls: DecodedCall[];
+      /** One of them did not decode, so `calls` may be short */
+      undecoded?: true;
     }
   | {
       kind: "refused";
@@ -285,6 +287,7 @@ export const resultOf = ({
     called: landed.flatMap((tx) =>
       tx.calls.map(({ instruction, args }) => ({ instruction, args }))
     ),
+    ...(landed.some((tx) => tx.undecoded) ? { undecoded: true as const } : {}),
     receipt: receiptOf(last, programId),
   };
 };
@@ -509,6 +512,15 @@ if (import.meta.vitest) {
           pattern: "Hello, World!",
           seconds: 3,
         });
+
+      it("says a run is undecoded if any of its transactions is", () => {
+        const undecoded = Object.assign(landed(HELLO_LOG), { undecoded: true });
+        expect(resultFor([undecoded, landed(HELLO_LOG)])).toMatchObject({
+          ok: true,
+          undecoded: true,
+        });
+        expect(resultFor([landed(HELLO_LOG)])).not.toHaveProperty("undecoded");
+      });
 
       it("a landed run: signatures, the picked line, the calls and the last receipt", () => {
         expect(resultFor([landed(HELLO_LOG)])).toEqual({

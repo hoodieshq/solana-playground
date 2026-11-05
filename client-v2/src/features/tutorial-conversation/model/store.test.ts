@@ -786,12 +786,7 @@ describe("PgConversation", () => {
     ]);
     const ids = PgConversation.view(LATER)?.turns.map((t) => t.id) ?? [];
     expect(ids).toEqual(
-      expect.arrayContaining([
-        "s2.deploy",
-        "s2.deploy:1",
-        "result:s2.deploy:1",
-        "win:deploy",
-      ])
+      expect.arrayContaining(["s2.deploy", "result:s2.deploy:1", "win:deploy"])
     );
   });
 

@@ -6,6 +6,7 @@ import type {
   Beat,
   Chip,
   Follow,
+  Goal,
   QuestionResult,
   Quote,
   Step,
@@ -15,6 +16,7 @@ import type {
 } from "@/entities/tutorial";
 
 import { FINISH_DELAY_MS } from "./clock";
+import { goalGap } from "./goals";
 import type {
   ConversationProgress,
   PassedVia,
@@ -195,8 +197,29 @@ const fixOfferAt = (
 export const FIX_OFFER =
   "Fix it in the editor and build again, or I can show you the lines this step needs.";
 
+/**
+ * The line between a landed result and the live act when the step's goal
+ * turned the run down. The prototype never reaches this (tutorial-v2 at
+ * f7d42bf2e, `checkOwn` in `store.tsx`): it fails such a build outright, and a
+ * real build can succeed without what the step asks for.
+ */
+export const whyRefused = (goal: Goal, result: RunResult): string => {
+  const gap = goalGap(goal, result);
+  switch (gap.kind) {
+    case "noInstruction":
+      return `It built, but the program has no \`${gap.instruction}\` instruction. This step needs one.`;
+    case "notCalled":
+      return `It ran, but it didn't call \`${gap.instruction}\`. This step needs that call.`;
+    case "logDiffers":
+      return `It called \`${gap.instruction}\`, but the log isn't the one this step expects.`;
+    case "other":
+      return "It ran, but this step isn't done yet.";
+  }
+};
+
 /** The button of the act card that runs a failed deploy again */
 export const TRY_AGAIN = "Try again";
+
 /** That card's line after the faucet stopped the deploy */
 export const ASKS_THE_FAUCET = "Asks the faucet again, then deploys";
 
@@ -224,6 +247,15 @@ const retryOf = (result: RunResult): "faucet" | "again" | null => {
   if (!result.ok && result.reason === "failed") return "again";
   return null;
 };
+
+/** A failed deploy's act as its Try again card shows it */
+const tryAgain = (act: ActBeat, retry: "faucet" | "again" | null): ActBeat =>
+  Object.assign({}, act, {
+    button: TRY_AGAIN,
+    context: retry === "faucet" ? ASKS_THE_FAUCET : act.context,
+    // The retry is one press; the card above keeps the others
+    repeat: undefined,
+  });
 
 /** The assistant's line on Skip when the question has none of its own */
 export const SKIPPED_DEFAULT =
@@ -481,11 +513,11 @@ const actStateOf = (run: RunRecord | undefined): ActState => {
 };
 
 /**
- * The id of the act card to keep live when the cursor's step has not passed
- * and the last act the cursor went past ended well: the step's goal refused
- * the result, so the card is the way to try again. Null otherwise.
+ * The act to put back up as a live card: the step has not passed,
+ * nothing is left to do in it, and the last act ended well, so the step's goal
+ * refused the result. Null otherwise.
  */
-const retryAct = (
+const refusedByGoal = (
   definition: TutorialDefinition,
   p: ConversationProgress
 ): string | null => {
@@ -493,16 +525,27 @@ const retryAct = (
   if (cursor.kind !== "step" || p.passed.includes(cursor.stepId)) return null;
   const step = definition.steps.find((s) => s.id === cursor.stepId);
   if (!step) return null;
-  const beats = beatsOf(step, cursor.fail).slice(0, cursor.beat);
+  const beats = beatsOf(step, cursor.fail);
+  if (cursor.beat < beats.length) return null;
   const last = [...beats].reverse().find((b) => b.kind === "act");
   if (!last) return null;
   // A repeating card stays one card, and is live until it ends
   if (last.kind === "act" && last.repeat) return null;
-  const runs = p.runs[last.id] ?? [];
-  const run = runs.at(-1);
-  if (!run || run.status !== "ok") return null;
-  return runs.length === 1 ? last.id : `${last.id}:${runs.length - 1}`;
+  return p.runs[last.id]?.at(-1)?.status === "ok" ? last.id : null;
 };
+
+/**
+ * An act that ran gives way to its result card right under it: one line per
+ * action, not a record and then a card that says the same (`tutorial-v2` SPEC
+ * 6.5, the prototype's `Conversation`). The card's details hold the time.
+ */
+const isReplacedByResult = (t: Turn, next: Turn | undefined) =>
+  t.kind === "act" &&
+  // A repeating card's lines are its result, so it keeps its card
+  !t.act.repeat &&
+  (t.state === "done" || t.state === "refused" || t.state === "failed") &&
+  next?.kind === "result" &&
+  next.beatId === t.beatId;
 
 export const view = (
   definition: TutorialDefinition,
@@ -511,6 +554,7 @@ export const view = (
 ): ConversationView => {
   const p = state.progress;
   const all: Turn[] = [];
+  const goalRefused = refusedByGoal(definition, p);
   const turn = (t: Posted) =>
     all.push({ ...t, whole: t.at < loadedAt } as Turn);
 
@@ -744,10 +788,7 @@ export const view = (
           runs.forEach((run, n) => {
             const isLast = n === runs.length - 1;
             const cardAt = n === 0 ? r.at : run.at;
-            // The faucet's card stands for the act that hit it: the act's
-            // own record over it would say the same failure twice
-            const funding = ended(run) && isFaucetRefusal(run.result);
-            if (!funding && !b.repeat)
+            if (!b.repeat)
               turn({
                 id: n === 0 ? b.id : `${b.id}:${n}`,
                 kind: "act",
@@ -818,21 +859,30 @@ export const view = (
                   },
                 });
               }
-              const retry = open ? retryOf(run.result) : null;
-              if (retry !== null) {
+              // The same slot as a failed deploy's Try again, with the act's
+              // own button: see `refusedByGoal`
+              const isTurnedDown = isLast && b.id === goalRefused;
+              if (isTurnedDown) {
+                turn({
+                  id: `why:${b.id}`,
+                  kind: "say",
+                  step: step.id,
+                  at: run.at + run.took,
+                  beatId: b.id,
+                  text: whyRefused(step.goal, run.result),
+                });
+              }
+              const failedRetry = open ? retryOf(run.result) : null;
+              if (isTurnedDown || failedRetry !== null) {
                 turn({
                   id: `${b.id}:retry`,
                   kind: "act",
                   step: step.id,
                   at: run.at + run.took,
                   beatId: b.id,
-                  act: {
-                    ...b,
-                    button: TRY_AGAIN,
-                    context: retry === "faucet" ? ASKS_THE_FAUCET : b.context,
-                    // The retry is one press; the card above keeps the others
-                    repeat: undefined,
-                  },
+                  // Nothing failed under a goal's refusal, so the act keeps
+                  // its own label: "Try again" would say something did
+                  act: isTurnedDown ? b : tryAgain(b, failedRetry),
                   state: "live",
                   presses: [],
                   note: null,
@@ -883,17 +933,15 @@ export const view = (
     .map((t, i) => ({ t, i }))
     .sort((a, b) => a.t.at - b.t.at || a.i - b.i)
     .map(({ t }) => t);
-  const turns = ordered.filter((t) => t.at <= now);
+  const shown = ordered.filter((t) => t.at <= now);
+  const turns = shown.filter((t, i) => !isReplacedByResult(t, shown[i + 1]));
   const ahead = ordered.filter((t) => t.at > now);
   const nextAt = ahead.length ? ahead[0].at : null;
 
   const running = turns.find((t) => t.kind === "act" && t.state === "running");
   // After the finish nothing acts; before it, the latest card that does. An
-  // act of a step already passed (from the Call panel) is a record, not a card
-  // The last act the cursor passed whose latest run ended well without
-  // passing the step (its result failed the goal): its card stays the one
-  // to press, so the learner can run it again
-  const retryActId = retryAct(definition, p);
+  // act of a step already passed (from the Call panel) is a record, not a card,
+  // and an ended act is never live: one the goal refused returns as `:retry`
   let live: Turn | null = null;
   if (p.cursor.kind !== "finished") {
     live =
@@ -901,7 +949,6 @@ export const view = (
         if (t.kind === "win") return !t.done;
         if (t.kind === "act") {
           if (t.step !== null && p.passed.includes(t.step)) return false;
-          if (t.state === "done") return t.id === retryActId;
           return (
             t.state === "live" ||
             t.state === "running" ||
@@ -1018,6 +1065,24 @@ if (import.meta.vitest) {
         return { v, card: cards[0] };
       };
 
+      it("keeps its card over a failed press's result, which its lines are not", () => {
+        const failed: RunRecord = {
+          status: "failed",
+          at: 2000,
+          took: 500,
+          result: {
+            act: "call",
+            ok: false,
+            seconds: 1,
+            message: "Blockhash expired",
+            log: "",
+          },
+        };
+        const { v, card } = cardOf(stateOf({ beat: 1, runs: [failed] }));
+        expect(card.id).toBe("s1.grow");
+        expect(v.turns.map((t) => t.id)).toContain("result:s1.grow:0");
+      });
+
       it("draws one live card with a line per press, and no result card", () => {
         const { v, card } = cardOf(
           stateOf({ beat: 1, runs: [LANDED, LANDED] })
@@ -1065,12 +1130,21 @@ if (import.meta.vitest) {
     });
 
     let hello: TutorialDefinition;
+    let twoActs: TutorialDefinition;
     let reduce: typeof import("./reducer").reduce;
     let INITIAL: typeof import("./reducer").INITIAL_ENGINE_STATE;
     let TICK: number;
     beforeAll(async () => {
       hello = (await import("../../../tutorials/hello-anchor/tutorial.json"))
         .default as unknown as TutorialDefinition;
+      // Hello Anchor with a second act after the first step's build
+      twoActs = structuredClone(hello);
+      const build = twoActs.steps[0].beats.find((b) => b.id === "s1.build");
+      if (build) {
+        twoActs.steps[0].beats.push(
+          Object.assign(structuredClone(build), { id: "s1.second" })
+        );
+      }
       ({ reduce, INITIAL_ENGINE_STATE: INITIAL } = await import("./reducer"));
       ({ TICK_MS: TICK } = await import("./clock"));
       ({ freshProgress } = await import("./progress"));
@@ -1419,7 +1493,7 @@ if (import.meta.vitest) {
       });
     });
 
-    it("a deploy that failed keeps its record and offers Try again with the act's own line", () => {
+    it("a deploy that failed gives way to its result and offers Try again with the act's own line", () => {
       const failed: RunResult = {
         act: "deploy",
         ok: false,
@@ -1432,8 +1506,8 @@ if (import.meta.vitest) {
         play(toDeploy().concat([deployEnded(failed)])),
         LATE
       );
-      expect(ids(v).slice(-3)).toEqual([
-        "s2.deploy",
+      expect(ids(v)).not.toContain("s2.deploy");
+      expect(ids(v).slice(-2)).toEqual([
         "result:s2.deploy:0",
         "s2.deploy:retry",
       ]);
@@ -1571,10 +1645,7 @@ if (import.meta.vitest) {
 
     it("a planned failure posts an open result with the definition's line, then Explain's pill and the fix question", () => {
       const failed = view(hello, play(toFailed()), LATE);
-      expect(failed.turns.find((t) => t.id === "s1.build")).toMatchObject({
-        state: "failed",
-        took: 1200,
-      });
+      expect(ids(failed)).not.toContain("s1.build");
       const result = failed.turns.find((t) => t.kind === "result");
       expect(result).toMatchObject({
         id: "result:s1.build:0",
@@ -1833,7 +1904,7 @@ if (import.meta.vitest) {
       expect(done.live).toBeNull();
     });
 
-    it("an act whose ok result the goal refused stays the live card", () => {
+    it("an act whose ok result the goal refused comes back live, with its own button", () => {
       const refusing = {
         definition: hello,
         slug: "hello-anchor",
@@ -1849,10 +1920,19 @@ if (import.meta.vitest) {
         at: 8600,
       }).state;
       const v = view(hello, state, LATE);
-      expect(v.turns.find((t) => t.id === "s1.build")).toMatchObject({
-        state: "done",
+      expect(ids(v)).not.toContain("s1.build");
+      expect(ids(v).slice(-3)).toEqual([
+        "result:s1.build:0",
+        "why:s1.build",
+        "s1.build:retry",
+      ]);
+      expect(v.live).toMatchObject({
+        id: "s1.build:retry",
+        kind: "act",
+        state: "live",
+        beatId: "s1.build",
+        act: { id: "s1.build", button: "Build" },
       });
-      expect(v.live?.id).toBe("s1.build");
       state = reduce(refusing, state, {
         type: "act",
         beatId: "s1.build",
@@ -1864,7 +1944,125 @@ if (import.meta.vitest) {
         result: OK_BUILD,
         at: 10600,
       }).state;
-      expect(view(hello, state, LATE).live?.id).toBe("s1.build:1");
+      const again = view(hello, state, LATE);
+      // One line, the latest refusal's, under the latest result
+      expect(ids(again).slice(-4)).toEqual([
+        "result:s1.build:0",
+        "result:s1.build:1",
+        "why:s1.build",
+        "s1.build:retry",
+      ]);
+      expect(again.live?.id).toBe("s1.build:retry");
+    });
+
+    it("a run the goal refused keeps its record until its result is due", () => {
+      const state = play(toFailed());
+      const run = state.progress.runs["s1.build"][0];
+      const due = view(hello, state, {
+        now: run.at + 1,
+        loadedAt: LATE.loadedAt,
+      });
+      expect(ids(due)).toContain("s1.build");
+      expect(ids(due)).not.toContain("result:s1.build:0");
+    });
+
+    it("the line and the card go once a run passes the step", () => {
+      const judge = (_goal: unknown, result: RunResult) =>
+        result.act === "build" && result.ok && result.seconds === 2;
+      const ctx = { definition: hello, slug: "hello-anchor", judge };
+      let state = INITIAL;
+      for (const a of toFailed().slice(0, 3))
+        state = reduce(ctx, state, a).state;
+      state = reduce(ctx, state, {
+        type: "ended",
+        beatId: "s1.build",
+        result: { act: "build", ok: true, seconds: 1, instructions: [] },
+        at: 8600,
+      }).state;
+      expect(ids(view(hello, state, LATE))).toContain("why:s1.build");
+      state = reduce(ctx, state, {
+        type: "act",
+        beatId: "s1.build",
+        at: 9000,
+      }).state;
+      state = reduce(ctx, state, {
+        type: "ended",
+        beatId: "s1.build",
+        result: { act: "build", ok: true, seconds: 2, instructions: ["hello"] },
+        at: 10600,
+      }).state;
+      const passed = view(hello, state, LATE);
+      expect(ids(passed)).not.toContain("why:s1.build");
+      expect(ids(passed)).not.toContain("s1.build:retry");
+      expect(passed.live?.kind).toBe("win");
+    });
+
+    it("says why the goal turned a run down, from the goal, never its log pattern", () => {
+      const goalOf = (i: number) => hello.steps[i].goal;
+      type Called = import("./progress").Called;
+      const ran = (line: string | null, called: Called[]): RunResult => ({
+        act: "run",
+        ok: true,
+        seconds: 1,
+        signatures: ["sig"],
+        line,
+        called,
+      });
+      expect(
+        whyRefused(goalOf(0), {
+          act: "build",
+          ok: true,
+          seconds: 1,
+          instructions: [],
+        })
+      ).toBe(
+        "It built, but the program has no `hello` instruction. This step needs one."
+      );
+      expect(whyRefused(goalOf(2), ran(null, []))).toBe(
+        "It ran, but it didn't call `hello`. This step needs that call."
+      );
+      expect(whyRefused(goalOf(3), ran(null, []))).toBe(
+        "It ran, but it didn't call `hello`. This step needs that call."
+      );
+      expect(
+        whyRefused(
+          goalOf(2),
+          ran("Hello, Mars!", [{ instruction: "hello", args: {} }])
+        )
+      ).toBe("It called `hello`, but the log isn't the one this step expects.");
+      expect(
+        whyRefused(goalOf(3), ran("Hi", [{ instruction: "hello", args: {} }]))
+      ).toBe("It ran, but this step isn't done yet.");
+    });
+
+    it("an ok result offers no Try again while the step still has an act to press", () => {
+      const refusing = {
+        definition: twoActs,
+        slug: "hello-anchor",
+        judge: () => false,
+      };
+      let state = INITIAL;
+      for (const a of toFailed().slice(0, 3))
+        state = reduce(refusing, state, a).state;
+      state = reduce(refusing, state, {
+        type: "ended",
+        beatId: "s1.build",
+        result: OK_BUILD,
+        at: 8600,
+      }).state;
+      const v = view(twoActs, state, LATE);
+      expect(ids(v)).not.toContain("s1.build:retry");
+      expect(ids(v)).not.toContain("why:s1.build");
+      expect(v.live?.id).toBe("s1.second");
+    });
+
+    it("an ended act stays drawn when a turn stands between it and its result", () => {
+      const state = play(toFailed());
+      const run = state.progress.runs["s1.build"][0];
+      const asked = structuredClone(state);
+      asked.progress.said = [{ kind: "word", text: "why", at: run.at + 1 }];
+      const v = view(hello, asked, LATE);
+      expect(ids(v)).toContain("s1.build");
     });
 
     it("a run again keeps the first result as a record and posts a second card", () => {
@@ -1875,10 +2073,8 @@ if (import.meta.vitest) {
         ])
       );
       const v = view(hello, state, LATE);
-      expect(ids(v).slice(-5)).toEqual([
-        "s1.build",
+      expect(ids(v).slice(-3)).toEqual([
         "result:s1.build:0",
-        "s1.build:1",
         "result:s1.build:1",
         "win:write-program",
       ]);
@@ -1894,7 +2090,7 @@ if (import.meta.vitest) {
       expect(v.steps[0]).toMatchObject({ state: "done", took: 9600 });
     });
 
-    it("a refused run is a record with its time and a closed result card, and the win follows", () => {
+    it("a refused run gives way to its closed result card, and the win follows", () => {
       // The view reads a run's record, not the goal behind it, so Hello
       // Anchor's build card stands in for a refused call card here
       const state = play(toFailed().slice(0, 3));
@@ -1931,10 +2127,7 @@ if (import.meta.vitest) {
         stage: null,
       };
       const v = view(hello, refused, LATE);
-      expect(v.turns.find((t) => t.id === "s1.build")).toMatchObject({
-        state: "refused",
-        took: 900,
-      });
+      expect(ids(v)).not.toContain("s1.build");
       expect(v.turns.find((t) => t.id === "result:s1.build:0")).toMatchObject({
         result,
         took: 900,

@@ -398,7 +398,7 @@ describe("BaseResultCard", () => {
   const CHOP_ERROR =
     "Program log: AnchorError thrown in programs/lumberjack/src/lib.rs:31:9. Error Code: NotEnoughEnergy. Error Number: 6000. Error Message: Not enough energy.";
 
-  it("heads a refused call with its error and keeps the error line in view", () => {
+  it("heads a refused call with its error and keeps the error line in view", async () => {
     txCard({
       act: "call",
       ok: false,
@@ -414,6 +414,10 @@ describe("BaseResultCard", () => {
     expect(screen.getByText("NotEnoughEnergy · error 6000")).toBeTruthy();
     expect(screen.getByText(CHOP_ERROR)).toBeTruthy();
     expect(screen.getByText("Not enough energy")).toBeTruthy();
+    // The record gave way to this card, so its time is in the details
+    expect(screen.queryByText("Your call ran in 0.9 s.")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Call failed/ }));
+    expect(screen.getByText("Your call ran in 0.9 s.")).toBeTruthy();
   });
 
   const SIGNATURE = "5igHe11o";
@@ -715,6 +719,8 @@ describe("BaseResultCard", () => {
     expect(head.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("E0412 · line 9")).toBeTruthy();
     expect(screen.getByText(/cannot find type/)).toBeTruthy();
+    // The prototype's failed build says no time, live or opened
+    expect(screen.queryByText(/ in \d/)).toBeNull();
     // A record reveals its line too, but asks for nothing
     await userEvent.click(
       screen.getByRole("button", { name: "--> src/lib.rs:9:32" })

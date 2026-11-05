@@ -90,6 +90,54 @@ const callMeets = (goal: CallGoal, called: Called): boolean =>
     )
   );
 
+/** Which part of a step's goal a landed run missed, as far as it can be told */
+export type GoalGap =
+  | { kind: "noInstruction"; instruction: string }
+  | { kind: "notCalled"; instruction: string }
+  | { kind: "logDiffers"; instruction: string }
+  | { kind: "other" };
+
+/**
+ * Why `judgeGoal` turned a landed run down. Any case not told apart for certain
+ * is `other`: the learner reads this, so it never guesses.
+ */
+export const goalGap = (goal: Goal, result: RunResult): GoalGap => {
+  if (!result.ok) return { kind: "other" };
+  if (
+    goal.kind === "build" &&
+    (result.act === "build" || result.act === "buildDeploy")
+  ) {
+    const missing = (goal.instructions ?? []).find(
+      (name) => !result.instructions.some((held) => sameIdlName(held, name))
+    );
+    return missing
+      ? { kind: "noInstruction", instruction: missing }
+      : { kind: "other" };
+  }
+  if (goal.kind === "call" && (result.act === "run" || result.act === "call")) {
+    const { instruction } = goal;
+    const called = result.called.some((c) =>
+      sameIdlName(c.instruction, instruction)
+    );
+    // An instruction that did not decode may be the one the goal names
+    if (!called) {
+      return result.undecoded
+        ? { kind: "other" }
+        : { kind: "notCalled", instruction };
+    }
+    // No line at all is not a different line, so it isn't called one
+    if (
+      goal.log !== undefined &&
+      result.line !== null &&
+      result.called.some((c) => callMeets(goal, c)) &&
+      !logMatches(goal.log, result.line)
+    ) {
+      return { kind: "logDiffers", instruction };
+    }
+  }
+  return { kind: "other" };
+};
+
 /** Patterns already reported as broken, so a learner's retries report once */
 const reported = new Set<string>();
 
@@ -179,6 +227,81 @@ if (import.meta.vitest) {
       logger.initLogger({ providers: [logged] });
     });
     afterEach(() => logger.resetLogger());
+
+    describe("goalGap", () => {
+      const LOG_HELLO: Goal = {
+        kind: "call",
+        instruction: "hello",
+        log: "Hello, World!",
+      };
+
+      it("names the instruction a build's IDL lacks", () => {
+        expect(goalGap(BUILD_HELLO, built([]))).toEqual({
+          kind: "noInstruction",
+          instruction: "hello",
+        });
+      });
+
+      it("says a run did not call the goal's instruction", () => {
+        expect(goalGap(LOG_HELLO, ran("run", [], null))).toEqual({
+          kind: "notCalled",
+          instruction: "hello",
+        });
+      });
+
+      it("does not say not called when an instruction did not decode", () => {
+        const undecoded = Object.assign(ran("run", [], null), {
+          undecoded: true,
+        });
+        expect(goalGap(LOG_HELLO, undecoded)).toEqual({ kind: "other" });
+      });
+
+      it("says the call landed with another log", () => {
+        expect(
+          goalGap(LOG_HELLO, ran("run", [hello({})], "Hello, Mars!"))
+        ).toEqual({ kind: "logDiffers", instruction: "hello" });
+      });
+
+      it("does not call a missing log line a different one", () => {
+        expect(goalGap(LOG_HELLO, ran("run", [hello({})], null))).toEqual({
+          kind: "other",
+        });
+      });
+
+      it("names a gap only where the judge refused", () => {
+        expect(judgeGoal(BUILD_HELLO, built([]))).toBe(false);
+        expect(judgeGoal(LOG_HELLO, ran("run", [], null))).toBe(false);
+        expect(
+          judgeGoal(LOG_HELLO, ran("run", [hello({})], "Hello, Mars!"))
+        ).toBe(false);
+      });
+
+      it("does not guess at a call that lacks the goal's argument", () => {
+        const byName: Goal = {
+          kind: "call",
+          instruction: "hello",
+          args: ["name"],
+          log: "Hello, .+!",
+        };
+        expect(goalGap(byName, ran("call", [hello({})], "Hi"))).toEqual({
+          kind: "other",
+        });
+      });
+
+      it("has nothing to say about a failed run or another act", () => {
+        expect(goalGap(LOG_HELLO, built([]))).toEqual({ kind: "other" });
+        expect(
+          goalGap(BUILD_HELLO, {
+            act: "build",
+            ok: false,
+            seconds: 1,
+            reason: "unreachable",
+            error: null,
+            log: "",
+          })
+        ).toEqual({ kind: "other" });
+      });
+    });
 
     describe("build", () => {
       it("passes a build whose IDL holds the goal's instructions", () => {
