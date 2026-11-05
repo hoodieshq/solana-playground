@@ -354,7 +354,7 @@ The question that repairs a planned failure has the kicker `Fix it`. Its
     "block": "#[derive(Accounts)]\npub struct Hello {}"
   },
   "key": "struct Hello {}",
-  "typed": "That's the struct. `#[derive(Accounts)]` is what tells Anchor it lists accounts, so I've put it on the line above."
+  "typed": "That's the line that fixes it: `#[derive(Accounts)]` tells Anchor the struct under it lists accounts. I've put the empty `Hello` under it."
 }
 ```
 
@@ -438,7 +438,7 @@ the card reads its usual record.
   "act": "call",
   "say": "Now call it with your name. Here, or in the Call panel, where `name` just showed up.",
   "title": "Call hello",
-  "context": "Sends hello with your name from your wallet",
+  "context": "Sends hello with your name · fee from your wallet",
   "button": "Call hello",
   "call": {
     "instruction": "hello",
