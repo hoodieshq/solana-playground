@@ -56,8 +56,7 @@ export const deployViewFor =
       const { stop } = stage;
       if (stop.kind === "cancelled") return IDLE_VIEW;
       const isOnThisProject =
-        stop.cluster === here.cluster &&
-        (stop.workspace ?? undefined) === here.workspace;
+        stop.cluster === here.cluster && stop.workspace === here.workspace;
       if (isOnThisProject) return { kind: "funding", stop: stop.detail };
     }
     if (flowDeploy === "failed") return { kind: "failed" };
