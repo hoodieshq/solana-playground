@@ -53,11 +53,11 @@ const isCancel = (error: unknown) => {
  */
 const logSignInEnding = (error: unknown) => {
   const state = PgSession.signInState();
-  const userEnded =
+  const isUserEnded =
     isSignInFailure(error) &&
     state.status === "failed" &&
     state.reason !== "request-failed";
-  if (userEnded) {
+  if (isUserEnded) {
     // `auth_sign_in_failed` has counted it with its reason
     log.info("sign-in to share ended without a session", {
       context: { reason: state.reason },
@@ -114,6 +114,12 @@ const SignInToShare = () => {
       if (ownSignIn.current && !PgSession.get()) PgSession.cancelSignIn();
     };
   }, []);
+
+  // A sign-in from the account menu ends with the session arriving under this
+  // dialog, which must keep the project it is sharing
+  useEffect(() => {
+    if (waiting) PgSession.claimPendingSignIn("share");
+  }, [waiting]);
 
   // Only this prompt's own sign-in is its to cancel; one from the account
   // menu just waits here, as it did before the prompt could cancel

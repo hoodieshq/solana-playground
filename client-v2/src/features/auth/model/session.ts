@@ -28,7 +28,7 @@ const reasonOf = (error: unknown): SignInFailure =>
   error instanceof SignInFailed ? error.reason : "request-failed";
 
 /**
- * Whether a rejected `PgSession.signIn` ended at a known step (cancelled,
+ * Whether a rejected `PgSession.signIn` or `signInFor` ended at a known step (cancelled,
  * blocked, refused); anything else is an error the team should hear of
  */
 export const isSignInFailure = (error: unknown) =>
@@ -211,6 +211,19 @@ export class PgSession {
       PgSession._signInWith(from, scopes);
   }
 
+  /**
+   * Give the sign-in under way this origin if it has none, so the session
+   * effect keeps the project the task is about. A task that got there first
+   * keeps its origin, and with no sign-in under way this does nothing. Joining
+   * through `signInFor` does this too; a task that only waits, as the share
+   * prompt waits on the account menu's sign-in, calls it directly.
+   */
+  static claimPendingSignIn(from: SignInOrigin) {
+    if (PgSession._pending && PgSession._signingInFrom === null) {
+      PgSession._signingInFrom = from;
+    }
+  }
+
   private static _signInWith(
     from: SignInOrigin | undefined,
     scopes: string[]
@@ -221,18 +234,11 @@ export class PgSession {
     // it to settle and asks again.
     const pending = PgSession._pending;
     if (pending) {
+      if (from) PgSession.claimPendingSignIn(from);
       const isCovered = scopes.every((scope) =>
         PgSession._pendingScopes.includes(scope)
       );
-      if (isCovered) {
-        // A task that joins a flow started without one makes it that task's,
-        // so the session effect keeps the project the task is about; between
-        // two tasks the first keeps its origin
-        if (PgSession._signingInFrom === null && from !== undefined) {
-          PgSession._signingInFrom = from;
-        }
-        return pending;
-      }
+      if (isCovered) return pending;
       return pending.then(
         () => PgSession._signInWith(from, scopes),
         () => PgSession._signInWith(from, scopes)
@@ -1246,6 +1252,29 @@ if (import.meta.vitest) {
         await expect(plain).rejects.toThrow(/cancelled/i);
         await expect(joined).rejects.toThrow(/cancelled/i);
         expect(popup.open).toHaveBeenCalledTimes(1);
+        // The next sign-in starts from nowhere
+        expect(PgSession.signingInFrom).toBeNull();
+      });
+
+      it("takes the origin of a task that waits for wider scopes too", async () => {
+        const popup = heldPopup();
+
+        const plain = PgSession.signIn();
+        await vi.waitFor(() => expect(popup.open).toHaveBeenCalled());
+        const scoped = PgSession.signInFor("share")(["gist"]);
+
+        expect(PgSession.signingInFrom).toBe("share");
+        popup.cancel();
+        await expect(plain).rejects.toThrow(/cancelled/i);
+        await vi.waitFor(() => expect(popup.open).toHaveBeenCalledTimes(2));
+        popup.cancel();
+        await expect(scoped).rejects.toThrow(/cancelled/i);
+      });
+
+      it("claims no sign-in when none is running", () => {
+        PgSession.claimPendingSignIn("share");
+
+        expect(PgSession.signingInFrom).toBeNull();
       });
 
       it("keeps the first task's origin when another task joins", async () => {

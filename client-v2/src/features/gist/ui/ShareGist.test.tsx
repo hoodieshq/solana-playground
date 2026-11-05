@@ -415,9 +415,31 @@ it("stays ready when the project cannot be read, and leaves the failure to the f
   expect(sent.events).toEqual([
     {
       name: "gist_export_failed",
-      params: { reason: "request-failed", visibility: "secret" },
+      params: { reason: "read-failed", visibility: "secret" },
     },
   ]);
+});
+
+it("counts and hands on an unreadable project after a grant too", async () => {
+  answers([403, { reason: "needs-gist-scope" }]);
+  let reads = 0;
+  renderShareWith({
+    signedIn: true,
+    signIn: resolvingSignIn(),
+    cancelSignIn: noCancel(),
+    // The file list and the first export read it; the export after the grant fails
+    readFiles: async () => {
+      reads += 1;
+      if (reads > 3) throw new Error("store unreadable");
+      return FILES;
+    },
+  });
+
+  await press(/^Create secret gist$/);
+  await press(/^Allow gists on GitHub$/);
+
+  expect(frameFailures).toEqual([new Error("store unreadable")]);
+  expect(names().at(-1)).toBe("gist_export_failed");
 });
 
 it("counts and hands on an unreadable project after a sign-in too", async () => {

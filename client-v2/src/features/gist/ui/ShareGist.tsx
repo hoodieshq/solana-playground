@@ -35,8 +35,8 @@ export interface ShareGistOptions {
    */
   signedIn: boolean;
   /**
-   * Sign in with GitHub, asking for `scopes` on top of sign-in's own. Passed
-   * in because this feature may not import `auth`. Answers `"cancelled"`
+   * Sign in with GitHub, asking for `scopes` on top of sign-in's own (`[]`
+   * asks for none). Passed in because this feature may not import `auth`. Answers `"cancelled"`
    * when the user ended it (here or on GitHub), and rejects, with a message
    * fit to show, when it failed.
    */
@@ -143,13 +143,28 @@ export const useShareGist = (
       })
       .catch((e: unknown) => {
         // Only the folded list goes without it: the export reads the files
-        // again and fails there, where the user sees why
+        // again, and `readProject` reports that failure
         log.warn("could not read the project for the file list", {
           context: { error: String(e) },
         });
         if (mounted.current) setFiles({ paths: [], bytes: 0 });
       });
   }, [name, readFiles]);
+
+  /**
+   * The project's files for one export. Nothing has gone to GitHub if this
+   * fails, so the export's failure text would mislead: the frame's toast tells
+   * the user, and the team hears of it here.
+   */
+  const readProject = async () => {
+    try {
+      return await readFiles();
+    } catch (e) {
+      log.error(e, { report: true, context: { item: "share" } });
+      failed("read-failed");
+      throw e;
+    }
+  };
 
   /**
    * One export; `onScopeMissing` answers a token without gist access, which
@@ -161,14 +176,8 @@ export const useShareGist = (
     try {
       result = await exportProjectWith(visibility)(source)({
         name,
-        files: await readFiles(),
+        files: await readProject(),
       });
-    } catch (e) {
-      // Nothing went to GitHub, so the export's failure text would mislead:
-      // the frame's toast tells the user, and the team hears of it here
-      log.error(e, { report: true, context: { item: "share" } });
-      failed("request-failed");
-      throw e;
     } finally {
       if (mounted.current) setBusy(false);
     }

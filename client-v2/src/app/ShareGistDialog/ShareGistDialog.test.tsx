@@ -239,6 +239,49 @@ describe("app/ShareGistDialog", () => {
     expect(gistRequests()).toEqual([]);
   });
 
+  it("makes a sign-in already waiting the share's, so it keeps the open project", async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: "https://x/" }),
+    } as Response);
+    PgSession.setOpenChannel(() => ({
+      receive: () => new Promise<never>(() => {}),
+      cancel: () => {},
+    }));
+    // The account menu's sign-in, its popup still open
+    void PgSession.signIn().catch(() => {});
+
+    await open();
+
+    expect(PgSession.signingInFrom).toBe("share");
+    // Still the account menu's to end
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: /Waiting for GitHub/,
+      }).disabled
+    ).toBe(true);
+  });
+
+  it("reports a grant whose sign-in could not start", async () => {
+    await PgSession.refreshWith(USER);
+    fetchSpy.mockImplementation(async (url: unknown) =>
+      String(url).includes("/api/gists")
+        ? ({
+            ok: false,
+            status: 403,
+            json: async () => ({ reason: "needs-gist-scope" }),
+          } as Response)
+        : ({ ok: false, status: 500, json: async () => ({}) } as Response)
+    );
+    await open();
+
+    await press("Create secret gist");
+    await press("Allow gists on GitHub");
+
+    expect(screen.getByText("Could not start sign-in")).toBeTruthy();
+    expect(reported()).toHaveLength(1);
+  });
+
   it("shows why a sign-in ended, and keeps the prompt", async () => {
     // The authorize URL, then a popup that answers it was cancelled
     fetchSpy.mockResolvedValue({
