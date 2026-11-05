@@ -26,7 +26,7 @@ import { expect, LONG, test } from "./fixtures";
  * `E2E_LIVE=1` runs the first test on the real build server and devnet
  * instead (`docs/testing.md`, T-1) and skips the rest, which steer the fakes.
  */
-const live = Boolean(process.env.E2E_LIVE);
+const isLive = Boolean(process.env.E2E_LIVE);
 
 /** The lesson as the app reads it */
 const lesson = hello as unknown as TutorialDefinition;
@@ -79,7 +79,6 @@ const won = async (page: Page, id: string) => {
       .first()
   ).toBeVisible(LONG);
 };
-/** The live Next, "Next: <the next step's title>" */
 /** A passed step's act keeps no live button: only the latest card acts */
 const spent = async (page: Page, ...ids: string[]) => {
   for (const id of ids) {
@@ -91,6 +90,7 @@ const spent = async (page: Page, ...ids: string[]) => {
     ).toHaveCount(0);
   }
 };
+/** The live Next, "Next: <the next step's title>" */
 const next = (page: Page) =>
   feed(page).getByRole("button", { name: /^Next/ }).last();
 
@@ -135,21 +135,21 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
       // eslint-disable-next-line unicorn/no-null -- the endpoint's JSON says null
       route.fulfill({ json: { configured: false, model: null } })
     );
-    if (live) return;
+    if (isLive) return;
     builds = await fakeBuildServer(page);
     devnet = await fakeDevnet(page);
   });
 
   test.afterEach(() => {
     // Unset when beforeEach failed, whose own error is the one to read
-    if (live || !builds || !devnet) return;
+    if (isLive || !builds || !devnet) return;
     expect(builds.unhandled).toEqual([]);
     expect(devnet.unhandled).toEqual([]);
   });
 
-  test("from the intro to the finish, with a reload in step 3", async ({
-    page,
-  }) => {
+  // The whole walk, with a reload in step 3 (tutorial-conversation: Reload in
+  // step 3), ending on the scenario it is named after
+  test("tutorial-conversation: Finishing Hello Anchor", async ({ page }) => {
     test.setTimeout(300_000);
     await start(page);
     await passStepOne(page);
@@ -170,7 +170,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
       (await program.getAttribute("href")) ?? ""
     )?.[1];
     expect(programId).toBeDefined();
-    if (!live) expect(devnet.programs()).toEqual([programId]);
+    if (!isLive) expect(devnet.programs()).toEqual([programId]);
     await next(page).click();
 
     // Step 3 creates client.ts, then asks; a wrong pick, then a reload, which
@@ -215,7 +215,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
         .locator(`a[href*='explorer.solana.com/address/${programId}']`)
         .last()
     ).toBeVisible();
-    if (!live) expect(devnet.programs()).toEqual([programId]);
+    if (!isLive) expect(devnet.programs()).toEqual([programId]);
     await feed(page).getByRole("textbox", { name: "name" }).fill("Alex");
     await act(page, "s4.call").click(LONG);
     await won(page, "greet-by-name");
@@ -240,7 +240,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
   test("tutorial-conversation: A wrong pick, then the right one", async ({
     page,
   }) => {
-    test.skip(live, "steers the fakes");
+    test.skip(isLive, "steers the fakes");
     test.setTimeout(120_000);
     const q1 = beat("s1.q1", "ask");
     const wrong = q1.why.findIndex((why) => why !== null);
@@ -265,7 +265,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
   });
 
   test("tutorial-conversation: The planned E0412", async ({ page }) => {
-    test.skip(live, "steers the fakes");
+    test.skip(isLive, "steers the fakes");
     test.setTimeout(120_000);
     await start(page);
     await answer(page, beat("s1.q1", "ask"));
@@ -295,7 +295,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
   });
 
   test("tutorial-runs: The faucet is at its limit", async ({ page }) => {
-    test.skip(live, "steers the fakes");
+    test.skip(isLive, "steers the fakes");
     test.setTimeout(240_000);
     await start(page);
     await passStepOne(page);
@@ -322,13 +322,23 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
 
   // HOO-2358 (#357) brings the Call panel into scope/tutorial-flow; the
   // body is the scenario, to be written against the panel once it lands
-  test.fixme("tutorial-runs: Passing step 3 from the Call panel", async () => {
-    // 1. Pass steps 1 and 2 (passStepOne, passStepTwo) and press Next.
-    // 2. With q3 still open, call `hello` from the Call panel.
-    // 3. The panel shows the result; step 3's win follows in the feed with
-    //    the definition's Call line and "Write it in client.ts".
-    // 4. After Next, q3's record reads "· skipped, called from the Call
-    //    panel".
-    throw new Error("the Call panel scenario is not written yet");
-  });
+  test.fixme(
+    "tutorial-runs: Passing step 3 from the Call panel",
+    {
+      annotation: {
+        type: "issue",
+        description:
+          "HOO-2358 (#357): the Call panel is not in scope/tutorial-flow yet",
+      },
+    },
+    async () => {
+      // 1. Pass steps 1 and 2 (passStepOne, passStepTwo) and press Next.
+      // 2. With q3 still open, call `hello` from the Call panel.
+      // 3. The panel shows the result; step 3's win follows in the feed with
+      //    the definition's Call line and "Write it in client.ts".
+      // 4. After Next, q3's record reads "· skipped, called from the Call
+      //    panel".
+      throw new Error("the Call panel scenario is not written yet");
+    }
+  );
 });

@@ -655,7 +655,9 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
       | undefined;
     try {
       body = (route.request().postDataJSON() ?? undefined) as typeof body;
-    } catch {
+    } catch (error) {
+      // Not JSON: recorded here with the cause, then refused below
+      unhandled.push(`RPC body is not JSON: ${String(error)}`);
       body = undefined;
     }
     if (!body) {
@@ -687,15 +689,15 @@ export const fakeDevnet = async (page: Page): Promise<FakeDevnet> => {
   await page.routeWebSocket(`${WS}/**`, (ws: WebSocketRoute) => {
     // A socket the page closed (a reload) hears nothing more, and its
     // subscriptions stop counting
-    let open = true;
+    let isOpen = true;
     const mine = new Set<number>();
     ws.onClose(() => {
-      open = false;
+      isOpen = false;
       for (const id of mine) watchers.delete(id);
     });
     /** Sends `message`, a whole JSON-RPC 2.0 frame, unless the page closed */
     const reply = (message: { jsonrpc: "2.0" }) => {
-      if (open) ws.send(JSON.stringify(message));
+      if (isOpen) ws.send(JSON.stringify(message));
     };
     const subscribe = (id: number) => {
       const subscription = nextSubscription++;

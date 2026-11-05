@@ -40,7 +40,7 @@ const PASSED =
   "   Compiling solpg v0.1.0 (/home/solpg/programs)\n    Finished release [optimized] target(s) in 3.92s\n";
 
 /** Whether `lib`'s `hello` takes a `name: String` */
-const takesName = (lib: string) =>
+const hasNameArgument = (lib: string) =>
   /fn\s+hello\s*(<[^>]*>)?\s*\([^)]*\bname\s*:\s*String\b/.test(lib);
 
 /** Anchor 0.29's IDL of the `hello` that `lib` declares */
@@ -51,7 +51,7 @@ const idlOf = (lib: string) => ({
     {
       name: "hello",
       accounts: [],
-      args: takesName(lib) ? [{ name: "name", type: "string" }] : [],
+      args: hasNameArgument(lib) ? [{ name: "name", type: "string" }] : [],
     },
   ],
 });
@@ -65,7 +65,9 @@ export const fakeBuildServer = async (page: Page): Promise<FakeBuildServer> => {
       files = (
         route.request().postDataJSON() as { files?: [string, string][] } | null
       )?.files;
-    } catch {
+    } catch (error) {
+      // Not JSON: recorded below with the cause, then refused
+      unhandled.push(`build body is not JSON: ${String(error)}`);
       files = undefined;
     }
     if (!Array.isArray(files)) {
@@ -88,7 +90,7 @@ export const fakeBuildServer = async (page: Page): Promise<FakeBuildServer> => {
         json: { stderr: PLANNED, uuid: null, idl: null },
       });
     }
-    const code = takesName(lib) ? HELLO_NAME : HELLO_WORLD;
+    const code = hasNameArgument(lib) ? HELLO_NAME : HELLO_WORLD;
     return route.fulfill({
       json: { stderr: PASSED, uuid: UUIDS[code], idl: idlOf(lib) },
     });
