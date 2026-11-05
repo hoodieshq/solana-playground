@@ -11,6 +11,7 @@ import { Input } from "@/shared/ui/input";
 import { Kbd } from "@/shared/ui/kbd";
 import { Spinner } from "@/shared/ui/spinner";
 
+import { ACTION, ACTION_FILL, PHONE_CTA } from "./card-action";
 import { formatSeconds } from "./Prose";
 
 /** A string argument stops at 32 characters */
@@ -130,7 +131,11 @@ const BaseActCard = ({
       )}
     </span>
   ) : (
-    <Button type="submit" size="lg" disabled={disabled || missing}>
+    <Button
+      type="submit"
+      className={cn(ACTION, ACTION_FILL, PHONE_CTA)}
+      disabled={disabled || missing}
+    >
       {act.button}
       <Kbd
         aria-hidden="true"

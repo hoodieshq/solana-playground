@@ -295,9 +295,10 @@ describe("TutorialComposer", () => {
       stop: vi.fn(),
       busy: false,
     };
-    render(<Connected turn={t} />);
+    const { rerender } = render(<Connected turn={t} />);
     await userEvent.type(box(), "what is a PDA{Enter}");
     store.state = stateAt("step");
+    rerender(<Connected turn={t} />);
     await act(async () => answered(true));
     expect(store.asked).toHaveBeenCalledTimes(1);
     expect(store.asked).toHaveBeenCalledWith(CURSORS.intro);

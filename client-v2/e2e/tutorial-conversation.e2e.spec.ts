@@ -64,25 +64,17 @@ test("a reload opens on the step it left, with no intro", async ({ page }) => {
   ).toHaveCount(0);
 });
 
-// HOO-2626: the prototype's sizes, at the widths the review measured them
-test("a failed build's two buttons hold one row of one width at 1280", async ({
-  page,
-}) => {
-  test.setTimeout(120_000);
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.route("**/build", (route) =>
-    route.fulfill({
-      json: {
-        stderr:
-          "error[E0412]: cannot find type `Initialize` in this scope\n --> /src/lib.rs:9:27\nerror: could not compile `hello`\n",
-        // eslint-disable-next-line unicorn/no-null -- the build server's JSON says null on a failed build
-        uuid: null,
-        // eslint-disable-next-line unicorn/no-null -- the same answer's other field
-        idl: null,
-      },
-    })
-  );
-  await page.goto("/tutorials/hello-anchor");
+// The prototype's sizes (f7d42bf2e), where they differ from the shared parts
+const FAILED_BUILD = {
+  stderr:
+    "error[E0412]: cannot find type `Initialize` in this scope\n --> /src/lib.rs:9:27\nerror: could not compile `hello`\n",
+  // eslint-disable-next-line unicorn/no-null -- the build server's JSON says null on a failed build
+  uuid: null,
+  // eslint-disable-next-line unicorn/no-null -- the same answer's other field
+  idl: null,
+};
+
+const failTheBuild = async (page: Page) => {
   await feed(page)
     .getByRole("button", { name: /Start step 1/ })
     .click(LONG);
@@ -90,6 +82,18 @@ test("a failed build's two buttons hold one row of one width at 1280", async ({
   await feed(page)
     .getByRole("button", { name: /^Build/ })
     .click(LONG);
+};
+
+test("a failed build's two buttons hold one row of one width at 1280", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route("**/build", (route) =>
+    route.fulfill({ json: FAILED_BUILD })
+  );
+  await page.goto("/tutorials/hello-anchor");
+  await failTheBuild(page);
 
   const explain = feed(page).getByRole("button", { name: /Explain the error/ });
   const fix = feed(page).getByRole("button", { name: "I'll fix it myself" });
@@ -103,6 +107,32 @@ test("a failed build's two buttons hold one row of one width at 1280", async ({
       return { sameRow: a.y === b.y, sameWidth: a.width === b.width };
     }, LONG)
     .toEqual({ sameRow: true, sameWidth: true });
+});
+
+test("a failed build's two buttons stay inside the card in a narrower column", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1152, height: 800 });
+  await page.route("**/build", (route) =>
+    route.fulfill({ json: FAILED_BUILD })
+  );
+  await page.goto("/tutorials/hello-anchor");
+  await failTheBuild(page);
+
+  const explain = feed(page).getByRole("button", { name: /Explain the error/ });
+  const fix = feed(page).getByRole("button", { name: "I'll fix it myself" });
+  await expect(explain).toBeVisible(LONG);
+  // The row's parent is the card's body, inside its clipping edge
+  const card = explain.locator("xpath=../..");
+  await expect
+    .poll(async () => {
+      const a = requireFor("Explain's box")(await explain.boundingBox());
+      const b = requireFor("the fix button's box")(await fix.boundingBox());
+      const c = requireFor("the card's box")(await card.boundingBox());
+      return { sameRow: a.y === b.y, inside: b.x + b.width <= c.x + c.width };
+    }, LONG)
+    .toEqual({ sameRow: true, inside: true });
 });
 
 test("the folded composer is 46 px below md with a fine pointer", async ({
@@ -122,4 +152,28 @@ test("the folded composer is 46 px below md with a fine pointer", async ({
   await expect
     .poll(async () => (await composer.boundingBox())?.height, LONG)
     .toBe(46);
+  await expect(composer.locator("textarea")).toHaveCSS("font-size", "15px");
+});
+
+test.describe("on a coarse pointer", () => {
+  test.use({
+    viewport: { width: 390, height: 800 },
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test("Send keeps 44 px for a finger and the field its 16 px text", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto("/tutorials/hello-anchor");
+    await page.getByText("Chat", { exact: true }).first().click(LONG);
+    await page.getByRole("button", { name: /Start step 1/ }).click(LONG);
+    const send = page.locator("[data-slot=composer-send]:visible");
+    await expect(send).toHaveCSS("height", "44px", LONG);
+    await expect(page.locator("[data-slot=composer-input]:visible")).toHaveCSS(
+      "font-size",
+      "16px"
+    );
+  });
 });

@@ -46,9 +46,8 @@ const FOCUSABLE =
   "button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
 /**
- * The lesson as one feed: the step bar, then the turns (merged with the live
- * assistant's exchanges when `entries` is given) in a `role="log"`,
- * then the back pill while the live card is off screen or the feed is on
+ * The lesson as one feed: the step bar, then the turns merged with the live
+ * assistant's exchanges in a `role="log"`, then the back pill while the live card is off screen or the feed is on
  * another step. A step bar segment, an item of its menu or ⌥↑ / ⌥↓
  * (unless a field has focus) brings a step's heading to rest 22 px under the
  * feed's top and flashes it once; the lesson's progress is untouched. The step the feed is

@@ -593,9 +593,9 @@ describe("BaseResultCard", () => {
       screen.getByRole("button", { name: "--> src/lib.rs:9:32" })
     );
     expect(onShowLine).toHaveBeenCalledWith("src/lib.rs", 9);
-    await userEvent.click(
-      screen.getByRole("button", { name: /Explain the error/ })
-    );
+    const explain = screen.getByRole("button", { name: /Explain the error/ });
+    expect(explain.textContent).not.toContain("⌘↵");
+    await userEvent.click(explain);
     expect(onExplain).toHaveBeenCalled();
     await userEvent.click(
       screen.getByRole("button", { name: "I'll fix it myself" })

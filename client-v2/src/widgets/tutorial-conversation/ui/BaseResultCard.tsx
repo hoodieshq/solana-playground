@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
 
 import BaseTxResultCard from "./BaseTxResultCard";
+import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA } from "./card-action";
 import { formatSeconds, Prose, READ } from "./Prose";
 
 export interface BaseResultCardProps {
@@ -36,10 +37,6 @@ type TxResult = Extract<RunResult, { act: "run" | "call" }>;
 
 const isTxResult = (r: RunResult): r is TxResult =>
   r.act === "run" || r.act === "call";
-
-/** The prototype's `ACTION`, a failed build's two buttons (`f7d42bf2e`) */
-const ACTION =
-  "h-10 gap-2 px-4 font-heading text-[0.9375rem] font-medium pointer-coarse:h-11";
 
 type BuildFailed = Extract<RunResult, { act: "build"; ok: false }>;
 
@@ -176,7 +173,10 @@ const BaseResultCard = ({
       {open && unreachable && (
         <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
           <p className={READ}>{UNREACHABLE}</p>
-          <Button className="w-fit" onClick={onRetry}>
+          <Button
+            className={cn(ACTION, ACTION_FILL, PHONE_CTA, "w-fit")}
+            onClick={onRetry}
+          >
             Try again
             <Kbd
               aria-hidden="true"
@@ -220,12 +220,13 @@ const BaseResultCard = ({
             </p>
           )}
           {open && (
-            // One width for both, one row on every desktop, stacked only on
-            // a phone. No key hint: ⌘↵ works here, but the prototype draws it
-            // on the act card's button alone (f7d42bf2e)
+            // One width for both, in one row from `md` up: in a narrow column
+            // they give up padding, not the row. Below `md`, Explain alone at
+            // the full width and 48 px. No key hint
+            // (Design alignment, 5 Nov), though ⌘↵ still presses Explain
             <div className="grid gap-2 md:w-fit md:auto-cols-fr md:grid-flow-col">
               <Button
-                className={cn(ACTION, "hover:bg-(--accent-fill-hover)")}
+                className={cn(ACTION, ACTION_FILL, PHONE_CTA)}
                 onClick={onExplain}
               >
                 Explain the error
@@ -234,10 +235,7 @@ const BaseResultCard = ({
                   Explain leads to the lines instead (the prototype's) */}
               <Button
                 variant="ghost"
-                className={cn(
-                  ACTION,
-                  "bg-foreground/10 text-foreground/90 hover:bg-foreground/15 max-md:hidden"
-                )}
+                className={cn(ACTION, ACTION_SOFT, "max-md:hidden")}
                 onClick={onFixMyself}
               >
                 I&apos;ll fix it myself

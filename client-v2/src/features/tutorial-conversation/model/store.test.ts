@@ -1142,6 +1142,18 @@ describe("PgConversation's composer", () => {
   const proposal = () => PgConversation.state.engine.progress.proposals[0];
   const named = (name: string) => events.events.filter((e) => e.name === name);
 
+  it("counts a question on the step it was sent on, not the one the lesson reached since", async () => {
+    open(NAME);
+    await settle();
+    PgConversation.start();
+    await settle();
+    PgConversation.asked({ kind: "intro" });
+    await settle();
+    expect(named("tutorial_question_asked")).toMatchObject([
+      { name: "tutorial_question_asked", params: { step: 0 } },
+    ]);
+  });
+
   it("applies the line it proposed and leaves the others alone", async () => {
     const workspace = memoryWorkspace({ "src/lib.rs": "a\nold\nc" });
     open(NAME, { workspace });
