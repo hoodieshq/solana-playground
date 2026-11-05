@@ -179,7 +179,9 @@ const sendCall = async (
   deployed: RunInput["idl"]
 ) => {
   // The program on chain answers to the IDL it was deployed with: a build
-  // since then must not change what is sent
+  // since then must not change what is sent. The definition names the
+  // instruction as Rust does (`chop_tree`), the IDL as the Anchor that wrote
+  // it does (`chopTree`), as the goals compare them
   const idl = deployed ?? PgProgramInfo.callableIdl();
   // No IDL at all is the tutorial's fault, not the learner's code: it fails
   // with its own message, never as a mismatch
