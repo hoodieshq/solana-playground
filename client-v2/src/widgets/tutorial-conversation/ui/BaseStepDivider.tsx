@@ -14,7 +14,7 @@ export interface BaseStepDividerProps {
  */
 const BaseStepDivider = ({ objective }: BaseStepDividerProps) => (
   <h2 className={TITLE}>
-    <Prose text={noStop(objective)} />
+    <Prose text={noStop(objective, false)} />
   </h2>
 );
 

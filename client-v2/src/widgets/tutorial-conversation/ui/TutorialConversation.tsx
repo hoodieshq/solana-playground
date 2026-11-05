@@ -45,6 +45,7 @@ import BaseAnswer from "./BaseAnswer";
 import BaseAskedBubble from "./BaseAskedBubble";
 import BaseFeed from "./BaseFeed";
 import { typing } from "./keys";
+import { PhoneLayoutContext, phoneLayoutOf } from "./phone";
 import type { TurnHandlers } from "./TurnView";
 import TurnView from "./TurnView";
 
@@ -607,11 +608,17 @@ export const TutorialConversation = ({
   // Read each render: the tutorial list is the app's, not this component's
   const nextTutorial = nextTutorialOf(next);
   const viewport = useViewport();
+  // Below the frame's width the feed runs in the phone layout: the header
+  // draws the steps, and typing code is left to the desktop
+  const layout = useMemo(() => phoneLayoutOf(viewport), [viewport]);
+  const phone = layout.phone;
   const on = useMemo<TurnHandlers>(
     () => ({
       ...handlers,
-      // The panel lives in the desktop's workspace; the phone has no opener yet
-      openCall: viewport === "wide" ? handlers.openCall : undefined,
+      // The panel lives in the desktop's workspace; on the phone Code's head
+      // holds Call
+      openCall: phone ? undefined : handlers.openCall,
+      typeIt: phone ? undefined : handlers.typeIt,
       openNextTutorial: () => {
         const slug = PgConversation.state.context?.slug;
         if (!nextTutorial || !next || !slug) {
@@ -644,7 +651,7 @@ export const TutorialConversation = ({
         }
       },
     }),
-    [next, nextTutorial, onAllTutorials, onOpenMenu, viewport]
+    [next, nextTutorial, onAllTutorials, onOpenMenu, phone]
   );
 
   if (!context || !view) {
@@ -666,38 +673,45 @@ export const TutorialConversation = ({
     (t) => t.kind === "act" && t.state === "running"
   );
   return (
-    <BaseFeed
-      entries={mergeFeed(
-        view.turns,
-        PgAssistant.items,
-        progress.restartedAt,
-        state.loadedAt
-      )}
-      renderExchange={(entry) =>
-        entry.kind === "asked" ? (
-          <BaseAskedBubble text={entry.text} />
-        ) : (
-          <BaseAnswer text={entry.text} tone={entry.tone} onLink={handleLink} />
-        )
-      }
-      live={view.live}
-      steps={view.steps}
-      onJump={onJump}
-      onBack={onBack}
-      renderTurn={(turn, live) => (
-        <TurnView
-          turn={turn}
-          definition={context.definition}
-          live={live}
-          running={running}
-          passed={progress.passed}
-          read={read}
-          nextTutorial={nextTutorial}
-          programId={PgProgramInfo.pk?.toBase58() ?? null}
-          on={on}
-        />
-      )}
-    />
+    <PhoneLayoutContext.Provider value={layout}>
+      <BaseFeed
+        bar={!phone}
+        entries={mergeFeed(
+          view.turns,
+          PgAssistant.items,
+          progress.restartedAt,
+          state.loadedAt
+        )}
+        renderExchange={(entry) =>
+          entry.kind === "asked" ? (
+            <BaseAskedBubble text={entry.text} />
+          ) : (
+            <BaseAnswer
+              text={entry.text}
+              tone={entry.tone}
+              onLink={handleLink}
+            />
+          )
+        }
+        live={view.live}
+        steps={view.steps}
+        onJump={onJump}
+        onBack={onBack}
+        renderTurn={(turn, live) => (
+          <TurnView
+            turn={turn}
+            definition={context.definition}
+            live={live}
+            running={running}
+            passed={progress.passed}
+            read={read}
+            nextTutorial={nextTutorial}
+            programId={PgProgramInfo.pk?.toBase58() ?? null}
+            on={on}
+          />
+        )}
+      />
+    </PhoneLayoutContext.Provider>
   );
 };
 
