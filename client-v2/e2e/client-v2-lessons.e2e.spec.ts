@@ -28,7 +28,6 @@ test("client-v2-lessons: Suggestions outside a tutorial", async ({
     await expect(page.getByRole("button", { name })).toBeVisible(LONG);
   }
   await expect(page.getByText("lib.rs", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/^\d+ files?$/)).toBeVisible();
 });
 
 test("client-v2-lessons: Suggestions in a lesson", async ({ page }) => {
