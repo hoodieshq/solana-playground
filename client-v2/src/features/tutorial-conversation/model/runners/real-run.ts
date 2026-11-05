@@ -1,6 +1,6 @@
 /* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { Idl } from "@coral-xyz/anchor";
-import { BorshInstructionCoder } from "@coral-xyz/anchor";
+import { BorshAccountsCoder, BorshInstructionCoder } from "@coral-xyz/anchor";
 
 import { sameIdlName } from "@/shared/lib/idl-name";
 import { createLogger } from "@/shared/lib/logger";
@@ -15,6 +15,8 @@ import {
   PgWeb3,
 } from "../../../../utils";
 import type { RunInput } from "../ports";
+import type { AccountData } from "./account-read";
+import { scalarsOf } from "./account-read";
 import type { ActRun } from "./act-runner";
 import type { Sender } from "./capture";
 import { captureSends } from "./capture";
@@ -123,6 +125,35 @@ const landedOnDevnet = async (signature: string): Promise<Landed | null> => {
   return null;
 };
 
+/** An account with the fields the deployed IDL decodes, if it decodes */
+const fetchOnDevnet = async (
+  address: string
+): Promise<AccountData | undefined> => {
+  // A node behind the landing answers null for an account just created
+  let info = null;
+  for (let i = 0; i < TX_READS && !info; i++) {
+    if (i) await wait(TX_READ_MS);
+    info = await PgConnection.current.getAccountInfo(
+      new PgWeb3.PublicKey(address),
+      "confirmed"
+    );
+  }
+  if (!info) return undefined;
+  const idl = PgProgramInfo.idl as Idl | null;
+  let fields: Record<string, string> = {};
+  try {
+    if (idl) {
+      fields = scalarsOf(new BorshAccountsCoder(idl).decodeAny(info.data));
+    }
+  } catch (e) {
+    // A zero copy account smaller than its layout: its size is what is drawn
+    log.warn("An account did not decode", {
+      context: { address, error: String(e) },
+    });
+  }
+  return { size: info.data.length, fields };
+};
+
 /** The call act's instruction, through the Test form's sender */
 const sendCall = async (call: NonNullable<RunInput["call"]>) => {
   const idlIx = PgProgramInfo.idl?.instructions.find(
@@ -179,6 +210,7 @@ export const realRunPort = (
     return { captured, error };
   },
   landed: landedOnDevnet,
+  fetchAccount: fetchOnDevnet,
   decode: (encoded) => {
     const programId = PgProgramInfo.pk?.toBase58();
     if (!programId) return { calls: [], undecoded: true };

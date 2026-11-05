@@ -446,6 +446,43 @@
         }
       }
     },
+    "accountView": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name", "energy", "wood", "max"],
+          "properties": {
+            "kind": { "const": "player" },
+            "name": { "type": "string", "minLength": 1 },
+            "energy": { "type": "string", "minLength": 1 },
+            "wood": { "type": "string", "minLength": 1 },
+            "max": { "type": "integer", "minimum": 1 },
+            "refill": {
+              "description": "One energy back each `seconds`, counted from the unix time in the field `from`.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["seconds", "from"],
+              "properties": {
+                "seconds": { "type": "integer", "minimum": 1 },
+                "from": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name", "capacity"],
+          "properties": {
+            "kind": { "const": "memory" },
+            "name": { "type": "string", "minLength": 1 },
+            "capacity": { "type": "integer", "minimum": 1 },
+            "zero": { "type": "boolean" }
+          }
+        }
+      ]
+    },
     "act": {
       "type": "object",
       "additionalProperties": false,
@@ -480,6 +517,10 @@
           "description": "The line the act's card reads once its run landed, before the time it took: \"Created your map · 10 KB\". Without it the card reads its default record.",
           "type": "string",
           "minLength": 1
+        },
+        "account": {
+          "description": "For a `run` or `call` act only: the account its cards draw, as a player or as memory.",
+          "$ref": "#/definitions/accountView"
         },
         "repeat": {
           "description": "For a `call` act only: the card stays one card across its presses, one line per press, and ends on the step's goal or on `until`.",

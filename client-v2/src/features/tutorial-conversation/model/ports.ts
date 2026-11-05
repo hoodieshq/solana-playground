@@ -47,6 +47,8 @@ export interface RunInput {
    * judges. Absent when the goal names none.
    */
   log?: string;
+  /** The account the act draws: read from the chain once the run landed */
+  account?: string;
 }
 
 /** One stage of a run as it starts: its label, and "n of m" */

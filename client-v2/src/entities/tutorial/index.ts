@@ -20,6 +20,7 @@ export type {
   Beat,
   Block,
   CallArg,
+  AccountView,
   Repeat,
   Chip,
   DefinitionError,

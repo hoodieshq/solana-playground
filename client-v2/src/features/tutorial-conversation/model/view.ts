@@ -1,5 +1,6 @@
 /* eslint-disable max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type {
+  AccountView,
   Act,
   ActBeat,
   Ask,
@@ -15,9 +16,11 @@ import type {
   Win,
 } from "@/entities/tutorial";
 
+import { latestReading } from "./account-view";
 import { FINISH_DELAY_MS } from "./clock";
 import { goalGap } from "./goals";
 import type {
+  AccountReading,
   ConversationProgress,
   PassedVia,
   Proposal,
@@ -274,6 +277,12 @@ interface TurnBase {
 /** How a resolved question reads in its record (`answerOf`) */
 export type AskOutcome = QuestionResult;
 
+/** An act's account view with what to draw it from */
+export interface AccountOnCard {
+  view: AccountView;
+  reading: AccountReading;
+}
+
 /** One line of a repeating card */
 export interface Press {
   at: number;
@@ -347,6 +356,8 @@ export type Turn = TurnBase &
         state: ActState;
         /** A repeating card's lines, oldest first; none on any other card */
         presses: Press[];
+        /** The account a live or repeating card draws, once it was read */
+        account?: AccountOnCard;
         /** The card's line when the run was interrupted, else null */
         note: string | null;
         stage: Stage | null;
@@ -363,6 +374,8 @@ export type Turn = TurnBase &
         planned: Text | null;
         /** A failure still waiting for Explain or "I'll fix it myself" */
         open: boolean;
+        /** The account as this run left it */
+        account?: AccountOnCard;
       }
     | {
         kind: "win";
@@ -489,6 +502,17 @@ const pressOf = (act: ActBeat, run: RunRecord): Press | null => {
     };
   }
   return null;
+};
+
+/** The act's view with the newest reading of its account, if there is one */
+const accountOn = (
+  p: ConversationProgress,
+  act: ActBeat
+): { account?: AccountOnCard } => {
+  const reading = act.account && latestReading(p, act.account.name);
+  return act.account && reading
+    ? { account: { view: act.account, reading } }
+    : {};
 };
 
 /** A repeating card's state: its one card stands for every press */
@@ -766,6 +790,7 @@ export const view = (
               act: b,
               state: repeatState,
               presses: runs.flatMap((run) => pressOf(b, run) ?? []),
+              ...accountOn(p, b),
               note: repeatState === "interrupted" ? INTERRUPTED : null,
               stage: state.stage?.beatId === b.id ? state.stage : null,
               took: null,
@@ -780,6 +805,7 @@ export const view = (
               act: b,
               state: "live",
               presses: [],
+              ...accountOn(p, b),
               note: null,
               stage: null,
               took: null,
@@ -826,6 +852,17 @@ export const view = (
                 took: run.took,
                 planned: planned ? step.planned ?? null : null,
                 open,
+                ...(b.account &&
+                (run.result.act === "run" || run.result.act === "call") &&
+                run.result.ok &&
+                run.result.account
+                  ? {
+                      account: {
+                        view: b.account,
+                        reading: run.result.account,
+                      },
+                    }
+                  : {}),
               });
               // An unplanned failure sent to the assistant: the press, then,
               // once its answer ended, the offer to write the fix
@@ -1081,6 +1118,57 @@ if (import.meta.vitest) {
         const { v, card } = cardOf(stateOf({ beat: 1, runs: [failed] }));
         expect(card.id).toBe("s1.grow");
         expect(v.turns.map((t) => t.id)).toContain("result:s1.grow:0");
+      });
+
+      it("hands the card its account's newest reading, from the save alone", () => {
+        const d = repeating();
+        const grow = d.steps
+          .flatMap((s) => s.beats)
+          .find((b) => b.id === "s1.grow");
+        if (grow?.kind !== "act") throw new Error("the card moved");
+        grow.account = { kind: "memory", name: "map", capacity: 40960 };
+        const reading = { name: "map", address: "M", size: 20480, fields: {} };
+        const run = Object.assign(JSON.parse(JSON.stringify(LANDED)), {
+          result: Object.assign(JSON.parse(JSON.stringify(LANDED.result)), {
+            account: reading,
+          }),
+        }) as RunRecord;
+        const v = view(d, stateOf({ beat: 1, runs: [LANDED, run, LANDED] }), {
+          now: 99999,
+          loadedAt: 0,
+        });
+        const card = v.turns.find((t) => t.kind === "act");
+        expect(card).toMatchObject({
+          account: { view: grow.account, reading },
+        });
+      });
+
+      it("draws on a result card the reading of its own run", () => {
+        const d = repeating();
+        const grow = d.steps
+          .flatMap((s) => s.beats)
+          .find((b) => b.id === "s1.grow");
+        if (grow?.kind !== "act") throw new Error("the card moved");
+        grow.repeat = undefined;
+        grow.account = { kind: "memory", name: "map", capacity: 40960 };
+        const reading = { name: "map", address: "M", size: 20480, fields: {} };
+        const run = Object.assign(JSON.parse(JSON.stringify(LANDED)), {
+          result: Object.assign(JSON.parse(JSON.stringify(LANDED.result)), {
+            account: reading,
+          }),
+        }) as RunRecord;
+        const results = view(d, stateOf({ beat: 1, runs: [LANDED, run] }), {
+          now: 99999,
+          loadedAt: 0,
+        }).turns.filter((t) => t.kind === "result");
+        expect(results).toHaveLength(2);
+        expect(results[0]).not.toHaveProperty("account");
+        expect(results[1]).toMatchObject({ account: { reading } });
+      });
+
+      it("draws no account before it was read", () => {
+        const { card } = cardOf(stateOf({ beat: 1, runs: [LANDED] }));
+        expect(card).not.toHaveProperty("account");
       });
 
       it("draws one live card with a line per press, and no result card", () => {

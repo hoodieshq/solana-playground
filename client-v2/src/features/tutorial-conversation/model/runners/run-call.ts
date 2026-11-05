@@ -1,6 +1,8 @@
 /* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { RunInput, RunStage } from "../ports";
 import type { RunResult } from "../progress";
+import type { AccountData } from "./account-read";
+import { readingOf } from "./account-read";
 import type { Captured } from "./capture";
 import { isRetriedSend } from "./capture";
 import type { FundingChain } from "./fund";
@@ -65,6 +67,8 @@ export interface RunPort {
   ): Promise<{ captured: Captured[]; error: unknown }>;
   /** A sent transaction once confirmed, or null when it never was */
   landed(signature: string): Promise<Landed | null>;
+  /** An account's bytes and fields now, if it exists */
+  fetchAccount(address: string): Promise<AccountData | undefined>;
   /**
    * The wire transaction's instructions to the program, decoded by its IDL;
    * `undecoded` when one of them could not be
@@ -225,7 +229,26 @@ const attempt = async (
   });
   // What landed stands, but a run that threw after it did not finish
   if (result.ok && error !== undefined) return fail(messageOf(error));
-  return result;
+  if (!result.ok || !input.account) return result;
+  // The run landed whatever the read says: a card goes without, never the run
+  const account = await readingOf({
+    wrote: result.wrote ?? [],
+    name: input.account,
+    fetchAccount: (key) => port.fetchAccount(key),
+  }).catch((e) => {
+    port.report(e, "Reading the account a run wrote to");
+    return null;
+  });
+  if (account === null) return result;
+  if (!account) {
+    // The card would go missing with nothing to say why: a misnamed account
+    port.report(
+      new Error(`The run left no account named ${input.account} to read`),
+      "Reading the account a run wrote to"
+    );
+    return result;
+  }
+  return { ...result, account };
 };
 
 if (import.meta.vitest) {
@@ -289,12 +312,100 @@ if (import.meta.vitest) {
             error: undefined,
           })),
         landed: over.landed ?? (async () => HELLO_TX),
+        fetchAccount: async () => undefined,
         decode: () => ({ calls: [HELLO_CALL] }),
         print: () => {},
         report: vi.fn(),
         now: () => (clock += 500),
       };
     };
+
+    describe("the account an act draws", () => {
+      const CHOP: Captured = { kind: "sent", signature: "sig", encoded: "tx" };
+      const portOf = (fetchIt: RunPort["fetchAccount"]): RunPort => ({
+        refusal: () => null,
+        wallet: () => WALLET,
+        programId: () => PROGRAM,
+        funding: {
+          balance: async () => 10 * SOL,
+          airdrop: async () => "",
+          confirm: async () => undefined,
+        } as unknown as FundingChain,
+        capSol: 5,
+        send: async () => ({ captured: [CHOP], error: undefined }),
+        landed: async () => HELLO_TX,
+        fetchAccount: fetchIt,
+        decode: () => ({
+          calls: [
+            {
+              instruction: "chop_tree",
+              args: {},
+              accounts: [],
+              wrote: [{ name: "player", address: "Player1" }],
+            },
+          ],
+        }),
+        print: () => undefined,
+        report: vi.fn(),
+        now: () => 0,
+      });
+
+      it("reads it once the run landed", async () => {
+        const fetched = vi.fn(async () => ({
+          size: 32,
+          fields: { wood: "1" },
+        }));
+        const result = await runOrCall(
+          portOf(fetched),
+          "call",
+          { beatId: "chop", account: "player" },
+          () => undefined
+        );
+        expect(fetched).toHaveBeenCalledWith("Player1");
+        expect(result).toMatchObject({
+          ok: true,
+          account: { name: "player", address: "Player1", size: 32 },
+        });
+      });
+
+      it("keeps the run and reports it when the read fails", async () => {
+        const port = portOf(async () => {
+          throw new Error("no answer");
+        });
+        const result = await runOrCall(
+          port,
+          "call",
+          { beatId: "chop", account: "player" },
+          () => undefined
+        );
+        expect(result.ok).toBe(true);
+        expect(result).not.toHaveProperty("account");
+        expect(port.report).toHaveBeenCalled();
+      });
+
+      it("reports an act's account the run has no reading of", async () => {
+        const port = portOf(async () => undefined);
+        const result = await runOrCall(
+          port,
+          "call",
+          { beatId: "chop", account: "player" },
+          () => undefined
+        );
+        expect(result.ok).toBe(true);
+        expect(port.report).toHaveBeenCalledTimes(1);
+      });
+
+      it("reads nothing for an act that names no account", async () => {
+        const fetched = vi.fn(async () => undefined);
+        await runOrCall(
+          portOf(fetched),
+          "call",
+          { beatId: "chop" },
+          () => undefined
+        );
+        expect(fetched).not.toHaveBeenCalled();
+      });
+    });
 
     const stagesOf = async (port: RunPort, act: "run" | "call" = "run") => {
       const stages: RunStage[] = [];

@@ -443,6 +443,17 @@ const ruleErrors = (
         }
         if (beat.writes) block(step.target, beat.writes, `${at}.writes`);
       }
+      if (
+        beat.kind === "act" &&
+        beat.account &&
+        beat.act !== "run" &&
+        beat.act !== "call"
+      ) {
+        errors.push({
+          path: `${at}.account`,
+          message: `only on a \`run\` or \`call\` act, found "${beat.act}"`,
+        });
+      }
       if (beat.kind === "act" && beat.repeat) {
         if (beat.act !== "call") {
           errors.push({
@@ -811,6 +822,51 @@ if (import.meta.vitest) {
         button: "Call",
       } as unknown as Beat;
       expect(lines(d)).toEqual(['steps[0].beats[1]: needs "call", found none']);
+    });
+
+    it("takes each kind of account view on an act that sends", () => {
+      const views: import("./types").AccountView[] = [
+        {
+          kind: "player",
+          name: "player",
+          energy: "energy",
+          wood: "wood",
+          max: 5,
+          refill: { seconds: 30, from: "lastLogin" },
+        },
+        { kind: "memory", name: "map", capacity: 40960, zero: true },
+      ];
+      for (const account of views) {
+        const d = minimal();
+        const build = d.steps[0].beats[1];
+        if (build.kind !== "act") throw new Error("step 1 ends on its build");
+        build.act = "run";
+        build.account = account;
+        expect(lines(d).filter((line) => line.includes(".account"))).toEqual(
+          []
+        );
+      }
+    });
+
+    it("refuses an account view missing what it draws", () => {
+      const d = minimal();
+      const build = d.steps[0].beats[1];
+      if (build.kind !== "act") throw new Error("step 1 ends on its build");
+      build.act = "run";
+      Object.assign(build, { account: { kind: "memory", name: "map" } });
+      expect(
+        lines(d).filter((line) => line.includes(".account")).length
+      ).toBeGreaterThan(0);
+    });
+
+    it("refuses an account view on an act that sends nothing", () => {
+      const d = minimal();
+      const build = d.steps[0].beats[1];
+      if (build.kind !== "act") throw new Error("step 1 ends on its build");
+      build.account = { kind: "memory", name: "map", capacity: 40960 };
+      expect(lines(d)).toEqual([
+        'steps[0].beats[1].account: only on a `run` or `call` act, found "build"',
+      ]);
     });
 
     describe("repeat", () => {

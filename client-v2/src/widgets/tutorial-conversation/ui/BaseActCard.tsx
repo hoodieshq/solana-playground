@@ -1,17 +1,33 @@
 /* eslint-disable layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { LucideIcon } from "lucide-react";
-import { Check, Hammer, Play, Rocket, Send, X } from "lucide-react";
+import {
+  Axe,
+  Check,
+  Expand,
+  Hammer,
+  Play,
+  Rocket,
+  Send,
+  X,
+} from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import type { Act, ActBeat } from "@/entities/tutorial";
-import type { ActState, Press, Stage } from "@/features/tutorial-conversation";
+import type { AccountView, Act, ActBeat } from "@/entities/tutorial";
+import type {
+  AccountOnCard,
+  ActState,
+  Press,
+  Stage,
+} from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Kbd } from "@/shared/ui/kbd";
 import { Spinner } from "@/shared/ui/spinner";
 
+import { summedRecord } from "../model/account-card";
+import BaseAccountView from "./BaseAccountView";
 import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA } from "./card-action";
 import { formatSeconds } from "./Prose";
 
@@ -30,6 +46,12 @@ const ICONS: Record<Act, LucideIcon> = {
   buildDeploy: Rocket,
   run: Play,
   call: Send,
+};
+
+/** A move on an account shows what it does to it: chop, grow */
+const MOVE_ICONS: Record<AccountView["kind"], LucideIcon> = {
+  player: Axe,
+  memory: Expand,
 };
 
 /** What the record says the act did */
@@ -111,6 +133,8 @@ export interface BaseActCardProps {
   state: ActState;
   /** A repeating card's lines, oldest first */
   presses: Press[];
+  /** The account this card acts on, once it was read */
+  account?: AccountOnCard;
   /** The line after a reload interrupted the run, else null */
   note: string | null;
   stage: Stage | null;
@@ -137,13 +161,14 @@ export interface BaseActCardProps {
  * A card with `repeat` is the exception to the one line: it stays one card across its presses, a line for each.
  * After a press by hand that landed, its second button runs the presses one
  * after another until Stop, a press that did not land, or the card's end. That
- * lives here and not in the save: a reload never resumes it. The lesson's
- * account view on this card, and what sums a finished one, are HOO-2506's.
+ * lives here and not in the save: a reload never resumes it. A card with an
+ * account draws it under its head, and once finished sums to one line.
  */
 const BaseActCard = ({
   act,
   state,
   presses,
+  account,
   note,
   stage,
   took,
@@ -155,7 +180,9 @@ const BaseActCard = ({
       ? (act.call.args ?? []).filter((a): a is string => typeof a === "string")
       : [];
   const [values, setValues] = useState<Record<string, string>>({});
-  const Icon = ICONS[act.act];
+  const Icon =
+    (act.repeat && act.account && MOVE_ICONS[act.account.kind]) ||
+    ICONS[act.act];
 
   const [until, setUntil] = useState(false);
   const allLanded = presses.length > 0 && presses.every((p) => p.ok);
@@ -174,6 +201,44 @@ const BaseActCard = ({
     const timer = window.setTimeout(() => press.current(), UNTIL_GAP_MS);
     return () => window.clearTimeout(timer);
   }, [until, allLanded, state, disabled, missing, presses.length]);
+
+  if (
+    act.repeat &&
+    presses.length > 0 &&
+    (state === "done" || state === "refused") &&
+    account
+  ) {
+    const mark =
+      state === "done" && presses.every((p) => p.ok) ? (
+        <Check aria-hidden="true" className="size-3.5 text-success" />
+      ) : (
+        <Icon aria-hidden="true" className="size-3.5 text-subtle" />
+      );
+    const line = (
+      <p className="flex items-center gap-2 text-caption text-muted-foreground">
+        {mark}
+        {summedRecord({
+          view: account.view,
+          reading: account.reading,
+          presses,
+        })}
+      </p>
+    );
+    // A grow keeps the map as its last press left it: that moment is the step's
+    return account.view.kind === "memory" ? (
+      <div className="flex flex-col gap-3 rounded-panel border border-border bg-surface-panel p-3">
+        {line}
+        <BaseAccountView
+          account={account}
+          presses={presses}
+          heap
+          className="border-t border-border pt-3"
+        />
+      </div>
+    ) : (
+      <div className="py-2">{line}</div>
+    );
+  }
 
   // With no press, the step passed elsewhere: the card reads its plain record
   if (
@@ -285,6 +350,14 @@ const BaseActCard = ({
           <div className="ml-auto shrink-0">{button}</div>
         )}
       </div>
+      {account && (
+        <BaseAccountView
+          account={account}
+          presses={presses}
+          heap
+          className="border-t border-border pt-3"
+        />
+      )}
       {presses.length > 0 && (
         <PressLines
           label={`${act.title}: so far`}

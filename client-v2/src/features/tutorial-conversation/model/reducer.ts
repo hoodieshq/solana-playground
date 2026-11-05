@@ -1020,6 +1020,7 @@ const reduceAction = (
       // A run that ended well may run again while the step has not passed:
       // its result may have failed the goal (a call before the upgrade)
       const input: RunInput = { beatId: beat.id };
+      if (beat.account) input.account = beat.account.name;
       if (step.goal.kind === "call" && step.goal.log !== undefined) {
         input.log = step.goal.log;
       }
@@ -1781,6 +1782,15 @@ if (import.meta.vitest) {
           "ok",
           "refused",
         ]);
+      });
+
+      it("asks the run to read the account its act names", () => {
+        const c = growing({ label: "Grow until out" });
+        const grow = c.definition.steps[0].beats[0];
+        if (grow.kind !== "act") throw new Error("the card moved");
+        grow.account = { kind: "memory", name: "map", capacity: 40960 };
+        const { inputs } = walk(c, [start, press(2000)]);
+        expect(inputs[0].account).toBe("map");
       });
 
       it("remembers what a landed call wrote to, and sends it with later calls", () => {

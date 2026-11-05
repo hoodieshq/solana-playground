@@ -411,6 +411,17 @@ a move on the way to the goal (Zero Copy's Grow to 40 KB before Paint) gives
 `until`, a pattern over the press's log line, and needs a beat after it:
 `"repeat": { "label": "Grow to 40 KB", "until": "is 40960 bytes" }`.
 
+The account a lesson is about goes on its act, a `run` or a `call`, with
+`account`, and its cards draw it after each landed run. Both kinds name the
+account as the instruction does:
+`"account": { "kind": "player", "name": "player", "energy": "energy", "wood": "wood", "max": 5, "refill": { "seconds": 30, "from": "lastLogin" } }`
+or `"account": { "kind": "memory", "name": "map", "capacity": 40960 }`, with
+`"zero": true` on an account read in place. Fields are named as Anchor's coder
+gives them, camelCase. Give `refill` only on the acts whose program refills by
+then. On a repeating card, `account` replaces the list of lines with one summed
+line: "Chopped 6 times · 5 wood · out of energy", "Grew to 30 KB · out of memory
+at 40 KB".
+
 A call's accounts: the card fills what the IDL can derive, and each account an
 earlier call of the lesson wrote to, other than the wallet, by its name. So
 `grow`'s `map` takes the address `init_map` wrote to, as long as both call it

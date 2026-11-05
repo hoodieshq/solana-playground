@@ -3,7 +3,10 @@ import { ChevronDown, CircleCheck, CircleX } from "lucide-react";
 import { useState } from "react";
 
 import type { Text } from "@/entities/tutorial";
-import type { RunResult } from "@/features/tutorial-conversation";
+import type {
+  AccountOnCard,
+  RunResult,
+} from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
@@ -14,6 +17,8 @@ import { formatSeconds, Prose, READ } from "./Prose";
 
 export interface BaseResultCardProps {
   result: RunResult;
+  /** The account the run left, for a run or a call */
+  account?: AccountOnCard;
   /** The definition's line for the failure it plans, when this is it */
   planned: Text | null;
   /** A failure still waiting for Explain or "I'll fix it myself" */
@@ -100,6 +105,7 @@ const headOf = (
  */
 const BaseResultCard = ({
   result,
+  account,
   planned,
   open,
   onExplain,
@@ -109,7 +115,9 @@ const BaseResultCard = ({
 }: BaseResultCardProps) => {
   // A folded failed build opens again from its head, to read, never to act
   const [reopened, setReopened] = useState(false);
-  if (isTxResult(result)) return <BaseTxResultCard result={result} />;
+  if (isTxResult(result)) {
+    return <BaseTxResultCard result={result} account={account} />;
+  }
   const Icon = result.ok ? CircleCheck : CircleX;
   const failedBuild = result.act === "build" && !result.ok ? result : null;
   const error = failedBuild?.error ?? null;

@@ -301,6 +301,7 @@ const TurnView = ({
           act={withProgram(turn.act, programId)}
           state={turn.state}
           presses={turn.presses}
+          account={turn.account}
           note={turn.note}
           stage={turn.stage}
           took={turn.took}
@@ -324,6 +325,7 @@ const TurnView = ({
       return (
         <BaseResultCard
           result={turn.result}
+          account={turn.account}
           planned={turn.planned}
           open={turn.open && live}
           onExplain={() => on.explain(turn.beatId)}

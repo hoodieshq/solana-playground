@@ -89,7 +89,36 @@ interface ActBase {
   record?: string;
   /** Only on a `call` act: the card stays one card across its presses */
   repeat?: Repeat;
+  /** Only on a `run` or `call` act: the account its cards draw */
+  account?: AccountView;
 }
+
+/**
+ * The account a lesson is about, drawn on its act and result cards. `name` is
+ * the account in the instruction, as the IDL names it; field names are as
+ * Anchor's coder gives them, camelCase (`lastLogin`).
+ */
+export type AccountView =
+  | {
+      kind: "player";
+      name: string;
+      energy: string;
+      wood: string;
+      max: number;
+      /**
+       * The program gives energy back over time: one each `seconds`, counted
+       * from the unix time in the field `from`. Absent while it does not yet
+       */
+      refill?: { seconds: number; from: string };
+    }
+  | {
+      kind: "memory";
+      name: string;
+      /** The bytes the card's scale ends at */
+      capacity: number;
+      /** Read in place: nothing is copied to the heap */
+      zero?: boolean;
+    };
 
 /**
  * A call act pressed again and again. It ends on the step's goal, or on

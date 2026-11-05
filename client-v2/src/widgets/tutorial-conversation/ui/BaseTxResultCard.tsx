@@ -10,7 +10,10 @@ import {
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
-import type { RunResult } from "@/features/tutorial-conversation";
+import type {
+  AccountOnCard,
+  RunResult,
+} from "@/features/tutorial-conversation";
 import { devnetExplorerUrl } from "@/shared/lib/devnet-explorer";
 import { PROGRAM_LOG, programLogText } from "@/shared/lib/program-log";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
@@ -22,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from "@/shared/ui/collapsible";
 
+import BaseAccountView from "./BaseAccountView";
 import { formatSeconds, Prose, READ } from "./Prose";
 
 type TxResult = Extract<RunResult, { act: "run" | "call" }>;
@@ -197,7 +201,13 @@ const LogLines = ({ lines }: { lines: string[] }) => (
 );
 
 /** A landed run or call: "Confirmed", the instruction, what the program said */
-const LandedCard = ({ result }: { result: Landed }) => {
+const LandedCard = ({
+  result,
+  account,
+}: {
+  result: Landed;
+  account?: AccountOnCard;
+}) => {
   const [showLog, setShowLog] = useState(false);
   const ix = result.called[result.called.length - 1]?.instruction ?? null;
   const signature = result.signatures[result.signatures.length - 1] ?? null;
@@ -234,11 +244,16 @@ const LandedCard = ({ result }: { result: Landed }) => {
         )
       }
       body={
-        said !== null && (
-          <p className="border-l-2 border-success pl-3 font-mono text-[0.8125rem] leading-[1.6] break-words">
-            <span className="text-muted-foreground">{PROGRAM_LOG}</span>
-            <span className="text-foreground">{said}</span>
-          </p>
+        (said !== null || account) && (
+          <>
+            {said !== null && (
+              <p className="border-l-2 border-success pl-3 font-mono text-[0.8125rem] leading-[1.6] break-words">
+                <span className="text-muted-foreground">{PROGRAM_LOG}</span>
+                <span className="text-foreground">{said}</span>
+              </p>
+            )}
+            {account && <BaseAccountView account={account} still />}
+          </>
         )
       }
       details={
@@ -427,7 +442,17 @@ const FailedCard = ({ result }: { result: Failed }) => {
  * the error" and "I'll fix it myself" while it is live; they arrive with the
  * assistant. An older card does not fold to its head yet.
  */
-const BaseTxResultCard = ({ result }: { result: TxResult }) =>
-  result.ok ? <LandedCard result={result} /> : <FailedCard result={result} />;
+const BaseTxResultCard = ({
+  result,
+  account,
+}: {
+  result: TxResult;
+  account?: AccountOnCard;
+}) =>
+  result.ok ? (
+    <LandedCard result={result} account={account} />
+  ) : (
+    <FailedCard result={result} />
+  );
 
 export default BaseTxResultCard;

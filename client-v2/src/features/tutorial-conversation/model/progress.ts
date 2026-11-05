@@ -259,6 +259,17 @@ export interface Called {
   args: Record<string, string>;
 }
 
+/** An account as the chain held it right after a run, for its cards */
+export interface AccountReading {
+  /** The name the act's view gives it */
+  name: string;
+  address: string;
+  /** The account's data, in bytes */
+  size: number;
+  /** Its fields that read as one value, as strings; empty if it did not decode */
+  fields: Record<string, string>;
+}
+
 /** One account a transaction touched, as the receipt lists it */
 export interface ReceiptAccount {
   /** The IDL's name for it, or a role such as "program" */
@@ -355,6 +366,8 @@ export type RunResult =
       line: string | null;
       /** The accounts the calls wrote to, other than the wallet, oldest first */
       wrote?: ReceiptAccount[];
+      /** The account the act names, read from the chain once the run landed */
+      account?: AccountReading;
       /**
        * Each instruction the run's transactions invoked on the tutorial's
        * program, with its arguments as the deployed IDL decodes them. A call
@@ -569,6 +582,15 @@ const isRefusal = (v: unknown): v is Refusal =>
       Number.isInteger(v.error.code) &&
       (v.error.name === null || typeof v.error.name === "string")));
 
+/** An account reading as the cards draw it */
+const isReading = (v: unknown): v is AccountReading =>
+  isRecord(v) &&
+  typeof v.name === "string" &&
+  typeof v.address === "string" &&
+  typeof v.size === "number" &&
+  isRecord(v.fields) &&
+  Object.values(v.fields).every((f) => typeof f === "string");
+
 /**
  * A result is kept as it was saved once its act and `ok` are sound: the run
  * tickets own its other fields, and the cards read them by act. The
@@ -597,7 +619,9 @@ const parseResult = (v: unknown): RunResult | null => {
     const called = Array.isArray(v.called) ? v.called.filter(isCalled) : [];
     const signatures = isStrings(v.signatures) ? v.signatures : [];
     const line = typeof v.line === "string" ? v.line : null;
-    const { receipt, ...rest } = v;
+    const { receipt, account, ...landed } = v;
+    // Drawn, never judged: one that does not read as a reading only loses its card
+    const rest = isReading(account) ? { ...landed, account } : landed;
     const { receipt: kept, mismatched } = parseReceipt(receipt);
     if (mismatched.length) {
       // Kept as far as it reads: a receipt field is drawn, never judged, so
@@ -883,6 +907,47 @@ if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
   describe("features/tutorial-conversation/model/progress", () => {
+    it("keeps a sound account reading and drops one it cannot read", () => {
+      const saved = (account: unknown) =>
+        JSON.parse(
+          JSON.stringify(
+            Object.assign(freshProgress(), {
+              runs: {
+                chop: [
+                  {
+                    status: "ok",
+                    at: 1,
+                    took: 1,
+                    result: {
+                      act: "call",
+                      ok: true,
+                      seconds: 1,
+                      signatures: [],
+                      line: null,
+                      called: [],
+                      account,
+                    },
+                  },
+                ],
+              },
+            })
+          )
+        );
+      const reading = {
+        name: "player",
+        address: "P",
+        size: 32,
+        fields: { wood: "1" },
+      };
+      const run = (v: unknown) => parseProgress(v)?.runs.chop?.[0];
+      expect(run(saved(reading))).toMatchObject({
+        result: { account: reading },
+      });
+      expect(run(saved({ name: "player" }))).not.toHaveProperty(
+        "result.account"
+      );
+    });
+
     it("keeps the remembered accounts across a reload, and reads an older save as none", () => {
       const fresh = freshProgress();
       expect(fresh.accounts).toEqual({});

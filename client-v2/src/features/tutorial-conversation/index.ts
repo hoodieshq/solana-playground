@@ -1,6 +1,7 @@
 export { tutorialTelemetry } from "./model/telemetry";
 export { freshProgress, isUnreachable, parseProgress } from "./model/progress";
 export type {
+  AccountReading,
   BuildError,
   BuildFailure,
   Called,
@@ -81,6 +82,7 @@ export type {
   ConversationView,
   LandedCall,
   Placeholder,
+  AccountOnCard,
   Press,
   StepBarItem,
   StepBarState,
