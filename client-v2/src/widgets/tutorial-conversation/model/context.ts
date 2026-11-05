@@ -174,6 +174,7 @@ if (import.meta.vitest) {
       times: {},
       said: [],
       proposals: [],
+      accounts: {},
     });
 
     it("says where the learner is, what the step asks and what it may do", () => {

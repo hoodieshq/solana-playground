@@ -26,6 +26,7 @@ import type {
 } from "./progress";
 import { answerOf } from "./progress";
 import type { EngineState, Stage } from "./reducer";
+import { hasRepeatEnded } from "./reducer";
 import { wordOf } from "./route";
 
 /**
@@ -241,6 +242,17 @@ interface TurnBase {
 /** How a resolved question reads in its record (`answerOf`) */
 export type AskOutcome = QuestionResult;
 
+/** One line of a repeating card */
+export interface Press {
+  at: number;
+  /** Whether the call landed; false is a refusal */
+  ok: boolean;
+  line: string;
+  signature: string | null;
+  /** The press's whole result, for the account views (HOO-2506) to read */
+  result: RunResult;
+}
+
 /**
  * An act card's state. `refused` is a call the program refused as the step's
  * `refused` goal expected: it passed the step, and is no failure to explain.
@@ -301,6 +313,8 @@ export type Turn = TurnBase &
         beatId: string;
         act: ActBeat;
         state: ActState;
+        /** A repeating card's lines, oldest first; none on any other card */
+        presses: Press[];
         /** The card's line when the run was interrupted, else null */
         note: string | null;
         stage: Stage | null;
@@ -405,6 +419,60 @@ const ended = (
 ): run is Extract<RunRecord, { status: "ok" | "refused" | "failed" }> =>
   run.status === "ok" || run.status === "refused" || run.status === "failed";
 
+/**
+ * One press of a repeating card, as its line reads. A run that failed without
+ * a refusal has none: it posts its own failed result card.
+ */
+const pressOf = (act: ActBeat, run: RunRecord): Press | null => {
+  if (
+    run.status === "ok" &&
+    (run.result.act === "call" || run.result.act === "run") &&
+    run.result.ok
+  ) {
+    return {
+      at: run.at,
+      ok: true,
+      line:
+        run.result.line?.replace(/^Program log: /, "") ??
+        act.record ??
+        "Called",
+      signature: run.result.signatures.at(-1) ?? null,
+      result: run.result,
+    };
+  }
+  if (
+    run.status === "refused" &&
+    (run.result.act === "call" || run.result.act === "run") &&
+    !run.result.ok
+  ) {
+    const error = run.result.refused?.error;
+    return {
+      at: run.at,
+      ok: false,
+      line: error
+        ? `${error.name ?? "Refused"} · error ${error.code}`
+        : run.result.message,
+      signature: null,
+      result: run.result,
+    };
+  }
+  return null;
+};
+
+/** A repeating card's state: its one card stands for every press */
+const repeatStateOf = (
+  p: ConversationProgress,
+  step: Step,
+  beatId: string
+): ActState => {
+  const run = p.runs[beatId]?.at(-1);
+  if (run?.status === "started") return "running";
+  if (hasRepeatEnded(p, step, beatId)) {
+    return run?.status === "refused" ? "refused" : "done";
+  }
+  return run?.status === "interrupted" ? "interrupted" : "live";
+};
+
 const actStateOf = (run: RunRecord | undefined): ActState => {
   if (!run) return "live";
   if (run.status === "started") return "running";
@@ -428,6 +496,8 @@ const retryAct = (
   const beats = beatsOf(step, cursor.fail).slice(0, cursor.beat);
   const last = [...beats].reverse().find((b) => b.kind === "act");
   if (!last) return null;
+  // A repeating card stays one card, and is live until it ends
+  if (last.kind === "act" && last.repeat) return null;
   const runs = p.runs[last.id] ?? [];
   const run = runs.at(-1);
   if (!run || run.status !== "ok") return null;
@@ -641,7 +711,22 @@ export const view = (
             });
           }
           const runs = p.runs[b.id] ?? [];
-          if (runs.length === 0) {
+          if (b.repeat) {
+            const repeatState = repeatStateOf(p, step, b.id);
+            turn({
+              id: b.id,
+              kind: "act",
+              step: step.id,
+              at: r.at,
+              beatId: b.id,
+              act: b,
+              state: repeatState,
+              presses: runs.flatMap((run) => pressOf(b, run) ?? []),
+              note: repeatState === "interrupted" ? INTERRUPTED : null,
+              stage: state.stage?.beatId === b.id ? state.stage : null,
+              took: null,
+            });
+          } else if (runs.length === 0) {
             turn({
               id: b.id,
               kind: "act",
@@ -650,6 +735,7 @@ export const view = (
               beatId: b.id,
               act: b,
               state: "live",
+              presses: [],
               note: null,
               stage: null,
               took: null,
@@ -661,7 +747,7 @@ export const view = (
             // The faucet's card stands for the act that hit it: the act's
             // own record over it would say the same failure twice
             const funding = ended(run) && isFaucetRefusal(run.result);
-            if (!funding)
+            if (!funding && !b.repeat)
               turn({
                 id: n === 0 ? b.id : `${b.id}:${n}`,
                 kind: "act",
@@ -670,12 +756,14 @@ export const view = (
                 beatId: b.id,
                 act: b,
                 state: actStateOf(run),
+                presses: [],
                 note: run.status === "interrupted" ? INTERRUPTED : null,
                 stage:
                   isLast && state.stage?.beatId === b.id ? state.stage : null,
                 took: ended(run) ? run.took : null,
               });
-            if (ended(run)) {
+            // A repeating card's press is a line on it, unless it failed
+            if (ended(run) && (!b.repeat || run.status === "failed")) {
               const planned = run.status === "failed" && run.planned === true;
               // A planned failure closes once Explain or "I'll fix it
               // myself" entered `onFail`; any other failure waits on this
@@ -742,8 +830,11 @@ export const view = (
                     ...b,
                     button: TRY_AGAIN,
                     context: retry === "faucet" ? ASKS_THE_FAUCET : b.context,
+                    // The retry is one press; the card above keeps the others
+                    repeat: undefined,
                   },
                   state: "live",
+                  presses: [],
                   note: null,
                   stage: null,
                   took: null,
@@ -865,6 +956,114 @@ if (import.meta.vitest) {
   const { describe, it, expect, beforeAll } = import.meta.vitest;
 
   describe("features/tutorial-conversation/model/view", () => {
+    let freshProgress: typeof import("./progress").freshProgress;
+
+    describe("a repeating call act", () => {
+      const repeating = (): TutorialDefinition => {
+        const d = JSON.parse(JSON.stringify(hello)) as TutorialDefinition;
+        d.steps[0].beats = [
+          {
+            kind: "act",
+            id: "s1.grow",
+            act: "call",
+            title: "Grow",
+            context: "Sends grow",
+            button: "Grow",
+            call: { instruction: "grow" },
+            repeat: { label: "Grow to 40 KB", until: "40960" },
+          },
+          { kind: "say", id: "s1.after", text: "Grown." },
+        ];
+        return d;
+      };
+      const LANDED: RunRecord = {
+        status: "ok",
+        at: 2000,
+        took: 500,
+        result: {
+          act: "call",
+          ok: true,
+          seconds: 1,
+          signatures: ["5ig"],
+          line: "Program log: The map is 20480 bytes",
+          called: [],
+        },
+      };
+      const STEP = "write-program";
+      const stateOf = (over: {
+        beat: number;
+        runs: RunRecord[];
+        beats?: Record<string, unknown>;
+      }): EngineState => {
+        const progress = freshProgress();
+        progress.startedAt = 1000;
+        progress.cursor = {
+          kind: "step",
+          stepId: STEP,
+          beat: over.beat,
+          fail: false,
+        };
+        progress.times = { [STEP]: { from: 1000, to: null } };
+        progress.beats = Object.assign(
+          { "s1.grow": { kind: "said", at: 1000 } },
+          over.beats ?? {}
+        ) as typeof progress.beats;
+        progress.runs = { "s1.grow": over.runs };
+        return { progress, stage: null };
+      };
+      const cardOf = (state: EngineState) => {
+        const v = view(repeating(), state, { now: 99999, loadedAt: 0 });
+        const cards = v.turns.filter((t) => t.kind === "act");
+        expect(cards).toHaveLength(1);
+        return { v, card: cards[0] };
+      };
+
+      it("draws one live card with a line per press, and no result card", () => {
+        const { v, card } = cardOf(
+          stateOf({ beat: 1, runs: [LANDED, LANDED] })
+        );
+        expect(card).toMatchObject({ id: "s1.grow", state: "live" });
+        expect(v.live?.id).toBe("s1.grow");
+        const press = {
+          at: 2000,
+          ok: true,
+          line: "The map is 20480 bytes",
+          signature: "5ig",
+        };
+        expect(card.kind === "act" && card.presses).toMatchObject([
+          press,
+          press,
+        ]);
+        expect(v.turns.some((t) => t.kind === "result")).toBe(false);
+      });
+
+      it("is its record once the cursor went past it, and not the live card", () => {
+        const { v, card } = cardOf(
+          stateOf({
+            beat: 2,
+            runs: [LANDED],
+            beats: { "s1.after": { kind: "said", at: 3000 } },
+          })
+        );
+        expect(card).toMatchObject({ state: "done" });
+        expect(v.live).toBeNull();
+      });
+
+      it("says a reload interrupted it, and keeps its lines", () => {
+        const { card } = cardOf(
+          stateOf({
+            beat: 1,
+            runs: [LANDED, { status: "interrupted", at: 3000 }],
+          })
+        );
+        expect(card).toMatchObject({
+          state: "interrupted",
+          note: "Interrupted by a reload. Run it again.",
+        });
+        expect(card.kind === "act" && card.presses).toHaveLength(1);
+      });
+    });
+
     let hello: TutorialDefinition;
     let reduce: typeof import("./reducer").reduce;
     let INITIAL: typeof import("./reducer").INITIAL_ENGINE_STATE;
@@ -874,6 +1073,7 @@ if (import.meta.vitest) {
         .default as unknown as TutorialDefinition;
       ({ reduce, INITIAL_ENGINE_STATE: INITIAL } = await import("./reducer"));
       ({ TICK_MS: TICK } = await import("./clock"));
+      ({ freshProgress } = await import("./progress"));
     });
 
     type Action = import("./reducer").Action;
@@ -1097,6 +1297,7 @@ if (import.meta.vitest) {
           times: {},
           said: [{ kind: "chip", index: 0, at: 61000 }],
           proposals: [],
+          accounts: {},
         },
         stage: null,
       };
@@ -1717,6 +1918,7 @@ if (import.meta.vitest) {
           restartedAt: null,
           said: [],
           proposals: [],
+          accounts: {},
           cursor: state.progress.cursor,
           beats: state.progress.beats,
           runs: {
@@ -1753,6 +1955,7 @@ if (import.meta.vitest) {
           restartedAt: null,
           said: [],
           proposals: [],
+          accounts: {},
           cursor: state.progress.cursor,
           beats: state.progress.beats,
           runs: { "s1.build": [{ status: "interrupted", at: 7000 }] },
@@ -1791,6 +1994,7 @@ if (import.meta.vitest) {
           restartedAt: null,
           said: [],
           proposals: [],
+          accounts: {},
           cursor: { kind: "finished" },
           beats: {},
           runs: {
@@ -1834,6 +2038,7 @@ if (import.meta.vitest) {
           restartedAt: null,
           said: [],
           proposals: [],
+          accounts: {},
           cursor: { kind: "finished" },
           beats: {},
           runs: { "s3.run": [ran(30000, "first")] },
@@ -1874,6 +2079,7 @@ if (import.meta.vitest) {
           times: {},
           said: [],
           proposals: [],
+          accounts: {},
         },
         stage: null,
       });

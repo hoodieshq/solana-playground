@@ -48,6 +48,13 @@ export interface ConversationProgress extends ConversationSave {
   /** Changes the assistant proposed as apply cards, oldest first; added
    * after version 1 shipped, like `said` */
   proposals: Proposal[];
+  /**
+   * The address each landed call last wrote to, by the account's IDL name:
+   * later calls send it, since an account with no seeds cannot be derived.
+   * Added after version 1 shipped, like `said`. A step's Reset keeps it: the
+   * step's own create call replaces what it wrote.
+   */
+  accounts: Record<string, string>;
 }
 
 /**
@@ -346,6 +353,8 @@ export type RunResult =
       signatures: string[];
       /** The program log line the definition's pattern picked, if any */
       line: string | null;
+      /** The accounts the calls wrote to, other than the wallet, oldest first */
+      wrote?: ReceiptAccount[];
       /**
        * Each instruction the run's transactions invoked on the tutorial's
        * program, with its arguments as the deployed IDL decodes them. A call
@@ -407,6 +416,7 @@ export const freshProgress = (
   times: {},
   said: [],
   proposals: [],
+  accounts: {},
 });
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -855,6 +865,12 @@ export const parseProgress = (
     times: parseEach(saved.times, parseTime, onDrop, "times"),
     said: parseList(saved.said, parseSaid, onDrop, "said"),
     proposals: parseList(saved.proposals, parseProposal, onDrop, "proposals"),
+    accounts: parseEach(
+      saved.accounts,
+      (entry) => (typeof entry === "string" ? entry : null),
+      onDrop,
+      "accounts"
+    ),
   };
 };
 
@@ -862,6 +878,27 @@ if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
   describe("features/tutorial-conversation/model/progress", () => {
+    it("keeps the remembered accounts across a reload, and reads an older save as none", () => {
+      const fresh = freshProgress();
+      expect(fresh.accounts).toEqual({});
+      const saved = JSON.parse(
+        JSON.stringify(Object.assign(fresh, { accounts: { map: "Map1" } }))
+      );
+      expect(parseProgress(saved)?.accounts).toEqual({ map: "Map1" });
+      delete saved.accounts;
+      expect(parseProgress(saved)?.accounts).toEqual({});
+    });
+
+    it("drops a remembered account it cannot read, by its key", () => {
+      const dropped: string[] = [];
+      const saved = JSON.parse(JSON.stringify(freshProgress()));
+      saved.accounts = { map: "Map1", big_map: 7 };
+      expect(parseProgress(saved, (k) => dropped.push(k))?.accounts).toEqual({
+        map: "Map1",
+      });
+      expect(dropped).toEqual(["accounts.big_map"]);
+    });
+
     const STEPS = ["write-program", "deploy", "call-client", "greet-by-name"];
 
     /**
@@ -958,6 +995,7 @@ if (import.meta.vitest) {
       ),
       said: opts.said ?? [],
       proposals: opts.proposals ?? [],
+      accounts: {},
     });
 
     /** Through JSON, as the file holds it */

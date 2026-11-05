@@ -32,8 +32,15 @@ export interface RunInput {
    * the error that holds it. Absent inside the planned failure's own beats
    */
   failsWith?: string;
-  /** A call act's instruction and the argument values the learner gave */
-  call?: { instruction: string; args: Record<string, string> };
+  /**
+   * A call act's instruction, the argument values the learner gave and the
+   * addresses earlier calls wrote to, by IDL name
+   */
+  call?: {
+    instruction: string;
+    args: Record<string, string>;
+    accounts?: Record<string, string>;
+  };
   /**
    * The step's `call` goal's log pattern: a run or call picks its card's
    * large line with it, so the line the card shows is the one the goal

@@ -1,22 +1,28 @@
 /* eslint-disable layers/curry-order -- tutorial flow v2 predates this rule; cleanup tracked from SF#94 */
 import type { LucideIcon } from "lucide-react";
-import { Check, Hammer, Play, Rocket, Send } from "lucide-react";
+import { Check, Hammer, Play, Rocket, Send, X } from "lucide-react";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Act, ActBeat } from "@/entities/tutorial";
-import type { ActState, Stage } from "@/features/tutorial-conversation";
+import type { ActState, Press, Stage } from "@/features/tutorial-conversation";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Kbd } from "@/shared/ui/kbd";
 import { Spinner } from "@/shared/ui/spinner";
 
-import { ACTION, ACTION_FILL, PHONE_CTA } from "./card-action";
+import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA } from "./card-action";
 import { formatSeconds } from "./Prose";
 
 /** A string argument stops at 32 characters */
 export const ARG_MAX = 32;
+
+/** The beat between presses, so each lands on the card before the next goes */
+const UNTIL_GAP_MS = 250;
+
+/** How many lines the live card shows: the latest, as the record shows them all */
+const LIVE_PRESSES = 3;
 
 const ICONS: Record<Act, LucideIcon> = {
   build: Hammer,
@@ -56,9 +62,55 @@ const RECORDS: Record<
   failed: { line: (act, s) => `${act.title} failed${s ? ` in ${s}` : ""}` },
 };
 
+/** One line per press, newest last */
+const PressLines = ({
+  label,
+  presses,
+}: {
+  label: string;
+  presses: Press[];
+}) => (
+  <ol aria-label={label} className="flex flex-col gap-1.5">
+    {presses.map((press) => (
+      <li
+        key={press.at}
+        className="flex min-w-0 items-center gap-2 text-caption"
+      >
+        {press.ok ? (
+          <Check
+            aria-hidden="true"
+            className="size-3.5 shrink-0 text-success"
+          />
+        ) : (
+          <X aria-hidden="true" className="size-3.5 shrink-0 text-error" />
+        )}
+        <span
+          title={press.line}
+          className={cn(
+            "min-w-0 truncate",
+            press.ok ? "text-foreground" : "text-error"
+          )}
+        >
+          {press.line}
+        </span>
+        {press.signature && (
+          <span
+            title={press.signature}
+            className="ml-auto shrink-0 font-mono text-[0.75rem] text-subtle"
+          >
+            {press.signature.slice(0, 4)}…{press.signature.slice(-4)}
+          </span>
+        )}
+      </li>
+    ))}
+  </ol>
+);
+
 export interface BaseActCardProps {
   act: ActBeat;
   state: ActState;
+  /** A repeating card's lines, oldest first */
+  presses: Press[];
   /** The line after a reload interrupted the run, else null */
   note: string | null;
   stage: Stage | null;
@@ -79,10 +131,17 @@ export interface BaseActCardProps {
  * ended the card is its record, one line with no button, ever: the act's own
  * `record` when it landed and names one, and a refusal that passed the step
  * reads as refused, not failed.
+ *
+ * A card with `repeat` is the exception to the one line: it stays one card across its presses, a line for each.
+ * After a press by hand that landed, its second button runs the presses one
+ * after another until Stop, a press that did not land, or the card's end. That
+ * lives here and not in the save: a reload never resumes it. The lesson's
+ * account view on this card, and what sums a finished one, are HOO-2506's.
  */
 const BaseActCard = ({
   act,
   state,
+  presses,
   note,
   stage,
   took,
@@ -95,6 +154,46 @@ const BaseActCard = ({
       : [];
   const [values, setValues] = useState<Record<string, string>>({});
   const Icon = ICONS[act.act];
+
+  const [until, setUntil] = useState(false);
+  const allLanded = presses.length > 0 && presses.every((p) => p.ok);
+  const missing = names.some((n) => !values[n]?.trim());
+  const press = useRef(onRun);
+  press.current = () => onRun(names.length ? values : undefined);
+  useEffect(() => {
+    if (!until) return undefined;
+    // `disabled` while nothing runs: a failed press's card took over
+    const cannotPress = disabled || state !== "live" || missing;
+    if (!allLanded || (state !== "running" && cannotPress)) {
+      setUntil(false);
+      return undefined;
+    }
+    if (state === "running") return undefined;
+    const timer = window.setTimeout(() => press.current(), UNTIL_GAP_MS);
+    return () => window.clearTimeout(timer);
+  }, [until, allLanded, state, disabled, missing, presses.length]);
+
+  // With no press, the step passed elsewhere: the card reads its plain record
+  if (
+    act.repeat &&
+    presses.length > 0 &&
+    (state === "done" || state === "refused")
+  ) {
+    const times = presses.length === 1 ? "1 time" : `${presses.length} times`;
+    return (
+      <div className="flex flex-col gap-1.5 py-2 text-caption text-muted-foreground">
+        <p className="flex items-center gap-2">
+          {state === "done" ? (
+            <Check aria-hidden="true" className="size-3.5 text-success" />
+          ) : (
+            <Icon aria-hidden="true" className="size-3.5 text-subtle" />
+          )}
+          {act.record ?? DONE[act.act]} {times}
+        </p>
+        <PressLines label={`${act.title}: every press`} presses={presses} />
+      </div>
+    );
+  }
 
   if (state === "done" || state === "refused" || state === "failed") {
     const record = RECORDS[state];
@@ -112,7 +211,6 @@ const BaseActCard = ({
   }
 
   const running = state === "running";
-  const missing = names.some((n) => !values[n]?.trim());
   const run = (e?: FormEvent) => {
     e?.preventDefault();
     if (disabled || running || missing) return;
@@ -153,7 +251,7 @@ const BaseActCard = ({
       onSubmit={run}
       className={cn(
         "relative flex gap-3 overflow-hidden rounded-panel border border-border bg-surface-panel p-3",
-        names.length ? "flex-col items-stretch" : "items-center"
+        names.length || act.repeat ? "flex-col items-stretch" : "items-center"
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -181,8 +279,33 @@ const BaseActCard = ({
             {note ?? (names.length && missing ? "Type any name" : act.context)}
           </p>
         </div>
-        {!names.length && <div className="ml-auto shrink-0">{button}</div>}
+        {!names.length && !act.repeat && (
+          <div className="ml-auto shrink-0">{button}</div>
+        )}
       </div>
+      {presses.length > 0 && (
+        <PressLines
+          label={`${act.title}: so far`}
+          presses={presses.slice(-LIVE_PRESSES)}
+        />
+      )}
+      {act.repeat && (
+        <div className="flex flex-wrap items-center gap-2">
+          {!names.length && button}
+          {(until || allLanded) && (
+            <Button
+              type="button"
+              size="lg"
+              variant="ghost"
+              disabled={disabled}
+              onClick={() => setUntil(!until)}
+              className={cn("shrink-0 px-3", ACTION_SOFT, PHONE_CTA)}
+            >
+              {until ? "Stop" : act.repeat.label}
+            </Button>
+          )}
+        </div>
+      )}
       {names.length > 0 && (
         <div className="flex items-center gap-2">
           {names.map((name) => (

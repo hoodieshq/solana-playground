@@ -81,6 +81,7 @@ export type {
   ConversationView,
   LandedCall,
   Placeholder,
+  Press,
   StepBarItem,
   StepBarState,
   Turn,

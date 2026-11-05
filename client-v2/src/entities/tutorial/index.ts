@@ -20,6 +20,7 @@ export type {
   Beat,
   Block,
   CallArg,
+  Repeat,
   Chip,
   DefinitionError,
   Doc,

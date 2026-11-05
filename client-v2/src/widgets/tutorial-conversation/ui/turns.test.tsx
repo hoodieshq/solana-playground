@@ -254,6 +254,7 @@ describe("BaseActCard", () => {
       <BaseActCard
         act={over.act ?? build()}
         state={over.state ?? "live"}
+        presses={over.presses ?? []}
         note={over.note ?? null}
         stage={over.stage ?? null}
         took={over.took ?? null}
@@ -836,6 +837,7 @@ describe("TurnView", () => {
       beatId: ship.id,
       act: ship,
       state: "live",
+      presses: [],
       note: null,
       stage: null,
       took: null,

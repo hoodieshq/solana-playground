@@ -171,6 +171,7 @@ const live: Turn = {
     definition.steps[1].beats.find((b): b is ActBeat => b.kind === "act")
   ),
   state: "live",
+  presses: [],
   note: null,
   stage: null,
   took: null,
@@ -238,6 +239,7 @@ const loaded = (): ConversationState => ({
       restartedAt: null,
       said: [],
       proposals: [],
+      accounts: {},
       cursor: {
         kind: "step",
         stepId: definition.steps[1].id,
@@ -854,6 +856,7 @@ describe("TutorialConversation keys and the pill", () => {
       beatId: callAct.id,
       act: callAct,
       state: "live",
+      presses: [],
       note: null,
       stage: null,
       took: null,

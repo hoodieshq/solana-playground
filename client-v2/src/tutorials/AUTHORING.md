@@ -396,8 +396,25 @@ An argument in `args` takes one of three forms:
   calls made from the Call panel are not counted.
 
 A card pressed again and again (chop until the energy runs out, grow until
-the memory does) is one `call` act: it stays pressable until the step's goal
-passes. Name its button for what the learner does: `"button": "Chop"`.
+the memory does) is one `call` act with `repeat`: it stays one card, with one
+line per press, and offers a second button once the first press landed. Name
+the first button for what the learner does, `"button": "Chop"`, and the second
+for where it stops: `"repeat": { "label": "Chop until out of energy" }`.
+
+The finished card reads its `record` and the count, with every press's line
+under it: `"record": "Grew"` reads "Grew 4 times". On a repeating card `record`
+is a bare past verb. Without one it reads "Called 4 times".
+
+The card ends when the step's goal passes, so without `until` the step's goal
+must be a `call` or `refused` goal of the card's own instruction. A card that is
+a move on the way to the goal (Zero Copy's Grow to 40 KB before Paint) gives
+`until`, a pattern over the press's log line, and needs a beat after it:
+`"repeat": { "label": "Grow to 40 KB", "until": "is 40960 bytes" }`.
+
+A call's accounts: the card fills what the IDL can derive, and each account an
+earlier call of the lesson wrote to, other than the wallet, by its name. So
+`grow`'s `map` takes the address `init_map` wrote to, as long as both call it
+`map`.
 
 `record`, on any act, is the line its card reads once the run landed, before
 the time it took: `"record": "Created your map · 10 KB"`. Leave it out and
@@ -697,13 +714,10 @@ Drop, because Playground does it for real or the live assistant does it:
 `call`), and the lesson's `checks`, `game`, `memory`, `runTx`, `callTx`, `programId`,
 `idlAccount` and `txSignature`.
 
-**Stop and report** when the script needs something the format cannot say:
-a card that repeats until a condition other than its step's goal (Zero
-Copy's Grow to 40 KB before Paint), a goal on an account's size, or a value
-read from an account the lesson made earlier. Do not invent a field: the
-check refuses any field the schema does not name. Tell the person which step
-needs what, and ask the Playground team: the repeating card and the
-accounts are tracked as HOO-2505.
+**Stop and report** when the script needs something the format cannot say: a
+goal on an account's size, or a value read from the data of an account the
+lesson made earlier (the address carries over, the data does not). Do not invent a field: the check refuses any field the schema does not
+name. Tell the person which step needs what, and ask the Playground team.
 
 ## Running the check
 

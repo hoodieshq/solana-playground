@@ -481,6 +481,23 @@
           "type": "string",
           "minLength": 1
         },
+        "repeat": {
+          "description": "For a `call` act only: the card stays one card across its presses, one line per press, and ends on the step's goal or on `until`.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label"],
+          "properties": {
+            "label": {
+              "description": "The button that runs the presses one after another: \"Grow to 40 KB\".",
+              "type": "string",
+              "minLength": 1
+            },
+            "until": {
+              "description": "A pattern over a press's log line. A match ends the card and the lesson goes on to the next beat, for a card that is a move on the way to the step's goal.",
+              "$ref": "#/definitions/pattern"
+            }
+          }
+        },
         "call": {
           "description": "For a `call` act only: the instruction and its arguments. A name is a field the learner fills; `{ name, value }` is sent as given, with no field; `{ name, value, add }` sends `value` on the first run and adds `add` for each run of this card that landed.",
           "type": "object",

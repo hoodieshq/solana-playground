@@ -243,6 +243,7 @@ if (import.meta.vitest) {
       instruction: "hello",
       args: {},
       accounts: [],
+      wrote: [],
     };
 
     /** A port on devnet with a funded wallet whose run sends one `hello` */
