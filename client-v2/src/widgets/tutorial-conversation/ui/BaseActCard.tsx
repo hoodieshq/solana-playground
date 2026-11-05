@@ -127,10 +127,12 @@ export interface BaseActCardProps {
  * with ⌘↵. While the act runs, the button gives way to the stage, "n of m"
  * and a bar on the card's bottom edge. A call act has one field for each
  * argument given by name alone, and waits for every one; an argument with a
- * value is the definition's, sent as given, with no field. Once the run
- * ended the card is its record, one line with no button, ever: the act's own
- * `record` when it landed and names one, and a refusal that passed the step
- * reads as refused, not failed.
+ * value is the definition's, sent as given, with no field. Once the run ended
+ * the view drops the card if its result stands right under it (`view`,
+ * `isReplacedByResult`). Only when another turn stands between them is the card
+ * drawn as its record, one line with no button, ever: the act's own `record`
+ * when it landed and names one, and a refusal that passed the step reads as
+ * refused, not failed.
  *
  * A card with `repeat` is the exception to the one line: it stays one card across its presses, a line for each.
  * After a press by hand that landed, its second button runs the presses one

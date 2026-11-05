@@ -65,8 +65,11 @@ export interface RunPort {
   ): Promise<{ captured: Captured[]; error: unknown }>;
   /** A sent transaction once confirmed, or null when it never was */
   landed(signature: string): Promise<Landed | null>;
-  /** The wire transaction's instructions to the program, decoded by its IDL */
-  decode(encoded: string): DecodedCall[];
+  /**
+   * The wire transaction's instructions to the program, decoded by its IDL;
+   * `undecoded` when one of them could not be
+   */
+  decode(encoded: string): { calls: DecodedCall[]; undecoded?: true };
   print(line: string): void;
   /** Logs a failure the team should hear of, with what was happening */
   report(error: unknown, stage: string): void;
@@ -187,7 +190,7 @@ const attempt = async (
   stage(RUN_STAGES.confirming);
   const sent: SentTx[] = [];
   for (const c of captured) {
-    const calls = port.decode(c.encoded);
+    const { calls, undecoded } = port.decode(c.encoded);
     if (c.kind === "refused") {
       sent.push({ kind: "refused", log: c.log, message: c.message, calls });
       continue;
@@ -198,7 +201,13 @@ const attempt = async (
     });
     sent.push(
       landed
-        ? { kind: "landed", signature: c.signature, calls, ...landed }
+        ? {
+            kind: "landed",
+            signature: c.signature,
+            calls,
+            ...landed,
+            ...(undecoded ? { undecoded } : {}),
+          }
         : {
             kind: "refused",
             log: [],
@@ -280,7 +289,7 @@ if (import.meta.vitest) {
             error: undefined,
           })),
         landed: over.landed ?? (async () => HELLO_TX),
-        decode: () => [HELLO_CALL],
+        decode: () => ({ calls: [HELLO_CALL] }),
         print: () => {},
         report: vi.fn(),
         now: () => (clock += 500),

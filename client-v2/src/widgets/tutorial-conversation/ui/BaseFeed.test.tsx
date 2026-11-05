@@ -164,8 +164,16 @@ const feed = (
     onJump: over.onJump ?? vi.fn(),
     onBack: over.onBack ?? vi.fn(),
   };
-  const { container } = render(<BaseFeed {...props} />);
-  return { container, props, on };
+  const { container, rerender } = render(<BaseFeed {...props} />);
+  /** Draw the mounted feed again with other turns */
+  const redrawWith = (turns: readonly Turn[]) =>
+    rerender(
+      <BaseFeed
+        {...props}
+        entries={turns.map((turn) => ({ kind: "lesson" as const, turn }))}
+      />
+    );
+  return { container, props, on, redrawWith };
 };
 
 /** The IntersectionObserver the feed made for its live card, to answer by hand */
@@ -210,6 +218,41 @@ describe("BaseFeed", () => {
       "motion-reduce:animate-fade"
     );
     expect(turns[0].className).not.toContain("animate-fade");
+  });
+
+  it("scrolls when a result card takes its act's place, though the count holds", () => {
+    const turns = onStep3.turns;
+    const { redrawWith } = feed({ turns });
+    const result: Turn = {
+      id: "result:replaces-the-act",
+      kind: "say",
+      step: null,
+      at: 40,
+      whole: false,
+      beatId: "s3.run",
+      text: "Stands in for the result card",
+    };
+    const swapped = turns.slice(0, -1).concat(result);
+    vi.mocked(Element.prototype.scrollTo).mockClear();
+    redrawWith(swapped);
+    expect(Element.prototype.scrollTo).toHaveBeenCalled();
+  });
+
+  it("scrolls when a turn lands before the last one, as a late hint does", () => {
+    const turns = onStep3.turns;
+    const { redrawWith } = feed({ turns });
+    const hint: Extract<Turn, { kind: "hint" }> = {
+      id: "hint:late",
+      kind: "hint",
+      step: null,
+      at: 1,
+      whole: false,
+      beatId: "s3.q3",
+      text: "A hint",
+    };
+    vi.mocked(Element.prototype.scrollTo).mockClear();
+    redrawWith((turns as Turn[]).slice(0, 0).concat(hint, turns));
+    expect(Element.prototype.scrollTo).toHaveBeenCalled();
   });
 
   it("sets each turn's gap from the one before it, the feed starting flush", () => {

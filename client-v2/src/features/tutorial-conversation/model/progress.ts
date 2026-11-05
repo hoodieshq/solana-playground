@@ -363,6 +363,11 @@ export type RunResult =
        */
       called: Called[];
       /**
+       * An instruction to the program did not decode, so `called` may be short
+       * and nothing can be said about what the run did not call
+       */
+      undecoded?: true;
+      /**
        * The receipt of the transaction the signatures end on: the result
        * card's details sentence and the finish card's "Transaction details". Each
        * field is optional, and the cards draw only the rows they have.

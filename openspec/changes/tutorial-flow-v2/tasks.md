@@ -188,3 +188,7 @@ for; tasks with "after nothing" start at once.
       outside a tutorial". Verify: `yarn run check` passes and no import of `views/flow/lessons` remains
       (HOO-2365; fleet; XS 0.5; after 3.3, 6.2). Plan:
       [7.1-retire-lesson-layer](plans/7.1-retire-lesson-layer.md)
+- [x] 7.2 No act record right above its own result card: the act gives way to
+      the card, whose details hold the time, and a run the goal refused comes
+      back as a live act card with its own button (HOO-2543; fleet; XS 0.5; after 3.3, 4.1).
+      Plan: [7.2-record-under-result](plans/7.2-record-under-result.md)

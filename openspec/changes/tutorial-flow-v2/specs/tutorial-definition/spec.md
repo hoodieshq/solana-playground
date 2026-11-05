@@ -176,3 +176,19 @@ drops a definition. Its parameters:
 - **WHEN** a definition with two schema errors is loaded
 - **THEN** one `tutorial_definition_rejected` reaches the memory provider
   with `errors: 2`
+
+## MODIFIED Requirements
+
+### Requirement: An act can name its record line
+
+An act beat MAY carry its record line, which the card SHALL read once its run
+landed, before the time it took ("Created your map · 10 KB"), whenever the card
+is drawn as a record. An act whose result card stands right under it is not
+drawn, as `tutorial-conversation` says, and its record line goes unseen. Without
+one the card SHALL read its default record.
+
+#### Scenario: Zero Copy's create card
+
+- **WHEN** the act `init_map` with record "Created your map · 10 KB" lands and
+  another turn stands between it and its result
+- **THEN** its record reads "Created your map · 10 KB" followed by its time

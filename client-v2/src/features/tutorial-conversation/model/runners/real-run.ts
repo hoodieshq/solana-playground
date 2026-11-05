@@ -40,7 +40,8 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * them: the instruction, each argument's value as a string, and the
  * accounts by their IDL names. Instructions to other programs are skipped;
  * one to this program the IDL cannot decode (an IDL older than the program)
- * is left out and logged, so the call goal it would have passed fails.
+ * is left out, logged and flagged `undecoded`, so the call goal it would have
+ * passed fails and nothing claims it was not called.
  */
 // TODO(HOO-2357 follow-up): move to a pure module with a Hello Anchor IDL
 // fixture test, and say on the card when an instruction did not decode;
@@ -49,8 +50,8 @@ const decodeCalls = (
   encoded: string,
   programId: string,
   idl: Idl | null
-): DecodedCall[] => {
-  if (!idl) return [];
+): { calls: DecodedCall[]; undecoded?: true } => {
+  if (!idl) return { calls: [], undecoded: true };
   const tx = PgWeb3.VersionedTransaction.deserialize(
     Buffer.from(encoded, "base64")
   );
@@ -58,6 +59,7 @@ const decodeCalls = (
   const keys = message.staticAccountKeys;
   const coder = new BorshInstructionCoder(idl);
   const calls: DecodedCall[] = [];
+  let undecoded: true | undefined;
   for (const ix of message.compiledInstructions) {
     if (keys[ix.programIdIndex]?.toBase58() !== programId) continue;
     const decoded = coder.decode(Buffer.from(ix.data));
@@ -65,6 +67,7 @@ const decodeCalls = (
       log.warn(
         "An instruction to the tutorial's program its IDL cannot decode"
       );
+      undecoded = true;
       continue;
     }
     const metas = ix.accountKeyIndexes.map((i) => ({
@@ -94,7 +97,7 @@ const decodeCalls = (
       ),
     });
   }
-  return calls;
+  return undecoded ? { calls, undecoded } : { calls };
 };
 
 /** A confirmed transaction's record, read until the RPC has indexed it */
@@ -178,14 +181,14 @@ export const realRunPort = (
   landed: landedOnDevnet,
   decode: (encoded) => {
     const programId = PgProgramInfo.pk?.toBase58();
-    if (!programId) return [];
+    if (!programId) return { calls: [], undecoded: true };
     try {
       return decodeCalls(encoded, programId, PgProgramInfo.idl as Idl | null);
     } catch (e) {
       // The result still lands; only its `called` is short, which fails a
       // call goal rather than passing it on a guess
       log.error(e, { report: true, context: { stage: "Decoding a call" } });
-      return [];
+      return { calls: [], undecoded: true };
     }
   },
   print: (line) => PgTerminal.println(line),

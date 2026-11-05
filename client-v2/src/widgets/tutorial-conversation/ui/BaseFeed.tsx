@@ -161,8 +161,13 @@ const BaseFeed = ({
   // A reload opens on the live card; a new turn scrolls into view unless the
   // learner is reading another step
   const opened = useRef(false);
-  // An answer arriving scrolls like a turn does
+  // An answer arriving scrolls like a turn does, and so does a result card
+  // taking its act's place, which leaves the number of entries as it was: the
+  // last entry's id says so, where the count cannot
   const count = entries.length;
+  const lastEntry = entries.at(-1);
+  const newest =
+    lastEntry?.kind === "lesson" ? lastEntry.turn.id : lastEntry?.id;
   useLayoutEffect(() => {
     const box = scroller.current;
     if (!box) return;
@@ -177,9 +182,9 @@ const BaseFeed = ({
         behavior: reducedMotion() ? "auto" : "smooth",
       });
     }
-    // Only a change in the number of entries scrolls; reading elsewhere holds
+    // Only a new entry scrolls; reading elsewhere holds
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count]);
+  }, [count, newest]);
 
   const back = () => {
     const card = liveCard.current;

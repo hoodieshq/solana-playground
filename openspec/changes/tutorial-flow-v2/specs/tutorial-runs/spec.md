@@ -72,8 +72,8 @@ that line. Before the first deploy:
   card has no Try again, and the act that hit the faucet draws no record
   over it: a live deploy act card follows it, "Asks the faucet again, then
   deploys" with the button "Try again" (Almaz's prototype, 3 Nov). A deploy
-  that failed otherwise keeps its record and gets the same Try again card
-  with the act's own line. Typing "deploy" in the composer retries too.
+  that failed otherwise draws no record either and gets the same Try again
+  card with the act's own line. Typing "deploy" in the composer retries too.
 
 A deploy SHALL keep the program's keypair in the workspace, so the program
 keeps its address. Every later deploy of that tutorial's program SHALL upgrade
