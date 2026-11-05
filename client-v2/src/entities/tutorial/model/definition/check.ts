@@ -443,6 +443,48 @@ const ruleErrors = (
         }
         if (beat.writes) block(step.target, beat.writes, `${at}.writes`);
       }
+      if (beat.kind === "act" && beat.repeat) {
+        if (beat.act !== "call") {
+          errors.push({
+            path: `${at}.repeat`,
+            message: `only on a \`call\` act, found ${JSON.stringify(
+              beat.act
+            )}`,
+          });
+        } else if (beat.repeat.until !== undefined) {
+          pattern(beat.repeat.until, `${at}.repeat.until`);
+          // A press's line is picked by one pattern, and `until` takes it
+          if (
+            step.goal.kind === "call" &&
+            step.goal.log !== undefined &&
+            step.goal.instruction === beat.call.instruction
+          ) {
+            errors.push({
+              path: `${at}.repeat.until`,
+              message: `no \`until\` on a card whose step goal reads the log of the same call, found ${JSON.stringify(
+                beat.repeat.until
+              )}`,
+            });
+          }
+          const beats = step.beats.includes(beat)
+            ? step.beats
+            : step.onFail ?? [];
+          if (beats.at(-1) === beat) {
+            errors.push({
+              path: `${at}.repeat.until`,
+              message: "a beat after this card to go on to, found none",
+            });
+          }
+        } else if (
+          (step.goal.kind !== "call" && step.goal.kind !== "refused") ||
+          step.goal.instruction !== beat.call.instruction
+        ) {
+          errors.push({
+            path: `${at}.repeat`,
+            message: `an \`until\`, or a step goal of \`${beat.call.instruction}\` to end the card, found neither`,
+          });
+        }
+      }
       if (beat.kind === "act" && beat.act === "call") {
         // A name twice would send one value over the other
         const named = new Map<string, string>();
@@ -769,6 +811,86 @@ if (import.meta.vitest) {
         button: "Call",
       } as unknown as Beat;
       expect(lines(d)).toEqual(['steps[0].beats[1]: needs "call", found none']);
+    });
+
+    describe("repeat", () => {
+      /** A definition whose step 2 opens on a card that calls `hello` */
+      const repeating = (repeat: unknown, after: Beat[]) => {
+        const d = minimal();
+        const card = [
+          {
+            kind: "act",
+            id: "s2.call",
+            act: "call",
+            title: "Call",
+            context: "Sends hello",
+            button: "Call",
+            call: { instruction: "hello" },
+            repeat,
+          } as unknown as Beat,
+        ];
+        d.steps[1].beats = card.concat(after);
+        return d;
+      };
+      const SAY: Beat = { kind: "say", id: "s2.a", text: "One." };
+
+      it("passes a card its step's own goal ends", () => {
+        expect(lines(repeating({ label: "Until done" }, []))).toEqual([]);
+      });
+
+      it("passes a card that ends on a pattern, with a beat after it", () => {
+        const d = repeating({ label: "Until done", until: "40960" }, [SAY]);
+        d.steps[1].goal = { kind: "deploy" };
+        expect(lines(d)).toEqual([]);
+      });
+
+      it("refuses an until on a card whose goal reads the same call's log", () => {
+        expect(
+          lines(repeating({ label: "Until done", until: "40960" }, [SAY]))
+        ).toEqual([
+          'steps[1].beats[0].repeat.until: no `until` on a card whose step goal reads the log of the same call, found "40960"',
+        ]);
+      });
+
+      it("refuses a card nothing can end", () => {
+        const d = repeating({ label: "Until done" }, []);
+        d.steps[1].goal = { kind: "deploy" };
+        expect(lines(d)).toEqual([
+          "steps[1].beats[0].repeat: an `until`, or a step goal of `hello` to end the card, found neither",
+        ]);
+      });
+
+      it("refuses a pattern that does not compile", () => {
+        const d = repeating({ label: "Until done", until: "(" }, [SAY]);
+        d.steps[1].goal = { kind: "deploy" };
+        expect(lines(d)).toEqual([
+          'steps[1].beats[0].repeat.until: a regular expression, found "("',
+        ]);
+      });
+
+      it("refuses an until with no beat to go on to", () => {
+        const d = repeating({ label: "Until done", until: "40960" }, []);
+        d.steps[1].goal = { kind: "deploy" };
+        expect(lines(d)).toEqual([
+          "steps[1].beats[0].repeat.until: a beat after this card to go on to, found none",
+        ]);
+      });
+
+      it("refuses repeat on an act that is not a call", () => {
+        const d = minimal();
+        const build = d.steps[0].beats[1];
+        if (build.kind !== "act") throw new Error("step 1 ends on its build");
+        build.repeat = { label: "Until done" };
+        expect(lines(d)).toEqual([
+          'steps[0].beats[1].repeat: only on a `call` act, found "build"',
+        ]);
+      });
+
+      it("refuses a repeat with no label", () => {
+        expect(lines(repeating({ until: "40960" }, [SAY]))).toEqual([
+          'steps[1].beats[0].repeat: needs "label", found none',
+        ]);
+      });
     });
 
     it("needs the name to give the folder's slug", () => {

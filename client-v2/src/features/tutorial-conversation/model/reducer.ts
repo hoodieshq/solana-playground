@@ -405,6 +405,52 @@ const withLastRun = (
   };
 };
 
+/**
+ * Whether a repeating act takes no more presses: its step passed, the cursor
+ * is on another step, or a press met `repeat.until` and the cursor went on past
+ * it. Read off the cursor, so a
+ * reload needs nothing saved for it.
+ */
+export const hasRepeatEnded = (
+  p: ConversationProgress,
+  step: Step,
+  beatId: string
+): boolean => {
+  if (passed(p, step)) return true;
+  if (p.cursor.kind !== "step" || p.cursor.stepId !== step.id) return true;
+  const index = beatsOf(step, p.cursor.fail).findIndex((b) => b.id === beatId);
+  return index === -1 || p.cursor.beat > index + 1;
+};
+
+/** A landed run's or call's accounts, remembered for the calls after it */
+const remembering = (
+  p: ConversationProgress,
+  result: RunResult
+): ConversationProgress => {
+  if ((result.act !== "run" && result.act !== "call") || !result.ok) return p;
+  if (!result.wrote?.length) return p;
+  return {
+    ...p,
+    accounts: {
+      ...p.accounts,
+      ...Object.fromEntries(result.wrote.map((a) => [a.name, a.address])),
+    },
+  };
+};
+
+/** Whether a press's result met its card's `repeat.until` */
+const hasMetUntil = (ctx: EngineContext, beat: ActBeat, result: RunResult) =>
+  beat.act === "call" &&
+  beat.repeat?.until !== undefined &&
+  ctx.judge(
+    {
+      kind: "call",
+      instruction: beat.call.instruction,
+      log: beat.repeat.until,
+    },
+    result
+  );
+
 /** Whether a run is in flight: acts never run two at once */
 const running = (p: ConversationProgress) =>
   Object.values(p.runs).some((rs) => rs.at(-1)?.status === "started");
@@ -970,6 +1016,7 @@ const reduceAction = (
         return same(state);
       if (!p.beats[beat.id] || passed(p, step) || running(p))
         return same(state);
+      if (beat.repeat && hasRepeatEnded(p, step, beat.id)) return same(state);
       // A run that ended well may run again while the step has not passed:
       // its result may have failed the goal (a call before the upgrade)
       const input: RunInput = { beatId: beat.id };
@@ -986,6 +1033,9 @@ const reduceAction = (
           instruction: beat.call.instruction,
           args: callArgs(beat.call.args ?? [], action.args ?? {}, p, beat.id),
         };
+        if (Object.keys(p.accounts).length) input.call.accounts = p.accounts;
+        // The press's line is what `until` reads, so it must pick it
+        if (beat.repeat?.until !== undefined) input.log = beat.repeat.until;
       }
       return {
         state: {
@@ -1073,13 +1123,16 @@ const reduceAction = (
       } else {
         record = { status: "failed", at: run.at, took, result };
       }
-      const recorded: ConversationProgress = {
-        ...p,
-        runs: {
-          ...p.runs,
-          [beat.id]: [...p.runs[beat.id].slice(0, -1), record],
+      const recorded: ConversationProgress = remembering(
+        {
+          ...p,
+          runs: {
+            ...p.runs,
+            [beat.id]: [...p.runs[beat.id].slice(0, -1), record],
+          },
         },
-      };
+        result
+      );
       const cleared: EngineState = { progress: recorded, stage: null };
       if (!result.ok && !refused) return withEffect(same(cleared), measured);
       if (
@@ -1091,6 +1144,10 @@ const reduceAction = (
           passStep(ctx, cleared, recorded, step, action.at, via),
           measured
         );
+      }
+      // A repeating card holds the lesson until a press meets its `until`
+      if (beat.repeat && !hasMetUntil(ctx, beat, result)) {
+        return withEffect(same(cleared), measured);
       }
       // Only the act the cursor just passed moves the lesson on: a run that
       // outlived its step, or a run again of an act the flow already went
@@ -1169,11 +1226,12 @@ const reduceAction = (
     }
 
     case "passed": {
+      const known = remembering(p, action.result);
       const step = stepAt(definition, p.cursor);
       if (!step || passed(p, step) || !ctx.judge(step.goal, action.result)) {
-        return same(state);
+        return known === p ? same(state) : withProgress(state, known);
       }
-      return passStep(ctx, state, p, step, action.at, action.via);
+      return passStep(ctx, state, known, step, action.at, action.via);
     }
 
     case "explain": {
@@ -1600,6 +1658,215 @@ if (import.meta.vitest) {
       type: "act",
       beatId: "s1.build",
       at,
+    });
+
+    describe("a repeating call act", () => {
+      const callOk = (line: string, over: object = {}): RunResult =>
+        Object.assign(
+          {
+            act: "call" as const,
+            ok: true as const,
+            seconds: 1,
+            signatures: ["5ig"],
+            line,
+            called: [{ instruction: "grow", args: {} }],
+          },
+          over
+        );
+      const REFUSED: RunResult = {
+        act: "call",
+        ok: false,
+        seconds: 1,
+        message: "out",
+        log: "memory allocation failed",
+        refused: { instruction: "grow", error: null },
+      };
+
+      /** A step of a card that grows, then a card that paints */
+      const growing = (repeat: ActBeat["repeat"]): EngineContext => {
+        const d = JSON.parse(JSON.stringify(hello)) as TutorialDefinition;
+        const card = (id: string, instruction: string): Beat => ({
+          kind: "act",
+          id,
+          act: "call",
+          title: id,
+          context: id,
+          button: id,
+          call: {
+            instruction,
+            args: [{ name: "len", value: 20480, add: 10240 }],
+          },
+        });
+        const grow = card("s1.grow", "grow");
+        if (grow.kind === "act") grow.repeat = repeat;
+        d.steps[0].beats = repeat?.until
+          ? [grow, card("s1.paint", "paint")]
+          : [grow];
+        d.steps[0].goal = repeat?.until
+          ? { kind: "call", instruction: "paint" }
+          : { kind: "refused", instruction: "grow", log: "allocation" };
+        return { definition: d, slug: "x", judge: judgeGoal };
+      };
+
+      /** Folds the actions, and returns the run effects' inputs too */
+      const walk = (c: EngineContext, actions: Action[]) => {
+        let state = INITIAL_ENGINE_STATE;
+        const inputs: RunInput[] = [];
+        for (const a of actions) {
+          const r = reduce(c, state, a);
+          state = r.state;
+          for (const e of r.effects) if (e.kind === "run") inputs.push(e.input);
+        }
+        return { progress: state.progress, inputs };
+      };
+      const press = (at: number, beatId = "s1.grow"): Action => ({
+        type: "act",
+        beatId,
+        at,
+      });
+      const ended = (at: number, result: RunResult): Action => ({
+        type: "ended",
+        beatId: "s1.grow",
+        result,
+        at,
+      });
+
+      it("holds the lesson on a press that landed, and grows the next press's value", () => {
+        const { progress, inputs } = walk(
+          growing({ label: "Grow to 40 KB", until: "is 40960 bytes" }),
+          [
+            start,
+            press(2000),
+            ended(3000, callOk("The map is 20480 bytes")),
+            press(4000),
+          ]
+        );
+        expect(progress.beats["s1.paint"]).toBeUndefined();
+        expect(progress.runs["s1.grow"]).toHaveLength(2);
+        expect(inputs.map((i) => i.call?.args.len)).toEqual(["20480", "30720"]);
+      });
+
+      it("picks the press's line with the card's until", () => {
+        const { inputs } = walk(
+          growing({ label: "Grow to 40 KB", until: "is 40960 bytes" }),
+          [start, press(2000)]
+        );
+        expect(inputs[0].log).toBe("is 40960 bytes");
+      });
+
+      it("flows on when a press meets until, and takes no more presses", () => {
+        const c = growing({ label: "Grow to 40 KB", until: "is 40960 bytes" });
+        const { progress, inputs } = walk(c, [
+          start,
+          press(2000),
+          ended(3000, callOk("The map is 40960 bytes")),
+          press(9000),
+        ]);
+        expect(progress.beats["s1.paint"]).toBeDefined();
+        expect(progress.runs["s1.grow"]).toHaveLength(1);
+        expect(inputs).toHaveLength(1);
+        expect(progress.passed).toEqual([]);
+      });
+
+      it("passes the step on the refusal its goal names, with no until", () => {
+        const { progress } = walk(growing({ label: "Grow until out" }), [
+          start,
+          press(2000),
+          ended(3000, callOk("The map is 20480 bytes")),
+          press(4000),
+          ended(5000, REFUSED),
+        ]);
+        expect(progress.passed).toEqual(["write-program"]);
+        expect(progress.runs["s1.grow"].map((r) => r.status)).toEqual([
+          "ok",
+          "refused",
+        ]);
+      });
+
+      it("remembers what a landed call wrote to, and sends it with later calls", () => {
+        const { progress, inputs } = walk(
+          growing({ label: "Grow until out" }),
+          [
+            start,
+            press(2000),
+            ended(
+              3000,
+              callOk("made", {
+                wrote: [
+                  { name: "map", address: "Old" },
+                  { name: "map", address: "Map1" },
+                ],
+              })
+            ),
+            press(4000),
+          ]
+        );
+        expect(progress.accounts).toEqual({ map: "Map1" });
+        expect(inputs[0].call).not.toHaveProperty("accounts");
+        expect(inputs[1].call?.accounts).toEqual({ map: "Map1" });
+      });
+
+      it("goes no further than a failed press on a refusal the goal does not name", () => {
+        const { progress } = walk(
+          growing({ label: "Grow to 40 KB", until: "is 40960 bytes" }),
+          [start, press(2000), ended(3000, REFUSED)]
+        );
+        expect(progress.runs["s1.grow"].map((r) => r.status)).toEqual([
+          "failed",
+        ]);
+        expect(progress.beats["s1.paint"]).toBeUndefined();
+        expect(progress.passed).toEqual([]);
+      });
+
+      it("takes no press once the step passed another way", () => {
+        const { inputs } = walk(growing({ label: "Grow until out" }), [
+          start,
+          { type: "passed", via: "call_panel", result: REFUSED, at: 1500 },
+          press(2000),
+        ]);
+        expect(inputs).toEqual([]);
+      });
+
+      it("keeps the remembered accounts through a step's Reset", () => {
+        const { progress } = walk(growing({ label: "Grow until out" }), [
+          start,
+          press(2000),
+          ended(
+            3000,
+            callOk("made", { wrote: [{ name: "map", address: "Map1" }] })
+          ),
+          { type: "restartStep", at: 4000 },
+        ]);
+        expect(progress.runs["s1.grow"]).toBeUndefined();
+        expect(progress.accounts).toEqual({ map: "Map1" });
+      });
+
+      it("remembers nothing from a press that failed", () => {
+        const { progress } = walk(growing({ label: "Grow until out" }), [
+          start,
+          press(2000),
+          ended(3000, REFUSED),
+        ]);
+        expect(progress.accounts).toEqual({});
+      });
+
+      it("remembers a Call panel call that passed nothing, and Start over clears it", () => {
+        const c = growing({ label: "Grow until out" });
+        const panel: Action = {
+          type: "passed",
+          via: "call_panel",
+          result: callOk("made", { wrote: [{ name: "map", address: "Map1" }] }),
+          at: 3000,
+        };
+        expect(walk(c, [start, panel]).progress).toMatchObject({
+          accounts: { map: "Map1" },
+          passed: [],
+        });
+        expect(
+          walk(c, [start, panel, { type: "startOver", at: 4000 }]).progress
+            .accounts
+        ).toEqual({});
+      });
     });
 
     describe("start", () => {
@@ -2444,6 +2711,7 @@ if (import.meta.vitest) {
               restartedAt: midRun.progress.restartedAt,
               said: midRun.progress.said,
               proposals: midRun.progress.proposals,
+              accounts: midRun.progress.accounts,
               cursor: midRun.progress.cursor,
               beats: midRun.progress.beats,
               times: midRun.progress.times,
@@ -3856,6 +4124,7 @@ if (import.meta.vitest) {
             restartedAt: null,
             said: [],
             proposals: [],
+            accounts: {},
             cursor: { kind: "step", stepId: here.id, beat: 1, fail: false },
             beats: { [here.beats[0].id]: { kind: "said", at: 1000 } },
             runs: {},
@@ -3968,6 +4237,7 @@ if (import.meta.vitest) {
             restartedAt: null,
             said: [],
             proposals: [],
+            accounts: {},
             cursor: at(2).progress.cursor,
             beats: at(2).progress.beats,
             runs: {

@@ -1,4 +1,5 @@
 /* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
+import { sameIdlName } from "@/shared/lib/idl-name";
 import { createLogger } from "@/shared/lib/logger";
 import { isProgramLog } from "@/shared/lib/program-log";
 
@@ -39,7 +40,67 @@ export type SentTx =
 /** An instruction to the tutorial's program, as the deployed IDL decodes it */
 export interface DecodedCall extends Called {
   accounts: ReceiptAccount[];
+  /** Of `accounts`, the ones the call may write to, other than the wallet */
+  wrote: ReceiptAccount[];
 }
+
+/** An account of an IDL instruction, composite accounts holding their own */
+export interface IdlAccountName {
+  name: string;
+  accounts?: IdlAccountName[];
+}
+
+/** An instruction's account names as its IDL spells them, in wire order */
+const flatNames = (accounts: IdlAccountName[]): string[] =>
+  accounts.flatMap((a) => (a.accounts ? flatNames(a.accounts) : [a.name]));
+
+/**
+ * The accounts a call may write to, other than the transaction's payer, by
+ * their IDL names. The names come from the IDL and not from Anchor's formatter,
+ * which sentence-cases them for display ("Big Map"), since a later call looks
+ * them up against the IDL.
+ */
+export const accountsWritten = (
+  accounts: IdlAccountName[],
+  metas: { address: string; isWritable: boolean; isPayer: boolean }[]
+): ReceiptAccount[] => {
+  const names = flatNames(accounts);
+  return metas.flatMap((meta, i) =>
+    meta.isWritable && !meta.isPayer && names[i] !== undefined
+      ? [{ name: names[i], address: meta.address }]
+      : []
+  );
+};
+
+/** The part of a Test form's account value this module reads and fills */
+export interface AccountValue {
+  name: string;
+  isSigner: boolean;
+  generator: { type: string };
+}
+
+const FILLABLE = new Set(["Custom", "Random"]);
+
+/**
+ * A call's account values with the remembered addresses over the generators
+ * that derive nothing (`Custom`, `Random`). A signer keeps its generator, since
+ * an address cannot sign; so does an account from seeds, since an argument may
+ * change what it derives to.
+ */
+export const fillRememberedWith =
+  (remembered: Record<string, string>) =>
+  <T extends AccountValue>(accounts: T[]): T[] =>
+    accounts.map((account) => {
+      if (account.isSigner || !FILLABLE.has(account.generator.type)) {
+        return account;
+      }
+      const found = Object.entries(remembered).find(([name]) =>
+        sameIdlName(name, account.name)
+      );
+      return found
+        ? { ...account, generator: { type: "Custom", value: found[1] } }
+        : account;
+    });
 
 const logger = createLogger("tutorial-conversation:transactions");
 
@@ -209,9 +270,11 @@ export const resultOf = ({
   );
   // `sent` holds a transaction, and with no failure every one landed
   const last = landed[landed.length - 1];
+  const wrote = landed.flatMap((tx) => tx.calls.flatMap((c) => c.wrote));
   return {
     act,
     ok: true,
+    ...(wrote.length ? { wrote } : {}),
     seconds,
     signatures: landed.map((tx) => tx.signature),
     line: pickLine(
@@ -245,6 +308,72 @@ if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
   describe("features/tutorial-conversation/model/runners/transactions", () => {
+    describe("accountsWritten", () => {
+      it("names what a call wrote to as the IDL does, past the payer and read-only accounts", () => {
+        expect(
+          accountsWritten(
+            [
+              { name: "big_map" },
+              { name: "signer" },
+              { name: "system_program" },
+            ],
+            [
+              { address: "Map1", isWritable: true, isPayer: false },
+              { address: "Wallet", isWritable: true, isPayer: true },
+              { address: "Sys", isWritable: false, isPayer: false },
+            ]
+          )
+        ).toEqual([{ name: "big_map", address: "Map1" }]);
+      });
+
+      it("walks composite accounts in wire order, and skips remaining accounts", () => {
+        expect(
+          accountsWritten(
+            [{ name: "game", accounts: [{ name: "board" }] }, { name: "map" }],
+            [
+              { address: "B", isWritable: true, isPayer: false },
+              { address: "M", isWritable: true, isPayer: false },
+              { address: "Extra", isWritable: true, isPayer: false },
+            ]
+          )
+        ).toEqual([
+          { name: "board", address: "B" },
+          { name: "map", address: "M" },
+        ]);
+      });
+    });
+
+    describe("fillRememberedWith", () => {
+      it("fills an account by its IDL name, across snake and camel case", () => {
+        expect(
+          fillRememberedWith({ big_map: "Map1" })([
+            { name: "bigMap", isSigner: false, generator: { type: "Random" } },
+          ])
+        ).toEqual([
+          {
+            name: "bigMap",
+            isSigner: false,
+            generator: { type: "Custom", value: "Map1" },
+          },
+        ]);
+      });
+
+      it("keeps a signer's generator, an account from seeds and an account it does not know", () => {
+        const accounts = [
+          { name: "map", isSigner: true, generator: { type: "Random" } },
+          {
+            name: "big_map",
+            isSigner: false,
+            generator: { type: "From seed" },
+          },
+          { name: "other", isSigner: false, generator: { type: "Random" } },
+        ];
+        expect(
+          fillRememberedWith({ map: "Map1", big_map: "Map2" })(accounts)
+        ).toEqual(accounts);
+      });
+    });
+
     const PROGRAM = "He11o1111111111111111111111111111111111111";
     const WALLET = "Wa11et1111111111111111111111111111111111111";
 
@@ -270,6 +399,7 @@ if (import.meta.vitest) {
       instruction: "hello",
       args,
       accounts: [],
+      wrote: [],
     });
 
     const landed = (
@@ -335,7 +465,7 @@ if (import.meta.vitest) {
       it("reads Anchor's error and the decoded instruction", () => {
         expect(
           refusalOf(CHOP_LOG, PROGRAM, [
-            { instruction: "chop_tree", args: {}, accounts: [] },
+            { instruction: "chop_tree", args: {}, accounts: [], wrote: [] },
           ])
         ).toEqual({
           instruction: "chop_tree",
@@ -404,7 +534,9 @@ if (import.meta.vitest) {
             kind: "refused",
             log: CHOP_LOG,
             message: "Simulation failed.\nMessage: ...",
-            calls: [{ instruction: "chop_tree", args: {}, accounts: [] }],
+            calls: [
+              { instruction: "chop_tree", args: {}, accounts: [], wrote: [] },
+            ],
           },
         ];
         expect(resultFor(sent, "call")).toEqual({

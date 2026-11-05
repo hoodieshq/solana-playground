@@ -158,6 +158,7 @@ if (import.meta.vitest) {
     const act = (name: Exclude<Act, "call">, state: "live" | "running"): Turn =>
       Object.assign(turnOf("s1.build"), {
         kind: "act" as const,
+        presses: [],
         beatId: "s1.build",
         act: {
           kind: "act" as const,
@@ -211,6 +212,7 @@ if (import.meta.vitest) {
 
     const call = (args: import("@/entities/tutorial").CallArg[]): Turn => ({
       id: "s4.call",
+      presses: [],
       step: "write-program",
       at: 1,
       whole: false,

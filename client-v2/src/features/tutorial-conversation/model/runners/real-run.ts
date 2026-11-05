@@ -2,6 +2,7 @@
 import type { Idl } from "@coral-xyz/anchor";
 import { BorshInstructionCoder } from "@coral-xyz/anchor";
 
+import { sameIdlName } from "@/shared/lib/idl-name";
 import { createLogger } from "@/shared/lib/logger";
 
 import {
@@ -13,6 +14,7 @@ import {
   PgWallet,
   PgWeb3,
 } from "../../../../utils";
+import type { RunInput } from "../ports";
 import type { ActRun } from "./act-runner";
 import type { Sender } from "./capture";
 import { captureSends } from "./capture";
@@ -20,6 +22,7 @@ import type { FundingChain } from "./fund";
 import type { Landed, RunPort } from "./run-call";
 import { runOrCall } from "./run-call";
 import type { DecodedCall } from "./transactions";
+import { accountsWritten, fillRememberedWith } from "./transactions";
 
 const log = createLogger("tutorial-conversation:run");
 
@@ -79,6 +82,16 @@ const decodeCalls = (
         name: a.name ?? "account",
         address: a.pubkey.toBase58(),
       })),
+      wrote: accountsWritten(
+        idl.instructions.find((i) => sameIdlName(i.name, decoded.name))
+          ?.accounts ?? [],
+        metas.map((meta) => ({
+          address: meta.pubkey.toBase58(),
+          isWritable: meta.isWritable,
+          // The first key pays, and a tutorial's wallet is what pays
+          isPayer: meta.pubkey.equals(keys[0]),
+        }))
+      ),
     });
   }
   return calls;
@@ -108,10 +121,7 @@ const landedOnDevnet = async (signature: string): Promise<Landed | null> => {
 };
 
 /** The call act's instruction, through the Test form's sender */
-const sendCall = async (call: {
-  instruction: string;
-  args: Record<string, string>;
-}) => {
+const sendCall = async (call: NonNullable<RunInput["call"]>) => {
   const idlIx = PgProgramInfo.idl?.instructions.find(
     (ix) => ix.name === call.instruction
   );
@@ -129,6 +139,7 @@ const sendCall = async (call: {
   const ix = PgProgramInteraction.getOrCreateInstruction(idlIx);
   const values = {
     ...ix.values,
+    accounts: fillRememberedWith(call.accounts ?? {})(ix.values.accounts),
     args: ix.values.args.map((arg) => ({
       ...arg,
       generator: { type: "Custom" as const, value: call.args[arg.name] ?? "" },

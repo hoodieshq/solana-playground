@@ -300,6 +300,7 @@ const TurnView = ({
         <BaseActCard
           act={withProgram(turn.act, programId)}
           state={turn.state}
+          presses={turn.presses}
           note={turn.note}
           stage={turn.stage}
           took={turn.took}

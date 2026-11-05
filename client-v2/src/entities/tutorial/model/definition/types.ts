@@ -87,6 +87,19 @@ interface ActBase {
   button: string;
   /** The card's line once its run landed, before the time it took */
   record?: string;
+  /** Only on a `call` act: the card stays one card across its presses */
+  repeat?: Repeat;
+}
+
+/**
+ * A call act pressed again and again. It ends on the step's goal, or on
+ * `until`, for a card that is a move on the way to the goal
+ */
+export interface Repeat {
+  /** The button that runs the presses one after another */
+  label: string;
+  /** A pattern over a press's log line; a match ends the card and flows on */
+  until?: string;
 }
 
 /**
