@@ -17,6 +17,7 @@ const draw = (
     onOpenChange?: (open: boolean) => void;
     onClear?: () => void;
     stop?: { run: "build" | "deploy"; onStop: () => void } | null;
+    log?: string;
   }
 ) =>
   render(
@@ -27,10 +28,12 @@ const draw = (
       onClear={handlers.onClear ?? vi.fn()}
       stop={handlers.stop ?? null}
       shortcut="⌘J"
-      log=""
+      log={handlers.log ?? ""}
     >
       <div className="xterm" />
-    </BaseConsoleDrawer>
+    </BaseConsoleDrawer>,
+    // Copy, shown once there is a log, has a tooltip that needs the provider
+    { wrapper: TooltipProvider }
   );
 
 it("names its button Terminal and controls the body by its fixed id", () => {
@@ -100,32 +103,15 @@ it.each([
 });
 
 // Spec 13 (TRM-28): Clear is off beside Stop; a phone hides it for Stop
-/** The drawer with this log for Copy, in the provider Copy's tooltip needs */
-const drawWithLog = (open: boolean, log: string) =>
-  render(
-    <BaseConsoleDrawer
-      open={open}
-      status={idle}
-      onOpenChange={vi.fn()}
-      onClear={vi.fn()}
-      stop={null}
-      shortcut="⌘J"
-      log={log}
-    >
-      <div className="xterm" />
-    </BaseConsoleDrawer>,
-    { wrapper: TooltipProvider }
-  );
-
 it("offers Copy log only while open with a log to copy", () => {
-  const { unmount } = drawWithLog(true, "Done");
+  const { unmount } = draw(true, { log: "Done" });
   expect(screen.getByRole("button", { name: "Copy log" })).toBeTruthy();
   unmount();
 
-  drawWithLog(true, "").unmount();
+  draw(true, { log: "" }).unmount();
   expect(screen.queryByRole("button", { name: "Copy log" })).toBeNull();
 
-  drawWithLog(false, "Done");
+  draw(false, { log: "Done" });
   expect(screen.queryByRole("button", { name: "Copy log" })).toBeNull();
 });
 
