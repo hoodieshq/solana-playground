@@ -160,51 +160,58 @@ test("no stage before an upstream tutorial's Start", async ({ page }) => {
   await expect(stageTab(page, "Build")).toBeVisible(LONG);
 });
 
-// HOO-2649: below the frame's width the chat column sat in a vertical box,
-// where its `shrink-0` kept it as tall as the feed, so after Start the
-// composer fell under the fold. Phone (700): the pager's Chat; compact
-// (900): the assistant's sheet
+// HOO-2649: under 1024 px the tutorial's chat column must take its holder's
+// height, or after Start it grows with the feed and the composer falls under
+// the fold. 700 is under `LAYOUT_BREAKPOINTS.phone` (the pager, on its Chat),
+// 900 under `.compact` (the assistant's sheet)
+const HEIGHT = 800;
 const openChat: Record<number, (page: Page) => Promise<void>> = {
   700: (page) =>
     page
       .getByRole("radiogroup", { name: "Show" })
-      .getByRole("radio", {
-        name: "Chat",
-      })
+      .getByRole("radio", { name: "Chat" })
       .click(LONG),
   900: (page) =>
     page.getByRole("button", { name: "Expand assistant" }).click(LONG),
 };
 for (const width of [700, 900]) {
-  test(`the composer stays in the window at ${width}x800, before and after Start`, async ({
+  test(`the composer stays in the window at ${width}x${HEIGHT}, before and after Start`, async ({
     page,
   }) => {
     test.setTimeout(120_000);
-    await page.setViewportSize({ width, height: 800 });
+    await page.setViewportSize({ width, height: HEIGHT });
     await page.goto("/tutorials/hello-anchor");
     await openChat[width](page);
     const start = chat(page).getByRole("button", { name: /Start step 1/ });
     await expect(start).toBeVisible(LONG);
 
-    // Its placeholder changes after Start, its send key does not
+    // Its placeholder changes after Start and its send key does not, so the
+    // locator keys on `enterkeyhint`
     const box = chat(page).locator('textarea[enterkeyhint="send"]');
-    const inWindow = async () => {
-      const rect = await box.boundingBox();
-      // No box (not rendered) reads as off the window
-      const { y, height } = rect ?? { y: -1, height: 0 };
-      expect(y).toBeGreaterThanOrEqual(0);
-      expect(y + height).toBeLessThanOrEqual(800);
-    };
+    // Retried, as a sheet or the pager may still be settling
+    const inWindow = () =>
+      expect(async () => {
+        const rect = await box.boundingBox();
+        // No box (not rendered) reads as off the window
+        const { y, height } = rect ?? { y: -1, height: 0 };
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y + height).toBeLessThanOrEqual(HEIGHT);
+      }).toPass(LONG);
 
     await inWindow();
     await start.click();
     await expect(chat(page).getByText("Step 1 of 4")).toBeVisible(LONG);
-    await expect(async () => inWindow()).toPass(LONG);
-    // The page itself does not scroll: the feed scrolls above the composer
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollHeight <= window.innerHeight
+    await inWindow();
+    // The feed outgrows its room and scrolls itself, above the composer,
+    // once the step's turns are in
+    const scroller = chat(page)
+      .getByRole("log", { name: "Tutorial" })
+      .locator("..");
+    await expect
+      .poll(
+        () => scroller.evaluate((el) => el.scrollHeight > el.clientHeight),
+        LONG
       )
-    ).toBe(true);
+      .toBe(true);
   });
 }

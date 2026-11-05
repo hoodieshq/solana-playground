@@ -521,10 +521,12 @@ const FlowFrame = () => {
           )}
           assistant={({ open, toggle, ...widen }) => (
             // No fill, so the conversation sits on the window's pattern, as
-            // the prototype's does. The tutorial's chat column is a row's
-            // child, as in the frame: its `shrink-0` holds its width, and
-            // the row's height bounds it, so the feed scrolls above the
-            // composer (HOO-2649); in a column it grew past the window
+            // the prototype's does. Holding the tutorial's chat column
+            // (`chatInColumn`) it is a row, as the frame's holder is:
+            // `BaseChatColumn`'s `shrink-0` then holds its width and the row
+            // bounds its height, so the feed scrolls above the composer. In
+            // a column `shrink-0` holds the height instead, and the column
+            // grows past the window (HOO-2649)
             <aside
               className={cn(
                 "relative flex h-full w-full overflow-hidden",
