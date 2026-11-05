@@ -128,7 +128,7 @@ describe("TutorialWorkspace", () => {
   });
 
   it("draws nothing around the stage with no layout", () => {
-    workspace(null);
+    workspace(undefined);
     expect(screen.queryByTestId("tutorial-workspace")).toBeNull();
     expect(screen.queryByTestId("tutorial-phone-code-head")).toBeNull();
     expect(screen.getByTestId("stage-content")).toBeTruthy();

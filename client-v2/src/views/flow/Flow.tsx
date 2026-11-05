@@ -18,7 +18,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { LogoLockup } from "@/shared/ui/logo";
 import { Pattern } from "@/shared/ui/pattern";
-import { PgCommon, PgExplorer, PgView } from "@/utils";
+import { PgCommon, PgExplorer, PgTutorial, PgView } from "@/utils";
 import { AppNav, ProjectList, readProjectFiles } from "@/widgets/app-nav";
 import { Assistant, useTurn } from "@/widgets/assistant";
 import { catalogPage, catalogSlot, useCatalogPage } from "@/widgets/catalog";
@@ -39,11 +39,17 @@ import {
   TutorialConversation,
   useConversationMarks,
   useConversationStartOver,
+  useConversationSteps,
 } from "@/widgets/tutorial-conversation";
-import { useTutorialFrame } from "@/widgets/tutorial-frame";
+import {
+  BaseTutorialPhoneHead,
+  useTutorialFrame,
+  useTutorialSpace,
+} from "@/widgets/tutorial-frame";
 import {
   TutorialWorkspace,
   useTutorialTerminal,
+  type WorkspaceLayout,
 } from "@/widgets/tutorial-workspace";
 
 import ConsoleDrawer from "./console/ConsoleDrawer";
@@ -300,12 +306,52 @@ const FlowFrame = () => {
   const inFrame = tutorial.frame !== undefined && viewport === "wide";
   const terminal = useTutorialTerminal();
 
-  // Under the frame's width a tutorial keeps the plain layout, and its
-  // conversation takes the assistant's column (the delta's "a conversation
-  // tutorial has no assistant panel of its own").
-  // TODO(HOO-2359): the column does not open itself, so a learner there opens
-  // the chat to find Start; the phone's own layout replaces this
-  const chatInColumn = tutorial.frame !== undefined && !inFrame;
+  // Under the frame's width a tutorial is the phone's (5.1): its header over
+  // two spaces, the chat and the code, which the shell lays out. A tablet
+  // gets the same screens, the chat centred (DES-160)
+  const onPhone = tutorial.frame !== undefined && !inFrame;
+  const workspaceLayout: WorkspaceLayout | undefined = onPhone
+    ? "phone"
+    : inFrame
+    ? "frame"
+    : undefined;
+  const steps = useConversationSteps();
+  const space = useTutorialSpace({
+    name: tutorial.frame ? PgTutorial.current?.name : undefined,
+    wrote: steps.wrote,
+    finished: steps.finished,
+    phone: onPhone,
+  });
+  const tutorialSlot = tutorial.frame && {
+    ...tutorial.frame,
+    phone: {
+      head: (
+        <BaseTutorialPhoneHead
+          name={PgTutorial.current?.name ?? ""}
+          steps={steps.steps}
+          live={steps.live}
+          started={steps.started}
+          finished={steps.finished}
+          minutes={steps.minutes}
+          space={space.space}
+          dot={space.dot}
+          passed={conversation.passed ?? 0}
+          onBack={() => catalogPage.open("tutorials", "nav")}
+          onSpace={space.setSpace}
+          onJump={steps.jump}
+          onStartOver={conversation.onStartOver}
+        />
+      ),
+      chat: (
+        <TutorialChat
+          onAllTutorials={() => catalogPage.open("tutorials", "nav")}
+          onOpenMenu={() => openMenu.current()}
+        />
+      ),
+      space: space.space,
+      onSpace: space.setSpace,
+    },
+  };
   // None before a tutorial's Start: its intro offers only Start
   const stagesOffered = useStagesOffered();
   // Narrow too: a tutorial's build state lives in the chat and the terminal
@@ -368,7 +414,7 @@ const FlowFrame = () => {
           cover={catalogSlot(catalog)}
           stageBarActions={<ShareButton />}
           onShare={shareFromCodeHead}
-          tutorial={tutorial.frame}
+          tutorial={tutorialSlot}
           nav={({ collapsed, toggle, closeSheet, phone: menuPage }) => {
             closeNavSheet.current = closeSheet;
             return (
@@ -469,8 +515,7 @@ const FlowFrame = () => {
           )}
           stage={({ console }) => (
             <TutorialWorkspace
-              // eslint-disable-next-line unicorn/no-null -- tutorial flow v2 predates this rule; cleanup tracked from SF#94
-              layout={inFrame ? "frame" : null}
+              layout={workspaceLayout}
               console={console}
               marks={marks}
               keys={{
@@ -517,7 +562,7 @@ const FlowFrame = () => {
             <ConsoleDrawer
               open={open}
               onToggle={toggle}
-              tutorial={inFrame ? terminal : undefined}
+              tutorial={tutorial.frame ? terminal : undefined}
             />
           )}
           assistant={({ open, toggle, ...widen }) => (
@@ -538,8 +583,7 @@ const FlowFrame = () => {
                 shell says it can widen. Hidden, the column takes no width and
                 the stage bar carries "Expand assistant" (design.md, "Frame
                 chrome (5.25)") */}
-              {open && chatInColumn && tutorial.frame?.chat}
-              {open && !chatInColumn && (
+              {open && !onPhone && (
                 <Assistant
                   widen={widen}
                   onHide={toggle}

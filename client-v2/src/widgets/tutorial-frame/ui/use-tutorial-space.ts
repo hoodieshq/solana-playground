@@ -7,7 +7,7 @@ import { tutorialFrameTelemetry } from "../model/telemetry";
 
 export interface UseTutorialSpaceOptions {
   /** The open tutorial's name; a new one starts on Chat */
-  name: string | null;
+  name: string | undefined;
   /** How many times the assistant has written code so far (`wrote` turns) */
   wrote: number;
   /** The tutorial is done: Code's dot no longer shows */

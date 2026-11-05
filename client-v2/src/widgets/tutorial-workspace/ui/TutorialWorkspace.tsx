@@ -91,7 +91,7 @@ export interface WorkspaceConsole {
  * Where the workspace is drawn: the desktop's frame, the phone's Code space,
  * or neither
  */
-export type WorkspaceLayout = "frame" | "phone" | null;
+export type WorkspaceLayout = "frame" | "phone";
 
 export interface TutorialWorkspaceProps {
   /**
@@ -99,7 +99,7 @@ export interface TutorialWorkspaceProps {
    * with no head and no tree, so the stage under it never remounts on the
    * way in or out, nor between the frame and the phone
    */
-  layout: WorkspaceLayout;
+  layout?: WorkspaceLayout;
   /** The shell's console, which the head's Terminal and the auto-open drive */
   console: WorkspaceConsole;
   /** The Files and Terminal keys as the tips show them ("⌘E", "⌘J") */
