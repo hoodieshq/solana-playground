@@ -18,6 +18,7 @@ const env = vi.hoisted(() => ({
   deployState: "ready",
 }));
 const airdrop = vi.hoisted(() => vi.fn());
+const printed = vi.hoisted(() => vi.fn());
 const send = vi.hoisted(() => vi.fn(async () => "sig"));
 const loadBuffer = vi.hoisted(() => vi.fn());
 const closeBuffer = vi.hoisted(() => vi.fn(async () => "sig"));
@@ -63,11 +64,12 @@ vi.mock("../../utils", () => ({
   PgServer: { deploy: vi.fn() },
   PgTerminal: {
     bold: String,
-    info: String,
+    info: (text: string) => `info: ${text}`,
     success: String,
-    println: vi.fn(),
+    warning: (text: string) => `warning: ${text}`,
+    println: printed,
     get: async () => ({
-      println: vi.fn(),
+      println: printed,
       waitForInput: (msg: string) => env.waitForInput(msg),
       executeFromStr: (cmd: string) => env.executeFromStr(cmd),
     }),
@@ -171,10 +173,24 @@ describe("commands/deploy", () => {
     env.waitForInput = async () => true;
     env.executeFromStr = async () => undefined;
     airdrop.mockClear();
+    printed.mockClear();
     send.mockClear();
     loadBuffer.mockReset();
     closeBuffer.mockReset();
     closeBuffer.mockImplementation(async () => "sig");
+  });
+
+  it("prints the low balance notice as a warning", async () => {
+    env.waitForInput = async () => {
+      env.controller.abort();
+      return true;
+    };
+
+    await runDeploy();
+
+    expect(printed).toHaveBeenCalledWith(
+      expect.stringMatching(/^warning: Warning: /)
+    );
   });
 
   it("asks for nothing more once stopped during the airdrop question", async () => {
@@ -223,6 +239,7 @@ describe("commands/deploy", () => {
     expect(isStopped(failure)).toBe(true);
     expect(closeBuffer).toHaveBeenCalledTimes(1);
     expect((failure as Error).message).toContain("buffer account was closed");
+    expect(printed).toHaveBeenCalledWith("info: Stopping after this step…");
   });
 
   /** A stop whose buffer close fails every retry, so the buffer is kept */

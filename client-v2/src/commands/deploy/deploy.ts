@@ -93,7 +93,7 @@ function checkNetwork() {
 /** Check whether the state is valid for deployment. */
 async function checkProgram() {
   if (!PgProgramInfo.uuid && !PgProgramInfo.importedProgram?.bytes.length) {
-    PgTerminal.println("Warning: Program is not built.");
+    PgTerminal.println(PgTerminal.warning("Warning: Program is not built."));
     await PgCommand.build.execute();
   }
 
@@ -105,7 +105,9 @@ async function checkProgram() {
     !PgProgramInfo.importedProgram?.bytes.length
   ) {
     PgTerminal.println(
-      "Warning: Your last build failed. Deploying now will upload the last successful build, not the current sources."
+      PgTerminal.warning(
+        "Warning: Your last build failed. Deploying now will upload the last successful build, not the current sources."
+      )
     );
     const term = await PgTerminal.get();
     const proceed = await term.waitForInput(
@@ -219,7 +221,7 @@ const processDeploy = async (signal: AbortSignal, lockStop: () => void) => {
     if (typeof airdropAmount !== "number") throw new Error(msg);
 
     const term = await PgTerminal.get();
-    term.println(`Warning: ${msg}`);
+    term.println(PgTerminal.warning(`Warning: ${msg}`));
     throwIfStopped(signal, deployStoppedLine({ state: "none" }));
     // A stop while the question is open answers it, as "no" would; the
     // check below then ends the deploy as stopped, before any SOL moves
@@ -327,19 +329,21 @@ const processDeploy = async (signal: AbortSignal, lockStop: () => void) => {
       },
       onMissing: (missingCount) => {
         PgTerminal.println(
-          `Warning: ${PgTerminal.bold(
-            missingCount.toString()
-          )} ${PgCommon.makePlural(
-            "transaction",
-            missingCount
-          )} not confirmed, retrying...`
+          PgTerminal.warning(
+            `Warning: ${missingCount} ${PgCommon.makePlural(
+              "transaction",
+              missingCount
+            )} not confirmed, retrying...`
+          )
         );
       },
       onRateLimit: (retryAfter) => {
         PgTerminal.println(
-          `Warning: Reached rate-limits, waiting (${PgCommon.formatSeconds(
-            retryAfter
-          )})...`
+          PgTerminal.warning(
+            `Warning: Reached rate-limits, waiting (${PgCommon.formatSeconds(
+              retryAfter
+            )})...`
+          )
         );
       },
     }
@@ -515,7 +519,7 @@ const loadBufferWithControl = (
       const term = await PgTerminal.get();
       // This load segment's stop; a pause ends the segment and removes it
       const stopLoad = () => {
-        term.println("Stopping after this step…");
+        term.println(PgTerminal.info("Stopping after this step…"));
         abortController.abort();
       };
       signal.addEventListener("abort", stopLoad, { once: true });
