@@ -397,10 +397,10 @@ export class PgAssistant {
    * Choose a backend for this tab, keeping the conversation.
    *
    * A switch to a different backend does not clear the thread: `useTurn`
-   * rebuilds the provider for the new connection from what is rendered, as it
-   * does after a reload, so the next turn goes to the new backend with the
-   * conversation so far, and each reply's `origin` says which backend wrote
-   * it. Clearing here dropped the thread from the screen whenever the user
+   * rebuilds the provider for the new connection from the thread's messages
+   * and finished tool calls (`toReplayMessagesWith`), as it does after a
+   * reload, so the next turn goes to the new backend with the conversation so
+   * far, and each reply's `origin` says which backend wrote it. Clearing here dropped the thread from the screen whenever the user
    * entered their key again in a new tab (HOO-1719). Marks Connect a model
    * closed.
    *
@@ -1924,9 +1924,9 @@ export class PgAssistant {
   }
 }
 
-// A handle on the panel's state for the browser console, and for the e2e tests
-// that cover thread persistence -- sending a message for real would need a
-// configured backend and a live model call, which is not what those assert.
+// A handle on the panel's state for the browser console and the e2e tests,
+// which read the thread and connect a backend through it while the model is
+// stubbed at the network.
 //
 // Development only: `craco build` sets NODE_ENV to production, so this is
 // dropped from the shipped bundle rather than merely unused in it.
