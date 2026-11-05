@@ -104,6 +104,14 @@ const ask = async (): Promise<Asked> => {
 };
 
 /**
+ * A failure the status may report. Offline says nothing about the deployment,
+ * and nothing asks again on the way back online, so recording one then would
+ * read as a false "Not responding" once the browser is back.
+ */
+const recordProbeFailure = () =>
+  PgAssistant.setDefaultProbe(navigator.onLine ? "unreachable" : "unasked");
+
+/**
  * Ask the server whether its default backend is configured, and with which
  * model: once per page, unless the asking fails, when the next caller asks
  * again.
@@ -121,14 +129,15 @@ export const probeDefaultBackend = (): Promise<DefaultBackend> => {
     ({ backend, failed: askFailed }) => {
       if (probe === current) {
         if (askFailed) probe = undefined;
-        PgAssistant.setDefaultProbe(askFailed ? "unreachable" : "answered");
+        if (askFailed) recordProbeFailure();
+        else PgAssistant.setDefaultProbe("answered");
       }
       return backend;
     },
     (error: unknown) => {
       if (probe === current) {
         probe = undefined;
-        PgAssistant.setDefaultProbe("unreachable");
+        recordProbeFailure();
       }
       throw error;
     }

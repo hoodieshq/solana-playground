@@ -99,8 +99,9 @@ export const IndicatorDot = ({ state }: { state: StatusState }) => (
 /**
  * An indicator's panel in the status row or on the rail: its name, words,
  * line and buttons. It closes when an action is picked, since the action goes
- * elsewhere (the settings, Connect a model); Try again keeps it open to show
- * what it found.
+ * elsewhere (the settings, Connect a model). Try again keeps it open while it
+ * asks and when the answer is still down; once it is answered the indicator
+ * has no panel any more, so the panel goes with it.
  */
 export const StatusPanel = ({
   indicator,

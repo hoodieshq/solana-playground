@@ -194,6 +194,16 @@ describe("the probe's state for the status", () => {
     expect(PgAssistant.defaultProbe).toBe("answered");
   });
 
+  it("records no failure while the browser is offline, so coming back online reads no red", async () => {
+    // Offline says nothing about the deployment, and nothing asks again on the
+    // way back: a recorded failure would turn into a false "Not responding"
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("offline"));
+    expect(await probeDefaultBackend()).toEqual({ state: "unreachable" });
+    expect(PgAssistant.defaultProbe).toBe("unasked");
+    onLine.mockRestore();
+  });
+
   it("reads unreachable on an error status and on a request that fails", async () => {
     answer({}, 500);
     await probeDefaultBackend();
