@@ -231,13 +231,29 @@ class _PgConnection {
   }
 
   /**
-   * Read the current endpoint's cluster, remembering which endpoint it was.
+   * Read the selected endpoint's cluster, remembering which endpoint it was.
    *
    * @returns the cluster name
    */
   static async readCluster(): Promise<Cluster> {
     const endpoint = PgSettings.connection.endpoint;
-    const cluster = await _PgConnection.getCluster(endpoint);
+    // A read of an endpoint no longer selected may finish last, and what it
+    // returns is what `cluster` keeps: it answers for the selected one instead
+    const moved = () => endpoint !== PgSettings.connection.endpoint;
+    let cluster: Cluster;
+    try {
+      cluster = await _PgConnection.getCluster(endpoint);
+    } catch (e) {
+      if (!moved()) throw e;
+      log.info(
+        "a previous endpoint's cluster read failed, reading the current",
+        {
+          context: { error: String(e) },
+        }
+      );
+      return _PgConnection.readCluster();
+    }
+    if (moved()) return _PgConnection.readCluster();
     _PgConnection._clusterEndpoint = endpoint;
     return cluster;
   }

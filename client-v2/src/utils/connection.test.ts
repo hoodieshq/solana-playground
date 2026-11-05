@@ -69,4 +69,39 @@ describe("PgConnection.clusterIsStale", () => {
     await PgConnection.readCluster();
     expect(PgConnection.clusterIsStale).toBe(false);
   });
+
+  // Two networks picked in a row: the first, slow one may answer last, and
+  // its answer is what `cluster` would keep
+  it.each(["answers", "fails"])(
+    "takes the selected endpoint's cluster when an older read %s last",
+    async (ending) => {
+      const answers = new Map<
+        string,
+        { resolve: (c: "devnet") => void; reject: (e: Error) => void }
+      >();
+      const getCluster = vi
+        .spyOn(PgConnection, "getCluster")
+        .mockImplementation((endpoint) =>
+          endpoint === "http://slow"
+            ? new Promise((resolve, reject) => {
+                answers.set("http://slow", { resolve, reject });
+              })
+            : Promise.resolve("devnet")
+        );
+
+      PgSettings.connection.endpoint = "http://slow";
+      const older = PgConnection.readCluster();
+      PgSettings.connection.endpoint = "http://fast";
+      await expect(PgConnection.readCluster()).resolves.toBe("devnet");
+
+      const slow = answers.get("http://slow");
+      if (ending === "fails") slow?.reject(new Error("timed out"));
+      else slow?.resolve("devnet");
+
+      await expect(older).resolves.toBe("devnet");
+      expect(getCluster).toHaveBeenLastCalledWith("http://fast");
+      expect(PgConnection.clusterIsStale).toBe(false);
+      getCluster.mockRestore();
+    }
+  );
 });
