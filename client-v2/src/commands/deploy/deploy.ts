@@ -182,6 +182,7 @@ const processDeploy = async (
   // Decide whether it's an initial deployment or an upgrade and calculate
   // how much SOL user needs before creating the buffer.
   const connection = PgConnection.current;
+  const cluster = PgConnection.cluster;
   const [userBalance, bufferBalance] = await Promise.all([
     connection.getBalance(wallet.publicKey),
     connection.getMinimumBalanceForRentExemption(
@@ -496,7 +497,12 @@ const processDeploy = async (
       context: { error: String(e) },
     });
   }
-  return { signature: signature ?? undefined, cost, upgraded: programExists };
+  return {
+    signature: signature ?? undefined,
+    cost,
+    upgraded: programExists,
+    cluster,
+  };
 
   function deployNew() {
     return sendAndConfirmTxWithRetries(

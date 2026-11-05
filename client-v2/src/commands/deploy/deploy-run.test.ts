@@ -155,6 +155,7 @@ describe("deploy run", () => {
       signature: "sig-deploy",
       cost: 1_000_000_000,
       upgraded: false,
+      cluster: "devnet",
     });
     expect(PgDeployRun.state.step).toBeNull();
   });
@@ -171,7 +172,28 @@ describe("deploy run", () => {
       signature: "sig-deploy",
       cost: undefined,
       upgraded: false,
+      cluster: "devnet",
     });
+  });
+
+  it("reports the network it took its connection on, not the one selected at its end", async () => {
+    const { PgConnection } = await import("../../utils");
+    Object.assign(PgConnection, { cluster: "devnet" });
+    balance
+      .mockImplementationOnce(async () => {
+        // The user switches networks once the run has its connection
+        Object.assign(PgConnection, { cluster: "testnet" });
+        return 10_000_000_000;
+      })
+      .mockResolvedValueOnce(10_000_000_000)
+      .mockResolvedValueOnce(9_000_000_000);
+
+    try {
+      const result = await handleDeploy();
+      expect(result?.cluster).toBe("devnet");
+    } finally {
+      Object.assign(PgConnection, { cluster: "devnet" });
+    }
   });
 
   it("funds first, without a question, when the stage started it", async () => {

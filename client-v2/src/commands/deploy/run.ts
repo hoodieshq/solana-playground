@@ -1,4 +1,4 @@
-import type { Disposable } from "../../utils";
+import type { Cluster, Disposable } from "../../utils";
 
 /** A step of a deploy run, in the order the run takes them */
 export type DeployStep = "funding" | "buffer" | "write" | "deploy";
@@ -24,6 +24,11 @@ export interface DeployResult {
    */
   cost: number | undefined;
   upgraded: boolean;
+  /**
+   * The network the run deployed to, read together with its connection: the
+   * user may select another one while the deploy runs
+   */
+  cluster: Cluster | null;
 }
 
 /**
