@@ -458,10 +458,13 @@ describe("BaseDeploy while the network is down", () => {
         networkHold="You're offline"
       />
     );
+    expect(screen.getByRole("button", { name: /Go to Build/ })).toHaveProperty(
+      "disabled",
+      false
+    );
     expect(
-      screen.getByRole("button", { name: /Go to Build/ })
-    ).toHaveProperty("disabled", false);
-    expect(screen.queryByRole("button", { name: /Deploy to devnet/ })).toBeNull();
+      screen.queryByRole("button", { name: /Deploy to devnet/ })
+    ).toBeNull();
   });
 
   it("leaves the pill on while the network answers", () => {
