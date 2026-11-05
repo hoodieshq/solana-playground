@@ -87,7 +87,7 @@ test("dragging a tab reorders it", async ({ seededPage: page }) => {
   expect(await currentName(page)).toBe(current);
 });
 
-test("the current tab has the grey line and close shows on hover", async ({
+test("the current tab has no line of its own and close shows on hover", async ({
   seededPage: page,
 }) => {
   await threeTabs(page);
@@ -96,23 +96,9 @@ test("the current tab has the grey line and close shows on hover", async ({
   await expect(current).toHaveCount(1);
   await expect(other).not.toHaveAttribute("data-active");
 
-  // The edge's grey, `bg-foreground/80`, as the browser resolves it in the
-  // strip's own scope: the brand is kept for focus
-  const edge = await page.locator("#tabs").evaluate((strip) => {
-    const probe = document.createElement("span");
-    probe.style.backgroundColor =
-      "color-mix(in oklab, var(--foreground) 80%, transparent)";
-    strip.appendChild(probe);
-    const colour = getComputedStyle(probe).backgroundColor;
-    probe.remove();
-    return colour;
-  });
-  expect(edge).not.toBe("");
-  expect(edge).not.toBe("rgba(0, 0, 0, 0)");
-
-  expect(await style(current, "opacity", "::before")).toBe("1");
-  expect(await style(current, "background-color", "::before")).toBe(edge);
-  expect(await style(other, "opacity", "::before")).toBe("0");
+  // The current tab is marked by the editor's ground alone (DES-130)
+  expect(await style(current, "content", "::before")).toBe("none");
+  expect(await style(other, "content", "::before")).toBe("none");
 
   const close = other.getByRole("button", { name: /^Close / });
   await pointerAway(page);
