@@ -94,12 +94,15 @@ test("a failed build's two buttons hold one row of one width at 1280", async ({
   const explain = feed(page).getByRole("button", { name: /Explain the error/ });
   const fix = feed(page).getByRole("button", { name: "I'll fix it myself" });
   await expect(explain).toBeVisible(LONG);
-  const [a, b] = [
-    requireFor("Explain's box")(await explain.boundingBox()),
-    requireFor("the fix button's box")(await fix.boundingBox()),
-  ];
-  expect(a.y).toBe(b.y);
-  expect(a.width).toBe(b.width);
+  // The feed is still scrolling the card into view, so two reads in a row
+  // land on different frames: poll until they agree
+  await expect
+    .poll(async () => {
+      const a = requireFor("Explain's box")(await explain.boundingBox());
+      const b = requireFor("the fix button's box")(await fix.boundingBox());
+      return { sameRow: a.y === b.y, sameWidth: a.width === b.width };
+    }, LONG)
+    .toEqual({ sameRow: true, sameWidth: true });
 });
 
 test("the folded composer is 46 px below md with a fine pointer", async ({
