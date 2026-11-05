@@ -193,6 +193,73 @@ describe("commands/deploy", () => {
     );
   });
 
+  it("prints the load's retry notices as warnings", async () => {
+    env.balance = 10_000_000_000;
+    loadBuffer.mockImplementation(
+      async (
+        _key: unknown,
+        _bytes: unknown,
+        opts: {
+          onMissing: (count: number) => void;
+          onRateLimit: (retryAfter: number) => void;
+        }
+      ) => {
+        opts.onMissing(2);
+        opts.onRateLimit(3);
+        env.controller.abort();
+        throw new Error("the segment was aborted");
+      }
+    );
+
+    await runDeploy();
+
+    const lines = printed.mock.calls.map(([line]) => String(line));
+    expect(lines).toContainEqual(
+      expect.stringMatching(/^warning: Warning: 2 .* not confirmed/)
+    );
+    expect(lines).toContainEqual(
+      expect.stringMatching(/^warning: Warning: Reached rate-limits/)
+    );
+  });
+
+  describe("the program check", () => {
+    /** Deploy's last pre-check, with the program in the state a test gives */
+    const checkProgram = async (state: Record<string, unknown>) => {
+      const { PgProgramInfo } = await import("../../utils");
+      const { deploy } = await import("./deploy");
+      const original = { ...PgProgramInfo };
+      Object.assign(PgProgramInfo, state);
+      try {
+        const { preChecks } = deploy as unknown as {
+          preChecks: Array<() => Promise<unknown>>;
+        };
+        await preChecks[2]();
+      } finally {
+        Object.assign(PgProgramInfo, original);
+      }
+    };
+
+    it("prints a program that is not built as a warning", async () => {
+      await checkProgram({ importedProgram: undefined, uuid: undefined });
+
+      expect(printed).toHaveBeenCalledWith(
+        "warning: Warning: Program is not built."
+      );
+    });
+
+    it("prints a last build that failed as a warning", async () => {
+      await checkProgram({
+        importedProgram: undefined,
+        uuid: "uuid",
+        lastBuildFailed: true,
+      });
+
+      expect(printed).toHaveBeenCalledWith(
+        expect.stringMatching(/^warning: Warning: Your last build failed/)
+      );
+    });
+  });
+
   it("asks for nothing more once stopped during the airdrop question", async () => {
     // The person presses Stop while the question waits, then answers yes
     env.waitForInput = async () => {

@@ -21,7 +21,7 @@ was cut before it and does not have them.
 ## Decisions
 
 - **A thrown line's variant follows from what was thrown.** A stop is `warning`,
-  anything else is `error`. No per-line class: every thrown line that is not a
+  anything else is `error`. No per-tone class: every thrown line that is not a
   stop is a refusal or a failure, so a subclass would only restate the default.
 - **"Stopped." is `warning`, not `error`.** The person asked for it and nothing
   failed (`StoppedError`'s own contract); `success` would claim the work is done.
@@ -36,5 +36,7 @@ was cut before it and does not have them.
 
 ## Risks / Trade-offs
 
-- A thrown message carrying its own ANSI reset ends the colour early. Only the
-  rest of that line goes plain; the words are unchanged.
+- A thrown message carrying its own ANSI reset ends the colour early, so the two
+  deploy messages that embedded `PgTerminal.bold` lose it, as does the "not
+  confirmed" count. The words are unchanged, and the toasts that read those two
+  messages no longer get raw codes.

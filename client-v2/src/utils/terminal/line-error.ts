@@ -4,7 +4,7 @@ import { isStopped, StoppedError } from "../stopped";
  * A failure whose message is the whole line the terminal prints: Spec 13
  * puts no "Process error:" before an unknown command or a declined wallet
  * question. Unlike a `StoppedError` it is still a failure, so a button that
- * ran the command reports it as one.
+ * ran the command reports it as one, and the line prints as `error`.
  */
 export class TerminalLineError extends Error {
   name = "TerminalLineError";
@@ -13,11 +13,12 @@ export class TerminalLineError extends Error {
 /**
  * The design system's terminal line variants a line takes (Spec 13): `error`
  * for a command refused or failed, `warning` for a notice, `info` for a running
- * command's progress
+ * command's progress. A done line calls `PgTerminal.success`, and no line a
+ * command throws is done.
  */
 export type LineTone = "error" | "warning" | "info";
 
-/** The codes behind `PgTerminal.error`, `.warning` and `.info` too */
+/** The codes behind `PgTerminal.error`, `.warning` and `.info` */
 const TONES: Record<LineTone, (text: string) => string> = {
   error: (text) => `\x1b[1;31m${text}\x1b[0m`,
   warning: (text) => `\x1b[1;33m${text}\x1b[0m`,

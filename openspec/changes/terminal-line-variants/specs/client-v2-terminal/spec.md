@@ -51,6 +51,11 @@ colour codes.
 - **WHEN** a deploy prints "Warning: Program is not built."
 - **THEN** the line prints in `warning`
 
+#### Scenario: A finished result is a success (manual)
+
+- **WHEN** an airdrop finishes
+- **THEN** "Airdrop successful." prints in `success`
+
 #### Scenario: Command output stays plain
 
 - **WHEN** a build prints the compiler's output

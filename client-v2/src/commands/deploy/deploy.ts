@@ -125,9 +125,7 @@ async function checkProgram() {
 
   if (!PgProgramInfo.onChain) {
     throw new Error(
-      `Could not fetch on-chain data. Try using a different RPC provider with '${PgTerminal.bold(
-        "solana config set -u <RPC_URL>"
-      )}' command.`
+      "Could not fetch on-chain data. Try using a different RPC provider with 'solana config set -u <RPC_URL>' command."
     );
   }
 
@@ -143,7 +141,7 @@ async function checkProgram() {
         `Entered program ID doesn't match the program ID derived from program's keypair.
 You can fix this in 3 different ways:
 
-1. Remove the custom program ID from ${PgTerminal.bold("Program ID")}
+1. Remove the custom program ID from Program ID
 2. Import the program keypair for the current program ID
 3. Create a new program keypair`
       );
@@ -205,7 +203,7 @@ const processDeploy = async (signal: AbortSignal, lockStop: () => void) => {
       : bufferBalance;
   if (userBalance < requiredBalanceWithoutFees) {
     const formatBalance = (lamports: number) => {
-      return PgTerminal.bold(PgWeb3.lamportsToSol(lamports).toFixed(2));
+      return PgWeb3.lamportsToSol(lamports).toFixed(2);
     };
 
     const msg = `${
@@ -665,9 +663,7 @@ const sendAndConfirmTxWithRetries = async (
   }
 
   throw new Error(
-    `Exceeded maximum amount of retries (${PgTerminal.bold(
-      MAX_RETRIES.toString()
-    )}).
+    `Exceeded maximum amount of retries (${MAX_RETRIES}).
 This might be an RPC related issue. Consider changing the endpoint from the settings.
 ${err.message ? `Reason: ${err.message}` : ""}`
   );

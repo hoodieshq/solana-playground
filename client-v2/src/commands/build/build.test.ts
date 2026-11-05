@@ -73,6 +73,24 @@ describe("commands/build/build", () => {
     expect(utils.PgGlobal.update).toHaveBeenCalledWith({ buildLoading: true });
   });
 
+  // Spec 13's variants are for the terminal's own lines, not the compiler's
+  it("prints the compiler's output with no variant", async () => {
+    utils.PgExplorer.getFileContent.mockReturnValue(PROGRAM);
+    utils.PgExplorer.files = { "/p/src/lib.rs": { content: PROGRAM } };
+    utils.PgServer.build.mockResolvedValue({
+      stderr: "Compiling probe v0.1.0",
+      idl: null,
+      uuid: null,
+    });
+
+    await run();
+
+    const output = utils.PgTerminal.println.mock.calls.at(-1)?.[0];
+    expect(output).toContain("Compiling probe");
+    // eslint-disable-next-line no-control-regex -- the codes are the point
+    expect(output).not.toMatch(/\x1b/);
+  });
+
   describe("stopped", () => {
     beforeEach(() => {
       utils.PgExplorer.getFileContent.mockReturnValue(PROGRAM);
