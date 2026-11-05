@@ -122,7 +122,12 @@ const Stepper: FC<StepperProps> = ({ state, onSelect, fill, phone }) => {
               status={DS_STATUS[status]}
               errors={stage === "build" ? state.buildErrorCount : undefined}
               className={
-                phone ? "h-12 flex-1 justify-center text-control" : undefined
+                // 32 px drawn, so the 40 px pill has 10 px of air in the
+                // 60 px bar; the tap area stays 48 px through the invisible
+                // `before`
+                phone
+                  ? "h-8 flex-1 justify-center text-control before:absolute before:inset-x-0 before:-inset-y-2"
+                  : undefined
               }
               id={`flow-stage-tab-${stage}`}
               aria-controls={`flow-stage-panel-${stage}`}
