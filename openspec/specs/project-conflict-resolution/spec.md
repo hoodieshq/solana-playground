@@ -19,8 +19,8 @@ version". A divergent conflict that names no files SHALL keep only those two.
 
 - **WHEN** this device and the other device changed the same line of
   `src/lib.rs` and the project reconciles
-- **THEN** the banner names `src/lib.rs` and shows the buttons "Resolve…",
-  "Keep this version" and "Take the other version"
+- **THEN** the banner names `src/lib.rs` and shows the buttons "Keep this
+  version", "Take the other version" and "Resolve…", in that order
 
 ### Requirement: The view shows only what is left to decide
 
