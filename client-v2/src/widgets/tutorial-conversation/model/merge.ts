@@ -58,6 +58,22 @@ export const mergeFeed = (
   return out.concat(exchanges.slice(next));
 };
 
+/**
+ * Whether the assistant has answered since `since` (the last Start over; null
+ * reads the whole thread): in words, or with a tool it ran, since a turn that
+ * only opens the menu writes nothing
+ */
+export const hasAnswered = (
+  items: readonly ChatItem[],
+  since: number | null
+): boolean =>
+  items.some((item) => {
+    if (since !== null && !(Date.parse(item.createdAt) > since)) return false;
+    return (
+      item.kind === "tool" || (item.kind === "assistant" && !!item.text.trim())
+    );
+  });
+
 /** What a pending approval reads as in the tutorial feed */
 export const APPROVAL_WAITING =
   "The assistant asked to change the project, which a tutorial does not " +
@@ -119,6 +135,29 @@ const entryOf = (
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
+
+  describe("hasAnswered", () => {
+    const base = { id: "i", createdAt: new Date(2000).toISOString() };
+    const tool: ChatItem = { ...base, kind: "tool", label: "opened the menu" };
+    const reply: ChatItem = { ...base, kind: "assistant", text: "A PDA is" };
+
+    it("counts a written reply or a tool the assistant ran", () => {
+      expect(hasAnswered([reply], null)).toBe(true);
+      expect(hasAnswered([tool], null)).toBe(true);
+    });
+
+    it("does not count a reply with no words yet, or the learner's message", () => {
+      expect(hasAnswered([{ ...reply, text: " " }], null)).toBe(false);
+      expect(
+        hasAnswered([{ ...base, kind: "user", text: "the menu" }], null)
+      ).toBe(false);
+    });
+
+    it("does not count what came before the last Start over", () => {
+      expect(hasAnswered([reply, tool], 2000)).toBe(false);
+      expect(hasAnswered([reply, tool], 1999)).toBe(true);
+    });
+  });
 
   describe("widgets/tutorial-conversation/model/merge", () => {
     const say = (id: string, at: number): Turn => ({

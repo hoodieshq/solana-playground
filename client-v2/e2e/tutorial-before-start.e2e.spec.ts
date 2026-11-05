@@ -50,6 +50,21 @@ test("no stage before Hello Anchor's Start, in the frame", async ({ page }) => {
   await expect(notFound(page)).toHaveCount(0);
 });
 
+// HOO-2571: a start word does what the Start step 1 button does
+test("typing a start word starts step 1", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/tutorials/hello-anchor");
+  await expect(
+    chat(page).getByRole("button", { name: /Start step 1/ })
+  ).toBeVisible(LONG);
+
+  const box = chat(page).getByPlaceholder("Ask anything about this tutorial");
+  await box.fill("Begin");
+  await box.press("Enter");
+  await expect(chat(page).getByText("Step 1 of 4")).toBeVisible(LONG);
+});
+
 test("no stage before Hello Anchor's Start, under the frame's width", async ({
   page,
 }) => {

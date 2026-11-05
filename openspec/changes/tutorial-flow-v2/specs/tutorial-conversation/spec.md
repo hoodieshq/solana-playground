@@ -295,9 +295,9 @@ lesson there SHALL be no chips row. After the finish, the definition's finish
 chips SHALL show above the composer. What the composer does with a message,
 in this order:
 
-1. A message that is only a live action's word ("build", "deploy", "run",
-   "call", "next", "explain", alone or with "please") SHALL run that action
-   and be echoed as a pill. While a question is open, the answer is instead
+1. A message that is only a live action's word ("start", "begin" or "go"
+   before Start, "build", "deploy", "run", "call", "next", "explain", alone or
+   with "please", in any case) SHALL run that action and be echoed as a pill. While a question is open, the answer is instead
    "Pick an answer above first, or press Skip. Then the button's yours."
 2. A finish chip SHALL get the definition's answer, with no model call.
 3. Anything else SHALL go to the product's assistant, with the tutorial, the
@@ -307,7 +307,10 @@ in this order:
    connecting a model. While the assistant answers, a question SHALL wait in
    the composer, unsent, until the answer ends, under the note "The assistant
    is still answering. Press Enter again once it's done."; a live action's
-   word still runs then.
+   word still runs then. Before Start, the assistant SHALL end its answer by
+   inviting the learner to begin ("When you're ready, press Start step 1 or
+   type start."), after a tool as well: opening the menu never ends a turn
+   before Start.
 
 There SHALL be no scripted answers matched from typed text: the assistant
 answers every free message. What does something in the interface SHALL be one
@@ -342,6 +345,17 @@ assistant MAY link one of the tutorial's doc pages in its answer (see
 - **AND** the assistant's answer posts in the feed, after which the composer
   suggests starting, with a "Start step 1" button
 - **AND** after "Start step 1" the composer reads as usual, with no suggestion
+
+#### Scenario: A start word before Start
+
+- **WHEN** a learner on the intro card types "go"
+- **THEN** step 1 starts as "Start step 1" starts it, with "go" as a pill
+
+#### Scenario: The menu before Start
+
+- **WHEN** a learner on the intro card types "show me the menu"
+- **THEN** the menu opens and the assistant's turn ends by inviting them to begin
+- **AND** the composer suggests starting, whether or not the assistant wrote it
 
 #### Scenario: Typed "I'm stuck"
 

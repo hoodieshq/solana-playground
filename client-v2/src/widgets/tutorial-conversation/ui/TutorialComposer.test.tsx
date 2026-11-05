@@ -246,6 +246,21 @@ describe("TutorialComposer", () => {
     expect(store.start).toHaveBeenCalledTimes(1);
   });
 
+  it("suggests starting after a turn that only opened the menu", () => {
+    store.state = stateAt("intro");
+    store.view.mockReturnValue(view("Ask anything about this tutorial"));
+    thread.items = [
+      {
+        id: "t1",
+        createdAt: new Date(1000).toISOString(),
+        kind: "tool",
+        label: "opened the menu",
+      },
+    ];
+    render(<Connected turn={turn()} />);
+    expect(screen.getByRole("button", { name: "Start step 1" })).toBeTruthy();
+  });
+
   it("holds the suggestion while the answer is still coming", () => {
     store.state = stateAt("intro");
     store.view.mockReturnValue(view("Ask anything about this tutorial"));

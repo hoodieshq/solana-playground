@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PgConversation } from "@/features/tutorial-conversation";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 
-import { mergeFeed } from "../model/merge";
+import { hasAnswered } from "../model/merge";
 import BaseTutorialComposer from "./BaseTutorialComposer";
 import { useConversationState } from "./TutorialConversation";
 
@@ -59,14 +59,11 @@ export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
   const progress = state.engine.progress;
   const finished = progress.cursor.kind === "finished";
   const waiting = progress.cursor.kind === "intro";
-  // The feed's own reading of the thread, so a reply from before the last
-  // Start over does not count
+  // A reply from before the last Start over does not count
   const answered =
     waiting &&
     !turn.busy &&
-    mergeFeed([], PgAssistant.items, progress.restartedAt, state.loadedAt).some(
-      (e) => e.kind === "answer" && e.tone === "reply"
-    );
+    hasAnswered(PgAssistant.items, progress.restartedAt);
   const send = (text: string) => {
     if (PgConversation.say(text) === "lesson") {
       turn.setInput("");

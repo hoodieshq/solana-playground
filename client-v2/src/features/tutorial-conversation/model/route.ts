@@ -191,6 +191,12 @@ if (import.meta.vitest) {
         word: "start",
         action: { type: "start", at: 500 },
       });
+      for (const word of ["start", "Begin", "go please"]) {
+        expect(route(word, intro, 500)).toMatchObject({
+          kind: "word",
+          word: "start",
+        });
+      }
       expect(route("build", act("build", "live"), 500)).toEqual({
         kind: "word",
         word: "build",
@@ -255,6 +261,7 @@ if (import.meta.vitest) {
       expect(route("what does declare_id do?", intro, 500)).toEqual({
         kind: "assistant",
       });
+      expect(route("go ahead", intro, 500)).toEqual({ kind: "assistant" });
       // A word with nothing live to run
       expect(route("deploy", act("build", "live"), 500)).toEqual({
         kind: "assistant",
