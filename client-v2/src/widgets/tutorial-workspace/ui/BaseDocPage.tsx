@@ -37,7 +37,7 @@ const BaseDocPage: FC<BaseDocPageProps> = ({ title, url, markdown }) => (
   <article
     aria-label={title}
     data-testid="tutorial-doc-page"
-    className="flex min-h-0 flex-1 flex-col bg-surface"
+    className="flex min-h-0 min-w-0 flex-1 flex-col bg-surface"
   >
     <div className="flex h-9 shrink-0 items-center gap-3 border-b border-border px-4 text-caption">
       <span className="min-w-0 truncate text-muted-foreground">

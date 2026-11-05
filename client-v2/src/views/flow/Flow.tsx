@@ -320,6 +320,7 @@ const FlowFrame = () => {
     name: tutorial.frame ? PgTutorial.current?.name : undefined,
     wrote: steps.wrote,
     finished: steps.finished,
+    loaded: steps.loaded,
     phone: onPhone,
   });
   const tutorialSlot = tutorial.frame && {

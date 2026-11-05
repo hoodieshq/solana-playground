@@ -18,6 +18,8 @@ export interface ConversationSteps {
   finished: boolean;
   /** How many times the assistant wrote code, for Code's dot */
   wrote: number;
+  /** The conversation has loaded; before, every count reads 0 */
+  loaded: boolean;
   /** The tutorial's estimate, for "{n} steps · {m} min" before Start */
   minutes: number;
   /** Brings step `index`'s heading into view in the feed */
@@ -30,6 +32,7 @@ const NONE: ConversationSteps = {
   started: false,
   finished: false,
   wrote: 0,
+  loaded: false,
   minutes: 0,
   jump: requestStepJump,
 };
@@ -58,6 +61,7 @@ export const useConversationSteps = (): ConversationSteps => {
     started: state.engine.progress.startedAt !== null,
     finished: steps.length > 0 && steps.every((s) => s.state === "done"),
     wrote: view.turns.filter((t) => t.kind === "wrote").length,
+    loaded: true,
     minutes: context.definition.minutes,
     jump: requestStepJump,
   };

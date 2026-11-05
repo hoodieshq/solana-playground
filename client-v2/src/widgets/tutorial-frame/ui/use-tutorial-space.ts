@@ -12,6 +12,11 @@ export interface UseTutorialSpaceOptions {
   wrote: number;
   /** The tutorial is done: Code's dot no longer shows */
   finished: boolean;
+  /**
+   * The conversation has loaded. Until then `wrote` is 0, so the count a
+   * reload restores is taken as seen, not as new writes
+   */
+  loaded: boolean;
   /** The phone layout is drawn; off it, nothing listens for requests */
   phone: boolean;
 }
@@ -34,17 +39,22 @@ export const useTutorialSpace = ({
   name,
   wrote,
   finished,
+  loaded,
   phone,
 }: UseTutorialSpaceOptions): UseTutorialSpace => {
   const [space, setSpaceState] = useState<TutorialSpace>("chat");
   // The `wrote` count last seen in Code (or on entering the tutorial)
   const [seen, setSeen] = useState(wrote);
   const [entered, setEntered] = useState(name);
+  const [ready, setReady] = useState(loaded);
 
   // Adjusted during render, React's pattern for state derived from props
   if (entered !== name) {
     setEntered(name);
     setSpaceState("chat");
+    setSeen(wrote);
+  } else if (ready !== loaded) {
+    setReady(loaded);
     setSeen(wrote);
   } else if ((space === "code" && seen !== wrote) || wrote < seen) {
     setSeen(wrote);

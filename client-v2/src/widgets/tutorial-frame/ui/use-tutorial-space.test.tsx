@@ -22,6 +22,7 @@ const options = (
   name: over.name ?? "Hello Anchor",
   wrote: over.wrote ?? 0,
   finished: over.finished ?? false,
+  loaded: over.loaded ?? true,
   phone: over.phone ?? true,
 });
 
@@ -84,6 +85,14 @@ describe("useTutorialSpace", () => {
     rerender(options({ wrote: 2 }));
     act(() => result.current.setSpace("chat", "toggle"));
     expect(result.current.dot).toBe(false);
+  });
+
+  it("counts the writes a reload restores as seen", () => {
+    const { result, rerender } = draw(options({ wrote: 0, loaded: false }));
+    rerender(options({ wrote: 3 }));
+    expect(result.current.dot).toBe(false);
+    rerender(options({ wrote: 4 }));
+    expect(result.current.dot).toBe(true);
   });
 
   it("hides the dot once the tutorial is finished", () => {
