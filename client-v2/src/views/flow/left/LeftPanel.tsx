@@ -274,5 +274,10 @@ const EXPLORER_CONTAINER = cn(
   // no direct `<button>` children.
   "[&_#root-dir>div:has(>button):nth-child(3)>div:first-child]:hidden!",
   "[&_#root-dir>div:has(>button):nth-child(3)>button:nth-child(2)]:hidden!",
-  "[&_#root-dir>div:has(>button):nth-child(3)>button:nth-child(3)]:hidden!"
+  "[&_#root-dir>div:has(>button):nth-child(3)>button:nth-child(3)]:hidden!",
+  // With their labels and buttons hidden, the section tops above are only
+  // their margins: 16 over Client and 4 under each, a blank 20 px between
+  // `src` and `client` and none between `client` and `tests`. The tree
+  // reads as one list, so they take none.
+  "[&_#root-dir>div[data-section]]:my-0!"
 );

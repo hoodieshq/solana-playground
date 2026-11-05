@@ -46,15 +46,17 @@ import { useResetCtxSelected } from "./useResetCtxSelected";
  * expands it. Names are never shortened either; a row wider than the panel
  * scrolls it rather than hiding characters.
  */
+// The tree in greys, the brand colour kept for focus: purple names, a purple
+// hover and a purple selection made a column of colour next to the code
 const ROOT_CLASSES = cn(
   "py-1.5",
   "[&_:is(.folder,.file)]:mx-1.5 [&_:is(.folder,.file)]:flex [&_:is(.folder,.file)]:items-center",
   "[&_:is(.folder,.file)]:cursor-pointer [&_:is(.folder,.file)]:rounded-[0.5rem]",
   "[&_:is(.folder,.file)]:border [&_:is(.folder,.file)]:border-transparent",
   "[&_:is(.folder,.file)]:px-2.5 [&_:is(.folder,.file)]:py-[0.3125rem] [&_:is(.folder,.file)]:text-[0.75rem]",
-  "[&_:is(.folder,.file).selected]:bg-[color-mix(in_srgb,var(--primary)_9%,transparent)]",
-  "[&_:is(.folder,.file).ctx-selected]:bg-[color-mix(in_srgb,var(--primary)_9%,transparent)] [&_:is(.folder,.file).ctx-selected]:border-[color-mix(in_srgb,var(--primary)_39%,transparent)] [&_:is(.folder,.file).ctx-selected]:rounded-[12px]",
-  "[&_:is(.folder,.file):hover]:bg-[color-mix(in_srgb,var(--primary)_9%,transparent)]",
+  "[&_:is(.folder,.file).selected]:bg-[color-mix(in_srgb,var(--text-primary)_9%,transparent)]",
+  "[&_:is(.folder,.file).ctx-selected]:bg-[color-mix(in_srgb,var(--text-primary)_9%,transparent)] [&_:is(.folder,.file).ctx-selected]:border-[color-mix(in_srgb,var(--text-primary)_39%,transparent)] [&_:is(.folder,.file).ctx-selected]:rounded-[12px]",
+  "[&_:is(.folder,.file):hover]:bg-[color-mix(in_srgb,var(--text-primary)_9%,transparent)]",
   "[&_:is(.folder,.file)>*]:shrink-0 [&_:is(.folder,.file)>span]:whitespace-nowrap"
 );
 
@@ -375,7 +377,7 @@ const RecursiveFolder: FC<React.PropsWithChildren<RecursiveFolderProps>> = ({
   const theme = usePgTheme();
   const overStyle: CSSProperties = useMemo(
     () => ({
-      background: PgTheme.alpha(theme.colors.default.primary, "low"),
+      background: PgTheme.alpha(theme.colors.default.textPrimary, "low"),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [theme.name]
@@ -454,9 +456,9 @@ const Folder = forwardRef<HTMLDivElement, FolderProps>(
       )}
       {...props}
     >
-      <div className="h-full" style={{ width: `${depth}rem` }} />
+      <div className="h-full" style={{ width: `${depth * 1.375}rem` }} />
       <ShortArrow color="textSecondary" />
-      <span className="ml-2 text-primary">{name}</span>
+      <span className="ml-2 text-[color:var(--text-secondary)]">{name}</span>
     </div>
   )
 );
@@ -471,7 +473,7 @@ const File = forwardRef<HTMLDivElement, FileProps>(
       className={cn("[&_img]:ml-0.5", className)}
       {...props}
     >
-      <div className="h-full" style={{ width: `${depth}rem` }} />
+      <div className="h-full" style={{ width: `${depth * 1.375}rem` }} />
       <LangIcon path={path} />
       <span className="ml-1.5 text-[color:var(--text-primary)]">{name}</span>
     </div>
