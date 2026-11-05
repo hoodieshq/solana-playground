@@ -87,8 +87,10 @@ const StageBar: FC = () => {
 
 export default StageBar;
 
-// In the frame, a 38 px row with the columns' bottom line, as the prototype
-// draws the stage tabs; on a phone, across the preview page's bar
+// In the frame, a 54 px row: the stepper keeps 8 px from the bar above and
+// 12 px from the editor tabs below. No line under it, so the larger gap and
+// the tabs' own ground set them apart. On a phone, across the preview page's
+// bar
 const Bar = styled.div<{ $row: boolean }>`
   ${({ theme, $row }) => css`
     flex-shrink: 0;
@@ -105,9 +107,9 @@ const Bar = styled.div<{ $row: boolean }>`
     isolation: isolate;
     ${$row
       ? css`
-          height: 38px;
-          padding: 0 0.5rem;
-          border-bottom: 1px solid ${theme.colors.default.border};
+          height: 3.375rem;
+          align-items: flex-start;
+          padding: 0.5rem 0.5rem 0;
         `
       : css`
           flex: 1;
