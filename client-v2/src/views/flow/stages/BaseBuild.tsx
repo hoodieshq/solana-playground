@@ -616,13 +616,14 @@ const Failed = (p: BaseBuildProps & FailedView) => {
  */
 const useKeptFocus = (key: string) => {
   const root = useRef<HTMLDivElement>(null);
-  const inside = useRef(false);
+  const hasFocusInside = useRef(false);
 
   // A press anywhere outside the stage lets go at once, even on something
   // that takes no focus: a removal fires no press, so the two never mix
   useEffect(() => {
     const press = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) inside.current = false;
+      if (!root.current?.contains(e.target as Node))
+        hasFocusInside.current = false;
     };
     document.addEventListener("pointerdown", press, true);
     return () => document.removeEventListener("pointerdown", press, true);
@@ -630,11 +631,11 @@ const useKeptFocus = (key: string) => {
 
   useLayoutEffect(() => {
     const el = root.current;
-    if (!el || !inside.current) return;
+    if (!el || !hasFocusInside.current) return;
     const active = document.activeElement;
     if (active && active !== document.body) {
       // Still in the stage, or something outside took it meanwhile
-      if (!el.contains(active)) inside.current = false;
+      if (!el.contains(active)) hasFocusInside.current = false;
       return;
     }
     // Two queries: one selector list would return the title, which comes first
@@ -647,13 +648,14 @@ const useKeptFocus = (key: string) => {
   return {
     ref: root,
     onFocus: () => {
-      inside.current = true;
+      hasFocusInside.current = true;
     },
     // Focus moving to another element outside lets go; moving to nothing is
     // a removal or the window losing focus, and keeps it
     onBlur: (e: FocusEvent) => {
       const next = e.relatedTarget;
-      if (next && !root.current?.contains(next as Node)) inside.current = false;
+      if (next && !root.current?.contains(next as Node))
+        hasFocusInside.current = false;
     },
   };
 };

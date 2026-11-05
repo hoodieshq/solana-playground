@@ -267,6 +267,8 @@ test.describe("client-v2-buttons", () => {
           contentType: "application/json",
           body: JSON.stringify({ stderr: "", uuid: "e2e-late", idl: null }),
         })
+        // The stop aborted the request, so the page may no longer take
+        // this reply; what the page shows afterwards is the assertion
         .catch(() => undefined);
     });
 

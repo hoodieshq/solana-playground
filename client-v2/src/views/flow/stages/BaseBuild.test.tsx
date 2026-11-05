@@ -166,7 +166,6 @@ describe("BaseBuild", () => {
       );
     });
 
-    // A finished build never pulls anyone out of their typing
     // A press on the page, on nothing focusable, lets go of the stage too
     it("leaves focus alone after a press outside the stage", () => {
       const p = props({ kind: "empty" }, true);
@@ -195,6 +194,7 @@ describe("BaseBuild", () => {
       );
     });
 
+    // A finished build never pulls anyone out of their typing
     it("leaves focus that is outside the stage alone", () => {
       const p = props({ kind: "empty" }, true);
       const { rerender } = render(
