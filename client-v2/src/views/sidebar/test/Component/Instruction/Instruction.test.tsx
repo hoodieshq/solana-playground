@@ -15,25 +15,29 @@ const stored = vi.hoisted(() => ({
 }));
 vi.mock("../../../../../utils/program-interaction", () => ({
   PgProgramInteraction: {
-    getOrCreateInstruction: (ix: { name: string }) => ({
-      name: ix.name,
-      values: {
-        args: [
-          {
-            name: "amount",
-            error: stored.amount.error,
-            generator: { type: "Custom", value: stored.amount.value },
+    // "ping" takes nothing; every other instruction one arg and one account
+    getOrCreateInstruction: (ix: { name: string }) =>
+      ix.name === "ping"
+        ? { name: ix.name, values: { args: [], accounts: [] } }
+        : {
+            name: ix.name,
+            values: {
+              args: [
+                {
+                  name: "amount",
+                  error: stored.amount.error,
+                  generator: { type: "Custom", value: stored.amount.value },
+                },
+              ],
+              accounts: [
+                {
+                  name: "owner",
+                  error: false,
+                  generator: { type: "Custom", value: "owner-key" },
+                },
+              ],
+            },
           },
-        ],
-        accounts: [
-          {
-            name: "owner",
-            error: false,
-            generator: { type: "Custom", value: "owner-key" },
-          },
-        ],
-      },
-    }),
     saveInstruction: vi.fn(),
   },
 }));
@@ -62,6 +66,21 @@ it("counts the inputs in the head: one arg and one account", () => {
   ).toContain("1 arg · 1 account");
 });
 
+it("draws an instruction that takes nothing with no count, no groups and no Fill or Reset", () => {
+  const PING = {
+    name: "ping",
+    args: [],
+    accounts: [],
+  } as unknown as Props["idlInstruction"];
+  render(<Instruction idlInstruction={PING} onCall={vi.fn()} open />);
+
+  expect(screen.getByRole("button", { name: "ping" }).textContent).toBe("ping");
+  expect(screen.queryByRole("region")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Fill with Random" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
+  expect(testButton().disabled).toBe(false);
+});
+
 it("starts folded, and opens through the card's own head when nobody holds it", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} />);
   expect(screen.queryByRole("button", { name: "Test" })).toBeNull();
@@ -84,11 +103,13 @@ it("reports a toggle of its head to the holder", () => {
   expect(onOpenChange).toHaveBeenCalledWith(true);
 });
 
-it("groups the inputs under plain Arguments and Accounts headings, not folds", () => {
+it("groups the inputs under plain Arguments and Accounts groups, not folds", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open />);
 
-  expect(screen.getByRole("heading", { name: "Arguments" })).toBeTruthy();
-  expect(screen.getByRole("heading", { name: "Accounts" })).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Arguments" })).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Accounts" })).toBeTruthy();
+  // No heading level skipped under the page's h2
+  expect(screen.queryByRole("heading")).toBeNull();
   expect(screen.queryByRole("button", { name: "Args" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Accounts" })).toBeNull();
 });

@@ -73,15 +73,16 @@ const InteractBody = ({
     setScrollTo({ name });
   };
 
-  // The last call, kept with the program and network it went to: switching
-  // either hides it rather than showing it under another program's card
+  // Each card's last call, kept with the program and network it went to:
+  // switching either hides it rather than showing it under another
+  // program's card. One slot per card, so two cards tested at once keep
+  // their own results whichever settles first
   const target = `${programId}|${cluster}`;
-  const [last, setLast] = useState<{
-    target: string;
-    instruction: string;
-    outcome: CallOutcome;
-  }>();
-  const shown = last?.target === target ? last : undefined;
+  const [results, setResults] = useState<
+    Readonly<Record<string, { target: string; outcome: CallOutcome }>>
+  >({});
+  const resultOf = (name: string) =>
+    results[name]?.target === target ? results[name].outcome : undefined;
   const history = useCallHistory(programId, cluster);
   const network = clusterName(cluster) ?? "the network";
   const explorer = useBlockExplorer();
@@ -99,42 +100,45 @@ const InteractBody = ({
           >
             {/* The cards stack close, as the Test list on master does */}
             <div className="flex min-w-0 flex-col gap-2">
-              {idl.instructions.map((idlInstruction) => (
-                <Fragment key={idlInstruction.name}>
-                  <div
-                    ref={(el) => {
-                      if (el) cards.current.set(idlInstruction.name, el);
-                      else cards.current.delete(idlInstruction.name);
-                    }}
-                  >
-                    <Instruction
-                      key={JSON.stringify(idlInstruction)}
-                      idlInstruction={idlInstruction}
-                      open={open.has(idlInstruction.name)}
-                      onOpenChange={(isOpen) =>
-                        toggle(idlInstruction.name, isOpen)
-                      }
-                      solNeededOn={solNeededOn}
-                      feePayer={<FeePayer />}
-                      onCall={async (ix) =>
-                        setLast({
-                          target,
-                          instruction: ix.name,
-                          outcome: await runCall(ix),
-                        })
-                      }
-                    />
-                  </div>
+              {idl.instructions.map((idlInstruction) => {
+                const outcome = resultOf(idlInstruction.name);
+                return (
+                  <Fragment key={idlInstruction.name}>
+                    <div
+                      ref={(el) => {
+                        if (el) cards.current.set(idlInstruction.name, el);
+                        else cards.current.delete(idlInstruction.name);
+                      }}
+                    >
+                      <Instruction
+                        key={JSON.stringify(idlInstruction)}
+                        idlInstruction={idlInstruction}
+                        open={open.has(idlInstruction.name)}
+                        onOpenChange={(isOpen) =>
+                          toggle(idlInstruction.name, isOpen)
+                        }
+                        solNeededOn={solNeededOn}
+                        feePayer={<FeePayer />}
+                        onCall={async (ix) => {
+                          const settled = await runCall(ix);
+                          setResults((prev) => ({
+                            ...prev,
+                            [ix.name]: { target, outcome: settled },
+                          }));
+                        }}
+                      />
+                    </div>
 
-                  {shown?.instruction === idlInstruction.name && (
-                    <BaseCallResult
-                      outcome={shown.outcome}
-                      cluster={network}
-                      txUrl={txUrl}
-                    />
-                  )}
-                </Fragment>
-              ))}
+                    {outcome && (
+                      <BaseCallResult
+                        outcome={outcome}
+                        cluster={network}
+                        txUrl={txUrl}
+                      />
+                    )}
+                  </Fragment>
+                );
+              })}
             </div>
 
             <BaseCallHistory

@@ -57,7 +57,7 @@ call and its outcome.
 - **WHEN** a call fails with logs that contain "Error Code: AccountNotInitialized"
 - **THEN** the result shows "Failed" with that line set apart and "Show all logs"
 
-#### Scenario: The result follows its card
+#### Scenario: The result follows its card (manual)
 - **WHEN** the IDL has `initialize` and `increment` and the person tests `increment`
 - **THEN** "Call result" sits after the `increment` card, not after `initialize`
 
@@ -74,7 +74,7 @@ when the IDL still has it, leaving other open cards as they are. The history SHA
 - **WHEN** the person calls `increment` twice, then reloads and opens Interact
 - **THEN** "Call history" lists both calls, newest first
 
-#### Scenario: A history row opens its card
+#### Scenario: A history row opens its card (manual)
 - **WHEN** every card is folded and the person picks an `increment` row in "Call history"
 - **THEN** the `increment` card opens and is scrolled into view
 
@@ -91,13 +91,13 @@ with a "Redeploy" button that opens the Deploy stage.
 ### Requirement: A callout says when the fee payer has too little SOL
 When the current wallet's balance is known and below one transaction fee
 (5000 lamports), the stage SHALL show the callout "This call needs a small fee
-in <network> SOL. Your wallet has <balance> SOL." and SHALL keep Call off. When
+in <network> SOL. Your wallet has <balance> SOL." and SHALL keep Test off. When
 the network has a faucet, the callout SHALL offer "Get <network> SOL", which
-requests an airdrop and keeps the form's values.
+requests an airdrop and keeps the cards' values.
 
 #### Scenario: Empty wallet on devnet (manual)
 - **WHEN** the Playground wallet has 0 SOL on devnet and the person opens Interact
-- **THEN** the callout shows with "Get devnet SOL" and Call is off
+- **THEN** the callout shows with "Get devnet SOL" and Test is off
 
 ### Requirement: Call history sits beside the form on a wide stage
 When the Interact stage is at least 40rem wide, the `ready` surface SHALL show
@@ -119,8 +119,9 @@ SHALL NOT show a history section before the first call.
 
 ### Requirement: Instruction cards fold on their own
 The stage SHALL show one card per IDL instruction, in IDL order, drawn as
-client-v2-stages describes (head with the name and "n args · n accounts",
-"Arguments" and "Accounts" groups, one row ending in Test). Each card SHALL
+the client-v2-stages capability on foundation master describes it: a head with
+the name and "n args · n accounts", "Arguments" and "Accounts" groups, and one
+row ending in Test. Each card SHALL
 fold on its own, so several may be open at once, and every card SHALL be
 folded on arrival. Which cards are open SHALL survive a re-render.
 

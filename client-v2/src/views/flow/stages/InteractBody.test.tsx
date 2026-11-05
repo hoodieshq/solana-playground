@@ -243,6 +243,45 @@ describe("InteractBody", () => {
     expect(screen.queryByRole("region", { name: "Call result" })).toBeNull();
   });
 
+  it("keeps each card's own result when two tests settle out of order", async () => {
+    const settle: Record<string, (o: unknown) => void> = {};
+    h.runCall.mockImplementation(
+      (ix: { name: string }) =>
+        new Promise((resolve) => (settle[ix.name] = resolve))
+    );
+    render(
+      wrap(
+        <InteractBody
+          idl={idl("initialize", "increment")}
+          programId="P"
+          cluster="devnet"
+        />
+      )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "initialize" }));
+    fireEvent.click(screen.getByRole("button", { name: "increment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Test initialize" }));
+    fireEvent.click(screen.getByRole("button", { name: "Test increment" }));
+    const outcome = (instruction: string) => ({
+      instruction,
+      ok: true,
+      signature: `sig-${instruction}`,
+      logs: [],
+      failingLine: undefined,
+    });
+    await act(async () => settle.increment(outcome("increment")));
+    await act(async () => settle.initialize(outcome("initialize")));
+
+    expect(screen.getAllByRole("region", { name: "Call result" })).toHaveLength(
+      2
+    );
+    for (const name of ["initialize", "increment"]) {
+      const result = screen.getByTestId(`card ${name}`).parentElement
+        ?.nextElementSibling;
+      expect(result?.textContent).toContain(name);
+    }
+  });
+
   it("keeps a Call history column beside the cards before the first call", () => {
     render(
       wrap(

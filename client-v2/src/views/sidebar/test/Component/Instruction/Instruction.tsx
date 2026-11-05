@@ -3,6 +3,7 @@ import {
   ReactNode,
   useCallback,
   useEffect,
+  useId,
   useReducer,
   useState,
 } from "react";
@@ -276,17 +277,24 @@ const heldBecause = ({
   return undefined;
 };
 
-/** One kind of input under the instruction, named once above its fields */
+/**
+ * One kind of input under the instruction, named once above its fields. The
+ * name labels a group, not a heading: the card's head is a button, so a
+ * heading here would skip a level in the page's outline
+ */
 const Group = ({
   title,
   children,
-}: React.PropsWithChildren<{ title: string }>) => (
-  <section className="flex flex-col gap-3">
-    <h4 className="m-0 text-caption font-medium text-muted-foreground">
-      {title}
-    </h4>
-    {children}
-  </section>
-);
+}: React.PropsWithChildren<{ title: string }>) => {
+  const id = useId();
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-3">
+      <p id={id} className="m-0 text-caption font-medium text-muted-foreground">
+        {title}
+      </p>
+      {children}
+    </section>
+  );
+};
 
 export default Instruction;
