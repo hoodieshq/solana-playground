@@ -1,4 +1,4 @@
-import { createLogger } from "@/shared/lib/logger";
+import { createLogger, toError } from "@/shared/lib/logger";
 
 import { PgSession } from "../../features/auth";
 import {
@@ -36,10 +36,10 @@ import {
 
 const log = createLogger("commands:deploy");
 
-const reclaimRejectedLineFor = (closeBuffersCommand: string) =>
-  `${PgTerminal.error(
-    "Reclaim rejected."
-  )} Run \`${closeBuffersCommand}\` to close unused buffer accounts and reclaim SOL.`;
+const reclaimRejectedLineFor = (readBufferUrl: string | undefined) =>
+  `${PgTerminal.error("Reclaim rejected.")} Run \`${closeBuffersCommandFor(
+    readBufferUrl
+  )}\` to close unused buffer accounts and reclaim SOL.`;
 
 export const deploy = createCmd({
   name: "deploy",
@@ -235,9 +235,8 @@ const processDeploy = async (
   const connection = PgConnection.current;
   // The platform RPC does not return fresh buffers
   const bufferConnection = PgConnection.getReadBufferConnection(connection);
-  const closeBuffersCommand = closeBuffersCommandFor(
-    bufferConnection === connection ? undefined : bufferConnection.rpcEndpoint
-  );
+  const readBufferUrl =
+    bufferConnection === connection ? undefined : bufferConnection.rpcEndpoint;
   const onChain = PgProgramInfo.onChain;
   if (!onChain) throw new Error("Failed to get on-chain program info");
   const programExists = onChain.deployed;
@@ -489,7 +488,10 @@ const processDeploy = async (
     } catch (e) {
       // The line names the buffer, the SOL it holds and how to reclaim it
       // by hand
-      log.error(e, { report: true, context: { action } });
+      log.error(e, {
+        report: true,
+        context: { action, buffer: bufferAddress },
+      });
       const lamports = await keptLamportsOn(bufferConnection)(
         bufferKp.publicKey
       );
@@ -505,7 +507,7 @@ const processDeploy = async (
           state: "kept",
           address: bufferAddress,
           sol,
-          command: closeBuffersCommand,
+          readBufferUrl,
         };
       }
     }
@@ -527,10 +529,22 @@ const processDeploy = async (
    */
   const offerReclaim = async (heading: string, action: string) => {
     const term = await PgTerminal.get();
-    const shouldCloseBufferAccount = await term.waitForInput(
-      `${heading} Would you like to close the buffer account and reclaim SOL?`,
-      { confirm: true, default: "yes" }
-    );
+    // A stop while the question is open answers it, as "no" would
+    const answerNo = () => {
+      term.executeFromStr("no").catch((e: unknown) => {
+        log.error(e, { context: { action: "answer the reclaim on stop" } });
+      });
+    };
+    signal.addEventListener("abort", answerNo, { once: true });
+    let shouldCloseBufferAccount;
+    try {
+      shouldCloseBufferAccount = await term.waitForInput(
+        `${heading} Would you like to close the buffer account and reclaim SOL?`,
+        { confirm: true, default: "yes" }
+      );
+    } finally {
+      signal.removeEventListener("abort", answerNo);
+    }
     isBufferSettled = true;
     let msg;
     if (shouldCloseBufferAccount) {
@@ -541,10 +555,33 @@ const processDeploy = async (
           ? bufferLeftLine(left)
           : PgTerminal.success("Reclaim successful.");
     } else {
-      msg = reclaimRejectedLineFor(closeBuffersCommand);
+      msg = reclaimRejectedLineFor(readBufferUrl);
     }
 
     term.println(msg);
+  };
+
+  /**
+   * After a failed load: a caller with its own answers (the Deploy stage)
+   * shows no terminal question, so its buffer is closed unasked, and a buffer
+   * it could not close is named in the error the stage shows
+   * @returns the error the load fails with
+   */
+  const reclaimAfterFailedLoad = async (loadError: unknown) => {
+    const heading = PgTerminal.error("Writing the program failed.");
+    if (!PgDeployRun.answers) {
+      await offerReclaim(heading, "close the buffer after a failed load");
+      return loadError;
+    }
+    isBufferSettled = true;
+    const left = await closeOrKeep("close the buffer after a failed load");
+    if (left.state !== "kept") {
+      PgTerminal.println(`${heading} ${PgTerminal.success("Reclaim successful.")}`);
+      return loadError;
+    }
+    return new Error(`${toError(loadError).message} ${bufferLeftLine(left)}`, {
+      cause: loadError,
+    });
   };
 
   /**
@@ -570,7 +607,7 @@ const processDeploy = async (
           bufferLeftLine({
             state: "unknown",
             address: bufferAddress,
-            command: closeBuffersCommand,
+            readBufferUrl,
           })
         );
         return;
@@ -646,21 +683,22 @@ const processDeploy = async (
       }
     ).catch(async (e: unknown) => {
       if (signal.aborted) throw await stopWithBuffer();
-      // The buffer already holds the program's rent: offer it back before the
+      // The buffer already holds the program's rent: give it back before the
       // load's failure stands
+      let failure = e;
       try {
-        await offerReclaim(
-          PgTerminal.error("Writing the program failed."),
-          "close the buffer after a failed load"
-        );
+        failure = await reclaimAfterFailedLoad(e);
       } catch (closing) {
         // An unsettled buffer is still closed by the failure close
         log.error(closing, {
           report: true,
-          context: { action: "close the buffer after a failed load" },
+          context: {
+            action: "close the buffer after a failed load",
+            buffer: bufferAddress,
+          },
         });
       }
-      throw e;
+      throw failure;
     });
     if (loadBufferResult.cancelled) {
       // Stopped: no questions, the buffer is closed

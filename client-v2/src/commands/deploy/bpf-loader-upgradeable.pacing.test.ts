@@ -27,10 +27,16 @@ const chain = vi.hoisted(() => ({
   bufferReads: 0,
   /** What `PgConnection.getSendTxPerSecond` returns, as the env would set it */
   sendTxPerSecond: undefined as number | undefined,
+  /** Every buffer read throws, as from a read-buffer RPC that is down */
+  readFails: false,
+  /** Sends are accepted but never reach the buffer */
+  dropsWrites: false,
   current: { rpcEndpoint: "https://rpc.test", commitment: "confirmed" },
   readBufferRpc: {
+    rpcEndpoint: "https://read.test/?api-key=secret",
     getAccountInfo: async () => {
       chain.bufferReads++;
+      if (chain.readFails) throw new Error("connection refused");
       chain.landsLeft = chain.landsPerRead;
       return { data: Buffer.from(chain.data) };
     },
@@ -50,7 +56,6 @@ vi.mock("../../utils", () => ({
           rej(new DOMException("Aborted", "AbortError"));
         });
       }),
-    tryUntilSuccess: <T>(cb: () => Promise<T>) => cb(),
   },
   PgConnection: {
     current: chain.current,
@@ -74,7 +79,7 @@ vi.mock("../../utils", () => ({
       if (chain.failures-- > 0 || chain.landsLeft-- <= 0) {
         throw chain.failWith();
       }
-      ix.bytes.copy(chain.data, 37 + ix.offset);
+      if (!chain.dropsWrites) ix.bytes.copy(chain.data, 37 + ix.offset);
       return "sig";
     },
     simulate: async () => ({ unitsConsumed: 1 }),
@@ -121,6 +126,8 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     chain.sentThrough = [];
     chain.bufferReads = 0;
     chain.sendTxPerSecond = undefined;
+    chain.readFails = false;
+    chain.dropsWrites = false;
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -139,8 +146,9 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
     }
   });
 
-  it("pauses longer after each failed send that is not a 429, and no longer once one lands", async () => {
+  it("pauses longer after each send that fails for a reason other than a rate limit, and no longer once one lands", async () => {
     chain.failures = 2;
+    chain.failWith = () => new Error("Blockhash not found");
 
     const sentAt = await loadWith(
       { loadConcurrency: 1, writesPerSecond: 1000 },
@@ -190,6 +198,19 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
       failWith: fetchFailed,
       writesPerSecond: 8,
       gapAfter: 250,
+    },
+    {
+      label: "keeps the rate after a write the RPC refused",
+      failWith: (): Error => new Error("Blockhash not found"),
+      writesPerSecond: 8,
+      gapAfter: 125,
+    },
+    {
+      label: "keeps the rate after a TypeError that is not a failed fetch",
+      failWith: (): Error =>
+        new TypeError("Cannot read properties of undefined"),
+      writesPerSecond: 8,
+      gapAfter: 125,
     },
   ])("$label", async ({ failWith, writesPerSecond, gapAfter }) => {
     chain.failures = 1;
@@ -309,5 +330,113 @@ describe("commands/deploy/bpf-loader-upgradeable", () => {
 
     await expect(loading).resolves.toBeUndefined();
     expect(chain.sentAt).toHaveLength(1);
+  });
+
+  it("returns without a throw when stopped during a rate-limit wait", async () => {
+    chain.failures = 1;
+    chain.failWith = rateLimited;
+    const bytes = new Uint8Array(2 * CHUNK_SIZE).fill(1);
+    chain.data = Buffer.alloc(METADATA_SIZE + bytes.length);
+    const abortController = new AbortController();
+    setTimeout(() => abortController.abort(), 5000);
+
+    const loading = BpfLoaderUpgradeable.loadBuffer({} as never, bytes, {
+      loadConcurrency: 1,
+      abortController,
+    });
+    // Attached before the timers run, so a rejection is never unhandled
+    const settled = expect(loading).resolves.toBeUndefined();
+    await vi.runAllTimersAsync();
+    await settled;
+  });
+
+  it("stops the other workers' sends after one write is rate-limited", async () => {
+    chain.failures = 1;
+    chain.failWith = rateLimited;
+
+    const sentAt = await loadWith(
+      { loadConcurrency: 4, writesPerSecond: 1000 },
+      12
+    );
+
+    // The first send is refused; the three in flight land, and nothing more goes before the wait
+    expect(sentAt.filter((t) => t - sentAt[0] < 10_000)).toHaveLength(4);
+  });
+
+  it("keeps a send cap below one write per second after a rate limit", async () => {
+    chain.sendTxPerSecond = 0.5;
+    chain.failures = 1;
+    chain.failWith = rateLimited;
+
+    const sentAt = await loadWith(
+      { loadConcurrency: 1, writesPerSecond: 4 },
+      3
+    );
+
+    expect(sentAt[2] - sentAt[1]).toBe(2000);
+  });
+
+  it("gives up on a read-buffer RPC that does not answer, naming it and logging the first failure", async () => {
+    const logged = memoryProvider();
+    initLogger({ providers: [logged] });
+    chain.readFails = true;
+    const bytes = new Uint8Array(2 * CHUNK_SIZE).fill(1);
+    chain.data = Buffer.alloc(METADATA_SIZE + bytes.length);
+
+    const loading = BpfLoaderUpgradeable.loadBuffer({} as never, bytes, {
+      loadConcurrency: 1,
+    });
+    const failure = expect(loading).rejects.toThrow(
+      "Could not read the buffer account from the read-buffer RPC (read.test) in 30 attempts"
+    );
+    await vi.runAllTimersAsync();
+    await failure;
+
+    expect(
+      logged.entries.map(({ level, context }) => ({ level, context }))
+    ).toEqual([
+      {
+        level: "warn",
+        context: { endpoint: "read.test", error: "connection refused" },
+      },
+    ]);
+  });
+
+  it("fails a stalled load with the last refusal as its cause, and logs the refusals at warn", async () => {
+    const logged = memoryProvider();
+    initLogger({ providers: [logged] });
+    chain.landsPerRead = 0;
+    const refusal = new Error("Insufficient funds for fee");
+    chain.failWith = () => refusal;
+    const bytes = new Uint8Array(2 * CHUNK_SIZE).fill(1);
+    chain.data = Buffer.alloc(METADATA_SIZE + bytes.length);
+
+    const loading = BpfLoaderUpgradeable.loadBuffer({} as never, bytes, {
+      loadConcurrency: 1,
+    });
+    const failure = loading.catch((e: unknown) => e);
+    await vi.runAllTimersAsync();
+    const error = (await failure) as Error;
+
+    expect(error.message).toBe(
+      "The RPC kept refusing buffer writes: no chunk landed in 5 rounds in a row (last refusal: Insufficient funds for fee)"
+    );
+    expect(error.cause).toBe(refusal);
+    expect(logged.entries.map(({ level }) => level)).toEqual(["warn"]);
+  });
+
+  it("says writes were accepted but never landed when no send was refused", async () => {
+    chain.dropsWrites = true;
+    const bytes = new Uint8Array(2 * CHUNK_SIZE).fill(1);
+    chain.data = Buffer.alloc(METADATA_SIZE + bytes.length);
+
+    const loading = BpfLoaderUpgradeable.loadBuffer({} as never, bytes, {
+      loadConcurrency: 1,
+    });
+    const failure = expect(loading).rejects.toThrow(
+      "The RPC accepted buffer writes that never landed: no chunk landed in 5 rounds in a row"
+    );
+    await vi.runAllTimersAsync();
+    await failure;
   });
 });
