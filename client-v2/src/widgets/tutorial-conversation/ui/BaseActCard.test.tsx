@@ -250,3 +250,35 @@ describe("BaseActCard, a deploy under way", () => {
     expect(screen.getByText("1 of 3")).toBeTruthy();
   });
 });
+
+describe("BaseActCard, a call that takes a name", () => {
+  const HELLO: ActBeat = {
+    kind: "act",
+    id: "s3.hello",
+    act: "call",
+    title: "Say hello",
+    context: "Sends hello",
+    button: "Say hello",
+    call: { instruction: "hello", args: ["name"] },
+  };
+
+  it("keeps the button beside the field on a narrow card, never the row's width", () => {
+    render(
+      <BaseActCard
+        act={HELLO}
+        state="live"
+        presses={[]}
+        note={null}
+        stage={null}
+        took={null}
+        disabled={false}
+        onRun={() => {}}
+      />
+    );
+    const field = screen.getByRole("textbox", { name: "name" });
+    const button = screen.getByRole("button", { name: /Say hello/ });
+    // The row does not wrap: a full-width button would squeeze the field to nothing
+    expect(field.parentElement?.contains(button)).toBe(true);
+    expect(button.className).not.toContain("w-full");
+  });
+});
