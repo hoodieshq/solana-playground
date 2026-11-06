@@ -1,8 +1,9 @@
 /**
  * A failed call's error as the result card names it, when the program wrote
  * no log line to show instead: `<ErrorName> · error <code>` for a program's
- * own error, `<ErrorName> · <the cluster's sentence>` for a transaction the
- * runtime refused. web3's own wording (its advice to catch the exception and
+ * own error, and the cluster's sentence alone for a transaction the runtime
+ * refused, which has no code (Almaz's SPEC.md, as Design alignment settled
+ * it on 6 Nov). web3's own wording (its advice to catch the exception and
  * call `getLogs()`) never reaches the card.
  */
 
@@ -11,31 +12,6 @@ export interface IdlError {
   code: number;
   name: string;
 }
-
-/**
- * The runtime's sentences for a refused transaction, as Agave's
- * `TransactionError` prints them, mapped to the variant's name. The RPC's
- * preflight answer carries only the sentence, and web3 drops the variant.
- */
-const TRANSACTION_ERRORS: Array<[RegExp, string]> = [
-  [
-    /^Attempt to debit an account but found no record of a prior credit/,
-    "AccountNotFound",
-  ],
-  [/^Insufficient funds for fee/, "InsufficientFundsForFee"],
-  [/^Account in use/, "AccountInUse"],
-  [/^Account loaded twice/, "AccountLoadedTwice"],
-  [/^Attempt to load a program that does not exist/, "ProgramAccountNotFound"],
-  [
-    /^This account may not be used to pay transaction fees/,
-    "InvalidAccountForFee",
-  ],
-  [/^This transaction has already been processed/, "AlreadyProcessed"],
-  [/^Blockhash not found/, "BlockhashNotFound"],
-  [/^Transaction did not pass signature verification/, "SignatureFailure"],
-  [/insufficient funds for rent/, "InsufficientFundsForRent"],
-  [/^Error processing Instruction \d+: /, "InstructionError"],
-];
 
 const CUSTOM = /custom program error: 0x([0-9a-f]+)/i;
 
@@ -63,9 +39,7 @@ export const namedSendErrorWith =
     const custom = CUSTOM.exec(message);
     if (custom) return programError(Number.parseInt(custom[1], 16), idlErrors);
 
-    const sentence = sentenceOf(message);
-    const name = TRANSACTION_ERRORS.find(([re]) => re.test(sentence))?.[1];
-    return name ? `${name} · ${sentence}` : sentence;
+    return sentenceOf(message);
   };
 
 /**
@@ -91,6 +65,17 @@ export const namedTxErrorWith =
     return name;
   };
 
+/**
+ * The terminal's line for a failed call, as Almaz's terminal bar draws it:
+ * `Failed · ` and the failing line, a sentence in lower case after the dot.
+ * A program's log line and an error's name keep their case.
+ */
+export const terminalFailure = (failingLine: string | undefined) => {
+  const line = failingLine ?? "no reason given";
+  const sentence = /^[A-Z][a-z]* [a-z]/.test(line) && !/^Program /.test(line);
+  return `Failed · ${sentence ? line[0].toLowerCase() + line.slice(1) : line}`;
+};
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -109,7 +94,7 @@ if (import.meta.vitest) {
 
   describe("views/flow/stages/call-error", () => {
     describe("namedSendError", () => {
-      it("names a debit with no prior credit, in the cluster's words", () => {
+      it("shows a refusal with no code in the cluster's words alone", () => {
         expect(
           namedSendError(
             preflight(
@@ -117,7 +102,7 @@ if (import.meta.vitest) {
             )
           )
         ).toBe(
-          "AccountNotFound · Attempt to debit an account but found no record of a prior credit"
+          "Attempt to debit an account but found no record of a prior credit"
         );
       });
 
@@ -141,7 +126,7 @@ if (import.meta.vitest) {
         ).toBe("Custom · error 1");
       });
 
-      it("keeps the cluster's sentence for an error it cannot name", () => {
+      it("drops the RPC's preamble from any sentence", () => {
         expect(
           namedSendError(
             preflight("Transaction simulation failed: Something new")
@@ -164,6 +149,27 @@ if (import.meta.vitest) {
           namedSendError(new Error("Wallet not connected"))
         ).toBeUndefined();
         expect(namedSendError({})).toBeUndefined();
+      });
+    });
+
+    describe("terminalFailure", () => {
+      it("writes a sentence in lower case after the dot", () => {
+        expect(
+          terminalFailure(
+            "Attempt to debit an account but found no record of a prior credit"
+          )
+        ).toBe(
+          "Failed · attempt to debit an account but found no record of a prior credit"
+        );
+      });
+
+      it("keeps an error's name and a log line as they are", () => {
+        expect(terminalFailure("NotEnoughEnergy · error 6000")).toBe(
+          "Failed · NotEnoughEnergy · error 6000"
+        );
+        expect(terminalFailure("Program log: Error Code: X.")).toBe(
+          "Failed · Program log: Error Code: X."
+        );
       });
     });
 

@@ -162,7 +162,10 @@ describe("runCall", () => {
     const outcome = await runCall(IX);
 
     expect(outcome.failingLine).toBe(
-      "AccountNotFound · Attempt to debit an account but found no record of a prior credit"
+      "Attempt to debit an account but found no record of a prior credit"
+    );
+    expect(h.println).toHaveBeenCalledWith(
+      "Failed · attempt to debit an account but found no record of a prior credit"
     );
     expect(PgCallHistory.list("P", "devnet")[0].failingLine).toBe(
       outcome.failingLine

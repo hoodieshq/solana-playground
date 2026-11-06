@@ -20,6 +20,7 @@ import {
   type IdlError,
   namedSendErrorWith,
   namedTxErrorWith,
+  terminalFailure,
 } from "./call-error";
 import type { CallOutcome } from "./call-outcome";
 import { failingLineWith } from "./call-outcome";
@@ -175,7 +176,7 @@ export const runCall = async (
     print(
       outcome.ok
         ? PgTerminal.success("Call succeeded.")
-        : PgTerminal.error(`Call failed: ${outcome.failingLine}`)
+        : PgTerminal.error(terminalFailure(outcome.failingLine))
     );
     if (programId && cluster) {
       PgCallHistory.add({
