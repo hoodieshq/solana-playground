@@ -8,8 +8,13 @@ import {
   requestDoc,
   slugOf,
 } from "@/entities/tutorial";
-import type { ConversationState } from "@/features/tutorial-conversation";
+import { PgSession, useSignedIn } from "@/features/auth";
+import type {
+  ConversationState,
+  RunResult,
+} from "@/features/tutorial-conversation";
 import {
+  isSignedOut,
   isUnreachable,
   judgeGoal,
   PgCallPanel,
@@ -396,6 +401,31 @@ const createWallet = (beatId: string) => {
   PgConversation.act(beatId);
 };
 
+/**
+ * "Sign in with GitHub" on a build the server refused for sign-in: GitHub in
+ * a popup, so the page and the step stay where they are; once signed in the
+ * card offers Build (HOO-2661)
+ */
+const signIn = () => PgSession.signIn();
+
+/** Where a sign-in ⌘↵ started and could not finish is told */
+const signInFailed = reportButtonFailure("sign in");
+
+/**
+ * ⌘↵ on an open result: the card's one way on. A build server that never
+ * answered builds again; a refusal for sign-in signs in, or builds once
+ * someone is; any other failure is explained.
+ */
+const pressResult = (beatId: string, result: RunResult) => {
+  if (isUnreachable(result) || (isSignedOut(result) && PgSession.get())) {
+    PgConversation.act(beatId);
+  } else if (isSignedOut(result)) {
+    signIn().catch(signInFailed);
+  } else {
+    PgConversation.explain(beatId);
+  }
+};
+
 /** Where a copy the clipboard refused is told */
 const copyFailed = reportButtonFailure("copy it");
 
@@ -482,6 +512,7 @@ const handlers: Omit<
   keep: (id) => PgConversation.keep(id),
   showLog: () => PgConversation.showLog(),
   createWallet,
+  signIn,
 };
 
 /**
@@ -571,9 +602,7 @@ export const TutorialConversation = ({
         PgConversation.act(live.beatId);
       } else if (live?.kind === "result" && live.open) {
         e.preventDefault();
-        // A build server that never answered has nothing to explain
-        if (isUnreachable(live.result)) PgConversation.act(live.beatId);
-        else PgConversation.explain(live.beatId);
+        pressResult(live.beatId, live.result);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -617,6 +646,8 @@ export const TutorialConversation = ({
   const layout = useMemo(() => phoneLayoutOf(viewport), [viewport]);
   const phone = layout.phone;
   onPhone.current = phone;
+  // Until the session read answers, a refused build offers the sign-in
+  const signedIn = useSignedIn() ?? false;
   useLockedPreview(state, phone);
   const on = useMemo<TurnHandlers>(
     () => ({
@@ -713,6 +744,7 @@ export const TutorialConversation = ({
             read={read}
             nextTutorial={nextTutorial}
             programId={PgProgramInfo.pk?.toBase58() ?? null}
+            signedIn={signedIn}
             on={on}
           />
         )}
