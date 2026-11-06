@@ -13,21 +13,26 @@ const NETWORKS: ReadonlyArray<{
   label: string;
   endpoint: string;
   line: string;
+  /** A deploy spends real money: the line's dot turns amber */
+  realSol: boolean;
 }> = [
   {
     label: "Devnet",
     endpoint: Endpoint.DEVNET,
     line: "Deploys with free devnet SOL",
+    realSol: false,
   },
   {
     label: "Testnet",
     endpoint: Endpoint.TESTNET,
     line: "Deploys with free testnet SOL",
+    realSol: false,
   },
   {
     label: "Localnet",
     endpoint: Endpoint.LOCALNET,
     line: "Deploys with your local SOL",
+    realSol: false,
   },
   ...PLATFORM_ENDPOINTS.map(({ name, value, cluster }) => ({
     label: name,
@@ -36,11 +41,13 @@ const NETWORKS: ReadonlyArray<{
       cluster === "mainnet-beta"
         ? REAL_SOL
         : `Deploys with free ${cluster} SOL`,
+    realSol: cluster === "mainnet-beta",
   })),
   {
     label: "Mainnet Beta",
     endpoint: Endpoint.MAINNET_BETA,
     line: REAL_SOL,
+    realSol: true,
   },
 ];
 
@@ -94,14 +101,7 @@ const BaseNetworkChoice = ({
       {listed && (
         // The card's foot: how a deploy works here, amber where SOL is real
         <p className="flex items-center gap-2 bg-surface-raised/50 px-4 py-2.5 text-xs text-muted-foreground max-md:text-caption max-md:font-read">
-          <StatusDot
-            variant={
-              listed.endpoint === Endpoint.MAINNET_BETA ||
-              listed.line.includes("real")
-                ? "warning"
-                : "success"
-            }
-          />
+          <StatusDot variant={listed.realSol ? "warning" : "success"} />
           {listed.line}
         </p>
       )}

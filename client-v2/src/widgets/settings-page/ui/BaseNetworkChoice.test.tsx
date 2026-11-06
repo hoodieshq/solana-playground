@@ -103,7 +103,10 @@ describe("BaseNetworkChoice", () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 
-  it.each([["Enter", "{Enter}"], ["Space", " "]])(
+  it.each([
+    ["Enter", "{Enter}"],
+    ["Space", " "],
+  ])(
     "moves onto Custom with the arrows without asking for a URL, and asks on %s",
     async (_, key) => {
       const onPick = vi.fn();
@@ -140,7 +143,9 @@ describe("BaseNetworkChoice", () => {
     );
     const line = screen.getByText("Deploys with real SOL");
     expect(
-      line.querySelector('[data-slot="status-dot"]')?.getAttribute("data-variant")
+      line
+        .querySelector('[data-slot="status-dot"]')
+        ?.getAttribute("data-variant")
     ).toBe("warning");
   });
 
@@ -154,7 +159,9 @@ describe("BaseNetworkChoice", () => {
     );
     const line = screen.getByText("Deploys with free devnet SOL");
     expect(
-      line.querySelector('[data-slot="status-dot"]')?.getAttribute("data-variant")
+      line
+        .querySelector('[data-slot="status-dot"]')
+        ?.getAttribute("data-variant")
     ).toBe("success");
   });
 
