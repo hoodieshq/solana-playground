@@ -832,6 +832,46 @@ describe("writes past a project limit", () => {
       ).rejects.toThrow("A project can be at most 512 KB.");
       expect(storedFiles().has("/alpha/notes.md")).toBe(false);
     });
+
+    it("counts a dot-named user file only the store holds toward the project size", async () => {
+      // 524,000 bytes of user files: 288 bytes under the limit
+      await PgExplorer.createWorkspace("alpha", {
+        files: Array.from({ length: 4 }, (_, i) => [
+          `/alpha/src/f${i}.rs`,
+          "a".repeat(131_000),
+        ]),
+      });
+      // As an import or another device writes it: `isItemNameValid` keeps
+      // it out of the explorer's file map, yet sync uploads it
+      await PgExplorer.fs.writeFile("/alpha/.github/ci.yml", "a".repeat(200), {
+        createParents: true,
+      });
+
+      const refused = PgExplorer.createItem("notes.md", "a".repeat(100));
+      await expect(refused).rejects.toThrow("A project can be at most 512 KB.");
+      await expect(refused).rejects.toMatchObject({
+        limit: { reason: "project-too-large", limit: 524_288 },
+      });
+      expect(storedFiles().has("/alpha/notes.md")).toBe(false);
+    });
+
+    it("leaves the workspace's local state out of the project size", async () => {
+      await PgExplorer.createWorkspace("alpha", {
+        files: Array.from({ length: 4 }, (_, i) => [
+          `/alpha/src/f${i}.rs`,
+          "a".repeat(131_000),
+        ]),
+      });
+      // Which tabs are open: local, never synced
+      await PgExplorer.fs.writeFile(
+        "/alpha/.workspace/metadata.json",
+        "a".repeat(200),
+        { createParents: true }
+      );
+
+      await PgExplorer.createItem("notes.md", "a".repeat(100));
+      expect(storedFiles().has("/alpha/notes.md")).toBe(true);
+    });
   });
 
   describe("renaming", () => {
