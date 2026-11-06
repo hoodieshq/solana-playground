@@ -283,14 +283,16 @@ describe("deploy run", () => {
     // The extend's confirmation reports an error, so the probe decides
     vi.mocked(PgTx.confirm).mockResolvedValueOnce({ err: "timeout" } as never);
 
+    let result;
     try {
-      await handleDeploy();
+      result = await handleDeploy();
     } finally {
       restore();
       Object.assign(start, { getAccountInfo: read });
     }
 
     expect(BpfLoaderUpgradeable.extendProgram).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ signature: "sig-upgrade", upgraded: true });
   });
 
   it("asks no faucet when the network changed since the run started", async () => {

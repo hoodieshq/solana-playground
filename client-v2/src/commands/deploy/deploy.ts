@@ -377,10 +377,12 @@ const processDeploy = async (
   // results in `Program was deployed in this block already` error.
   if (additionalLen > 0) {
     throwIfStopped(signal, deployStoppedLine({ state: "none" }));
+    const programPk = PgProgramInfo.pk;
+    if (!programPk) throw new Error("The program ID was not found");
     await sendAndConfirmTxWithRetries(
       async () => {
         return await BpfLoaderUpgradeable.extendProgram(
-          PgProgramInfo.pk!,
+          programPk,
           additionalLen,
           { wallet: pgWallet, connection }
         );
@@ -390,7 +392,7 @@ const processDeploy = async (
         additionalProgramLen({
           programLen,
           deployed: true,
-          onChainLen: await programDataLenOn(connection)(PgProgramInfo.pk!),
+          onChainLen: await fetchProgramDataLenOn(connection)(programPk),
         }) <= 0
     );
   }
@@ -608,7 +610,7 @@ const processDeploy = async (
  * The length of a program's data account on `connection`, or `undefined` when
  * the program or its data account is not there
  */
-const programDataLenOn =
+const fetchProgramDataLenOn =
   (connection: PgWeb3.Connection) => async (programPk: PgWeb3.PublicKey) => {
     const program = await connection.getAccountInfo(programPk);
     if (!program) return undefined;
