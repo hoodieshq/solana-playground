@@ -857,6 +857,26 @@ describe("writes past a project limit", () => {
       });
     });
 
+    it("refuses a file rename that pushes its path over 256 characters", async () => {
+      // `src/` + 249 + `.rs` is 256 code points, at the limit; one more is 257
+      const file = `${"n".repeat(249)}.rs`;
+      await PgExplorer.createWorkspace("alpha", {
+        files: [
+          ["/alpha/src/lib.rs", ""],
+          [`/alpha/src/${file}`, "x"],
+        ],
+      });
+
+      await expect(
+        PgExplorer.renameItem(`/alpha/src/${file}`, `/alpha/src/${file}n`)
+      ).rejects.toThrow("A file path can be at most 256 characters.");
+      expect(storedFiles().get(`/alpha/src/${file}`)).toBe("x");
+      expect(refusals()[0].params).toEqual({
+        action: "rename",
+        limit: "path",
+      });
+    });
+
     it("renames the open workspace whatever its name's length", async () => {
       // A workspace's name is not part of any path sync carries: a file 250
       // code points from the root stays 250 under a 20-character name
