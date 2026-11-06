@@ -25,28 +25,33 @@ const dot = () =>
 
 describe("BaseAssistantStatus", () => {
   it.each([
-    [
-      "checking",
-      "Checking",
-      "Asking whether the hosted model answers.",
-      "running",
-    ],
-    ["present", "Ready", "Hosted model. No key needed.", "success"],
-    [
-      "absent",
-      "Not offered",
-      "This build has no hosted model. The assistant asks for a key.",
-      "idle",
-    ],
-    [
-      "unreachable",
-      "Not answering",
-      "The hosted model is not answering. The assistant asks for a key.",
-      "warning",
-    ],
+    {
+      hosted: "checking",
+      word: "Checking",
+      help: "Asking whether the hosted model answers.",
+      variant: "running",
+    },
+    {
+      hosted: "present",
+      word: "Ready",
+      help: "Hosted model. No key needed.",
+      variant: "success",
+    },
+    {
+      hosted: "absent",
+      word: "Not offered",
+      help: "This build has no hosted model. The assistant asks for a key.",
+      variant: "idle",
+    },
+    {
+      hosted: "unreachable",
+      word: "Not answering",
+      help: "The hosted model is not answering. The assistant asks for a key.",
+      variant: "warning",
+    },
   ] as const)(
-    "reads %s online as %s, with its help line",
-    (hosted, word, help, variant) => {
+    "reads $hosted online as $word, with its help line",
+    ({ hosted, word, help, variant }) => {
       draw(hosted, true);
       expect(screen.getByText(word)).toBeTruthy();
       expect(screen.getByText(help)).toBeTruthy();
