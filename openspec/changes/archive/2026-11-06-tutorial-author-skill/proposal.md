@@ -6,7 +6,7 @@ Cat McGee, on the customer side, is to draft new conversation tutorials with an 
 
 ## What Changes
 
-- A skill, `client-v2/src/tutorials/skill/SKILL.md`: it tells the model to follow `AUTHORING.md` and the schema, and how to hand the draft over. `yarn tutorial:skill` packs it with those two files into `tutorial-author.zip`, which installs in Claude as a skill; for any other LLM the same three files are uploaded as they are. `AUTHORING.md` stays the single source; the repository holds no copy.
+- A skill, `client-v2/src/tutorials/SKILL.md`: it tells the model to follow `AUTHORING.md` and the schema, and how to hand the draft over. `yarn tutorial:skill` packs it with those two files into `tutorial-author.zip`, which installs in Claude as a skill; for any other LLM the same three files are uploaded as they are. `AUTHORING.md` stays the single source; the repository holds no copy.
 - `yarn tutorial:check` refuses a step whose `start` is not the previous step's `target`, file for file.
 - `AUTHORING.md` says how to write a one-time `initialize` (`init_if_needed`, leaving the data alone), and that the thumbnail image is optional for a draft.
 - `DRAFTING.md` becomes the plain how-to for Cat: three steps, the branch that has the files until it lands in `master`.

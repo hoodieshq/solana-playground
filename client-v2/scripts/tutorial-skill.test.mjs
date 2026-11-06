@@ -43,7 +43,12 @@ test("the skill names its two files and no copy of them is kept beside it", () =
   assert.match(text, /^---\nname: tutorial-author\ndescription: \S/);
   assert.match(text, /`AUTHORING\.md`/);
   assert.match(text, /`tutorial\.schema\.json`/);
-  assert.deepEqual(fs.readdirSync(path.dirname(skill)), ["SKILL.md"]);
+  const copies = fs
+    .readdirSync(path.dirname(skill), { recursive: true })
+    .filter((file) =>
+      ["AUTHORING.md", "tutorial.schema.json"].includes(path.basename(file))
+    );
+  assert.deepEqual(copies.sort(), ["AUTHORING.md", "tutorial.schema.json"]);
 });
 
 test("the command writes the zip where it is told", async () => {

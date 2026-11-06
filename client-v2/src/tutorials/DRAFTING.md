@@ -7,7 +7,7 @@ whether Playground can run it. Three steps.
 
 ## 1. Give the LLM the skill
 
-The skill is three files: [`skill/SKILL.md`](skill/SKILL.md),
+The skill is three files: [`SKILL.md`](SKILL.md),
 [`AUTHORING.md`](AUTHORING.md) and
 [`tutorial.schema.json`](tutorial.schema.json). They come packed as
 `tutorial-author.zip`, which the Playground team sends you. Once you have

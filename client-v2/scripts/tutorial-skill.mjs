@@ -19,7 +19,7 @@ export const FOLDER = "tutorial-author";
 
 /** Each file of the skill: its name in the zip and its source */
 export const FILES = [
-  ["SKILL.md", path.join(TUTORIALS, "skill", "SKILL.md")],
+  ["SKILL.md", path.join(TUTORIALS, "SKILL.md")],
   ["AUTHORING.md", path.join(TUTORIALS, "AUTHORING.md")],
   ["tutorial.schema.json", path.join(TUTORIALS, "tutorial.schema.json")],
 ];

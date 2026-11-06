@@ -146,7 +146,7 @@ nothing could then end the card.
 
 ### Requirement: The authoring instruction ships as a skill
 
-The repository SHALL hold a skill, `client-v2/src/tutorials/skill/SKILL.md`, that tells a model to write a tutorial by `AUTHORING.md` and `tutorial.schema.json` and to hand the person a folder the check accepts. It SHALL hold no copy of either file. `yarn tutorial:skill` SHALL pack `SKILL.md`, `AUTHORING.md` and `tutorial.schema.json` into one zip, `tutorial-author.zip`, with the three files in one folder `tutorial-author/`, as Claude installs a skill; uploaded as plain files to any other LLM, the same three files SHALL be enough.
+The repository SHALL hold a skill, `client-v2/src/tutorials/SKILL.md`, that tells a model to write a tutorial by `AUTHORING.md` and `tutorial.schema.json` and to hand the person a folder the check accepts. It SHALL hold no copy of either file. `yarn tutorial:skill` SHALL pack `SKILL.md`, `AUTHORING.md` and `tutorial.schema.json` into one zip, `tutorial-author.zip`, with the three files in one folder `tutorial-author/`, as Claude installs a skill; uploaded as plain files to any other LLM, the same three files SHALL be enough.
 
 #### Scenario: Packing the skill
 - **WHEN** an author runs `yarn tutorial:skill` in `client-v2/`
