@@ -1,6 +1,6 @@
 import {
-  checkFileWrite,
   checkProjectLimits,
+  checkWriteTo,
   limitKind,
   limitRule,
   limitSummary,
@@ -333,15 +333,13 @@ export class PgExplorer {
     const fullPath = this._checkNewItem(path, opts);
 
     // Before anything is written, on the project as the write leaves it
-    // (`checkFileWrite`). A folder holds no bytes and is not counted.
+    // (`checkWriteTo`). A folder holds no bytes and is not counted.
     if (PgExplorer.getItemTypeFromPath(fullPath).file) {
       this._refuseOverLimit(
         "create",
-        checkFileWrite(
-          await this._syncedProjectFiles(),
-          this.getRelativePath(fullPath),
-          content
-        )
+        checkWriteTo(await this._syncedProjectFiles())(
+          this.getRelativePath(fullPath)
+        )(content)
       );
     }
 

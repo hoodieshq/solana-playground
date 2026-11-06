@@ -70,7 +70,7 @@ drift, and the rule "a string two places must agree on is declared once"
 
 `renameItem` and `createWorkspace` (with `files`) build the project's file map
 as it would be after the operation and call `checkProjectLimits` before their
-first write. `PgExplorer.createItem` calls `checkFileWrite` instead, which
+first write. `PgExplorer.createItem` calls `checkWriteTo` instead, which
 judges the written file's own path and size, then the project's file count and
 size as the write leaves them. It judges the result, as the server does, so an
 overwrite that shrinks a file or a project still over its limit is refused: a
@@ -277,7 +277,7 @@ one create per refused project, which succeeds once a place is free.
 
 - [A later change lowers a limit or counts more, and stored projects end up
   over it] → they still restore and open, their next edit raises the banner,
-  and `checkFileWrite` does not refuse the edits that bring them back under.
+  and `checkWriteTo` does not refuse the edits that bring them back under.
   No stored project predates these limits: client-v2 has not reached
   production (2026-11-02).
 - [The generated `program-info.json` holds an IDL and grows with the program]

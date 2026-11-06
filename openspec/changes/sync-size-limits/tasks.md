@@ -50,7 +50,7 @@ the same time once 2.1 has merged.
   re-checking, and each event's parameters asserted through the memory
   provider; and by a `SyncBanner` test rendering each banner text in the spec.
 - [x] 3.2 Refuse explorer writes past a limit (HOO-2418, depends on 2.1):
-  `PgExplorer.createItem` calls `checkFileWrite` (the written file, and the
+  `PgExplorer.createItem` calls `checkWriteTo` (the written file, and the
   project as the write leaves it); `renameItem` and `createWorkspace` call `checkProjectLimits` on the
   project as it would be; each throws the spec's message before any write; `CreateItem.tsx` shows the message instead of a
   boolean error; `CreateItem`, `RenameItem` and the import dialogs put it in
