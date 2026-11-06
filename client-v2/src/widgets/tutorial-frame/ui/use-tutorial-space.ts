@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { onCodeRequest, onDocRequest } from "@/entities/tutorial";
+import { onCodeRequest, onDocShown } from "@/entities/tutorial";
 
 import type { SpaceSource, TutorialSpace } from "../model/telemetry";
 import { tutorialFrameTelemetry } from "../model/telemetry";
@@ -77,11 +77,9 @@ export const useTutorialSpace = ({
   useEffect(() => {
     if (!phone) return;
     const stopCode = onCodeRequest(() => setSpace("code", "show"));
-    const stopDoc = onDocRequest(() => {
-      setSpace("code", "doc");
-      // The workspace's listener says whether the page is shown
-      return false;
-    });
+    // Only once the workspace showed the page: a link to a page it lacks
+    // opens as a link and leaves the chat in view
+    const stopDoc = onDocShown(() => setSpace("code", "doc"));
     return () => {
       stopCode();
       stopDoc();

@@ -53,21 +53,26 @@ describe("useTutorialSpace", () => {
     expect(result.current.space).toBe("code");
   });
 
-  it("switches to Code on a doc request and leaves the answer to the workspace", () => {
+  it("switches to Code once the workspace shows a doc page", () => {
     const { result } = draw(options({}));
-    let shown: boolean | undefined;
-    act(() => {
-      shown = requestDoc("idl.md");
-    });
-    expect(result.current.space).toBe("code");
-    expect(shown).toBe(false);
-
     const stop = onDocRequest(() => true);
+    let shown: boolean | undefined;
     act(() => {
       shown = requestDoc("idl.md");
     });
     stop();
     expect(shown).toBe(true);
+    expect(result.current.space).toBe("code");
+  });
+
+  it("stays on Chat when no workspace has the doc page", () => {
+    const { result } = draw(options({}));
+    let shown: boolean | undefined;
+    act(() => {
+      shown = requestDoc("missing.md");
+    });
+    expect(shown).toBe(false);
+    expect(result.current.space).toBe("chat");
   });
 
   it("marks Code when the assistant writes while Chat shows, and clears it on Code", () => {
