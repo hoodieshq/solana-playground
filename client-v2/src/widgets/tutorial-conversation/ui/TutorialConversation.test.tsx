@@ -68,14 +68,17 @@ vi.mock("@/features/tutorial-conversation", async () => ({
 const session = vi.hoisted(() => ({
   user: undefined as { login: string } | undefined,
   signIn: vi.fn(async () => {}),
+  refresh: vi.fn(async () => {}),
 }));
 vi.mock("@/features/auth", () => ({
   PgSession: {
     get: () => session.user,
     signIn: session.signIn,
+    refresh: session.refresh,
     onDidChange: () => ({ dispose: () => {} }),
   },
   useSignedIn: () => !!session.user,
+  isSignInFailure: () => false,
 }));
 vi.mock("@/views/flow/state/stage", () => ({
   PgFlow: { deployStarted: vi.fn(), deployFinished: vi.fn() },
@@ -1152,6 +1155,7 @@ describe("TutorialConversation keys and the pill", () => {
     it("signs in on ⌘↵ while nobody is signed in", () => {
       session.user = undefined;
       showRefused();
+      expect(session.refresh).not.toHaveBeenCalled();
       press();
       expect(session.signIn).toHaveBeenCalledTimes(1);
       expect(PgConversation.act).not.toHaveBeenCalled();
@@ -1167,6 +1171,9 @@ describe("TutorialConversation keys and the pill", () => {
       press();
       expect(PgConversation.act).toHaveBeenCalledWith("s1.build");
       expect(session.signIn).not.toHaveBeenCalled();
+      // The server refused a browser that thinks it is signed in: the
+      // session is read again, so an expired one turns the card back
+      expect(session.refresh).toHaveBeenCalledTimes(1);
       session.user = undefined;
     });
   });

@@ -124,8 +124,10 @@ const iconTone = (ok: boolean, signedOut: boolean) => {
  * What a run came back with, one shape for build, deploy, run and call. This
  * is the shell: the head, and for a failed build the compiler's line, its
  * location as a link, the definition's line when it plans the failure, and
- * Explain and "I'll fix it myself" while it is open. The run tickets (4.1 to
- * 4.3) fill the bodies each result carries.
+ * Explain and "I'll fix it myself" while it is open. A build that never ran
+ * has one way on instead: Try again when its server did not answer, and
+ * "Sign in with GitHub", then Build, when the server asked for a sign-in.
+ * The run tickets (4.1 to 4.3) fill the bodies each result carries.
  *
  * A run's or call's result is `BaseTxResultCard`'s; a deploy's is
  * `BaseDeployResultCard`'s, which `TurnView` picks for it.
