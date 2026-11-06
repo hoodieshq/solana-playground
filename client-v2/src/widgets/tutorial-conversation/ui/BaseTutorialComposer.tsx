@@ -168,10 +168,7 @@ const BaseTutorialComposer = ({
         }}
         data-open={open || undefined}
         data-waiting={waiting || undefined}
-        className={cn(
-          !open && "flex-row items-center",
-          waiting && "opacity-50 transition-opacity focus-within:opacity-100"
-        )}
+        className={cn(!open && "flex-row items-center")}
       >
         <ComposerInput
           // A 22 px line, not 15 × 1.5: 22.5 made the box half a pixel off.

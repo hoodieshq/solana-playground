@@ -224,15 +224,15 @@ describe("TutorialComposer", () => {
     store.view.mockReturnValue(view("Ask about this step"));
   });
 
-  it("reads greyed before Start until focused, and still takes a question", async () => {
+  it("reads at full strength before Start, and still takes a question", async () => {
     store.state = stateAt("intro");
     store.view.mockReturnValue(view("Ask anything about this tutorial"));
     store.say.mockReturnValue("assistant");
     const t = turn();
     const { container } = render(<Connected turn={t} />);
     const waiting = container.querySelector("[data-waiting]");
-    expect(waiting?.className).toContain("opacity-50");
-    expect(waiting?.className).toContain("focus-within:opacity-100");
+    expect(waiting).not.toBeNull();
+    expect(waiting?.className).not.toContain("opacity-50");
     expect(screen.queryByRole("button", { name: "Start step 1" })).toBeNull();
     expect(box().getAttribute("placeholder")).toBe(
       "Ask anything about this tutorial"

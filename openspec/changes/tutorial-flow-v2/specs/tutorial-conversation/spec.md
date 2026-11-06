@@ -293,8 +293,8 @@ The placeholder SHALL follow the moment: "Ask anything about this tutorial"
 before Start, "Ask about this step", "Or ask about this step" while a
 question is open, "Ask while it builds" while a build or a deploy runs, "Ask
 while it runs" while a run or a call goes, and "Ask anything" after the
-finish. Before Start the composer SHALL read
-greyed until it takes focus, still taking a question or a start word. Once
+finish. Before Start the composer SHALL read at full strength, as at any
+other moment, taking a question or a start word. Once
 the assistant has answered a question before Start, the composer SHALL
 suggest starting, "Ready to start the lesson?", with a "Start step 1" button
 that starts the lesson as the intro card's does. Both lift on Start. During the
@@ -348,7 +348,7 @@ assistant MAY link one of the tutorial's doc pages in its answer (see
 #### Scenario: A question before Start
 
 - **WHEN** a learner on the intro card types "what is a PDA?"
-- **THEN** the composer read greyed until focused, with the placeholder
+- **THEN** the composer read at full strength, with the placeholder
   "Ask anything about this tutorial", and no "Start step 1" button
 - **AND** the assistant's answer posts in the feed, after which the composer
   suggests starting, with a "Start step 1" button
