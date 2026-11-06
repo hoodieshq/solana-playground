@@ -23,6 +23,7 @@ export * from "./terminal/";
 export * from "./theme/";
 export * from "./tutorial/";
 export * from "./tx";
+export * from "./tx-links";
 export * from "./types";
 export * from "./view";
 export * from "./wallet/";

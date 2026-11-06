@@ -5,8 +5,8 @@ import {
   PgTx,
   PgView,
   PgWeb3,
+  txLinkedBySender,
 } from "../../utils";
-import { txLinkedBySender } from "../../utils/tx-links";
 import { ExplorerLink } from "./ExplorerLink";
 
 // Show a notification toast with explorer links after a transaction is sent.

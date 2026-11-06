@@ -13,7 +13,10 @@ let depth = 0;
 /**
  * Runs `fn` with every transaction sent meanwhile marked as linked by its
  * sender, and lifts the mark when `fn` settles, thrown or not. The mark is a
- * time window: a send from elsewhere while `fn` runs is marked too.
+ * time window, not a tag on the transaction: a send from elsewhere while `fn`
+ * runs (the Call panel, the wallet's Send) loses its toast too. Accepted: a
+ * tagged send would thread a flag through the deploy commands the terminal
+ * shares, and a send made during a running act is rare.
  */
 export const linkingOwnTxs = async <T>(fn: () => Promise<T>): Promise<T> => {
   depth++;

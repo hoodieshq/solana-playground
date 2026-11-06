@@ -2,7 +2,6 @@
 import type { Act } from "@/entities/tutorial";
 
 import { linkingOwnTxs, txLinkedBySender } from "../../../../utils/tx-links";
-
 import type { Runner } from "../ports";
 import { failedResult } from "../ports";
 
@@ -15,8 +14,9 @@ export type ActRun = Runner["run"];
  * call HOO-2357). An act with none yet answers a failed result that says so,
  * so a lesson reaching it shows a failed card rather than hang.
  *
- * Every act's transactions are linked to Explorer from its own card, so they
- * raise no Explorer toast over it (HOO-2703).
+ * An act's card links the transaction it shows, so its sends raise no
+ * Explorer toast over that card (HOO-2703). The barrel is not imported: a
+ * test of this module would load the wasm packages.
  */
 export const actRunner = (
   runs: Partial<Record<Act, ActRun>>,
