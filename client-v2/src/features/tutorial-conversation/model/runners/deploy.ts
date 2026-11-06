@@ -91,8 +91,9 @@ export interface DeployPort {
 
 /**
  * The binary length the funding estimate assumes when the last one is not
- * known: above a tutorial's Anchor program, so the one announced airdrop
- * covers the deploy and a second, unannounced one is rare
+ * known: above a tutorial's Anchor program, so what the airdrop card funds
+ * covers the deploy after it, which checks the real binary and never
+ * airdrops itself
  */
 const DEFAULT_LENGTH = 400_000;
 
