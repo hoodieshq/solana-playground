@@ -16,7 +16,10 @@ vi.mock("../../utils", () => ({
   PgConnection: { cluster: "devnet", getAirdropAmount: () => 5 },
   PgSettings: { wallet: { automaticAirdrop: true } },
   PgTerminal: { println: vi.fn() },
-  PgWallet: { balance: 0 },
+  PgWallet: {
+    balance: 0,
+    current: { publicKey: { toBase58: () => "Wa11et" } },
+  },
   isTerminalUnmounted: (error: unknown) => error === unmounted,
 }));
 vi.mock("../../features/auth", () => ({
@@ -90,14 +93,16 @@ describe("automaticAirdrop", () => {
     expect(airdrop).not.toHaveBeenCalled();
   });
 
-  it("points to the faucet's site when an airdrop on devnet fails", async () => {
+  it("points to the faucet's site, with the wallet's address, when an airdrop on devnet fails", async () => {
     (PgConnection as { cluster: string }).cluster = "devnet";
     println.mockClear();
     airdrop.mockRejectedValueOnce(new Error("Too many airdrop requests"));
     await pass();
 
     expect(println).toHaveBeenCalledWith(
-      expect.stringContaining("Visit https://faucet.solana.com to obtain SOL.")
+      expect.stringContaining(
+        "Visit https://faucet.solana.com/?walletAddress=Wa11et&cluster=devnet to obtain SOL."
+      )
     );
   });
 
