@@ -84,7 +84,7 @@ describe("BaseAssistantStatus", () => {
 });
 
 describe("BaseAssistantStatus over time", () => {
-  const props = (online: boolean, onRetry: () => Promise<unknown>) => ({
+  const propsWith = (onRetry: () => Promise<unknown>) => (online: boolean) => ({
     hosted: "unreachable" as const,
     online,
     onRetry,
@@ -94,30 +94,27 @@ describe("BaseAssistantStatus over time", () => {
   it("asks the hosted model again once the browser is back online", () => {
     const onRetry = vi.fn(() => Promise.resolve());
     const { rerender } = render(
-      <BaseAssistantStatus {...props(false, onRetry)} />
+      <BaseAssistantStatus {...propsWith(onRetry)(false)} />
     );
     expect(onRetry).not.toHaveBeenCalled();
 
-    rerender(<BaseAssistantStatus {...props(true, onRetry)} />);
+    rerender(<BaseAssistantStatus {...propsWith(onRetry)(true)} />);
     expect(onRetry).toHaveBeenCalledTimes(1);
 
-    rerender(<BaseAssistantStatus {...props(true, onRetry)} />);
+    rerender(<BaseAssistantStatus {...propsWith(onRetry)(true)} />);
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it("does not ask again on opening while online", () => {
     const onRetry = vi.fn(() => Promise.resolve());
-    render(<BaseAssistantStatus {...props(true, onRetry)} />);
+    render(<BaseAssistantStatus {...propsWith(onRetry)(true)} />);
     expect(onRetry).not.toHaveBeenCalled();
   });
 
   it("says when it last asked after a Try again that is still not answered", async () => {
     render(
       <BaseAssistantStatus
-        {...props(
-          true,
-          vi.fn(() => Promise.resolve())
-        )}
+        {...propsWith(vi.fn(() => Promise.resolve()))(true)}
       />
     );
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
