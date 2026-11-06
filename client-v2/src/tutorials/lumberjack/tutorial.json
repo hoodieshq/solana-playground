@@ -486,5 +486,22 @@
       }
     ],
     "next": "battle-coins"
-  }
+  },
+  "docs": [
+    {
+      "title": "Program Derived Addresses (PDAs)",
+      "url": "https://solana.com/docs/core/pda",
+      "file": "pdas.md"
+    },
+    {
+      "title": "Custom Errors",
+      "url": "https://www.anchor-lang.com/docs/features/errors",
+      "file": "custom-errors.md"
+    },
+    {
+      "title": "Sysvar Accounts",
+      "url": "https://solana.com/docs/core/accounts/account-types#sysvar-accounts",
+      "file": "sysvar-accounts.md"
+    }
+  ]
 }
