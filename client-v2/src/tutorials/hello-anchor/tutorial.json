@@ -164,7 +164,7 @@
         {
           "kind": "say",
           "id": "s2.why",
-          "text": "Right now your program is only a build: Playground compiled it, but nobody can call it yet. Deploying uploads it to devnet, Solana's public test network, where anyone can call it. It costs devnet SOL, test money with no value, and Playground tops your wallet up for free when it runs low. Before you press Deploy, a guess."
+          "text": "Right now your program is only a build: Playground compiled it, but nobody can call it yet. Deploying uploads it to devnet, Solana's public test network, where anyone can call it. It costs devnet SOL, test money with no value. When your wallet runs low, Playground asks the devnet faucet for more, and if the faucet is busy you can get some at faucet.solana.com. Before you press Deploy, a guess."
         },
         {
           "kind": "ask",
@@ -390,7 +390,7 @@
       },
       {
         "label": "What is devnet SOL?",
-        "answer": "Devnet is Solana's public test network. Its SOL is free and worth nothing, so you can deploy and call as much as you like. Playground keeps your wallet topped up from the devnet faucet."
+        "answer": "Devnet is Solana's public test network. Its SOL is free and worth nothing, so you can deploy and call as much as you like. When your wallet runs low, Playground asks the devnet faucet for more; if the faucet is busy, get some yourself at faucet.solana.com."
       }
     ],
     "next": "counter-pda-tutorial"
