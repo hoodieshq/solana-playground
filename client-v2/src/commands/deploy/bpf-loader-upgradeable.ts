@@ -12,9 +12,9 @@ import {
 const log = createLogger("commands:deploy");
 
 /**
- * The wallet that signs and the connection that sends and confirms. A deploy
- * passes the connection it started on, so a network change mid-run cannot
- * send its later transactions elsewhere.
+ * The wallet that signs and the connection that sends (and, in `loadBuffer`,
+ * simulates and confirms). A deploy passes the connection it started on, so
+ * a network change mid-run cannot send its later transactions elsewhere.
  */
 type SendOption = WalletOption & { connection?: PgWeb3.Connection };
 

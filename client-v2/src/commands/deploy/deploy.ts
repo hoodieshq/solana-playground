@@ -84,6 +84,20 @@ export const deploy = createCmd({
  * `PgConnection.cluster` is derived asynchronously and can still name the
  * previous network right after a switch.
  */
+/**
+ * End a deploy before it asks the faucet, when the network changed since it
+ * started: the airdrop funds the network selected now, while the run sends
+ * on its own
+ */
+function throwIfNetworkChanged(connection: typeof PgConnection.current) {
+  // A commitment change makes a new connection to the same endpoint
+  if (PgConnection.current.rpcEndpoint !== connection.rpcEndpoint) {
+    throw new Error(
+      "The network changed during the deploy, so an airdrop would fund another network. Deploy again."
+    );
+  }
+}
+
 async function clusterOf(
   connection: typeof PgConnection.current
 ): Promise<DeployResult["cluster"]> {
@@ -201,8 +215,13 @@ const processDeploy = async (
     : [PgWallet.create(PgWallet.accounts[0]), wallet];
 
   // Decide whether it's an initial deployment or an upgrade and calculate
-  // how much SOL user needs before creating the buffer.
+  // how much SOL user needs before creating the buffer. The run keeps this
+  // connection and what the program info says about its network: a network
+  // change from here on must not split it across two networks.
   const connection = PgConnection.current;
+  const programExists = PgProgramInfo.onChain!.deployed;
+  const additionalLen = getAdditionalLen(programLen);
+  const sendAndConfirmTxWithRetries = sendAndConfirmTxWithRetriesOn(connection);
   const [userBalance, bufferBalance, cluster] = await Promise.all([
     connection.getBalance(wallet.publicKey),
     connection.getMinimumBalanceForRentExemption(
@@ -215,15 +234,14 @@ const processDeploy = async (
   throwIfStopped(signal, deployStoppedLine({ state: "none" }));
 
   // Get the balance required to deploy/upgrade (without fees)
-  const programExists = PgProgramInfo.onChain!.deployed;
   PgDeployRun.update({ upgrade: programExists });
-  const additionalLen = getAdditionalLen(programLen);
   const requiredBalanceWithoutFees =
     additionalLen > 0
       ? bufferBalance +
         (await connection.getMinimumBalanceForRentExemption(additionalLen))
       : bufferBalance;
   if (userBalance < requiredBalanceWithoutFees) {
+    throwIfNetworkChanged(connection);
     const formatBalance = (lamports: number) => {
       return PgTerminal.bold(PgWeb3.lamportsToSol(lamports).toFixed(2));
     };
@@ -298,6 +316,8 @@ const processDeploy = async (
       PgWeb3.lamportsToSol(requiredBalanceWithoutFees - userBalance),
       airdropAmount
     );
+    // The questions above may have waited for an answer
+    throwIfNetworkChanged(connection);
     PgDeployRun.update({ funds: true, step: "funding" });
     try {
       await PgCommand.airdrop.execute(amount.toString());
@@ -341,7 +361,6 @@ const processDeploy = async (
       lamports: requiredBalance,
     });
     await sendAndConfirmTxWithRetries(
-      connection,
       () => PgTx.send(transferIx, { connection }),
       async () =>
         (await connection.getBalance(standardWallet.publicKey)) <
@@ -356,7 +375,6 @@ const processDeploy = async (
   if (additionalLen > 0) {
     throwIfStopped(signal, deployStoppedLine({ state: "none" }));
     await sendAndConfirmTxWithRetries(
-      connection,
       async () => {
         return await BpfLoaderUpgradeable.extendProgram(
           PgProgramInfo.pk!,
@@ -374,7 +392,6 @@ const processDeploy = async (
   // Create buffer
   const bufferKp = PgWeb3.Keypair.generate();
   await sendAndConfirmTxWithRetries(
-    connection,
     async () => {
       return await BpfLoaderUpgradeable.createBuffer(
         bufferKp,
@@ -427,7 +444,6 @@ const processDeploy = async (
     let left: StoppedBuffer;
     try {
       await sendAndConfirmTxWithRetries(
-        connection,
         () =>
           BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
             wallet: pgWallet,
@@ -474,7 +490,6 @@ const processDeploy = async (
     let msg;
     if (shouldCloseBufferAccount) {
       await sendAndConfirmTxWithRetries(
-        connection,
         async () => {
           return await BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
             wallet: pgWallet,
@@ -507,7 +522,6 @@ const processDeploy = async (
   // pass on-chain checks.
   if (standardWallet) {
     await sendAndConfirmTxWithRetries(
-      connection,
       async () => {
         return await BpfLoaderUpgradeable.setBufferAuthority(
           bufferKp.publicKey,
@@ -547,7 +561,6 @@ const processDeploy = async (
 
   function deployNew() {
     return sendAndConfirmTxWithRetries(
-      connection,
       async () => {
         return await BpfLoaderUpgradeable.deployProgram(
           PgProgramInfo.kp!,
@@ -565,7 +578,6 @@ const processDeploy = async (
 
   function upgrade() {
     return sendAndConfirmTxWithRetries(
-      connection,
       async () => {
         const programPk = PgProgramInfo.pk;
         if (!programPk) throw new Error("The program ID was not found");
@@ -744,44 +756,46 @@ const keptLamportsOn =
  *
  * `checkConfirmation` is necessary because `PgTx.confirm` can be unreliable.
  *
- * @param connection the deploy's own, which every send of the run also takes
+ * @param connection the deploy's own: it confirms here, and `sendTx` sends
+ * on it too
  * @param sendTx send transaction callback
  * @param checkConfirmation only confirm the transaction if this callback returns truthy
  * @returns the transaction signature
  */
-const sendAndConfirmTxWithRetries = async (
-  connection: PgWeb3.Connection,
-  sendTx: () => Promise<string>,
-  checkConfirmation: () => SyncOrAsync<boolean>
-) => {
-  const MAX_RETRIES = 5;
-  const SLEEP_MULTIPLIER = 1.8;
+const sendAndConfirmTxWithRetriesOn =
+  (connection: PgWeb3.Connection) =>
+  async (
+    sendTx: () => Promise<string>,
+    checkConfirmation: () => SyncOrAsync<boolean>
+  ) => {
+    const MAX_RETRIES = 5;
+    const SLEEP_MULTIPLIER = 1.8;
 
-  let sleepAmount = 1000;
-  let err;
-  for (let i = 0; i < MAX_RETRIES; i++) {
-    try {
-      const txHash = await sendTx();
-      if (!txHash) return;
-      const result = await PgTx.confirm(txHash, { connection });
-      if (!result?.err) return txHash;
-      if (await checkConfirmation()) return txHash;
-    } catch (e: any) {
-      log.warn("Deploy transaction attempt failed", {
-        context: { error: e, attempt: i + 1, maxAttempts: MAX_RETRIES },
-      });
-      err = e;
-      if (i === MAX_RETRIES - 1) break;
-      await PgCommon.sleep(sleepAmount);
-      sleepAmount *= SLEEP_MULTIPLIER;
+    let sleepAmount = 1000;
+    let err;
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      try {
+        const txHash = await sendTx();
+        if (!txHash) return;
+        const result = await PgTx.confirm(txHash, { connection });
+        if (!result?.err) return txHash;
+        if (await checkConfirmation()) return txHash;
+      } catch (e: any) {
+        log.warn("Deploy transaction attempt failed", {
+          context: { error: e, attempt: i + 1, maxAttempts: MAX_RETRIES },
+        });
+        err = e;
+        if (i === MAX_RETRIES - 1) break;
+        await PgCommon.sleep(sleepAmount);
+        sleepAmount *= SLEEP_MULTIPLIER;
+      }
     }
-  }
 
-  throw new Error(
-    `Exceeded maximum amount of retries (${PgTerminal.bold(
-      MAX_RETRIES.toString()
-    )}).
+    throw new Error(
+      `Exceeded maximum amount of retries (${PgTerminal.bold(
+        MAX_RETRIES.toString()
+      )}).
 This might be an RPC related issue. Consider changing the endpoint from the settings.
 ${err?.message ? `Reason: ${err.message}` : ""}`
-  );
-};
+    );
+  };
