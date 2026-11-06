@@ -90,7 +90,7 @@ export type SaveResult =
   | { ok: false; reason: "storage" };
 
 /** Why nothing was saved: a refusal, or a stored list that cannot be read */
-type Unsaved = Exclude<SaveResult, { ok: true }>;
+export type Refused = Exclude<SaveResult, { ok: true }>;
 
 /** A listed RPC's name when the user gave none: its cluster's, else its host */
 const defaultName = (url: string) => CLUSTERS.get(url) ?? hostOf(url);
@@ -184,7 +184,7 @@ const write = (list: CustomRpc[]): boolean => {
 const checkSave = (
   input: CustomRpc,
   replacing: string | undefined
-): { ok: true; url: string; list: CustomRpc[] } | Unsaved => {
+): { ok: true; url: string; list: CustomRpc[] } | Refused => {
   const url = checkRpcUrl(input.url);
   if (!url.ok) return url;
 
@@ -228,7 +228,7 @@ export const PgCustomRpcs = {
   check(
     input: CustomRpc,
     replacing: string | undefined
-  ): { ok: true; url: string } | Unsaved {
+  ): { ok: true; url: string } | Refused {
     const checked = checkSave(input, replacing);
     return checked.ok ? { ok: true, url: checked.url } : checked;
   },

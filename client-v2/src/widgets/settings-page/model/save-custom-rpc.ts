@@ -1,12 +1,15 @@
-import type { CustomRpc, RpcHealth, SaveResult } from "@/entities/custom-rpc";
+import type {
+  CustomRpc,
+  Refused,
+  RpcHealth,
+  SaveResult,
+} from "@/entities/custom-rpc";
 import { PgCustomRpcs } from "@/entities/custom-rpc";
 
 import { settingsTelemetry } from "./telemetry";
 
 /** Why a URL went unchecked: no answer in time, or no request because offline */
 type Unchecked = Exclude<RpcHealth, "answered">;
-
-type Refused = Exclude<SaveResult, { ok: true }>;
 
 /** A save's last word: saved, or the line to show under the URL */
 export type SettledAnswer =
