@@ -81,3 +81,20 @@ step passing as the desktop's panel.
 - **WHEN** after the deploy the learner opens Call from Code and calls `hello`
 - **THEN** the sheet shows the result and the chat's step 3 win follows
 - **AND** no question card on the phone offers "Type it myself"
+
+### Requirement: The phone's spaces are measured
+
+The tutorial frame slice SHALL emit `tutorial_frame_space_changed` whenever
+the phone moves between its spaces, with `space` (`chat` or `code`) and `via`:
+
+- `toggle`: the header's switch;
+- `swipe`: a sideways swipe;
+- `show`: "Show in <file>" on a wrote card;
+- `doc`: a doc page opened from a link;
+- `step`: a step picked in the steps sheet.
+
+#### Scenario: Show in a file
+
+- **WHEN** the learner presses "Show in lib.rs" from Chat
+- **THEN** `tutorial_frame_space_changed` reaches the memory provider with
+  `space: "code"` and `via: "show"`
