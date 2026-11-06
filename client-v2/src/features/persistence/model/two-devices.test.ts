@@ -577,6 +577,28 @@ describe("both devices changed it", () => {
     expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
   });
 
+  it("keeps the limit banner for a merge whose result is over a limit", async () => {
+    /** `count` files under `dir`, each under the limits on its own */
+    const filesIn = (dir: string, count: number) =>
+      Object.fromEntries(
+        Array.from({ length: count }, (_, i) => [`${dir}/f${i}.rs`, "x"])
+      );
+    const agreed = filesIn("src", 30);
+    // Each side under the 50-file limit, the two together over it
+    await startFrom(agreed, Object.assign({}, agreed, filesIn("theirs", 15)));
+    localFilesAre(HELLO.name, Object.assign({}, agreed, filesIn("mine", 15)));
+    captureWrites();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("conflict");
+
+    // A version question here would ask about a merge nobody can upload
+    expect(PgProjectSync.conflictFor(HELLO.id)).toEqual({
+      projectId: HELLO.id,
+      kind: "too-large",
+      limit: { reason: "too-many-files", limit: 50, count: 60 },
+    });
+  });
+
   it("merges edits to different lines of one file without asking", async () => {
     await startFrom(
       { "src/lib.rs": base },

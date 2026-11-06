@@ -1433,8 +1433,8 @@ export class PgProjectSync {
         // network; both leave a state the next reconcile continues from
         if (result !== "conflict") return "merged";
 
-        // A refusal that is not about versions is the user's to clear.
-        // TODO(HOO-2606): no test drives a merge whose result is over a limit
+        // A refusal that is not about versions is the user's to clear: a
+        // merged project over a limit keeps the limit's banner
         if (PgProjectSync._conflicts.get(projectId)?.kind !== "divergent") {
           return "conflict";
         }
