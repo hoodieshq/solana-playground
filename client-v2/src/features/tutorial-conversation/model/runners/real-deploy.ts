@@ -21,7 +21,7 @@ import type { Runner } from "../ports";
 import type { RunResult } from "../progress";
 import type { ActRun } from "./act-runner";
 import { actRunner } from "./act-runner";
-import { fundedForDeploy, runAirdrop } from "./airdrop";
+import { fundedForDeploy, runAirdropWith } from "./airdrop";
 import { runBuild } from "./build";
 import type { BuildSource } from "./build-source";
 import { trackBuildSource } from "./build-source";
@@ -418,7 +418,8 @@ export const runDeployOnDevnet: ActRun = async (act, _input, onStage) => {
 export const tutorialRunner: Runner = {
   ...actRunner(
     {
-      airdrop: (_act, _input, onStage) => runAirdrop(realDeployPort(), onStage),
+      airdrop: (_act, _input, onStage) =>
+        runAirdropWith(onStage)(realDeployPort()),
       build: runBuild,
       deploy: runDeployOnDevnet,
       buildDeploy: runDeployOnDevnet,

@@ -25,28 +25,37 @@ export const airdropRecord = (
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
   const SOL = LAMPORTS_PER_SOL;
-  const landed = (balance: number, airdropped: number, madeWallet?: true) => ({
+  /** A landed airdrop's result: what it added and the balance after */
+  const landedWith = (airdropped: number) => (balance: number) => ({
     act: "airdrop" as const,
     ok: true as const,
     seconds: 1,
     balance,
     airdropped,
-    ...(madeWallet && { madeWallet }),
+  });
+  const landed = (balance: number) => landedWith(balance)(balance);
+  const found = landedWith(0);
+  /** A landed airdrop whose press made the wallet first */
+  const madeAndLanded = (balance: number) => ({
+    act: "airdrop" as const,
+    ok: true as const,
+    seconds: 1,
+    balance,
+    airdropped: balance,
+    madeWallet: true as const,
   });
 
   describe("features/tutorial-conversation/model/airdrop-record", () => {
     it("names the SOL an airdrop added", () => {
-      expect(airdropRecord(landed(2 * SOL, 2 * SOL))).toBe("Added 2 SOL");
+      expect(airdropRecord(landed(2 * SOL))).toBe("Added 2 SOL");
     });
 
     it("names the balance a funded wallet already had", () => {
-      expect(airdropRecord(landed(3.2 * SOL, 0))).toBe(
-        "Your wallet has 3.2 SOL"
-      );
+      expect(airdropRecord(found(3.2 * SOL))).toBe("Your wallet has 3.2 SOL");
     });
 
     it("says the press made the wallet first", () => {
-      expect(airdropRecord(landed(2 * SOL, 2 * SOL, true))).toBe(
+      expect(airdropRecord(madeAndLanded(2 * SOL))).toBe(
         "Made a wallet and added 2 SOL"
       );
     });

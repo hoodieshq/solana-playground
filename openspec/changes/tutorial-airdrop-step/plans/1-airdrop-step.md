@@ -100,7 +100,7 @@ specs `tutorial-definition` and `tutorial-runs`).
 **Interfaces:**
 - `deployCost(port: DeployPort): Promise<number>` (in `deploy.ts`): the
   estimate `rent(program.length ?? DEFAULT_LENGTH, onChain) + FEE_HEADROOM`.
-- `runAirdrop(port: DeployPort): Promise<RunResult>`.
+- `runAirdropWith(onStage)(port: DeployPort): Promise<RunResult>`.
 - `RunResult` gains these two cases:
   - `{ act: "airdrop"; ok: true; seconds; balance: number; airdropped: number }`
   - `{ act: "airdrop"; ok: false; seconds; reason: "no_funds" | "no_wallet" | "failed"; message; balance?; cost?; address? }`,
@@ -130,8 +130,8 @@ specs `tutorial-definition` and `tutorial-runs`).
 - [ ] Implement:
   - Drop `DEPLOY_STAGES.funding` and the `fund` closure.
   - The check returns the same `no_funds` shape.
-  - `runAirdrop` reuses `fundForDeploy`.
-  - Wire `airdrop: (_, __, ___) => runAirdrop(realDeployPort())` and
+  - `runAirdropWith` reuses `fundForDeploy`.
+  - Wire `airdrop: (_, __, onStage) => runAirdropWith(onStage)(realDeployPort())` and
     `funded` in `tutorialRunner`.
 - [ ] Run `yarn test-unit` on both files and `yarn test-types`. Commit.
 

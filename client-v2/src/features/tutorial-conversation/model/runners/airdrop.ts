@@ -28,56 +28,55 @@ export const fundedForDeploy = async (port: DeployPort): Promise<boolean> => {
  * nothing airdropped. A refusal is `no_funds` with the facts the "Not enough
  * devnet SOL" card shows, never a throw.
  */
-export const runAirdrop = async (
-  port: DeployPort,
-  onStage: (stage: RunStage) => void
-): Promise<RunResult> => {
-  const started = port.now();
-  const seconds = () => (port.now() - started) / 1000;
-  const refusal = port.refusal();
-  if (refusal) {
-    return {
-      act: "airdrop",
-      ok: false,
-      seconds: seconds(),
-      reason: "failed",
-      message: refusal,
-    };
-  }
-  const existing = port.wallet();
-  const address = existing ?? port.createWallet();
-  const cost = await deployCost(port);
-  const funded = await fundForDeploy({
-    chain: port.funding,
-    address,
-    need: cost,
-    capSol: port.capSol,
-    onShort: (amount) => {
-      onStage({ label: AIRDROP_STAGE, index: 1, count: 1 });
-      port.print(`Airdropping ${amount} SOL...`);
-    },
-  });
-  if (!funded.ok) {
-    return {
-      act: "airdrop",
-      ok: false,
-      seconds: seconds(),
-      reason: "no_funds",
-      message: funded.message,
-      balance: funded.balance,
-      cost,
+export const runAirdropWith =
+  (onStage: (stage: RunStage) => void) =>
+  async (port: DeployPort): Promise<RunResult> => {
+    const started = port.now();
+    const seconds = () => (port.now() - started) / 1000;
+    const refusal = port.refusal();
+    if (refusal) {
+      return {
+        act: "airdrop",
+        ok: false,
+        seconds: seconds(),
+        reason: "failed",
+        message: refusal,
+      };
+    }
+    const existing = port.wallet();
+    const address = existing ?? port.createWallet();
+    const cost = await deployCost(port);
+    const funded = await fundForDeploy({
+      chain: port.funding,
       address,
+      need: cost,
+      capSol: port.capSol,
+      onShort: (amount) => {
+        onStage({ label: AIRDROP_STAGE, index: 1, count: 1 });
+        port.print(`Airdropping ${amount} SOL...`);
+      },
+    });
+    if (!funded.ok) {
+      return {
+        act: "airdrop",
+        ok: false,
+        seconds: seconds(),
+        reason: "no_funds",
+        message: funded.message,
+        balance: funded.balance,
+        cost,
+        address,
+      };
+    }
+    return {
+      act: "airdrop",
+      ok: true,
+      seconds: seconds(),
+      balance: funded.balance,
+      airdropped: funded.airdropped,
+      ...(existing === null && { madeWallet: true as const }),
     };
-  }
-  return {
-    act: "airdrop",
-    ok: true,
-    seconds: seconds(),
-    balance: funded.balance,
-    airdropped: funded.airdropped,
-    ...(existing === null && { madeWallet: true as const }),
   };
-};
 
 if (import.meta.vitest) {
   const { describe, it, expect, vi } = import.meta.vitest;
@@ -88,17 +87,23 @@ if (import.meta.vitest) {
     const PROGRAM = "Prog111111111111111111111111111111111111111";
     /** 100 000 bytes at 10 000 lamports a byte, plus the fee headroom */
     const COST = 100_000 * 10_000;
+    /** The port's "none" answers: its contract spells them null */
+    // eslint-disable-next-line unicorn/no-null -- DeployPort answers null for no refusal and no wallet
+    const [noRefusal, noWallet] = [() => null, () => null];
+
+    /** What the scripted port answers besides its balances */
+    interface Chain {
+      wallet: () => string | null;
+      airdrop: () => Promise<string>;
+    }
 
     /** A port over a scripted chain: balances are read in order, the last repeating */
-    const portOf = (
-      balances: number[],
-      opts: { wallet?: string | null; airdrop?: () => Promise<string> } = {}
-    ) => {
+    const portWith = (chain: Chain) => (balances: number[]) => {
       const reads = balances.slice();
       const lines: string[] = [];
       const port = {
-        refusal: () => null,
-        wallet: () => (opts.wallet === undefined ? WALLET : opts.wallet),
+        refusal: noRefusal,
+        wallet: chain.wallet,
         createWallet: vi.fn(() => WALLET),
         program: () => ({
           id: PROGRAM,
@@ -113,7 +118,7 @@ if (import.meta.vitest) {
             async () =>
               (reads.length > 1 ? reads.shift() : undefined) ?? reads[0]
           ),
-          airdrop: vi.fn(opts.airdrop ?? (async () => "airdropSig")),
+          airdrop: vi.fn(chain.airdrop),
           confirm: async () => true,
         },
         capSol: 5,
@@ -122,11 +127,23 @@ if (import.meta.vitest) {
       } as unknown as DeployPort;
       return { port, lines };
     };
+    const faucet = async () => "airdropSig";
+    const portOf = portWith({ wallet: () => WALLET, airdrop: faucet });
+    const walletlessPortOf = portWith({ wallet: noWallet, airdrop: faucet });
+    const refusingPortOf = portWith({
+      wallet: () => WALLET,
+      airdrop: async () => {
+        throw new Error("429 Too Many Requests");
+      },
+    });
+    const run = runAirdropWith(() => {});
 
     it("lands a funded wallet with nothing airdropped", async () => {
       const { port, lines } = portOf([3.2 * SOL]);
       const stages: RunStage[] = [];
-      await expect(runAirdrop(port, (s) => stages.push(s))).resolves.toEqual({
+      await expect(
+        runAirdropWith((s) => stages.push(s))(port)
+      ).resolves.toEqual({
         act: "airdrop",
         ok: true,
         seconds: 0,
@@ -142,7 +159,7 @@ if (import.meta.vitest) {
       const { port, lines } = portOf([0, 2 * SOL]);
       const stages: RunStage[] = [];
       await expect(
-        runAirdrop(port, (s) => stages.push(s))
+        runAirdropWith((s) => stages.push(s))(port)
       ).resolves.toMatchObject({
         act: "airdrop",
         ok: true,
@@ -157,8 +174,8 @@ if (import.meta.vitest) {
     });
 
     it("makes the wallet first when there is none, in the same press", async () => {
-      const { port } = portOf([0, 2 * SOL], { wallet: null });
-      await expect(runAirdrop(port, () => {})).resolves.toMatchObject({
+      const { port } = walletlessPortOf([0, 2 * SOL]);
+      await expect(run(port)).resolves.toMatchObject({
         ok: true,
         airdropped: 2 * SOL,
         madeWallet: true,
@@ -168,12 +185,8 @@ if (import.meta.vitest) {
     });
 
     it("answers a refused airdrop with no_funds and the card's facts", async () => {
-      const { port } = portOf([0.1 * SOL], {
-        airdrop: async () => {
-          throw new Error("429 Too Many Requests");
-        },
-      });
-      const result = await runAirdrop(port, () => {});
+      const { port } = refusingPortOf([0.1 * SOL]);
+      const result = await run(port);
       expect(result).toMatchObject({
         act: "airdrop",
         ok: false,
@@ -187,9 +200,9 @@ if (import.meta.vitest) {
     });
 
     it("refuses off devnet before it touches the wallet", async () => {
-      const { port } = portOf([0], { wallet: null });
+      const { port } = walletlessPortOf([0]);
       port.refusal = () => "Tutorials deploy to devnet.";
-      await expect(runAirdrop(port, () => {})).resolves.toMatchObject({
+      await expect(run(port)).resolves.toMatchObject({
         act: "airdrop",
         ok: false,
         reason: "failed",
@@ -209,7 +222,7 @@ if (import.meta.vitest) {
       });
 
       it("is false with no wallet, and reads nothing", async () => {
-        const { port } = portOf([5 * SOL], { wallet: null });
+        const { port } = walletlessPortOf([5 * SOL]);
         await expect(fundedForDeploy(port)).resolves.toBe(false);
         expect(port.funding.balance).not.toHaveBeenCalled();
       });
