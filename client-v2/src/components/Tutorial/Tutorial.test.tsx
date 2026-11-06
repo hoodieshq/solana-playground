@@ -70,6 +70,7 @@ describe("Tutorial on leaving", () => {
       <Tutorial about="About" pages={[]} files={[]} onMount={onMount} />
     );
 
+    // eslint-disable-next-line unicorn/no-null -- the derivable clears to null
     tutorial.current = null;
     rerender(
       <Tutorial about="About" pages={[]} files={[]} onMount={onMount} />
