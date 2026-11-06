@@ -198,7 +198,7 @@ describe("a setting of a few values, side by side", () => {
     );
   });
 
-  it("carries the control id the row's label points at", () => {
+  it("puts the control id the row's label points at on the current choice", () => {
     render(
       <SettingControl
         {...keybinding()}
@@ -207,8 +207,9 @@ describe("a setting of a few values, side by side", () => {
       />
     );
 
+    // A label can target a button, never the group's div
     expect(document.getElementById("setting-editor.keybinding")).toBe(
-      screen.getByRole("radiogroup", { name: "Key bindings" })
+      screen.getByRole("radio", { name: "None" })
     );
   });
 

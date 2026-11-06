@@ -51,7 +51,6 @@ const SettingSetterSegmented: FC<SettingSetterSegmentedProps> = ({
   setValue,
 }) => (
   <Segmented
-    id={controlId}
     aria-label={name}
     value={getValue()}
     onValueChange={(v) => {
@@ -66,6 +65,9 @@ const SettingSetterSegmented: FC<SettingSetterSegmentedProps> = ({
           <SegmentedItem
             key={o.value}
             value={o.value}
+            // The row's label names this id, and a label can target a
+            // button but not the group's div: the current choice takes it
+            id={o.value === getValue() ? controlId : undefined}
             className="max-md:h-11 max-md:px-4"
           >
             {o.label}
