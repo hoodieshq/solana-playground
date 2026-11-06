@@ -57,23 +57,24 @@ that line. Before the first deploy:
   the Playground wallet and runs the deploy again. There is no connect
   option: a tutorial deploys from the Playground wallet, never an
   extension's.
-- **Too little balance:** the deploy SHALL top up the wallet by airdrop, the
-  way the editor's deploy does, as an extra first stage on the act card,
-  "Funding your wallet". The stage shows only when the balance is short, and
-  the terminal prints the airdrop line. There is no separate card. The top-up
-  needs no sign-in: the editor's `airdrop` command keeps its GitHub gate, but
-  a tutorial promises a wallet with free test SOL (Slava, 3 Nov).
-- **Airdrop refused or rate limited:** a failed result card SHALL post, red
-  like a failed build, titled "Not enough devnet SOL", with the line "Your
-  wallet has {balance} SOL, and this deploy needs about {cost} SOL. The devnet
-  faucet is at its limit for now: try again in a minute, or top the wallet up
-  yourself." Under it sit "Your wallet" with the short address and Copy, and
-  "Open faucet", which opens `https://faucet.solana.com` in a new tab. The
-  card has no Try again, and the act that hit the faucet draws no record
-  over it: a live deploy act card follows it, "Asks the faucet again, then
-  deploys" with the button "Try again" (Almaz's prototype, 3 Nov). A deploy
-  that failed otherwise draws no record either and gets the same Try again
-  card with the act's own line. Typing "deploy" in the composer retries too.
+- **Too little balance:** the deploy SHALL NOT fund the wallet. The airdrop
+  act before the lesson's first deploy does, with no sign-in (change
+  `tutorial-airdrop-step`, HOO-2677). A deploy that still finds the wallet
+  short, on the estimate before the build or on the real binary, SHALL run
+  nothing and post the red result card "Not enough devnet SOL", and the act
+  card has no "Funding your wallet" stage.
+- **Not enough devnet SOL:** the card is red like a failed build, with the
+  line "Your wallet has {balance} SOL, and this deploy needs about {cost}
+  SOL. The devnet faucet is at its limit for now: try again in a minute, or
+  top the wallet up yourself." Under it sit "Your wallet" with the short
+  address and Copy, and "Open faucet", which opens `https://faucet.solana.com`
+  in a new tab. The card has no Try again, and the act that hit it draws no
+  record over it: a live deploy act card follows it, "Checks your balance
+  again, then deploys" with the button "Try again" (Almaz's prototype, 3
+  Nov). A refused airdrop posts the same card, followed by its own live card,
+  "Asks the faucet again". A deploy that failed otherwise draws no record
+  either and gets the same Try again card with the act's own line. Typing
+  "deploy" in the composer retries too.
 
 A deploy SHALL keep the program's keypair in the workspace, so the program
 keeps its address. Every later deploy of that tutorial's program SHALL upgrade
@@ -107,20 +108,20 @@ Explorer on the devnet cluster in a new tab.
 
 #### Scenario: First deploy with an empty wallet (manual)
 
-- **WHEN** a learner with a new wallet and 0 SOL presses Deploy on Hello
-  Anchor's step 2
-- **THEN** the card shows "Funding your wallet" (1 of 4), then the three
-  deploy stages to "4 of 4"
+- **WHEN** a learner with a new wallet and 0 SOL presses "Request airdrop",
+  then Deploy, on Hello Anchor's step 2
+- **THEN** the airdrop card lands with "Added 2 SOL", and the deploy card
+  shows its three deploy stages to "3 of 3", with no "Funding your wallet"
 - **AND** the result's details link the program and the deploy's
   transaction to `https://explorer.solana.com/...?cluster=devnet`
 
 #### Scenario: The faucet is at its limit
 
-- **WHEN** the deploy's airdrop is refused
+- **WHEN** the airdrop before the deploy is refused
 - **THEN** a red card reads "Not enough devnet SOL" with the wallet's balance,
   the deploy's cost, the address with Copy, and "Open faucet"
-- **AND** a deploy act card under it, "Try again", runs the deploy again, as
-  typing "deploy" does
+- **AND** an airdrop act card under it, "Asks the faucet again" with "Try
+  again", asks the faucet again, and the deploy card follows once it pays
 
 #### Scenario: The upgrade keeps the address (manual)
 
