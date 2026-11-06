@@ -174,6 +174,7 @@ describe("entities/project/limits", () => {
     assert.equal(readLimitExceeded({ reason: "too-large" }), null);
     assert.equal(
       readLimitExceeded({ reason: "too-many-lines", limit: 1, size: 2 }),
+      // eslint-disable-next-line unicorn/no-null -- `readLimitExceeded`'s answer for "not a limit body"
       null
     );
     assert.equal(readLimitExceeded(null), null);
