@@ -35,7 +35,8 @@ export const announceDeploys = (
   workspace: () => string | undefined = () => undefined
 ): Runner => ({
   recognise: runner.recognise,
-  // The airdrop card's probe (HOO-2677): dropped here, no card ever passed
+  // The airdrop card's probe (HOO-2677), forwarded: without it no funded
+  // airdrop card would pass by itself
   funded: runner.funded,
   run: async (act, input, onStage) => {
     if (act !== "deploy" && act !== "buildDeploy") {
