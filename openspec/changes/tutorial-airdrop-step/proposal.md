@@ -25,9 +25,9 @@ this design on 6 Nov at 22:36 (HOO-2677).
   "Not enough devnet SOL", and its Try again checks the balance again before
   deploying; it does not ask the faucet. The "Funding your wallet" stage is
   gone.
-- Hello Anchor and Zero Copy get an airdrop act before their first deploy act.
-  `AUTHORING.md` states the rule: an airdrop act comes before the first deploy
-  act of a lesson.
+- Hello Anchor and Zero Copy get an airdrop act before every deploy act.
+  `AUTHORING.md` states the rule: every deploy or build-and-deploy act has an
+  airdrop act since the previous one.
 - Telemetry: `tutorial_action_run` gains `action: "airdrop"`. The outcomes
   stay the same, with `no_funds` for a refused airdrop. No event is added,
   renamed or removed.

@@ -386,12 +386,15 @@ the card's.
 }
 ```
 
-A deploy pays from the learner's wallet and does not fund it. So an `airdrop`
-act comes before the lesson's first `deploy` or `buildDeploy` act, in the
-same step or an earlier one: title "Get devnet SOL", button "Request
-airdrop". It asks the devnet faucet for SOL, or passes by itself when the
-wallet already holds enough, and it has no `call`. The check refuses a
-lesson whose first deploy has no airdrop before it.
+A deploy pays from the learner's wallet and does not fund it. So every
+`deploy` or `buildDeploy` act has an `airdrop` act before it, since the
+previous deploy act, in the same step or an earlier one: title "Get devnet
+SOL", button "Request airdrop". It asks the devnet faucet for SOL, or passes
+by itself when the wallet already holds enough, and it has no `call`. An
+upgrade later in the lesson gets its own, so a wallet the first deploy
+drained can top up again. The check counts beats in order, each step's own
+beats before its `onFail`, and refuses a deploy act with no airdrop since the
+last one.
 
 ```json beat
 {
@@ -870,6 +873,9 @@ example above, broken one way each:
 - `steps[1].beats[0]: an airdrop act before the first deploy, found none before "s2.deploy"`
   The lesson deploys before the learner has devnet SOL. Put an `airdrop` act
   before the first deploy act.
+- `steps[1].beats[2]: an airdrop act since the last deploy, found none before "s2.ship"`
+  A later deploy or upgrade has no airdrop since the one before it. Put an
+  `airdrop` act before it; it passes by itself when the wallet holds enough.
 - `steps[0]: needs "planned", found none`
   `onFail` and `planned` come together.
 - `steps[0]: needs "failsWith", found none`

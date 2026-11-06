@@ -259,6 +259,15 @@
         },
         {
           "kind": "act",
+          "id": "s3.airdrop",
+          "act": "airdrop",
+          "say": "Your upgrade pays in devnet SOL too. Top the wallet up if it runs short.",
+          "title": "Get devnet SOL",
+          "context": "From the devnet faucet · free test SOL",
+          "button": "Request airdrop"
+        },
+        {
+          "kind": "act",
           "id": "s3.ship",
           "act": "buildDeploy",
           "say": "Build and deploy, so the program on devnet has `grow`.",
@@ -373,6 +382,15 @@
             "block": "    pub fn init_big_map(_ctx: Context<InitBigMap>) -> Result<()> {\n        Ok(())\n    }\n\n    pub fn grow_big(_ctx: Context<GrowBig>, len: u32) -> Result<()> {\n        msg!(\"The big map is {} bytes\", len);\n        Ok(())\n    }\n\n    pub fn paint(ctx: Context<Paint>, text: String, at: u32) -> Result<()> {\n        let mut map = ctx.accounts.big_map.load_mut()?;\n        let at = at as usize;\n        map.tiles[at..at + text.len()].copy_from_slice(text.as_bytes());\n        msg!(\"Painted {} bytes at {}\", text.len(), at);\n        Ok(())\n    }",
             "ref": "use anchor_lang::prelude::*;\n\ndeclare_id!(\"11111111111111111111111111111111\");\n\n#[program]\nmod zero_copy {\n    use super::*;\n\n    pub fn init_map(_ctx: Context<InitMap>) -> Result<()> {\n        Ok(())\n    }\n\n    pub fn grow(ctx: Context<Grow>, len: u32) -> Result<()> {\n        let map = &mut ctx.accounts.map;\n        map.tiles.resize(len as usize - 12, 0);\n        msg!(\"The map is {} bytes\", len);\n        Ok(())\n    }\n\n    pub fn init_big_map(_ctx: Context<InitBigMap>) -> Result<()> {\n        Ok(())\n    }\n\n    pub fn grow_big(_ctx: Context<GrowBig>, len: u32) -> Result<()> {\n        msg!(\"The big map is {} bytes\", len);\n        Ok(())\n    }\n\n    pub fn paint(ctx: Context<Paint>, text: String, at: u32) -> Result<()> {\n        let mut map = ctx.accounts.big_map.load_mut()?;\n        let at = at as usize;\n        map.tiles[at..at + text.len()].copy_from_slice(text.as_bytes());\n        msg!(\"Painted {} bytes at {}\", text.len(), at);\n        Ok(())\n    }\n}\n\n#[derive(Accounts)]\npub struct InitMap<'info> {\n    #[account(\n        init,\n        payer = signer,\n        space = 10 * 1024,\n        seeds = [b\"map\", signer.key().as_ref()],\n        bump,\n    )]\n    pub map: Account<'info, Map>,\n    #[account(mut)]\n    pub signer: Signer<'info>,\n    pub system_program: Program<'info, System>,\n}\n\n#[derive(Accounts)]\n#[instruction(len: u32)]\npub struct Grow<'info> {\n    #[account(\n        mut,\n        seeds = [b\"map\", signer.key().as_ref()],\n        bump,\n        realloc = len as usize,\n        realloc::payer = signer,\n        realloc::zero = true,\n    )]\n    pub map: Account<'info, Map>,\n    #[account(mut)]\n    pub signer: Signer<'info>,\n    pub system_program: Program<'info, System>,\n}\n\n#[account]\npub struct Map {\n    pub tiles: Vec<u8>,\n}\n\n#[derive(Accounts)]\npub struct InitBigMap<'info> {\n    #[account(\n        init,\n        payer = signer,\n        space = 10 * 1024,\n        seeds = [b\"big_map\", signer.key().as_ref()],\n        bump,\n    )]\n    pub big_map: AccountLoader<'info, BigMap>,\n    #[account(mut)]\n    pub signer: Signer<'info>,\n    pub system_program: Program<'info, System>,\n}\n\n#[derive(Accounts)]\n#[instruction(len: u32)]\npub struct GrowBig<'info> {\n    #[account(\n        mut,\n        seeds = [b\"big_map\", signer.key().as_ref()],\n        bump,\n        realloc = len as usize,\n        realloc::payer = signer,\n        realloc::zero = true,\n    )]\n    pub big_map: AccountLoader<'info, BigMap>,\n    #[account(mut)]\n    pub signer: Signer<'info>,\n    pub system_program: Program<'info, System>,\n}\n\n#[derive(Accounts)]\npub struct Paint<'info> {\n    #[account(\n        mut,\n        seeds = [b\"big_map\", signer.key().as_ref()],\n        bump,\n    )]\n    pub big_map: AccountLoader<'info, BigMap>,\n    pub signer: Signer<'info>,\n}\n\n#[account(zero_copy(unsafe))]\n#[repr(C)]\npub struct BigMap {\n    pub tiles: [u8; 40952],\n}\n"
           }
+        },
+        {
+          "kind": "act",
+          "id": "s4.airdrop",
+          "act": "airdrop",
+          "say": "Your upgrade pays in devnet SOL too. Top the wallet up if it runs short.",
+          "title": "Get devnet SOL",
+          "context": "From the devnet faucet · free test SOL",
+          "button": "Request airdrop"
         },
         {
           "kind": "act",

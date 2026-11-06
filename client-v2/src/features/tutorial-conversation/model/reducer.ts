@@ -3738,6 +3738,13 @@ if (import.meta.vitest) {
           },
           { type: "next", at: 16000 },
           { type: "skip", beatId: "s4.q4", at: 16500 },
+          { type: "act", beatId: "s4.airdrop", at: 16600 },
+          {
+            type: "ended",
+            beatId: "s4.airdrop",
+            result: AIRDROPPED,
+            at: 16700,
+          },
           { type: "act", beatId: "s4.ship", at: 17000 },
         ]);
         expect(s4.progress.times["call-client"]).toMatchObject({
@@ -3773,7 +3780,7 @@ if (import.meta.vitest) {
         expect(flowed.state.progress.cursor).toEqual({
           kind: "step",
           stepId: "greet-by-name",
-          beat: 4,
+          beat: 5,
           fail: false,
         });
         expect(

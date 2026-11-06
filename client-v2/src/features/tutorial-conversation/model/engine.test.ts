@@ -219,6 +219,16 @@ describe("Hello Anchor through the engine", () => {
       },
       { stages: ["Running"], result: ran },
       {
+        // A funded wallet's airdrop passes with no stage and no faucet call
+        result: {
+          act: "airdrop",
+          ok: true,
+          seconds: 0,
+          balance: 1_000_000_000,
+          airdropped: 0,
+        },
+      },
+      {
         stages: [
           "Building",
           "Writing buffer",
@@ -288,10 +298,13 @@ describe("Hello Anchor through the engine", () => {
       liveView().turns.find((t) => t.id === "win:call-client")
     ).toMatchObject({ via: "client" });
 
-    // Step 4: the name, the upgrade, then the call with an argument
+    // Step 4: the name, the airdrop, the upgrade, then the call with an argument
     await step(() => PgConversation.next());
     await step(() => PgConversation.pick("s4.q4", 1));
     expect(workspace.files["src/lib.rs"]).toBe(target(named, "src/lib.rs"));
+    expect(liveView().live?.id).toBe("s4.airdrop");
+    await step(() => PgConversation.act("s4.airdrop"));
+    expect(liveView().live?.id).toBe("s4.ship");
     await step(() => PgConversation.act("s4.ship"));
     // The upgrade is not the goal: the call act follows
     expect(liveView().live?.id).toBe("s4.call");
@@ -365,6 +378,7 @@ describe("Hello Anchor through the engine", () => {
       "tutorial_step_passed",
       "tutorial_action_run",
       "tutorial_action_run",
+      "tutorial_action_run",
       "tutorial_step_passed",
       "tutorial_action_run",
       "tutorial_finished",
@@ -389,6 +403,7 @@ describe("Hello Anchor through the engine", () => {
       "airdrop ok",
       "deploy ok",
       "run ok",
+      "airdrop ok",
       "build_deploy ok",
       "call ok",
     ]);

@@ -345,6 +345,15 @@
         },
         {
           "kind": "act",
+          "id": "s4.airdrop",
+          "act": "airdrop",
+          "say": "Your upgrade pays in devnet SOL too. Top the wallet up if it runs short.",
+          "title": "Get devnet SOL",
+          "context": "From the devnet faucet · free test SOL",
+          "button": "Request airdrop"
+        },
+        {
+          "kind": "act",
           "id": "s4.ship",
           "act": "buildDeploy",
           "say": "Devnet still runs the old `hello`. Build and deploy again: the program keeps its address.",

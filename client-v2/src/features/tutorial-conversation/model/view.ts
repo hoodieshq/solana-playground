@@ -2199,12 +2199,12 @@ if (import.meta.vitest) {
           { type: "passed", via: "call_panel", result: CALLED, at: 10500 },
           { type: "next", at: 11000 },
           { type: "pick", beatId: "s4.q4", option: 1, at: 11500 },
-          // The panel passes the step while s4.ship is still unpressed
+          // The panel passes the step while s4.airdrop is still unpressed
           { type: "passed", via: "call_panel", result: CALLED, at: 14000 },
         ]);
       const won = view(hello, play(steps), LATE);
       expect(won.live).toMatchObject({ id: "win:greet-by-name" });
-      expect(won.turns.find((t) => t.id === "s4.ship")).toMatchObject({
+      expect(won.turns.find((t) => t.id === "s4.airdrop")).toMatchObject({
         state: "live",
       });
       const done = view(

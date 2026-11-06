@@ -48,12 +48,19 @@ result. The engine runs an act only when it is pressed: the reducer emits a
    wallet both return the existing `no_funds` result. The card is the same.
    The retry line depends on the act: "Asks the faucet again" for airdrop, and
    "Checks your balance again, then deploys" for deploy.
-5. **The check enforces the order.** `check.ts` refuses a lesson whose first
-   deploy act has no airdrop act before it. That keeps Lumberjack and future
+5. **The check enforces the order.** `check.ts` refuses a deploy or
+   buildDeploy act with no airdrop act since the previous deploy act, so a
+   later upgrade gets its own card, which passes by itself on a funded
+   wallet. That keeps Lumberjack and future
    lessons in line without a reviewer having to catch it.
 
 ## Risks / Trade-offs
 
+- **The estimate is only a gate when it is real.** `program.length` is null
+  with the real port, so the 400 KB default would stop an upgrade the wallet
+  can pay for. The deploy checks the estimate before the build only on a
+  known length and a build that stands; otherwise it checks after the build,
+  on the real binary. The airdrop card still funds for the estimate.
 - **Higher deploy cost after the airdrop.** If the binary outgrows the
   estimate, the deploy can still stop on "Not enough devnet SOL" right after
   a successful airdrop. Mitigation: `FEE_HEADROOM` and the faucet's 2 SOL

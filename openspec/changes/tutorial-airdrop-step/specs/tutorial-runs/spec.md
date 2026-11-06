@@ -63,8 +63,11 @@ outcome `ok`, `no_wallet`, `no_funds`, `failed` or `interrupted`, like any act.
 ### Requirement: The deploy does not fund the wallet
 
 A tutorial deploy SHALL NOT request an airdrop. It SHALL check the wallet's
-balance against the deploy's cost, on the estimate before the build and again
-on the real binary. When the balance is short, it SHALL stop before writing
+balance against the deploy's cost: before the build on the estimate only when
+the last build's length is known and the build will not rerun, and after the
+build on the real binary whenever that check was skipped or the binary
+outgrew the estimate. An unknown length is never priced at the 400 KB default
+to stop a deploy. When the balance is short, it SHALL stop before writing
 the buffer and post the red "Not enough devnet SOL" card, with the same line,
 wallet row and "Open faucet". The live deploy card that follows reads "Checks
 your balance again, then deploys", with "Try again". The deploy card's stages
@@ -77,6 +80,14 @@ is no "Funding your wallet" stage.
   costs about 1.9 SOL
 - **THEN** no airdrop is requested, and the "Not enough devnet SOL" card posts,
   followed by "Checks your balance again, then deploys"
+
+#### Scenario: An upgrade of unknown length on a wallet that covers it
+
+- **WHEN** Hello Anchor's step 4 builds and deploys an upgrade, the last
+  build's length is unknown, and the wallet holds 2.98 SOL: short of the
+  estimate on 400 KB, enough for the real binary
+- **THEN** the deploy builds, checks the balance on the real binary, and
+  upgrades the program
 
 #### Scenario: A learner tops up from the faucet site and retries
 
