@@ -26,7 +26,10 @@ import { linesOn } from "./telemetry";
  * restored from the account, which is never refused. `/api/projects` is
  * stubbed with such rows. The server's own refusals are covered against a
  * real database in `api/projects.test.mjs` and `model/projects.test.mjs`,
- * and their scenarios are marked `(manual)` in the spec.
+ * and their scenarios are marked `(manual)` in the spec. So are the scenarios
+ * that only measure a project (multi-byte content, the 256-character path, the
+ * 51st file): `checkProjectLimits` is covered by `limits.test.mjs`, and this
+ * suite keeps the scenarios that wire a measure to the browser.
  */
 
 test.describe.configure({ timeout: 180_000 });

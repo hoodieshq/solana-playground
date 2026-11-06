@@ -417,11 +417,21 @@ if (import.meta.vitest) {
     });
 
     describe("answerFor", () => {
-      it("answers saved when onSaved throws after the list write", () => {
-        const answer = answerFor(() => {
-          throw new Error("settings write refused");
-        })("add")({ kind: "saved", rpc: SAVED_TRITON, check: "passed" });
-        expect(answer).toEqual({ kind: "saved" });
+      it("answers saved and reports it when onSaved throws after the list write", async () => {
+        const logger = await import("@/shared/lib/logger");
+        const logged = logger.memoryProvider();
+        logger.initLogger({ providers: [logged] });
+        try {
+          const answer = answerFor(() => {
+            throw new Error("settings write refused");
+          })("add")({ kind: "saved", rpc: SAVED_TRITON, check: "passed" });
+          expect(answer).toEqual({ kind: "saved" });
+          expect(
+            logged.entries.map(({ error, report }) => [error?.message, report])
+          ).toEqual([["settings write refused", true]]);
+        } finally {
+          logger.resetLogger();
+        }
       });
 
       it("tracks a checked save with check passed and calls onSaved", () => {

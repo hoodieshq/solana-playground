@@ -1,9 +1,13 @@
+import { createLogger } from "@/shared/lib/logger";
+
 import type {
   ApprovalRequest,
   ApprovalStatus,
   ChatItem,
 } from "../../../views/sidebar/assistant/store";
 import { TOOL_NAME } from "./tool-call";
+
+const log = createLogger("persistence:chat-codec");
 
 /**
  * Unchanged lines kept either side of a change.
@@ -200,13 +204,20 @@ export const decodeItem = (stored: unknown): ChatItem | null => {
   return withValidUndo(withValidStatus(withValidVersion(stored)));
 };
 
-/** The statuses a restored card may carry: settled, never `pending` */
-const SETTLED_STATUSES: ReadonlySet<string> = new Set<ApprovalStatus>([
-  "allowed",
-  "denied",
-  "unanswered",
-  "failed",
-]);
+/**
+ * The statuses a restored card may carry: every one but `pending`. A record
+ * rather than a list, so a status added to `ApprovalStatus` fails the type
+ * check here until it is placed.
+ */
+const SETTLED_STATUSES: Record<Exclude<ApprovalStatus, "pending">, true> = {
+  allowed: true,
+  denied: true,
+  unanswered: true,
+  failed: true,
+};
+
+const isSettledStatus = (status: string) =>
+  Object.hasOwn(SETTLED_STATUSES, status);
 
 /**
  * A restored approval card's status is a settled one. Anything else reads as
@@ -215,9 +226,11 @@ const SETTLED_STATUSES: ReadonlySet<string> = new Set<ApprovalStatus>([
  * hand edit left, which nothing could ever resolve.
  */
 const withValidStatus = (item: ChatItem): ChatItem => {
-  if (item.kind !== "approval" || SETTLED_STATUSES.has(item.status)) {
-    return item;
-  }
+  if (item.kind !== "approval" || isSettledStatus(item.status)) return item;
+  // Expected from a build ahead of or behind this one, so not a failure
+  log.warn(
+    `approval card ${item.id}: status ${item.status} read as unanswered`
+  );
   return { ...item, status: "unanswered" };
 };
 

@@ -89,7 +89,7 @@ const isClean = async (projectId: string, localName: string) =>
  *   nothing: its hash matches the mark.
  * - An outstanding question. A refused push (`too-large`, a divergence)
  *   writes no mark, so the mark cannot say what the refusal left unsent.
- *   `deleted-elsewhere` included, on purpose: `settleLocalDeletes` raises it
+ *   `deleted-elsewhere` included, on purpose: `settleDeletes` raises it
  *   only for a copy holding work the account never had (a clean one it
  *   deletes), and deleting is one of the question's two answers, which
  *   sign-out must not give for the user. The copy stays local; the same
