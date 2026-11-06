@@ -159,9 +159,20 @@ const LiveSettings = (
   <SettingsPage
     {...props}
     hosted={useDefaultBackend().state}
-    onRetryHosted={retryDefaultBackend}
+    onRetryHosted={retryHosted}
   />
 );
+
+/**
+ * The row's Try again. The probe answers its own failures and tells every
+ * reader; a rejection is a bug past them, reported as the composer's retry
+ * reports it, then rethrown for the button's own handler
+ */
+const retryHosted = () =>
+  retryDefaultBackend().catch((error: unknown) => {
+    log.error(error, { report: true, context: { from: "settings" } });
+    throw error;
+  });
 
 const FlowFrame = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);

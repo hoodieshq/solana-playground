@@ -66,8 +66,11 @@ const SettingSetterSegmented: FC<SettingSetterSegmentedProps> = ({
             key={o.value}
             value={o.value}
             // The row's label names this id, and a label can target a
-            // button but not the group's div: the current choice takes it
+            // button but not the group's div: the current choice takes it.
+            // A label outranks a button's text in its name, so the chip names
+            // itself; the group carries the setting's name
             id={o.value === getValue() ? controlId : undefined}
+            aria-label={o.label}
             className="max-md:h-11 max-md:px-4"
           >
             {o.label}

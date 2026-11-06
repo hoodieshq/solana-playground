@@ -59,9 +59,9 @@ describe("BaseAssistantStatus", () => {
     }
   );
 
-  it("reads Off while the browser is offline, as the status bar does, and blames no model", () => {
+  it("reads Offline while the browser is offline, the status bar's AI word, and blames no model", () => {
     draw("unreachable", false);
-    expect(screen.getByText("Off")).toBeTruthy();
+    expect(screen.getByText("Offline")).toBeTruthy();
     expect(screen.queryByText("Not answering")).toBeNull();
     expect(screen.queryByText(/not answering/)).toBeNull();
     expect(dot()).toBe("idle");

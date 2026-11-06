@@ -78,8 +78,9 @@ const BaseNetworkChoice = ({
           variant="chips"
           aria-label="Network"
           value={value}
-          // The arrows move the choice and loop, so they reach Custom too;
-          // only a press on it (its `onClick`) asks for a URL
+          // The arrows move the choice and loop. Reaching Custom they move
+          // only the focus, since choosing it means asking for a URL: only a
+          // press on it (its `onClick`) asks
           onValueChange={(v) => {
             if (v !== CUSTOM) onPick(v);
           }}

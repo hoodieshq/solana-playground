@@ -42,10 +42,11 @@ const STATES: Record<
     word: "Not answering",
     help: "The hosted model is not answering. The assistant asks for a key.",
   },
-  // Off, as the status bar's AI indicator reads offline (`recordProbeFailure`)
+  // Offline, the status bar's AI word while the browser is offline
+  // (`widgets/status` `indicators`), so one state keeps one word
   offline: {
     dot: "idle",
-    word: "Off",
+    word: "Offline",
     help: "You are offline, so the hosted model cannot be asked.",
   },
 };

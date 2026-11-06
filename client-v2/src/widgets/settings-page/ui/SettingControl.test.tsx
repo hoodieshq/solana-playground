@@ -171,8 +171,10 @@ describe("an on/off setting", () => {
 });
 
 describe("a setting of a few values, side by side", () => {
+  // Starts away from the default and the first option, so a test that finds
+  // the id on the current choice cannot pass by finding it on the first one
   const keybinding = () => {
-    let value = "None";
+    let value = "Vim";
     return {
       id: "editor.keybinding",
       name: "Key bindings",
@@ -209,16 +211,46 @@ describe("a setting of a few values, side by side", () => {
 
     // A label can target a button, never the group's div
     expect(document.getElementById("setting-editor.keybinding")).toBe(
+      screen.getByRole("radio", { name: "Vim" })
+    );
+  });
+
+  it("moves the control id to the choice pressed", async () => {
+    const s = keybinding();
+    const { rerender } = render(
+      <SettingControl {...s} segmented controlId="setting-keys" />
+    );
+
+    await userEvent.click(screen.getByRole("radio", { name: "None" }));
+    rerender(<SettingControl {...s} segmented controlId="setting-keys" />);
+
+    expect(document.getElementById("setting-keys")).toBe(
       screen.getByRole("radio", { name: "None" })
     );
+  });
+
+  it("keeps each choice named by its own text beside the row's label", () => {
+    render(
+      <>
+        <label htmlFor="setting-keys">Key bindings</label>
+        <SettingControl {...keybinding()} segmented controlId="setting-keys" />
+      </>
+    );
+
+    // The row's label targets the current choice; without a name of its own
+    // a screen reader would read that chip as "Key bindings"
+    expect(
+      screen.getByRole("radiogroup", { name: "Key bindings" })
+    ).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Vim" }).id).toBe("setting-keys");
   });
 
   it("sets the value pressed", async () => {
     const s = keybinding();
     render(<SettingControl {...s} segmented controlId="setting-keys" />);
 
-    await userEvent.click(screen.getByRole("radio", { name: "Vim" }));
+    await userEvent.click(screen.getByRole("radio", { name: "None" }));
 
-    expect(s.setValue).toHaveBeenCalledWith("Vim");
+    expect(s.setValue).toHaveBeenCalledWith("None");
   });
 });
