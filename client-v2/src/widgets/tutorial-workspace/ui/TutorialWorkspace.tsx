@@ -479,6 +479,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
                 title={frontDoc.title}
                 url={frontDoc.url}
                 markdown={frontDoc.markdown}
+                phone={phone}
               />
             </div>
           )}

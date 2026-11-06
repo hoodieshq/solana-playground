@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/no-null -- the explorer and the editor-lines hook take null */
-import { act, render as rtl, screen } from "@testing-library/react";
+import { act, render as rtl, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -159,6 +159,10 @@ describe("TutorialWorkspace", () => {
     expect(
       screen.getByTestId("tutorial-doc-page").getAttribute("aria-label")
     ).toBe("IDL");
+    // The head's picker names the page; the strip says only that it is read only
+    expect(
+      within(screen.getByTestId("tutorial-doc-page")).getByText("Read only")
+    ).toBeTruthy();
 
     // No tabs on the phone: the sheet is the way back to a file
     await userEvent.click(screen.getByRole("button", { name: "Files" }));
