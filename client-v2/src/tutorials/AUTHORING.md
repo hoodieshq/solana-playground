@@ -487,7 +487,7 @@ the failure. `onFail` holds the beats after the learner presses Explain: a
   made: a counter prints `Counter is now 2` the second time, so its goal's
   `log` is `"Counter is now \\d+"` in JSON, not `1`. Make the goal the
   call that works on every run (`increment`), never the call that creates
-  the account (`initialize`).
+  the account (`initialize`); that one needs care of its own, below.
 - `{ "kind": "refused", "instruction": "chop_tree", "error": { "name": "NotEnoughEnergy", "code": 6000 } }`:
   the program refused a call of the instruction with this error. Give the
   error's `name` (the variant of your `#[error_code]` enum), its `code`
@@ -510,7 +510,9 @@ the learner is stuck on the card. So write its accounts struct with
 `init_if_needed` in place of `init`. Playground's build server turns on
 the Anchor feature it needs, so there is no `Cargo.toml` to change. Let its body leave the data alone:
 `#[account(init_if_needed, payer = user, space = 8 + 8, seeds = [b"counter", user.key().as_ref()], bump)]`
-over `pub counter: Account<'info, Counter>`, and `Ok(())` as the body.
+over `pub counter: Account<'info, Counter>` (`space` is 8 for Anchor's
+discriminator plus the account's fields, here one `u64`), and `Ok(())` as
+the body.
 Anchor fills a new account with zeros, so `initialize` needs no
 `counter.count = 0`; that line would reset a returning learner's count.
 Keep such calls to the step that creates the account.

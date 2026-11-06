@@ -1220,6 +1220,19 @@ if (import.meta.vitest) {
         ]);
       });
 
+      it("compares each step with the one just before it", () => {
+        const d = minimal();
+        const third = structuredClone(d.steps[1]);
+        third.id = "again";
+        third.beats = [{ kind: "say", id: "s3.a", text: "Again." }];
+        third.win = { id: "s3.win", headline: "Again.", line: "Once more." };
+        third.start = { "src/lib.rs": `${LIB}// changed\n` };
+        d.steps.push(third);
+        expect(lines(d)).toEqual([
+          'steps[2].start["src/lib.rs"]: the same file as steps[1].target, found a different one',
+        ]);
+      });
+
       it("leaves the first step's start alone", () => {
         const d = minimal();
         d.steps[0].start = { "src/lib.rs": "// anything" };

@@ -1,6 +1,7 @@
 // Pack the tutorial-authoring skill: `yarn tutorial:skill [<out.zip>]`.
 //
-// Writes `tutorial-author.zip` (or the path given) holding one folder,
+// Writes `client-v2/tutorial-author.zip` (or the path given, from the current
+// folder) holding one folder,
 // `tutorial-author/`, with `SKILL.md`, `AUTHORING.md` and
 // `tutorial.schema.json`: the shape Claude installs as a skill. The
 // repository keeps one copy of each file; the zip is built from them and
@@ -40,7 +41,13 @@ export const pack = async () => {
   });
 };
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+/** Whether this file is the script node was started with, links resolved */
+const isMain = () =>
+  process.argv[1] !== undefined &&
+  fs.realpathSync(process.argv[1]) ===
+    fs.realpathSync(fileURLToPath(import.meta.url));
+
+if (isMain()) {
   const out = path.resolve(
     process.argv[2] ?? path.join(CLIENT, `${FOLDER}.zip`)
   );

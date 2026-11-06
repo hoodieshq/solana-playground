@@ -10,8 +10,9 @@ whether Playground can run it. Three steps.
 The skill is three files: [`skill/SKILL.md`](skill/SKILL.md),
 [`AUTHORING.md`](AUTHORING.md) and
 [`tutorial.schema.json`](tutorial.schema.json). They come packed as
-`tutorial-author.zip`, from the Playground team or from `yarn tutorial:skill`
-in step 2's copy.
+`tutorial-author.zip`, which the Playground team sends you. Once you have
+the copy from step 2, `yarn tutorial:skill` in its `client-v2/` folder
+writes the same zip there.
 
 - **Claude:** add `tutorial-author.zip` under Skills in Claude's settings.
   Then, in a new chat: "Let's write a Solana Playground tutorial. It should
