@@ -42,7 +42,7 @@ export interface BaseTutorialPhoneHeadProps {
 }
 
 /** The brand's progress fill: it starts purple and lands on green */
-const PROGRESS_GRADIENT = "linear-gradient(90deg, #9945ff, #14f195)";
+const PROGRESS_GRADIENT = "var(--gradient-product-flat)";
 
 /**
  * One gradient laid across all the segments: each shows its own share, so the
