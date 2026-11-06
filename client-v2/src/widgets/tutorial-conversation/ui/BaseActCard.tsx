@@ -320,10 +320,10 @@ const BaseActCard = ({
         ACTION,
         ACTION_FILL,
         PHONE_CTA,
-        // Only a lone button (no field, no repeat) takes the card's width:
-        // beside a name field it would squeeze the field to nothing, since
-        // that row never wraps, and a repeat's button keeps its width beside
-        // its Stop
+        // Off the phone, only a lone button (no field, no repeat) takes a
+        // narrow card's width: beside a name field it would squeeze the field
+        // to nothing, since that row never wraps, and a repeat's button keeps
+        // its own width beside the repeat toggle
         phoneCtaWidth(layout) ?? (single ? NARROW_CTA : undefined)
       )}
       disabled={disabled || missing}
