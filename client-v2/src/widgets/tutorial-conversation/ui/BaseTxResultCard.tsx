@@ -18,6 +18,7 @@ import type {
 import { devnetExplorerUrl } from "@/shared/lib/devnet-explorer";
 import { PROGRAM_LOG, programLogText } from "@/shared/lib/program-log";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { shortKey } from "@/shared/lib/short-key";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import {
@@ -375,9 +376,10 @@ const FundsCard = ({
 
 /**
  * A run or call devnet has not read back in the read window (HOO-2675): sent,
- * so muted like "No transaction" and not red, with the last signature in
- * Explorer and, while it is the live result, Check again, which reads the
- * same transactions again without sending
+ * so muted like "No transaction" and not red. The meta's short signature is
+ * the Explorer link (Almaz's 3.29 rule: no separate Explorer button), and
+ * while it is the live result Check again reads the same transactions again
+ * without sending
  */
 const UnconfirmedCard = ({
   result,
@@ -396,28 +398,33 @@ const UnconfirmedCard = ({
         />
       }
       title="Not confirmed yet"
-      meta="devnet is slow to answer"
+      meta={
+        <>
+          devnet is slow to answer
+          {last && (
+            <>
+              {" · "}
+              <a
+                href={devnetExplorerUrl({ kind: "tx", value: last.signature })}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={last.signature}
+                className="font-mono underline-offset-2 hover:underline"
+              >
+                {`${shortKey(last.signature)} ↗`}
+              </a>
+            </>
+          )}
+        </>
+      }
       body={
         <>
           <p className={READ}>{result.message}</p>
-          <div className="flex flex-wrap items-center gap-2">
-            {onRecheck && <Button onClick={onRecheck}>Check again</Button>}
-            {last && (
-              <Button variant="secondary" asChild>
-                <a
-                  href={devnetExplorerUrl({
-                    kind: "tx",
-                    value: last.signature,
-                  })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Explorer
-                  <ExternalLink aria-hidden="true" className="size-4" />
-                </a>
-              </Button>
-            )}
-          </div>
+          {onRecheck && (
+            <div className="flex">
+              <Button onClick={onRecheck}>Check again</Button>
+            </div>
+          )}
         </>
       }
     />

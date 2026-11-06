@@ -290,7 +290,8 @@ export const resultOf = ({
       ok: false,
       seconds,
       reason: "unconfirmed",
-      message: `Devnet has not confirmed transaction ${unread.signature} yet. Check again, or open it in Explorer.`,
+      message:
+        "Devnet has not confirmed this transaction yet. Check again, or open it in Explorer.",
       log: "",
       // With no failure, every transaction was sent and none refused
       unconfirmed: sent.flatMap((tx) =>
@@ -689,7 +690,7 @@ if (import.meta.vitest) {
           seconds: 3,
           reason: "unconfirmed",
           message:
-            "Devnet has not confirmed transaction late yet. Check again, or open it in Explorer.",
+            "Devnet has not confirmed this transaction yet. Check again, or open it in Explorer.",
           log: "",
           unconfirmed: [
             { signature: `sig${HELLO_LOG.length}`, calls: [hello()] },

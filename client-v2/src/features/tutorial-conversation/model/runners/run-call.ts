@@ -557,7 +557,7 @@ if (import.meta.vitest) {
         seconds: expect.any(Number),
         reason: "unconfirmed",
         message:
-          "Devnet has not confirmed transaction 5ig yet. Check again, or open it in Explorer.",
+          "Devnet has not confirmed this transaction yet. Check again, or open it in Explorer.",
         log: "",
         unconfirmed: [{ signature: "5ig", calls: [HELLO_CALL] }],
       });

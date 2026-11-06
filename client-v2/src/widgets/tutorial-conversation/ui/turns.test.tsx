@@ -408,7 +408,7 @@ describe("BaseResultCard", () => {
       seconds: 4,
       reason: "unconfirmed",
       message:
-        "Devnet has not confirmed transaction 5ig yet. Check again, or open it in Explorer.",
+        "Devnet has not confirmed this transaction yet. Check again, or open it in Explorer.",
       log: "",
       unconfirmed: [
         { signature: "first", calls: [] },
@@ -416,15 +416,16 @@ describe("BaseResultCard", () => {
       ],
     };
 
-    it("is not a failure: no red head, the message, the last signature in Explorer", () => {
+    it("is not a failure: no red head, the message, the last signature as the meta's link", () => {
       const { container } = txCard(UNCONFIRMED);
       expect(screen.getByText("Not confirmed yet")).toBeTruthy();
       expect(screen.queryByText("Call failed")).toBeNull();
       expect(container.querySelector(".text-error")).toBeNull();
       expect(screen.getByText(UNCONFIRMED.message)).toBeTruthy();
-      expect(
-        screen.getByRole("link", { name: /Explorer/ }).getAttribute("href")
-      ).toBe("https://explorer.solana.com/tx/5ig?cluster=devnet");
+      expect(screen.getByRole("link", { name: /↗/ }).getAttribute("href")).toBe(
+        "https://explorer.solana.com/tx/5ig?cluster=devnet"
+      );
+      expect(screen.queryByRole("link", { name: /Explorer/ })).toBeNull();
     });
 
     it("offers Check again while it is open, and only then", async () => {
