@@ -101,13 +101,20 @@ export const runOrCall = async (
 ): Promise<TxResult> => {
   const started = port.now();
   const seconds = () => (port.now() - started) / 1000;
-  const fail = (message: string): TxResult => ({
-    act,
-    ok: false,
-    seconds: seconds(),
-    message,
-    log: "",
-  });
+  // A check that could not read is still a check to make: what it would
+  // have read stays, so "Check again" stays and a press does not send anew
+  const fail = (message: string): TxResult =>
+    input.recheck
+      ? {
+          act,
+          ok: false,
+          seconds: seconds(),
+          reason: "unconfirmed",
+          message,
+          log: "",
+          unconfirmed: input.recheck,
+        }
+      : { act, ok: false, seconds: seconds(), message, log: "" };
   try {
     return await attempt(port, act, input, onStage, seconds, fail);
   } catch (e) {
@@ -126,6 +133,18 @@ const attempt = async (
 ): Promise<TxResult> => {
   const refusal = port.refusal();
   if (refusal) return fail(refusal);
+  const programId = port.programId();
+  if (!programId) return fail("Deploy the program first.");
+
+  if (input.recheck) {
+    // "Check again": the transactions were sent, only the reading is left,
+    // and reading needs no wallet
+    onStage({ label: RUN_STAGES.confirming, index: 1, count: 1 });
+    const sent: SentTx[] = [];
+    for (const tx of input.recheck) sent.push(await readBack(port, tx));
+    return landedResult(port, act, input, sent, programId, seconds, fail);
+  }
+
   const address = port.wallet();
   if (!address) {
     return {
@@ -136,16 +155,6 @@ const attempt = async (
       message: "Create a Playground wallet or connect one, then try again.",
       log: "",
     };
-  }
-  const programId = port.programId();
-  if (!programId) return fail("Deploy the program first.");
-
-  if (input.recheck) {
-    // "Check again": the transactions were sent, only the reading is left
-    onStage({ label: RUN_STAGES.confirming, index: 1, count: 1 });
-    const sent: SentTx[] = [];
-    for (const tx of input.recheck) sent.push(await readBack(port, tx));
-    return landedResult(port, act, input, sent, programId, seconds, fail);
   }
 
   const balance = await port.funding.balance(address);
@@ -256,8 +265,10 @@ const landedResult = async (
     pattern: input.log,
     seconds: seconds(),
   });
-  // What landed stands, but a run that threw after it did not finish
-  if (result.ok && error !== undefined) return fail(messageOf(error));
+  // What landed stands, but a run that threw after it did not finish, and a
+  // check would not change that: the throw is the answer, not a slow devnet
+  const unfinished = result.ok || result.reason === "unconfirmed";
+  if (unfinished && error !== undefined) return fail(messageOf(error));
   if (!result.ok || !input.account) return result;
   // The run landed whatever the read says: a card goes without, never the run
   const account = await readingOf({
@@ -576,6 +587,22 @@ if (import.meta.vitest) {
       expect(port.report).toHaveBeenCalledOnce();
     });
 
+    it("a run that threw after a send devnet has not read back fails with the throw, not unconfirmed", async () => {
+      const port = portWith({
+        send: async () => ({
+          captured: [{ kind: "sent", signature: "5ig", encoded: "tx" }],
+          error: new Error("second call: Account `user` not provided."),
+        }),
+        landed: async () => null,
+      });
+      const { result } = await stagesOf(port, "run");
+      expect(result).toMatchObject({
+        ok: false,
+        message: "second call: Account `user` not provided.",
+      });
+      expect(result).not.toHaveProperty("reason");
+    });
+
     describe("Check again", () => {
       const RECHECK = {
         beatId: "s3.call",
@@ -630,6 +657,47 @@ if (import.meta.vitest) {
           refused: { instruction: "hello", error: { code: 6000 } },
         });
         expect(result).not.toHaveProperty("reason");
+      });
+
+      it("needs no wallet: it only reads", async () => {
+        const port = portWith({ wallet: null });
+        expect(
+          await runOrCall(port, "call", RECHECK, () => undefined)
+        ).toMatchObject({ ok: true, signatures: ["5ig"] });
+      });
+
+      it("that cannot read keeps the transactions to check, with the reason as its message", async () => {
+        const port = portWith({
+          refusal:
+            "Tutorials run on devnet. Switch the network to devnet in Settings and try again.",
+        });
+        expect(await runOrCall(port, "call", RECHECK, () => undefined)).toEqual(
+          {
+            act: "call",
+            ok: false,
+            seconds: expect.any(Number),
+            reason: "unconfirmed",
+            message:
+              "Tutorials run on devnet. Switch the network to devnet in Settings and try again.",
+            log: "",
+            unconfirmed: RECHECK.recheck,
+          }
+        );
+      });
+
+      it("that throws keeps the transactions to check, and reports", async () => {
+        const port = portWith({});
+        port.programId = () => {
+          throw new Error("program info broke");
+        };
+        const result = await runOrCall(port, "call", RECHECK, () => undefined);
+        expect(result).toMatchObject({
+          ok: false,
+          reason: "unconfirmed",
+          message: "program info broke",
+          unconfirmed: RECHECK.recheck,
+        });
+        expect(port.report).toHaveBeenCalledOnce();
       });
     });
 
