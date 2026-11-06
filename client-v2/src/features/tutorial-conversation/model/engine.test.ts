@@ -204,6 +204,16 @@ describe("Hello Anchor through the engine", () => {
       { stages: ["Building"], result: failed },
       { stages: ["Building"], result: built },
       {
+        stages: ["Airdropping"],
+        result: {
+          act: "airdrop",
+          ok: true,
+          seconds: 2,
+          balance: 2_000_000_000,
+          airdropped: 2_000_000_000,
+        },
+      },
+      {
         stages: ["Writing buffer", "Deploying", "Uploading IDL", "Confirming"],
         result: deployed(false),
       },
@@ -258,6 +268,9 @@ describe("Hello Anchor through the engine", () => {
     expect(liveView().live?.id).toBe("s2.q2");
     await step(() => PgConversation.hint("s2.q2"));
     await step(() => PgConversation.pick("s2.q2", 0));
+    expect(liveView().live?.id).toBe("s2.airdrop");
+    await step(() => PgConversation.act("s2.airdrop"));
+    expect(liveView().live?.id).toBe("s2.deploy");
     await step(() => PgConversation.act("s2.deploy"));
     expect(liveView().live?.id).toBe("win:deploy");
     expect(workspace.files["src/lib.rs"]).toBe(target(deploy, "src/lib.rs"));
@@ -346,6 +359,7 @@ describe("Hello Anchor through the engine", () => {
       "tutorial_action_run",
       "tutorial_step_passed",
       "tutorial_action_run",
+      "tutorial_action_run",
       "tutorial_step_passed",
       "tutorial_action_run",
       "tutorial_step_passed",
@@ -372,6 +386,7 @@ describe("Hello Anchor through the engine", () => {
     ).toEqual([
       "build failed",
       "build ok",
+      "airdrop ok",
       "deploy ok",
       "run ok",
       "build_deploy ok",

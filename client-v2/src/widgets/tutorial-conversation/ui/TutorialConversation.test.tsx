@@ -1276,6 +1276,13 @@ describe("TutorialConversation on the phone", () => {
     lamports: 1_000_000,
     instructions: ["hello"],
   };
+  const airdropped: RunResult = {
+    act: "airdrop",
+    ok: true,
+    seconds: 2,
+    balance: 2_000_000_000,
+    airdropped: 2_000_000_000,
+  };
   /** Hello Anchor from Start to step 3's open question, as the engine plays it */
   const toStep3: Action[] = [
     { type: "start", at: at(1) },
@@ -1290,6 +1297,8 @@ describe("TutorialConversation on the phone", () => {
     { type: "ended", beatId: "s1.build", result: built, at: at(5) },
     { type: "next", at: at(6) },
     { type: "pick", beatId: "s2.q2", option: 0, at: at(7) },
+    { type: "act", beatId: "s2.airdrop", at: at(7.5) },
+    { type: "ended", beatId: "s2.airdrop", result: airdropped, at: at(7.7) },
     { type: "act", beatId: "s2.deploy", at: at(8) },
     { type: "ended", beatId: "s2.deploy", result: deployed, at: at(9) },
     { type: "next", at: at(10) },

@@ -369,9 +369,10 @@ The question that repairs a planned failure has the kicker `Fix it`. Its
 
 ### `act`: a card with one button
 
-`act` is `build`, `deploy`, `buildDeploy` (an upgrade in place), `run` (the
-step's client file) or `call`. `say` is the line above the card; `title`,
-`context` and `button` are the card's.
+`act` is `airdrop` (devnet SOL for the wallet), `build`, `deploy`,
+`buildDeploy` (an upgrade in place), `run` (the step's client file) or
+`call`. `say` is the line above the card; `title`, `context` and `button` are
+the card's.
 
 ```json beat
 {
@@ -382,6 +383,25 @@ step's client file) or `call`. `say` is the line above the card; `title`,
   "title": "Build lib.rs",
   "context": "Compiles lib.rs on Playground's build server",
   "button": "Build"
+}
+```
+
+A deploy pays from the learner's wallet and does not fund it. So an `airdrop`
+act comes before the lesson's first `deploy` or `buildDeploy` act, in the
+same step or an earlier one: title "Get devnet SOL", button "Request
+airdrop". It asks the devnet faucet for SOL, or passes by itself when the
+wallet already holds enough, and it has no `call`. The check refuses a
+lesson whose first deploy has no airdrop before it.
+
+```json beat
+{
+  "kind": "act",
+  "id": "s2.airdrop",
+  "act": "airdrop",
+  "say": "A deploy pays in devnet SOL. Get some for your wallet first.",
+  "title": "Get devnet SOL",
+  "context": "From the devnet faucet · free test SOL",
+  "button": "Request airdrop"
 }
 ```
 
@@ -671,9 +691,18 @@ call it. It passes the check as it stands.
       "beats": [
         {
           "kind": "act",
+          "id": "s2.airdrop",
+          "act": "airdrop",
+          "say": "A deploy pays in devnet SOL. Get some for your wallet first.",
+          "title": "Get devnet SOL",
+          "context": "From the devnet faucet · free test SOL",
+          "button": "Request airdrop"
+        },
+        {
+          "kind": "act",
           "id": "s2.deploy",
           "act": "deploy",
-          "say": "Deploy it to devnet, Solana's test network. Your Playground wallet pays in devnet SOL, which is free.",
+          "say": "Deploy it to devnet, Solana's test network. Your Playground wallet pays with the SOL you just got.",
           "title": "Deploy to devnet",
           "context": "From your Playground wallet on devnet",
           "button": "Deploy"
@@ -823,7 +852,7 @@ example above, broken one way each:
 - `steps[1].goal: one of the shapes the schema allows, found an object`
   A goal whose fields fit no kind: most often a `refused` goal with neither
   `error` nor `log`. Name the error, a log phrase, or both.
-- `steps[1].beats[1].call.args[1]: a name no other argument of this call has, found "text", also at steps[1].beats[1].call.args[0]`
+- `steps[1].beats[2].call.args[1]: a name no other argument of this call has, found "text", also at steps[1].beats[2].call.args[0]`
   One argument appears twice in `args`. Keep one: a field or a value.
 - `steps[1].goal.log: a regular expression, found "("`
   `log` is a regular expression. Escape `( ) [ ] { } . * + ? | ^ $` when you
@@ -836,8 +865,11 @@ example above, broken one way each:
   A field the schema does not name. Remove it; there is no place for it.
 - `steps[1].beats[0].kind: one of "say", "write", "ask", "act", found "shout"`
   A beat kind that does not exist.
-- `steps[1].beats[1]: needs "call", found none`
+- `steps[1].beats[2]: needs "call", found none`
   A `call` act without its `call`. Only a `call` act may have one.
+- `steps[1].beats[0]: an airdrop act before the first deploy, found none before "s2.deploy"`
+  The lesson deploys before the learner has devnet SOL. Put an `airdrop` act
+  before the first deploy act.
 - `steps[0]: needs "planned", found none`
   `onFail` and `planned` come together.
 - `steps[0]: needs "failsWith", found none`

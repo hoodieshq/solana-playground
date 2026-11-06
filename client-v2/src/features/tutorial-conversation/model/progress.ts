@@ -540,7 +540,16 @@ const isStrings = (v: unknown): v is string[] =>
 const isIndexes = (v: unknown): v is number[] =>
   Array.isArray(v) && v.every((n) => Number.isInteger(n));
 
-const ACTS: readonly Act[] = ["build", "deploy", "buildDeploy", "run", "call"];
+/** Every act a save may name; a `Record`, so a new act cannot be left out */
+const ACT_KINDS: Record<Act, true> = {
+  airdrop: true,
+  build: true,
+  deploy: true,
+  buildDeploy: true,
+  run: true,
+  call: true,
+};
+const ACTS = Object.keys(ACT_KINDS) as readonly Act[];
 const SKIP_VIAS: readonly SkipVia[] = ["button", "call_panel", "elsewhere"];
 
 const parseCursor = (v: unknown): Cursor | null => {
@@ -1193,6 +1202,30 @@ if (import.meta.vitest) {
 
     it("parses a midway save to itself", () => {
       expect(reload(midway())).toEqual(midway());
+    });
+
+    it("keeps a landed airdrop across a reload, so its card is not live again", () => {
+      const landed = Object.assign(freshProgress(), {
+        runs: {
+          "s2.airdrop": [
+            {
+              status: "ok",
+              at: 5000,
+              took: 2000,
+              result: {
+                act: "airdrop",
+                ok: true,
+                seconds: 2,
+                balance: 2_000_000_000,
+                airdropped: 0,
+              },
+            },
+          ],
+        },
+      });
+      expect(reload(landed)?.runs["s2.airdrop"]).toEqual(
+        landed.runs["s2.airdrop"]
+      );
     });
 
     it("is null for another version, a bad field or a missing cursor", () => {

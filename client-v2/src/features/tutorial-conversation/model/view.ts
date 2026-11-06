@@ -17,6 +17,7 @@ import type {
 } from "@/entities/tutorial";
 
 import { latestReading } from "./account-view";
+import { airdropRecord } from "./airdrop-record";
 import { FINISH_DELAY_MS } from "./clock";
 import { goalGap } from "./goals";
 import type {
@@ -234,39 +235,58 @@ export const whyRefused = (goal: Goal, result: RunResult): string => {
 /** The button of the act card that runs a failed deploy again */
 export const TRY_AGAIN = "Try again";
 
-/** That card's line after the faucet stopped the deploy */
-export const ASKS_THE_FAUCET = "Asks the faucet again, then deploys";
+/** That card's line after the faucet refused an airdrop (HOO-2677) */
+export const ASKS_THE_FAUCET = "Asks the faucet again";
 
-/** A deploy the faucet stopped: its card stands for the act that hit it */
-const isFaucetRefusal = (result: RunResult): boolean =>
-  (result.act === "deploy" || result.act === "buildDeploy") &&
-  !result.ok &&
-  result.reason === "no_funds";
+/** That card's line after a deploy found the wallet short (HOO-2677) */
+export const CHECKS_THE_BALANCE = "Checks your balance again, then deploys";
+
+/** An act whose failures share the deploy's cards: an airdrop or a deploy */
+const isFundedAct = (result: RunResult): boolean =>
+  result.act === "airdrop" ||
+  result.act === "deploy" ||
+  result.act === "buildDeploy";
+
+/** A landed airdrop: its act card's record says what it did, with no result card */
+const isLandedAirdrop = (
+  result: RunResult
+): result is Extract<RunResult, { act: "airdrop"; ok: true }> =>
+  result.act === "airdrop" && result.ok;
 
 /**
- * How a failed deploy is run again, as Almaz's prototype draws it
+ * How a failed airdrop or deploy is run again, as Almaz's prototype draws it
  * (`tutorial-v2` SPEC 6.5.5, "Deploy, no SOL"): a live Try again act card
- * under the result, asking the faucet again after a refusal (`faucet`), or
- * with the act's own line after any other failure (`again`). Null for no
- * wallet, whose result's own Create wallet runs it once the wallet is there,
- * and for every other result.
+ * under the result. After `no_funds` an airdrop asks the faucet again
+ * (`faucet`) and a deploy checks the balance again (`balance`), since the
+ * deploy no longer funds the wallet (HOO-2677); any other failure keeps the
+ * act's own line (`again`). Null for no wallet, whose result's own Create
+ * wallet runs it once the wallet is there, and for every other result.
  * TODO(HOO-2356): the runner's authority and immutable-program refusals are
  * `failed` too, and running again cannot fix them; they need a reason of
  * their own in `RunResult`, as the build's `unreachable` has, before they
  * can go without a Try again.
  */
-const retryOf = (result: RunResult): "faucet" | "again" | null => {
-  if (isFaucetRefusal(result)) return "faucet";
-  if (result.act !== "deploy" && result.act !== "buildDeploy") return null;
-  if (!result.ok && result.reason === "failed") return "again";
-  return null;
+type Retry = "faucet" | "balance" | "again";
+
+const retryOf = (result: RunResult): Retry | null => {
+  if (!isFundedAct(result) || result.ok) return null;
+  if (result.reason === "no_funds") {
+    return result.act === "airdrop" ? "faucet" : "balance";
+  }
+  return result.reason === "failed" ? "again" : null;
 };
 
-/** A failed deploy's act as its Try again card shows it */
-const tryAgain = (act: ActBeat, retry: "faucet" | "again" | null): ActBeat =>
+const RETRY_CONTEXT: Record<Exclude<Retry, "again">, string> = {
+  faucet: ASKS_THE_FAUCET,
+  balance: CHECKS_THE_BALANCE,
+};
+
+/** A failed airdrop's or deploy's act as its Try again card shows it */
+const tryAgain = (act: ActBeat, retry: Retry | null): ActBeat =>
   Object.assign({}, act, {
     button: TRY_AGAIN,
-    context: retry === "faucet" ? ASKS_THE_FAUCET : act.context,
+    context:
+      retry === null || retry === "again" ? act.context : RETRY_CONTEXT[retry],
     // The retry is one press; the card above keeps the others
     repeat: undefined,
   });
@@ -833,7 +853,12 @@ export const view = (
                 step: step.id,
                 at: cardAt,
                 beatId: b.id,
-                act: b,
+                act:
+                  run.status === "ok" && isLandedAirdrop(run.result)
+                    ? Object.assign({}, b, {
+                        record: airdropRecord(run.result),
+                      })
+                    : b,
                 state: actStateOf(run),
                 presses: [],
                 note: run.status === "interrupted" ? INTERRUPTED : null,
@@ -841,8 +866,13 @@ export const view = (
                   isLast && state.stage?.beatId === b.id ? state.stage : null,
                 took: ended(run) ? run.took : null,
               });
-            // A repeating card's press is a line on it, unless it failed
-            if (ended(run) && (!b.repeat || run.status === "failed")) {
+            // A repeating card's press is a line on it, unless it failed; a
+            // landed airdrop's record is its line
+            if (
+              ended(run) &&
+              (!b.repeat || run.status === "failed") &&
+              !(run.status === "ok" && isLandedAirdrop(run.result))
+            ) {
               const planned = run.status === "failed" && run.planned === true;
               // A planned failure closes once Explain or "I'll fix it
               // myself" entered `onFail`; any other failure waits on this
@@ -1324,7 +1354,8 @@ if (import.meta.vitest) {
       const ctx = {
         definition: hello,
         slug: "hello-anchor",
-        judge: (_g: unknown, r: RunResult) => r.ok,
+        // An airdrop passes no goal (`judgeGoal`): it only funds the deploy
+        judge: (_g: unknown, r: RunResult) => r.ok && r.act !== "airdrop",
       };
       let state = INITIAL;
       for (const a of actions) state = reduce(ctx, state, a).state;
@@ -1609,6 +1640,111 @@ if (import.meta.vitest) {
       { type: "ended", beatId: "s1.build", result: FAILED_BUILD, at: 8200 },
     ];
 
+    const SOL = 1_000_000_000;
+    const airdropped = (balance: number, added: number): RunResult => ({
+      act: "airdrop",
+      ok: true,
+      seconds: 2,
+      balance,
+      airdropped: added,
+    });
+    /** Hello Anchor up to step 2's airdrop card, pressed at 10300 */
+    const toAirdrop = (): Action[] => [
+      { type: "start", at: 1000 },
+      { type: "pick", beatId: "s1.q1", option: 1, at: 5000 },
+      { type: "act", beatId: "s1.build", at: 7000 },
+      { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+      { type: "next", at: 9000 },
+      { type: "skip", beatId: "s2.q2", at: 9500 },
+      { type: "act", beatId: "s2.airdrop", at: 10300 },
+    ];
+    const airdropEnded = (result: RunResult): Action => ({
+      type: "ended",
+      beatId: "s2.airdrop",
+      result,
+      at: 10500,
+    });
+
+    it("a landed airdrop posts no result card; its card's record says what it added", () => {
+      const v = view(
+        hello,
+        play(toAirdrop().concat([airdropEnded(airdropped(2 * SOL, 2 * SOL))])),
+        LATE
+      );
+      expect(ids(v)).not.toContain("result:s2.airdrop:0");
+      expect(v.turns.find((t) => t.id === "s2.airdrop")).toMatchObject({
+        kind: "act",
+        state: "done",
+        act: { record: "Added 2 SOL" },
+      });
+      expect(v.live).toMatchObject({ id: "s2.deploy", state: "live" });
+    });
+
+    it("a funded wallet's airdrop record names the balance it found", () => {
+      const v = view(
+        hello,
+        play(toAirdrop().concat([airdropEnded(airdropped(3.2 * SOL, 0))])),
+        LATE
+      );
+      expect(v.turns.find((t) => t.id === "s2.airdrop")).toMatchObject({
+        act: { record: "Your wallet has 3.2 SOL" },
+      });
+    });
+
+    it("an airdrop the faucet refused posts its open result, then a live Try again that asks the faucet again", () => {
+      const refused: RunResult = {
+        act: "airdrop",
+        ok: false,
+        seconds: 3,
+        reason: "no_funds",
+        message: "429 Too Many Requests",
+        balance: 0,
+        cost: 1_270_000_000,
+        address: "WaLLet",
+      };
+      const v = view(
+        hello,
+        play(toAirdrop().concat([airdropEnded(refused)])),
+        LATE
+      );
+      expect(ids(v).slice(-2)).toEqual([
+        "result:s2.airdrop:0",
+        "s2.airdrop:retry",
+      ]);
+      expect(v.turns.find((t) => t.id === "result:s2.airdrop:0")).toMatchObject(
+        {
+          open: true,
+        }
+      );
+      expect(v.live).toMatchObject({
+        id: "s2.airdrop:retry",
+        state: "live",
+        act: { button: "Try again", context: "Asks the faucet again" },
+      });
+    });
+
+    it("an airdrop that failed offers Try again with the act's own line", () => {
+      const failed: RunResult = {
+        act: "airdrop",
+        ok: false,
+        seconds: 3,
+        reason: "failed",
+        message: "fetch failed",
+      };
+      const v = view(
+        hello,
+        play(toAirdrop().concat([airdropEnded(failed)])),
+        LATE
+      );
+      expect(v.live).toMatchObject({
+        id: "s2.airdrop:retry",
+        act: {
+          button: "Try again",
+          context: "From the devnet faucet · free test SOL",
+        },
+      });
+    });
+
     const toDeploy = (): Action[] => [
       { type: "start", at: 1000 },
       { type: "pick", beatId: "s1.q1", option: 1, at: 5000 },
@@ -1616,14 +1752,21 @@ if (import.meta.vitest) {
       { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
       { type: "next", at: 9000 },
       { type: "skip", beatId: "s2.q2", at: 9500 },
-      { type: "act", beatId: "s2.deploy", at: 10000 },
+      { type: "act", beatId: "s2.airdrop", at: 10300 },
+      {
+        type: "ended",
+        beatId: "s2.airdrop",
+        result: airdropped(2 * SOL, 2 * SOL),
+        at: 10500,
+      },
+      { type: "act", beatId: "s2.deploy", at: 11000 },
     ];
     const NO_FUNDS: RunResult = {
       act: "deploy",
       ok: false,
       seconds: 2,
       reason: "no_funds",
-      message: "airdrop refused",
+      message: "Not enough devnet SOL",
       balance: 0,
       cost: 1_270_000_000,
       address: "WaLLet",
@@ -1635,7 +1778,7 @@ if (import.meta.vitest) {
       at: 12000,
     });
 
-    it("a deploy the faucet stopped posts its open result, then a live Try again that asks the faucet again", () => {
+    it("a deploy the wallet could not pay for posts its open result, then a live Try again that checks the balance again", () => {
       const v = view(
         hello,
         play(toDeploy().concat([deployEnded(NO_FUNDS)])),
@@ -1656,7 +1799,7 @@ if (import.meta.vitest) {
         state: "live",
         act: {
           button: "Try again",
-          context: "Asks the faucet again, then deploys",
+          context: "Checks your balance again, then deploys",
         },
       });
     });
@@ -1754,7 +1897,7 @@ if (import.meta.vitest) {
 
     it("a deploy a reload cut short is the live act again, with no Try again", () => {
       const state = play(toDeploy());
-      state.progress.runs["s2.deploy"] = [{ status: "interrupted", at: 10000 }];
+      state.progress.runs["s2.deploy"] = [{ status: "interrupted", at: 11000 }];
       const v = view(hello, state, LATE);
       expect(ids(v)).not.toContain("s2.deploy:retry");
       expect(v.live).toMatchObject({
@@ -1773,7 +1916,7 @@ if (import.meta.vitest) {
         message: "Blockhash expired",
       };
       expect(retryOf(result)).toBe("again");
-      expect(retryOf(NO_FUNDS)).toBe("faucet");
+      expect(retryOf(NO_FUNDS)).toBe("balance");
       expect(retryOf(OK_BUILD)).toBeNull();
     });
 

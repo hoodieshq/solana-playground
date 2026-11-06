@@ -98,6 +98,14 @@ const OK_BUILD: RunResult = {
   seconds: 1.6,
   instructions: ["hello"],
 };
+/** A wallet the faucet topped up to 2 SOL */
+const AIRDROPPED: RunResult = {
+  act: "airdrop",
+  ok: true,
+  seconds: 1,
+  balance: 2_000_000_000,
+  airdropped: 2_000_000_000,
+};
 
 const open = (
   name: string | null,
@@ -328,6 +336,7 @@ describe("PgConversation", () => {
     const workspace = memoryWorkspace({ "src/lib.rs": "" });
     const runner = stubRunner([
       { stages: ["Building"], result: OK_BUILD },
+      { result: AIRDROPPED },
       {
         result: {
           act: "deploy",
@@ -355,6 +364,8 @@ describe("PgConversation", () => {
     PgConversation.next();
     await settle();
     PgConversation.skip("s2.q2");
+    await settle();
+    PgConversation.act("s2.airdrop");
     await settle();
     PgConversation.act("s2.deploy");
     await settle();
@@ -760,7 +771,7 @@ describe("PgConversation", () => {
     const saved = freshProgress();
     saved.startedAt = 1000;
     saved.passed = ["write-program"];
-    saved.cursor = { kind: "step", stepId: "deploy", beat: 3, fail: false };
+    saved.cursor = { kind: "step", stepId: "deploy", beat: 4, fail: false };
     saved.beats = {
       "s2.why": { kind: "said", at: 2000 },
       "s2.q2": {
@@ -770,9 +781,13 @@ describe("PgConversation", () => {
         via: "button",
         wrong: [],
       },
+      "s2.airdrop": { kind: "said", at: 3000 },
       "s2.deploy": { kind: "said", at: 3500 },
     };
-    saved.runs = { "s2.deploy": [{ status: "started", at: 4000 }] };
+    saved.runs = {
+      "s2.airdrop": [{ status: "ok", at: 3100, took: 200, result: AIRDROPPED }],
+      "s2.deploy": [{ status: "started", at: 4000 }],
+    };
     saved.times = {
       "write-program": { from: 1000, to: 1900, via: "chat" },
       deploy: { from: 2000, to: null },
@@ -818,7 +833,7 @@ describe("PgConversation", () => {
     const saved = freshProgress();
     saved.startedAt = 1000;
     saved.passed = ["write-program"];
-    saved.cursor = { kind: "step", stepId: "deploy", beat: 3, fail: false };
+    saved.cursor = { kind: "step", stepId: "deploy", beat: 4, fail: false };
     saved.beats = {
       "s2.why": { kind: "said", at: 2000 },
       "s2.q2": {
@@ -828,9 +843,13 @@ describe("PgConversation", () => {
         via: "button",
         wrong: [],
       },
+      "s2.airdrop": { kind: "said", at: 3000 },
       "s2.deploy": { kind: "said", at: 3500 },
     };
-    saved.runs = { "s2.deploy": [{ status: "started", at: 4000 }] };
+    saved.runs = {
+      "s2.airdrop": [{ status: "ok", at: 3100, took: 200, result: AIRDROPPED }],
+      "s2.deploy": [{ status: "started", at: 4000 }],
+    };
     saved.times = {
       "write-program": { from: 1000, to: 1900, via: "chat" },
       deploy: { from: 2000, to: null },
@@ -1190,6 +1209,148 @@ describe("PgConversation", () => {
   });
 });
 
+describe("PgConversation's airdrop card", () => {
+  const SOL = 1_000_000_000;
+  const FOUND_FUNDED: RunResult = {
+    act: "airdrop",
+    ok: true,
+    seconds: 0.4,
+    balance: 3.2 * SOL,
+    airdropped: 0,
+  };
+
+  /** A runner whose `funded` answers as given; every run lands as `results` say */
+  const runnerWith = (
+    funded: NonNullable<Runner["funded"]>,
+    results: RunResult[] = [OK_BUILD, FOUND_FUNDED]
+  ) => {
+    const queue = results.slice();
+    const run = vi.fn<Runner["run"]>(async (act) => {
+      const next = queue.shift();
+      if (!next) throw new Error(`no result scripted for ${act}`);
+      return next;
+    });
+    return { run, funded: vi.fn(funded) };
+  };
+
+  /** Hello Anchor to step 2's airdrop card: built, Next, the question skipped */
+  const toAirdrop = async (runner: Runner) => {
+    open(NAME, { runner });
+    await settle();
+    PgConversation.start();
+    await settle();
+    PgConversation.pick("s1.q1", 1);
+    await settle();
+    PgConversation.act("s1.build");
+    await settle();
+    PgConversation.next();
+    await settle();
+    PgConversation.skip("s2.q2");
+    await settle();
+  };
+
+  const airdropRuns = () =>
+    PgConversation.state.engine.progress.runs["s2.airdrop"] ?? [];
+
+  it("presses a funded wallet's airdrop card itself, and its record names the balance", async () => {
+    const runner = runnerWith(async () => true);
+    await toAirdrop(runner);
+    expect(runner.funded).toHaveBeenCalledTimes(1);
+    expect(runner.run).toHaveBeenLastCalledWith(
+      "airdrop",
+      expect.objectContaining({ beatId: "s2.airdrop" }),
+      expect.any(Function)
+    );
+    expect(airdropRuns()).toMatchObject([{ status: "ok" }]);
+    expect(
+      PgConversation.view(LATER)?.turns.find((t) => t.id === "s2.airdrop")
+    ).toMatchObject({ act: { record: "Your wallet has 3.2 SOL" } });
+    expect(PgConversation.view(LATER)?.live?.id).toBe("s2.deploy");
+  });
+
+  it("leaves a wallet that is not funded its live card", async () => {
+    // The store's own timer re-renders as the card's turns arrive
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const runner = runnerWith(async () => false);
+      await toAirdrop(runner);
+      expect(runner.funded).toHaveBeenCalledTimes(1);
+      expect(airdropRuns()).toEqual([]);
+      expect(PgConversation.view(LATER)?.live).toMatchObject({
+        id: "s2.airdrop",
+        state: "live",
+      });
+      // Asked once per load: a re-render on the same card asks nothing
+      const changed = vi.fn();
+      const changes = PgConversation.onDidChange(changed);
+      vi.runOnlyPendingTimers();
+      await settle();
+      changes.dispose();
+      expect(changed.mock.calls.length).toBeGreaterThan(1);
+      expect(runner.funded).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports a probe that throws, posts nothing and keeps the card live", async () => {
+    const runner = runnerWith(async () => {
+      throw new Error("RPC down");
+    });
+    await toAirdrop(runner);
+    expect(airdropRuns()).toEqual([]);
+    expect(PgConversation.view(LATER)?.live?.id).toBe("s2.airdrop");
+    expect(
+      logged.entries.filter(
+        (e) => e.level === "error" && e.error?.message === "RPC down"
+      )
+    ).toMatchObject([{ report: true }]);
+  });
+
+  it("does not probe again for an airdrop that landed, after a reload either", async () => {
+    const runner = runnerWith(async () => true);
+    await toAirdrop(runner);
+    expect(runner.funded).toHaveBeenCalledTimes(1);
+    PgConversation.view(LATER);
+    close();
+    const again = runnerWith(async () => true, []);
+    open(NAME, { runner: again });
+    await settle();
+    expect(
+      PgConversation.state.engine.progress.runs["s2.airdrop"]
+    ).toMatchObject([{ status: "ok" }]);
+    expect(again.funded).not.toHaveBeenCalled();
+    expect(again.run).not.toHaveBeenCalled();
+  });
+
+  it("runs once when the learner presses while the probe is in flight", async () => {
+    let answer: (funded: boolean) => void = () => undefined;
+    const runner = runnerWith(
+      () => new Promise<boolean>((resolve) => (answer = resolve)),
+      [
+        OK_BUILD,
+        {
+          act: "airdrop",
+          ok: true,
+          seconds: 2,
+          balance: 2 * SOL,
+          airdropped: 2 * SOL,
+        },
+      ]
+    );
+    await toAirdrop(runner);
+    expect(runner.funded).toHaveBeenCalledTimes(1);
+    PgConversation.act("s2.airdrop");
+    await settle();
+    answer(true);
+    await settle();
+    expect(
+      runner.run.mock.calls.filter(([act]) => act === "airdrop")
+    ).toHaveLength(1);
+    expect(airdropRuns()).toMatchObject([{ status: "ok" }]);
+  });
+});
+
 describe("PgCallPanel", () => {
   const helloIdl = (args: string[]) =>
     ({
@@ -1208,6 +1369,7 @@ describe("PgCallPanel", () => {
   const runnerOf = (idl: Idl) => {
     const run = vi.fn<Runner["run"]>(async (act) => {
       if (act === "build") return OK_BUILD;
+      if (act === "airdrop") return AIRDROPPED;
       if (act === "deploy" || act === "buildDeploy") {
         return {
           act,
@@ -1247,6 +1409,8 @@ describe("PgCallPanel", () => {
     PgConversation.next();
     await settle();
     PgConversation.skip("s2.q2");
+    await settle();
+    PgConversation.act("s2.airdrop");
     await settle();
     PgConversation.act("s2.deploy");
     await settle();

@@ -441,6 +441,8 @@ export class PgConversation {
   }
 
   private static async _load() {
+    // A fresh load asks again about a card still live and never run
+    PgConversation._probed.clear();
     const name = PgExplorer.currentWorkspaceName;
     const definition = name ? PgConversation._definitionOf(name) : null;
     if (!name || !definition) {
@@ -740,6 +742,56 @@ export class PgConversation {
     PgConversation._state = next;
     PgConversation._schedule();
     for (const cb of PgConversation._listeners) cb(next);
+    PgConversation._pressIfFunded(next);
+  }
+
+  /**
+   * The airdrop act the cursor just reached and nothing ran yet, by beat id:
+   * the one card `_pressIfFunded` may press. Null on any other beat, and for
+   * an airdrop that ran (landed, failed or a reload interrupted it)
+   */
+  private static _reachedAirdrop(s: ConversationState): string | null {
+    const p = s.engine.progress;
+    if (!s.context || s.loadFailed || p.cursor.kind !== "step") return null;
+    const { stepId, beat, fail } = p.cursor;
+    if (p.passed.includes(stepId)) return null;
+    const step = s.context.definition.steps.find((st) => st.id === stepId);
+    const reached = (fail ? step?.onFail ?? [] : step?.beats ?? [])[beat - 1];
+    if (reached?.kind !== "act" || reached.act !== "airdrop") return null;
+    if (!p.beats[reached.id] || p.runs[reached.id]?.length) return null;
+    return reached.id;
+  }
+
+  /**
+   * A funded wallet's airdrop card passes by itself (HOO-2677): when the
+   * lesson reaches a live airdrop card, the runner is asked once whether the
+   * wallet covers the deploy, and if it does the card is pressed as the
+   * learner would press it. Not funded leaves the card live; a probe that
+   * throws is reported and leaves it live too. A press while the probe is in
+   * flight wins: the answer then finds a run and presses nothing. Asked once
+   * per card per load (`_probed`).
+   */
+  private static _pressIfFunded(s: ConversationState) {
+    const beatId = PgConversation._reachedAirdrop(s);
+    const funded = PgConversation._ports?.runner.funded;
+    if (!beatId || !funded || !s.context) return;
+    const name = s.context.definition.name;
+    const key = `${name}:${beatId}`;
+    if (PgConversation._probed.has(key)) return;
+    PgConversation._probed.add(key);
+    const stillLive = () =>
+      PgExplorer.currentWorkspaceName === name &&
+      PgConversation._reachedAirdrop(PgConversation._state) === beatId;
+    funded()
+      .then((yes) => {
+        if (yes && stillLive()) PgConversation.act(beatId);
+      })
+      .catch((e: unknown) => {
+        log.error(e, {
+          report: true,
+          context: { what: "check the wallet's balance", tutorial: name },
+        });
+      });
   }
 
   /** The next moment the feed changes on its own: a turn arriving, or the finish */
@@ -1194,6 +1246,11 @@ export class PgConversation {
   private static readonly _persisting = new Map<string, Promise<void>>();
   private static _state: ConversationState = INITIAL_CONVERSATION_STATE;
   private static _ports: Required<ConversationPorts> | null = null;
+  /**
+   * Airdrop cards the funded probe asked about since the last load, as
+   * `<tutorial>:<beatId>`: once per card per load, not on every re-render
+   */
+  private static _probed = new Set<string>();
   private static _timer: ReturnType<typeof setTimeout> | null = null;
   private static _view: ConversationView | null = null;
   private static _viewOf: ConversationState | null = null;

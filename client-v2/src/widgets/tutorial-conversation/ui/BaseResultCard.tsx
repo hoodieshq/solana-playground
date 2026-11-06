@@ -7,7 +7,6 @@ import type {
   AccountOnCard,
   RunResult,
 } from "@/features/tutorial-conversation";
-import { airdropRecord } from "@/features/tutorial-conversation";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
 import { AsyncButton } from "@/shared/ui/async-button";
@@ -95,9 +94,10 @@ const headOf = (
     if (r.reason === "signed_out") return { title: SIGN_IN_TO_BUILD, meta: "" };
     return { title: "Build failed", meta: errorMeta(r, expanded) };
   }
-  if (r.act === "airdrop" && r.ok) {
-    return { title: airdropRecord(r), meta: "" };
-  }
+  // The view posts no card for a landed airdrop: its act card's record says
+  // what it did (`airdropRecord`)
+  if (r.act === "airdrop" && r.ok)
+    return { title: "Funded your wallet", meta: "" };
   // A deploy or a build-and-deploy, or an airdrop that did not land
   if (r.ok) {
     return {

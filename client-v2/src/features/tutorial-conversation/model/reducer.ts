@@ -341,7 +341,9 @@ const unconfirmedOf = (runs: RunRecord[] | undefined): UnreadTx[] | null => {
 const outcomeOf = (result: RunResult): ActionRunParams["outcome"] => {
   if (result.ok) return "ok";
   if (
-    (result.act === "deploy" || result.act === "buildDeploy") &&
+    (result.act === "airdrop" ||
+      result.act === "deploy" ||
+      result.act === "buildDeploy") &&
     result.reason !== "failed"
   ) {
     return result.reason;
@@ -1772,7 +1774,9 @@ if (import.meta.vitest) {
     const ctx = (): EngineContext => ({
       definition: hello,
       slug: "hello-anchor",
-      judge: (_goal, result) => result.ok,
+      // Any ok run passes, except an airdrop, which passes no goal
+      // (`judgeGoal`): it only funds the deploy after it
+      judge: (_goal, result) => result.ok && result.act !== "airdrop",
     });
 
     /** Folds the actions from the initial state, collecting every effect */
@@ -1814,6 +1818,13 @@ if (import.meta.vitest) {
       seconds: 1,
       reason: "failed",
       message: "unused",
+    };
+    const AIRDROPPED: RunResult = {
+      act: "airdrop",
+      ok: true,
+      seconds: 1,
+      balance: 2_000_000_000,
+      airdropped: 2_000_000_000,
     };
     const DEPLOYED: RunResult = {
       act: "deploy",
@@ -2584,6 +2595,13 @@ if (import.meta.vitest) {
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
           { type: "skip", beatId: "s2.q2", at: 9100 },
+          { type: "act", beatId: "s2.airdrop", at: 9110 },
+          {
+            type: "ended",
+            beatId: "s2.airdrop",
+            result: AIRDROPPED,
+            at: 9120,
+          },
           { type: "act", beatId: "s2.deploy", at: 9200 },
         ];
         const landed = play(
@@ -3146,6 +3164,55 @@ if (import.meta.vitest) {
         expect(outcomeOf(DEPLOYED)).toBe("ok");
       });
 
+      it("names an airdrop's outcome by its reason, as a deploy's", () => {
+        expect(
+          outcomeOf({
+            act: "airdrop",
+            ok: false,
+            seconds: 3,
+            reason: "no_funds",
+            message: "429",
+            balance: 0,
+            cost: 1,
+            address: "w",
+          })
+        ).toBe("no_funds");
+        expect(outcomeOf(AIRDROPPED)).toBe("ok");
+      });
+
+      it("emits tutorial_action_run with the airdrop action when the airdrop ends", () => {
+        const { effects } = play([
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+          { type: "next", at: 9000 },
+          { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.airdrop", at: 9510 },
+          {
+            type: "ended",
+            beatId: "s2.airdrop",
+            result: AIRDROPPED,
+            at: 9520,
+          },
+        ]);
+        expect(
+          effects.filter(
+            (e) => e.kind === "event" && e.name === "tutorial_action_run"
+          )
+        ).toContainEqual({
+          kind: "event",
+          name: "tutorial_action_run",
+          params: {
+            tutorial: "hello-anchor",
+            step: 2,
+            action: "airdrop",
+            outcome: "ok",
+            seconds: 0,
+          },
+        });
+      });
+
       it("names a run's or call's outcome by its reason, else failed", () => {
         expect(
           outcomeOf({
@@ -3308,6 +3375,13 @@ if (import.meta.vitest) {
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
           { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.airdrop", at: 9510 },
+          {
+            type: "ended",
+            beatId: "s2.airdrop",
+            result: AIRDROPPED,
+            at: 9520,
+          },
           { type: "act", beatId: "s2.deploy", at: 10000 },
           {
             type: "passed",
@@ -3352,6 +3426,13 @@ if (import.meta.vitest) {
             { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
             { type: "next", at: 9000 },
             { type: "skip", beatId: "s2.q2", at: 9500 },
+            { type: "act", beatId: "s2.airdrop", at: 9510 },
+            {
+              type: "ended",
+              beatId: "s2.airdrop",
+              result: AIRDROPPED,
+              at: 9520,
+            },
             { type: "act", beatId: "s2.deploy", at: 10000 },
           ]).state;
           return {
@@ -3541,6 +3622,13 @@ if (import.meta.vitest) {
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
           { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.airdrop", at: 9510 },
+          {
+            type: "ended",
+            beatId: "s2.airdrop",
+            result: AIRDROPPED,
+            at: 9520,
+          },
           { type: "act", beatId: "s2.deploy", at: 10000 },
           { type: "ended", beatId: "s2.deploy", result: DEPLOYED, at: 12000 },
           { type: "next", at: 13000 },
@@ -3567,6 +3655,13 @@ if (import.meta.vitest) {
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
           { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.airdrop", at: 9510 },
+          {
+            type: "ended",
+            beatId: "s2.airdrop",
+            result: AIRDROPPED,
+            at: 9520,
+          },
           { type: "act", beatId: "s2.deploy", at: 10000 },
           { type: "ended", beatId: "s2.deploy", result: DEPLOYED, at: 12000 },
           { type: "next", at: 13000 },
@@ -3611,6 +3706,13 @@ if (import.meta.vitest) {
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
           { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.airdrop", at: 9510 },
+          {
+            type: "ended",
+            beatId: "s2.airdrop",
+            result: AIRDROPPED,
+            at: 9520,
+          },
           { type: "act", beatId: "s2.deploy", at: 10000 },
           {
             type: "ended",
@@ -3990,6 +4092,13 @@ if (import.meta.vitest) {
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
           { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.airdrop", at: 9510 },
+          {
+            type: "ended",
+            beatId: "s2.airdrop",
+            result: AIRDROPPED,
+            at: 9520,
+          },
           { type: "act", beatId: "s2.deploy", at: 10000 },
           {
             type: "ended",
@@ -4175,6 +4284,13 @@ if (import.meta.vitest) {
           { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
           { type: "next", at: 9000 },
           { type: "skip", beatId: "s2.q2", at: 9500 },
+          { type: "act", beatId: "s2.airdrop", at: 9510 },
+          {
+            type: "ended",
+            beatId: "s2.airdrop",
+            result: AIRDROPPED,
+            at: 9520,
+          },
           { type: "act", beatId: "s2.deploy", at: 10000 },
           {
             type: "ended",
