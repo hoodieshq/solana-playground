@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The utils barrel reads a build-time global and cannot load under vitest;
 // the real `PgCommon` is all the select needs besides a spy-able `PgView`
@@ -167,5 +167,57 @@ describe("an on/off setting", () => {
     expect(screen.queryByRole("checkbox")).toBeNull();
     await userEvent.click(box);
     expect(setValue).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("a setting of a few values, side by side", () => {
+  const keybinding = () => {
+    let value = "None";
+    return {
+      id: "editor.keybinding",
+      name: "Key bindings",
+      default: "None",
+      values: ["None", "Vim"],
+      getValue: () => value,
+      setValue: vi.fn((v: string) => {
+        value = v;
+      }),
+      onChange: () => ({ dispose: () => {} }),
+    };
+  };
+
+  beforeEach(() => {
+    // the group measures its items with one; jsdom has none
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+  });
+
+  it("carries the control id the row's label points at", () => {
+    render(
+      <SettingControl
+        {...keybinding()}
+        segmented
+        controlId="setting-editor.keybinding"
+      />
+    );
+
+    expect(document.getElementById("setting-editor.keybinding")).toBe(
+      screen.getByRole("radiogroup", { name: "Key bindings" })
+    );
+  });
+
+  it("sets the value pressed", async () => {
+    const s = keybinding();
+    render(<SettingControl {...s} segmented controlId="setting-keys" />);
+
+    await userEvent.click(screen.getByRole("radio", { name: "Vim" }));
+
+    expect(s.setValue).toHaveBeenCalledWith("Vim");
   });
 });

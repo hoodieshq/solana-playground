@@ -46,10 +46,12 @@ type SettingSetterSegmentedProps = RequiredKey<
 const SettingSetterSegmented: FC<SettingSetterSegmentedProps> = ({
   values,
   name,
+  controlId,
   getValue,
   setValue,
 }) => (
   <Segmented
+    id={controlId}
     aria-label={name}
     value={getValue()}
     onValueChange={(v) => {
