@@ -115,7 +115,7 @@ describe("write_file", () => {
     await Promise.resolve();
     PgAssistant.resolveApproval(latestCard(), true);
 
-    const said = await pending.catch((e: Error) => e.message);
+    const said = await Promise.resolve(pending).catch((e: Error) => e.message);
     expect(b.applyPatch).toHaveBeenCalled();
     expect(said).not.toMatch(/Could not write/);
     expect(PgAssistant.items[0]).not.toMatchObject({ status: "failed" });

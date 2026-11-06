@@ -651,7 +651,7 @@ describe("both devices changed it", () => {
         return {
           ok: false,
           status: 400,
-          json: async () => ({
+          json: async (): Promise<unknown> => ({
             error: "A path under .workspace/ is not synced",
           }),
         };
