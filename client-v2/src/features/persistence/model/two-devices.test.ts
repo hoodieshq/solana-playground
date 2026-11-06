@@ -1,6 +1,7 @@
 import type { Mock } from "vitest";
 
 // TODO(ui-migration 1.4): a feature importing a feature; the code under test syncs only for a signed-in session
+import { isSyncedPath } from "@/entities/project";
 import { PgSession } from "@/features/auth";
 import { requireFor } from "@/test-utils/require-for";
 
@@ -135,6 +136,16 @@ const fakeFetch = async (url: string, init?: RequestInit) => {
       ? { ...body.files }
       : { ...held, ...(body.changed ?? {}) };
     for (const path of body.removed ?? []) delete files[path];
+
+    // Refused as a bad request, as `api/projects.mjs` does
+    const sent = Object.keys(body.files ?? body.changed ?? {});
+    if (sent.some((path) => !isSyncedPath(path))) {
+      return {
+        ok: false,
+        status: 400,
+        json: async () => ({ error: "A path under .workspace/ is not synced" }),
+      };
+    }
 
     // Refused and rolled back, as `saveProject` does
     if (!Object.keys(files).length) {
@@ -597,6 +608,59 @@ describe("both devices changed it", () => {
       kind: "too-large",
       limit: { reason: "too-many-files", limit: 50, count: 60 },
     });
+  });
+
+  it("leaves out an unsynced .workspace/ file the account copy holds", async () => {
+    // A row stored before the server refused such paths
+    await startFrom(
+      { "src/lib.rs": "lib", "tests/t.rs": "test" },
+      {
+        "src/lib.rs": "lib",
+        "tests/t.rs": "their test",
+        ".workspace/metadata.json": "{}",
+      }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "my lib", "tests/t.rs": "test" });
+    captureWrites();
+
+    expect(await PgProjectSync.pushCurrent()).toBe("ok");
+
+    expect(serverRow(HELLO.id).snapshot).toEqual({
+      files: {
+        "src/lib.rs": "my lib",
+        "tests/t.rs": "their test",
+        ".workspace/metadata.json": "{}",
+      },
+    });
+    expect(PgProjectSync.conflictFor(HELLO.id)).toBeNull();
+  });
+
+  it("does not read a merge's refused upload as merged", async () => {
+    await startFrom(
+      { "src/lib.rs": "lib", "tests/t.rs": "test" },
+      { "src/lib.rs": "lib", "tests/t.rs": "their test" }
+    );
+    localFilesAre(HELLO.name, { "src/lib.rs": "my lib", "tests/t.rs": "test" });
+    captureWrites();
+    // The first PUT is refused for the other device's write; the merge's own
+    // upload is refused as a bad request
+    const online = global.fetch;
+    let puts = 0;
+    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT" && ++puts === 2) {
+        return {
+          ok: false,
+          status: 400,
+          json: async () => ({
+            error: "A path under .workspace/ is not synced",
+          }),
+        };
+      }
+      return online(url, init);
+    }) as unknown as typeof fetch;
+
+    expect(await PgProjectSync.pushCurrent()).toBe("conflict");
+    expect(PgProjectSync.conflictFor(HELLO.id)).not.toBeNull();
   });
 
   it("merges edits to different lines of one file without asking", async () => {

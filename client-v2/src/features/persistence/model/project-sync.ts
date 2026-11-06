@@ -1,6 +1,7 @@
 // TODO(ui-migration 1.4): a feature importing a feature; project sync runs only for a signed-in session
 import {
   checkProjectLimits,
+  isSyncedPath,
   type LimitExceeded,
   readLimitExceeded,
 } from "@/entities/project";
@@ -44,12 +45,13 @@ import { PgWorkspaceRegistry } from "./workspace-registry";
 
 /**
  * How a push ended. `unchanged`: the server already holds these files under
- * this name, so there was nothing to send. `skipped`: not sent for any other
- * reason, offline among them. `unchanged` and `skipped` are kept apart
+ * this name, so there was nothing to send. `refused`: the server answered
+ * the body with a 4xx no question settles (a 400), reported already.
+ * `skipped`: not sent for any other reason, offline among them. `unchanged` and `skipped` are kept apart
  * because "Try again" settles the question on `unchanged` and puts it back on
  * `skipped`.
  */
-type PushResult = "ok" | "conflict" | "unchanged" | "skipped";
+type PushResult = "ok" | "conflict" | "unchanged" | "refused" | "skipped";
 
 /** `push`'s options -- see there */
 type PushOptions = {
@@ -786,7 +788,8 @@ export class PgProjectSync {
           // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
           null
         );
-        return "skipped";
+        // A 5xx may pass on its own; a 4xx is this body's, sent again as it is
+        return response.status < 500 ? "refused" : "skipped";
       }
 
       const accepted = await response.json();
@@ -1295,7 +1298,13 @@ export class PgProjectSync {
           return "failed";
         }
 
-        const server = full.snapshot.files;
+        // Only what sync carries: a row stored before the server refused
+        // other `.workspace/` paths may hold one, which an upload may not
+        const server = Object.fromEntries(
+          Object.entries(full.snapshot.files).filter(([path]) =>
+            isSyncedPath(path)
+          )
+        );
         const local = carried ?? (await snapshotOf(localName)).files;
         first ??= local;
         // The same state `push` refuses: a store emptied by
@@ -1430,7 +1439,9 @@ export class PgProjectSync {
           { immediate: true, merging: true }
         );
         // "unchanged" is nothing left to send, "skipped" most likely no
-        // network; both leave a state the next reconcile continues from
+        // network; both leave a state the next reconcile continues from. A
+        // refused upload merged nothing into the account's copy.
+        if (result === "refused") return "failed";
         if (result !== "conflict") return "merged";
 
         // A refusal that is not about versions is the user's to clear: a
