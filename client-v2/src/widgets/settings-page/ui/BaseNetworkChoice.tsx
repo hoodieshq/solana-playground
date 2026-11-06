@@ -7,48 +7,51 @@ const REAL_SOL = "Deploys with real SOL";
 /** Stands for any URL no chip lists; never an endpoint itself */
 const CUSTOM = "custom";
 
-// `string`, not `Endpoint`: platform endpoints are build-time URLs, not enum
-// members. `line` says how a deploy works there, in Spec 03's words.
-const NETWORKS: ReadonlyArray<{
-  label: string;
-  endpoint: string;
-  line: string;
-  /** A deploy spends real money: the line's dot turns amber */
-  realSol: boolean;
-}> = [
+/**
+ * One chip. `string`, not `Endpoint`: platform endpoints are build-time URLs,
+ * not enum members. A network where a deploy spends real money says only
+ * that (`REAL_SOL`, an amber dot); a free one says how a deploy works there,
+ * in Spec 03's words, so the line and the dot cannot disagree.
+ */
+type Network = { label: string; endpoint: string } & (
+  | { realSol: true }
+  | { realSol: false; line: string }
+);
+
+const lineOf = (network: Network) =>
+  network.realSol ? REAL_SOL : network.line;
+
+const NETWORKS: ReadonlyArray<Network> = [
   {
     label: "Devnet",
     endpoint: Endpoint.DEVNET,
-    line: "Deploys with free devnet SOL",
     realSol: false,
+    line: "Deploys with free devnet SOL",
   },
   {
     label: "Testnet",
     endpoint: Endpoint.TESTNET,
-    line: "Deploys with free testnet SOL",
     realSol: false,
+    line: "Deploys with free testnet SOL",
   },
   {
     label: "Localnet",
     endpoint: Endpoint.LOCALNET,
-    line: "Deploys with your local SOL",
     realSol: false,
+    line: "Deploys with your local SOL",
   },
-  ...PLATFORM_ENDPOINTS.map(({ name, value, cluster }) => ({
-    label: name,
-    endpoint: value,
-    line:
+  ...PLATFORM_ENDPOINTS.map(
+    ({ name, value, cluster }): Network =>
       cluster === "mainnet-beta"
-        ? REAL_SOL
-        : `Deploys with free ${cluster} SOL`,
-    realSol: cluster === "mainnet-beta",
-  })),
-  {
-    label: "Mainnet Beta",
-    endpoint: Endpoint.MAINNET_BETA,
-    line: REAL_SOL,
-    realSol: true,
-  },
+        ? { label: name, endpoint: value, realSol: true }
+        : {
+            label: name,
+            endpoint: value,
+            realSol: false,
+            line: `Deploys with free ${cluster} SOL`,
+          }
+  ),
+  { label: "Mainnet Beta", endpoint: Endpoint.MAINNET_BETA, realSol: true },
 ];
 
 /**
@@ -103,7 +106,7 @@ const BaseNetworkChoice = ({
         // The card's foot: how a deploy works here, amber where SOL is real
         <p className="flex items-center gap-2 bg-surface-raised/50 px-4 py-2.5 text-xs text-muted-foreground max-md:text-caption max-md:font-read">
           <StatusDot variant={listed.realSol ? "warning" : "success"} />
-          {listed.line}
+          {lineOf(listed)}
         </p>
       )}
     </>

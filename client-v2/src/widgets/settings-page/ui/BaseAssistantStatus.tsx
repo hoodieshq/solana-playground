@@ -1,9 +1,14 @@
+import { useEffect, useRef, useState } from "react";
+
+import { createLogger } from "@/shared/lib/logger";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { StatusDot } from "@/shared/ui/status-dot";
 
 import BaseSettingRow from "./BaseSettingRow";
+
+const log = createLogger("settings-page:assistant-status");
 
 /** The hosted model, as `GET /api/ai/status` answered */
 export type HostedModel = "checking" | "present" | "absent" | "unreachable";
@@ -70,10 +75,33 @@ const BaseAssistantStatus = ({
 }) => {
   const shown: Shown = hosted === "unreachable" && !online ? "offline" : hosted;
   const state = STATES[shown];
+  // When a Try again last settled: a retry that is answered "unreachable"
+  // again changes nothing else on the row, so the help line says it asked
+  const [askedAt, setAskedAt] = useState<Date>();
+  const retry = () => onRetry().then(() => setAskedAt(new Date()));
+
+  // The probe failed while offline is not a verdict on the model: back
+  // online, the row asks once rather than stay on Not answering
+  const wasOnline = useRef(online);
+  useEffect(() => {
+    if (online && !wasOnline.current && hosted === "unreachable") {
+      // Nobody pressed anything, so no toast; the caller reports a rejection
+      onRetry().catch((error: unknown) => log.error(error));
+    }
+    wasOnline.current = online;
+  }, [online, hosted, onRetry]);
+
+  const help =
+    shown === "unreachable" && askedAt
+      ? `Still not answering, asked at ${askedAt.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })}. The assistant asks for a key.`
+      : state.help;
   return (
     <BaseSettingRow
       name="Hosted model"
-      description={state.help}
+      description={help}
       phone={phone}
       small
       control={
@@ -82,7 +110,7 @@ const BaseAssistantStatus = ({
             <AsyncButton
               variant="outline"
               size={phone ? "default" : "sm"}
-              onClick={onRetry}
+              onClick={retry}
               onError={reportButtonFailure("ask the hosted model again")}
             >
               Try again

@@ -82,3 +82,47 @@ describe("BaseAssistantStatus", () => {
     }
   );
 });
+
+describe("BaseAssistantStatus over time", () => {
+  const props = (online: boolean, onRetry: () => Promise<unknown>) => ({
+    hosted: "unreachable" as const,
+    online,
+    onRetry,
+    phone: false,
+  });
+
+  it("asks the hosted model again once the browser is back online", () => {
+    const onRetry = vi.fn(() => Promise.resolve());
+    const { rerender } = render(
+      <BaseAssistantStatus {...props(false, onRetry)} />
+    );
+    expect(onRetry).not.toHaveBeenCalled();
+
+    rerender(<BaseAssistantStatus {...props(true, onRetry)} />);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+
+    rerender(<BaseAssistantStatus {...props(true, onRetry)} />);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not ask again on opening while online", () => {
+    const onRetry = vi.fn(() => Promise.resolve());
+    render(<BaseAssistantStatus {...props(true, onRetry)} />);
+    expect(onRetry).not.toHaveBeenCalled();
+  });
+
+  it("says when it last asked after a Try again that is still not answered", async () => {
+    render(
+      <BaseAssistantStatus
+        {...props(
+          true,
+          vi.fn(() => Promise.resolve())
+        )}
+      />
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(
+      await screen.findByText(/^Still not answering, asked at \d{1,2}:\d{2}/)
+    ).toBeTruthy();
+  });
+});
