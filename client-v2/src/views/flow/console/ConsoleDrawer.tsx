@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import { useEffect, useReducer, useState } from "react";
 
+import { useSetStatic } from "../../../hooks/useSetStatic";
 import { useViewport } from "../../../shared/lib/hooks/use-viewport";
 import { createLogger } from "../../../shared/lib/logger";
 import {
@@ -8,6 +9,7 @@ import {
   PgCommon,
   PgExplorer,
   PgTerminal,
+  PgView,
 } from "../../../utils";
 import { CONSOLE_KEY, keyLabel } from "../../../widgets/layout-shell";
 import Terminal from "../../main/secondary/terminal/Component/Terminal";
@@ -104,6 +106,9 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({
   const status = hasClientRun ? withoutClientRunHint(described) : described;
   const stop = runToStop(flow);
 
+  const [progress, setProgress] = useState(0);
+  useSetStatic(PgView.events.MAIN_SECONDARY_PROGRESS_SET, setProgress);
+
   // What `PgTerminal.process` needs to know whether a failure it printed
   // was seen
   useEffect(() => {
@@ -125,6 +130,7 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({
         if (next !== open) onToggle();
       }}
       status={tutorial?.status ?? status}
+      progress={progress}
       bare={tutorial !== undefined}
       empty={tutorial?.empty}
       // A tutorial below the frame's width is the phone's: no key hints
@@ -134,7 +140,12 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({
           : keyLabel(CONSOLE_KEY, PgCommon.getOS())
       }
       onClear={clear}
-      stop={stop && { run: stop, onStop: () => PgCommandManager.stop() }}
+      // TODO: Stop does not end a tutorial deploy, and should also close the wallet's leftover buffers
+      stop={
+        stop === "build"
+          ? { run: stop, onStop: () => PgCommandManager.stop() }
+          : undefined
+      }
     >
       <Terminal />
     </BaseConsoleDrawer>

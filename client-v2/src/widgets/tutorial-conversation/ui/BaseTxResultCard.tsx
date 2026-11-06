@@ -15,6 +15,7 @@ import type {
   RunResult,
 } from "@/features/tutorial-conversation";
 import { devnetExplorerUrl } from "@/shared/lib/devnet-explorer";
+import { faucetUrlFor } from "@/shared/lib/faucet";
 import { PROGRAM_LOG, programLogText } from "@/shared/lib/program-log";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
@@ -147,8 +148,6 @@ const QUIET =
 
 /** Code in the details' sentence, on the prototype's ringed chip */
 const CHIP = "bg-black/35 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.18)]";
-
-const FAUCET_URL = "https://faucet.solana.com";
 
 /** lamports as SOL, to at most four places */
 const solOf = (lamports: number) =>
@@ -360,7 +359,11 @@ const FundsCard = ({
           </div>
           <div className="flex">
             <Button variant="secondary" asChild>
-              <a href={FAUCET_URL} target="_blank" rel="noopener noreferrer">
+              <a
+                href={faucetUrlFor("devnet")(address)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Open faucet
                 <ExternalLink aria-hidden="true" className="size-4" />
               </a>

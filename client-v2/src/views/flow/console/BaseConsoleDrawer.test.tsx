@@ -14,16 +14,18 @@ const draw = (
   handlers: {
     onOpenChange?: (open: boolean) => void;
     onClear?: () => void;
-    stop?: { run: "build" | "deploy"; onStop: () => void } | null;
+    stop?: { run: "build" | "deploy"; onStop: () => void };
+    progress?: number;
   }
 ) =>
   render(
     <BaseConsoleDrawer
       open={open}
       status={idle}
+      progress={handlers.progress}
       onOpenChange={handlers.onOpenChange ?? vi.fn()}
       onClear={handlers.onClear ?? vi.fn()}
-      stop={handlers.stop ?? null}
+      stop={handlers.stop}
       shortcut="⌘J"
     >
       <div className="xterm" />
@@ -78,7 +80,7 @@ it("clears without toggling", () => {
   expect(onOpenChange).not.toHaveBeenCalled();
 });
 
-// Spec 13: Stop shows while a build or a deploy runs, folded or open
+// Spec 13: Stop shows while a run can be stopped, folded or open
 it.each([
   ["build", true],
   ["build", false],
@@ -118,7 +120,6 @@ it("shows the status text with a dot of its tone", () => {
       status={{ text: "build failed", tone: "error" }}
       onOpenChange={vi.fn()}
       onClear={vi.fn()}
-      stop={null}
       shortcut="⌘J"
     />
   );
@@ -129,6 +130,20 @@ it("shows the status text with a dot of its tone", () => {
       ?.getAttribute("data-variant")
   ).toBe("error");
 });
+
+it.each([
+  { progress: 0, shown: undefined },
+  { progress: 40, shown: "40" },
+])(
+  "draws a progress bar along the strip for $progress: $shown",
+  ({ progress, shown }) => {
+    draw(false, { progress });
+    expect(
+      screen.queryByRole("progressbar")?.getAttribute("aria-valuenow") ??
+        undefined
+    ).toBe(shown);
+  }
+);
 
 // The shell folds the panel to `BOTTOM_BAR_PX`; the bar draws itself `h-bar`
 // tall, from the design system's `--layout-bar`

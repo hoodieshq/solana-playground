@@ -289,6 +289,20 @@ describe("BaseActCard", () => {
     );
   });
 
+  it("shows how far a long stage has got beside n of m", () => {
+    card({
+      state: "running",
+      stage: {
+        beatId: "s1.deploy",
+        label: "Writing buffer",
+        index: 1,
+        count: 3,
+        detail: "40 of 200 transactions",
+      },
+    });
+    expect(screen.getByText("· 40 of 200 transactions")).toBeTruthy();
+  });
+
   it("waits while another act runs", () => {
     card({ disabled: true });
     expect(
@@ -489,7 +503,7 @@ describe("BaseResultCard", () => {
     ).toBe("Wa11etCopy");
     expect(
       screen.getByRole("link", { name: /Open faucet/ }).getAttribute("href")
-    ).toBe("https://faucet.solana.com");
+    ).toBe("https://faucet.solana.com/?walletAddress=Wa11et&cluster=devnet");
     unmount();
     txCard({
       act: "call",

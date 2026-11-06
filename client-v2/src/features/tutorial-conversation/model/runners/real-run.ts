@@ -164,7 +164,9 @@ const sendCall = async (
   deployed: RunInput["idl"]
 ) => {
   // The program on chain answers to the IDL it was deployed with: a build
-  // since then must not change what is sent
+  // since then must not change what is sent. The definition names the
+  // instruction as Rust does (`chop_tree`), the IDL as the Anchor that wrote
+  // it does (`chopTree`), as the goals compare them
   const idl = deployed ?? PgProgramInfo.callableIdl();
   const idlIx = idl?.instructions.find((ix) =>
     sameIdlName(ix.name, call.instruction)

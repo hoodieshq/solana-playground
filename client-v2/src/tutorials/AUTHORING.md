@@ -371,6 +371,11 @@ The question that repairs a planned failure has the kicker `Fix it`. Its
 step's client file) or `call`. `say` is the line above the card; `title`,
 `context` and `button` are the card's.
 
+A `deploy` or `buildDeploy` act never says the program is not on devnet yet.
+A learner who starts the lesson over has it there already, and the deploy is
+an upgrade, which the card reads as "Upgraded …". Say what the deploy does:
+"Deploy it to devnet, and a client can call it."
+
 ```json beat
 {
   "kind": "act",

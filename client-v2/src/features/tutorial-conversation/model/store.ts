@@ -1062,6 +1062,7 @@ export class PgConversation {
               label: stage.label,
               index: stage.index,
               count: stage.count,
+              detail: stage.detail,
               at: Date.now(),
             })
           );

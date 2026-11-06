@@ -52,6 +52,9 @@ vi.mock("@/utils", () => ({
     stop: vi.fn(),
     onDidStart: vi.fn(() => ({ dispose: () => {} })),
   },
+  PgView: {
+    events: { MAIN_SECONDARY_PROGRESS_SET: "viewmainsecondaryprogressset" },
+  },
 }));
 
 /** The flow's state and its one listener, which a test drives by hand */
@@ -128,6 +131,16 @@ it("should show what it is told and ask to toggle", () => {
   ).not.toBeNull();
   fireEvent.click(handle);
   expect(onToggle).toHaveBeenCalledTimes(1);
+});
+
+it("should pass on the progress a command sets", () => {
+  render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
+  act(() => {
+    document.dispatchEvent(
+      new CustomEvent("viewmainsecondaryprogressset", { detail: 40 })
+    );
+  });
+  expect(lastDrawerProps().progress).toBe(40);
 });
 
 it("should drop the client run hint once a client run starts", () => {
@@ -231,6 +244,16 @@ it("should stop the run in flight from Stop", () => {
   fireEvent.click(screen.getByRole("button", { name: "Stop build" }));
 
   expect(PgCommandManager.stop).toHaveBeenCalledTimes(1);
+});
+
+it("should offer no Stop while a deploy runs", () => {
+  flow.state = flowState("done", { deploy: "running" });
+  render(<ConsoleDrawer open={true} onToggle={vi.fn()} />);
+
+  expect(screen.queryByRole("button", { name: /^Stop/ })).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Clear" }).hasAttribute("disabled")
+  ).toBe(false);
 });
 
 describe("the strip's clock", () => {

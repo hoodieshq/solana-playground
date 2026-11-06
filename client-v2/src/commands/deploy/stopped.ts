@@ -4,7 +4,32 @@ import { STOPPED } from "../../utils/stopped";
 export type StoppedBuffer =
   | { state: "none" }
   | { state: "closed" }
-  | { state: "kept"; address: string; sol: number | undefined };
+  | {
+      state: "kept";
+      address: string;
+      sol: number | undefined;
+      /** The RPC {@link closeBuffersCommandFor} names, when buffer reads use one */
+      readBufferUrl: string | undefined;
+    };
+
+/** `value` as one single-quoted shell word, so zsh does not glob a URL's `?` */
+const shellQuote = (value: string) => `'${value.replaceAll("'", `'\\''`)}'`;
+
+/**
+ * The terminal command that closes a wallet's buffers. It names the read-buffer
+ * RPC when buffer reads use one, because the selected RPC may not list fresh buffers.
+ */
+export const closeBuffersCommandFor = (readBufferUrl: string | undefined) =>
+  readBufferUrl
+    ? `solana program close --buffers -u ${shellQuote(readBufferUrl)}`
+    : "solana program close --buffers";
+
+/** What the terminal says of a buffer whose close failed after a failed load */
+export const unclosedBufferLineFor =
+  (readBufferUrl: string | undefined) => (address: string) =>
+    `Its buffer ${address} could not be closed. Run \`${closeBuffersCommandFor(
+      readBufferUrl
+    )}\` to reclaim its SOL.`;
 
 /**
  * The words for an amount a kept buffer holds, to two decimals as the session
@@ -37,7 +62,9 @@ export const deployStoppedLine = (buffer: StoppedBuffer) => {
       return [
         line,
         `Its buffer ${buffer.address} still holds ${heldWords(buffer.sol)}.`,
-        "Run `solana program close --buffers` to get it back.",
+        `Run \`${closeBuffersCommandFor(
+          buffer.readBufferUrl
+        )}\` to get it back.`,
       ].join(" ");
   }
 };

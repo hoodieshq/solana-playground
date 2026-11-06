@@ -31,11 +31,11 @@ type StoredEndpoint = { option: string } | { option: "custom"; url: string };
 /**
  * Every address we provide, keyed.
  *
- * The first entry for a key is what the key reads back as; the first entry
- * for an address is the key it is stored under. So the offered Devnet and
- * Mainnet come first under the keys the public picks always had, and a
- * profile on a public URL or under a platform key that the network list no
- * longer offers reads back as the offered network.
+ * The first entry for a key is what the key reads back as. An address is
+ * stored under its entry's key only where that key reads back as the same
+ * address (`toStoredEndpoints`), so a public URL typed in while a platform
+ * RPC takes its key is stored as custom. A key or a plain string stored
+ * before reads back as the offered network.
  *
  * @param networks the networks Settings offers
  * @param configuredServer the build server `REACT_APP_SERVER_URL` names, if
@@ -47,7 +47,7 @@ export const buildEndpointOptions = (
 ): EndpointOptions => ({
   "connection.endpoint": [
     ...networks.map((n) => ({ key: n.cluster, url: n.value })),
-    // The public URLs, stored under the offered network's key
+    // The public URLs: a stored plain string reads back as the offered network; typed in, they stay custom while a platform RPC takes the key
     { key: "devnet", url: Endpoint.DEVNET },
     { key: "mainnet-beta", url: Endpoint.MAINNET_BETA },
     // Keys the platform options were stored under before HOO-2488
@@ -128,7 +128,12 @@ export const toStoredEndpoints = (
   ENDPOINT_SETTINGS.reduce(
     (acc, id) =>
       mapSetting(acc, id, (url): StoredEndpoint => {
-        const known = options[id].find((o) => o.url === url);
+        // Keyed only where the key reads back as this address: a public URL whose key now reads as the platform one was typed in
+        const known = options[id].find(
+          (o) =>
+            o.url === url &&
+            options[id].find((x) => x.key === o.key)?.url === url
+        );
         return known
           ? { option: known.key }
           : { option: "custom", url: url as string };
@@ -647,29 +652,20 @@ if (import.meta.vitest) {
         }
       );
 
-      it("stores a public URL under the offered network's key", () => {
-        for (const [url, option] of [
-          [Endpoint.DEVNET, "devnet"],
-          [Endpoint.MAINNET_BETA, "mainnet-beta"],
-        ]) {
+      it.each([Endpoint.DEVNET, Endpoint.MAINNET_BETA])(
+        "keeps %s typed in as a custom address while a platform network is offered",
+        (url) => {
           expect(
             at(
               toStoredEndpoints(state(url, LOCAL_ENDPOINT), options),
               "connection.endpoint"
             )
-          ).toEqual({ option });
+          ).toEqual({ option: "custom", url });
+          expect(
+            roundTrip(state(url, LOCAL_ENDPOINT)).connection.endpoint
+          ).toBe(url);
         }
-      });
-
-      it("moves a profile on a public URL to the offered network", () => {
-        expect(
-          roundTrip(state(Endpoint.DEVNET, LOCAL_ENDPOINT)).connection.endpoint
-        ).toBe(PLATFORM_DEVNET);
-        expect(
-          roundTrip(state(Endpoint.MAINNET_BETA, LOCAL_ENDPOINT)).connection
-            .endpoint
-        ).toBe(PLATFORM_MAINNET);
-      });
+      );
 
       it("moves a profile that stored a public URL as a plain string to the offered network", () => {
         // Written before endpoints were stored as keys, and never saved since

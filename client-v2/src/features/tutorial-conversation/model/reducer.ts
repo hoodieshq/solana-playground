@@ -73,6 +73,8 @@ export interface Stage {
   /** 1-based, of `count` */
   index: number;
   count: number;
+  /** How far a long stage has got, as the runner's `RunStage` reports it */
+  detail?: string;
 }
 
 export const INITIAL_ENGINE_STATE: EngineState = {
@@ -115,6 +117,7 @@ export type Action =
       label: string;
       index: number;
       count: number;
+      detail?: string;
       at: number;
     }
   | {
@@ -1167,9 +1170,9 @@ const reduceAction = (
       if (action.startedAt !== undefined && action.startedAt !== run.at) {
         return same(state);
       }
-      const { beatId, label, index, count } = action;
+      const { beatId, label, index, count, detail } = action;
       return {
-        state: { ...state, stage: { beatId, label, index, count } },
+        state: { ...state, stage: { beatId, label, index, count, detail } },
         effects: [],
       };
     }
@@ -2647,6 +2650,7 @@ if (import.meta.vitest) {
             label: "Building",
             index: 1,
             count: 1,
+            detail: "half way",
             at: 7100,
           },
         ]).state;
@@ -2655,6 +2659,7 @@ if (import.meta.vitest) {
           label: "Building",
           index: 1,
           count: 1,
+          detail: "half way",
         });
         const ended = reduce(ctx(), midRun, {
           type: "ended",

@@ -62,16 +62,14 @@ const normalised = (value: string) => {
 };
 
 /**
- * The addresses the network chips already offer, normalised, under the
- * offered network's name: the configured Devnet and Mainnet, and the public
- * ones, which `stored-endpoint.ts` reads back as them. None is saved or
- * adopted as a custom RPC: it would be a second chip for one network.
+ * The addresses the network chips open, normalised, under the network's
+ * name. None is saved or adopted as a custom RPC: it would be a second chip
+ * for one network. A public URL a platform RPC replaces is not among them,
+ * so a profile that typed it in sees it as a custom chip.
  */
-const OFFERED = new Map<string, string>([
-  ...NETWORKS.map((n) => [normalised(n.value), n.name] as const),
-  [normalised(Endpoint.DEVNET), clusterName("devnet")],
-  [normalised(Endpoint.MAINNET_BETA), clusterName("mainnet-beta")],
-]);
+const OFFERED = new Map<string, string>(
+  NETWORKS.map((n) => [normalised(n.value), n.name] as const)
+);
 
 /** Clusters with no chip of their own, named as the cluster when listed */
 const CLUSTERS = new Map<string, string>([
