@@ -53,7 +53,7 @@ const ONLY: Row[] = [
   { now: "StepRail", next: "StepRail", keep: "Done, skipped, current and locked, each with its mark.", state: "built" },
   { now: "Build and Deploy stages", next: "Diagnostic, Deploy result, Table", keep: "The faulty line marked. One accent action per screen.", state: "built" },
   { now: "Session footer", next: "Session footer block", keep: "The cluster row and the account row.", state: "built" },
-  { now: "Editor tabs", next: "EditorTabs", keep: "The current tab on the editor's ground, no line of its own. Close on hover. Reorder stays with dnd-kit.", state: "built" },
+  { now: "Editor tabs", next: "EditorTabs", keep: "The current tab on a ground of its own, no line. Close on hover. Reorder stays with dnd-kit.", state: "built" },
   { now: "CodeBlock, Terminal", next: "CodeBlock, Terminal", keep: "The syntax colours, the green caret. xterm stays the engine.", state: "built" },
   { now: "UploadArea", next: "DropZone", keep: "The dashed purple edge. It is also a button.", state: "built" },
   { now: "Wallet window", next: "A floating panel, a Sheet on a phone", keep: "Dragging, the purple glow at its head.", state: "planned" },

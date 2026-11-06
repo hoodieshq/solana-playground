@@ -97,7 +97,7 @@ test("the current tab has no line of its own and close shows on hover", async ({
   await expect(current).toHaveCount(1);
   await expect(other).not.toHaveAttribute("data-active");
 
-  // The current tab is marked by the editor's ground alone (DES-130)
+  // The current tab is marked by its own ground alone (DES-130)
   expect(await style(current, "content", "::before")).toBe("none");
   expect(await style(other, "content", "::before")).toBe("none");
   expect(await style(current, "background-color")).not.toBe(
