@@ -348,7 +348,7 @@ if (import.meta.vitest) {
           ]);
         });
 
-        it("never asks about a new RPC", async () => {
+        it("does not ask about a new RPC", async () => {
           const isHeld = vi.fn(() => true);
           const checked = await saveCheckedWith(healthOf("answered"))(isHeld)(
             TRITON,

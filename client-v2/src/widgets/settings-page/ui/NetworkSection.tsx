@@ -128,7 +128,7 @@ const NetworkSection = () => {
     // Removing the RPC in use moves the network to Devnet, so a running
     // deploy keeps it listed rather than leaving the connection on an RPC
     // the list no longer has
-    if (wasPicked && !canSwitchNetwork(PgGlobal.deployState)) {
+    if (isHeld(rpc.url)) {
       toastNetworkHeld();
       return;
     }
