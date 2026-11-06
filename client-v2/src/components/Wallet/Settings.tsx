@@ -13,22 +13,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { Icon } from "@/shared/ui/icon";
 import { MenuItemText } from "@/shared/ui/menu-extras";
 
 import { isSignInFailure } from "../../features/auth";
 import { useCopy } from "../../hooks";
 import { Fn, PgCommand, PgView, PgWallet } from "../../utils";
 import { KeypairFileError } from "../../utils/wallet/keypair-file";
-import {
-  Airdrop,
-  Copy,
-  Edit,
-  ExportFile,
-  ImportFile,
-  Plus,
-  ThreeDots,
-  Trash,
-} from "../Icons";
 import Img from "../Img";
 import { useAirdrop, useDarken } from "./hooks";
 import { importedText } from "./imported-text";
@@ -112,7 +103,7 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
       >
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon-sm" title="More">
-            <ThreeDots />
+            <Icon name="more" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -129,7 +120,7 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
           }}
         >
           <DropdownMenuItem onSelect={copyAddress}>
-            <Copy />
+            <Icon name="copy" />
             <MenuItemText>Copy address</MenuItemText>
           </DropdownMenuItem>
           {airdropCondition && (
@@ -143,7 +134,7 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
                 });
               }}
             >
-              <Airdrop />
+              <Icon name="airdrop" />
               <MenuItemText>Airdrop</MenuItemText>
             </DropdownMenuItem>
           )}
@@ -155,12 +146,12 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
               })
             }
           >
-            <Plus />
+            <Icon name="add" />
             <MenuItemText>Add</MenuItemText>
           </DropdownMenuItem>
           {isPg && (
             <DropdownMenuItem onSelect={rename}>
-              <Edit />
+              <Icon name="edit" />
               <MenuItemText>Rename</MenuItemText>
             </DropdownMenuItem>
           )}
@@ -174,17 +165,17 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
                 })
               }
             >
-              <Trash />
+              <Icon name="delete" />
               <MenuItemText>Remove</MenuItemText>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onSelect={importWallet}>
-            <ImportFile />
+            <Icon name="import" />
             <MenuItemText>Import</MenuItemText>
           </DropdownMenuItem>
           {isPg && (
             <DropdownMenuItem onSelect={() => PgWallet.export()}>
-              <ExportFile />
+              <Icon name="export" />
               <MenuItemText>Export</MenuItemText>
             </DropdownMenuItem>
           )}
