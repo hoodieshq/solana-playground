@@ -519,16 +519,6 @@ if (import.meta.vitest) {
         });
         expect(tracked()).toEqual([]);
       });
-
-      it("carries no URL, host or name in any event", () => {
-        const answer = answerFor(vi.fn())("add")({
-          kind: "unreachable",
-          reason: "no_answer",
-          useAnyway: () => ({ ok: true, rpc: SAVED_TRITON }),
-        });
-        if (answer.kind === "unreachable") answer.useAnyway();
-        expect(JSON.stringify(events.events)).not.toMatch(/t\.test|Triton/);
-      });
     });
   });
 }

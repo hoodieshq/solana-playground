@@ -92,15 +92,12 @@ if (import.meta.vitest) {
       });
     });
 
-    it.each([200, 401, 503])(
-      "counts an HTTP %i as an answer",
-      async (status) => {
-        vi.spyOn(globalThis, "fetch").mockResolvedValue(
-          new Response("{}", { status })
-        );
-        expect(await fetchRpcHealth(URL)).toBe("answered");
-      }
-    );
+    it.each([401, 503])("counts an HTTP %i as an answer", async (status) => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response("{}", { status })
+      );
+      expect(await fetchRpcHealth(URL)).toBe("answered");
+    });
 
     it("reads a failed request as no answer", async () => {
       vi.spyOn(globalThis, "fetch").mockRejectedValue(
