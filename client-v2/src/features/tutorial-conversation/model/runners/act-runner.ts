@@ -1,6 +1,8 @@
 /* eslint-disable layers/curry-order, max-params -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { Act } from "@/entities/tutorial";
 
+import { linkingOwnTxs, txLinkedBySender } from "../../../../utils/tx-links";
+
 import type { Runner } from "../ports";
 import { failedResult } from "../ports";
 
@@ -12,6 +14,9 @@ export type ActRun = Runner["run"];
  * each from its own run ticket (build HOO-2355, deploy HOO-2356, run and
  * call HOO-2357). An act with none yet answers a failed result that says so,
  * so a lesson reaching it shows a failed card rather than hang.
+ *
+ * Every act's transactions are linked to Explorer from its own card, so they
+ * raise no Explorer toast over it (HOO-2703).
  */
 export const actRunner = (
   runs: Partial<Record<Act, ActRun>>,
@@ -25,7 +30,7 @@ export const actRunner = (
         failedResult(act, `The ${act} act is not wired yet.`)
       );
     }
-    return run(act, input, onStage);
+    return linkingOwnTxs(() => run(act, input, onStage));
   },
 });
 
@@ -43,6 +48,27 @@ if (import.meta.vitest) {
         { beatId: "s4.deploy" },
         onStage
       );
+    });
+
+    it("marks the act's sends as shown by its card, and only while it runs", async () => {
+      let during = false;
+      const call = vi.fn<ActRun>(async (act) => {
+        during = txLinkedBySender();
+        return failedResult(act, "stub");
+      });
+      await actRunner({ call }).run("call", { beatId: "s3.call" }, () => {});
+      expect(during).toBe(true);
+      expect(txLinkedBySender()).toBe(false);
+    });
+
+    it("lifts the mark when the act throws", async () => {
+      const run = vi.fn<ActRun>(async () => {
+        throw new Error("the script broke");
+      });
+      await expect(
+        actRunner({ run }).run("run", { beatId: "s3.run" }, () => {})
+      ).rejects.toThrow("the script broke");
+      expect(txLinkedBySender()).toBe(false);
     });
 
     it("answers an act with no runner as a failed result", async () => {

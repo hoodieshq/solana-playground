@@ -6,6 +6,7 @@ import {
   PgView,
   PgWeb3,
 } from "../../utils";
+import { txLinkedBySender } from "../../utils/tx-links";
 import { ExplorerLink } from "./ExplorerLink";
 
 // Show a notification toast with explorer links after a transaction is sent.
@@ -13,6 +14,9 @@ export const tx = () => {
   return PgTx.onDidSend((sentTx) => {
     // Check setting
     if (!PgSettings.notification.showTx) return;
+
+    // Don't repeat a link its sender shows (a tutorial card)
+    if (txLinkedBySender()) return;
 
     // Don't show on playnet
     if (PgConnection.cluster === "playnet") return;
