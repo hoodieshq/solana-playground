@@ -9,7 +9,7 @@ const log = createLogger("custom-rpc:health");
  */
 export type RpcHealth = "answered" | "no_answer" | "offline";
 
-/** How long a typed RPC URL has to answer before it is saved (Spec 07) */
+/** How long a typed RPC URL has to answer before it is saved (spec `client-v2-custom-rpcs`) */
 const RPC_CHECK_TIMEOUT_MS = 5000;
 
 /** JSON-RPC `getHealth`: every Solana RPC serves it, and it costs nothing */
@@ -57,7 +57,7 @@ const fetchRpcHealthWithin =
     }
   };
 
-/** `fetchRpcHealthWithin` at Spec 07's `RPC_CHECK_TIMEOUT_MS` */
+/** `fetchRpcHealthWithin` at `RPC_CHECK_TIMEOUT_MS`, the `client-v2-custom-rpcs` spec's wait */
 export const fetchRpcHealth = fetchRpcHealthWithin(RPC_CHECK_TIMEOUT_MS);
 
 if (import.meta.vitest) {
