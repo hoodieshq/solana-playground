@@ -1403,6 +1403,10 @@ export class PgExplorer {
   static closeFile(path: string) {
     path = this.convertToFullPath(path);
 
+    // A path with no tab has nothing to close: `indexOf` gives -1 and
+    // `splice(-1, 1)` would remove the last tab instead
+    if (!this.tabs.includes(path)) return;
+
     // If closing the current file, change the current file to the next tab
     if (this.currentFilePath === path) {
       const pathToOpen =

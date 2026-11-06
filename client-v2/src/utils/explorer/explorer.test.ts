@@ -1375,3 +1375,28 @@ describe("renaming an item", () => {
     expect(announced).not.toHaveBeenCalled();
   });
 });
+
+describe("deleting a file that has no tab", () => {
+  beforeEach(reset);
+
+  // `closeFile` spliced at `tabs.indexOf(path)`, which is -1 for a path with
+  // no tab, so the delete removed the last tab instead
+  it("leaves the open tabs and the selected tab as they were", async () => {
+    await PgExplorer.createWorkspace("alpha", {
+      files: [
+        ["/alpha/src/lib.rs", "declare_id!();"],
+        ["/alpha/client/client.ts", "client"],
+        ["/alpha/tests/anchor.test.ts", "test"],
+      ],
+    });
+    const lib = PgExplorer.convertToFullPath("src/lib.rs");
+    const client = PgExplorer.convertToFullPath("client/client.ts");
+    PgExplorer.setTabs([lib, client]);
+    PgExplorer.openFile(lib);
+
+    await PgExplorer.deleteItem("tests/anchor.test.ts");
+
+    expect(PgExplorer.tabs).toEqual([lib, client]);
+    expect(PgExplorer.currentFilePath).toBe(lib);
+  });
+});
