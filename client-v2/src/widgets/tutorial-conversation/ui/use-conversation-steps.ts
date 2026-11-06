@@ -1,6 +1,7 @@
 /* eslint-disable unicorn/no-null -- the step bar's live index is null before Start, as `liveStepIndex` returns it */
 import type { StepBarItem } from "@/features/tutorial-conversation";
 import { PgConversation } from "@/features/tutorial-conversation";
+import { PgExplorer } from "@/utils/explorer";
 
 import { requestStepJump } from "../model/jump";
 import { liveStepIndex } from "../model/step-bar";
@@ -47,7 +48,16 @@ export const useConversationSteps = (): ConversationSteps => {
   const state = useConversationState();
   const context = state.context;
   const view = PgConversation.view();
-  if (!context || !view) return NONE;
+  // The store keeps the last tutorial's conversation until the next one's
+  // save is read: its counts belong to another tutorial, so Code's dot would
+  // take the next one's restored writes as new
+  if (
+    !context ||
+    !view ||
+    context.definition.name !== PgExplorer.currentWorkspaceName
+  ) {
+    return NONE;
+  }
   const objectives = new Map(
     context.definition.steps.map((step) => [step.id, step.objective])
   );

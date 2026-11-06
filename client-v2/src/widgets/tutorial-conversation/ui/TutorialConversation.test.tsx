@@ -1312,6 +1312,15 @@ describe("TutorialConversation on the phone", () => {
 });
 
 describe("useConversationSteps", () => {
+  // The store keys a conversation by its workspace, named after the tutorial
+  const workspace = PgExplorer as unknown as { currentWorkspaceName: string };
+  beforeEach(() => {
+    workspace.currentWorkspaceName = definition.name;
+  });
+  afterEach(() => {
+    workspace.currentWorkspaceName = "hello";
+  });
+
   it("hands the phone's header the steps with their objectives and where the learner is", () => {
     const { result } = renderHook(() => useConversationSteps());
     expect(result.current.steps.map((s) => s.objective)).toEqual(
@@ -1341,6 +1350,16 @@ describe("useConversationSteps", () => {
     result.current.jump(0);
     stop();
     expect(listen).toHaveBeenCalledWith(0);
+  });
+
+  it("reads as not loaded while the store still holds another tutorial's conversation", () => {
+    workspace.currentWorkspaceName = "Counter";
+    const { result } = renderHook(() => useConversationSteps());
+    expect(result.current).toMatchObject({
+      steps: [],
+      wrote: 0,
+      loaded: false,
+    });
   });
 
   it("has no steps outside a conversation tutorial", () => {

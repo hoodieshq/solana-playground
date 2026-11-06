@@ -139,4 +139,32 @@ describe("useTutorialSpace", () => {
         .map((e) => e.params)
     ).toEqual([{ space: "code", via: "swipe" }]);
   });
+
+  it("reports a switch by Show and by a doc page", () => {
+    const { result } = draw(options({}));
+    act(() => requestCode());
+    act(() => result.current.setSpace("chat", "toggle"));
+    const stop = onDocRequest(() => true);
+    act(() => {
+      requestDoc("idl.md");
+    });
+    stop();
+    expect(
+      sent.events
+        .filter((e) => e.name === "tutorial_frame_space_changed")
+        .map((e) => e.params)
+    ).toEqual([
+      { space: "code", via: "show" },
+      { space: "chat", via: "toggle" },
+      { space: "code", via: "doc" },
+    ]);
+  });
+
+  it("marks Code for the first write after Start over", () => {
+    const { result, rerender } = draw(options({ wrote: 3 }));
+    rerender(options({ wrote: 0 }));
+    expect(result.current.dot).toBe(false);
+    rerender(options({ wrote: 1 }));
+    expect(result.current.dot).toBe(true);
+  });
 });

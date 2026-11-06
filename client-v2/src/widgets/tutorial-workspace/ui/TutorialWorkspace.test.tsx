@@ -159,6 +159,11 @@ describe("TutorialWorkspace", () => {
     expect(
       screen.getByTestId("tutorial-doc-page").getAttribute("aria-label")
     ).toBe("IDL");
+
+    // No tabs on the phone: the sheet is the way back to a file
+    await userEvent.click(screen.getByRole("button", { name: "Files" }));
+    await userEvent.click(screen.getByRole("treeitem", { name: /lib\.rs/ }));
+    expect(screen.queryByTestId("tutorial-doc-page")).toBeNull();
   });
 
   it("hands the line marks and the stage to the editor's line states on the phone", () => {
@@ -172,5 +177,12 @@ describe("TutorialWorkspace", () => {
     callPanel.isOpen = true;
     workspace("phone");
     expect(screen.getByRole("dialog", { name: "Call" })).toBeTruthy();
+  });
+
+  it("closes the phone's Call sheet on Escape", async () => {
+    callPanel.isOpen = true;
+    workspace("phone");
+    await userEvent.keyboard("{Escape}");
+    expect(callPanel.close).toHaveBeenCalledTimes(1);
   });
 });
