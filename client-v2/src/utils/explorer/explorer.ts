@@ -330,7 +330,7 @@ export class PgExplorer {
     content: string = "",
     opts?: CreateItemOptions
   ) {
-    const fullPath = this._checkNewItem(path, opts);
+    const fullPath = this._checkNewItemWith(opts)(path);
 
     // Before anything is written, on the project as the write leaves it
     // (`checkWriteTo`). A folder holds no bytes and is not counted.
@@ -357,7 +357,7 @@ export class PgExplorer {
   static writeGeneratedFileWith(openOptions: OpenOptions) {
     const opts = { override: true, openOptions };
     return async (path: string, content: string) => {
-      const fullPath = this._checkNewItem(path, opts);
+      const fullPath = this._checkNewItemWith(opts)(path);
       if (!PgExplorer.getItemTypeFromPath(fullPath).file) {
         throw new Error(`Not a file path: ${path}`);
       }
@@ -366,23 +366,25 @@ export class PgExplorer {
   }
 
   /** The full path of an item `createItem` may write, after its name checks */
-  private static _checkNewItem(path: string, opts?: CreateItemOptions) {
-    const fullPath = this.convertToFullPath(path);
+  private static _checkNewItemWith(opts: CreateItemOptions | undefined) {
+    return (path: string) => {
+      const fullPath = this.convertToFullPath(path);
 
-    // Invalid name
-    if (
-      !opts?.skipNameValidation &&
-      !PgExplorer.isItemNameValid(PgExplorer.getItemNameFromPath(fullPath))
-    ) {
-      throw new Error(PgExplorer.errors.INVALID_NAME);
-    }
+      // Invalid name
+      if (
+        !opts?.skipNameValidation &&
+        !PgExplorer.isItemNameValid(PgExplorer.getItemNameFromPath(fullPath))
+      ) {
+        throw new Error(PgExplorer.errors.INVALID_NAME);
+      }
 
-    // Check whether the item already exists
-    if (this.files[fullPath] && !opts?.override) {
-      throw new Error(PgExplorer.errors.ALREADY_EXISTS);
-    }
+      // Check whether the item already exists
+      if (this.files[fullPath] && !opts?.override) {
+        throw new Error(PgExplorer.errors.ALREADY_EXISTS);
+      }
 
-    return fullPath;
+      return fullPath;
+    };
   }
 
   /** The writes of `createItem` once its checks have passed */

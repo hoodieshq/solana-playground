@@ -43,7 +43,9 @@ vi.mock("../../../../../utils", async () => ({
   PgView: utils.PgView,
   PgKeybind: (await import("../../../../../utils/keybind")).PgKeybind,
 }));
-vi.mock("../../../../../components/LangIcon", () => ({ default: () => null }));
+vi.mock("../../../../../components/LangIcon", () => ({
+  default: () => undefined,
+}));
 
 import { CreateItem } from "./CreateItem";
 

@@ -34,7 +34,9 @@ const reset = async () => {
     _workspace: unknown;
     _initializedWorkspaceName: unknown;
   };
+  // eslint-disable-next-line unicorn/no-null -- the explorer's own "no workspace yet"
   statics._workspace = null;
+  // eslint-disable-next-line unicorn/no-null -- as above
   statics._initializedWorkspaceName = null;
   await PgExplorer.init();
 };
@@ -63,7 +65,8 @@ describe("CandyCache", () => {
       files: [["/candy/src/lib.rs", ""]],
     });
     const cache = uploadedCache(500);
-    const expected = JSON.stringify(cache, null, 2);
+    // `prettyJSON`, as the cache writes itself
+    const expected = JSON.stringify(cache, undefined, 2);
     expect(expected.length).toBeGreaterThan(128 * 1024);
 
     await cache.syncFile();
