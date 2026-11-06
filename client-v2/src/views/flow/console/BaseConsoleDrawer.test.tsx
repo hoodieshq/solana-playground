@@ -14,7 +14,7 @@ const draw = (
   handlers: {
     onOpenChange?: (open: boolean) => void;
     onClear?: () => void;
-    stop?: { run: "build" | "deploy"; onStop: () => void } | null;
+    stop?: { run: "build" | "deploy"; onStop: () => void };
     progress?: number;
   }
 ) =>
@@ -25,7 +25,7 @@ const draw = (
       progress={handlers.progress}
       onOpenChange={handlers.onOpenChange ?? vi.fn()}
       onClear={handlers.onClear ?? vi.fn()}
-      stop={handlers.stop ?? null}
+      stop={handlers.stop}
       shortcut="⌘J"
     >
       <div className="xterm" />
@@ -80,9 +80,8 @@ it("clears without toggling", () => {
   expect(onOpenChange).not.toHaveBeenCalled();
 });
 
-// Spec 13: Stop shows while a build or a deploy runs, folded or open
-// eslint-disable-next-line jest/no-disabled-tests -- Stop is hidden in BaseConsoleDrawer until it stops a running deploy
-it.skip.each([
+// Spec 13: Stop shows while a run can be stopped, folded or open
+it.each([
   ["build", true],
   ["build", false],
   ["deploy", true],
@@ -99,13 +98,13 @@ it.skip.each([
   expect(onOpenChange).not.toHaveBeenCalled();
 });
 
-// With Stop hidden, Clear is the strip's one action during a run
-it("keeps Clear on while a run goes", () => {
+// Spec 13 (TRM-28): Clear is off beside Stop; a phone hides it for Stop
+it("turns Clear off while a run can be stopped", () => {
   draw(true, { stop: { run: "build", onStop: vi.fn() } });
 
   const clear = screen.getByRole("button", { name: "Clear" });
-  expect(clear.hasAttribute("disabled")).toBe(false);
-  expect(clear.className).not.toContain("max-md:hidden");
+  expect(clear.hasAttribute("disabled")).toBe(true);
+  expect(clear.className).toContain("max-md:hidden");
 });
 
 it("offers no Stop while nothing runs", () => {
@@ -121,7 +120,6 @@ it("shows the status text with a dot of its tone", () => {
       status={{ text: "build failed", tone: "error" }}
       onOpenChange={vi.fn()}
       onClear={vi.fn()}
-      stop={null}
       shortcut="⌘J"
     />
   );

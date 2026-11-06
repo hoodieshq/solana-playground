@@ -237,14 +237,23 @@ it("should show the flow's status as it changes", () => {
   expect(screen.getByText(/^Building…/)).toBeTruthy();
 });
 
-// eslint-disable-next-line jest/no-disabled-tests -- Stop is hidden in BaseConsoleDrawer until it stops a running deploy
-it.skip("should stop the run in flight from Stop", () => {
+it("should stop the run in flight from Stop", () => {
   flow.state = flowState("running");
   render(<ConsoleDrawer open={false} onToggle={vi.fn()} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Stop build" }));
 
   expect(PgCommandManager.stop).toHaveBeenCalledTimes(1);
+});
+
+it("should offer no Stop while a deploy runs", () => {
+  flow.state = flowState("done", { deploy: "running" });
+  render(<ConsoleDrawer open={true} onToggle={vi.fn()} />);
+
+  expect(screen.queryByRole("button", { name: /^Stop/ })).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Clear" }).hasAttribute("disabled")
+  ).toBe(false);
 });
 
 describe("the strip's clock", () => {

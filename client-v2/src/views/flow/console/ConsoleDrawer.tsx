@@ -140,7 +140,12 @@ const ConsoleDrawer: FC<ConsoleDrawerProps> = ({
           : keyLabel(CONSOLE_KEY, PgCommon.getOS())
       }
       onClear={clear}
-      stop={stop && { run: stop, onStop: () => PgCommandManager.stop() }}
+      // TODO: Stop does not end a tutorial deploy, and should also close the wallet's leftover buffers
+      stop={
+        stop === "build"
+          ? { run: stop, onStop: () => PgCommandManager.stop() }
+          : undefined
+      }
     >
       <Terminal />
     </BaseConsoleDrawer>
