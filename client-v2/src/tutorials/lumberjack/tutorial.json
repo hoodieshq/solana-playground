@@ -169,7 +169,7 @@
           "kind": "act",
           "id": "s2.deploy",
           "act": "deploy",
-          "say": "Your program is built, but it isn't on devnet yet. Deploy it, and a client can call it.",
+          "say": "Your program is built. Deploy it to devnet, and a client can call it.",
           "title": "Deploy to devnet",
           "context": "From your Playground wallet · free devnet SOL",
           "button": "Deploy"
