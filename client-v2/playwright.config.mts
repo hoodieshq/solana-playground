@@ -198,7 +198,7 @@ export default defineConfig({
         ["json", { outputFile: "test-results/report.json" }],
       ]
     : "line",
-  // Under the `e2e` shard job's `timeout-minutes` (client-v2.yml), so
+  // Under the `e2e` shard job's `timeout-minutes` (reusable-client-v2.yml), so
   // Playwright itself ends a hung shard and still prints its summary; a
   // GitHub cancel keeps the traces but not the line saying which test was
   // running. 25 minutes, not 15: on run 42259738085 (2026-11-06, seven

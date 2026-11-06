@@ -110,7 +110,7 @@ async function clusterOf(
     // goes on, its network unknown. The network selected now may be another
     // one, so a record under it would be the wrong-network record this
     // function exists to prevent.
-    log.warn("could not read the deploy's cluster", {
+    log.warn("could not read the deploy's cluster; it is not recorded", {
       context: { error: String(error) },
     });
     // eslint-disable-next-line unicorn/no-null -- `DeployResult.cluster` is `null` for an unknown network
