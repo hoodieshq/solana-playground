@@ -81,6 +81,7 @@ vi.mock("../../utils", () => ({
     },
     getAirdropAmount: () => 5,
     getCluster: async () => "devnet",
+    getReadBufferConnection: <T>(connection: T) => connection,
   },
   PgGlobal: {
     deployState: "ready",
@@ -338,19 +339,29 @@ describe("commands/deploy", () => {
       expect(openBuffers.forget).toHaveBeenCalledWith("Buf1111");
     });
 
-    it("closes the buffer when the load fails", async () => {
+    it("closes the buffer on a yes when the load fails, then fails with the load's error", async () => {
       env.balance = 10_000_000_000;
       loadBuffer.mockRejectedValue(new Error("write transaction dropped"));
 
       const failure = await runDeploy();
 
-      expect((failure as Error).message).toContain("write transaction dropped");
+      expect((failure as Error).message).toBe("write transaction dropped");
       expect(isStopped(failure)).toBe(false);
       expect(closeBuffer).toHaveBeenCalledTimes(1);
-      expect(printed().join("\n")).toContain(
-        "Its buffer account was closed and the SOL returned."
-      );
+      expect(env.termLines).toContain("Reclaim successful.");
       expect(openBuffers.forget).toHaveBeenCalledWith("Buf1111");
+    });
+
+    it("keeps the buffer and its record on a no after a failed load", async () => {
+      env.balance = 10_000_000_000;
+      loadBuffer.mockRejectedValue(new Error("write transaction dropped"));
+      env.waitForInput = async () => false;
+
+      await runDeploy();
+
+      expect(closeBuffer).not.toHaveBeenCalled();
+      expect(openBuffers.forget).not.toHaveBeenCalled();
+      expect(env.termLines.join("\n")).toContain("Reclaim rejected.");
     });
 
     it("closes the buffer when the deploy transaction fails", async () => {
@@ -373,7 +384,7 @@ describe("commands/deploy", () => {
       const failure = await runDeploy();
 
       expect((failure as Error).message).toContain("write transaction dropped");
-      expect(printed().join("\n")).toContain(
+      expect(env.termLines.join("\n")).toContain(
         "Its buffer Buf1111 still holds 1.42 SOL."
       );
       expect(openBuffers.forget).not.toHaveBeenCalled();

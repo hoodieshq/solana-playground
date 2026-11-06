@@ -7,8 +7,28 @@ export type StoppedBuffer =
   /** Reads empty after a failed close: closed, or consumed by the deploy */
   | { state: "gone" }
   /** A create that failed, on an account that could not be read */
-  | { state: "unknown"; address: string }
-  | { state: "kept"; address: string; sol: number | undefined };
+  | {
+      state: "unknown";
+      address: string;
+      /** The command that closes it, from {@link closeBuffersCommandFor} */
+      command: string;
+    }
+  | {
+      state: "kept";
+      address: string;
+      sol: number | undefined;
+      /** The command that closes it, from {@link closeBuffersCommandFor} */
+      command: string;
+    };
+
+/**
+ * The terminal command that closes a wallet's buffers. It names the read-buffer
+ * RPC when buffer reads use one, because the selected RPC may not list fresh buffers.
+ */
+export const closeBuffersCommandFor = (readBufferUrl: string | undefined) =>
+  readBufferUrl
+    ? `solana program close --buffers -u ${readBufferUrl}`
+    : "solana program close --buffers";
 
 /**
  * The words for an amount a kept buffer holds, to two decimals as the session
@@ -55,12 +75,12 @@ export const bufferLeftLine = (buffer: StoppedBuffer) => {
     case "unknown":
       return [
         `Could not check whether its buffer ${buffer.address} was created.`,
-        "If it holds SOL, run `solana program close --buffers` to get it back.",
+        `If it holds SOL, run \`${buffer.command}\` to get it back.`,
       ].join(" ");
     case "kept":
       return [
         `Its buffer ${buffer.address} still holds ${heldWords(buffer.sol)}.`,
-        "Run `solana program close --buffers` to get it back.",
+        `Run \`${buffer.command}\` to get it back.`,
       ].join(" ");
   }
 };

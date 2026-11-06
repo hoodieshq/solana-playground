@@ -44,6 +44,7 @@ vi.mock("../../utils", () => {
       cluster: "devnet",
       getCluster: vi.fn(async () => "devnet"),
       getAirdropAmount: vi.fn((): number | null => 5),
+      getReadBufferConnection: <T>(connection: T) => connection,
       current: {
         getBalance: (...args: unknown[]) => balance(...(args as [])),
         getMinimumBalanceForRentExemption: async (len: number) => len,
