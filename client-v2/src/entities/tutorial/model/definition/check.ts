@@ -436,6 +436,30 @@ const ruleErrors = (
     }
   };
 
+  // A tutorial deploy pays from the wallet and no longer tops it up itself
+  // (HOO-2677): the learner asks the faucet on an airdrop card first
+  const firstDeploy = d.steps
+    .flatMap((step, i) => beatsOf(step, i))
+    .find(
+      ([beat]) =>
+        beat.kind === "act" &&
+        (beat.act === "airdrop" ||
+          beat.act === "deploy" ||
+          beat.act === "buildDeploy")
+    );
+  if (
+    firstDeploy &&
+    firstDeploy[0].kind === "act" &&
+    firstDeploy[0].act !== "airdrop"
+  ) {
+    errors.push({
+      path: firstDeploy[1],
+      message: `an airdrop act before the first deploy, found none before ${JSON.stringify(
+        firstDeploy[0].id
+      )}`,
+    });
+  }
+
   d.steps.forEach((step, i) => {
     once(stepIds, step.id, `steps[${i}].id`, "step");
     continues(step, i);
@@ -742,6 +766,58 @@ if (import.meta.vitest) {
 
     it("passes a well-formed definition", () => {
       expect(lines(minimal())).toEqual([]);
+    });
+
+    describe("the airdrop before the first deploy", () => {
+      const act = (id: string, kind: "airdrop" | "deploy" | "buildDeploy") => ({
+        kind: "act" as const,
+        id,
+        act: kind,
+        title: kind === "airdrop" ? "Get devnet SOL" : "Deploy to devnet",
+        context: "Devnet",
+        button: kind === "airdrop" ? "Request airdrop" : "Deploy",
+      });
+
+      it("refuses a first deploy with no airdrop before it, naming it", () => {
+        const d = minimal();
+        d.steps[0].beats.push(act("s1.deploy", "deploy"));
+        expect(lines(d)).toEqual([
+          'steps[0].beats[2]: an airdrop act before the first deploy, found none before "s1.deploy"',
+        ]);
+      });
+
+      it("passes an airdrop in the same step or an earlier one", () => {
+        const same = minimal();
+        same.steps[0].beats.push(
+          act("s1.airdrop", "airdrop"),
+          act("s1.deploy", "deploy")
+        );
+        expect(lines(same)).toEqual([]);
+
+        const earlier = minimal();
+        earlier.steps[0].beats.push(act("s1.airdrop", "airdrop"));
+        earlier.steps[1].beats.unshift(act("s2.deploy", "deploy"));
+        expect(lines(earlier)).toEqual([]);
+      });
+
+      it("asks nothing of a later deploy once the first had its airdrop", () => {
+        const d = minimal();
+        d.steps[0].beats.push(
+          act("s1.airdrop", "airdrop"),
+          act("s1.deploy", "deploy")
+        );
+        d.steps[1].beats.unshift(act("s2.ship", "buildDeploy"));
+        expect(lines(d)).toEqual([]);
+      });
+
+      it("refuses an airdrop act that names an instruction", () => {
+        const d = minimal();
+        d.steps[0].beats.push({
+          ...act("s1.airdrop", "airdrop"),
+          call: { instruction: "hello" },
+        } as never);
+        expect(lines(d).length).toBeGreaterThan(0);
+      });
     });
 
     it("names a wrong option with no reason by its path", () => {

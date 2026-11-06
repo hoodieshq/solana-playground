@@ -1,4 +1,5 @@
 export { tutorialTelemetry } from "./model/telemetry";
+export { airdropRecord } from "./model/airdrop-record";
 export {
   freshProgress,
   isSignedOut,

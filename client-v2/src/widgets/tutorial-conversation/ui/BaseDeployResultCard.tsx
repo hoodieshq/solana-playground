@@ -26,11 +26,21 @@ import { CopyButton } from "@/shared/ui/copy-button";
 import { formatSeconds, Prose, READ } from "./Prose";
 import WalletAddress from "./WalletAddress";
 
-/** A deploy's or a build-and-deploy's result, landed or not */
-export type DeployResult = Extract<
-  RunResult,
-  { act: "deploy" | "buildDeploy" }
+/**
+ * A deploy's or a build-and-deploy's result, landed or not, or an airdrop's
+ * that did not land: an airdrop shares the deploy's failed cards, and one
+ * that landed posts no result card, its record says what it did (HOO-2677)
+ */
+export type DeployResult = Exclude<
+  Extract<RunResult, { act: "airdrop" | "deploy" | "buildDeploy" }>,
+  { act: "airdrop"; ok: true }
 >;
+
+/** Whether a result is drawn by this card */
+export const isDeployResult = (r: RunResult): r is DeployResult =>
+  r.act === "deploy" ||
+  r.act === "buildDeploy" ||
+  (r.act === "airdrop" && !r.ok);
 
 /** Where the faucet's card sends the learner for devnet SOL */
 export const FAUCET_URL = "https://faucet.solana.com";
@@ -162,7 +172,10 @@ const BaseDeployResultCard = ({
       );
     case "failed":
       return (
-        <FailedCard title="Deploy failed" open={open}>
+        <FailedCard
+          title={result.act === "airdrop" ? "Airdrop failed" : "Deploy failed"}
+          open={open}
+        >
           <p className="break-words border-l-2 border-error/40 pl-3 font-mono text-[0.8125rem] text-foreground/90">
             {result.message}
           </p>

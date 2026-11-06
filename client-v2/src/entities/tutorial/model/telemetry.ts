@@ -149,7 +149,14 @@ export type TutorialEvents = {
   tutorial_action_run: {
     tutorial: string;
     step: number;
-    action: "build" | "deploy" | "build_deploy" | "run" | "call" | "call_panel";
+    action:
+      | "airdrop"
+      | "build"
+      | "deploy"
+      | "build_deploy"
+      | "run"
+      | "call"
+      | "call_panel";
     outcome:
       | "ok"
       | "failed"

@@ -435,6 +435,7 @@ export type Placeholder =
 
 /** The placeholder while an act runs, by its act (the prototype's `placeholderFor`) */
 const WHILE: Record<Act, Placeholder> = {
+  airdrop: "Ask while it runs",
   build: "Ask while it builds",
   deploy: "Ask while it builds",
   buildDeploy: "Ask while it builds",

@@ -389,17 +389,32 @@ export type RunResult =
       idl?: Idl;
     }
   | {
-      act: "deploy" | "buildDeploy";
+      act: "airdrop";
+      ok: true;
+      seconds: number;
+      /** Lamports the wallet holds once the airdrop showed, or already held */
+      balance: number;
+      /** Lamports the airdrop added; 0 for a wallet that was already funded */
+      airdropped: number;
+      /** The press made the Playground wallet before it asked the faucet */
+      madeWallet?: true;
+    }
+  | {
+      /** A deploy's failures, and an airdrop's, which share its cards */
+      act: "airdrop" | "deploy" | "buildDeploy";
       ok: false;
       seconds: number;
       reason: "failed" | "no_wallet";
       message: string;
     }
   | {
-      act: "deploy" | "buildDeploy";
+      act: "airdrop" | "deploy" | "buildDeploy";
       ok: false;
       seconds: number;
-      /** The airdrop was refused or rate limited and the wallet is short */
+      /**
+       * The wallet cannot pay for the deploy: the airdrop was refused or rate
+       * limited, or the deploy found it short
+       */
       reason: "no_funds";
       message: string;
       /** Lamports the wallet holds, the line's "{balance} SOL" */

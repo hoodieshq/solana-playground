@@ -315,6 +315,7 @@ const same = (state: EngineState): Reduced => ({ state, effects: [] });
 export type ActionRunParams = TutorialEvents["tutorial_action_run"];
 
 const ACTION_OF: Record<Act, ActionRunParams["action"]> = {
+  airdrop: "airdrop",
   build: "build",
   deploy: "deploy",
   buildDeploy: "build_deploy",
