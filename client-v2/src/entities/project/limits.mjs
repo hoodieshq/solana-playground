@@ -5,9 +5,14 @@
 // same file rather than restate a figure that must agree on both sides.
 //
 // A Playground project is an exercise: the largest bundled tutorial holds
-// 12.5 KB in 3 files, so these sit far above that and far below the 4.5 MB a
-// Vercel Function accepts as a request body.
+// 12 KB in 3 files (12,471 bytes), so these sit far above that and far below
+// the 4.5 MB a Vercel Function accepts as a request body.
 //
+// The checks below answer `null` for "nothing exceeded" and "not a limit
+// body", and callers test it for truthiness. The file is plain `.mjs` that
+// the server reads as well, so the answer is not moved to `undefined`.
+/* eslint-disable unicorn/no-null */
+
 // TODO(HOO-2604): the JSDoc types below are declared, not checked: the
 // tsconfig has no `checkJs`.
 
@@ -248,9 +253,7 @@ export const readLimitExceeded = (body) => {
         count: /** @type {number} */ (b.count),
       };
     case "too-many-projects":
-      // eslint-disable-next-line unicorn/no-null -- the function's contract: `null` is "not a limit body"
       if (!isCount(b.count)) return null;
-      // eslint-disable-next-line unicorn/no-null -- the function's contract: `null` is "not a limit body"
       if (b.kind !== "project" && b.kind !== "tutorial") return null;
       return {
         reason: "too-many-projects",
