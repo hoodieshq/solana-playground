@@ -2139,6 +2139,40 @@ if (import.meta.vitest) {
       status: "allowed",
     };
 
+    describe("turnAppliedApproval", () => {
+      const user: ChatItem = {
+        kind: "user",
+        id: "u",
+        createdAt: at,
+        text: "go",
+      };
+      const failed: ChatItem = {
+        kind: "approval",
+        id: "f",
+        createdAt: at,
+        request: { type: "patch", path: "src/lib.rs", before: "a", after: "b" },
+        status: "failed",
+      };
+
+      it("counts a card the user allowed", () => {
+        expect(turnAppliedApproval([user, approval, assistant("done")])).toBe(
+          true
+        );
+      });
+
+      it("does not count a card whose action failed", () => {
+        expect(turnAppliedApproval([user, failed, assistant("done")])).toBe(
+          false
+        );
+      });
+
+      it("stops at the turn's user message", () => {
+        expect(turnAppliedApproval([approval, user, assistant("done")])).toBe(
+          false
+        );
+      });
+    });
+
     describe("undoStrandedOutcome", () => {
       it("says which file, why, and whether it existed before", () => {
         expect(
