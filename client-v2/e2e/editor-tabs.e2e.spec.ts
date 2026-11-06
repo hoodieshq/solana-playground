@@ -6,7 +6,8 @@ import { LONG, test } from "./fixtures";
 
 /**
  * The editor's tab strip in a real browser: what jsdom cannot lay out or
- * paint (the drag, the grey line, close on hover, the clickable edge) and
+ * paint (the drag, the current tab's ground, close on hover, the clickable
+ * edge) and
  * what only the page's own key handling can show (arrows in the editor).
  */
 
@@ -99,6 +100,9 @@ test("the current tab has no line of its own and close shows on hover", async ({
   // The current tab is marked by the editor's ground alone (DES-130)
   expect(await style(current, "content", "::before")).toBe("none");
   expect(await style(other, "content", "::before")).toBe("none");
+  expect(await style(current, "background-color")).not.toBe(
+    await style(other, "background-color")
+  );
 
   const close = other.getByRole("button", { name: /^Close / });
   await pointerAway(page);

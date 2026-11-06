@@ -65,9 +65,8 @@ export const BaseEditorTab = forwardRef<HTMLDivElement, BaseEditorTabProps>(
         data-drag={drag}
         // The trigger takes the tab's left padding and the gap before close,
         // so a click anywhere up to the close button selects the tab. The
-        // open tab's edge is a 1 px light grey, not the brand's 2 px: colour
-        // is kept for focus. TODO(design-system): the kit's EditorTab, then
-        // drop it
+        // current tab draws no line of its own: the editor's ground marks it
+        // (DES-130). TODO(design-system): the kit's EditorTab, then drop it
         className={cn(
           "gap-0 pl-0 data-[drag=source]:opacity-60 data-[drag=overlay]:bg-surface data-[drag=overlay]:text-foreground data-[drag=overlay]:shadow-lg data-[drag=overlay]:ring-1 data-[drag=overlay]:ring-border",
           className

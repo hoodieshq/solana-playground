@@ -80,8 +80,8 @@
   --border-strong: #d4d4d8;
 
   /* ── status ─────────────────────────────────────────────────────────── */
-  /* the fills stay bright: dots, checks and tints, where 3:1 is enough.
-     Words take the -ink shade, dark enough for 4.5:1 on the colour's own
+  /* the fills stay bright for dots, checks and tints, which carry no words
+     (#00a36c is under 3:1 on surface, raised and hover). Words take the -ink shade, dark enough for 4.5:1 on the colour's own
      /12 tint up to raised (DES-130, 5 Nov 2026) */
   --success: #00a36c;
   --success-foreground: #ffffff;
