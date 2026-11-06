@@ -580,6 +580,8 @@ export const TutorialConversation = ({
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // Read by the jump, which is made before the layout's own line below
+  const onPhone = useRef(false);
   const onJump = useCallback(
     (index: number, from: number, via: StepJumpVia) => {
       const definition = PgConversation.state.context?.definition;
@@ -591,7 +593,9 @@ export const TutorialConversation = ({
         from: from + 1,
         via,
       });
-      showStepFile(definition.steps[index].file);
+      // On the phone a picked step takes the chat back to its divider
+      // (tutorial-phone); opening its file would slide the screen to Code
+      if (!onPhone.current) showStepFile(definition.steps[index].file);
     },
     []
   );
@@ -612,6 +616,7 @@ export const TutorialConversation = ({
   // draws the steps, and typing code is left to the desktop
   const layout = useMemo(() => phoneLayoutOf(viewport), [viewport]);
   const phone = layout.phone;
+  onPhone.current = phone;
   useLockedPreview(state, phone);
   const on = useMemo<TurnHandlers>(
     () => ({

@@ -141,7 +141,7 @@ import { PgTutorial } from "@/utils/tutorial";
 import { PgFlow } from "@/views/flow/state/stage";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 
-import { onStepJumpRequest } from "../model/jump";
+import { onStepJumpRequest, requestStepJump } from "../model/jump";
 import {
   TutorialConversation,
   useConversationStartOver,
@@ -1242,6 +1242,18 @@ describe("TutorialConversation on the phone", () => {
     expect(turnsOf(phone.container)).toEqual(deskTurns);
     expect(optionsOf()).toEqual(deskOptions);
     expect(deskTurns.filter((t) => t === "divider")).toHaveLength(3);
+  });
+
+  it("takes a step picked in the phone's header to its divider and opens no file", () => {
+    play(toStep3);
+    const track = vi.spyOn(tutorialTelemetry, "track");
+    drawAt(390);
+    act(() => requestStepJump(0));
+    expect(track).toHaveBeenCalledWith(
+      "tutorial_step_jumped",
+      expect.objectContaining({ step: 1, via: "menu" })
+    );
+    expect(PgExplorer.openFile).not.toHaveBeenCalled();
   });
 
   it("keeps Code read only on the phone after Start, and not on the desktop", () => {
