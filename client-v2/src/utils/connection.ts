@@ -189,6 +189,18 @@ const getKnownCluster = (endpoint: string): Cluster | undefined => {
   return NETWORKS.find((e) => e.value === endpoint)?.cluster;
 };
 
+/**
+ * The cluster of `connection`: known from its endpoint, or, for the selected
+ * custom endpoint, the one `readCluster` resolved from its genesis hash, once
+ * it is no longer the previous endpoint's.
+ */
+const getClusterOf = (connection: PgWeb3.Connection): Cluster | undefined =>
+  getKnownCluster(connection.rpcEndpoint) ??
+  (connection.rpcEndpoint === PgSettings.connection.endpoint &&
+  !PgConnection.clusterIsStale
+    ? PgConnection.cluster ?? undefined
+    : undefined);
+
 /** Read-buffer RPC URLs keyed by the cluster they read from */
 type ReadBufferRpcUrls = Partial<Record<Cluster, string>>;
 
@@ -198,7 +210,7 @@ type ReadBufferRpcUrls = Partial<Record<Cluster, string>>;
  */
 const readBufferConnectionWith =
   (urls: ReadBufferRpcUrls) => (connection: PgWeb3.Connection) => {
-    const cluster = getKnownCluster(connection.rpcEndpoint);
+    const cluster = getClusterOf(connection);
     // `!url` rather than a nullish check: sourcing an env file leaves unfilled keys as ""
     const url = cluster && urls[cluster];
     if (!url) return connection;
@@ -220,7 +232,7 @@ type SendTxPerSecond = Partial<Record<Cluster, string>>;
 /** The send cap of `connection`'s cluster; `undefined` when unset, unparsable or not above 0 */
 const sendTxPerSecondWith =
   (caps: SendTxPerSecond) => (connection: PgWeb3.Connection) => {
-    const cluster = getKnownCluster(connection.rpcEndpoint);
+    const cluster = getClusterOf(connection);
     if (!cluster) return undefined;
     const perSecond = Number(caps[cluster]);
     return Number.isFinite(perSecond) && perSecond > 0 ? perSecond : undefined;
