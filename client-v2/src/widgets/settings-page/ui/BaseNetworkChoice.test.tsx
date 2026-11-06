@@ -103,6 +103,61 @@ describe("BaseNetworkChoice", () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 
+  it.each([["Enter", "{Enter}"], ["Space", " "]])(
+    "moves onto Custom with the arrows without asking for a URL, and asks on %s",
+    async (_, key) => {
+      const onPick = vi.fn();
+      const onCustom = vi.fn();
+      render(
+        <BaseNetworkChoice
+          endpoint={Endpoint.DEVNET}
+          onPick={onPick}
+          onCustom={onCustom}
+        />
+      );
+      // Devnet is the first chip, so the left arrow loops onto Custom
+      act(() => screen.getByRole("radio", { name: "Devnet" }).focus());
+      await userEvent.keyboard("{ArrowLeft}");
+      expect(document.activeElement).toBe(
+        screen.getByRole("radio", { name: "Custom" })
+      );
+      expect(onCustom).not.toHaveBeenCalled();
+      expect(onPick).not.toHaveBeenCalled();
+
+      await userEvent.keyboard(key);
+      expect(onCustom).toHaveBeenCalledTimes(1);
+      expect(onPick).not.toHaveBeenCalled();
+    }
+  );
+
+  it("marks Mainnet Beta's deploy line with the warning dot, since its SOL is real", () => {
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.MAINNET_BETA}
+        onPick={() => {}}
+        onCustom={() => {}}
+      />
+    );
+    const line = screen.getByText("Deploys with real SOL");
+    expect(
+      line.querySelector('[data-slot="status-dot"]')?.getAttribute("data-variant")
+    ).toBe("warning");
+  });
+
+  it("marks a free network's deploy line with the success dot", () => {
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.DEVNET}
+        onPick={() => {}}
+        onCustom={() => {}}
+      />
+    );
+    const line = screen.getByText("Deploys with free devnet SOL");
+    expect(
+      line.querySelector('[data-slot="status-dot"]')?.getAttribute("data-variant")
+    ).toBe("success");
+  });
+
   it("leaves every chip unchecked for Playnet, and Tab still enters the group", async () => {
     render(
       <BaseNetworkChoice

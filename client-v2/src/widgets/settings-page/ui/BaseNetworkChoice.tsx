@@ -71,14 +71,18 @@ const BaseNetworkChoice = ({
           variant="chips"
           aria-label="Network"
           value={value}
-          onValueChange={(v) => (v === CUSTOM ? onCustom() : onPick(v))}
+          // The arrows move the choice and loop, so they reach Custom too;
+          // only a press on it (its `onClick`) asks for a URL
+          onValueChange={(v) => {
+            if (v !== CUSTOM) onPick(v);
+          }}
         >
           {[...NETWORKS, { label: "Custom", endpoint: CUSTOM }].map((n) => (
             <SegmentedItem
               key={n.endpoint}
               value={n.endpoint}
-              // A press on Custom while it is current edits the URL
-              onClick={n.endpoint === CUSTOM && custom ? onCustom : undefined}
+              // A click, Enter or Space on Custom, current or not
+              onClick={n.endpoint === CUSTOM ? onCustom : undefined}
               // A fingertip tall on a phone, as the prototype's network chips
               className="max-md:h-11 max-md:px-4 max-md:text-control"
             >
