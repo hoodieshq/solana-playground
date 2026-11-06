@@ -298,6 +298,11 @@ const BaseActCard = ({
           {stage.index} of {stage.count}
         </span>
       )}
+      {stage?.detail && (
+        <span className="text-[0.75rem] text-subtle tabular-nums">
+          · {stage.detail}
+        </span>
+      )}
     </span>
   ) : (
     <Button
