@@ -126,7 +126,7 @@ describe("BpfLoaderUpgradeable", () => {
         }),
     ],
   ] as const)(
-    "%s sends on the connection it is given, not the selected one",
+    "sends %s on the connection it is given, not the selected one",
     async (_, call) => {
       await call();
 
@@ -136,7 +136,7 @@ describe("BpfLoaderUpgradeable", () => {
     }
   );
 
-  it("deployProgram reads the rent and sends on the connection it is given", async () => {
+  it("reads the rent and sends deployProgram on the connection it is given", async () => {
     await BpfLoaderUpgradeable.deployProgram(signer, pk, 3, {
       connection: theDeploys as never,
     });

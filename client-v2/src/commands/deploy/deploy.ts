@@ -80,11 +80,6 @@ export const deploy = createCmd({
 });
 
 /**
- * The network `connection` points at. Read from its own endpoint:
- * `PgConnection.cluster` is derived asynchronously and can still name the
- * previous network right after a switch.
- */
-/**
  * End a deploy before it asks the faucet, when the network changed since it
  * started: the airdrop funds the network selected now, while the run sends
  * on its own
@@ -98,6 +93,11 @@ function throwIfNetworkChanged(connection: typeof PgConnection.current) {
   }
 }
 
+/**
+ * The network `connection` points at. Read from its own endpoint:
+ * `PgConnection.cluster` is derived asynchronously and can still name the
+ * previous network right after a switch.
+ */
 async function clusterOf(
   connection: typeof PgConnection.current
 ): Promise<DeployResult["cluster"]> {
@@ -219,9 +219,12 @@ const processDeploy = async (
   // connection and what the program info says about its network: a network
   // change from here on must not split it across two networks.
   const connection = PgConnection.current;
-  const programExists = PgProgramInfo.onChain!.deployed;
+  const onChain = PgProgramInfo.onChain;
+  if (!onChain) throw new Error("Failed to get on-chain program info");
+  const programExists = onChain.deployed;
   const additionalLen = getAdditionalLen(programLen);
-  const sendAndConfirmTxWithRetries = sendAndConfirmTxWithRetriesOn(connection);
+  const sendAndConfirmTxWithRetries =
+    sendAndConfirmTxWithRetriesFor(connection);
   const [userBalance, bufferBalance, cluster] = await Promise.all([
     connection.getBalance(wallet.publicKey),
     connection.getMinimumBalanceForRentExemption(
@@ -762,7 +765,7 @@ const keptLamportsOn =
  * @param checkConfirmation only confirm the transaction if this callback returns truthy
  * @returns the transaction signature
  */
-const sendAndConfirmTxWithRetriesOn =
+const sendAndConfirmTxWithRetriesFor =
   (connection: PgWeb3.Connection) =>
   async (
     sendTx: () => Promise<string>,
