@@ -23,6 +23,7 @@ import { AppNav, ProjectList, readProjectFiles } from "@/widgets/app-nav";
 import {
   Assistant,
   probeDefaultBackend,
+  retryDefaultBackend,
   useDefaultBackend,
 } from "@/widgets/assistant";
 import { catalogPage, catalogSlot, useCatalogPage } from "@/widgets/catalog";
@@ -148,13 +149,19 @@ const shareFromCodeHead = (name: string) =>
   );
 
 /**
- * The settings page with whether the hosted model answers. Its own component,
- * so the probe is read only while the page is open and the frame does not
- * re-render on its answer.
+ * The settings page with whether the hosted model answers, and the asking
+ * again its row offers. Its own component, so the probe is read only while
+ * the page is open and the frame does not re-render on its answer.
  */
 const LiveSettings = (
-  props: Omit<ComponentProps<typeof SettingsPage>, "hosted">
-) => <SettingsPage {...props} hosted={useDefaultBackend().state} />;
+  props: Omit<ComponentProps<typeof SettingsPage>, "hosted" | "onRetryHosted">
+) => (
+  <SettingsPage
+    {...props}
+    hosted={useDefaultBackend().state}
+    onRetryHosted={retryDefaultBackend}
+  />
+);
 
 const FlowFrame = () => {
   const [state, setState] = useState<FlowState>(INITIAL_FLOW_STATE);

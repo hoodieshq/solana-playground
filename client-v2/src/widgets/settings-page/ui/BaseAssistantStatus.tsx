@@ -1,4 +1,6 @@
+import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { cn } from "@/shared/lib/utils";
+import { AsyncButton } from "@/shared/ui/async-button";
 import { StatusDot } from "@/shared/ui/status-dot";
 
 import BaseSettingRow from "./BaseSettingRow";
@@ -6,8 +8,14 @@ import BaseSettingRow from "./BaseSettingRow";
 /** The hosted model, as `GET /api/ai/status` answered */
 export type HostedModel = "checking" | "present" | "absent" | "unreachable";
 
+/**
+ * What the row says: the answer, or `offline` for a failure while the browser
+ * has no network, which says nothing about the hosted model
+ */
+type Shown = HostedModel | "offline";
+
 const STATES: Record<
-  HostedModel,
+  Shown,
   {
     dot: "success" | "running" | "warning" | "idle";
     word: string;
@@ -34,17 +42,33 @@ const STATES: Record<
     word: "Not answering",
     help: "The hosted model is not answering. The assistant asks for a key.",
   },
+  // Off, as the status bar's AI indicator reads offline (`recordProbeFailure`)
+  offline: {
+    dot: "idle",
+    word: "Off",
+    help: "You are offline, so the hosted model cannot be asked.",
+  },
 };
 
-/** The Assistant section's first row: whether the hosted model is there, in words */
+/**
+ * The Assistant section's first row: whether the hosted model is there, in
+ * words, with a Try again while it is not answering
+ */
 const BaseAssistantStatus = ({
   hosted,
+  online,
+  onRetry,
   phone,
 }: {
   hosted: HostedModel;
+  /** Whether the browser has a network */
+  online: boolean;
+  /** Ask the hosted model again; settles once it has answered */
+  onRetry: () => Promise<unknown>;
   phone: boolean;
 }) => {
-  const state = STATES[hosted];
+  const shown: Shown = hosted === "unreachable" && !online ? "offline" : hosted;
+  const state = STATES[shown];
   return (
     <BaseSettingRow
       name="Hosted model"
@@ -52,15 +76,27 @@ const BaseAssistantStatus = ({
       phone={phone}
       small
       control={
-        <span
-          className={cn(
-            "flex items-center gap-2 text-caption text-muted-foreground max-md:text-control",
-            hosted === "present" && "text-foreground"
+        <div className="flex items-center gap-3">
+          {shown === "unreachable" && (
+            <AsyncButton
+              variant="outline"
+              size={phone ? "default" : "sm"}
+              onClick={onRetry}
+              onError={reportButtonFailure("ask the hosted model again")}
+            >
+              Try again
+            </AsyncButton>
           )}
-        >
-          <StatusDot variant={state.dot} />
-          {state.word}
-        </span>
+          <span
+            className={cn(
+              "flex items-center gap-2 text-caption text-muted-foreground max-md:text-control",
+              shown === "present" && "text-foreground"
+            )}
+          >
+            <StatusDot variant={state.dot} />
+            {state.word}
+          </span>
+        </div>
       }
     />
   );
