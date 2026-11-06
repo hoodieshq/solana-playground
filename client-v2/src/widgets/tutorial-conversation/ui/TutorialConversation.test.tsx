@@ -1244,6 +1244,17 @@ describe("TutorialConversation on the phone", () => {
     expect(deskTurns.filter((t) => t === "divider")).toHaveLength(3);
   });
 
+  it("keeps Code read only on the phone after Start, and not on the desktop", () => {
+    play(toStep3);
+    const desk = drawAt(1440);
+    expect(PgEditor.setReadOnly).not.toHaveBeenCalled();
+    desk.unmount();
+    const phone = drawAt(390);
+    expect(PgEditor.setReadOnly).toHaveBeenLastCalledWith(true);
+    phone.unmount();
+    expect(PgEditor.setReadOnly).toHaveBeenLastCalledWith(false);
+  });
+
   it("leaves the step bar to the phone's header", () => {
     play(toStep3);
     const desk = drawAt(1440);

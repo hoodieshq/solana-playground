@@ -217,17 +217,18 @@ const useOpenEnteredStep = (state: ConversationState) => {
 /**
  * The finished program beside the intro card is a preview, read only as the
  * spec's "A tutorial opens on its intro card" has it: the editor refuses
- * typing until Start, and again after Start over. Leaving the tutorial
- * unlocks it.
+ * typing until Start, and again after Start over. On the phone Code is read
+ * only throughout (tutorial-phone, "Chat and Code are two spaces"). Leaving
+ * the tutorial, or widening past the frame's width after Start, unlocks it.
  */
-const useLockedPreview = (state: ConversationState) => {
-  const onIntro =
-    !!state.context && state.engine.progress.cursor.kind === "intro";
+const useLockedPreview = (state: ConversationState, phone: boolean) => {
+  const locked =
+    !!state.context && (phone || state.engine.progress.cursor.kind === "intro");
   useEffect(() => {
-    if (!onIntro) return;
+    if (!locked) return;
     PgEditor.setReadOnly(true);
     return () => PgEditor.setReadOnly(false);
-  }, [onIntro]);
+  }, [locked]);
 };
 
 /** Marks that failed to compute, by message, so a re-render logs each once */
@@ -551,7 +552,6 @@ export const TutorialConversation = ({
   const state = useConversationState();
   const context = state.context;
   useOpenEnteredStep(state);
-  useLockedPreview(state);
   useEditorLink();
   const view = PgConversation.view();
 
@@ -612,6 +612,7 @@ export const TutorialConversation = ({
   // draws the steps, and typing code is left to the desktop
   const layout = useMemo(() => phoneLayoutOf(viewport), [viewport]);
   const phone = layout.phone;
+  useLockedPreview(state, phone);
   const on = useMemo<TurnHandlers>(
     () => ({
       ...handlers,
