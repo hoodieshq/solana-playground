@@ -190,6 +190,18 @@ describe("BaseNetworkChoice", () => {
     ).toBeNull();
   });
 
+  it("has no foot for an endpoint no chip lists", () => {
+    render(
+      <BaseNetworkChoice endpoint="https://unknown.test/" onPick={() => {}} />
+    );
+    expect(screen.queryByText(/^Deploys with/)).toBeNull();
+    expect(
+      screen
+        .getByRole("radiogroup", { name: "Network" })
+        .getAttribute("aria-describedby")
+    ).toBeNull();
+  });
+
   it("puts what it is given between the chips and the foot", () => {
     render(
       <BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={() => {}}>

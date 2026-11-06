@@ -7,9 +7,9 @@ import { Segmented, SegmentedItem } from "@/shared/ui/segmented";
 import { StatusDot } from "@/shared/ui/status-dot";
 
 /**
- * A chip. An offered network says how a deploy works there, in Spec 03's
- * words, and whether that spends real SOL (an amber dot); a saved custom RPC
- * says neither, since its cluster is unknown.
+ * A chip. An offered network says how a deploy works there (free SOL only on
+ * devnet, following Spec 03) and whether that spends real SOL (an amber dot);
+ * a saved custom RPC says neither, since its cluster is unknown.
  */
 interface Chip {
   label: string;
@@ -33,7 +33,8 @@ const NETWORKS: ReadonlyArray<Chip> = OFFERED.map(
  * custom RPC under its name; then `children` (the saved RPCs' list); then
  * the card's foot, how a deploy works on the checked network. An endpoint no
  * chip lists (Playnet, or a URL not saved yet) leaves none checked and no
- * foot. Each row is a child of the card, so its hairlines fall between them.
+ * foot. Render it directly inside BaseSettingsCard: the rows are a fragment,
+ * so the card's divide-y draws the hairlines between them.
  */
 const BaseNetworkChoice = ({
   endpoint,
@@ -62,14 +63,14 @@ const BaseNetworkChoice = ({
           aria-label="Network"
           aria-describedby={picked?.foot ? footId : undefined}
           value={picked ? endpoint : ""}
-          // The arrows move the choice and loop
+          // Segmented picks on arrow-key focus, as a radio group does
           onValueChange={onPick}
         >
           {chips.map((n) => (
             <SegmentedItem
               key={n.endpoint}
               value={n.endpoint}
-              // A fingertip tall on a phone, as the prototype's network chips
+              // A fingertip tall on a phone, at the h-11 of Almaz's #369 chips
               className="max-md:h-11 max-md:px-4 max-md:text-control"
             >
               {n.label}
