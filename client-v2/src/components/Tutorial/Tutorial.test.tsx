@@ -5,13 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Tutorial } from "./Tutorial";
 
 // The utils barrel needs build-time globals the unit runner does not define.
+const tutorial = vi.hoisted(() => ({
+  current: { name: "Test" } as { name: string } | undefined,
+  isStarted: () => true,
+  start: async () => {},
+}));
 vi.mock("../../utils", () => ({
   PgTheme: { convertToCSS: () => "", getScrollbarCSS: () => "" },
-  PgTutorial: {
-    current: { name: "Test" },
-    isStarted: () => true,
-    start: async () => {},
-  },
+  PgTutorial: tutorial,
 }));
 vi.mock("../../hooks", () => ({ useRenderOnChange: () => {} }));
 
@@ -47,5 +48,23 @@ describe("Tutorial onMount", () => {
     unmount();
     expect(cleanup).toHaveBeenCalledTimes(1);
     expect(error).not.toHaveBeenCalled();
+  });
+});
+
+describe("Tutorial on leaving", () => {
+  afterEach(() => {
+    tutorial.current = { name: "Test" };
+  });
+
+  // Going back to the tutorials list clears `current` (it is derived from the
+  // path) and re-renders this component before the route change unmounts it.
+  it("renders nothing once the current tutorial is cleared", () => {
+    const { container, rerender } = renderWith(() => {});
+
+    tutorial.current = undefined;
+    expect(() =>
+      rerender(<Tutorial about="About" pages={[]} files={[]} />)
+    ).not.toThrow();
+    expect(container.innerHTML).toBe("");
   });
 });
