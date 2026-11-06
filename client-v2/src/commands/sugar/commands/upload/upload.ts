@@ -164,7 +164,12 @@ export const processUpload = async (rpcUrl: string | undefined) => {
     );
 
     // Periodically save the cache
-    const saveCacheIntervalId = setInterval(() => cache.syncFile(false), 5000);
+    // A failed save is logged: the final save after the loop reports it to the
+    // user, and an unhandled rejection every 5 s would say nothing more
+    const saveCacheIntervalId = setInterval(
+      () => cache.syncFile(false).catch((e) => log.error(e, { report: true })),
+      5000
+    );
 
     // Show progress bar
     PgView.setMainSecondaryProgress(0.1);

@@ -202,8 +202,11 @@ export const processDeploy = async (rpcUrl: string | undefined) => {
       };
 
       // Periodically save the cache
+      // A failed save is logged: the final save after the loop reports it to the
+      // user, and an unhandled rejection every 5 s would say nothing more
       const saveCacheIntervalId = setInterval(
-        () => cache.syncFile(false),
+        () =>
+          cache.syncFile(false).catch((e) => log.error(e, { report: true })),
         5000
       );
 

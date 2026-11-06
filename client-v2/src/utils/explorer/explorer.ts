@@ -34,6 +34,19 @@ import { forgetFlushed, writeWorkspaceFile } from "./workspace-file";
 
 const log = createLogger("explorer:explorer");
 
+/** What `createItem` takes beside the path and the content */
+type CreateItemOptions = {
+  skipNameValidation?: boolean;
+  override?: boolean;
+  openOptions?: OpenOptions;
+};
+
+/** Whether a written file opens in the editor, or only refreshes there */
+type OpenOptions = {
+  dontOpen?: boolean;
+  onlyRefreshIfAlreadyOpen?: boolean;
+};
+
 /**
  * A create, rename or import the explorer refused because the project would
  * be over a limit. Its own class so a dialog can show it beside its input
@@ -315,37 +328,13 @@ export class PgExplorer {
   static async createItem(
     path: string,
     content: string = "",
-    opts?: {
-      skipNameValidation?: boolean;
-      override?: boolean;
-      openOptions?: {
-        dontOpen?: boolean;
-        onlyRefreshIfAlreadyOpen?: boolean;
-      };
-    }
+    opts?: CreateItemOptions
   ) {
-    const fullPath = this.convertToFullPath(path);
-
-    // Invalid name
-    if (
-      !opts?.skipNameValidation &&
-      !PgExplorer.isItemNameValid(PgExplorer.getItemNameFromPath(fullPath))
-    ) {
-      throw new Error(PgExplorer.errors.INVALID_NAME);
-    }
-
-    const files = this.files;
-
-    // Check whether the item already exists
-    if (files[fullPath] && !opts?.override) {
-      throw new Error(PgExplorer.errors.ALREADY_EXISTS);
-    }
-
-    const itemType = PgExplorer.getItemTypeFromPath(fullPath);
+    const fullPath = this._checkNewItem(path, opts);
 
     // Before anything is written, on the project as the write leaves it
     // (`checkFileWrite`). A folder holds no bytes and is not counted.
-    if (itemType.file) {
+    if (PgExplorer.getItemTypeFromPath(fullPath).file) {
       this._refuseOverLimit(
         "create",
         checkFileWrite(
@@ -356,44 +345,93 @@ export class PgExplorer {
       );
     }
 
-    // Ordering of `indexedDB` calls and state calls matter. If `indexedDB` call fails,
-    // state will not change. Can't say the same if the ordering was in reverse.
-    if (itemType.file) {
-      if (!this.isTemporary) {
-        await this.fs.writeFile(fullPath, content, { createParents: true });
-        // A new file is a change to the folder tree; replacing a file's
-        // content is not
-        if (!files[fullPath]) await this._saveTree("a create");
+    await this._writeItemWith(opts)(fullPath, content);
+  }
+
+  /**
+   * Write a file the playground generates from work already done, such as
+   * the Sugar cache, which holds the links of uploads the user has paid for.
+   * Unlike `createItem`, the project's limits do not refuse it: refusing
+   * would lose that work. A project left over a limit stays local, and the
+   * sync banner reports the server's refusal. The file is overwritten, and
+   * `openOptions` say whether an open editor tab shows the new content.
+   */
+  static writeGeneratedFileWith(openOptions: OpenOptions) {
+    const opts = { override: true, openOptions };
+    return async (path: string, content: string) => {
+      const fullPath = this._checkNewItem(path, opts);
+      if (!PgExplorer.getItemTypeFromPath(fullPath).file) {
+        throw new Error(`Not a file path: ${path}`);
       }
+      await this._writeItemWith(opts)(fullPath, content);
+    };
+  }
 
-      files[fullPath] = {
-        content,
-        meta: files[fullPath]?.meta ?? {},
-      };
+  /** The full path of an item `createItem` may write, after its name checks */
+  private static _checkNewItem(path: string, opts?: CreateItemOptions) {
+    const fullPath = this.convertToFullPath(path);
 
-      if (!opts?.openOptions || opts?.openOptions?.onlyRefreshIfAlreadyOpen) {
-        const isCurrentFile = this.currentFilePath === fullPath;
-
-        // Close the file if we are overriding to correctly display the new content
-        if (opts?.override && isCurrentFile) this.closeFile(fullPath);
-
-        // Open if it's the current file or there is no open options
-        if (!opts?.openOptions || isCurrentFile) this.openFile(fullPath);
-      }
+    // Invalid name
+    if (
+      !opts?.skipNameValidation &&
+      !PgExplorer.isItemNameValid(PgExplorer.getItemNameFromPath(fullPath))
+    ) {
+      throw new Error(PgExplorer.errors.INVALID_NAME);
     }
-    // Folder
-    else {
-      if (!this.isTemporary) {
-        await this.fs.createDir(fullPath);
-        await this._saveTree("a create");
-      }
 
-      files[fullPath] = {};
+    // Check whether the item already exists
+    if (this.files[fullPath] && !opts?.override) {
+      throw new Error(PgExplorer.errors.ALREADY_EXISTS);
     }
 
-    PgCommon.createAndDispatchCustomEvent(this.events.ON_DID_CREATE_ITEM);
+    return fullPath;
+  }
 
-    await this.saveMeta();
+  /** The writes of `createItem` once its checks have passed */
+  private static _writeItemWith(opts: CreateItemOptions | undefined) {
+    return async (fullPath: string, content: string) => {
+      const files = this.files;
+      const itemType = PgExplorer.getItemTypeFromPath(fullPath);
+
+      // Ordering of `indexedDB` calls and state calls matter. If `indexedDB` call fails,
+      // state will not change. Can't say the same if the ordering was in reverse.
+      if (itemType.file) {
+        if (!this.isTemporary) {
+          await this.fs.writeFile(fullPath, content, { createParents: true });
+          // A new file is a change to the folder tree; replacing a file's
+          // content is not
+          if (!files[fullPath]) await this._saveTree("a create");
+        }
+
+        files[fullPath] = {
+          content,
+          meta: files[fullPath]?.meta ?? {},
+        };
+
+        if (!opts?.openOptions || opts?.openOptions?.onlyRefreshIfAlreadyOpen) {
+          const isCurrentFile = this.currentFilePath === fullPath;
+
+          // Close the file if we are overriding to correctly display the new content
+          if (opts?.override && isCurrentFile) this.closeFile(fullPath);
+
+          // Open if it's the current file or there is no open options
+          if (!opts?.openOptions || isCurrentFile) this.openFile(fullPath);
+        }
+      }
+      // Folder
+      else {
+        if (!this.isTemporary) {
+          await this.fs.createDir(fullPath);
+          await this._saveTree("a create");
+        }
+
+        files[fullPath] = {};
+      }
+
+      PgCommon.createAndDispatchCustomEvent(this.events.ON_DID_CREATE_ITEM);
+
+      await this.saveMeta();
+    };
   }
 
   /**
