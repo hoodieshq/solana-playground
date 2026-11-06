@@ -2140,7 +2140,7 @@ if (import.meta.vitest) {
     };
 
     describe("turnAppliedApproval", () => {
-      const user: ChatItem = {
+      const asked: ChatItem = {
         kind: "user",
         id: "u",
         createdAt: at,
@@ -2155,19 +2155,19 @@ if (import.meta.vitest) {
       };
 
       it("counts a card the user allowed", () => {
-        expect(turnAppliedApproval([user, approval, assistant("done")])).toBe(
+        expect(turnAppliedApproval([asked, approval, assistant("done")])).toBe(
           true
         );
       });
 
       it("does not count a card whose action failed", () => {
-        expect(turnAppliedApproval([user, failed, assistant("done")])).toBe(
+        expect(turnAppliedApproval([asked, failed, assistant("done")])).toBe(
           false
         );
       });
 
       it("stops at the turn's user message", () => {
-        expect(turnAppliedApproval([approval, user, assistant("done")])).toBe(
+        expect(turnAppliedApproval([approval, asked, assistant("done")])).toBe(
           false
         );
       });

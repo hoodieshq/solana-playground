@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   ACCOUNT_LIMITS,
-  checkWriteTo,
   checkProjectLimits,
+  checkWriteTo,
   limitExceeded,
   PROJECT_LIMITS,
   readLimitExceeded,
