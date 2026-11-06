@@ -66,6 +66,9 @@ const whereOf = ({
   "steps" | "live" | "started" | "finished" | "minutes"
 >) => {
   const count = steps.length;
+  // Not loaded yet: a tutorial always has steps, so "0 steps · 0 min" would
+  // read as real
+  if (count === 0) return "";
   if (!started || live === null) return `${count} steps · ${minutes} min`;
   if (finished) return `Done · ${count} of ${count}`;
   return `Step ${live + 1} of ${count} · ${steps[live]?.short ?? ""}`;
@@ -140,7 +143,11 @@ const BaseTutorialPhoneHead = ({
       <button
         type="button"
         onClick={() => setSheet(true)}
-        aria-label={`${name}, ${where}. Show the steps`}
+        aria-label={
+          where
+            ? `${name}, ${where}. Show the steps`
+            : `${name}. Show the steps`
+        }
         className="flex h-11 min-w-0 flex-1 flex-col items-start justify-center rounded-lg px-1.5 text-left outline-none active:bg-surface-hover focus-visible:outline-2 focus-visible:outline-brand-purple"
       >
         <span className="max-w-full truncate font-heading text-[0.9375rem] leading-5 font-medium text-foreground">

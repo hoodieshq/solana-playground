@@ -54,6 +54,14 @@ const openSteps = () =>
   userEvent.click(screen.getByRole("button", { name: /^Hello Anchor, / }));
 
 describe("BaseTutorialPhoneHead", () => {
+  it("names no size until the conversation has its steps", () => {
+    draw({ steps: [], live: null, started: false, minutes: 0 });
+    expect(
+      screen.getByRole("button", { name: "Hello Anchor. Show the steps" })
+    ).toBeTruthy();
+    expect(screen.queryByText(/0 steps/)).toBeNull();
+  });
+
   it("says where the learner is: before Start, on a step, and done", () => {
     const { rerender, props } = draw({
       started: false,
