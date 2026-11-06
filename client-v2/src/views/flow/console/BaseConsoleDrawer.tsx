@@ -85,7 +85,7 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
         <StatusDot variant={status.tone} />
         <span
           data-console-label
-          className="font-semibold tracking-wide text-foreground"
+          className="font-label tracking-wide text-foreground"
         >
           Terminal
         </span>
