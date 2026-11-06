@@ -311,7 +311,7 @@ describe("TutorialComposer", () => {
     expect(screen.queryByRole("button", { name: "Start step 1" })).toBeNull();
   });
 
-  it("lifts once the lesson has begun: no grey, no suggestion", () => {
+  it("lifts once the lesson has begun: no waiting state, no suggestion", () => {
     thread.items = [reply("A PDA is an address a program signs for.")];
     const { container } = render(<Connected turn={turn()} />);
     expect(container.querySelector("[data-waiting]")).toBeNull();
