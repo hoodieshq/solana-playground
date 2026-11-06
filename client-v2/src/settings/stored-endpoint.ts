@@ -31,11 +31,11 @@ type StoredEndpoint = { option: string } | { option: "custom"; url: string };
 /**
  * Every address we provide, keyed.
  *
- * The first entry for a key is what the key reads back as; the first entry
- * for an address is the key it is stored under. So the offered Devnet and
- * Mainnet come first under the keys the public picks always had, and a
- * profile on a public URL or under a platform key that the network list no
- * longer offers reads back as the offered network.
+ * The first entry for a key is what the key reads back as. An address is
+ * stored under its entry's key only where that key reads back as the same
+ * address (`toStoredEndpoints`), so a public URL typed in while a platform
+ * RPC takes its key is stored as custom. A key or a plain string stored
+ * before reads back as the offered network.
  *
  * @param networks the networks Settings offers
  * @param configuredServer the build server `REACT_APP_SERVER_URL` names, if
@@ -47,7 +47,7 @@ export const buildEndpointOptions = (
 ): EndpointOptions => ({
   "connection.endpoint": [
     ...networks.map((n) => ({ key: n.cluster, url: n.value })),
-    // The public URLs, stored under the offered network's key
+    // The public URLs: a stored plain string reads back as the offered network; typed in, they stay custom while a platform RPC takes the key
     { key: "devnet", url: Endpoint.DEVNET },
     { key: "mainnet-beta", url: Endpoint.MAINNET_BETA },
     // Keys the platform options were stored under before HOO-2488
