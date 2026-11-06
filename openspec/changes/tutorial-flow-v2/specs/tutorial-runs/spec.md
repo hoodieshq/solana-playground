@@ -153,7 +153,20 @@ meta is the program's error ("NotEnoughEnergy · error 6000") or else the
 plain reason, with the error line and the reason in view and the log behind
 the chevron; the step SHALL not pass. A run that sent no transaction SHALL
 post "No transaction", "client.ts sent none · see the terminal", not red,
-and the step SHALL not pass.
+and the step SHALL not pass. A transaction that was sent but that devnet
+did not read back in the read window SHALL post "Not confirmed yet",
+"devnet is slow to answer", not red, with Explorer ↗ for its signature and,
+while it is the live result, "Check again". Check again SHALL read the same
+signatures again and send nothing; once they read back, the result SHALL be
+the one they landed with and the goal SHALL be judged on it.
+
+#### Scenario: A slow devnet confirms late (manual)
+
+- **WHEN** the learner's call on step 4 is sent and devnet has not read it
+  back when the read window ends
+- **THEN** the result reads "Not confirmed yet" and the step does not fail
+- **AND** "Check again", once devnet has the transaction, posts "Confirmed"
+  and passes the step without sending a second transaction
 
 #### Scenario: Hello from devnet (manual)
 

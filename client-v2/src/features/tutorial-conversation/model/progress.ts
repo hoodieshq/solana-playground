@@ -325,6 +325,18 @@ export interface Refusal {
 }
 
 /**
+ * A transaction a run or call sent, kept so it can be read from devnet again
+ * without sending: its signature and its instructions to the program, as the
+ * deployed IDL decoded them when it was sent
+ */
+export interface UnreadTx {
+  signature: string;
+  calls: (Called & { accounts: ReceiptAccount[]; wrote: ReceiptAccount[] })[];
+  /** One of them did not decode, so `calls` may be short */
+  undecoded?: true;
+}
+
+/**
  * The facts a run leaves behind, by act. These are the fields the spec's
  * result cards read; the run tickets (4.1 to 4.3) add to them, never rename.
  */
@@ -443,6 +455,22 @@ export type RunResult =
       reason: "no_funds";
       /** The "Not enough devnet SOL" card's facts, in lamports */
       funding: { balance: number; cost: number; address: string };
+      refused?: undefined;
+    }
+  | {
+      act: "run" | "call";
+      ok: false;
+      seconds: number;
+      message: string;
+      log: string;
+      /**
+       * Sent, but devnet did not read a transaction back in the read window:
+       * on a slow devnet it may still land, so this is no failure of the
+       * learner's, and "Check again" reads `unconfirmed` without sending
+       */
+      reason: "unconfirmed";
+      /** Every transaction the run sent, in order, to read again */
+      unconfirmed: UnreadTx[];
       refused?: undefined;
     };
 

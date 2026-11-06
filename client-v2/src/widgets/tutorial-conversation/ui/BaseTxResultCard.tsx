@@ -3,6 +3,7 @@ import {
   Check,
   ChevronDown,
   CircleX,
+  Clock,
   Copy,
   ExternalLink,
   Eye,
@@ -372,8 +373,68 @@ const FundsCard = ({
   );
 };
 
+/**
+ * A run or call devnet has not read back in the read window (HOO-2675): sent,
+ * so muted like "No transaction" and not red, with the last signature in
+ * Explorer and, while it is the live result, Check again, which reads the
+ * same transactions again without sending
+ */
+const UnconfirmedCard = ({
+  result,
+  onRecheck,
+}: {
+  result: Extract<Failed, { reason: "unconfirmed" }>;
+  onRecheck?: () => void;
+}) => {
+  const last = result.unconfirmed[result.unconfirmed.length - 1];
+  return (
+    <Shell
+      icon={
+        <Clock
+          aria-hidden="true"
+          className="size-4 shrink-0 text-muted-foreground"
+        />
+      }
+      title="Not confirmed yet"
+      meta="devnet is slow to answer"
+      body={
+        <>
+          <p className={READ}>{result.message}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {onRecheck && <Button onClick={onRecheck}>Check again</Button>}
+            {last && (
+              <Button variant="secondary" asChild>
+                <a
+                  href={devnetExplorerUrl({
+                    kind: "tx",
+                    value: last.signature,
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Explorer
+                  <ExternalLink aria-hidden="true" className="size-4" />
+                </a>
+              </Button>
+            )}
+          </div>
+        </>
+      }
+    />
+  );
+};
+
 /** A run or call that failed, or that sent nothing */
-const FailedCard = ({ result }: { result: Failed }) => {
+const FailedCard = ({
+  result,
+  onRecheck,
+}: {
+  result: Failed;
+  onRecheck?: () => void;
+}) => {
+  if (result.reason === "unconfirmed") {
+    return <UnconfirmedCard result={result} onRecheck={onRecheck} />;
+  }
   if (result.reason === "no_transaction") {
     return (
       <Shell
@@ -446,14 +507,17 @@ const FailedCard = ({ result }: { result: Failed }) => {
 const BaseTxResultCard = ({
   result,
   account,
+  onRecheck,
 }: {
   result: TxResult;
   account?: AccountOnCard;
+  /** Check again on an unconfirmed result; absent when it is not live */
+  onRecheck?: () => void;
 }) =>
   result.ok ? (
     <LandedCard result={result} account={account} />
   ) : (
-    <FailedCard result={result} />
+    <FailedCard result={result} onRecheck={onRecheck} />
   );
 
 export default BaseTxResultCard;

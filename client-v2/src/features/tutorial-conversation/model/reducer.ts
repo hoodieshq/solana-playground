@@ -30,6 +30,7 @@ import type {
   RunRecord,
   RunResult,
   SkipVia,
+  UnreadTx,
   Wrote,
 } from "./progress";
 import {
@@ -105,6 +106,11 @@ export type Action =
       beatId: string;
       /** A call act's argument values, by name */
       args?: Record<string, string>;
+      /**
+       * "Check again" on an unconfirmed result: read what the last run sent,
+       * send nothing. Taken only while the beat's last run is unconfirmed.
+       */
+      recheck?: true;
       at: number;
     }
   | {
@@ -310,6 +316,20 @@ const ACTION_OF: Record<Act, ActionRunParams["action"]> = {
   call: "call",
 };
 
+/**
+ * What the beat's last run sent, when devnet had not read it back: what
+ * "Check again" reads. Null for any other last run.
+ */
+const unconfirmedOf = (runs: RunRecord[] | undefined): UnreadTx[] | null => {
+  const last = runs?.[runs.length - 1];
+  if (last?.status !== "failed") return null;
+  const { result } = last;
+  if (result.act !== "run" && result.act !== "call") return null;
+  return !result.ok && result.reason === "unconfirmed"
+    ? result.unconfirmed
+    : null;
+};
+
 /** A run's outcome as `tutorial_action_run` names it */
 const outcomeOf = (result: RunResult): ActionRunParams["outcome"] => {
   if (result.ok) return "ok";
@@ -321,7 +341,9 @@ const outcomeOf = (result: RunResult): ActionRunParams["outcome"] => {
   }
   if (
     (result.act === "run" || result.act === "call") &&
-    (result.reason === "no_wallet" || result.reason === "no_funds")
+    (result.reason === "no_wallet" ||
+      result.reason === "no_funds" ||
+      result.reason === "unconfirmed")
   ) {
     return result.reason;
   }
@@ -1104,6 +1126,8 @@ const reduceAction = (
       if (!p.beats[beat.id] || passed(p, step) || running(p))
         return same(state);
       if (beat.repeat && hasRepeatEnded(p, step, beat.id)) return same(state);
+      const unread = action.recheck ? unconfirmedOf(p.runs[beat.id]) : null;
+      if (action.recheck && !unread) return same(state);
       // A run that ended well may run again while the step has not passed:
       // its result may have failed the goal (a call before the upgrade)
       const input: RunInput = { beatId: beat.id };
@@ -1126,6 +1150,7 @@ const reduceAction = (
         // The press's line is what `until` reads, so it must pick it
         if (beat.repeat?.until !== undefined) input.log = beat.repeat.until;
       }
+      if (unread) input.recheck = unread;
       return {
         state: {
           progress: {
@@ -1906,6 +1931,74 @@ if (import.meta.vitest) {
           "ok",
           "refused",
         ]);
+      });
+
+      describe("Check again on a call devnet has not confirmed", () => {
+        const UNREAD = [
+          {
+            signature: "late",
+            calls: [{ instruction: "grow", args: {}, accounts: [], wrote: [] }],
+          },
+        ];
+        const UNCONFIRMED: RunResult = {
+          act: "call",
+          ok: false,
+          seconds: 4,
+          reason: "unconfirmed",
+          message: "Devnet has not confirmed transaction late yet.",
+          log: "",
+          unconfirmed: UNREAD,
+        };
+        /** One plain call whose goal is the call itself */
+        const calling = () => {
+          const c = growing(undefined);
+          c.definition.steps[0].goal = { kind: "call", instruction: "grow" };
+          return c;
+        };
+        const recheck = (at: number): Action => ({
+          type: "act",
+          beatId: "s1.grow",
+          recheck: true,
+          at,
+        });
+
+        it("reads the sent transactions again instead of sending, and passes once they land", () => {
+          const { progress, inputs } = walk(calling(), [
+            start,
+            press(2000),
+            ended(3000, UNCONFIRMED),
+            recheck(4000),
+            ended(5000, callOk("Program log: grown")),
+          ]);
+          expect(inputs).toHaveLength(2);
+          expect(inputs[0]).not.toHaveProperty("recheck");
+          expect(inputs[1].recheck).toEqual(UNREAD);
+          expect(progress.runs["s1.grow"].map((r) => r.status)).toEqual([
+            "failed",
+            "ok",
+          ]);
+          expect(progress.passed).toEqual(["write-program"]);
+        });
+
+        it("takes no Check again when the last run is not unconfirmed", () => {
+          const { inputs } = walk(calling(), [
+            start,
+            press(2000),
+            ended(3000, REFUSED),
+            recheck(4000),
+          ]);
+          expect(inputs).toHaveLength(1);
+        });
+
+        it("a press of the act card still sends anew", () => {
+          const { inputs } = walk(calling(), [
+            start,
+            press(2000),
+            ended(3000, UNCONFIRMED),
+            press(4000),
+          ]);
+          expect(inputs[1]).not.toHaveProperty("recheck");
+        });
       });
 
       it("asks the run to read the account its act names", () => {

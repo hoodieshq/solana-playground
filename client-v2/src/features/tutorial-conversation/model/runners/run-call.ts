@@ -1,6 +1,6 @@
 /* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { RunInput, RunStage } from "../ports";
-import type { RunResult } from "../progress";
+import type { RunResult, UnreadTx } from "../progress";
 import type { AccountData } from "./account-read";
 import { readingOf } from "./account-read";
 import type { Captured } from "./capture";
@@ -140,6 +140,14 @@ const attempt = async (
   const programId = port.programId();
   if (!programId) return fail("Deploy the program first.");
 
+  if (input.recheck) {
+    // "Check again": the transactions were sent, only the reading is left
+    onStage({ label: RUN_STAGES.confirming, index: 1, count: 1 });
+    const sent: SentTx[] = [];
+    for (const tx of input.recheck) sent.push(await readBack(port, tx));
+    return landedResult(port, act, input, sent, programId, seconds, fail);
+  }
+
   const balance = await port.funding.balance(address);
   const short = balance < RUN_FLOOR;
   const labels = [
@@ -202,27 +210,45 @@ const attempt = async (
       sent.push({ kind: "refused", log: c.log, message: c.message, calls });
       continue;
     }
-    const landed = await port.landed(c.signature).catch((e) => {
-      port.report(e, "Reading a sent transaction back");
-      return null;
-    });
     sent.push(
-      landed
-        ? {
-            kind: "landed",
-            signature: c.signature,
-            calls,
-            ...landed,
-            ...(undecoded ? { undecoded } : {}),
-          }
-        : {
-            kind: "refused",
-            log: [],
-            message: `Could not read transaction ${c.signature} back from devnet. Open it in Explorer to see whether it landed.`,
-            calls,
-          }
+      await readBack(port, {
+        signature: c.signature,
+        calls,
+        ...(undecoded ? { undecoded } : {}),
+      })
     );
   }
+  return landedResult(port, act, input, sent, programId, seconds, fail, error);
+};
+
+/**
+ * A sent transaction read back from devnet: landed, or unread when devnet did
+ * not answer in the read window, which on a slow devnet is no refusal
+ */
+const readBack = async (port: RunPort, tx: UnreadTx): Promise<SentTx> => {
+  const landed = await port.landed(tx.signature).catch((e) => {
+    port.report(e, "Reading a sent transaction back");
+    return null;
+  });
+  return landed
+    ? { kind: "landed", ...tx, ...landed }
+    : { kind: "unread", ...tx };
+};
+
+/**
+ * The result of what was sent, and the account the act draws once it landed;
+ * `error` is what the run threw after sending, if anything
+ */
+const landedResult = async (
+  port: RunPort,
+  act: "run" | "call",
+  input: RunInput,
+  sent: SentTx[],
+  programId: string,
+  seconds: () => number,
+  fail: (message: string) => TxResult,
+  error?: unknown
+): Promise<TxResult> => {
   const result = resultOf({
     act,
     sent,
@@ -523,12 +549,85 @@ if (import.meta.vitest) {
       });
     });
 
-    it("a transaction that never confirms fails", async () => {
+    it("a transaction devnet does not read back in time is unconfirmed, not refused", async () => {
       const port = portWith({ landed: async () => null });
-      expect((await stagesOf(port)).result).toMatchObject({
+      expect((await stagesOf(port, "call")).result).toEqual({
+        act: "call",
         ok: false,
+        seconds: expect.any(Number),
+        reason: "unconfirmed",
         message:
-          "Could not read transaction 5ig back from devnet. Open it in Explorer to see whether it landed.",
+          "Devnet has not confirmed transaction 5ig yet. Check again, or open it in Explorer.",
+        log: "",
+        unconfirmed: [{ signature: "5ig", calls: [HELLO_CALL] }],
+      });
+    });
+
+    it("a read that throws is unconfirmed too, and reported", async () => {
+      const port = portWith({
+        landed: async () => {
+          throw new Error("Transaction was not confirmed in 30.00 seconds");
+        },
+      });
+      expect((await stagesOf(port, "call")).result).toMatchObject({
+        ok: false,
+        reason: "unconfirmed",
+      });
+      expect(port.report).toHaveBeenCalledOnce();
+    });
+
+    describe("Check again", () => {
+      const RECHECK = {
+        beatId: "s3.call",
+        log: "Hello, World!",
+        recheck: [{ signature: "5ig", calls: [HELLO_CALL] }],
+      };
+
+      it("reads the same signature again, with no funding and no send, and lands", async () => {
+        const send = vi.fn(async () => ({ captured: [], error: undefined }));
+        const landed = vi.fn(async () => HELLO_TX);
+        const port = portWith({ balances: [0], send, landed });
+        const stages: RunStage[] = [];
+        const result = await runOrCall(port, "call", RECHECK, (s) =>
+          stages.push(s)
+        );
+        expect(send).not.toHaveBeenCalled();
+        expect(port.funding.balance).not.toHaveBeenCalled();
+        expect(landed).toHaveBeenCalledWith("5ig");
+        expect(stages).toEqual([{ label: "Confirming", index: 1, count: 1 }]);
+        expect(result).toMatchObject({
+          act: "call",
+          ok: true,
+          signatures: ["5ig"],
+          line: "Program log: Hello, World!",
+          called: [{ instruction: "hello", args: {} }],
+        });
+      });
+
+      it("stays unconfirmed while devnet still has not read it back", async () => {
+        const port = portWith({ landed: async () => null });
+        expect(
+          await runOrCall(port, "call", RECHECK, () => undefined)
+        ).toMatchObject({ ok: false, reason: "unconfirmed" });
+      });
+
+      it("fails with the program's error once it reads back failed", async () => {
+        const port = portWith({
+          landed: async () => ({
+            ...HELLO_TX,
+            log: [
+              `Program ${PROGRAM} invoke [1]`,
+              `Program ${PROGRAM} failed: custom program error: 0x1770`,
+            ],
+            err: { InstructionError: [0, { Custom: 6000 }] },
+          }),
+        });
+        const result = await runOrCall(port, "call", RECHECK, () => undefined);
+        expect(result).toMatchObject({
+          ok: false,
+          refused: { instruction: "hello", error: { code: 6000 } },
+        });
+        expect(result).not.toHaveProperty("reason");
       });
     });
 

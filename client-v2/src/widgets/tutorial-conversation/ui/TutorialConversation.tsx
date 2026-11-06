@@ -538,6 +538,7 @@ const handlers: Omit<
   skip: (beatId) => PgConversation.skip(beatId),
   typeIt: (beatId) => PgConversation.typeIt(beatId),
   act: (beatId, args) => PgConversation.act(beatId, args),
+  recheck: (beatId) => PgConversation.recheck(beatId),
   explain: (beatId) => PgConversation.explain(beatId),
   fixMyself: (beatId) => PgConversation.fixMyself(beatId),
   showFix,
