@@ -113,7 +113,7 @@ describe("overlays release focus before hiding the page", () => {
     });
   };
 
-  it("Modal (Settings)", () => {
+  it("hides the page behind a Modal with nothing focused in it", () => {
     openWithEditorFocused((open) => (
       <Modal open={open}>
         <ModalContent aria-describedby={undefined}>
@@ -125,7 +125,7 @@ describe("overlays release focus before hiding the page", () => {
     expect(focusedInsideHidden).toEqual([]);
   });
 
-  it("Dialog", () => {
+  it("hides the page behind a Dialog with nothing focused in it", () => {
     openWithEditorFocused((open) => (
       <Dialog open={open}>
         <DialogContent aria-describedby={undefined}>
@@ -137,7 +137,7 @@ describe("overlays release focus before hiding the page", () => {
     expect(focusedInsideHidden).toEqual([]);
   });
 
-  it("Sheet", () => {
+  it("hides the page behind a Sheet with nothing focused in it", () => {
     openWithEditorFocused((open) => (
       <Sheet open={open}>
         <SheetContent aria-describedby={undefined}>
@@ -149,7 +149,7 @@ describe("overlays release focus before hiding the page", () => {
     expect(focusedInsideHidden).toEqual([]);
   });
 
-  it("DropdownMenu (the account menu)", () => {
+  it("hides the page behind a DropdownMenu (the account menu) with nothing focused in it", () => {
     openWithEditorFocused((open) => (
       <DropdownMenu open={open}>
         <DropdownMenuTrigger>Account</DropdownMenuTrigger>
@@ -162,7 +162,7 @@ describe("overlays release focus before hiding the page", () => {
     expect(focusedInsideHidden).toEqual([]);
   });
 
-  it("Select", () => {
+  it("hides the page behind a Select with nothing focused in it", () => {
     openWithEditorFocused((open) => (
       <Select open={open} value="a">
         <SelectTrigger aria-label="pick">
@@ -177,7 +177,7 @@ describe("overlays release focus before hiding the page", () => {
     expect(focusedInsideHidden).toEqual([]);
   });
 
-  it("ContextMenu", () => {
+  it("hides the page behind a ContextMenu with nothing focused in it", () => {
     const { getByLabelText, getByText } = render(
       <Page>
         <ContextMenu>
@@ -196,7 +196,7 @@ describe("overlays release focus before hiding the page", () => {
     expect(focusedInsideHidden).toEqual([]);
   });
 
-  it("ContextMenu gives focus back to the editor on close", async () => {
+  it("gives focus back to the editor when a ContextMenu closes", async () => {
     const { getByLabelText, getByText, getByRole } = render(
       <Page>
         <ContextMenu>
@@ -218,7 +218,7 @@ describe("overlays release focus before hiding the page", () => {
     await waitFor(() => expect(document.activeElement).toBe(editor));
   });
 
-  it("ContextMenu gives focus back to the editor under StrictMode", async () => {
+  it("gives focus back to the editor when a ContextMenu closes under StrictMode", async () => {
     const { getByLabelText, getByText, getByRole } = render(
       <React.StrictMode>
         <Page>
