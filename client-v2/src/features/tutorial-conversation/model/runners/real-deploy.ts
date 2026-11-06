@@ -314,6 +314,7 @@ export const realDeployPort = (): DeployPort => {
 /** A failed build's line on the deploy's failed card */
 const buildFailureOf = (r: Extract<RunResult, { act: "build"; ok: false }>) => {
   if (r.reason === "unreachable") return "The build server didn't answer.";
+  if (r.reason === "signed_out") return "Sign in with GitHub to build.";
   const e = r.error;
   if (!e) return "The build failed. See the terminal.";
   const where = e.line !== null ? ` (line ${e.line})` : "";
