@@ -5,8 +5,11 @@ import type {
   SaveResult,
 } from "@/entities/custom-rpc";
 import { PgCustomRpcs } from "@/entities/custom-rpc";
+import { createLogger } from "@/shared/lib/logger";
 
 import { settingsTelemetry } from "./telemetry";
+
+const log = createLogger("settings-page:save-custom-rpc");
 
 /** Why a URL went unchecked: no answer in time, or no request because offline */
 type Unchecked = Exclude<RpcHealth, "answered">;
@@ -94,7 +97,7 @@ export const saveCheckedWith =
     return { kind: "unreachable", reason: health, useAnyway: write };
   };
 
-/** The line under the URL field for a refused save (Spec 07's copy) */
+/** The line under the URL field for a refused save (the `client-v2-custom-rpcs` spec's copy) */
 const refusalLine = (result: Refused | Held): string => {
   switch (result.reason) {
     case "held":
@@ -129,14 +132,23 @@ const refuse = (result: Refused | Held): SettledAnswer => {
   return { kind: "refused", error: refusalLine(result) };
 };
 
-/** Track a save, run `onSaved`, and answer it */
+/**
+ * Track a save, run `onSaved`, and answer it. The RPC is in the list by
+ * then, so an `onSaved` that throws (moving the connection onto it) is
+ * reported, and the form still says it saved: "Could not save" would be
+ * wrong about a listed RPC, which its chip picks again.
+ */
 const keepWith =
   (onSaved: (rpc: CustomRpc) => void) =>
   (mode: SaveMode) =>
   (check: "passed" | "used_anyway" | "none") =>
   (rpc: CustomRpc): SettledAnswer => {
     settingsTelemetry.track("settings_custom_rpc_saved", { mode, check });
-    onSaved(rpc);
+    try {
+      onSaved(rpc);
+    } catch (e) {
+      log.error(e, { report: true });
+    }
     return { kind: "saved" };
   };
 
@@ -405,6 +417,13 @@ if (import.meta.vitest) {
     });
 
     describe("answerFor", () => {
+      it("answers saved when onSaved throws after the list write", () => {
+        const answer = answerFor(() => {
+          throw new Error("settings write refused");
+        })("add")({ kind: "saved", rpc: SAVED_TRITON, check: "passed" });
+        expect(answer).toEqual({ kind: "saved" });
+      });
+
       it("tracks a checked save with check passed and calls onSaved", () => {
         const onSaved = vi.fn();
         const answer = answerFor(onSaved)("add")({
@@ -419,7 +438,7 @@ if (import.meta.vitest) {
         ]);
       });
 
-      it("answers a refusal with Spec 07's line", () => {
+      it("answers a refusal with the spec's line", () => {
         const answer = answerFor(vi.fn())("edit")({
           kind: "refused",
           refusal: { ok: false, reason: "duplicate", name: "Helius" },
