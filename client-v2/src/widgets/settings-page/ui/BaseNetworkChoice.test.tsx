@@ -20,7 +20,13 @@ describe("BaseNetworkChoice", () => {
   });
 
   it("is a radio group named Network with the current one checked", () => {
-    render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={() => {}} />);
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.DEVNET}
+        onPick={() => {}}
+        onCustom={() => {}}
+      />
+    );
     expect(screen.getByRole("radiogroup", { name: "Network" })).toBeTruthy();
     expect(
       screen.getByRole("radio", { name: "Devnet" }).getAttribute("aria-checked")
@@ -29,7 +35,13 @@ describe("BaseNetworkChoice", () => {
 
   it("picks the next network with the right arrow", async () => {
     const onPick = vi.fn();
-    render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />);
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.DEVNET}
+        onPick={onPick}
+        onCustom={() => {}}
+      />
+    );
     act(() => screen.getByRole("radio", { name: "Devnet" }).focus());
     await userEvent.keyboard("{ArrowRight}");
     expect(onPick).toHaveBeenCalledWith(Endpoint.TESTNET);
@@ -40,13 +52,65 @@ describe("BaseNetworkChoice", () => {
 
   it("picks nothing on a click on the network already chosen", async () => {
     const onPick = vi.fn();
-    render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />);
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.DEVNET}
+        onPick={onPick}
+        onCustom={() => {}}
+      />
+    );
     await userEvent.click(screen.getByRole("radio", { name: "Devnet" }));
     expect(onPick).not.toHaveBeenCalled();
   });
 
-  it("leaves every chip unchecked for an endpoint it does not list, and Tab still enters the group", async () => {
-    render(<BaseNetworkChoice endpoint="https://my.rpc" onPick={() => {}} />);
+  it("checks Custom for an endpoint no chip lists, and says nothing of how it deploys", () => {
+    render(
+      <BaseNetworkChoice
+        endpoint="https://my.rpc"
+        onPick={() => {}}
+        onCustom={() => {}}
+      />
+    );
+    expect(
+      screen.getByRole("radio", { name: "Custom" }).getAttribute("aria-checked")
+    ).toBe("true");
+    expect(screen.queryByText(/^Deploys with/)).toBeNull();
+  });
+
+  it("says how a deploy works on the network picked", () => {
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.TESTNET}
+        onPick={() => {}}
+        onCustom={() => {}}
+      />
+    );
+    screen.getByText("Deploys with free testnet SOL");
+  });
+
+  it("asks for a URL on Custom, without switching network", async () => {
+    const onPick = vi.fn();
+    const onCustom = vi.fn();
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.DEVNET}
+        onPick={onPick}
+        onCustom={onCustom}
+      />
+    );
+    await userEvent.click(screen.getByRole("radio", { name: "Custom" }));
+    expect(onCustom).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("leaves every chip unchecked for Playnet, and Tab still enters the group", async () => {
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.PLAYNET}
+        onPick={() => {}}
+        onCustom={() => {}}
+      />
+    );
     const radios = screen.getAllByRole("radio");
     expect(
       radios.every((r) => r.getAttribute("aria-checked") === "false")
@@ -58,7 +122,13 @@ describe("BaseNetworkChoice", () => {
 
   it("does not switch network when focus lands on a chip of an unlisted endpoint", () => {
     const onPick = vi.fn();
-    render(<BaseNetworkChoice endpoint="https://my.rpc" onPick={onPick} />);
+    render(
+      <BaseNetworkChoice
+        endpoint="https://my.rpc"
+        onPick={onPick}
+        onCustom={() => {}}
+      />
+    );
     act(() => screen.getAllByRole("radio")[0].focus());
     expect(onPick).not.toHaveBeenCalled();
   });
@@ -67,7 +137,11 @@ describe("BaseNetworkChoice", () => {
     const onPick = vi.fn();
     render(
       <>
-        <BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />
+        <BaseNetworkChoice
+          endpoint={Endpoint.DEVNET}
+          onPick={onPick}
+          onCustom={() => {}}
+        />
         <button>after</button>
       </>
     );
@@ -84,7 +158,13 @@ describe("BaseNetworkChoice", () => {
 
   it("picks once on a click", async () => {
     const onPick = vi.fn();
-    render(<BaseNetworkChoice endpoint={Endpoint.DEVNET} onPick={onPick} />);
+    render(
+      <BaseNetworkChoice
+        endpoint={Endpoint.DEVNET}
+        onPick={onPick}
+        onCustom={() => {}}
+      />
+    );
     await userEvent.click(screen.getByRole("radio", { name: "Testnet" }));
     expect(onPick).toHaveBeenCalledTimes(1);
     expect(onPick).toHaveBeenCalledWith(Endpoint.TESTNET);
