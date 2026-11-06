@@ -209,3 +209,44 @@ describe("BaseActCard, repeating", () => {
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 });
+
+describe("BaseActCard, a deploy under way", () => {
+  const DEPLOY: ActBeat = {
+    kind: "act",
+    id: "s2.deploy",
+    act: "deploy",
+    title: "Deploy to devnet",
+    context: "From your Playground wallet · free devnet SOL",
+    button: "Deploy",
+  };
+
+  it("draws its progress under the title at any width, not beside it", () => {
+    render(
+      <BaseActCard
+        act={DEPLOY}
+        state="running"
+        presses={[]}
+        note={null}
+        stage={{
+          beatId: "s2.deploy",
+          label: "Writing buffer",
+          index: 1,
+          count: 3,
+        }}
+        took={null}
+        disabled={false}
+        onRun={() => {}}
+      />
+    );
+    const title = screen.getByText("Deploy to devnet");
+    const progress = screen.getByText("Writing buffer");
+    // The title's row holds the icon and the text only
+    const row = title.parentElement?.parentElement;
+    expect(row?.contains(progress)).toBe(false);
+    // A column, so the progress takes a line of its own under the title
+    expect(
+      screen.getByRole("form", { name: "Deploy to devnet" }).className
+    ).toContain("flex-col");
+    expect(screen.getByText("1 of 3")).toBeTruthy();
+  });
+});
