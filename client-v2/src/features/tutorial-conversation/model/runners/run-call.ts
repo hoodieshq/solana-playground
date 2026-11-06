@@ -614,12 +614,14 @@ if (import.meta.vitest) {
       it("fails with the program's error once it reads back failed", async () => {
         const port = portWith({
           landed: async () => ({
-            ...HELLO_TX,
             log: [
               `Program ${PROGRAM} invoke [1]`,
               `Program ${PROGRAM} failed: custom program error: 0x1770`,
             ],
             err: { InstructionError: [0, { Custom: 6000 }] },
+            computeUnits: 389,
+            fee: 5000,
+            signer: WALLET,
           }),
         });
         const result = await runOrCall(port, "call", RECHECK, () => undefined);
