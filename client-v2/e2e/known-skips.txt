@@ -6,3 +6,6 @@
 switching tabs mid-debounce raises no conflict
 reloading a project the account already has writes nothing
 tutorial-runs: Passing step 3 from the Call panel
+client-v2-command-stop: Stop shows while a build runs
+client-v2-command-stop: Stop leaves when the run ends
+client-v2-command-stop: Stop during a build

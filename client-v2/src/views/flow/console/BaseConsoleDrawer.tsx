@@ -54,7 +54,6 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
   open,
   onOpenChange,
   onClear,
-  stop,
   status,
   progress = 0,
   shortcut,
@@ -111,22 +110,19 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
       </ConsoleDrawerStatus>
       <ConsoleDrawerActions>
         {shortcut && <Kbd aria-hidden>{shortcut}</Kbd>}
-        {/* Spec 13: while a build or a deploy runs, Clear is off with Stop
-            beside it; on a phone Stop takes Clear's place, a fingertip
-            wide. Stop shows folded too: the strip is all a folded console
-            shows. */}
+        {/* Spec 13 holds Clear off beside Stop and lets Stop take its place
+            on a phone; with Stop hidden, Clear stays on during a run. */}
         {open && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            disabled={!!stop}
-            className={stop ? "max-md:hidden" : undefined}
-            onClick={onClear}
-          >
+          <Button type="button" variant="ghost" size="xs" onClick={onClear}>
             Clear
           </Button>
         )}
+        {/* Hidden: Stop did not stop a running deploy. Restoring it restores
+            Clear's `disabled={!!stop}` and `max-md:hidden` beside it.
+            TODO: a stuck deploy is what people press Stop for, so Stop also
+            closes the wallet's leftover buffer accounts, earlier runs'
+            included, and returns their SOL (`solana program close --buffers`);
+            a tutorial deploy interrupted by a reload offers no way to do this.
         {stop && (
           <Button
             type="button"
@@ -138,7 +134,7 @@ const BaseConsoleDrawer: FC<BaseConsoleDrawerProps> = ({
           >
             Stop
           </Button>
-        )}
+        )} */}
       </ConsoleDrawerActions>
     </ConsoleDrawerBar>
     {/* The panel sets the height on every width: `h-auto` undoes the
