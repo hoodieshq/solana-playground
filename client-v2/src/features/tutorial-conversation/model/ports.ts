@@ -69,6 +69,8 @@ export interface RunStage {
   /** 1-based */
   index: number;
   count: number;
+  /** How far a long stage has got, e.g. "40 of 200 transactions"; a stage reports again as it moves */
+  detail?: string;
 }
 
 /**

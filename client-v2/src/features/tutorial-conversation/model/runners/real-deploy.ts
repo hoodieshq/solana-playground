@@ -264,7 +264,7 @@ export const realDeployPort = (): DeployPort => {
     },
     funding: devnetFunding,
     capSol: DEVNET_FAUCET_SOL,
-    writeBuffer: async (bytes, onChain) => {
+    writeBuffer: async (bytes, onChain, onWrite) => {
       target.ensure();
       const payer = needed(wallet, "a wallet");
       const programPk = needed(PgProgramInfo.pk, "the program id");
@@ -310,6 +310,7 @@ export const realDeployPort = (): DeployPort => {
         target.ensure();
         await BpfLoaderUpgradeable.loadBuffer(buffer.publicKey, bytes, {
           wallet: payer,
+          onWrite,
           onRateLimit: (retryAfter) =>
             PgTerminal.println(
               `Warning: Reached rate-limits, waiting ${retryAfter}s...`

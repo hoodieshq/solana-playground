@@ -71,9 +71,14 @@ export interface DeployPort {
   capSol: number;
   /**
    * Extends the program data when an upgrade outgrows it, then creates the
-   * buffer and writes the binary; returns the buffer address
+   * buffer and writes the binary, reporting each write transaction that
+   * lands; returns the buffer address
    */
-  writeBuffer(bytes: Uint8Array, onChain: OnChain): Promise<string>;
+  writeBuffer(
+    bytes: Uint8Array,
+    onChain: OnChain,
+    onWrite: (current: number, total: number) => void
+  ): Promise<string>;
   /** First deploy from the buffer; returns the signature */
   deploy(buffer: string, length: number): Promise<string>;
   /** Upgrade from the buffer; returns the signature */
@@ -213,6 +218,13 @@ export const runDeploy = async (
       current = label;
       onStage({ label, index: ++index, count: labels.length });
     };
+    const writing = (written: number, total: number) =>
+      onStage({
+        label: DEPLOY_STAGES.buffer,
+        index,
+        count: labels.length,
+        detail: `${written} of ${total} transactions`,
+      });
 
     if (stale) {
       stage(DEPLOY_STAGES.building);
@@ -247,7 +259,7 @@ export const runDeploy = async (
     stage(DEPLOY_STAGES.buffer);
     port.print(`Deploying from ${shortKey(address)} · about ${sol(need)} SOL`);
     const funded = await port.funding.balance(address);
-    const buffer = await port.writeBuffer(bytes, onChain);
+    const buffer = await port.writeBuffer(bytes, onChain, writing);
 
     stage(DEPLOY_STAGES.deploying);
     let signature: string;
@@ -311,6 +323,8 @@ if (import.meta.vitest) {
       keypair?: boolean;
       /** Bytes of the built binary; 120 000 when left out */
       built?: number;
+      /** Write transactions the buffer write reports; none when left out */
+      writes?: number;
     }
 
     /** A port over a scripted chain: balances are read in order, the last repeating */
@@ -355,8 +369,10 @@ if (import.meta.vitest) {
           confirm: async () => true,
         },
         capSol: 5,
-        writeBuffer: vi.fn(async () => {
+        writeBuffer: vi.fn(async (_bytes, _onChain, onWrite) => {
           if (fake.writeThrows) throw new Error(fake.writeThrows);
+          const writes = fake.writes ?? 0;
+          for (let i = 1; i <= writes; i++) onWrite(i, writes);
           return "Buffer1111";
         }),
         deploy: vi.fn(async () => {
@@ -466,11 +482,38 @@ if (import.meta.vitest) {
       });
       expect(port.deploy).not.toHaveBeenCalled();
       // The port extends the program data from what is on chain
-      expect(port.writeBuffer).toHaveBeenCalledWith(expect.any(Uint8Array), {
+      expect(port.writeBuffer).toHaveBeenCalledWith(
+        expect.any(Uint8Array),
+        { deployed: true, dataLen: 100_000, authority: WALLET },
+        expect.any(Function)
+      );
+    });
+
+    it("reports each landed write as the Writing buffer stage's detail", async () => {
+      const { port } = portOf({
+        balances: [5 * SOL],
         deployed: true,
-        dataLen: 100_000,
-        authority: WALLET,
+        stale: false,
+        id: PROGRAM,
+        writes: 2,
       });
+      const { stages, onStage } = collect();
+      await runDeploy(port, "deploy", onStage);
+      expect(stages.slice(0, 3)).toEqual([
+        { label: "Writing buffer", index: 1, count: 3 },
+        {
+          label: "Writing buffer",
+          index: 1,
+          count: 3,
+          detail: "1 of 2 transactions",
+        },
+        {
+          label: "Writing buffer",
+          index: 1,
+          count: 3,
+          detail: "2 of 2 transactions",
+        },
+      ]);
     });
 
     it("builds first for a build-and-deploy even when the build is fresh", async () => {
