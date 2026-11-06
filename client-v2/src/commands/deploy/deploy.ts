@@ -341,16 +341,11 @@ const processDeploy = async (
       lamports: requiredBalance,
     });
     await sendAndConfirmTxWithRetries(
-      () => PgTx.send(transferIx),
-      () => {
-        if (typeof PgWallet.balance !== "number") {
-          throw new Error("Could not get wallet balance");
-        }
-
-        return (
-          PgWeb3.solToLamports(PgWallet.balance) < userBalance - requiredBalance
-        );
-      }
+      connection,
+      () => PgTx.send(transferIx, { connection }),
+      async () =>
+        (await connection.getBalance(standardWallet.publicKey)) <
+        userBalance - requiredBalance
     );
   }
 
@@ -361,11 +356,12 @@ const processDeploy = async (
   if (additionalLen > 0) {
     throwIfStopped(signal, deployStoppedLine({ state: "none" }));
     await sendAndConfirmTxWithRetries(
+      connection,
       async () => {
         return await BpfLoaderUpgradeable.extendProgram(
           PgProgramInfo.pk!,
           additionalLen,
-          { wallet: pgWallet }
+          { wallet: pgWallet, connection }
         );
       },
       () => getAdditionalLen(programLen) <= 0
@@ -378,12 +374,13 @@ const processDeploy = async (
   // Create buffer
   const bufferKp = PgWeb3.Keypair.generate();
   await sendAndConfirmTxWithRetries(
+    connection,
     async () => {
       return await BpfLoaderUpgradeable.createBuffer(
         bufferKp,
         bufferBalance,
         programLen,
-        { wallet: pgWallet }
+        { wallet: pgWallet, connection }
       );
     },
     async () => {
@@ -400,6 +397,7 @@ const processDeploy = async (
     programBytes,
     {
       wallet: pgWallet,
+      connection,
       onWrite: (current, total) => {
         const percent = (current / total) * 100;
         PgView.setMainSecondaryProgress(percent);
@@ -429,9 +427,11 @@ const processDeploy = async (
     let left: StoppedBuffer;
     try {
       await sendAndConfirmTxWithRetries(
+        connection,
         () =>
           BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
             wallet: pgWallet,
+            connection,
           }),
         async () => !(await connection.getAccountInfo(bufferKp.publicKey))
       );
@@ -474,9 +474,11 @@ const processDeploy = async (
     let msg;
     if (shouldCloseBufferAccount) {
       await sendAndConfirmTxWithRetries(
+        connection,
         async () => {
           return await BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
             wallet: pgWallet,
+            connection,
           });
         },
         async () => {
@@ -505,11 +507,12 @@ const processDeploy = async (
   // pass on-chain checks.
   if (standardWallet) {
     await sendAndConfirmTxWithRetries(
+      connection,
       async () => {
         return await BpfLoaderUpgradeable.setBufferAuthority(
           bufferKp.publicKey,
           standardWallet.publicKey,
-          { wallet: pgWallet }
+          { wallet: pgWallet, connection }
         );
       },
       async () => {
@@ -544,11 +547,13 @@ const processDeploy = async (
 
   function deployNew() {
     return sendAndConfirmTxWithRetries(
+      connection,
       async () => {
         return await BpfLoaderUpgradeable.deployProgram(
           PgProgramInfo.kp!,
           bufferKp.publicKey,
-          programLen
+          programLen,
+          { connection }
         );
       },
       async () => {
@@ -560,12 +565,14 @@ const processDeploy = async (
 
   function upgrade() {
     return sendAndConfirmTxWithRetries(
+      connection,
       async () => {
         const programPk = PgProgramInfo.pk;
         if (!programPk) throw new Error("The program ID was not found");
         return await BpfLoaderUpgradeable.upgradeProgram(
           programPk,
-          bufferKp.publicKey
+          bufferKp.publicKey,
+          { connection }
         );
       },
       async () => {
@@ -737,11 +744,13 @@ const keptLamportsOn =
  *
  * `checkConfirmation` is necessary because `PgTx.confirm` can be unreliable.
  *
+ * @param connection the deploy's own, which every send of the run also takes
  * @param sendTx send transaction callback
  * @param checkConfirmation only confirm the transaction if this callback returns truthy
  * @returns the transaction signature
  */
 const sendAndConfirmTxWithRetries = async (
+  connection: PgWeb3.Connection,
   sendTx: () => Promise<string>,
   checkConfirmation: () => SyncOrAsync<boolean>
 ) => {
@@ -754,7 +763,7 @@ const sendAndConfirmTxWithRetries = async (
     try {
       const txHash = await sendTx();
       if (!txHash) return;
-      const result = await PgTx.confirm(txHash);
+      const result = await PgTx.confirm(txHash, { connection });
       if (!result?.err) return txHash;
       if (await checkConfirmation()) return txHash;
     } catch (e: any) {

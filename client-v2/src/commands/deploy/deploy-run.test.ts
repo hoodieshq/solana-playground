@@ -74,7 +74,7 @@ vi.mock("../../utils", () => {
       get: async () => ({ waitForInput, println: vi.fn() }),
     },
     // eslint-disable-next-line unicorn/no-null -- an RPC confirmation's `err` is `null` on success
-    PgTx: { confirm: async () => ({ err: null }) },
+    PgTx: { confirm: vi.fn(async () => ({ err: null })) },
     PgView: { setMainSecondaryProgress: vi.fn() },
     PgWallet: { current: { publicKey: pk, isPg: true } },
     PgWeb3: {
@@ -197,6 +197,41 @@ describe("deploy run", () => {
     const result = await handleDeploy();
 
     expect(result?.cluster).toBe("testnet");
+  });
+
+  it("sends and confirms on the connection it started on when the network changes during its first reads", async () => {
+    const { PgConnection, PgTx } = await import("../../utils");
+    const { BpfLoaderUpgradeable } = await import("./bpf-loader-upgradeable");
+    const start = PgConnection.current;
+    const switched = {
+      ...start,
+      rpcEndpoint: "https://api.testnet.solana.com",
+    };
+    balance.mockImplementationOnce(async () => {
+      // A network change lands while the first balance read is in flight
+      Object.assign(PgConnection, { current: switched });
+      return 10_000_000_000;
+    });
+
+    try {
+      await handleDeploy();
+    } finally {
+      Object.assign(PgConnection, { current: start });
+    }
+
+    const lastArg = (calls: unknown[][]) => calls[0]?.at(-1);
+    for (const opts of [
+      lastArg(vi.mocked(BpfLoaderUpgradeable.createBuffer).mock.calls),
+      lastArg(vi.mocked(BpfLoaderUpgradeable.loadBuffer).mock.calls),
+      lastArg(vi.mocked(BpfLoaderUpgradeable.deployProgram).mock.calls),
+    ]) {
+      expect(opts).toMatchObject({ connection: start });
+    }
+    const confirms = vi.mocked(PgTx.confirm).mock.calls as unknown[][];
+    expect(confirms.length).toBeGreaterThan(0);
+    for (const [, opts] of confirms) {
+      expect(opts).toMatchObject({ connection: start });
+    }
   });
 
   it("reports the selected network when the connection's cannot be read", async () => {
