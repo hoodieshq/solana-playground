@@ -44,8 +44,8 @@ const LIVE_PRESSES = 3;
 /**
  * Outside the phone layout the card can still be narrow (the chat beside the
  * editor on a 1024 px tablet): under 32rem of card, where the title's line
- * and the button no longer fit side by side, the button takes a line of its
- * own, the card's width, so the title and its line keep theirs
+ * and the button no longer fit side by side, a lone button takes a line of
+ * its own, the card's width, so the title and its line keep theirs
  */
 const NARROW_CTA = "@max-lg/act:w-full";
 
@@ -320,7 +320,9 @@ const BaseActCard = ({
         ACTION,
         ACTION_FILL,
         PHONE_CTA,
-        phoneCtaWidth(layout) ?? NARROW_CTA
+        // Only a lone button takes the card's width: beside a name field it
+        // would squeeze the field to nothing, since that row never wraps
+        phoneCtaWidth(layout) ?? (single ? NARROW_CTA : undefined)
       )}
       disabled={disabled || missing}
     >
