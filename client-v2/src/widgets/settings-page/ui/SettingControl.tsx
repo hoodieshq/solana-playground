@@ -98,7 +98,7 @@ export const SettingSetterSelect: FC<
     >
       <SelectTrigger
         aria-label={setting.name}
-        className="w-full max-md:text-body max-md:font-read max-md:data-[size=default]:h-12"
+        className="w-full max-md:text-body font-read max-md:data-[size=default]:h-12"
       >
         <SelectValue />
       </SelectTrigger>
