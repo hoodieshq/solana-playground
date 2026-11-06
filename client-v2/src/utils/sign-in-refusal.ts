@@ -2,7 +2,7 @@ import { SIGNED_OUT_REASON } from "@/features/auth";
 
 /**
  * Whether a thrown error is the build server's refusal for sign-in.
- * `/api/build-server` (HOO-2422, SF#119) answers a signed-out build with
+ * `/api/build-server` (HOO-2422, foundation PR 119) answers a signed-out build with
  * `reason: "signed-out"`, and `PgServerRequestError` carries it from there;
  * until that lands no error has the field, so this reads it off any error
  * rather than narrowing to the class. A feature may not import `auth`, so the

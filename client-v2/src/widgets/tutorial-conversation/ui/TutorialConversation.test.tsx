@@ -73,7 +73,7 @@ const session = vi.hoisted(() => ({
 vi.mock("@/features/auth", () => ({
   PgSession: {
     get: () => session.user,
-    signIn: session.signIn,
+    signInWith: session.signIn,
     refresh: session.refresh,
     onDidChange: () => ({ dispose: () => {} }),
   },
@@ -1157,7 +1157,7 @@ describe("TutorialConversation keys and the pill", () => {
       showRefused();
       expect(session.refresh).not.toHaveBeenCalled();
       press();
-      expect(session.signIn).toHaveBeenCalledTimes(1);
+      expect(session.signIn).toHaveBeenCalledWith({ from: "tutorial" });
       expect(PgConversation.act).not.toHaveBeenCalled();
       expect(PgConversation.explain).not.toHaveBeenCalled();
     });

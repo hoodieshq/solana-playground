@@ -73,8 +73,8 @@ export const session = (): Disposable => {
    * project afterwards. True when the user has just signed in from the header,
    * where landing on their newest work is the point of signing in; false when
    * a cookie was merely restored on load, where it would yank them off
-   * whatever URL they opened, or when the sign-in started in the assistant
-   * panel, mid-task.
+   * whatever URL they opened, or when the sign-in started mid-task, in the
+   * assistant panel or on a tutorial's build card.
    */
   const adopt = async ({ openLatest }: { openLatest: boolean }) => {
     let result;
@@ -281,9 +281,10 @@ export const session = (): Disposable => {
         holding = true;
         PgProjectSync.holdPushes();
       }
-      // A panel sign-in happens mid-task, with a prompt written for the open project
-      const fromPanel = PgSession.signingInFrom === "assistant";
-      void adopt({ openLatest: !restoring && !fromPanel }).catch((e) =>
+      // A sign-in from the assistant panel or a tutorial's build card happens
+      // mid-task: a prompt written for the open project, a lesson on its step
+      const midTask = PgSession.signingInFrom !== undefined;
+      void adopt({ openLatest: !restoring && !midTask }).catch((e) =>
         report("adopt", e)
       );
     }

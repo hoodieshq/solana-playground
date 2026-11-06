@@ -409,7 +409,10 @@ const createWallet = (beatId: string) => {
  * a popup, so the page and the step stay where they are; once signed in the
  * card offers Build (HOO-2661)
  */
-const signIn = () => PgSession.signIn().catch(signInFailed);
+const signIn = () =>
+  // `from`: the session effect keeps the tutorial open rather than opening
+  // the account's newest project
+  PgSession.signInWith({ from: "tutorial" }).catch(signInFailed);
 
 /**
  * A sign-in that did not finish. A closed or blocked popup is expected and
