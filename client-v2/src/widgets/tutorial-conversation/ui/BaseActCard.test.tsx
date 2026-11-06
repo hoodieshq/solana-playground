@@ -262,7 +262,7 @@ describe("BaseActCard, a call that takes a name", () => {
     call: { instruction: "hello", args: ["name"] },
   };
 
-  it("keeps the button beside the field on a narrow card, never the row's width", () => {
+  it("does not give the button beside the field the narrow card's full width", () => {
     render(
       <BaseActCard
         act={HELLO}
@@ -277,8 +277,38 @@ describe("BaseActCard, a call that takes a name", () => {
     );
     const field = screen.getByRole("textbox", { name: "name" });
     const button = screen.getByRole("button", { name: /Say hello/ });
-    // The row does not wrap: a full-width button would squeeze the field to nothing
+    // The row does not wrap: a full-width button would squeeze the field to
+    // nothing (jsdom draws no layout, so the class is what the test reads)
     expect(field.parentElement?.contains(button)).toBe(true);
     expect(button.className).not.toContain("w-full");
+  });
+});
+
+describe("BaseActCard, a lone action", () => {
+  const BUILD: ActBeat = {
+    kind: "act",
+    id: "s1.build",
+    act: "build",
+    title: "Build the program",
+    context: "Compiles on the build server",
+    button: "Build",
+  };
+
+  it("gives its button the narrow card's full width, so the title keeps its line", () => {
+    render(
+      <BaseActCard
+        act={BUILD}
+        state="live"
+        presses={[]}
+        note={null}
+        stage={null}
+        took={null}
+        disabled={false}
+        onRun={() => {}}
+      />
+    );
+    expect(screen.getByRole("button", { name: /Build/ }).className).toContain(
+      "@max-lg/act:w-full"
+    );
   });
 });
