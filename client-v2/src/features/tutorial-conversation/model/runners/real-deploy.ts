@@ -5,6 +5,7 @@ import { createLogger } from "@/shared/lib/logger";
 import { additionalProgramLen } from "../../../../commands/deploy/additional-len";
 import { BpfLoaderUpgradeable } from "../../../../commands/deploy/bpf-loader-upgradeable";
 import { sendAndConfirmTxWithRetries } from "../../../../commands/deploy/deploy";
+import { unclosedBufferLineFor } from "../../../../commands/deploy/stopped";
 import type { Wallet } from "../../../../utils";
 import {
   PgCommand,
@@ -301,12 +302,21 @@ export const realDeployPort = (): DeployPort => {
       } catch (e) {
         // The buffer already holds its rent: give it back before the write's
         // failure stands, as `runDeploy` does for a failed deploy
-        await closeBuffer(buffer.publicKey.toBase58(), payer).catch((closing) =>
+        const address = buffer.publicKey.toBase58();
+        await closeBuffer(address, payer).catch((closing) => {
           log.error(closing, {
             report: true,
-            context: { stage: "Closing the buffer" },
-          })
-        );
+            context: { stage: "Closing the buffer", buffer: address },
+          });
+          const readBuffer = getReadBufferConnection();
+          PgTerminal.println(
+            unclosedBufferLineFor(
+              readBuffer === PgConnection.current
+                ? undefined
+                : readBuffer.rpcEndpoint
+            )(address)
+          );
+        });
         throw e;
       }
       return buffer.publicKey.toBase58();

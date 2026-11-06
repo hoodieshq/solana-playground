@@ -1,4 +1,4 @@
-import { createLogger } from "@/shared/lib/logger";
+import { createLogger, toError } from "@/shared/lib/logger";
 
 import { PgSession } from "../../features/auth";
 import {
@@ -26,14 +26,18 @@ import { MAINNET_DEPLOY_WARNING, warnsOnDeploy } from "./mainnet-warning";
 import type { DeployResult, FundingFailure } from "./run";
 import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
 import type { StoppedBuffer } from "./stopped";
-import { closeBuffersCommandFor, deployStoppedLine } from "./stopped";
+import {
+  closeBuffersCommandFor,
+  deployStoppedLine,
+  unclosedBufferLineFor,
+} from "./stopped";
 
 const log = createLogger("commands:deploy");
 
-const reclaimRejectedLineFor = (closeBuffersCommand: string) =>
-  `${PgTerminal.error(
-    "Reclaim rejected."
-  )} Run \`${closeBuffersCommand}\` to close unused buffer accounts and reclaim SOL.`;
+const reclaimRejectedLineFor = (readBufferUrl: string | undefined) =>
+  `${PgTerminal.error("Reclaim rejected.")} Run \`${closeBuffersCommandFor(
+    readBufferUrl
+  )}\` to close unused buffer accounts and reclaim SOL.`;
 
 export const deploy = createCmd({
   name: "deploy",
@@ -190,9 +194,8 @@ const processDeploy = async (
   const connection = PgConnection.current;
   // The platform RPC does not return fresh buffers
   const bufferConnection = PgConnection.getReadBufferConnection(connection);
-  const closeBuffersCommand = closeBuffersCommandFor(
-    bufferConnection === connection ? undefined : bufferConnection.rpcEndpoint
-  );
+  const readBufferUrl =
+    bufferConnection === connection ? undefined : bufferConnection.rpcEndpoint;
   const [userBalance, bufferBalance] = await Promise.all([
     connection.getBalance(wallet.publicKey),
     connection.getMinimumBalanceForRentExemption(
@@ -383,34 +386,76 @@ const processDeploy = async (
     }
   );
 
+  const bufferAddress = bufferKp.publicKey.toBase58();
+  /** Close the buffer, returning its rent to the wallet that paid it */
+  const closeBuffer = () =>
+    sendAndConfirmTxWithRetries(
+      () =>
+        BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
+          wallet: pgWallet,
+        }),
+      async () => !(await bufferConnection.getAccountInfo(bufferKp.publicKey))
+    );
+
   /** Ask whether to close the buffer and reclaim its SOL, after `heading` */
   const offerReclaim = async (heading: string) => {
     const term = await PgTerminal.get();
-    const shouldCloseBufferAccount = await term.waitForInput(
-      `${heading} Would you like to close the buffer account and reclaim SOL?`,
-      { confirm: true, default: "yes" }
-    );
-    let msg;
-    if (shouldCloseBufferAccount) {
-      await sendAndConfirmTxWithRetries(
-        async () => {
-          return await BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
-            wallet: pgWallet,
-          });
-        },
-        async () => {
-          const bufferAcc = await bufferConnection.getAccountInfo(
-            bufferKp.publicKey
-          );
-          return !bufferAcc;
-        }
+    // A stop while the question is open answers it, as "no" would
+    const answerNo = () => {
+      term.executeFromStr("no").catch((e: unknown) => {
+        log.error(e, { context: { action: "answer the reclaim on stop" } });
+      });
+    };
+    signal.addEventListener("abort", answerNo, { once: true });
+    let shouldCloseBufferAccount;
+    try {
+      shouldCloseBufferAccount = await term.waitForInput(
+        `${heading} Would you like to close the buffer account and reclaim SOL?`,
+        { confirm: true, default: "yes" }
       );
-      msg = PgTerminal.success("Reclaim successful.");
-    } else {
-      msg = reclaimRejectedLineFor(closeBuffersCommand);
+    } finally {
+      signal.removeEventListener("abort", answerNo);
     }
+    if (!shouldCloseBufferAccount) {
+      term.println(reclaimRejectedLineFor(readBufferUrl));
+      return;
+    }
+    await closeBuffer();
+    term.println(PgTerminal.success("Reclaim successful."));
+  };
 
-    term.println(msg);
+  /**
+   * After a failed load: a caller with its own answers (the Deploy stage)
+   * shows no terminal question, so its buffer is closed unasked
+   */
+  const reclaimAfterFailedLoad = async (loadError: unknown) => {
+    const heading = PgTerminal.error("Writing the program failed.");
+    try {
+      if (PgDeployRun.answers) {
+        await closeBuffer();
+        PgTerminal.println(
+          `${heading} ${PgTerminal.success("Reclaim successful.")}`
+        );
+      } else {
+        await offerReclaim(heading);
+      }
+    } catch (closing) {
+      log.error(closing, {
+        report: true,
+        context: {
+          action: "close the buffer after a failed load",
+          buffer: bufferAddress,
+        },
+      });
+      const keptLine = unclosedBufferLineFor(readBufferUrl)(bufferAddress);
+      if (!PgDeployRun.answers) {
+        PgTerminal.println(keptLine);
+        return;
+      }
+      throw new Error(`${toError(loadError).message} ${keptLine}`, {
+        cause: loadError,
+      });
+    }
   };
 
   // Load buffer
@@ -445,30 +490,16 @@ const processDeploy = async (
       },
     }
   ).catch(async (e: unknown) => {
-    // The buffer already holds the program's rent: offer it back before the
+    // The buffer already holds the program's rent: give it back before the
     // load's failure stands
-    try {
-      await offerReclaim(PgTerminal.error("Writing the program failed."));
-    } catch (closing) {
-      log.error(closing, {
-        report: true,
-        context: { action: "close the buffer after a failed load" },
-      });
-      PgTerminal.println(reclaimRejectedLineFor(closeBuffersCommand));
-    }
+    await reclaimAfterFailedLoad(e);
     throw e;
   });
   /** End a stopped deploy, closing its buffer so its SOL comes back */
   const stopWithBuffer = async () => {
     let left: StoppedBuffer;
     try {
-      await sendAndConfirmTxWithRetries(
-        () =>
-          BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
-            wallet: pgWallet,
-          }),
-        async () => !(await bufferConnection.getAccountInfo(bufferKp.publicKey))
-      );
+      await closeBuffer();
       left = { state: "closed" };
     } catch (e) {
       // The line names the buffer, the SOL it holds and how to reclaim it
@@ -487,10 +518,10 @@ const processDeploy = async (
       } else {
         left = {
           state: "kept",
-          address: bufferKp.publicKey.toBase58(),
+          address: bufferAddress,
           sol:
             lamports === undefined ? undefined : PgWeb3.lamportsToSol(lamports),
-          command: closeBuffersCommand,
+          readBufferUrl,
         };
       }
     }

@@ -102,6 +102,19 @@ const nextBackoff = (previous: number) =>
 /** Rounds in a row in which no missing chunk lands before `loadBuffer` gives up, so a refusing RPC cannot hang a deploy */
 const MAX_STALLED_ROUNDS = 5;
 
+/** Reads of the buffer account, {@link BUFFER_READ_INTERVAL_MS} apart, before a load gives up on the read-buffer RPC */
+const MAX_BUFFER_READS = 30;
+
+const BUFFER_READ_INTERVAL_MS = 1000;
+
+/** A fetch the browser failed, which is how it reports a 429 sent without CORS headers */
+const isFetchFailure = (e: unknown) =>
+  e instanceof TypeError &&
+  /Failed to fetch|Load failed|NetworkError/i.test(e.message);
+
+/** The host of an RPC URL, for logs and errors: its path or query may carry an API key */
+const hostOf = (url: string) => /^[a-z]+:\/\/([^/?#]+)/i.exec(url)?.[1] ?? url;
+
 // TODO: Make use of the `X-Ratelimit-Method-Remaining` response header. The
 // default devnet RPC returns 150 for `X-Ratelimit-Method-Limit` but allows 40
 // requests; `...Method-Remaining` at 110 (150 - 40) means the next request to
@@ -203,10 +216,10 @@ export class BpfLoaderUpgradeable {
       { computeUnitLimit: PgWeb3.MAX_COMPUTE_UNIT_LIMIT, wallet }
     );
 
-    let lastRateLimitReason: string | undefined;
     // Counted, not logged per write: a refusing RPC refuses many writes in a row
     let refusedCount = 0;
     let firstRefusal: Error | undefined;
+    let lastRefusal: { error: Error; words: string } | undefined;
     const loadBuffer = async (missingIndices: number[]) => {
       if (missingIndices.length < indices.length) {
         opts?.onMissing?.(missingIndices.length);
@@ -253,19 +266,24 @@ export class BpfLoaderUpgradeable {
               opts?.onWrite?.(current, total);
             } catch (e: unknown) {
               refusedCount++;
-              firstRefusal ??= toError(e);
+              const error = toError(e);
+              firstRefusal ??= error;
               if (rateLimitReason) break;
 
               const rateLimit = rateLimitOf(e);
               if (rateLimit) {
                 pace.recordRateLimit();
                 rateLimitReason = `${rateLimit.provider}: ${rateLimit.reason}`;
-                lastRateLimitReason = rateLimitReason;
+                lastRefusal = {
+                  error,
+                  words: `last rate limit: ${rateLimitReason}`,
+                };
                 break;
               }
+              lastRefusal = { error, words: `last refusal: ${error.message}` };
 
-              // The browser hides a 429 without CORS headers behind a fetch `TypeError`, so slow down as for one
-              if (e instanceof TypeError) pace.recordRateLimit();
+              // The browser hides a 429 without CORS headers behind a failed fetch, so slow down as for one
+              if (isFetchFailure(e)) pace.recordRateLimit();
               else pace.recordFailure();
               // The chunk is written again in the next round; the pause keeps
               // a failing RPC from being sent to at once
@@ -281,7 +299,7 @@ export class BpfLoaderUpgradeable {
         // TODO: Make use of the `Retry-After` response header
         const retryAfter = 10; // this is what `Retry-After` returns currently
         opts?.onRateLimit?.(retryAfter, rateLimitReason);
-        await PgCommon.sleep(retryAfter * 1000, opts?.abortController);
+        await pause(retryAfter * 1000);
         if (opts?.abortController?.signal.aborted) return;
       }
 
@@ -299,6 +317,38 @@ export class BpfLoaderUpgradeable {
     const txCount = Math.ceil(programBytes.length / WRITE_CHUNK_SIZE);
     const indices = new Array(txCount).fill(null).map((_, i) => i);
 
+    const readBufferHost = hostOf(bufferConnection.rpcEndpoint);
+    /**
+     * The buffer account through the read-buffer RPC, as the platform RPC does not return fresh buffers; `undefined`
+     * once stopped. The account is confirmed by now, but an RPC that is behind still answers `null` for a while.
+     */
+    const readBuffer = async () => {
+      let failure: unknown;
+      for (let read = 0; read < MAX_BUFFER_READS; read++) {
+        if (read > 0) await pause(BUFFER_READ_INTERVAL_MS);
+        if (opts?.abortController?.signal.aborted) return;
+        try {
+          const account = await bufferConnection.getAccountInfo(bufferPk);
+          if (account) return account;
+          failure = new Error("The buffer account was not found");
+        } catch (e) {
+          failure = e;
+        }
+        if (read === 0) {
+          log.warn("Could not read the buffer account; reading it again", {
+            context: {
+              endpoint: readBufferHost,
+              error: toError(failure).message,
+            },
+          });
+        }
+      }
+      throw new Error(
+        `Could not read the buffer account from the read-buffer RPC (${readBufferHost}) in ${MAX_BUFFER_READS} attempts`,
+        { cause: failure }
+      );
+    };
+
     const loadUntilWritten = async () => {
       // Retry until all bytes are written, or until rounds stop landing chunks
       let previousMissingCount = Number.POSITIVE_INFINITY;
@@ -306,14 +356,8 @@ export class BpfLoaderUpgradeable {
       while (1) {
         if (opts?.abortController?.signal.aborted) return;
 
-        // Even though we only get to this function after buffer account creation
-        // gets confirmed, the RPC can still return `null` here if it's behind.
-        // Read through the read-buffer RPC: the platform RPC does not return fresh buffers
-        const bufferAccount = await PgCommon.tryUntilSuccess(async () => {
-          const acc = await bufferConnection.getAccountInfo(bufferPk);
-          if (!acc) throw new Error();
-          return acc;
-        }, 1000);
+        const bufferAccount = await readBuffer();
+        if (!bufferAccount) return;
 
         const onChainProgramBytes = bufferAccount.data.slice(
           PgWeb3.BpfLoaderUpgradeableProgram.BUFFER_METADATA_SIZE,
@@ -335,25 +379,33 @@ export class BpfLoaderUpgradeable {
         previousMissingCount = missingIndices.length;
         if (stalledRounds >= MAX_STALLED_ROUNDS) {
           if (opts?.abortController?.signal.aborted) return;
+          const rounds = `no chunk landed in ${MAX_STALLED_ROUNDS} rounds in a row`;
+          if (!lastRefusal) {
+            throw new Error(
+              `The RPC accepted buffer writes that never landed: ${rounds}`
+            );
+          }
           throw new Error(
-            `The RPC kept refusing buffer writes: no chunk landed in ${MAX_STALLED_ROUNDS} rounds in a row${
-              lastRateLimitReason
-                ? ` (last rate limit: ${lastRateLimitReason})`
-                : ""
-            }`
+            `The RPC kept refusing buffer writes: ${rounds} (${lastRefusal.words})`,
+            { cause: lastRefusal.error }
           );
         }
         await loadBuffer(missingIndices);
       }
     };
 
+    let failed = false;
     try {
       await loadUntilWritten();
+    } catch (e) {
+      failed = true;
+      throw e;
     } finally {
       if (firstRefusal) {
-        log.debug(
-          `Buffer writes: ${refusedCount} refused, each sent again until the load ended; the first: ${firstRefusal.message}`
-        );
+        const summary = `Buffer writes: ${refusedCount} refused, each sent again until the load ended; the first: ${firstRefusal.message}`;
+        // Refusals a load recovered from are routine; on a failed load they are its cause
+        if (failed) log.warn(summary);
+        else log.debug(summary);
       }
     }
   }
