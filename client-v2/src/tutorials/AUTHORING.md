@@ -665,7 +665,7 @@ call it. It passes the check as it stands.
           "act": "call",
           "say": "Now send it something, and watch the log.",
           "title": "Call echo",
-          "context": "Sends echo with your text from your wallet",
+          "context": "Sends echo with your text · fee from your wallet",
           "button": "Call echo",
           "call": { "instruction": "echo", "args": ["text"] }
         }
