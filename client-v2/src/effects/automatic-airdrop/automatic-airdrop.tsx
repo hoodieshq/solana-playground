@@ -1,5 +1,6 @@
 import { isAirdropSignInGated } from "../../commands/airdrop/sign-in-gate";
 import { PgSession } from "../../features/auth";
+import { faucetUrlFor, isFaucetCluster } from "../../shared/lib/faucet";
 import { createLogger } from "../../shared/lib/logger";
 import {
   Cluster,
@@ -60,8 +61,12 @@ export const automaticAirdrop = () => {
         PgTerminal.println(
           [
             "Note: This was an automatic airdrop request.",
-            ...(FAUCET_CLUSTERS.has(cluster)
-              ? [`Visit ${FAUCET_URL} to obtain SOL.`]
+            ...(isFaucetCluster(cluster)
+              ? [
+                  `Visit ${faucetUrlFor(cluster)(
+                    PgWallet.current?.publicKey.toBase58()
+                  )} to obtain SOL.`,
+                ]
               : []),
             `To disable, run \`${PgCommand.setting.name} set wallet.automaticAirdrop false\`.`,
           ].join(" ")
@@ -73,9 +78,3 @@ export const automaticAirdrop = () => {
 };
 
 const errorCache = new Set<Cluster>();
-
-/** Solana's faucet site, a link in the terminal: its addon links `https://` addresses */
-const FAUCET_URL = "https://faucet.solana.com";
-
-/** The clusters the faucet site serves; a local validator has none */
-const FAUCET_CLUSTERS = new Set<Cluster>(["devnet", "testnet"]);

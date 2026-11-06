@@ -149,7 +149,9 @@ describe("BaseDeployResultCard", () => {
       screen.getByRole("button", { name: "Copy the wallet address" })
     ).toBeTruthy();
     const faucet = screen.getByRole("link", { name: /Open faucet/ });
-    expect(faucet.getAttribute("href")).toBe("https://faucet.solana.com");
+    expect(faucet.getAttribute("href")).toBe(
+      `https://faucet.solana.com/?walletAddress=${WALLET}&cluster=devnet&amount=5`
+    );
     expect(faucet.getAttribute("target")).toBe("_blank");
     expect(screen.queryByRole("button", { name: /Try again/ })).toBeNull();
   });

@@ -485,7 +485,7 @@ describe("BaseResultCard", () => {
     expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
     expect(
       screen.getByRole("link", { name: /Open faucet/ }).getAttribute("href")
-    ).toBe("https://faucet.solana.com");
+    ).toBe("https://faucet.solana.com/?walletAddress=Wa11et&cluster=devnet");
     unmount();
     txCard({
       act: "call",
