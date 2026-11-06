@@ -1363,11 +1363,10 @@ describe("PgConversation's airdrop card", () => {
   });
 
   it("asks again when a restart of the step reaches the card anew", async () => {
-    const runner = runnerWith(async () => true, [
-      OK_BUILD,
-      FOUND_FUNDED,
-      FOUND_FUNDED,
-    ]);
+    const runner = runnerWith(
+      async () => true,
+      [OK_BUILD, FOUND_FUNDED, FOUND_FUNDED]
+    );
     await toAirdrop(runner);
     expect(runner.funded).toHaveBeenCalledTimes(1);
     PgConversation.restartStep();
