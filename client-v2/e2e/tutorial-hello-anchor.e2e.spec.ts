@@ -211,8 +211,17 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     await won(page, "call-client");
     await next(page).click();
 
-    // Step 4: the new argument, an upgrade at the same address, the call
+    // Step 4: the new argument, an upgrade at the same address, the call.
+    // The airdrop card funds for the 400 KB estimate (the real port knows no
+    // binary length), which step 2's deploy left the wallet short of, so it
+    // asks the faucet; the deploy then checks only the real binary's need
     await answer(page, beat("s4.q4", "ask"));
+    await act(page, "s4.airdrop").click(LONG);
+    await expect(
+      feed(page)
+        .getByText(/Added [\d.]+ SOL/)
+        .last()
+    ).toBeVisible(LONG);
     await act(page, "s4.ship").click(LONG);
     await expect(feed(page).getByText("Upgraded").last()).toBeVisible(LONG);
     // The upgrade keeps the address
