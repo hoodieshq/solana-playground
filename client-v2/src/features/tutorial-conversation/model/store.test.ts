@@ -1349,6 +1349,34 @@ describe("PgConversation's airdrop card", () => {
     ).toHaveLength(1);
     expect(airdropRuns()).toMatchObject([{ status: "ok" }]);
   });
+
+  it("asks again after a reload onto a card that never ran", async () => {
+    const runner = runnerWith(async () => false);
+    await toAirdrop(runner);
+    expect(runner.funded).toHaveBeenCalledTimes(1);
+    close();
+    const again = runnerWith(async () => true, [FOUND_FUNDED]);
+    open(NAME, { runner: again });
+    await settle();
+    expect(again.funded).toHaveBeenCalledTimes(1);
+    expect(airdropRuns()).toMatchObject([{ status: "ok" }]);
+  });
+
+  it("asks again when a restart of the step reaches the card anew", async () => {
+    const runner = runnerWith(async () => true, [
+      OK_BUILD,
+      FOUND_FUNDED,
+      FOUND_FUNDED,
+    ]);
+    await toAirdrop(runner);
+    expect(runner.funded).toHaveBeenCalledTimes(1);
+    PgConversation.restartStep();
+    await settle();
+    PgConversation.skip("s2.q2");
+    await settle();
+    expect(runner.funded).toHaveBeenCalledTimes(2);
+    expect(airdropRuns()).toMatchObject([{ status: "ok" }]);
+  });
 });
 
 describe("PgCallPanel", () => {

@@ -713,9 +713,11 @@ export class PgConversation {
 
     if (engine !== s.engine) {
       // A new walk: the files go back to how it starts, and a scripted file
-      // effect still queued from the old one must not write over them
+      // effect still queued from the old one must not write over them. Its
+      // airdrop cards are live again, so the funded probe asks about them anew
       if (action.type === "startOver" || action.type === "restartStep") {
         PgConversation._walk++;
+        PgConversation._probed.clear();
       }
       // Start over is the one write allowed over a save that could not be
       // read: it is the learner's "discard it", and the only way out
@@ -769,7 +771,7 @@ export class PgConversation {
    * learner would press it. Not funded leaves the card live; a probe that
    * throws is reported and leaves it live too. A press while the probe is in
    * flight wins: the answer then finds a run and presses nothing. Asked once
-   * per card per load (`_probed`).
+   * per card per walk (`_probed`).
    */
   private static _pressIfFunded(s: ConversationState) {
     const beatId = PgConversation._reachedAirdrop(s);
@@ -1247,8 +1249,9 @@ export class PgConversation {
   private static _state: ConversationState = INITIAL_CONVERSATION_STATE;
   private static _ports: Required<ConversationPorts> | null = null;
   /**
-   * Airdrop cards the funded probe asked about since the last load, as
-   * `<tutorial>:<beatId>`: once per card per load, not on every re-render
+   * Airdrop cards the funded probe asked about since the last load or new
+   * walk, as `<tutorial>:<beatId>`: once per card per walk, not on every
+   * re-render
    */
   private static _probed = new Set<string>();
   private static _timer: ReturnType<typeof setTimeout> | null = null;
