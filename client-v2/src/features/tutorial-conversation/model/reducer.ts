@@ -38,6 +38,7 @@ import {
   freshProgress,
   hintOf,
   isSignedOut,
+  isUnconfirmed,
   isUnreachable,
 } from "./progress";
 import type { Word } from "./route";
@@ -1390,12 +1391,14 @@ const reduceAction = (
       if (passed(p, found.step)) return same(state);
       if (!run.planned || p.cursor.fail) {
         // Asked once: the card closes on the press. A server that never
-        // answered, or that asks for a sign-in, has nothing to explain; its
-        // card offers the way on instead
+        // answered, one that asks for a sign-in, or a devnet that has not
+        // read the transaction back yet has nothing to explain; its card
+        // offers the way on instead
         if (
           run.explainedAt !== undefined ||
           isUnreachable(run.result) ||
-          isSignedOut(run.result)
+          isSignedOut(run.result) ||
+          isUnconfirmed(run.result)
         ) {
           return same(state);
         }
@@ -1945,7 +1948,8 @@ if (import.meta.vitest) {
           ok: false,
           seconds: 4,
           reason: "unconfirmed",
-          message: "Devnet has not confirmed transaction late yet.",
+          message:
+            "Devnet has not confirmed this transaction yet. Check again, or open it in Explorer.",
           log: "",
           unconfirmed: UNREAD,
         };
@@ -1998,6 +2002,36 @@ if (import.meta.vitest) {
             press(4000),
           ]);
           expect(inputs[1]).not.toHaveProperty("recheck");
+        });
+
+        it("checks again as often as devnet stays slow", () => {
+          const { inputs } = walk(calling(), [
+            start,
+            press(2000),
+            ended(3000, UNCONFIRMED),
+            recheck(4000),
+            ended(5000, UNCONFIRMED),
+            recheck(6000),
+          ]);
+          expect(inputs).toHaveLength(3);
+          expect(inputs[2].recheck).toEqual(UNREAD);
+        });
+
+        it("has nothing to explain, so Explain leaves Check again open", () => {
+          const explain: Action = {
+            type: "explain",
+            beatId: "s1.grow",
+            at: 4000,
+          };
+          const { progress, inputs } = walk(calling(), [
+            start,
+            press(2000),
+            ended(3000, UNCONFIRMED),
+            explain,
+            recheck(5000),
+          ]);
+          expect(progress.runs["s1.grow"][0]).not.toHaveProperty("explainedAt");
+          expect(inputs[1].recheck).toEqual(UNREAD);
         });
       });
 

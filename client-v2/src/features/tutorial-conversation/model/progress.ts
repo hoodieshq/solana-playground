@@ -259,6 +259,13 @@ export const isUnreachable = (r: RunResult): boolean =>
 export const isSignedOut = (r: RunResult): boolean =>
   r.act === "build" && !r.ok && r.reason === "signed_out";
 
+/**
+ * A run or call devnet has not read back yet (HOO-2675): sent, not failed,
+ * so nothing to explain; its card's way on is Check again
+ */
+export const isUnconfirmed = (r: RunResult): boolean =>
+  (r.act === "run" || r.act === "call") && !r.ok && r.reason === "unconfirmed";
+
 /** The compiler error a failed build's card shows, as the server's log names it */
 export interface BuildError {
   code: string | null;
@@ -466,7 +473,8 @@ export type RunResult =
       /**
        * Sent, but devnet did not read a transaction back in the read window:
        * on a slow devnet it may still land, so this is no failure of the
-       * learner's, and "Check again" reads `unconfirmed` without sending
+       * learner's, and "Check again" reads the `unconfirmed` transactions
+       * again, without sending
        */
       reason: "unconfirmed";
       /** Every transaction the run sent, in order, to read again */
