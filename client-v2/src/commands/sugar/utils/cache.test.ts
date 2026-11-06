@@ -69,6 +69,8 @@ describe("CandyCache", () => {
     const expected = JSON.stringify(cache, undefined, 2);
     expect(expected.length).toBeGreaterThan(128 * 1024);
 
+    // Twice, as the periodic save does: the second overwrites the first
+    await cache.syncFile();
     await cache.syncFile();
 
     const path = `/candy/${CACHE_PATH}`;

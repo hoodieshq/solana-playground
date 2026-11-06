@@ -172,6 +172,10 @@ describe("entities/project/limits", () => {
       { reason: "too-many-files", limit: 50, count: 51 }
     );
     assert.equal(readLimitExceeded({ reason: "too-large" }), null);
+    assert.equal(
+      readLimitExceeded({ reason: "too-many-lines", limit: 1, size: 2 }),
+      null
+    );
     assert.equal(readLimitExceeded(null), null);
   });
 

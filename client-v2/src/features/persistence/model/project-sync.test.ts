@@ -2287,6 +2287,22 @@ describe("a project over a sync limit", () => {
     ]);
   });
 
+  it("answers a 400 as refused and a 5xx as skipped", async () => {
+    await agreedOn("p1", "mine", many(2));
+    answering(() => ({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: "A path under .workspace/ is not synced" }),
+    }));
+    expect(await PgProjectSync.push("p1", { files: many(3) }, "mine")).toBe(
+      "refused"
+    );
+    answering(() => ({ ok: false, status: 503, json: async () => ({}) }));
+    expect(await PgProjectSync.push("p1", { files: many(4) }, "mine")).toBe(
+      "skipped"
+    );
+  });
+
   it("reports a 413 whose body is not JSON once", async () => {
     answering(() => ({
       ok: false,

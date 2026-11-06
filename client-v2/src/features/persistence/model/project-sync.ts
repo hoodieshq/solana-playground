@@ -46,7 +46,8 @@ import { PgWorkspaceRegistry } from "./workspace-registry";
 /**
  * How a push ended. `unchanged`: the server already holds these files under
  * this name, so there was nothing to send. `refused`: the server answered
- * the body with a 4xx no question settles (a 400), reported already.
+ * the body with a 400, which sending it again cannot change; reported
+ * already.
  * `skipped`: not sent for any other reason, offline among them. `unchanged` and `skipped` are kept apart
  * because "Try again" settles the question on `unchanged` and puts it back on
  * `skipped`.
@@ -788,8 +789,9 @@ export class PgProjectSync {
           // eslint-disable-next-line unicorn/no-null -- `report` records `null` for a failure with no exception; `undefined` would change the reported message
           null
         );
-        // A 5xx may pass on its own; a 4xx is this body's, sent again as it is
-        return response.status < 500 ? "refused" : "skipped";
+        // A 400 is this body's and comes back for it every time; anything
+        // else (a 401, a 429, a 5xx) may pass on its own
+        return response.status === 400 ? "refused" : "skipped";
       }
 
       const accepted = await response.json();
@@ -1440,8 +1442,15 @@ export class PgProjectSync {
         );
         // "unchanged" is nothing left to send, "skipped" most likely no
         // network; both leave a state the next reconcile continues from. A
-        // refused upload merged nothing into the account's copy.
-        if (result === "refused") return "failed";
+        // refused upload merged nothing into the account's copy, and no
+        // question was up for it: the push cleared it above. Ask, or the
+        // project stops syncing with nothing on screen.
+        if (result === "refused") {
+          // TODO: a 400 asks the version question, whose answers
+          // meet the same refusal; it needs a refusal banner of its own
+          PgProjectSync._raise({ projectId, kind: "divergent" });
+          return "conflict";
+        }
         if (result !== "conflict") return "merged";
 
         // A refusal that is not about versions is the user's to clear: a
@@ -1762,9 +1771,10 @@ export class PgProjectSync {
           // divergence gets the version question it now deserves. A push with
           // nothing to send is settled too: the user undid whatever went
           // over a limit, and the server already holds the project as it is
-          // now. The one outcome that raises nothing is a push that never
-          // reached the server, which is why the original question is put
-          // back for it: being offline does not mean the name is free. Put
+          // now. The outcomes that raise nothing are a push that never
+          // reached the server and one refused with a 400, which is why the
+          // original question is put back for them: being offline does not
+          // mean the name is free, and a refusal is no answer. Put
           // back through `_raise`, so no limit event fires twice for one
           // banner.
           const previous = PgProjectSync._conflicts.get(projectId) ?? null;

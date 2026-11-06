@@ -350,8 +350,8 @@ export class PgExplorer {
    * Write a file the playground generates from work already done, such as
    * the Sugar cache, which holds the links of uploads the user has paid for.
    * Unlike `createItem`, the project's limits do not refuse it: refusing
-   * would lose that work. A project left over a limit stays local, and the
-   * sync banner reports the server's refusal. The file is overwritten, and
+   * would lose that work. A project left over a limit stays local: sync's
+   * own check finds it before uploading and the sync banner names the limit. The file is overwritten, and
    * `openOptions` say whether an open editor tab shows the new content.
    */
   static writeGeneratedFileWith(openOptions: OpenOptions) {

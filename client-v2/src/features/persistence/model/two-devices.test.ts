@@ -660,7 +660,10 @@ describe("both devices changed it", () => {
     }) as unknown as typeof fetch;
 
     expect(await PgProjectSync.pushCurrent()).toBe("conflict");
-    expect(PgProjectSync.conflictFor(HELLO.id)).not.toBeNull();
+    expect(PgProjectSync.conflictFor(HELLO.id)).toEqual({
+      projectId: HELLO.id,
+      kind: "divergent",
+    });
   });
 
   it("merges edits to different lines of one file without asking", async () => {

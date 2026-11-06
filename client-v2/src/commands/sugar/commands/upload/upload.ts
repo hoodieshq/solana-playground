@@ -164,10 +164,14 @@ export const processUpload = async (rpcUrl: string | undefined) => {
     );
 
     // Periodically save the cache
-    // A failed save is logged: the final save after the loop reports it to the
-    // user, and an unhandled rejection every 5 s would say nothing more
+    // A failed save is logged once and ends the periodic saves, rather than
+    // rejecting unhandled every 5 s; the save after the loop tells the user
     const saveCacheIntervalId = setInterval(
-      () => cache.syncFile(false).catch((e) => log.error(e, { report: true })),
+      () =>
+        cache.syncFile(false).catch((e) => {
+          clearInterval(saveCacheIntervalId);
+          log.error(e, { report: true });
+        }),
       5000
     );
 
