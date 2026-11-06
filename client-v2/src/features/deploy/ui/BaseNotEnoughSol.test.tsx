@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 
 import type { BaseNotEnoughSolProps } from "./BaseNotEnoughSol";
-import BaseNotEnoughSol, { WEB_FAUCET_URL } from "./BaseNotEnoughSol";
+import BaseNotEnoughSol from "./BaseNotEnoughSol";
 
 const ADDRESS = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 
@@ -49,7 +49,9 @@ describe("BaseNotEnoughSol", () => {
     expect(card.textContent).toContain("429 Too Many Requests");
     expect(
       screen.getByRole("link", { name: "Open faucet" }).getAttribute("href")
-    ).toBe(WEB_FAUCET_URL);
+    ).toBe(
+      `https://faucet.solana.com/?walletAddress=${ADDRESS}&cluster=devnet`
+    );
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(onRetry).toHaveBeenCalledOnce();
   });
