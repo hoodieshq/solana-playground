@@ -696,6 +696,7 @@ test.describe("assistant-own-key", () => {
     const second = await page.context().newPage();
     await signIn(second);
     await second.goto("/");
+    await expect(composer(second)).toBeVisible(LONG);
     await composer(second).fill("hi");
     await composer(second).press("Enter");
 
