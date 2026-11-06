@@ -76,9 +76,13 @@ export type BasePhonePagerProps = PhonePagerState & PhonePagerSlots;
 const openConsoleClass = (stageOn: StagePage) =>
   stageOn === "preview" ? "h-2/5" : "flex-1";
 
-/** A Chat or Code option, the prototype's `PaneOption`: filled when it shows */
+/**
+ * A Chat or Code option, the prototype's `PaneOption`: filled when it shows.
+ * 32 px drawn in a 40 px switch, as the stage tabs are, so the 60 px bar has
+ * air above and below it; the invisible `before` keeps the tap 48 px.
+ */
 const PANE_OPTION =
-  "h-12 rounded-xl px-3 text-control font-act data-[state=on]:bg-surface-hover";
+  "relative h-8 rounded-lg px-3 text-control font-act data-[state=on]:bg-surface-hover before:absolute before:inset-x-0 before:-inset-y-2";
 
 /** The pages under Home: `PHONE_PAGES` without the preview, indices kept */
 const HOME_PAGES: readonly PhonePage[] = PHONE_PAGES.filter(
@@ -353,11 +357,11 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
           {!covered && (
             <>
               {/* Two views of one session, one filled: the prototype's
-                `PaneSwitch`, 48 tall at the control type */}
+                `PaneSwitch`, 40 tall in the bar at the control type */}
               <Segmented
                 aria-label="Show"
                 variant="boxed"
-                className="shrink-0 gap-0.5 rounded-xl bg-surface-panel p-0.5"
+                className="shrink-0 gap-0.5 rounded-xl bg-surface-panel p-1"
                 value={props.view}
                 onValueChange={(v) => {
                   if (isWorkView(v)) props.onView(v);
@@ -469,7 +473,10 @@ const BasePhonePager = (props: BasePhonePagerProps) => {
               >
                 {PHONE_ICONS.back}
               </BarButton>
-              <div className="min-w-0 flex-1 overflow-x-auto">
+              {/* A horizontal scroller clips vertically too, at its padding
+                  edge: 4 px over and under the 40 px pill keep the tabs'
+                  invisible `before` whole, so each still taps at 48 px */}
+              <div className="min-w-0 flex-1 overflow-x-auto py-1">
                 {props.stageBar}
               </div>
             </PhoneBar>
