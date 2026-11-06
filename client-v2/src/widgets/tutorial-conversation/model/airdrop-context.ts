@@ -5,24 +5,29 @@ import { shortAddress } from "@/shared/lib/short-address";
 /** The live airdrop card's line when the browser has no wallet yet */
 export const NEW_WALLET = "A new Playground wallet, made in this browser";
 
-/** The wallet as the airdrop card reads it; `balance` in SOL, null until read */
+/**
+ * The current wallet as the airdrop card reads it; `balance` in SOL, null
+ * until read. `playground` is false for a connected extension wallet, which
+ * the card neither funds nor probes: the Playground wallet pays the deploy
+ */
 export interface AirdropWallet {
   address: string;
   balance: number | null;
+  playground: boolean;
 }
 
 /**
  * The live airdrop card's context line, from the wallet (HOO-2677):
  * "{short address} · {balance} SOL", or `NEW_WALLET` when the browser holds
- * no wallet, which the press makes. Null while the balance is not read yet,
- * or while a wallet the browser holds is not the current one: the
- * definition's own context stands in.
+ * no Playground wallet, which the press makes. Null while the balance is not
+ * read yet, or while the current wallet is not the Playground wallet the
+ * card funds: the definition's own context stands in.
  */
 export const airdropContextOf = (
   wallet: AirdropWallet | null,
   hasAccounts: boolean
 ): string | null => {
-  if (!wallet) return hasAccounts ? null : NEW_WALLET;
+  if (!wallet?.playground) return hasAccounts ? null : NEW_WALLET;
   if (wallet.balance === null) return null;
   return `${shortAddress(wallet.address)} · ${+wallet.balance.toFixed(2)} SOL`;
 };
@@ -48,6 +53,18 @@ export const withAirdropContext = (turn: Turn, line: string | null): Turn => {
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
   const ADDRESS = "7Hq5mZ3vN2pQ8rT4wY6xL1cB9dF0gJ5kS3aV7eU2Xk2P";
+  /** The Playground wallet at this address, with its balance in SOL */
+  const pg = (balance: number | null): AirdropWallet => ({
+    address: ADDRESS,
+    balance,
+    playground: true,
+  });
+  /** A connected extension wallet, which the card neither funds nor reads */
+  const extension: AirdropWallet = {
+    address: ADDRESS,
+    balance: 12,
+    playground: false,
+  };
 
   /** Hello Anchor's live airdrop card, with its id and state as given */
   const card = (id: string, state: "live" | "done"): Turn => ({
@@ -74,10 +91,10 @@ if (import.meta.vitest) {
 
   describe("widgets/tutorial-conversation/model/airdrop-context", () => {
     it("reads the wallet's short address and balance", () => {
-      expect(airdropContextOf({ address: ADDRESS, balance: 3.2 }, true)).toBe(
+      expect(airdropContextOf(pg(3.2), true)).toBe(
         "7Hq5…Xk2P · 3.2 SOL"
       );
-      expect(airdropContextOf({ address: ADDRESS, balance: 0 }, true)).toBe(
+      expect(airdropContextOf(pg(0), true)).toBe(
         "7Hq5…Xk2P · 0 SOL"
       );
     });
@@ -86,8 +103,13 @@ if (import.meta.vitest) {
       expect(airdropContextOf(null, false)).toBe(NEW_WALLET);
     });
 
+    it("never reads a connected extension wallet, which the card does not fund", () => {
+      expect(airdropContextOf(extension, true)).toBeNull();
+      expect(airdropContextOf(extension, false)).toBe(NEW_WALLET);
+    });
+
     it("leaves the definition's line while the balance or the wallet is unknown", () => {
-      expect(airdropContextOf({ address: ADDRESS, balance: null }, true)).toBe(
+      expect(airdropContextOf(pg(null), true)).toBe(
         null
       );
       expect(airdropContextOf(null, true)).toBeNull();

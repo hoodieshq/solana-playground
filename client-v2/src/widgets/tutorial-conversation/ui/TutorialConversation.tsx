@@ -708,6 +708,7 @@ export const TutorialConversation = ({
       ? {
           address: wallet.publicKey.toBase58(),
           balance: typeof balance === "number" ? balance : null,
+          playground: !!wallet.isPg,
         }
       : null,
     PgWallet.accounts.length > 0
