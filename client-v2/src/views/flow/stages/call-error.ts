@@ -1,10 +1,10 @@
 /**
  * A failed call's error as the result card names it, when the program wrote
- * no log line to show instead: `<ErrorName> · error <code>` for a program's
+ * no log line that explains it: `<ErrorName> · error <code>` for a program's
  * own error, and the cluster's sentence alone for a transaction the runtime
- * refused, which has no code (Almaz's SPEC.md, as Design alignment settled
- * it on 6 Nov). web3's own wording (its advice to catch the exception and
- * call `getLogs()`) never reaches the card.
+ * refused, which has no code (Design alignment's decision for HOO-2666,
+ * 6 Nov). web3's own wording (its advice to catch the exception and call
+ * `getLogs()`) never reaches the card.
  */
 
 /** A program error the IDL declares */
@@ -18,10 +18,14 @@ const CUSTOM = /custom program error: 0x([0-9a-f]+)/i;
 const programError = (code: number, idlErrors: IdlError[]) =>
   `${idlErrors.find((e) => e.code === code)?.name ?? "Custom"} · error ${code}`;
 
-/** The cluster's sentence, without the RPC's preamble and closing period */
+/**
+ * The cluster's sentence, without the RPC's preamble, the instruction index
+ * and the closing period
+ */
 const sentenceOf = (message: string) =>
   message
     .replace(/^Transaction simulation failed:\s*/, "")
+    .replace(/^Error processing Instruction \d+:\s*/, "")
     .trim()
     .replace(/\.+$/, "");
 
@@ -29,7 +33,7 @@ const sentenceOf = (message: string) =>
  * Names a refusal the RPC sent as text (web3's `SendTransactionError`
  * carries it as `transactionMessage`); `undefined` for any other error.
  */
-export const namedSendErrorWith =
+export const nameSendErrorWith =
   (idlErrors: IdlError[]) =>
   (e: unknown): string | undefined => {
     const message = (e as { transactionMessage?: unknown } | null)
@@ -44,36 +48,41 @@ export const namedSendErrorWith =
 
 /**
  * Names a confirmed transaction's error, as the RPC returns it in `err`:
- * `"AccountNotFound"`, or `{ InstructionError: [0, { Custom: 6000 }] }`.
+ * `"AccountNotFound"`, `{ InstructionError: [0, { Custom: 6000 }] }`, or
+ * `{ InstructionError: [0, { BorshIoError: "…" }] }`.
  */
-export const namedTxErrorWith =
+export const nameTxErrorWith =
   (idlErrors: IdlError[]) =>
   (err: unknown): string | undefined => {
     if (typeof err === "string") return err;
     if (!err || typeof err !== "object") return undefined;
     const [name, detail] = Object.entries(err)[0] ?? [];
     if (!name) return undefined;
-    if (name === "InstructionError" && Array.isArray(detail)) {
-      const inner: unknown = detail[1];
-      if (inner && typeof inner === "object" && "Custom" in inner)
-        return programError(
-          Number((inner as { Custom: unknown }).Custom),
-          idlErrors
-        );
-      if (typeof inner === "string") return inner;
-    }
-    return name;
+    if (name !== "InstructionError" || !Array.isArray(detail)) return name;
+
+    const inner: unknown = detail[1];
+    if (typeof inner === "string") return inner;
+    if (!inner || typeof inner !== "object") return name;
+    const [innerName, innerDetail] = Object.entries(inner)[0] ?? [];
+    if (innerName === "Custom" && Number.isInteger(innerDetail))
+      return programError(innerDetail as number, idlErrors);
+    return innerName ?? name;
   };
 
 /**
- * The terminal's line for a failed call, as Almaz's terminal bar draws it:
- * `Failed · ` and the failing line, a sentence in lower case after the dot.
- * A program's log line and an error's name keep their case.
+ * The terminal's line for a failed call: `Failed · ` and the failing line,
+ * with a plain sentence ("Attempt to debit…") in lower case after the dot,
+ * as Design alignment drew it. A line that starts with a name keeps its
+ * case: a log line ("Program log: …"), an error's name
+ * ("NotEnoughEnergy · error 6000"), a capitalised term ("Anchor…").
  */
-export const terminalFailure = (failingLine: string | undefined) => {
-  const line = failingLine ?? "no reason given";
-  const sentence = /^[A-Z][a-z]* [a-z]/.test(line) && !/^Program /.test(line);
-  return `Failed · ${sentence ? line[0].toLowerCase() + line.slice(1) : line}`;
+export const terminalFailure = (failingLine: string) => {
+  const sentence =
+    /^[A-Z][a-z]+ [a-z]/.test(failingLine) &&
+    !/^(Program|Anchor|Solana) /.test(failingLine);
+  return `Failed · ${
+    sentence ? failingLine[0].toLowerCase() + failingLine.slice(1) : failingLine
+  }`;
 };
 
 if (import.meta.vitest) {
@@ -89,8 +98,8 @@ if (import.meta.vitest) {
     );
 
   const IDL_ERRORS = [{ code: 6000, name: "NotEnoughEnergy" }];
-  const namedSendError = namedSendErrorWith([]);
-  const namedTxError = namedTxErrorWith([]);
+  const namedSendError = nameSendErrorWith([]);
+  const namedTxError = nameTxErrorWith([]);
 
   describe("views/flow/stages/call-error", () => {
     describe("namedSendError", () => {
@@ -108,7 +117,7 @@ if (import.meta.vitest) {
 
       it("names a program's error from the IDL, with its code", () => {
         expect(
-          namedSendErrorWith(IDL_ERRORS)(
+          nameSendErrorWith(IDL_ERRORS)(
             preflight(
               "Transaction simulation failed: Error processing Instruction 0: custom program error: 0x1770"
             )
@@ -124,6 +133,16 @@ if (import.meta.vitest) {
             )
           )
         ).toBe("Custom · error 1");
+      });
+
+      it("drops the instruction index from a runtime error", () => {
+        expect(
+          namedSendError(
+            preflight(
+              "Transaction simulation failed: Error processing Instruction 0: invalid account data for instruction"
+            )
+          )
+        ).toBe("invalid account data for instruction");
       });
 
       it("drops the RPC's preamble from any sentence", () => {
@@ -163,6 +182,15 @@ if (import.meta.vitest) {
         );
       });
 
+      it("keeps a sentence that starts with a name as it is", () => {
+        expect(terminalFailure("Program failed to complete")).toBe(
+          "Failed · Program failed to complete"
+        );
+        expect(terminalFailure("Anchor error thrown")).toBe(
+          "Failed · Anchor error thrown"
+        );
+      });
+
       it("keeps an error's name and a log line as they are", () => {
         expect(terminalFailure("NotEnoughEnergy · error 6000")).toBe(
           "Failed · NotEnoughEnergy · error 6000"
@@ -180,7 +208,7 @@ if (import.meta.vitest) {
 
       it("names a program's error from the IDL, with its code", () => {
         expect(
-          namedTxErrorWith(IDL_ERRORS)({
+          nameTxErrorWith(IDL_ERRORS)({
             InstructionError: [0, { Custom: 6000 }],
           })
         ).toBe("NotEnoughEnergy · error 6000");
@@ -196,6 +224,18 @@ if (import.meta.vitest) {
         expect(
           namedTxError({ InsufficientFundsForRent: { account_index: 1 } })
         ).toBe("InsufficientFundsForRent");
+      });
+
+      it("names a runtime instruction error given with a payload", () => {
+        expect(
+          namedTxError({ InstructionError: [0, { BorshIoError: "x" }] })
+        ).toBe("BorshIoError");
+      });
+
+      it("never reads a code it cannot parse", () => {
+        expect(namedTxError({ InstructionError: [0, { Custom: "abc" }] })).toBe(
+          "Custom"
+        );
       });
 
       it("has nothing to say without an error", () => {
