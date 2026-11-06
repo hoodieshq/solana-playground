@@ -217,4 +217,59 @@ describe("overlays release focus before hiding the page", () => {
     });
     await waitFor(() => expect(document.activeElement).toBe(editor));
   });
+
+  it("ContextMenu gives focus back to the editor under StrictMode", async () => {
+    const { getByLabelText, getByText, getByRole } = render(
+      <React.StrictMode>
+        <Page>
+          <ContextMenu>
+            <ContextMenuTrigger>Explorer row</ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem>Rename</ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+        </Page>
+      </React.StrictMode>
+    );
+    const editor = getByLabelText("editor");
+    editor.focus();
+    act(() => {
+      fireEvent.contextMenu(getByText("Explorer row"));
+    });
+    expect(focusedInsideHidden).toEqual([]);
+    act(() => {
+      fireEvent.keyDown(getByRole("menu"), { key: "Escape" });
+    });
+    await waitFor(() => expect(document.activeElement).toBe(editor));
+  });
+
+  it("leaves focus on a field the dialog focuses itself", () => {
+    openWithEditorFocused((open) => (
+      <Modal open={open}>
+        <ModalContent aria-describedby={undefined}>
+          <ModalTitle>Name</ModalTitle>
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus -- the case under test */}
+          <input aria-label="name" autoFocus />
+        </ModalContent>
+      </Modal>
+    ));
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("name");
+  });
+
+  it("passes the caller's ref on to the content", () => {
+    const ref = React.createRef<HTMLDivElement>();
+    const content = (open: boolean) => (
+      <Modal open={open}>
+        <ModalContent ref={ref} aria-describedby={undefined}>
+          <ModalTitle>Settings</ModalTitle>
+        </ModalContent>
+      </Modal>
+    );
+    const { rerender } = render(<Page>{content(true)}</Page>);
+    expect(ref.current?.getAttribute("data-slot")).toBe("modal-content");
+    act(() => {
+      rerender(<Page>{content(false)}</Page>);
+    });
+    expect(ref.current).toBeNull();
+  });
 });

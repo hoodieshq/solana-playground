@@ -9,7 +9,8 @@ id says where the decision lives.
   focus left outside it as it mounts (`useReleaseFocus`). Radix hid the page
   with `aria-hidden` a render before moving focus in, so with the editor
   focused Chrome refused the attribute and the page stayed reachable behind
-  the overlay. Where focus goes on close is unchanged.
+  the overlay. Where focus goes on close is unchanged: ContextMenu, which
+  returns it to what held it before, gets it back through `returnFocus`.
 
 ## 2026-11-05 · Core components polish (DES-129)
 
