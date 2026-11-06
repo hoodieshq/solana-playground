@@ -309,11 +309,9 @@ const FlowFrame = () => {
   // two spaces, the chat and the code, which the shell lays out. A tablet
   // gets the same screens, the chat centred (DES-160)
   const onPhone = tutorial.frame !== undefined && !inFrame;
-  const workspaceLayout: WorkspaceLayout | undefined = onPhone
-    ? "phone"
-    : inFrame
-    ? "frame"
-    : undefined;
+  let workspaceLayout: WorkspaceLayout | undefined;
+  if (onPhone) workspaceLayout = "phone";
+  else if (inFrame) workspaceLayout = "frame";
   const steps = useConversationSteps();
   const space = useTutorialSpace({
     name: tutorial.frame ? PgTutorial.current?.name : undefined,
