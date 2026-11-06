@@ -16,6 +16,11 @@ import {
   PgProgramInteraction,
 } from "../../../utils/program-interaction";
 import { PgCallHistory } from "../state/call-history";
+import {
+  type IdlError,
+  namedSendErrorWith,
+  namedTxErrorWith,
+} from "./call-error";
 import type { CallOutcome } from "./call-outcome";
 import { failingLineWith } from "./call-outcome";
 
@@ -67,6 +72,9 @@ const describe = (err: unknown) => {
   }
 };
 
+/** The errors the program's IDL declares, to name a custom error's code */
+const idlErrors = (): IdlError[] => PgProgramInfo.callableIdl()?.errors ?? [];
+
 /** An absent value as a stored record writes it: `null` */
 // eslint-disable-next-line unicorn/no-null -- `CallRecord` persists an absent signature or failing line as null
 const toStored = <T>(value: T | undefined) => value ?? null;
@@ -88,13 +96,17 @@ const send = async (ix: GeneratableInstruction): Promise<CallOutcome> => {
       logs,
       failingLine: ok
         ? undefined
-        : failingLineWith(`Transaction failed: ${describe(confirmed?.err)}`)(
-            logs
-          ),
+        : failingLineWith(
+            namedTxErrorWith(idlErrors())(confirmed?.err) ??
+              `Transaction failed: ${describe(confirmed?.err)}`
+          )(logs),
     };
   } catch (e: any) {
     const raw: string = e?.message ?? String(e);
-    const message = KNOWN_ERRORS[raw] ?? raw;
+    // An RPC refusal is named, never shown in web3's words, which tell a
+    // learner to catch the exception
+    const message =
+      KNOWN_ERRORS[raw] ?? namedSendErrorWith(idlErrors())(e) ?? raw;
     // A preflight failure (`SendTransactionError`) carries the simulation's
     // logs; anything else is not the program's answer and is logged
     const logs: string[] = Array.isArray(e?.logs) ? e.logs : [];

@@ -23,7 +23,10 @@ vi.mock("../../../utils", () => ({
       return h.cluster;
     },
   },
-  PgProgramInfo: { getPkStr: () => h.pk },
+  PgProgramInfo: {
+    getPkStr: () => h.pk,
+    callableIdl: () => ({ errors: [{ code: 6000, name: "NotEnoughEnergy" }] }),
+  },
   PgSettings: { testUi: { showTxDetailsInTerminal: false } },
   PgTerminal: {
     println: h.println,
@@ -140,6 +143,42 @@ describe("runCall", () => {
       signature: undefined,
       failingLine: ERROR_LINE,
     });
+  });
+
+  // The debit-with-no-credit repro (HOO-2666): web3's text tells a learner to
+  // catch an exception; the card names the error instead
+  it("a preflight refusal with no logs names the error, never web3's advice", async () => {
+    const transactionMessage =
+      "Transaction simulation failed: Attempt to debit an account but found no record of a prior credit.";
+    h.test.mockRejectedValue(
+      Object.assign(
+        new Error(
+          `Simulation failed. \nMessage: ${transactionMessage}. \nLogs: \n[]. \nCatch the \`SendTransactionError\` and call \`getLogs()\` on it for full details.`
+        ),
+        { transactionMessage, logs: [] }
+      )
+    );
+
+    const outcome = await runCall(IX);
+
+    expect(outcome.failingLine).toBe(
+      "AccountNotFound · Attempt to debit an account but found no record of a prior credit"
+    );
+    expect(PgCallHistory.list("P", "devnet")[0].failingLine).toBe(
+      outcome.failingLine
+    );
+  });
+
+  it("a call the program rejects with no logs names the IDL error and code", async () => {
+    h.test.mockResolvedValue("sig");
+    h.confirm.mockResolvedValue({
+      err: { InstructionError: [0, { Custom: 6000 }] },
+    });
+    h.getTransaction.mockResolvedValue({ meta: { logMessages: [] } });
+
+    expect((await runCall(IX)).failingLine).toBe(
+      "NotEnoughEnergy · error 6000"
+    );
   });
 
   it("a call that never reached the network shows the error, translated", async () => {
