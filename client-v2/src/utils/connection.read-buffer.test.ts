@@ -82,7 +82,7 @@ describe("utils/connection", () => {
       endpoint: "http://playnet",
     },
     {
-      label: "the endpoint's cluster is not known without a request",
+      label: "a custom endpoint is not the selected one",
       env: { REACT_APP_DEVNET_READ_BUFFER_RPC_URL: READ_BUFFER },
       endpoint: "https://custom.test",
     },
@@ -95,6 +95,54 @@ describe("utils/connection", () => {
       expect(PgConnection.getReadBufferConnection(selected)).toBe(selected);
     }
   );
+
+  describe("a selected custom endpoint, whose cluster came from its genesis hash", () => {
+    const CUSTOM = "https://custom.test";
+
+    /** `PgConnection` with `CUSTOM` selected, resolved to devnet, `stale` until read again */
+    const customOnDevnetWith =
+      (stale: boolean) => async (env: Record<string, string>) => {
+        const loaded = await pgConnectionWith(env);
+        const { PgSettings } = await import("./settings");
+        PgSettings.connection.endpoint = CUSTOM;
+        Object.defineProperty(loaded.PgConnection, "cluster", {
+          value: "devnet",
+          configurable: true,
+        });
+        Object.defineProperty(loaded.PgConnection, "clusterIsStale", {
+          value: stale,
+          configurable: true,
+        });
+        return loaded;
+      };
+
+    it("reads its buffers through that cluster's read-buffer RPC", async () => {
+      const { PgConnection, connectionTo } = await customOnDevnetWith(false)({
+        REACT_APP_DEVNET_READ_BUFFER_RPC_URL: READ_BUFFER,
+      });
+
+      expect(
+        PgConnection.getReadBufferConnection(connectionTo(CUSTOM)).rpcEndpoint
+      ).toBe(READ_BUFFER);
+    });
+
+    it("caps its sends by that cluster's send cap", async () => {
+      const { PgConnection, connectionTo } = await customOnDevnetWith(false)({
+        REACT_APP_DEVNET_SEND_TX_PER_SECOND: "4",
+      });
+
+      expect(PgConnection.getSendTxPerSecond(connectionTo(CUSTOM))).toBe(4);
+    });
+
+    it("ignores a cluster still the previous endpoint's", async () => {
+      const { PgConnection, connectionTo } = await customOnDevnetWith(true)({
+        REACT_APP_DEVNET_READ_BUFFER_RPC_URL: READ_BUFFER,
+      });
+      const selected = connectionTo(CUSTOM);
+
+      expect(PgConnection.getReadBufferConnection(selected)).toBe(selected);
+    });
+  });
 
   it.each([
     {
@@ -137,7 +185,7 @@ describe("utils/connection", () => {
       endpoint: "http://playnet",
     },
     {
-      label: "the endpoint's cluster is not known without a request",
+      label: "a custom endpoint is not the selected one",
       value: "5",
       endpoint: "https://custom.test",
     },
