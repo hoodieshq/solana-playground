@@ -1,3 +1,5 @@
+import { isTxLinkedBySender } from "@/shared/lib/tx-links";
+
 import {
   PgCodec,
   PgConnection,
@@ -5,7 +7,6 @@ import {
   PgTx,
   PgView,
   PgWeb3,
-  txLinkedBySender,
 } from "../../utils";
 import { ExplorerLink } from "./ExplorerLink";
 
@@ -16,7 +17,7 @@ export const tx = () => {
     if (!PgSettings.notification.showTx) return;
 
     // Don't repeat a link its sender shows (a tutorial card)
-    if (txLinkedBySender()) return;
+    if (isTxLinkedBySender()) return;
 
     // Don't show on playnet
     if (PgConnection.cluster === "playnet") return;

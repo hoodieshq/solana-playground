@@ -1,7 +1,7 @@
 /* eslint-disable layers/curry-order, max-params -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { Act } from "@/entities/tutorial";
+import { linkingOwnTxs } from "@/shared/lib/tx-links";
 
-import { linkingOwnTxs, txLinkedBySender } from "../../../../utils/tx-links";
 import type { Runner } from "../ports";
 import { failedResult } from "../ports";
 
@@ -15,8 +15,7 @@ export type ActRun = Runner["run"];
  * so a lesson reaching it shows a failed card rather than hang.
  *
  * An act's card links the transaction it shows, so its sends raise no
- * Explorer toast over that card (HOO-2703). The barrel is not imported: a
- * test of this module would load the wasm packages.
+ * Explorer toast over that card (HOO-2703).
  */
 export const actRunner = (
   runs: Partial<Record<Act, ActRun>>,
@@ -35,7 +34,12 @@ export const actRunner = (
 });
 
 if (import.meta.vitest) {
-  const { describe, it, expect, vi } = import.meta.vitest;
+  const { beforeAll, describe, it, expect, vi } = import.meta.vitest;
+
+  let isTxLinkedBySender: typeof import("@/shared/lib/tx-links").isTxLinkedBySender;
+  beforeAll(async () => {
+    ({ isTxLinkedBySender } = await import("@/shared/lib/tx-links"));
+  });
 
   describe("features/tutorial-conversation/model/runners/act-runner", () => {
     it("hands each act to its own runner", async () => {
@@ -53,12 +57,12 @@ if (import.meta.vitest) {
     it("marks the act's sends as shown by its card, and only while it runs", async () => {
       let during = false;
       const call = vi.fn<ActRun>(async (act) => {
-        during = txLinkedBySender();
+        during = isTxLinkedBySender();
         return failedResult(act, "stub");
       });
       await actRunner({ call }).run("call", { beatId: "s3.call" }, () => {});
       expect(during).toBe(true);
-      expect(txLinkedBySender()).toBe(false);
+      expect(isTxLinkedBySender()).toBe(false);
     });
 
     it("lifts the mark when the act throws", async () => {
@@ -68,7 +72,7 @@ if (import.meta.vitest) {
       await expect(
         actRunner({ run }).run("run", { beatId: "s3.run" }, () => {})
       ).rejects.toThrow("the script broke");
-      expect(txLinkedBySender()).toBe(false);
+      expect(isTxLinkedBySender()).toBe(false);
     });
 
     it("answers an act with no runner as a failed result", async () => {

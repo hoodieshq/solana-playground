@@ -4,7 +4,8 @@
  * A tutorial act is the one such sender: its card carries the link.
  *
  * Kept apart from `PgTx` so a caller can mark its sends without importing the
- * wallet and settings stack.
+ * wallet and settings stack (a test of such a caller would load the wasm
+ * packages).
  */
 
 /** How many senders that link their own transactions are running */
@@ -28,19 +29,19 @@ export const linkingOwnTxs = async <T>(fn: () => Promise<T>): Promise<T> => {
 };
 
 /** Whether a sender that links its own transactions is running */
-export const txLinkedBySender = (): boolean => depth > 0;
+export const isTxLinkedBySender = (): boolean => depth > 0;
 
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
-  describe("utils/tx-links", () => {
+  describe("shared/lib/tx-links", () => {
     it("marks sends only while the sender runs", async () => {
       let during = false;
       await linkingOwnTxs(async () => {
-        during = txLinkedBySender();
+        during = isTxLinkedBySender();
       });
       expect(during).toBe(true);
-      expect(txLinkedBySender()).toBe(false);
+      expect(isTxLinkedBySender()).toBe(false);
     });
 
     it("lifts the mark when the sender throws", async () => {
@@ -49,7 +50,7 @@ if (import.meta.vitest) {
           throw new Error("broke");
         })
       ).rejects.toThrow("broke");
-      expect(txLinkedBySender()).toBe(false);
+      expect(isTxLinkedBySender()).toBe(false);
     });
 
     it("keeps the mark until the last of two overlapping senders settles", async () => {
@@ -58,10 +59,10 @@ if (import.meta.vitest) {
         () => new Promise<void>((r) => (release = r))
       );
       await linkingOwnTxs(async () => {});
-      expect(txLinkedBySender()).toBe(true);
+      expect(isTxLinkedBySender()).toBe(true);
       release();
       await outer;
-      expect(txLinkedBySender()).toBe(false);
+      expect(isTxLinkedBySender()).toBe(false);
     });
   });
 }
