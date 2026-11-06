@@ -235,6 +235,25 @@ describe("NetworkSection while a deploy runs", () => {
     expect(state.endpoint).toBe(HELIUS.url);
   });
 
+  it("saves a new URL for an RPC not in use", async () => {
+    state.deployState = "loading";
+    state.endpoint = DEVNET;
+    stubRpcAnswering();
+    render(<NetworkSection />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit Helius" }));
+    const url = screen.getByLabelText("RPC URL");
+    await userEvent.clear(url);
+    await userEvent.type(url, "https://other.test{Enter}");
+
+    await waitFor(() =>
+      expect(PgCustomRpcs.list()).toEqual([
+        { name: "Helius", url: "https://other.test/" },
+      ])
+    );
+    expect(state.endpoint).toBe(DEVNET);
+  });
+
   it("renames the RPC in use", async () => {
     state.deployState = "loading";
     render(<NetworkSection />);

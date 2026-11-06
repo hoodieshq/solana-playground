@@ -18,7 +18,7 @@ type Unchecked = Exclude<RpcHealth, "answered">;
  */
 type Held = { ok: false; reason: "held" };
 
-const HELD: Held = { ok: false, reason: "held" };
+const HELD: Held = Object.freeze({ ok: false, reason: "held" });
 
 /** What a write answers: the list's result, or held by a deploy */
 export type WriteResult = SaveResult | Held;
@@ -63,13 +63,15 @@ const writtenWith =
 /**
  * Save `input` (over the RPC saved under `replacing`, or as a new one) once
  * its URL answers `fetchHealth`. A value the list would refuse sends no
- * request, and neither does an edit that keeps its URL. The write checks the
- * list again, since another tab may change it during the wait.
+ * request, and neither does an edit that keeps its URL or one `isHeld`
+ * refuses. The write checks the list again, since another tab may change it
+ * during the wait.
  *
- * `isHeld` says whether the RPC saved under a URL must keep that URL now
- * (it is in use while a deploy runs). An edit that changes its URL asks it
- * before the request and again at the write, since a deploy may start during
- * the wait or before "Use anyway"; a rename never asks.
+ * `isHeld` answers, for the URL an RPC is saved under, whether a deploy
+ * holds the network on that RPC now. An edit that changes its URL asks it
+ * after the list's own checks, before the request, and again at the write,
+ * since a deploy may start during the wait or before "Use anyway"; a rename
+ * and a new RPC never ask.
  */
 export const saveCheckedWith =
   (fetchHealth: (url: string) => Promise<RpcHealth>) =>
@@ -80,16 +82,13 @@ export const saveCheckedWith =
   ): Promise<CheckedSave> => {
     const checked = PgCustomRpcs.check(input, replacing);
     if (!checked.ok) return { kind: "refused", refusal: checked };
-    if (replacing === undefined) {
-      const health = await fetchHealth(checked.url);
-      const add = () => PgCustomRpcs.save(input);
-      if (health === "answered") return writtenWith("passed")(add());
-      return { kind: "unreachable", reason: health, useAnyway: add };
+    let write: () => WriteResult = () => PgCustomRpcs.save(input);
+    if (replacing !== undefined) {
+      const edit = () => PgCustomRpcs.replace(replacing, input);
+      if (checked.url === replacing) return writtenWith("none")(edit());
+      if (isHeld(replacing)) return { kind: "refused", refusal: HELD };
+      write = () => (isHeld(replacing) ? HELD : edit());
     }
-    const edit = () => PgCustomRpcs.replace(replacing, input);
-    if (checked.url === replacing) return writtenWith("none")(edit());
-    if (isHeld(replacing)) return { kind: "refused", refusal: HELD };
-    const write = (): WriteResult => (isHeld(replacing) ? HELD : edit());
     const health = await fetchHealth(checked.url);
     if (health === "answered") return writtenWith("passed")(write());
     return { kind: "unreachable", reason: health, useAnyway: write };
@@ -118,8 +117,8 @@ const UNCHECKED: Record<Unchecked, string> = {
 type SaveMode = "add" | "edit";
 
 /**
- * Track a refusal and answer its line. A hold is not tracked: the person
- * asked for nothing wrong, and the event names what the list refused
+ * Track a refusal and answer its line. A hold is not tracked: the event's
+ * reasons describe input the list refused, and a hold is not one of them
  */
 const refuse = (result: Refused | Held): SettledAnswer => {
   if (result.reason !== "held") {
@@ -285,15 +284,20 @@ if (import.meta.vitest) {
       describe("while the RPC being edited is held", () => {
         const T2 = { name: "Triton", url: "https://t2.test" };
 
-        it("refuses a new URL before any request", async () => {
+        it("refuses a new URL before any request, asking about the URL it replaces", async () => {
           PgCustomRpcs.save(TRITON);
           const health = healthOf("answered");
-          const checked = await saveCheckedWith(health)(() => true)(
+          const isHeld = vi.fn((url: string) => url === "https://t.test/");
+          const checked = await saveCheckedWith(health)(isHeld)(
             T2,
             "https://t.test/"
           );
           expect(health).not.toHaveBeenCalled();
-          expect(checked).toEqual({ kind: "refused", refusal: HELD });
+          expect(isHeld).toHaveBeenCalledWith("https://t.test/");
+          expect(checked).toEqual({
+            kind: "refused",
+            refusal: { ok: false, reason: "held" },
+          });
           expect(PgCustomRpcs.list()).toEqual([SAVED_TRITON]);
         });
 
@@ -324,12 +328,24 @@ if (import.meta.vitest) {
           expect(PgCustomRpcs.list()).toEqual([SAVED_TRITON]);
         });
 
-        it("saves a rename, which keeps the URL", async () => {
+        it("saves a rename, though spelt differently, which keeps the URL", async () => {
           PgCustomRpcs.save(TRITON);
           const checked = await saveCheckedWith(healthOf("answered"))(
             () => true
-          )({ name: "Mine", url: TRITON.url }, "https://t.test/");
+          )({ name: "Mine", url: "https://T.test" }, "https://t.test/");
           expect(checked).toMatchObject({ kind: "saved", check: "none" });
+        });
+
+        it("saves a new URL through Use anyway while nothing holds it", async () => {
+          PgCustomRpcs.save(TRITON);
+          const checked = await saveCheckedWith(healthOf("no_answer"))(
+            () => false
+          )(T2, "https://t.test/");
+          if (checked.kind !== "unreachable") throw new Error(checked.kind);
+          expect(checked.useAnyway().ok).toBe(true);
+          expect(PgCustomRpcs.list()).toEqual([
+            { name: "Triton", url: "https://t2.test/" },
+          ]);
         });
 
         it("never asks about a new RPC", async () => {
@@ -471,6 +487,24 @@ if (import.meta.vitest) {
         expect(tracked()).toEqual([
           ["settings_custom_rpc_refused", { reason: "no_answer" }],
           ["settings_custom_rpc_refused", { reason: "duplicate" }],
+        ]);
+      });
+
+      it("answers a hold at Use anyway with its line, and tracks only the unchecked URL", () => {
+        const onSaved = vi.fn();
+        const answer = answerFor(onSaved)("edit")({
+          kind: "unreachable",
+          reason: "no_answer",
+          useAnyway: () => HELD,
+        });
+        if (answer.kind !== "unreachable") throw new Error(answer.kind);
+        expect(answer.useAnyway()).toEqual({
+          kind: "refused",
+          error: "A deploy is running. Change the URL when it ends.",
+        });
+        expect(onSaved).not.toHaveBeenCalled();
+        expect(tracked()).toEqual([
+          ["settings_custom_rpc_refused", { reason: "no_answer" }],
         ]);
       });
 

@@ -15,8 +15,8 @@ import BaseCustomRpcs from "./BaseCustomRpcs";
 import BaseNetworkChoice from "./BaseNetworkChoice";
 
 /**
- * Whether the RPC saved under `url` must keep its URL now: a new URL for the
- * RPC in use would move the network, which a running deploy holds
+ * Whether a running deploy holds the network on the RPC saved under `url`:
+ * it is the one in use, and a deploy is running or paused
  */
 const isHeld = (url: string) =>
   PgSettings.connection.endpoint === url &&
@@ -115,9 +115,9 @@ const NetworkSection = () => {
     );
 
   // An edited RPC keeps the connection on it when it is the one in use at
-  // the moment it saves
-  // A running deploy refuses a new URL for the RPC in use (`isHeld`), before
-  // the check and again at the write; a rename still saves
+  // the moment it saves. A new URL for that RPC would move the network, so
+  // `saveChecked` refuses it while a deploy runs, before the health request
+  // and again at the write; a rename still saves
   const handleEdit = async (rpc: CustomRpc, input: CustomRpc) =>
     answerFor((saved) => {
       if (PgSettings.connection.endpoint === rpc.url) pick(saved.url);
