@@ -44,13 +44,13 @@ import { settingsTelemetry } from "../model/telemetry";
 import AssistantKey from "./AssistantKey";
 import type { HostedModel } from "./BaseAssistantStatus";
 import BaseAssistantStatus from "./BaseAssistantStatus";
-import BaseCodeSample from "./BaseCodeSample";
 import BaseNetworkChoice from "./BaseNetworkChoice";
 import BaseSettingRow from "./BaseSettingRow";
 import BaseSettingsCard from "./BaseSettingsCard";
 import type { SettingsSection } from "./BaseSettingsPage";
 import BaseSettingsPage from "./BaseSettingsPage";
 import BaseShortcuts from "./BaseShortcuts";
+import CodeSample from "./CodeSample";
 import { SettingControl } from "./SettingControl";
 import SettingsBoundary from "./SettingsBoundary";
 
@@ -145,7 +145,7 @@ const LiveSettingsPage = ({ focus, hosted, onClose }: SettingsPageProps) => {
     return (
       <div key={setting.id}>
         {row}
-        <BaseCodeSample font={setting.getValue()} />
+        <CodeSample setting={setting} />
       </div>
     );
   };
