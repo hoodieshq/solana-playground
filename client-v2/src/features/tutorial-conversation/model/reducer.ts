@@ -1994,7 +1994,7 @@ if (import.meta.vitest) {
           expect(inputs).toHaveLength(1);
         });
 
-        it("a press of the act card still sends anew", () => {
+        it("sends anew on a press of the act card", () => {
           const { inputs } = walk(calling(), [
             start,
             press(2000),

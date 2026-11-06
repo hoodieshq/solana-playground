@@ -133,18 +133,15 @@ const attempt = async (
 ): Promise<TxResult> => {
   const refusal = port.refusal();
   if (refusal) return fail(refusal);
-  const programId = port.programId();
-  if (!programId) return fail("Deploy the program first.");
-
   if (input.recheck) {
-    // "Check again": the transactions were sent, only the reading is left,
-    // and reading needs no wallet
+    // "Check again" only reads what was sent, and reading needs no wallet
+    const programId = port.programId();
+    if (!programId) return fail("Deploy the program first.");
     onStage({ label: RUN_STAGES.confirming, index: 1, count: 1 });
     const sent: SentTx[] = [];
     for (const tx of input.recheck) sent.push(await readBack(port, tx));
     return landedResult(port, act, input, sent, programId, seconds, fail);
   }
-
   const address = port.wallet();
   if (!address) {
     return {
@@ -156,6 +153,8 @@ const attempt = async (
       log: "",
     };
   }
+  const programId = port.programId();
+  if (!programId) return fail("Deploy the program first.");
 
   const balance = await port.funding.balance(address);
   const short = balance < RUN_FLOOR;
@@ -751,6 +750,10 @@ if (import.meta.vitest) {
       expect((await stagesOf(portWith({ wallet: null }))).result).toMatchObject(
         { ok: false, reason: "no_wallet" }
       );
+      // The wallet is asked for first, before a deploy
+      expect(
+        (await stagesOf(portWith({ wallet: null, programId: null }))).result
+      ).toMatchObject({ ok: false, reason: "no_wallet" });
       expect(
         (await stagesOf(portWith({ refusal: "Switch to devnet." }))).result
       ).toMatchObject({ ok: false, message: "Switch to devnet." });

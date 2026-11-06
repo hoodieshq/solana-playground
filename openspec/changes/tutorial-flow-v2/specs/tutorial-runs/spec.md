@@ -276,7 +276,8 @@ parameters:
 - `step`: 1 to 6;
 - `action`: `build`, `deploy`, `build_deploy`, `run`, `call` (the call act)
   or `call_panel` (a Call panel call);
-- `outcome`: `ok`, `failed`, `interrupted`, `no_wallet` or `no_funds`;
+- `outcome`: `ok`, `failed`, `interrupted`, `no_wallet`, `no_funds` or
+  `unconfirmed` (sent, devnet has not read it back yet);
 - `seconds`: the run's duration.
 
 Failures SHALL also be logged through the logger with the error, never with a
