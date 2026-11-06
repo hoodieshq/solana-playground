@@ -6,7 +6,7 @@ import { Tutorial } from "./Tutorial";
 
 // The utils barrel needs build-time globals the unit runner does not define.
 const tutorial = vi.hoisted(() => ({
-  current: { name: "Test" } as { name: string } | undefined,
+  current: { name: "Test" } as { name: string } | null,
   isStarted: () => true,
   start: async () => {},
 }));
@@ -52,19 +52,32 @@ describe("Tutorial onMount", () => {
 });
 
 describe("Tutorial on leaving", () => {
+  let error: MockInstance<typeof console.error>;
+  beforeEach(() => {
+    error = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
   afterEach(() => {
+    vi.restoreAllMocks();
     tutorial.current = { name: "Test" };
   });
 
-  // Going back to the tutorials list clears `current` (it is derived from the
-  // path) and re-renders this component before the route change unmounts it.
-  it("renders nothing once the current tutorial is cleared", () => {
-    const { container, rerender } = renderWith(() => {});
+  // Navigating away from the tutorial's path clears `current` (it is derived
+  // from the path) and re-renders this view once before the route unmounts it.
+  it("renders nothing and logs nothing once the current tutorial is cleared", () => {
+    const cleanup = vi.fn();
+    const onMount = () => cleanup;
+    const { container, rerender, unmount } = render(
+      <Tutorial about="About" pages={[]} files={[]} onMount={onMount} />
+    );
 
-    tutorial.current = undefined;
-    expect(() =>
-      rerender(<Tutorial about="About" pages={[]} files={[]} />)
-    ).not.toThrow();
+    tutorial.current = null;
+    rerender(
+      <Tutorial about="About" pages={[]} files={[]} onMount={onMount} />
+    );
     expect(container.innerHTML).toBe("");
+
+    unmount();
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(error).not.toHaveBeenCalled();
   });
 });

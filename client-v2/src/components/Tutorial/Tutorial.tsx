@@ -28,9 +28,10 @@ export const Tutorial: FC<React.PropsWithChildren<TutorialComponentProps>> = ({
     if (typeof cleanup === "function") return cleanup;
   }, [onMount]);
 
-  // `current` is derived from the path, so leaving the tutorial clears it and
-  // re-renders this view before the route change unmounts it.
-  if (!PgTutorial.current) return null;
+  // `current` is derived from the path, and a mounted tutorial route always
+  // has it set. Navigating away clears it and re-renders this view once before
+  // the route change unmounts it: render nothing for that one pass.
+  if (!PgTutorial.current) return;
 
   const isStarted = PgTutorial.isStarted(PgTutorial.current.name);
 
