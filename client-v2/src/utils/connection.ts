@@ -1,3 +1,7 @@
+import {
+  READ_BUFFER_RPC_URLS,
+  SEND_TX_PER_SECOND,
+} from "@/shared/config/client-env";
 import { recheckWhileBad } from "@/shared/lib/backoff-recheck";
 import { createLogger } from "@/shared/lib/logger";
 
@@ -157,6 +161,77 @@ const isLocalEndpoint = (endpoint: string) => {
   }
 };
 
+/** The cluster of `endpoint` when it is known without a request; a custom endpoint gives `undefined` */
+const getKnownCluster = (endpoint: string): Cluster | undefined => {
+  // Playnet
+  if (PgPlaynet.isUrlPlaynet(endpoint)) return "playnet";
+
+  // Local: Localnet and Surfpool, on any port. The host is compared, not
+  // the URL text, since a local endpoint opens the airdrop's sign-in gate
+  // (`isAirdropSignInGated`) and `https://localhost.example.com` is remote
+  if (isLocalEndpoint(endpoint)) return "localnet";
+
+  // Public
+  //
+  // For some reason only `mainnet-beta` returns with `/` appended at the end,
+  // so compare the `/` appended strings for consistency
+  switch (PgCommon.appendSlash(endpoint)) {
+    case PgCommon.appendSlash(PgWeb3.clusterApiUrl("devnet")):
+      return "devnet";
+    case PgCommon.appendSlash(PgWeb3.clusterApiUrl("testnet")):
+      return "testnet";
+    case PgCommon.appendSlash(PgWeb3.clusterApiUrl("mainnet-beta")):
+      return "mainnet-beta";
+  }
+
+  // The offered networks declare their cluster, so resolve them without
+  // paying for the genesis hash round trip in `getCluster`.
+  return NETWORKS.find((e) => e.value === endpoint)?.cluster;
+};
+
+/** Read-buffer RPC URLs keyed by the cluster they read from */
+type ReadBufferRpcUrls = Partial<Record<Cluster, string>>;
+
+/**
+ * The connection program buffer accounts are read through: the read-buffer
+ * RPC of `connection`'s cluster with its commitment, else `connection` itself.
+ */
+const readBufferConnectionWith =
+  (urls: ReadBufferRpcUrls) => (connection: PgWeb3.Connection) => {
+    const cluster = getKnownCluster(connection.rpcEndpoint);
+    // `!url` rather than a nullish check: sourcing an env file leaves unfilled keys as ""
+    const url = cluster && urls[cluster];
+    if (!url) return connection;
+    return _PgConnection.create({
+      endpoint: url,
+      commitment: connection.commitment,
+    });
+  };
+
+const getReadBufferConnection = readBufferConnectionWith({
+  devnet: READ_BUFFER_RPC_URLS.devnet,
+  testnet: READ_BUFFER_RPC_URLS.testnet,
+  "mainnet-beta": READ_BUFFER_RPC_URLS.mainnet,
+});
+
+/** `sendTransaction` caps per second, as the env spells them, keyed by the cluster they limit */
+type SendTxPerSecond = Partial<Record<Cluster, string>>;
+
+/** The send cap of `connection`'s cluster; `undefined` when unset, unparsable or not above 0 */
+const sendTxPerSecondWith =
+  (caps: SendTxPerSecond) => (connection: PgWeb3.Connection) => {
+    const cluster = getKnownCluster(connection.rpcEndpoint);
+    if (!cluster) return undefined;
+    const perSecond = Number(caps[cluster]);
+    return Number.isFinite(perSecond) && perSecond > 0 ? perSecond : undefined;
+  };
+
+const getSendTxPerSecond = sendTxPerSecondWith({
+  devnet: SEND_TX_PER_SECOND.devnet,
+  testnet: SEND_TX_PER_SECOND.testnet,
+  "mainnet-beta": SEND_TX_PER_SECOND.mainnet,
+});
+
 @derivable(derive)
 class _PgConnection {
   /**
@@ -178,6 +253,23 @@ class _PgConnection {
     conn._rpcWebSocket.reconnect = false;
 
     return conn;
+  }
+
+  /**
+   * The connection program buffer accounts are read through: the read-buffer
+   * RPC the env configures for `connection`'s cluster, else `connection`
+   * itself. Sends and every other read stay on `connection`.
+   */
+  static getReadBufferConnection(connection: PgWeb3.Connection) {
+    return getReadBufferConnection(connection);
+  }
+
+  /**
+   * The `sendTransaction` calls per second the env allows on `connection`'s
+   * cluster, or `undefined` when the env sets no cap there.
+   */
+  static getSendTxPerSecond(connection: PgWeb3.Connection) {
+    return getSendTxPerSecond(connection);
   }
 
   /**
@@ -278,31 +370,8 @@ class _PgConnection {
   static async getCluster(
     endpoint: string = PgConnection.current.rpcEndpoint
   ): Promise<Cluster> {
-    // Playnet
-    if (PgPlaynet.isUrlPlaynet(endpoint)) return "playnet";
-
-    // Local: Localnet and Surfpool, on any port. The host is compared, not
-    // the URL text, since a local endpoint opens the airdrop's sign-in gate
-    // (`isAirdropSignInGated`) and `https://localhost.example.com` is remote
-    if (isLocalEndpoint(endpoint)) return "localnet";
-
-    // Public
-    //
-    // For some reason only `mainnet-beta` returns with `/` appended at the end,
-    // so compare the `/` appended strings for consistency
-    switch (PgCommon.appendSlash(endpoint)) {
-      case PgCommon.appendSlash(PgWeb3.clusterApiUrl("devnet")):
-        return "devnet";
-      case PgCommon.appendSlash(PgWeb3.clusterApiUrl("testnet")):
-        return "testnet";
-      case PgCommon.appendSlash(PgWeb3.clusterApiUrl("mainnet-beta")):
-        return "mainnet-beta";
-    }
-
-    // The offered networks declare their cluster, so resolve them without
-    // paying for the genesis hash round trip below.
-    const network = NETWORKS.find((e) => e.value === endpoint);
-    if (network) return network.cluster;
+    const known = getKnownCluster(endpoint);
+    if (known) return known;
 
     // Decide custom endpoints from the genesis hash of the cluster
     const genesisHash = await PgConnection.create({

@@ -4,7 +4,22 @@ import { STOPPED } from "../../utils/stopped";
 export type StoppedBuffer =
   | { state: "none" }
   | { state: "closed" }
-  | { state: "kept"; address: string; sol: number | undefined };
+  | {
+      state: "kept";
+      address: string;
+      sol: number | undefined;
+      /** The command that closes it, from {@link closeBuffersCommandFor} */
+      command: string;
+    };
+
+/**
+ * The terminal command that closes a wallet's buffers. It names the read-buffer
+ * RPC when buffer reads use one, because the selected RPC may not list fresh buffers.
+ */
+export const closeBuffersCommandFor = (readBufferUrl: string | undefined) =>
+  readBufferUrl
+    ? `solana program close --buffers -u ${readBufferUrl}`
+    : "solana program close --buffers";
 
 /**
  * The words for an amount a kept buffer holds, to two decimals as the session
@@ -37,7 +52,7 @@ export const deployStoppedLine = (buffer: StoppedBuffer) => {
       return [
         line,
         `Its buffer ${buffer.address} still holds ${heldWords(buffer.sol)}.`,
-        "Run `solana program close --buffers` to get it back.",
+        `Run \`${buffer.command}\` to get it back.`,
       ].join(" ");
   }
 };

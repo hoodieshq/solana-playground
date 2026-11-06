@@ -44,6 +44,7 @@ vi.mock("../../utils", () => ({
       };
     },
     getAirdropAmount: () => 5,
+    getReadBufferConnection: <T>(connection: T) => connection,
   },
   PgGlobal: {
     deployState: "ready",
@@ -58,6 +59,7 @@ vi.mock("../../utils", () => ({
   PgServer: { deploy: vi.fn() },
   PgTerminal: {
     bold: String,
+    error: String,
     info: String,
     success: String,
     println: vi.fn(),
@@ -171,6 +173,20 @@ describe("commands/deploy", () => {
     expect(isStopped(failure)).toBe(true);
     expect(closeBuffer).toHaveBeenCalledTimes(1);
     expect((failure as Error).message).toContain("buffer account was closed");
+  });
+
+  it("closes the buffer on a yes when the load fails without a stop, then fails with the load's error", async () => {
+    env.balance = 10_000_000_000;
+    loadBuffer.mockImplementation(async () => {
+      throw new Error("The RPC kept refusing buffer writes");
+    });
+
+    const failure = await runDeploy();
+
+    expect(closeBuffer).toHaveBeenCalledTimes(1);
+    expect((failure as Error).message).toBe(
+      "The RPC kept refusing buffer writes"
+    );
   });
 
   /** A stop whose buffer close fails every retry, so the buffer is kept */

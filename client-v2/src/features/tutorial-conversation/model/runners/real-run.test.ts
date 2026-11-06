@@ -14,8 +14,12 @@ const interaction = vi.hoisted(() => ({
 
 vi.mock("../../../../utils", () => ({
   PgCommand: { run: { execute: vi.fn() } },
-  PgConnection: { cluster: "devnet" },
-  PgProgramInfo: { idl, pk: undefined },
+  PgConnection: {
+    cluster: "devnet",
+    current: { rpcEndpoint: "https://api.devnet.solana.com" },
+  },
+  PgExplorer: { currentWorkspaceName: undefined },
+  PgProgramInfo: { callableIdl: () => idl, pk: undefined },
   PgTerminal: { println: vi.fn() },
   PgTx: { confirm: vi.fn() },
   PgWallet: { current: undefined },
@@ -48,11 +52,14 @@ import type { FundingChain } from "./fund";
 import { realRunPort } from "./real-run";
 
 const port = realRunPort({} as FundingChain, 1);
-const call = (instruction: string) =>
-  port.send("call", {
+// `refusal` first, as `runOrCall` asks it: it captures the target `send` checks
+const call = (instruction: string) => {
+  expect(port.refusal()).toBeNull();
+  return port.send("call", {
     beatId: "s3.chop",
     call: { instruction, args: {} },
   } as never);
+};
 
 describe("realRunPort's call act", () => {
   beforeEach(() => {

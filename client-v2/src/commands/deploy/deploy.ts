@@ -26,9 +26,14 @@ import { MAINNET_DEPLOY_WARNING, warnsOnDeploy } from "./mainnet-warning";
 import type { DeployResult, FundingFailure } from "./run";
 import { DeployCancelledError, DeployFundingError, PgDeployRun } from "./run";
 import type { StoppedBuffer } from "./stopped";
-import { deployStoppedLine } from "./stopped";
+import { closeBuffersCommandFor, deployStoppedLine } from "./stopped";
 
 const log = createLogger("commands:deploy");
+
+const reclaimRejectedLineFor = (closeBuffersCommand: string) =>
+  `${PgTerminal.error(
+    "Reclaim rejected."
+  )} Run \`${closeBuffersCommand}\` to close unused buffer accounts and reclaim SOL.`;
 
 export const deploy = createCmd({
   name: "deploy",
@@ -183,6 +188,11 @@ const processDeploy = async (
   // Decide whether it's an initial deployment or an upgrade and calculate
   // how much SOL user needs before creating the buffer.
   const connection = PgConnection.current;
+  // The platform RPC does not return fresh buffers
+  const bufferConnection = PgConnection.getReadBufferConnection(connection);
+  const closeBuffersCommand = closeBuffersCommandFor(
+    bufferConnection === connection ? undefined : bufferConnection.rpcEndpoint
+  );
   const [userBalance, bufferBalance] = await Promise.all([
     connection.getBalance(wallet.publicKey),
     connection.getMinimumBalanceForRentExemption(
@@ -366,10 +376,42 @@ const processDeploy = async (
       );
     },
     async () => {
-      const bufferAcc = await connection.getAccountInfo(bufferKp.publicKey);
+      const bufferAcc = await bufferConnection.getAccountInfo(
+        bufferKp.publicKey
+      );
       return !!bufferAcc;
     }
   );
+
+  /** Ask whether to close the buffer and reclaim its SOL, after `heading` */
+  const offerReclaim = async (heading: string) => {
+    const term = await PgTerminal.get();
+    const shouldCloseBufferAccount = await term.waitForInput(
+      `${heading} Would you like to close the buffer account and reclaim SOL?`,
+      { confirm: true, default: "yes" }
+    );
+    let msg;
+    if (shouldCloseBufferAccount) {
+      await sendAndConfirmTxWithRetries(
+        async () => {
+          return await BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
+            wallet: pgWallet,
+          });
+        },
+        async () => {
+          const bufferAcc = await bufferConnection.getAccountInfo(
+            bufferKp.publicKey
+          );
+          return !bufferAcc;
+        }
+      );
+      msg = PgTerminal.success("Reclaim successful.");
+    } else {
+      msg = reclaimRejectedLineFor(closeBuffersCommand);
+    }
+
+    term.println(msg);
+  };
 
   // Load buffer
   PgDeployRun.update({ step: "write", percent: 0 });
@@ -394,15 +436,28 @@ const processDeploy = async (
           )} not confirmed, retrying...`
         );
       },
-      onRateLimit: (retryAfter) => {
+      onRateLimit: (retryAfter, reason) => {
         PgTerminal.println(
-          `Warning: Reached rate-limits, waiting (${PgCommon.formatSeconds(
+          `Warning: Reached rate-limits (${reason}), waiting (${PgCommon.formatSeconds(
             retryAfter
           )})...`
         );
       },
     }
-  );
+  ).catch(async (e: unknown) => {
+    // The buffer already holds the program's rent: offer it back before the
+    // load's failure stands
+    try {
+      await offerReclaim(PgTerminal.error("Writing the program failed."));
+    } catch (closing) {
+      log.error(closing, {
+        report: true,
+        context: { action: "close the buffer after a failed load" },
+      });
+      PgTerminal.println(reclaimRejectedLineFor(closeBuffersCommand));
+    }
+    throw e;
+  });
   /** End a stopped deploy, closing its buffer so its SOL comes back */
   const stopWithBuffer = async () => {
     let left: StoppedBuffer;
@@ -412,7 +467,7 @@ const processDeploy = async (
           BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
             wallet: pgWallet,
           }),
-        async () => !(await connection.getAccountInfo(bufferKp.publicKey))
+        async () => !(await bufferConnection.getAccountInfo(bufferKp.publicKey))
       );
       left = { state: "closed" };
     } catch (e) {
@@ -422,7 +477,9 @@ const processDeploy = async (
         report: true,
         context: { action: "close the buffer on stop" },
       });
-      const lamports = await keptLamportsOn(connection)(bufferKp.publicKey);
+      const lamports = await keptLamportsOn(bufferConnection)(
+        bufferKp.publicKey
+      );
       // A live buffer is rent-exempt, so an empty one is gone: the close
       // landed and only its confirmation failed
       if (lamports === 0) {
@@ -433,6 +490,7 @@ const processDeploy = async (
           address: bufferKp.publicKey.toBase58(),
           sol:
             lamports === undefined ? undefined : PgWeb3.lamportsToSol(lamports),
+          command: closeBuffersCommand,
         };
       }
     }
@@ -443,34 +501,7 @@ const processDeploy = async (
     // Stopped: no questions, the buffer is closed
     if (signal.aborted) throw await stopWithBuffer();
 
-    const term = await PgTerminal.get();
-    const shouldCloseBufferAccount = await term.waitForInput(
-      `${PgTerminal.warning(
-        "Cancelled deployment."
-      )} Would you like to close the buffer account and reclaim SOL?`,
-      { confirm: true, default: "yes" }
-    );
-    let msg;
-    if (shouldCloseBufferAccount) {
-      await sendAndConfirmTxWithRetries(
-        async () => {
-          return await BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
-            wallet: pgWallet,
-          });
-        },
-        async () => {
-          const bufferAcc = await connection.getAccountInfo(bufferKp.publicKey);
-          return !bufferAcc;
-        }
-      );
-      msg = PgTerminal.success("Reclaim successful.");
-    } else {
-      msg = `${PgTerminal.error(
-        "Reclaim rejected."
-      )} Run \`solana program close --buffers\` to close unused buffer accounts and reclaim SOL.`;
-    }
-
-    term.println(msg);
+    await offerReclaim(PgTerminal.warning("Cancelled deployment."));
     throw new Error("Deployment cancelled");
   }
 
@@ -492,7 +523,9 @@ const processDeploy = async (
         );
       },
       async () => {
-        const bufferAcc = await connection.getAccountInfo(bufferKp.publicKey);
+        const bufferAcc = await bufferConnection.getAccountInfo(
+          bufferKp.publicKey
+        );
         const isBufferAuthority = bufferAcc?.data
           .slice(5, 37)
           .equals(standardWallet.publicKey.toBuffer());
@@ -526,7 +559,9 @@ const processDeploy = async (
         );
       },
       async () => {
-        const bufferAcc = await connection.getAccountInfo(bufferKp.publicKey);
+        const bufferAcc = await bufferConnection.getAccountInfo(
+          bufferKp.publicKey
+        );
         return !bufferAcc;
       }
     );
@@ -543,7 +578,9 @@ const processDeploy = async (
         );
       },
       async () => {
-        const bufferAcc = await connection.getAccountInfo(bufferKp.publicKey);
+        const bufferAcc = await bufferConnection.getAccountInfo(
+          bufferKp.publicKey
+        );
         return !bufferAcc;
       }
     );

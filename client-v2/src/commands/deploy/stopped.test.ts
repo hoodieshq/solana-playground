@@ -2,9 +2,23 @@
 // never touches, so its tests stay out of the modules (AGENTS.md)
 import { describe, expect, it } from "vitest";
 
-import { deployStoppedLine } from "./stopped";
+import { closeBuffersCommandFor, deployStoppedLine } from "./stopped";
 
 describe("commands/deploy/stopped", () => {
+  it.each([
+    {
+      readBufferUrl: "https://api.devnet.solana.com",
+      command:
+        "solana program close --buffers -u https://api.devnet.solana.com",
+    },
+    { readBufferUrl: undefined, command: "solana program close --buffers" },
+  ])(
+    "names the read-buffer RPC in the close command: $readBufferUrl",
+    ({ readBufferUrl, command }) => {
+      expect(closeBuffersCommandFor(readBufferUrl)).toBe(command);
+    }
+  );
+
   it("says nothing is left before the buffer exists", () => {
     expect(deployStoppedLine({ state: "none" })).toBe(
       "Stopped. The program was not deployed."
@@ -24,6 +38,7 @@ describe("commands/deploy/stopped", () => {
         state: "kept",
         address: "Buf1111",
         sol: 1.42167696,
+        command: "solana program close --buffers",
       })
     ).toBe(
       "Stopped. The program was not deployed. Its buffer Buf1111 " +
@@ -37,6 +52,7 @@ describe("commands/deploy/stopped", () => {
         state: "kept",
         address: "Buf1111",
         sol: 0.00089088,
+        command: "solana program close --buffers",
       })
     ).toContain("still holds less than 0.01 SOL.");
   });
@@ -47,6 +63,7 @@ describe("commands/deploy/stopped", () => {
         state: "kept",
         address: "Buf1111",
         sol: undefined,
+        command: "solana program close --buffers",
       })
     ).toBe(
       "Stopped. The program was not deployed. Its buffer Buf1111 " +
@@ -60,6 +77,7 @@ describe("commands/deploy/stopped", () => {
         state: "kept",
         address: "Buf1111",
         sol: 0.005,
+        command: "solana program close --buffers",
       })
     ).toContain("still holds 0.01 SOL.");
   });
