@@ -444,7 +444,7 @@ describe("BaseFeed", () => {
     await userEvent.click(segment(/^Step 1 of 4, Program, done$/));
     expect(screen.queryByRole("button", { name: /^Back to/ })).toBeNull();
   });
-  it("jumps to a step another part of the screen asks for, as a segment press does", () => {
+  it("jumps to a step another part of the screen asks for, as a pick in the bar's menu does", () => {
     const onJump = vi.fn();
     const { container } = feed({ onJump });
     container

@@ -4,8 +4,8 @@ type StepJumpListener = (index: number) => void;
 const listeners = new Set<StepJumpListener>();
 
 /**
- * Asks the feed to bring step `index`'s heading into view, as a press on its
- * step bar segment does. The phone's steps sheet asks: it sits in the header,
+ * Asks the feed to bring step `index`'s heading into view, as a pick in the
+ * step bar's menu does (reported as `menu`). The phone's steps sheet asks: it sits in the header,
  * outside the feed, and the feed draws no step bar there. The lesson's
  * progress is untouched.
  */

@@ -103,7 +103,8 @@ export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
       onChip={(i) => PgConversation.chip(i)}
       waiting={waiting}
       note={held ? HELD : null}
-      // On the phone Start is the composer's place before Start, from the first
+      // On the phone Start takes the composer's place for the whole intro, not
+      // only once the assistant has answered
       onStart={
         answered || (phone && waiting)
           ? () => PgConversation.start()

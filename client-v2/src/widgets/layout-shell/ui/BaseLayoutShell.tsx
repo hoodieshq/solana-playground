@@ -164,7 +164,8 @@ export interface TutorialNavState {
  * assistant are not drawn;
  * the stage and the console are the same outlets, so nothing remounts on the
  * way in or out. Only on the work screen of a wide window; narrower windows
- * draw `phone` when it is given, else today's layout.
+ * draw `phone` on the work screen when it is given, and under a page the
+ * pager or the compact frame.
  */
 export interface TutorialFrameSlot {
   /** The chat column, which holds its own width */
@@ -468,8 +469,8 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
   const home = homeOf(screen);
   // The tutorial's layout holds under a page over the work too, which keeps
   // the work laid out as it was; its navigation holds on the work screen
-  // only. From `LAYOUT_BREAKPOINTS.compact` to wide no source draws it, so
-  // the frame keeps today's layout there, as the phone keeps its pager.
+  // only. It is wide-only: below wide the work screen takes `tutorial.phone`
+  // (`tutorialPhone`), and a page over it keeps the pager or compact frame.
   const tutorialLayout =
     props.tutorial !== undefined && workInFrame && props.viewport === "wide";
   const tutorialNav =

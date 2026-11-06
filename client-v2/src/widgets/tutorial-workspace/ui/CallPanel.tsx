@@ -43,8 +43,8 @@ export const CallPanel: FC = () => {
 
 /**
  * The panel on the phone, as a sheet over Code (prototype `TestSheet`): the
- * same panel, opened by the head's Call, and closed by a swipe, a tap
- * outside or Escape, which close the panel itself
+ * same panel, opened by the head's Call, and closed by a tap outside or
+ * Escape, which close the panel itself
  */
 export const CallSheet: FC = () => {
   useCallPanel();

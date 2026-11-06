@@ -17,7 +17,7 @@ export interface UseTutorialSpaceOptions {
    * reload restores is taken as seen, not as new writes
    */
   loaded: boolean;
-  /** The phone layout is drawn; off it, nothing listens for requests */
+  /** Below the frame's width (the phone layout's viewport); off it, nothing listens for requests */
   phone: boolean;
 }
 
@@ -30,9 +30,8 @@ export interface UseTutorialSpace {
 
 /**
  * Which of the phone's two spaces is in view, and Code's dot. A request for
- * the code ("Show in lib.rs") or for a doc page switches to Code; a doc
- * request is still answered by the workspace's own listener, so this one
- * returns false. Each tutorial entered starts on Chat, so a learner never
+ * the code ("Show in lib.rs"), or a doc page the workspace showed, switches
+ * to Code. Each tutorial entered starts on Chat, so a learner never
  * lands on an empty editor before Start.
  */
 export const useTutorialSpace = ({

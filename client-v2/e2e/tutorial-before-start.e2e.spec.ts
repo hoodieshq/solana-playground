@@ -122,7 +122,7 @@ test("tutorial-conversation: The menu before Start", async ({ page }) => {
   expect(sent[1]).toContain("The menu is open. They have not started");
 });
 
-test("no stage before Hello Anchor's Start, under the frame's width", async ({
+test("no stage, before or after Hello Anchor's Start, under the frame's width", async ({
   page,
 }) => {
   test.setTimeout(120_000);
