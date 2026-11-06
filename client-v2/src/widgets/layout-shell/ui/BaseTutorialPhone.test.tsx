@@ -13,6 +13,7 @@ interface Drawn {
   chat: ReactNode;
   consoleNode: HTMLDivElement;
   consoleOpen: boolean;
+  stageNode?: HTMLDivElement;
 }
 
 const tree = (drawn: Drawn) => (
@@ -23,7 +24,7 @@ const tree = (drawn: Drawn) => (
       space: drawn.space,
       onSpace: drawn.onSpace,
     }}
-    stageNode={document.createElement("div")}
+    stageNode={drawn.stageNode ?? document.createElement("div")}
     consoleNode={drawn.consoleNode}
     consoleOpen={drawn.consoleOpen}
     tablet={false}
@@ -189,6 +190,59 @@ describe("a swipe", () => {
       from: { x: 200, y: 100 },
       to: { x: 120, y: 100 },
       on: screen.getByText("a long line"),
+    });
+    expect(onSpace).not.toHaveBeenCalled();
+  });
+
+  // The shell portals Code's stage into its node: React's pointer events
+  // from it never reach this component, so the swipe listens on the DOM
+  const stageWith = (html: string) => {
+    const stageNode = document.createElement("div");
+    stageNode.innerHTML = html;
+    return stageNode;
+  };
+  const drawCode = (onSpace: Drawn["onSpace"], stageNode: HTMLDivElement) =>
+    render(
+      tree({
+        space: "code",
+        onSpace,
+        chat: <p>the feed</p>,
+        consoleNode: document.createElement("div"),
+        consoleOpen: false,
+        stageNode,
+      })
+    );
+
+  it("goes back to Chat on a swipe that starts in the stage the shell put in Code", () => {
+    const onSpace = vi.fn();
+    const stageNode = stageWith('<div data-testid="editor">fn hello()</div>');
+    drawCode(onSpace, stageNode);
+    swipe({
+      from: { x: 120, y: 100 },
+      to: { x: 200, y: 110 },
+      on: screen.getByTestId("editor"),
+    });
+    expect(onSpace).toHaveBeenCalledWith("chat", "swipe");
+  });
+
+  it("is ignored in an editor whose lines are wider than it", () => {
+    const onSpace = vi.fn();
+    const stageNode = stageWith(
+      '<div class="monaco-scrollable-element"><div class="lines-content"><span data-testid="line">a long line</span></div></div>'
+    );
+    drawCode(onSpace, stageNode);
+    const scroller = requireFor("the editor's scroller")(
+      stageNode.querySelector(".monaco-scrollable-element")
+    );
+    const lines = requireFor("the editor's lines")(
+      stageNode.querySelector(".lines-content")
+    );
+    Object.defineProperty(scroller, "clientWidth", { value: 300 });
+    Object.defineProperty(lines, "scrollWidth", { value: 900 });
+    swipe({
+      from: { x: 120, y: 100 },
+      to: { x: 200, y: 100 },
+      on: screen.getByTestId("line"),
     });
     expect(onSpace).not.toHaveBeenCalled();
   });

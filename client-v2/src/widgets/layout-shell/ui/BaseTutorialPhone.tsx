@@ -1,5 +1,4 @@
-import type { PointerEvent } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { Outlet } from "@/shared/lib/outlet";
 import { cn } from "@/shared/lib/utils";
@@ -22,16 +21,28 @@ export interface BaseTutorialPhoneProps {
 }
 
 /**
+ * Whether Monaco's scroller `el` holds lines wider than itself. Monaco
+ * scrolls by hand under `overflow: hidden`, with its lines in
+ * `.lines-content`, which it sizes to the widest line.
+ */
+const editorScrollsSideways = (el: Element) => {
+  if (!el.classList.contains("monaco-scrollable-element")) return false;
+  const lines = el.querySelector<HTMLElement>(".lines-content");
+  return !!lines && lines.scrollWidth > el.clientWidth;
+};
+
+/**
  * Whether `from`, or anything between it and `until`, scrolls sideways: a
  * swipe there is that element's scroll (Monaco, a code block), not a change
  * of space.
  */
-const scrollsSideways = (from: EventTarget, until: Element) => {
+const scrollsSideways = (from: EventTarget | null, until: Element) => {
   for (
     let el = from instanceof Element ? from : undefined;
     el && el !== until;
     el = el.parentElement ?? undefined
   ) {
+    if (editorScrollsSideways(el)) return true;
     if (el.scrollWidth <= el.clientWidth) continue;
     const { overflowX } = getComputedStyle(el);
     if (overflowX === "auto" || overflowX === "scroll") return true;
@@ -53,30 +64,52 @@ const BaseTutorialPhone = ({
   consoleOpen,
   tablet,
 }: BaseTutorialPhoneProps) => {
-  const start = useRef<{ x: number; y: number } | undefined>(undefined);
+  const viewport = useRef<HTMLDivElement>(null);
+  // Read by the listeners, which are bound once
+  const current = useRef(phone);
+  current.current = phone;
 
-  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    // A mouse drag selects text; only a finger or a pen swipes
-    const touch = event.pointerType === "touch" || event.pointerType === "pen";
-    start.current =
-      touch &&
-      event.clientX >= EDGE_PX &&
-      !scrollsSideways(event.target, event.currentTarget)
-        ? { x: event.clientX, y: event.clientY }
-        : undefined;
-  };
-
-  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    const from = start.current;
-    start.current = undefined;
-    if (!from) return;
-    const dx = event.clientX - from.x;
-    const dy = event.clientY - from.y;
-    // Mostly sideways: a vertical scroll of the feed that drifts is not a swipe
-    if (Math.abs(dx) < SWIPE_MIN_DX || Math.abs(dx) < 2 * Math.abs(dy)) return;
-    if (dx < 0 && phone.space === "chat") phone.onSpace("code", "swipe");
-    if (dx > 0 && phone.space === "code") phone.onSpace("chat", "swipe");
-  };
+  // Native listeners on the viewport's node: Code's stage and console are
+  // portalled in from the shell (`Outlet`), so React's own pointer events
+  // from them bubble to the shell, never here; the DOM's do
+  useEffect(() => {
+    const box = viewport.current;
+    if (!box) return;
+    let start: { x: number; y: number } | undefined;
+    const down = (event: PointerEvent) => {
+      // A mouse drag selects text; only a finger or a pen swipes
+      const touch =
+        event.pointerType === "touch" || event.pointerType === "pen";
+      start =
+        touch && event.clientX >= EDGE_PX && !scrollsSideways(event.target, box)
+          ? { x: event.clientX, y: event.clientY }
+          : undefined;
+    };
+    const up = (event: PointerEvent) => {
+      const from = start;
+      start = undefined;
+      if (!from) return;
+      const dx = event.clientX - from.x;
+      const dy = event.clientY - from.y;
+      // Mostly sideways: a vertical scroll of the feed that drifts is not a
+      // swipe
+      if (Math.abs(dx) < SWIPE_MIN_DX || Math.abs(dx) < 2 * Math.abs(dy)) {
+        return;
+      }
+      const { space, onSpace } = current.current;
+      if (dx < 0 && space === "chat") onSpace("code", "swipe");
+      if (dx > 0 && space === "code") onSpace("chat", "swipe");
+    };
+    const cancel = () => (start = undefined);
+    box.addEventListener("pointerdown", down);
+    box.addEventListener("pointerup", up);
+    box.addEventListener("pointercancel", cancel);
+    return () => {
+      box.removeEventListener("pointerdown", down);
+      box.removeEventListener("pointerup", up);
+      box.removeEventListener("pointercancel", cancel);
+    };
+  }, []);
 
   const code = phone.space === "code";
   return (
@@ -85,11 +118,11 @@ const BaseTutorialPhone = ({
       className="flex h-full min-h-0 w-full flex-col pb-[env(safe-area-inset-bottom,0px)]"
     >
       {phone.head}
+      {/* `touch-pan-y`: the browser keeps the feed's vertical scroll and
+          leaves a sideways move to the swipe, instead of cancelling it */}
       <div
-        className="relative min-h-0 flex-1 overflow-hidden"
-        onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
-        onPointerCancel={() => (start.current = undefined)}
+        ref={viewport}
+        className="relative min-h-0 flex-1 touch-pan-y overflow-hidden"
       >
         <div
           className={cn(
