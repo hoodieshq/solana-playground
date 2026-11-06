@@ -399,23 +399,24 @@ const UnconfirmedCard = ({
       }
       title="Not confirmed yet"
       meta={
-        <>
-          devnet is slow to answer
+        // The words give way on a narrow card, never the link
+        <span className="flex min-w-0 items-baseline gap-1">
+          <span className="min-w-0 truncate">devnet is slow to answer</span>
           {last && (
             <>
-              {" · "}
+              <span aria-hidden="true">·</span>
               <a
                 href={devnetExplorerUrl({ kind: "tx", value: last.signature })}
                 target="_blank"
                 rel="noopener noreferrer"
                 title={last.signature}
-                className="font-mono underline-offset-2 hover:underline"
+                className="shrink-0 font-mono underline-offset-2 hover:underline"
               >
                 {`${shortKey(last.signature)} ↗`}
               </a>
             </>
           )}
-        </>
+        </span>
       }
       body={
         <>

@@ -161,7 +161,7 @@ result, "Check again". Check again SHALL read the same
 signatures again and send nothing; once they read back, the result SHALL be
 the one they landed with and the goal SHALL be judged on it.
 
-#### Scenario: A slow devnet confirms late (manual)
+#### Scenario: A slow devnet confirms late
 
 - **WHEN** the learner's call on step 4 is sent and devnet has not read it
   back when the read window ends
