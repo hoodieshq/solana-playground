@@ -30,6 +30,7 @@ vi.mock("./bpf-loader-upgradeable", () => ({
       }
     ),
     deployProgram: vi.fn(async () => "sig-deploy"),
+    extendProgram: vi.fn(async () => "sig-extend"),
     upgradeProgram: vi.fn(async () => "sig-upgrade"),
   },
 }));
@@ -79,6 +80,10 @@ vi.mock("../../utils", () => {
     PgWallet: { current: { publicKey: pk, isPg: true } },
     PgWeb3: {
       Keypair: { generate: () => ({ publicKey: pk }) },
+      // Holds the bytes it was made from, so a stubbed read can tell accounts apart
+      PublicKey: class {
+        constructor(readonly bytes: Uint8Array) {}
+      },
       BpfLoaderUpgradeableProgram: {
         getBufferAccountSize: (n: number) => n,
         getProgramDataAccountSize: (n: number) => n + 45,
@@ -257,6 +262,36 @@ describe("deploy run", () => {
       }
     }
   );
+
+  it("takes an extend as confirmed from the program data on its own network, not the one picked", async () => {
+    const { PgTx } = await import("../../utils");
+    const { BpfLoaderUpgradeable } = await import("./bpf-loader-upgradeable");
+    // The picked network's program info still says the program needs room
+    Object.assign(PgProgramInfo, {
+      onChain: { deployed: true, upgradable: true, programDataLen: 10 },
+    });
+    const { start, restore } = await switchNetworkOnFirstRead(10_000_000_000);
+    // On the run's own network the extend landed: the program data has room
+    const programDataPk = new Uint8Array(32).fill(7);
+    const program = { data: Buffer.concat([Buffer.alloc(4), programDataPk]) };
+    const extended = { data: Buffer.alloc(1000) };
+    const read = start.getAccountInfo;
+    Object.assign(start, {
+      getAccountInfo: async (key: { bytes?: Uint8Array }) =>
+        key?.bytes ? extended : program,
+    });
+    // The extend's confirmation reports an error, so the probe decides
+    vi.mocked(PgTx.confirm).mockResolvedValueOnce({ err: "timeout" } as never);
+
+    try {
+      await handleDeploy();
+    } finally {
+      restore();
+      Object.assign(start, { getAccountInfo: read });
+    }
+
+    expect(BpfLoaderUpgradeable.extendProgram).toHaveBeenCalledOnce();
+  });
 
   it("asks no faucet when the network changed since the run started", async () => {
     const { restore } = await switchNetworkOnFirstRead(0);

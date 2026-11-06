@@ -385,7 +385,13 @@ const processDeploy = async (
           { wallet: pgWallet, connection }
         );
       },
-      () => getAdditionalLen(programLen) <= 0
+      // Read on the run's network: the program info follows the one picked
+      async () =>
+        additionalProgramLen({
+          programLen,
+          deployed: true,
+          onChainLen: await programDataLenOn(connection)(PgProgramInfo.pk!),
+        }) <= 0
     );
   }
 
@@ -597,6 +603,19 @@ const processDeploy = async (
     );
   }
 };
+
+/**
+ * The length of a program's data account on `connection`, or `undefined` when
+ * the program or its data account is not there
+ */
+const programDataLenOn =
+  (connection: PgWeb3.Connection) => async (programPk: PgWeb3.PublicKey) => {
+    const program = await connection.getAccountInfo(programPk);
+    if (!program) return undefined;
+    // An upgradeable program's account holds its data account's address
+    const programDataPk = new PgWeb3.PublicKey(program.data.slice(4));
+    return (await connection.getAccountInfo(programDataPk))?.data.length;
+  };
 
 /** {@link additionalProgramLen} for the current program */
 const getAdditionalLen = (programLen: number) => {
