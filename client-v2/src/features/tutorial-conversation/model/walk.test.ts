@@ -37,6 +37,9 @@ import helloProgramStructure from "../../../tutorials/hello-anchor/docs/program-
 import helloPrograms from "../../../tutorials/hello-anchor/docs/programs.md";
 import helloTransactions from "../../../tutorials/hello-anchor/docs/transactions.md";
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
+import lumberjackCustomErrors from "../../../tutorials/lumberjack/docs/custom-errors.md";
+import lumberjackPdas from "../../../tutorials/lumberjack/docs/pdas.md";
+import lumberjackSysvarAccounts from "../../../tutorials/lumberjack/docs/sysvar-accounts.md";
 import lumberjack from "../../../tutorials/lumberjack/tutorial.json";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
@@ -331,7 +334,14 @@ describe.each([
   ],
   [
     "Lumberjack, with a refusal on a repeating card",
-    { json: lumberjack, docs: {} },
+    {
+      json: lumberjack,
+      docs: {
+        "custom-errors.md": lumberjackCustomErrors,
+        "pdas.md": lumberjackPdas,
+        "sysvar-accounts.md": lumberjackSysvarAccounts,
+      },
+    },
   ],
 ])("%s through the engine", (_name, { json, docs }) => {
   it("passes the check", () => {
