@@ -52,6 +52,7 @@ describe("overlays release focus before hiding the page", () => {
   beforeEach(() => {
     focusedInsideHidden = [];
     const setAttribute = Element.prototype.setAttribute;
+    // eslint-disable-next-line max-params -- `this` plus the DOM's setAttribute(name, value)
     vi.spyOn(Element.prototype, "setAttribute").mockImplementation(function (
       this: Element,
       name: string,
