@@ -399,24 +399,22 @@ const UnconfirmedCard = ({
       }
       title="Not confirmed yet"
       meta={
-        // The words give way on a narrow card, never the link
-        <span className="flex min-w-0 items-baseline gap-1">
-          <span className="min-w-0 truncate">devnet is slow to answer</span>
-          {last && (
-            <>
-              <span aria-hidden="true">·</span>
-              <a
-                href={devnetExplorerUrl({ kind: "tx", value: last.signature })}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={last.signature}
-                className="shrink-0 font-mono underline-offset-2 hover:underline"
-              >
-                {`${shortKey(last.signature)} ↗`}
-              </a>
-            </>
-          )}
-        </span>
+        // The link alone: the body already says why, and on a ~400 px card
+        // any words beside it truncated (design alignment, 7 Nov)
+        last && (
+          <span className="flex items-baseline gap-2">
+            <span aria-hidden="true">·</span>
+            <a
+              href={devnetExplorerUrl({ kind: "tx", value: last.signature })}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={last.signature}
+              className="shrink-0 font-mono underline-offset-2 hover:underline"
+            >
+              {`${shortKey(last.signature)} ↗`}
+            </a>
+          </span>
+        )
       }
       body={
         <>

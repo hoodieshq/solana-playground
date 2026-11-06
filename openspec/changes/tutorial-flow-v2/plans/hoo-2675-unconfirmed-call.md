@@ -27,9 +27,9 @@ is the landed one and the goal is judged on it.
   when the beat's last run failed unconfirmed, with `input.recheck` from it.
 - `store.ts`: `PgConversation.recheck(beatId)`.
 - Card (`BaseTxResultCard`): "Not confirmed yet", muted (not red), meta
-  "devnet is slow to answer · <short signature> ↗", where the last sent
-  signature is the Explorer link (no separate Explorer button, design
-  alignment 6 Nov), the message as its body, and "Check again" while the
+  "· <short signature> ↗" and no words, where the last sent signature is
+  the Explorer link (no separate Explorer button, design alignment 6 Nov;
+  no reason words beside it, 7 Nov), the message as its body, and "Check again" while the
   card is open; ⌘↵ on it checks again, and Explain has nothing to explain.
   A check that cannot read (wrong network, a throw) stays unconfirmed with
   the reason as its message; a run that threw after sending fails with the

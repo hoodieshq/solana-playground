@@ -154,9 +154,9 @@ plain reason, with the error line and the reason in view and the log behind
 the chevron; the step SHALL not pass. A run that sent no transaction SHALL
 post "No transaction", "client.ts sent none · see the terminal", not red,
 and the step SHALL not pass. A transaction that was sent but that devnet
-did not read back in the read window SHALL post "Not confirmed yet",
-"devnet is slow to answer · <short signature> ↗", not red, the short
-signature linking to the transaction in Explorer, and, while it is the live
+did not read back in the read window SHALL post "Not confirmed yet ·
+<short signature> ↗", not red, the short signature linking to the
+transaction in Explorer, the reason in its body, and, while it is the live
 result, "Check again". Check again SHALL read the same
 signatures again and send nothing; once they read back, the result SHALL be
 the one they landed with and the goal SHALL be judged on it.
