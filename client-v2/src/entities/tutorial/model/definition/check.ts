@@ -638,7 +638,11 @@ const ruleErrors = (
           creates === undefined
             ? undefined
             : idlAccountsOf(d.steps, i, beat.call.instruction);
-        if (accounts && !accounts.some((name) => sameName(name, creates))) {
+        if (
+          creates !== undefined &&
+          accounts &&
+          !accounts.some((name) => sameName(name, creates))
+        ) {
           errors.push({
             path: `${at}.call.creates`,
             message: `an account of \`${
@@ -1340,9 +1344,14 @@ if (import.meta.vitest) {
             ],
           });
           d.steps[1].beats[0] = {
-            ...callAct([]),
+            kind: "act",
+            id: "s2.call",
+            act: "call",
+            title: "Call",
+            context: "Sends hello",
+            button: "Call",
             call: { instruction: "hello", creates },
-          } as Beat;
+          };
           return d;
         };
         expect(lines(creating("player"))).toEqual([]);

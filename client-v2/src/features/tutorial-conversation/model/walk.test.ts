@@ -230,7 +230,6 @@ const goalRunner = (d: TutorialDefinition): Runner => {
  * the System Program, since that account is already on devnet
  */
 const secondPass = (runner: Runner): Runner => ({
-  ...runner,
   run: async (act, input, onStage) => {
     const { creates, call } = input;
     if (
@@ -280,7 +279,7 @@ const expectTarget = (
 };
 
 /** Answers whatever the conversation waits on, until the finish */
-const walk = async (d: TutorialDefinition, runner: Runner = goalRunner(d)) => {
+const walk = async (d: TutorialDefinition, runner: Runner) => {
   const workspace = memoryWorkspace(
     Object.assign({}, d.steps[0].start) as Record<string, string>
   );
@@ -385,7 +384,7 @@ describe.each([
 
   it("walks from the intro to the finish", async () => {
     const d = json as unknown as TutorialDefinition;
-    await walk(d);
+    await walk(d, goalRunner(d));
 
     const saved = file[STORAGE_KEY] as {
       passed: string[];
