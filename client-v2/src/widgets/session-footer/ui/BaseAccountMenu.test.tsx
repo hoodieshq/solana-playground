@@ -248,6 +248,15 @@ it("shows a connected wallet and offers to disconnect it", async () => {
   expect(onPick).toHaveBeenCalledExactlyOnceWith("wallet");
 });
 
+it("keeps a large balance and the address on one line each", async () => {
+  await open(view({ wallet: { ...WALLET, balance: 940000 } }));
+  const balance = screen.getByText("940000.00 SOL");
+  expect(balance.classList).toContain("whitespace-nowrap");
+  expect(balance.classList).toContain("shrink-0");
+  const address = screen.getByText("7Hq5…Xk2P");
+  expect(address.classList).toContain("truncate");
+});
+
 it("names the extension wallet it disconnects, which hands back to the Playground wallet", async () => {
   await open(
     view({
