@@ -78,19 +78,20 @@ test("assistant-code-stream: A code block keeps its height while a line streams 
   // first may be gone by the time it is measured
   const measure = async () => {
     const sample = await page.evaluate(() => {
-      const pre = document.querySelector('[role="log"] pre');
+      const pre = document.querySelector<HTMLElement>('[role="log"] pre');
       const box = pre?.closest(".group");
       return pre && box
         ? {
             height: box.getBoundingClientRect().height,
             overflows: pre.scrollWidth > pre.clientWidth,
+            bar: pre.offsetHeight - pre.clientHeight,
           }
         : undefined;
     });
     if (!sample) throw new Error("Expected the reply's code block");
     return sample;
   };
-  const samples: { height: number; overflows: boolean }[] = [];
+  const samples: { height: number; overflows: boolean; bar: number }[] = [];
   // Short of the block's width, then well past it
   for (let chunk = 1; chunk <= 12; chunk++) {
     await append(page, { message, delta: "a".repeat(20) });
@@ -104,8 +105,6 @@ test("assistant-code-stream: A code block keeps its height while a line streams 
   expect(samples[0].overflows).toBe(false);
   expect(samples.at(-1)?.overflows).toBe(true);
   // The scrollbar is drawn, so the heights collected above see the jump
-  expect(
-    await block.evaluate((el) => el.offsetHeight - el.clientHeight)
-  ).toBeGreaterThan(0);
+  expect(samples.at(-1)?.bar).toBeGreaterThan(0);
   expect(heights).toEqual(heights.map(() => heights[0]));
 });
