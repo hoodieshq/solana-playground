@@ -12,6 +12,7 @@ import { PgCommon } from "../common";
 import { isStopped } from "../stopped";
 import type { ClassReturnType, Methods, SyncOrAsync } from "../types";
 import { PgAutocomplete } from "./autocomplete";
+import { fitBuffersTable } from "./buffers-table";
 import { confirmReply, confirmSuffix } from "./confirm";
 import { PgHistory } from "./history";
 import { lineTone, processErrorLine, toneWith } from "./line-error";
@@ -142,7 +143,7 @@ export class PgTerminal {
    * Mainly used from WASM
    */
   static logWasm(msg: any) {
-    this.println(msg);
+    PgTerminal._runIfMounted({ printlnWasm: [msg] });
   }
 
   /**
@@ -482,6 +483,14 @@ export class PgTerm {
   /** Print a message with end line character appended. */
   println(msg: any, opts?: PrintOptions) {
     this.print(msg, { ...opts, newLine: true });
+  }
+
+  /**
+   * Print what a WASM package logs, a table it pads past the terminal's width
+   * laid out to fit (see {@link fitBuffersTable}).
+   */
+  printlnWasm(msg: any) {
+    this.println(fitBuffersTable(msg, this._tty.size.cols));
   }
 
   /**
