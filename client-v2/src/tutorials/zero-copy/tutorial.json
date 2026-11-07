@@ -261,7 +261,7 @@
           "kind": "act",
           "id": "s3.airdrop",
           "act": "airdrop",
-          "say": "Your upgrade pays in devnet SOL too. Top the wallet up if it runs short.",
+          "say": "Putting `grow` on devnet is an upgrade, and it pays in devnet SOL. Top the wallet up if it runs short.",
           "title": "Get devnet SOL",
           "context": "From the devnet faucet · free test SOL",
           "button": "Request airdrop"
@@ -387,7 +387,7 @@
           "kind": "act",
           "id": "s4.airdrop",
           "act": "airdrop",
-          "say": "Your upgrade pays in devnet SOL too. Top the wallet up if it runs short.",
+          "say": "The zero copy map goes to devnet as an upgrade, paid in devnet SOL. Top the wallet up if it runs short.",
           "title": "Get devnet SOL",
           "context": "From the devnet faucet · free test SOL",
           "button": "Request airdrop"

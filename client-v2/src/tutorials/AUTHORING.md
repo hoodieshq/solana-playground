@@ -396,6 +396,14 @@ drained can top up again. The check counts beats in order, each step's own
 beats before its `onFail`, and refuses a deploy act with no airdrop since the
 last one.
 
+Only the lesson's first airdrop shows a funded pass, "Your wallet has {n}
+SOL". A later one stays out of the feed, card and `say` line both, while the
+balance is checked, and a funded wallet's never shows: the lesson goes
+straight on to the deploy. So a later airdrop's `say` is read only by a
+learner whose wallet is short, or whose check failed. Write it for that
+deploy, naming what it puts on devnet, and say "too" only when something
+earlier in the step set it up.
+
 ```json beat
 {
   "kind": "act",
