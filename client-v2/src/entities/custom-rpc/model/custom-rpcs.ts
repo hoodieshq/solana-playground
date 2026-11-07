@@ -62,7 +62,7 @@ const KEY_NAME = /key|token|secret|auth|pass|sig|credential/i;
  * too), with a digit, or 24 or more in mixed case. A long slug with a digit
  * is masked as well: hiding a word is cheaper than showing a key.
  */
-const looksLikeToken = (value: string) =>
+const isTokenLike = (value: string) =>
   /^[\w.~+=%-]{16,}$/.test(value) &&
   (/\d/.test(value) ||
     (value.length >= 24 && /[a-z]/.test(value) && /[A-Z]/.test(value)));
@@ -96,23 +96,19 @@ export const maskRpcUrl = (url: string): MaskedUrl => {
     return UNREADABLE;
   }
   let masked = false;
-  const hide = (secret: boolean, value: string) => {
-    if (!secret) return value;
+  const mask = () => {
     masked = true;
     return MASK;
   };
+  /** The part itself, or `••••` when it reads as a token */
+  const maskToken = (part: string) => (isTokenLike(part) ? mask() : part);
 
   // A username and a password, either or both, show as one `••••`
-  const auth = parsed.username || parsed.password ? `${hide(true, "")}@` : "";
+  const auth = parsed.username || parsed.password ? `${mask()}@` : "";
   const host =
-    parsed.hostname
-      .split(".")
-      .map((label) => hide(looksLikeToken(label), label))
-      .join(".") + (parsed.port ? `:${parsed.port}` : "");
-  const path = parsed.pathname
-    .split("/")
-    .map((segment) => hide(looksLikeToken(segment), segment))
-    .join("/");
+    parsed.hostname.split(".").map(maskToken).join(".") +
+    (parsed.port ? `:${parsed.port}` : "");
+  const path = parsed.pathname.split("/").map(maskToken).join("/");
   const query = parsed.search
     ? "?" +
       parsed.search
@@ -120,17 +116,17 @@ export const maskRpcUrl = (url: string): MaskedUrl => {
         .split("&")
         .map((pair) => {
           const at = pair.indexOf("=");
-          if (at < 0) return hide(looksLikeToken(pair), pair);
+          if (at < 0) return maskToken(pair);
           const name = pair.slice(0, at);
           const value = pair.slice(at + 1);
           const secret =
-            value !== "" && (KEY_NAME.test(name) || looksLikeToken(value));
-          return `${name}=${hide(secret, value)}`;
+            value !== "" && (KEY_NAME.test(name) || isTokenLike(value));
+          return `${name}=${secret ? mask() : value}`;
         })
         .join("&")
     : "";
   const hash = parsed.hash.slice(1);
-  const fragment = parsed.hash ? `#${hide(looksLikeToken(hash), hash)}` : "";
+  const fragment = parsed.hash ? `#${maskToken(hash)}` : "";
 
   return {
     text: `${parsed.protocol}//${auth}${host}${path}${query}${fragment}`,
