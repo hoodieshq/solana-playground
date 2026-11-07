@@ -677,16 +677,12 @@ if (import.meta.vitest) {
       });
 
       it.each([
-        ["Surfpool", "http://127.0.0.1:8899/", "http://127.0.0.1:8899"],
-        [
-          "the public Testnet",
-          "https://api.testnet.solana.com/",
-          "https://api.testnet.solana.com",
-        ],
+        { name: "Surfpool", chip: "http://127.0.0.1:8899" },
+        { name: "the public Testnet", chip: "https://api.testnet.solana.com" },
       ])(
-        "moves a profile on %s's address, re-spelled, onto its chip",
-        (_, endpoint, chip) => {
-          expect(PgCustomRpcs.adopt(endpoint)).toBe(chip);
+        "moves a profile on $name's address, re-spelled, onto its chip",
+        ({ chip }) => {
+          expect(PgCustomRpcs.adopt(`${chip}/`)).toBe(chip);
         }
       );
 
