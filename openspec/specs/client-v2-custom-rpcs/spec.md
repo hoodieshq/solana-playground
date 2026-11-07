@@ -165,10 +165,10 @@ The list of saved RPCs (`aria-label="Custom RPCs"`) SHALL show each RPC's name a
 
 #### Scenario: A key in the path is masked
 
-- **WHEN** a saved RPC's URL is `https://solana-mainnet.g.alchemy.com/v2/abc123def456ghi789`
-- **THEN** the page shows `https://solana-mainnet.g.alchemy.com/v2/••••` and an "API key" badge
+- **WHEN** a saved RPC's URL is `https://mainnet.rpc.test/v2/abc123def456ghi789`
+- **THEN** the page shows `https://mainnet.rpc.test/v2/••••` and an "API key" badge
 
 #### Scenario: A URL with no key shows in full
 
-- **WHEN** a saved RPC's URL is `http://localhost:8899/`
-- **THEN** the page shows `http://localhost:8899/` and no "API key" badge
+- **WHEN** a saved RPC's URL is `https://rpc.example.com/`
+- **THEN** the page shows `https://rpc.example.com/` and no "API key" badge
