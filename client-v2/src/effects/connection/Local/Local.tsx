@@ -44,7 +44,7 @@ export const Local = () => {
       <div className="pt-4 pb-2">
         <div className="text-[0.875rem] font-bold">How to connect</div>
         <div className="mt-2 text-[0.75rem] text-[var(--text-secondary)]">
-          Here are the steps for connecting to Localnet from playground.
+          Here are the steps for connecting to Localnet from Playground.
         </div>
 
         {/* The markdown sheet resets its own margin, unlayered, so the gap
