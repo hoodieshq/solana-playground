@@ -36,7 +36,7 @@ export const catalogPage = {
    * an Open ending after the user moved on never closes the page they chose
    */
   closePage: (page: ShownPage) => {
-    if (current === page) set(null);
+    if (current === page) catalogPage.close();
   },
   onDidChange: (cb: Listener): Disposable => {
     listeners.add(cb);
