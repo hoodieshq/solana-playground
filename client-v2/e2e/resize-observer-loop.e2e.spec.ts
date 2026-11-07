@@ -53,7 +53,7 @@ const projectReady = (page: Page, phone: boolean) =>
         LONG
       );
 
-test("the count sees a ResizeObserver loop", async ({ page }) => {
+test("counts a ResizeObserver loop", async ({ page }) => {
   await countNotices(page);
   await page.goto("/");
   await page.evaluate(() => {
@@ -78,7 +78,7 @@ for (const [name, viewport] of Object.entries({
   test.describe(name, () => {
     test.use({ viewport });
 
-    test("loading Home, then a project, raises no ResizeObserver loop notice", async ({
+    test("raises no ResizeObserver loop notice on Home, a project opened from it, and a project loaded", async ({
       page,
     }) => {
       await countNotices(page);
