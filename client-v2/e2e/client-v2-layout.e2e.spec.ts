@@ -1330,7 +1330,7 @@ test("client-v2-layout: Everything the header did", async ({
 
   // A second project, so there is one to switch back to
   await nav(page).getByRole("button", { name: "New project" }).click();
-  const gallery = page.locator("[data-gallery-modal]");
+  const gallery = page.locator("[data-new-project]");
   await expect(gallery).toBeVisible();
   await gallery.getByLabel("Project name").fill("second");
   await gallery.getByRole("button", { name: /^Start/ }).click();
@@ -1417,7 +1417,7 @@ test("client-v2-layout: Programs from the navigation", async ({
     page.getByRole("button", { name: /^Open / }).first()
   ).toBeVisible();
   await expect(item).toHaveAttribute("data-active", "true");
-  await expect(page.locator("[data-gallery-modal]")).toHaveCount(0);
+  await expect(page.locator("[data-new-project]")).toHaveCount(0);
   expect(await onlyLineOf(page, lines, "catalog_shown")).toContain("via: nav");
 });
 

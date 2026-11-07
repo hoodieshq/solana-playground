@@ -4,8 +4,8 @@ import { createTracker } from "@/shared/lib/telemetry";
 import type { ExampleRun } from "./example";
 
 export type HomeTile = "new-project" | "tutorials" | "programs";
-/** The tiles that open the Tutorials or Programs page; New project unfolds instead */
-export type PageTile = Exclude<HomeTile, "new-project">;
+/** Every tile opens a page: New project, Tutorials or Programs */
+export type PageTile = HomeTile;
 export type HomeQuickstart = "example" | "continue" | "new" | "tutorial";
 /** Which kind of "Pick up where you left off" row was opened; `current` went back to the work */
 export type HomeRecentKind = "project" | "tutorial" | "current";

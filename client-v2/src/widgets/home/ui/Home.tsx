@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import { useTutorialProgress } from "@/entities/tutorial";
 import { PgSession } from "@/features/auth";
-import { StartFromScratch } from "@/features/new-project";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer, PgTutorial } from "@/utils";
 
@@ -23,7 +22,7 @@ export interface HomeProps {
   onAsk: () => void;
   /** Go back to the project open under Home */
   onContinue: () => void;
-  /** Open the Tutorials or Programs page, in Home's place */
+  /** Open the New project, Tutorials or Programs page, in Home's place */
   onOpenPage: (page: PageTile) => void;
 }
 
@@ -115,11 +114,7 @@ const Home = ({ onAsk, onContinue, onOpenPage }: HomeProps) => {
       start={start}
       tutorials={PgTutorial.all}
       programCount={programCount}
-      scratch={<StartFromScratch />}
       onTile={openTile}
-      onNewProject={() =>
-        homeTelemetry.track("home_tile_opened", { tile: "new-project" })
-      }
       tutorialError={tutorialError}
       onTutorial={async (name) => {
         setTutorialError(undefined);

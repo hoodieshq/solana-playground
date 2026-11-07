@@ -11,7 +11,7 @@ import { useCardOpen } from "./use-card-open";
 import { useProgramList } from "./use-program-list";
 import { useTutorialList } from "./use-tutorial-list";
 
-/** New project's state, held by its dialog and drawn by `NewProject` */
+/** New project's state, held by its page and drawn by `NewProject` */
 export interface NewProjectState {
   /** Everything `BaseNewProject` takes but Start from scratch */
   view: Omit<BaseNewProjectProps, "scratch">;
@@ -19,18 +19,14 @@ export interface NewProjectState {
   busy: boolean;
   /** Start from scratch reports its own run here, so the cards wait on it */
   onStarting: (starting: boolean) => void;
-  /** Closes this dialog, if it is still open */
-  closeDialog: () => void;
+  /** Closes the page */
+  closePage: () => void;
 }
 
 /**
- * New project's state. Call it in the dialog's component, above its
- * `ModalFrame`: a dialog stacked on this one (an import's program picker)
- * remounts everything under the frame, and the Open that dialog belongs to
- * must still be known when it finishes. Whatever opens or starts from here
- * closes the dialog (`close`, which closes this dialog by its id and so
- * never another); a failure stays where it happened, or, once the dialog was
- * dismissed, comes up as a toast. One Open or Start at a time across both
+ * New project's state, held by its page. Whatever opens or starts from here
+ * closes the page (`close`). A failure stays where it happened, or comes up
+ * as a toast once the page was left. One Open or Start at a time across both
  * lists.
  */
 export const useNewProject = (
@@ -42,7 +38,7 @@ export const useNewProject = (
   const [query, setQuery] = useState("");
   const [starting, setStarting] = useState(false);
 
-  // Whether this dialog is still open: once it is dismissed, no card is left
+  // Whether the page still shows: once it is left, no card is left
   // to show a failure
   const open = useRef(true);
   useEffect(() => {
@@ -105,6 +101,6 @@ export const useNewProject = (
     },
     busy,
     onStarting: setStarting,
-    closeDialog: close,
+    closePage: close,
   };
 };

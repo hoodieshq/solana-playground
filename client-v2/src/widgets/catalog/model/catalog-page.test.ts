@@ -117,3 +117,12 @@ it("stops listening once unmounted", () => {
 
   expect(router.changed).toEqual([]);
 });
+
+it("opens New project as a page of its own, from the lesson band too", () => {
+  catalogPage.open("new-project", "lesson");
+
+  expect(catalogPage.current()).toBe("new-project");
+  expect(sent.events).toEqual([
+    { name: "catalog_shown", params: { page: "new-project", via: "lesson" } },
+  ]);
+});

@@ -72,16 +72,14 @@ vi.mock("@/features/new-project", () => ({
   ),
 }));
 
-import { catalogPage } from "../model/catalog-page";
 import type { CatalogPage } from "../model/telemetry";
 import { useNewProject } from "../model/use-new-project";
 import NewProjectView from "./NewProject";
 
-/** The dialog's component: it holds the state, as `NewWorkspaceModal` does */
-/** Closes the dialog New project sits in, as `NewWorkspaceModal` gives it */
+/** Closes the page New project is, as `NewProjectPage` gives it */
 const close = vi.fn();
 
-/** The dialog's component: it holds the state, as `NewWorkspaceModal` does */
+/** The page's component: it holds the state, as `NewProjectPage` does */
 const NewProject = ({ initialTab }: { initialTab?: CatalogPage }) => (
   <NewProjectView project={useNewProject(close, initialTab)} />
 );
@@ -240,7 +238,7 @@ it("counts programs it could not read as ? and offers Try again", async () => {
   ).toBeTruthy();
 });
 
-it("closes the dialog once a card opens, and only then", async () => {
+it("closes the page once a card opens, and only then", async () => {
   render(<NewProject />);
   const open = screen.getByRole("button", { name: "Open Hello Anchor" });
 
@@ -251,19 +249,6 @@ it("closes the dialog once a card opens, and only then", async () => {
 
   await act(async () => fireEvent.click(open));
   expect(close).toHaveBeenCalledTimes(1);
-});
-
-it("leaves the catalog's pages alone: it closes its dialog, not a page", async () => {
-  const pageClose = vi.spyOn(catalogPage, "close");
-  render(<NewProject />);
-
-  await act(async () =>
-    fireEvent.click(screen.getByRole("button", { name: "Open Hello Anchor" }))
-  );
-
-  expect(close).toHaveBeenCalledTimes(1);
-  expect(pageClose).not.toHaveBeenCalled();
-  pageClose.mockRestore();
 });
 
 it("keeps a failed program list off the Tutorials list", async () => {
@@ -317,7 +302,7 @@ it("holds every card while Start makes a project", async () => {
   await waitFor(() => expect(choice(/Programs/).textContent).toBe("Programs1"));
 });
 
-it("keeps the dialog for a cancelled import, and says nothing", async () => {
+it("keeps the page for a cancelled import, and says nothing", async () => {
   utils.PgGithub.import.mockRejectedValueOnce(new utils.ImportCancelledError());
   render(<NewProject initialTab="programs" />);
 
@@ -328,7 +313,7 @@ it("keeps the dialog for a cancelled import, and says nothing", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
-it("shows a failed import on its card and keeps the dialog", async () => {
+it("shows a failed import on its card and keeps the page", async () => {
   utils.PgGithub.import.mockRejectedValueOnce(new Error("Rate limited"));
   render(<NewProject initialTab="programs" />);
 
@@ -358,7 +343,7 @@ it("keeps one query for both lists and counts each list whole", async () => {
   expect(choice(/Programs/).textContent).toBe("Programs1");
 });
 
-it("toasts an Open that fails after the dialog was dismissed", async () => {
+it("toasts an Open that fails after the page was left", async () => {
   const open = held();
   utils.PgTutorial.open.mockReturnValueOnce(open.promise);
   const { unmount } = render(<NewProject />);
