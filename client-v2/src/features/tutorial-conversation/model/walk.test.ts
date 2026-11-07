@@ -224,6 +224,37 @@ const goalRunner = (d: TutorialDefinition): Runner => {
   };
 };
 
+/**
+ * The runner of a second pass with the same wallet: every call to an
+ * instruction that creates an account the act or goal names is refused by
+ * the System Program, since that account is already on devnet
+ */
+const secondPass = (runner: Runner): Runner => ({
+  ...runner,
+  run: async (act, input, onStage) => {
+    const { creates, call } = input;
+    if (
+      act !== "call" ||
+      !creates ||
+      call?.instruction !== creates.instruction
+    ) {
+      return runner.run(act, input, onStage);
+    }
+    return {
+      act: "call",
+      ok: false,
+      seconds: 1,
+      message: "custom program error: 0x0",
+      log: "",
+      refused: {
+        instruction: creates.instruction,
+        error: { code: 0, name: null },
+      },
+      exists: { instruction: creates.instruction, account: creates.account },
+    };
+  },
+});
+
 /** The call acts of steps whose goal is a refusal, by beat */
 const refusedCalls = (d: TutorialDefinition) =>
   d.steps.flatMap((s) =>
@@ -249,7 +280,7 @@ const expectTarget = (
 };
 
 /** Answers whatever the conversation waits on, until the finish */
-const walk = async (d: TutorialDefinition) => {
+const walk = async (d: TutorialDefinition, runner: Runner = goalRunner(d)) => {
   const workspace = memoryWorkspace(
     Object.assign({}, d.steps[0].start) as Record<string, string>
   );
@@ -258,7 +289,7 @@ const walk = async (d: TutorialDefinition) => {
   vi.mocked(PgTutorial).all = [{ name: d.name, definition: d }] as never;
   sub = PgConversation.init({
     workspace,
-    runner: goalRunner(d),
+    runner,
     judge: byKind,
   });
   await settle();
@@ -371,5 +402,20 @@ describe.each([
     }
     expect(logged.entries.filter((e) => e.level === "error")).toEqual([]);
     expect(PgView.setToast).not.toHaveBeenCalled();
+  });
+});
+
+describe("Counter Anchor, a second pass with the same wallet (HOO-2730)", () => {
+  it("goes past the counter that already exists and reaches increment", async () => {
+    const d = counter as unknown as TutorialDefinition;
+    await walk(d, secondPass(goalRunner(d)));
+
+    const saved = file[STORAGE_KEY] as {
+      passed: string[];
+      runs: Record<string, { status: string }[]>;
+    };
+    expect(saved.runs["s2.init"].map((r) => r.status)).toEqual(["refused"]);
+    expect(saved.runs["s2.inc"].map((r) => r.status)).toEqual(["ok"]);
+    expect(saved.passed).toEqual(d.steps.map((s) => s.id));
   });
 });

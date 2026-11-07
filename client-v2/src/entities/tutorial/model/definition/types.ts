@@ -156,7 +156,16 @@ export const argName = (arg: CallArg): string =>
 export type ActBeat =
   | (ActBase & {
       act: "call";
-      call: { instruction: string; args?: CallArg[] };
+      call: {
+        instruction: string;
+        args?: CallArg[];
+        /**
+         * The account `instruction` creates with Anchor's `init`, as the IDL
+         * names it: a call refused because it already exists (a second pass
+         * with the same wallet) moves the lesson on as if it had landed
+         */
+        creates?: string;
+      };
     })
   | (ActBase & { act: Exclude<Act, "call">; call?: never });
 
