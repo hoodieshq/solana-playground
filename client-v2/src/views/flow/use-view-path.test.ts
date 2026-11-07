@@ -74,24 +74,26 @@ it("puts Home picked from a tutorial on Home's own path, as a new entry", () => 
   expect(moves()).toEqual([]);
 
   rerender({ view: "home", homeVia: "nav" });
-  expect(moves()).toEqual([["/home", { replace: false }]]);
+  expect(moves()).toEqual([["/home"]]);
 });
 
-it("replaces `/` with Home's path when Home shows there by itself", () => {
-  render({ view: "home", homeVia: "start" });
-  expect(moves()).toEqual([["/home", { replace: true }]]);
-});
-
-it("hands `/` back to the work Home stood in for there, a lesson's too", () => {
+it("leaves Home that shows on `/` by itself there", () => {
   const { rerender } = render({ view: "home", homeVia: "start" });
-  router.location.pathname = "/home";
-  router.navigate.mockClear();
-  // Sync opens the account's newest project, a lesson
+  expect(moves()).toEqual([]);
+  // Sync opens the account's newest project, a lesson: `/` stays the work's
   explorer.currentWorkspaceName = "Lumberjack";
   tutorial.isWorkspaceTutorial.mockReturnValue(true);
   rerender({ view: "work" });
-  expect(moves()).toEqual([["/", { replace: true }]]);
+  expect(moves()).toEqual([]);
   expect(tutorial.open).not.toHaveBeenCalled();
+});
+
+it("goes back to `/` when a page over Home there by itself closes", () => {
+  const { rerender } = render({ view: "home", homeVia: "last-deleted" });
+  router.location.pathname = "/programs";
+  rerender({ view: "home", homeVia: "last-deleted", catalog: "programs" });
+  rerender({ view: "home", homeVia: "last-deleted", catalog: undefined });
+  expect(moves()).toEqual([["/"]]);
 });
 
 it("takes the work to its own path when Home was picked, not `/`", () => {
@@ -99,11 +101,11 @@ it("takes the work to its own path when Home was picked, not `/`", () => {
   explorer.currentWorkspaceName = "Lumberjack";
   tutorial.isWorkspaceTutorial.mockReturnValue(true);
   const { rerender } = render({ view: "home", homeVia: "start" });
-  router.location.pathname = "/home";
   rerender({ view: "work" });
-  router.navigate.mockClear();
   // The navigation's Home over the work, then the work again
   rerender({ view: "home", homeVia: "nav" });
+  expect(moves()).toEqual([["/home"]]);
+  router.location.pathname = "/home";
   rerender({ view: "work" });
   expect(tutorial.open).toHaveBeenCalledWith("Lumberjack");
 });
@@ -111,7 +113,7 @@ it("takes the work to its own path when Home was picked, not `/`", () => {
 it("keeps `/` as an entry when Home is picked over a project there", () => {
   const { rerender } = render({ view: "work" });
   rerender({ view: "home", homeVia: "nav" });
-  expect(moves()).toEqual([["/home", { replace: false }]]);
+  expect(moves()).toEqual([["/home"]]);
 });
 
 it("does nothing while the start is pending, or on the path already shown", () => {
@@ -138,7 +140,7 @@ it("goes back to Home's path when a page over Home closes", () => {
     catalog: "tutorials",
   });
   rerender({ view: "home", homeVia: "nav", catalog: undefined });
-  expect(moves()).toEqual([["/home", { replace: false }]]);
+  expect(moves()).toEqual([["/home"]]);
 });
 
 it("leaves Home for a tutorial's own route, its saved page with it", () => {

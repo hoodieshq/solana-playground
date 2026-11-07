@@ -44,10 +44,10 @@ test("client-v2-layout: Home after a tutorial has Home's address", async ({
   page,
 }) => {
   test.setTimeout(120_000);
-  // An empty install's Home replaces `/` with its own path
+  // An empty install's Home shows on `/` by itself, and stays there
   await page.goto("/");
   await expect(home(page)).toBeVisible(LONG);
-  await expect(page).toHaveURL(/\/home$/);
+  await expect(page).toHaveURL(/\/$/);
   await openLesson(page);
 
   await navItem(page, "Home").click();
@@ -112,7 +112,8 @@ test("Deleting the last project from a tutorial's page throws nothing", async ({
     .click();
 
   await expect(home(page)).toBeVisible(LONG);
-  await expect(page).toHaveURL(/\/home$/);
+  // The lesson's route goes to `/` by itself, and Home shows there
+  await expect(page).toHaveURL(/\/$/);
   // Past the route's and the explorer's own events
   await page.waitForTimeout(2000);
   expect(errors).toEqual([]);

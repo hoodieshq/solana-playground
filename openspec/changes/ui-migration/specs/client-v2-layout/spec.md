@@ -737,15 +737,17 @@ next project SHALL open in a filled editor.
 
 ### Requirement: Home, the pages and the work have their own addresses
 
-Home SHALL show on `/home`, the Tutorials and Programs pages on
-`/tutorials` and `/programs`, and the work on its project's path: a
-tutorial's route at its saved page, or `/` for any other project. Each view
-the user picks SHALL add one history entry, so Back and Forward move between
-them and show what each address names. Home arriving on `/` by itself (the
-start with no project, the last project deleted) SHALL replace `/` rather
-than add an entry. `/` itself SHALL go on resuming the project open last.
-A shared project (a docs link, a gist) SHALL keep its own address while Home
-or a page shows over it, since another route would drop its unsaved copy.
+Home picked in the navigation SHALL show on `/home`, the Tutorials and
+Programs pages on `/tutorials` and `/programs`, and the work on its
+project's path: a tutorial's route at its saved page, or `/` for any other
+project. Each view the user picks SHALL add one history entry, so Back and
+Forward move between them and show what each address names. Home that
+shows on `/` by itself (the start with no project, the last project
+deleted, Back to `/` with nothing open) SHALL stay on `/`, and the work that
+replaces it there SHALL stay on `/` too. `/` itself SHALL go on resuming the
+project open last. A shared project (a docs link, a gist) SHALL keep its
+own address while Home or a page shows over it, since another route would
+drop its unsaved copy.
 
 #### Scenario: Home after a tutorial has Home's address
 

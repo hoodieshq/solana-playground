@@ -40,10 +40,11 @@ const go = (move: () => Promise<void>) =>
  *
  * A path the user comes to (Back, Forward, a link, typed) opens or closes
  * the page it names, and `useStartView` shows or leaves Home for it; a view
- * the user picks then moves the path. Each pick is one history entry, but
- * Home's arrival on `/` by itself (the start, the last project deleted)
- * replaces `/`, which has nothing to show. A shared project's path is never
- * moved: it holds the only copy.
+ * the user picks then moves the path, one history entry each. Home that
+ * shows on `/` by itself (the start, the last project deleted, Back to `/`
+ * with nothing open) stays there: what `/` holds is not this hook's to
+ * change, and moving off it would run `/`'s route again. A shared project's
+ * path is never moved: it holds the only copy.
  */
 export const useViewPath = ({
   view,
@@ -68,8 +69,8 @@ export const useViewPath = ({
   // that navigates itself (a card's Open, a project's row) closes the page
   // after its path has already moved on
   const was = useRef<{ view: StartView; catalog?: CatalogPage }>(undefined);
-  // Whether `/home` replaced `/` (Home there by itself), until Home leaves
-  const stoodInForRoot = useRef(false);
+  // Home's path while it shows: `/` for Home there by itself, else its own
+  const homeAt = useRef<string | undefined>(undefined);
   useEffect(() => {
     const before = was.current;
     was.current = { view, catalog };
@@ -78,6 +79,10 @@ export const useViewPath = ({
     // another route would init the explorer again and drop it unsaved
     if (PgExplorer.isTemporary) return;
     const path = PgRouter.location.pathname;
+    if (view !== "home") homeAt.current = undefined;
+    else if (!homeAt.current) {
+      homeAt.current = path === "/" && homeVia !== "nav" ? "/" : HOME_PATH;
+    }
     if (catalog) {
       if (catalogPageOfPath(path) !== catalog) {
         go(() => PgRouter.navigate(pathOfCatalogPage(catalog)));
@@ -88,20 +93,10 @@ export const useViewPath = ({
     const closed = !!before?.catalog;
     if (closed && catalogPageOfPath(path) !== before.catalog) return;
     if (view === "home") {
-      if (isHomePath(path)) return;
+      const at = homeAt.current ?? HOME_PATH;
+      if (at === HOME_PATH ? isHomePath(path) : path === at) return;
       if (!closed && before?.view === "home" && !isStartPath(path)) return;
-      const replace = path === "/" && homeVia !== "nav";
-      stoodInForRoot.current = replace;
-      go(() => PgRouter.navigate(HOME_PATH, { replace }));
-      return;
-    }
-    // Home that took `/`'s place by itself hands it back to the work it
-    // gives way to (a project sync opened, one made here): the work was
-    // `/`'s, as before Home had a path
-    const handBack = stoodInForRoot.current && isHomePath(path);
-    stoodInForRoot.current = false;
-    if (handBack && PgExplorer.currentWorkspaceName) {
-      go(() => PgRouter.navigate("/", { replace: true }));
+      go(() => PgRouter.navigate(at));
       return;
     }
     // The work on a start path: back to the project's own, except on `/`,
