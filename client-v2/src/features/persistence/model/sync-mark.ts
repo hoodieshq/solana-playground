@@ -1,7 +1,11 @@
 // TODO(ui-migration 1.4): a feature importing a feature; marks are stored per signed-in account
 import { PgSession } from "@/features/auth";
 
-import { writeConfigFile } from "../../../utils/explorer/config-file";
+import {
+  removeConfigDir,
+  removeConfigFile,
+  writeConfigFile,
+} from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { Disposable } from "../../../utils/types";
 import { report } from "./diagnostics";
@@ -369,7 +373,7 @@ export class PgSyncMark {
 
       let gone = true;
       try {
-        await PgFs.removeFile(pathOf(userId, projectId));
+        await removeConfigFile(pathOf(userId, projectId));
       } catch (e) {
         if (!isMissing(e)) {
           gone = false;
@@ -452,7 +456,7 @@ export class PgSyncMark {
     if (!userId) return;
 
     try {
-      await PgFs.removeDir(dirFor(userId), { recursive: true });
+      await removeConfigDir(dirFor(userId));
     } catch (e) {
       if (!isMissing(e)) report("clear sync marks", e);
     }

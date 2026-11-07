@@ -1,7 +1,10 @@
 // TODO(ui-migration 1.4): a feature importing a feature; a claim is kept per signed-in account
 import { PgSession } from "@/features/auth";
 
-import { writeConfigFile } from "../../../utils/explorer/config-file";
+import {
+  removeConfigFile,
+  writeConfigFile,
+} from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import { isMissing, report } from "./diagnostics";
 
@@ -69,7 +72,7 @@ export class PgSyncClaim {
     if (!userId) return;
 
     try {
-      await PgFs.removeFile(pathOf(userId, projectId));
+      await removeConfigFile(pathOf(userId, projectId));
     } catch (e) {
       if (!isMissing(e)) report(`drop claim ${projectId}`, e);
     }
@@ -106,7 +109,7 @@ export class PgSyncClaim {
     try {
       for (const owner of await PgSyncClaim._owners()) {
         try {
-          await PgFs.removeFile(pathOf(owner, projectId));
+          await removeConfigFile(pathOf(owner, projectId));
         } catch (e) {
           if (!isMissing(e)) throw e;
         }

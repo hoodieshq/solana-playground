@@ -1,4 +1,9 @@
-import { renameConfigFile, writeConfigFile } from "./config-file";
+import {
+  removeConfigDir,
+  removeConfigFile,
+  renameConfigFile,
+  writeConfigFile,
+} from "./config-file";
 import { PgFs } from "./fs";
 
 const mock = PgFs as unknown as {
@@ -71,5 +76,35 @@ describe("writeConfigFile", () => {
 
     expect(flush).toHaveBeenCalledTimes(1);
     expect(mock.__files.get("/.config/g.json")).toBe("1");
+  });
+
+  it("flushes after a removal, so the file stays gone after a reload", async () => {
+    await writeConfigFile("/.config/h.json", "1");
+    const flush = vi.spyOn(PgFs, "flush");
+
+    await removeConfigFile("/.config/h.json");
+    mock.__reloadBeforeTreeSave();
+
+    expect(flush).toHaveBeenCalledTimes(1);
+    expect(await PgFs.exists("/.config/h.json")).toBe(false);
+  });
+
+  it("flushes after a folder removal, so nothing in it comes back", async () => {
+    await writeConfigFile("/.config/dir/i.json", "1");
+    const flush = vi.spyOn(PgFs, "flush");
+
+    await removeConfigDir("/.config/dir");
+    mock.__reloadBeforeTreeSave();
+
+    expect(flush).toHaveBeenCalledTimes(1);
+    expect(await PgFs.exists("/.config/dir")).toBe(false);
+  });
+
+  it("saves nothing when the removal fails", async () => {
+    vi.spyOn(PgFs, "removeFile").mockRejectedValueOnce(new Error("ENOENT"));
+    const flush = vi.spyOn(PgFs, "flush");
+
+    await expect(removeConfigFile("/.config/j.json")).rejects.toThrow("ENOENT");
+    expect(flush).not.toHaveBeenCalled();
   });
 });

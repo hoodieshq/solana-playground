@@ -1,4 +1,8 @@
-import { writeConfigFile } from "../../../utils/explorer/config-file";
+import {
+  removeConfigDir,
+  removeConfigFile,
+  writeConfigFile,
+} from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { ChatItem } from "../../../views/sidebar/assistant/store";
 import { decodeThread, encodeThread } from "./chat-codec";
@@ -174,7 +178,7 @@ export class PgChatStorage {
    */
   static async remove(threadId: string): Promise<boolean> {
     try {
-      await PgFs.removeFile(pathOf(threadId));
+      await removeConfigFile(pathOf(threadId));
       return true;
     } catch (e) {
       if (isMissing(e)) return true;
@@ -215,7 +219,7 @@ export class PgChatStorage {
   /** Drop every thread. Used on sign-out, after a successful final sync. */
   static async clear() {
     try {
-      await PgFs.removeDir(DIR, { recursive: true });
+      await removeConfigDir(DIR);
     } catch (e) {
       if (!isMissing(e)) report("clear", e);
     }

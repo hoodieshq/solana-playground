@@ -1,6 +1,9 @@
 import { createLogger } from "@/shared/lib/logger";
 
-import { writeConfigFile } from "../../utils/explorer/config-file";
+import {
+  removeConfigFile,
+  writeConfigFile,
+} from "../../utils/explorer/config-file";
 import { PgFs } from "../../utils/explorer/fs";
 
 const log = createLogger("commands:deploy");
@@ -98,7 +101,7 @@ export const recordOpenBuffer = async (buffer: OpenBuffer) => {
 /** Drop the record of `address`: the buffer is consumed or closed */
 export const forgetOpenBuffer = async (address: string) => {
   try {
-    await PgFs.removeFile(pathOf(address));
+    await removeConfigFile(pathOf(address));
   } catch (e) {
     if (isMissing(e)) return;
     log.error(e, { report: true, context: { action: "forget open buffer" } });

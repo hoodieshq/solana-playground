@@ -1,7 +1,10 @@
 // TODO(ui-migration 1.4): a feature importing a feature; bases are stored per signed-in account
 import { PgSession } from "@/features/auth";
 
-import { writeConfigFile } from "../../../utils/explorer/config-file";
+import {
+  removeConfigFile,
+  writeConfigFile,
+} from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import { report } from "./diagnostics";
 import type { BaseContents } from "./merge";
@@ -150,7 +153,7 @@ export class PgSyncBase {
     const userId = currentUserId();
     if (!userId) return;
     try {
-      await PgFs.removeFile(pathOf(userId, projectId));
+      await removeConfigFile(pathOf(userId, projectId));
     } catch (e) {
       if (!isMissing(e)) report(`clear sync base ${projectId}`, e);
     }

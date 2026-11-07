@@ -69,3 +69,30 @@ export const renameConfigFile = async (from: string, to: string) => {
   await PgFs.rename(from, to);
   await flushAfter("a rename", to);
 };
+
+/**
+ * Remove a file under `/.config` so that it stays gone after a reload.
+ *
+ * lightning-fs deletes the content at once but drops the file from its folder
+ * tree only when it saves the tree, so a reload before that leaves a ghost:
+ * the file exists and is listed, and reads as `undefined`. A ghost sync mark
+ * keeps its project out of `pushNeverSynced`. A removal that throws, a missing
+ * file among them, changed nothing and saves nothing.
+ *
+ * @param path full path of the file
+ */
+export const removeConfigFile = async (path: string) => {
+  await PgFs.removeFile(path);
+  await flushAfter("a removal", path);
+};
+
+/**
+ * Remove a folder under `/.config` and everything in it so that none of it
+ * comes back after a reload, as `removeConfigFile` explains.
+ *
+ * @param path full path of the folder
+ */
+export const removeConfigDir = async (path: string) => {
+  await PgFs.removeDir(path, { recursive: true });
+  await flushAfter("a removal", path);
+};

@@ -139,8 +139,13 @@ when a session reads a file matching the `paths` in the frontmatter.
   open-buffer record (HOO-2726).
   `writeConfigFile` flushes the tree when its write creates the file, and only
   then; a rename there goes through `renameConfigFile`, which flushes after it,
-  since a rename changes only the tree. The mock's `__reloadBeforeTreeSave`
-  drops what a flush has not saved and puts renamed files back. One exception:
+  since a rename changes only the tree. A removal goes through
+  `removeConfigFile` or `removeConfigDir`, which flush after it: lightning-fs
+  deletes the content at once, so a reload before the save leaves a ghost
+  that exists, is listed and reads as `undefined`, and a ghost sync mark keeps
+  its project out of `pushNeverSynced`. The mock's `__reloadBeforeTreeSave`
+  drops what a flush has not saved, puts renamed files back and turns removed
+  ones into ghosts. One exception:
   `PgExplorer._saveWorkspaces` writes `/.config/workspaces.json` itself and
   flushes after every write.
 - **Never do filesystem work per filesystem write.** The dirty flag is written

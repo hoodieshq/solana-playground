@@ -1,6 +1,7 @@
 import { isUuid, uuid } from "@/shared/lib/ids";
 
 import {
+  removeConfigFile,
   renameConfigFile,
   writeConfigFile,
 } from "../../../utils/explorer/config-file";
@@ -233,7 +234,7 @@ export class PgThreadIndex {
   static async clear() {
     PgThreadIndex.reload();
     try {
-      await PgFs.removeFile(INDEX_PATH);
+      await removeConfigFile(INDEX_PATH);
     } catch (e) {
       if (!isMissing(e)) report("clear index", e);
     }
