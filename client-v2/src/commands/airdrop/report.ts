@@ -33,8 +33,13 @@ export const isRateLimited = (error: unknown): boolean =>
     error.message
   );
 
-/** What the terminal says after a limit, with the web faucet filled in */
-export const rateLimitNote = (fill: FaucetLinkFill): string =>
-  `The RPC would not send this airdrop: it limits how much it sends. Request SOL from the web faucet instead: ${faucetLink(
+/**
+ * What the terminal says after a limit, with the web faucet filled in. Worded
+ * like the tutorial's airdrop card (HOO-2677): the user meets both.
+ */
+export const rateLimitNote = (fill: FaucetLinkFill): string => {
+  const faucet = fill.cluster ? `the ${fill.cluster} faucet` : "the faucet";
+  return `Airdrop refused: ${faucet} is at its limit for now. Get SOL from the web faucet instead: ${faucetLink(
     fill
   )}`;
+};

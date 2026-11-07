@@ -62,7 +62,15 @@ describe("rateLimitNote", () => {
     expect(note).toContain(
       "https://faucet.solana.com/?walletAddress=9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin&amount=5&cluster=devnet"
     );
-    // A drained faucet or a used-up daily cap reads the same: not "rate-limited"
-    expect(note).toMatch(/^The RPC would not send this airdrop/);
+    // The tutorial's airdrop card says it the same way (HOO-2677)
+    expect(note).toMatch(
+      /^Airdrop refused: the devnet faucet is at its limit for now\. Get SOL from the web faucet instead: /
+    );
+  });
+
+  it("names no cluster it does not know", () => {
+    expect(rateLimitNote({})).toMatch(
+      /^Airdrop refused: the faucet is at its limit for now\./
+    );
   });
 });
