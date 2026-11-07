@@ -6,4 +6,4 @@
 
 ## 2. The pages are history entries
 
-- [ ] 2.1 Keep `/new`, `/tutorials` and `/programs` in the address while their page shows, so Back, Forward and a reload follow the pages; the pages half of HOO-2689's model, without `/home` (HOO-2719). Plan: [plans/2.1-pages-history-entries.md](plans/2.1-pages-history-entries.md)
+- [x] 2.1 Keep `/new`, `/tutorials` and `/programs` in the address while their page shows, so Back, Forward and a reload follow the pages; the pages half of HOO-2689's model, without `/home` (HOO-2719). Plan: [plans/2.1-pages-history-entries.md](plans/2.1-pages-history-entries.md)
