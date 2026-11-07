@@ -978,7 +978,7 @@ if (import.meta.vitest) {
         ).toEqual([["p/src/lib.rs", "src/lib.rs"]]);
       });
 
-      it("never lets a zip's file climb out of the project", async () => {
+      it("keeps a zip's files inside the project", async () => {
         const blob = await zipOf(["../escape.rs", "/src/lib.rs"]);
         const read = await PgFramework.readImportFiles([
           zipFile("./p.zip", blob),

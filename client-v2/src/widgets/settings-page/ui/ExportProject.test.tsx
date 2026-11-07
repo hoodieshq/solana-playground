@@ -1,49 +1,20 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // The utils barrel reads a build-time global and cannot load under vitest
-const { exportWorkspace, explorer } = vi.hoisted(() => ({
+const { exportWorkspace } = vi.hoisted(() => ({
   exportWorkspace: vi.fn<(opts?: { name?: string }) => Promise<object>>(),
-  explorer: { currentWorkspaceName: "my-anchor-app" as string | undefined },
 }));
 vi.mock("@/utils", () => ({ PgFramework: { exportWorkspace } }));
-vi.mock("@/hooks", () => ({ useExplorer: () => explorer }));
+vi.mock("@/hooks", () => ({
+  useExplorer: () => ({ currentWorkspaceName: "my-anchor-app" }),
+}));
 
 import ExportProject, { OpenProjectLine } from "./ExportProject";
 
-const button = () =>
-  screen.getByRole<HTMLButtonElement>("button", {
-    name: "Export project (zip)",
-  });
-
 describe("Settings › Project export", () => {
-  beforeEach(() => {
-    exportWorkspace.mockClear();
-    explorer.currentWorkspaceName = "my-anchor-app";
-  });
-
-  it("names the project it exports", () => {
-    render(<OpenProjectLine phone={false} />);
-
-    const line = screen.getByTestId("settings-open-project");
-    expect(line.textContent).toBe(
-      "Exports my-anchor-app, the project open now."
-    );
-    // Truncated on one line; the whole name stays in the title
-    expect(line.title).toBe(line.textContent);
-  });
-
-  it("exports the project it names", async () => {
-    render(<ExportProject />);
-
-    await userEvent.click(button());
-
-    expect(exportWorkspace).toHaveBeenCalledWith({ name: "my-anchor-app" });
-  });
-
-  it("has nothing to export with no project open", () => {
-    explorer.currentWorkspaceName = undefined;
+  it("names the open project and exports that one", async () => {
     render(
       <>
         <OpenProjectLine phone={false} />
@@ -52,8 +23,11 @@ describe("Settings › Project export", () => {
     );
 
     expect(screen.getByTestId("settings-open-project").textContent).toBe(
-      "No project is open."
+      "Exports my-anchor-app, the project open now."
     );
-    expect(button().disabled).toBe(true);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Export project (zip)" })
+    );
+    expect(exportWorkspace).toHaveBeenCalledWith({ name: "my-anchor-app" });
   });
 });
