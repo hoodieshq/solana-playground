@@ -135,11 +135,14 @@ when a session reads a file matching the `paths` in the frontmatter.
   (`utils/explorer/config-file.ts`), never a bare `PgFs.writeFile`.
   lightning-fs saves its folder tree 500 ms after the last write, so a reload
   inside that window loses a file just created: the chat thread, the thread
-  index, a sync mark, base or claim, the assistant's tool config (HOO-2726).
+  index, a sync mark, base or claim, the assistant's tool config, a deploy's
+  open-buffer record (HOO-2726).
   `writeConfigFile` flushes the tree when its write creates the file, and only
   then; a rename there goes through `renameConfigFile`, which flushes after it,
   since a rename changes only the tree. The mock's `__reloadBeforeTreeSave`
-  drops what a flush has not saved and puts renamed files back.
+  drops what a flush has not saved and puts renamed files back. One exception:
+  `PgExplorer._saveWorkspaces` writes `/.config/workspaces.json` itself and
+  flushes after every write.
 - **Never do filesystem work per filesystem write.** The dirty flag is written
   at most once per debounce window. Writing the flag per write put a read on
   the same lightning-fs queue as the writes that triggered it and made

@@ -1,5 +1,6 @@
 import { createLogger } from "@/shared/lib/logger";
 
+import { writeConfigFile } from "../../utils/explorer/config-file";
 import { PgFs } from "../../utils/explorer/fs";
 
 const log = createLogger("commands:deploy");
@@ -88,9 +89,7 @@ export const listOpenBuffers = async (): Promise<OpenBuffer[]> => {
  */
 export const recordOpenBuffer = async (buffer: OpenBuffer) => {
   try {
-    await PgFs.writeFile(pathOf(buffer.address), JSON.stringify(buffer), {
-      createParents: true,
-    });
+    await writeConfigFile(pathOf(buffer.address), JSON.stringify(buffer));
   } catch (e) {
     log.error(e, { report: true, context: { action: "record open buffer" } });
   }
