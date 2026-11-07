@@ -121,23 +121,22 @@ if (import.meta.vitest) {
 
     it("leads each shipped tutorial's finish to the next of the Start here ladder", () => {
       // The finish card, its "What should I build next?" chip and Home's
-      // Start here name one tutorial after each lesson; the last names none
+      // Start here name one tutorial after each lesson; the last names none.
+      // A conversation tutorial off the ladder fails here until it is placed
+      const ladder: string[] = START_LADDER.map((l) => l.name);
       const listed = definitionTutorials([]);
-      const finishOf = (name: string) =>
-        listed.find((t) => t.name === name)?.definition?.finish;
-      START_LADDER.forEach((lesson, i) => {
-        const after = START_LADDER[i + 1];
-        const finish = finishOf(lesson.name);
-        expect(finish?.next).toBe(after ? slugOf(after.name) : null);
+      expect(listed.map((t) => t.name).sort()).toEqual(ladder.slice().sort());
+      for (const t of listed) {
+        const after = ladder[ladder.indexOf(t.name) + 1];
+        const finish = t.definition?.finish;
+        expect(finish?.next ?? undefined).toBe(after && slugOf(after));
         const chip = finish?.chips.find((c) => c.follow === "nextTutorial");
         if (after) {
-          expect(chip?.answer).toMatch(
-            new RegExp(`^${after.name} is a good next one: `)
-          );
+          expect(chip?.answer).toMatch(new RegExp(`^${after} is a good next`));
         } else {
           expect(chip).toBeUndefined();
         }
-      });
+      }
     });
 
     it("lists Zero Copy under Advanced, in four steps", () => {
