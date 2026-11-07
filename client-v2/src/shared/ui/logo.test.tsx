@@ -38,7 +38,7 @@ describe("LogoPlay", () => {
 describe("LogoLockupMark", () => {
   it("draws the lockup's mark and none of its words", () => {
     const paths = (svg: Element | null) =>
-      [...requireFor("an svg")(svg).querySelectorAll("path")].map((p) =>
+      Array.from(requireFor("an svg")(svg).querySelectorAll("path"), (p) =>
         p.getAttribute("d")
       );
     const lockup = paths(render(<LogoLockup />).container.firstElementChild);
