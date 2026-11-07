@@ -132,6 +132,12 @@ export interface AssistantWide {
   setWide: (wide: boolean) => boolean;
   /** Whether `setWide` can do anything now, so Widen is offered only then */
   canWiden: boolean;
+  /**
+   * The assistant is the right Sheet (under Home, and below
+   * `LAYOUT_BREAKPOINTS.compact`), not the column at the left, so its
+   * collapse points right
+   */
+  inSheet: boolean;
 }
 
 export interface BaseLayoutShellProps {
@@ -408,6 +414,7 @@ const BaseLayoutShell = (props: BaseLayoutShellProps) => {
     wide: wideFrom !== null,
     setWide,
     canWiden: !wideEnds,
+    inSheet: home !== undefined || props.viewport === "compact",
   });
 
   // Hidden, the files column is not in the group at all (design.md, "Frame

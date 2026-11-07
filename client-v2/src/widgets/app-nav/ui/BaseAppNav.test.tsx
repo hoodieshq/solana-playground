@@ -121,6 +121,36 @@ it("on a phone, heads the menu with the logo and a close, not a collapse", () =>
   expect(onToggle).toHaveBeenCalledOnce();
 });
 
+it("takes the logo to Home, in the column and at the head of the phone's menu", () => {
+  const onOpen = vi.fn();
+  draw(false, onOpen);
+  fireEvent.click(screen.getByRole("button", { name: "Go to Home" }));
+  expect(onOpen).toHaveBeenLastCalledWith("home");
+
+  render(
+    <TooltipProvider>
+      <SidebarProvider>
+        <BaseAppNav
+          phone
+          collapsed={false}
+          onToggle={vi.fn()}
+          onOpen={onOpen}
+          logo={<span>phone logo</span>}
+          projects={null}
+          footer={null}
+          railFooter={null}
+          setup={null}
+        />
+      </SidebarProvider>
+    </TooltipProvider>
+  );
+  const phoneLogo = screen.getByText("phone logo").closest("button");
+  expect(phoneLogo?.getAttribute("aria-label")).toBe("Go to Home");
+  fireEvent.click(phoneLogo!);
+  expect(onOpen).toHaveBeenCalledTimes(2);
+  expect(onOpen).toHaveBeenLastCalledWith("home");
+});
+
 it("draws the way to a computer only on a phone, in its own group above Get set up", () => {
   const nav = (phone: boolean) => (
     <TooltipProvider>

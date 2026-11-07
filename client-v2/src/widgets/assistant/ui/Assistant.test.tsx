@@ -133,7 +133,7 @@ const setup = () => {
     <TooltipProvider>
       <FakeConnect />
       <Assistant
-        widen={{ wide: false, setWide, canWiden: true }}
+        widen={{ wide: false, setWide, canWiden: true, inSheet: false }}
         onHide={onHide}
         openConnect={turn.openConnect}
       />

@@ -567,11 +567,12 @@ const LayoutShell = ({
       ? () => onShare(shareName)
       : undefined;
 
-  // The bar names the project while the assistant is out of view, since its
-  // head cannot; under Home it names Home, as the phone's bar does
-  let barTitle: string | null = null;
-  if (homeShown) barTitle = homeTitle;
-  else if (!assistantShown) barTitle = PgExplorer.currentWorkspaceName ?? null;
+  // The bar names the project whether the assistant shows or not: the
+  // assistant's head names the model, so a toggle that took the name away
+  // left the work unnamed. Under Home it names Home, as the phone's bar does
+  const barTitle = homeShown
+    ? homeTitle
+    : PgExplorer.currentWorkspaceName ?? null;
 
   return (
     <BaseLayoutShell
@@ -692,7 +693,7 @@ const LayoutShell = ({
           else setOpen("console", { open: !state.open.console, via: "button" });
         },
       })}
-      assistant={({ wide, setWide, canWiden }) =>
+      assistant={({ wide, setWide, canWiden, inSheet }) =>
         assistant({
           open: assistantShown,
           toggle: () => setAssistant(!assistantShown, "button"),
@@ -707,6 +708,7 @@ const LayoutShell = ({
             return changed;
           },
           canWiden,
+          inSheet,
         })
       }
       cover={
