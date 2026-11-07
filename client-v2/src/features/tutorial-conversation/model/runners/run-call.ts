@@ -111,7 +111,7 @@ export class NoSuchInstructionError extends Error {
 const MISMATCH_CODES = new Set([101, 102]);
 
 const mismatched = (result: TxResult): TxResult =>
-  result.ok || result.reason === "no_funds"
+  result.ok || result.reason === "no_funds" || result.reason === "unconfirmed"
     ? result
     : { ...result, message: MISMATCH, mismatch: true };
 
