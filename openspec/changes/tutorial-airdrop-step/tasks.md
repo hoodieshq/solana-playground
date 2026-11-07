@@ -7,7 +7,7 @@ memory provider.
 ## 1. Airdrop step
 
 - [x] 1.1 Definition: `airdrop` in the act union, the schema, and `check.ts`
-      (no `call`; an airdrop must come before the first deploy act), with
+      (no `call`; an airdrop must come before every deploy act since the last), with
       tests (HOO-2677; after nothing; plan:
       [plans/1-airdrop-step.md](plans/1-airdrop-step.md))
 - [x] 1.2 The runner: an airdrop runner over the deploy port, built on
@@ -22,3 +22,8 @@ memory provider.
       say beats that promise an automatic airdrop, and the rule in
       `AUTHORING.md`. Update the e2e `passStepTwo` and the
       `tutorial-flow-v2` spec paragraphs (HOO-2677; after 1.1)
+- [x] 1.5 Silent later airdrops (designers, 7 Nov): a later airdrop act stays
+      hidden while the funded check is out and never shows when funded; a
+      reload onto an interrupted or refused card checks again; the deploy's
+      own short-wallet line points to the faucet without saying it is at its
+      limit. View, store and card tests (HOO-2677; after 1.3)

@@ -43,13 +43,13 @@ place on a line SHALL show the log, with no line link.
 A deploy act SHALL deploy the last successful build to devnet through the BPF
 upgradeable loader, paid by the learner's Playground wallet. Its stages are
 "Writing buffer", "Deploying" and "Confirming". "Building" comes before them
-when the program changed since the last build, and "Funding your wallet" first
-of all when the balance is short; "n of m" counts every stage shown, three to
-five. The IDL does not go on chain yet: Anchor 1.x publishes it through the
+when the program changed since the last build; "n of m" counts every stage
+shown, three or four. There is no "Funding your wallet" stage: the deploy
+never funds the wallet (change `tutorial-airdrop-step`, HOO-2677). The IDL does not go on chain yet: Anchor 1.x publishes it through the
 Program Metadata Program, which Playground does not call, and nothing in a
 tutorial reads it from the chain (Slava, 3 Nov; a follow-up ticket brings the
 stage back). The first deploy SHALL write the program id into `declare_id!` and light
-that line. Before the first deploy:
+that line. A deploy that cannot be paid for:
 
 - **No wallet:** the deploy SHALL run nothing and post a red result card,
   "No wallet", with the line "A deploy pays from a Playground wallet. Create
@@ -58,21 +58,21 @@ that line. Before the first deploy:
   option: a tutorial deploys from the Playground wallet, never an
   extension's.
 - **Too little balance:** the deploy SHALL NOT fund the wallet. The airdrop
-  act before the lesson's first deploy does, with no sign-in (change
-  `tutorial-airdrop-step`, HOO-2677). A deploy that still finds the wallet
-  short, on the estimate before the build or on the real binary, SHALL run
-  nothing and post the red result card "Not enough devnet SOL", and the act
-  card has no "Funding your wallet" stage.
+  act before every deploy act does, with no sign-in, and passes by itself
+  when the wallet already holds enough (change `tutorial-airdrop-step`,
+  HOO-2677). A deploy that still finds the wallet short, on the estimate
+  before the build or on the real binary, SHALL stop before writing the
+  buffer and post the red result card "Not enough devnet SOL".
 - **Not enough devnet SOL:** the card is red like a failed build, with the
   line "Your wallet has {balance} SOL, and this deploy needs about {cost}
-  SOL. The devnet faucet is at its limit for now: try again in a minute, or
-  top the wallet up yourself." Under it sit "Your wallet" with the short
-  address and Copy, and "Open faucet", which opens `https://faucet.solana.com`
-  in a new tab. The card has no Try again, and the act that hit it draws no
+  SOL. Get devnet SOL from the faucet, or top the wallet up yourself." Under
+  it sit "Your wallet" with the short address and Copy, and "Open faucet",
+  which opens `https://faucet.solana.com` in a new tab. The card has no Try again, and the act that hit it draws no
   record over it: a live deploy act card follows it, "Checks your balance
   again, then deploys" with the button "Try again" (Almaz's prototype, 3
-  Nov). A refused airdrop posts the same card, followed by its own live card,
-  "Asks the faucet again". A deploy that failed otherwise draws no record
+  Nov). A refused airdrop posts the same card, whose line ends "The devnet
+  faucet is at its limit for now: try again in a minute, or top the wallet up
+  yourself.", followed by its own live card, "Asks the faucet again". A deploy that failed otherwise draws no record
   either and gets the same Try again card with the act's own line. Typing
   "deploy" in the composer retries too.
 
@@ -110,8 +110,8 @@ Explorer on the devnet cluster in a new tab.
 
 - **WHEN** a learner with a new wallet and 0 SOL presses "Request airdrop",
   then Deploy, on Hello Anchor's step 2
-- **THEN** the airdrop card lands with "Added 2 SOL", and the deploy card
-  shows its three deploy stages to "3 of 3", with no "Funding your wallet"
+- **THEN** the airdrop card lands with "Added {amount} SOL", and the deploy
+  card shows its three deploy stages to "3 of 3", with no "Funding your wallet"
 - **AND** the result's details link the program and the deploy's
   transaction to `https://explorer.solana.com/...?cluster=devnet`
 
@@ -275,8 +275,8 @@ parameters:
 
 - `tutorial`: the slug;
 - `step`: 1 to 6;
-- `action`: `build`, `deploy`, `build_deploy`, `run`, `call` (the call act)
-  or `call_panel` (a Call panel call);
+- `action`: `airdrop`, `build`, `deploy`, `build_deploy`, `run`, `call` (the
+  call act) or `call_panel` (a Call panel call);
 - `outcome`: `ok`, `failed`, `interrupted`, `no_wallet`, `no_funds` or
   `unconfirmed` (sent, devnet has not read it back yet);
 - `seconds`: the run's duration.
@@ -286,5 +286,5 @@ key or the wallet's secret.
 
 #### Scenario: A refused airdrop (manual)
 
-- **WHEN** a deploy stops because the airdrop was refused
-- **THEN** `tutorial_action_run` reaches the memory provider with `action: "deploy"` and `outcome: "no_funds"`
+- **WHEN** the faucet refuses the airdrop act before a deploy
+- **THEN** `tutorial_action_run` reaches the memory provider with `action: "airdrop"` and `outcome: "no_funds"`

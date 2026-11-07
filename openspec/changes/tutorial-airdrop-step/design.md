@@ -63,8 +63,8 @@ result. The engine runs an act only when it is pressed: the reducer emits a
   on the real binary. The airdrop card still funds for the estimate.
 - **Higher deploy cost after the airdrop.** If the binary outgrows the
   estimate, the deploy can still stop on "Not enough devnet SOL" right after
-  a successful airdrop. Mitigation: `FEE_HEADROOM` and the faucet's 2 SOL
-  rounding (`airdropTopUp`) leave margin. The retry card explains the next
+  a successful airdrop. Mitigation: `FEE_HEADROOM` and the airdrop's
+  rounding up (`airdropTopUp`) leave margin. The retry card explains the next
   move.
 - **A reload races the auto-press.** A reload while the balance read is in
   flight must not press twice. The auto-press goes through the same
