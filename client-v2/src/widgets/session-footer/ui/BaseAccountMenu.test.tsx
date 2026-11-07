@@ -249,7 +249,11 @@ it("shows a connected wallet and offers to disconnect it", async () => {
 });
 
 it("keeps a large balance and the address on one line each", async () => {
-  await open(view({ wallet: { ...WALLET, balance: 940000 } }));
+  await open(
+    view({
+      wallet: { address: WALLET.address, balance: 940000, name: null },
+    })
+  );
   const balance = screen.getByText("940000.00 SOL");
   expect(balance.classList).toContain("whitespace-nowrap");
   expect(balance.classList).toContain("shrink-0");
