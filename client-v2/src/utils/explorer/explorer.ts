@@ -1094,15 +1094,15 @@ export class PgExplorer {
 
   /**
    * The current workspace's metadata file, read from state at once: its full
-   * path and content, or `null` when there is nothing to save (see
+   * path and content, or nothing when there is nothing to save (see
    * `saveMeta`). Taken before the current workspace changes, it still saves
    * the one being left.
    */
   private static _metaOfCurrent() {
-    if (this.isTemporary) return null;
+    if (this.isTemporary) return;
 
     const paths = Object.keys(this.files);
-    if (!paths.length) return null;
+    if (!paths.length) return;
 
     // Nothing is current, so there is nowhere for this to go. `deleteWorkspace`
     // removes the workspace from state and only then moves to another one, so
@@ -1118,11 +1118,11 @@ export class PgExplorer {
     // The file map at that point holds the deleted workspace's paths, so the
     // check below is what would have rejected them anyway.
     const workspacePath = this.getCurrentWorkspacePath();
-    if (!workspacePath) return null;
+    if (!workspacePath) return;
     const isInvalidState = paths.some(
       (path) => !path.startsWith(workspacePath)
     );
-    if (isInvalidState) return null;
+    if (isInvalidState) return;
 
     const metaFile = paths
       .reduce((acc, path) => {
