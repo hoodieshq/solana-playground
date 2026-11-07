@@ -46,11 +46,32 @@ function DialogOverlay({
   );
 }
 
+/** What Tab can land on inside a dialog, in document order */
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Shift+Tab from the dialog's own frame, which holds focus after a click on
+ * its body: the trap only wraps from the first control, so from the frame the
+ * key went nowhere. It goes to the last control instead.
+ */
+const shiftTabFromFrame = (ev: React.KeyboardEvent<HTMLDivElement>) => {
+  const frame = ev.currentTarget;
+  if (ev.key !== "Tab" || !ev.shiftKey || ev.target !== frame) return;
+  const last = Array.from(frame.querySelectorAll<HTMLElement>(TABBABLE))
+    .filter((el) => el.checkVisibility?.() ?? true)
+    .at(-1);
+  if (!last) return;
+  ev.preventDefault();
+  last.focus();
+};
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
   ref,
+  onKeyDown,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
@@ -63,9 +84,13 @@ function DialogContent({
         ref={releaseFocus}
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
+        onKeyDown={(ev) => {
+          onKeyDown?.(ev);
+          if (!ev.defaultPrevented) shiftTabFromFrame(ev);
+        }}
         {...props}
       >
         {children}
