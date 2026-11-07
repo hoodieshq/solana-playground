@@ -4,6 +4,23 @@ import { PgFs } from "./fs";
 const log = createLogger("explorer:config-file");
 
 /**
+ * Save the folder tree after a change to it under `/.config`.
+ *
+ * A failed flush is reported here and does not fail the change: the content
+ * landed, and lightning-fs's own debounced save tries again, so only a reload
+ * in the next 500 ms is at risk. It is logged here rather than through the
+ * persistence slice's diagnostics, which this module, below the layers, cannot
+ * import; `report: true` still sends it to Sentry.
+ */
+const flushAfter = async (change: string, path: string) => {
+  try {
+    await PgFs.flush();
+  } catch (e) {
+    log.error(e, { context: { path, change }, report: true });
+  }
+};
+
+/**
  * Write a file the app keeps outside any workspace, under `/.config`, so that
  * a file it creates survives a reload.
  *
@@ -16,24 +33,39 @@ const log = createLogger("explorer:config-file");
  * flushed, this asks whether the file exists, because the stores that use it
  * also remove their files, and a removed file's next write creates it again.
  *
- * A failed flush is reported here and does not fail the write: the content
- * landed, only its survival of a reload in the next 500 ms is at risk.
+ * Two first writes of one path that overlap both flush, which costs a tree
+ * rewrite and loses nothing.
  *
  * @param path full path of the file
  * @param data file content
  */
 export const writeConfigFile = async (path: string, data: string) => {
-  // Both started in this tick, so the write keeps its place among the writes
-  // callers start without awaiting (`PgThreadIndex._mint`), and the check,
-  // queued first, still sees the file as it was
-  const [existed] = await Promise.all([
-    PgFs.exists(path),
-    PgFs.writeFile(path, data, { createParents: true }),
-  ]);
-  if (existed) return;
-  try {
-    await PgFs.flush();
-  } catch (e) {
-    log.error(e, { report: true });
-  }
+  // Started before the write, so the stat is queued ahead of it and sees the
+  // file as it was. A check that fails cannot tell, so the write flushes.
+  const existed = PgFs.exists(path).catch((e) => {
+    log.warn("Could not tell whether a config file exists; saving the tree", {
+      context: { path, error: e },
+    });
+    return false;
+  });
+  await PgFs.writeFile(path, data, { createParents: true });
+  if (await existed) return;
+  await flushAfter("creating a file", path);
+};
+
+/**
+ * Rename a file under `/.config` so that the new name survives a reload.
+ *
+ * A rename changes only the folder tree, so a reload before lightning-fs
+ * saves it brings the file back under its old name, while whatever was
+ * written meanwhile to point at the new name (`PgThreadIndex`'s map) is
+ * already stored. Saved right after the rename, before the caller writes
+ * that pointer.
+ *
+ * @param from full path the file has now
+ * @param to full path it moves to
+ */
+export const renameConfigFile = async (from: string, to: string) => {
+  await PgFs.rename(from, to);
+  await flushAfter("a rename", to);
 };

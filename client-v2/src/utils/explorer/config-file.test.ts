@@ -1,4 +1,4 @@
-import { writeConfigFile } from "./config-file";
+import { renameConfigFile, writeConfigFile } from "./config-file";
 import { PgFs } from "./fs";
 
 const mock = PgFs as unknown as {
@@ -50,5 +50,26 @@ describe("writeConfigFile", () => {
       writeConfigFile("/.config/d.json", "1")
     ).resolves.toBeUndefined();
     expect(mock.__files.get("/.config/d.json")).toBe("1");
+  });
+
+  it("writes and flushes when it cannot tell whether the file exists", async () => {
+    vi.spyOn(PgFs, "exists").mockRejectedValueOnce(new Error("idb closed"));
+    const flush = vi.spyOn(PgFs, "flush");
+
+    await writeConfigFile("/.config/e.json", "1");
+
+    expect(mock.__files.get("/.config/e.json")).toBe("1");
+    expect(flush).toHaveBeenCalledTimes(1);
+  });
+
+  it("flushes after a rename, so the new name survives a reload", async () => {
+    await writeConfigFile("/.config/f.json", "1");
+    const flush = vi.spyOn(PgFs, "flush");
+
+    await renameConfigFile("/.config/f.json", "/.config/g.json");
+    mock.__reloadBeforeTreeSave();
+
+    expect(flush).toHaveBeenCalledTimes(1);
+    expect(mock.__files.get("/.config/g.json")).toBe("1");
   });
 });

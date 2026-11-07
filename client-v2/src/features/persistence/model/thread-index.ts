@@ -1,6 +1,9 @@
 import { isUuid, uuid } from "@/shared/lib/ids";
 
-import { writeConfigFile } from "../../../utils/explorer/config-file";
+import {
+  renameConfigFile,
+  writeConfigFile,
+} from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import { PgChatStorage } from "./chat-storage";
 import { report } from "./diagnostics";
@@ -189,7 +192,7 @@ export class PgThreadIndex {
 
       const fresh = uuid();
       try {
-        await PgFs.rename(pathOf(threadId), pathOf(fresh));
+        await renameConfigFile(pathOf(threadId), pathOf(fresh));
       } catch (e) {
         // An entry with no file yet is an empty conversation, which the new
         // workspace starts with anyway
@@ -205,7 +208,7 @@ export class PgThreadIndex {
       // left under the new one it has no entry, and the next load's
       // migration adopts it as a workspace named after the thread
       try {
-        await PgFs.rename(pathOf(fresh), pathOf(threadId));
+        await renameConfigFile(pathOf(fresh), pathOf(threadId));
       } catch (e) {
         if (!isMissing(e)) report(`carry ${from} back`, e);
       }
@@ -364,7 +367,7 @@ export class PgThreadIndex {
       // the name looks like
       const threadId = uuid();
       try {
-        await PgFs.rename(`${DIR}/${name}`, pathOf(threadId));
+        await renameConfigFile(`${DIR}/${name}`, pathOf(threadId));
       } catch (e) {
         report(`migrate ${id}`, e);
         continue;
