@@ -1259,6 +1259,7 @@ if (import.meta.vitest) {
           view(repeating(), stateOf({ beat: 1, runs: [run] }), {
             now: 99999,
             loadedAt: 0,
+            probing: [],
           }).turns.find((t) => t.id === "fix:s1.grow:0");
         expect(offerOf(failed(true))).toMatchObject({
           kind: "say",
