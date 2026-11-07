@@ -12,7 +12,7 @@ import { PgCommon } from "../common";
 import { isStopped } from "../stopped";
 import type { ClassReturnType, Methods, SyncOrAsync } from "../types";
 import { PgAutocomplete } from "./autocomplete";
-import { fitBuffersTable } from "./buffers-table";
+import { fitBuffersTableWith } from "./buffers-table";
 import { confirmReply, confirmSuffix } from "./confirm";
 import { PgHistory } from "./history";
 import { lineTone, processErrorLine, toneWith } from "./line-error";
@@ -491,11 +491,11 @@ export class PgTerm {
 
   /**
    * Print what a WASM package logs; the buffers table solana-cli prints is
-   * first laid out for the terminal's width (see {@link fitBuffersTable}).
+   * first laid out for the terminal's width (see {@link fitBuffersTableWith}).
    * Called through `PgTerminal.logWasm`, not directly.
    */
   printlnWasm(msg: any) {
-    this.println(fitBuffersTable(msg, this._tty.size.cols));
+    this.println(fitBuffersTableWith(this._tty.size.cols)(msg));
   }
 
   /**
