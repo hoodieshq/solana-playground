@@ -56,6 +56,9 @@ export interface FlowState {
   /** Whether the open project has a program to build. Without one, only the
    * Write stage is offered (`stagesOf`). */
   hasProgram: boolean;
+  /** Whether the `airdrop` command is running, for the console strip. It
+   * funds the wallet, not the project, so a project switch keeps it. */
+  airdropping: boolean;
 }
 
 /**
@@ -86,6 +89,8 @@ export type FlowEvent =
   /** The person stopped the deploy before its last step: the program on
    * chain is as it was, and the stage goes back to where it was */
   | { type: "deploy-stop" }
+  | { type: "airdrop-start" }
+  | { type: "airdrop-finish" }
   | { type: "set-stage"; stage: Stage }
   | { type: "workspace-change" }
   /** What the open project's files say: whether `src/` holds a program */
@@ -112,6 +117,7 @@ export const INITIAL_FLOW_STATE: FlowState = {
   stopped: null,
   // Nothing hides until the explorer has answered
   hasProgram: true,
+  airdropping: false,
 };
 
 /** Every stage; `stagesOf` gives the ones the open project offers */
@@ -286,7 +292,15 @@ export class PgFlow {
         // The previous project's answer holds until `_readProgram` gives the
         // new one: a reset to "has a program" would flash the stages, and
         // move a phone off the preview a project with no program shows
-        return { ...INITIAL_FLOW_STATE, hasProgram: state.hasProgram };
+        return {
+          ...INITIAL_FLOW_STATE,
+          hasProgram: state.hasProgram,
+          airdropping: state.airdropping,
+        };
+      case "airdrop-start":
+        return state.airdropping ? state : { ...state, airdropping: true };
+      case "airdrop-finish":
+        return state.airdropping ? { ...state, airdropping: false } : state;
       case "restore": {
         // Seeds only forward: a stage the live session has already moved
         // off `upcoming` knows more about this run than the workspace's
@@ -380,6 +394,12 @@ export class PgFlow {
           ok: !("err" in result),
         });
       }),
+      PgCommand.airdrop.onDidStart(() =>
+        PgFlow._dispatch({ type: "airdrop-start" })
+      ),
+      PgCommand.airdrop.onDidFinish(() =>
+        PgFlow._dispatch({ type: "airdrop-finish" })
+      ),
       PgExplorer.onDidSwitchWorkspace(() => {
         PgFlow._dispatch({ type: "workspace-change" });
         // After the reset, which keeps the previous project's answer only
