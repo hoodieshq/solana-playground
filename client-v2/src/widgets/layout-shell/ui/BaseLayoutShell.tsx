@@ -161,12 +161,11 @@ export interface TutorialNavState {
  * console. In it the stage holds the tutorial's workspace (task 2.2: its
  * head, tree and line states) and the console is its drawer, at its own
  * height and never saved as the split. The stage bar, the stage tabs and the
- * assistant are not drawn;
- * the stage and the console are the same outlets, so nothing remounts on the
- * way in or out. The owner shows its chat the same way: `chat` and
- * `phone.chat` are Outlets for one node. Only on the work screen of a wide window; narrower windows
- * draw `phone` on the work screen when it is given, and under a page the
- * pager or the compact frame.
+ * assistant are not drawn; the stage and the console are the same outlets,
+ * so nothing remounts on the way in or out. The owner shows its chat the
+ * same way: `chat` and `phone.chat` are Outlets for one node. Only on the
+ * work screen of a wide window; narrower windows draw `phone` on the work
+ * screen when it is given, and under a page the pager or the compact frame.
  */
 export interface TutorialFrameSlot {
   /** The chat column, which holds its own width */
