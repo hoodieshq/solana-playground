@@ -147,8 +147,8 @@ test("keyboard: Alt+W typed in the composer leaves the editor's tab open", async
   await page.getByRole("textbox", { name: "Message the assistant" }).focus();
   await page.keyboard.press("Alt+w");
   await expect(page.locator(TAB)).toHaveCount(1);
-  // The same key from the editor closes it, so the field is what kept it
-  await page.locator(".monaco-editor textarea").first().focus();
+  // The same key outside any field closes it, so the field is what kept it
+  await page.evaluate(() => (document.activeElement as HTMLElement).blur());
   await page.keyboard.press("Alt+w");
   await expect(page.locator(TAB)).toHaveCount(0);
 });
