@@ -34,10 +34,18 @@ export interface BaseAppNavProps {
    * the prototype draws it, and there is no rail to fold to
    */
   phone?: boolean;
-  /** The rail: icons only, no logo or project list, `railFooter` for `footer` */
+  /**
+   * The rail: icons only, `railLogo` for `logo`, no project list,
+   * `railFooter` for `footer`
+   */
   collapsed: boolean;
   onToggle: () => void;
   logo: ReactNode;
+  /**
+   * The trimmed logo heading the rail, as the prototype draws it: pressing it
+   * expands the navigation, so the rail needs no collapse icon of its own
+   */
+  railLogo: ReactNode;
   /** The project list, under the items; the rail has no room for it */
   projects: ReactNode;
   /**
@@ -58,7 +66,8 @@ export interface BaseAppNavProps {
 
 /**
  * The logo opens Home, as on most sites: `onOpen("home")`, as the Home item
- * does. The rail draws no logo; its Home item is the way there
+ * does. The rail's logo expands the navigation instead; its Home item is the
+ * way there
  */
 const HomeLogo = ({
   logo,
@@ -81,6 +90,7 @@ const BaseAppNav = ({
   collapsed,
   onToggle,
   logo,
+  railLogo,
   projects,
   handoff,
   footer,
@@ -109,22 +119,47 @@ const BaseAppNav = ({
         </Button>
       </SidebarHeader>
     ) : (
-      // 6 above, not the kit's 8, so the logo and the toggle centre on the
-      // 44 px bars beside the nav. TODO(design-system): the kit's header
-      <SidebarHeader className="pt-1.5">
-        <div className="flex items-center justify-between gap-2">
-          {!collapsed && <HomeLogo logo={logo} onOpen={onOpen} />}
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+      // 44 tall in both states, the height of the bars beside the nav, so
+      // the first row starts at one y whether it is folded or not.
+      // TODO(design-system): the kit's header
+      <SidebarHeader className="h-11 shrink-0 justify-center py-0">
+        {collapsed ? (
+          // The prototype's rail head (`RailBrand`): the trimmed logo, which
+          // turns into the fold glyph when pointed at or focused, as the
+          // open column's collapse button wears it. Not the kit's Button,
+          // which shrinks any svg without a size to 16 px
+          <button
+            type="button"
+            aria-label="Expand navigation"
+            title="Expand navigation (⌘B)"
             onClick={onToggle}
-            // As the stage bar's icons: a 32 px square, 18 px at 1.6
-            className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+            className="group/rail-logo relative mx-auto grid size-9 place-items-center rounded-lg text-foreground transition-colors outline-none hover:bg-sidebar-accent focus-visible:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none"
           >
-            <PanelLeft className="size-[18px]" strokeWidth={1.6} />
-          </Button>
-        </div>
+            <span className="grid place-items-center transition-opacity duration-120 group-hover/rail-logo:opacity-0 group-focus-visible/rail-logo:opacity-0 motion-reduce:transition-none">
+              {railLogo}
+            </span>
+            <PanelLeft
+              aria-hidden
+              className="absolute inset-0 m-auto size-[18px] text-muted-foreground opacity-0 transition-opacity duration-120 group-hover/rail-logo:opacity-100 group-focus-visible/rail-logo:opacity-100 motion-reduce:transition-none"
+              strokeWidth={1.6}
+            />
+          </button>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <HomeLogo logo={logo} onOpen={onOpen} />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Collapse navigation"
+              title="Collapse navigation (⌘B)"
+              onClick={onToggle}
+              // As the stage bar's icons: a 32 px square, 18 px at 1.6
+              className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+            >
+              <PanelLeft className="size-[18px]" strokeWidth={1.6} />
+            </Button>
+          </div>
+        )}
       </SidebarHeader>
     )}
     <SidebarContent>

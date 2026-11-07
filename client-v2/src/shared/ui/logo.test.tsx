@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { requireFor } from "@/test-utils/require-for";
 
-import { LogoMark, LogoPlay } from "./logo";
+import { LogoLockup, LogoLockupMark, LogoMark, LogoPlay } from "./logo";
 
 /** The subpaths of every path an svg draws, each from its `M` */
 const subpaths = (svg: Element) =>
@@ -32,5 +32,18 @@ describe("LogoPlay", () => {
 
     expect(play).toEqual(mark.slice(2));
     ring.forEach((edge) => expect(play).not.toContain(edge));
+  });
+});
+
+describe("LogoLockupMark", () => {
+  it("draws the lockup's mark and none of its words", () => {
+    const paths = (svg: Element | null) =>
+      [...requireFor("an svg")(svg).querySelectorAll("path")].map((p) =>
+        p.getAttribute("d")
+      );
+    const lockup = paths(render(<LogoLockup />).container.firstElementChild);
+    const mark = paths(render(<LogoLockupMark />).container.firstElementChild);
+
+    expect(mark).toEqual(lockup.slice(0, 1));
   });
 });

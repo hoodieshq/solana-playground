@@ -34,6 +34,7 @@ const draw = (collapsed: boolean, onOpen = vi.fn(), onToggle = vi.fn()) => {
           onToggle={onToggle}
           onOpen={onOpen}
           logo={<span>logo</span>}
+          railLogo={<span>rail logo</span>}
           projects={<span>projects</span>}
           footer={<span>footer</span>}
           railFooter={<span>rail footer</span>}
@@ -69,9 +70,10 @@ it("shows the logo, project list and footer when open, not the rail's", () => {
   expect(screen.queryByText("rail footer")).toBeNull();
 });
 
-it("swaps the logo, project list and footer for the rail's footer when collapsed, keeping the items", () => {
+it("swaps the logo, project list and footer for the rail's when collapsed, keeping the items", () => {
   draw(true);
   expect(screen.queryByText("logo")).toBeNull();
+  expect(screen.getByText("rail logo")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Go to Home" })).toBeNull();
   expect(screen.queryByText("projects")).toBeNull();
   expect(screen.queryByText("footer")).toBeNull();
@@ -89,10 +91,13 @@ it("names the toggle for what it will do", () => {
   expect(onToggle).toHaveBeenCalledTimes(1);
 });
 
-it("offers to expand a collapsed navigation", () => {
+it("expands a collapsed navigation from the trimmed logo, with no collapse icon beside it", () => {
   const onToggle = vi.fn();
   draw(true, vi.fn(), onToggle);
-  fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
+  const expand = screen.getByRole("button", { name: "Expand navigation" });
+  expect(expand.textContent).toBe("rail logo");
+  expect(screen.getAllByRole("button", { name: /navigation/ })).toHaveLength(1);
+  fireEvent.click(expand);
   expect(onToggle).toHaveBeenCalledTimes(1);
 });
 
@@ -107,6 +112,7 @@ it("on a phone, heads the menu with the logo and a close, not a collapse", () =>
           onToggle={onToggle}
           onOpen={vi.fn()}
           logo={<span>logo</span>}
+          railLogo={<span>rail logo</span>}
           projects={<span>projects</span>}
           footer={<span>footer</span>}
           railFooter={<span>rail footer</span>}
@@ -138,6 +144,7 @@ it("takes the logo to Home, in the column and at the head of the phone's menu", 
           onToggle={vi.fn()}
           onOpen={onOpen}
           logo={<span>phone logo</span>}
+          railLogo={undefined}
           projects={undefined}
           footer={undefined}
           railFooter={undefined}
@@ -165,6 +172,7 @@ it("draws the way to a computer only on a phone, in its own group above Get set 
           onToggle={vi.fn()}
           onOpen={vi.fn()}
           logo={<span>logo</span>}
+          railLogo={<span>rail logo</span>}
           projects={<span>projects</span>}
           handoff={<span>handoff</span>}
           footer={<span>footer</span>}
