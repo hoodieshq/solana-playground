@@ -70,7 +70,10 @@ export interface RunPort {
   /** A sent transaction once confirmed, or null when it never was */
   landed(signature: string): Promise<Landed | null>;
   /** An account's bytes and fields now, if it exists, decoded by `idl` */
-  fetchAccount(address: string, idl?: Idl): Promise<AccountData | undefined>;
+  fetchAccount(
+    address: string,
+    idl: Idl | undefined
+  ): Promise<AccountData | undefined>;
   /**
    * The wire transaction's instructions to the program, decoded by its IDL;
    * `undecoded` when one of them could not be

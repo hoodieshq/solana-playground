@@ -132,7 +132,7 @@ const landedOnDevnet = async (signature: string): Promise<Landed | null> => {
 /** An account with the fields the deployed IDL decodes, if it decodes */
 const fetchOnDevnet = async (
   address: string,
-  deployed?: Idl
+  deployed: Idl | undefined
 ): Promise<AccountData | undefined> => {
   // A node behind the landing answers null for an account just created
   let info = null;
@@ -170,7 +170,7 @@ const sendCall = async (
   // since then must not change what is sent
   const idl = deployed ?? PgProgramInfo.callableIdl();
   // No IDL at all is the tutorial's fault, not the learner's code: it fails
-  // as itself and is reported, never as a mismatch
+  // with its own message, never as a mismatch
   if (!idl) throw new Error("There is no IDL to call this program with.");
   const idlIx = idl.instructions.find((ix) =>
     sameIdlName(ix.name, call.instruction)

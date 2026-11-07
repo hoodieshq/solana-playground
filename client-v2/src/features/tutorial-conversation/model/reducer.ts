@@ -1798,10 +1798,8 @@ if (import.meta.vitest) {
       ).default as unknown as TutorialDefinition;
       // Without its shipped IDLs, so a deploy keeps the IDL it brought; the
       // shipped ones are "a tutorial that ships its IDL"
-      hello = {
-        ...shipped,
-        steps: shipped.steps.map(({ idl: _idl, ...step }) => step),
-      };
+      hello = structuredClone(shipped);
+      for (const step of hello.steps) delete step.idl;
       judgeGoal = (await import("./goals")).judgeGoal;
     });
 
@@ -2773,21 +2771,26 @@ if (import.meta.vitest) {
             },
           ],
         });
-        const shipping = (): EngineContext => ({
-          ...ctx(),
-          definition: {
-            ...hello,
-            steps: hello.steps.map((st, i) =>
-              i === 0 ? { ...st, idl: SHIPPED } : st
-            ),
-          },
-        });
+        const shipping = (): EngineContext => {
+          const definition = structuredClone(hello);
+          definition.steps[0].idl = SHIPPED;
+          return {
+            definition,
+            slug: "hello-anchor",
+            judge: (_goal, result) => result.ok,
+          };
+        };
         const playIn = (c: EngineContext, actions: Action[]) =>
           actions.reduce(
             (st, a) => reduce(c, st, a).state,
             INITIAL_ENGINE_STATE
           );
-        const BARE_BUILD: RunResult = { ...OK_BUILD, instructions: [] };
+        const BARE_BUILD: RunResult = {
+          act: "build",
+          ok: true,
+          seconds: 1.6,
+          instructions: [],
+        };
         const toDeploy: Action[] = [
           start,
           rightPick,
@@ -2797,10 +2800,8 @@ if (import.meta.vitest) {
           { type: "skip", beatId: "s2.q2", at: 9100 },
           { type: "act", beatId: "s2.deploy", at: 9200 },
         ];
-        const landedDeploy = (idl?: Idl): Action => ({
-          type: "ended",
-          beatId: "s2.deploy",
-          result: {
+        const landedDeploy = (idl?: Idl): Action => {
+          const result: RunResult = {
             act: "deploy",
             ok: true,
             seconds: 3,
@@ -2809,10 +2810,10 @@ if (import.meta.vitest) {
             upgraded: false,
             lamports: 1,
             instructions: [],
-            ...(idl ? { idl } : {}),
-          },
-          at: 9900,
-        });
+          };
+          if (idl) result.idl = idl;
+          return { type: "ended", beatId: "s2.deploy", result, at: 9900 };
+        };
         const names = (p: ConversationProgress) =>
           p.deployed?.idl.instructions.map((ix) => ix.name);
 
@@ -2836,16 +2837,18 @@ if (import.meta.vitest) {
         });
 
         it("keeps it on a landed deploy, whatever IDL the build returned", () => {
-          const noIdl = playIn(shipping(), [...toDeploy, landedDeploy()]);
+          const noIdl = playIn(shipping(), toDeploy.concat(landedDeploy()));
           expect(names(noIdl.progress)).toEqual(["hello"]);
-          const built = playIn(shipping(), [
-            ...toDeploy,
-            landedDeploy({
-              version: "0.1.0",
-              name: "other",
-              instructions: [{ name: "bye", accounts: [], args: [] }],
-            } as Idl),
-          ]);
+          const built = playIn(
+            shipping(),
+            toDeploy.concat(
+              landedDeploy({
+                version: "0.1.0",
+                name: "other",
+                instructions: [{ name: "bye", accounts: [], args: [] }],
+              } as Idl)
+            )
+          );
           expect(names(built.progress)).toEqual(["hello"]);
         });
 

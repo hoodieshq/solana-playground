@@ -78,7 +78,9 @@ if (import.meta.vitest) {
 
   const definitionWith = (...idls: (string | undefined)[]) =>
     ({
-      steps: idls.map((idl, i) => ({ id: `s${i}`, ...(idl ? { idl } : {}) })),
+      steps: idls.map((idl, i) =>
+        idl ? { id: `s${i}`, idl } : { id: `s${i}` }
+      ),
     } as unknown as TutorialDefinition);
 
   const at = (stepId: string): Cursor => ({

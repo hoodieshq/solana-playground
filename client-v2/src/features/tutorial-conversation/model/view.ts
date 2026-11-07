@@ -1140,15 +1140,37 @@ if (import.meta.vitest) {
           status: "failed",
           at: 2000,
           took: 500,
+          result: mismatch
+            ? {
+                act: "call",
+                ok: false,
+                seconds: 1,
+                message: MISMATCH,
+                log: "",
+                mismatch: true,
+              }
+            : {
+                act: "call",
+                ok: false,
+                seconds: 1,
+                message: "Simulation failed.",
+                log: "",
+              },
+        });
+        const fixed: RunRecord = {
+          status: "failed",
+          at: 2000,
+          took: 500,
+          fixedAt: 3000,
           result: {
             act: "call",
             ok: false,
             seconds: 1,
-            message: mismatch ? MISMATCH : "Simulation failed.",
+            message: MISMATCH,
             log: "",
-            ...(mismatch ? { mismatch: true as const } : {}),
+            mismatch: true,
           },
-        });
+        };
         const offerOf = (run: RunRecord) =>
           view(repeating(), stateOf({ beat: 1, runs: [run] }), {
             now: 99999,
@@ -1159,9 +1181,7 @@ if (import.meta.vitest) {
           text: MISMATCH_OFFER,
           follow: { kind: "showFix", done: false },
         });
-        expect(
-          offerOf({ ...failed(true), fixedAt: 3000 } as RunRecord)
-        ).toMatchObject({
+        expect(offerOf(fixed)).toMatchObject({
           follow: { kind: "showFix", done: true },
         });
         expect(offerOf(failed(false))).toBeUndefined();
@@ -2188,9 +2208,14 @@ if (import.meta.vitest) {
       ).toBe("It ran, but this step isn't done yet.");
       expect(
         whyRefused(goalOf(2), {
-          ...ran(null, []),
+          act: "run",
+          ok: true,
+          seconds: 1,
+          signatures: ["sig"],
+          line: null,
+          called: [],
           undecoded: true,
-        } as RunResult)
+        })
       ).toBe(MISMATCH);
     });
 
