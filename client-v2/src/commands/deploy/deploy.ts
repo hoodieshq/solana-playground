@@ -448,9 +448,7 @@ const processDeploy = async (
   const closeSigner = async (): Promise<Wallet> => {
     if (!standardWallet) return pgWallet;
     try {
-      const account = await bufferConnection.getAccountInfo(
-        bufferKp.publicKey
-      );
+      const account = await bufferConnection.getAccountInfo(bufferKp.publicKey);
       const named = account?.data.slice(5, 37);
       const holder = [standardWallet, pgWallet].find((w) =>
         named?.equals(w.publicKey.toBuffer())
@@ -576,7 +574,9 @@ const processDeploy = async (
     isBufferSettled = true;
     const left = await closeOrKeep("close the buffer after a failed load");
     if (left.state !== "kept") {
-      PgTerminal.println(`${heading} ${PgTerminal.success("Reclaim successful.")}`);
+      PgTerminal.println(
+        `${heading} ${PgTerminal.success("Reclaim successful.")}`
+      );
       return loadError;
     }
     return new Error(`${toError(loadError).message} ${bufferLeftLine(left)}`, {

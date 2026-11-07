@@ -402,9 +402,7 @@ export const PgCustomRpcs = {
     const list = readStored();
     if (!list) return undefined;
     if (CHIPS.some((r) => r.url === check.url)) {
-      const local = ADOPTED_CHIPS.find(
-        (c) => normalised(c.url) === check.url
-      );
+      const local = ADOPTED_CHIPS.find((c) => normalised(c.url) === check.url);
       const respell =
         local &&
         local.url !== endpoint &&

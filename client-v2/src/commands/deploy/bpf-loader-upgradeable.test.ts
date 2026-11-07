@@ -141,9 +141,9 @@ describe("BpfLoaderUpgradeable", () => {
 
       const used = connectionsUsed() as { rpcEndpoint: string }[];
       expect(used.length).toBeGreaterThan(0);
-      expect(
-        used.every((c) => c.rpcEndpoint === theDeploys.rpcEndpoint)
-      ).toBe(true);
+      expect(used.every((c) => c.rpcEndpoint === theDeploys.rpcEndpoint)).toBe(
+        true
+      );
     }
   );
 

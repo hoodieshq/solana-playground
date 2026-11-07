@@ -64,16 +64,18 @@ export const buildEndpointOptions = (
         .filter((c) => !c.isOffered)
         .map((c) => ({ key: c.key, url: c.url })),
     ],
-  "server.endpoint": [
-    // First, so a profile on the configured server follows the env even
-    // when the env names a listed one -- production sets it to the
-    // Foundation's (`Dockerfile`). A listed option picked by hand that
-    // equals it follows the env too; it was the default anyway.
-    ...(configuredServer ? [{ key: "configured", url: configuredServer }] : []),
-    { key: "foundation", url: FOUNDATION_ENDPOINT },
-    { key: "local", url: LOCAL_ENDPOINT },
-    // No `solpg` (api.solpg.io): a profile stored under that key reads as
-    // the default, like any key whose option is gone (`fromStoredEndpoints`)
+    "server.endpoint": [
+      // First, so a profile on the configured server follows the env even
+      // when the env names a listed one -- production sets it to the
+      // Foundation's (`Dockerfile`). A listed option picked by hand that
+      // equals it follows the env too; it was the default anyway.
+      ...(configuredServer
+        ? [{ key: "configured", url: configuredServer }]
+        : []),
+      { key: "foundation", url: FOUNDATION_ENDPOINT },
+      { key: "local", url: LOCAL_ENDPOINT },
+      // No `solpg` (api.solpg.io): a profile stored under that key reads as
+      // the default, like any key whose option is gone (`fromStoredEndpoints`)
     ],
   };
 };
@@ -433,7 +435,10 @@ if (import.meta.vitest) {
       });
 
       it("keys the build server the env configures, and follows it", () => {
-        const configured = buildEndpointOptions(networks({}), "https://build.test/a");
+        const configured = buildEndpointOptions(
+          networks({}),
+          "https://build.test/a"
+        );
         const stored = JSON.parse(
           JSON.stringify(
             toStoredEndpoints(
@@ -444,7 +449,10 @@ if (import.meta.vitest) {
         );
 
         expect(at(stored, "server.endpoint")).toEqual({ option: "configured" });
-        const moved = buildEndpointOptions(networks({}), "https://build.test/b");
+        const moved = buildEndpointOptions(
+          networks({}),
+          "https://build.test/b"
+        );
         expect(
           fromStoredEndpoints(stored, defaults, moved).server.endpoint
         ).toBe("https://build.test/b");
@@ -466,7 +474,10 @@ if (import.meta.vitest) {
       it("stores the configured build server as `configured` even when it is a listed one", () => {
         // Production sets REACT_APP_SERVER_URL to the Foundation's server
         // (`Dockerfile`); a profile on it must follow the env when it moves
-        const configured = buildEndpointOptions(networks({}), FOUNDATION_ENDPOINT);
+        const configured = buildEndpointOptions(
+          networks({}),
+          FOUNDATION_ENDPOINT
+        );
         const stored = JSON.parse(
           JSON.stringify(
             toStoredEndpoints(
@@ -477,14 +488,20 @@ if (import.meta.vitest) {
         );
 
         expect(at(stored, "server.endpoint")).toEqual({ option: "configured" });
-        const moved = buildEndpointOptions(networks({}), "https://build.test/new");
+        const moved = buildEndpointOptions(
+          networks({}),
+          "https://build.test/new"
+        );
         expect(
           fromStoredEndpoints(stored, defaults, moved).server.endpoint
         ).toBe("https://build.test/new");
       });
 
       it("falls back to the default build server when its stored option is gone", () => {
-        const configured = buildEndpointOptions(networks({}), "https://build.test/a");
+        const configured = buildEndpointOptions(
+          networks({}),
+          "https://build.test/a"
+        );
         const stored = JSON.parse(
           JSON.stringify(
             toStoredEndpoints(
