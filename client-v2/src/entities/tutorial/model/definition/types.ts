@@ -162,7 +162,8 @@ export type ActBeat =
         /**
          * The account `instruction` creates with Anchor's `init`, as the IDL
          * names it: a call refused because it already exists (a second pass
-         * with the same wallet) moves the lesson on as if it had landed
+         * with the same wallet) is recorded refused, its card says so, and the
+         * lesson goes on to the next beat; the step still passes only on its goal
          */
         creates?: string;
       };

@@ -634,6 +634,17 @@ const ruleErrors = (
           });
         });
         const { creates } = beat.call;
+        // An existing account moves the lesson on to the next beat, so one
+        // must follow, or a second pass ends on this card with nothing live
+        const beats = step.beats.includes(beat)
+          ? step.beats
+          : step.onFail ?? [];
+        if (creates !== undefined && beats.at(-1) === beat) {
+          errors.push({
+            path: `${at}.call.creates`,
+            message: "a beat after this card to go on to, found none",
+          });
+        }
         const accounts =
           creates === undefined
             ? undefined
@@ -1357,6 +1368,24 @@ if (import.meta.vitest) {
         expect(lines(creating("player"))).toEqual([]);
         expect(lines(creating("map"))).toEqual([
           'steps[1].beats[0].call.creates: an account of `hello` in the step\'s IDL, found "map"',
+        ]);
+      });
+
+      it("rejects a call act's `creates` on the last card, with nothing to go on to", () => {
+        const d = minimal();
+        d.steps[1].beats = [
+          {
+            kind: "act",
+            id: "s2.call",
+            act: "call",
+            title: "Call",
+            context: "Sends hello",
+            button: "Call",
+            call: { instruction: "hello", creates: "player" },
+          },
+        ];
+        expect(lines(d)).toEqual([
+          "steps[1].beats[0].call.creates: a beat after this card to go on to, found none",
         ]);
       });
 

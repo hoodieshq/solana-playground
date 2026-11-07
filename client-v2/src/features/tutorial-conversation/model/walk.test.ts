@@ -41,6 +41,7 @@ import lumberjackCustomErrors from "../../../tutorials/lumberjack/docs/custom-er
 import lumberjackPdas from "../../../tutorials/lumberjack/docs/pdas.md";
 import lumberjackSysvarAccounts from "../../../tutorials/lumberjack/docs/sysvar-accounts.md";
 import lumberjack from "../../../tutorials/lumberjack/tutorial.json";
+import zeroCopy from "../../../tutorials/zero-copy/tutorial.json";
 import { PgExplorer } from "../../../utils/explorer/explorer";
 import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
@@ -224,19 +225,28 @@ const goalRunner = (d: TutorialDefinition): Runner => {
   };
 };
 
+/** The beats of call acts that name the account their own call creates */
+const ownCreates = (d: TutorialDefinition): Set<string> =>
+  new Set(
+    d.steps.flatMap((s) =>
+      s.beats
+        .filter(
+          (b): b is ActBeat =>
+            b.kind === "act" && b.act === "call" && b.call.creates !== undefined
+        )
+        .map((b) => b.id)
+    )
+  );
+
 /**
- * The runner of a second pass with the same wallet: every call to an
- * instruction that creates an account the act or goal names is refused by
- * the System Program, since that account is already on devnet
+ * The runner of a second pass with the same wallet: a call act's own
+ * one-time call is refused by the System Program, since the account it
+ * creates is already on devnet. Goals' `creates` are `goals.ts`'s to judge.
  */
-const secondPass = (runner: Runner): Runner => ({
+const secondPass = (d: TutorialDefinition, runner: Runner): Runner => ({
   run: async (act, input, onStage) => {
-    const { creates, call } = input;
-    if (
-      act !== "call" ||
-      !creates ||
-      call?.instruction !== creates.instruction
-    ) {
+    const { creates } = input;
+    if (act !== "call" || !creates || !ownCreates(d).has(input.beatId)) {
       return runner.run(act, input, onStage);
     }
     return {
@@ -404,10 +414,10 @@ describe.each([
   });
 });
 
-describe("Counter Anchor, a second pass with the same wallet (HOO-2730)", () => {
+describe("A second pass with the same wallet (HOO-2730)", () => {
   it("goes past the counter that already exists and reaches increment", async () => {
     const d = counter as unknown as TutorialDefinition;
-    await walk(d, secondPass(goalRunner(d)));
+    await walk(d, secondPass(d, goalRunner(d)));
 
     const saved = file[STORAGE_KEY] as {
       passed: string[];
@@ -415,6 +425,18 @@ describe("Counter Anchor, a second pass with the same wallet (HOO-2730)", () => 
     };
     expect(saved.runs["s2.init"].map((r) => r.status)).toEqual(["refused"]);
     expect(saved.runs["s2.inc"].map((r) => r.status)).toEqual(["ok"]);
+    expect(saved.passed).toEqual(d.steps.map((s) => s.id));
+  });
+
+  it("goes past Zero Copy's big map that already exists and reaches paint", async () => {
+    const d = zeroCopy as unknown as TutorialDefinition;
+    await walk(d, secondPass(d, goalRunner(d)));
+
+    const saved = file[STORAGE_KEY] as {
+      passed: string[];
+      runs: Record<string, { status: string }[]>;
+    };
+    expect(saved.runs["s4.create"].map((r) => r.status)).toEqual(["refused"]);
     expect(saved.passed).toEqual(d.steps.map((s) => s.id));
   });
 });

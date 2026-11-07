@@ -569,7 +569,7 @@ const ownCreatesOf = (beat: ActBeat): RunInput["creates"] =>
     : undefined;
 
 /** The failed run found the account the act's own call creates already there */
-const existsOwn = (beat: ActBeat, result: RunResult): boolean => {
+const hasOwnAccountThere = (beat: ActBeat, result: RunResult): boolean => {
   const own = ownCreatesOf(beat);
   const exists = existsOf(result);
   return (
@@ -1299,7 +1299,8 @@ const reduceAction = (
       // The account the act's own one-time call creates was already there (a
       // second pass with the same wallet): nothing to fix, so the lesson goes
       // on as if it had landed, and the step still waits on its goal
-      const existed = !result.ok && !refused && existsOwn(beat, result);
+      const isExisting =
+        !result.ok && !refused && hasOwnAccountThere(beat, result);
       const measured = actionRunOf(
         {
           slug: ctx.slug,
@@ -1312,7 +1313,7 @@ const reduceAction = (
       let record: RunRecord;
       if (result.ok) {
         record = { status: "ok", at: run.at, took, result };
-      } else if (refused || existed) {
+      } else if (refused || isExisting) {
         record = { status: "refused", at: run.at, took, result };
       } else if (isPlannedFailure(step, p.cursor, result)) {
         record = { status: "failed", at: run.at, took, result, planned: true };
@@ -1330,7 +1331,7 @@ const reduceAction = (
         result
       );
       const cleared: EngineState = { progress: recorded, stage: null };
-      if (!result.ok && !refused && !existed) {
+      if (!result.ok && !refused && !isExisting) {
         return withEffect(same(cleared), measured);
       }
       if (
@@ -4992,6 +4993,23 @@ if (import.meta.vitest) {
             ],
             { kind: "call", instruction: "increment" }
           ),
+          // The act's own account and the goal's, on one step
+          step(
+            "both",
+            [
+              {
+                kind: "act",
+                id: "s5.init",
+                act: "call",
+                title: "Init",
+                context: "Sends initialize",
+                button: "Init",
+                call: { instruction: "initialize", creates: "counter" },
+              },
+              act("s5.inc", "increment", undefined, "Increment"),
+            ],
+            { kind: "call", instruction: "increment", creates: "tally" }
+          ),
         ],
         finish: {
           headline: "Done",
@@ -5234,7 +5252,7 @@ if (import.meta.vitest) {
           expect(progress.passed).not.toContain("count");
         });
 
-        it("then passes the step on the goal's own call", () => {
+        it("passes the step on the goal's own call that follows", () => {
           const { progress } = run(
             [
               press("s4.init", 2000),
@@ -5246,6 +5264,31 @@ if (import.meta.vitest) {
           );
           expect(progress.passed).toContain("count");
           expect(progress.times.count?.reason).toBeUndefined();
+        });
+
+        it("stays failed on an existing account its call does not name", () => {
+          const other = refusedInit({
+            instruction: "initialize",
+            account: "config",
+            address: "Config1",
+          });
+          const { progress } = run(
+            [press("s4.init", 2000), ended("s4.init", 2000, other)],
+            at(5)
+          );
+          expect(progress.runs["s4.init"]?.[0]?.status).toBe("failed");
+          expect(progress.beats["s4.inc"]).toBeUndefined();
+        });
+
+        it("sends its own account over one the goal creates", () => {
+          const { effects } = run([press("s5.init", 2000)], at(6));
+          expect(effects).toContainEqual(
+            expect.objectContaining({
+              input: expect.objectContaining({
+                creates: { instruction: "initialize", account: "counter" },
+              }),
+            })
+          );
         });
 
         it("stays failed and posts nothing on any other refusal", () => {
