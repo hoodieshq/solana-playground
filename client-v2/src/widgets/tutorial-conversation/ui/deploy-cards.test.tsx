@@ -140,7 +140,7 @@ describe("BaseDeployResultCard", () => {
     expect(screen.getByText("Not enough devnet SOL")).toBeTruthy();
     expect(
       screen.getByText(
-        "Your wallet has 0.12 SOL, and this deploy needs about 1.82 SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
+        "Your wallet has 0.12 SOL, and this deploy needs about 1.82 SOL. Get devnet SOL from the faucet, or top the wallet up yourself."
       )
     ).toBeTruthy();
     expect(screen.getByText("Your wallet")).toBeTruthy();
@@ -153,6 +153,25 @@ describe("BaseDeployResultCard", () => {
     expect(faucet.getAttribute("href")).toBe("https://faucet.solana.com");
     expect(faucet.getAttribute("target")).toBe("_blank");
     expect(screen.queryByRole("button", { name: /Try again/ })).toBeNull();
+  });
+
+  it("tells an airdrop the faucet refused that the faucet is at its limit", () => {
+    card({
+      act: "airdrop",
+      ok: false,
+      seconds: 2,
+      reason: "no_funds",
+      message: "429 Too Many Requests",
+      balance: 120_000_000,
+      cost: 1_820_000_000,
+      address: WALLET,
+    });
+    expect(
+      screen.getByText(
+        "Your wallet has 0.12 SOL, and this deploy needs about 1.82 SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
+      )
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Open faucet/ })).toBeTruthy();
   });
 
   it("offers to create the wallet when there is none", async () => {

@@ -103,8 +103,9 @@ const FailedCard = ({
  * (`tutorial-v2`, `ResultCard.tsx`; where its SPEC table differs, the code
  * wins). Landed: one row, "Deployed to devnet" or "Upgraded <id>", whose
  * chevron opens what it did, the program's and the transaction's devnet
- * Explorer links, and Log, which opens the terminal. The faucet's red card
- * says how short the wallet is, gives its address to copy and the faucet;
+ * Explorer links, and Log, which opens the terminal. The red short-wallet
+ * card says how short the wallet is (and, after an airdrop, that the faucet
+ * is at its limit), gives its address to copy and the faucet;
  * the feed's Try again act card under it runs the deploy again. No wallet
  * offers to make one. Once the step moves on, a failure folds to its head.
  */
@@ -122,9 +123,13 @@ const BaseDeployResultCard = ({
           <p className={READ}>
             {`Your wallet has ${sol(
               result.balance
-            )} SOL, and this deploy needs about ${sol(
-              result.cost
-            )} SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself.`}
+            )} SOL, and this deploy needs about ${sol(result.cost)} SOL. ${
+              // Only the airdrop asked the faucet; a deploy found the wallet
+              // short on its own
+              result.act === "airdrop"
+                ? "The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
+                : "Get devnet SOL from the faucet, or top the wallet up yourself."
+            }`}
           </p>
           {/* The whole address, to check against a faucet's field: it
               breaks across lines only where the card is too narrow for it */}
