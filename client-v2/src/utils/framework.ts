@@ -139,6 +139,20 @@ const isNoProgramFile = (path: string) =>
   SCRIPT_FILE_REGEX.test(path) ||
   (DATA_FILE_REGEX.test(path) && !TOOL_CONFIG_REGEX.test(path));
 
+/**
+ * What an import from files leaves out: a dot file or folder (`.git/`), the
+ * dependencies (`node_modules/`) and the build output (`target/`), each as a
+ * whole path segment, so `src/target_account.rs` is kept
+ */
+const SKIPPED_IMPORT_PATH_REGEX =
+  /(^|\/)(\.[^/.][^/]*|node_modules|target)(\/|$)/;
+
+/** A file dropped into Import › From files: the drop zone adds its `path` */
+export type ImportedFile = Pick<File, "name" | "text" | "arrayBuffer"> & {
+  /** Where the file sat in the dropped folder; its name when picked alone */
+  path?: string;
+};
+
 /** A test file, named as the gist format's loose placement names one */
 const TEST_FILE_REGEX = /\.(test|spec)\.[jt]sx?$/;
 
@@ -357,6 +371,36 @@ export class PgFramework {
 
       return convertedFiles;
     };
+  }
+
+  /**
+   * Read the files dropped into Import › From files. A zip, which is what
+   * Export project downloads, is opened and its files read in its place.
+   *
+   * @param files the dropped or picked files
+   * @returns each file's path and text, those `SKIPPED_IMPORT_PATH_REGEX`
+   * names left out
+   */
+  static async readImportFiles(files: ImportedFile[]): Promise<TupleFiles> {
+    const read: TupleFiles = [];
+    for (const file of files) {
+      const path = file.path ?? file.name;
+      if (SKIPPED_IMPORT_PATH_REGEX.test(path)) continue;
+
+      if (!/\.zip$/i.test(file.name)) {
+        read.push([path, await file.text()]);
+        continue;
+      }
+
+      const { default: JSZip } = await import("jszip");
+      const zip = await JSZip.loadAsync(await file.arrayBuffer());
+      for (const entry of Object.values(zip.files)) {
+        if (entry.dir || SKIPPED_IMPORT_PATH_REGEX.test(entry.name)) continue;
+        read.push([entry.name, await entry.async("string")]);
+      }
+    }
+
+    return read;
   }
 
   /**
@@ -851,6 +895,42 @@ if (import.meta.vitest) {
         ["src/lib.rs", false],
       ])("%s -> %s", (path, expected) => {
         expect(PgFramework.hasRunnableTypeScript([path])).toBe(expected);
+      });
+    });
+
+    describe("PgFramework.readImportFiles", () => {
+      const file = (path: string, content = "x") =>
+        Object.assign(new File([content], path.split("/").pop()!), { path });
+
+      it("reads dropped files by their path", async () => {
+        expect(
+          await PgFramework.readImportFiles([file("/p/src/lib.rs", "lib")])
+        ).toEqual([["/p/src/lib.rs", "lib"]]);
+      });
+
+      it("leaves out dot folders, dependencies and build output", async () => {
+        const read = await PgFramework.readImportFiles([
+          file("/p/.git/config"),
+          file("/p/node_modules/a/index.js"),
+          file("/p/target/deploy/p-keypair.json"),
+          file("/p/src/target_account.rs"),
+        ]);
+        expect(read.map(([path]) => path)).toEqual([
+          "/p/src/target_account.rs",
+        ]);
+      });
+
+      it("opens a zip and reads what is inside", async () => {
+        const zip = new JSZip();
+        zip.file("src/lib.rs", "lib");
+        zip.file("target/deploy/p-keypair.json", "[]");
+        zip.folder("app");
+        const blob = await zip.generateAsync({ type: "blob" });
+        expect(
+          await PgFramework.readImportFiles([
+            Object.assign(new File([blob], "p.zip"), { path: "./p.zip" }),
+          ])
+        ).toEqual([["src/lib.rs", "lib"]]);
       });
     });
   });
