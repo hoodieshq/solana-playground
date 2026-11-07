@@ -15,9 +15,6 @@ import { CopyButton } from "@/shared/ui/copy-button";
 
 import { formatSol, shortKey } from "../model/format";
 
-/** The shared `FAUCET_URL`, under the name this card's importers use */
-export const WEB_FAUCET_URL = FAUCET_URL;
-
 export interface BaseNotEnoughSolProps {
   cluster: string | undefined;
   reason: FundingFailure;
@@ -100,7 +97,7 @@ const BaseNotEnoughSol = (p: BaseNotEnoughSolProps) => {
         <FundingAction p={p} />
         {hasWebFaucet && (
           <CalloutAction asChild>
-            <a href={WEB_FAUCET_URL} target="_blank" rel="noopener noreferrer">
+            <a href={FAUCET_URL} target="_blank" rel="noopener noreferrer">
               Open faucet
               <ExternalLink data-icon="inline-end" />
             </a>
