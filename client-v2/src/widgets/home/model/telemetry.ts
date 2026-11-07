@@ -3,9 +3,8 @@ import { createTracker } from "@/shared/lib/telemetry";
 
 import type { ExampleRun } from "./example";
 
+/** Home's three tiles, each opening its page: New project, Tutorials or Programs */
 export type HomeTile = "new-project" | "tutorials" | "programs";
-/** Every tile opens a page: New project, Tutorials or Programs */
-export type PageTile = HomeTile;
 export type HomeQuickstart = "example" | "continue" | "new" | "tutorial";
 /** Which kind of "Pick up where you left off" row was opened; `current` went back to the work */
 export type HomeRecentKind = "project" | "tutorial" | "current";

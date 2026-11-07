@@ -12,7 +12,10 @@ export type ShownPage = CatalogPage | "new-project";
 export type CatalogVia = "nav" | "home" | "link" | "lesson" | "editor";
 
 type CatalogEvents = {
-  /** A page was shown, or the other page replaced it; `via` is what opened it */
+  /**
+   * A page was shown, or another page replaced it; `page` is one of the three
+   * and `via` what opened it (`CatalogVia`)
+   */
   catalog_shown: { page: ShownPage; via: CatalogVia };
   /**
    * Typing in a page's search field rested for 500 ms on a non-empty query;

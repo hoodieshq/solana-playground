@@ -22,7 +22,7 @@ project's content.
   type widens to `CatalogPage | "new-project"` (`ShownPage`). `CatalogPage`
   stays the two lists, because New project's tabs, counts and the card
   events are keyed by it.
-- **`NewProjectPage` holds `useNewProject(catalogPage.close)`.** The page is
+- **`NewProjectPage` holds `useNewProject(() => catalogPage.closePage("new-project"))`, which closes the page only while it still shows.** The page is
   not under a `ModalFrame`, so the program picker's dialog stacking over it
   remounts nothing, and the hook's state can sit in the page component.
 - **Home's tile opens the page through `onOpenPage`.** `PageTile` gains

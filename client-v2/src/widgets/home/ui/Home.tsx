@@ -10,7 +10,7 @@ import { runExample } from "../model/example";
 import type { RecentEntry } from "../model/recent";
 import { recentProjectsWith } from "../model/recent";
 import { useSessionRetry } from "../model/session-retry";
-import type { PageTile } from "../model/telemetry";
+import type { HomeTile } from "../model/telemetry";
 import { homeTelemetry } from "../model/telemetry";
 import { useProgramCount } from "../model/use-program-count";
 import { useVisit } from "../model/use-visit";
@@ -23,7 +23,7 @@ export interface HomeProps {
   /** Go back to the project open under Home */
   onContinue: () => void;
   /** Open the New project, Tutorials or Programs page, in Home's place */
-  onOpenPage: (page: PageTile) => void;
+  onOpenPage: (page: HomeTile) => void;
 }
 
 const log = createLogger("home:actions");
@@ -104,7 +104,7 @@ const Home = ({ onAsk, onContinue, onOpenPage }: HomeProps) => {
     TutorialFailure | undefined
   >(undefined);
 
-  const openTile = (tile: PageTile) => {
+  const openTile = (tile: HomeTile) => {
     homeTelemetry.track("home_tile_opened", { tile });
     onOpenPage(tile);
   };

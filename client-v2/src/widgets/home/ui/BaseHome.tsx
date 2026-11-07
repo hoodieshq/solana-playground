@@ -29,7 +29,7 @@ import { Button } from "@/shared/ui/button";
 import type { TutorialData } from "@/utils";
 
 import type { RecentEntry } from "../model/recent";
-import type { PageTile } from "../model/telemetry";
+import type { HomeTile } from "../model/telemetry";
 import HomeComposer from "./HomeComposer";
 
 /** What a tutorial's card shows: the tutorial model's own fields */
@@ -74,7 +74,7 @@ export interface BaseHomeProps {
   tutorials: readonly HomeTutorial[];
   /** `null` while loading */
   programCount: number | null;
-  onTile: (tile: PageTile) => void;
+  onTile: (tile: HomeTile) => void;
   onTutorial: (name: string) => Promise<void>;
   /** The last tutorial that failed to open, or `undefined` */
   tutorialError: TutorialFailure | undefined;

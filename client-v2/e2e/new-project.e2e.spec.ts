@@ -20,7 +20,7 @@ import { DESK, PHONE } from "./viewports";
 const list = (page: Page, name: "Tutorials" | "Programs") =>
   newProjectPage(page).getByRole("radio", { name: new RegExp(`^${name}`) });
 
-test("client-v2-layout: Starting an Anchor project from New project", async ({
+test("client-v2-layout: New project from the navigation", async ({
   seededPage: page,
 }) => {
   const lines = linesOn(page);
@@ -39,6 +39,13 @@ test("client-v2-layout: Starting an Anchor project from New project", async ({
   await expect
     .poll(() => lineOf(lines, "catalog_shown"))
     .toContain("new-project");
+});
+
+test("client-v2-layout: Starting an Anchor project from New project", async ({
+  seededPage: page,
+}) => {
+  await openGallery(page);
+  await expect(newProjectPage(page)).toBeVisible();
   await expect(
     newProjectPage(page).getByRole("radio", { name: /Anchor/ })
   ).toHaveAttribute("aria-checked", "true");

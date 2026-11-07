@@ -4,7 +4,7 @@ import type { Viewport } from "@/shared/lib/hooks/use-viewport";
 import { Spinner } from "@/shared/ui/spinner";
 
 import type { StartView } from "../model/start-view";
-import type { PageTile } from "../model/telemetry";
+import type { HomeTile } from "../model/telemetry";
 import Home from "./Home";
 import PhoneHome from "./PhoneHome";
 
@@ -22,7 +22,7 @@ export const homeSlot = (
   view: StartView,
   viewport: Viewport,
   onContinue: () => void,
-  openPage: (page: PageTile) => void
+  openPage: (page: HomeTile) => void
 ): HomeSlot | undefined => {
   if (view === "work") return undefined;
   return ({ openAssistant }) => {
