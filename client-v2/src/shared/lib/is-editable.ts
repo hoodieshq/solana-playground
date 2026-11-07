@@ -12,13 +12,13 @@ export const isEditable = (target: EventTarget | null) =>
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
-  const make = (html: string) => {
-    const host = document.createElement("div");
-    host.innerHTML = html;
-    return host.firstElementChild as Element;
-  };
+  describe("shared/lib/is-editable", () => {
+    const make = (html: string) => {
+      const host = document.createElement("div");
+      host.innerHTML = html;
+      return host.firstElementChild as Element;
+    };
 
-  describe("isEditable", () => {
     it("is true for a text field and a text area", () => {
       expect(isEditable(make("<input />"))).toBe(true);
       expect(isEditable(make("<textarea></textarea>"))).toBe(true);

@@ -185,3 +185,48 @@ test("keyboard: Home leaves the reload key to the browser", async ({
   });
   expect(prevented).toBe(false);
 });
+
+test("keyboard: Cmd+L is the browser's outside the terminal, the terminal's inside", async ({
+  seededPage: page,
+}) => {
+  /** Press Cmd+L where focus is now; whether the page kept the key */
+  const pressL = () =>
+    page.evaluate(() => {
+      const ev = new KeyboardEvent("keydown", {
+        key: "l",
+        metaKey: true,
+        ctrlKey: true,
+        cancelable: true,
+        bubbles: true,
+      });
+      (document.activeElement ?? document.body).dispatchEvent(ev);
+      return ev.defaultPrevented;
+    });
+
+  await expect(page.locator(TAB)).toHaveCount(1, LONG);
+  expect(await pressL()).toBe(false);
+
+  await page.keyboard.press("ControlOrMeta+j");
+  const input = page.locator(".xterm textarea").first();
+  await input.focus();
+  await expect(input).toBeFocused();
+  expect(await pressL()).toBe(true);
+});
+
+test("keyboard: Shift+Tab from a dialog's frame reaches its last control", async ({
+  seededPage: page,
+}) => {
+  await fromNav("New project")(page);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  // A press on the dialog's body leaves the focus on its frame
+  await dialog.focus();
+  await expect(dialog).toBeFocused();
+
+  await page.keyboard.press("Shift+Tab");
+
+  await expect(dialog).not.toBeFocused();
+  expect(
+    await dialog.evaluate((el) => el.contains(document.activeElement))
+  ).toBe(true);
+});
