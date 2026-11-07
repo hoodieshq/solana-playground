@@ -7,10 +7,10 @@ import type { LogEntry, LogOptions, LogProvider, Namespace } from "./types";
 let providers: LogProvider[] = [consoleProvider()];
 
 /** Bounds the reports kept before `initLogger`, so a never-initialised app cannot grow it */
-export const BUFFER_LIMIT = 50;
+const BUFFER_LIMIT = 50;
 
 let initialised = false;
-// Reported entries made while modules import, before error tracking exists
+// Reports made before the first `initLogger`, such as during module import
 const pending: LogEntry[] = [];
 let overflowed = false;
 
@@ -26,6 +26,11 @@ const deliver = (entry: LogEntry, to: LogProvider[]) => {
       reportProviderFailure(error);
     }
   }
+};
+
+const send = (entry: LogEntry) => {
+  deliver(entry, providers);
+  if (!initialised && entry.report) keepPending(entry);
 };
 
 const keepPending = (entry: LogEntry) => {
@@ -45,15 +50,11 @@ const keepPending = (entry: LogEntry) => {
   }
 };
 
-function send(entry: LogEntry) {
-  deliver(entry, providers);
-  if (!initialised && entry.report) keepPending(entry);
-}
-
 /**
  * Replaces the providers every logger sends to, including loggers created
- * earlier. The first call also delivers the reports made before it, to every
- * provider but those that saw them already (`replay: false`).
+ * earlier. The first call also delivers, in order, the reports made before
+ * it to every provider not marked `replay: false`; later calls replay
+ * nothing, so pass the final provider set on the first call.
  */
 export const initLogger = (options: { providers: LogProvider[] }) => {
   providers = options.providers;
@@ -190,6 +191,36 @@ if (import.meta.vitest) {
         expect(logged.entries).toMatchObject([
           { ns: "persistence:sync", report: true },
         ]);
+      });
+
+      it("should replay the kept reports in the order they were made", () => {
+        early.error(new Error("first"), { report: true });
+        early.error(new Error("second"), { report: true });
+
+        initLogger({ providers: [logged] });
+
+        expect(logged.entries.map((entry) => entry.error?.message)).toEqual([
+          "first",
+          "second",
+        ]);
+      });
+
+      it("should not replay a report made after the first initLogger", () => {
+        initLogger({ providers: [memoryProvider()] });
+        early.error(new Error("x"), { report: true });
+
+        initLogger({ providers: [logged] });
+
+        expect(logged.entries).toEqual([]);
+      });
+
+      it("should drop the kept reports on resetLogger", () => {
+        early.error(new Error("x"), { report: true });
+
+        resetLogger();
+        initLogger({ providers: [logged] });
+
+        expect(logged.entries).toEqual([]);
       });
 
       it("should not replay an entry that was not reported", () => {

@@ -20,8 +20,8 @@ export interface LogEntry {
 export interface LogProvider {
   log(entry: LogEntry): void;
   /**
-   * `false` skips the reports `initLogger` delivers from before it: the
-   * console printed them as they were made
+   * `false` keeps the reports made before the first `initLogger` from being
+   * delivered to this provider again once it starts
    */
   replay?: boolean;
 }
