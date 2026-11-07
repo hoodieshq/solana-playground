@@ -16,6 +16,7 @@ vi.mock("../../utils", () => ({
     cluster: "localnet",
     isConnected: false,
     isClusterDown: false,
+    current: { rpcEndpoint: "http://localhost:8899" },
   },
   PgView: { setModal: vi.fn(async () => undefined) },
   PgWallet: { current: { publicKey: "wallet" } },
@@ -25,9 +26,11 @@ vi.mock("./Local", () => ({ Local: "Local" }));
 /** The effect's first pass on `cluster`, with the connection's state */
 const passOn = async (
   cluster: string,
-  state: { isConnected: boolean; isClusterDown: boolean }
+  state: { isConnected: boolean; isClusterDown: boolean },
+  rpcEndpoint = "http://localhost:8899"
 ) => {
   Object.assign(PgConnection, {
+    current: { rpcEndpoint },
     cluster,
     isConnected: state.isConnected,
     isClusterDown: state.isClusterDown,
@@ -48,7 +51,9 @@ describe("connection helper", () => {
     await passOn("localnet", { isConnected: false, isClusterDown: false });
 
     await vi.waitFor(() =>
-      expect(PgView.setModal).toHaveBeenCalledExactlyOnceWith("Local")
+      expect(PgView.setModal).toHaveBeenCalledExactlyOnceWith("Local", {
+        surfpool: false,
+      })
     );
   });
 
@@ -56,7 +61,23 @@ describe("connection helper", () => {
     await passOn("localnet", { isConnected: true, isClusterDown: true });
 
     await vi.waitFor(() =>
-      expect(PgView.setModal).toHaveBeenCalledExactlyOnceWith("Local")
+      expect(PgView.setModal).toHaveBeenCalledExactlyOnceWith("Local", {
+        surfpool: false,
+      })
+    );
+  });
+
+  it("opens the Surfpool help when Surfpool does not answer", async () => {
+    await passOn(
+      "localnet",
+      { isConnected: false, isClusterDown: false },
+      "http://127.0.0.1:8899/"
+    );
+
+    await vi.waitFor(() =>
+      expect(PgView.setModal).toHaveBeenCalledExactlyOnceWith("Local", {
+        surfpool: true,
+      })
     );
   });
 

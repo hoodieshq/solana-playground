@@ -55,9 +55,8 @@ export const checkedChipKey = (
 };
 
 /**
- * The network chips: Mainnet, Devnet, Testnet, Localnet and Surfpool, then
- * each saved custom RPC under its name, with the checked network's line under
- * them. An endpoint no chip
+ * The network chips: the offered networks, then each saved custom RPC under
+ * its name, with the checked network's line under them. An endpoint no chip
  * lists (Playnet, or a URL not saved yet) leaves none checked.
  *
  * Chips may share a URL (HOO-2690). One is checked: `chosen` while the

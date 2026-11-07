@@ -47,7 +47,7 @@ export const UNKNOWN_NETWORK = "the network";
 
 /**
  * The network as a sentence names it: our clusters lowercase ("Not enough
- * devnet SOL"), any other name (Surfpool) as it is, `undefined` while the cluster
+ * devnet SOL"), any other name as it is, `undefined` while the cluster
  * is unknown, so a caller can drop the word ("Not enough SOL") rather than
  * print "the network SOL". Standalone labels such as pickers and chips keep
  * `clusterName`.
@@ -71,13 +71,16 @@ export const solOn = (network: string | undefined): string =>
 /** Cluster moniker an offered network talks to */
 type NetworkCluster = "mainnet-beta" | "devnet" | "testnet" | "localnet";
 
+/** What an offered network is stored under: its cluster, or `surfpool` */
+type NetworkKey = NetworkCluster | "surfpool";
+
 /** A network Settings offers: one of ours, named as the cluster */
 export interface Network {
   /**
    * What the network is stored under, unique among the networks: the
    * cluster, except Surfpool's, which shares Localnet's cluster
    */
-  key: string;
+  key: NetworkKey;
   name: string;
   value: string;
   cluster: NetworkCluster;

@@ -2,7 +2,7 @@
 // imports modules whose own imports end at `shared/config/client-env`, which
 // imports nothing.
 import type { Network } from "../constants/connection";
-import { buildNetworks, Endpoint, NETWORKS } from "../constants/connection";
+import { Endpoint, NETWORKS } from "../constants/connection";
 import { SERVER_URL } from "../shared/config/client-env";
 import { FOUNDATION_ENDPOINT, LOCAL_ENDPOINT } from "./server/default-endpoint";
 
@@ -33,9 +33,9 @@ type StoredEndpoint = { option: string } | { option: "custom"; url: string };
  *
  * The first entry for a key is what the key reads back as; the first entry
  * for an address is the key it is stored under. So the offered networks come
- * first under the keys the public picks always had, and a profile on a public
- * URL or under a platform key that the network list no longer offers reads
- * back as the offered network.
+ * first, each under its own key (the cluster, or `surfpool`), and a profile
+ * on a public URL or under a platform key the network list no longer offers
+ * reads back as the offered network.
  *
  * @param networks the networks Settings offers
  * @param configuredServer the build server `REACT_APP_SERVER_URL` names, if
@@ -52,7 +52,9 @@ export const buildEndpointOptions = (
     { key: "devnet", url: Endpoint.DEVNET },
     { key: "testnet", url: Endpoint.TESTNET },
     // Keys the platform options were stored under before HOO-2488
-    ...networks.map((n) => ({ key: `${n.key}-platform`, url: n.value })),
+    ...networks
+      .filter((n) => n.cluster !== "localnet")
+      .map((n) => ({ key: `${n.key}-platform`, url: n.value })),
     // Not offered, still keyed: code paths set Playnet
     { key: "playnet", url: Endpoint.PLAYNET },
   ],
@@ -261,22 +263,29 @@ if (import.meta.vitest) {
   const { describe, it, expect, beforeAll } = import.meta.vitest;
   describe("settings/stored-endpoint", () => {
     let SERVER_ENDPOINT_OPTIONS: typeof import("./server/default-endpoint").SERVER_ENDPOINT_OPTIONS;
+    let buildNetworks: typeof import("../constants/connection").buildNetworks;
+    let options: EndpointOptions;
+    let onPublicTestnet: EndpointOptions;
     beforeAll(async () => {
       ({ SERVER_ENDPOINT_OPTIONS } = await import("./server/default-endpoint"));
+      ({ buildNetworks } = await import("../constants/connection"));
+      options = buildEndpointOptions(
+        networks(PLATFORM_DEVNET, PLATFORM_MAINNET, PLATFORM_TESTNET)
+      );
+      onPublicTestnet = buildEndpointOptions(
+        networks(PLATFORM_DEVNET, PLATFORM_MAINNET, Endpoint.TESTNET)
+      );
     });
     const PLATFORM_DEVNET = "https://devnet.rpc.test/?api-key=old";
     const PLATFORM_MAINNET = "https://mainnet.rpc.test/?api-key=old";
+    const PLATFORM_TESTNET = "https://testnet.rpc.test/?api-key=old";
 
-    /** The offered networks, Devnet and Mainnet on the given URLs */
-    const networks = (devnet: string, mainnet: string) =>
-      buildNetworks({ devnet, mainnet });
-
-    const options = buildEndpointOptions(
-      networks(PLATFORM_DEVNET, PLATFORM_MAINNET)
-    );
+    /** The offered networks, the remote ones on the given URLs */
+    const networks = (devnet: string, mainnet: string, testnet?: string) =>
+      buildNetworks({ devnet, mainnet, testnet });
 
     /** An entry that is both its key's reading and its address's key */
-    const canonical = (id: keyof typeof options) =>
+    const canonical = (id: keyof EndpointOptions) =>
       options[id].filter(
         (o) =>
           options[id].find((x) => x.key === o.key) === o &&
@@ -651,13 +660,6 @@ if (import.meta.vitest) {
       it("stores a public URL picked beside the offered network as custom", () => {
         // HOO-2690: the public Devnet saved as a custom RPC while Devnet is
         // on a platform RPC; its key would read back as the platform one
-        const onPlatform = buildEndpointOptions(
-          buildNetworks({
-            devnet: PLATFORM_DEVNET,
-            mainnet: PLATFORM_MAINNET,
-            testnet: "https://testnet.rpc.test/?api-key=old",
-          })
-        );
         for (const url of [
           Endpoint.DEVNET,
           Endpoint.MAINNET_BETA,
@@ -665,7 +667,7 @@ if (import.meta.vitest) {
         ]) {
           expect(
             at(
-              toStoredEndpoints(state(url, LOCAL_ENDPOINT), onPlatform),
+              toStoredEndpoints(state(url, LOCAL_ENDPOINT), options),
               "connection.endpoint"
             )
           ).toEqual({ option: "custom", url });
@@ -699,13 +701,32 @@ if (import.meta.vitest) {
         expect(read.server.endpoint).toBe(LOCAL_ENDPOINT);
       });
 
-      it("reads the Testnet platform key HOO-2488 retired as the offered Testnet", () => {
-        const stored = {
-          connection: { endpoint: { option: "testnet-platform" } },
-        };
+      it.each(["testnet", "testnet-platform"])(
+        "reads the key %s as the offered Testnet, on its platform RPC",
+        (option) => {
+          const stored = { connection: { endpoint: { option } } };
+          expect(
+            fromStoredEndpoints(stored, defaults, options).connection.endpoint
+          ).toBe(PLATFORM_TESTNET);
+        }
+      );
+
+      it("stores the public Testnet under its key while the env sets no Testnet RPC", () => {
         expect(
-          fromStoredEndpoints(stored, defaults, options).connection.endpoint
-        ).toBe(Endpoint.TESTNET);
+          at(
+            toStoredEndpoints(
+              state(Endpoint.TESTNET, LOCAL_ENDPOINT),
+              onPublicTestnet
+            ),
+            "connection.endpoint"
+          )
+        ).toEqual({ option: "testnet" });
+      });
+
+      it("invents no platform keys for the local networks", () => {
+        const keys = options["connection.endpoint"].map((o) => o.key);
+        expect(keys).not.toContain("localnet-platform");
+        expect(keys).not.toContain("surfpool-platform");
       });
 
       it("stores Localnet and Surfpool under keys of their own, though they share a cluster", () => {
