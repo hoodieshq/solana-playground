@@ -899,8 +899,10 @@ if (import.meta.vitest) {
     });
 
     describe("PgFramework.readImportFiles", () => {
-      const file = (path: string, content = "x") =>
-        Object.assign(new File([content], path.split("/").pop()!), { path });
+      const file = (path: string, content: string) =>
+        Object.assign(new File([content], path.split("/").at(-1) ?? path), {
+          path,
+        });
 
       it("reads dropped files by their path", async () => {
         expect(
@@ -910,10 +912,10 @@ if (import.meta.vitest) {
 
       it("leaves out dot folders, dependencies and build output", async () => {
         const read = await PgFramework.readImportFiles([
-          file("/p/.git/config"),
-          file("/p/node_modules/a/index.js"),
-          file("/p/target/deploy/p-keypair.json"),
-          file("/p/src/target_account.rs"),
+          file("/p/.git/config", "x"),
+          file("/p/node_modules/a/index.js", "x"),
+          file("/p/target/deploy/p-keypair.json", "x"),
+          file("/p/src/target_account.rs", "x"),
         ]);
         expect(read.map(([path]) => path)).toEqual([
           "/p/src/target_account.rs",

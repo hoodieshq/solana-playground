@@ -27,7 +27,7 @@ vi.hoisted(() => {
 vi.mock("../utils/package", () => ({ PgPackage: {} }));
 
 const sorted = (files: TupleFiles) =>
-  [...files].sort(([a], [b]) => a.localeCompare(b));
+  files.slice().sort(([a], [b]) => a.localeCompare(b));
 
 /** A project of each framework, as the editor holds it */
 const PROJECTS: {
