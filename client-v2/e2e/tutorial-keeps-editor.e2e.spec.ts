@@ -62,6 +62,13 @@ test("entering and leaving a tutorial keeps the editor's place", async ({
     // eslint-disable-next-line unicorn/no-null -- the endpoint answers JSON, where "no model" is null
     route.fulfill({ json: { configured: false, model: null } })
   );
+  // The editor also writes its metadata to disk every 5 s while the window
+  // has focus (`Editor.tsx`). A tick between moving the cursor and entering
+  // the tutorial would save the place by itself, and the test would pass
+  // without the save on creating a workspace that it is about
+  await page.evaluate(() => {
+    document.hasFocus = () => false;
+  });
 
   await page.locator(".monaco-editor .view-lines").click();
   // The top of the file: ⌘↑ on a Mac, Ctrl+Home elsewhere, where Ctrl+↑
