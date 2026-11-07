@@ -175,6 +175,9 @@ export const probeDefaultBackend = (): Promise<DefaultBackend> => {
         recordProbeFailure();
       } else {
         PgAssistant.setDefaultProbe("answered");
+        PgAssistant.setHostedModel(
+          backend.state === "present" ? backend.model : null
+        );
       }
       broadcast(backend);
       return backend;

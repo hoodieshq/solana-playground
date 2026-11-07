@@ -363,6 +363,16 @@ describe("the probe's state for the status", () => {
     expect(PgAssistant.defaultProbe).toBe("answered");
   });
 
+  it("keeps the model the deployment named, for the status and Settings", async () => {
+    answer({ key: "hosted", reason: null, model: "claude-opus-5-5" });
+    await probeDefaultBackend();
+    expect(PgAssistant.hostedModel).toBe("claude-opus-5-5");
+    resetDefaultBackendProbe();
+    answer({ key: "own" });
+    await probeDefaultBackend();
+    expect(PgAssistant.hostedModel).toBeNull();
+  });
+
   it("records no failure while the browser is offline, so coming back online reads no red", async () => {
     // Offline says nothing about the deployment, and nothing asks again on the
     // way back: a recorded failure would turn into a false "Not responding"

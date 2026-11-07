@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 import { Switch } from "@/shared/ui/switch";
+import { Tag } from "@/shared/ui/tag";
 import { PgCommon, PgView, RequiredKey, Setting as SettingType } from "@/utils";
 import { CustomSetting } from "@/views/flow/settings/CustomSetting";
 
@@ -20,6 +21,10 @@ type SettingSetterProps = SettingType & {
   controlId?: string;
   /** A few named choices side by side instead of a select */
   segmented?: boolean;
+  /** Shown but not settable, for a setting whose feature is not finished */
+  disabled?: boolean;
+  /** Values listed but not selectable, each marked "Not ready" */
+  notReady?: readonly string[];
 };
 
 /**
@@ -47,11 +52,13 @@ const SettingSetterSegmented: FC<SettingSetterSegmentedProps> = ({
   values,
   name,
   controlId,
+  disabled,
   getValue,
   setValue,
 }) => (
   <Segmented
     aria-label={name}
+    disabled={disabled}
     value={getValue()}
     onValueChange={(v) => {
       // A press on the current choice clears a toggle group; a setting keeps it
@@ -122,10 +129,12 @@ export const SettingSetterSelect: FC<
     // itself, on pointer and on Enter/Space. Any other pick goes through
     // `onValueChange`, so the two paths never both run.
     const reopens = o.value === CUSTOM_VALUE && value === CUSTOM_VALUE;
+    const notReady = setting.notReady?.includes(o.value) ?? false;
     return (
       <SelectItem
         key={o.value}
         value={o.value}
+        disabled={notReady}
         onPointerUp={reopens ? openCustom : undefined}
         onKeyDown={
           reopens
@@ -136,12 +145,14 @@ export const SettingSetterSelect: FC<
         }
       >
         {o.label}
+        {notReady && <Tag>Not ready</Tag>}
       </SelectItem>
     );
   };
 
   return (
     <Select
+      disabled={setting.disabled}
       // A stored value no option has, and no Custom row to stand for it:
       // `""` keeps the select controlled and shows the empty trigger, where
       // `undefined` would hand the value to Radix's own state
@@ -212,10 +223,11 @@ type SettingSetterSwitchProps = Omit<SettingSetterProps, "values">;
 
 const SettingSetterSwitch: FC<
   React.PropsWithChildren<SettingSetterSwitchProps>
-> = ({ name, controlId, getValue, setValue }) => (
+> = ({ name, controlId, disabled, getValue, setValue }) => (
   <Switch
     id={controlId}
     aria-label={name}
+    disabled={disabled}
     checked={getValue()}
     onCheckedChange={setValue}
   />
