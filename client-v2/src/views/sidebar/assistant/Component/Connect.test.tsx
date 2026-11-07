@@ -486,7 +486,8 @@ describe("Connect", () => {
   });
 
   describe("by keyboard", () => {
-    // A picked backend's model presets slide a thumb that measures itself
+    // A picked backend's model presets measure themselves; jsdom has no
+    // `ResizeObserver`
     beforeEach(() => {
       vi.stubGlobal(
         "ResizeObserver",
@@ -503,8 +504,8 @@ describe("Connect", () => {
 
     /**
      * One arrow, held while Radix moves the focus: it moves it a task later
-     * and checks the radio only while an arrow is down, which a browser's
-     * key repeat timing gives and user-event's instant keyup does not
+     * and checks the radio only while an arrow is down, which a real key
+     * press outlasts and user-event's instant keyup does not
      */
     const arrow = async (
       user: ReturnType<typeof userEvent.setup>,
@@ -538,9 +539,30 @@ describe("Connect", () => {
       await arrow(user, "ArrowUp");
       expect(checked()?.getAttribute("value")).toBe("default");
       expect(document.activeElement).toBe(checked());
+      expect(screen.getAllByRole("radio")).toHaveLength(PROVIDERS.length);
 
       await arrow(user, "ArrowDown");
       expect(checked()?.getAttribute("value")).toBe("anthropic");
+      expect(document.activeElement).toBe(checked());
+    });
+
+    it("opens the folded list on an arrow from the default", async () => {
+      const user = userEvent.setup();
+      renderConnect({ defaultBackend: "present" });
+      await user.tab();
+      expect(document.activeElement).toBe(checked());
+      expect(screen.getAllByRole("radio")).toHaveLength(1);
+
+      await arrow(user, "ArrowDown");
+      expect(screen.getAllByRole("radio")).toHaveLength(PROVIDERS.length);
+      expect(
+        screen
+          .getByRole("button", { name: /Hide other backends/ })
+          .getAttribute("aria-expanded")
+      ).toBe("true");
+
+      await arrow(user, "ArrowDown");
+      expect(checked()?.getAttribute("value")).not.toBe("default");
       expect(document.activeElement).toBe(checked());
     });
 
