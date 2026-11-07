@@ -25,7 +25,7 @@ import AssistantKey from "./AssistantKey";
 import BaseSettingRow from "./BaseSettingRow";
 import type { SettingsSection } from "./BaseSettingsPage";
 import BaseSettingsPage from "./BaseSettingsPage";
-import ExportProject from "./ExportProject";
+import ExportProject, { OpenProjectLine } from "./ExportProject";
 import NetworkSection from "./NetworkSection";
 import { SettingControl } from "./SettingControl";
 import SettingsBoundary from "./SettingsBoundary";
@@ -140,26 +140,29 @@ const Project = ({ phone, onImported }: ProjectProps) => {
     if (isImported(await PgView.setModal(dialog))) onImported();
   };
   return (
-    <div className={cn("flex gap-2", phone ? "flex-col" : "flex-wrap")}>
-      <ExportProject className={phone ? PHONE_BUTTON : undefined} />
-      <AsyncButton
-        variant="outline"
-        className={phone ? PHONE_BUTTON : undefined}
-        onClick={open(ImportGithub)}
-        onError={reportButtonFailure("open the GitHub import")}
-      >
-        <Github data-icon="inline-start" />
-        From GitHub
-      </AsyncButton>
-      <AsyncButton
-        variant="outline"
-        className={phone ? PHONE_BUTTON : undefined}
-        onClick={open(ImportFs)}
-        onError={reportButtonFailure("open the file import")}
-      >
-        <ImportFile data-icon="inline-start" />
-        From files
-      </AsyncButton>
+    <div className="flex min-w-0 flex-col gap-3">
+      <OpenProjectLine phone={phone} />
+      <div className={cn("flex gap-2", phone ? "flex-col" : "flex-wrap")}>
+        <ExportProject className={phone ? PHONE_BUTTON : undefined} />
+        <AsyncButton
+          variant="outline"
+          className={phone ? PHONE_BUTTON : undefined}
+          onClick={open(ImportGithub)}
+          onError={reportButtonFailure("open the GitHub import")}
+        >
+          <Github data-icon="inline-start" />
+          From GitHub
+        </AsyncButton>
+        <AsyncButton
+          variant="outline"
+          className={phone ? PHONE_BUTTON : undefined}
+          onClick={open(ImportFs)}
+          onError={reportButtonFailure("open the file import")}
+        >
+          <ImportFile data-icon="inline-start" />
+          From files
+        </AsyncButton>
+      </div>
     </div>
   );
 };

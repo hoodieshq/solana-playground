@@ -10,35 +10,50 @@ const { exportWorkspace, explorer } = vi.hoisted(() => ({
 vi.mock("@/utils", () => ({ PgFramework: { exportWorkspace } }));
 vi.mock("@/hooks", () => ({ useExplorer: () => explorer }));
 
-import ExportProject from "./ExportProject";
+import ExportProject, { OpenProjectLine } from "./ExportProject";
 
-describe("ExportProject", () => {
+const button = () =>
+  screen.getByRole<HTMLButtonElement>("button", {
+    name: "Export project (zip)",
+  });
+
+describe("Settings › Project export", () => {
   beforeEach(() => {
     exportWorkspace.mockClear();
     explorer.currentWorkspaceName = "my-anchor-app";
   });
 
   it("names the project it exports", () => {
-    render(<ExportProject />);
+    render(<OpenProjectLine phone={false} />);
 
-    expect(
-      screen.getByRole("button", { name: "Export my-anchor-app (zip)" })
-    ).toBeTruthy();
+    const line = screen.getByTestId("settings-open-project");
+    expect(line.textContent).toBe(
+      "Exports my-anchor-app, the project open now."
+    );
+    // Truncated on one line; the whole name stays in the title
+    expect(line.title).toBe(line.textContent);
   });
 
   it("exports the project it names", async () => {
     render(<ExportProject />);
 
-    await userEvent.click(screen.getByRole("button"));
+    await userEvent.click(button());
 
     expect(exportWorkspace).toHaveBeenCalledWith({ name: "my-anchor-app" });
   });
 
   it("has nothing to export with no project open", () => {
     explorer.currentWorkspaceName = undefined;
-    render(<ExportProject />);
+    render(
+      <>
+        <OpenProjectLine phone={false} />
+        <ExportProject />
+      </>
+    );
 
-    const button = screen.getByRole("button", { name: "Export project (zip)" });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByTestId("settings-open-project").textContent).toBe(
+      "No project is open."
+    );
+    expect(button().disabled).toBe(true);
   });
 });
