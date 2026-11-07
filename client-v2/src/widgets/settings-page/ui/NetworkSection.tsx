@@ -35,12 +35,14 @@ const toastNetworkHeld = () =>
     { options: { name: "network-held-by-deploy" } }
   );
 
-const pick = (url: string) => {
+/** Move the network to `url`; false, with a toast, while a deploy holds it */
+const pick = (url: string): boolean => {
   if (!canSwitchNetwork(PgGlobal.deployState)) {
     toastNetworkHeld();
-    return;
+    return false;
   }
   PgSettings.connection.endpoint = url;
+  return true;
 };
 
 /**
@@ -103,9 +105,9 @@ const NetworkSection = () => {
     setChosenState(key);
     PgCustomRpcs.choose(key);
   };
+  // The check moves only with the network: a held pick keeps both
   const choose = (rpc: CustomRpc) => {
-    setChosen(chipKey(rpc.name, rpc.url));
-    pick(rpc.url);
+    if (pick(rpc.url)) setChosen(chipKey(rpc.name, rpc.url));
   };
   /** Whether `rpc` is the checked chip, not only one on the URL in use */
   const isChecked = (rpc: CustomRpc) =>
@@ -115,8 +117,7 @@ const NetworkSection = () => {
     }) === chipKey(rpc.name, rpc.url);
   // A chip on the URL in use already moves the check, not the network
   const handlePick = (url: string, key: string) => {
-    setChosen(key);
-    if (url !== PgSettings.connection.endpoint) pick(url);
+    if (url === PgSettings.connection.endpoint || pick(url)) setChosen(key);
   };
   useEffect(() => {
     const changes = PgCustomRpcs.onDidChange(() =>
@@ -145,7 +146,10 @@ const NetworkSection = () => {
   const handleEdit = async (rpc: CustomRpc, input: CustomRpc) => {
     const wasChecked = isChecked(rpc);
     return answerFor((saved) => {
-      if (wasChecked) choose(saved);
+      // Still on its URL: another chip picked during the check keeps the network
+      if (wasChecked && PgSettings.connection.endpoint === rpc.url) {
+        choose(saved);
+      }
     })("edit")(await saveChecked(input, rpc));
   };
 

@@ -152,6 +152,25 @@ describe("NetworkSection", () => {
     expect(checked).toEqual(["Public Devnet"]);
   });
 
+  it("stores the chip clicked, and checks it again after a remount", async () => {
+    localStorage.setItem(
+      "customRpcs",
+      JSON.stringify([
+        { name: "A", url: "https://same.test/" },
+        { name: "B", url: "https://same.test/" },
+      ])
+    );
+    state.endpoint = "https://same.test/";
+    const { unmount } = render(<NetworkSection />);
+    await userEvent.click(screen.getByRole("radio", { name: "B" }));
+    expect(PgCustomRpcs.chosen()).toBe("B\nhttps://same.test/");
+    unmount();
+    render(<NetworkSection />);
+    expect(
+      screen.getByRole("radio", { name: "B" }).getAttribute("aria-checked")
+    ).toBe("true");
+  });
+
   it("keeps the network when the RPC removed shares its URL with another", async () => {
     localStorage.setItem(
       "customRpcs",
@@ -218,7 +237,7 @@ describe("NetworkSection", () => {
     await waitFor(() => expect(state.endpoint).toBe("https://b2.test/"));
   });
 
-  it("lands on Devnet when the RPC removed is on Devnet's address", async () => {
+  it("lands on Devnet when the RPC removed is on Devnet's address spelt with a slash", async () => {
     localStorage.setItem(
       "customRpcs",
       JSON.stringify([{ name: "Mine", url: DEVNET }])
