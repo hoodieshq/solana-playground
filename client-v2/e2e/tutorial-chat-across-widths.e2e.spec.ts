@@ -8,7 +8,7 @@ import { expect, LONG, test } from "./fixtures";
 /** The frame's chat column, at the frame's width */
 const frameChat = (page: Page) =>
   page.getByRole("complementary", { name: "Tutorial chat" });
-/** The phone layout's Chat space, under it */
+/** The phone layout's Chat space, below the frame's width */
 const phoneChat = (page: Page) => page.getByRole("region", { name: "Chat" });
 const composer = (scope: ReturnType<typeof frameChat>) =>
   scope.locator('textarea[enterkeyhint="send"]');
@@ -23,7 +23,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test("the composer's draft survives the window crossing the frame's width", async ({
+test("keeps the composer's draft when the window crosses the frame's width", async ({
   page,
 }) => {
   test.setTimeout(120_000);

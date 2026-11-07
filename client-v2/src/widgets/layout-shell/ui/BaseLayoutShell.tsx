@@ -163,7 +163,8 @@ export interface TutorialNavState {
  * height and never saved as the split. The stage bar, the stage tabs and the
  * assistant are not drawn;
  * the stage and the console are the same outlets, so nothing remounts on the
- * way in or out. Only on the work screen of a wide window; narrower windows
+ * way in or out. The owner shows its chat the same way: `chat` and
+ * `phone.chat` are Outlets for one node. Only on the work screen of a wide window; narrower windows
  * draw `phone` on the work screen when it is given, and under a page the
  * pager or the compact frame.
  */
@@ -188,7 +189,10 @@ export type TutorialSpace = "chat" | "code";
  */
 export interface TutorialPhoneSlot {
   head: ReactNode;
-  /** Chat's body, the same feed the frame's chat column draws */
+  /**
+   * Chat's body: an Outlet for the same node as `TutorialFrameSlot.chat`'s,
+   * so one mounted chat moves between the layouts
+   */
   chat: ReactNode;
   space: TutorialSpace;
   /** A swipe asked for the other space; the owner decides and sets `space` */
