@@ -270,10 +270,18 @@ if (import.meta.vitest) {
       ({ SERVER_ENDPOINT_OPTIONS } = await import("./server/default-endpoint"));
       ({ buildNetworks } = await import("../constants/connection"));
       options = buildEndpointOptions(
-        networks(PLATFORM_DEVNET, PLATFORM_MAINNET, PLATFORM_TESTNET)
+        networks({
+          devnet: PLATFORM_DEVNET,
+          mainnet: PLATFORM_MAINNET,
+          testnet: PLATFORM_TESTNET,
+        })
       );
       onPublicTestnet = buildEndpointOptions(
-        networks(PLATFORM_DEVNET, PLATFORM_MAINNET, Endpoint.TESTNET)
+        networks({
+          devnet: PLATFORM_DEVNET,
+          mainnet: PLATFORM_MAINNET,
+          testnet: Endpoint.TESTNET,
+        })
       );
     });
     const PLATFORM_DEVNET = "https://devnet.rpc.test/?api-key=old";
@@ -281,8 +289,11 @@ if (import.meta.vitest) {
     const PLATFORM_TESTNET = "https://testnet.rpc.test/?api-key=old";
 
     /** The offered networks, the remote ones on the given URLs */
-    const networks = (devnet: string, mainnet: string, testnet?: string) =>
-      buildNetworks({ devnet, mainnet, testnet });
+    const networks = (urls: {
+      devnet: string;
+      mainnet: string;
+      testnet?: string;
+    }) => buildNetworks(urls);
 
     /** An entry that is both its key's reading and its address's key */
     const canonical = (id: keyof EndpointOptions) =>
@@ -355,7 +366,10 @@ if (import.meta.vitest) {
           )
         );
         const rotated = buildEndpointOptions(
-          networks("https://devnet.rpc.test/?api-key=new", PLATFORM_MAINNET)
+          networks({
+            devnet: "https://devnet.rpc.test/?api-key=new",
+            mainnet: PLATFORM_MAINNET,
+          })
         );
 
         expect(
@@ -765,7 +779,7 @@ if (import.meta.vitest) {
 
       it("offers the public URLs under the same keys when the env sets none", () => {
         const publicOnly = buildEndpointOptions(
-          networks(Endpoint.DEVNET, Endpoint.MAINNET_BETA)
+          networks({ devnet: Endpoint.DEVNET, mainnet: Endpoint.MAINNET_BETA })
         );
         expect(
           roundTrip(state(Endpoint.MAINNET_BETA, LOCAL_ENDPOINT), publicOnly)
