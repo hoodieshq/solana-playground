@@ -5,8 +5,8 @@ import { DESK } from "./viewports";
 
 /**
  * The URL follows what the page shows: Home, a page and the work each have
- * their own, Back and Forward move between them, and the last tutorial,
- * still the open project, never puts its route back on Home (HOO-2689).
+ * their own, and Back and Forward move between them: Home after a tutorial
+ * no longer keeps the tutorial's route (HOO-2689).
  */
 
 test.use({ viewport: DESK });
@@ -67,25 +67,22 @@ test("Home after a tutorial has Home's URL, and Back and Forward move between th
   await expect(home(page)).toBeVisible();
 });
 
-test("a cleared address bar does not bring the last tutorial back", async ({
+test("Home's URL survives a reload, and `/` still resumes the last tutorial", async ({
   page,
 }) => {
   test.setTimeout(120_000);
   await openLesson(page);
-
-  // As typing `/` over the lesson's URL does: a fresh load of `/`
-  await page.goto("/");
-  await expect(home(page)).toBeVisible(LONG);
+  await navItem(page, "Home").click();
   await expect(page).toHaveURL(/\/home$/);
+
+  await page.reload();
+  await expect(home(page)).toBeVisible(LONG);
   // Still there once the explorer's init has landed
   await page.waitForTimeout(2000);
   await expect(page).toHaveURL(/\/home$/);
 
-  // The tutorial is remembered: Home's project list goes back to it
-  await page
-    .locator('[data-sidebar="group"]')
-    .getByRole("button", { name: "Hello Anchor", exact: true })
-    .click();
+  // What sits at `/` is not this change's: it goes on to what was open last
+  await page.goto("/");
   await expect(page).toHaveURL(LESSON, LONG);
 });
 

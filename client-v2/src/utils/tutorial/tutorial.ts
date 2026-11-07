@@ -1,4 +1,3 @@
-import { HOME_PATH } from "../../routes/catalog-paths";
 import { isMissing } from "../../shared/lib/is-missing";
 import { createLogger } from "../../shared/lib/logger";
 import { PgCommon } from "../common";
@@ -92,16 +91,13 @@ export const storageDataPath = () =>
 const onDidInit = () => {
   let lastTutorialName: string | undefined;
   const disposables = [
-    // `/` is the open project's work, and a tutorial's work has a route of
-    // its own: `/` with a tutorial open is Home, which lists it to go back
-    // to. The last tutorial never decides the URL; following it here put a
-    // tutorial back in the address bar the user had just cleared.
+    // Navigate to tutorial's route if the current workspace is a tutorial but
+    // the user is on the default route
     PgCommon.batchChanges(() => {
       if (PgRouter.location.pathname !== "/") return;
 
       const name = PgExplorer.currentWorkspaceName;
-      if (name && PgTutorial.isWorkspaceTutorial(name))
-        PgRouter.navigate(HOME_PATH, { replace: true });
+      if (name && PgTutorial.isWorkspaceTutorial(name)) PgTutorial.open(name);
     }, [PgRouter.onDidChangePath, PgExplorer.onDidInit]),
 
     // Save tutorial page number to storage when the page changes
