@@ -93,6 +93,39 @@ describe("airdrop, once the faucet answers", () => {
     expect(printed.at(-1)).toContain("https://faucet.solana.com/?");
   });
 
+  it("links the web faucet when a balance read after the airdrop is rate-limited", async () => {
+    connection.getBalance
+      .mockResolvedValueOnce(0)
+      .mockRejectedValueOnce(new Error("429 Too Many Requests: rate limited"));
+
+    await expect(run()).rejects.toThrow("429");
+
+    expect(connection.requestAirdrop).toHaveBeenCalledOnce();
+    expect(printed.at(-1)).toContain("https://faucet.solana.com/?");
+  });
+
+  it("reads the balance again while it is stale, and names what arrived", async () => {
+    connection.getBalance
+      .mockResolvedValueOnce(2 * LAMPORTS_PER_SOL)
+      .mockResolvedValueOnce(2 * LAMPORTS_PER_SOL)
+      .mockResolvedValueOnce(7 * LAMPORTS_PER_SOL);
+
+    await run();
+
+    expect(connection.getBalance).toHaveBeenCalledTimes(3);
+    expect(printed.at(-1)).toBe("Airdrop successful: received 5 SOL.");
+  });
+
+  it("fails without a faucet note when the balance never moves", async () => {
+    connection.getBalance.mockResolvedValue(2 * LAMPORTS_PER_SOL);
+
+    await expect(run()).rejects.toThrow("Balance did not change");
+
+    expect(printed.some((line) => line.includes("faucet.solana.com"))).toBe(
+      false
+    );
+  });
+
   it("adds no faucet note to any other failure", async () => {
     connection.getBalance.mockResolvedValue(0);
     connection.requestAirdrop.mockRejectedValueOnce(new Error("fetch failed"));

@@ -230,8 +230,8 @@ type ExecutableCommand<
     ) => void
   ): Disposable;
   /**
-   * @param cb callback function to run once every run that started has
-   * ended, help included, which `onDidFinish` leaves out
+   * @param cb callback function to run each time a run that started ends,
+   * once per run, help included, which `onDidFinish` leaves out
    * @returns a dispose function to clear the event
    */
   onDidEnd(cb: () => void): Disposable;
@@ -740,8 +740,8 @@ Available subcommands: ${cmd.subcommands
   }
 
   /**
-   * Runs once every run of the command that started has ended, however it
-   * ended: with a result, an error, or only its help. A listener that pairs
+   * Runs each time a run of the command that started ends, once per run,
+   * however it ended: with a result, an error, or only its help. A listener that pairs
    * itself with `onDidStart` and asks nothing of the result takes this one,
    * since `onDidFinish` never comes for help.
    *

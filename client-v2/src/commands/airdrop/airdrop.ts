@@ -81,7 +81,7 @@ export const airdrop = createCmd({
     // the web faucet keeps a limit of its own. Point to it, then fail as before
     try {
       // Airdrop tx is sometimes successful even when the balance hasn't changed.
-      // Check check before and after balance instead of only confirming the tx
+      // Check the balance before and after instead of only confirming the tx
       // to mitigate.
       const beforeBalance = await connection.getBalance(walletPk, "processed");
 
@@ -110,7 +110,7 @@ export const airdrop = createCmd({
       }
 
       // Even though we waited for the transaction to confirm, `getBalance` can
-      // sometimes return a isStale balance. Try a couple times to mitigate.
+      // sometimes return a stale balance. Try a couple times to mitigate.
       const MAX_RETRIES = 3;
       let afterBalance = beforeBalance;
       for (let i = 0; i < MAX_RETRIES; i++) {

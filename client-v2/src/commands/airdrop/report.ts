@@ -5,9 +5,9 @@ const LAMPORTS_PER_SOL = 1_000_000_000;
 
 /**
  * The line after an airdrop landed, with what the balance rose by. A public
- * RPC may grant less than was asked (a devnet request for 5 SOL was seen to
- * credit 1), so the requested amount alone would overstate it. A balance that fell meanwhile
- * (the wallet paid for something) gives no amount to name.
+ * RPC may credit less than was asked, so the requested amount alone would
+ * overstate it. A balance that fell meanwhile (the wallet paid for something)
+ * gives no amount to name.
  */
 export const receivedLine = (
   requestedSol: number,
@@ -21,19 +21,20 @@ export const receivedLine = (
 };
 
 /**
- * Whether the RPC refused the airdrop for its limit: an HTTP 429 (which
- * web3.js reports as "429 Too Many Requests: …" once its retries run out), or
- * the faucet's own words for its daily limit or an empty faucet. The web
- * faucet has a limit of its own, so it is worth pointing to for any of them.
+ * Whether the RPC would not send the airdrop for a limit: an HTTP 429, which
+ * web3.js reports as "429 Too Many Requests: …" once its retries run out (or
+ * "429 : …" over HTTP/2, which has no status text), or the faucet's own words
+ * for its daily limit or an empty faucet. The web faucet keeps a separate
+ * quota, so it is worth pointing to for any of them.
  */
 export const isRateLimited = (error: unknown): boolean =>
   error instanceof Error &&
-  /too many (airdrop )?requests|rate.?limit|airdrop limit|run dry/i.test(
+  /^429\b|too many (airdrop )?requests|rate.?limit|airdrop limit|run dry/i.test(
     error.message
   );
 
-/** What the terminal says after a rate limit, with the web faucet filled in */
+/** What the terminal says after a limit, with the web faucet filled in */
 export const rateLimitNote = (fill: FaucetLinkFill): string =>
-  `The RPC rate-limits airdrops and refused this one. Request SOL from the web faucet instead: ${faucetLink(
+  `The RPC would not send this airdrop: it limits how much it sends. Request SOL from the web faucet instead: ${faucetLink(
     fill
   )}`;

@@ -31,6 +31,8 @@ describe("receivedLine", () => {
 describe("isRateLimited", () => {
   it.each([
     '429 Too Many Requests: {"jsonrpc":"2.0","error":{"code":429}}',
+    // Over HTTP/2 the response carries no status text
+    '429 : {"jsonrpc":"2.0","error":{"code":429}}',
     "failed to get airdrop: Too many airdrop requests. Wait 24 hours for a refill.",
     "You've either reached your airdrop limit today or the airdrop faucet has run dry.",
     "Rate limit exceeded",
@@ -42,6 +44,7 @@ describe("isRateLimited", () => {
     new Error("Airdrop transaction failed: InstructionError"),
     new Error("Balance did not change"),
     new Error("Transaction simulation failed at slot 429"),
+    new Error("4290 lamports short"),
     "a string",
     undefined,
   ])("does not read %s as one", (error) => {
@@ -59,6 +62,7 @@ describe("rateLimitNote", () => {
     expect(note).toContain(
       "https://faucet.solana.com/?walletAddress=9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin&amount=5&cluster=devnet"
     );
-    expect(note).toMatch(/rate.?limit|too many/i);
+    // A drained faucet or a used-up daily cap reads the same: not "rate-limited"
+    expect(note).toMatch(/^The RPC would not send this airdrop/);
   });
 });
