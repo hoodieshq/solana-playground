@@ -19,6 +19,11 @@ export interface LogEntry {
 
 export interface LogProvider {
   log(entry: LogEntry): void;
+  /**
+   * `false` skips the reports `initLogger` delivers from before it: the
+   * console printed them as they were made
+   */
+  replay?: boolean;
 }
 
 export interface LogOptions {
