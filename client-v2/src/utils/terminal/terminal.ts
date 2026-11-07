@@ -120,7 +120,7 @@ export class PgTerminal {
 
   /**
    * `run`, doing nothing while no terminal is mounted. For `enable`,
-   * `println`, `focus` and `clear`, which are called without `await` all over
+   * `println`, `printlnWasm`, `focus` and `clear`, which are called without `await` all over
    * the app: under Home,
    * which mounts no terminal, there is nothing to print to or focus, and a
    * rejection there would go unhandled.
@@ -143,7 +143,11 @@ export class PgTerminal {
    * Mainly used from WASM
    */
   static logWasm(msg: any) {
-    PgTerminal._runIfMounted({ printlnWasm: [msg] });
+    // WASM does not await this, so a failure is logged here; rethrown, it
+    // would be an unhandled rejection and the output lost without a trace
+    PgTerminal._runIfMounted({ printlnWasm: [msg] }).catch((e) =>
+      log.error(e, { report: true })
+    );
   }
 
   /**
@@ -486,8 +490,9 @@ export class PgTerm {
   }
 
   /**
-   * Print what a WASM package logs, a table it pads past the terminal's width
-   * laid out to fit (see {@link fitBuffersTable}).
+   * Print what a WASM package logs; the buffers table solana-cli prints is
+   * first laid out for the terminal's width (see {@link fitBuffersTable}).
+   * Called through `PgTerminal.logWasm`, not directly.
    */
   printlnWasm(msg: any) {
     this.println(fitBuffersTable(msg, this._tty.size.cols));

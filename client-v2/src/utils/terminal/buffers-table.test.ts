@@ -51,7 +51,7 @@ describe("fitBuffersTable", () => {
   });
 
   it("puts each value under its label at a phone's width", () => {
-    // Unstyled, as solana-cli prints it where it sees no colour terminal
+    // Unstyled: the fit must not depend on the header's styling
     const output = stripAnsi(table([[ADDRESS, AUTHORITY, "1.2345 SOL"]]));
 
     expect(stripAnsi(fitBuffersTable(output, 48))).toBe(
@@ -68,8 +68,48 @@ describe("fitBuffersTable", () => {
     );
   });
 
-  it("says there are no buffers instead of a header that would wrap", () => {
-    expect(stripAnsi(fitBuffersTable(table([]), 100))).toBe("\nNo buffers.\n");
+  it("keeps the rows when they are exactly as wide as the terminal", () => {
+    const output = table([[ADDRESS, AUTHORITY, "1.2345 SOL"]]);
+    const width = Math.max(
+      ...stripAnsi(output)
+        .split("\n")
+        .map((l) => l.length)
+    );
+
+    expect(fitBuffersTable(output, width)).toBe(output);
+    expect(fitBuffersTable(output, width - 1)).not.toBe(output);
+  });
+
+  it("puts the labels beside the values only while the longest value fits", () => {
+    const output = table([[ADDRESS, AUTHORITY, "1.2345 SOL"]]);
+    // "Buffer Address" and its two-space gap, then a 44-character address
+    const beside = 16 + ADDRESS.length;
+
+    expect(stripAnsi(fitBuffersTable(output, beside))).toContain(
+      `Buffer Address  ${ADDRESS}`
+    );
+    expect(stripAnsi(fitBuffersTable(output, beside - 1))).toContain(
+      `Buffer Address\n${ADDRESS}`
+    );
+  });
+
+  it("keeps what solana-cli prints before and after the table", () => {
+    const output = `Note: before${table([
+      [ADDRESS, AUTHORITY, "1 SOL"],
+    ])}Note: after`;
+
+    const fitted = stripAnsi(fitBuffersTable(output, 100));
+
+    expect(fitted.startsWith("Note: before\n")).toBe(true);
+    expect(fitted.endsWith("\nNote: after")).toBe(true);
+  });
+
+  it("says there are no buffers at any width", () => {
+    for (const cols of [48, 100, 200]) {
+      expect(stripAnsi(fitBuffersTable(table([]), cols))).toBe(
+        "\nNo buffers.\n"
+      );
+    }
   });
 
   it("leaves any other output alone", () => {
