@@ -46,24 +46,39 @@ const buildServerLink = async (page: Page) => {
   return href;
 };
 
-// Reaches github.com itself: a path the examples repository drops, or a link
-// left on upstream's repository, fails here rather than in front of a user
-test("github-import: Every link in the import and build server dialogs resolves", async ({
+/**
+ * Every GitHub link the two dialogs offer, recorded: the three examples, the
+ * explainer's repository (also inside its playground URL) and the build
+ * server's tip. A change to any of them is a change to this list.
+ */
+const LINKS = [
+  "https://github.com/solana-developers/program-examples/tree/main/basics/create-account/anchor",
+  "https://github.com/solana-developers/program-examples/tree/main/basics/hello-solana/native/program",
+  "https://github.com/solana-developers/program-examples/tree/main/basics/transfer-sol/anchor",
+  "https://github.com/solana-foundation/solana-playground/tree/master/server",
+];
+
+/** The dialogs' links, deduplicated and sorted */
+const dialogLinks = async (page: Page) => {
+  const links = await importDialogLinks(page);
+  const server = await buildServerLink(page);
+  return Array.from(new Set(links.concat(server))).sort();
+};
+
+test("github-import: The import and build server dialogs offer the recorded links", async ({
   page,
 }) => {
   await page.goto("/");
-  const links = await importDialogLinks(page);
-  // Three examples, the explainer's repository and its playground URL
-  expect(links.length).toBeGreaterThanOrEqual(5);
-  const server = await buildServerLink(page);
-  expect(server).toMatch(
-    /^https:\/\/github\.com\/solana-foundation\/solana-playground\//
-  );
+  expect(await dialogLinks(page)).toEqual(LINKS);
+});
 
-  for (const url of new Set(links.concat(server))) {
-    expect(url, "every link goes to GitHub").toMatch(
-      /^https:\/\/github\.com\//
-    );
+// Reaches github.com itself, so the PR suite leaves it out (`--grep-invert
+// @live-links`) and `client-v2-live-links.yml` runs it weekly: a path the
+// examples repository drops fails there rather than in front of a user
+test("github-import: Every recorded link resolves on GitHub @live-links", async ({
+  page,
+}) => {
+  for (const url of LINKS) {
     const response = await page.request.get(url, { maxRedirects: 5 });
     expect(response.status(), url).toBe(200);
   }

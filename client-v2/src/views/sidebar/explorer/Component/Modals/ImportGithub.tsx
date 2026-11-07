@@ -91,8 +91,8 @@ export const ImportGithub = () => {
             <p>
               Program repositories can be viewed in playground by combining the
               playground URL with their GitHub URL. For example, from{" "}
-              {/* The callout underlines its links already; the link's own
-                  hover line under it made two */}
+              {/* The callout underlines its links; the link's own hover
+                  line would draw a second one under it */}
               <Link
                 href={GITHUB_PROGRAM_URL}
                 className="hover:border-transparent"
@@ -131,8 +131,8 @@ const Example: FC<React.PropsWithChildren<ExampleProps>> = ({ framework }) => {
   const id = useModalId();
   const title = `${framework.name} – ${framework.githubExample.name}`;
   return (
-    // The name on its own line and the buttons under it: beside them a name
-    // was squeezed to three lines, and the rows wrapped unevenly
+    // The name on its own line and the buttons under it: beside the buttons a
+    // name has no room, and rows of different lengths wrap unevenly
     <div data-testid="github-example" className="my-3 flex flex-col gap-2">
       <div className="flex min-w-0 items-center gap-2">
         <Img

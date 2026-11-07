@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { initLogger, memoryProvider, resetLogger } from "@/shared/lib/logger";
@@ -51,5 +52,41 @@ it("drops a failed route's error when the next route brings its view", async () 
   void PgView.setMainPrimary(async () => <p>Hello Solana</p>);
 
   expect(await screen.findByText("Hello Solana")).toBeTruthy();
+  expect(screen.queryByText("Seahorse example is gone")).toBeNull();
+});
+
+it("keeps a newer view over an older one that fails after it", async () => {
+  render(<Primary />);
+  let fail: ((e: Error) => void) | undefined;
+  void PgView.setMainPrimary(
+    async () =>
+      new Promise<ReactElement>((_, reject) => {
+        fail = reject;
+      })
+  );
+  // The older view is loading in `Primary`, not still waiting for a mount,
+  // where `setMainPrimary` would drop it itself
+  await waitFor(() => expect(fail).toBeDefined());
+  void PgView.setMainPrimary(async () => <p>Hello Solana</p>);
+  expect(await screen.findByText("Hello Solana")).toBeTruthy();
+
+  fail?.(new Error("Seahorse example is gone"));
+  // The failure lands once `PgCommon.transition`'s 300 ms floor is past
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  expect(screen.getByText("Hello Solana")).toBeTruthy();
+  expect(screen.queryByText("Seahorse example is gone")).toBeNull();
+});
+
+it("drops a failed route's error when the next route brings a plain view", async () => {
+  render(<Primary />);
+  void PgView.setMainPrimary(async () => {
+    throw new Error("Seahorse example is gone");
+  });
+  expect(await screen.findByText("Seahorse example is gone")).toBeTruthy();
+
+  void PgView.setMainPrimary(() => <p>Home</p>);
+
+  expect(await screen.findByText("Home")).toBeTruthy();
   expect(screen.queryByText("Seahorse example is gone")).toBeNull();
 });

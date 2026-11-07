@@ -399,5 +399,6 @@ it("should put the toaster on the page's body, above any dialog", () => {
     document.querySelector<HTMLElement>("[data-sonner-toaster]")
   );
   expect(container.contains(toaster)).toBe(false);
-  expect(toaster.closest("body")).toBe(document.body);
+  // Sonner wraps its list in a section; that section is the body's own child
+  expect(toaster.closest("section")?.parentElement).toBe(document.body);
 });
