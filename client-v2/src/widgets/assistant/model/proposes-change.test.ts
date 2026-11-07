@@ -38,6 +38,23 @@ describe("proposesChange", () => {
     );
   });
 
+  it("an unlabelled block that names a project file proposes a change", () => {
+    expect(proposesChange(fence("", "// src/lib.rs\nfn a() {}"))).toBe(true);
+    expect(proposesChange(fence("", "# Cargo.toml\n[dependencies]"))).toBe(
+      true
+    );
+    expect(proposesChange(fence("", "// a note\nfn a() {}"))).toBe(false);
+  });
+
+  it("a closing fence is not read as an unlabelled block", () => {
+    expect(
+      proposesChange("```bash\nbuild\n```\n# src/lib.rs is where it lives")
+    ).toBe(false);
+    expect(proposesChange("```text\nout\n```\n```rust\nfn a() {}\n```")).toBe(
+      true
+    );
+  });
+
   it("one code block among command blocks is enough", () => {
     expect(
       proposesChange(`${fence("bash", "build")}\n\nthen\n\n${fence("rust")}`)
