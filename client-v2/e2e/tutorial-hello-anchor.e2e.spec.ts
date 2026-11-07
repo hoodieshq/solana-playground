@@ -353,7 +353,15 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     await act(page, "s3.run").click(LONG);
     await won(page, "call-client");
     await next(page).click();
+    // Step 2's deploy left the wallet short of the 400 KB estimate, so step
+    // 4's airdrop card asks the faucet before the upgrade
     await answer(page, beat("s4.q4", "ask"));
+    await act(page, "s4.airdrop").click(LONG);
+    await expect(
+      feed(page)
+        .getByText(/Added [\d.]+ SOL/)
+        .last()
+    ).toBeVisible(LONG);
     await act(page, "s4.ship").click(LONG);
     await expect(feed(page).getByText("Upgraded").last()).toBeVisible(LONG);
 
