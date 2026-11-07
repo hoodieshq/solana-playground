@@ -64,8 +64,9 @@ stopped". No failure message or toast SHALL appear.
 
 A deploy SHALL be stopped from the terminal, with Ctrl+C or ⌘.; a question
 the deploy asks SHALL be answered, not stopped. Stopping a deploy SHALL take
-effect while it funds the wallet or writes the buffer: at its next transaction, or between chunks of the write, after
-"Stopping after this step…". It SHALL ask no question. A stop after the
+effect while it funds the wallet or writes the buffer: at its next
+transaction, or between chunks of the write, after "Stopping after this
+step…". It SHALL ask no question. A stop after the
 buffer exists SHALL close the buffer and return its SOL. The terminal SHALL
 print `^C` and one line:
 
