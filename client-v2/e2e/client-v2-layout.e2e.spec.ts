@@ -11,6 +11,7 @@ import {
   homeRegion,
   json,
   leaveEditor,
+  newProjectPage,
   openFiles,
   projectRow,
   runInTerminal,
@@ -788,8 +789,8 @@ test.describe("on a phone", () => {
     await expect(preview).toBeInViewport({ ratio: 1 });
   });
 
-  // The gallery is a dialog over the menu page; the project it starts opens
-  // on Work, not behind the menu that started it
+  // New project is a page in the content; the project it starts opens on
+  // Work, not behind the menu that started it
   test("client-v2-layout: A project started from the phone's menu", async ({
     page,
   }) => {
@@ -802,7 +803,7 @@ test.describe("on a phone", () => {
         .getByRole("region", { name: "Navigation" })
         .getByRole("button", { name: "New project", exact: true })
         .click();
-      const gallery = page.getByRole("dialog");
+      const gallery = newProjectPage(page);
       await gallery.getByLabel("Project name").fill(`from-the-menu-${width}`);
       await gallery.getByRole("button", { name: /^Start/ }).click();
 
