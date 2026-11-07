@@ -522,7 +522,7 @@ test("client-v2-layout: Folding the navigation", async ({
   ).toBeVisible();
 });
 
-test("the folded navigation is headed by the trimmed logo, which expands it", async ({
+test("the trimmed logo heads the folded navigation and expands it", async ({
   seededPage: page,
 }) => {
   const header = nav(page).locator("[data-sidebar=header]");

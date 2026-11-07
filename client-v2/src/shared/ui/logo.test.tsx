@@ -1,7 +1,8 @@
 // The parts of the logo drawn alone: the send button's play shape, whose
 // ring must not be drawn at all, since any crop of the ring's box still
 // leaves slivers of the ring in its corners; and the folded navigation's mark,
-// the lockup without its words.
+// the lockup without its words. A file of its own: the installed component is
+// never edited by hand.
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 

@@ -111,7 +111,7 @@ const BaseAppNav = ({
     handFocusOver.current = false;
     toggleButton.current?.focus();
   }, [collapsed]);
-  const toggleFromHead = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleHeadToggle = (event: MouseEvent<HTMLButtonElement>) => {
     handFocusOver.current = document.activeElement === event.currentTarget;
     onToggle();
   };
@@ -152,7 +152,7 @@ const BaseAppNav = ({
               aria-label="Expand navigation"
               title="Expand navigation (⌘B)"
               ref={toggleButton}
-              onClick={toggleFromHead}
+              onClick={handleHeadToggle}
               className="group/rail-logo relative mx-auto grid size-9 place-items-center rounded-lg text-foreground transition-colors outline-none hover:bg-sidebar-accent focus-visible:bg-sidebar-accent focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none"
             >
               <span className="grid place-items-center transition-opacity duration-120 group-hover/rail-logo:opacity-0 group-focus-visible/rail-logo:opacity-0 motion-reduce:transition-none">
@@ -173,7 +173,7 @@ const BaseAppNav = ({
                 aria-label="Collapse navigation"
                 title="Collapse navigation (⌘B)"
                 ref={toggleButton}
-                onClick={toggleFromHead}
+                onClick={handleHeadToggle}
                 // As the stage bar's icons: a 32 px square, 18 px at 1.6
                 className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
               >
