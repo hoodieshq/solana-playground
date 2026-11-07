@@ -1393,6 +1393,36 @@ describe("PgConversation's airdrop card", () => {
     ]);
   });
 
+  it("measures a refused airdrop as no_funds", async () => {
+    const refused: RunResult = {
+      act: "airdrop",
+      ok: false,
+      seconds: 3,
+      reason: "no_funds",
+      message: "429 Too Many Requests",
+      balance: 0,
+      cost: 1.27 * SOL,
+      address: "WaLLet",
+    };
+    const runner = runnerWith(async () => false, [OK_BUILD, refused]);
+    await toAirdrop(runner);
+    PgConversation.act("s2.airdrop");
+    await settle();
+    expect(
+      events.events
+        .filter((e) => e.name === "tutorial_action_run")
+        .map((e) => e.params)
+        .filter((p) => p.action === "airdrop")
+    ).toEqual([
+      expect.objectContaining({
+        tutorial: "hello-anchor",
+        step: 2,
+        action: "airdrop",
+        outcome: "no_funds",
+      }),
+    ]);
+  });
+
   it("asks again after a reload interrupted the card's run", async () => {
     const runner = {
       run: vi.fn<Runner["run"]>(async (act) =>
@@ -1568,6 +1598,132 @@ describe("PgConversation's later airdrop card (designers, 7 Nov)", () => {
     await toLaterAirdrop(runner);
     expect(PgConversation.state.probing).toEqual([]);
     expect(PgConversation.view(LATER)?.live?.id).toBe("s4.airdrop");
+  });
+
+  /** The faucet's refusal, as the airdrop act answers it */
+  const REFUSED: RunResult = {
+    act: "airdrop",
+    ok: false,
+    seconds: 3,
+    reason: "no_funds",
+    message: "429 Too Many Requests",
+    balance: 0,
+    cost: 1.27 * SOL,
+    address: "WaLLet",
+  };
+  const airdropPresses = (runner: { run: ReturnType<typeof vi.fn> }) =>
+    runner.run.mock.calls.filter(([act]) => act === "airdrop");
+
+  it.each([
+    ["finds the wallet short", () => Promise.resolve(false)],
+    ["throws", () => Promise.reject(new Error("RPC down"))],
+  ])(
+    "shows the card when the check times out, and a late answer that %s presses nothing",
+    async (_case, late) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        // Resolved with the late answer's promise, so a rejection rejects it
+        let settleProbe: (answer: Promise<boolean>) => void = () => undefined;
+        const runner = runnerWith(
+          () => new Promise<boolean>((resolve) => (settleProbe = resolve)),
+          [OK_BUILD]
+        );
+        await toLaterAirdrop(runner);
+        expect(PgConversation.state.probing).toEqual(["s4.airdrop"]);
+        vi.advanceTimersByTime(PROBE_TIMEOUT_MS);
+        await settle();
+        expect(PgConversation.state.probing).toEqual([]);
+        expect(shown()).toContain("say:s4.airdrop");
+        expect(PgConversation.view(LATER)?.live).toMatchObject({
+          id: "s4.airdrop",
+          state: "live",
+        });
+        settleProbe(late());
+        await settle();
+        expect(airdropPresses(runner)).toEqual([]);
+        expect(laterRuns()).toEqual([]);
+        expect(PgConversation.state.probing).toEqual([]);
+        expect(PgConversation.view(LATER)?.live).toMatchObject({
+          id: "s4.airdrop",
+          state: "live",
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
+
+  it("reports a check that throws after it timed out, once", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      let fail: (e: Error) => void = () => undefined;
+      const runner = runnerWith(
+        () => new Promise<boolean>((_resolve, reject) => (fail = reject)),
+        [OK_BUILD]
+      );
+      await toLaterAirdrop(runner);
+      vi.advanceTimersByTime(PROBE_TIMEOUT_MS);
+      await settle();
+      fail(new Error("RPC down"));
+      await settle();
+      expect(
+        logged.entries.filter(
+          (e) => e.level === "error" && e.error?.message === "RPC down"
+        )
+      ).toMatchObject([{ report: true }]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a press after the check found the wallet short fails into a live retry card", async () => {
+    const runner = runnerWith(async () => false, [OK_BUILD, REFUSED]);
+    await toLaterAirdrop(runner);
+    expect(PgConversation.state.probing).toEqual([]);
+    PgConversation.act("s4.airdrop");
+    await settle();
+    expect(airdropPresses(runner)).toHaveLength(1);
+    expect(laterRuns()).toMatchObject([{ status: "failed" }]);
+    expect(PgConversation.state.probing).toEqual([]);
+    expect(shown()).toContain("s4.airdrop");
+    expect(PgConversation.view(LATER)?.live).toMatchObject({
+      id: "s4.airdrop:retry",
+      state: "live",
+    });
+    // Within the session the refused card is not asked about again
+    expect(runner.isFunded).toHaveBeenCalledTimes(1);
+  });
+
+  it("a press the check made that the faucet refuses shows the retry card", async () => {
+    const runner = runnerWith(async () => true, [OK_BUILD, REFUSED]);
+    await toLaterAirdrop(runner);
+    expect(airdropPresses(runner)).toHaveLength(1);
+    expect(laterRuns()).toMatchObject([{ status: "failed" }]);
+    expect(PgConversation.state.probing).toEqual([]);
+    expect(shown()).toContain("s4.airdrop");
+    expect(PgConversation.view(LATER)?.live).toMatchObject({
+      id: "s4.airdrop:retry",
+      state: "live",
+    });
+  });
+
+  it("presses nothing in another workspace when the check answers after a switch", async () => {
+    let answer: (funded: boolean) => void = () => undefined;
+    const runner = runnerWith(
+      () => new Promise<boolean>((resolve) => (answer = resolve)),
+      [OK_BUILD]
+    );
+    await toLaterAirdrop(runner);
+    expect(PgConversation.state.probing).toEqual(["s4.airdrop"]);
+    const written = writtenTo.length;
+    switchWorkspace("Scratch");
+    await settle();
+    answer(true);
+    await settle();
+    expect(airdropPresses(runner)).toEqual([]);
+    expect(PgConversation.state.context).toBeNull();
+    expect(PgConversation.state.probing).toEqual([]);
+    expect(writtenTo.slice(written)).toEqual([]);
   });
 });
 
