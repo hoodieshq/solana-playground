@@ -26,6 +26,7 @@ import {
 } from "../../../views/sidebar/assistant/store";
 import { DEFAULT_CONNECTION } from "../model/connection";
 import { useDefaultBackend } from "../model/default-backend";
+import { proposesChange } from "../model/proposes-change";
 import { useSignInOffer } from "../model/sign-in-offer";
 import { assistantTelemetry } from "../model/telemetry";
 import type { Turn } from "../model/use-turn";
@@ -91,12 +92,16 @@ export const Thread = ({
 
   // Offer "Make this change" on the reply the assistant just finished, and
   // only there: an older message describes code that has since moved on, and a
-  // turn ending in an approval card has already produced its patch.
+  // turn ending in an approval card has already produced its patch. Outside a
+  // lesson only a reply that proposes code gets it: an explanation has nothing
+  // to apply. Inside one, "Write it for me" is the way out of the hints, which
+  // hold the code back by design.
   const lastItem = items[items.length - 1];
   const changeableId =
     !busy &&
     lastItem?.kind === "assistant" &&
     lastItem.text &&
+    (lesson || proposesChange(lastItem.text)) &&
     !turnProducedApproval(items)
       ? lastItem.id
       : null;
