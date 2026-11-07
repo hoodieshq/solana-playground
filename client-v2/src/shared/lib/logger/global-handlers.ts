@@ -48,8 +48,10 @@ const RESIZE_OBSERVER_LOOP_NOTICE =
   "ResizeObserver loop completed with undelivered notifications.";
 
 /**
- * The browser's report that a resize was delivered a frame late. The panel
- * layout raises it on load; it is harmless, and each one would otherwise reach
+ * The browser's report that a resize was delivered a frame late. Our own code
+ * raises none on load (`e2e/resize-observer-loop.e2e.spec.ts` holds that, and
+ * counts ahead of this filter); this stays as a backstop for a dependency or
+ * an extension that does. It is harmless, and each one would otherwise reach
  * Sentry, once a DSN is set, as an unhandled panic. The match is exact, and a
  * thrown `Error` with the same text carries an `error` and is not matched.
  */
