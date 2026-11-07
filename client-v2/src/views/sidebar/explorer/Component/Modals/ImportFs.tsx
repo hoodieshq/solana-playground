@@ -36,17 +36,7 @@ export const ImportFs: FC<React.PropsWithChildren<ImportFsProps>> = (props) => {
 
   const onDrop = async (userFiles: ImportedFile[]) => {
     try {
-      const importFiles = await PgFramework.readImportFiles(userFiles);
-
-      // A dropped folder's name leads every path; a project with no program
-      // drops it rather than nest the project under it
-      const folders = new Set(
-        importFiles.map(([path]) => /^\/?([^/]+)\//.exec(path)?.[1])
-      );
-      const [root] = folders.size === 1 ? [...folders] : [];
-      const pgFiles = await PgFramework.convertToPlaygroundLayoutWith(
-        root ?? ""
-      )(root)(importFiles);
+      const pgFiles = await PgFramework.importFiles(userFiles);
 
       // Closed while the files were read: open it again with them
       if (!mounted.current) {
@@ -55,11 +45,16 @@ export const ImportFs: FC<React.PropsWithChildren<ImportFsProps>> = (props) => {
         setFiles(pgFiles);
         setImportError("");
       }
-    } catch (e: any) {
+    } catch (e) {
+      // Something thrown that is not an `Error` must still say it failed
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : "Could not read the files.";
       if (!mounted.current) {
-        PgView.setModal(<ImportFs name={name} importError={e.message} />);
+        PgView.setModal(<ImportFs name={name} importError={message} />);
       } else {
-        setImportError(e.message);
+        setImportError(message);
       }
     }
   };

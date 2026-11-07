@@ -1,6 +1,6 @@
-// A file of its own: the frameworks reach the `utils` barrel, which needs a
-// boot-time global and the wasm packages, so they cannot load inside
-// `utils/framework.ts`'s own tests.
+// A file of its own: the test needs the real Anchor and Native frameworks,
+// which import the `utils` barrel, and the barrel needs a boot-time global
+// and the wasm packages; `utils/framework.ts`'s own tests avoid the barrel.
 //
 // Settings › Export project downloads a zip, and Import › From files took
 // the zip as one text file: nothing in it looked like a program, so the
@@ -84,13 +84,29 @@ describe("export a project, then import its zip", () => {
 
       await PgFramework.exportWorkspace();
       const [fileName, blob] = exported.mock.calls[0] as [string, Blob];
-      const dropped = await PgFramework.readImportFiles([
+      const imported = await PgFramework.importFiles([
         asDropped(fileName, blob),
       ]);
-      const imported = await PgFramework.convertToPlaygroundLayout(dropped);
 
       expect(await PgFramework.getFromFiles(imported)).toBe(framework);
       expect(sorted(imported)).toEqual(sorted(files));
     }
   );
+
+  it("keeps the folder of a project with only tests", async () => {
+    const files: TupleFiles = [
+      ["tests/rpc.test.ts", 'import fixture from "./fixture.json";\n'],
+      ["tests/fixture.json", "{}\n"],
+    ];
+    await PgExplorer.createWorkspace("only-tests", {
+      files: files.map(([path, content]) => [`/only-tests/${path}`, content]),
+    });
+    const exported = vi.spyOn(PgCommon, "export").mockImplementation(() => {});
+
+    await PgFramework.exportWorkspace();
+    const [fileName, blob] = exported.mock.calls[0] as [string, Blob];
+    const imported = await PgFramework.importFiles([asDropped(fileName, blob)]);
+
+    expect(sorted(imported)).toEqual(sorted(files));
+  });
 });

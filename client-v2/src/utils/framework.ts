@@ -140,16 +140,22 @@ const isNoProgramFile = (path: string) =>
   (DATA_FILE_REGEX.test(path) && !TOOL_CONFIG_REGEX.test(path));
 
 /**
- * What an import from files leaves out: a dot file or folder (`.git/`), the
- * dependencies (`node_modules/`) and the build output (`target/`), each as a
- * whole path segment, so `src/target_account.rs` is kept
+ * Whether an import from files leaves `path` out, by whole path segment (so
+ * `src/target_account.rs` is kept): a dot file or folder (`.git/`), a `..`
+ * that would climb out of the project, the dependencies (`node_modules/`),
+ * and the build output (`target/`), unless it sits under `src/`, where
+ * `target` names a Rust module
  */
-const SKIPPED_IMPORT_PATH_REGEX =
-  /(^|\/)(\.[^/.][^/]*|node_modules|target)(\/|$)/;
+const isSkippedImportPath = (path: string) =>
+  /(^|\/)(\.[^/.][^/]*|\.\.|node_modules)(\/|$)/.test(path) ||
+  (/(^|\/)target(\/|$)/.test(path) && !/(^|\/)src\/(.+\/)?target\//.test(path));
 
 /** A file dropped into Import › From files: the drop zone adds its `path` */
 export type ImportedFile = Pick<File, "name" | "text" | "arrayBuffer"> & {
-  /** Where the file sat in the dropped folder; its name when picked alone */
+  /**
+   * Where the file sat in the drop, as the drop zone gives it (`/p/src/lib.rs`
+   * for a dropped folder, `./p.zip` for a picked file); `name` without it
+   */
   path?: string;
 };
 
@@ -378,29 +384,59 @@ export class PgFramework {
    * Export project downloads, is opened and its files read in its place.
    *
    * @param files the dropped or picked files
-   * @returns each file's path and text, those `SKIPPED_IMPORT_PATH_REGEX`
-   * names left out
+   * @returns each file's path and text, those `isSkippedImportPath` names
+   * left out
+   * @throws when a `.zip` cannot be opened, naming it
    */
   static async readImportFiles(files: ImportedFile[]): Promise<TupleFiles> {
     const read: TupleFiles = [];
     for (const file of files) {
       const path = file.path ?? file.name;
-      if (SKIPPED_IMPORT_PATH_REGEX.test(path)) continue;
+      if (isSkippedImportPath(path)) continue;
 
       if (!/\.zip$/i.test(file.name)) {
         read.push([path, await file.text()]);
         continue;
       }
 
+      // A zip's files sit where the zip did, so a folder holding one keeps a
+      // single root
+      const folder = path.replace(/^\.?\/+/, "").replace(/[^/]*$/, "");
       const { default: JSZip } = await import("jszip");
-      const zip = await JSZip.loadAsync(await file.arrayBuffer());
+      const zip = await JSZip.loadAsync(await file.arrayBuffer()).catch(() => {
+        throw new Error(`Could not open ${file.name}: it is not a zip file.`);
+      });
       for (const entry of Object.values(zip.files)) {
-        if (entry.dir || SKIPPED_IMPORT_PATH_REGEX.test(entry.name)) continue;
-        read.push([entry.name, await entry.async("string")]);
+        const entryPath = entry.name.replace(/^\/+/, "");
+        if (entry.dir || isSkippedImportPath(entryPath)) continue;
+        read.push([folder + entryPath, await entry.async("string")]);
       }
     }
 
     return read;
+  }
+
+  /**
+   * Import › From files: read the dropped files (`readImportFiles`) and lay
+   * them out for the playground. A dropped folder's name leads every path,
+   * and a project with no program drops it rather than nest the project
+   * under it. The folder is read from the drop, not from inside a zip: a
+   * project exported with only `tests/` must not lose that folder.
+   *
+   * @param files the dropped or picked files
+   * @returns the playground layout files
+   * @throws see {@link PgFramework.readImportFiles} and
+   * {@link PgFramework.convertToPlaygroundLayoutWith}
+   */
+  static async importFiles(files: ImportedFile[]) {
+    const read = await PgFramework.readImportFiles(files);
+    const folders = new Set(
+      files.map(
+        ({ path, name }) => /^(?:\.?\/)?([^/]+)\//.exec(path ?? name)?.[1]
+      )
+    );
+    const [root] = folders.size === 1 ? [...folders] : [];
+    return PgFramework.convertToPlaygroundLayoutWith(root ?? "")(root)(read);
   }
 
   /**
@@ -916,10 +952,45 @@ if (import.meta.vitest) {
           file("/p/node_modules/a/index.js", "x"),
           file("/p/target/deploy/p-keypair.json", "x"),
           file("/p/src/target_account.rs", "x"),
+          // A Rust module may be named `target`
+          file("/p/src/target/mod.rs", "x"),
         ]);
         expect(read.map(([path]) => path)).toEqual([
           "/p/src/target_account.rs",
+          "/p/src/target/mod.rs",
         ]);
+      });
+
+      const zipOf = async (entries: string[]) => {
+        const zip = new JSZip();
+        entries.forEach((entry) => zip.file(entry, entry));
+        return zip.generateAsync({ type: "blob" });
+      };
+      const zipFile = (path: string, blob: Blob) =>
+        Object.assign(new File([blob], path.split("/").at(-1) ?? path), {
+          path,
+        });
+
+      it("keeps a zip's files in the folder it was dropped from", async () => {
+        const blob = await zipOf(["src/lib.rs"]);
+        expect(
+          await PgFramework.readImportFiles([zipFile("/p/p.zip", blob)])
+        ).toEqual([["p/src/lib.rs", "src/lib.rs"]]);
+      });
+
+      it("never lets a zip's file climb out of the project", async () => {
+        const blob = await zipOf(["../escape.rs", "/src/lib.rs"]);
+        const read = await PgFramework.readImportFiles([
+          zipFile("./p.zip", blob),
+        ]);
+        // JSZip resolves `..` itself; a leading `/` is dropped here
+        expect(read.map(([path]) => path)).toEqual(["escape.rs", "src/lib.rs"]);
+      });
+
+      it("names the file it cannot open as a zip", async () => {
+        await expect(
+          PgFramework.readImportFiles([file("./notes.zip", "not a zip")])
+        ).rejects.toThrow("Could not open notes.zip: it is not a zip file.");
       });
 
       it("opens a zip and reads what is inside", async () => {
