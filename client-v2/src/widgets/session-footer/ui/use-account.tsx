@@ -105,7 +105,7 @@ export const useAccount = ({
   // `connect` toggles: no wallet to the Playground wallet, the Playground
   // wallet to none, an extension wallet back to the Playground one. It
   // rejects when the user closes the setup, which is their choice, not a fault.
-  // Home mounts no terminal, so this cannot go through one
+  // Home mounts no terminal, so this must work without one
   const toggleWallet = (item: AccountItem) => {
     connectWallet().catch((error: unknown) => {
       if (isSetupRejected(error)) {

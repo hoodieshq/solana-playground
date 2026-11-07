@@ -116,7 +116,7 @@ const SetupList = ({
     },
     wallet: () => {
       // Rejects when the user closes the setup, which is their choice. Home
-      // mounts no terminal, so this cannot go through one
+      // mounts no terminal, so this must work without one
       connectWallet().catch((error: unknown) => {
         if (isSetupRejected(error)) {
           log.info("wallet setup dismissed");

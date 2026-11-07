@@ -16,11 +16,12 @@ export const connect = createCmd({
 });
 
 /**
- * What `connect` does, with no terminal of its own: its lines go through
+ * What `connect` does. It needs no terminal: its lines go through
  * `PgTerminal.println`, which drops them while none is mounted.
  *
- * @param walletName the standard wallet to toggle (lower case), or none for
- * the Playground wallet
+ * @param walletName the standard wallet to toggle (lower case), or none to
+ * toggle the Playground wallet: off when it is on, on from no wallet, the
+ * setup or an extension wallet
  */
 export const connectTo = async (walletName: string | undefined) => {
   switch (PgWallet.state) {

@@ -1,3 +1,4 @@
+import { connectWallet as runConnect } from "@/commands/connect/connect-wallet";
 import { isSetupRejected } from "@/commands/connect/setup-rejected";
 import { createLogger } from "@/shared/lib/logger";
 import { PgCommand, PgConnection, PgExplorer, PgWallet, PgWeb3 } from "@/utils";
@@ -217,7 +218,7 @@ const connectWallet = async (): Promise<WalletOrigin | undefined> => {
   }
   const origin: WalletOrigin = PgWallet.state === "setup" ? "new" : "existing";
   try {
-    await PgCommand.connect.execute();
+    await runConnect();
   } catch (error) {
     if (!isSetupRejected(error)) throw error;
     // The user closed the setup: nothing to run with, and they know why
