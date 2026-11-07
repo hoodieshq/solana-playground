@@ -731,10 +731,19 @@ export class PgExplorer {
     if (!this._workspace && this.isTemporary) await this._initWorkspaces();
     if (!this._workspace) throw new Error(PgWorkspace.errors.NOT_FOUND);
 
+    // Read while the open workspace is still current: `create` makes the new
+    // one current, and the save `switchWorkspace` starts with then skips
+    // every open file as another workspace's, losing their cursor, top line
+    // and tabs (HOO-2731). Read, not written: `create` must follow with no
+    // await between, or a refresh could take the store's list without it
+    const leaving = this._metaOfCurrent();
+
     // Create a new workspace in state
     this._workspace.create(name, opts?.id);
     // Only once the create held, as for `fromTemporary` above
     this._isTemporary = false;
+
+    await this._writeMeta(leaving);
 
     // Create files
     if (opts?.files) {
@@ -1080,10 +1089,20 @@ export class PgExplorer {
    * current workspace's folder is gone, and never makes it again.
    */
   static async saveMeta() {
-    if (this.isTemporary) return;
+    await this._writeMeta(this._metaOfCurrent());
+  }
+
+  /**
+   * The current workspace's metadata file, read from state at once: its full
+   * path and content, or `null` when there is nothing to save (see
+   * `saveMeta`). Taken before the current workspace changes, it still saves
+   * the one being left.
+   */
+  private static _metaOfCurrent() {
+    if (this.isTemporary) return null;
 
     const paths = Object.keys(this.files);
-    if (!paths.length) return;
+    if (!paths.length) return null;
 
     // Nothing is current, so there is nowhere for this to go. `deleteWorkspace`
     // removes the workspace from state and only then moves to another one, so
@@ -1099,11 +1118,11 @@ export class PgExplorer {
     // The file map at that point holds the deleted workspace's paths, so the
     // check below is what would have rejected them anyway.
     const workspacePath = this.getCurrentWorkspacePath();
-    if (!workspacePath) return;
+    if (!workspacePath) return null;
     const isInvalidState = paths.some(
       (path) => !path.startsWith(workspacePath)
     );
-    if (isInvalidState) return;
+    if (isInvalidState) return null;
 
     const metaFile = paths
       .reduce((acc, path) => {
@@ -1127,14 +1146,25 @@ export class PgExplorer {
       })
       .map((meta) => ({ ...meta, path: this.getRelativePath(meta.path) }));
 
+    return {
+      workspacePath,
+      path: this.convertToFullPath(PgWorkspace.METADATA_PATH),
+      data: JSON.stringify(metaFile),
+    };
+  }
+
+  /** Writes what `_metaOfCurrent` read, wherever the current workspace is now */
+  private static async _writeMeta(
+    meta: ReturnType<typeof PgExplorer._metaOfCurrent>
+  ) {
+    if (!meta) return;
+    const { workspacePath, path, data } = meta;
+
     // Through `writeWorkspaceFile`: the write that creates this file changes
     // the folder tree (a new workspace, or one whose files sync replaced), and
     // a workspace whose folder is gone must not get it back
     try {
-      await writeWorkspaceFile(
-        PgWorkspace.METADATA_PATH,
-        JSON.stringify(metaFile)
-      );
+      await writeWorkspaceFile(path, data);
     } catch (e) {
       if (!isMissing(e)) throw e;
       // Deleted or renamed in another tab, which this one has not yet heard

@@ -135,6 +135,26 @@ describe("deleting the current workspace", () => {
   });
 });
 
+describe("creating a workspace while another is open", () => {
+  beforeEach(reset);
+
+  // `create` makes the new workspace current before `switchWorkspace` saves
+  // the old one's metadata, and that save skipped files outside the current
+  // workspace: entering a tutorial the first time (its workspace is made
+  // then) brought the project back at line 1 (HOO-2731)
+  it("keeps the open file's cursor and top line", async () => {
+    await PgExplorer.createWorkspace("alpha", { files: files("alpha") });
+    const file = requireFor("the open file")(PgExplorer.currentFilePath);
+    const position = { cursor: { from: 7, to: 9 }, topLineNumber: 3 };
+    PgExplorer.saveEditorPosition(file, position);
+
+    await PgExplorer.createWorkspace("beta", { files: files("beta") });
+    await PgExplorer.switchWorkspace("alpha");
+
+    expect(PgExplorer.getEditorPosition(file)).toEqual(position);
+  });
+});
+
 describe("deleting a workspace that is not open", () => {
   beforeEach(reset);
 
