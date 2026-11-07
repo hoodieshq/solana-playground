@@ -61,7 +61,7 @@ describe("commands/connect/connect-wallet", () => {
   });
 
   // `connectTo` toggles, so a second run would undo the first
-  it("never runs `connect` twice when the command fails", async () => {
+  it("does not run `connect` twice when the command fails", async () => {
     execute.mockRejectedValue(await unmounted());
 
     await expect(connectWallet()).rejects.toSatisfy(Boolean);
