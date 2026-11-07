@@ -189,7 +189,8 @@ test("client-v2-layout: New project by link", async ({ page }) => {
   // Home in the navigation is the way back
   await page
     .locator('[data-slot="sidebar"]')
-    .getByRole("button", { name: "Home" })
+    // Exact: the logo is "Go to Home", in the same sidebar
+    .getByRole("button", { name: "Home", exact: true })
     .click();
   await expect(newProjectPage(page)).toBeHidden();
   await expect(home(page)).toBeVisible();
