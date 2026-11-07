@@ -52,24 +52,33 @@ vi.mock("@/entities/tutorial", async () => ({
   useTutorialProgress: () => (name: string) =>
     progress.get(name) ?? { state: "new" },
 }));
+// What New project gave Start from scratch for a failure, kept past unmount
+const scratch = vi.hoisted(() => ({
+  onFailed: undefined as ((message: string) => void) | undefined,
+}));
 vi.mock("@/features/new-project", () => ({
   // Stands in for Start from scratch: it waits on `held`, says when it runs
   StartFromScratch: ({
     held,
     onRunning,
+    onFailed,
   }: {
     held: boolean;
     onRunning: (running: boolean) => void;
-  }) => (
-    <button
-      type="button"
-      data-testid="scratch"
-      disabled={held}
-      onClick={() => onRunning(true)}
-    >
-      Start
-    </button>
-  ),
+    onFailed: (message: string) => void;
+  }) => {
+    scratch.onFailed = onFailed;
+    return (
+      <button
+        type="button"
+        data-testid="scratch"
+        disabled={held}
+        onClick={() => onRunning(true)}
+      >
+        Start
+      </button>
+    );
+  },
 }));
 
 import type { CatalogPage } from "../model/telemetry";
@@ -177,6 +186,7 @@ it("shows a failed tutorial Open on its own card and frees the others", async ()
   expect(within(card(solana)).queryByRole("alert")).toBeNull();
   expect(solana).toHaveProperty("disabled", false);
   expect(close).not.toHaveBeenCalled();
+  expect(utils.PgView.setToast).not.toHaveBeenCalled();
   utils.PgTutorial.all.pop();
 });
 
@@ -352,5 +362,31 @@ it("toasts an Open that fails after the page was left", async () => {
   unmount();
   await act(async () => open.fail(new Error("gone")));
 
+  expect(utils.PgView.setToast).toHaveBeenCalledTimes(1);
+});
+
+it("toasts an Open that fails while its list is not the one shown", async () => {
+  const open = held();
+  utils.PgTutorial.open.mockReturnValueOnce(open.promise);
+  render(<NewProject />);
+  fireEvent.click(screen.getByRole("button", { name: "Open Hello Anchor" }));
+
+  fireEvent.click(choice(/Programs/));
+  await screen.findByRole("button", { name: "Open drift" });
+  await act(async () => open.fail(new Error("gone")));
+
+  expect(utils.PgView.setToast).toHaveBeenCalledTimes(1);
+  expect(close).not.toHaveBeenCalled();
+});
+
+it("toasts a Start that fails after the page was left, and only then", async () => {
+  const { unmount } = render(<NewProject />);
+  await waitFor(() => expect(choice(/Programs/).textContent).toBe("Programs1"));
+
+  act(() => scratch.onFailed?.("Workspace already exists"));
+  expect(utils.PgView.setToast).not.toHaveBeenCalled();
+
+  unmount();
+  scratch.onFailed?.("Workspace already exists");
   expect(utils.PgView.setToast).toHaveBeenCalledTimes(1);
 });

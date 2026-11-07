@@ -15,6 +15,7 @@ const NewProject = ({ project }: { project: NewProjectState }) => (
         held={project.busy}
         onRunning={project.onStarting}
         onStarted={project.closePage}
+        onFailed={project.onStartFailed}
       />
     }
   />

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { PgTutorial } from "@/utils";
 
 import type { BaseNewProjectProps } from "../ui/BaseNewProject";
-import { toastOpenFailed } from "../ui/open-failed-toast";
+import { toastOpenFailed, toastStartFailed } from "../ui/open-failed-toast";
 import { importProgram, isImportCancel } from "./program-open";
 import type { CatalogPage } from "./telemetry";
 import { catalogTelemetry } from "./telemetry";
@@ -19,6 +19,8 @@ export interface NewProjectState {
   busy: boolean;
   /** Start from scratch reports its own run here, so the cards wait on it */
   onStarting: (starting: boolean) => void;
+  /** Start from scratch's failure: a toast once the page was left */
+  onStartFailed: (message: string) => void;
   /** Closes the page */
   closePage: () => void;
 }
@@ -26,8 +28,8 @@ export interface NewProjectState {
 /**
  * New project's state, held by its page. Whatever opens or starts from here
  * closes the page (`close`). A failure stays where it happened, or comes up
- * as a toast once the page was left. One Open or Start at a time across both
- * lists.
+ * as a toast where nothing shows it: the page was left, or the failing card's
+ * list is not the one shown. One Open or Start at a time across both lists.
  */
 export const useNewProject = (
   close: () => void,
@@ -47,18 +49,22 @@ export const useNewProject = (
       open.current = false;
     };
   }, []);
-  const onFailed = (message: string) => {
-    if (!open.current) toastOpenFailed(message);
+  // The tab shown when an Open fails, not when it started: a ref, since the
+  // Open's callbacks are the render's that started it
+  const shown = useRef(tab);
+  shown.current = tab;
+  const failedOn = (list: CatalogPage) => (message: string) => {
+    if (!open.current || shown.current !== list) toastOpenFailed(message);
   };
 
   const tutorialOpen = useCardOpen("tutorials", {
     onOpened: close,
-    onFailed,
+    onFailed: failedOn("tutorials"),
   });
   const programOpen = useCardOpen("programs", {
     isCancel: isImportCancel,
     onOpened: close,
-    onFailed,
+    onFailed: failedOn("programs"),
   });
   const busy = tutorialOpen.busy || programOpen.busy;
   const tutorials = useTutorialList(query, tutorialOpen.cardOpen);
@@ -101,6 +107,10 @@ export const useNewProject = (
     },
     busy,
     onStarting: setStarting,
+    // Start sits above both lists, so only a left page hides its failure
+    onStartFailed: (message) => {
+      if (!open.current) toastStartFailed(message);
+    },
     closePage: close,
   };
 };
