@@ -103,6 +103,55 @@ describe("NetworkSection", () => {
     expect(state.endpoint).toBe("https://dead.test/");
   });
 
+  it("saves Devnet's URL under a name of its own, beside the Devnet chip", async () => {
+    stubRpcAnswering();
+    render(<NetworkSection />);
+    await addRpc("Public Devnet", DEVNET);
+    expect(
+      await screen.findByRole("radio", { name: "Public Devnet" })
+    ).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Devnet" })).toBeTruthy();
+    expect(PgCustomRpcs.list()).toEqual([
+      { name: "Public Devnet", url: DEVNET },
+    ]);
+    // The new chip is the one checked, though Devnet shares its URL
+    expect(
+      screen
+        .getByRole("radio", { name: "Public Devnet" })
+        .getAttribute("aria-checked")
+    ).toBe("true");
+    expect(
+      screen.getByRole("radio", { name: "Devnet" }).getAttribute("aria-checked")
+    ).toBe("false");
+  });
+
+  it("refuses an entry with the name and the URL of one saved", async () => {
+    stubRpcAnswering();
+    render(<NetworkSection />);
+    await addRpc("Helius", "https://helius.test");
+    await screen.findByRole("radio", { name: "Helius" });
+    await addRpc("Helius", "https://HELIUS.test/");
+    expect(await screen.findByText("Already saved as Helius.")).toBeTruthy();
+    expect(PgCustomRpcs.list()).toHaveLength(1);
+  });
+
+  it("keeps the network when the RPC removed shares its URL with another", async () => {
+    localStorage.setItem(
+      "customRpcs",
+      JSON.stringify([
+        { name: "A", url: "https://same.test/" },
+        { name: "B", url: "https://same.test/" },
+      ])
+    );
+    state.endpoint = "https://same.test/";
+    render(<NetworkSection />);
+    await userEvent.click(screen.getByRole("button", { name: "Remove A" }));
+    expect(PgCustomRpcs.list()).toEqual([
+      { name: "B", url: "https://same.test/" },
+    ]);
+    expect(state.endpoint).toBe("https://same.test/");
+  });
+
   it("leaves the connection alone when an RPC not in use is edited", async () => {
     localStorage.setItem(
       "customRpcs",

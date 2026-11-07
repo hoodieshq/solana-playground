@@ -21,26 +21,44 @@ const NETWORKS: ReadonlyArray<Chip> = OFFERED.map(
   })
 );
 
+/** A chip's value in the group: its name and its URL, unique among the chips */
+export const chipKey = (name: string, url: string) => `${name}\n${url}`;
+
+const keyOf = (chip: Chip) => chipKey(chip.label, chip.endpoint);
+
 /**
  * The network chips: Devnet and Mainnet, then each saved custom RPC under its
  * name, with the checked network's line under them. An endpoint no chip
  * lists (Playnet, or a URL not saved yet) leaves none checked.
+ *
+ * Chips may share a URL (HOO-2690). One is checked: `chosen` while the
+ * endpoint is still its URL, else the first listing the endpoint.
  */
 const BaseNetworkChoice = ({
   endpoint,
   custom = [],
+  chosen,
   onPick,
 }: {
   endpoint: string;
   /** The saved custom RPCs, in the order they were saved */
   custom?: ReadonlyArray<CustomRpc>;
-  onPick: (endpoint: string) => void;
+  /** The chip picked last (`chipKey`), checked over another on its URL */
+  chosen?: string;
+  /** A chip was picked: its URL, and its key for `chosen` */
+  onPick: (endpoint: string, key: string) => void;
 }) => {
   const chips: Chip[] = [
     ...NETWORKS,
     ...custom.map((rpc) => ({ label: rpc.name, endpoint: rpc.url })),
   ];
-  const picked = chips.find((n) => n.endpoint === endpoint);
+  const picked =
+    chips.find((n) => keyOf(n) === chosen && n.endpoint === endpoint) ??
+    chips.find((n) => n.endpoint === endpoint);
+  const handleChange = (key: string) => {
+    const chip = chips.find((n) => keyOf(n) === key);
+    if (chip) onPick(chip.endpoint, key);
+  };
   const lineId = useId();
   return (
     <div className="flex flex-col gap-2">
@@ -48,13 +66,13 @@ const BaseNetworkChoice = ({
         variant="chips"
         aria-label="Network"
         aria-describedby={picked?.line ? lineId : undefined}
-        value={picked ? endpoint : ""}
-        onValueChange={onPick}
+        value={picked ? keyOf(picked) : ""}
+        onValueChange={handleChange}
       >
         {chips.map((n) => (
           <SegmentedItem
-            key={n.endpoint}
-            value={n.endpoint}
+            key={keyOf(n)}
+            value={keyOf(n)}
             // A fingertip tall on a phone, as the prototype's network chips
             className="max-md:h-12 max-md:px-4 max-md:text-control"
           >
