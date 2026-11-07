@@ -1,12 +1,22 @@
 import type { Page } from "@playwright/test";
+import { deflateRaw } from "pako";
 
-import { expect, home, homeRegion, LONG, projectMenu, test } from "./fixtures";
+import {
+  currentProject,
+  expect,
+  home,
+  homeRegion,
+  LONG,
+  projectMenu,
+  stubPrograms,
+  test,
+} from "./fixtures";
 import { DESK } from "./viewports";
 
 /**
  * The URL follows what the page shows: Home, a page and the work each have
  * their own, and Back and Forward move between them: Home after a tutorial
- * no longer keeps the tutorial's route (HOO-2689).
+ * is on `/home`, not the tutorial's route (HOO-2689).
  */
 
 test.use({ viewport: DESK });
@@ -81,7 +91,7 @@ test("Home's URL survives a reload, and `/` still resumes the last tutorial", as
   await page.waitForTimeout(2000);
   await expect(page).toHaveURL(/\/home$/);
 
-  // What sits at `/` is not this change's: it goes on to what was open last
+  // `/` goes on to what was open last
   await page.goto("/");
   await expect(page).toHaveURL(LESSON, LONG);
 });
@@ -108,4 +118,47 @@ test("deleting the last project from a tutorial's page throws nothing", async ({
   // Past the route's and the explorer's own events
   await page.waitForTimeout(2000);
   expect(errors).toEqual([]);
+});
+
+test("Home over a docs link keeps the link's code, on the link's URL", async ({
+  page,
+}) => {
+  const code = Buffer.from(
+    deflateRaw(Buffer.from('console.log("kept")', "utf8"))
+  ).toString("base64url");
+  await page.goto(`/open#v=1&name=kept.ts&code=${code}`);
+  const editor = page.locator(".monaco-editor .view-lines");
+  await expect(editor).toContainText("kept", LONG);
+
+  // Another route would init the explorer again and drop the unsaved copy
+  await navItem(page, "Home").click();
+  await expect(home(page)).toBeVisible();
+  await expect(page).toHaveURL(/\/open#/);
+  await navItem(page, "Home").click();
+  await expect(home(page)).toBeHidden();
+  await expect(editor).toContainText("kept");
+});
+
+test("A project picked over a page opens, not the lesson under the page", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await stubPrograms(page);
+  await openLesson(page);
+  // A second project, a plain one, then back to the lesson
+  await navItem(page, "Programs").click();
+  await page.getByRole("button", { name: "Open e2e-counter" }).click();
+  await expect(currentProject(page)).toContainText("e2e/counter", LONG);
+  await navItem(page, "Hello Anchor").click();
+  await expect(page).toHaveURL(LESSON, LONG);
+
+  await navItem(page, "Programs").click();
+  await expect(page).toHaveURL(/\/programs\/?$/);
+  await navItem(page, "github-e2e/counter/").click();
+  await expect(page).toHaveURL(/\/$/, LONG);
+  await expect(currentProject(page)).toContainText("e2e/counter");
+  await expect(page.locator(".monaco-editor .view-lines")).toContainText(
+    "entrypoint!(process_instruction)",
+    LONG
+  );
 });

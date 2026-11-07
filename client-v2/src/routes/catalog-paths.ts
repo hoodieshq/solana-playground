@@ -26,7 +26,10 @@ export const isCatalogLinkPath = (path: string) =>
 /** The page's own path, which stays in the address bar while it shows */
 export const pathOfCatalogPage = (page: LinkedPage) => `/${page}` as const;
 
-/** Home's own path: Home over a project has to differ from the project's `/` */
+/**
+ * Home's own path: it has to differ from the work's path, `/` included, so
+ * Back and Forward can tell them apart
+ */
 export const HOME_PATH = "/home";
 
 /** Whether `path` is Home's, a trailing slash included */

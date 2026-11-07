@@ -21,7 +21,10 @@ const log = createLogger("flow:view-path");
  */
 const openWork = async () => {
   const name = PgExplorer.currentWorkspaceName;
-  if (name && PgTutorial.isWorkspaceTutorial(name)) await PgTutorial.open(name);
+  // No project: the start's fallback shows the work as it is, wherever it
+  // is, and `/` would only bring Home back over nothing
+  if (!name) return;
+  if (PgTutorial.isWorkspaceTutorial(name)) await PgTutorial.open(name);
   else await PgRouter.navigate("/");
 };
 
@@ -39,7 +42,8 @@ const go = (move: () => Promise<void>) =>
  * the page it names, and `useStartView` shows or leaves Home for it; a view
  * the user picks then moves the path. Each pick is one history entry, but
  * Home's arrival on `/` by itself (the start, the last project deleted)
- * replaces `/`, which has nothing to show.
+ * replaces `/`, which has nothing to show. A shared project's path is never
+ * moved: it holds the only copy.
  */
 export const useViewPath = ({
   view,
@@ -68,6 +72,9 @@ export const useViewPath = ({
     const before = was.current;
     was.current = { view, catalog };
     if (view === "pending") return;
+    // A shared project (a docs link, a gist) lives only on its own path:
+    // another route would init the explorer again and drop it unsaved
+    if (PgExplorer.isTemporary) return;
     const path = PgRouter.location.pathname;
     if (catalog) {
       if (catalogPageOfPath(path) !== catalog) {
@@ -85,7 +92,8 @@ export const useViewPath = ({
       go(() => PgRouter.navigate(HOME_PATH, { replace }));
       return;
     }
-    // The work on a start path: back to the project's own
+    // The work on a start path: back to the project's own, except on `/`,
+    // whose route resumes the project itself
     if (isStartPath(path) && path !== "/") go(openWork);
   }, [view, homeVia, catalog]);
 };

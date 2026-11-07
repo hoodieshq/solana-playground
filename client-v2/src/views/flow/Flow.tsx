@@ -298,7 +298,7 @@ const FlowFrame = () => {
   const page = useStartView();
   // The Tutorials or Programs page shown, if any (`widgets/catalog`)
   const catalog = useCatalogPage();
-  // Each of them, and the work, on its own URL
+  // Home, the page shown and the work, each on its own URL
   useViewPath({
     view: page.view,
     homeVia: page.homeVia,

@@ -12,7 +12,7 @@ export type StartView = "pending" | "home" | "work";
 const log = createLogger("home:start");
 
 /**
- * How long `/` waits for the explorer before it gives up on Home: IndexedDB
+ * How long a start path waits for the explorer before it gives up on Home: IndexedDB
  * held by another tab's upgrade never answers, and the stage would stay
  * empty for good.
  */
@@ -70,7 +70,8 @@ export type PageView = {
   view: StartView;
   /**
    * Whether the work stays mounted under Home: whenever it can be drawn.
-   * Going back then finds the editor and the console as they were.
+   * Going back then finds the editor and the console as they were; a
+   * lesson's frame is drawn again by its route, at its saved page.
    */
   workKept: boolean;
   /** How Home came to show, while it shows */
@@ -89,8 +90,9 @@ export type PageView = {
  * one after another, so the route's own call later is harmless). After the
  * start Home comes back from the navigation (`showHome`) and on its own
  * whenever the page ends up on `/` with no project open: the last one
- * deleted, here, by another tab or by sync, or a way back to `/`. A route
- * other than `/` draws its own page without a project (a lesson's, before it
+ * deleted, here, by another tab or by sync, or a way back to `/`. Home's own
+ * path, `/home`, always shows Home, over the work when there is one. Any
+ * other route draws its own page without a project (a lesson's, before it
  * starts), so Home never shows there by itself.
  */
 export const useStartView = (): PageView => {
@@ -153,8 +155,8 @@ export const useStartView = (): PageView => {
   }, [view]);
 
   // Whatever shows, the explorer and the route decide whether the work can
-  // be drawn; the work cannot be drawn on `/` with no project open, so Home
-  // takes over there
+  // be drawn; the work cannot be drawn on a start path with no project
+  // open, so Home takes over there
   useEffect(() => {
     // A lesson's route goes to `/` by itself once its project, the last one,
     // is deleted; that arrival is the delete's, not a way back
@@ -180,7 +182,7 @@ export const useStartView = (): PageView => {
         lastDeleted = PgExplorer.allWorkspaceNames?.length === 0;
         check("last-deleted");
       }),
-      // Home's own path, come back to by Back or Forward or typed, shows
+      // Home's own path, come back to by Back or Forward, shows
       // Home over the work as the navigation's Home does
       PgRouter.onDidChangePath((path) => {
         if (!isHomePath(path)) return check("back");
@@ -219,15 +221,15 @@ export const useStartView = (): PageView => {
       const current = openProject();
       if (current && current !== over) leave();
     };
-    // Whether the path has moved since Home showed: Home goes to its own
-    // path, and Back from there to where it opened is a way out
+    // Whether the path has moved since Home showed (normally to Home's own),
+    // after which Back to where it opened is a way out
     let moved = false;
     const subs = [
       // A project made here, or the account's opened after arriving by sync
       PgExplorer.onDidCreateWorkspace(toWork),
       PgExplorer.onDidSwitchWorkspace(toWork),
       // Called at once with the path Home opened on, which is no way out
-      // until the path moves on to Home's own. A route's work, or `/` with a
+      // until the path first moves off it. A route's work, or `/` with a
       // project open, is; a page's link opens over Home and keeps it.
       PgRouter.onDidChangePath((path) => {
         if (path !== from) moved = true;

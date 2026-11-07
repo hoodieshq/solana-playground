@@ -9,6 +9,7 @@ const router = vi.hoisted(() => ({
 }));
 const explorer = vi.hoisted(() => ({
   currentWorkspaceName: undefined as string | undefined,
+  isTemporary: false,
 }));
 const tutorial = vi.hoisted(() => ({
   isWorkspaceTutorial: vi.fn(),
@@ -60,6 +61,7 @@ beforeEach(() => {
   });
   router.navigate.mockReset().mockResolvedValue(undefined);
   explorer.currentWorkspaceName = undefined;
+  explorer.isTemporary = false;
   tutorial.isWorkspaceTutorial.mockReset().mockReturnValue(false);
   tutorial.open.mockReset().mockResolvedValue(undefined);
   catalog.catalogPage.open.mockReset();
@@ -139,6 +141,45 @@ it("leaves the work on a route alone", () => {
   const { rerender } = render({ view: "home", homeVia: "nav" });
   router.navigate.mockClear();
   rerender({ view: "work" });
+  expect(moves()).toEqual([]);
+  expect(tutorial.open).not.toHaveBeenCalled();
+});
+
+it("leaves the path a pick already moved when the page closes after it", () => {
+  router.location.pathname = "/programs";
+  explorer.currentWorkspaceName = "counter";
+  const { rerender } = render({
+    view: "home",
+    homeVia: "nav",
+    catalog: "programs",
+  });
+  router.location.pathname = "/tutorials/lumberjack/1";
+  rerender({ view: "home", homeVia: "nav", catalog: undefined });
+  expect(moves()).toEqual([]);
+  expect(tutorial.open).not.toHaveBeenCalled();
+});
+
+it("keeps Home off a route Back has gone to, until Home leaves", () => {
+  router.location.pathname = "/home";
+  const { rerender } = render({ view: "home", homeVia: "nav" });
+  router.location.pathname = "/tutorials/lumberjack/2";
+  rerender({ view: "home", homeVia: "back" });
+  expect(moves()).toEqual([]);
+});
+
+it("moves no path over a shared project, which lives only on its own", () => {
+  router.location.pathname = "/open";
+  explorer.isTemporary = true;
+  const { rerender } = render({ view: "work" });
+  rerender({ view: "home", homeVia: "nav" });
+  rerender({ view: "home", homeVia: "nav", catalog: "tutorials" });
+  rerender({ view: "work", catalog: undefined });
+  expect(moves()).toEqual([]);
+});
+
+it("leaves the start's fallback work where it is with no project open", () => {
+  router.location.pathname = "/home";
+  render({ view: "work" });
   expect(moves()).toEqual([]);
   expect(tutorial.open).not.toHaveBeenCalled();
 });
