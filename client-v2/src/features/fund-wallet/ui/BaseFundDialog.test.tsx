@@ -204,6 +204,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
 
     expect(screen.getByText("Use at most 9 decimals.")).toBeTruthy();
   });
+
   it("fills the balance less the fee when Max is pressed", () => {
     const onAmountChange = vi.fn();
     renderDialog({ payer: PAYER, onAmountChange });

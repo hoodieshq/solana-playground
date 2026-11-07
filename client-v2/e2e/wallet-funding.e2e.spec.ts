@@ -317,7 +317,7 @@ test("client-v2-wallet-funding: Max then send", async ({
   const [transfer] = cluster.sent[0].instructions.map((ix) =>
     SystemInstruction.decodeTransfer(ix)
   );
-  expect(Number(transfer.lamports)).toBe(1.999 * SOL);
+  expect(Number(transfer.lamports)).toBe(1_999_000_000);
 });
 
 test("client-v2-wallet-funding: Balance below the fee", async ({

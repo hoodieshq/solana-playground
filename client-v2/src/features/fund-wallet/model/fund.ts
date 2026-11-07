@@ -89,7 +89,8 @@ export const canSend = (
  */
 export const maxAmount = (balance: number): string | undefined => {
   const lamports = spendableLamports(balance);
-  if (lamports <= 0) return undefined;
+  // `!(… > 0)`, not `<= 0`: a NaN balance has nothing to send either
+  if (!(lamports > 0)) return undefined;
   const whole = Math.floor(lamports / LAMPORTS_PER_SOL);
   const fraction = String(lamports % LAMPORTS_PER_SOL)
     .padStart(9, "0")
@@ -211,7 +212,7 @@ if (import.meta.vitest) {
       expect(canSend(text, balance).ok).toBe(true);
     });
 
-    it.each([0, 0.0005, 0.001])(
+    it.each([0, 0.0005, 0.001, Number.NaN])(
       "maxAmount(%j) is undefined: nothing above the fee",
       (balance) => {
         expect(maxAmount(balance)).toBeUndefined();
