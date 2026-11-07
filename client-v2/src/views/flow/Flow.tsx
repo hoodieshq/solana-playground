@@ -9,6 +9,7 @@ import { useKeybind } from "@/hooks";
 import { closeOpenLayers } from "@/shared/lib/close-open-layers";
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
 import { createLogger } from "@/shared/lib/logger";
+import { Outlet, OutletContent, useOutletNode } from "@/shared/lib/outlet";
 import {
   SETTINGS_TRIGGER_ATTR,
   type SettingsExit,
@@ -311,18 +312,21 @@ const FlowFrame = () => {
   const openMenu = useRef<() => void>(() => {});
   const conversation = useConversationStartOver();
   const marks = useConversationMarks();
+  // One chat for the frame and the phone layout, rendered into this node and
+  // shown by whichever of the two is drawn, as the stage and the console are:
+  // crossing the frame's width, or a page over the work, moves the node and
+  // keeps the composer's draft and the Stop of an answer streaming
+  const chatNode = useOutletNode("flex min-h-0 flex-1 flex-col");
+  const chatOutlet = (
+    <Outlet node={chatNode} className="flex min-h-0 flex-1 flex-col" />
+  );
   const tutorial = useTutorialFrame({
     // Back to the list the tutorial came from; the navigation's own way
     // there, so it reads as `nav`
     onBack: () => catalogPage.open("tutorials", "nav"),
     onStartOver: conversation.onStartOver,
     passed: conversation.passed,
-    body: (
-      <TutorialChat
-        onAllTutorials={() => catalogPage.open("tutorials", "nav")}
-        onOpenMenu={() => openMenu.current()}
-      />
-    ),
+    body: chatOutlet,
   });
 
   // The frame's workspace (2.2): its head and tree over the stage, and its
@@ -377,17 +381,7 @@ const FlowFrame = () => {
           onSheetOpenChange={setPhoneSteps}
         />
       ),
-      // TODO(SF#94 review, Greptile "Layout changes lose chat controls"): a
-      // second chat, not the frame's moved: crossing the frame's width
-      // remounts `useTurn`, which drops the composer's draft and the Stop of
-      // an answer streaming. One mounted chat moved between the layouts, as
-      // the editor and terminal are, is the follow-up
-      chat: (
-        <TutorialChat
-          onAllTutorials={() => catalogPage.open("tutorials", "nav")}
-          onOpenMenu={() => openMenu.current()}
-        />
-      ),
+      chat: chatOutlet,
       space: space.space,
       onSpace: space.setSpace,
     },
@@ -651,6 +645,18 @@ const FlowFrame = () => {
         <SettingsPage focus={settings.focus} onClose={closeSettings} />
       )}
 
+      {/* Held while a tutorial is open anywhere but Home on a wide window,
+          where the assistant panel holds the one live turn instead: the
+          frame, the phone layout, or a page over either, which shows no
+          chat but must not end it */}
+      {tutorial.frame && (onPhone || page.view === "work") && (
+        <OutletContent node={chatNode}>
+          <TutorialChat
+            onAllTutorials={() => catalogPage.open("tutorials", "nav")}
+            onOpenMenu={() => openMenu.current()}
+          />
+        </OutletContent>
+      )}
       <ModalHost />
       <ToastHost />
     </div>
