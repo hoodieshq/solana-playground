@@ -17,8 +17,9 @@ lesson flows on. Only the lesson's first airdrop act, in beat order, SHALL
 show that pass, with the record "Your wallet has {balance} SOL". A later
 airdrop act SHALL stay out of the feed, its card and its say line both,
 until the balance check answers: funded, it SHALL pass with no card, no say
-line and no record, and the next card is the deploy's; short, or a check
-that failed, SHALL show the card and its say line as usual. A reload that
+line and no record, and the next card is the deploy's; short, a check
+that failed, or one with no answer after 5 seconds SHALL show the card and
+its say line as usual. A reload that
 reaches the card again, never pressed, interrupted or refused, checks the
 balance again.
 

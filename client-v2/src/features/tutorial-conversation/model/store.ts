@@ -86,6 +86,13 @@ export const INITIAL_CONVERSATION_STATE: ConversationState = {
 export const STORAGE_KEY = "conversation";
 
 /**
+ * How long a later airdrop card stays hidden waiting for the balance check:
+ * a devnet read that hangs must not leave the feed with nothing to press. A
+ * late "funded" still presses the card, now shown
+ */
+export const PROBE_TIMEOUT_MS = 5000;
+
+/**
  * The storage file of a tutorial's workspace, as a full path. Reads and
  * writes go to this path, resolved once from the tutorial's name, so a
  * workspace switch while one is in flight cannot move it to the next
@@ -808,8 +815,9 @@ export class PgConversation {
    * per card per walk (`_asked`).
    *
    * A later airdrop that never ran is hidden while the probe is out
-   * (`probing`), and while the press it made runs, so a funded wallet's
-   * passes unseen (designers, 7 Nov). Returns the state with it marked.
+   * (`probing`), for at most PROBE_TIMEOUT_MS, and while the press it made
+   * runs, so a funded wallet's passes unseen (designers, 7 Nov). Returns the
+   * state with it marked.
    */
   private static _pressIfFunded(s: ConversationState): ConversationState {
     const beatId = PgConversation._reachedAirdrop(s);
@@ -825,7 +833,12 @@ export class PgConversation {
     const stillLive = () =>
       PgExplorer.currentWorkspaceName === name &&
       PgConversation._reachedAirdrop(PgConversation._state) === beatId;
+    // A check that hangs shows the card after PROBE_TIMEOUT_MS
+    const timer = hides
+      ? setTimeout(() => PgConversation._unprobe(beatId), PROBE_TIMEOUT_MS)
+      : undefined;
     funded()
+      .finally(() => clearTimeout(timer))
       .then((yes) => {
         if (yes && stillLive()) PgConversation.act(beatId);
         // Short, or the card moved on: it shows; a press keeps it hidden

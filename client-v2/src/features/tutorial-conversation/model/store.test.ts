@@ -51,6 +51,7 @@ import { freshProgress } from "./progress";
 import {
   INITIAL_CONVERSATION_STATE,
   PgConversation,
+  PROBE_TIMEOUT_MS,
   STORAGE_KEY,
 } from "./store";
 
@@ -1527,6 +1528,37 @@ describe("PgConversation's later airdrop card (designers, 7 Nov)", () => {
       id: "s4.airdrop",
       state: "live",
     });
+  });
+
+  it("shows the card when the check does not answer in time, and a late funded answer still presses it", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      let answer: (funded: boolean) => void = () => undefined;
+      const runner = runnerWith(
+        () => new Promise<boolean>((resolve) => (answer = resolve)),
+        [
+          OK_BUILD,
+          {
+            act: "airdrop",
+            ok: true,
+            seconds: 0.4,
+            balance: 3.2 * SOL,
+            airdropped: 0,
+          },
+        ]
+      );
+      await toLaterAirdrop(runner);
+      expect(PgConversation.state.probing).toEqual(["s4.airdrop"]);
+      vi.advanceTimersByTime(PROBE_TIMEOUT_MS);
+      await settle();
+      expect(PgConversation.state.probing).toEqual([]);
+      expect(PgConversation.view(LATER)?.live?.id).toBe("s4.airdrop");
+      answer(true);
+      await settle();
+      expect(laterRuns()).toMatchObject([{ status: "ok" }]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows the card when the check throws", async () => {
