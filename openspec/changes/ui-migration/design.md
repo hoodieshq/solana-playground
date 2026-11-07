@@ -1332,7 +1332,7 @@ SidebarProvider (no padding)
    │                   hides to 0 px
    ├─ 1 px handle
    └─ Panel work
-      ├─ StageBar (44 px): [project name, truncated] ...
+      ├─ StageBar (44 px): [project name when the assistant is hidden] ...
       │                    Files · Assistant · Documentation
       ├─ stage tabs (54 px, no line): Write | Build | Deploy | Interact, full width
       └─ Group horizontal (id layout-work)

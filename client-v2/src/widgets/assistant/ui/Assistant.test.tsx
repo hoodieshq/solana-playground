@@ -125,7 +125,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** Mounts the assistant in the column (`inSheet` false) or the right Sheet */
 const mount = (inSheet: boolean) => {
   const setWide = vi.fn();
   const onHide = vi.fn();
@@ -143,7 +142,10 @@ const mount = (inSheet: boolean) => {
   return { setWide, onHide, user: userEvent.setup() };
 };
 
+/** The assistant in the wide frame's column at the left */
 const setup = () => mount(false);
+/** The assistant as the right Sheet (under Home, or 768 to 1023 px) */
+const setupInSheet = () => mount(true);
 
 const openSources = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(screen.getByRole("button", { name: "More" }));
@@ -164,10 +166,10 @@ describe("Assistant", () => {
         .getByRole("button", { name: "Collapse assistant" })
         .querySelector("svg")
         ?.getAttribute("class");
-    mount(true);
+    setupInSheet();
     expect(collapseIcon()).toContain("lucide-panel-right-close");
     cleanup();
-    mount(false);
+    setup();
     expect(collapseIcon()).toContain("lucide-panel-left-close");
   });
 
