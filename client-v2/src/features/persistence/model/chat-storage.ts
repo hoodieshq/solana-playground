@@ -257,6 +257,15 @@ if (import.meta.vitest) {
     });
 
     describe("PgChatStorage", () => {
+      it("keeps a thread it just created through a reload before the folder tree is saved", async () => {
+        await PgChatStorage.write("t1", [item(1)]);
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+
+        expect(await PgChatStorage.read("t1")).toEqual([item(1)]);
+      });
+
       it("round-trips a thread", async () => {
         await PgChatStorage.write("t1", [item(1), item(2)]);
 

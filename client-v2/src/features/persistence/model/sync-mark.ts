@@ -480,6 +480,21 @@ if (import.meta.vitest) {
         });
       });
 
+      it("keeps a mark it just created through a reload before the folder tree is saved", async () => {
+        const mark = {
+          files: { "a.ts": "h1" },
+          name: "one",
+          updatedAt: "t1",
+          dirty: false,
+        };
+        await PgSyncMark.write("p1", mark);
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+
+        expect(await PgSyncMark.read("p1")).toEqual(mark);
+      });
+
       describe("after a session ended", () => {
         const MARK = {
           files: { "a.ts": "h1" },

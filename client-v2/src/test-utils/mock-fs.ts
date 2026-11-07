@@ -17,6 +17,12 @@ import type { PgFs as RealPgFs } from "../utils/explorer/fs";
  */
 export const mockFsModule = () => {
   const files = new Map<string, string>();
+  /**
+   * Paths created since the last `flush`. lightning-fs stores a file's
+   * content at once but its folder tree only 500 ms after the last write, so
+   * these are what a reload inside that window loses (`__reloadBeforeTreeSave`).
+   */
+  const unsaved = new Set<string>();
 
   const events = { ON_DID_WRITE_FILE: "pgfsondidwritefile" };
 
@@ -72,10 +78,23 @@ export const mockFsModule = () => {
       | "removeDir"
       | "readDir"
       | "flush"
-    > & { __files: Map<string, string> }
+    > & {
+      __files: Map<string, string>;
+      __reloadBeforeTreeSave: () => void;
+    }
   >()({
     /** Test-only handle, for asserting on or corrupting what is stored */
     __files: files,
+
+    /**
+     * Test-only: what a reload sees when it comes before lightning-fs saved
+     * its folder tree. Every file created since the last `flush` is gone; a
+     * file that existed before keeps its new content, which is stored at once.
+     */
+    __reloadBeforeTreeSave() {
+      for (const path of unsaved) files.delete(path);
+      unsaved.clear();
+    },
 
     events,
 
@@ -88,6 +107,7 @@ export const mockFsModule = () => {
 
     async writeFile(path: string, data: string) {
       path = await full(path);
+      if (!files.has(path)) unsaved.add(path);
       files.set(path, data);
       // Dispatched here as well, because what listens for it is the only
       // thing that uploads the three workspace files written this way
@@ -117,7 +137,9 @@ export const mockFsModule = () => {
     },
 
     async removeFile(path: string) {
-      files.delete(await full(path));
+      path = await full(path);
+      files.delete(path);
+      unsaved.delete(path);
     },
 
     async rename(oldPath: string, newPath: string) {
@@ -128,7 +150,11 @@ export const mockFsModule = () => {
       for (const [path, content] of [...files.entries()]) {
         if (path !== oldPath && !path.startsWith(oldPath + "/")) continue;
         files.delete(path);
-        files.set(newPath + path.slice(oldPath.length), content);
+        unsaved.delete(path);
+        // A rename changes only the tree, so the new path waits for a flush too
+        const renamed = newPath + path.slice(oldPath.length);
+        files.set(renamed, content);
+        unsaved.add(renamed);
       }
     },
 
@@ -184,7 +210,10 @@ export const mockFsModule = () => {
       if (under.length && !opts?.recursive) {
         throw fsError("ENOTEMPTY", path);
       }
-      for (const key of under) files.delete(key);
+      for (const key of under) {
+        files.delete(key);
+        unsaved.delete(key);
+      }
     },
 
     async readDir(path: string) {
@@ -204,7 +233,10 @@ export const mockFsModule = () => {
       return [...names];
     },
 
-    async flush() {},
+    /** Saves the folder tree, so every file created so far survives a reload */
+    async flush() {
+      unsaved.clear();
+    },
   });
 
   return { PgFs };

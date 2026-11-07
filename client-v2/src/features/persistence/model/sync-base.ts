@@ -192,6 +192,21 @@ if (import.meta.vitest) {
         await signedIn();
       });
 
+      it("keeps a base it just created through a reload before the folder tree is saved", async () => {
+        PgSyncBase.track("p1", { "src/lib.rs": "before" });
+        await PgSyncBase.capture("p1", ["src/lib.rs"], {
+          "src/lib.rs": await sha256("before"),
+        });
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+        PgSyncBase.reset();
+
+        expect(await PgSyncBase.read("p1")).toEqual({
+          "src/lib.rs": { hash: await sha256("before"), content: "before" },
+        });
+      });
+
       it("keeps a file's pre-edit content, taken from the shadow", async () => {
         PgSyncBase.track("p1", { "src/lib.rs": "before" });
         await PgSyncBase.capture("p1", ["src/lib.rs"], {

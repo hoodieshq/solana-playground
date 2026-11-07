@@ -142,6 +142,16 @@ if (import.meta.vitest) {
       storedFiles().clear();
     });
 
+    it("keeps a claim it just made through a reload before the folder tree is saved", async () => {
+      await signIn("u1");
+      await PgSyncClaim.claim("tut:one");
+      (
+        PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+      ).__reloadBeforeTreeSave();
+
+      expect(await PgSyncClaim.has("tut:one")).toBe(true);
+    });
+
     it("lists every account's claims, signed out too", async () => {
       await signIn("u1");
       await PgSyncClaim.claim("tut:one");

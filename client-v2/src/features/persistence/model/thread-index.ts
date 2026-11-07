@@ -409,6 +409,17 @@ if (import.meta.vitest) {
     afterEach(() => vi.restoreAllMocks());
 
     describe("PgThreadIndex", () => {
+      it("keeps the index it just created through a reload before the folder tree is saved", async () => {
+        const id = uuid();
+        await PgThreadIndex.set("w1", id);
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+        PgThreadIndex.reload();
+
+        expect(await PgThreadIndex.get("w1")).toBe(id);
+      });
+
       it("mints a thread for a workspace that has never had one", async () => {
         const id = await PgThreadIndex.ensure("w1");
 
