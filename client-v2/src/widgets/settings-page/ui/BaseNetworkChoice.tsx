@@ -26,6 +26,33 @@ export const chipKey = (name: string, url: string) => `${name}\n${url}`;
 
 const keyOf = (chip: Chip) => chipKey(chip.label, chip.endpoint);
 
+const chipsOf = (custom: ReadonlyArray<CustomRpc>): Chip[] => [
+  ...NETWORKS,
+  ...custom.map((rpc) => ({ label: rpc.name, endpoint: rpc.url })),
+];
+
+/** The chip checked: `chosen` while `endpoint` is its URL, else the first on it */
+const pickedOf = (
+  chips: ReadonlyArray<Chip>,
+  endpoint: string,
+  chosen: string | undefined
+) =>
+  chips.find((n) => keyOf(n) === chosen && n.endpoint === endpoint) ??
+  chips.find((n) => n.endpoint === endpoint);
+
+/**
+ * The key (`chipKey`) of the chip `BaseNetworkChoice` checks for these
+ * props, or `undefined` when none lists the endpoint
+ */
+export const checkedChipKey = (
+  endpoint: string,
+  custom: ReadonlyArray<CustomRpc>,
+  chosen: string | undefined
+): string | undefined => {
+  const picked = pickedOf(chipsOf(custom), endpoint, chosen);
+  return picked && keyOf(picked);
+};
+
 /**
  * The network chips: Devnet and Mainnet, then each saved custom RPC under its
  * name, with the checked network's line under them. An endpoint no chip
@@ -48,13 +75,8 @@ const BaseNetworkChoice = ({
   /** A chip was picked: its URL, and its key for `chosen` */
   onPick: (endpoint: string, key: string) => void;
 }) => {
-  const chips: Chip[] = [
-    ...NETWORKS,
-    ...custom.map((rpc) => ({ label: rpc.name, endpoint: rpc.url })),
-  ];
-  const picked =
-    chips.find((n) => keyOf(n) === chosen && n.endpoint === endpoint) ??
-    chips.find((n) => n.endpoint === endpoint);
+  const chips = chipsOf(custom);
+  const picked = pickedOf(chips, endpoint, chosen);
   const handleChange = (key: string) => {
     const chip = chips.find((n) => keyOf(n) === key);
     if (chip) onPick(chip.endpoint, key);

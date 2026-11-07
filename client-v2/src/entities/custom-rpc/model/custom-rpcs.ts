@@ -22,6 +22,9 @@ export const RPC_NAME_MAX = 32;
 /** `localStorage` key of the saved list */
 const KEY = "customRpcs";
 
+/** `localStorage` key of the network chip picked last, see `PgCustomRpcs.chosen` */
+const CHOSEN_KEY = "customRpcChosen";
+
 /**
  * Whether a typed value may be saved as an RPC (spec `client-v2-custom-rpcs`): `https://`, or
  * `http://` on `localhost` or `127.0.0.1`, and nothing else. A saved URL is
@@ -105,7 +108,8 @@ const defaultName = (url: string) => CLUSTERS.get(url) ?? hostOf(url);
 
 /** Name a stored or typed entry: trimmed, capped, a default when empty */
 const nameOf = (name: string, url: string) =>
-  name.trim().slice(0, RPC_NAME_MAX) || defaultName(url);
+  // Trimmed again after the cap, so a name reads the same on every save
+  name.trim().slice(0, RPC_NAME_MAX).trim() || defaultName(url);
 
 /**
  * The stored list, keeping each valid RPC once; `undefined` when the stored
@@ -299,6 +303,33 @@ export const PgCustomRpcs = {
       : undefined;
   },
 
+  /**
+   * The network chip picked or saved last, as the Network row keys it, so
+   * it stays checked after a reload when other chips share its URL;
+   * `undefined` when none is stored or it cannot be read
+   */
+  chosen(): string | undefined {
+    try {
+      return localStorage.getItem(CHOSEN_KEY) ?? undefined;
+    } catch (error) {
+      log.warn("could not read the picked network chip", {
+        context: { error: String(error) },
+      });
+      return undefined;
+    }
+  },
+
+  /** Store the chip picked last; a refused write only loses it on reload */
+  choose(key: string): void {
+    try {
+      localStorage.setItem(CHOSEN_KEY, key);
+    } catch (error) {
+      log.warn("could not store the picked network chip", {
+        context: { error: String(error) },
+      });
+    }
+  },
+
   /** Fires on every change, this tab's or another's, a `clear()` included */
   onDidChange(cb: () => void): { dispose(): void } {
     const onStorage = (ev: StorageEvent) => {
@@ -387,6 +418,15 @@ if (import.meta.vitest) {
     it("trims a name and keeps at most 32 characters of it", () => {
       add(`  ${"x".repeat(40)}  `, "https://a.test");
       expect(PgCustomRpcs.list()[0].name).toBe("x".repeat(32));
+    });
+
+    it("trims a name again after the cap, so the same name is refused as a copy", () => {
+      const name = `${"x".repeat(31)} y`;
+      expect(add(name, "https://a.test").ok).toBe(true);
+      expect(PgCustomRpcs.list()[0].name).toBe("x".repeat(31));
+      expect(add(name, "https://a.test")).toMatchObject({
+        reason: "duplicate",
+      });
     });
 
     it("refuses a URL that fails the rule, and saves nothing", () => {
@@ -523,6 +563,12 @@ if (import.meta.vitest) {
           PgCustomRpcs.check({ name: "A", url: "https://a.test" }, at("A"))
         ).toEqual({ ok: true, url: "https://a.test/" });
       });
+    });
+
+    it("keeps the chip picked last across a fresh read", () => {
+      expect(PgCustomRpcs.chosen()).toBeUndefined();
+      PgCustomRpcs.choose("Mine\nhttps://a.test/");
+      expect(PgCustomRpcs.chosen()).toBe("Mine\nhttps://a.test/");
     });
 
     it("answers undefined when removing a URL that is not listed", () => {

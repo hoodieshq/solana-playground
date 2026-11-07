@@ -12,7 +12,10 @@ import { canSwitchNetwork } from "../model/network-hold";
 import { answerFor, saveCheckedWith } from "../model/save-custom-rpc";
 import { settingsTelemetry } from "../model/telemetry";
 import BaseCustomRpcs from "./BaseCustomRpcs";
-import BaseNetworkChoice, { chipKey } from "./BaseNetworkChoice";
+import BaseNetworkChoice, {
+  checkedChipKey,
+  chipKey,
+} from "./BaseNetworkChoice";
 
 /**
  * Whether a running deploy holds the network on the RPC saved under `url`:
@@ -93,12 +96,21 @@ const NetworkSection = () => {
   const endpoint = PgSettings.connection.endpoint;
 
   const [rpcs, setRpcs] = useState<CustomRpc[]>(PgCustomRpcs.list);
-  // Which chip is checked when several share the endpoint's URL
-  const [chosen, setChosen] = useState<string>();
+  // Which chip is checked when several share the endpoint's URL, kept
+  // across a reload: the checked one must not jump to another on load
+  const [chosen, setChosenState] = useState(PgCustomRpcs.chosen);
+  const setChosen = (key: string) => {
+    setChosenState(key);
+    PgCustomRpcs.choose(key);
+  };
   const choose = (rpc: CustomRpc) => {
     setChosen(chipKey(rpc.name, rpc.url));
     pick(rpc.url);
   };
+  /** Whether `rpc` is the checked chip, not only one on the URL in use */
+  const isChecked = (rpc: CustomRpc) =>
+    checkedChipKey(PgSettings.connection.endpoint, rpcs, chosen) ===
+    chipKey(rpc.name, rpc.url);
   // A chip on the URL in use already moves the check, not the network
   const handlePick = (url: string, key: string) => {
     setChosen(key);
@@ -123,20 +135,24 @@ const NetworkSection = () => {
   const handleAdd = async (input: CustomRpc) =>
     answerFor(choose)("add")(await saveChecked(input, undefined));
 
-  // An edited RPC keeps the connection on it when it is the one in use at
-  // the moment it saves. A new URL for that RPC would move the network, so
+  // An edited RPC keeps the connection on it when its chip is the checked
+  // one as the edit starts; another chip on the same URL leaves the network
+  // alone. A new URL for the RPC in use would move the network, so
   // `saveChecked` refuses it while a deploy runs, before the health request
   // and again at the write; a rename still saves
-  const handleEdit = async (rpc: CustomRpc, input: CustomRpc) =>
-    answerFor((saved) => {
-      if (PgSettings.connection.endpoint === rpc.url) choose(saved);
+  const handleEdit = async (rpc: CustomRpc, input: CustomRpc) => {
+    const wasChecked = isChecked(rpc);
+    return answerFor((saved) => {
+      if (wasChecked) choose(saved);
     })("edit")(await saveChecked(input, rpc));
+  };
 
   const handleRemove = (rpc: CustomRpc) => {
     // Another chip on the same URL keeps the network where it is
     const wasPicked =
       PgSettings.connection.endpoint === rpc.url &&
-      !NETWORKS.some((n) => new URL(n.value).href === rpc.url) &&
+      // Spelt as the chips compare it, the endpoint against the raw value
+      !NETWORKS.some((n) => n.value === rpc.url) &&
       !rpcs.some((r) => r.url === rpc.url && !isSameRpc(r, rpc));
     // Removing the RPC in use moves the network to Devnet, so a running
     // deploy keeps it listed rather than leaving the connection on an RPC

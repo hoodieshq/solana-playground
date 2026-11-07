@@ -665,6 +665,14 @@ if (import.meta.vitest) {
         }
       });
 
+      it("keeps a public URL saved as a custom RPC, slash and all, across a reload", () => {
+        // A saved RPC holds its URL normalised, as `PgCustomRpcs` stores it
+        const picked = new URL(Endpoint.DEVNET).href;
+        expect(
+          roundTrip(state(picked, LOCAL_ENDPOINT)).connection.endpoint
+        ).toBe(picked);
+      });
+
       it("keeps a profile on a public URL there across a reload", () => {
         expect(
           roundTrip(state(Endpoint.DEVNET, LOCAL_ENDPOINT)).connection.endpoint

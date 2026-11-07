@@ -24,20 +24,26 @@ A URL SHALL be saved only when it starts with `https://`, or with `http://` on `
 
 - **WHEN** a person saves a URL that a saved RPC or a chip already has, under another name
 - **THEN** it is saved and picked, beside the other
+- **AND** its chip is the one checked
+
+### Requirement: The list stays in this browser
+
+The saved RPCs SHALL be stored in this browser only, names and URLs, under a `localStorage` key of their own. A profile whose connection endpoint is a custom URL that no chip and no saved RPC lists SHALL see it added, named by its host (Testnet and Localnet by their names), and checked. An address a chip offers SHALL never be added this way; a public address (the public Devnet or Mainnet) is added when its chip is on a platform RPC, since no chip lists it then.
+
+#### Scenario: A custom endpoint from before is listed
+
+- **WHEN** a profile already on a custom endpoint URL, written without a trailing slash, opens Settings
+- **THEN** that URL is a chip named by its host, and checked
 
 ## ADDED Requirements
 
 ### Requirement: Chips that share a URL
 
-Chips MAY share a URL. When several list the URL in use, exactly one SHALL be checked: the one picked or saved last, while the network is still on its URL, else the first that lists it. A click on a chip whose URL is already in use SHALL move the check and leave the network as it is. Removing a picked RPC while another chip still lists its URL SHALL leave the network where it is. A URL picked through a custom RPC SHALL stay that URL after a reload, even when it is the public URL of a network a chip offers on another RPC.
+Chips MAY share a URL. When several list the URL in use, exactly one SHALL be checked: the one picked or saved last, kept in this browser across a reload, while the network is still on its URL; else the first that lists it, Devnet and Mainnet before saved RPCs. Editing a chip that is not the checked one SHALL NOT move the network, though the network is on its URL. A click on a chip whose URL is already in use SHALL move the check and leave the network as it is. Removing a picked RPC while another chip still lists its URL SHALL leave the network where it is. A URL picked through a custom RPC SHALL stay that URL after a reload, even when it is the public URL of a network a chip offers on another RPC.
 
-#### Scenario: The public Devnet beside Devnet on a platform RPC
+#### Scenario: The public Devnet beside Devnet on a platform RPC (manual)
 
 - **WHEN** Devnet is on a platform RPC and a person saves `https://api.devnet.solana.com` as "Public Devnet"
 - **THEN** "Public Devnet" is checked and the network is the public Devnet
 - **AND** after a reload it still is
 
-#### Scenario: A new chip on the URL in use is checked
-
-- **WHEN** a person saves the URL in use under a new name
-- **THEN** the new chip is checked and no other is
