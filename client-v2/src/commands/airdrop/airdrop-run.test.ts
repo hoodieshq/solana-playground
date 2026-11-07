@@ -30,6 +30,7 @@ vi.mock("../../utils", () => ({
     info: (text: string) => text,
     success: (text: string) => text,
   },
+  // eslint-disable-next-line unicorn/no-null -- a confirmed transaction's `err` is `null`, as web3.js returns it
   PgTx: { confirm: vi.fn(async () => ({ err: null })) },
   PgWallet: { current: { publicKey: { toBase58: () => WALLET } } },
   PgWeb3: {

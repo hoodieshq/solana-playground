@@ -1,5 +1,5 @@
-import { faucetLink } from "@/shared/lib/faucet";
 import type { FaucetLinkFill } from "@/shared/lib/faucet";
+import { faucetLink } from "@/shared/lib/faucet";
 
 const LAMPORTS_PER_SOL = 1_000_000_000;
 

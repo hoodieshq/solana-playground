@@ -231,7 +231,11 @@ describe("PgFlow.reduce, an airdrop", () => {
     const running = PgFlow.reduce(INITIAL_FLOW_STATE, {
       type: "airdrop-start",
     });
-    expect({ ...running, airdropping: false }).toEqual(INITIAL_FLOW_STATE);
+    expect(running.stage).toBe(INITIAL_FLOW_STATE.stage);
+    expect(running.build).toBe(INITIAL_FLOW_STATE.build);
+    expect(running.deploy).toBe(INITIAL_FLOW_STATE.deploy);
+    expect(running.interact).toBe(INITIAL_FLOW_STATE.interact);
+    expect(running.stopped).toBe(INITIAL_FLOW_STATE.stopped);
   });
 
   it("keeps running across a project switch: the wallet is not the project's", () => {
