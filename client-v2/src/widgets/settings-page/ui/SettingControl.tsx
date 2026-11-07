@@ -227,7 +227,9 @@ const SettingSetterSwitch: FC<
   <Switch
     id={controlId}
     aria-label={name}
-    disabled={disabled}
+    // A setting that is not finished cannot be turned on; one already on
+    // from before can still be turned off, so it never holds the user there
+    disabled={disabled && !getValue()}
     checked={getValue()}
     onCheckedChange={setValue}
   />

@@ -69,9 +69,9 @@ export interface RowCopy {
   /** The titled card the row sits in; untitled when absent */
   group?: GroupId;
   /**
-   * Shown but not settable: a setting whose feature is not finished. Its tag
+   * Shown but not offered: a setting whose feature is not finished. Its tag
    * says so; no tooltip, since a disabled control cannot be hovered on touch
-   * or reached by Tab
+   * or reached by Tab. A switch already on can still be turned off
    */
   disabled?: true;
   /** Values listed but not selectable, marked "Not ready": an unfinished choice */

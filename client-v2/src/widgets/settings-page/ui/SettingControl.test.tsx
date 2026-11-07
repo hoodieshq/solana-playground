@@ -302,4 +302,24 @@ describe("a setting not finished yet", () => {
     await userEvent.click(box);
     expect(setValue).not.toHaveBeenCalled();
   });
+
+  it("can still be turned off when it was on from before", async () => {
+    const setValue = vi.fn();
+    render(
+      <SettingControl
+        id="experimental.unstable"
+        name="Sandboxed builds"
+        default={false}
+        disabled
+        getValue={() => true}
+        setValue={setValue}
+        onChange={() => ({ dispose: () => {} })}
+      />
+    );
+
+    await userEvent.click(
+      screen.getByRole("switch", { name: "Sandboxed builds" })
+    );
+    expect(setValue).toHaveBeenCalledWith(false);
+  });
 });

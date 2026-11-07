@@ -129,8 +129,7 @@ it("confirms the delete on the row, and moves focus to it", async () => {
 
   await userEvent.click(button());
 
-  const done = screen.getByRole("status");
-  expect(done.textContent).toBe("Deleted");
+  const done = screen.getByText("Deleted");
   expect(document.activeElement).toBe(done);
 });
 

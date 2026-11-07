@@ -75,10 +75,9 @@ const BaseAssistantKey = ({
     small={!phone}
     control={
       <div className={cn("flex items-center gap-3", phone && "w-full")}>
-        {/* Always in the tree, so a screen reader announces the word as it appears */}
+        {/* Announced by taking the focus, so it is no live region as well */}
         <span
           ref={doneRef}
-          role="status"
           tabIndex={-1}
           className="flex shrink-0 items-center gap-1.5 text-caption text-muted-foreground outline-none empty:hidden max-md:text-control"
         >

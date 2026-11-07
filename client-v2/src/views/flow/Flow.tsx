@@ -190,9 +190,9 @@ const LiveSettings = (
       {...props}
       hosted={backend.state}
       hostedName={
-        backend.state === "present" && backend.model !== null
-          ? displayModelName(backend.model)
-          : undefined
+        PgAssistant.hostedModel === null
+          ? undefined
+          : displayModelName(PgAssistant.hostedModel)
       }
       ownKey={current.kind === "keyed" ? current.label : undefined}
       onRetryHosted={retryHosted}
