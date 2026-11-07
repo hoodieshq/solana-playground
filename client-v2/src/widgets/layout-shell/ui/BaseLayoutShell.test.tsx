@@ -1044,6 +1044,8 @@ describe("widening the assistant", () => {
     act(() => lastOf(seen).setWide(true));
     expect(panel.resize).not.toHaveBeenCalled();
     expect(lastOf(seen).wide).toBe(false);
+    // A page, not the right Sheet
+    expect(lastOf(seen).inSheet).toBe(false);
   });
 
   it("should not offer Widen under Home, where the assistant is its Sheet", () => {

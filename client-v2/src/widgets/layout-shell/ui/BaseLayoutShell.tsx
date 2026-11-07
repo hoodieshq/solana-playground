@@ -133,9 +133,10 @@ export interface AssistantWide {
   /** Whether `setWide` can do anything now, so Widen is offered only then */
   canWiden: boolean;
   /**
-   * The assistant is the right Sheet (under Home, and below
-   * `LAYOUT_BREAKPOINTS.compact`), not the column at the left, so its
-   * collapse points right
+   * The assistant is the right Sheet: under Home at every width, and between
+   * `LAYOUT_BREAKPOINTS.phone` and `LAYOUT_BREAKPOINTS.compact`. Not on the
+   * phone's pager, whose assistant is a page, nor in the wide frame's column
+   * at the left. The head's Collapse points right only in the Sheet
    */
   inSheet: boolean;
 }

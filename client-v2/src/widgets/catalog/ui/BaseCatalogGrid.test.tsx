@@ -86,7 +86,16 @@ it("draws a program's image in a square tile, as a tutorial's cover, so it is no
       onClear={vi.fn()}
       list={{
         state: "ready",
-        cards: [card("token-vesting"), { ...card("Hello"), media: <svg /> }],
+        cards: [
+          card("token-vesting"),
+          {
+            id: "Hello",
+            title: "Hello",
+            description: "About Hello",
+            media: <svg />,
+            tags: [{ label: "Anchor" }],
+          },
+        ],
       }}
       busy={false}
       onOpen={vi.fn(async () => {})}

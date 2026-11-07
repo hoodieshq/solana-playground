@@ -57,8 +57,8 @@ export interface BaseAppNavProps {
 }
 
 /**
- * The logo, as the way Home, as on most sites: the same pick as the Home
- * item. The rail draws no logo, so its Home item is the way there
+ * The logo opens Home, as on most sites: `onOpen("home")`, as the Home item
+ * does. The rail draws no logo; its Home item is the way there
  */
 const HomeLogo = ({
   logo,

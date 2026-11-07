@@ -79,6 +79,8 @@ export interface LayoutShellProps {
    * Sheet. `toggle` folds the panel or closes the Sheet; `wide` and `setWide`
    * size the panel to its maximum and back for the visit (`AssistantWide`),
    * and `canWiden` says when that can happen: never for the Sheet.
+   * `inSheet` says the assistant is the right Sheet, so its Collapse points
+   * right.
    */
   assistant: (
     panel: { open: boolean; toggle: () => void } & AssistantWide
