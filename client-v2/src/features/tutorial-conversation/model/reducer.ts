@@ -37,6 +37,7 @@ import {
   answerOf,
   freshProgress,
   hintOf,
+  isMismatch,
   isSignedOut,
   isUnconfirmed,
   isUnreachable,
@@ -905,13 +906,6 @@ const settledEvents = (
 
 /** The program a mismatch is about; every Anchor tutorial keeps it here */
 const PROGRAM_FILE = "src/lib.rs";
-
-/** A failed call the program could not match (`mismatch` on its result) */
-const isMismatch = (r: RunResult) =>
-  (r.act === "call" || r.act === "run") &&
-  !r.ok &&
-  "mismatch" in r &&
-  r.mismatch === true;
 
 /**
  * A build or deploy result's instructions, read from the tutorial's shipped

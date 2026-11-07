@@ -9,7 +9,7 @@ apart in two places. Only a step whose target program's IDL differs from the
 previous step's carries one; the first step with a program always does.
 
 `shippedIdl(definition, cursor)` is the `idl` of the latest step at or before
-`stepId` that carries one, read through `entities/idl` (`readIdl`) into the
+the cursor's that carries one, read through `entities/idl` (`readIdl`) into the
 0.29 shape the client calls with. On the finish card it is the last one; on
 the intro there is none.
 
@@ -19,7 +19,8 @@ the intro there is none.
 | --- | --- | --- |
 | Kept on a landed deploy (act card, recognised, terminal) | shipped, at the cursor's step | the build's |
 | Call panel, call encoding, decoding | the deployed one (so shipped) | the deployed one |
-| Build goal's instruction names | the build's if it returned one, else shipped | the build's |
+| Build goal's instruction names | the build's if it lists any, else shipped | the build's |
+| `pg.program` in a client run | the deployed one, stored for the program when the build left none | the build's |
 
 The build goal keeps the build's IDL when there is one because it is the only
 signal of what the learner actually wrote. Everything that talks to the chain

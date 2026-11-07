@@ -266,6 +266,13 @@ export const isSignedOut = (r: RunResult): boolean =>
 export const isUnconfirmed = (r: RunResult): boolean =>
   (r.act === "run" || r.act === "call") && !r.ok && r.reason === "unconfirmed";
 
+/** A failed run or call the program could not match (HOO-2688) */
+export const isMismatch = (r: RunResult): boolean =>
+  (r.act === "call" || r.act === "run") &&
+  !r.ok &&
+  "mismatch" in r &&
+  r.mismatch === true;
+
 /** The compiler error a failed build's card shows, as the server's log names it */
 export interface BuildError {
   code: string | null;

@@ -29,7 +29,7 @@ import type {
   RunResult,
   Wrote,
 } from "./progress";
-import { answerOf } from "./progress";
+import { answerOf, isMismatch } from "./progress";
 import type { EngineState, Stage } from "./reducer";
 import { hasRepeatEnded } from "./reducer";
 import { wordOf } from "./route";
@@ -205,8 +205,10 @@ export const FIX_OFFER =
  * The line after a call the learner's program could not match (`mismatch` on
  * the result): the fix offer, with a redeploy, since the program is on chain
  */
-export const MISMATCH_OFFER =
-  "Your code no longer matches what this step expects. Fix it in the editor and build and deploy again, or I can show you the lines this step needs.";
+export const MISMATCH_OFFER = `${MISMATCH.replace(
+  /\.$/,
+  ""
+)}, or I can show you the lines this step needs.`;
 
 /**
  * The line between a landed result and the live act when the step's goal
@@ -893,13 +895,7 @@ export const view = (
                   : null;
               // A call the program could not match: the same offer, at once,
               // since nothing waits on the assistant
-              if (
-                run.status === "failed" &&
-                (run.result.act === "call" || run.result.act === "run") &&
-                !run.result.ok &&
-                "mismatch" in run.result &&
-                run.result.mismatch
-              ) {
+              if (run.status === "failed" && isMismatch(run.result)) {
                 turn({
                   id: `fix:${b.id}:${n}`,
                   kind: "say",

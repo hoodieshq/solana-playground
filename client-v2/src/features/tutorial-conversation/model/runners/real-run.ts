@@ -226,6 +226,12 @@ export const realRunPort = (funding: FundingChain, capSol: number): RunPort => {
         PgWeb3.Connection.prototype as unknown as Sender,
         async () => {
           if (act === "run") {
+            // client.ts calls through `pg.program`, built from the stored
+            // IDL, which an Anchor 1.1.2 build leaves empty: the deployed one
+            // (the tutorial's shipped IDL) stands in, as the build's would
+            if (input.idl && !PgProgramInfo.callableIdl()) {
+              PgProgramInfo.update({ idl: input.idl });
+            }
             await PgCommand.run.execute(CLIENT_FILE);
             return;
           }
