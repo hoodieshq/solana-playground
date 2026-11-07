@@ -24,7 +24,7 @@ import type { Sender } from "./capture";
 import { captureSends } from "./capture";
 import type { FundingChain } from "./fund";
 import type { Landed, RunPort } from "./run-call";
-import { runOrCall } from "./run-call";
+import { NoSuchInstructionError, runOrCall } from "./run-call";
 import type { Target } from "./target";
 import { targetGuardFor } from "./target";
 import type { DecodedCall } from "./transactions";
@@ -131,7 +131,8 @@ const landedOnDevnet = async (signature: string): Promise<Landed | null> => {
 
 /** An account with the fields the deployed IDL decodes, if it decodes */
 const fetchOnDevnet = async (
-  address: string
+  address: string,
+  deployed?: Idl
 ): Promise<AccountData | undefined> => {
   // A node behind the landing answers null for an account just created
   let info = null;
@@ -143,7 +144,9 @@ const fetchOnDevnet = async (
     );
   }
   if (!info) return undefined;
-  const idl = PgProgramInfo.idl as Idl | null;
+  // The deployed program's: a tutorial's shipped one, where the build
+  // returned none
+  const idl = deployed ?? PgProgramInfo.callableIdl();
   let fields: Record<string, string> = {};
   try {
     if (idl) {
@@ -169,11 +172,7 @@ const sendCall = async (
   const idlIx = idl?.instructions.find((ix) =>
     sameIdlName(ix.name, call.instruction)
   );
-  if (!idlIx) {
-    throw new Error(
-      `The deployed program has no \`${call.instruction}\`. Build and deploy it again.`
-    );
-  }
+  if (!idlIx) throw new NoSuchInstructionError(call.instruction);
   // Loaded here, not at the top: its storage reads `sessionStorage` on
   // import, which throws where the browser refuses storage and would take
   // the whole app down with it, as the Test panel's lazy load never did

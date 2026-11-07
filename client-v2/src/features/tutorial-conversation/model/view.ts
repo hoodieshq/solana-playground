@@ -33,6 +33,7 @@ import { answerOf } from "./progress";
 import type { EngineState, Stage } from "./reducer";
 import { hasRepeatEnded } from "./reducer";
 import { wordOf } from "./route";
+import { MISMATCH } from "./runners/run-call";
 
 /**
  * The feed as a fold over the definition and the saved progress. The save
@@ -201,6 +202,13 @@ export const FIX_OFFER =
   "Fix it in the editor and build again, or I can show you the lines this step needs.";
 
 /**
+ * The line after a call the learner's program could not match (`mismatch` on
+ * the result): the fix offer, with a redeploy, since the program is on chain
+ */
+export const MISMATCH_OFFER =
+  "Your code no longer matches what this step expects. Fix it in the editor and build and deploy again, or I can show you the lines this step needs.";
+
+/**
  * The line between a landed result and the live act when the step's goal
  * turned the run down. The prototype never reaches this (tutorial-v2 at
  * f7d42bf2e, `checkOwn` in `store.tsx`): it fails such a build outright, and a
@@ -215,6 +223,9 @@ export const whyRefused = (goal: Goal, result: RunResult): string => {
       return `It ran, but it didn't call \`${gap.instruction}\`. This step needs that call.`;
     case "logDiffers":
       return `It called \`${gap.instruction}\`, but the log isn't the one this step expects.`;
+    // No Show me the fix here: a landed run's record has no place to keep it
+    case "mismatch":
+      return MISMATCH;
     case "other":
       return "It ran, but this step isn't done yet.";
   }
@@ -880,6 +891,28 @@ export const view = (
                 run.status === "failed" && run.result.act === "build"
                   ? fixOfferAt(run, loadedAt)
                   : null;
+              // A call the program could not match: the same offer, at once,
+              // since nothing waits on the assistant
+              if (
+                run.status === "failed" &&
+                (run.result.act === "call" || run.result.act === "run") &&
+                !run.result.ok &&
+                "mismatch" in run.result &&
+                run.result.mismatch
+              ) {
+                turn({
+                  id: `fix:${b.id}:${n}`,
+                  kind: "say",
+                  step: step.id,
+                  at: run.at + run.took,
+                  beatId: b.id,
+                  text: MISMATCH_OFFER,
+                  follow: {
+                    kind: "showFix",
+                    done: run.fixedAt !== undefined || done || !isLast,
+                  },
+                });
+              }
               if (run.status === "failed" && offerAt !== null) {
                 turn({
                   id: `fix:${b.id}:${n}`,
@@ -1101,6 +1134,36 @@ if (import.meta.vitest) {
         expect(cards).toHaveLength(1);
         return { v, card: cards[0] };
       };
+
+      it("a call the program could not match offers to show the lines", () => {
+        const failed = (mismatch: boolean): RunRecord => ({
+          status: "failed",
+          at: 2000,
+          took: 500,
+          result: {
+            act: "call",
+            ok: false,
+            seconds: 1,
+            message: mismatch ? MISMATCH : "Simulation failed.",
+            log: "",
+            ...(mismatch ? { mismatch: true as const } : {}),
+          },
+        });
+        const offerOf = (run: RunRecord) =>
+          view(repeating(), stateOf({ beat: 1, runs: [run] }), {
+            now: 99999,
+            loadedAt: 0,
+          }).turns.find((t) => t.id === "fix:s1.grow:0");
+        expect(offerOf(failed(true))).toMatchObject({
+          kind: "say",
+          text: MISMATCH_OFFER,
+          follow: { kind: "showFix", done: false },
+        });
+        expect(offerOf({ ...failed(true), fixedAt: 3000 })).toMatchObject({
+          follow: { kind: "showFix", done: true },
+        });
+        expect(offerOf(failed(false))).toBeUndefined();
+      });
 
       it("keeps its card over a failed press's result, which its lines are not", () => {
         const failed: RunRecord = {
@@ -2121,6 +2184,9 @@ if (import.meta.vitest) {
       expect(
         whyRefused(goalOf(3), ran("Hi", [{ instruction: "hello", args: {} }]))
       ).toBe("It ran, but this step isn't done yet.");
+      expect(
+        whyRefused(goalOf(2), { ...ran(null, []), undecoded: true })
+      ).toBe(MISMATCH);
     });
 
     it("an ok result offers no Try again while the step still has an act to press", () => {

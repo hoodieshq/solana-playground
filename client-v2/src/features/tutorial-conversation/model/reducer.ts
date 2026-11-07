@@ -18,6 +18,7 @@ import { sameIdlName } from "@/shared/lib/idl-name";
 import { isPlannedLog } from "./build-error";
 import { TICK_MS } from "./clock";
 import { nextDeployed } from "./deployed-idl";
+import { shippedIdl } from "./shipped-idl";
 import { holds, keyOf, typedKey } from "./landing";
 import type { Judge, RunInput } from "./ports";
 import type {
@@ -147,7 +148,7 @@ export type Action =
    * The program deployed outside the cards, through the deploy command
    * (`watchDeploys`): the Call panel reads its IDL. No step passes on it
    */
-  | { type: "deployed"; idl: Idl; at: number }
+  | { type: "deployed"; idl?: Idl; at: number }
   /** A step's goal met outside the feed: a Call panel call or a client run */
   | {
       type: "passed";
@@ -900,20 +901,60 @@ const settledEvents = (
   return [];
 };
 
-/** A landed deploy's IDL, out of the result that goes on into the record */
-const takeDeployedIdl = (action: Action): { action: Action; idl?: Idl } => {
+/** The program a mismatch is about; every Anchor tutorial keeps it here */
+const PROGRAM_FILE = "src/lib.rs";
+
+/** A failed call the program could not match (`mismatch` on its result) */
+const isMismatch = (r: RunResult) =>
+  (r.act === "call" || r.act === "run") &&
+  !r.ok &&
+  "mismatch" in r &&
+  r.mismatch === true;
+
+/**
+ * A build or deploy result's instructions, read from the tutorial's shipped
+ * IDL (`shippedIdl`) when the build returned none, so its goal can still
+ * pass. One that returned its own keeps them: the only word on what the
+ * learner wrote.
+ */
+const withShippedInstructions = (
+  ctx: EngineContext,
+  state: EngineState,
+  action: Action
+): Action => {
+  if (
+    action.type !== "ended" &&
+    action.type !== "recognised" &&
+    action.type !== "passed"
+  ) {
+    return action;
+  }
+  const { result } = action;
+  if (!result.ok || !("instructions" in result)) return action;
+  if (result.instructions.length > 0) return action;
+  const idl = shippedIdl(ctx.definition, state.progress.cursor);
+  if (!idl) return action;
+  const instructions = idl.instructions.map((ix) => ix.name);
+  return { ...action, result: { ...result, instructions } };
+};
+
+/**
+ * A landed deploy's IDL, out of the result that goes on into the record: the
+ * tutorial's shipped one where it ships one, else the build's
+ */
+const takeDeployedIdl = (
+  ctx: EngineContext,
+  state: EngineState,
+  action: Action
+): { action: Action; idl?: Idl } => {
   if (action.type !== "ended" && action.type !== "recognised")
     return { action };
   const { result } = action;
-  if (
-    !result.ok ||
-    (result.act !== "deploy" && result.act !== "buildDeploy") ||
-    !result.idl
-  ) {
+  if (!result.ok || (result.act !== "deploy" && result.act !== "buildDeploy"))
     return { action };
-  }
-  const { idl, ...rest } = result;
-  return { action: { ...action, result: rest }, idl };
+  const { idl: built, ...rest } = result;
+  const idl = shippedIdl(ctx.definition, state.progress.cursor) ?? built;
+  return idl ? { action: { ...action, result: rest }, idl } : { action };
 };
 
 export const reduce = (
@@ -921,7 +962,11 @@ export const reduce = (
   state: EngineState,
   action: Action
 ): Reduced => {
-  const { action: plain, idl } = takeDeployedIdl(action);
+  const { action: plain, idl } = takeDeployedIdl(
+    ctx,
+    state,
+    withShippedInstructions(ctx, state, action)
+  );
   const raw = reduceAction(ctx, state, plain);
   // Kept only if the engine took the run: a result it dropped landed nothing
   const reduced =
@@ -1306,7 +1351,9 @@ const reduceAction = (
     }
 
     case "deployed": {
-      const deployed = nextDeployed(p.deployed, action.idl);
+      const idl = shippedIdl(definition, p.cursor) ?? action.idl;
+      if (!idl) return same(state);
+      const deployed = nextDeployed(p.deployed, idl);
       // The same IDL again leaves the save as it was
       if (
         p.deployed &&
@@ -1445,13 +1492,16 @@ const reduceAction = (
     case "showFix": {
       const run = lastRun(p, action.beatId);
       const found = locate(definition, action.beatId);
+      if (!run || run.status !== "failed" || run.fixedAt !== undefined) {
+        return same(state);
+      }
+      // An explained build failure, or a call the program could not match,
+      // which nothing explains first
+      const mismatch = isMismatch(run.result);
       if (
-        !run ||
-        run.status !== "failed" ||
-        run.result.act !== "build" ||
-        run.explainedAt === undefined ||
-        run.fixedAt !== undefined ||
-        !found
+        !found ||
+        (!mismatch &&
+          (run.result.act !== "build" || run.explainedAt === undefined))
       ) {
         return same(state);
       }
@@ -1459,16 +1509,19 @@ const reduceAction = (
       if (p.cursor.kind !== "step" || p.cursor.stepId !== step.id) {
         return same(state);
       }
-      const target = step.target[step.file];
+      // A mismatch is the program's: a call step's own file is the client
+      const file =
+        mismatch && step.target[PROGRAM_FILE] !== undefined
+          ? PROGRAM_FILE
+          : step.file;
+      const target = step.target[file];
       if (passed(p, step) || target === undefined) return same(state);
       return {
         state: withLastRun(state, action.beatId, {
           ...run,
           fixedAt: action.at,
         }),
-        effects: [
-          { kind: "restore", files: { [step.file]: target }, remove: [] },
-        ],
+        effects: [{ kind: "restore", files: { [file]: target }, remove: [] }],
       };
     }
 
@@ -2634,6 +2687,144 @@ if (import.meta.vitest) {
           at: 8000,
         });
         expect(again.state).toBe(upgraded.state);
+      });
+
+      it("shows the program's lines after a call the program could not match", () => {
+        const step = hello.steps[2];
+        const act = step.beats.find((b) => b.kind === "act");
+        if (!act) throw new Error("the Client step has an act");
+        const progress = freshProgress();
+        progress.cursor = { kind: "step", stepId: step.id, beat: 1, fail: false };
+        progress.runs = {
+          [act.id]: [
+            {
+              status: "failed",
+              at: 2000,
+              took: 500,
+              result: {
+                act: "run",
+                ok: false,
+                seconds: 1,
+                message: "x",
+                log: "",
+                mismatch: true,
+              },
+            },
+          ],
+        };
+        const r = reduce(
+          ctx(),
+          { progress, stage: null },
+          { type: "showFix", beatId: act.id, at: 3000 }
+        );
+        // Not the step's own file, the client: the program is what differs
+        expect(r.effects).toEqual([
+          {
+            kind: "restore",
+            files: { "src/lib.rs": step.target["src/lib.rs"] },
+            remove: [],
+          },
+        ]);
+        expect(r.state.progress.runs[act.id].at(-1)).toMatchObject({
+          fixedAt: 3000,
+        });
+      });
+
+      describe("a tutorial that ships its IDL", () => {
+        // What `yarn tutorial:idl` writes for Hello Anchor's first program
+        const SHIPPED = JSON.stringify({
+          address: "11111111111111111111111111111111",
+          metadata: { name: "hello_anchor", version: "0.1.0", spec: "0.1.0" },
+          instructions: [
+            {
+              name: "hello",
+              discriminator: [149, 118, 59, 220, 196, 127, 161, 179],
+              accounts: [],
+              args: [],
+            },
+          ],
+        });
+        const shipping = (): EngineContext => ({
+          ...ctx(),
+          definition: {
+            ...hello,
+            steps: hello.steps.map((st, i) =>
+              i === 0 ? { ...st, idl: SHIPPED } : st
+            ),
+          },
+        });
+        const playIn = (c: EngineContext, actions: Action[]) =>
+          actions.reduce((st, a) => reduce(c, st, a).state, INITIAL_ENGINE_STATE);
+        const BARE_BUILD: RunResult = { ...OK_BUILD, instructions: [] };
+        const toDeploy: Action[] = [
+          start,
+          rightPick,
+          build(7000),
+          { type: "ended", beatId: "s1.build", result: BARE_BUILD, at: 8600 },
+          { type: "next", at: 9000 },
+          { type: "skip", beatId: "s2.q2", at: 9100 },
+          { type: "act", beatId: "s2.deploy", at: 9200 },
+        ];
+        const landedDeploy = (idl?: Idl): Action => ({
+          type: "ended",
+          beatId: "s2.deploy",
+          result: {
+            act: "deploy",
+            ok: true,
+            seconds: 3,
+            programId: "p",
+            signature: "s",
+            upgraded: false,
+            lamports: 1,
+            instructions: [],
+            ...(idl ? { idl } : {}),
+          },
+          at: 9900,
+        });
+        const names = (p: ConversationProgress) =>
+          p.deployed?.idl.instructions.map((ix) => ix.name);
+
+        it("reads a build's instructions from it when the build returned none", () => {
+          const p = playIn(shipping(), toDeploy).progress;
+          const record = p.runs["s1.build"].at(-1);
+          expect(
+            record && "result" in record && record.result.ok
+              ? "instructions" in record.result && record.result.instructions
+              : null
+          ).toEqual(["hello"]);
+          // A tutorial that ships none leaves the build's word alone
+          const plain = playIn(ctx(), toDeploy).progress.runs["s1.build"].at(-1);
+          expect(
+            plain && "result" in plain && "instructions" in plain.result
+              ? plain.result.instructions
+              : null
+          ).toEqual([]);
+        });
+
+        it("keeps it on a landed deploy, whatever IDL the build returned", () => {
+          const noIdl = playIn(shipping(), [...toDeploy, landedDeploy()]);
+          expect(names(noIdl.progress)).toEqual(["hello"]);
+          const built = playIn(shipping(), [
+            ...toDeploy,
+            landedDeploy({
+              version: "0.1.0",
+              name: "other",
+              instructions: [{ name: "bye", accounts: [], args: [] }],
+            } as Idl),
+          ]);
+          expect(names(built.progress)).toEqual(["hello"]);
+        });
+
+        it("keeps it for a terminal deploy that brought no IDL", () => {
+          const before = playIn(shipping(), [start, rightPick]);
+          const after = reduce(shipping(), before, { type: "deployed", at: 6000 });
+          expect(names(after.state.progress)).toEqual(["hello"]);
+          // With nothing shipped and nothing built, nothing to keep
+          const bare = playIn(ctx(), [start, rightPick]);
+          expect(
+            reduce(ctx(), bare, { type: "deployed", at: 6000 }).state
+          ).toBe(bare);
+        });
       });
 
       it("counts a question once, whatever comes after it resolved", () => {

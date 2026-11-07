@@ -445,6 +445,12 @@ export type RunResult =
        */
       reason?: "no_wallet" | "no_transaction";
       /**
+       * The call did not match the program on chain: the IDL has no such
+       * instruction, or the program refused it as one it does not know or
+       * cannot deserialize. `message` then says so (`MISMATCH`)
+       */
+      mismatch?: true;
+      /**
        * What the program refused, when the transaction reached it; absent
        * when it never did (no wallet, a send that failed). A `refused` goal
        * is judged on it and on `log`. The runner fills it from the program's
