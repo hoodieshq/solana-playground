@@ -8,7 +8,7 @@ vi.mock("../../../../hooks", async () => ({
 }));
 vi.mock("./ServerConsole", () => ({ __esModule: true, default: () => null }));
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 import { TooltipProvider } from "@/shared/ui/tooltip";
 
@@ -310,5 +310,36 @@ describe("Grounding", () => {
     fireEvent.change(editor(), { target: { value: "[ typing" } });
     act(() => PgAssistant.setMcpServers([entry("later")]));
     expect(editor().value).toBe("[ typing");
+  });
+
+  it("Settings and the panel share one state: a skill unticked in one is off in both and for the next turn", () => {
+    render(
+      <TooltipProvider>
+        <section aria-label="Panel">
+          <Grounding />
+        </section>
+        <section aria-label="Settings">
+          <Grounding embedded />
+        </section>
+      </TooltipProvider>
+    );
+    const panel = within(screen.getByRole("region", { name: "Panel" }));
+    const settings = within(screen.getByRole("region", { name: "Settings" }));
+
+    // A click on the name in Settings reaches Settings' own checkbox
+    fireEvent.click(settings.getByText("Skill solana-dev"));
+
+    for (const view of [panel, settings]) {
+      expect(
+        view
+          .getByRole("checkbox", { name: "Skill solana-dev" })
+          .getAttribute("aria-checked")
+      ).toBe("false");
+    }
+    expect(PgAssistant.enabledSkillIds).not.toContain("solana-dev");
+
+    // Each view's labels point at its own controls, so no id repeats
+    const ids = [...document.querySelectorAll("[id]")].map((el) => el.id);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 });
