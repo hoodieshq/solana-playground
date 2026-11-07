@@ -40,7 +40,7 @@ const openLesson = async (page: Page) => {
   await expect(page.locator(".monaco-editor .view-lines")).toBeVisible(LONG);
 };
 
-test("Home after a tutorial has Home's URL, and Back and Forward move between them", async ({
+test("client-v2-layout: Home after a tutorial has Home's address", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -77,9 +77,7 @@ test("Home after a tutorial has Home's URL, and Back and Forward move between th
   await expect(home(page)).toBeVisible();
 });
 
-test("Home's URL survives a reload, and `/` still resumes the last tutorial", async ({
-  page,
-}) => {
+test("client-v2-layout: Home's address survives a reload", async ({ page }) => {
   test.setTimeout(120_000);
   await openLesson(page);
   await navItem(page, "Home").click();
@@ -96,7 +94,7 @@ test("Home's URL survives a reload, and `/` still resumes the last tutorial", as
   await expect(page).toHaveURL(LESSON, LONG);
 });
 
-test("deleting the last project from a tutorial's page throws nothing", async ({
+test("Deleting the last project from a tutorial's page throws nothing", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -120,7 +118,7 @@ test("deleting the last project from a tutorial's page throws nothing", async ({
   expect(errors).toEqual([]);
 });
 
-test("Home over a docs link keeps the link's code, on the link's URL", async ({
+test("client-v2-layout: Home over a docs link keeps the link", async ({
   page,
 }) => {
   const code = Buffer.from(
@@ -139,7 +137,7 @@ test("Home over a docs link keeps the link's code, on the link's URL", async ({
   await expect(editor).toContainText("kept");
 });
 
-test("A project picked over a page opens, not the lesson under the page", async ({
+test("client-v2-layout: A project picked over a page opens", async ({
   page,
 }) => {
   test.setTimeout(120_000);

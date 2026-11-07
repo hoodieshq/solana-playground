@@ -12,18 +12,18 @@ export type StartView = "pending" | "home" | "work";
 const log = createLogger("home:start");
 
 /**
- * How long a start path waits for the explorer before it gives up on Home: IndexedDB
- * held by another tab's upgrade never answers, and the stage would stay
- * empty for good.
+ * How long a start path waits for the explorer before it gives up on
+ * Home: IndexedDB held by another tab's upgrade never answers, and the
+ * stage would stay empty for good.
  */
 export const START_TIMEOUT_MS = 10_000;
 
 /**
  * Home is for a start on Home's own path, or on `/` (or a link to a page)
- * with no project open. Any other route opens straight on the work; on those
- * the answer waits for the explorer. Projects listed with none current is still Home: sync imports the
- * account's projects without opening them, and the work mounted then throws
- * in the explorer. `useStartView` leaves Home once one is opened.
+ * with no project open. Any other route opens straight on the work; on
+ * those the answer waits for the explorer. Projects listed with none
+ * current is still Home: sync imports the account's projects without
+ * opening them, and the work mounted then throws in the explorer. `useStartView` leaves Home once one is opened.
  */
 export const decideStart = ({
   path,

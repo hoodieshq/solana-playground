@@ -15,10 +15,6 @@ export const catalogPageOfPath = (path: string): LinkedPage | null => {
   return bare in LINKS ? LINKS[bare as keyof typeof LINKS] : null;
 };
 
-/** A tutorial's own route, `/tutorials/<name>[/<page>]`, which opens it in the work */
-export const isTutorialRoutePath = (path: string) =>
-  /^\/tutorials\/[^/]+/.test(path);
-
 /** Whether `path` is one of the links that open a page */
 export const isCatalogLinkPath = (path: string) =>
   catalogPageOfPath(path) !== null;
@@ -58,16 +54,6 @@ if (import.meta.vitest) {
     ] as const)("reads %s as the page %s", (path, page) => {
       expect(catalogPageOfPath(path)).toBe(page);
       expect(isCatalogLinkPath(path)).toBe(page !== null);
-    });
-
-    it.each([
-      ["/tutorials/hello-anchor", true],
-      ["/tutorials/hello-anchor/2", true],
-      ["/tutorials", false],
-      ["/tutorials/", false],
-      ["/", false],
-    ] as const)("reads %s as a tutorial's route: %s", (path, route) => {
-      expect(isTutorialRoutePath(path)).toBe(route);
     });
 
     it.each([
