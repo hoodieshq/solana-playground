@@ -182,15 +182,16 @@ the one they landed with and the goal SHALL be judged on it.
 
 No copy in a tutorial SHALL name Kora, promise 0 SOL or mention closing
 programs after 7 days. The definition and the cards SHALL use these strings,
-Almaz's of 28 Oct, verbatim, except the two lines on topping the wallet up:
-the learner's own airdrop pays, and a busy faucet sends them to
-faucet.solana.com. `{cost}` and `{fee}` are the real numbers from the deploy
+Almaz's of 28 Oct, verbatim, except the three lines on topping the wallet
+up, which are Design alignment's of 6 Nov: the learner's own airdrop act
+pays before the first deploy, and a busy faucet sends them to
+faucet.solana.com (change `tutorial-airdrop-step`). `{cost}` and `{fee}` are the real numbers from the deploy
 and the transaction.
 
 | Where                       | String                                                                                                                                                                                   |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Intro note                  | A devnet wallet is set up for you with free test SOL. Your progress stays in this browser                                                                                                |
-| Deploy explanation (step 2) | It costs devnet SOL, test money with no value. When your wallet runs low, Playground asks the devnet faucet for more, and if the faucet is busy you can get some at faucet.solana.com |
+| Intro note                  | A devnet wallet is set up for you, and you get free test SOL for it before the first deploy. Your progress stays in this browser |
+| Deploy explanation (step 2) | It costs devnet SOL, test money with no value. You get it from the devnet faucet with one button before the deploy, and if the faucet is busy, at faucet.solana.com. |
 | Deploy card context line    | From your Playground wallet · free devnet SOL                                                                                                                                            |
 | Deploy result               | {cost} test SOL from your wallet                                                                                                                                                         |
 | Terminal                    | Deploying from {wallet short} · {cost} SOL                                                                                                                                               |
@@ -199,7 +200,7 @@ and the transaction.
 | Finish card meta            | {N} steps · {time} · devnet only, nothing real spent                                                                                                                                     |
 | Finish receipt              | Fee {fee} devnet SOL                                                                                                                                                                     |
 | Finish chip                 | What is devnet SOL?                                                                                                                                                                      |
-| Its answer                  | Devnet is Solana's public test network. Its SOL is free and worth nothing, so you can deploy and call as much as you like. When your wallet runs low, Playground asks the devnet faucet for more; if the faucet is busy, get some yourself at faucet.solana.com |
+| Its answer                  | Devnet is Solana's public test network. Its SOL is free and worth nothing, so you can deploy and call as much as you like. You get it from the devnet faucet with one button; if the faucet is busy, get some yourself at faucet.solana.com. |
 
 There SHALL be no "Why 7 days?" chip.
 
