@@ -15,8 +15,8 @@ import { DESK } from "./viewports";
  * block brings in the block's horizontal scrollbar, and the reply below it
  * moved down by the scrollbar's height.
  *
- * Headless Chromium hides scrollbars by default, which hid this jump from
- * every other spec; this one draws them, as a desktop browser does.
+ * Playwright launches Chromium with `--hide-scrollbars`, which hid this jump
+ * from every other spec; this one draws them, as a desktop browser does.
  */
 test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } });
 
@@ -73,29 +73,37 @@ test("assistant-code-stream: A code block keeps its height while a line streams 
 
   const block = thread(page).locator("pre").first();
   await expect(block).toContainText("let x", LONG);
-  // The block's own box, found and measured in one step: each token redraws
-  // the highlighted `pre` inside it, so a `pre` found first may be gone by
-  // the time it is measured
-  const boxHeight = () =>
-    page.evaluate(
-      () =>
-        document
-          .querySelector('[role="log"] pre')
-          ?.closest(".group")
-          ?.getBoundingClientRect().height
-    );
-  const heights: number[] = [];
+  // The block's own box and whether its line overflows, read in one step:
+  // each token redraws the highlighted `pre` inside it, so a `pre` found
+  // first may be gone by the time it is measured
+  const measure = async () => {
+    const sample = await page.evaluate(() => {
+      const pre = document.querySelector('[role="log"] pre');
+      const box = pre?.closest(".group");
+      return pre && box
+        ? {
+            height: box.getBoundingClientRect().height,
+            overflows: pre.scrollWidth > pre.clientWidth,
+          }
+        : undefined;
+    });
+    if (!sample) throw new Error("Expected the reply's code block");
+    return sample;
+  };
+  const samples: { height: number; overflows: boolean }[] = [];
   // Short of the block's width, then well past it
   for (let chunk = 1; chunk <= 12; chunk++) {
     await append(page, { message, delta: "a".repeat(20) });
     await expect(block).toContainText("a".repeat(chunk * 20));
-    heights.push((await boxHeight()) ?? 0);
+    samples.push(await measure());
   }
+  const heights = samples.map((sample) => sample.height);
 
-  expect(await block.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
-    true
-  );
-  // The scrollbar is drawn, so the heights below can see the jump it caused
+  // The line starts inside the block and ends past it, so the heights span
+  // the moment the scrollbar comes in
+  expect(samples[0].overflows).toBe(false);
+  expect(samples.at(-1)?.overflows).toBe(true);
+  // The scrollbar is drawn, so the heights collected above see the jump
   expect(
     await block.evaluate((el) => el.offsetHeight - el.clientHeight)
   ).toBeGreaterThan(0);

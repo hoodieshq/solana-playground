@@ -26,7 +26,7 @@ import {
 } from "../../../views/sidebar/assistant/store";
 import { DEFAULT_CONNECTION } from "../model/connection";
 import { useDefaultBackend } from "../model/default-backend";
-import { proposesChange } from "../model/proposes-change";
+import { isChangeProposal } from "../model/is-change-proposal";
 import { useSignInOffer } from "../model/sign-in-offer";
 import { assistantTelemetry } from "../model/telemetry";
 import type { Turn } from "../model/use-turn";
@@ -46,9 +46,10 @@ const SUGGESTIONS = {
 } as const;
 
 /**
- * Sent by "Make this change": models often describe an edit in prose instead of
- * calling `write_file`. This asks for the same edit as a patch, which lands in
- * the usual approval card.
+ * Sent by "Make this change": models often show an edit as a code block in
+ * the reply instead of calling `write_file`. This asks for the same edit as a
+ * patch, which lands in the usual approval card. Outside a lesson it is
+ * offered only under such a block (`isChangeProposal`).
  *
  * Phrased to work mid-lesson too, where the assistant is holding back a hint
  * and has described no edit yet — and leaving it a line to say afterwards, so
@@ -101,7 +102,7 @@ export const Thread = ({
     !busy &&
     lastItem?.kind === "assistant" &&
     lastItem.text &&
-    (lesson || proposesChange(lastItem.text)) &&
+    (lesson || isChangeProposal(lastItem.text)) &&
     !turnProducedApproval(items)
       ? lastItem.id
       : null;

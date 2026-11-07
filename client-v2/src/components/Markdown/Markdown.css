@@ -920,9 +920,10 @@
   padding: 16px;
   font-size: 85%;
   line-height: 1.45;
-  /* The horizontal scrollbar's room is always kept, as in `CodeBlock`, which
-   * this unlayered rule would otherwise override: a bar that came in as a
-   * streamed line outgrew its block moved the reply below it (HOO-2694) */
+  /* Always keep room for the horizontal scrollbar. Without it, the bar comes
+   * in once a streamed line outgrows the block and moves the reply below
+   * (HOO-2694). Set here because this unlayered rule beats CodeBlock's
+   * Tailwind classes. */
   overflow-x: scroll;
   overflow-y: hidden;
 }

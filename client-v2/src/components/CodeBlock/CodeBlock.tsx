@@ -20,10 +20,11 @@ const CodeBlock = ({ lang, children: code, ...props }: CodeBlockProps) => {
   const wrapperRef = useDifferentBackground();
   const copyButtonWrapperRef = useDifferentBackground();
 
-  // The horizontal scrollbar's height is always kept: `pg-scrollbar` draws a
-  // classic bar that takes room, so one that came in as a streamed line
-  // outgrew the block moved everything below it (HOO-2694). The track is
-  // transparent, so the room shows as padding until there is a thumb.
+  // The horizontal scrollbar's height is always kept: in Chromium and Safari
+  // `pg-scrollbar` draws a classic bar that takes room, so one that came in as
+  // a streamed line outgrew the block moved everything below it (HOO-2694).
+  // The track is transparent, so the room shows as padding until there is a
+  // thumb. Inside Markdown, `Markdown.css` sets the same.
   return (
     <div
       ref={wrapperRef}
