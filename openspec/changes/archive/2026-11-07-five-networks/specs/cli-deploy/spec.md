@@ -13,12 +13,10 @@ there is none. It SHALL
 say that deploying with the project's program keypair keeps the program id,
 naming it, and what to do without that file.
 A step "3.1 Upload the IDL" SHALL give, for both tools and every cluster,
-`npx @solana-program/program-metadata@latest write idl <program-id>
-<program>.json --rpc <cluster url>`, where the cluster url is
+`npx @solana-program/program-metadata@latest write idl <program-id> <program>.json --rpc <cluster url>`, where the cluster url is
 `https://api.mainnet-beta.solana.com`, `https://api.devnet.solana.com` or
 `https://api.testnet.solana.com`;
-with Anchor picked it SHALL add `anchor idl init -f <program>.json
-<program-id> --provider.cluster <mainnet|devnet|testnet>` below it. Each command
+with Anchor picked it SHALL add `anchor idl init -f <program>.json <program-id> --provider.cluster <mainnet|devnet|testnet>` below it. Each command
 block has a copy button. Without a program id the commands SHALL carry
 `<program-id>`; without an IDL the step SHALL say there is no IDL to upload
 and show no command.
@@ -29,22 +27,18 @@ The Solana CLI's deploy command SHALL take `--url testnet` on Testnet.
 #### Scenario: Solana CLI on devnet
 
 - **WHEN** the guide is open for `hello_anchor` with Solana CLI and Devnet
-- **THEN** it shows `solana program deploy hello_anchor.so --program-id
-  hello_anchor-keypair.json --url devnet` with a copy button
+- **THEN** it shows `solana program deploy hello_anchor.so --program-id hello_anchor-keypair.json --url devnet` with a copy button
 
 #### Scenario: Anchor on mainnet
 
 - **WHEN** the user picks Anchor and Mainnet
-- **THEN** it shows `mkdir -p target/deploy && cp hello_anchor.so
-  hello_anchor-keypair.json target/deploy/` and `anchor deploy
-  --provider.cluster mainnet`
+- **THEN** it shows `mkdir -p target/deploy && cp hello_anchor.so hello_anchor-keypair.json target/deploy/` and `anchor deploy --provider.cluster mainnet`
 
 #### Scenario: IDL upload on mainnet (manual)
 
 - **WHEN** the guide is open for `hello_anchor` with program id `<id>`, an
   IDL, Solana CLI and Mainnet
-- **THEN** step 3.1 shows `npx @solana-program/program-metadata@latest write
-  idl <id> hello_anchor.json --rpc https://api.mainnet-beta.solana.com` with
+- **THEN** step 3.1 shows `npx @solana-program/program-metadata@latest write idl <id> hello_anchor.json --rpc https://api.mainnet-beta.solana.com` with
   a copy button, and no `anchor idl init`
 
 #### Scenario: IDL upload with Anchor (manual)
@@ -62,17 +56,16 @@ The Solana CLI's deploy command SHALL take `--url testnet` on Testnet.
 
 The slice SHALL send these events, none carrying an address, key or file
 content:
+
 - `cli_binary_downloaded` `{ from: "build-stage" | "guide" }`: a binary was
   fetched and handed to the browser to save;
-- `cli_binary_download_failed` `{ from: "build-stage" | "guide", reason:
-  "no-build" | "not-built" | "server" | "save" }`: no binary was saved;
+- `cli_binary_download_failed` `{ from: "build-stage" | "guide", reason: "no-build" | "not-built" | "server" | "save" }`: no binary was saved;
   `no-build` with no build id in the browser, `not-built` when the server no
   longer holds the build, `save` when the browser refused the file;
 - `cli_idl_downloaded` `{}`: the guide's "Download IDL" handed the IDL to
   the browser to save;
 - `cli_guide_opened` `{ from: "mainnet-warning" | "deploy-stage" }`;
-- `cli_command_copied` `{ tool: "solana" | "anchor", cluster: "mainnet" |
-  "devnet" | "testnet", step: "deploy" | "idl" }`: a command's copy button was pressed,
+- `cli_command_copied` `{ tool: "solana" | "anchor", cluster: "mainnet" | "devnet" | "testnet", step: "deploy" | "idl" }`: a command's copy button was pressed,
   `step` naming step 3 or step 3.1.
 
 #### Scenario: Events of a download and a copy (manual)

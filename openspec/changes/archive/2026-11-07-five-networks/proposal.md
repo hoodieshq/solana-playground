@@ -10,7 +10,8 @@
 - Testnet points at the platform RPC `REACT_APP_TESTNET_RPC_URL` configures (listed in `.env.example`), else at `https://api.testnet.solana.com`, as Devnet and Mainnet do with theirs.
 - Localnet is `http://localhost:8899`; Surfpool is `http://127.0.0.1:8899`, the address `surfpool start` serves. Both read as the `localnet` cluster, and the host tells their chips apart. Each is stored under a key of its own (`localnet`, `surfpool`).
 - The "Deploy from your machine" guide's Cluster control offers Mainnet, Devnet, Testnet, with `--url testnet`, `--provider.cluster testnet` and `--rpc https://api.testnet.solana.com` for Testnet; it opens on Testnet when Playground is on it.
-- A stored Devnet or Mainnet pick and saved custom RPCs are unchanged. A profile stored under HOO-2488's retired `testnet-platform` key reads as Testnet again.
+- A stored Devnet or Mainnet pick reads back unchanged. The `testnet` and retired `testnet-platform` keys read as the offered Testnet, on its platform RPC when one is set.
+- Saved custom RPCs stay, except copies of a chip (a name and address a chip now has, such as an adopted "Localnet"), which are dropped. A profile on a local or Testnet chip's address in another spelling (`http://localhost:8899/`) moves onto the chip when no saved RPC lists it.
 
 ## Impact
 

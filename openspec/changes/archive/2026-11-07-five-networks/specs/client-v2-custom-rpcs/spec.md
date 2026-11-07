@@ -26,7 +26,7 @@ The saved RPCs SHALL be stored in this browser only, names and URLs, under a `lo
 
 ### Requirement: Adding a custom RPC
 
-An "Add custom RPC" button SHALL open an inline form with a "Name" field, an "RPC URL" field and a "Save" button, under the help line "Any Solana RPC URL. It stays in this browser." Save or Enter SHALL save a valid entry and pick it. An empty name SHALL save as the URL's host, or as "Testnet" for the public Testnet's address; a name SHALL be at most 32 characters. "Cancel" SHALL close the form and save nothing.
+An "Add custom RPC" button SHALL open an inline form with a "Name" field, an "RPC URL" field and a "Save" button, under the help line "Any Solana RPC URL. It stays in this browser." Save or Enter SHALL save a valid entry and pick it. An empty name SHALL save as the URL's host, or as "Testnet" for the public Testnet's address while the Testnet chip is on a platform RPC; a name SHALL be at most 32 characters. "Cancel" SHALL close the form and save nothing.
 
 #### Scenario: A new RPC is saved and picked
 
@@ -47,3 +47,29 @@ Chips MAY share a URL. When several list the URL in use, exactly one SHALL be ch
 - **WHEN** Devnet is on a platform RPC and a person saves `https://api.devnet.solana.com` as "Public Devnet"
 - **THEN** "Public Devnet" is checked and the network is the public Devnet
 - **AND** after a reload it still is
+
+### Requirement: The URL rule
+
+A URL SHALL be saved only when it starts with `https://`, or with `http://` on `localhost` or `127.0.0.1`. Any other value SHALL show "Enter a URL that starts with https://, or http:// for a local validator." under the field and save nothing. Any URL that passes this rule SHALL be accepted, one a chip offers (one of the offered networks) or a saved RPC has included. Only an entry with the same name and the same URL as a chip or a saved RPC SHALL be refused, with "Already saved as {name}." A save the browser refuses to store SHALL show "Could not save in this browser."
+
+#### Scenario: A value that is not an https URL is refused
+
+- **WHEN** a person saves `devnet` or `http://api.devnet.solana.com`
+- **THEN** the field shows "Enter a URL that starts with https://, or http:// for a local validator."
+- **AND** nothing is saved
+
+#### Scenario: A local validator over plain HTTP is accepted
+
+- **WHEN** a person saves `http://localhost:8899`
+- **THEN** it is saved and picked
+
+#### Scenario: A duplicate URL is refused
+
+- **WHEN** a person saves a URL that a saved RPC already has, under that RPC's name
+- **THEN** the field shows "Already saved as {that RPC's name}."
+
+#### Scenario: A saved URL is accepted under another name
+
+- **WHEN** a person saves a URL that a saved RPC or a chip already has, under another name
+- **THEN** it is saved and picked, beside the other
+- **AND** its chip is the one checked

@@ -36,7 +36,8 @@ const isSurfpool = (endpoint: string) => {
   try {
     return new URL(endpoint).href === new URL(Endpoint.SURFPOOL).href;
   } catch {
-    // Not a URL, so not Surfpool's
+    // Never the endpoint itself: an RPC URL often holds an API key
+    log.info("the endpoint does not parse; not reading it as Surfpool");
     return false;
   }
 };
