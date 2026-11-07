@@ -1030,7 +1030,7 @@ if (import.meta.vitest) {
 
   describe("features/tutorial-conversation/model/progress", () => {
     it("drops a landed airdrop whose balance or amount does not read as lamports", () => {
-      const saved = (result: Record<string, unknown>) =>
+      const saved = (balance: unknown, airdropped: unknown) =>
         JSON.parse(
           JSON.stringify(
             Object.assign(freshProgress(), {
@@ -1040,7 +1040,13 @@ if (import.meta.vitest) {
                     status: "ok",
                     at: 1,
                     took: 1,
-                    result: { act: "airdrop", ok: true, seconds: 1, ...result },
+                    result: {
+                      act: "airdrop",
+                      ok: true,
+                      seconds: 1,
+                      balance,
+                      airdropped,
+                    },
                   },
                 ],
               },
@@ -1048,12 +1054,13 @@ if (import.meta.vitest) {
           )
         );
       const run = (v: unknown) => parseProgress(v)?.runs["s2.airdrop"]?.[0];
-      const sound = { balance: 3_000_000_000, airdropped: 0 };
-      expect(run(saved(sound))).toMatchObject({ result: sound });
-      expect(run(saved({ balance: "3", airdropped: 0 }))).toBeUndefined();
-      expect(run(saved({ balance: 3_000_000_000 }))).toBeUndefined();
-      expect(run(saved({ balance: 1, airdropped: -1 }))).toBeUndefined();
-      expect(run(saved({ balance: 1.5, airdropped: 0 }))).toBeUndefined();
+      expect(run(saved(3_000_000_000, 0))).toMatchObject({
+        result: { balance: 3_000_000_000, airdropped: 0 },
+      });
+      expect(run(saved("3", 0))).toBeUndefined();
+      expect(run(saved(3_000_000_000, undefined))).toBeUndefined();
+      expect(run(saved(1, -1))).toBeUndefined();
+      expect(run(saved(1.5, 0))).toBeUndefined();
     });
 
     it("keeps a sound account reading and drops one it cannot read", () => {
