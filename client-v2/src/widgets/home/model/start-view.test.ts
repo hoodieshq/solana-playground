@@ -95,6 +95,9 @@ it.each([
   ["/programs", [], undefined, "home"],
   ["/tutorials", undefined, undefined, "pending"],
   ["/programs", ["a"], "a", "work"],
+  // Home's own path waits for the explorer too, then shows Home whatever is open
+  ["/home", undefined, undefined, "pending"],
+  ["/home", ["a"], "a", "home"],
 ] as const)(
   "decideStart(%s, %j, current %s) is %s",
   (path, workspaces, current, view) => {
@@ -115,6 +118,14 @@ it("shows Home on its own path, over a project too", async () => {
 it("does not draw the work on Home's path with no project open", async () => {
   explorer.allWorkspaceNames = [];
   router.location.pathname = "/home";
+  const { result } = renderHook(() => useStartView());
+  expect(result.current.view).toBe("home");
+  expect(result.current.workKept).toBe(false);
+});
+
+it("does not draw the work on a page's path with no project open", async () => {
+  explorer.allWorkspaceNames = [];
+  router.location.pathname = "/programs";
   const { result } = renderHook(() => useStartView());
   expect(result.current.view).toBe("home");
   expect(result.current.workKept).toBe(false);

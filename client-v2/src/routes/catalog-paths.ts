@@ -88,5 +88,11 @@ if (import.meta.vitest) {
       expect(pathOfCatalogPage("programs")).toBe("/programs");
       expect(isHomePath(HOME_PATH)).toBe(true);
     });
+
+    it("leads each page's path back to the same page", () => {
+      for (const page of ["tutorials", "programs"] as const) {
+        expect(catalogPageOfPath(pathOfCatalogPage(page))).toBe(page);
+      }
+    });
   });
 }
