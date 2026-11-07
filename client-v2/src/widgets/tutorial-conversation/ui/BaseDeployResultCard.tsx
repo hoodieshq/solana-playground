@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 
 import type { RunResult } from "@/features/tutorial-conversation";
 import { devnetExplorerUrl } from "@/shared/lib/devnet-explorer";
+import { isFaucetLimit } from "@/shared/lib/faucet-limit";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { shortKey } from "@/shared/lib/short-key";
 import { cn } from "@/shared/lib/utils";
@@ -63,12 +64,9 @@ const sol = (lamports: number) =>
 const aboutSol = (lamports: number) =>
   String(Math.round((lamports / 1e9) * 100) / 100);
 
-/** The faucet's 429, or its own words for the limit */
-const RATE_LIMITED = /\b429\b|too many requests|rate limit|airdrop limit/i;
-
 /** Why the airdrop failed, in words true to the cause (Design alignment, 7 Nov) */
 const airdropWhy = (message: string) =>
-  RATE_LIMITED.test(message)
+  isFaucetLimit(message)
     ? "The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
     : "The airdrop didn't go through: try again in a minute, or top the wallet up yourself.";
 
