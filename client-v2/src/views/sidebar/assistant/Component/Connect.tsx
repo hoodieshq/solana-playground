@@ -368,8 +368,10 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
             if (!found) throw new Error(`Unknown provider: ${id}`);
             pickProvider(found);
             // A click is the end of browsing: fold the list back to the two
-            // bars. The arrow keys are still browsing.
-            if (pointerPick.current) setExpanded(false);
+            // bars. The arrow keys are still browsing, so they open it: with
+            // it folded, an arrow from the default had nowhere to go but
+            // back to itself, and the other backends were left to the mouse.
+            setExpanded(!pointerPick.current);
             pointerPick.current = false;
           }}
           // A press on the checked bar changes nothing, so no pick clears the
@@ -377,10 +379,16 @@ const Connect = ({ defaultBackend, preset, frame }: ConnectProps) => {
           onKeyDown={() => (pointerPick.current = false)}
           className="gap-2"
         >
-          {defaultBackend !== "absent" && providerBar(DEFAULT_PROVIDER)}
-          {showAlternatives
-            ? ALTERNATIVES.map(providerBar)
-            : selectedAlternative && providerBar(selectedAlternative)}
+          {/* One list in one order, folded or not, so a bar that stays keeps
+              its node: the picked one, focused, was drawn anew on a fold and
+              focus fell out of the group */}
+          {[DEFAULT_PROVIDER, ...ALTERNATIVES]
+            .filter((p) =>
+              p.id === DEFAULT_PROVIDER.id
+                ? defaultBackend !== "absent"
+                : showAlternatives || p.id === selectedAlternative?.id
+            )
+            .map(providerBar)}
         </RadioGroup>
         {!forcedOpen && (
           <button
