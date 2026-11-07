@@ -1,3 +1,4 @@
+import { getUnretriedConnectionFor } from "@/entities/cluster";
 import { createLogger, toError } from "@/shared/lib/logger";
 import { rateLimitOf } from "@/shared/lib/rpc-rate-limit";
 
@@ -86,11 +87,7 @@ const withoutRetryOnRateLimit = (connection: PgWeb3.Connection) =>
   // Playnet answers in the page and never rate-limits; its connection is overridden, so it is kept
   PgPlaynet.isUrlPlaynet(connection.rpcEndpoint)
     ? connection
-    : PgConnection.create({
-        endpoint: connection.rpcEndpoint,
-        commitment: connection.commitment,
-        disableRetryOnRateLimit: true,
-      });
+    : getUnretriedConnectionFor(connection.commitment)(connection.rpcEndpoint);
 
 /** Sleeps `ms`, ending early and quietly once `abortController` aborts, as a stopped load returns */
 const pauseWith =

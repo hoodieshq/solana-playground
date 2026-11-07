@@ -1,21 +1,29 @@
+import type { Cluster, Clusters } from "@/entities/cluster";
 import {
-  READ_BUFFER_RPC_URLS,
-  SEND_TX_PER_SECOND,
-} from "@/shared/config/client-env";
+  CLUSTERS,
+  fetchClusterByGenesisHash,
+  getConnectionFor,
+  getKnownCluster,
+  getReadBufferConnectionFor,
+  PgSelectedConnection,
+} from "@/entities/cluster";
 import { recheckWhileBad } from "@/shared/lib/backoff-recheck";
 import { createLogger } from "@/shared/lib/logger";
 
-import { NETWORKS } from "../constants";
 import { askAgain, onAskAgain } from "./ask-again";
 import { PgCommon } from "./common";
-import { createDerivable, declareDecorator, derivable } from "./decorators";
+import {
+  createDerivable,
+  declareDecorator,
+  derivable,
+  initable,
+} from "./decorators";
 import { OverridableConnection, PgPlaynet } from "./playnet";
 import { PgSettings } from "./settings";
 import type { Disposable } from "./types";
 import { PgWeb3 } from "./web3";
 
-/** Solana public clusters or "localnet" */
-export type Cluster = "playnet" | "localnet" | PgWeb3.Cluster;
+export type { Cluster } from "@/entities/cluster";
 
 const derive = () => ({
   /** Globally sycned connection instance */
@@ -38,7 +46,9 @@ const derive = () => ({
         PgPlaynet.destroy();
       }
 
-      return _PgConnection.create();
+      return getConnectionFor(PgSettings.connection.commitment)(
+        PgSettings.connection.endpoint
+      );
     },
     onChange: [
       PgSettings.onDidChangeConnectionEndpoint,
@@ -148,49 +158,6 @@ const recheckWhileStalled = (cb: () => void): Disposable =>
 
 const log = createLogger("connection:cluster");
 
-/** Hosts a local validator answers on */
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
-
-/** Whether `endpoint` points at this machine; an unparsable URL is not local */
-const isLocalEndpoint = (endpoint: string) => {
-  try {
-    return LOCAL_HOSTS.has(new URL(endpoint).hostname);
-  } catch {
-    // Not a URL, so not local: `getCluster` goes on to the genesis hash,
-    // which fails loudly with the endpoint
-    log.debug("endpoint is not a URL; not read as local");
-    return false;
-  }
-};
-
-/** The cluster of `endpoint` when it is known without a request; a custom endpoint gives `undefined` */
-const getKnownCluster = (endpoint: string): Cluster | undefined => {
-  // Playnet
-  if (PgPlaynet.isUrlPlaynet(endpoint)) return "playnet";
-
-  // Local: Localnet and Surfpool, on any port. The host is compared, not
-  // the URL text, since a local endpoint opens the airdrop's sign-in gate
-  // (`isAirdropSignInGated`) and `https://localhost.example.com` is remote
-  if (isLocalEndpoint(endpoint)) return "localnet";
-
-  // Public
-  //
-  // For some reason only `mainnet-beta` returns with `/` appended at the end,
-  // so compare the `/` appended strings for consistency
-  switch (PgCommon.appendSlash(endpoint)) {
-    case PgCommon.appendSlash(PgWeb3.clusterApiUrl("devnet")):
-      return "devnet";
-    case PgCommon.appendSlash(PgWeb3.clusterApiUrl("testnet")):
-      return "testnet";
-    case PgCommon.appendSlash(PgWeb3.clusterApiUrl("mainnet-beta")):
-      return "mainnet-beta";
-  }
-
-  // The offered networks declare their cluster, so resolve them without
-  // paying for the genesis hash round trip in `getCluster`.
-  return NETWORKS.find((e) => e.value === endpoint)?.cluster;
-};
-
 /**
  * The cluster of `connection`: known from its endpoint, or, for the selected
  * custom endpoint, the one `readCluster` resolved from its genesis hash, once
@@ -203,79 +170,36 @@ const getClusterOf = (connection: PgWeb3.Connection): Cluster | undefined =>
     ? PgConnection.cluster ?? undefined
     : undefined);
 
-/** Read-buffer RPC URLs keyed by the cluster they read from */
-type ReadBufferRpcUrls = Partial<Record<Cluster, string>>;
-
-/**
- * The connection program buffer accounts are read through: the read-buffer
- * RPC of `connection`'s cluster with its commitment, else `connection` itself.
- */
-const readBufferConnectionWith =
-  (urls: ReadBufferRpcUrls) => (connection: PgWeb3.Connection) => {
-    const cluster = getClusterOf(connection);
-    // `!url` rather than a nullish check: sourcing an env file leaves unfilled keys as ""
-    const url = cluster && urls[cluster];
-    if (!url) return connection;
-    return _PgConnection.create({
-      endpoint: url,
-      commitment: connection.commitment,
-    });
-  };
-
-const getReadBufferConnection = readBufferConnectionWith({
-  devnet: READ_BUFFER_RPC_URLS.devnet,
-  testnet: READ_BUFFER_RPC_URLS.testnet,
-  "mainnet-beta": READ_BUFFER_RPC_URLS.mainnet,
-});
-
-/** `sendTransaction` caps per second, as the env spells them, keyed by the cluster they limit */
-type SendTxPerSecond = Partial<Record<Cluster, string>>;
-
-/** The send cap of `connection`'s cluster; `undefined` when unset, unparsable or not above 0 */
+/** The send cap of `connection`'s cluster; `undefined` when the env sets none there */
 const sendTxPerSecondWith =
-  (caps: SendTxPerSecond) => (connection: PgWeb3.Connection) => {
+  (clusters: Clusters) => (connection: PgWeb3.Connection) => {
     const cluster = getClusterOf(connection);
-    if (!cluster) return undefined;
-    const perSecond = Number(caps[cluster]);
-    return Number.isFinite(perSecond) && perSecond > 0 ? perSecond : undefined;
+    return cluster && clusters[cluster].sendTxPerSecond;
   };
 
-const getSendTxPerSecond = sendTxPerSecondWith({
-  devnet: SEND_TX_PER_SECOND.devnet,
-  testnet: SEND_TX_PER_SECOND.testnet,
-  "mainnet-beta": SEND_TX_PER_SECOND.mainnet,
-});
+const getSendTxPerSecond = sendTxPerSecondWith(CLUSTERS);
+
+/** The derivables stay the source; the slice's store mirrors them for its hook */
+const mirrorToStore = () =>
+  PgConnection.onDidChange(() =>
+    PgSelectedConnection.set({
+      connection: PgConnection.current,
+      cluster: PgConnection.cluster,
+      isConnected: PgConnection.isConnected,
+      isClusterDown: PgConnection.isClusterDown,
+    })
+  );
 
 @derivable(derive)
+@initable({ onDidInit: mirrorToStore })
 class _PgConnection {
-  /**
-   * Create a connection with the given options or defaults from settings.
-   *
-   * @param opts connection options
-   * @returns a new `Connection` instance
-   */
-  static create(opts?: { endpoint?: string } & PgWeb3.ConnectionConfig) {
-    const conn = new PgWeb3.Connection(
-      opts?.endpoint ?? PgSettings.connection.endpoint,
-      opts ?? PgSettings.connection.commitment
-    );
-
-    // If the WS connection fails for whatever reason, removing listeners does
-    // *not* work properly, as it tries to reconnect indefinitely. To fix this
-    // leakage, change the `reconnect` property of the internal WS object.
-    // @ts-ignore
-    conn._rpcWebSocket.reconnect = false;
-
-    return conn;
-  }
-
   /**
    * The connection program buffer accounts are read through: the read-buffer
    * RPC the env configures for `connection`'s cluster, else `connection`
    * itself. Sends and every other read stay on `connection`.
    */
   static getReadBufferConnection(connection: PgWeb3.Connection) {
-    return getReadBufferConnection(connection);
+    return getReadBufferConnectionFor(getClusterOf(connection))(connection);
   }
 
   /**
@@ -401,25 +325,7 @@ class _PgConnection {
   static async getCluster(
     endpoint: string = PgConnection.current.rpcEndpoint
   ): Promise<Cluster> {
-    const known = getKnownCluster(endpoint);
-    if (known) return known;
-
-    // Decide custom endpoints from the genesis hash of the cluster
-    const genesisHash = await PgConnection.create({
-      endpoint,
-    }).getGenesisHash();
-    switch (genesisHash) {
-      case "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG":
-        return "devnet";
-      case "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY":
-        return "testnet";
-      case "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d":
-        return "mainnet-beta";
-      default:
-        throw new Error(
-          `Genesis hash ${genesisHash} did not match any cluster`
-        );
-    }
+    return getKnownCluster(endpoint) ?? fetchClusterByGenesisHash(endpoint);
   }
 
   /**

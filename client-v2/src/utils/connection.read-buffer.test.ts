@@ -27,11 +27,10 @@ const pgConnectionWith = async (env: Record<string, string | undefined>) => {
   for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
   vi.resetModules();
   const { PgConnection } = await import("./connection");
-  const { PgWeb3 } = await import("./web3");
+  const { getConnectionFor } = await import("@/entities/cluster");
   return {
     PgConnection,
-    connectionTo: (endpoint: string) =>
-      new PgWeb3.Connection(endpoint, "finalized"),
+    connectionTo: getConnectionFor("finalized"),
   };
 };
 
@@ -95,6 +94,17 @@ describe("utils/connection", () => {
       expect(PgConnection.getReadBufferConnection(selected)).toBe(selected);
     }
   );
+
+  it("names the Testnet RPC the env configures testnet without a request", async () => {
+    const platformTestnet = "https://testnet.rpc.test/?api-key=k";
+    const { PgConnection } = await pgConnectionWith({
+      REACT_APP_TESTNET_RPC_URL: platformTestnet,
+    });
+
+    await expect(PgConnection.getCluster(platformTestnet)).resolves.toBe(
+      "testnet"
+    );
+  });
 
   describe("a selected custom endpoint, whose cluster came from its genesis hash", () => {
     const CUSTOM = "https://custom.test";

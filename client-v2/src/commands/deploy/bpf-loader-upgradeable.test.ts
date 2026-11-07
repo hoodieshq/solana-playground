@@ -34,10 +34,6 @@ vi.mock("../../utils", () => {
       get current() {
         return selected;
       },
-      // The loader's writes go through a connection it builds to the same RPC
-      create: ({ endpoint }: { endpoint: string }) => ({
-        rpcEndpoint: endpoint,
-      }),
       getReadBufferConnection: <T>(connection: T) => connection,
       getSendTxPerSecond: () => undefined,
     },
@@ -68,6 +64,12 @@ vi.mock("../../utils", () => {
     },
   };
 });
+// The loader's writes go through a connection it builds to the same RPC
+vi.mock("@/entities/cluster", () => ({
+  getUnretriedConnectionFor: () => (endpoint: string) => ({
+    rpcEndpoint: endpoint,
+  }),
+}));
 
 const pk = { toBase58: () => "buffer" } as never;
 const signer = { publicKey: pk } as never;

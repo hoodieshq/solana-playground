@@ -20,7 +20,7 @@ const chain = vi.hoisted(() => ({
   /** Sends that land after each read of the buffer; the rest fail */
   landsPerRead: Number.POSITIVE_INFINITY,
   landsLeft: Number.POSITIVE_INFINITY,
-  /** The config of each connection `PgConnection.create` built, and the connection each send went through */
+  /** The config of each connection `getUnretriedConnectionFor` built, and the connection each send went through */
   created: [] as object[],
   sentThrough: [] as unknown[],
   /** Buffer reads through the read-buffer RPC; the selected connection has no `getAccountInfo`, so a read there throws */
@@ -59,10 +59,6 @@ vi.mock("../../utils", () => ({
   },
   PgConnection: {
     current: chain.current,
-    create: (config: object) => {
-      chain.created.push(config);
-      return config;
-    },
     getReadBufferConnection: (connection: unknown) =>
       connection === chain.current ? chain.readBufferRpc : connection,
     getSendTxPerSecond: (connection: unknown) =>
@@ -94,6 +90,14 @@ vi.mock("../../utils", () => ({
       BUFFER_METADATA_SIZE: 37,
       write: (ix: { offset: number; bytes: Buffer }) => ix,
     },
+  },
+}));
+
+vi.mock("@/entities/cluster", () => ({
+  getUnretriedConnectionFor: (commitment: string) => (endpoint: string) => {
+    const config = { endpoint, commitment, disableRetryOnRateLimit: true };
+    chain.created.push(config);
+    return config;
   },
 }));
 

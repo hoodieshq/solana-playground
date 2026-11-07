@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Endpoint } from "@/constants";
-import { PgCustomRpcs } from "@/entities/custom-rpc";
+import { PgCustomRpcs } from "@/entities/cluster";
 
 import BaseNetworkChoice from "./BaseNetworkChoice";
 
