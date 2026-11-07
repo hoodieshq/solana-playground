@@ -97,6 +97,33 @@ names. While the env sets no read-buffer RPC for that cluster, or the cluster is
 - **WHEN** the env sets no `REACT_APP_MAINNET_READ_BUFFER_RPC_URL` and the Mainnet chip is checked
 - **THEN** Settings shows no read-buffer text under the chips
 
+### Requirement: The setting command reads the read-buffer RPC
+
+The terminal's `setting` command SHALL accept the read-only key `connection.readBufferEndpoint` and list it with the
+other setting keys. `setting get connection.readBufferEndpoint` SHALL print the RPC a deploy reads buffer accounts
+through, from `PgConnection.getReadBufferConnection` on the selected connection: the read-buffer RPC of the selected
+endpoint's cluster, or the selected endpoint itself while the env sets none for that cluster or the cluster is unknown.
+`setting set connection.readBufferEndpoint` SHALL refuse any value with one line saying that the value comes from the
+environment, and SHALL store nothing, since the env owns the read-buffer RPCs.
+
+#### Scenario: Getting the read-buffer RPC the env sets (manual)
+
+- **WHEN** `REACT_APP_DEVNET_READ_BUFFER_RPC_URL` is `https://api.devnet.solana.com`, the selected endpoint is a devnet
+  platform RPC, and the person runs `setting get connection.readBufferEndpoint`
+- **THEN** the terminal prints `https://api.devnet.solana.com`
+
+#### Scenario: Getting the read-buffer RPC while the env sets none (manual)
+
+- **WHEN** the env sets no `REACT_APP_MAINNET_READ_BUFFER_RPC_URL`, the Mainnet chip is checked, and the person runs
+  `setting get connection.readBufferEndpoint`
+- **THEN** the terminal prints the selected endpoint, the same value `setting get connection.endpoint` prints
+
+#### Scenario: Setting the read-buffer RPC is refused (manual)
+
+- **WHEN** the person runs `setting set connection.readBufferEndpoint https://example.com`
+- **THEN** the terminal prints, in the error colour, the line "`connection.readBufferEndpoint` comes from the
+  environment and can't be set here.", and localStorage is unchanged
+
 ### Requirement: The Deploy stage's faucet link names the wallet
 
 The "Open faucet" link of the Deploy stage's "Not enough SOL" card SHALL open `https://faucet.solana.com` in a new tab

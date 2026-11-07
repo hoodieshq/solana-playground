@@ -26,6 +26,9 @@ Groups 1 to 3 touch separate files and may run at the same time; inside group 1,
   in `widgets/settings-page/model/telemetry.ts`; depends on `cluster-entity` 2.1, which moves the same Settings
   section; verify with a `widgets/settings-page` test per state (set, unset, custom RPC on a known cluster) and one
   that asserts the event through the memory provider (HOO-2362)
+- [x] 1.8 Add the read-only key `connection.readBufferEndpoint` to the terminal's `setting` command: `get` prints
+  `PgConnection.getReadBufferConnection(PgConnection.current).rpcEndpoint`, `set` refuses and stores nothing; verify
+  with `yarn test-unit src/commands/setting` (HOO-2362)
 
 ## 2. Stop and the console strip (`client-v2-command-stop`)
 
