@@ -12,7 +12,7 @@ type Keybind = string;
  * handler did nothing with it, so its default (a reload, the address bar, a
  * typed character) is left alone.
  */
-type HandleKeybindCb = (ev: KeyboardEvent) => unknown;
+type HandleKeybindCb = (ev: KeyboardEvent) => false | void | Promise<void>;
 
 /** Handler for the keybind */
 type HandleKeybind =

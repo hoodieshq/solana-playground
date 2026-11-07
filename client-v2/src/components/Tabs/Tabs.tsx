@@ -33,9 +33,8 @@ export const Tabs = () => {
     PgExplorer.setTabs(newTabs);
   }, []);
 
-  // Close the current tab with keybind. Typed into a field other than the
-  // editor (the assistant's composer, a rename), the key is text: Option+W
-  // is "∑" on a Mac, and closing the tab there would eat it.
+  // Close the current tab with keybind. Pressed in a field other than the
+  // editor (the assistant's composer, a rename), the key belongs to the field.
   useKeybind(
     "Alt+W",
     (ev) => {
