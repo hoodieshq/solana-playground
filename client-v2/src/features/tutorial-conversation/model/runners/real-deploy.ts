@@ -463,11 +463,11 @@ export const tutorialRunner: Runner = {
       return recognised && withIdl(recognised);
     }
   ),
-  // Off devnet the airdrop card stays for its press, which says why
+  // A funded wallet passes the airdrop card on any known cluster; the deploy after it still refuses off devnet
   isFunded: () =>
-    PgConnection.cluster === "devnet"
-      ? isFundedForDeploy(realDeployPort())
-      : Promise.resolve(false),
+    PgConnection.cluster === undefined
+      ? Promise.resolve(false)
+      : isFundedForDeploy(realDeployPort()),
 };
 
 /** The deploy command and the open program, for `watchDeploys` */

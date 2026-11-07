@@ -30,3 +30,27 @@ far, as each write lands.
 
 - **WHEN** Hello Anchor's step 2 deploys
 - **THEN** the act card reads "Writing buffer" with "· N of M transactions", and N rises to M before "Deploying"
+
+### Requirement: A funded wallet passes the airdrop card on any cluster
+
+The airdrop card's balance check SHALL read the wallet on the selected cluster, whichever it is, so a wallet that
+holds the next deploy's cost passes the card as the airdrop act requirement describes. Only an unknown cluster SHALL
+skip the check and show the card. The acts after it keep their own cluster rules: a deploy off devnet still refuses.
+
+#### Scenario: A funded wallet on localnet (manual)
+
+- **WHEN** the network is localnet, the wallet holds more than Lumberjack's deploy cost, and the lesson reaches step
+  2's airdrop card
+- **THEN** the card passes with no press and no airdrop, and the deploy card follows
+
+### Requirement: The deploy line says why its SOL is mostly rent
+
+Right after "Deploying from <wallet> · about <amount> SOL", a tutorial deploy SHALL print a line starting "Note:" that
+says most of the amount is rent. On a first deploy it SHALL name the program's size in KB and say that closing the
+program returns the rent; on an upgrade it SHALL say that the buffer's rent comes back once the upgrade lands.
+
+#### Scenario: A first deploy explains its rent (manual)
+
+- **WHEN** Lumberjack's step 2 deploys a program of 209,552 bytes for the first time
+- **THEN** the terminal reads "Deploying from <wallet> · about 1.09 SOL" followed by "Note: Most of this is rent, a
+  deposit that keeps the program's 205 KB on chain; closing the program returns it."

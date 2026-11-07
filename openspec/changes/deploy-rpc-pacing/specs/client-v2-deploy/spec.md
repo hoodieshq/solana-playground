@@ -69,6 +69,34 @@ the buffer through the selected RPC.
   through a platform RPC that does not return an account written seconds before
 - **THEN** each round sends only the chunks the buffer lacks, and the deploy finishes
 
+### Requirement: Settings names the read-buffer RPC
+
+Under the network chips, Settings SHALL show, as text, the read-buffer RPC of the selected endpoint's cluster, with a
+line saying that this RPC reads deploy buffers and that the CLI needs it to see them: `solana program show --buffers
+-u <url>` lists them and `solana program close --buffers -u <url>` reclaims their SOL, each with the URL quoted as the
+terminal's close command quotes it and a Copy button that copies that command. A copy SHALL send
+`settings_buffer_command_copied` with `command` `show` or `close`; a copy that fails SHALL say so through the button's
+failure report. A custom RPC SHALL show the read-buffer RPC of the cluster its genesis hash
+names. While the env sets no read-buffer RPC for that cluster, or the cluster is unknown, the text SHALL be absent.
+
+#### Scenario: Devnet with a read-buffer RPC (manual)
+
+- **WHEN** `REACT_APP_DEVNET_READ_BUFFER_RPC_URL` is `https://api.devnet.solana.com` and the Devnet chip is checked
+- **THEN** Settings shows `https://api.devnet.solana.com` under the chips, with `solana program show --buffers -u
+  'https://api.devnet.solana.com'` and `solana program close --buffers -u 'https://api.devnet.solana.com'`, each
+  with a Copy button
+
+#### Scenario: Copying the close command (manual)
+
+- **WHEN** the read-buffer text shows and the person presses the Copy button beside the close command
+- **THEN** the clipboard holds `solana program close --buffers -u '<url>'` and `settings_buffer_command_copied` is
+  sent with `command` `close`
+
+#### Scenario: A cluster with no read-buffer RPC (manual)
+
+- **WHEN** the env sets no `REACT_APP_MAINNET_READ_BUFFER_RPC_URL` and the Mainnet chip is checked
+- **THEN** Settings shows no read-buffer text under the chips
+
 ### Requirement: The Deploy stage's faucet link names the wallet
 
 The "Open faucet" link of the Deploy stage's "Not enough SOL" card SHALL open `https://faucet.solana.com` in a new tab

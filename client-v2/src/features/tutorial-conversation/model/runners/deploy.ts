@@ -16,6 +16,14 @@ export const DEPLOY_STAGES = {
 /** Lamports kept for transaction fees on top of the rent a deploy locks */
 const FEE_HEADROOM = 20_000_000;
 
+/** Why the deploy line's SOL is mostly rent, which a learner reads as a high price */
+const rentNoteFor = (onChain: OnChain) => (length: number) =>
+  onChain.deployed
+    ? "Note: Most of this is the buffer's rent, which comes back once the upgrade lands."
+    : `Note: Most of this is rent, a deposit that keeps the program's ${Math.round(
+        length / 1024
+      )} KB on chain; closing the program returns it.`;
+
 /** What the deploy can learn about the program before it runs */
 export interface ProgramState {
   /** The program id the workspace's keypair gives; null before any build */
@@ -258,6 +266,7 @@ export const runDeploy = async (
     }
     stage(DEPLOY_STAGES.buffer);
     port.print(`Deploying from ${shortKey(address)} · about ${sol(need)} SOL`);
+    port.print(rentNoteFor(onChain)(bytes.length));
     const funded = await port.funding.balance(address);
     const buffer = await port.writeBuffer(bytes, onChain, writing);
 
@@ -456,11 +465,14 @@ if (import.meta.vitest) {
       });
       expect(port.deploy).toHaveBeenCalledWith("Buffer1111", 120_000);
       expect(port.funding.airdrop).not.toHaveBeenCalled();
-      expect(lines).toEqual(["Deploying from Wa11et…111111 · about 1.22 SOL"]);
+      expect(lines).toEqual([
+        "Deploying from Wa11et…111111 · about 1.22 SOL",
+        "Note: Most of this is rent, a deposit that keeps the program's 117 KB on chain; closing the program returns it.",
+      ]);
     });
 
     it("upgrades a program on chain in place, with three stages when funded and built", async () => {
-      const { port } = portOf({
+      const { port, lines } = portOf({
         balances: [5 * SOL],
         deployed: true,
         stale: false,
@@ -480,6 +492,9 @@ if (import.meta.vitest) {
         signature: "upgradeSig",
         upgraded: true,
       });
+      expect(lines[1]).toBe(
+        "Note: Most of this is the buffer's rent, which comes back once the upgrade lands."
+      );
       expect(port.deploy).not.toHaveBeenCalled();
       // The port extends the program data from what is on chain
       expect(port.writeBuffer).toHaveBeenCalledWith(

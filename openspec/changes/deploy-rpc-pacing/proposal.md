@@ -17,16 +17,17 @@ deploy does about either, so nothing checks the fix and the next edit can undo i
   typed in the terminal keeps its question.
 - Buffer accounts are read through a per-cluster read-buffer RPC (`REACT_APP_DEVNET_READ_BUFFER_RPC_URL`,
   `REACT_APP_TESTNET_READ_BUFFER_RPC_URL`, `REACT_APP_MAINNET_READ_BUFFER_RPC_URL`); sends and every other read stay
-  on the selected RPC. The kept-buffer line names that RPC in its close command.
+  on the selected RPC. The kept-buffer line names that RPC in its close command, and Settings shows the selected
+  cluster's read-buffer RPC under the network chips, with the `solana program show --buffers` and `solana program
+  close --buffers` commands that need it, each with a Copy button.
 - Stop shows in the console strip while a build runs and is hidden while a deploy runs, until Stop can end a
   tutorial deploy. Ctrl+C in the terminal still stops a deploy.
 - The console strip draws a progress bar while a deploy writes its buffer.
-- A public devnet or mainnet URL typed in while the Devnet or Mainnet chip offers a platform RPC is listed as a
-  custom chip, named by its host, and checked.
 - The faucet links of the tutorial's and the docs link's "Not enough devnet SOL" cards, and of the Deploy stage's "Not
   enough SOL" card, open with the wallet's address filled in; the tutorial deploy's card also asks for 5 SOL. The tutorial deploy's "Writing buffer" stage reads
   "· N of M transactions".
-- Telemetry: no event is added, renamed or removed. The Deploy funnel step's `deploy_started` and
+- Telemetry: the Settings widget adds `settings_buffer_command_copied` (`command`: `show` or `close`), sent when a
+  read-buffer command is copied; no event is renamed or removed. The Deploy funnel step's `deploy_started` and
   `deploy_succeeded` keep firing from `commands/deploy/deploy.ts` and `features/deploy/model/stage-deploy.ts`.
 
 ## Capabilities
@@ -43,7 +44,6 @@ deploy does about either, so nothing checks the fix and the next edit can undo i
   read-buffer RPC, and the stage's faucet link with the address.
 - `client-v2-command-stop`: Stop only for a build, the read-buffer RPC in the kept-buffer line, and the strip's
   progress bar.
-- `client-v2-custom-rpcs`: a typed-in public URL beside a platform network is a custom chip.
 - `tutorial-runs`: the faucet link with the address and 5 SOL, and the "Writing buffer" transaction count. The
   deploy requirement these refine is added by `tutorial-flow-v2`, so they are added here as requirements of their own.
 
@@ -52,10 +52,10 @@ deploy does about either, so nothing checks the fix and the next edit can undo i
 - Code: `client-v2/src/commands/deploy/` (`bpf-loader-upgradeable.ts`, `deploy.ts`, `stopped.ts`),
   `client-v2/src/utils/connection.ts`, `client-v2/src/shared/config/client-env.ts`,
   `client-v2/src/shared/lib/rpc-rate-limit/`, `client-v2/src/shared/lib/faucet.ts`,
-  `client-v2/src/settings/stored-endpoint.ts`, `client-v2/src/views/flow/console/`, and the tutorial deploy runner
-  and cards.
+  `client-v2/src/views/flow/console/`, and the tutorial deploy runner and cards.
 - Configuration: six optional `REACT_APP_*` variables, listed in `client-v2/.env.example`. Unset, a deploy reads
   buffers through the selected RPC and paces writes up to its own ceiling.
-- Out of scope: a Stop that ends a tutorial deploy and closes leftover buffers from earlier runs; a send cap that
+- Out of scope: which RPC each cluster resolves to and what `localStorage` stores for it, which `cluster-entity`
+  owns; a Stop that ends a tutorial deploy and closes leftover buffers from earlier runs; a send cap that
   applies only to the platform URL rather than to the whole cluster; reading the RPC's `Retry-After` and
   `X-Ratelimit-*` headers.

@@ -1,6 +1,6 @@
 # Tasks
 
-Groups 1 to 4 touch separate files and may run at the same time; inside group 1, 1.4 to 1.6 follow 1.1 to 1.3.
+Groups 1 to 3 touch separate files and may run at the same time; inside group 1, 1.4 to 1.6 follow 1.1 to 1.3.
 
 ## 1. Buffer writes and reads (`client-v2-deploy`)
 
@@ -20,6 +20,13 @@ Groups 1 to 4 touch separate files and may run at the same time; inside group 1,
   `realDeployPort().writeBuffer`; verify that reverting one `getAccountInfo` to the selected connection fails a test
   (ticket to file)
 
+- [ ] 1.7 Show the selected cluster's read-buffer RPC under the Settings network chips, with the `solana program show
+  --buffers -u` and `closeBuffersCommandFor` commands, each with a `CopyButton` (`onError={reportButtonFailure(...)}`),
+  and nothing while the env sets none; declare and send `settings_buffer_command_copied` (`command`: `show` | `close`)
+  in `widgets/settings-page/model/telemetry.ts`; depends on `cluster-entity` 2.1, which moves the same Settings
+  section; verify with a `widgets/settings-page` test per state (set, unset, custom RPC on a known cluster) and one
+  that asserts the event through the memory provider (HOO-2362)
+
 ## 2. Stop and the console strip (`client-v2-command-stop`)
 
 - [ ] 2.1 Show Stop for a build and hide it for a deploy in `BaseConsoleDrawer`, with Clear turned off beside Stop;
@@ -30,16 +37,14 @@ Groups 1 to 4 touch separate files and may run at the same time; inside group 1,
 - [x] 2.3 Draw the strip's progress bar from `PgView.setMainSecondaryProgress`; verify with `yarn test-unit
   src/views/flow/console` (HOO-2362)
 
-## 3. Custom RPCs (`client-v2-custom-rpcs`)
+## 3. Faucet links and the tutorial's write count (`tutorial-runs`, `client-run`)
 
-- [ ] 3.1 List a public devnet or mainnet endpoint as a custom chip, named by its host and checked, while the chip
-  offers a platform RPC (`toStoredEndpoints`, `PgCustomRpcs`); reword the `buildEndpointOptions` JSDoc; verify with
-  `BaseNetworkChoice.platform.test.tsx` expecting a checked `api.devnet.solana.com` chip (HOO-2362)
-
-## 4. Faucet links and the tutorial's write count (`tutorial-runs`, `client-run`)
-
-- [x] 4.1 Fill the wallet address into the tutorial's and the docs link's faucet links, with 5 SOL on the tutorial
+- [x] 3.1 Fill the wallet address into the tutorial's and the docs link's faucet links, with 5 SOL on the tutorial
   deploy's card; verify with `yarn test-unit src/shared/lib/faucet.ts` and the `client-run: A new wallet` e2e test
   (HOO-2362)
-- [x] 4.2 Report each landed write as the "Writing buffer" stage's "N of M transactions"; verify with `yarn test-unit
+- [x] 3.2 Report each landed write as the "Writing buffer" stage's "N of M transactions"; verify with `yarn test-unit
   src/features/tutorial-conversation/model/runners/deploy.ts` (HOO-2362)
+- [x] 3.3 Print a "Note:" line after the tutorial deploy's "Deploying from" line saying most of the SOL is rent;
+  verify with `yarn test-unit src/features/tutorial-conversation/model/runners/deploy.ts` (HOO-2362)
+- [x] 3.4 Read the airdrop card's balance check on any known cluster in `tutorialRunner.isFunded`; verify with the
+  `real-deploy.test.ts` localnet case (HOO-2362)
