@@ -23,6 +23,24 @@ export const isTutorialRoutePath = (path: string) =>
 export const isCatalogLinkPath = (path: string) =>
   catalogPageOfPath(path) !== null;
 
+/** The page's own path, which stays in the address bar while it shows */
+export const pathOfCatalogPage = (page: LinkedPage) => `/${page}` as const;
+
+/** Home's own path: Home over a project has to differ from the project's `/` */
+export const HOME_PATH = "/home";
+
+/** Whether `path` is Home's, a trailing slash included */
+export const isHomePath = (path: string) =>
+  path.replace(/\/+$/, "") === HOME_PATH;
+
+/**
+ * Where Home can show: `/`, Home's own path, and the pages' links, which
+ * show over Home or the work. The work cannot be drawn on these with no
+ * project open.
+ */
+export const isStartPath = (path: string) =>
+  path === "/" || isHomePath(path) || isCatalogLinkPath(path);
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -47,6 +65,25 @@ if (import.meta.vitest) {
       ["/", false],
     ] as const)("reads %s as a tutorial's route: %s", (path, route) => {
       expect(isTutorialRoutePath(path)).toBe(route);
+    });
+
+    it.each([
+      ["/", true],
+      ["/home", true],
+      ["/home/", true],
+      ["/tutorials", true],
+      ["/programs", true],
+      ["/tutorials/hello-anchor/1", false],
+      ["/open", false],
+      ["/homes", false],
+    ] as const)("reads %s as a start path: %s", (path, start) => {
+      expect(isStartPath(path)).toBe(start);
+    });
+
+    it("gives each page its own path", () => {
+      expect(pathOfCatalogPage("tutorials")).toBe("/tutorials");
+      expect(pathOfCatalogPage("programs")).toBe("/programs");
+      expect(isHomePath(HOME_PATH)).toBe(true);
     });
   });
 }

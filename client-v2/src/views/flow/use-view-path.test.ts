@@ -1,0 +1,161 @@
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, expect, it, vi } from "vitest";
+
+const router = vi.hoisted(() => ({
+  location: { pathname: "/" },
+  changed: [] as Array<(path: string) => void>,
+  onDidChangePath: vi.fn(),
+  navigate: vi.fn(),
+}));
+const explorer = vi.hoisted(() => ({
+  currentWorkspaceName: undefined as string | undefined,
+}));
+const tutorial = vi.hoisted(() => ({
+  isWorkspaceTutorial: vi.fn(),
+  open: vi.fn(),
+}));
+vi.mock("@/utils", () => ({
+  PgExplorer: explorer,
+  PgRouter: router,
+  PgTutorial: tutorial,
+}));
+const catalog = vi.hoisted(() => ({
+  catalogPage: { open: vi.fn(), close: vi.fn() },
+}));
+vi.mock("@/widgets/catalog", () => catalog);
+
+import type { CatalogPage } from "@/widgets/catalog";
+import type { HomeVia, StartView } from "@/widgets/home";
+
+import { useViewPath } from "./use-view-path";
+
+type Shown = {
+  view: StartView;
+  homeVia?: HomeVia;
+  catalog?: CatalogPage;
+};
+const render = (initial: Shown) =>
+  renderHook(
+    (p: Shown) =>
+      useViewPath({
+        view: p.view,
+        homeVia: p.homeVia,
+        catalog: p.catalog,
+      }),
+    { initialProps: initial }
+  );
+
+/** Where the hook moved the address bar to, and how */
+const moves = () => router.navigate.mock.calls;
+
+beforeEach(() => {
+  router.location.pathname = "/";
+  router.changed = [];
+  router.onDidChangePath.mockReset().mockImplementation((cb) => {
+    router.changed.push(cb);
+    cb(router.location.pathname);
+    return {
+      dispose: () => router.changed.splice(router.changed.indexOf(cb), 1),
+    };
+  });
+  router.navigate.mockReset().mockResolvedValue(undefined);
+  explorer.currentWorkspaceName = undefined;
+  tutorial.isWorkspaceTutorial.mockReset().mockReturnValue(false);
+  tutorial.open.mockReset().mockResolvedValue(undefined);
+  catalog.catalogPage.open.mockReset();
+  catalog.catalogPage.close.mockReset();
+});
+
+it("puts Home picked from a tutorial on Home's own path, as a new entry", () => {
+  router.location.pathname = "/tutorials/lumberjack/3";
+  const { rerender } = render({ view: "work" });
+  expect(moves()).toEqual([]);
+
+  rerender({ view: "home", homeVia: "nav" });
+  expect(moves()).toEqual([["/home", { replace: false }]]);
+});
+
+it("replaces `/` with Home's path when Home shows there by itself", () => {
+  render({ view: "home", homeVia: "start" });
+  expect(moves()).toEqual([["/home", { replace: true }]]);
+});
+
+it("keeps `/` as an entry when Home is picked over a project there", () => {
+  const { rerender } = render({ view: "work" });
+  rerender({ view: "home", homeVia: "nav" });
+  expect(moves()).toEqual([["/home", { replace: false }]]);
+});
+
+it("does nothing while the start is pending, or on the path already shown", () => {
+  render({ view: "pending" });
+  router.location.pathname = "/home";
+  render({ view: "home", homeVia: "back" });
+  router.location.pathname = "/tutorials";
+  render({ view: "home", homeVia: "nav", catalog: "tutorials" });
+  expect(moves()).toEqual([]);
+});
+
+it("gives a page its own path, over Home or the work", () => {
+  router.location.pathname = "/home";
+  const { rerender } = render({ view: "home", homeVia: "nav" });
+  rerender({ view: "home", homeVia: "nav", catalog: "programs" });
+  expect(moves()).toEqual([["/programs"]]);
+});
+
+it("goes back to Home's path when a page over Home closes", () => {
+  router.location.pathname = "/tutorials";
+  const { rerender } = render({
+    view: "home",
+    homeVia: "nav",
+    catalog: "tutorials",
+  });
+  rerender({ view: "home", homeVia: "nav", catalog: undefined });
+  expect(moves()).toEqual([["/home", { replace: false }]]);
+});
+
+it("leaves Home for a tutorial's own route, its saved page with it", () => {
+  router.location.pathname = "/home";
+  explorer.currentWorkspaceName = "Lumberjack";
+  tutorial.isWorkspaceTutorial.mockReturnValue(true);
+  const { rerender } = render({ view: "home", homeVia: "nav" });
+
+  rerender({ view: "work" });
+  expect(tutorial.open).toHaveBeenCalledWith("Lumberjack");
+  expect(moves()).toEqual([]);
+});
+
+it("leaves Home or a page for `/` with any other project", () => {
+  router.location.pathname = "/programs";
+  explorer.currentWorkspaceName = "counter";
+  const { rerender } = render({ view: "work", catalog: "programs" });
+
+  rerender({ view: "work", catalog: undefined });
+  expect(moves()).toEqual([["/"]]);
+  expect(tutorial.open).not.toHaveBeenCalled();
+});
+
+it("leaves the work on a route alone", () => {
+  router.location.pathname = "/tutorials/lumberjack/2";
+  const { rerender } = render({ view: "home", homeVia: "nav" });
+  router.navigate.mockClear();
+  rerender({ view: "work" });
+  expect(moves()).toEqual([]);
+  expect(tutorial.open).not.toHaveBeenCalled();
+});
+
+it("opens and closes a page on the path come to", () => {
+  render({ view: "work" });
+  catalog.catalogPage.close.mockClear();
+
+  act(() => router.changed.forEach((cb) => cb("/tutorials")));
+  expect(catalog.catalogPage.open).toHaveBeenCalledWith("tutorials", "link");
+
+  act(() => router.changed.forEach((cb) => cb("/tutorials/hello-anchor/1")));
+  expect(catalog.catalogPage.close).toHaveBeenCalledTimes(1);
+});
+
+it("stops listening once unmounted", () => {
+  const { unmount } = render({ view: "work" });
+  unmount();
+  expect(router.changed).toEqual([]);
+});
