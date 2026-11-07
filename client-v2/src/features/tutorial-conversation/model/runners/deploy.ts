@@ -265,8 +265,12 @@ export const runDeploy = async (
       if (balance < need) return short(balance, need);
     }
     stage(DEPLOY_STAGES.buffer);
-    port.print(`Deploying from ${shortKey(address)} · about ${sol(need)} SOL`);
-    port.print(rentNoteFor(onChain)(bytes.length));
+    // One print: each print at an idle terminal restarts its prompt, which put a stray `$` between the two lines
+    port.print(
+      `Deploying from ${shortKey(address)} · about ${sol(
+        need
+      )} SOL\n${rentNoteFor(onChain)(bytes.length)}`
+    );
     const funded = await port.funding.balance(address);
     const buffer = await port.writeBuffer(bytes, onChain, writing);
 
@@ -466,8 +470,7 @@ if (import.meta.vitest) {
       expect(port.deploy).toHaveBeenCalledWith("Buffer1111", 120_000);
       expect(port.funding.airdrop).not.toHaveBeenCalled();
       expect(lines).toEqual([
-        "Deploying from Wa11et…111111 · about 1.22 SOL",
-        "Note: Most of this is rent, a deposit that keeps the program's 117 KB on chain; closing the program returns it.",
+        "Deploying from Wa11et…111111 · about 1.22 SOL\nNote: Most of this is rent, a deposit that keeps the program's 117 KB on chain; closing the program returns it.",
       ]);
     });
 
@@ -492,8 +495,8 @@ if (import.meta.vitest) {
         signature: "upgradeSig",
         upgraded: true,
       });
-      expect(lines[1]).toBe(
-        "Note: Most of this is the buffer's rent, which comes back once the upgrade lands."
+      expect(lines[0]).toMatch(
+        /\nNote: Most of this is the buffer's rent, which comes back once the upgrade lands\.$/
       );
       expect(port.deploy).not.toHaveBeenCalled();
       // The port extends the program data from what is on chain
