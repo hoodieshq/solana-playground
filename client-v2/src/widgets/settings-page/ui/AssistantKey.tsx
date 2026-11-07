@@ -59,11 +59,11 @@ const AssistantKey = ({
       doneRef={done}
       phone={phone}
       onDelete={() => {
-        const forgotten = PgAssistant.disconnect();
-        setStuck(!forgotten);
+        const isForgotten = PgAssistant.disconnect();
+        setStuck(!isForgotten);
         // A key an older build kept and could not drop is not deleted: the
         // row says that instead
-        setIsDeleted(forgotten);
+        setIsDeleted(isForgotten);
         settingsTelemetry.track("settings_key_deleted", {});
       }}
     />

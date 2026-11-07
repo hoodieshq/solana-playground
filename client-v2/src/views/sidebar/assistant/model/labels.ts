@@ -43,15 +43,18 @@ if (import.meta.vitest) {
         expect(displayModelName("claude-opus-5-5")).toBe("Opus 5.5");
         expect(displayModelName("claude-sonnet-5-5")).toBe("Sonnet 5.5");
       });
-      it("names the hosted model, or calls it Default model when unnamed", () => {
-        expect(hostedModelName("claude-opus-5-5")).toBe("Opus 5.5");
-        expect(hostedModelName(undefined)).toBe("Default model");
-      });
       it("shows an unknown id as it is", () => {
         expect(displayModelName("deepseek/deepseek-chat-v3.1:free")).toBe(
           "deepseek/deepseek-chat-v3.1:free"
         );
       });
+    });
+  });
+
+  describe("hostedModelName", () => {
+    it("names the hosted model, or calls it Default model when unnamed", () => {
+      expect(hostedModelName("claude-opus-5-5")).toBe("Opus 5.5");
+      expect(hostedModelName(undefined)).toBe("Default model");
     });
   });
 }
