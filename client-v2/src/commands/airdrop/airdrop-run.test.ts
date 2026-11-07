@@ -82,6 +82,17 @@ describe("airdrop, once the faucet answers", () => {
     );
   });
 
+  it("links the web faucet when the balance read is the one rate-limited", async () => {
+    connection.getBalance.mockRejectedValueOnce(
+      new Error("429 Too Many Requests: rate limited")
+    );
+
+    await expect(run()).rejects.toThrow("429");
+
+    expect(connection.requestAirdrop).not.toHaveBeenCalled();
+    expect(printed.at(-1)).toContain("https://faucet.solana.com/?");
+  });
+
   it("adds no faucet note to any other failure", async () => {
     connection.getBalance.mockResolvedValue(0);
     connection.requestAirdrop.mockRejectedValueOnce(new Error("fetch failed"));

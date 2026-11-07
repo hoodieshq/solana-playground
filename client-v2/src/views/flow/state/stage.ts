@@ -397,7 +397,9 @@ export class PgFlow {
       PgCommand.airdrop.onDidStart(() =>
         PgFlow._dispatch({ type: "airdrop-start" })
       ),
-      PgCommand.airdrop.onDidFinish(() =>
+      // Not `onDidFinish`, which `airdrop --help` never sends: the strip
+      // would say "Airdropping…" for good
+      PgCommand.airdrop.onDidEnd(() =>
         PgFlow._dispatch({ type: "airdrop-finish" })
       ),
       PgExplorer.onDidSwitchWorkspace(() => {

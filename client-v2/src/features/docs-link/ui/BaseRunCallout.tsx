@@ -20,7 +20,7 @@ export interface RunSourceInfo {
   from?: string;
 }
 
-/** Where "Get devnet SOL" goes until Playground has a faucet of its own */
+// Where "Get devnet SOL" goes; kept here for the slice's importers
 export { FAUCET_URL };
 
 export interface BaseRunCalloutProps {

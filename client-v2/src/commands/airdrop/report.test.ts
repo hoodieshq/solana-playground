@@ -41,6 +41,7 @@ describe("isRateLimited", () => {
   it.each([
     new Error("Airdrop transaction failed: InstructionError"),
     new Error("Balance did not change"),
+    new Error("Transaction simulation failed at slot 429"),
     "a string",
     undefined,
   ])("does not read %s as one", (error) => {

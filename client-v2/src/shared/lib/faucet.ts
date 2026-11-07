@@ -1,7 +1,9 @@
 /** The web faucet, until Playground has a faucet of its own */
 export const FAUCET_URL = "https://faucet.solana.com";
 
-/** The amounts the faucet's form offers; it ignores any other in a link */
+/** The amounts the faucet's form offers; it ignores any other in a link.
+ * Read from faucet.solana.com's page script on 7 Nov 2026: update both lists
+ * if its form changes. */
 const FAUCET_AMOUNTS: readonly number[] = [0.5, 1, 2.5, 5];
 
 /** The clusters the faucet's form has; it ignores any other in a link */

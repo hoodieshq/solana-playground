@@ -18,7 +18,7 @@ vi.mock("../../../utils", () => ({
     },
     airdrop: {
       onDidStart: vi.fn(() => ({ dispose: vi.fn() })),
-      onDidFinish: vi.fn(() => ({ dispose: vi.fn() })),
+      onDidEnd: vi.fn(() => ({ dispose: vi.fn() })),
     },
   },
   PgExplorer: {
@@ -396,7 +396,7 @@ error: could not compile \`hello\` due to previous error`;
 });
 
 describe("PgFlow.init wiring", () => {
-  it("follows the airdrop command from its start to its finish", async () => {
+  it("follows the airdrop command from its start to its end", async () => {
     const { PgCommand } = await import("../../../utils");
     const listen = (mock: Mock) => {
       const box: { cb?: () => void } = {};
@@ -407,14 +407,13 @@ describe("PgFlow.init wiring", () => {
       return box;
     };
     const start = listen(vi.mocked(PgCommand.airdrop.onDidStart));
-    const finish = listen(vi.mocked(PgCommand.airdrop.onDidFinish));
+    // `onDidEnd`, which a run that printed only its help sends too
+    const finish = listen(vi.mocked(PgCommand.airdrop.onDidEnd));
 
     const sub = PgFlow.init();
     requireFor("the airdrop start listener PgFlow.init subscribed")(start.cb)();
     expect(PgFlow.state.airdropping).toBe(true);
-    requireFor("the airdrop finish listener PgFlow.init subscribed")(
-      finish.cb
-    )();
+    requireFor("the airdrop end listener PgFlow.init subscribed")(finish.cb)();
     expect(PgFlow.state.airdropping).toBe(false);
     sub.dispose();
   });

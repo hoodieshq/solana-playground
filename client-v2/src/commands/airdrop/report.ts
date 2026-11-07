@@ -5,8 +5,8 @@ const LAMPORTS_PER_SOL = 1_000_000_000;
 
 /**
  * The line after an airdrop landed, with what the balance rose by. A public
- * RPC may grant less than was asked (devnet asked for 5 SOL gave 1), so the
- * requested amount alone would overstate it. A balance that fell meanwhile
+ * RPC may grant less than was asked (a devnet request for 5 SOL was seen to
+ * credit 1), so the requested amount alone would overstate it. A balance that fell meanwhile
  * (the wallet paid for something) gives no amount to name.
  */
 export const receivedLine = (
@@ -21,13 +21,14 @@ export const receivedLine = (
 };
 
 /**
- * Whether the RPC refused the airdrop for asking too often: an HTTP 429 (which
- * web3.js reports as "429 Too Many Requests: …") or the faucet's own words for
- * its daily limit.
+ * Whether the RPC refused the airdrop for its limit: an HTTP 429 (which
+ * web3.js reports as "429 Too Many Requests: …" once its retries run out), or
+ * the faucet's own words for its daily limit or an empty faucet. The web
+ * faucet has a limit of its own, so it is worth pointing to for any of them.
  */
 export const isRateLimited = (error: unknown): boolean =>
   error instanceof Error &&
-  /\b429\b|too many (airdrop )?requests|rate.?limit|airdrop limit|run dry/i.test(
+  /too many (airdrop )?requests|rate.?limit|airdrop limit|run dry/i.test(
     error.message
   );
 

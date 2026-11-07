@@ -15,7 +15,7 @@ import { CopyButton } from "@/shared/ui/copy-button";
 
 import { formatSol, shortKey } from "../model/format";
 
-/** Solana's web faucet; it serves devnet and testnet */
+/** The shared `FAUCET_URL`, under the name this card's importers use */
 export const WEB_FAUCET_URL = FAUCET_URL;
 
 export interface BaseNotEnoughSolProps {
