@@ -1,6 +1,7 @@
 // TODO(ui-migration 1.4): a feature importing a feature; a claim is kept per signed-in account
 import { PgSession } from "@/features/auth";
 
+import { writeConfigFile } from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import { isMissing, report } from "./diagnostics";
 
@@ -45,9 +46,7 @@ export class PgSyncClaim {
     if (!userId) return;
 
     try {
-      await PgFs.writeFile(pathOf(userId, projectId), "{}", {
-        createParents: true,
-      });
+      await writeConfigFile(pathOf(userId, projectId), "{}");
     } catch (e) {
       report(`claim ${projectId}`, e);
     }

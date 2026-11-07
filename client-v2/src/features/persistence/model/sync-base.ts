@@ -1,6 +1,7 @@
 // TODO(ui-migration 1.4): a feature importing a feature; bases are stored per signed-in account
 import { PgSession } from "@/features/auth";
 
+import { writeConfigFile } from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import { report } from "./diagnostics";
 import type { BaseContents } from "./merge";
@@ -121,10 +122,9 @@ export class PgSyncBase {
     const userId = currentUserId();
     if (!userId) return;
     try {
-      await PgFs.writeFile(
+      await writeConfigFile(
         pathOf(userId, projectId),
-        JSON.stringify(contents),
-        { createParents: true }
+        JSON.stringify(contents)
       );
     } catch (e) {
       report(`write sync base ${projectId}`, e);

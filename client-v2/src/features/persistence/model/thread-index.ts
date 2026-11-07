@@ -1,5 +1,6 @@
 import { isUuid, uuid } from "@/shared/lib/ids";
 
+import { writeConfigFile } from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import { PgChatStorage } from "./chat-storage";
 import { report } from "./diagnostics";
@@ -299,9 +300,7 @@ export class PgThreadIndex {
   private static async _write(index: Index): Promise<boolean> {
     PgThreadIndex._cache = index;
     try {
-      await PgFs.writeFile(INDEX_PATH, JSON.stringify(index), {
-        createParents: true,
-      });
+      await writeConfigFile(INDEX_PATH, JSON.stringify(index));
       return true;
     } catch (e) {
       report("write index", e);

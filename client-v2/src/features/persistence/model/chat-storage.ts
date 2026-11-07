@@ -1,3 +1,4 @@
+import { writeConfigFile } from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { ChatItem } from "../../../views/sidebar/assistant/store";
 import { decodeThread, encodeThread } from "./chat-codec";
@@ -158,13 +159,9 @@ export class PgChatStorage {
     const capped = capThread(threadId, items);
 
     try {
-      // `createParents` on the write, not a separate `createDir`: that helper
-      // treats the last path segment as a file name and stops short of it, so
-      // asking it for the directory itself only ever creates `/.config`
-      await PgFs.writeFile(
+      await writeConfigFile(
         pathOf(threadId),
-        JSON.stringify(encodeThread(capped)),
-        { createParents: true }
+        JSON.stringify(encodeThread(capped))
       );
     } catch (e) {
       report(`write ${threadId}`, e);

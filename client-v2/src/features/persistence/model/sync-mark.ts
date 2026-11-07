@@ -1,6 +1,7 @@
 // TODO(ui-migration 1.4): a feature importing a feature; marks are stored per signed-in account
 import { PgSession } from "@/features/auth";
 
+import { writeConfigFile } from "../../../utils/explorer/config-file";
 import { PgFs } from "../../../utils/explorer/fs";
 import type { Disposable } from "../../../utils/types";
 import { report } from "./diagnostics";
@@ -293,9 +294,7 @@ export class PgSyncMark {
     if (!userId) return false;
 
     try {
-      await PgFs.writeFile(pathOf(userId, projectId), JSON.stringify(mark), {
-        createParents: true,
-      });
+      await writeConfigFile(pathOf(userId, projectId), JSON.stringify(mark));
       return true;
     } catch (e) {
       report(`write sync mark ${projectId}`, e);
