@@ -59,6 +59,19 @@ export interface BaseDeployResultCardProps {
 const sol = (lamports: number) =>
   String(Math.round((lamports / 1e9) * 10000) / 10000);
 
+/** An estimate reads as one: "about 2.81 SOL", never four decimals */
+const aboutSol = (lamports: number) =>
+  String(Math.round((lamports / 1e9) * 100) / 100);
+
+/** The faucet's 429, or its own words for the limit */
+const RATE_LIMITED = /\b429\b|too many requests|rate limit|airdrop limit/i;
+
+/** Why the airdrop failed, in words true to the cause (Design alignment, 7 Nov) */
+const airdropWhy = (message: string) =>
+  RATE_LIMITED.test(message)
+    ? "The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
+    : "The airdrop didn't go through: try again in a minute, or top the wallet up yourself.";
+
 /** The red head every failed deploy shares, 48 tall while it waits on the learner */
 const FailedHead = ({ title, open }: { title: string; open: boolean }) => (
   <div
@@ -123,11 +136,11 @@ const BaseDeployResultCard = ({
           <p className={READ}>
             {`Your wallet has ${sol(
               result.balance
-            )} SOL, and this deploy needs about ${sol(result.cost)} SOL. ${
+            )} SOL, and this deploy needs about ${aboutSol(result.cost)} SOL. ${
               // Only the airdrop asked the faucet; a deploy found the wallet
               // short on its own
               result.act === "airdrop"
-                ? "The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
+                ? airdropWhy(result.message)
                 : "Get devnet SOL from the faucet, or top the wallet up yourself."
             }`}
           </p>

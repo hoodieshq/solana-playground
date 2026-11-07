@@ -174,6 +174,43 @@ describe("BaseDeployResultCard", () => {
     expect(screen.getByRole("link", { name: /Open faucet/ })).toBeTruthy();
   });
 
+  it("tells an airdrop that failed otherwise that it didn't go through", () => {
+    card({
+      act: "airdrop",
+      ok: false,
+      seconds: 2,
+      reason: "no_funds",
+      message: "The airdrop did not reach the wallet",
+      balance: 0,
+      cost: 2_806_300_000,
+      address: WALLET,
+    });
+    expect(
+      screen.getByText(
+        "Your wallet has 0 SOL, and this deploy needs about 2.81 SOL. The airdrop didn't go through: try again in a minute, or top the wallet up yourself."
+      )
+    ).toBeTruthy();
+  });
+
+  it("reads the faucet's own limit message as a rate limit", () => {
+    card({
+      act: "airdrop",
+      ok: false,
+      seconds: 2,
+      reason: "no_funds",
+      message:
+        "airdrop request failed. This can happen when the rate limit is reached.",
+      balance: 123_456_789,
+      cost: 2_806_300_000,
+      address: WALLET,
+    });
+    expect(
+      screen.getByText(
+        "Your wallet has 0.1235 SOL, and this deploy needs about 2.81 SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself."
+      )
+    ).toBeTruthy();
+  });
+
   it("offers to create the wallet when there is none", async () => {
     const onCreateWallet = vi.fn();
     card(

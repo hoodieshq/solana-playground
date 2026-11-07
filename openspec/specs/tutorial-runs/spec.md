@@ -164,8 +164,12 @@ airdrop card first; that card stays for the deploy as a fallback.
 A refused or rate-limited airdrop, or one whose balance never moved, SHALL
 post the red result card "Not enough devnet SOL" (`aria-label="Not enough
 SOL"`), with the line "Your wallet has {balance} SOL, and this deploy needs
-about {cost} SOL. The devnet faucet is at its limit for now: try again in a
-minute, or top the wallet up yourself." Under it sit "Your wallet" with the
+about {cost} SOL." followed by the cause. For a rate limit (a 429 or the
+faucet's limit message) it SHALL read "The devnet faucet is at its limit for
+now: try again in a minute, or top the wallet up yourself.", and for any other
+failure "The airdrop didn't go through: try again in a minute, or top the
+wallet up yourself." The cost is an estimate, rounded to two decimals ("about
+2.81 SOL"); the balance keeps its exact figure. Under it sit "Your wallet" with the
 short address and Copy, and "Open faucet" (`https://faucet.solana.com`, new
 tab). A live airdrop card follows it, with the line "Asks the faucet again"
 and the button "Try again".
