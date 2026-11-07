@@ -373,6 +373,7 @@ const Grounding = ({ embedded = false }: GroundingProps) => {
                           <ServerConsole
                             server={server}
                             providerName={providerName}
+                            scope={scope}
                           />
                         </CollapsibleContent>
                       </Collapsible>

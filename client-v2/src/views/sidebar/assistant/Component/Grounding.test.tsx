@@ -6,7 +6,15 @@ vi.mock("../../../../hooks", async () => ({
   useRenderOnChange: (await import("../../../../hooks/useRenderOnChange"))
     .useRenderOnChange,
 }));
-vi.mock("./ServerConsole", () => ({ __esModule: true, default: () => null }));
+// The console stands in as the id prefix it was given, so a test can see each view's
+const consoleScopes = vi.hoisted(() => [] as string[]);
+vi.mock("./ServerConsole", () => ({
+  __esModule: true,
+  default: ({ scope }: { scope: string }) => {
+    consoleScopes.push(scope);
+    return null;
+  },
+}));
 
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
@@ -312,7 +320,11 @@ describe("Grounding", () => {
     expect(editor().value).toBe("[ typing");
   });
 
-  it("Settings and the panel share one state: a skill unticked in one is off in both and for the next turn", () => {
+  it("Settings and the panel share one state: a skill unticked in one is off in both and for the next turn", async () => {
+    PgAssistant.setMcpServers([
+      { id: "docs", name: "Docs", url: "https://docs.test/mcp", enabled: true },
+    ]);
+    consoleScopes.length = 0;
     render(
       <TooltipProvider>
         <section aria-label="Panel">
@@ -336,10 +348,23 @@ describe("Grounding", () => {
           .getAttribute("aria-checked")
       ).toBe("false");
     }
-    expect(PgAssistant.enabledSkillIds).not.toContain("solana-dev");
+    const loadSkill = createSkillTools().find((t) => t.name === "load_skill");
+    expect(await loadSkill?.run({ id: "solana-dev" }, {})).not.toBe(
+      "text of https://skills.test/solana-dev/SKILL.md"
+    );
 
-    // Each view's labels point at its own controls, so no id repeats
-    const ids = [...document.querySelectorAll("[id]")].map((el) => el.id);
-    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+    // Each view's labels point at its own controls: no id repeats, and each
+    // view's server console gets its own prefix
+    for (const view of [panel, settings]) {
+      view
+        .getAllByRole("button", { name: /Call a tool|Community skills/ })
+        .forEach((button) => fireEvent.click(button));
+    }
+    const ids = Array.from(
+      document.querySelectorAll("section [id]"),
+      (el) => el.id
+    );
+    expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+    expect(new Set(consoleScopes).size).toBe(2);
   });
 });

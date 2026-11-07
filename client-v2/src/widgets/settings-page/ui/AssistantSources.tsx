@@ -1,7 +1,5 @@
-import { useEffect } from "react";
-
 import Grounding from "@/views/sidebar/assistant/Component/Grounding";
-import { PgAssistant } from "@/views/sidebar/assistant/store";
+import { useMcpSources } from "@/views/sidebar/assistant/model/use-mcp-sources";
 
 /**
  * The skills and MCP servers of the assistant's Sources and tools, on the
@@ -10,11 +8,8 @@ import { PgAssistant } from "@/views/sidebar/assistant/store";
  */
 const AssistantSources = () => {
   // The panel asks on its own mount; the page may open without it (a phone,
-  // a closed assistant), and asking again is safe
-  useEffect(() => {
-    void PgAssistant.initMcp();
-  }, []);
-
+  // a closed assistant)
+  useMcpSources();
   return <Grounding embedded />;
 };
 
