@@ -31,7 +31,7 @@ at once, and a click on a name SHALL toggle that view's own checkbox.
   line, and nothing throws
 
 #### Scenario: Both views on screen
-- **WHEN** Sources and tools is open in the panel and Settings › Assistant is
-  open
+- **WHEN** Sources and tools is open in the panel and the user opens
+  Settings › Assistant
 - **THEN** a click on a skill's name in Settings toggles the checkbox in
-  Settings
+  Settings, and the panel shows the same state on the way back

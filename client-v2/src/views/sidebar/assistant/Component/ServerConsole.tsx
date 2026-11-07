@@ -15,7 +15,7 @@ interface ServerConsoleProps {
   /** The connected backend's name, when one is connected */
   providerName?: string;
   /** The view's own id prefix, so two views on screen never share an id */
-  scope?: string;
+  scope: string;
 }
 
 const MUTED = "text-[0.7rem] text-[var(--text-secondary)]";
@@ -76,11 +76,7 @@ const skeletonFor = (tool: McpTool, cluster: string) => {
 };
 
 /** One MCP server, with a console for calling its tools with no backend connected at all */
-const ServerConsole = ({
-  server,
-  providerName,
-  scope = "",
-}: ServerConsoleProps) => {
+const ServerConsole = ({ server, providerName, scope }: ServerConsoleProps) => {
   const tools = PgAssistant.mcpTools[server.id] ?? [];
 
   const [busy, setBusy] = useState(false);
