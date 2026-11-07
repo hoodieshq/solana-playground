@@ -305,7 +305,7 @@ const FlowFrame = () => {
   );
 
   const page = useStartView();
-  // The Tutorials or Programs page shown, if any (`widgets/catalog`)
+  // The New project, Tutorials or Programs page shown, if any (`widgets/catalog`)
   const catalog = useCatalogPage();
 
   const described = describeStep(lesson);

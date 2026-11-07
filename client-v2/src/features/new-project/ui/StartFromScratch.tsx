@@ -17,7 +17,7 @@ const defaultName = (framework: FrameworkName) =>
 
 export interface StartFromScratchProps {
   /**
-   * Runs once a project has been made: New project closes its dialog here.
+   * Runs once a project has been made: New project closes its page here.
    * Home passes nothing, since the new project replaces Home by itself
    */
   onStarted?: () => void;

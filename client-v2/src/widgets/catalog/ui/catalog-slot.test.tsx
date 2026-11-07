@@ -2,7 +2,8 @@ import { expect, it, vi } from "vitest";
 
 vi.mock("./TutorialsPage", () => ({ default: () => null }));
 vi.mock("./ProgramsPage", () => ({ default: () => null }));
-vi.mock("./NewProjectPage", () => ({ default: () => null }));
+// The slot only names the page here; nothing renders it
+vi.mock("./NewProjectPage", () => ({ default: () => undefined }));
 vi.mock("@/utils", () => ({}));
 
 import { requireFor } from "@/test-utils/require-for";

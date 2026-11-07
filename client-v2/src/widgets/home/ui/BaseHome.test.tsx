@@ -124,7 +124,7 @@ it("draws the tiles' icons bare, with no tile behind them", () => {
   }
 });
 
-it("opens the New project page from its tile, and unfolds nothing", () => {
+it("opens the New project page from its tile", () => {
   const p = props(undefined);
   const home = draw(p);
   const tile = home.getByRole("button", { name: "New project" });

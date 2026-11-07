@@ -31,6 +31,13 @@ export const catalogPage = {
     catalogTelemetry.track("catalog_shown", { page, via });
   },
   close: () => set(null),
+  /**
+   * Close `page` if it still shows: what a page's own late finish calls, so
+   * an Open ending after the user moved on never closes the page they chose
+   */
+  closePage: (page: ShownPage) => {
+    if (current === page) set(null);
+  },
   onDidChange: (cb: Listener): Disposable => {
     listeners.add(cb);
     return { dispose: () => listeners.delete(cb) };

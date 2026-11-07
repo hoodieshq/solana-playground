@@ -16,7 +16,7 @@ export type HomeSlot = (panel: { openAssistant: () => void }) => ReactNode;
  * a spinner in Home's place while the start is pending (so the editor does
  * not mount before the explorer has answered; `useStartView` gives up after
  * `START_TIMEOUT_MS`), then the phone's or the desktop's Home. `openPage`
- * opens the Tutorials or Programs page, which another widget owns.
+ * opens the New project, Tutorials or Programs page, which another widget owns.
  */
 export const homeSlot = (
   view: StartView,

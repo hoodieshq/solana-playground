@@ -17,7 +17,7 @@ export interface PhoneHomeProps {
   onAsk: () => void;
   /** Continue was picked: go back to the project open under Home */
   onContinue: () => void;
-  /** Open the Tutorials or Programs page, in Home's place */
+  /** Open the Tutorials or Programs page, in Home's place (the phone has no New project tile) */
   onOpenPage: (page: PageTile) => void;
 }
 

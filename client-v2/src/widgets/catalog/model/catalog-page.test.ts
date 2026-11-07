@@ -126,3 +126,15 @@ it("opens New project as a page of its own, from the lesson band too", () => {
     { name: "catalog_shown", params: { page: "new-project", via: "lesson" } },
   ]);
 });
+
+it("closes a page by name only while that page shows", () => {
+  catalogPage.open("new-project", "nav");
+  catalogPage.open("tutorials", "nav");
+
+  // New project's Open or Start finishing after the user moved on
+  catalogPage.closePage("new-project");
+  expect(catalogPage.current()).toBe("tutorials");
+
+  catalogPage.closePage("tutorials");
+  expect(catalogPage.current()).toBeNull();
+});

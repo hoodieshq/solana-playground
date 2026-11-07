@@ -7,7 +7,9 @@ import NewProject from "./NewProject";
  * Programs. What starts or opens a project from it closes the page.
  */
 const NewProjectPage = () => (
-  <NewProject project={useNewProject(catalogPage.close)} />
+  <NewProject
+    project={useNewProject(() => catalogPage.closePage("new-project"))}
+  />
 );
 
 export default NewProjectPage;
