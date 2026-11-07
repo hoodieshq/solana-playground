@@ -8,7 +8,6 @@ const LAMPORTS_PER_SOL = 1_000_000_000;
 
 const log = createLogger("tutorial-conversation:fund");
 
-
 /**
  * What funding needs from devnet, by address. The real one is
  * `devnetFunding`; a test answers from a script.
@@ -308,21 +307,22 @@ if (import.meta.vitest) {
 
     it.each([
       ["failed on chain", false, "The airdrop failed"],
-      ["confirmed but never arrived", true, "The airdrop did not reach the wallet"],
-    ])(
-      "reports an airdrop that %s",
-      async (_case, confirmed, message) => {
-        await fundShort(chainOf([0], async () => "sig", confirmed));
-        expect(logged.entries).toEqual([
-          expect.objectContaining({
-            ns: "tutorial-conversation:fund",
-            level: "warn",
-            message,
-            report: true,
-          }),
-        ]);
-      }
-    );
+      [
+        "confirmed but never arrived",
+        true,
+        "The airdrop did not reach the wallet",
+      ],
+    ])("reports an airdrop that %s", async (_case, confirmed, message) => {
+      await fundShort(chainOf([0], async () => "sig", confirmed));
+      expect(logged.entries).toEqual([
+        expect.objectContaining({
+          ns: "tutorial-conversation:fund",
+          level: "warn",
+          message,
+          report: true,
+        }),
+      ]);
+    });
 
     it("logs nothing when the airdrop lands", async () => {
       await fundShort(chainOf([0, 2 * SOL]));
