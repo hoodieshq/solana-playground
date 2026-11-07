@@ -31,12 +31,14 @@ const chipsOf = (custom: ReadonlyArray<CustomRpc>): Chip[] => [
   ...custom.map((rpc) => ({ label: rpc.name, endpoint: rpc.url })),
 ];
 
+/** Which chip to check: the endpoint, and the chip picked last (`chipKey`) */
+interface Pick {
+  endpoint: string;
+  chosen?: string;
+}
+
 /** The chip checked: `chosen` while `endpoint` is its URL, else the first on it */
-const pickedOf = (
-  chips: ReadonlyArray<Chip>,
-  endpoint: string,
-  chosen: string | undefined
-) =>
+const pickedOf = (chips: ReadonlyArray<Chip>, { endpoint, chosen }: Pick) =>
   chips.find((n) => keyOf(n) === chosen && n.endpoint === endpoint) ??
   chips.find((n) => n.endpoint === endpoint);
 
@@ -45,11 +47,10 @@ const pickedOf = (
  * props, or `undefined` when none lists the endpoint
  */
 export const checkedChipKey = (
-  endpoint: string,
   custom: ReadonlyArray<CustomRpc>,
-  chosen: string | undefined
+  pick: Pick
 ): string | undefined => {
-  const picked = pickedOf(chipsOf(custom), endpoint, chosen);
+  const picked = pickedOf(chipsOf(custom), pick);
   return picked && keyOf(picked);
 };
 
@@ -76,7 +77,7 @@ const BaseNetworkChoice = ({
   onPick: (endpoint: string, key: string) => void;
 }) => {
   const chips = chipsOf(custom);
-  const picked = pickedOf(chips, endpoint, chosen);
+  const picked = pickedOf(chips, { endpoint, chosen });
   const handleChange = (key: string) => {
     const chip = chips.find((n) => keyOf(n) === key);
     if (chip) onPick(chip.endpoint, key);

@@ -109,8 +109,10 @@ const NetworkSection = () => {
   };
   /** Whether `rpc` is the checked chip, not only one on the URL in use */
   const isChecked = (rpc: CustomRpc) =>
-    checkedChipKey(PgSettings.connection.endpoint, rpcs, chosen) ===
-    chipKey(rpc.name, rpc.url);
+    checkedChipKey(rpcs, {
+      endpoint: PgSettings.connection.endpoint,
+      chosen,
+    }) === chipKey(rpc.name, rpc.url);
   // A chip on the URL in use already moves the check, not the network
   const handlePick = (url: string, key: string) => {
     setChosen(key);
