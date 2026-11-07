@@ -1,6 +1,8 @@
 import type { Page } from "@playwright/test";
 
+import { requireFor } from "../src/test-utils/require-for";
 import { expect, LONG, test } from "./fixtures";
+import { DESK, PHONE } from "./viewports";
 
 /**
  * The scenarios of `cli-deploy` that need no build server: the guide opens
@@ -38,6 +40,37 @@ test("cli-deploy: Solana CLI on devnet", async ({ seededPage: page }) => {
     /^solana program deploy (\w+)\.so --program-id \1-keypair\.json --url devnet$/
   );
 });
+
+// HOO-2701: Anchor's extra lines made the guide taller than a short window,
+// and its last step was cut off with nothing to scroll
+for (const [layout, size] of [
+  ["desk", { width: DESK.width, height: 560 }],
+  ["phone", { width: PHONE.width, height: 640 }],
+] as const) {
+  test(`cli-deploy: the guide scrolls inside a short window (${layout})`, async ({
+    seededPage: page,
+  }) => {
+    const guide = await openGuide(page);
+    await guide.getByRole("radio", { name: "Anchor" }).click();
+    await page.setViewportSize(size);
+
+    const inWindow = async (locator: ReturnType<Page["locator"]>) => {
+      const box = requireFor("its box")(await locator.boundingBox());
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThanOrEqual(size.height);
+    };
+    await inWindow(guide);
+
+    const last = guide.getByRole("heading", { name: "3.1 Upload the IDL" });
+    await last.scrollIntoViewIfNeeded();
+    await inWindow(last);
+    // The header and the toggles stay put while the steps scroll
+    await inWindow(
+      guide.getByRole("heading", { name: "Deploy from your machine" })
+    );
+    await inWindow(guide.getByRole("radio", { name: "Anchor" }));
+  });
+}
 
 test("cli-deploy: Anchor on mainnet", async ({ seededPage: page }) => {
   const guide = await openGuide(page);
