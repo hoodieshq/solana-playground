@@ -37,13 +37,21 @@ interface Kept {
   focused?: HTMLElement;
 }
 
-/** Kept between one Outlet giving the node up and the next taking it */
+/**
+ * Kept between one Outlet giving the node up and the next taking it, in the
+ * same commit. Dropped after it: a node away longer (under Home, say) comes
+ * back to whatever its content did meanwhile, never to an old offset
+ */
 const kept = new WeakMap<HTMLDivElement, Kept>();
 
 const keep = (node: HTMLDivElement): Kept => {
   const scrolled: Kept["scrolled"] = [];
   for (const el of [node, ...node.querySelectorAll("*")]) {
-    if (el.scrollTop || el.scrollLeft) {
+    // Real scrollers only: Monaco's own wrappers scroll by hand under
+    // `overflow: hidden`, and an offset the browser left on one is not its
+    if (!(el.scrollTop || el.scrollLeft)) continue;
+    const { overflowX, overflowY } = getComputedStyle(el);
+    if (/auto|scroll/.test(overflowX + overflowY)) {
       scrolled.push({ el, top: el.scrollTop, left: el.scrollLeft });
     }
   }
@@ -104,6 +112,8 @@ export const Outlet = ({
       if (node.parentNode !== host) return;
       kept.set(node, keep(node));
       host.removeChild(node);
+      // React runs the next Outlet's layout effect in this same commit
+      queueMicrotask(() => kept.delete(node));
     };
   }, [node]);
   return <div ref={ref} className={className} style={style} />;

@@ -81,6 +81,7 @@ describe("a move", () => {
   const Scroller = ({ sets }: { sets: number[] }) => (
     <div
       data-testid="scroller"
+      style={{ overflowY: "auto" }}
       ref={(el) => {
         if (!el || Object.hasOwn(el, "scrollTop")) return;
         let top = 0;
@@ -96,7 +97,13 @@ describe("a move", () => {
       <button>inside</button>
     </div>
   );
-  const Moving = ({ where, sets }: { where: "a" | "b"; sets: number[] }) => {
+  const Moving = ({
+    where,
+    sets,
+  }: {
+    where: "a" | "b" | "none";
+    sets: number[];
+  }) => {
     const node = useOutletNode("flex");
     return (
       <>
@@ -126,5 +133,19 @@ describe("a move", () => {
     act(() => rerender(<Moving where="b" sets={sets} />));
     expect(screen.getByTestId("b").contains(button)).toBe(true);
     expect(document.activeElement).toBe(button);
+  });
+
+  it("gives nothing back once the node has been away past its commit", async () => {
+    const sets: number[] = [];
+    const { rerender } = render(<Moving where="a" sets={sets} />);
+    const button = screen.getByRole("button", { name: "inside" });
+    screen.getByTestId("scroller").scrollTop = 120;
+    button.focus();
+    act(() => rerender(<Moving where="none" sets={sets} />));
+    await act(async () => await Promise.resolve());
+    sets.length = 0;
+    act(() => rerender(<Moving where="b" sets={sets} />));
+    expect(sets).toEqual([]);
+    expect(document.activeElement).not.toBe(button);
   });
 });
