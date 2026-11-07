@@ -151,6 +151,28 @@ if (import.meta.vitest) {
       expect(await PgSyncClaim.has("tut:one")).toBe(true);
     });
 
+    it("forgets a claim it dropped through a reload before the folder tree is saved", async () => {
+      await signIn("u1");
+      await PgSyncClaim.claim("tut:one");
+      await PgSyncClaim.drop("tut:one");
+      (
+        PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+      ).__reloadBeforeTreeSave();
+
+      expect(await PgSyncClaim.has("tut:one")).toBe(false);
+    });
+
+    it("forgets the claims it forgot through a reload before the folder tree is saved", async () => {
+      await signIn("u1");
+      await PgSyncClaim.claim("tut:one");
+      await PgSyncClaim.forget("tut:one");
+      (
+        PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+      ).__reloadBeforeTreeSave();
+
+      expect(await PgSyncClaim.has("tut:one")).toBe(false);
+    });
+
     it("lists every account's claims, signed out too", async () => {
       await signIn("u1");
       await PgSyncClaim.claim("tut:one");

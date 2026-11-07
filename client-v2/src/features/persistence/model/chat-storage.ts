@@ -263,6 +263,26 @@ if (import.meta.vitest) {
         expect(await PgChatStorage.read("t1")).toEqual([item(1)]);
       });
 
+      it("forgets a thread it removed through a reload before the folder tree is saved", async () => {
+        await PgChatStorage.write("t1", [item(1)]);
+        await PgChatStorage.remove("t1");
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+
+        expect(await PgChatStorage.threadIds()).toEqual([]);
+      });
+
+      it("forgets threads it cleared through a reload before the folder tree is saved", async () => {
+        await PgChatStorage.write("t1", [item(1)]);
+        await PgChatStorage.clear();
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+
+        expect(await PgChatStorage.threadIds()).toEqual([]);
+      });
+
       it("round-trips a thread", async () => {
         await PgChatStorage.write("t1", [item(1), item(2)]);
 

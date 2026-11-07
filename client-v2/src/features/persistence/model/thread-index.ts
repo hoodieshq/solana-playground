@@ -422,6 +422,16 @@ if (import.meta.vitest) {
         expect(await PgThreadIndex.get("w1")).toBe(id);
       });
 
+      it("forgets the index it cleared through a reload before the folder tree is saved", async () => {
+        await PgThreadIndex.set("w1", uuid());
+        await PgThreadIndex.clear();
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+
+        expect(await PgFs.exists(INDEX_PATH)).toBe(false);
+      });
+
       it("mints a thread for a workspace that has never had one", async () => {
         const id = await PgThreadIndex.ensure("w1");
 

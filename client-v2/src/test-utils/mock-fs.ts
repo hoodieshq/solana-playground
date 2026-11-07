@@ -16,7 +16,19 @@ import type { PgFs as RealPgFs } from "../utils/explorer/fs";
  * by the browser tests in `e2e/`.
  */
 export const mockFsModule = () => {
-  const files = new Map<string, string>();
+  /**
+   * Stored files. Clearing it, as tests do between cases, resets the folder
+   * tree's bookkeeping below too, so no ghost or unsaved path leaks across.
+   */
+  const files = new (class extends Map<string, string> {
+    clear() {
+      super.clear();
+      unsaved.clear();
+      renamedFrom.clear();
+      removedSaved.clear();
+      ghosts.clear();
+    }
+  })();
   /**
    * Paths created since the last `flush`. lightning-fs stores a file's
    * content at once but its folder tree only 500 ms after the last write, so
@@ -29,6 +41,30 @@ export const mockFsModule = () => {
    * the window puts the file back under its old name.
    */
   const renamedFrom = new Map<string, string>();
+  /**
+   * Saved paths removed since the last `flush`. lightning-fs deletes a file's
+   * content at once but drops it from the tree only when the tree is saved,
+   * so a reload inside the window turns each into a ghost.
+   */
+  const removedSaved = new Set<string>();
+  /**
+   * Paths the saved tree lists whose content is gone. lightning-fs reports
+   * one as existing, lists it in its folder, and reads it as `undefined`.
+   */
+  const ghosts = new Set<string>();
+
+  /** Record the removal of a stored file, for what a reload brings back */
+  const forget = (path: string) => {
+    files.delete(path);
+    if (ghosts.delete(path)) removedSaved.add(path);
+    else if (!unsaved.delete(path)) {
+      removedSaved.add(renamedFrom.get(path) ?? path);
+    }
+    renamedFrom.delete(path);
+  };
+
+  /** Every path the tree lists: stored files and ghosts */
+  const listed = () => [...files.keys(), ...ghosts];
 
   const events = { ON_DID_WRITE_FILE: "pgfsondidwritefile" };
 
@@ -97,8 +133,8 @@ export const mockFsModule = () => {
      * its folder tree. Every file created since the last `flush` is gone, and
      * every file renamed since is back under its old name; a file that
      * existed before keeps its new content, which is stored at once. A file
-     * seeded through `__files` counts as existing before. A removal is not
-     * modelled: it sticks here, while the real tree would still list the file.
+     * seeded through `__files` counts as existing before. A file removed
+     * since comes back as a ghost: listed and existing, with no content.
      */
     __reloadBeforeTreeSave() {
       for (const [path, from] of renamedFrom) {
@@ -107,8 +143,12 @@ export const mockFsModule = () => {
         if (content !== undefined) files.set(from, content);
       }
       for (const path of unsaved) files.delete(path);
+      for (const path of removedSaved) {
+        if (!files.has(path)) ghosts.add(path);
+      }
       renamedFrom.clear();
       unsaved.clear();
+      removedSaved.clear();
     },
 
     events,
@@ -122,7 +162,9 @@ export const mockFsModule = () => {
 
     async writeFile(path: string, data: string) {
       path = await full(path);
-      if (!files.has(path)) unsaved.add(path);
+      // A ghost is still in the saved tree, so writing it creates nothing
+      if (!ghosts.delete(path) && !files.has(path)) unsaved.add(path);
+      removedSaved.delete(path);
       files.set(path, data);
       // Dispatched here as well, because what listens for it is the only
       // thing that uploads the three workspace files written this way
@@ -134,6 +176,8 @@ export const mockFsModule = () => {
 
     async readToString(path: string) {
       path = await full(path);
+      // lightning-fs reads a ghost as `undefined` rather than throwing
+      if (ghosts.has(path)) return undefined as unknown as string;
       const content = files.get(path);
       if (content === undefined) throw fsError("ENOENT", path);
       return content;
@@ -153,9 +197,7 @@ export const mockFsModule = () => {
 
     async removeFile(path: string) {
       path = await full(path);
-      files.delete(path);
-      unsaved.delete(path);
-      renamedFrom.delete(path);
+      if (files.has(path) || ghosts.has(path)) forget(path);
     },
 
     async rename(oldPath: string, newPath: string) {
@@ -181,9 +223,8 @@ export const mockFsModule = () => {
 
     async exists(path: string) {
       path = await full(path);
-      return (
-        files.has(path) ||
-        [...files.keys()].some((key) => key.startsWith(dir(path) + "/"))
+      return listed().some(
+        (key) => key === path || key.startsWith(dir(path) + "/")
       );
     },
 
@@ -194,11 +235,11 @@ export const mockFsModule = () => {
      */
     async getMetadata(path: string) {
       path = await full(path);
-      const isDirectory = [...files.keys()].some((key) =>
+      const isDirectory = listed().some((key) =>
         key.startsWith(dir(path) + "/")
       );
       const content = files.get(path);
-      if (!isDirectory && content === undefined) {
+      if (!isDirectory && content === undefined && !ghosts.has(path)) {
         throw fsError("ENOENT", path);
       }
       return {
@@ -224,15 +265,11 @@ export const mockFsModule = () => {
     async removeDir(path: string, opts?: { recursive?: boolean }) {
       path = dir(await full(path));
       if (files.has(path)) throw fsError("ENOTDIR", path);
-      const under = [...files.keys()].filter((key) => isUnder(key, path));
+      const under = listed().filter((key) => isUnder(key, path));
       if (under.length && !opts?.recursive) {
         throw fsError("ENOTEMPTY", path);
       }
-      for (const key of under) {
-        files.delete(key);
-        unsaved.delete(key);
-        renamedFrom.delete(key);
-      }
+      for (const key of under) forget(key);
     },
 
     async readDir(path: string) {
@@ -242,7 +279,7 @@ export const mockFsModule = () => {
       // actually recursing
       const parent = dir(path);
       const names = new Set(
-        [...files.keys()]
+        listed()
           .filter((key) => key.startsWith(parent + "/"))
           .map((key) => key.slice(parent.length + 1).split("/")[0])
       );
@@ -252,10 +289,14 @@ export const mockFsModule = () => {
       return [...names];
     },
 
-    /** Saves the folder tree, so every file created so far survives a reload */
+    /**
+     * Saves the folder tree, so every file created so far survives a reload
+     * and every file removed so far stays gone
+     */
     async flush() {
       unsaved.clear();
       renamedFrom.clear();
+      removedSaved.clear();
     },
   });
 

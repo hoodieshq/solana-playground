@@ -494,6 +494,36 @@ if (import.meta.vitest) {
         expect(await PgSyncMark.read("p1")).toEqual(mark);
       });
 
+      it("forgets a mark it removed through a reload before the folder tree is saved", async () => {
+        await PgSyncMark.write("p1", {
+          files: { "a.ts": "h1" },
+          name: "one",
+          updatedAt: "t1",
+          dirty: false,
+        });
+        await PgSyncMark.remove("p1");
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+
+        expect(await PgSyncMark.exists("p1")).toBe(false);
+      });
+
+      it("forgets the marks it cleared through a reload before the folder tree is saved", async () => {
+        await PgSyncMark.write("p1", {
+          files: { "a.ts": "h1" },
+          name: "one",
+          updatedAt: "t1",
+          dirty: false,
+        });
+        await PgSyncMark.clear();
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+
+        expect(await PgSyncMark.exists("p1")).toBe(false);
+      });
+
       describe("after a session ended", () => {
         const MARK = {
           files: { "a.ts": "h1" },

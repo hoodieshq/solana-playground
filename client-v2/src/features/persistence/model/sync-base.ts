@@ -192,6 +192,21 @@ if (import.meta.vitest) {
         await signedIn();
       });
 
+      it("forgets a base it cleared through a reload before the folder tree is saved", async () => {
+        PgSyncBase.track("p1", { "src/lib.rs": "before" });
+        await PgSyncBase.capture("p1", ["src/lib.rs"], {
+          "src/lib.rs": await sha256("before"),
+        });
+        await PgSyncBase.clear("p1");
+        (
+          PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+        ).__reloadBeforeTreeSave();
+
+        const userId = currentUserId();
+        if (!userId) throw new Error("expected a signed-in user");
+        expect(await PgFs.exists(pathOf(userId, "p1"))).toBe(false);
+      });
+
       it("keeps a base it just created through a reload before the folder tree is saved", async () => {
         PgSyncBase.track("p1", { "src/lib.rs": "before" });
         await PgSyncBase.capture("p1", ["src/lib.rs"], {
