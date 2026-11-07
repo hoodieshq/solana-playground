@@ -26,15 +26,16 @@ be there.
 - **WHEN** a build that was running finishes
 - **THEN** the strip shows no "Stop build" button
 
-#### Scenario: No Stop while a deploy runs
+#### Scenario: No Stop while a deploy runs (manual)
 
 - **WHEN** a deploy is running and no build is in flight
 - **THEN** the strip shows no Stop button
 
 ### Requirement: A deploy stops only while it funds and writes
 
-Stopping a deploy SHALL take effect while it funds the wallet or writes the
-buffer: at its next transaction, or between chunks of the write, after
+A deploy SHALL be stopped from the terminal, with Ctrl+C or ⌘.; a question
+the deploy asks SHALL be answered, not stopped. Stopping a deploy SHALL take
+effect while it funds the wallet or writes the buffer: at its next transaction, or between chunks of the write, after
 "Stopping after this step…". It SHALL ask no question. A stop after the
 buffer exists SHALL close the buffer and return its SOL. The terminal SHALL
 print `^C` and one line:

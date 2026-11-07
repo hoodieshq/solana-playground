@@ -199,7 +199,7 @@ describe("runToStop", () => {
     expect(runToStop(state({ build: "done", deploy: "running" }))).toBeNull();
   });
 
-  it("is the build a deploy runs first", () => {
+  it("is the build while a deploy builds first", () => {
     expect(runToStop(state({ build: "running", deploy: "running" }))).toBe(
       "build"
     );

@@ -111,12 +111,12 @@ export const describeConsoleStatus = (
 
 /**
  * Which run the strip's Stop is named after, or `null` when the strip shows
- * no Stop. A build names it, also the build a deploy runs first (when the
- * program is not built): it is what the strip says is running, and Stop
- * itself stops every run in flight. A deploy alone shows no Stop: on devnet
- * a Stop pressed there did nothing the person could see, so the button
- * promised more than it did. Ctrl+C in the terminal still stops a deploy
- * where it can.
+ * no Stop. A running build names it, including the build a deploy runs first
+ * (when the program is not built): it is what the strip says is running, and
+ * Stop stops it and the deploy that started it. A deploy alone gets no Stop,
+ * since pressing it there showed no effect; Ctrl+C in the terminal still
+ * stops a deploy while it funds and writes. How the strip should stop a
+ * deploy is a later task.
  */
 export const runToStop = (flow: FlowState): RunKind | null =>
   flow.build === "running" ? "build" : null;
