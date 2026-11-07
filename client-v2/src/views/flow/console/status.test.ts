@@ -195,9 +195,13 @@ describe("runToStop", () => {
     expect(runToStop(state({ build: "running" }))).toBe("build");
   });
 
-  it("is the deploy while one runs", () => {
-    expect(runToStop(state({ build: "done", deploy: "running" }))).toBe(
-      "deploy"
+  it("is nothing while a deploy runs", () => {
+    expect(runToStop(state({ build: "done", deploy: "running" }))).toBeNull();
+  });
+
+  it("is the build a deploy runs first", () => {
+    expect(runToStop(state({ build: "running", deploy: "running" }))).toBe(
+      "build"
     );
   });
 });

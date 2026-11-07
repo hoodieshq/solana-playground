@@ -6,14 +6,16 @@ from the console strip, and what the terminal says a stop left behind.
 
 ## Requirements
 
-### Requirement: The strip offers Stop while a build or a deploy runs
+### Requirement: The strip offers Stop while a build runs
 
-While a build or a deploy runs, the console strip SHALL show a button named
-"Stop build" or "Stop deploy" (its `aria-label`; its text is "Stop"),
-whether the console is folded or open. On a desktop, Clear SHALL stay beside
-it, turned off; below the phone breakpoint Stop SHALL take Clear's place and
-be at least 44 px tall. Pressing Stop SHALL stop the run. When nothing runs,
-Stop SHALL not be there.
+While a build runs, the console strip SHALL show a button named "Stop build"
+(its `aria-label`; its text is "Stop"), whether the console is folded or
+open. This includes the build a deploy runs first when the program is not
+built. On a desktop, Clear SHALL stay beside it, turned off; below the phone
+breakpoint Stop SHALL take Clear's place and be at least 44 px tall. Pressing
+Stop SHALL stop the run, and with it the deploy that started the build. While
+a deploy runs with no build in flight, and when nothing runs, Stop SHALL not
+be there.
 
 #### Scenario: Stop shows while a build runs
 
@@ -24,6 +26,11 @@ Stop SHALL not be there.
 
 - **WHEN** a build that was running finishes
 - **THEN** the strip shows no "Stop build" button
+
+#### Scenario: No Stop while a deploy runs
+
+- **WHEN** a deploy is running and no build is in flight
+- **THEN** the strip shows no Stop button
 
 ### Requirement: A stopped build keeps nothing
 
@@ -78,7 +85,7 @@ recorded in the history.
 #### Scenario: Stop during the write step (manual)
 
 - **WHEN** a deploy is writing chunks to its buffer on devnet and the person
-  presses "Stop deploy"
+  presses Ctrl+C
 - **THEN** the write ends after the chunks in flight, the buffer is closed and
   the terminal says so, the strip reads "Deploy stopped", and the program on
   chain is unchanged
@@ -86,7 +93,7 @@ recorded in the history.
 #### Scenario: Stop before the buffer exists (manual)
 
 - **WHEN** a deploy is fetching its program binary and the person presses
-  "Stop deploy"
+  Ctrl+C
 - **THEN** no transaction is sent and the terminal prints "Stopped. The
   program was not deployed."
 
