@@ -255,6 +255,8 @@ it("keeps a large balance and the address on one line each", async () => {
   expect(balance.classList).toContain("shrink-0");
   const address = screen.getByText("7Hq5…Xk2P");
   expect(address.classList).toContain("truncate");
+  // A flex item truncates only once it may shrink below its text
+  expect(address.classList).toContain("min-w-0");
 });
 
 it("names the extension wallet it disconnects, which hands back to the Playground wallet", async () => {

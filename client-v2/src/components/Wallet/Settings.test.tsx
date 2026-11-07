@@ -247,7 +247,11 @@ describe("wallet Settings menu", () => {
 
   it("draws every wallet extension's icon at one size", async () => {
     for (const name of ["Phantom", "Solflare", "SquadsX"]) {
-      PgWallet.standardWallets.push({ name, icon: "", connected: false } as never);
+      PgWallet.standardWallets.push({
+        name,
+        icon: "",
+        connected: false,
+      } as never);
     }
     render(<Host />);
     await openMenu();

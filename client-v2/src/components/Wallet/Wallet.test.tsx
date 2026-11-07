@@ -151,7 +151,7 @@ describe("WalletName accounts menu", () => {
 });
 
 describe("Wallet window", () => {
-  it("sits above the page content, under dialogs and full pages", () => {
+  it("takes z-index 30: over the cards' z-10, under the z-40 pages and z-50 dialogs", () => {
     wallets.show = true;
     render(
       <ThemeProvider theme={theme}>
