@@ -8,10 +8,9 @@
 // changing a tutorial's program: `yarn tutorial:idl [<tutorial>...]`.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-
 import prettier from "prettier";
 
 const here = dirname(fileURLToPath(import.meta.url));

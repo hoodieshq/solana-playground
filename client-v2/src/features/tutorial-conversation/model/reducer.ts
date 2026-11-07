@@ -18,7 +18,6 @@ import { sameIdlName } from "@/shared/lib/idl-name";
 import { isPlannedLog } from "./build-error";
 import { TICK_MS } from "./clock";
 import { nextDeployed } from "./deployed-idl";
-import { shippedIdl } from "./shipped-idl";
 import { holds, keyOf, typedKey } from "./landing";
 import type { Judge, RunInput } from "./ports";
 import type {
@@ -43,6 +42,7 @@ import {
   isUnreachable,
 } from "./progress";
 import type { Word } from "./route";
+import { shippedIdl } from "./shipped-idl";
 
 /**
  * The conversation engine's reducer: the lesson's rules over a definition
@@ -2701,7 +2701,12 @@ if (import.meta.vitest) {
         const act = step.beats.find((b) => b.kind === "act");
         if (!act) throw new Error("the Client step has an act");
         const progress = freshProgress();
-        progress.cursor = { kind: "step", stepId: step.id, beat: 1, fail: false };
+        progress.cursor = {
+          kind: "step",
+          stepId: step.id,
+          beat: 1,
+          fail: false,
+        };
         progress.runs = {
           [act.id]: [
             {
@@ -2761,7 +2766,10 @@ if (import.meta.vitest) {
           },
         });
         const playIn = (c: EngineContext, actions: Action[]) =>
-          actions.reduce((st, a) => reduce(c, st, a).state, INITIAL_ENGINE_STATE);
+          actions.reduce(
+            (st, a) => reduce(c, st, a).state,
+            INITIAL_ENGINE_STATE
+          );
         const BARE_BUILD: RunResult = { ...OK_BUILD, instructions: [] };
         const toDeploy: Action[] = [
           start,
@@ -2800,7 +2808,9 @@ if (import.meta.vitest) {
               : null
           ).toEqual(["hello"]);
           // A tutorial that ships none leaves the build's word alone
-          const plain = playIn(ctx(), toDeploy).progress.runs["s1.build"].at(-1);
+          const plain = playIn(ctx(), toDeploy).progress.runs["s1.build"].at(
+            -1
+          );
           expect(
             plain && "result" in plain && "instructions" in plain.result
               ? plain.result.instructions
@@ -2824,7 +2834,10 @@ if (import.meta.vitest) {
 
         it("keeps it for a terminal deploy that brought no IDL", () => {
           const before = playIn(shipping(), [start, rightPick]);
-          const after = reduce(shipping(), before, { type: "deployed", at: 6000 });
+          const after = reduce(shipping(), before, {
+            type: "deployed",
+            at: 6000,
+          });
           expect(names(after.state.progress)).toEqual(["hello"]);
           // With nothing shipped and nothing built, nothing to keep
           const bare = playIn(ctx(), [start, rightPick]);

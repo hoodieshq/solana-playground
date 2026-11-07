@@ -439,7 +439,7 @@ if (import.meta.vitest) {
           { beatId: "chop", account: "player" },
           () => undefined
         );
-        expect(fetched).toHaveBeenCalledWith("Player1");
+        expect(fetched).toHaveBeenCalledWith("Player1", undefined);
         expect(result).toMatchObject({
           ok: true,
           account: { name: "player", address: "Player1", size: 32 },

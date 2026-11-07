@@ -1159,7 +1159,9 @@ if (import.meta.vitest) {
           text: MISMATCH_OFFER,
           follow: { kind: "showFix", done: false },
         });
-        expect(offerOf({ ...failed(true), fixedAt: 3000 })).toMatchObject({
+        expect(
+          offerOf({ ...failed(true), fixedAt: 3000 } as RunRecord)
+        ).toMatchObject({
           follow: { kind: "showFix", done: true },
         });
         expect(offerOf(failed(false))).toBeUndefined();
@@ -2185,7 +2187,10 @@ if (import.meta.vitest) {
         whyRefused(goalOf(3), ran("Hi", [{ instruction: "hello", args: {} }]))
       ).toBe("It ran, but this step isn't done yet.");
       expect(
-        whyRefused(goalOf(2), { ...ran(null, []), undecoded: true })
+        whyRefused(goalOf(2), {
+          ...ran(null, []),
+          undecoded: true,
+        } as RunResult)
       ).toBe(MISMATCH);
     });
 
