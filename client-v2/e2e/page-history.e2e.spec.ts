@@ -5,6 +5,7 @@ import {
   home,
   LONG,
   newProjectPage,
+  projectRow,
   stubPrograms,
   test,
 } from "./fixtures";
@@ -42,14 +43,12 @@ const PAGES: Array<{
   },
 ];
 
-for (const { item, path, shown } of PAGES) {
-  test(`client-v2-layout: ${item} is a history entry`, async ({
-    seededPage: page,
-  }) => {
-    await stubPrograms(page);
-    await expect(page).toHaveURL(/\/$/);
-    const editor = page.locator(".monaco-editor .view-lines");
+test("client-v2-layout: Back from a page", async ({ seededPage: page }) => {
+  await stubPrograms(page);
+  await expect(page).toHaveURL(/\/$/);
+  const editor = page.locator(".monaco-editor .view-lines");
 
+  for (const { item, path, shown } of PAGES) {
     await navItem(page, item).click();
     await expect(shown(page)).toBeVisible();
     await expect(page).toHaveURL(path);
@@ -69,12 +68,18 @@ for (const { item, path, shown } of PAGES) {
     await expect(shown(page)).toBeHidden();
     await expect(home(page)).toBeVisible();
     await expect(page).toHaveURL(/\/$/);
-  });
+    // Back to the work for the next page
+    await projectRow(page, "e2e-project").click();
+    await expect(home(page)).toBeHidden();
+  }
+});
 
-  test(`client-v2-layout: ${item} survives a reload`, async ({
-    seededPage: page,
-  }) => {
-    await stubPrograms(page);
+test("client-v2-layout: A page survives a reload", async ({
+  seededPage: page,
+}) => {
+  test.setTimeout(120_000);
+  await stubPrograms(page);
+  for (const { item, path, shown } of PAGES) {
     await navItem(page, item).click();
     await expect(page).toHaveURL(path);
 
@@ -84,8 +89,8 @@ for (const { item, path, shown } of PAGES) {
     await page.waitForTimeout(2000);
     await expect(page).toHaveURL(path);
     await expect(shown(page)).toBeVisible();
-  });
-}
+  }
+});
 
 test("client-v2-layout: A page over Home goes back to Home", async ({
   page,

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { openConnectDialog } from "@/app/ConnectDialog";
 import { openShareGistDialogFor, ShareButton } from "@/app/ShareGistDialog";
+import { useViewPath } from "@/app/ViewPath";
 import Wallet from "@/components/Wallet";
 import { FeedbackHost } from "@/features/feedback";
 import SyncBanner from "@/features/persistence/Component/SyncBanner";
@@ -58,7 +59,6 @@ import StageRouter from "./stages/StageRouter";
 import { PgDeployHistory } from "./state/deploy-history";
 import type { FlowState } from "./state/stage";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
-import { useViewPath } from "./use-view-path";
 
 /** The status's Try again on the hosted model: whether the deployment answered */
 const retryHostedModel = async () =>

@@ -49,7 +49,7 @@ const subscribe = (cb: () => void) => {
 
 /**
  * The page shown, for rendering. Its path stays in the address bar while it
- * shows; `useViewPath` (views/flow) keeps the two in step, so a path come to
+ * shows; `useViewPath` (app/ViewPath) keeps the two in step, so a path come to
  * by Back or Forward opens or closes its page.
  *
  * The page closes only on what the user picks: a card's Open finishing

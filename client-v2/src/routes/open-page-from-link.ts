@@ -8,7 +8,7 @@ import { handleRoute } from "./common";
  * path come back to by Back, Forward or a reload: show the page, and mount
  * the work (or Home, with no project open) under it, as `/` does. The path
  * stays in the address bar while the page shows, so the page is a history
- * entry of its own; `useViewPath` (views/flow) moves it on when the page
+ * entry of its own; `useViewPath` (app/ViewPath) moves it on when the page
  * closes.
  */
 export const openPageFromLink = (page: ShownPage) => {
