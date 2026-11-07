@@ -129,7 +129,8 @@ it("confirms the delete on the row, and moves focus to it", async () => {
 
   await userEvent.click(button());
 
-  const done = screen.getByText("Deleted");
+  const done = screen.getByRole("status");
+  expect(done.textContent).toBe("Deleted");
   expect(document.activeElement).toBe(done);
 });
 
@@ -144,15 +145,15 @@ it("drops the confirmation once a key is connected again", async () => {
 
 it("names the model the key runs, and says the hosted model is there too", () => {
   PgAssistant.connect({ id: "anthropic", apiKey: KEY });
-  render(<AssistantKey phone={false} ownKey="Opus 5.5" hostedAvailable />);
+  render(<AssistantKey phone={false} ownKey="Opus 5.5" isHostedAvailable />);
   expect(
     screen.getByText(
-      "In use for Opus 5.5, kept in this tab only. The hosted model is available too."
+      "Chat uses Opus 5.5 with this key. The key stays in this tab only. The hosted model is available too."
     )
   ).toBeTruthy();
 });
 
 it("says only that no key is entered where there is no hosted model", () => {
-  render(<AssistantKey phone={false} hostedAvailable={false} />);
+  render(<AssistantKey phone={false} isHostedAvailable={false} />);
   expect(screen.getByText("No key entered.")).toBeTruthy();
 });

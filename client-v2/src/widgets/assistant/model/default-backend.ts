@@ -178,7 +178,7 @@ export const probeDefaultBackend = (): Promise<DefaultBackend> => {
         // Only an answer changes the name: a failed ask says nothing about
         // which model the deployment serves
         PgAssistant.setHostedModel(
-          backend.state === "present" ? backend.model : null
+          (backend.state === "present" && backend.model) || undefined
         );
       }
       broadcast(backend);

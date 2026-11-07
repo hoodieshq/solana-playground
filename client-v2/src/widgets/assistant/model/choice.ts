@@ -53,7 +53,9 @@ const effortOn = (
 ): EffortChoice | null => (ladder?.includes(value) ? { value, ladder } : null);
 
 const defaultLabel = (backend: DefaultBackend) =>
-  hostedModelName(backend.state === "present" ? backend.model : null);
+  hostedModelName(
+    (backend.state === "present" && backend.model) || undefined
+  );
 
 /** What the model button shows for the current connection, or for the default about to be used */
 export const modelShown = (

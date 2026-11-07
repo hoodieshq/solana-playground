@@ -15,7 +15,7 @@ interface BaseAssistantKeyProps {
   /** The model the key runs, as the assistant names it, while one is connected */
   ownKey?: string;
   /** Whether this deployment serves its hosted model to this user */
-  hostedAvailable: boolean;
+  isHostedAvailable: boolean;
   /**
    * Set when the last delete left a key an older build kept in this tab's
    * storage: what the row says in place of its description, since the
@@ -23,7 +23,7 @@ interface BaseAssistantKeyProps {
    */
   stuck?: string;
   /** A delete went through and no key was connected since: the row says so */
-  deleted: boolean;
+  isDeleted: boolean;
   /** The "Deleted" word, where focus goes from the button a delete disables */
   doneRef?: Ref<HTMLSpanElement>;
   onDelete: () => void;
@@ -34,11 +34,11 @@ interface BaseAssistantKeyProps {
 const description = ({
   state,
   ownKey,
-  hostedAvailable,
-}: Pick<BaseAssistantKeyProps, "state" | "ownKey" | "hostedAvailable">) => {
+  isHostedAvailable,
+}: Pick<BaseAssistantKeyProps, "state" | "ownKey" | "isHostedAvailable">) => {
   switch (state) {
     case "none":
-      return hostedAvailable
+      return isHostedAvailable
         ? "No key entered. The hosted model needs none."
         : "No key entered.";
     case "busy":
@@ -47,9 +47,9 @@ const description = ({
       if (!ownKey) {
         return "Kept in this tab only. Deleting it clears the chat on screen.";
       }
-      return hostedAvailable
-        ? `In use for ${ownKey}, kept in this tab only. The hosted model is available too.`
-        : `In use for ${ownKey}, kept in this tab only. Deleting it clears the chat on screen.`;
+      return isHostedAvailable
+        ? `Chat uses ${ownKey} with this key. The key stays in this tab only. The hosted model is available too.`
+        : `Chat uses ${ownKey} with this key. The key stays in this tab only. Deleting it clears the chat on screen.`;
   }
 };
 
@@ -60,28 +60,29 @@ const description = ({
 const BaseAssistantKey = ({
   state,
   ownKey,
-  hostedAvailable,
+  isHostedAvailable,
   stuck,
-  deleted,
+  isDeleted,
   doneRef,
   onDelete,
   phone,
 }: BaseAssistantKeyProps) => (
   <BaseSettingRow
     name="Your model key"
-    description={stuck ?? description({ state, ownKey, hostedAvailable })}
+    description={stuck ?? description({ state, ownKey, isHostedAvailable })}
     phone={phone}
     // Quiet until there is a key to delete
     small={!phone}
     control={
       <div className={cn("flex items-center gap-3", phone && "w-full")}>
-        {/* Announced by taking the focus, so it is no live region as well */}
+        {/* Always in the tree, so a screen reader announces the word as it appears */}
         <span
           ref={doneRef}
+          role="status"
           tabIndex={-1}
           className="flex shrink-0 items-center gap-1.5 text-caption text-muted-foreground outline-none empty:hidden max-md:text-control"
         >
-          {deleted && (
+          {isDeleted && (
             <>
               <Check className="size-3.5" aria-hidden />
               Deleted

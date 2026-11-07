@@ -26,7 +26,7 @@ const assistant = vi.hoisted(() => ({
   needsSignIn: false,
   defaultProbe: "unasked" as string,
   limitReachedUntil: undefined as number | undefined,
-  hostedModel: null as string | null,
+  hostedModel: undefined as string | undefined,
 }));
 
 vi.mock("@/utils", () => ({
@@ -77,7 +77,7 @@ afterEach(() => {
   assistant.needsSignIn = false;
   assistant.defaultProbe = "unasked";
   assistant.limitReachedUntil = undefined;
-  assistant.hostedModel = null;
+  assistant.hostedModel = undefined;
   PgAnalyzerStatus.set({ kind: "idle" });
 });
 

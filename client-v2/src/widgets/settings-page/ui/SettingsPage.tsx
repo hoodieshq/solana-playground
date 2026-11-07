@@ -208,7 +208,7 @@ const LiveSettingsPage = ({
           <AssistantKey
             phone={phone}
             ownKey={ownKey}
-            hostedAvailable={hosted === "present"}
+            isHostedAvailable={hosted === "present"}
           />
         </BaseSettingsCard>
       </>

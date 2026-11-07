@@ -19,7 +19,7 @@ interface AssistantKeyProps {
   /** The model the key runs, as the assistant names it, while one is connected */
   ownKey?: string;
   /** Whether this deployment serves its hosted model to this user */
-  hostedAvailable?: boolean;
+  isHostedAvailable?: boolean;
 }
 
 /**
@@ -29,7 +29,7 @@ interface AssistantKeyProps {
 const AssistantKey = ({
   phone,
   ownKey,
-  hostedAvailable = false,
+  isHostedAvailable = false,
 }: AssistantKeyProps) => {
   const state = useSyncExternalStore(subscribe, stateOf);
   // Settings can open with the panel folded, or on a phone with the chat
@@ -40,22 +40,22 @@ const AssistantKey = ({
 
   // "Deleted" stays until a key is connected again (HOO-2695). The delete
   // disables the button that had focus, so focus moves to the word
-  const [deleted, setDeleted] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
   const done = useRef<HTMLSpanElement>(null);
   useEffect(() => {
-    if (state === "ready") setDeleted(false);
+    if (state === "ready") setIsDeleted(false);
   }, [state]);
   useEffect(() => {
-    if (deleted) done.current?.focus();
-  }, [deleted]);
+    if (isDeleted) done.current?.focus();
+  }, [isDeleted]);
 
   return (
     <BaseAssistantKey
       state={state}
       ownKey={ownKey}
-      hostedAvailable={hostedAvailable}
+      isHostedAvailable={isHostedAvailable}
       stuck={stuck ? KEY_NOT_FORGOTTEN : undefined}
-      deleted={deleted}
+      isDeleted={isDeleted}
       doneRef={done}
       phone={phone}
       onDelete={() => {
@@ -63,7 +63,7 @@ const AssistantKey = ({
         setStuck(!forgotten);
         // A key an older build kept and could not drop is not deleted: the
         // row says that instead
-        setDeleted(forgotten);
+        setIsDeleted(forgotten);
         settingsTelemetry.track("settings_key_deleted", {});
       }}
     />

@@ -28,7 +28,7 @@ export const HOSTED_FALLBACK_NAME = "Default model";
  * when the deployment did not say which model it serves. Never the backend's
  * id, "default", which reads as a setting rather than a model.
  */
-export const hostedModelName = (model: string | null | undefined) =>
+export const hostedModelName = (model: string | undefined) =>
   model ? displayModelName(model) : HOSTED_FALLBACK_NAME;
 
 if (import.meta.vitest) {
@@ -45,7 +45,6 @@ if (import.meta.vitest) {
       });
       it("names the hosted model, or calls it Default model when unnamed", () => {
         expect(hostedModelName("claude-opus-5-5")).toBe("Opus 5.5");
-        expect(hostedModelName(null)).toBe("Default model");
         expect(hostedModelName(undefined)).toBe("Default model");
       });
       it("shows an unknown id as it is", () => {

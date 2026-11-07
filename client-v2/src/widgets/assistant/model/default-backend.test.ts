@@ -370,7 +370,7 @@ describe("the probe's state for the status", () => {
     resetDefaultBackendProbe();
     answer({ key: "own" });
     await probeDefaultBackend();
-    expect(PgAssistant.hostedModel).toBeNull();
+    expect(PgAssistant.hostedModel).toBeUndefined();
   });
 
   it("keeps the model's name through a failed ask, which says nothing of it", async () => {

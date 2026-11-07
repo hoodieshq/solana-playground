@@ -60,7 +60,10 @@ const STATES: Record<
  * Present: Ready on the hosted model, named when the deployment names it, or
  * Not in use while chat runs on the user's own key (HOO-2695)
  */
-const presentState = (hostedName?: string, ownKey?: string) => {
+const presentState = (
+  hostedName: string | undefined,
+  ownKey: string | undefined
+) => {
   if (ownKey) {
     return {
       dot: "idle" as const,

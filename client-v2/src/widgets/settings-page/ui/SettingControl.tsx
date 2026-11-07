@@ -16,6 +16,8 @@ import { Tag } from "@/shared/ui/tag";
 import { PgCommon, PgView, RequiredKey, Setting as SettingType } from "@/utils";
 import { CustomSetting } from "@/views/flow/settings/CustomSetting";
 
+import { COMING_SOON } from "../model/sections";
+
 type SettingSetterProps = SettingType & {
   /** The control's id, which the row's label points at */
   controlId?: string;
@@ -23,7 +25,7 @@ type SettingSetterProps = SettingType & {
   segmented?: boolean;
   /** Shown but not settable, for a setting whose feature is not finished */
   disabled?: boolean;
-  /** Values listed but not selectable, each marked "Not ready" */
+  /** Values listed but not selectable, each tagged {@link COMING_SOON} */
   notReady?: readonly string[];
 };
 
@@ -129,12 +131,12 @@ export const SettingSetterSelect: FC<
     // itself, on pointer and on Enter/Space. Any other pick goes through
     // `onValueChange`, so the two paths never both run.
     const reopens = o.value === CUSTOM_VALUE && value === CUSTOM_VALUE;
-    const notReady = setting.notReady?.includes(o.value) ?? false;
+    const isNotReady = setting.notReady?.includes(o.value) ?? false;
     return (
       <SelectItem
         key={o.value}
         value={o.value}
-        disabled={notReady}
+        disabled={isNotReady}
         onPointerUp={reopens ? openCustom : undefined}
         onKeyDown={
           reopens
@@ -145,7 +147,7 @@ export const SettingSetterSelect: FC<
         }
       >
         {o.label}
-        {notReady && <Tag>Not ready</Tag>}
+        {isNotReady && <Tag>{COMING_SOON}</Tag>}
       </SelectItem>
     );
   };

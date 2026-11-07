@@ -112,7 +112,7 @@ if (import.meta.vitest) {
     });
 
     describe("removedThemeMessage", () => {
-      it("names the theme and where Light is", () => {
+      it("names the removed theme and Dark", () => {
         expect(removedThemeMessage("Dracula")).toBe(
           "The Dracula theme was removed. Playground now uses Dark."
         );

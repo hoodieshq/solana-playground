@@ -278,7 +278,7 @@ describe("a setting not finished yet", () => {
     await user.click(screen.getByRole("combobox", { name: "Theme" }));
     const light = await screen.findByRole("option", { name: /Light/ });
     expect(light.getAttribute("aria-disabled")).toBe("true");
-    expect(light.textContent).toContain("Not ready");
+    expect(light.textContent).toContain("Coming soon");
     await user.click(light);
     expect(setValue).not.toHaveBeenCalled();
   });

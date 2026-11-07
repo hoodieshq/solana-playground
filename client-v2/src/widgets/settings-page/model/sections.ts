@@ -48,6 +48,12 @@ export const SECTION_DESCRIPTIONS: Record<SectionId, string> = {
   advanced: "Settings most people never change.",
 };
 
+/**
+ * The tag on anything shown but not offered yet, a setting or one of its
+ * values: one word for one state (design alignment, HOO-2695)
+ */
+export const COMING_SOON = "Coming soon";
+
 /** The small title over a card, when a section holds more than one */
 export type GroupId = "links" | "transactions" | "buildServer" | "key";
 
@@ -74,7 +80,7 @@ export interface RowCopy {
    * or reached by Tab. A switch already on can still be turned off
    */
   disabled?: true;
-  /** Values listed but not selectable, marked "Not ready": an unfinished choice */
+  /** Values listed but not selectable, tagged {@link COMING_SOON}: an unfinished choice */
   notReady?: readonly string[];
 }
 
@@ -170,7 +176,7 @@ export const ROWS: Record<string, RowCopy | undefined> = {
     help: "Build through the server's unstable routes, if it has them.",
     // No hosted server has those routes yet (HOO-1600), so the switch could
     // only break builds: shown, not offered
-    tag: "Work in progress",
+    tag: COMING_SOON,
     disabled: true,
     group: "buildServer",
   },

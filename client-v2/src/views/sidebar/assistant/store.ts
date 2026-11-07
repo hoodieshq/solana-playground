@@ -579,15 +579,15 @@ export class PgAssistant {
 
   /**
    * The model the deployment's hosted default serves, by id, as its status
-   * named it; `null` before it answers, or when it named none. The status and
+   * named it; `undefined` before it answers, or when it named none. The status and
    * Settings name the hosted model from it rather than say "default".
    */
-  static get hostedModel(): string | null {
+  static get hostedModel(): string | undefined {
     return PgAssistant._hostedModel;
   }
 
   /** Set by the default-backend probe once the deployment has named its model */
-  static setHostedModel(model: string | null) {
+  static setHostedModel(model: string | undefined) {
     if (PgAssistant._hostedModel === model) return;
     PgAssistant._hostedModel = model;
     PgAssistant._emitOnly();
@@ -1983,7 +1983,7 @@ export class PgAssistant {
     | undefined;
   private static _limitTimer: ReturnType<typeof setTimeout> | undefined;
   private static _defaultProbe: DefaultProbe = "unasked";
-  private static _hostedModel: string | null = null;
+  private static _hostedModel: string | undefined;
   private static _gatewayServers: readonly McpServerEntry[] = [];
   // Kept apart from the gateway's list, which `loadMcpServers` replaces whole
   private static _gatewayServersOff: ReadonlySet<string> = new Set();

@@ -36,7 +36,7 @@ describe("widgets/settings-page/model/sections ROWS", () => {
     expect(ROWS["ui.theme"]?.notReady).toEqual(["Light"]);
     expect(ROWS["experimental.unstable"]).toMatchObject({
       disabled: true,
-      tag: "Work in progress",
+      tag: "Coming soon",
     });
   });
 });
