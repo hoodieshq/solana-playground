@@ -479,7 +479,60 @@ export interface ConversationView {
 export interface ViewOptions {
   now: number;
   loadedAt: number;
+  /**
+   * Later airdrop acts the store is checking the wallet for, by beat id
+   * (`isLaterAirdrop`): each stays out of the feed until the check answers
+   */
+  probing?: readonly string[];
 }
+
+/** The lesson's first airdrop act, in beat order: each step's beats, then its `onFail` */
+const firstAirdropOf = (definition: TutorialDefinition): string | undefined =>
+  definition.steps
+    .flatMap((st) => st.beats.concat(st.onFail ?? []))
+    .find((b) => b.kind === "act" && b.act === "airdrop")?.id;
+
+/**
+ * An airdrop act after the lesson's first one (designers, 7 Nov): only the
+ * first shows a funded pass, so a later one stays hidden while the store
+ * checks the balance and never shows when the wallet was funded
+ */
+export const isLaterAirdrop = (
+  definition: TutorialDefinition,
+  beatId: string
+): boolean => {
+  const beat = definition.steps
+    .flatMap((st) => st.beats.concat(st.onFail ?? []))
+    .find((b) => b.id === beatId);
+  return (
+    beat?.kind === "act" &&
+    beat.act === "airdrop" &&
+    firstAirdropOf(definition) !== beatId
+  );
+};
+
+/**
+ * A later airdrop out of the feed whole, card, say line and record: while
+ * the store checks the balance before its first run (and while the press
+ * that check made runs), and once that first run found the wallet funded
+ */
+const isSilentAirdrop = (
+  definition: TutorialDefinition,
+  act: ActBeat,
+  runs: RunRecord[],
+  probing: readonly string[]
+): boolean => {
+  if (!isLaterAirdrop(definition, act.id)) return false;
+  const [first, ...rest] = runs;
+  if (rest.length) return false;
+  if (!first || first.status === "started") return probing.includes(act.id);
+  return (
+    first.status === "ok" &&
+    first.result.act === "airdrop" &&
+    first.result.ok &&
+    first.result.airdropped === 0
+  );
+};
 
 const beatsOf = (step: Step, fail: boolean): Beat[] =>
   fail ? step.onFail ?? [] : step.beats;
@@ -606,7 +659,7 @@ const isReplacedByResult = (t: Turn, next: Turn | undefined) =>
 export const view = (
   definition: TutorialDefinition,
   state: EngineState,
-  { now, loadedAt }: ViewOptions
+  { now, loadedAt, probing = [] }: ViewOptions
 ): ConversationView => {
   const p = state.progress;
   const all: Turn[] = [];
@@ -799,7 +852,9 @@ export const view = (
               failed: true,
             });
           }
-        } else {
+        } else if (
+          !isSilentAirdrop(definition, b, p.runs[b.id] ?? [], probing)
+        ) {
           if (b.say) {
             turn({
               id: `say:${b.id}`,
@@ -1742,6 +1797,117 @@ if (import.meta.vitest) {
           button: "Try again",
           context: "From the devnet faucet · free test SOL",
         },
+      });
+    });
+
+    describe("a later airdrop (HOO-2677, designers 7 Nov)", () => {
+      /** Hello Anchor up to step 4's airdrop card, steps 2 and 3 passed from the Call panel */
+      const toLaterAirdrop = (): Action[] => [
+        { type: "start", at: 1000 },
+        { type: "pick", beatId: "s1.q1", option: 1, at: 5000 },
+        { type: "act", beatId: "s1.build", at: 7000 },
+        { type: "ended", beatId: "s1.build", result: OK_BUILD, at: 8600 },
+        { type: "next", at: 9000 },
+        { type: "passed", via: "call_panel", result: CALLED, at: 9500 },
+        { type: "next", at: 10000 },
+        { type: "passed", via: "call_panel", result: CALLED, at: 10500 },
+        { type: "next", at: 11000 },
+        { type: "pick", beatId: "s4.q4", option: 1, at: 11500 },
+      ];
+      const laterEnded = (result: RunResult): Action => ({
+        type: "ended",
+        beatId: "s4.airdrop",
+        result,
+        at: 14200,
+      });
+      const pressed: Action = { type: "act", beatId: "s4.airdrop", at: 14000 };
+      const PROBING = { now: LATE.now, loadedAt: 0, probing: ["s4.airdrop"] };
+      const hidden = (v: ConversationView) => {
+        expect(ids(v)).not.toContain("s4.airdrop");
+        expect(ids(v)).not.toContain("say:s4.airdrop");
+      };
+
+      it("is a card like the first while no check is pending: a short wallet's", () => {
+        const v = view(hello, play(toLaterAirdrop()), LATE);
+        expect(ids(v)).toContain("say:s4.airdrop");
+        expect(v.live).toMatchObject({ id: "s4.airdrop", state: "live" });
+      });
+
+      it("stays hidden, its say line too, while the store checks the balance", () => {
+        const v = view(hello, play(toLaterAirdrop()), PROBING);
+        hidden(v);
+        expect(v.live?.id).not.toBe("s4.airdrop");
+      });
+
+      it("stays hidden while the funded check's own press runs", () => {
+        const v = view(
+          hello,
+          play(toLaterAirdrop().concat([pressed])),
+          PROBING
+        );
+        hidden(v);
+      });
+
+      it("passes with no card, say line or record once funded; the deploy card is next", () => {
+        const v = view(
+          hello,
+          play(
+            toLaterAirdrop().concat([
+              pressed,
+              laterEnded(airdropped(3.2 * SOL, 0)),
+            ])
+          ),
+          LATE
+        );
+        hidden(v);
+        expect(ids(v)).not.toContain("result:s4.airdrop:0");
+        expect(v.live).toMatchObject({ id: "s4.ship", state: "live" });
+      });
+
+      it("shows its record when it added SOL", () => {
+        const v = view(
+          hello,
+          play(
+            toLaterAirdrop().concat([
+              pressed,
+              laterEnded(airdropped(2 * SOL, 1.5 * SOL)),
+            ])
+          ),
+          LATE
+        );
+        expect(v.turns.find((t) => t.id === "s4.airdrop")).toMatchObject({
+          act: { record: "Added 1.5 SOL" },
+        });
+      });
+
+      it("keeps a card that already ran in sight while a reload's check is pending", () => {
+        const refused: RunResult = {
+          act: "airdrop",
+          ok: false,
+          seconds: 3,
+          reason: "no_funds",
+          message: "429 Too Many Requests",
+          balance: 0,
+          cost: 1_270_000_000,
+          address: "WaLLet",
+        };
+        const v = view(
+          hello,
+          play(toLaterAirdrop().concat([pressed, laterEnded(refused)])),
+          PROBING
+        );
+        expect(ids(v)).toContain("say:s4.airdrop");
+        expect(ids(v)).toContain("result:s4.airdrop:0");
+        expect(v.live?.id).toBe("s4.airdrop:retry");
+      });
+
+      it("never hides the lesson's first airdrop", () => {
+        const v = view(hello, play(toAirdrop().slice(0, -1)), {
+          now: LATE.now,
+          loadedAt: 0,
+          probing: ["s2.airdrop"],
+        });
+        expect(v.live).toMatchObject({ id: "s2.airdrop", state: "live" });
       });
     });
 

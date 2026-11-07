@@ -34,7 +34,7 @@ import {
 import { route } from "./route";
 import { tutorialTelemetry } from "./telemetry";
 import type { ConversationView } from "./view";
-import { view } from "./view";
+import { isLaterAirdrop, view } from "./view";
 
 const log = createLogger("tutorial-conversation:store");
 
@@ -66,6 +66,12 @@ export interface ConversationState {
   loadFailed: boolean;
   /** When the save was loaded: turns from before it render whole */
   loadedAt: number;
+  /**
+   * Later airdrop acts whose funded check is pending, or whose press that
+   * check made still runs, by beat id: the feed hides them meanwhile
+   * (`ViewOptions.probing`). Never saved
+   */
+  probing: readonly string[];
 }
 
 export const INITIAL_CONVERSATION_STATE: ConversationState = {
@@ -73,6 +79,7 @@ export const INITIAL_CONVERSATION_STATE: ConversationState = {
   engine: INITIAL_ENGINE_STATE,
   loadFailed: false,
   loadedAt: 0,
+  probing: [],
 };
 
 /** The key under which the engine saves in the tutorial's storage */
@@ -123,6 +130,7 @@ export class PgConversation {
       PgConversation._view = view(s.context.definition, s.engine, {
         now,
         loadedAt: s.loadedAt,
+        probing: s.probing,
       });
       PgConversation._viewOf = s;
       PgConversation._viewAt = now;
@@ -442,7 +450,7 @@ export class PgConversation {
 
   private static async _load() {
     // A fresh load asks again about a card still live and never run
-    PgConversation._probed.clear();
+    PgConversation._asked.clear();
     const name = PgExplorer.currentWorkspaceName;
     const definition = name ? PgConversation._definitionOf(name) : null;
     if (!name || !definition) {
@@ -538,6 +546,7 @@ export class PgConversation {
       engine: { progress, stage: null },
       loadFailed,
       loadedAt: Date.now(),
+      probing: [],
     });
     if (loadFailed) {
       void PgConversation._tellLoadFailed(name);
@@ -717,7 +726,7 @@ export class PgConversation {
       // airdrop cards are live again, so the funded probe asks about them anew
       if (action.type === "startOver" || action.type === "restartStep") {
         PgConversation._walk++;
-        PgConversation._probed.clear();
+        PgConversation._asked.clear();
       }
       // Start over is the one write allowed over a save that could not be
       // read: it is the learner's "discard it", and the only way out
@@ -741,16 +750,39 @@ export class PgConversation {
   }
 
   private static _set(next: ConversationState) {
-    PgConversation._state = next;
+    // The probe is asked before anyone renders, so a later airdrop it hides
+    // is never drawn first
+    const s = PgConversation._pressIfFunded(PgConversation._settled(next));
+    PgConversation._state = s;
     PgConversation._schedule();
-    for (const cb of PgConversation._listeners) cb(next);
-    PgConversation._pressIfFunded(next);
+    for (const cb of PgConversation._listeners) cb(s);
+  }
+
+  /** `probing` without the acts whose press the probe made has ended */
+  private static _settled(s: ConversationState): ConversationState {
+    const runs = s.engine.progress.runs;
+    const probing = s.probing.filter((id) => {
+      const last = runs[id]?.at(-1);
+      return !last || last.status === "started";
+    });
+    return probing.length === s.probing.length ? s : { ...s, probing };
+  }
+
+  /** The store's state with one act no longer probing */
+  private static _unprobe(beatId: string) {
+    const s = PgConversation._state;
+    if (!s.probing.includes(beatId)) return;
+    PgConversation._set({
+      ...s,
+      probing: s.probing.filter((id) => id !== beatId),
+    });
   }
 
   /**
-   * The airdrop act the cursor just reached and nothing ran yet, by beat id:
-   * the one card `_pressIfFunded` may press. Null on any other beat, and for
-   * an airdrop that ran (landed, failed or a reload interrupted it)
+   * The airdrop act the cursor just reached and nothing landed yet, by beat
+   * id: the one card `_pressIfFunded` may press. A card whose latest run
+   * failed or a reload interrupted counts, so a reload onto it checks the
+   * balance again. Null on any other beat, and while a run is in flight
    */
   private static _reachedAirdrop(s: ConversationState): string | null {
     const p = s.engine.progress;
@@ -760,7 +792,9 @@ export class PgConversation {
     const step = s.context.definition.steps.find((st) => st.id === stepId);
     const reached = (fail ? step?.onFail ?? [] : step?.beats ?? [])[beat - 1];
     if (reached?.kind !== "act" || reached.act !== "airdrop") return null;
-    if (!p.beats[reached.id] || p.runs[reached.id]?.length) return null;
+    if (!p.beats[reached.id]) return null;
+    const last = p.runs[reached.id]?.at(-1);
+    if (last?.status === "ok" || last?.status === "started") return null;
     return reached.id;
   }
 
@@ -771,29 +805,47 @@ export class PgConversation {
    * learner would press it. Not funded leaves the card live; a probe that
    * throws is reported and leaves it live too. A press while the probe is in
    * flight wins: the answer then finds a run and presses nothing. Asked once
-   * per card per walk (`_probed`).
+   * per card per walk (`_asked`).
+   *
+   * A later airdrop that never ran is hidden while the probe is out
+   * (`probing`), and while the press it made runs, so a funded wallet's
+   * passes unseen (designers, 7 Nov). Returns the state with it marked.
    */
-  private static _pressIfFunded(s: ConversationState) {
+  private static _pressIfFunded(s: ConversationState): ConversationState {
     const beatId = PgConversation._reachedAirdrop(s);
     const funded = PgConversation._ports?.runner.funded;
-    if (!beatId || !funded || !s.context) return;
+    if (!beatId || !funded || !s.context) return s;
     const name = s.context.definition.name;
     const key = `${name}:${beatId}`;
-    if (PgConversation._probed.has(key)) return;
-    PgConversation._probed.add(key);
+    if (PgConversation._asked.has(key)) return s;
+    PgConversation._asked.add(key);
+    const hides =
+      isLaterAirdrop(s.context.definition, beatId) &&
+      !s.engine.progress.runs[beatId]?.length;
     const stillLive = () =>
       PgExplorer.currentWorkspaceName === name &&
       PgConversation._reachedAirdrop(PgConversation._state) === beatId;
     funded()
       .then((yes) => {
         if (yes && stillLive()) PgConversation.act(beatId);
+        // Short, or the card moved on: it shows; a press keeps it hidden
+        // until its run ends (`_settled`)
+        if (
+          !yes ||
+          PgConversation._state.engine.progress.runs[beatId]?.at(-1)?.status !==
+            "started"
+        ) {
+          PgConversation._unprobe(beatId);
+        }
       })
       .catch((e: unknown) => {
         log.error(e, {
           report: true,
           context: { what: "check the wallet's balance", tutorial: name },
         });
+        PgConversation._unprobe(beatId);
       });
+    return hides ? { ...s, probing: s.probing.concat(beatId) } : s;
   }
 
   /** The next moment the feed changes on its own: a turn arriving, or the finish */
@@ -1253,7 +1305,7 @@ export class PgConversation {
    * walk, as `<tutorial>:<beatId>`: once per card per walk, not on every
    * re-render
    */
-  private static _probed = new Set<string>();
+  private static _asked = new Set<string>();
   private static _timer: ReturnType<typeof setTimeout> | null = null;
   private static _view: ConversationView | null = null;
   private static _viewOf: ConversationState | null = null;

@@ -314,6 +314,7 @@ const loaded = (): ConversationState => ({
   },
   loadFailed: false,
   loadedAt: 1000,
+  probing: [],
 });
 
 const dispose = vi.fn();
@@ -421,6 +422,7 @@ describe("TutorialConversation", () => {
       engine: loaded().engine,
       loadFailed: false,
       loadedAt: 0,
+      probing: [],
     };
     store.view.mockReturnValue(null);
     render(
@@ -635,6 +637,7 @@ describe("TutorialConversation", () => {
       engine: initial,
       loadFailed: false,
       loadedAt: 0,
+      probing: [],
     };
     store.view.mockReturnValue(null);
     render(
@@ -1325,7 +1328,13 @@ describe("TutorialConversation on the phone", () => {
       (state, action) => reduce(ctx, state, action).state,
       INITIAL_ENGINE_STATE
     );
-    store.state = { context: ctx, engine, loadFailed: false, loadedAt: 0 };
+    store.state = {
+      context: ctx,
+      engine,
+      loadFailed: false,
+      loadedAt: 0,
+      probing: [],
+    };
     store.view.mockImplementation(() =>
       viewOf(definition, engine, { now: at(1000), loadedAt: 0 })
     );
@@ -1540,6 +1549,7 @@ describe("useConversationSteps", () => {
       engine: loaded().engine,
       loadFailed: false,
       loadedAt: 0,
+      probing: [],
     };
     store.view.mockReturnValue(null);
     const { result } = renderHook(() => useConversationSteps());
@@ -1567,6 +1577,7 @@ describe("useConversationStartOver", () => {
       engine: loaded().engine,
       loadFailed: false,
       loadedAt: 0,
+      probing: [],
     };
     const { result } = renderHook(() => useConversationStartOver());
     expect(result.current.onStartOver).toBeUndefined();
