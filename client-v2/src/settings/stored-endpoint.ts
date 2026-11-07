@@ -2,7 +2,7 @@
 // imports modules whose own imports end at `shared/config/client-env`, which
 // imports nothing.
 import type { Network } from "../constants/connection";
-import { Endpoint, NETWORKS } from "../constants/connection";
+import { buildNetworks, Endpoint, NETWORKS } from "../constants/connection";
 import { SERVER_URL } from "../shared/config/client-env";
 import { FOUNDATION_ENDPOINT, LOCAL_ENDPOINT } from "./server/default-endpoint";
 
@@ -32,10 +32,10 @@ type StoredEndpoint = { option: string } | { option: "custom"; url: string };
  * Every address we provide, keyed.
  *
  * The first entry for a key is what the key reads back as; the first entry
- * for an address is the key it is stored under. So the offered Devnet and
- * Mainnet come first under the keys the public picks always had, and a
- * profile on a public URL or under a platform key that the network list no
- * longer offers reads back as the offered network.
+ * for an address is the key it is stored under. So the offered networks come
+ * first under the keys the public picks always had, and a profile on a public
+ * URL or under a platform key that the network list no longer offers reads
+ * back as the offered network.
  *
  * @param networks the networks Settings offers
  * @param configuredServer the build server `REACT_APP_SERVER_URL` names, if
@@ -46,16 +46,15 @@ export const buildEndpointOptions = (
   configuredServer?: string
 ): EndpointOptions => ({
   "connection.endpoint": [
-    ...networks.map((n) => ({ key: n.cluster, url: n.value })),
+    ...networks.map((n) => ({ key: n.key, url: n.value })),
     // The public URLs, stored under the offered network's key
-    { key: "devnet", url: Endpoint.DEVNET },
     { key: "mainnet-beta", url: Endpoint.MAINNET_BETA },
-    // Keys the platform options were stored under before HOO-2488
-    ...networks.map((n) => ({ key: `${n.cluster}-platform`, url: n.value })),
-    // Not offered, still keyed: code paths set Localnet and Playnet
-    { key: "playnet", url: Endpoint.PLAYNET },
-    { key: "localnet", url: Endpoint.LOCALNET },
+    { key: "devnet", url: Endpoint.DEVNET },
     { key: "testnet", url: Endpoint.TESTNET },
+    // Keys the platform options were stored under before HOO-2488
+    ...networks.map((n) => ({ key: `${n.key}-platform`, url: n.value })),
+    // Not offered, still keyed: code paths set Playnet
+    { key: "playnet", url: Endpoint.PLAYNET },
   ],
   "server.endpoint": [
     // First, so a profile on the configured server follows the env even
@@ -268,11 +267,9 @@ if (import.meta.vitest) {
     const PLATFORM_DEVNET = "https://devnet.rpc.test/?api-key=old";
     const PLATFORM_MAINNET = "https://mainnet.rpc.test/?api-key=old";
 
-    /** The two offered networks on the given URLs */
-    const networks = (devnet: string, mainnet: string) => [
-      { name: "Devnet", value: devnet, cluster: "devnet" as const },
-      { name: "Mainnet", value: mainnet, cluster: "mainnet-beta" as const },
-    ];
+    /** The offered networks, Devnet and Mainnet on the given URLs */
+    const networks = (devnet: string, mainnet: string) =>
+      buildNetworks({ devnet, mainnet });
 
     const options = buildEndpointOptions(
       networks(PLATFORM_DEVNET, PLATFORM_MAINNET)
@@ -442,9 +439,8 @@ if (import.meta.vitest) {
       });
 
       it("falls back to the default when a stored option is gone", () => {
-        // The platform Testnet option was offered before HOO-2488
         const stored = {
-          connection: { endpoint: { option: "testnet-platform" } },
+          connection: { endpoint: { option: "gone" } },
           server: { endpoint: { option: "local" } },
         };
 
@@ -655,10 +651,21 @@ if (import.meta.vitest) {
       it("stores a public URL picked beside the offered network as custom", () => {
         // HOO-2690: the public Devnet saved as a custom RPC while Devnet is
         // on a platform RPC; its key would read back as the platform one
-        for (const url of [Endpoint.DEVNET, Endpoint.MAINNET_BETA]) {
+        const onPlatform = buildEndpointOptions(
+          buildNetworks({
+            devnet: PLATFORM_DEVNET,
+            mainnet: PLATFORM_MAINNET,
+            testnet: "https://testnet.rpc.test/?api-key=old",
+          })
+        );
+        for (const url of [
+          Endpoint.DEVNET,
+          Endpoint.MAINNET_BETA,
+          Endpoint.TESTNET,
+        ]) {
           expect(
             at(
-              toStoredEndpoints(state(url, LOCAL_ENDPOINT), options),
+              toStoredEndpoints(state(url, LOCAL_ENDPOINT), onPlatform),
               "connection.endpoint"
             )
           ).toEqual({ option: "custom", url });
@@ -692,10 +699,41 @@ if (import.meta.vitest) {
         expect(read.server.endpoint).toBe(LOCAL_ENDPOINT);
       });
 
-      it("keeps Testnet, Localnet and Playnet on their own addresses", () => {
+      it("reads the Testnet platform key HOO-2488 retired as the offered Testnet", () => {
+        const stored = {
+          connection: { endpoint: { option: "testnet-platform" } },
+        };
+        expect(
+          fromStoredEndpoints(stored, defaults, options).connection.endpoint
+        ).toBe(Endpoint.TESTNET);
+      });
+
+      it("stores Localnet and Surfpool under keys of their own, though they share a cluster", () => {
+        expect(
+          at(
+            toStoredEndpoints(
+              state(Endpoint.SURFPOOL, LOCAL_ENDPOINT),
+              options
+            ),
+            "connection.endpoint"
+          )
+        ).toEqual({ option: "surfpool" });
+        expect(
+          at(
+            toStoredEndpoints(
+              state(Endpoint.LOCALNET, LOCAL_ENDPOINT),
+              options
+            ),
+            "connection.endpoint"
+          )
+        ).toEqual({ option: "localnet" });
+      });
+
+      it("keeps Testnet, Localnet, Surfpool and Playnet on their own addresses", () => {
         for (const url of [
           Endpoint.TESTNET,
           Endpoint.LOCALNET,
+          Endpoint.SURFPOOL,
           Endpoint.PLAYNET,
         ]) {
           expect(

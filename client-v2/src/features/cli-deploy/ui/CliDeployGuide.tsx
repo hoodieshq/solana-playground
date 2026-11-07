@@ -22,8 +22,8 @@ export interface CliDeployGuideProps {
 
 /**
  * The cluster the guide opens on: Mainnet from the mainnet warning, else the
- * one Playground is on, else Devnet. Localnet, testnet and custom endpoints
- * open on Devnet: the guide is for the two clusters people deploy to.
+ * one Playground is on, else Devnet. Localnet, Surfpool and custom endpoints
+ * open on Devnet: the guide is for the remote clusters people deploy to.
  */
 const openingCluster = (
   from: GuideFrom,

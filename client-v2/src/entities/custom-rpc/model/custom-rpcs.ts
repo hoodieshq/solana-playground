@@ -65,7 +65,7 @@ const normalised = (value: string) => {
 };
 
 /**
- * The network chips, Devnet and Mainnet, each under its normalised address.
+ * The network chips Settings offers, each under its normalised address.
  * A custom RPC may use a chip's address under a name of its own (HOO-2690:
  * Devnet on a platform RPC, the public Devnet beside it); only a copy of a
  * chip, its name and its address, is refused. An endpoint a chip offers is
@@ -76,7 +76,10 @@ const CHIPS: ReadonlyArray<CustomRpc> = NETWORKS.map((n) => ({
   url: normalised(n.value),
 }));
 
-/** Clusters with no chip of their own, named as the cluster when listed */
+/**
+ * Public clusters named as the cluster when saved with no name: Testnet's
+ * public address is a custom RPC of its own once its chip is on a platform one
+ */
 const CLUSTERS = new Map<string, string>([
   [normalised(Endpoint.TESTNET), clusterName("testnet")],
   [normalised(Endpoint.LOCALNET), clusterName("localnet")],
@@ -350,6 +353,13 @@ if (import.meta.vitest) {
   const { describe, it, expect, beforeEach, afterEach, vi } = import.meta
     .vitest;
 
+  /** The offered network under `key`, wherever the list puts it */
+  const offered = (key: string) => {
+    const network = NETWORKS.find((n) => n.key === key);
+    if (!network) throw new Error(`No offered network ${key}`);
+    return network;
+  };
+
   describe("entities/custom-rpc/model/custom-rpcs", () => {
     beforeEach(() => {
       localStorage.clear();
@@ -548,7 +558,10 @@ if (import.meta.vitest) {
         ).toEqual({ ok: false, reason: "format" });
         expect(
           PgCustomRpcs.check(
-            { name: NETWORKS[1].name, url: NETWORKS[1].value },
+            {
+              name: offered("mainnet-beta").name,
+              url: offered("mainnet-beta").value,
+            },
             undefined
           )
         ).toEqual({ ok: false, reason: "duplicate", name: "Mainnet" });
@@ -623,15 +636,6 @@ if (import.meta.vitest) {
         );
       });
 
-      it("lists Testnet and Localnet, which have no chip, under their names", () => {
-        PgCustomRpcs.adopt("https://api.testnet.solana.com");
-        PgCustomRpcs.adopt("http://localhost:8899");
-        expect(PgCustomRpcs.list()).toEqual([
-          { name: "Testnet", url: "https://api.testnet.solana.com/" },
-          { name: "Localnet", url: "http://localhost:8899/" },
-        ]);
-      });
-
       it("leaves an endpoint out when a saved RPC lists it, under any name", () => {
         add("Mine", "https://own.test");
         expect(PgCustomRpcs.adopt("https://own.test")).toBe(
@@ -641,8 +645,11 @@ if (import.meta.vitest) {
       });
 
       it.each([
-        ["the offered Devnet", () => NETWORKS[0].value],
-        ["the offered Mainnet", () => NETWORKS[1].value],
+        ["the offered Devnet", () => offered("devnet").value],
+        ["the offered Mainnet", () => offered("mainnet-beta").value],
+        ["the offered Testnet", () => offered("testnet").value],
+        ["Localnet", () => "http://localhost:8899"],
+        ["Surfpool", () => "http://127.0.0.1:8899"],
         ["Playnet", () => "http://playnet"],
         ["a value that is not an RPC", () => "devnet"],
       ])("leaves %s out", (_, endpoint) => {
@@ -652,20 +659,20 @@ if (import.meta.vitest) {
     });
 
     it("saves a chip's address under a name of its own, and the public Devnet beside Devnet", () => {
-      expect(add("My Devnet", NETWORKS[0].value).ok).toBe(true);
-      expect(add("", NETWORKS[1].value).ok).toBe(true);
+      expect(add("My Devnet", offered("devnet").value).ok).toBe(true);
+      expect(add("", offered("mainnet-beta").value).ok).toBe(true);
       expect(add("Public Devnet", "https://api.devnet.solana.com").ok).toBe(
         true
       );
       expect(PgCustomRpcs.list().map((r) => r.name)).toEqual([
         "My Devnet",
-        hostOf(NETWORKS[1].value),
+        hostOf(offered("mainnet-beta").value),
         "Public Devnet",
       ]);
     });
 
     it("refuses a copy of a chip, its name and its address, naming its network", () => {
-      expect(add("Devnet", NETWORKS[0].value)).toEqual({
+      expect(add("Devnet", offered("devnet").value)).toEqual({
         ok: false,
         reason: "duplicate",
         name: "Devnet",
@@ -676,12 +683,12 @@ if (import.meta.vitest) {
       localStorage.setItem(
         "customRpcs",
         JSON.stringify([
-          { name: "Mine", url: NETWORKS[0].value },
-          { name: "Devnet", url: NETWORKS[0].value },
+          { name: "Mine", url: offered("devnet").value },
+          { name: "Devnet", url: offered("devnet").value },
         ])
       );
       expect(PgCustomRpcs.list()).toEqual([
-        { name: "Mine", url: new URL(NETWORKS[0].value).href },
+        { name: "Mine", url: new URL(offered("devnet").value).href },
       ]);
     });
 
