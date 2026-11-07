@@ -67,14 +67,14 @@ it("keeps a newer view over an older one that fails after it", async () => {
   // The older view is loading in `Primary`, not still waiting for a mount,
   // where `setMainPrimary` would drop it itself
   await waitFor(() => expect(fail).toBeDefined());
-  void PgView.setMainPrimary(async () => <p>Hello Solana</p>);
-  expect(await screen.findByText("Hello Solana")).toBeTruthy();
+  void PgView.setMainPrimary(async () => <p>Overtaking program</p>);
+  expect(await screen.findByText("Overtaking program")).toBeTruthy();
 
   fail?.(new Error("Seahorse example is gone"));
   // The failure lands once `PgCommon.transition`'s 300 ms floor is past
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  expect(screen.getByText("Hello Solana")).toBeTruthy();
+  expect(screen.getByText("Overtaking program")).toBeTruthy();
   expect(screen.queryByText("Seahorse example is gone")).toBeNull();
 });
 
@@ -89,4 +89,25 @@ it("drops a failed route's error when the next route brings a plain view", async
 
   expect(await screen.findByText("Home")).toBeTruthy();
   expect(screen.queryByText("Seahorse example is gone")).toBeNull();
+});
+
+it("keeps a newer view over an older one that loads after it", async () => {
+  render(<Primary />);
+  let load: ((el: ReactElement) => void) | undefined;
+  void PgView.setMainPrimary(
+    async () =>
+      new Promise<ReactElement>((resolve) => {
+        load = resolve;
+      })
+  );
+  await waitFor(() => expect(load).toBeDefined());
+  void PgView.setMainPrimary(async () => <p>Newer program</p>);
+  expect(await screen.findByText("Newer program")).toBeTruthy();
+
+  load?.(<p>Older program</p>);
+  // The older view lands once `PgCommon.transition`'s 300 ms floor is past
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  expect(screen.getByText("Newer program")).toBeTruthy();
+  expect(screen.queryByText("Older program")).toBeNull();
 });

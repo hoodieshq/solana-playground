@@ -83,7 +83,8 @@ test("github-import: Every recorded link resolves on GitHub @live-links", async 
 }) => {
   for (const url of LINKS) {
     const response = await page.request.get(url, { maxRedirects: 5 });
-    expect(response.status(), url).toBe(200);
+    // Soft, so one run names every dead link
+    expect.soft(response.status(), url).toBe(200);
   }
 });
 
