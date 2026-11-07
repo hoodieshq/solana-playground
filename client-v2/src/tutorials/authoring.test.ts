@@ -49,9 +49,10 @@ const quotedErrors = (): string[] => {
   const section = AUTHORING.split(/^## /m).find((s) =>
     s.startsWith("Reading the check's errors")
   );
-  return Array.from((section ?? "").matchAll(/^- `([^`]+)`$/gm)).map(
-    (m) => m[1]
-  );
+  // Double backticks quote an error that holds a backtick itself
+  return Array.from(
+    (section ?? "").matchAll(/^- (?:`([^`]+)`|``(.+?)``)$/gm)
+  ).map((m) => m[1] ?? m[2]);
 };
 
 describe("tutorials/AUTHORING.md", () => {
@@ -112,6 +113,9 @@ describe("tutorials/AUTHORING.md", () => {
     },
     "argument named twice": (d) => {
       d.steps[1].beats[2].call.args = ["text", { name: "text", value: "hi" }];
+    },
+    "creates without an existsLine": (d) => {
+      d.steps[1].goal.creates = "user";
     },
     "log is not a regular expression": (d) => {
       d.steps[1].goal.log = "(";

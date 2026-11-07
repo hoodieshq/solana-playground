@@ -246,13 +246,15 @@
       ],
       "goal": {
         "kind": "call",
-        "instruction": "init_player"
+        "instruction": "init_player",
+        "creates": "player"
       },
       "win": {
         "id": "s2.win",
         "headline": "Your player is on devnet",
         "line": "That's your account, read back from devnet: 5 energy, 0 wood. The client found it from the seeds alone.",
         "callPanelLine": "You called `init_player` from the Call panel, which Playground built from the IDL. Your player is on devnet.",
+        "existsLine": "Your player was already on devnet: this wallet ran this step before. Anchor's `init` creates an account only once, so `init_player` can't make it again. Your player keeps its wood and energy, and the next step works on it.",
         "extra": "openTest"
       },
       "explain": "This step puts the program on devnet, then a client works out your player's address from the seeds and creates the account. Your wallet pays the deploy, the rent and the fee, all in free devnet SOL."

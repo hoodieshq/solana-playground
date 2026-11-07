@@ -436,13 +436,38 @@ const UnconfirmedCard = ({
 /** A run or call that failed, or that sent nothing */
 const FailedCard = ({
   result,
+  exists,
   onRecheck,
 }: {
   result: Failed;
+  exists?: string;
   onRecheck?: () => void;
 }) => {
   if (result.reason === "unconfirmed") {
     return <UnconfirmedCard result={result} onRecheck={onRecheck} />;
+  }
+  // The goal accepts it: the account it creates was already there
+  if (exists !== undefined) {
+    return (
+      <Shell
+        icon={
+          <Check aria-hidden="true" className="size-4 shrink-0 text-success" />
+        }
+        title="Already exists"
+        meta={
+          "exists" in result && result.exists ? (
+            <code className="font-mono text-[0.8125rem]">
+              {result.exists.account}
+            </code>
+          ) : null
+        }
+        body={
+          <p className={READ}>
+            <Prose text={exists} codeClassName={CHIP} />
+          </p>
+        }
+      />
+    );
   }
   if (result.reason === "no_transaction") {
     return (
@@ -516,17 +541,20 @@ const FailedCard = ({
 const BaseTxResultCard = ({
   result,
   account,
+  exists,
   onRecheck,
 }: {
   result: TxResult;
   account?: AccountOnCard;
+  /** The line for an account the goal creates that was already there */
+  exists?: string;
   /** Check again on an unconfirmed result; absent when it is not live */
   onRecheck?: () => void;
 }) =>
   result.ok ? (
     <LandedCard result={result} account={account} />
   ) : (
-    <FailedCard result={result} onRecheck={onRecheck} />
+    <FailedCard result={result} exists={exists} onRecheck={onRecheck} />
   );
 
 export default BaseTxResultCard;
