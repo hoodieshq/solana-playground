@@ -3,8 +3,9 @@ import type { FormEvent } from "react";
 import { useId, useState } from "react";
 
 import type { CustomRpc } from "@/entities/custom-rpc";
-import { hostOf, isSameRpc, RPC_NAME_MAX } from "@/entities/custom-rpc";
+import { isSameRpc, maskRpcUrl, RPC_NAME_MAX } from "@/entities/custom-rpc";
 import { createLogger } from "@/shared/lib/logger";
+import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import {
   Field,
@@ -51,8 +52,8 @@ const keyOf = (rpc: CustomRpc) => `${rpc.name}\n${rpc.url}`;
 
 /**
  * The saved custom RPCs under the network chips, each with Edit and Remove,
- * and the inline form that adds or edits one. A row shows the URL's host
- * only: the path and query often carry a provider's key.
+ * and the inline form that adds or edits one. A row shows the whole URL
+ * with its key masked (`maskRpcUrl`) and an "API key" badge when it has one.
  */
 const BaseCustomRpcs = ({
   rpcs,
@@ -92,9 +93,7 @@ const BaseCustomRpcs = ({
                   <span className="truncate text-caption text-foreground">
                     {rpc.name}
                   </span>
-                  <span className="truncate font-mono text-xs text-muted-foreground">
-                    {hostOf(rpc.url)}
-                  </span>
+                  <RpcUrl url={rpc.url} />
                 </span>
                 <Button
                   variant="ghost"
@@ -140,6 +139,19 @@ const BaseCustomRpcs = ({
         </Button>
       )}
     </div>
+  );
+};
+
+/** A saved RPC's URL with its key as `••••`, and the badge saying it has one */
+const RpcUrl = ({ url }: { url: string }) => {
+  const { text, masked } = maskRpcUrl(url);
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className="truncate font-mono text-xs text-muted-foreground">
+        {text}
+      </span>
+      {masked && <Badge variant="outline">API key</Badge>}
+    </span>
   );
 };
 

@@ -47,11 +47,70 @@ export const checkRpcUrl = (value: string): UrlCheck => {
   return { ok: true, url: url.href };
 };
 
-/**
- * What the page shows of a saved RPC's URL: its host, never the path or
- * query, which often carry a provider's API key
- */
+/** A URL's host, port included: an unnamed RPC's default name */
 export const hostOf = (url: string): string => new URL(url).host;
+
+/** What stands for a secret: four dots, whatever the secret's length */
+const MASK = "••••";
+
+/** A query name a provider puts a key under (`api-key`, `apiKey`, `access_token`…) */
+const KEY_NAME = /key|token|secret|auth|pass|sig|credential/i;
+
+/** A value that reads as a token: 16+ letters, digits, `-`, `_`, one digit at least */
+const looksLikeToken = (value: string) =>
+  /^[\w-]{16,}$/.test(value) && /\d/.test(value);
+
+/** A saved RPC's URL as the page draws it, and whether anything was masked */
+export interface MaskedUrl {
+  text: string;
+  masked: boolean;
+}
+
+/**
+ * A saved RPC's whole URL with every secret in it as `••••` (spec
+ * `client-v2-custom-rpcs`): a query value under a key-like name, any query
+ * value, path segment or fragment that looks like a token, and a username
+ * and password. Built from the URL's raw parts, so names keep their spelling
+ * and the dots are never percent-encoded.
+ */
+export const maskRpcUrl = (url: string): MaskedUrl => {
+  const parsed = new URL(url);
+  let masked = false;
+  const hide = (secret: boolean, value: string) => {
+    if (!secret) return value;
+    masked = true;
+    return MASK;
+  };
+
+  const auth = parsed.username || parsed.password ? `${hide(true, "")}@` : "";
+  const path = parsed.pathname
+    .split("/")
+    .map((segment) => hide(looksLikeToken(segment), segment))
+    .join("/");
+  const query = parsed.search
+    ? "?" +
+      parsed.search
+        .slice(1)
+        .split("&")
+        .map((pair) => {
+          const at = pair.indexOf("=");
+          if (at < 0) return hide(looksLikeToken(pair), pair);
+          const name = pair.slice(0, at);
+          const value = pair.slice(at + 1);
+          const secret =
+            value !== "" && (KEY_NAME.test(name) || looksLikeToken(value));
+          return `${name}=${hide(secret, value)}`;
+        })
+        .join("&")
+    : "";
+  const hash = parsed.hash.slice(1);
+  const fragment = parsed.hash ? `#${hide(looksLikeToken(hash), hash)}` : "";
+
+  return {
+    text: `${parsed.protocol}//${auth}${parsed.host}${path}${query}${fragment}`,
+    masked,
+  };
+};
 
 /** `new URL(value).href`, or the value itself when it is not a URL */
 const normalised = (value: string) => {
@@ -441,6 +500,52 @@ if (import.meta.vitest) {
         "rpc.example.com"
       );
       expect(hostOf("http://localhost:8899/")).toBe("localhost:8899");
+    });
+
+    describe("maskRpcUrl", () => {
+      it.each([
+        [
+          "https://devnet.helius-rpc.com/?api-key=abc",
+          "https://devnet.helius-rpc.com/?api-key=••••",
+        ],
+        [
+          "https://r.test/?apiKey=x&cluster=devnet",
+          "https://r.test/?apiKey=••••&cluster=devnet",
+        ],
+        ["https://r.test/?access_token=x", "https://r.test/?access_token=••••"],
+        [
+          "https://solana-mainnet.g.alchemy.com/v2/abc123def456ghi789",
+          "https://solana-mainnet.g.alchemy.com/v2/••••",
+        ],
+        [
+          "https://x.solana-mainnet.quiknode.pro/0123456789abcdef0123456789abcdef01234567/",
+          "https://x.solana-mainnet.quiknode.pro/••••/",
+        ],
+        [
+          "https://rpc.ankr.com/solana/9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+          "https://rpc.ankr.com/solana/••••",
+        ],
+        ["https://r.test/?id=a1b2c3d4e5f6g7h8i9", "https://r.test/?id=••••"],
+        ["https://user:pass@r.test/", "https://••••@r.test/"],
+        ["https://r.test/#a1b2c3d4e5f6g7h8i9", "https://r.test/#••••"],
+        ["https://r.test/?a1b2c3d4e5f6g7h8i9", "https://r.test/?••••"],
+      ])("masks the key in %s", (url, text) => {
+        expect(maskRpcUrl(url)).toEqual({ text, masked: true });
+      });
+
+      it.each([
+        "https://api.devnet.solana.com/",
+        "http://localhost:8899/",
+        "https://r.test/solana-mainnet-endpoint/?cluster=devnet",
+      ])("shows %s in full", (url) => {
+        expect(maskRpcUrl(url)).toEqual({ text: url, masked: false });
+      });
+
+      it("never draws the key's length", () => {
+        expect(maskRpcUrl("https://r.test/?key=a").text).toBe(
+          maskRpcUrl("https://r.test/?key=abcdefghijklmnopqrstuvwxyz").text
+        );
+      });
     });
 
     it("saves an unnamed RPC under its host", () => {

@@ -204,7 +204,7 @@ test("client-v2-custom-rpcs: A saved URL is accepted under another name", async 
   await expect(settings.getByText(/Already saved as/)).toHaveCount(0);
 });
 
-test("client-v2-custom-rpcs: The key in a URL is never drawn", async ({
+test("client-v2-custom-rpcs: A key in the query is masked", async ({
   seededPage: page,
 }) => {
   const settings = await openSettings(page);
@@ -212,9 +212,9 @@ test("client-v2-custom-rpcs: The key in a URL is never drawn", async ({
     name: "Helius",
     url: "https://helius.rpc.test/?api-key=secret",
   });
-  await expect(
-    settings.getByRole("list", { name: "Custom RPCs" })
-  ).toContainText("helius.rpc.test");
+  const list = settings.getByRole("list", { name: "Custom RPCs" });
+  await expect(list).toContainText("https://helius.rpc.test/?api-key=••••");
+  await expect(list.getByText("API key", { exact: true })).toBeVisible();
   await expect(page.locator("body")).not.toContainText("secret");
 });
 
