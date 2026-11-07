@@ -106,8 +106,8 @@ function LogoLockup({ className, ...props }: React.ComponentProps<"svg">) {
 }
 
 /* The lockup's mark alone, the prototype's trimmed logo at the head of the
-   folded navigation: the same paths as `LogoLockup`, its box cut at the
-   mark's right edge */
+   folded navigation: `LogoLockup`'s mark path without the words, its box
+   cropped to the mark (306 × 182) */
 function LogoLockupMark({ className, ...props }: React.ComponentProps<"svg">) {
   return (
     <svg

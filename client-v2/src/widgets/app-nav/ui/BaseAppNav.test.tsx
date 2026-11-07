@@ -101,6 +101,63 @@ it("expands a collapsed navigation from the trimmed logo, with no collapse icon 
   expect(onToggle).toHaveBeenCalledTimes(1);
 });
 
+it("hands focus to the toggle that replaces the one pressed", () => {
+  const nav = (collapsed: boolean) => (
+    <TooltipProvider>
+      <SidebarProvider>
+        <BaseAppNav
+          collapsed={collapsed}
+          onToggle={vi.fn()}
+          onOpen={vi.fn()}
+          logo={<span>logo</span>}
+          railLogo={<span>rail logo</span>}
+          projects={undefined}
+          footer={undefined}
+          railFooter={undefined}
+          setup={undefined}
+        />
+      </SidebarProvider>
+    </TooltipProvider>
+  );
+  const { rerender } = render(nav(true));
+  const expand = screen.getByRole("button", { name: "Expand navigation" });
+  expand.focus();
+  fireEvent.click(expand);
+  rerender(nav(false));
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Collapse navigation" })
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
+  rerender(nav(true));
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Expand navigation" })
+  );
+});
+
+it("takes no focus for a toggle pressed without it", () => {
+  const nav = (collapsed: boolean) => (
+    <TooltipProvider>
+      <SidebarProvider>
+        <BaseAppNav
+          collapsed={collapsed}
+          onToggle={vi.fn()}
+          onOpen={vi.fn()}
+          logo={<span>logo</span>}
+          railLogo={<span>rail logo</span>}
+          projects={undefined}
+          footer={undefined}
+          railFooter={undefined}
+          setup={undefined}
+        />
+      </SidebarProvider>
+    </TooltipProvider>
+  );
+  const { rerender } = render(nav(true));
+  fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
+  rerender(nav(false));
+  expect(document.activeElement).toBe(document.body);
+});
+
 it("on a phone, heads the menu with the logo and a close, not a collapse", () => {
   const onToggle = vi.fn();
   render(

@@ -522,6 +522,37 @@ test("client-v2-layout: Folding the navigation", async ({
   ).toBeVisible();
 });
 
+test("the folded navigation is headed by the trimmed logo, which expands it", async ({
+  seededPage: page,
+}) => {
+  const header = nav(page).locator("[data-sidebar=header]");
+  const home = nav(page).getByRole("button", { name: "Home", exact: true });
+  await expect(header).toHaveJSProperty("offsetHeight", 44);
+  const openTop = await home.evaluate((e) => e.getBoundingClientRect().top);
+  await page.keyboard.press("ControlOrMeta+b");
+  const expand = nav(page).getByRole("button", { name: "Expand navigation" });
+  await expect(expand).toBeVisible();
+  // One head height, so the first row does not move as the nav folds
+  await expect(header).toHaveJSProperty("offsetHeight", 44);
+  expect(await home.evaluate((e) => e.getBoundingClientRect().top)).toBe(
+    openTop
+  );
+  // Pointed at, the mark gives way to the fold glyph
+  const opacity = (selector: string) =>
+    expand
+      .locator(selector)
+      .first()
+      .evaluate((e) => getComputedStyle(e).opacity);
+  await expect.poll(() => opacity("span")).toBe("1");
+  await expand.hover();
+  await expect.poll(() => opacity("span")).toBe("0");
+  await expect.poll(() => opacity(":scope > svg")).toBe("1");
+  await expand.click();
+  await expect(
+    nav(page).getByRole("button", { name: "Collapse navigation" })
+  ).toBeVisible();
+});
+
 test.describe("on a phone", () => {
   test.use({ viewport: PHONE });
 
