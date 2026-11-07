@@ -543,7 +543,26 @@ if (import.meta.vitest) {
     });
 
     it("checks the real need when the built binary outgrew the estimate, and never airdrops", async () => {
-      // Covers the 400 000-byte estimate, not the 600 000-byte binary
+      // 1.5 SOL covers the estimate on the last build's 100 000 bytes, not
+      // the 600 000-byte binary
+      const { port } = portOf({
+        balances: [1.5 * SOL],
+        deployed: false,
+        stale: false,
+        id: PROGRAM,
+        built: 600_000,
+      });
+      await expect(runDeploy(port, "deploy", () => {})).resolves.toMatchObject({
+        ok: false,
+        reason: "no_funds",
+        balance: 1.5 * SOL,
+        cost: 600_000 * 10_000 + FEE_HEADROOM,
+      });
+      expect(port.funding.airdrop).not.toHaveBeenCalled();
+      expect(port.writeBuffer).not.toHaveBeenCalled();
+    });
+
+    it("checks an unknown-length program against the real binary's need, and never airdrops", async () => {
       const { port } = portOf({
         balances: [4.1 * SOL],
         deployed: false,
@@ -569,7 +588,9 @@ if (import.meta.vitest) {
     });
 
     it("deploys an unknown-length program when the wallet covers the real need, below the 400 KB estimate", async () => {
-      // 3 SOL: short of the 4.02 SOL estimate on 400 000 bytes, enough for 120 000
+      // 3 SOL: short of the airdrop card's 4.02 SOL estimate on 400 000
+      // bytes (`deployCost`), which the deploy does not check on an unknown
+      // length; enough for the real 120 000
       const { port } = portOf({
         balances: [3 * SOL],
         deployed: true,
