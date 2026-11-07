@@ -1791,8 +1791,15 @@ if (import.meta.vitest) {
     let hello: TutorialDefinition;
     let judgeGoal: typeof import("./goals").judgeGoal;
     beforeAll(async () => {
-      hello = (await import("../../../tutorials/hello-anchor/tutorial.json"))
-        .default as unknown as TutorialDefinition;
+      const shipped = (
+        await import("../../../tutorials/hello-anchor/tutorial.json")
+      ).default as unknown as TutorialDefinition;
+      // Without its shipped IDLs, so a deploy keeps the IDL it brought; the
+      // shipped ones are "a tutorial that ships its IDL"
+      hello = {
+        ...shipped,
+        steps: shipped.steps.map(({ idl: _idl, ...step }) => step),
+      };
       judgeGoal = (await import("./goals")).judgeGoal;
     });
 
