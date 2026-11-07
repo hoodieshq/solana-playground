@@ -526,15 +526,15 @@ test("the trimmed logo heads the folded navigation and expands it", async ({
   seededPage: page,
 }) => {
   const header = nav(page).locator("[data-sidebar=header]");
-  const home = nav(page).getByRole("button", { name: "Home", exact: true });
+  const homeRow = nav(page).getByRole("button", { name: "Home", exact: true });
   await expect(header).toHaveJSProperty("offsetHeight", 44);
-  const openTop = await home.evaluate((e) => e.getBoundingClientRect().top);
+  const openTop = await homeRow.evaluate((e) => e.getBoundingClientRect().top);
   await page.keyboard.press("ControlOrMeta+b");
   const expand = nav(page).getByRole("button", { name: "Expand navigation" });
   await expect(expand).toBeVisible();
   // One head height, so the first row does not move as the nav folds
   await expect(header).toHaveJSProperty("offsetHeight", 44);
-  expect(await home.evaluate((e) => e.getBoundingClientRect().top)).toBe(
+  expect(await homeRow.evaluate((e) => e.getBoundingClientRect().top)).toBe(
     openTop
   );
   // Pointed at, the mark gives way to the fold glyph
