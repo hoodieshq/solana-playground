@@ -24,9 +24,9 @@ A call SHALL say "Your code no longer matches what this step expects. Fix it
 in the editor and build and deploy again." when its transaction did not decode
 with the IDL, when the program refused it as an instruction it does not know
 or cannot deserialize (Anchor errors 101 and 102), or when the IDL has no such
-instruction. An act card's failed call SHALL add ", or I can show you the
-lines this step needs." with the "Show me the fix" action, which writes the
-step's target program.
+instruction. An act card's failed call SHALL be followed by the line "I can
+show you the lines this step needs." with the "Show me the fix" action, which
+writes the step's target program; the line does not repeat the card's.
 
 #### Scenario: The learner renamed the instruction (manual)
 - **WHEN** the learner's deployed program no longer has `hello` and the Call panel sends it

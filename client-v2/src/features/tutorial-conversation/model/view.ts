@@ -203,12 +203,10 @@ export const FIX_OFFER =
 
 /**
  * The line after a call the learner's program could not match (`mismatch` on
- * the result): the fix offer, with a redeploy, since the program is on chain
+ * the result): the offer alone, since the failed card above it already says
+ * what to do (Design alignment, 7 Nov)
  */
-export const MISMATCH_OFFER = `${MISMATCH.replace(
-  /\.$/,
-  ""
-)}, or I can show you the lines this step needs.`;
+export const MISMATCH_OFFER = "I can show you the lines this step needs.";
 
 /**
  * The line between a landed result and the live act when the step's goal

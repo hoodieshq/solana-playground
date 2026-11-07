@@ -42,8 +42,8 @@ signals, all on a call:
 
 The failed call says "Your code no longer matches what this step expects. Fix
 it in the editor and build and deploy again." In the conversation, an act
-card's failed call adds the fix offer, "...or I can show you the lines this
-step needs.", with "Show me the fix", which writes the step's target
+card's failed call is followed by the offer alone, "I can show you the lines
+this step needs.", with "Show me the fix", which writes the step's target
 `src/lib.rs`. The Call panel has no such action, so its line offers none, and
 neither does a landed call that did not decode (a landed run's record keeps no
 fix). "IDL" stays out of the learner's text (Design alignment, 7 Nov).
