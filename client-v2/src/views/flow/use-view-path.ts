@@ -63,7 +63,7 @@ export const useViewPath = ({
   // What the user picks moves the path: only what changed, since a pick
   // that navigates itself (a card's Open, a project's row) closes the page
   // after its path has already moved on
-  const was = useRef<{ view: StartView; catalog?: CatalogPage }>();
+  const was = useRef<{ view: StartView; catalog?: CatalogPage }>(undefined);
   useEffect(() => {
     const before = was.current;
     was.current = { view, catalog };
