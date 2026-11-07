@@ -110,7 +110,9 @@ const Terminal: FC<React.PropsWithChildren<TerminalProps>> = ({
   useKeybind(
     "Ctrl+L",
     () => {
-      if (PgTerminal.isFocused()) term.clear();
+      // Outside the terminal ⌘L is the browser's: the address bar
+      if (!PgTerminal.isFocused()) return false;
+      term.clear();
     },
     [term]
   );

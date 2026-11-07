@@ -2,6 +2,7 @@ import { SetStateAction, useCallback } from "react";
 import { createPortal } from "react-dom";
 
 import { useViewport } from "@/shared/lib/hooks/use-viewport";
+import { isEditable } from "@/shared/lib/is-editable";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { useEditorHeadHost } from "@/widgets/layout-shell";
@@ -32,10 +33,16 @@ export const Tabs = () => {
     PgExplorer.setTabs(newTabs);
   }, []);
 
-  // Close the current tab with keybind
+  // Close the current tab with keybind. Typed into a field other than the
+  // editor (the assistant's composer, a rename), the key is text: Option+W
+  // is "∑" on a Mac, and closing the tab there would eat it.
   useKeybind(
     "Alt+W",
-    () => {
+    (ev) => {
+      const target = ev.target as Element | null;
+      if (isEditable(target) && !target?.closest(".monaco-editor")) {
+        return false;
+      }
       if (PgExplorer.currentFilePath) {
         PgExplorer.closeFile(PgExplorer.currentFilePath);
       }
