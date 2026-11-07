@@ -49,9 +49,10 @@ const RESIZE_OBSERVER_LOOP_NOTICE =
 
 /**
  * The browser's report that a resize was delivered a frame late. Our own code
- * raises none on load (`e2e/resize-observer-loop.e2e.spec.ts` holds that, and
- * counts ahead of this filter); this stays as a backstop for a dependency or
- * an extension that does. It is harmless, and each one would otherwise reach
+ * raises none on a load of Home or a project
+ * (`e2e/resize-observer-loop.e2e.spec.ts`, which counts it apart from this
+ * filter); this stays as a backstop for a dependency, an extension or a later
+ * interaction that does. It is harmless, and each one would otherwise reach
  * Sentry, once a DSN is set, as an unhandled panic. The match is exact, and a
  * thrown `Error` with the same text carries an `error` and is not matched.
  */
