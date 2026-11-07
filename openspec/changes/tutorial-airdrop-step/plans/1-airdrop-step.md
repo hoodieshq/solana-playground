@@ -10,7 +10,7 @@ stops airdropping.
 
 **Architecture:** the airdrop runner shares the deploy port and one cost
 helper, and calls the existing `fundForDeploy`. The store auto-presses a
-funded airdrop card through an optional `Runner.funded()` probe. The deploy
+funded airdrop card through an optional `Runner.isFunded()` probe. The deploy
 answers `no_funds` instead of funding.
 
 **Tech stack:** TypeScript, React, in-source vitest, Playwright e2e.
@@ -93,9 +93,9 @@ specs `tutorial-definition` and `tutorial-runs`).
 - Modify: `client-v2/src/features/tutorial-conversation/model/progress.ts`
   (result union)
 - Modify: `client-v2/src/features/tutorial-conversation/model/runners/real-deploy.ts`
-  (wire `airdrop` and `funded`)
+  (wire `airdrop` and `isFunded`)
 - Modify: `client-v2/src/features/tutorial-conversation/model/ports.ts`
-  (`Runner.funded?`)
+  (`Runner.isFunded?`)
 
 **Interfaces:**
 - `deployCost(port: DeployPort): Promise<number>` (in `deploy.ts`): the
@@ -112,7 +112,7 @@ specs `tutorial-definition` and `tutorial-runs`).
   "{short address} · {balance} SOL", or "A new Playground wallet, made in
   this browser" when there is none. It uses the widget's existing wallet and
   balance source.
-- `Runner.funded?(): Promise<boolean>`: true only with a wallet whose balance
+- `Runner.isFunded?(): Promise<boolean>`: true only with a wallet whose balance
   covers `deployCost`.
 
 - [ ] Tests in `airdrop.ts`:
@@ -132,7 +132,7 @@ specs `tutorial-definition` and `tutorial-runs`).
   - The check returns the same `no_funds` shape.
   - `runAirdropWith` reuses `fundForDeploy`.
   - Wire `airdrop: (_, __, onStage) => runAirdropWith(onStage)(realDeployPort())` and
-    `funded` in `tutorialRunner`.
+    `isFunded` in `tutorialRunner`.
 - [ ] Run `yarn test-unit` on both files and `yarn test-types`. Commit.
 
 ### Task 3: The engine and cards
@@ -147,7 +147,7 @@ specs `tutorial-definition` and `tutorial-runs`).
 - Modify: `client-v2/src/features/tutorial-conversation/model/goals.ts`,
   `reducer.ts`, where an act switch needs the new case.
 
-**Interfaces:** uses `Runner.funded` and `PgConversation.act(beatId)`.
+**Interfaces:** uses `Runner.isFunded` and `PgConversation.act(beatId)`.
 
 - [ ] Store tests (fake runner):
   - The lesson reaching a live airdrop card with `funded → true` dispatches

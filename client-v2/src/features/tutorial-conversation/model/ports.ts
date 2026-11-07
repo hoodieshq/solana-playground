@@ -95,7 +95,7 @@ export interface Runner {
    * card the lesson reaches then passes with no press (HOO-2677). False with
    * no wallet; a throw is the store's to report
    */
-  funded?(): Promise<boolean>;
+  isFunded?(): Promise<boolean>;
 }
 
 /**

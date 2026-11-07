@@ -483,7 +483,7 @@ export interface ViewOptions {
    * Later airdrop acts the store is checking the wallet for, by beat id
    * (`isLaterAirdrop`): each stays out of the feed until the check answers
    */
-  probing?: readonly string[];
+  probing: readonly string[];
 }
 
 /** The lesson's first airdrop act, in beat order: each step's beats, then its `onFail` */
@@ -659,7 +659,7 @@ const isReplacedByResult = (t: Turn, next: Turn | undefined) =>
 export const view = (
   definition: TutorialDefinition,
   state: EngineState,
-  { now, loadedAt, probing = [] }: ViewOptions
+  { now, loadedAt, probing }: ViewOptions
 ): ConversationView => {
   const p = state.progress;
   const all: Turn[] = [];
@@ -1209,7 +1209,11 @@ if (import.meta.vitest) {
         return { progress, stage: null };
       };
       const cardOf = (state: EngineState) => {
-        const v = view(repeating(), state, { now: 99999, loadedAt: 0 });
+        const v = view(repeating(), state, {
+          now: 99999,
+          loadedAt: 0,
+          probing: [],
+        });
         const cards = v.turns.filter((t) => t.kind === "act");
         expect(cards).toHaveLength(1);
         return { v, card: cards[0] };
@@ -1301,6 +1305,7 @@ if (import.meta.vitest) {
         const v = view(d, stateOf({ beat: 1, runs: [LANDED, run, LANDED] }), {
           now: 99999,
           loadedAt: 0,
+          probing: [],
         });
         const card = v.turns.find((t) => t.kind === "act");
         expect(card).toMatchObject({
@@ -1325,6 +1330,7 @@ if (import.meta.vitest) {
         const results = view(d, stateOf({ beat: 1, runs: [LANDED, run] }), {
           now: 99999,
           loadedAt: 0,
+          probing: [],
         }).turns.filter((t) => t.kind === "result");
         expect(results).toHaveLength(2);
         expect(results[0]).not.toHaveProperty("account");
@@ -1446,7 +1452,7 @@ if (import.meta.vitest) {
       called: [],
     };
 
-    const LATE = { now: 1e9, loadedAt: 0 };
+    const LATE = { now: 1e9, loadedAt: 0, probing: [] };
     const kinds = (v: ConversationView) => v.turns.map((t) => t.kind);
     const ids = (v: ConversationView) => v.turns.map((t) => t.id);
 
@@ -1482,7 +1488,11 @@ if (import.meta.vitest) {
       expect(v.live?.id).toBe("s1.q1");
       expect(v.steps[0].state).toBe("current");
 
-      const early = view(hello, state, { now: 1000 + TICK, loadedAt: 0 });
+      const early = view(hello, state, {
+        now: 1000 + TICK,
+        loadedAt: 0,
+        probing: [],
+      });
       expect(ids(early)).toEqual([
         "divider:write-program",
         "s1.boil",
@@ -1495,7 +1505,11 @@ if (import.meta.vitest) {
 
     it("marks turns older than the load as whole", () => {
       const state = play([{ type: "start", at: 1000 }]);
-      const v = view(hello, state, { now: 1e9, loadedAt: 1000 + TICK + 1 });
+      const v = view(hello, state, {
+        now: 1e9,
+        loadedAt: 1000 + TICK + 1,
+        probing: [],
+      });
       expect(v.turns.map((t) => t.whole)).toEqual([true, true, true, false]);
     });
 
@@ -2272,14 +2286,18 @@ if (import.meta.vitest) {
           { type: "explain", beatId: "f1.build", at: 12000 },
         ])
       );
-      const reloaded = view(hello, asked, { now: 1e9, loadedAt: 20000 });
+      const reloaded = view(hello, asked, {
+        now: 1e9,
+        loadedAt: 20000,
+        probing: [],
+      });
       expect(reloaded.turns.at(-1)).toMatchObject({
         id: "fix:f1.build:0",
         at: 20000,
         follow: { kind: "showFix", done: false },
       });
       // Before any reload the offer waits for the answer
-      const live = view(hello, asked, { now: 1e9, loadedAt: 0 });
+      const live = view(hello, asked, { now: 1e9, loadedAt: 0, probing: [] });
       expect(live.turns.find((t) => t.id === "fix:f1.build:0")).toBeUndefined();
     });
 
@@ -2438,6 +2456,7 @@ if (import.meta.vitest) {
       const due = view(hello, state, {
         now: run.at + 1,
         loadedAt: LATE.loadedAt,
+        probing: [],
       });
       expect(ids(due)).toContain("s1.build");
       expect(ids(due)).not.toContain("result:s1.build:0");

@@ -11,7 +11,7 @@ export const AIRDROP_STAGE = "Requesting airdrop";
  * Whether the Playground wallet already covers the next deploy, so the
  * airdrop card passes with no press. False with no wallet: the press makes it
  */
-export const fundedForDeploy = async (port: DeployPort): Promise<boolean> => {
+export const isFundedForDeploy = async (port: DeployPort): Promise<boolean> => {
   const address = port.wallet();
   if (!address) return false;
   const [balance, cost] = await Promise.all([
@@ -211,19 +211,19 @@ if (import.meta.vitest) {
       expect(port.createWallet).not.toHaveBeenCalled();
     });
 
-    describe("fundedForDeploy", () => {
+    describe("isFundedForDeploy", () => {
       it("is true only for a wallet that covers the deploy", async () => {
-        await expect(fundedForDeploy(portOf([3.2 * SOL]).port)).resolves.toBe(
+        await expect(isFundedForDeploy(portOf([3.2 * SOL]).port)).resolves.toBe(
           true
         );
-        await expect(fundedForDeploy(portOf([0.1 * SOL]).port)).resolves.toBe(
+        await expect(isFundedForDeploy(portOf([0.1 * SOL]).port)).resolves.toBe(
           false
         );
       });
 
       it("is false with no wallet, and reads nothing", async () => {
         const { port } = walletlessPortOf([5 * SOL]);
-        await expect(fundedForDeploy(port)).resolves.toBe(false);
+        await expect(isFundedForDeploy(port)).resolves.toBe(false);
         expect(port.funding.balance).not.toHaveBeenCalled();
       });
     });

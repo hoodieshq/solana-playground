@@ -439,13 +439,13 @@ const ruleErrors = (
   // A tutorial deploy pays from the wallet and no longer tops it up itself
   // (HOO-2677): the learner asks the faucet on an airdrop card before every
   // deploy, which passes by itself when the wallet is already funded
-  let funded = false;
+  let hasAirdrop = false;
   let deployed = false;
   for (const [beat, at] of d.steps.flatMap((step, i) => beatsOf(step, i))) {
     if (beat.kind !== "act") continue;
-    if (beat.act === "airdrop") funded = true;
+    if (beat.act === "airdrop") hasAirdrop = true;
     if (beat.act !== "deploy" && beat.act !== "buildDeploy") continue;
-    if (!funded) {
+    if (!hasAirdrop) {
       const since = deployed
         ? "since the last deploy"
         : "before the first deploy";
@@ -456,7 +456,7 @@ const ruleErrors = (
         )}`,
       });
     }
-    funded = false;
+    hasAirdrop = false;
     deployed = true;
   }
 

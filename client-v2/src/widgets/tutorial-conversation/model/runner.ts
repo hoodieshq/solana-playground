@@ -37,7 +37,7 @@ export const announceDeploys = (
   recognise: runner.recognise,
   // The airdrop card's probe (HOO-2677), forwarded: without it no funded
   // airdrop card would pass by itself
-  funded: runner.funded,
+  isFunded: runner.isFunded,
   run: async (act, input, onStage) => {
     if (act !== "deploy" && act !== "buildDeploy") {
       return runner.run(act, input, onStage);
@@ -121,10 +121,10 @@ if (import.meta.vitest) {
     it("keeps the runner's funded probe, so a funded airdrop card passes by itself", async () => {
       const funded = vi.fn(async () => true);
       const wrapped = announceDeploys(
-        { run: answering(true).run, funded },
+        { run: answering(true).run, isFunded: funded },
         flow()
       );
-      await expect(wrapped.funded?.()).resolves.toBe(true);
+      await expect(wrapped.isFunded?.()).resolves.toBe(true);
       expect(funded).toHaveBeenCalledTimes(1);
     });
 

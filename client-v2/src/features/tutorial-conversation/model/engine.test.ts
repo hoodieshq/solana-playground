@@ -132,7 +132,7 @@ const reloadedView = (): ConversationView => {
   return view(
     definition,
     { progress, stage: null },
-    { now: LATER, loadedAt: LATER }
+    { now: LATER, loadedAt: LATER, probing: [] }
   );
 };
 

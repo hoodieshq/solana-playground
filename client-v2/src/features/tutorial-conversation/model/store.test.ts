@@ -1221,9 +1221,9 @@ describe("PgConversation's airdrop card", () => {
     airdropped: 0,
   };
 
-  /** A runner whose `funded` answers as given; every run lands as `results` say */
+  /** A runner whose `isFunded` answers as given; every run lands as `results` say */
   const runnerWith = (
-    funded: NonNullable<Runner["funded"]>,
+    funded: NonNullable<Runner["isFunded"]>,
     results: RunResult[] = [OK_BUILD, FOUND_FUNDED]
   ) => {
     const queue = results.slice();
@@ -1232,7 +1232,7 @@ describe("PgConversation's airdrop card", () => {
       if (!next) throw new Error(`no result scripted for ${act}`);
       return next;
     });
-    return { run, funded: vi.fn(funded) };
+    return { run, isFunded: vi.fn(funded) };
   };
 
   /** Hello Anchor to step 2's airdrop card: built, Next, the question skipped */
@@ -1257,7 +1257,7 @@ describe("PgConversation's airdrop card", () => {
   it("presses a funded wallet's airdrop card itself, and its record names the balance", async () => {
     const runner = runnerWith(async () => true);
     await toAirdrop(runner);
-    expect(runner.funded).toHaveBeenCalledTimes(1);
+    expect(runner.isFunded).toHaveBeenCalledTimes(1);
     expect(runner.run).toHaveBeenLastCalledWith(
       "airdrop",
       expect.objectContaining({ beatId: "s2.airdrop" }),
@@ -1276,7 +1276,7 @@ describe("PgConversation's airdrop card", () => {
     try {
       const runner = runnerWith(async () => false);
       await toAirdrop(runner);
-      expect(runner.funded).toHaveBeenCalledTimes(1);
+      expect(runner.isFunded).toHaveBeenCalledTimes(1);
       expect(airdropRuns()).toEqual([]);
       expect(PgConversation.view(LATER)?.live).toMatchObject({
         id: "s2.airdrop",
@@ -1289,7 +1289,7 @@ describe("PgConversation's airdrop card", () => {
       await settle();
       changes.dispose();
       expect(changed.mock.calls.length).toBeGreaterThan(1);
-      expect(runner.funded).toHaveBeenCalledTimes(1);
+      expect(runner.isFunded).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -1312,7 +1312,7 @@ describe("PgConversation's airdrop card", () => {
   it("does not probe again for an airdrop that landed, after a reload either", async () => {
     const runner = runnerWith(async () => true);
     await toAirdrop(runner);
-    expect(runner.funded).toHaveBeenCalledTimes(1);
+    expect(runner.isFunded).toHaveBeenCalledTimes(1);
     PgConversation.view(LATER);
     close();
     const again = runnerWith(async () => true, []);
@@ -1321,7 +1321,7 @@ describe("PgConversation's airdrop card", () => {
     expect(
       PgConversation.state.engine.progress.runs["s2.airdrop"]
     ).toMatchObject([{ status: "ok" }]);
-    expect(again.funded).not.toHaveBeenCalled();
+    expect(again.isFunded).not.toHaveBeenCalled();
     expect(again.run).not.toHaveBeenCalled();
   });
 
@@ -1341,7 +1341,7 @@ describe("PgConversation's airdrop card", () => {
       ]
     );
     await toAirdrop(runner);
-    expect(runner.funded).toHaveBeenCalledTimes(1);
+    expect(runner.isFunded).toHaveBeenCalledTimes(1);
     PgConversation.act("s2.airdrop");
     await settle();
     answer(true);
@@ -1355,12 +1355,12 @@ describe("PgConversation's airdrop card", () => {
   it("asks again after a reload onto a card that never ran", async () => {
     const runner = runnerWith(async () => false);
     await toAirdrop(runner);
-    expect(runner.funded).toHaveBeenCalledTimes(1);
+    expect(runner.isFunded).toHaveBeenCalledTimes(1);
     close();
     const again = runnerWith(async () => true, [FOUND_FUNDED]);
     open(NAME, { runner: again });
     await settle();
-    expect(again.funded).toHaveBeenCalledTimes(1);
+    expect(again.isFunded).toHaveBeenCalledTimes(1);
     expect(airdropRuns()).toMatchObject([{ status: "ok" }]);
   });
 
@@ -1381,12 +1381,12 @@ describe("PgConversation's airdrop card", () => {
     await settle();
     expect(airdropRuns()).toMatchObject([{ status: "failed" }]);
     // Within the session the refused card is not asked about again
-    expect(runner.funded).toHaveBeenCalledTimes(1);
+    expect(runner.isFunded).toHaveBeenCalledTimes(1);
     close();
     const again = runnerWith(async () => true, [FOUND_FUNDED]);
     open(NAME, { runner: again });
     await settle();
-    expect(again.funded).toHaveBeenCalledTimes(1);
+    expect(again.isFunded).toHaveBeenCalledTimes(1);
     expect(airdropRuns()).toMatchObject([
       { status: "failed" },
       { status: "ok" },
@@ -1398,7 +1398,7 @@ describe("PgConversation's airdrop card", () => {
       run: vi.fn<Runner["run"]>(async (act) =>
         act === "build" ? OK_BUILD : new Promise<RunResult>(() => undefined)
       ),
-      funded: vi.fn(async () => false),
+      isFunded: vi.fn(async () => false),
     };
     await toAirdrop(runner);
     PgConversation.act("s2.airdrop");
@@ -1412,7 +1412,7 @@ describe("PgConversation's airdrop card", () => {
     const again = runnerWith(async () => true, [FOUND_FUNDED]);
     open(NAME, { runner: again });
     await settle();
-    expect(again.funded).toHaveBeenCalledTimes(1);
+    expect(again.isFunded).toHaveBeenCalledTimes(1);
     expect(airdropRuns()).toMatchObject([
       { status: "interrupted" },
       { status: "ok" },
@@ -1425,12 +1425,12 @@ describe("PgConversation's airdrop card", () => {
       [OK_BUILD, FOUND_FUNDED, FOUND_FUNDED]
     );
     await toAirdrop(runner);
-    expect(runner.funded).toHaveBeenCalledTimes(1);
+    expect(runner.isFunded).toHaveBeenCalledTimes(1);
     PgConversation.restartStep();
     await settle();
     PgConversation.skip("s2.q2");
     await settle();
-    expect(runner.funded).toHaveBeenCalledTimes(2);
+    expect(runner.isFunded).toHaveBeenCalledTimes(2);
     expect(airdropRuns()).toMatchObject([{ status: "ok" }]);
   });
 });
@@ -1448,9 +1448,9 @@ describe("PgConversation's later airdrop card (designers, 7 Nov)", () => {
   /** Any ok result but an airdrop's passes its step, so the Call panel can pass steps 2 and 3 */
   const anyOk: Judge = (_goal, result) => result.ok && result.act !== "airdrop";
 
-  /** A runner whose `funded` answers as given; every run lands as `results` say */
+  /** A runner whose `isFunded` answers as given; every run lands as `results` say */
   const runnerWith = (
-    funded: NonNullable<Runner["funded"]>,
+    funded: NonNullable<Runner["isFunded"]>,
     results: RunResult[]
   ) => {
     const queue = results.slice();
@@ -1459,7 +1459,7 @@ describe("PgConversation's later airdrop card (designers, 7 Nov)", () => {
       if (!next) throw new Error(`no result scripted for ${act}`);
       return next;
     });
-    return { run, funded: vi.fn(funded) };
+    return { run, isFunded: vi.fn(funded) };
   };
 
   /** Hello Anchor to step 4's airdrop card, steps 2 and 3 passed from the Call panel */
@@ -1506,7 +1506,7 @@ describe("PgConversation's later airdrop card (designers, 7 Nov)", () => {
       ]
     );
     await toLaterAirdrop(runner);
-    expect(runner.funded).toHaveBeenCalledTimes(1);
+    expect(runner.isFunded).toHaveBeenCalledTimes(1);
     expect(PgConversation.state.probing).toEqual(["s4.airdrop"]);
     expect(shown()).not.toContain("s4.airdrop");
     expect(shown()).not.toContain("say:s4.airdrop");

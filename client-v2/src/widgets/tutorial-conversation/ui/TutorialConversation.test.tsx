@@ -1336,7 +1336,7 @@ describe("TutorialConversation on the phone", () => {
       probing: [],
     };
     store.view.mockImplementation(() =>
-      viewOf(definition, engine, { now: at(1000), loadedAt: 0 })
+      viewOf(definition, engine, { now: at(1000), loadedAt: 0, probing: [] })
     );
   };
 

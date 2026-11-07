@@ -21,7 +21,7 @@ import type { Runner } from "../ports";
 import type { RunResult } from "../progress";
 import type { ActRun } from "./act-runner";
 import { actRunner } from "./act-runner";
-import { fundedForDeploy, runAirdropWith } from "./airdrop";
+import { isFundedForDeploy, runAirdropWith } from "./airdrop";
 import { runBuild } from "./build";
 import type { BuildSource } from "./build-source";
 import { trackBuildSource } from "./build-source";
@@ -442,9 +442,9 @@ export const tutorialRunner: Runner = {
     }
   ),
   // Off devnet the airdrop card stays for its press, which says why
-  funded: () =>
+  isFunded: () =>
     PgConnection.cluster === "devnet"
-      ? fundedForDeploy(realDeployPort())
+      ? isFundedForDeploy(realDeployPort())
       : Promise.resolve(false),
 };
 

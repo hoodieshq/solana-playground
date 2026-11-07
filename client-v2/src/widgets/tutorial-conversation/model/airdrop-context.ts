@@ -15,6 +15,14 @@ export interface AirdropWallet {
   playground: boolean;
 }
 
+/** What the browser holds, as the airdrop card's line reads it */
+export interface AirdropBrowser {
+  /** The current wallet, absent when none is connected */
+  wallet: AirdropWallet | undefined;
+  /** Whether the browser holds any Playground wallet account */
+  hasAccounts: boolean;
+}
+
 /**
  * The live airdrop card's context line, from the wallet (HOO-2677):
  * "{short address} · {balance} SOL", or `NEW_WALLET` when the browser holds
@@ -22,10 +30,10 @@ export interface AirdropWallet {
  * not read yet, or while the current wallet is not the Playground wallet the
  * card funds: the definition's own context stands in.
  */
-export const airdropContextOf = (
-  wallet: AirdropWallet | undefined,
-  hasAccounts: boolean
-): string | undefined => {
+export const airdropContextOf = ({
+  wallet,
+  hasAccounts,
+}: AirdropBrowser): string | undefined => {
   if (!wallet?.playground) return hasAccounts ? undefined : NEW_WALLET;
   if (wallet.balance === undefined) return undefined;
   return `${shortAddress(wallet.address)} · ${+wallet.balance.toFixed(2)} SOL`;
@@ -95,22 +103,36 @@ if (import.meta.vitest) {
 
   describe("widgets/tutorial-conversation/model/airdrop-context", () => {
     it("reads the wallet's short address and balance", () => {
-      expect(airdropContextOf(pg(3.2), true)).toBe("7Hq5…Xk2P · 3.2 SOL");
-      expect(airdropContextOf(pg(0), true)).toBe("7Hq5…Xk2P · 0 SOL");
+      expect(airdropContextOf({ wallet: pg(3.2), hasAccounts: true })).toBe(
+        "7Hq5…Xk2P · 3.2 SOL"
+      );
+      expect(airdropContextOf({ wallet: pg(0), hasAccounts: true })).toBe(
+        "7Hq5…Xk2P · 0 SOL"
+      );
     });
 
     it("names the wallet the press will make when the browser has none", () => {
-      expect(airdropContextOf(undefined, false)).toBe(NEW_WALLET);
+      expect(airdropContextOf({ wallet: undefined, hasAccounts: false })).toBe(
+        NEW_WALLET
+      );
     });
 
     it("never reads a connected extension wallet, which the card does not fund", () => {
-      expect(airdropContextOf(extension, true)).toBeUndefined();
-      expect(airdropContextOf(extension, false)).toBe(NEW_WALLET);
+      expect(
+        airdropContextOf({ wallet: extension, hasAccounts: true })
+      ).toBeUndefined();
+      expect(airdropContextOf({ wallet: extension, hasAccounts: false })).toBe(
+        NEW_WALLET
+      );
     });
 
     it("leaves the definition's line while the balance or the wallet is unknown", () => {
-      expect(airdropContextOf(pg(undefined), true)).toBeUndefined();
-      expect(airdropContextOf(undefined, true)).toBeUndefined();
+      expect(
+        airdropContextOf({ wallet: pg(undefined), hasAccounts: true })
+      ).toBeUndefined();
+      expect(
+        airdropContextOf({ wallet: undefined, hasAccounts: true })
+      ).toBeUndefined();
     });
 
     it("puts the line on the live airdrop card only", () => {

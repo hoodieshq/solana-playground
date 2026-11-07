@@ -707,16 +707,16 @@ export const TutorialConversation = ({
   const wallet = useWallet();
   const balance = useBalance();
   const withAirdropLine = withAirdropContextFor(
-    airdropContextOf(
-      wallet
+    airdropContextOf({
+      wallet: wallet
         ? {
             address: wallet.publicKey.toBase58(),
             balance: typeof balance === "number" ? balance : undefined,
             playground: !!wallet.isPg,
           }
         : undefined,
-      PgWallet.accounts.length > 0
-    )
+      hasAccounts: PgWallet.accounts.length > 0,
+    })
   );
   useSessionCheckOnRefusal(view?.live);
   useLockedPreview(state, phone);

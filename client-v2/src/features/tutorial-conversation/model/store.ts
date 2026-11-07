@@ -821,28 +821,28 @@ export class PgConversation {
    */
   private static _pressIfFunded(s: ConversationState): ConversationState {
     const beatId = PgConversation._reachedAirdrop(s);
-    const funded = PgConversation._ports?.runner.funded;
-    if (!beatId || !funded || !s.context) return s;
+    const isFunded = PgConversation._ports?.runner.isFunded;
+    if (!beatId || !isFunded || !s.context) return s;
     const name = s.context.definition.name;
     const key = `${name}:${beatId}`;
     if (PgConversation._asked.has(key)) return s;
     PgConversation._asked.add(key);
-    const hides =
+    const isHidden =
       isLaterAirdrop(s.context.definition, beatId) &&
       !s.engine.progress.runs[beatId]?.length;
-    const stillLive = () =>
+    const isStillLive = () =>
       PgExplorer.currentWorkspaceName === name &&
       PgConversation._reachedAirdrop(PgConversation._state) === beatId;
     // A check that hangs shows the card after PROBE_TIMEOUT_MS
-    const timer = hides
+    const timer = isHidden
       ? setTimeout(() => PgConversation._unprobe(beatId), PROBE_TIMEOUT_MS)
       : undefined;
-    funded()
+    isFunded()
       .finally(() => {
         if (timer !== undefined) clearTimeout(timer);
       })
       .then((yes) => {
-        if (yes && stillLive()) PgConversation.act(beatId);
+        if (yes && isStillLive()) PgConversation.act(beatId);
         // Short, or the card moved on: it shows; a press keeps it hidden
         // until its run ends (`_settled`)
         if (
@@ -860,7 +860,7 @@ export class PgConversation {
         });
         PgConversation._unprobe(beatId);
       });
-    return hides ? { ...s, probing: s.probing.concat(beatId) } : s;
+    return isHidden ? { ...s, probing: s.probing.concat(beatId) } : s;
   }
 
   /** The next moment the feed changes on its own: a turn arriving, or the finish */
