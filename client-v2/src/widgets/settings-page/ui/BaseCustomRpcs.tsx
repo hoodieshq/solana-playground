@@ -142,15 +142,18 @@ const BaseCustomRpcs = ({
   );
 };
 
-/** A saved RPC's URL with its key as `••••`, and the badge saying it has one */
+/**
+ * A saved RPC's URL with its key as `••••`, and the badge saying it has one:
+ * beside the URL, under it on a phone, so the URL is never squeezed
+ */
 const RpcUrl = ({ url }: { url: string }) => {
   const { text, masked } = maskRpcUrl(url);
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
+    <span className="flex min-w-0 items-center gap-1.5 max-sm:flex-col max-sm:items-start">
       {/* The tail, where a key sits, may be cut: the title holds it all */}
       <span
         title={text}
-        className="truncate font-mono text-xs text-muted-foreground"
+        className="max-w-full truncate font-mono text-xs text-muted-foreground"
       >
         {text}
       </span>
