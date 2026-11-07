@@ -1649,9 +1649,7 @@ describe("useConversationStartOver", () => {
       await userEvent.click(
         screen.getByRole("button", { name: "Next: Lumberjack" })
       );
-      expect(reportButtonFailure).toHaveBeenCalledWith(
-        "open Lumberjack"
-      );
+      expect(reportButtonFailure).toHaveBeenCalledWith("open Lumberjack");
       expect(refuse).toHaveBeenCalledWith(failed);
       expect(track).not.toHaveBeenCalledWith(
         "tutorial_next_opened",
