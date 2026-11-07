@@ -399,6 +399,18 @@ describe("from an open project", () => {
     expect(names()).toEqual([["home_shown", { via: "back" }]]);
   });
 
+  it.each(["/new", "/tutorials", "/programs"])(
+    "shows Home under the page on a way back to %s with no project open",
+    async (path) => {
+      router.location.pathname = "/tutorials/hello";
+      const { result } = renderHook(() => useStartView());
+      router.location.pathname = path;
+      act(() => router.changed.forEach((cb) => cb(path)));
+      expect(result.current.view).toBe("home");
+      expect(result.current.workKept).toBe(false);
+    }
+  );
+
   it("stays on the work on a way back to / with a project open", async () => {
     explorer.allWorkspaceNames = ["a"];
     explorer.currentWorkspaceName = "a";

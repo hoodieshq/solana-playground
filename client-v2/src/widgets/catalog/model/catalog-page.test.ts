@@ -7,7 +7,7 @@ import {
   resetTelemetry,
 } from "@/shared/lib/telemetry";
 
-// The hook subscribes to none of these: the explorer stands in so that a
+// The hook subscribes to none of these: the explorer and the router stand in so that a
 // subscription added back fails "stays open through the explorer's own
 // switches and creates"
 const explorer = vi.hoisted(() => ({
@@ -98,24 +98,6 @@ it("stays open through the explorer's own switches and creates", () => {
   act(() => explorer.switched.forEach((cb) => cb()));
   act(() => explorer.created.forEach((cb) => cb()));
   expect(catalogPage.current()).toBe("tutorials");
-});
-
-it("closes when a tutorial's route opens, not on the start route", () => {
-  renderHook(() => useCatalogPage());
-  act(() => catalogPage.open("tutorials", "link"));
-
-  act(() => router.changed.forEach((cb) => cb("/")));
-  expect(catalogPage.current()).toBe("tutorials");
-
-  act(() => router.changed.forEach((cb) => cb("/tutorials/hello-anchor")));
-  expect(catalogPage.current()).toBeNull();
-});
-
-it("stops listening once unmounted", () => {
-  const { unmount } = renderHook(() => useCatalogPage());
-  unmount();
-
-  expect(router.changed).toEqual([]);
 });
 
 it("opens New project as a page of its own, from the lesson band too", () => {

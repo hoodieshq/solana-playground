@@ -58,6 +58,7 @@ import StageRouter from "./stages/StageRouter";
 import { PgDeployHistory } from "./state/deploy-history";
 import type { FlowState } from "./state/stage";
 import { INITIAL_FLOW_STATE, PgFlow } from "./state/stage";
+import { useViewPath } from "./use-view-path";
 
 /** The status's Try again on the hosted model: whether the deployment answered */
 const retryHostedModel = async () =>
@@ -307,6 +308,8 @@ const FlowFrame = () => {
   const page = useStartView();
   // The New project, Tutorials or Programs page shown, if any (`widgets/catalog`)
   const catalog = useCatalogPage();
+  // The page shown on its own path, so Back, Forward and a reload follow it
+  useViewPath({ view: page.view, catalog: catalog ?? undefined });
 
   const described = describeStep(lesson);
 
