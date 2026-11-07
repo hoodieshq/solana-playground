@@ -920,7 +920,11 @@
   padding: 16px;
   font-size: 85%;
   line-height: 1.45;
-  overflow: auto;
+  /* The horizontal scrollbar's room is always kept, as in `CodeBlock`, which
+   * this unlayered rule would otherwise override: a bar that came in as a
+   * streamed line outgrew its block moved the reply below it (HOO-2694) */
+  overflow-x: scroll;
+  overflow-y: hidden;
 }
 
 .pg-markdown pre code,
