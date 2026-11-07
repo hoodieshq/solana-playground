@@ -53,6 +53,10 @@ for (const [layout, size] of [
     const guide = await openGuide(page);
     await guide.getByRole("radio", { name: "Anchor" }).click();
     await page.setViewportSize(size);
+    // Measure the settled dialog, not one mid zoom-in
+    await guide.evaluate((el) =>
+      Promise.all(el.getAnimations().map((a) => a.finished))
+    );
 
     const inWindow = async (locator: ReturnType<Page["locator"]>) => {
       const box = requireFor("its box")(await locator.boundingBox());
@@ -62,11 +66,23 @@ for (const [layout, size] of [
     await inWindow(guide);
 
     const last = guide.getByRole("heading", { name: "3.1 Upload the IDL" });
+    // The window is short enough that the steps overflow: the test is about
+    // scrolling, not about content that happens to fit
+    const steps = last.locator("xpath=ancestor::ol");
+    expect(
+      await steps.evaluate((el) => el.scrollHeight > el.clientHeight)
+    ).toBe(true);
+
+    const title = guide.getByRole("heading", {
+      name: "Deploy from your machine",
+    });
+    const titleTop = requireFor("the title's box")(await title.boundingBox()).y;
     await last.scrollIntoViewIfNeeded();
     await inWindow(last);
     // The header and the toggles stay put while the steps scroll
-    await inWindow(
-      guide.getByRole("heading", { name: "Deploy from your machine" })
+    await inWindow(title);
+    expect(requireFor("the title's box")(await title.boundingBox()).y).toBe(
+      titleTop
     );
     await inWindow(guide.getByRole("radio", { name: "Anchor" }));
   });

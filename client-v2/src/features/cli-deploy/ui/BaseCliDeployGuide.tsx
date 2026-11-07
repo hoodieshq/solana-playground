@@ -201,9 +201,9 @@ const BaseCliDeployGuide = (p: BaseCliDeployGuideProps) => {
             ))}
           </Segmented>
         </div>
-        {/* `-mx-1 px-1` keeps the copy buttons' focus rings clear of the
-            scroll clip */}
-        <ol className="-mx-1 flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto px-1">
+        {/* `-m-1 p-1` keeps the copy buttons' focus rings clear of the
+            scroll clip on every side */}
+        <ol className="-m-1 flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto p-1">
           <Step title="1. Download the program">
             {/* The IDL can be loaded without a build, so its download does
                 not wait for one; step 3.1 names the file it saves */}
