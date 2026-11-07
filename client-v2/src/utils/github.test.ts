@@ -334,3 +334,18 @@ describe("PgGithub.getFiles", () => {
     ).rejects.toThrow(/"src\/lib\.rs" was not found on GitHub/);
   });
 });
+
+describe("PgGithub.isValidUrl", () => {
+  it("takes the URL a route gets after the router folds its double slash", () => {
+    // react-router turns `/https://github.com/…` into `/https:/github.com/…`
+    expect(
+      PgGithub.isValidUrl(
+        "https:/github.com/solana-developers/program-examples/tree/main/basics"
+      )
+    ).toBe(true);
+  });
+
+  it("still refuses a URL of another host", () => {
+    expect(PgGithub.isValidUrl("https:/gitlab.com/a/b")).toBe(false);
+  });
+});

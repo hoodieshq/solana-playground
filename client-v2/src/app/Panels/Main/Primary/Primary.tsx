@@ -13,7 +13,12 @@ const log = createLogger("view:main-primary");
 
 const Primary = () => {
   const [el, setEl] = useState<ErrorBoundaryChildren>(null);
+  // A new view gets a new boundary: the boundary keeps an error it was shown
+  // until its own Refresh, so a failed route's error stayed over the next
+  // route's view
+  const [view, setView] = useState(0);
   const setElWithTransition = useCallback(async (nextEl: unknown) => {
+    setView((v) => v + 1);
     if (PgCommon.isAsyncFunction(nextEl)) {
       setEl(null);
 
@@ -57,7 +62,7 @@ const Primary = () => {
   return (
     <div className="pg-scrollbar-all min-h-0 flex-1 overflow-hidden rounded-[12px] border border-border bg-surface-panel">
       <SpinnerWithBg className={VIEW_CLASSES} loading={!el} size="2rem">
-        <ErrorBoundary>{el}</ErrorBoundary>
+        <ErrorBoundary key={view}>{el}</ErrorBoundary>
       </SpinnerWithBg>
     </div>
   );
