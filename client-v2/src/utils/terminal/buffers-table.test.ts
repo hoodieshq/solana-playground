@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { fitBuffersTable } from "./buffers-table";
+import { fitBuffersTable, stripAnsi } from "./buffers-table";
 
 const ADDRESS = "7Kp4X1bQmS9yWn3VhJd2RcLzT8uFgE5aNqB6oYiP4sMx";
 const AUTHORITY = "9fHcE2tWq7LmZx4KvR1sNbD8yPjU3gAoT6iQ5eYwC2nB";
 
-/** What solana-cli prints for `solana program show --buffers` */
-const table = (rows: string[][], bold = true) => {
+/** What solana-cli prints for `solana program show --buffers`, header bold */
+const table = (rows: string[][]) => {
   const header = `${"Buffer Address".padEnd(44)} | ${"Authority".padEnd(
     44
   )} | Balance`;
@@ -14,12 +14,8 @@ const table = (rows: string[][], bold = true) => {
     ([address, authority, balance]) =>
       `${address.padEnd(44)} | ${authority.padEnd(44)} | ${balance}`
   );
-  return ["", bold ? `\x1b[1m${header}\x1b[0m` : header, ...lines, ""].join(
-    "\n"
-  );
+  return ["", `\u001b[1m${header}\u001b[0m`].concat(lines, "").join("\n");
 };
-
-const strip = (text: string) => text.replace(/\x1b\[[0-9;]*m/g, "");
 
 describe("fitBuffersTable", () => {
   it("keeps the table when its rows fit the terminal", () => {
@@ -34,7 +30,7 @@ describe("fitBuffersTable", () => {
       [AUTHORITY, ADDRESS, "0.5 SOL"],
     ]);
 
-    const fitted = strip(fitBuffersTable(output, 100));
+    const fitted = stripAnsi(fitBuffersTable(output, 100));
 
     expect(fitted).toBe(
       [
@@ -55,9 +51,10 @@ describe("fitBuffersTable", () => {
   });
 
   it("puts each value under its label at a phone's width", () => {
-    const output = table([[ADDRESS, AUTHORITY, "1.2345 SOL"]], false);
+    // Unstyled, as solana-cli prints it where it sees no colour terminal
+    const output = stripAnsi(table([[ADDRESS, AUTHORITY, "1.2345 SOL"]]));
 
-    expect(strip(fitBuffersTable(output, 48))).toBe(
+    expect(stripAnsi(fitBuffersTable(output, 48))).toBe(
       [
         "",
         "Buffer Address",
@@ -72,13 +69,13 @@ describe("fitBuffersTable", () => {
   });
 
   it("says there are no buffers instead of a header that would wrap", () => {
-    expect(strip(fitBuffersTable(table([]), 100))).toBe("\nNo buffers.\n");
+    expect(stripAnsi(fitBuffersTable(table([]), 100))).toBe("\nNo buffers.\n");
   });
 
   it("leaves any other output alone", () => {
     const other = `Program Id: ${ADDRESS} | not a buffer table`;
 
     expect(fitBuffersTable(other, 20)).toBe(other);
-    expect(fitBuffersTable(42 as unknown as string, 20)).toBe(42);
+    expect(fitBuffersTable(42, 20)).toBe(42);
   });
 });

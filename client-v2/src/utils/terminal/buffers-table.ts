@@ -1,5 +1,11 @@
+/** The escape character that starts an ANSI style */
+const ESC = "\u001b";
+
 /** Matches the ANSI styling solana-cli may put on the table's header */
-const ANSI = /\x1b\[[0-9;]*m/g;
+const ANSI = new RegExp(`${ESC}\\[[0-9;]*m`, "g");
+
+/** `text` without its ANSI styling, as wide as it shows in the terminal */
+export const stripAnsi = (text: string) => text.replace(ANSI, "");
 
 /** The header solana-cli prints over `solana program show --buffers` */
 const HEADER = /^Buffer Address\s+\|\s+Authority\s+\|\s+Balance\s*$/;
@@ -10,7 +16,7 @@ const LABELS = ["Buffer Address", "Authority", "Balance"] as const;
 const LABEL_WIDTH = LABELS[0].length + 2;
 
 /** Bold, as solana-cli prints its labels; not `PgTerminal.bold`, which imports this */
-const bold = (text: string) => `\x1b[1m${text}\x1b[0m`;
+const bold = (text: string) => `${ESC}[1m${text}${ESC}[0m`;
 
 /**
  * Fit the table `solana program show --buffers` prints to the terminal.
@@ -31,9 +37,7 @@ export const fitBuffersTable = <T>(msg: T, cols: number): T | string => {
   if (typeof msg !== "string") return msg;
 
   const lines = msg.split("\n");
-  const headerIndex = lines.findIndex((line) =>
-    HEADER.test(line.replace(ANSI, ""))
-  );
+  const headerIndex = lines.findIndex((line) => HEADER.test(stripAnsi(line)));
   if (headerIndex === -1) return msg;
 
   const rowsEnd = lines.findIndex(
@@ -45,7 +49,7 @@ export const fitBuffersTable = <T>(msg: T, cols: number): T | string => {
     .map((line) => line.split(" | ").map((cell) => cell.trim()));
 
   const widest = Math.max(
-    ...lines.slice(headerIndex, end).map((l) => l.replace(ANSI, "").length)
+    ...lines.slice(headerIndex, end).map((line) => stripAnsi(line).length)
   );
   if (widest <= cols) return msg;
 
