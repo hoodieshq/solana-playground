@@ -147,7 +147,11 @@ const RpcUrl = ({ url }: { url: string }) => {
   const { text, masked } = maskRpcUrl(url);
   return (
     <span className="flex min-w-0 items-center gap-1.5">
-      <span className="truncate font-mono text-xs text-muted-foreground">
+      {/* The tail, where a key sits, may be cut: the title holds it all */}
+      <span
+        title={text}
+        className="truncate font-mono text-xs text-muted-foreground"
+      >
         {text}
       </span>
       {masked && <Badge variant="outline">API key</Badge>}

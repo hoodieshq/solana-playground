@@ -56,25 +56,45 @@ const MASK = "••••";
 /** A query name a provider puts a key under (`api-key`, `apiKey`, `access_token`…) */
 const KEY_NAME = /key|token|secret|auth|pass|sig|credential/i;
 
-/** A value that reads as a token: 16+ letters, digits, `-`, `_`, one digit at least */
+/**
+ * A value that reads as a token: 16 or more characters a key is written in
+ * (letters, digits, `-`, `_`, `.`, `~`, `+`, `=`, `%`, so JWTs and base64
+ * too), with a digit, or 24 or more in mixed case. A long slug with a digit
+ * is masked as well: hiding a word is cheaper than showing a key.
+ */
 const looksLikeToken = (value: string) =>
-  /^[\w-]{16,}$/.test(value) && /\d/.test(value);
+  /^[\w.~+=%-]{16,}$/.test(value) &&
+  (/\d/.test(value) ||
+    (value.length >= 24 && /[a-z]/.test(value) && /[A-Z]/.test(value)));
 
 /** A saved RPC's URL as the page draws it, and whether anything was masked */
 export interface MaskedUrl {
+  /** For display only: never parse or fetch it, its secrets are `••••` */
   text: string;
+  /** Whether anything was masked, which the "API key" badge says */
   masked: boolean;
 }
 
+/** What a stored value that is not a URL shows: nothing of it */
+const UNREADABLE: MaskedUrl = { text: MASK, masked: true };
+
 /**
  * A saved RPC's whole URL with every secret in it as `••••` (spec
- * `client-v2-custom-rpcs`): a query value under a key-like name, any query
- * value, path segment or fragment that looks like a token, and a username
- * and password. Built from the URL's raw parts, so names keep their spelling
- * and the dots are never percent-encoded.
+ * `client-v2-custom-rpcs`): a non-empty query value under a key-like name;
+ * a host label, path segment, query value or bare query term, or fragment
+ * that looks like a token; and a username and password. Built from the
+ * parsed URL's parts split by hand, not `URLSearchParams`, so names keep
+ * their spelling and `••••` is never percent-encoded.
  */
 export const maskRpcUrl = (url: string): MaskedUrl => {
-  const parsed = new URL(url);
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    // Never the value, nor the error quoting it: it may be a key
+    log.info("a saved RPC URL does not parse; drawn fully masked");
+    return UNREADABLE;
+  }
   let masked = false;
   const hide = (secret: boolean, value: string) => {
     if (!secret) return value;
@@ -82,7 +102,13 @@ export const maskRpcUrl = (url: string): MaskedUrl => {
     return MASK;
   };
 
+  // A username and a password, either or both, show as one `••••`
   const auth = parsed.username || parsed.password ? `${hide(true, "")}@` : "";
+  const host =
+    parsed.hostname
+      .split(".")
+      .map((label) => hide(looksLikeToken(label), label))
+      .join(".") + (parsed.port ? `:${parsed.port}` : "");
   const path = parsed.pathname
     .split("/")
     .map((segment) => hide(looksLikeToken(segment), segment))
@@ -107,7 +133,7 @@ export const maskRpcUrl = (url: string): MaskedUrl => {
   const fragment = parsed.hash ? `#${hide(looksLikeToken(hash), hash)}` : "";
 
   return {
-    text: `${parsed.protocol}//${auth}${parsed.host}${path}${query}${fragment}`,
+    text: `${parsed.protocol}//${auth}${host}${path}${query}${fragment}`,
     masked,
   };
 };
@@ -529,6 +555,34 @@ if (import.meta.vitest) {
         ["https://user:pass@r.test/", "https://••••@r.test/"],
         ["https://r.test/#a1b2c3d4e5f6g7h8i9", "https://r.test/#••••"],
         ["https://r.test/?a1b2c3d4e5f6g7h8i9", "https://r.test/?••••"],
+        // Every key-like name, each with a value too short to be a token
+        ["https://r.test/?secret=x", "https://r.test/?secret=••••"],
+        ["https://r.test/?auth=x", "https://r.test/?auth=••••"],
+        ["https://r.test/?passphrase=x", "https://r.test/?passphrase=••••"],
+        ["https://r.test/?sig=x", "https://r.test/?sig=••••"],
+        ["https://r.test/?credential=x", "https://r.test/?credential=••••"],
+        // A token at the 16-character floor, and in other spellings
+        ["https://r.test/a1b2c3d4e5f6g7h8", "https://r.test/••••"],
+        ["https://r.test/eyJhbGciOi.eyJzdWIiOjF9.c2ln", "https://r.test/••••"],
+        ["https://r.test/?id=ab%2Bcd%3D1234567890", "https://r.test/?id=••••"],
+        [
+          "https://r.test/v2/AbCdEfGhIjKlMnOpQrStUvWxYz",
+          "https://r.test/v2/••••",
+        ],
+        // A token in the subdomain; the port stays
+        [
+          "https://a1b2c3d4e5f6g7h8i9.rpc.test:8443/",
+          "https://••••.rpc.test:8443/",
+        ],
+        // A username alone, a password alone, and with a port
+        ["https://TOKEN@r.test/", "https://••••@r.test/"],
+        ["https://:pw@r.test/", "https://••••@r.test/"],
+        ["https://u:p@r.test:8899/", "https://••••@r.test:8899/"],
+        // A token path beside a key-named query
+        [
+          "https://r.test/a1b2c3d4e5f6g7h8i9/?api-key=k",
+          "https://r.test/••••/?api-key=••••",
+        ],
       ])("masks the key in %s", (url, text) => {
         expect(maskRpcUrl(url)).toEqual({ text, masked: true });
       });
@@ -537,8 +591,22 @@ if (import.meta.vitest) {
         "https://api.devnet.solana.com/",
         "http://localhost:8899/",
         "https://r.test/solana-mainnet-endpoint/?cluster=devnet",
+        // One short of the token floor, and long words with no digit
+        "https://r.test/a1b2c3d4e5f6g7h",
+        "https://r.test/solana-mainnet-endpoint-beta/",
+        // A key-like name with nothing in it, and a plain fragment
+        "https://r.test/?api-key=",
+        "https://r.test/#section",
+        "http://[::1]:8899/",
       ])("shows %s in full", (url) => {
         expect(maskRpcUrl(url)).toEqual({ text: url, masked: false });
+      });
+
+      it("draws a stored value that is not a URL fully masked", () => {
+        expect(maskRpcUrl("not a url s3cr3t")).toEqual({
+          text: "••••",
+          masked: true,
+        });
       });
 
       it("never draws the key's length", () => {

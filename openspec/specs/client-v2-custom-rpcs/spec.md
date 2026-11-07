@@ -155,7 +155,7 @@ Chips MAY share a URL. When several list the URL in use, exactly one SHALL be ch
 
 ### Requirement: A saved RPC shows its URL with its key masked
 
-The list of saved RPCs (`aria-label="Custom RPCs"`) SHALL show each RPC's name and its whole stored URL, with every secret in it replaced by `••••`, always four dots whatever the secret's length. A secret SHALL be: a query value whose name looks like a key (it contains `key`, `token`, `secret`, `auth`, `pass`, `sig` or `credential`, in any case); any query value, path segment or fragment of 16 or more letters, digits, `-` or `_` with at least one digit; and a username or password. When anything was masked, an "API key" badge SHALL show beside the URL. The stored URL SHALL not change, and the full URL SHALL appear only inside the edit field.
+The list of saved RPCs (`aria-label="Custom RPCs"`) SHALL show each RPC's name and its whole stored URL, with every secret in it replaced by `••••`, always four dots whatever the secret's length. A secret SHALL be: a non-empty query value whose name looks like a key (it contains `key`, `token`, `secret`, `auth`, `pass`, `sig` or `credential`, in any case); any host label, path segment, query value, bare query term or fragment that looks like a token, 16 or more of letters, digits, `-`, `_`, `.`, `~`, `+`, `=` or `%` with a digit, or 24 or more in mixed case; and a username or password. A stored value that is not a URL SHALL show as `••••` alone. When anything was masked, an "API key" badge SHALL show beside the URL. The stored URL SHALL not change, and the full URL SHALL appear only inside the edit field.
 
 #### Scenario: A key in the query is masked
 
