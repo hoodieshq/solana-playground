@@ -40,7 +40,9 @@ interface Kept {
 /**
  * Kept between one Outlet giving the node up and the next taking it, in the
  * same commit. Dropped after it: a node away longer (under Home, say) comes
- * back to whatever its content did meanwhile, never to an old offset
+ * back to whatever its content did meanwhile, never to an old offset. A swap
+ * split over two commits (the new place behind a transition) gets nothing
+ * back either
  */
 const kept = new WeakMap<HTMLDivElement, Kept>();
 
@@ -110,10 +112,13 @@ export const Outlet = ({
     return () => {
       // Another Outlet may already have taken it in the same commit
       if (node.parentNode !== host) return;
-      kept.set(node, keep(node));
+      const entry = keep(node);
+      kept.set(node, entry);
       host.removeChild(node);
       // React runs the next Outlet's layout effect in this same commit
-      queueMicrotask(() => kept.delete(node));
+      queueMicrotask(() => {
+        if (kept.get(node) === entry) kept.delete(node);
+      });
     };
   }, [node]);
   return <div ref={ref} className={className} style={style} />;
