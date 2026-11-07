@@ -838,7 +838,9 @@ export class PgConversation {
       ? setTimeout(() => PgConversation._unprobe(beatId), PROBE_TIMEOUT_MS)
       : undefined;
     funded()
-      .finally(() => clearTimeout(timer))
+      .finally(() => {
+        if (timer !== undefined) clearTimeout(timer);
+      })
       .then((yes) => {
         if (yes && stillLive()) PgConversation.act(beatId);
         // Short, or the card moved on: it shows; a press keeps it hidden
