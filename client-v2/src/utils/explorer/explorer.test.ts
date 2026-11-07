@@ -139,8 +139,8 @@ describe("creating a workspace while another is open", () => {
   beforeEach(reset);
 
   // `create` makes the new workspace current before `switchWorkspace` saves
-  // the old one's metadata, and that save skipped files outside the current
-  // workspace: entering a tutorial the first time (its workspace is made
+  // the old one's metadata, and that save found files outside the current
+  // workspace, took the state as invalid and saved nothing: entering a tutorial the first time (its workspace is made
   // then) brought the project back at line 1 (HOO-2731)
   it("keeps the open file's cursor and top line", async () => {
     await PgExplorer.createWorkspace("alpha", { files: files("alpha") });

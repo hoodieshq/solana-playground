@@ -51,7 +51,7 @@ const navItem = (page: Page, name: string) =>
 // HOO-2731: the first entry into a tutorial makes its workspace, and making a
 // workspace used to drop the open project's saved cursor and top line, so the
 // way back opened the file at line 1
-test("tutorial-workspace: entering and leaving a tutorial keeps the editor's place", async ({
+test("entering and leaving a tutorial keeps the editor's place", async ({
   seededPage: page,
 }) => {
   test.setTimeout(120_000);
@@ -64,7 +64,11 @@ test("tutorial-workspace: entering and leaving a tutorial keeps the editor's pla
   );
 
   await page.locator(".monaco-editor .view-lines").click();
-  await page.keyboard.press("ControlOrMeta+ArrowUp");
+  // The top of the file: ⌘↑ on a Mac, Ctrl+Home elsewhere, where Ctrl+↑
+  // scrolls instead
+  await page.keyboard.press(
+    process.platform === "darwin" ? "Meta+ArrowUp" : "Control+Home"
+  );
   for (let i = 0; i < 12; i++) await page.keyboard.press("ArrowDown");
   const lineHeight = await page
     .locator(".monaco-editor .view-line")
@@ -75,8 +79,9 @@ test("tutorial-workspace: entering and leaving a tutorial keeps the editor's pla
   const before = await settledPlace(page);
   expect(before.cursor).toBe(13);
   expect(before.firstInView).toBeGreaterThan(1);
-  // The editor saves its place once a second
-  await page.waitForTimeout(1500);
+  // The editor saves its place on a one-second interval, in memory, where the
+  // page cannot see it: wait out two ticks
+  await page.waitForTimeout(2000);
 
   await navItem(page, "Tutorials").click();
   await page.getByRole("button", { name: "Open Hello Anchor" }).click();
@@ -93,9 +98,13 @@ test("tutorial-workspace: entering and leaving a tutorial keeps the editor's pla
   // view, and a line only partly in view brings the next one back to the
   // top: the scroll is kept to within that line
   await expect
-    .poll(async () => (await editorPlace(page)).cursor, LONG)
-    .toBe(before.cursor);
-  const after = await editorPlace(page);
-  expect(after.firstInView).toBeGreaterThanOrEqual(before.firstInView);
-  expect(after.firstInView).toBeLessThanOrEqual(before.firstInView + 1);
+    .poll(async () => {
+      const after = await editorPlace(page);
+      return (
+        after.cursor === before.cursor &&
+        after.firstInView >= before.firstInView &&
+        after.firstInView <= before.firstInView + 1
+      );
+    }, LONG)
+    .toBe(true);
 });
