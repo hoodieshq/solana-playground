@@ -32,11 +32,11 @@ the page. Each SHALL hold a search field that filters its cards by name and
 description (a program's by its categories too) and a grid of cards, two
 columns from 720 px and one below, each with an Open action. Opening a
 tutorial SHALL open it in the work; opening a program SHALL import it as a
-project and open it. A page SHALL close when one of its cards opens, when a
-tutorial's route opens, when another page, Home or a project in the project
+project and open it. A page SHALL close when one of its cards opens, when
+the address moves to a path other than the page's own (a tutorial's route,
+Back or Forward among them), when another page, Home or a project in the project
 list is picked (once that project is open), when the product asks for the
-assistant over the work, when Back or Forward goes to a path other than the
-page's own, and on nothing else the user did; a project open before
+assistant over the work, and on nothing else the user did; a project open before
 the page SHALL come back as it was. The routes
 `/new`, `/tutorials` and `/programs` SHALL open their page and stay in the
 address while it shows, so each page is a history entry of its own: opening

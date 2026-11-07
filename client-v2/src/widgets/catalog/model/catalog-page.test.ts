@@ -7,7 +7,7 @@ import {
   resetTelemetry,
 } from "@/shared/lib/telemetry";
 
-// The hook subscribes to none of these: the explorer and the router stand in so that a
+// The hook subscribes to none of these: the explorer stands in so that a
 // subscription added back fails "stays open through the explorer's own
 // switches and creates"
 const explorer = vi.hoisted(() => ({
@@ -16,11 +16,7 @@ const explorer = vi.hoisted(() => ({
   onDidCreateWorkspace: vi.fn(),
   onDidSwitchWorkspace: vi.fn(),
 }));
-const router = vi.hoisted(() => ({
-  changed: [] as Array<(path: string) => void>,
-  onDidChangePath: vi.fn(),
-}));
-vi.mock("@/utils", () => ({ PgExplorer: explorer, PgRouter: router }));
+vi.mock("@/utils", () => ({ PgExplorer: explorer }));
 
 import { catalogPage, useCatalogPage } from "./catalog-page";
 
@@ -37,8 +33,6 @@ beforeEach(() => {
   explorer.switched = [];
   explorer.onDidCreateWorkspace.mockImplementation(sub(explorer.created));
   explorer.onDidSwitchWorkspace.mockImplementation(sub(explorer.switched));
-  router.changed = [];
-  router.onDidChangePath.mockImplementation(sub(router.changed));
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
 });

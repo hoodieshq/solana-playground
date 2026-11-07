@@ -438,6 +438,18 @@ describe("ProjectList", () => {
     await waitFor(() => expect(onPicked).toHaveBeenCalledTimes(1));
   });
 
+  it("keeps the page when the pick fails to open", async () => {
+    app.PgExplorer.switchWorkspace.mockRejectedValueOnce(new Error("gone"));
+    const onPicked = vi.fn();
+    draw(onPicked);
+    fireEvent.click(screen.getByRole("button", { name: "alpha" }));
+    await waitFor(() =>
+      expect(app.PgExplorer.switchWorkspace).toHaveBeenCalledWith("alpha")
+    );
+    await act(async () => {});
+    expect(onPicked).not.toHaveBeenCalled();
+  });
+
   it("hands export and delete to their dialogs, with the project's name", () => {
     draw();
     fireEvent.keyDown(menuOf("alpha"), { key: "e" });

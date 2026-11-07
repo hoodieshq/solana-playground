@@ -34,12 +34,12 @@ const go = (move: () => Promise<void>) =>
  * names, or closes the page shown. A page the user opens pushes its path,
  * one history entry; a page closed while the path is still its own goes
  * back to what it showed over: the path Home showed on, or the open
- * project's. A pick that navigates itself (a card's Open, a project's row)
- * has moved the path on before the page closes, and that path stays. A
- * shared project's path is never moved: it holds the only copy.
- *
- * Home keeps the path it showed on here; HOO-2689 gives it `/home` on
- * scope/tutorial-flow, where this hook also moves Home's path.
+ * project's. A pick that navigates itself (a tutorial's card or row opens
+ * its route) has moved the path on before the page closes, and that path
+ * stays; a plain project's row switches without navigating, so its close
+ * goes back to `/` here. A shared project's path is never moved: it holds
+ * the only copy. Home has no path of its own: a page over it goes back to
+ * the path Home showed on.
  */
 export const useViewPath = ({
   view,

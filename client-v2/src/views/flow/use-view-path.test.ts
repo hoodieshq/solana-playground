@@ -1,5 +1,11 @@
-import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  initLogger,
+  memoryProvider as memoryLogs,
+  resetLogger,
+} from "@/shared/lib/logger";
 
 const router = vi.hoisted(() => ({
   location: { pathname: "/" },
@@ -43,7 +49,10 @@ const arrive = (path: string) => {
 const mount = (props: Props) =>
   renderHook((p: Props) => useViewPath(p), { initialProps: props });
 
+let logged: ReturnType<typeof memoryLogs>;
 beforeEach(() => {
+  logged = memoryLogs();
+  initLogger({ providers: [logged] });
   at("/");
   router.changed = [];
   router.navigate.mockReset().mockResolvedValue(undefined);
@@ -60,6 +69,8 @@ beforeEach(() => {
   catalog.catalogPage.open.mockReset();
   catalog.catalogPage.close.mockReset();
 });
+
+afterEach(() => resetLogger());
 
 describe("a path come to", () => {
   it.each([
@@ -89,6 +100,26 @@ describe("a page the user opens", () => {
     const hook = mount({ view: "work", catalog: undefined });
     hook.rerender({ view: "work", catalog: page });
     expect(router.navigate).toHaveBeenCalledWith(path);
+  });
+
+  it("is pushed once, though the router announces the path it pushed", () => {
+    router.navigate.mockImplementation(async (path: string) => arrive(path));
+    const hook = mount({ view: "work", catalog: undefined });
+    hook.rerender({ view: "work", catalog: "tutorials" });
+    hook.rerender({ view: "work", catalog: "tutorials" });
+    expect(router.navigate).toHaveBeenCalledTimes(1);
+    expect(catalog.catalogPage.close).not.toHaveBeenCalledAfter(
+      catalog.catalogPage.open
+    );
+  });
+
+  it("reports a path it could not push", async () => {
+    router.navigate.mockRejectedValue(new Error("no router"));
+    const hook = mount({ view: "work", catalog: undefined });
+    hook.rerender({ view: "work", catalog: "programs" });
+    await waitFor(() => expect(logged.entries).toHaveLength(1));
+    expect(logged.entries[0].ns).toBe("flow:view-path");
+    expect(logged.entries[0].report).toBe(true);
   });
 
   it("is not pushed again when it shows on its own path", () => {
@@ -139,6 +170,15 @@ describe("a page that closes on its own path", () => {
     expect(router.navigate).toHaveBeenLastCalledWith(
       "/tutorials/hello-anchor/1"
     );
+  });
+
+  it("leaves a shared project's path alone", () => {
+    explorer.isTemporary = true;
+    at("/tutorials");
+    const hook = mount({ view: "work", catalog: "tutorials" });
+    hook.rerender({ view: "work", catalog: undefined });
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(tutorial.open).not.toHaveBeenCalled();
   });
 
   it("moves nothing with no project open: Home stands in on any start path", () => {

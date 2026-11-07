@@ -108,3 +108,24 @@ test("client-v2-layout: A page over Home goes back to Home", async ({
   await expect(home(page)).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test("client-v2-layout: A page over a lesson goes back to it", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await stubPrograms(page);
+  await page.goto("/tutorials/hello-anchor");
+  const start = page.getByRole("button", { name: "Start", exact: true });
+  await expect(start).toBeVisible(LONG);
+
+  await navItem(page, "Programs").click();
+  await expect(page).toHaveURL(/\/programs\/?$/);
+
+  // The lesson's route draws its page again
+  await page.goBack();
+  await expect(page).toHaveURL(/\/tutorials\/hello-anchor\/?$/);
+  await expect(
+    page.getByRole("searchbox", { name: "Search programs" })
+  ).toBeHidden();
+  await expect(start).toBeVisible(LONG);
+});

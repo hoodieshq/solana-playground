@@ -91,7 +91,7 @@ it.each([
   ["/", ["a"], "a", "work"],
   // Listed by sync but none opened: the work would throw in the explorer
   ["/", ["a"], undefined, "home"],
-  // The links to a page go on to `/`, so they start as `/` does
+  // A page's own path is a start path, so it starts as `/` does
   ["/programs", [], undefined, "home"],
   ["/tutorials", undefined, undefined, "pending"],
   ["/programs", ["a"], "a", "work"],
@@ -157,7 +157,7 @@ it("leaves Home when a tutorial route opens", async () => {
   expect(result.current.view).toBe("work");
 });
 
-it("stays on Home while a link to a page goes on to the start route", async () => {
+it("stays on Home from a page's path back to `/` with no project open", async () => {
   router.location.pathname = "/programs";
   noProjects();
   const { result } = renderHook(() => useStartView());
