@@ -734,10 +734,11 @@ export class PgExplorer {
     // Read while the open workspace is still current: `create` makes the new
     // one current, and the save `switchWorkspace` starts with then finds the
     // open files outside it, takes the state as invalid and saves nothing,
-    // losing their cursor, top line, tabs and current file (HOO-2731). Read
-    // here, written after `create`: an await before `create` lets a
-    // `refreshWorkspaces` take the stored list before the new entry is in
-    // memory (its in-flight test)
+    // losing their cursor, top line, tabs and current file (HOO-2731). Only
+    // read here, synchronously: `create` must still run before the first
+    // await, so a `refreshWorkspaces` called while this create is in flight
+    // sees it pending and takes nothing ("leaves this tab's own create alone
+    // while it is in flight")
     const leaving = this._metaOfCurrent();
 
     // Create a new workspace in state
@@ -746,11 +747,11 @@ export class PgExplorer {
     this._isTemporary = false;
 
     // A failed save costs the workspace being left its place in the editor
-    // (cursor, top line, tabs), not the new workspace
+    // (cursor, top line, tabs, current file), not the new workspace
     try {
       await this._writeMeta(leaving);
     } catch (e) {
-      report(`save the metadata of ${leaving?.workspacePath} on leaving it`, e);
+      report("save the metadata of the workspace left", e);
     }
 
     // Create files
