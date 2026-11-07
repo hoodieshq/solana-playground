@@ -93,7 +93,13 @@ vi.mock("@/views/flow/state/stage", () => ({
 }));
 vi.mock("@/utils", () => ({
   PgProgramInfo: { idl: null, pk: null },
-  PgWallet: { accounts: [], add: vi.fn() },
+  PgWallet: {
+    accounts: [],
+    add: vi.fn(),
+    // `useWallet` and `useBalance` poll every 10 ms without these
+    onDidChangeCurrent: () => ({ dispose: () => {} }),
+    onDidChangeBalance: () => ({ dispose: () => {} }),
+  },
 }));
 vi.mock("@/utils/explorer", () => ({
   PgExplorer: {
@@ -340,6 +346,21 @@ beforeEach(() => {
 });
 
 describe("TutorialConversation", () => {
+  it("subscribes to the wallet it funds instead of polling for it, so nothing fires after it leaves", () => {
+    vi.useFakeTimers();
+    try {
+      const { unmount } = render(
+        <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
+      );
+      unmount();
+      // A wallet hook whose event is missing re-arms a timer every 10 ms
+      // forever; one firing after the test environment is gone throws
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("starts the engine once with the real workspace, the tutorial's runner and 3.2's judge, and stops it on leaving", () => {
     const { rerender, unmount } = render(
       <TutorialConversation onAllTutorials={vi.fn()} onOpenMenu={vi.fn()} />
