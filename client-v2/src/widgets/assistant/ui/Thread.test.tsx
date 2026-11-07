@@ -823,7 +823,9 @@ describe("Thread, sending", () => {
 
   it("no make-change under an explanation", () => {
     act(() =>
-      finishedReply("This account holds 2.5 SOL and the System Program owns it.")
+      finishedReply(
+        "This account holds 2.5 SOL and the System Program owns it."
+      )
     );
     render(<Thread turn={stubTurn(false)} project="Counter" />);
     expect(

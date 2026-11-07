@@ -35,7 +35,7 @@ const NAMES_A_FILE = /^\s*(?:\/\/|#|--|\/\*)\s*[\w./-]+\.\w+\s*(?:\*\/)?\s*$/;
 export const proposesChange = (text: string) => {
   const lines = text.split("\n");
   // The fence that opened the block we are in, or none outside a block
-  let open: string | null = null;
+  let open: string | undefined;
   for (const [index, line] of lines.entries()) {
     const fence = FENCE.exec(line);
     if (!fence) continue;
@@ -43,8 +43,7 @@ export const proposesChange = (text: string) => {
     if (open) {
       // Only a bare fence of the same kind, at least as long, closes it
       if (!lang && marks[0] === open[0] && marks.length >= open.length) {
-        // eslint-disable-next-line unicorn/no-null -- `null` is "outside a block", as `open` starts
-        open = null;
+        open = undefined;
       }
       continue;
     }

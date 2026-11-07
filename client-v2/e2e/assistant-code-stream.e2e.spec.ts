@@ -33,14 +33,15 @@ type ThreadWindow = Window & {
 
 const thread = (page: Page) => page.getByRole("log", { name: "Conversation" });
 
-const append = (page: Page, id: string, delta: string) =>
+/** Streams `delta` into the reply `message` */
+const append = (page: Page, chunk: { message: string; delta: string }) =>
   page.evaluate(
-    ([id, delta]) =>
+    ({ message, delta }) =>
       (window as ThreadWindow).__pgAssistant?.appendToAssistantMessage(
-        id,
+        message,
         delta
       ),
-    [id, delta] as const
+    chunk
   );
 
 test("assistant-code-stream: A code block keeps its height while a line streams past its width", async ({
@@ -60,7 +61,7 @@ test("assistant-code-stream: A code block keeps its height while a line streams 
       LONG
     )
     .toBe(true);
-  const id = await page.evaluate(() => {
+  const message = await page.evaluate(() => {
     const store = (window as ThreadWindow).__pgAssistant;
     if (!store) throw new Error("Expected the assistant store on window");
     store.addUserMessage("Show me");
@@ -86,7 +87,7 @@ test("assistant-code-stream: A code block keeps its height while a line streams 
   const heights: number[] = [];
   // Short of the block's width, then well past it
   for (let chunk = 1; chunk <= 12; chunk++) {
-    await append(page, id, "a".repeat(20));
+    await append(page, { message, delta: "a".repeat(20) });
     await expect(block).toContainText("a".repeat(chunk * 20));
     heights.push((await boxHeight()) ?? 0);
   }

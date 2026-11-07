@@ -2,13 +2,24 @@ import { describe, expect, it } from "vitest";
 
 import { proposesChange } from "./proposes-change";
 
-const fence = (lang: string, body = "let x = 1;") =>
+/** A fenced block of `body`, labelled `lang` */
+const fence = (lang: string, body: string) =>
   "```" + lang + "\n" + body + "\n```";
 
 describe("proposesChange", () => {
   it("a reply with a block of project code proposes a change", () => {
-    for (const lang of ["rust", "rs", "ts", "typescript", "js", "toml", "json"]) {
-      expect(proposesChange(`Change it to:\n\n${fence(lang)}\n`)).toBe(true);
+    for (const lang of [
+      "rust",
+      "rs",
+      "ts",
+      "typescript",
+      "js",
+      "toml",
+      "json",
+    ]) {
+      expect(
+        proposesChange(`Change it to:\n\n${fence(lang, "let x = 1;")}\n`)
+      ).toBe(true);
     }
   });
 
@@ -21,9 +32,9 @@ describe("proposesChange", () => {
   });
 
   it("inline code alone proposes nothing", () => {
-    expect(proposesChange("Call `initialize` with the `counter` account.")).toBe(
-      false
-    );
+    expect(
+      proposesChange("Call `initialize` with the `counter` account.")
+    ).toBe(false);
   });
 
   it("a command or an output block proposes nothing", () => {
@@ -57,7 +68,9 @@ describe("proposesChange", () => {
 
   it("one code block among command blocks is enough", () => {
     expect(
-      proposesChange(`${fence("bash", "build")}\n\nthen\n\n${fence("rust")}`)
+      proposesChange(
+        `${fence("bash", "build")}\n\nthen\n\n${fence("rust", "let x = 1;")}`
+      )
     ).toBe(true);
   });
 
