@@ -23,6 +23,12 @@ export const mockFsModule = () => {
    * these are what a reload inside that window loses (`__reloadBeforeTreeSave`).
    */
   const unsaved = new Set<string>();
+  /**
+   * Paths renamed since the last `flush`, each to the path the saved tree
+   * still holds it under. A rename changes only the tree, so a reload inside
+   * the window puts the file back under its old name.
+   */
+  const renamedFrom = new Map<string, string>();
 
   const events = { ON_DID_WRITE_FILE: "pgfsondidwritefile" };
 
@@ -88,11 +94,20 @@ export const mockFsModule = () => {
 
     /**
      * Test-only: what a reload sees when it comes before lightning-fs saved
-     * its folder tree. Every file created since the last `flush` is gone; a
-     * file that existed before keeps its new content, which is stored at once.
+     * its folder tree. Every file created since the last `flush` is gone, and
+     * every file renamed since is back under its old name; a file that
+     * existed before keeps its new content, which is stored at once. A file
+     * seeded through `__files` counts as existing before. A removal is not
+     * modelled: it sticks here, while the real tree would still list the file.
      */
     __reloadBeforeTreeSave() {
+      for (const [path, from] of renamedFrom) {
+        const content = files.get(path);
+        files.delete(path);
+        if (content !== undefined) files.set(from, content);
+      }
       for (const path of unsaved) files.delete(path);
+      renamedFrom.clear();
       unsaved.clear();
     },
 
@@ -140,6 +155,7 @@ export const mockFsModule = () => {
       path = await full(path);
       files.delete(path);
       unsaved.delete(path);
+      renamedFrom.delete(path);
     },
 
     async rename(oldPath: string, newPath: string) {
@@ -150,11 +166,13 @@ export const mockFsModule = () => {
       for (const [path, content] of [...files.entries()]) {
         if (path !== oldPath && !path.startsWith(oldPath + "/")) continue;
         files.delete(path);
-        unsaved.delete(path);
-        // A rename changes only the tree, so the new path waits for a flush too
         const renamed = newPath + path.slice(oldPath.length);
         files.set(renamed, content);
-        unsaved.add(renamed);
+        // A file created since the flush is lost under any name; one that
+        // was saved goes back to where the saved tree holds it
+        if (unsaved.delete(path)) unsaved.add(renamed);
+        else renamedFrom.set(renamed, renamedFrom.get(path) ?? path);
+        renamedFrom.delete(path);
       }
     },
 
@@ -213,6 +231,7 @@ export const mockFsModule = () => {
       for (const key of under) {
         files.delete(key);
         unsaved.delete(key);
+        renamedFrom.delete(key);
       }
     },
 
@@ -236,6 +255,7 @@ export const mockFsModule = () => {
     /** Saves the folder tree, so every file created so far survives a reload */
     async flush() {
       unsaved.clear();
+      renamedFrom.clear();
     },
   });
 

@@ -84,4 +84,69 @@ describe("the PgFs mock", () => {
       code: "ENOENT",
     });
   });
+
+  describe("a reload before the folder tree is saved", () => {
+    const reloadBeforeTreeSave = () =>
+      (
+        PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+      ).__reloadBeforeTreeSave();
+
+    // Saved, so what an earlier test left unsaved does not leak in
+    beforeEach(() => PgFs.flush());
+
+    it("loses a file created since the last flush", async () => {
+      await PgFs.writeFile("/.config/new.json", "1");
+
+      reloadBeforeTreeSave();
+
+      expect(files().has("/.config/new.json")).toBe(false);
+    });
+
+    it("keeps a file that existed before, with its new content", async () => {
+      await PgFs.writeFile("/.config/old.json", "1");
+      await PgFs.flush();
+      await PgFs.writeFile("/.config/old.json", "2");
+
+      reloadBeforeTreeSave();
+
+      expect(files().get("/.config/old.json")).toBe("2");
+    });
+
+    it("keeps a file seeded straight into the store", async () => {
+      files().set("/.config/seeded.json", "1");
+
+      reloadBeforeTreeSave();
+
+      expect(files().get("/.config/seeded.json")).toBe("1");
+    });
+
+    it("keeps a file created before a flush", async () => {
+      await PgFs.writeFile("/.config/flushed.json", "1");
+      await PgFs.flush();
+
+      reloadBeforeTreeSave();
+
+      expect(files().get("/.config/flushed.json")).toBe("1");
+    });
+
+    it("puts a renamed file back under its old name", async () => {
+      await PgFs.writeFile("/.config/a.json", "1");
+      await PgFs.flush();
+      await PgFs.rename("/.config/a.json", "/.config/b.json");
+      await PgFs.rename("/.config/b.json", "/.config/c.json");
+
+      reloadBeforeTreeSave();
+
+      expect(Array.from(files().entries())).toEqual([["/.config/a.json", "1"]]);
+    });
+
+    it("loses a file created and renamed since the last flush", async () => {
+      await PgFs.writeFile("/.config/a.json", "1");
+      await PgFs.rename("/.config/a.json", "/.config/b.json");
+
+      reloadBeforeTreeSave();
+
+      expect(files().size).toBe(0);
+    });
+  });
 });

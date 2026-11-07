@@ -571,6 +571,22 @@ if (import.meta.vitest) {
           expect(threadFiles()).toHaveLength(1);
         });
 
+        it("keeps the moved conversation through a reload before the folder tree is saved", async () => {
+          const old = uuid();
+          await PgThreadIndex.set("p1", old);
+          await PgChatStorage.write(old, [item(1)]);
+
+          await PgThreadIndex.carry({ from: "p1", to: "p2" });
+          (
+            PgFs as unknown as { __reloadBeforeTreeSave: () => void }
+          ).__reloadBeforeTreeSave();
+          PgThreadIndex.reload();
+
+          const fresh = await PgThreadIndex.get("p2");
+          expect(fresh).not.toBeNull();
+          expect(await PgChatStorage.read(fresh ?? "")).toEqual([item(1)]);
+        });
+
         it("does nothing when the workspace had no conversation", async () => {
           await PgThreadIndex.carry({ from: "p1", to: "p2" });
 
