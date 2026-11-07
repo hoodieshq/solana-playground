@@ -35,12 +35,26 @@ const send = (entry: LogEntry) => {
 };
 
 const keepPending = (entry: LogEntry) => {
-  if (pending.length < BUFFER_LIMIT) pending.push(entry);
-  else if (dropped) dropped.count += 1;
-  else dropped = { count: 1, firstNs: entry.ns };
+  if (pending.length < BUFFER_LIMIT) {
+    pending.push(entry);
+  } else if (dropped) {
+    dropped.count += 1;
+  } else {
+    dropped = { count: 1, firstNs: entry.ns };
+    // Printed now as well, for an app that never reaches `initLogger`; not
+    // reported, so it is not buffered behind the reports it is about
+    send({
+      ns: "logger:buffer",
+      level: "warn",
+      message: "reports dropped: the logger is not initialised",
+      context: { kept: BUFFER_LIMIT, firstDropped: entry.ns },
+      report: false,
+      unhandled: false,
+    });
+  }
 };
 
-/** One reported entry for the reports `keepPending` dropped, so error tracking sees the storm's size */
+/** One reported entry counting the reports `keepPending` dropped, sent once by the first `initLogger` */
 const droppedSummary = ({
   count,
   firstNs,
@@ -59,9 +73,10 @@ const droppedSummary = ({
 /**
  * Replaces the providers every logger sends to, including loggers created
  * earlier. The first call also delivers, in order, the reports made before
- * it to every provider not marked `replay: false`, then, if any were dropped
- * past the buffer, one reported summary counting them to every provider;
- * later calls replay nothing, so pass the final provider set on the first call.
+ * it to every provider not marked `replay: false`. Reports dropped past the
+ * buffer then go out as one reported summary to every provider, `replay:
+ * false` included. Later calls replay nothing, so pass the final provider set
+ * on the first call.
  */
 export const initLogger = (options: { providers: LogProvider[] }) => {
   providers = options.providers;
@@ -70,7 +85,6 @@ export const initLogger = (options: { providers: LogProvider[] }) => {
   const replayTo = providers.filter((provider) => provider.replay !== false);
   for (const entry of pending.splice(0)) deliver(entry, replayTo);
   if (dropped) deliver(droppedSummary(dropped), providers);
-  dropped = undefined;
 };
 
 /** Test seam: back to the console-only default, before `initLogger` */
@@ -279,26 +293,63 @@ if (import.meta.vitest) {
         for (let i = 0; i <= BUFFER_LIMIT; i++) {
           early.error(new Error(`e${i}`), { report: true });
         }
-        expect(warned).not.toHaveBeenCalled();
 
         initLogger({ providers: [consoleProvider(), logged] });
 
-        expect(warned).toHaveBeenCalledTimes(1);
         expect(warned).toHaveBeenCalledWith(
           "[logger:buffer]",
           "reports dropped before the logger started",
           { kept: BUFFER_LIMIT, dropped: 1, firstDropped: "persistence:sync" }
         );
+        expect(logged.entries.at(-1)).toMatchObject({
+          ns: "logger:buffer",
+          report: true,
+        });
       });
 
-      it("should send no summary when nothing was dropped", () => {
-        early.error(new Error("x"), { report: true });
+      it("should warn on the console at the first drop, before initLogger", () => {
+        const warned = vi.spyOn(console, "warn");
+        for (let i = 0; i <= BUFFER_LIMIT + 1; i++) {
+          early.error(new Error(`e${i}`), { report: true });
+        }
+
+        expect(warned).toHaveBeenCalledTimes(1);
+        expect(warned).toHaveBeenCalledWith(
+          "[logger:buffer]",
+          "reports dropped: the logger is not initialised",
+          { kept: BUFFER_LIMIT, firstDropped: "persistence:sync" }
+        );
+      });
+
+      it("should name the first dropped report's namespace and count only reported drops", () => {
+        for (let i = 0; i < BUFFER_LIMIT; i++) {
+          early.error(new Error(`e${i}`), { report: true });
+        }
+        early.warn("not reported");
+        createLogger("wallet:connect").error(new Error("a"), { report: true });
+        early.info("not reported either");
+        createLogger("auth:popup").error(new Error("b"), { report: true });
 
         initLogger({ providers: [logged] });
 
-        expect(logged.entries.map((entry) => entry.ns)).toEqual([
-          "persistence:sync",
-        ]);
+        expect(logged.entries.at(-1)?.context).toEqual({
+          kept: BUFFER_LIMIT,
+          dropped: 2,
+          firstDropped: "wallet:connect",
+        });
+      });
+
+      it("should send no summary when the buffer is exactly full", () => {
+        for (let i = 0; i < BUFFER_LIMIT; i++) {
+          early.error(new Error(`e${i}`), { report: true });
+        }
+
+        initLogger({ providers: [logged] });
+
+        expect(logged.entries).toHaveLength(BUFFER_LIMIT);
+        expect(
+          logged.entries.some((entry) => entry.ns === "logger:buffer")
+        ).toBe(false);
       });
 
       it("should forget the drop count on resetLogger", () => {
