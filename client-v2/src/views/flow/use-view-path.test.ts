@@ -82,6 +82,32 @@ it("replaces `/` with Home's path when Home shows there by itself", () => {
   expect(moves()).toEqual([["/home", { replace: true }]]);
 });
 
+it("hands `/` back to the work Home stood in for there, a lesson's too", () => {
+  const { rerender } = render({ view: "home", homeVia: "start" });
+  router.location.pathname = "/home";
+  router.navigate.mockClear();
+  // Sync opens the account's newest project, a lesson
+  explorer.currentWorkspaceName = "Lumberjack";
+  tutorial.isWorkspaceTutorial.mockReturnValue(true);
+  rerender({ view: "work" });
+  expect(moves()).toEqual([["/", { replace: true }]]);
+  expect(tutorial.open).not.toHaveBeenCalled();
+});
+
+it("takes the work to its own path when Home was picked, not `/`", () => {
+  router.location.pathname = "/";
+  explorer.currentWorkspaceName = "Lumberjack";
+  tutorial.isWorkspaceTutorial.mockReturnValue(true);
+  const { rerender } = render({ view: "home", homeVia: "start" });
+  router.location.pathname = "/home";
+  rerender({ view: "work" });
+  router.navigate.mockClear();
+  // The navigation's Home over the work, then the work again
+  rerender({ view: "home", homeVia: "nav" });
+  rerender({ view: "work" });
+  expect(tutorial.open).toHaveBeenCalledWith("Lumberjack");
+});
+
 it("keeps `/` as an entry when Home is picked over a project there", () => {
   const { rerender } = render({ view: "work" });
   rerender({ view: "home", homeVia: "nav" });

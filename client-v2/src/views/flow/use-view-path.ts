@@ -68,6 +68,8 @@ export const useViewPath = ({
   // that navigates itself (a card's Open, a project's row) closes the page
   // after its path has already moved on
   const was = useRef<{ view: StartView; catalog?: CatalogPage }>(undefined);
+  // Whether `/home` replaced `/` (Home there by itself), until Home leaves
+  const stoodInForRoot = useRef(false);
   useEffect(() => {
     const before = was.current;
     was.current = { view, catalog };
@@ -89,7 +91,17 @@ export const useViewPath = ({
       if (isHomePath(path)) return;
       if (!closed && before?.view === "home" && !isStartPath(path)) return;
       const replace = path === "/" && homeVia !== "nav";
+      stoodInForRoot.current = replace;
       go(() => PgRouter.navigate(HOME_PATH, { replace }));
+      return;
+    }
+    // Home that took `/`'s place by itself hands it back to the work it
+    // gives way to (a project sync opened, one made here): the work was
+    // `/`'s, as before Home had a path
+    const handBack = stoodInForRoot.current && isHomePath(path);
+    stoodInForRoot.current = false;
+    if (handBack && PgExplorer.currentWorkspaceName) {
+      go(() => PgRouter.navigate("/", { replace: true }));
       return;
     }
     // The work on a start path: back to the project's own, except on `/`,
