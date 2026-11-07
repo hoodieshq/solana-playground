@@ -17,17 +17,19 @@ the intro there is none.
 
 | Use | Tutorial ships one | Ships none |
 | --- | --- | --- |
-| Kept on a landed deploy (act card, recognised, terminal) | shipped, at the cursor's step | the build's |
+| Kept on a landed deploy (act card, recognised, terminal) | shipped, at the deploying act's step (the cursor's for a terminal deploy) | the build's |
 | Call panel, call encoding, decoding | the deployed one (so shipped) | the deployed one |
-| Build goal's instruction names | the build's if it lists any, else shipped | the build's |
+| Build goal's instruction names | the build's if it lists any, else the `pub fn`s of the learner's `#[program]` module | the same |
 | `pg.program` in a client run | the deployed one, stored for the program when the build left none | the build's |
 
-The build goal keeps the build's IDL when there is one because it is the only
-signal of what the learner actually wrote. Everything that talks to the chain
+The build goal reads what the learner wrote: the build's IDL when there is
+one, else the learner's own source. The shipped IDL is the lesson's program,
+so a goal judged on it would pass code that lacks the instruction. Everything that talks to the chain
 uses the shipped one, because the build no longer returns any.
 
-The substitution happens once, in `reduce`, on the action the runner returned:
-runners stay unaware of tutorials.
+The deployed IDL is taken once, in `reduce`, on the action the runner
+returned: runners stay unaware of tutorials. The build runners read the
+learner's source themselves (`builtInstructions`), with no tutorial in it.
 
 ## Mismatch
 

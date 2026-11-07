@@ -57,7 +57,12 @@ const decodeCalls = (
   programId: string,
   idl: Idl | null
 ): { calls: DecodedCall[]; undecoded?: true } => {
-  if (!idl) return { calls: [], undecoded: true };
+  if (!idl) {
+    log.warn("No IDL to decode a call to the tutorial's program with", {
+      context: { programId },
+    });
+    return { calls: [], undecoded: true };
+  }
   const tx = PgWeb3.VersionedTransaction.deserialize(
     Buffer.from(encoded, "base64")
   );
@@ -71,7 +76,14 @@ const decodeCalls = (
     const decoded = coder.decode(Buffer.from(ix.data));
     if (!decoded) {
       log.warn(
-        "An instruction to the tutorial's program its IDL cannot decode"
+        "An instruction to the tutorial's program its IDL cannot decode",
+        {
+          context: {
+            programId,
+            discriminator: Array.from(ix.data.slice(0, 8)),
+            known: idl.instructions.map((i) => i.name),
+          },
+        }
       );
       undecoded = true;
       continue;
@@ -245,12 +257,15 @@ export const realRunPort = (funding: FundingChain, capSol: number): RunPort => {
     fetchAccount: fetchOnDevnet,
     decode: (encoded, deployed) => {
       const programId = PgProgramInfo.pk?.toBase58();
-      if (!programId) return { calls: [], undecoded: true };
+      if (!programId) {
+        log.warn("No program id to decode a call with");
+        return { calls: [], undecoded: true };
+      }
       try {
         return decodeCalls(
           encoded,
           programId,
-          (deployed ?? PgProgramInfo.idl) as Idl | null
+          deployed ?? PgProgramInfo.callableIdl()
         );
       } catch (e) {
         // The result still lands; only its `called` is short, which fails a

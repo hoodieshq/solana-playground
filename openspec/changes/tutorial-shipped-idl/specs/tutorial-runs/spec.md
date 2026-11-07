@@ -7,8 +7,10 @@ In a tutorial whose steps ship an IDL, a landed deploy SHALL keep the shipped
 IDL of the step the learner is on, whatever IDL the build returned, and the
 Call panel, the call's encoding and the decoding of its transactions SHALL use
 that kept IDL. A build goal SHALL check the instructions the build's own IDL lists
-when it lists any, and the shipped IDL's when it lists none (an Anchor 1.1.2
-build returns no IDL, which reads the same). A
+when it lists any, and otherwise the `pub fn`s of the `#[program]` module in
+the learner's `src/lib.rs` (an Anchor 1.1.2 build returns no IDL); never the
+shipped IDL's, which are the lesson's and not the learner's. A deploy SHALL
+keep the shipped IDL of the step whose act deployed it. A
 deploy from the terminal SHALL be kept even when the build returned no IDL.
 
 #### Scenario: A build returns no IDL (manual)

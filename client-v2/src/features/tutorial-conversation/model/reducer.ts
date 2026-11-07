@@ -20,6 +20,7 @@ import { TICK_MS } from "./clock";
 import { nextDeployed } from "./deployed-idl";
 import { holds, keyOf, typedKey } from "./landing";
 import type { Judge, RunInput } from "./ports";
+import { PROGRAM_FILE } from "./program-source";
 import type {
   ApplyFailure,
   ConversationProgress,
@@ -43,7 +44,7 @@ import {
   isUnreachable,
 } from "./progress";
 import type { Word } from "./route";
-import { shippedIdl } from "./shipped-idl";
+import { shippedIdl, shippedIdlAt } from "./shipped-idl";
 
 /**
  * The conversation engine's reducer: the lesson's rules over a definition
@@ -904,41 +905,11 @@ const settledEvents = (
   return [];
 };
 
-/** The program a mismatch is about; every Anchor tutorial keeps it here */
-const PROGRAM_FILE = "src/lib.rs";
-
-/**
- * A build or deploy result's instructions, read from the tutorial's shipped
- * IDL (`shippedIdl`) when the result lists none, as every Anchor 1.1.2 build's
- * does, so its goal can still pass. One that lists its own keeps them: the
- * only word on what the learner wrote. The shipped list is the lesson's, not
- * the learner's: a program that compiles without the instruction passes the
- * build and is caught at the call, as a mismatch.
- */
-const withShippedInstructions = (
-  ctx: EngineContext,
-  state: EngineState,
-  action: Action
-): Action => {
-  if (
-    action.type !== "ended" &&
-    action.type !== "recognised" &&
-    action.type !== "passed"
-  ) {
-    return action;
-  }
-  const { result } = action;
-  if (!result.ok || !("instructions" in result)) return action;
-  if (result.instructions.length > 0) return action;
-  const idl = shippedIdl(ctx.definition, state.progress.cursor);
-  if (!idl) return action;
-  const instructions = idl.instructions.map((ix) => ix.name);
-  return { ...action, result: { ...result, instructions } };
-};
-
 /**
  * A landed deploy's IDL, out of the result that goes on into the record: the
- * tutorial's shipped one where it ships one, else the build's
+ * tutorial's shipped one where it ships one, else the build's. Shipped as of
+ * the step whose act deployed, not the cursor's: a deploy recognised after
+ * the learner moved on deployed that step's program.
  */
 const takeDeployedIdl = (
   ctx: EngineContext,
@@ -951,7 +922,11 @@ const takeDeployedIdl = (
   if (!result.ok || (result.act !== "deploy" && result.act !== "buildDeploy"))
     return { action };
   const { idl: built, ...rest } = result;
-  const idl = shippedIdl(ctx.definition, state.progress.cursor) ?? built;
+  const deployedAt = locate(ctx.definition, action.beatId)?.step.id;
+  const shipped = deployedAt
+    ? shippedIdlAt(ctx.definition, deployedAt)
+    : shippedIdl(ctx.definition, state.progress.cursor);
+  const idl = shipped ?? built;
   return idl ? { action: { ...action, result: rest }, idl } : { action };
 };
 
@@ -960,11 +935,7 @@ export const reduce = (
   state: EngineState,
   action: Action
 ): Reduced => {
-  const { action: plain, idl } = takeDeployedIdl(
-    ctx,
-    state,
-    withShippedInstructions(ctx, state, action)
-  );
+  const { action: plain, idl } = takeDeployedIdl(ctx, state, action);
   const raw = reduceAction(ctx, state, plain);
   // Kept only if the engine took the run: a result it dropped landed nothing
   const reduced =
@@ -2811,23 +2782,83 @@ if (import.meta.vitest) {
         const names = (p: ConversationProgress) =>
           p.deployed?.idl.instructions.map((ix) => ix.name);
 
-        it("reads a build's instructions from it when the build returned none", () => {
+        it("never lends a build its instructions: the build goal reads the learner's", () => {
           const p = playIn(shipping(), toDeploy).progress;
           const record = p.runs["s1.build"].at(-1);
           expect(
-            record && "result" in record && record.result.ok
-              ? "instructions" in record.result && record.result.instructions
-              : null
-          ).toEqual(["hello"]);
-          // A tutorial that ships none leaves the build's word alone
-          const plain = playIn(ctx(), toDeploy).progress.runs["s1.build"].at(
-            -1
-          );
-          expect(
-            plain && "result" in plain && "instructions" in plain.result
-              ? plain.result.instructions
+            record && "result" in record && "instructions" in record.result
+              ? record.result.instructions
               : null
           ).toEqual([]);
+        });
+
+        // Step 4's program takes a name: Hello Anchor's second shipped IDL
+        const SHIPPED_NAME = SHIPPED.replace(
+          '"args":[]',
+          '"args":[{"name":"name","type":"string"}]'
+        );
+        const twoShipped = (): EngineContext => {
+          const definition = structuredClone(hello);
+          definition.steps[0].idl = SHIPPED;
+          definition.steps[3].idl = SHIPPED_NAME;
+          return {
+            definition,
+            slug: "hello-anchor",
+            judge: (_goal, result) => result.ok,
+          };
+        };
+        const at = (index: number): EngineState => {
+          const progress = freshProgress();
+          progress.cursor = {
+            kind: "step",
+            stepId: hello.steps[index].id,
+            beat: 0,
+            fail: false,
+          };
+          return { progress, stage: null };
+        };
+
+        it("upgrades from one shipped IDL to the next, naming what it added", () => {
+          const c = twoShipped();
+          const first = reduce(c, at(1), { type: "deployed", at: 6000 });
+          expect(names(first.state.progress)).toEqual(["hello"]);
+          expect(first.state.progress.deployed?.added).toEqual([]);
+          const moved = structuredClone(first.state);
+          moved.progress.cursor = at(3).progress.cursor;
+          const upgraded = reduce(c, moved, { type: "deployed", at: 7000 });
+          expect(
+            upgraded.state.progress.deployed?.idl.instructions[0].args
+          ).toEqual([{ name: "name", type: "string" }]);
+          expect(upgraded.state.progress.deployed?.added).toEqual([
+            "hello.name",
+          ]);
+          // The same deploy again saves nothing
+          const again = reduce(c, upgraded.state, {
+            type: "deployed",
+            at: 8000,
+          });
+          expect(again.state).toBe(upgraded.state);
+        });
+
+        it("keeps the IDL of the step that deployed, when the deploy is recognised later", () => {
+          const deployResult: RunResult = {
+            act: "deploy",
+            ok: true,
+            seconds: 3,
+            programId: "p",
+            signature: "s",
+            upgraded: false,
+            lamports: 1,
+            instructions: [],
+          };
+          // s2.deploy is step 2's act; the learner is on step 4 by now
+          const { idl } = takeDeployedIdl(twoShipped(), at(3), {
+            type: "recognised",
+            beatId: "s2.deploy",
+            result: deployResult,
+            at: 9000,
+          });
+          expect(idl?.instructions[0].args).toEqual([]);
         });
 
         it("keeps it on a landed deploy, whatever IDL the build returned", () => {

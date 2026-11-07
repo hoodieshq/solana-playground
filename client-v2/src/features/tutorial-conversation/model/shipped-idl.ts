@@ -20,10 +20,25 @@ export const shippedIdl = (
   cursor: Cursor
 ): Idl | undefined => {
   if (cursor.kind === "intro") return undefined;
-  const until =
-    cursor.kind === "step"
-      ? definition.steps.findIndex((s) => s.id === cursor.stepId)
-      : definition.steps.length - 1;
+  return cursor.kind === "step"
+    ? shippedIdlAt(definition, cursor.stepId)
+    : idlUntil(definition, definition.steps.length - 1);
+};
+
+/** The IDL a tutorial ships for one step: the latest at or before it */
+export const shippedIdlAt = (
+  definition: TutorialDefinition,
+  stepId: string
+): Idl | undefined =>
+  idlUntil(
+    definition,
+    definition.steps.findIndex((s) => s.id === stepId)
+  );
+
+const idlUntil = (
+  definition: TutorialDefinition,
+  until: number
+): Idl | undefined => {
   for (let i = until; i >= 0; i--) {
     const raw = definition.steps[i].idl;
     if (raw === undefined) continue;
