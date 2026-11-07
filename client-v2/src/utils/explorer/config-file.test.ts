@@ -107,4 +107,12 @@ describe("writeConfigFile", () => {
     await expect(removeConfigFile("/.config/j.json")).rejects.toThrow("ENOENT");
     expect(flush).not.toHaveBeenCalled();
   });
+
+  it("saves the tree when a folder removal fails halfway", async () => {
+    vi.spyOn(PgFs, "removeDir").mockRejectedValueOnce(new Error("idb closed"));
+    const flush = vi.spyOn(PgFs, "flush");
+
+    await expect(removeConfigDir("/.config/k")).rejects.toThrow("idb closed");
+    expect(flush).toHaveBeenCalledTimes(1);
+  });
 });

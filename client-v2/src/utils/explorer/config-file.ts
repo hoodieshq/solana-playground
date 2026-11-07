@@ -90,9 +90,15 @@ export const removeConfigFile = async (path: string) => {
  * Remove a folder under `/.config` and everything in it so that none of it
  * comes back after a reload, as `removeConfigFile` explains.
  *
+ * Unlike a file's, a folder's removal can fail halfway, with some children
+ * already unlinked, so the tree is saved whether it succeeds or throws.
+ *
  * @param path full path of the folder
  */
 export const removeConfigDir = async (path: string) => {
-  await PgFs.removeDir(path, { recursive: true });
-  await flushAfter("a removal", path);
+  try {
+    await PgFs.removeDir(path, { recursive: true });
+  } finally {
+    await flushAfter("a removal", path);
+  }
 };

@@ -186,6 +186,9 @@ export class PgThreadIndex {
    * so the caller must not go on to delete the old workspace: its delete
    * forgets the conversation that failed to move.
    */
+  // TODO(HOO-2726 review I3): no test fails when the renames here and in
+  // `_migrate` go back to a bare `PgFs.rename`, since the index write that
+  // follows flushes the tree too; a test needs a reload between the two.
   static async carry({ from, to }: { from: string; to: string }) {
     return withSyncLock(async () => {
       const threadId = (await PgThreadIndex._refresh())[from];

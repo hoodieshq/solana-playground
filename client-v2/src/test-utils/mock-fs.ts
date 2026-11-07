@@ -197,6 +197,9 @@ export const mockFsModule = () => {
 
     async removeFile(path: string) {
       path = await full(path);
+      // TODO(HOO-2726 review I4): lightning-fs throws ENOENT here for a missing
+      // path; matching it would exercise the callers' `isMissing` branches,
+      // and is left for its own change since every store test would see it.
       if (files.has(path) || ghosts.has(path)) forget(path);
     },
 
