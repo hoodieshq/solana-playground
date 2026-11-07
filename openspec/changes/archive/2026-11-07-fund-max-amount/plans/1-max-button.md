@@ -13,4 +13,6 @@ Ticket: HOO-2713 «Add a Max button to the Fund dialog's amount».
 4. `BaseFundDialog`: the amount `Input` becomes `InputGroup` +
    `InputGroupInput` with an `inline-end` `InputGroupButton` "Max", as in
    `BaseCustomRpcs`.
-5. Gate: `yarn run check` in `client-v2/`; no e2e spec changes.
+5. Playwright: "Max then send" and "Balance below the fee" in
+   `e2e/wallet-funding.e2e.spec.ts`; "Balance loading" is manual.
+6. Gate: `yarn run check` in `client-v2/` plus that spec.
