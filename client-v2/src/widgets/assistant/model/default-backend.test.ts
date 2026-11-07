@@ -364,7 +364,7 @@ describe("the probe's state for the status", () => {
   });
 
   it("keeps the model the deployment named, for the status and Settings", async () => {
-    answer({ key: "hosted", reason: null, model: "claude-opus-5-5" });
+    answer({ key: "hosted", model: "claude-opus-5-5" });
     await probeDefaultBackend();
     expect(PgAssistant.hostedModel).toBe("claude-opus-5-5");
     resetDefaultBackendProbe();
@@ -374,7 +374,7 @@ describe("the probe's state for the status", () => {
   });
 
   it("keeps the model's name through a failed ask, which says nothing of it", async () => {
-    answer({ key: "hosted", reason: null, model: "claude-opus-5-5" });
+    answer({ key: "hosted", model: "claude-opus-5-5" });
     await probeDefaultBackend();
     answer({}, 500);
     await retryDefaultBackend();
