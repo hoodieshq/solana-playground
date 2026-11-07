@@ -532,6 +532,10 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 const isMs = (v: unknown): v is number => Number.isFinite(v);
 
+/** A count of lamports: a whole number, never negative */
+const isLamports = (v: unknown): v is number =>
+  Number.isSafeInteger(v) && (v as number) >= 0;
+
 const isMsOrNull = (v: unknown): v is number | null => v === null || isMs(v);
 
 const isStrings = (v: unknown): v is string[] =>
@@ -699,7 +703,9 @@ const isReading = (v: unknown): v is AccountReading =>
  * trust the type. A landed run's or call's `signatures` and `line`, which
  * the finish card draws, come back empty when they do not read as theirs,
  * and its `receipt` keeps only the fields that do, so the card can trust
- * them too.
+ * them too. A landed airdrop whose `balance` or `airdropped` is not a count
+ * of lamports is dropped: `airdropped === 0` decides whether a later card
+ * shows, and the record prints both.
  */
 const parseResult = (v: unknown): RunResult | null => {
   if (
@@ -718,6 +724,13 @@ const parseResult = (v: unknown): RunResult | null => {
     v.reason !== "signed_out"
   ) {
     return { ...v, reason: "compiler" } as unknown as RunResult;
+  }
+  if (
+    v.act === "airdrop" &&
+    v.ok &&
+    !(isLamports(v.balance) && isLamports(v.airdropped))
+  ) {
+    return null;
   }
   if ((v.act === "run" || v.act === "call") && v.ok) {
     const called = Array.isArray(v.called) ? v.called.filter(isCalled) : [];
@@ -1016,6 +1029,33 @@ if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
   describe("features/tutorial-conversation/model/progress", () => {
+    it("drops a landed airdrop whose balance or amount does not read as lamports", () => {
+      const saved = (result: Record<string, unknown>) =>
+        JSON.parse(
+          JSON.stringify(
+            Object.assign(freshProgress(), {
+              runs: {
+                "s2.airdrop": [
+                  {
+                    status: "ok",
+                    at: 1,
+                    took: 1,
+                    result: { act: "airdrop", ok: true, seconds: 1, ...result },
+                  },
+                ],
+              },
+            })
+          )
+        );
+      const run = (v: unknown) => parseProgress(v)?.runs["s2.airdrop"]?.[0];
+      const sound = { balance: 3_000_000_000, airdropped: 0 };
+      expect(run(saved(sound))).toMatchObject({ result: sound });
+      expect(run(saved({ balance: "3", airdropped: 0 }))).toBeUndefined();
+      expect(run(saved({ balance: 3_000_000_000 }))).toBeUndefined();
+      expect(run(saved({ balance: 1, airdropped: -1 }))).toBeUndefined();
+      expect(run(saved({ balance: 1.5, airdropped: 0 }))).toBeUndefined();
+    });
+
     it("keeps a sound account reading and drops one it cannot read", () => {
       const saved = (account: unknown) =>
         JSON.parse(
