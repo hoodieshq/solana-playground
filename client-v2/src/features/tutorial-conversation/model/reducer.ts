@@ -146,7 +146,9 @@ export type Action =
   | { type: "recognised"; beatId: string; result: RunResult; at: number }
   /**
    * The program deployed outside the cards, through the deploy command
-   * (`watchDeploys`): the Call panel reads its IDL. No step passes on it
+   * (`watchDeploys`): the Call panel reads its IDL. No step passes on it.
+   * `idl` is absent when the build returned none; the tutorial's shipped IDL
+   * then stands in
    */
   | { type: "deployed"; idl?: Idl; at: number }
   /** A step's goal met outside the feed: a Call panel call or a client run */
@@ -913,9 +915,11 @@ const isMismatch = (r: RunResult) =>
 
 /**
  * A build or deploy result's instructions, read from the tutorial's shipped
- * IDL (`shippedIdl`) when the build returned none, so its goal can still
- * pass. One that returned its own keeps them: the only word on what the
- * learner wrote.
+ * IDL (`shippedIdl`) when the result lists none, as every Anchor 1.1.2 build's
+ * does, so its goal can still pass. One that lists its own keeps them: the
+ * only word on what the learner wrote. The shipped list is the lesson's, not
+ * the learner's: a program that compiles without the instruction passes the
+ * build and is caught at the call, as a mismatch.
  */
 const withShippedInstructions = (
   ctx: EngineContext,
@@ -1509,11 +1513,9 @@ const reduceAction = (
       if (p.cursor.kind !== "step" || p.cursor.stepId !== step.id) {
         return same(state);
       }
-      // A mismatch is the program's: a call step's own file is the client
-      const file =
-        mismatch && step.target[PROGRAM_FILE] !== undefined
-          ? PROGRAM_FILE
-          : step.file;
+      // A mismatch is the program's, whatever the step's own file: restoring
+      // the client would mark it fixed and change nothing
+      const file = mismatch ? PROGRAM_FILE : step.file;
       const target = step.target[file];
       if (passed(p, step) || target === undefined) return same(state);
       return {
@@ -2740,6 +2742,21 @@ if (import.meta.vitest) {
         expect(r.state.progress.runs[act.id].at(-1)).toMatchObject({
           fixedAt: 3000,
         });
+        // A step with no program to restore restores nothing, not its client
+        const withoutProgram = structuredClone(hello);
+        delete withoutProgram.steps[2].target["src/lib.rs"];
+        const noProgram: EngineContext = {
+          definition: withoutProgram,
+          slug: "hello-anchor",
+          judge: (_goal, result) => result.ok,
+        };
+        expect(
+          reduce(
+            noProgram,
+            { progress, stage: null },
+            { type: "showFix", beatId: act.id, at: 3000 }
+          ).effects
+        ).toEqual([]);
       });
 
       describe("a tutorial that ships its IDL", () => {

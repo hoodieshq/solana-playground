@@ -2,6 +2,7 @@ import type { Idl } from "@coral-xyz/anchor";
 
 import { readIdl } from "@/entities/idl";
 import type { TutorialDefinition } from "@/entities/tutorial";
+import { createLogger } from "@/shared/lib/logger";
 
 import type { Cursor } from "./progress";
 
@@ -31,6 +32,8 @@ export const shippedIdl = (
   return undefined;
 };
 
+const log = createLogger("tutorial-conversation:shipped-idl");
+
 /** One parse per shipped string, so every read gets the same object */
 const parsed = new Map<string, Idl | undefined>();
 
@@ -40,8 +43,12 @@ const callable = (raw: string): Idl | undefined => {
   try {
     const reading = readIdl(JSON.parse(raw));
     idl = reading.kind === "refused" ? undefined : reading.idl;
-  } catch {
+    if (!idl) log.warn("A tutorial ships an IDL the client cannot call with");
+  } catch (e) {
     // `tutorial:check` refuses a string that does not parse
+    log.warn("A tutorial ships an IDL that does not parse", {
+      context: { error: String(e) },
+    });
     idl = undefined;
   }
   parsed.set(raw, idl);

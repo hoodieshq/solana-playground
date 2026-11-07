@@ -28,8 +28,8 @@ export interface DeployWatchPort {
 
 /**
  * Tell `onIdl` of every landed deploy that went through the deploy command,
- * with its IDL, or undefined for a build that returned none: the terminal's `deploy`, the explorer's menu, the assistant and any
- * other caller. The cards deploy through their own runner
+ * with its IDL, or undefined for a build that returned none: the terminal's
+ * `deploy`, the explorer's menu, the assistant and any other caller. The cards deploy through their own runner
  * (`runDeployOnDevnet`), hand their IDL to the engine themselves and never
  * reach the command. A deploy counts only if it started and finished in the
  * same workspace, on devnet: the Call panel talks to the devnet program, which

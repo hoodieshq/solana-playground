@@ -121,8 +121,10 @@ export const goalGap = (goal: Goal, result: RunResult): GoalGap => {
     const called = result.called.some((c) =>
       sameIdlName(c.instruction, instruction)
     );
-    // An instruction that did not decode may be the one the goal names: the
-    // program on chain is not the one the step's IDL describes
+    // An instruction to the program that the step's IDL does not decode may
+    // be the one the goal names, called under another name or shape: the
+    // learner's code and the step no longer agree, which is the one thing
+    // that can be said, so it is said instead of "not called"
     if (!called) {
       return result.undecoded
         ? { kind: "mismatch" }

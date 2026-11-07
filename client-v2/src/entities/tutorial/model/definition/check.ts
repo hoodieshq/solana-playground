@@ -29,19 +29,6 @@ const validator = () => {
   return compiled;
 };
 
-/**
- * Every problem in a parsed `tutorial.json`; empty when it is a definition.
- * The schema runs first; the rules a schema cannot express (a right index in
- * range, a reason per wrong option and none for the right one, blocks found
- * in their target, instructions some step's target defines, a `next` in
- * `known`, ids used once, patterns that compile, read-only files the step
- * has, a call act's argument names used once, doc files that exist and link
- * only to `https`) run only on a definition
- * the schema accepts, since they read its shape. The folder-name error leads,
- * then the rules' errors in step order.
- *
- * @param known every tutorial slug `finish.next` may name
- */
 /** What is wrong with a step's shipped IDL, or null when it reads as one */
 const idlProblem = (idl: string): string | null => {
   let parsed: unknown;
@@ -59,6 +46,19 @@ const idlProblem = (idl: string): string | null => {
     : "an IDL with a list of instructions, found none";
 };
 
+/**
+ * Every problem in a parsed `tutorial.json`; empty when it is a definition.
+ * The schema runs first; the rules a schema cannot express (a right index in
+ * range, a reason per wrong option and none for the right one, blocks found
+ * in their target, instructions some step's target defines, a `next` in
+ * `known`, ids used once, patterns that compile, read-only files the step
+ * has, a call act's argument names used once, doc files that exist and link
+ * only to `https`) run only on a definition
+ * the schema accepts, since they read its shape. The folder-name error leads,
+ * then the rules' errors in step order.
+ *
+ * @param known every tutorial slug `finish.next` may name
+ */
 export const checkDefinition = (
   json: unknown,
   known: ReadonlySet<string>,

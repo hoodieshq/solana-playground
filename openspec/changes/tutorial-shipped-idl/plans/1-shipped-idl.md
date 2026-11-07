@@ -7,7 +7,7 @@ Steps, each test-first:
 
 1. `entities/tutorial`: `Step.idl?: string` in the type, the JSON schema and
    the loader's check (a string that parses as JSON with `instructions`).
-   `shippedIdl(definition, stepId)` in the conversation model, unit-tested on
+   `shippedIdl(definition, cursor)` in the conversation model, unit-tested on
    a three-step definition (before, on and after the carrying step; finish;
    intro).
 2. `reduce`: a landed deploy (`ended`, `recognised`) keeps the shipped IDL
@@ -17,12 +17,12 @@ Steps, each test-first:
    no `idl` behaves as before.
 3. `deploy-watch`: a landed deploy with no IDL still calls `onIdl`
    (`undefined`); the `deployed` action's `idl` becomes optional.
-4. Mismatch: `goalGap` answers `idlMismatch` for an undecoded call;
+4. Mismatch: `goalGap` answers `mismatch` for an undecoded call;
    `whyRefused` words it; the call runner rewrites a refusal with Anchor error
    101 or 102, and `sendCall`'s missing instruction, to the same line.
 5. `scripts/tutorial-idl`: Cargo workspace + `generate.mjs`; run it, commit
    the IDLs in both tutorials.
-6. Drift test in `authoring.test.ts`: per step with a target `src/lib.rs`, the
+6. Drift test in `src/tutorials/shipped-idl.test.ts`: per step with a target `src/lib.rs`, the
    `pub fn`s of the `#[program]` module and their argument names against
    `shippedIdl` at that step.
 7. `AUTHORING.md`: when and how to regenerate.

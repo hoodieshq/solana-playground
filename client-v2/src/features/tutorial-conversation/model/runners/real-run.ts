@@ -144,8 +144,8 @@ const fetchOnDevnet = async (
     );
   }
   if (!info) return undefined;
-  // The deployed program's: a tutorial's shipped one, where the build
-  // returned none
+  // The IDL the run was sent through (`input.idl`: the tutorial's shipped one
+  // or the build's), else the stored program's
   const idl = deployed ?? PgProgramInfo.callableIdl();
   let fields: Record<string, string> = {};
   try {
@@ -169,7 +169,10 @@ const sendCall = async (
   // The program on chain answers to the IDL it was deployed with: a build
   // since then must not change what is sent
   const idl = deployed ?? PgProgramInfo.callableIdl();
-  const idlIx = idl?.instructions.find((ix) =>
+  // No IDL at all is the tutorial's fault, not the learner's code: it fails
+  // as itself and is reported, never as a mismatch
+  if (!idl) throw new Error("There is no IDL to call this program with.");
+  const idlIx = idl.instructions.find((ix) =>
     sameIdlName(ix.name, call.instruction)
   );
   if (!idlIx) throw new NoSuchInstructionError(call.instruction);

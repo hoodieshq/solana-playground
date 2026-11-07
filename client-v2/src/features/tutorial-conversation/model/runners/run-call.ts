@@ -633,6 +633,37 @@ if (import.meta.vitest) {
       expect(own).not.toHaveProperty("mismatch");
     });
 
+    it("never calls a run that could not be funded or confirmed a mismatch", () => {
+      const refused: TxResult = {
+        act: "call",
+        ok: false,
+        seconds: 1,
+        message: "m",
+        log: "",
+      };
+      const unconfirmed: TxResult = {
+        act: "call",
+        ok: false,
+        seconds: 1,
+        message: "m",
+        log: "",
+        reason: "unconfirmed",
+        unconfirmed: [],
+      };
+      const noFunds: TxResult = {
+        act: "call",
+        ok: false,
+        seconds: 1,
+        message: "m",
+        log: "",
+        reason: "no_funds",
+        funding: { balance: 0, cost: 1, address: "a" },
+      };
+      expect(mismatched(unconfirmed)).toBe(unconfirmed);
+      expect(mismatched(noFunds)).toBe(noFunds);
+      expect(mismatched(refused)).toMatchObject({ mismatch: true });
+    });
+
     it("a call of an instruction the IDL lacks says the same", async () => {
       const port = portWith({
         send: async () => ({

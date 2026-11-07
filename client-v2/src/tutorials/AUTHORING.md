@@ -763,7 +763,7 @@ name. Tell the person which step needs what, and ask the Playground team.
 An Anchor tutorial ships its program's IDL: the Call panel lists its
 instructions, and every call is encoded and decoded with it. The build does
 not return one on Anchor 1.1.2, so the tutorial cannot wait for it. Each step
-whose program's instructions or arguments change carries `idl`, the IDL of
+whose program's IDL changes carries `idl`, the IDL of
 its target `src/lib.rs` as one minified JSON string. It holds until the next
 step that carries one.
 
@@ -777,7 +777,9 @@ yarn tutorial:idl <slug>
 It generates the IDL of every step's target program with the generator
 Anchor 1.1.2 uses, and writes `idl` only on the steps where it changes.
 Commit the result. If you cannot run it, say so in your pull request: the
-unit tests fail while a step's program and its IDL differ, and name the step.
+unit tests fail, naming the step, while its program and its IDL differ in an
+instruction, an argument or a plain argument's type. A change to accounts
+alone they do not see.
 
 ## Running the check
 

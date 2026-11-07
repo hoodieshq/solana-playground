@@ -8,7 +8,7 @@ never hand-edits it; one file, so the step and its program's IDL cannot drift
 apart in two places. Only a step whose target program's IDL differs from the
 previous step's carries one; the first step with a program always does.
 
-`shippedIdl(definition, stepId)` is the `idl` of the latest step at or before
+`shippedIdl(definition, cursor)` is the `idl` of the latest step at or before
 `stepId` that carries one, read through `entities/idl` (`readIdl`) into the
 0.29 shape the client calls with. On the finish card it is the last one; on
 the intro there is none.
@@ -34,7 +34,7 @@ The learner can change the program away from the step's interface. Three
 signals, all on a call:
 
 - the transaction did not decode with the IDL (`undecoded`): the goal gap
-  becomes `idlMismatch`;
+  becomes `mismatch`;
 - the program refused it with Anchor's `InstructionFallbackNotFound` (101) or
   `InstructionDidNotDeserialize` (102);
 - the IDL has no such instruction (`sendCall` throws).

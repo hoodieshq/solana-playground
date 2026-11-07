@@ -8,7 +8,13 @@
 // changing a tutorial's program: `yarn tutorial:idl [<tutorial>...]`.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import prettier from "prettier";
@@ -25,15 +31,23 @@ const cargo = (args) =>
     stdio: ["ignore", "pipe", "inherit"],
   });
 
-/** The IDL of one program source, minified */
-const idlOf = (source) => {
+/** Writes the scratch program's source, which git does not track */
+const writeProgram = (source) => {
+  mkdirSync(join(program, "src"), { recursive: true });
   writeFileSync(join(program, "src/lib.rs"), source);
+};
+
+/** The IDL of one program source, minified; `where` names the step */
+const idlOf = (source, where) => {
+  writeProgram(source);
   const out = execFileSync(
     join(here, "target/debug/tutorial-idl-generator"),
     [program],
     { cwd: here, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }
   );
-  return JSON.stringify(JSON.parse(out.trim().split("\n").at(-1)));
+  const last = out.trim().split("\n").at(-1);
+  if (!last) throw new Error(`${where}: the generator printed no IDL`);
+  return JSON.stringify(JSON.parse(last));
 };
 
 /** `idl` right after `target`, so every step reads in the same order */
@@ -53,7 +67,15 @@ const slugs = readdirSync(tutorials, { withFileTypes: true })
   .map((e) => e.name)
   .filter((slug) => existsSync(join(tutorials, slug, "tutorial.json")))
   .filter((slug) => !named.length || named.includes(slug));
+const unknown = named.filter((slug) => !slugs.includes(slug));
+if (unknown.length) {
+  console.error(`No such tutorial: ${unknown.join(", ")}`);
+  process.exit(1);
+}
 
+// Cargo loads every workspace member, and the program's source is untracked:
+// a fresh clone has none until the first step writes it
+if (!existsSync(join(program, "src/lib.rs"))) writeProgram("");
 cargo(["build", "--quiet", "-p", "tutorial-idl-generator"]);
 
 for (const slug of slugs) {
@@ -64,7 +86,7 @@ for (const slug of slugs) {
   definition.steps = definition.steps.map((step) => {
     const source = step.target?.[PROGRAM_FILE] ?? step.start?.[PROGRAM_FILE];
     if (!source) return withIdl(step, undefined);
-    const idl = idlOf(source);
+    const idl = idlOf(source, `${slug} ${step.id}`);
     const changed = idl !== previous;
     previous = idl;
     console.log(`${slug} ${step.id}: ${changed ? "IDL" : "same"}`);
@@ -74,7 +96,8 @@ for (const slug of slugs) {
   const options = (await prettier.resolveConfig(path)) ?? {};
   writeFileSync(
     path,
-    // Expanded first: prettier keeps an object on several lines only if it was
+    // Indented first: prettier keeps an object expanded only when its input
+    // already has a line break after the opening brace
     await prettier.format(JSON.stringify(definition, null, 2), {
       ...options,
       filepath: path,
