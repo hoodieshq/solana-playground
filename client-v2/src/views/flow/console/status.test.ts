@@ -36,7 +36,7 @@ const DEFAULT_STATE: FlowState = {
   buildFailure: null,
   deployBeforeRun: null,
   stopped: null,
-  airdropping: false,
+  airdrops: 0,
   hasProgram: true,
 };
 
@@ -96,14 +96,14 @@ describe("describeConsoleStatus", () => {
 
   it("shows airdropping while an airdrop runs, counting its seconds", () => {
     expect(
-      describeConsoleStatus(state({ build: "done", airdropping: true }), 3_000)
+      describeConsoleStatus(state({ build: "done", airdrops: 1 }), 3_000)
     ).toEqual({ text: "Airdropping… \u00b7 3 s", tone: "running" });
   });
 
   it("names the deploy while a deploy's own airdrop runs", () => {
     expect(
       describeConsoleStatus(
-        state({ build: "done", deploy: "running", airdropping: true })
+        state({ build: "done", deploy: "running", airdrops: 1 })
       )
     ).toEqual({ text: "Deploying…", tone: "running" });
   });
@@ -111,7 +111,7 @@ describe("describeConsoleStatus", () => {
   it("goes back to the last result once the airdrop is over", () => {
     expect(
       describeConsoleStatus(
-        state({ build: "done", buildMs: 3400, airdropping: false })
+        state({ build: "done", buildMs: 3400, airdrops: 0 })
       )
     ).toEqual({ text: "Built in 3.4 s", tone: "success" });
   });

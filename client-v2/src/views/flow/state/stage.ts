@@ -56,9 +56,11 @@ export interface FlowState {
   /** Whether the open project has a program to build. Without one, only the
    * Write stage is offered (`stagesOf`). */
   hasProgram: boolean;
-  /** Whether the `airdrop` command is running, for the console strip. It
-   * funds the wallet, not the project, so a project switch keeps it. */
-  airdropping: boolean;
+  /** How many `airdrop` runs are in flight, for the console strip. The
+   * terminal, the wallet's button, the automatic airdrop and a deploy's
+   * top-up each start one, so two can overlap. It funds the wallet, not the
+   * project, so a project switch keeps it. */
+  airdrops: number;
 }
 
 /**
@@ -117,7 +119,7 @@ export const INITIAL_FLOW_STATE: FlowState = {
   stopped: null,
   // Nothing hides until the explorer has answered
   hasProgram: true,
-  airdropping: false,
+  airdrops: 0,
 };
 
 /** Every stage; `stagesOf` gives the ones the open project offers */
@@ -295,12 +297,14 @@ export class PgFlow {
         return {
           ...INITIAL_FLOW_STATE,
           hasProgram: state.hasProgram,
-          airdropping: state.airdropping,
+          airdrops: state.airdrops,
         };
       case "airdrop-start":
-        return state.airdropping ? state : { ...state, airdropping: true };
+        return { ...state, airdrops: state.airdrops + 1 };
       case "airdrop-finish":
-        return state.airdropping ? { ...state, airdropping: false } : state;
+        return state.airdrops
+          ? { ...state, airdrops: state.airdrops - 1 }
+          : state;
       case "restore": {
         // Seeds only forward: a stage the live session has already moved
         // off `upcoming` knows more about this run than the workspace's

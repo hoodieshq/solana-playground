@@ -80,7 +80,7 @@ describe("PgFlow.reduce", () => {
       buildFailure: null,
       deployBeforeRun: null,
       stopped: null,
-      airdropping: false,
+      airdrops: 0,
       hasProgram: true,
     });
   });
@@ -221,9 +221,22 @@ describe("PgFlow.reduce, an airdrop", () => {
     const running = PgFlow.reduce(INITIAL_FLOW_STATE, {
       type: "airdrop-start",
     });
-    expect(running.airdropping).toBe(true);
-    expect(PgFlow.reduce(running, { type: "airdrop-finish" }).airdropping).toBe(
-      false
+    expect(running.airdrops).toBe(1);
+    expect(PgFlow.reduce(running, { type: "airdrop-finish" }).airdrops).toBe(0);
+  });
+
+  it("stays running until the last of two overlapping airdrops finishes", () => {
+    // The wallet's button and a typed `airdrop` each start a run of their own
+    const start = { type: "airdrop-start" } as const;
+    const two = PgFlow.reduce(PgFlow.reduce(INITIAL_FLOW_STATE, start), start);
+    const one = PgFlow.reduce(two, { type: "airdrop-finish" });
+    expect(one.airdrops).toBe(1);
+    expect(PgFlow.reduce(one, { type: "airdrop-finish" }).airdrops).toBe(0);
+  });
+
+  it("never counts below none: a finish with no start changes nothing", () => {
+    expect(PgFlow.reduce(INITIAL_FLOW_STATE, { type: "airdrop-finish" })).toBe(
+      INITIAL_FLOW_STATE
     );
   });
 
@@ -242,9 +255,9 @@ describe("PgFlow.reduce, an airdrop", () => {
     const running = PgFlow.reduce(INITIAL_FLOW_STATE, {
       type: "airdrop-start",
     });
-    expect(
-      PgFlow.reduce(running, { type: "workspace-change" }).airdropping
-    ).toBe(true);
+    expect(PgFlow.reduce(running, { type: "workspace-change" }).airdrops).toBe(
+      1
+    );
   });
 });
 
@@ -412,9 +425,9 @@ describe("PgFlow.init wiring", () => {
 
     const sub = PgFlow.init();
     requireFor("the airdrop start listener PgFlow.init subscribed")(start.cb)();
-    expect(PgFlow.state.airdropping).toBe(true);
+    expect(PgFlow.state.airdrops).toBe(1);
     requireFor("the airdrop end listener PgFlow.init subscribed")(finish.cb)();
-    expect(PgFlow.state.airdropping).toBe(false);
+    expect(PgFlow.state.airdrops).toBe(0);
     sub.dispose();
   });
 

@@ -23,7 +23,7 @@ const failedBuild: FlowState = {
   buildFailure: null,
   deployBeforeRun: null,
   stopped: null,
-  airdropping: false,
+  airdrops: 0,
   hasProgram: true,
 };
 
@@ -110,7 +110,7 @@ describe("Stepper", () => {
       buildFailure: null,
       deployBeforeRun: null,
       stopped: null,
-      airdropping: false,
+      airdrops: 0,
       /* eslint-enable unicorn/no-null */
       hasProgram: false,
     };
@@ -217,7 +217,7 @@ describe("phone", () => {
       buildFailure: null,
       deployBeforeRun: null,
       stopped: null,
-      airdropping: false,
+      airdrops: 0,
       /* eslint-enable unicorn/no-null */
       hasProgram: false,
     };
@@ -246,7 +246,7 @@ describe("phone", () => {
       buildFailure: null,
       deployBeforeRun: null,
       stopped: null,
-      airdropping: false,
+      airdrops: 0,
       /* eslint-enable unicorn/no-null */
       hasProgram: false,
     };

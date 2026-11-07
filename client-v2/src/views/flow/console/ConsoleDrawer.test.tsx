@@ -98,7 +98,7 @@ const flowState = (
   buildFailure: null,
   deployBeforeRun: null,
   stopped: null,
-  airdropping: false,
+  airdrops: 0,
   hasProgram: true,
 });
 

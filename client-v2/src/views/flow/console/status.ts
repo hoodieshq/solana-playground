@@ -81,7 +81,7 @@ export const describeConsoleStatus = (
   if (flow.build === "running") return running("Building…", elapsedMs);
   if (flow.deploy === "running") return running("Deploying…", elapsedMs);
   // A deploy's own top-up is named by the deploy, above
-  if (flow.airdropping) return running("Airdropping…", elapsedMs);
+  if (flow.airdrops > 0) return running("Airdropping…", elapsedMs);
   // A stop is newer than any result, and shows none (Spec 13)
   if (flow.stopped === "build") return { text: "Build stopped", tone: "idle" };
   if (flow.stopped === "deploy") {
