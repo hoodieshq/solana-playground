@@ -2761,7 +2761,7 @@ if (import.meta.vitest) {
           return {
             definition,
             slug: "hello-anchor",
-            judge: (_goal, result) => result.ok,
+            judge: (_goal, result) => result.ok && result.act !== "airdrop",
           };
         };
         const playIn = (c: EngineContext, actions: Action[]) =>
@@ -2782,6 +2782,13 @@ if (import.meta.vitest) {
           { type: "ended", beatId: "s1.build", result: BARE_BUILD, at: 8600 },
           { type: "next", at: 9000 },
           { type: "skip", beatId: "s2.q2", at: 9100 },
+          { type: "act", beatId: "s2.airdrop", at: 9110 },
+          {
+            type: "ended",
+            beatId: "s2.airdrop",
+            result: AIRDROPPED,
+            at: 9120,
+          },
           { type: "act", beatId: "s2.deploy", at: 9200 },
         ];
         const landedDeploy = (idl?: Idl): Action => {
@@ -2823,7 +2830,7 @@ if (import.meta.vitest) {
           return {
             definition,
             slug: "hello-anchor",
-            judge: (_goal, result) => result.ok,
+            judge: (_goal, result) => result.ok && result.act !== "airdrop",
           };
         };
         const at = (index: number): EngineState => {
