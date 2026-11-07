@@ -4,8 +4,11 @@ import { expect, json, LONG, test } from "./fixtures";
 
 const settings = (page: Page) => page.getByRole("region", { name: "Settings" });
 
+/** Opens Settings, unless a dialog closed over it left it open */
 const openSettings = async (page: Page) => {
-  await page.locator("[data-settings-trigger]").first().click();
+  if (!(await settings(page).isVisible())) {
+    await page.locator("[data-settings-trigger]").first().click();
+  }
   await expect(settings(page)).toBeVisible();
 };
 
