@@ -68,7 +68,9 @@ const HomeLogo = ({
     type="button"
     aria-label="Go to Home"
     onClick={() => onOpen("home")}
-    className="flex items-center rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+    // Dims a little on hover, as a link would, so the pointer is not the
+    // only sign the logo can be pressed
+    className="flex items-center rounded-md transition-opacity outline-none hover:opacity-80 focus-visible:ring-3 focus-visible:ring-ring/50"
   >
     {logo}
   </button>
