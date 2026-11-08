@@ -3,11 +3,8 @@ import { createLogger } from "@/shared/lib/logger";
 
 import type { Cluster } from "../../utils";
 import { PgConnection, TerminalLineError } from "../../utils";
-import {
-  DEPLOY_NETWORK_UNREAD,
-  isDeployBlocked,
-  MAINNET_DEPLOY_BLOCKED,
-} from "./mainnet-block";
+import type { MainnetRefusal } from "./mainnet-block";
+import { DEPLOY_REFUSAL, isDeployBlocked } from "./mainnet-block";
 
 const log = createLogger("commands:deploy");
 
@@ -33,7 +30,8 @@ const withinFor =
 const withinClusterRead = withinFor(CLUSTER_READ_MS);
 
 /**
- * Refuse a deploy to mainnet-beta. The cluster is read from `endpoint`, not
+ * Refuse a deploy, or another send from the Playground wallet (`refusal`
+ * names its lines), to mainnet-beta. The cluster is read from `endpoint`, not
  * `PgConnection.cluster`, which is derived asynchronously and can still name
  * the previous network; a custom RPC is resolved by its genesis hash. A
  * genesis hash that names no known cluster passes: that network is not
@@ -44,7 +42,8 @@ const withinClusterRead = withinFor(CLUSTER_READ_MS);
  * @throws {TerminalLineError} on mainnet-beta, or when the network is unread
  */
 export const refuseMainnet = async (
-  endpoint: string
+  endpoint: string,
+  refusal: MainnetRefusal = DEPLOY_REFUSAL
 ): Promise<Cluster | null> => {
   let cluster: Cluster;
   try {
@@ -52,13 +51,13 @@ export const refuseMainnet = async (
   } catch (error) {
     // eslint-disable-next-line unicorn/no-null -- `DeployResult.cluster` is `null` for a network of its own
     if (error instanceof UnknownClusterError) return null;
-    log.warn("could not read the deploy's network; deploy refused", {
+    log.warn("could not read the endpoint's network; send refused", {
       context: { error: String(error) },
     });
-    throw new TerminalLineError(DEPLOY_NETWORK_UNREAD);
+    throw new TerminalLineError(refusal.unread);
   }
   if (isDeployBlocked(cluster)) {
-    throw new TerminalLineError(MAINNET_DEPLOY_BLOCKED);
+    throw new TerminalLineError(refusal.blocked);
   }
   return cluster;
 };
