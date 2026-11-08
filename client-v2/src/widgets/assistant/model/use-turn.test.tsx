@@ -2272,3 +2272,54 @@ describe("useTurn's turn events", () => {
     });
   });
 });
+
+describe("useTurn across a remount", () => {
+  // HOO-2739: Back to tutorials unmounts the tutorial chat, and with it the
+  // hook; the way back mounts a new one
+
+  it("keeps a keyed draft for the next hook with the same key", () => {
+    const first = renderHook(() => useTurn({ open, draftKey: "tutorial:a" }));
+    act(() => first.result.current.setInput("half a question"));
+    first.unmount();
+
+    const again = renderHook(() => useTurn({ open, draftKey: "tutorial:a" }));
+    expect(again.result.current.input).toBe("half a question");
+    const other = renderHook(() => useTurn({ open, draftKey: "tutorial:b" }));
+    expect(other.result.current.input).toBe("");
+    // The panel's hook keeps no draft of its own across a remount
+    expect(renderHook(() => useTestTurn()).result.current.input).toBe("");
+  });
+
+  it("forgets a keyed draft once it is cleared", () => {
+    const first = renderHook(() => useTurn({ open, draftKey: "tutorial:c" }));
+    act(() => first.result.current.setInput("sent already"));
+    act(() => first.result.current.setInput(""));
+    first.unmount();
+
+    const again = renderHook(() => useTurn({ open, draftKey: "tutorial:c" }));
+    expect(again.result.current.input).toBe("");
+  });
+
+  it("stops from a remounted hook the turn an earlier one started", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    provider.send.mockImplementation(untilAborted);
+    const first = renderHook(() => useTestTurn());
+    act(() => {
+      void first.result.current.send("hi");
+    });
+    const signal: AbortSignal = provider.send.mock.calls[0][1].signal;
+    first.unmount();
+
+    const { result } = renderHook(() => useTestTurn());
+    expect(result.current.phase).toBe("running");
+    act(() => result.current.stop());
+
+    expect(signal.aborted).toBe(true);
+    expect(
+      PgAssistant.items.some(
+        (item) => item.kind === "notice" && item.text === "Stopped."
+      )
+    ).toBe(true);
+    await waitFor(() => expect(result.current.phase).toBe("idle"));
+  });
+});

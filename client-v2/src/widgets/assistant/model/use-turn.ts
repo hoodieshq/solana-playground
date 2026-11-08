@@ -182,7 +182,23 @@ export type ConnectOpener = (via: ConnectVia, preset?: ConnectPreset) => void;
 
 export interface TurnOptions {
   open: ConnectOpener;
+  /**
+   * Keeps what the composer holds for the next hook with the same key, so a
+   * chat that unmounts and comes back (a tutorial's, across Back to
+   * tutorials) still holds its draft. Without one the draft is the hook's own.
+   */
+  draftKey?: string;
 }
+
+/** Drafts by `draftKey`, for this page's life; an empty one is dropped */
+const drafts = new Map<string, string>();
+
+/**
+ * The turn in flight, whichever hook started it. One turn runs at a time
+ * (`PgAssistant.turnRunning`), so it is the page's, not a hook's: a chat
+ * that unmounts mid-turn and mounts again still has its Stop.
+ */
+const liveTurn: { current?: AbortController } = {};
 
 /**
  * Where the turn is. `stopping` is a turn that was stopped, by the user
@@ -336,13 +352,32 @@ const unconnectedPreset = (): ConnectPreset | undefined => {
  */
 const restored = new WeakSet<Connection>();
 
-export const useTurn = ({ open }: TurnOptions): Turn => {
+export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
   const [, render] = useReducer((n: number) => n + 1, 0);
   useEffect(() => PgAssistant.onDidChange(render).dispose, []);
   // A session ending or starting changes whether the default can take a turn
   useEffect(() => PgSession.onDidChange(render).dispose, []);
 
-  const [input, setInput] = useState("");
+  const draftOf = (key: string | undefined) =>
+    (key !== undefined && drafts.get(key)) || "";
+  const [draft, setDraft] = useState(() => ({
+    key: draftKey,
+    input: draftOf(draftKey),
+  }));
+  // Another key is another chat: it shows that chat's draft
+  const input = draft.key === draftKey ? draft.input : draftOf(draftKey);
+  // Through a ref: `onDidRequestPrompt` subscribes once and keeps the first
+  // render's `setInput`
+  const key = useRef(draftKey);
+  key.current = draftKey;
+  const setInput = (value: string) => {
+    const at = key.current;
+    if (at !== undefined) {
+      if (value) drafts.set(at, value);
+      else drafts.delete(at);
+    }
+    setDraft({ key: at, input: value });
+  };
   const [focusRequest, focus] = useReducer((n: number) => n + 1, 0);
   // A prompt that arrived with no backend waits in the composer. Saying so is
   // the panel's job, not the conversation's: a notice item would outlive the
@@ -362,7 +397,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
     context: ReadonlySet<string>;
     instance: Provider;
   } | null>(null);
-  const turn = useRef<AbortController | null>(null);
+  const turn = liveTurn;
   // Set from the first `send` until its turn starts, so a second send in the
   // meantime (a double Enter, a suggestion clicked twice) cannot start another
   // while the first is still finding a backend
@@ -672,7 +707,7 @@ export const useTurn = ({ open }: TurnOptions): Turn => {
         log.error(e, { report: true, context: { stopped: true } });
       }
     } finally {
-      if (turn.current === controller) turn.current = null;
+      if (turn.current === controller) turn.current = undefined;
       const finished = PgAssistant.endTurn(controller);
       PgAssistant.setStatus("idle");
       focus();
