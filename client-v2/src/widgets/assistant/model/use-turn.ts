@@ -194,11 +194,13 @@ export interface TurnOptions {
 const drafts = new Map<string, string>();
 
 /**
- * The turn in flight, whichever hook started it. One turn runs at a time
- * (`PgAssistant.turnRunning`), so it is the page's, not a hook's: a chat
- * that unmounts mid-turn and mounts again still has its Stop.
+ * The turn in flight, whichever hook started it, and a send still finding
+ * its backend. Both are the page's, not a hook's: a chat that unmounts
+ * mid-turn and mounts again still has its Stop, and two hooks mounted at
+ * once (the panel and a tutorial's chat) cannot both start a turn.
  */
 const liveTurn: { current?: AbortController } = {};
+const startingTurn = { current: false };
 
 /**
  * Where the turn is. `stopping` is a turn that was stopped, by the user
@@ -401,7 +403,16 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
   // Set from the first `send` until its turn starts, so a second send in the
   // meantime (a double Enter, a suggestion clicked twice) cannot start another
   // while the first is still finding a backend
-  const starting = useRef(false);
+  const starting = startingTurn;
+  // A turn outlives the hook that started it (`liveTurn`); what it ends on
+  // after the unmount is said in the thread, since no composer is left to show it
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   // A message waiting on a busy model. The ref is what the handlers read: a
   // send through `startRef` holds an older render's state. The state draws it
@@ -416,10 +427,9 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
 
   // The store says what a live turn is doing; the controller says whether a
   // turn is over, since a stopped one still has to unwind. A turn the store
-  // records but this hook has no controller for was started before the hook
-  // remounted. The store's status may already read idle (a closed thread, a
-  // backend change), so its record is all that says the turn still runs; it
-  // shows as stopping because this hook cannot stop it
+  // records with no controller here was cut off by the store (a closed
+  // thread, a backend change), which resets its status to idle, so its record
+  // is all that says the turn still runs; it shows as stopping
   const phaseOf = (): TurnPhase => {
     if (turn.current?.signal.aborted) return "stopping";
     if (PgAssistant.status !== "idle") return PgAssistant.status;
@@ -435,7 +445,14 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
   useEffect(() => {
     PgAssistant.markTurnBusy(busy);
   }, [busy]);
-  useEffect(() => () => PgAssistant.markTurnBusy(false), []);
+  // A turn still running when the chat unmounts keeps the key held; its own
+  // end releases it (`runTurn`)
+  useEffect(
+    () => () => {
+      if (!liveTurn.current) PgAssistant.markTurnBusy(false);
+    },
+    []
+  );
 
   const connection = usableConnection();
   // Connecting answers the hint; a later disconnect must not bring it back
@@ -491,6 +508,8 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
     const session = PgSession.onDidChange(() => {
       const signedInNow = !!PgSession.get();
       if (signedInNow && !signedIn) void reconnectDefault();
+      // Another account must not find the last one's half-typed questions
+      if (signedInNow !== signedIn) drafts.clear();
       signedIn = signedInNow;
     });
     return () => {
@@ -517,8 +536,8 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
   /**
    * Whether a turn, a send still finding its backend, or a message waiting on
    * a busy model is under way.
-   * `PgAssistant.turnRunning` covers a turn this hook has no controller for,
-   * and one whose status a closed thread reset; see `turnRunning`.
+   * `PgAssistant.turnRunning` covers a turn the store cut off, whose status a
+   * closed thread reset; see `turnRunning`.
    */
   const occupied = () =>
     starting.current ||
@@ -657,7 +676,16 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
       if (!controller.signal.aborted && !(e instanceof ModelBusyError)) {
         trackTurnFailureFor(current.id)(e);
       }
-      if (!controller.signal.aborted && e instanceof ModelBusyError) {
+      if (
+        !controller.signal.aborted &&
+        e instanceof ModelBusyError &&
+        !mounted.current
+      ) {
+        // No composer is left to count down: the wait ends as a Stop, as it
+        // does when the chat unmounts during one
+        PgAssistant.addNotice("Stopped.");
+        assistantTelemetry.track("assistant_turn_stopped", {});
+      } else if (!controller.signal.aborted && e instanceof ModelBusyError) {
         waitOnBusyWith(current.id)(outgoing, e);
       } else if (
         !controller.signal.aborted &&
@@ -710,6 +738,10 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
       if (turn.current === controller) turn.current = undefined;
       const finished = PgAssistant.endTurn(controller);
       PgAssistant.setStatus("idle");
+      // Its hook is gone, so no effect of it releases the key it held
+      if (!mounted.current && !liveTurn.current) {
+        PgAssistant.markTurnBusy(false);
+      }
       focus();
 
       // End of turn is the natural commit point: the exchange is complete and

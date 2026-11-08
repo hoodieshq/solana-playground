@@ -47,6 +47,7 @@ for (const width of widths) {
     await stubAiStatus(page, "z-ai/glm-5.3-flash:US");
     await page.route("**/api/agent", async (route) => {
       await held;
+      // Rejects once the test has closed the page: nothing left to answer
       await route.abort().catch(() => {});
     });
 

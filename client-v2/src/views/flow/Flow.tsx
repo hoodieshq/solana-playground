@@ -109,7 +109,9 @@ const TutorialChat = ({
   // tutorials, which unmounts this chat, and the way back (HOO-2739)
   const turn = useTurn({
     open: openConnectDialog,
-    draftKey: `tutorial:${PgTutorial.current?.name ?? ""}`,
+    draftKey: PgTutorial.current
+      ? `tutorial:${PgTutorial.current.name}`
+      : undefined,
   });
   // The composer counts a question only once the assistant has it
   const send = (text: string) =>

@@ -2300,6 +2300,89 @@ describe("useTurn across a remount", () => {
     expect(again.result.current.input).toBe("");
   });
 
+  it("does not bring back a question once it is sent", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    const first = renderHook(() => useTurn({ open, draftKey: "tutorial:d" }));
+    act(() => first.result.current.setInput("what is a PDA?"));
+    await act(() => first.result.current.send("what is a PDA?"));
+    first.unmount();
+
+    const again = renderHook(() => useTurn({ open, draftKey: "tutorial:d" }));
+    expect(again.result.current.input).toBe("");
+  });
+
+  it("is idle after a turn that ended while no hook was mounted", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    let finish!: () => void;
+    provider.send.mockImplementation(
+      () => new Promise<void>((resolve) => (finish = resolve))
+    );
+    const first = renderHook(() => useTestTurn());
+    act(() => {
+      void first.result.current.send("hi");
+    });
+    first.unmount();
+    await act(async () => finish());
+
+    const { result } = renderHook(() => useTestTurn());
+    expect(result.current.phase).toBe("idle");
+    provider.send.mockImplementation(() => Promise.resolve());
+    expect(await act(() => result.current.send("again"))).toBe("sent");
+  });
+
+  it("keeps the key held while a turn outlives its chat", async () => {
+    PgAssistant.connect({ id: "anthropic", apiKey: "sk-ant-fake" });
+    let finish!: () => void;
+    provider.send.mockImplementation(
+      () => new Promise<void>((resolve) => (finish = resolve))
+    );
+    const first = renderHook(() => useTestTurn());
+    act(() => {
+      void first.result.current.send("hi");
+    });
+    first.unmount();
+    expect(PgAssistant.keyHold).toBe("busy");
+
+    await act(async () => finish());
+    expect(PgAssistant.keyHold).toBe("ready");
+  });
+
+  it("says Stopped for a busy model that answers once its chat is gone", async () => {
+    PgAssistant.connect({ id: "default", apiKey: "" });
+    let busy!: () => void;
+    provider.send.mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          busy = () => reject(new ModelBusyError(30, "The model is busy."));
+        })
+    );
+    const first = renderHook(() => useTestTurn());
+    act(() => {
+      void first.result.current.send("hi");
+    });
+    first.unmount();
+    await act(async () => busy());
+
+    expect(lastItem()).toMatchObject({ kind: "notice", text: "Stopped." });
+    const { result } = renderHook(() => useTestTurn());
+    expect(result.current.phase).toBe("idle");
+  });
+
+  it("starts one turn for two chats sending while the default is probed", async () => {
+    defaultBackend(true);
+    const panel = renderHook(() => useTestTurn());
+    const chat = renderHook(() => useTurn({ open, draftKey: "tutorial:e" }));
+
+    await act(async () => {
+      await Promise.all([
+        panel.result.current.send("first"),
+        chat.result.current.send("second"),
+      ]);
+    });
+
+    expect(provider.send).toHaveBeenCalledTimes(1);
+  });
+
   it("stops from a remounted hook the turn an earlier one started", async () => {
     PgAssistant.connect({ id: "default", apiKey: "" });
     provider.send.mockImplementation(untilAborted);
