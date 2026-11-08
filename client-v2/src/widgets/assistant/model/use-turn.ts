@@ -190,8 +190,17 @@ export interface TurnOptions {
   draftKey?: string;
 }
 
-/** Drafts by `draftKey`, for this page's life; an empty one is dropped */
+/**
+ * Drafts by account and `draftKey`, for this page's life; an empty one is
+ * dropped. By account, so one signed in after another in the same tab never
+ * finds the last one's half-typed question, whether or not a chat was
+ * mounted when the account changed.
+ */
 const drafts = new Map<string, string>();
+const draftSlot = (draftKey: string | undefined) =>
+  draftKey === undefined
+    ? undefined
+    : `${PgSession.get()?.id ?? "signed-out"}\u0000${draftKey}`;
 
 /**
  * The turn in flight, whichever hook started it, and a send still finding
@@ -360,25 +369,23 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
   // A session ending or starting changes whether the default can take a turn
   useEffect(() => PgSession.onDidChange(render).dispose, []);
 
-  const draftOf = (key: string | undefined) =>
-    (key !== undefined && drafts.get(key)) || "";
-  const [draft, setDraft] = useState(() => ({
-    key: draftKey,
-    input: draftOf(draftKey),
-  }));
-  // Another key is another chat: it shows that chat's draft
-  const input = draft.key === draftKey ? draft.input : draftOf(draftKey);
+  const draftOf = (slot: string | undefined) =>
+    (slot !== undefined && drafts.get(slot)) || "";
+  const slot = draftSlot(draftKey);
+  const [draft, setDraft] = useState(() => ({ slot, input: draftOf(slot) }));
+  // Another chat or another account: it shows that one's draft
+  const input = draft.slot === slot ? draft.input : draftOf(slot);
   // Through a ref: `onDidRequestPrompt` subscribes once and keeps the first
   // render's `setInput`
   const key = useRef(draftKey);
   key.current = draftKey;
   const setInput = (value: string) => {
-    const at = key.current;
+    const at = draftSlot(key.current);
     if (at !== undefined) {
       if (value) drafts.set(at, value);
       else drafts.delete(at);
     }
-    setDraft({ key: at, input: value });
+    setDraft({ slot: at, input: value });
   };
   const [focusRequest, focus] = useReducer((n: number) => n + 1, 0);
   // A prompt that arrived with no backend waits in the composer. Saying so is
@@ -508,8 +515,6 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
     const session = PgSession.onDidChange(() => {
       const signedInNow = !!PgSession.get();
       if (signedInNow && !signedIn) void reconnectDefault();
-      // Another account must not find the last one's half-typed questions
-      if (signedInNow !== signedIn) drafts.clear();
       signedIn = signedInNow;
     });
     return () => {

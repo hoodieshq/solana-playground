@@ -2290,6 +2290,30 @@ describe("useTurn across a remount", () => {
     expect(renderHook(() => useTestTurn()).result.current.input).toBe("");
   });
 
+  it("never shows one account's draft to the next, mounted or not", async () => {
+    const first = renderHook(() => useTurn({ open, draftKey: "tutorial:f" }));
+    act(() => first.result.current.setInput("my private question"));
+    first.unmount();
+
+    // Signed out and another account in, with no chat mounted meanwhile
+    act(() => PgSession.reset());
+    await act(() =>
+      PgSession.refreshWith({
+        id: "u2",
+        name: undefined,
+        image: undefined,
+        login: undefined,
+      })
+    );
+    const other = renderHook(() => useTurn({ open, draftKey: "tutorial:f" }));
+    expect(other.result.current.input).toBe("");
+
+    // And with the chat mounted while the account changes
+    act(() => other.result.current.setInput("u2's question"));
+    await act(() => PgSession.refreshWith(USER));
+    expect(other.result.current.input).toBe("my private question");
+  });
+
   it("forgets a keyed draft once it is cleared", () => {
     const first = renderHook(() => useTurn({ open, draftKey: "tutorial:c" }));
     act(() => first.result.current.setInput("sent already"));
