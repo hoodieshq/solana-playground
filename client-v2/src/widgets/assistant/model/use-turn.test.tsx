@@ -2321,9 +2321,31 @@ describe("useTurn across a remount", () => {
 
     await act(() => PgSession.refreshWith(USER));
     expect(chat.result.current.input).toBe("typed early");
+    // Still the read account's only: the next one in does not see it
+    await act(() =>
+      PgSession.refreshWith({
+        id: "u3",
+        name: undefined,
+        image: undefined,
+        login: undefined,
+      })
+    );
+    expect(chat.result.current.input).toBe("");
+    await act(() => PgSession.refreshWith(USER));
     chat.unmount();
     const again = renderHook(() => useTurn({ open, draftKey: "tutorial:g" }));
     expect(again.result.current.input).toBe("typed early");
+  });
+
+  it("drops what a chat no longer on screen typed before the session read", async () => {
+    act(() => PgSession.reset());
+    const chat = renderHook(() => useTurn({ open, draftKey: "tutorial:h" }));
+    act(() => chat.result.current.setInput("whose is this?"));
+    chat.unmount();
+
+    await act(() => PgSession.refreshWith(USER));
+    const later = renderHook(() => useTurn({ open, draftKey: "tutorial:h" }));
+    expect(later.result.current.input).toBe("");
   });
 
   it("forgets a keyed draft once it is cleared", () => {
