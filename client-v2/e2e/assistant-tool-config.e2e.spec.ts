@@ -61,6 +61,47 @@ const readStored = (page: Page) =>
     return contents.filter((text) => text.includes('"mcpServers"'));
   });
 
+/**
+ * Whether the file system's saved tree lists the file. lightning-fs stores a
+ * file's bytes at once but its tree (`!root`) 500 ms later, so a reload in
+ * between finds the bytes and no file
+ */
+const inSavedTree = (page: Page) =>
+  page.evaluate(async () => {
+    for (const { name } of await indexedDB.databases()) {
+      if (!name) continue;
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const open = indexedDB.open(name);
+        open.onsuccess = () => resolve(open.result);
+        open.onerror = () => reject(open.error);
+      });
+      for (const storeName of Array.from(db.objectStoreNames)) {
+        const root = await new Promise<unknown>((resolve, reject) => {
+          const get = db
+            .transaction(storeName)
+            .objectStore(storeName)
+            .get("!root");
+          get.onsuccess = () => resolve(get.result);
+          get.onerror = () => reject(get.error);
+        });
+        if (!(root instanceof Map)) continue;
+        const config = root.get("/")?.get(".config");
+        if (config instanceof Map && config.has("assistant-tools.json")) {
+          db.close();
+          return true;
+        }
+      }
+      db.close();
+    }
+    return false;
+  });
+
+/** Waits until a reload would read the stored file back */
+const waitForStored = async (page: Page) => {
+  await expect.poll(() => readStored(page).then((f) => f.length)).toBe(1);
+  await expect.poll(() => inSavedTree(page)).toBe(true);
+};
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/mcp", (r) => json(r, { servers: [] }));
   await page.route("**/api/skills", (r) => json(r, { skills: [SKILL] }));
@@ -84,7 +125,7 @@ test("assistant-tool-config: A reload after turning a skill off and adding a ser
   await page.getByRole("button", { name: "Apply", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: "My server" })).toBeVisible();
 
-  await expect.poll(() => readStored(page).then((f) => f.length)).toBe(1);
+  await waitForStored(page);
   await page.reload();
   await openSources(page);
 
@@ -105,7 +146,7 @@ test("assistant-tool-config: The stored file after adding a server with a token"
     .fill(JSON.stringify(ENTRY));
   await page.getByRole("button", { name: "Apply", exact: true }).click();
 
-  await expect.poll(() => readStored(page).then((f) => f.length)).toBe(1);
+  await waitForStored(page);
   const before = (await readStored(page)).join();
   expect(before).toContain('"mine"');
   expect(before).not.toContain(TOKEN);
