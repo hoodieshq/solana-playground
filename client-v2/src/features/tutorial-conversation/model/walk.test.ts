@@ -545,11 +545,14 @@ describe("Start over in the same workspace (HOO-2741)", () => {
     const before = file[STORAGE_KEY] as Saved;
     expect(before.passed).toEqual(["create", "deploy"]);
     expect(before.startedAt).not.toBeNull();
+    const start = vi.spyOn(PgConversation, "start");
 
     await walkWith({ workspace })(d, startOverPass(goalRunner(d)));
 
     const saved = file[STORAGE_KEY] as Saved;
     // The same walk, read back from the save: never a fresh Start
+    expect(start).not.toHaveBeenCalled();
+    start.mockRestore();
     expect(saved.startedAt).toBe(before.startedAt);
     expect(saved.runs["s2.create"].map((r) => r.status)).toEqual(["refused"]);
     expect(saved.passed).toEqual(d.steps.map((s) => s.id));
