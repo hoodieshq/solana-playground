@@ -1162,7 +1162,10 @@ export class PgExplorer {
     };
   }
 
-  /** Writes what `_metaOfCurrent` read, wherever the current workspace is now */
+  /**
+   * Writes what `_metaOfCurrent` read to the path it resolved then, even when
+   * another workspace is current now
+   */
   private static async _writeMeta(
     meta: ReturnType<typeof PgExplorer._metaOfCurrent>
   ) {

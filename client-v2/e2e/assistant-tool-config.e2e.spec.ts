@@ -62,12 +62,15 @@ const readStored = (page: Page) =>
   });
 
 /**
- * Whether the file system's saved tree lists the file. lightning-fs stores a
- * file's bytes at once but its tree (`!root`) 500 ms later, so a reload in
- * between finds the bytes and no file
+ * Where the file system's saved tree stands on `/.config/assistant-tools.json`.
+ * lightning-fs stores a file's bytes at once but its tree (`!root`) only
+ * 500 ms after the last write, debounced, so a reload in between finds the
+ * bytes and no file. "no-tree" means the probe no longer matches the
+ * library's layout, not that the save is slow
  */
-const inSavedTree = (page: Page) =>
+const savedTreeState = (page: Page) =>
   page.evaluate(async () => {
+    let sawTree = false;
     for (const { name } of await indexedDB.databases()) {
       if (!name) continue;
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -75,31 +78,34 @@ const inSavedTree = (page: Page) =>
         open.onsuccess = () => resolve(open.result);
         open.onerror = () => reject(open.error);
       });
-      for (const storeName of Array.from(db.objectStoreNames)) {
-        const root = await new Promise<unknown>((resolve, reject) => {
-          const get = db
-            .transaction(storeName)
-            .objectStore(storeName)
-            .get("!root");
-          get.onsuccess = () => resolve(get.result);
-          get.onerror = () => reject(get.error);
-        });
-        if (!(root instanceof Map)) continue;
-        const config = root.get("/")?.get(".config");
-        if (config instanceof Map && config.has("assistant-tools.json")) {
-          db.close();
-          return true;
+      try {
+        for (const storeName of Array.from(db.objectStoreNames)) {
+          const root = await new Promise<unknown>((resolve, reject) => {
+            const get = db
+              .transaction(storeName)
+              .objectStore(storeName)
+              .get("!root");
+            get.onsuccess = () => resolve(get.result);
+            get.onerror = () => reject(get.error);
+          });
+          if (!(root instanceof Map)) continue;
+          sawTree = true;
+          const config = root.get("/")?.get(".config");
+          if (config instanceof Map && config.has("assistant-tools.json")) {
+            return "listed";
+          }
         }
+      } finally {
+        db.close();
       }
-      db.close();
     }
-    return false;
+    return sawTree ? "not-yet" : "no-tree";
   });
 
 /** Waits until a reload would read the stored file back */
 const waitForStored = async (page: Page) => {
   await expect.poll(() => readStored(page).then((f) => f.length)).toBe(1);
-  await expect.poll(() => inSavedTree(page)).toBe(true);
+  await expect.poll(() => savedTreeState(page)).toBe("listed");
 };
 
 test.beforeEach(async ({ page }) => {
