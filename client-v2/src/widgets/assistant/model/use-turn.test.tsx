@@ -2314,6 +2314,18 @@ describe("useTurn across a remount", () => {
     expect(other.result.current.input).toBe("my private question");
   });
 
+  it("keeps what was typed before the session read for the account it finds", async () => {
+    act(() => PgSession.reset());
+    const chat = renderHook(() => useTurn({ open, draftKey: "tutorial:g" }));
+    act(() => chat.result.current.setInput("typed early"));
+
+    await act(() => PgSession.refreshWith(USER));
+    expect(chat.result.current.input).toBe("typed early");
+    chat.unmount();
+    const again = renderHook(() => useTurn({ open, draftKey: "tutorial:g" }));
+    expect(again.result.current.input).toBe("typed early");
+  });
+
   it("forgets a keyed draft once it is cleared", () => {
     const first = renderHook(() => useTurn({ open, draftKey: "tutorial:c" }));
     act(() => first.result.current.setInput("sent already"));

@@ -197,10 +197,31 @@ export interface TurnOptions {
  * mounted when the account changed.
  */
 const drafts = new Map<string, string>();
-const draftSlot = (draftKey: string | undefined) =>
-  draftKey === undefined
-    ? undefined
-    : `${PgSession.get()?.id ?? "signed-out"}\u0000${draftKey}`;
+/** Whose a draft typed before the page has read the session is */
+const UNREAD = "unread";
+const draftSlot = (draftKey: string | undefined) => {
+  if (draftKey === undefined) return undefined;
+  const owner = PgSession.hasRead
+    ? PgSession.get()?.id ?? "signed-out"
+    : UNREAD;
+  return `${owner}\u0000${draftKey}`;
+};
+/**
+ * The draft for `draftKey` under the account signed in. One typed before the session was read belongs to the
+ * account the read finds, so it moves there rather than vanishing as the
+ * read lands mid-typing
+ */
+const draftOf = (draftKey: string | undefined) => {
+  const slot = draftSlot(draftKey);
+  if (slot === undefined) return "";
+  const early = `${UNREAD}\u0000${draftKey}`;
+  const typedEarly = drafts.get(early);
+  if (slot !== early && typedEarly !== undefined) {
+    drafts.set(slot, typedEarly);
+    drafts.delete(early);
+  }
+  return drafts.get(slot) ?? "";
+};
 
 /**
  * The turn in flight, whichever hook started it, and a send still finding
@@ -369,12 +390,13 @@ export const useTurn = ({ open, draftKey }: TurnOptions): Turn => {
   // A session ending or starting changes whether the default can take a turn
   useEffect(() => PgSession.onDidChange(render).dispose, []);
 
-  const draftOf = (slot: string | undefined) =>
-    (slot !== undefined && drafts.get(slot)) || "";
   const slot = draftSlot(draftKey);
-  const [draft, setDraft] = useState(() => ({ slot, input: draftOf(slot) }));
+  const [draft, setDraft] = useState(() => ({
+    slot,
+    input: draftOf(draftKey),
+  }));
   // Another chat or another account: it shows that one's draft
-  const input = draft.slot === slot ? draft.input : draftOf(slot);
+  const input = draft.slot === slot ? draft.input : draftOf(draftKey);
   // Through a ref: `onDidRequestPrompt` subscribes once and keeps the first
   // render's `setInput`
   const key = useRef(draftKey);
