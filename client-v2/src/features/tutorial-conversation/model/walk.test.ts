@@ -47,6 +47,7 @@ import { writeWorkspaceFile } from "../../../utils/explorer/workspace-file";
 import { PgTutorial } from "../../../utils/tutorial/tutorial";
 import type { Disposable } from "../../../utils/types";
 import { PgView } from "../../../utils/view";
+import { judgeGoal } from "./goals";
 import type { Judge, Runner } from "./ports";
 import { memoryWorkspace } from "./ports";
 import type { RunResult } from "./progress";
@@ -73,7 +74,8 @@ const settle = async () => {
 
 /**
  * A goal passes on a result of its own kind; a `refused` goal only on a
- * refusal of its own instruction
+ * refusal of its own instruction; a `call` goal with `creates` also on a
+ * failed run whose account was already there, as `judgeGoal` rules it
  */
 const byKind: Judge = (goal, result) => {
   if (goal.kind === "refused") {
@@ -83,6 +85,7 @@ const byKind: Judge = (goal, result) => {
       result.refused?.instruction === goal.instruction
     );
   }
+  if (goal.kind === "call" && !result.ok) return judgeGoal(goal, result);
   if (!result.ok) return false;
   if (goal.kind === "build") return result.act === "build";
   if (goal.kind === "deploy")
@@ -248,6 +251,46 @@ const secondPass = (d: TutorialDefinition, runner: Runner): Runner => ({
     const { creates } = input;
     if (act !== "call" || !creates || !ownCreates(d).has(input.beatId)) {
       return runner.run(act, input, onStage);
+    }
+    return {
+      act: "call",
+      ok: false,
+      seconds: 1,
+      message: "custom program error: 0x0",
+      log: "",
+      refused: {
+        instruction: creates.instruction,
+        error: { code: 0, name: null },
+      },
+      exists: { instruction: creates.instruction, account: creates.account },
+    };
+  },
+});
+
+/**
+ * The runner of a Start over in the same workspace: the program keypair is
+ * the same, so every deploy is an upgrade, and every account a call creates
+ * with `init` is already at its address, whether the act or the step's goal
+ * names it. Each act otherwise answers as `runner` does.
+ */
+const startOverPass = (runner: Runner): Runner => ({
+  run: async (act, input, onStage) => {
+    const result = await runner.run(act, input, onStage);
+    // goalRunner builds a fresh result per run, so it is ours to change
+    if (
+      result.ok &&
+      (result.act === "deploy" || result.act === "buildDeploy")
+    ) {
+      result.upgraded = true;
+      return result;
+    }
+    const { creates, call } = input;
+    if (
+      act !== "call" ||
+      !creates ||
+      call?.instruction !== creates.instruction
+    ) {
+      return result;
     }
     return {
       act: "call",
@@ -436,6 +479,32 @@ describe("A second pass with the same wallet (HOO-2730)", () => {
       passed: string[];
       runs: Record<string, { status: string }[]>;
     };
+    expect(saved.runs["s4.create"].map((r) => r.status)).toEqual(["refused"]);
+    expect(saved.passed).toEqual(d.steps.map((s) => s.id));
+  });
+});
+
+describe("Start over in the same workspace (HOO-2741)", () => {
+  type Saved = {
+    passed: string[];
+    runs: Record<string, { status: string }[]>;
+  };
+
+  it("walks Hello Anchor to the finish when every deploy is an upgrade", async () => {
+    const d = hello as unknown as TutorialDefinition;
+    await walk(d, startOverPass(goalRunner(d)));
+
+    const saved = file[STORAGE_KEY] as Saved;
+    expect(saved.runs["s2.deploy"].map((r) => r.status)).toEqual(["ok"]);
+    expect(saved.passed).toEqual(d.steps.map((s) => s.id));
+  });
+
+  it("walks Zero Copy to the finish when the map and the big map are both there", async () => {
+    const d = zeroCopy as unknown as TutorialDefinition;
+    await walk(d, startOverPass(goalRunner(d)));
+
+    const saved = file[STORAGE_KEY] as Saved;
+    expect(saved.runs["s2.create"].map((r) => r.status)).toEqual(["refused"]);
     expect(saved.runs["s4.create"].map((r) => r.status)).toEqual(["refused"]);
     expect(saved.passed).toEqual(d.steps.map((s) => s.id));
   });
