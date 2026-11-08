@@ -332,47 +332,66 @@ const expectTarget = (
   }
 };
 
-/** Answers whatever the conversation waits on, until the finish */
-const walk = async (d: TutorialDefinition, runner: Runner) => {
-  const workspace = memoryWorkspace(
-    Object.assign({}, d.steps[0].start) as Record<string, string>
-  );
-  (PgExplorer as { currentWorkspaceName: string | null }).currentWorkspaceName =
-    d.name;
-  vi.mocked(PgTutorial).all = [{ name: d.name, definition: d }] as never;
-  sub = PgConversation.init({
-    workspace,
-    runner,
-    judge: byKind,
-  });
-  await settle();
-
-  for (let moves = 0; moves < 200; moves++) {
-    const live = PgConversation.view(Date.now() + 1e9)?.live;
-    if (!live) break;
-    if (live.kind === "intro") PgConversation.start();
-    else if (live.kind === "ask")
-      PgConversation.pick(live.beatId, live.ask.answer);
-    else if (live.kind === "act") {
-      const args = Object.fromEntries(
-        (live.act.call?.args ?? []).map((a) => [a, "x"])
+/**
+ * Answers whatever the conversation waits on, until the finish, or until
+ * `stopAfter` has passed: then it returns at once, as a reload would leave
+ * it. `workspace` is the one a walk stopped that way left, for its reload.
+ */
+const walkWith =
+  (resume: {
+    stopAfter?: string;
+    workspace?: ReturnType<typeof memoryWorkspace>;
+  }) =>
+  async (d: TutorialDefinition, runner: Runner) => {
+    const workspace =
+      resume.workspace ??
+      memoryWorkspace(
+        Object.assign({}, d.steps[0].start) as Record<string, string>
       );
-      PgConversation.act(live.beatId, args);
-    } else if (live.kind === "result" && live.open)
-      PgConversation.explain(live.beatId);
-    else if (live.kind === "win") {
-      expectTarget(d, live.stepId, workspace.files);
-      PgConversation.next();
-    } else throw new Error(`the walk cannot answer a live ${live.kind}`);
+    (
+      PgExplorer as { currentWorkspaceName: string | null }
+    ).currentWorkspaceName = d.name;
+    vi.mocked(PgTutorial).all = [{ name: d.name, definition: d }] as never;
+    sub = PgConversation.init({
+      workspace,
+      runner,
+      judge: byKind,
+    });
     await settle();
-  }
-  await vi.waitFor(
-    () =>
-      expect(PgConversation.state.engine.progress.finishedAt).not.toBeNull(),
-    { timeout: 2000 }
-  );
-  return workspace;
-};
+
+    for (let moves = 0; moves < 200; moves++) {
+      const { passed } = PgConversation.state.engine.progress;
+      if (resume.stopAfter && passed.includes(resume.stopAfter)) {
+        return workspace;
+      }
+      const live = PgConversation.view(Date.now() + 1e9)?.live;
+      if (!live) break;
+      if (live.kind === "intro") PgConversation.start();
+      else if (live.kind === "ask")
+        PgConversation.pick(live.beatId, live.ask.answer);
+      else if (live.kind === "act") {
+        const args = Object.fromEntries(
+          (live.act.call?.args ?? []).map((a) => [a, "x"])
+        );
+        PgConversation.act(live.beatId, args);
+      } else if (live.kind === "result" && live.open)
+        PgConversation.explain(live.beatId);
+      else if (live.kind === "win") {
+        expectTarget(d, live.stepId, workspace.files);
+        PgConversation.next();
+      } else throw new Error(`the walk cannot answer a live ${live.kind}`);
+      await settle();
+    }
+    await vi.waitFor(
+      () =>
+        expect(PgConversation.state.engine.progress.finishedAt).not.toBeNull(),
+      { timeout: 2000 }
+    );
+    return workspace;
+  };
+
+/** Answers whatever the conversation waits on, until the finish */
+const walk = walkWith({});
 
 beforeEach(() => {
   file = {};
@@ -488,6 +507,7 @@ describe("A second pass with the same wallet (HOO-2730)", () => {
 describe("Start over in the same workspace (HOO-2741)", () => {
   type Saved = {
     passed: string[];
+    startedAt: number | null;
     runs: Record<string, { status: string; result?: { upgraded?: boolean } }[]>;
   };
 
@@ -512,6 +532,26 @@ describe("Start over in the same workspace (HOO-2741)", () => {
     ).toEqual([["ok", true]]);
     expect(saved.runs["s2.create"].map((r) => r.status)).toEqual(["refused"]);
     expect(saved.runs["s4.create"].map((r) => r.status)).toEqual(["refused"]);
+    expect(saved.passed).toEqual(d.steps.map((s) => s.id));
+  });
+
+  it("keeps Zero Copy's existing-map pass across a reload and goes on to the finish", async () => {
+    const d = zeroCopy as unknown as TutorialDefinition;
+    const workspace = await walkWith({ stopAfter: "deploy" })(
+      d,
+      startOverPass(goalRunner(d))
+    );
+    sub?.dispose();
+    const before = file[STORAGE_KEY] as Saved;
+    expect(before.passed).toEqual(["create", "deploy"]);
+    expect(before.startedAt).not.toBeNull();
+
+    await walkWith({ workspace })(d, startOverPass(goalRunner(d)));
+
+    const saved = file[STORAGE_KEY] as Saved;
+    // The same walk, read back from the save: never a fresh Start
+    expect(saved.startedAt).toBe(before.startedAt);
+    expect(saved.runs["s2.create"].map((r) => r.status)).toEqual(["refused"]);
     expect(saved.passed).toEqual(d.steps.map((s) => s.id));
   });
 });
