@@ -5329,7 +5329,14 @@ if (import.meta.vitest) {
           expect(progress.beats["s4.inc"]).toBeUndefined();
         });
 
-        it("a second press on the existing account records it refused again and posts the next card once", () => {
+        it("records a second press on the existing account refused again, and leaves the next card where the first posted it", () => {
+          const first = run(
+            [
+              press("s4.init", 2000),
+              ended("s4.init", 2000, refusedInit(COUNTER)),
+            ],
+            at(5)
+          ).progress.beats["s4.inc"];
           const { progress } = run(
             [
               press("s4.init", 2000),
@@ -5343,19 +5350,19 @@ if (import.meta.vitest) {
             "refused",
             "refused",
           ]);
-          expect(progress.beats["s4.inc"]).toEqual({
-            kind: "said",
-            at: expect.any(Number),
-          });
+          expect(first).toMatchObject({ kind: "said" });
+          expect(progress.beats["s4.inc"]).toEqual(first);
           expect(progress.passed).not.toContain("count");
         });
 
-        it("inside onFail, records the existing account refused and posts the fix path's next card", () => {
-          // The cursor in the fix path, its one-time call posted
+        it("records the existing account refused inside onFail and posts the fix path's next card", () => {
+          const { steps } = realCtx.definition;
+          const fix = steps.findIndex((s) => s.id === "fix");
+          // The cursor in the fix path (`onFail`), its one-time call posted
           const from: EngineState = {
             progress: {
               version: 1,
-              passed: realCtx.definition.steps.slice(0, 6).map((s) => s.id),
+              passed: steps.slice(0, fix).map((s) => s.id),
               finishedAt: null,
               startedAt: 1000,
               restartedAt: null,
