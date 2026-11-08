@@ -269,14 +269,15 @@ const secondPass = (d: TutorialDefinition, runner: Runner): Runner => ({
 
 /**
  * The runner of a Start over in the same workspace: the program keypair is
- * the same, so every deploy is an upgrade, and every account a call creates
- * with `init` is already at its address, whether the act or the step's goal
- * names it. Each act otherwise answers as `runner` does.
+ * the same, so every deploy is an upgrade, and the call of the account the
+ * run names in `creates` (the act's own, else its step goal's, as the reducer
+ * picks it) is refused because that account is already at its address. Each
+ * act otherwise answers as `runner` does.
  */
 const startOverPass = (runner: Runner): Runner => ({
   run: async (act, input, onStage) => {
     const result = await runner.run(act, input, onStage);
-    // goalRunner builds a fresh result per run, so it is ours to change
+    // Safe only while `runner` returns a fresh result per run, as goalRunner does
     if (
       result.ok &&
       (result.act === "deploy" || result.act === "buildDeploy")
@@ -487,7 +488,7 @@ describe("A second pass with the same wallet (HOO-2730)", () => {
 describe("Start over in the same workspace (HOO-2741)", () => {
   type Saved = {
     passed: string[];
-    runs: Record<string, { status: string }[]>;
+    runs: Record<string, { status: string; result?: { upgraded?: boolean } }[]>;
   };
 
   it("walks Hello Anchor to the finish when every deploy is an upgrade", async () => {
@@ -495,7 +496,9 @@ describe("Start over in the same workspace (HOO-2741)", () => {
     await walk(d, startOverPass(goalRunner(d)));
 
     const saved = file[STORAGE_KEY] as Saved;
-    expect(saved.runs["s2.deploy"].map((r) => r.status)).toEqual(["ok"]);
+    expect(
+      saved.runs["s2.deploy"].map((r) => [r.status, r.result?.upgraded])
+    ).toEqual([["ok", true]]);
     expect(saved.passed).toEqual(d.steps.map((s) => s.id));
   });
 
@@ -504,6 +507,9 @@ describe("Start over in the same workspace (HOO-2741)", () => {
     await walk(d, startOverPass(goalRunner(d)));
 
     const saved = file[STORAGE_KEY] as Saved;
+    expect(
+      saved.runs["s2.deploy"].map((r) => [r.status, r.result?.upgraded])
+    ).toEqual([["ok", true]]);
     expect(saved.runs["s2.create"].map((r) => r.status)).toEqual(["refused"]);
     expect(saved.runs["s4.create"].map((r) => r.status)).toEqual(["refused"]);
     expect(saved.passed).toEqual(d.steps.map((s) => s.id));
