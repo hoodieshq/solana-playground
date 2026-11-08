@@ -5358,6 +5358,7 @@ if (import.meta.vitest) {
         it("records the existing account refused inside onFail and posts the fix path's next card", () => {
           const { steps } = realCtx.definition;
           const fix = steps.findIndex((s) => s.id === "fix");
+          expect(fix).toBeGreaterThan(-1);
           // The cursor in the fix path (`onFail`), its one-time call posted
           const from: EngineState = {
             progress: {

@@ -247,7 +247,10 @@ type Creates = { instruction: string; account: string };
  * says either way (a call of that instruction decoded with nothing written,
  * or no call decoded and Anchor's `Instruction:` line names it), so the log
  * line's address stands on its own. `none`: the decoded calls show another
- * account or another instruction, or nothing names the instruction at all
+ * account or another instruction, or nothing names the instruction at all.
+ * Known limit: on `fallback`, an instruction that creates two accounts and
+ * finds only the second in use reads as the first existing; it takes an
+ * undecoded call, which the deployed IDL normally rules out
  */
 const tieOf = (
   tx: ReadTx,
