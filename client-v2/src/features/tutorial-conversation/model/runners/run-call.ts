@@ -677,8 +677,8 @@ if (import.meta.vitest) {
             {
               instruction: "initPlayer",
               args: {},
-              accounts: [{ name: "player", address: "Player1" }],
-              wrote: [],
+              accounts: [{ name: "Player", address: "Player1" }],
+              wrote: [{ name: "player", address: "Player1" }],
             },
           ],
         });

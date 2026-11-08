@@ -237,8 +237,8 @@ const failed = (tx: SentTx): tx is ReadTx =>
 /**
  * The existing account behind a refusal of the instruction that creates it:
  * the System Program's "already in use" with its error 0, in that
- * instruction, at the address the failed transaction passed as the account
- * it creates. Undefined for any other refusal, for an address in use that is
+ * instruction, at the address the failed transaction's call wrote as the
+ * account it creates. Undefined for any other refusal, for an address in use that is
  * another account (a second account the instruction creates, or one an
  * earlier call made), or with nothing to create
  */
@@ -263,7 +263,9 @@ export const existingOf = (
   const passed = failure.calls.some(
     (c) =>
       sameIdlName(c.instruction, creates.instruction) &&
-      c.accounts.some(
+      // `wrote` carries IDL names; `accounts` has Anchor's display names
+      // ("Big Map"), which no IDL name matches
+      c.wrote.some(
         (a) => a.address === address && sameIdlName(a.name, creates.account)
       )
   );
@@ -599,10 +601,13 @@ if (import.meta.vitest) {
         instruction: "initPlayer",
         args: {},
         accounts: [
+          { name: "Player", address: PLAYER },
+          { name: "Vault", address: VAULT },
+        ],
+        wrote: [
           { name: "player", address: PLAYER },
           { name: "vault", address: VAULT },
         ],
-        wrote: [],
       };
       const CREATES = { instruction: "init_player", account: "player" };
       const existing = (log: string[], calls: DecodedCall[] = [init]) =>
@@ -633,13 +638,34 @@ if (import.meta.vitest) {
         const other: DecodedCall = {
           instruction: "initPlayer",
           args: {},
-          accounts: [{ name: "player", address: VAULT }],
-          wrote: [],
+          accounts: [{ name: "Player", address: VAULT }],
+          wrote: [{ name: "player", address: VAULT }],
         };
         expect(
           existing(initLog(inUse(PLAYER), "0x0"), [other])
         ).toBeUndefined();
         expect(existing(initLog(inUse(PLAYER), "0x0"), [])).toBeUndefined();
+      });
+
+      it("matches a creates of two words by its IDL name, not Anchor's display name", () => {
+        const log = initLog(inUse(PLAYER), "0x0");
+        const big: DecodedCall = {
+          instruction: "initBigMap",
+          args: {},
+          accounts: [{ name: "Big Map", address: PLAYER }],
+          wrote: [{ name: "big_map", address: PLAYER }],
+        };
+        expect(
+          existingOf(
+            [{ kind: "refused", log, message: "0x0", calls: [big] }],
+            { instruction: "initBigMap", error: { code: 0, name: null } },
+            { instruction: "init_big_map", account: "big_map" }
+          )
+        ).toEqual({
+          instruction: "init_big_map",
+          account: "big_map",
+          address: PLAYER,
+        });
       });
     });
 
