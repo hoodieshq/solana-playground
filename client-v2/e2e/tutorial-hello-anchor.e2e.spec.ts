@@ -400,7 +400,9 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     await expect(act(page, id)).toBeEnabled();
   };
 
-  test("a reload at a Build card keeps the Build button", async ({ page }) => {
+  test("keeps the Build button after a reload at a Build card", async ({
+    page,
+  }) => {
     test.skip(isLive, "steers the fakes");
     test.setTimeout(120_000);
     await start(page);
@@ -412,7 +414,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
   });
 
-  test("a reload during a build leaves the card interrupted, and it builds again", async ({
+  test("leaves the card interrupted after a reload during a build, and builds again", async ({
     page,
   }) => {
     test.skip(isLive, "steers the fakes");
@@ -447,7 +449,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
   });
 
-  test("a reload at the fix's Build keeps the Build button", async ({
+  test("keeps the Build button after a reload at the fix's Build", async ({
     page,
   }) => {
     test.skip(isLive, "steers the fakes");
