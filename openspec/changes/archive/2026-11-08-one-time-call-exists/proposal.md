@@ -12,9 +12,12 @@ next beat never posts (HOO-2730).
   the account already exists, and the lesson goes on to the next beat. The step still passes only on its goal.
 - `checkDefinition` refuses an act `creates` the step's IDL does not list for the instruction, and one on the last card
   of its beats.
+- No `tutorial-conversation` event is added, renamed or removed.
 
 ## Impact
 
 - `client-v2/src/features/tutorial-conversation/model/reducer.ts`, `entities/tutorial/model/definition/{types,check}.ts`,
   `tutorials/tutorial.schema.json`, `tutorials/AUTHORING.md`; the counter fixture and Zero Copy name their one-time call's
   account.
+- Out of scope: a step whose goal is the call that creates the account, a goal's judging of a later count (a second
+  `increment` after a finished first pass), and any change to the runner or to how a landed transaction is counted.
