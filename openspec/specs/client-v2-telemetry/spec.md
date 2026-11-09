@@ -118,7 +118,8 @@ user input.
 GA4 registers a custom dimension or metric by parameter name across all
 events, so a parameter name SHALL carry one meaning and one type (`string`,
 `number` or `boolean`) in every tracker, and SHALL be snake_case. A numeric
-parameter is registered as a custom metric; a string or boolean one as an
+parameter is registered as a custom metric unless it is a category (`status`,
+the tutorial step index), which stays a dimension; a string or boolean one as an
 event-scoped custom dimension. GA4 allows 50 event-scoped custom dimensions
 and 50 custom metrics per property, so every parameter SHALL be listed, with
 its type, its kind, the events that send it and whether a funnel breaks down
@@ -127,8 +128,9 @@ by it, in the table of
 A name that still carries two types is recorded as a known conflict in
 `src/app/telemetry-parameters.test.ts` until it is renamed.
 
-All scenarios here are marked `(manual)`: `src/app/telemetry-parameters.test.ts`
-holds them, not a Playwright test.
+The five scenarios of this requirement are marked `(manual)`: the unit test
+`src/app/telemetry-parameters.test.ts` holds them, not a Playwright test (the
+repository marks such scenarios inconsistently).
 
 #### Scenario: One name has two types (manual)
 
@@ -139,6 +141,16 @@ holds them, not a Playwright test.
 
 - **WHEN** an event declares a parameter such as `signedIn`
 - **THEN** the parameter test fails and names the parameter
+
+#### Scenario: A documented type disagrees with the trackers (manual)
+
+- **WHEN** the table gives a parameter a type, or a list of events, that the trackers do not
+- **THEN** the parameter test fails and names the parameter
+
+#### Scenario: A known conflict is fixed (manual)
+
+- **WHEN** a name listed as a known conflict no longer has two types
+- **THEN** the parameter test fails until its entry is removed
 
 #### Scenario: A parameter is added (manual)
 
