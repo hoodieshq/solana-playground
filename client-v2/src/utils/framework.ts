@@ -210,6 +210,7 @@ const freePath = (path: string, taken: Set<string>) => {
  *
  * @param root the imported folder
  * @param fullPath the file's path
+ * @returns the path below `root`; a path not under `root` returns whole
  */
 const relativeToRoot = (root: string, fullPath: string) => {
   const prefix = root.replace(/^\/+|\/+$/g, "");
@@ -218,6 +219,10 @@ const relativeToRoot = (root: string, fullPath: string) => {
     ? relative.slice(prefix.length + 1)
     : relative;
 };
+
+/** Whether every path sits under `src/`, `client/` or `tests/`, as Export writes them */
+const isPlaygroundLayout = (paths: string[]) =>
+  paths.every((path) => /^(src|client|tests)\//.test(path));
 
 /**
  * Lay out a repository with no program: tests under `tests/`, every other
@@ -339,10 +344,11 @@ export class PgFramework {
 
   /**
    * Convert files with the framework layout to the playground layout. Files
-   * no framework recognises that already hold a program under `src/` (the
-   * playground's own layout, as Export writes it) are kept as they are.
-   * Other files no framework recognises are laid out as a project with no program when
-   * they hold TypeScript or JavaScript and no Rust or Python: a program in a
+   * no framework recognises, all under `src/`, `client/` or `tests/` with
+   * Rust or Python under `src/` (the playground's own layout, as Export
+   * writes it), are kept as they are.
+   * Other files no framework recognises are laid out as a project with no
+   * program when they hold TypeScript or JavaScript and no Rust or Python: a program in a
    * layout no framework knows is refused, never imported without its source.
    * Such a project keeps its JSON data too (`toNoProgramLayoutWith`), but JSON
    * alone is nothing to open.
@@ -359,13 +365,15 @@ export class PgFramework {
    * {@link PgFramework.convertToPlaygroundLayout} for an import that has a
    * folder and a name.
    *
-   * @param root the imported folder, which a project with no program drops
-   * from its paths; frameworks find their own layout wherever it sits
+   * @param root the imported folder, which a project with no program and an
+   * unmarked program in the playground's own layout drop from their paths;
+   * frameworks find their own layout wherever it sits
    * @returns a function taking `source`, where the files came from (named in
    * the refusal, `undefined` when there is nothing to name), which returns a
    * function taking the framework files
-   * @throws `NOT_A_PROGRAM` when no framework recognises program source
-   * outside `src/`;
+   * @throws `NOT_A_PROGRAM` when no framework recognises the files, they hold
+   * Rust or Python, and they are not all under `src/`, `client/` or `tests/`
+   * with Rust or Python under `src/`;
    * `noProgramCode` when there is no program and no script; "Could not
    * convert files" when a framework's conversion returns nothing
    */
@@ -373,13 +381,16 @@ export class PgFramework {
     return (source: string | undefined) => async (files: TupleFiles) => {
       const framework = await PgFramework.getFromFiles(files);
       if (!framework) {
-        // The playground's own layout, which Export writes for a program that
-        // looks like no framework's yet, imports as it is
+        // The root comes off first because `hasProgram` reads paths from the
+        // project root; the files return with paths below the imported folder.
+        // The layout Export writes for a program that looks like no
+        // framework's yet imports as it is
         const ownFiles = files.map(([path, content]): [string, string] => [
           relativeToRoot(root, path),
           content,
         ]);
-        if (PgFramework.hasProgram(ownFiles.map(([path]) => path))) {
+        const ownPaths = ownFiles.map(([path]) => path);
+        if (isPlaygroundLayout(ownPaths) && PgFramework.hasProgram(ownPaths)) {
           return ownFiles;
         }
 
@@ -743,7 +754,7 @@ if (import.meta.vitest) {
 
       /** What Settings › Export writes is what Import reads back */
       describe("the playground's own layout", () => {
-        const roundTrip = async (files: TupleFiles) =>
+        const imported = async (files: TupleFiles) =>
           PgFramework.convertToPlaygroundLayout(files);
 
         it("keeps a program no framework marks yet", async () => {
@@ -752,17 +763,17 @@ if (import.meta.vitest) {
             ["client/client.ts", "a"],
             ["tests/a.test.ts", "b"],
           ];
-          expect(await roundTrip(files)).toEqual(files);
+          expect(await imported(files)).toEqual(files);
         });
 
         it("keeps a project with no program", async () => {
           const files: TupleFiles = [["client/client.ts", "a"]];
-          expect(await roundTrip(files)).toEqual(files);
+          expect(await imported(files)).toEqual(files);
         });
 
         it("hands a finished program to its framework", async () => {
           expect(
-            await roundTrip([
+            await imported([
               ["programs/p/src/lib.rs", "#[program]\nmod p {}"],
               ["client/client.ts", "a"],
             ])
@@ -773,7 +784,7 @@ if (import.meta.vitest) {
           const files = await PgFramework.convertToPlaygroundLayoutWith("p")(
             "p"
           )([
-            ["p/src/lib.rs", "// Import anchor"],
+            ["/p/src/lib.rs", "// Import anchor"],
             ["p/client/client.ts", "a"],
           ]);
           expect(files).toEqual([
@@ -782,15 +793,43 @@ if (import.meta.vitest) {
           ]);
         });
 
+        it("refuses a plain Rust crate", async () => {
+          await expect(
+            imported([
+              ["Cargo.toml", "[package]"],
+              ["src/main.rs", "fn main() {}"],
+            ])
+          ).rejects.toThrow(NOT_A_PROGRAM);
+        });
+
+        it("refuses an unmarked program mixed with another outside src", async () => {
+          await expect(
+            imported([
+              ["src/lib.rs", "// Import anchor"],
+              ["onchain/src/lib.rs", "fn main() {}"],
+            ])
+          ).rejects.toThrow(NOT_A_PROGRAM);
+        });
+
+        it("refuses stray Python beside a client and a README", async () => {
+          await expect(
+            imported([
+              ["src/gen_idl.py", "print(1)"],
+              ["client/client.ts", "a"],
+              ["README.md", "x"],
+            ])
+          ).rejects.toThrow(NOT_A_PROGRAM);
+        });
+
         it("still refuses Rust outside src", async () => {
           await expect(
-            roundTrip([
+            imported([
               ["onchain/src/lib.rs", "fn main() {}"],
               ["client/client.ts", "a"],
             ])
           ).rejects.toThrow(NOT_A_PROGRAM);
           await expect(
-            roundTrip([
+            imported([
               ["main.rs", "fn main() {}"],
               ["client/client.ts", "a"],
             ])
