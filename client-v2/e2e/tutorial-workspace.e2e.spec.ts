@@ -229,8 +229,9 @@ test.describe("tutorial-workspace", () => {
 
   /**
    * Starts Hello Anchor with a hosted model whose every answer is `answer`,
-   * asks one question, and returns the chat with the answer in it, plus the
-   * agent requests the question sent, as JSON text
+   * types one question (sent twice when Connect a model opens first), and
+   * returns the chat with the answer in it and the `/api/agent` request
+   * bodies the question produced, as JSON text
    */
   const askWithAnswer = async (page: Page, answer: string) => {
     const requests: string[] = [];
@@ -277,7 +278,7 @@ test.describe("tutorial-workspace", () => {
     `[validation](${PAGE}#account-validation) and ` +
     `[a missing part](${PAGE}#no-such-section).`;
 
-  /** The doc page's scroll area starts under its 36 px strip */
+  /** The doc page's scroll area starts under its strip, `h-9` on `BaseDocPage` */
   const STRIP_PX = 36;
 
   /** Expects the heading to sit at the top of the page's scroll area */
@@ -352,6 +353,37 @@ test.describe("tutorial-workspace", () => {
     expect(
       lines.filter((l) => l.includes(" tutorial_workspace_doc_opened "))
     ).toHaveLength(1);
+
+    // Scrolled away, the same link pressed again brings the heading back
+    const doc = page.getByTestId("tutorial-doc-page");
+    const box = await doc.boundingBox();
+    if (!box) throw new Error("the doc page has no box");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, 600);
+    await expect(
+      doc.getByRole("heading", { name: "Account Validation", exact: true })
+    ).not.toBeInViewport();
+    await chat.getByRole("link", { name: "validation" }).click();
+    await expectAtTop(page, "Account Validation");
+  });
+
+  test("tutorial-workspace: A heading with code in it", async ({ page }) => {
+    await startHelloAnchor(page);
+    await expectDocs(page);
+    await chevron(page).click();
+    await page
+      .getByRole("tree", { name: "Files" })
+      .getByRole("treeitem", { name: "Docs" })
+      .getByRole("treeitem", { name: "Program Structure" })
+      .click();
+    const doc = page.getByTestId("tutorial-doc-page");
+    // The id anchor-lang.com gives the same heading
+    await expect(
+      doc.getByRole("heading", { name: "#[derive(Accounts)] macro" })
+    ).toHaveAttribute("id", "deriveaccounts-macro");
+    await expect(
+      doc.getByRole("heading", { name: "declare_id! macro" })
+    ).toHaveAttribute("id", "declare_id-macro");
   });
 
   test("tutorial-conversation: A question about one section", async ({

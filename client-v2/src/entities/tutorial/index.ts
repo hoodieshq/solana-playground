@@ -15,6 +15,7 @@ export { checkDefinition, formatError, slugOf } from "./model/definition/check";
 export { loadDefinitionsWith } from "./model/definition/load";
 export {
   docForLink,
+  docRequestFor,
   onCodeRequest,
   onDocRequest,
   onDocShown,

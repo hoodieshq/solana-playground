@@ -12,9 +12,10 @@ const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 const HEADING = /^\s{0,3}(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/;
 
 /**
- * A heading's text as it renders: link syntax and emphasis stripped outside
- * inline code, the code's own text kept as written (`token::*`), which is
- * what the heading's id is made from
+ * A heading's text as it renders: link syntax and `*` emphasis stripped
+ * outside inline code (an `_` stays: `declare_id` is not emphasis), the
+ * code's own text kept as written (`token::*`), which is what the heading's
+ * id is made from
  */
 const headingText = (raw: string): string =>
   raw
@@ -28,13 +29,15 @@ const headingText = (raw: string): string =>
     .trim();
 
 /**
- * A Markdown page's sections: every heading below its title (level 2 and
- * down), with the id `rehype-slug` gives it when the page renders, the
- * GitHub scheme the docs sites use. The title is fed to the slugger too, so
- * a heading that repeats it gets the same `-1` suffix it gets on the page.
- * Fenced code is skipped
+ * A Markdown page's sections: every heading of level 2 and down, with the
+ * id `rehype-slug` gives it when the page renders, the GitHub scheme the
+ * docs sites use. Level-1 headings (the title) are fed to the slugger but
+ * not listed, so a heading that repeats one gets the same `-1` suffix it
+ * gets on the page. Fenced code is skipped. `Markdown.test.tsx` renders
+ * every shipped doc page and checks this scan against `rehype-slug`, so
+ * the two cannot drift unseen
  */
-export const sectionsOf = (markdown: string): MarkdownSection[] => {
+export const sectionsOf = (markdown: string): readonly MarkdownSection[] => {
   const slugger = new GithubSlugger();
   const sections: MarkdownSection[] = [];
   let fence: string | undefined;
@@ -73,6 +76,16 @@ if (import.meta.vitest) {
         "# not a heading",
         "```",
         "",
+        "~~~",
+        "## not one either",
+        "~~~",
+        "",
+        "````md",
+        "```",
+        "## still inside the longer fence",
+        "```",
+        "````",
+        "",
         "## declare_id! macro",
         "## #[program] attribute",
         "### Instruction Context",
@@ -81,7 +94,10 @@ if (import.meta.vitest) {
         "## [Account](https://example.com) **Validation** ##",
         "## Example Program",
       ].join("\n");
-      // The ids anchor-lang.com gives these headings, read 9 Nov 2026
+      // The ids of the headings anchor-lang.com has (Program Structure and
+      // Account Constraints) checked against the site on 9 Nov 2026; the
+      // link, the emphasis and the repeated heading exercise the stripping
+      // and the `-1` suffix
       expect(sectionsOf(page)).toEqual([
         { title: "Example Program", id: "example-program" },
         { title: "declare_id! macro", id: "declare_id-macro" },

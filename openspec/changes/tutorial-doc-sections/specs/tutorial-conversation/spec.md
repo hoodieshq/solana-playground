@@ -4,13 +4,12 @@
 
 ### Requirement: The assistant's context lists each doc page's sections
 
-The tutorial context the assistant answers from SHALL list, for each of the
-tutorial's doc pages, its title and address, then each heading of its page
-below the title with that heading's address, `page#id`, where `id` is the
-heading's id on the page (see `tutorial-workspace`). It SHALL ask the
-assistant to link the section's address when one section covers what it
-explains, the page's address when none does, with the address exactly as
-listed, and one page at most per answer.
+The tutorial context the assistant answers from SHALL list, for each doc
+page, its title and address, then each heading below the title with its
+address `page#id`, `id` being the heading's id on the page (see
+`tutorial-workspace`). It SHALL ask for the covering section's address, the
+page's when none covers, and the page's too when the answer names the page a
+section is in; addresses exactly as listed, one page at most per answer.
 
 #### Scenario: A question about one section
 - **WHEN** in Hello Anchor the learner asks about the account types in

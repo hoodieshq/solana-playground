@@ -59,7 +59,10 @@ export const tutorialMode = ({
     if (!context) return "The learner is not in a tutorial right now.";
     return describeTutorial({
       definition: context.definition,
-      docPages: PgTutorial.current?.docPages,
+      // The pages of the tutorial the context names, not of the route's
+      // current one: the two differ while a navigation settles
+      docPages: PgTutorial.all.find((t) => t.name === context.definition.name)
+        ?.docPages,
       progress: engine.progress,
       live: PgConversation.view()?.live ?? null,
       openFiles: PgExplorer.tabs.map((tab) => PgExplorer.getRelativePath(tab)),

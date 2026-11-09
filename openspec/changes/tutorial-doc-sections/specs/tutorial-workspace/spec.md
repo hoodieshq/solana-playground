@@ -19,7 +19,8 @@ punctuation other than `-` and `_` dropped, a repeated heading suffixed
 A link to one of the tutorial's doc pages with a section (`page#section`)
 SHALL open the page's tab with that heading at the top of the page's scroll
 area. The page SHALL open at its top when the link names no section, or a
-section the page has no heading for. `tutorial_workspace_doc_opened` SHALL
+section the page has no heading for; a page already in front SHALL stay
+where it is for such a link. `tutorial_workspace_doc_opened` SHALL
 carry `section`: the heading id the link named, or none; the event fires as
 before, and not when the page is already in front.
 

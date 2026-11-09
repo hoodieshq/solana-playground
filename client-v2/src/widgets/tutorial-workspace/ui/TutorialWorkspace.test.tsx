@@ -189,6 +189,25 @@ describe("TutorialWorkspace", () => {
     }
   });
 
+  it("sends no section key for a page picked in the tree", async () => {
+    resetTelemetry();
+    const events = memoryProvider();
+    initTelemetry({ providers: [events] });
+    try {
+      workspace("phone");
+      await userEvent.click(screen.getByRole("button", { name: "Files" }));
+      await userEvent.click(screen.getByRole("treeitem", { name: "IDL" }));
+      const opened = events.events.filter(
+        (e) => e.name === "tutorial_workspace_doc_opened"
+      );
+      expect(opened.map((e) => e.params)).toStrictEqual([
+        { doc: "idl.md", via: "tree" },
+      ]);
+    } finally {
+      resetTelemetry();
+    }
+  });
+
   it("lists the files and the docs in the phone's Files sheet", async () => {
     workspace("phone");
     await userEvent.click(screen.getByRole("button", { name: "Files" }));

@@ -68,6 +68,19 @@ export interface DocRequest {
   section?: string;
 }
 
+/**
+ * The request a link makes of the tutorial's docs: the page `docForLink`
+ * finds and the section the same link names; none for a link to no doc.
+ * One place reads both from the link, so they cannot come apart
+ */
+export const docRequestFor =
+  (docs: readonly Doc[] | undefined) =>
+  (href: string): DocRequest | undefined => {
+    const doc = docForLink(docs, href);
+    if (!doc) return undefined;
+    return { file: doc.file, section: sectionOf(href) };
+  };
+
 /** Shows a doc page; false when this workspace has no such page */
 type DocListener = (request: DocRequest) => boolean;
 
@@ -172,6 +185,18 @@ if (import.meta.vitest) {
       ).toBeUndefined();
       expect(docForLink(DOCS, "/tutorials")).toBeUndefined();
       expect(docForLink(undefined, IDL.url)).toBeUndefined();
+    });
+
+    it("builds a request from a link: the doc's file and the link's section", () => {
+      expect(docRequestFor(DOCS)(`${IDL.url}#discriminators`)).toEqual({
+        file: "idl.md",
+        section: "discriminators",
+      });
+      expect(docRequestFor(DOCS)(PROGRAMS.url)).toEqual({
+        file: "programs.md",
+        section: undefined,
+      });
+      expect(docRequestFor(DOCS)("https://example.com/#x")).toBeUndefined();
     });
 
     it("reads a link's section from its fragment, decoded", () => {

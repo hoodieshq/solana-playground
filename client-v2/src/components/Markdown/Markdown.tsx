@@ -31,7 +31,8 @@ interface MarkdownProps {
    * Give every heading the id its text gets on GitHub and the docs sites
    * (`rehype-slug`), with no prefix, so a `page#section` address written for
    * the original finds the same heading here. A tutorial's doc page turns it
-   * on; `linkable` has its own, prefixed ids and wins where both are set
+   * on; `linkable` has its own, prefixed ids and wins where both are set,
+   * for the h1 to h3 that `Header` renders
    */
   headingIds?: boolean;
 }

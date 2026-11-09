@@ -73,6 +73,8 @@ describe("Markdown", () => {
 
   // react-markdown 9 hands a lone text child to `h2` as a string, which the
   // header used to index as an array and so took only its first letter
+  // react-markdown 9 hands a lone text child to `h2` as a string, which the
+  // header used to index as an array and so took only its first letter
   it("gives headings their site's ids with headingIds, and none without", async () => {
     const page =
       "# Program Structure\n\n## `#[derive(Accounts)]` macro\n\n## declare_id! macro";
@@ -102,10 +104,12 @@ describe("Markdown", () => {
       Object.values(file.docPages ?? {})
     );
     expect(pages.length).toBeGreaterThan(0);
-    for (const markdown of pages) {
-      await act(async () => {
+    const renderPage = (markdown: string) =>
+      act(async () => {
         root.render(<Markdown headingIds>{markdown}</Markdown>);
       });
+    for (const markdown of pages) {
+      await renderPage(markdown);
       const rendered = Array.from(
         container.querySelectorAll("h2,h3,h4,h5,h6")
       ).map((h) => ({ title: h.textContent, id: h.id }));

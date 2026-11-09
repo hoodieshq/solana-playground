@@ -33,12 +33,15 @@ vi.mock("@/views/sidebar/assistant/store", () => ({
 }));
 vi.mock("@/utils/tutorial", () => ({
   PgTutorial: {
-    current: {
-      docPages: {
-        "program-structure.md":
-          "# Program Structure\n\n## #[account] attribute\n",
+    all: [
+      {
+        name: "Hello Anchor",
+        docPages: {
+          "program-structure.md":
+            "# Program Structure\n\n## #[account] attribute\n",
+        },
       },
-    },
+    ],
   },
 }));
 

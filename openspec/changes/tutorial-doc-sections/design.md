@@ -66,25 +66,29 @@ See proposal.md, Why. The pieces as they are on `scope/tutorial-flow-2`:
    needed.
 4. **The link's section travels with the request.** `requestDoc` takes
    `{ file, section }`; the section is the link's fragment, decoded. The
-   workspace keeps the requested section with a counter, so a second press of
-   the same link scrolls again, and passes it to `BaseDocPage`, which sets its
-   own scroll area's `scrollTop` to the heading's offset after mount and on
-   each request. `scrollIntoView` is not used: it also scrolls ancestors, and
-   the chat column beside the page must not move. A heading the page lacks
-   leaves `scrollTop` alone and logs at debug.
+   workspace keeps the requested section with the page it names and a
+   counter, so a second press of the same link scrolls again and a page that
+   mounts later never gets another page's section, and passes it to
+   `BaseDocPage`, which sets its own scroll area's `scrollTop` to the
+   heading's offset after mount and on each request. `scrollIntoView` is not
+   used: it also scrolls ancestors, and the chat column beside the page must
+   not move. A heading the page lacks leaves `scrollTop` alone and warns,
+   since an assistant that invents sections shows there.
 5. **The context reads the pages through a new fact, `docPages`.**
-   `mode.ts` passes `PgTutorial.current?.docPages`; `EngineContext` and the
-   store are untouched. A page whose Markdown is missing is listed by title
-   and address, as the workspace treats it.
+   `mode.ts` passes the pages of the tutorial the context names, not the
+   route's current one, which differs while a navigation settles;
+   `EngineContext` and the store are untouched. A page whose Markdown is
+   missing is listed by title and address and warned about, since the
+   assistant then links the page at its top as if it had no sections.
 6. **`section` on the existing event**, not a new one: the question the data
    answers is how often a link names a section, which is one event's field.
 
 ## Risks / Trade-offs
 
 - [The context grows: Zero Copy's Account Constraints page has about 25
-  headings] → one line per page, sections separated by `; `; the unit test
-  prints the line's length for Hello Anchor and Zero Copy so the growth is
-  seen in review. Section titles are short.
+  headings] → one line per page, sections separated by `, `. Section titles
+  are short, and the docs line stays well under the step copy the context
+  already carries.
 - [The model invents a section] → the page opens at its top, which is
   today's behaviour, and the event records the section, so invented ones are
   countable.

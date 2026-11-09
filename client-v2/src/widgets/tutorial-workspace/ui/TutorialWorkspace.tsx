@@ -160,14 +160,20 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   );
   const [openDocs, setOpenDocs] = useState<string[]>([]);
   const [doc, setDoc] = useState<string>();
-  // The section the last doc link named, for the page in front; a page
-  // opened from the tree or its tab names none and keeps its scroll
-  const [section, setSection] = useState<DocSectionRequest>();
+  // The section the last doc link named, with the page it named, so a page
+  // that mounts later never scrolls to another page's section; a pick in
+  // the tree or on a tab names none, and that page opens at its top (or,
+  // already in front, stays where it is)
+  const [section, setSection] = useState<
+    DocSectionRequest & { file: string }
+  >();
+  const sectionSeq = useRef(0);
   useEffect(() => {
     setOpenDocs(readOpenDocs()[name] ?? []);
     // The page that was in front comes back in front, as a reload restores
-    // the rest of the workspace
+    // the rest of the workspace; no link asked for a section of it
     setDoc(readFrontDoc(name));
+    setSection(undefined);
   }, [name]);
   const docTabs = docs.filter((d) => openDocs.includes(d.file));
   const frontDoc = docTabs.find((d) => d.file === doc);
@@ -272,7 +278,12 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     // A page opened leaves the panel, as a file does
     PgCallPanel.close();
     // Also for the page already in front: a second link scrolls it again
-    setSection(asked === undefined ? undefined : { id: asked, at: Date.now() });
+    sectionSeq.current += 1;
+    setSection(
+      asked === undefined
+        ? undefined
+        : { file, id: asked, seq: sectionSeq.current }
+    );
     if (file === front) return true;
     setDoc(file);
     writeFrontDoc(name, file);
@@ -280,6 +291,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
       tutorialWorkspaceTelemetry.track("tutorial_workspace_doc_opened", {
         doc: file,
         via,
+        // Absent, not undefined: the event's line and its tests read keys
         ...(asked === undefined ? {} : { section: asked }),
       });
     }
@@ -492,7 +504,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
                 title={frontDoc.title}
                 url={frontDoc.url}
                 markdown={frontDoc.markdown}
-                section={section}
+                section={section?.file === frontDoc.file ? section : undefined}
                 phone={phone}
               />
             </div>

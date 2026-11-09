@@ -6,7 +6,10 @@ import type {
   RunResult,
   Turn,
 } from "@/features/tutorial-conversation";
+import { createLogger } from "@/shared/lib/logger";
 import { sectionsOf } from "@/shared/lib/markdown-sections";
+
+const log = createLogger("tutorial-conversation:context");
 
 /**
  * The names of the tutorial mode's own tools, declared once: the tools
@@ -76,7 +79,8 @@ export const describeTutorial = (facts: TutorialFacts): string => {
         definition.docs.map(describeDoc(facts.docPages)).join("; ") +
         ". When one of them covers what you explain, link it as a Markdown " +
         "link with its address exactly as listed: the section that covers " +
-        "it when one does, the page otherwise. Link another site only " +
+        "it when one does, the page otherwise. When you also name the page " +
+        "a section is in, link the page too. Link another site only " +
         "for what none of them covers, and one page at most per answer."
     );
   }
@@ -130,6 +134,14 @@ const describeDoc =
   (docPages: TutorialFacts["docPages"]) =>
   (doc: Doc): string => {
     const markdown = docPages?.[doc.file];
+    if (markdown === undefined) {
+      // The loader rejects a tutorial whose listed page is missing, so this
+      // is the facts arriving without the pages: the assistant then links
+      // the page at its top, which reads like a page with no sections
+      log.warn("a listed doc page has no Markdown in the facts", {
+        context: { file: doc.file },
+      });
+    }
     const sections = markdown === undefined ? [] : sectionsOf(markdown);
     if (sections.length === 0) return `${doc.title} (${doc.url})`;
     const listed = sections
@@ -280,7 +292,7 @@ if (import.meta.vitest) {
       expect(text).toContain("Do not give its answer away");
       expect(text).toContain(`${TOOLS.hint} posts the lesson's own hint`);
       expect(text).toContain(
-        "This tutorial's doc pages, which open beside the code: The program log (https://solana.com/docs/programs/debugging). When one of them covers what you explain, link it as a Markdown link with its address exactly as listed: the section that covers it when one does, the page otherwise. Link another site only for what none of them covers, and one page at most per answer."
+        "This tutorial's doc pages, which open beside the code: The program log (https://solana.com/docs/programs/debugging). When one of them covers what you explain, link it as a Markdown link with its address exactly as listed: the section that covers it when one does, the page otherwise. When you also name the page a section is in, link the page too. Link another site only for what none of them covers, and one page at most per answer."
       );
     });
 

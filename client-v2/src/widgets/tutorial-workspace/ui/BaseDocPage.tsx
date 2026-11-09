@@ -7,11 +7,12 @@ import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("tutorial-workspace:doc-page");
 
-/** A section a link asked for, and when: a second press of the same link scrolls again */
+/** A section a link asked for; a second press of the same link is a new request and scrolls again */
 export interface DocSectionRequest {
   /** The heading's id on the page */
   id: string;
-  at: number;
+  /** A nonce the workspace counts up per request; equality is never read */
+  seq: number;
 }
 
 export interface BaseDocPageProps {
@@ -22,7 +23,8 @@ export interface BaseDocPageProps {
   markdown: string;
   /**
    * The heading to bring to the top of the page's scroll area; the page
-   * stays where it is when it has no such heading
+   * stays where it is when it has no such heading. A request for another
+   * page never reaches this one: the workspace passes only its own
    */
   section?: DocSectionRequest;
   /**
@@ -73,8 +75,10 @@ const BaseDocPage: FC<BaseDocPageProps> = ({
     if (!area || !section) return;
     const heading = headingIn(area, section.id);
     if (!heading) {
-      // The link named a section the page lacks: the page stays at its top
-      log.debug("a doc link named a section the page lacks", {
+      // The link named a section the page lacks: the page stays where it is,
+      // at its top when it has just opened. Warned, since production drops
+      // debug and this is how an assistant that invents sections shows
+      log.warn("a doc link named a section the page lacks", {
         context: { title, section: section.id },
       });
       return;
@@ -82,7 +86,7 @@ const BaseDocPage: FC<BaseDocPageProps> = ({
     // The area is the headings' offset parent (`relative`), so this is the
     // heading's distance from the area's top
     area.scrollTop = heading.offsetTop;
-  }, [title, section]);
+  }, [section, title]);
 
   return (
     <article
