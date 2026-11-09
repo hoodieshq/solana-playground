@@ -102,14 +102,19 @@ const start = async (page: Page) => {
     .click(LONG);
 };
 
-/** Step 1 through the planned E0412, fixed by the learner's own pick */
-const passStepOne = async (page: Page) => {
+/** Step 1 up to the fix's Build card: the planned E0412, the learner's own pick */
+const reachFixBuild = async (page: Page) => {
   await answer(page, beat("s1.q1", "ask"));
   await act(page, "s1.build").click(LONG);
   await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
   await expect(feed(page).getByText("E0412 · line 9").last()).toBeVisible();
   await feed(page).getByRole("button", { name: "I'll fix it myself" }).click();
   await answer(page, beat("f1.q2", "ask"));
+};
+
+/** Step 1 through the planned E0412, fixed by the learner's own pick */
+const passStepOne = async (page: Page) => {
+  await reachFixBuild(page);
   await act(page, "f1.build").click(LONG);
   await won(page, "write-program");
   await spent(page, "s1.build", "f1.build");
@@ -382,7 +387,19 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     expect(sends()).toBe(sent);
   });
 
-  // HOO-2755: a reload at or during a Build keeps a way forward
+  // HOO-2755 reported no Build control after a pause or reload; it did not
+  // reproduce, and these three hold the path while the state behind the
+  // report is still to be found. Each ends in a build that runs from the
+  // restored card: a button that renders but no longer dispatches fails too
+  /** Exactly one live Build button in the feed, and it can be pressed */
+  const oneBuildButton = async (page: Page, id: string) => {
+    await expect(act(page, id)).toBeVisible(LONG);
+    await expect(
+      feed(page).getByRole("button", { name: "Build", exact: true })
+    ).toHaveCount(1);
+    await expect(act(page, id)).toBeEnabled();
+  };
+
   test("a reload at a Build card keeps the Build button", async ({ page }) => {
     test.skip(isLive, "steers the fakes");
     test.setTimeout(120_000);
@@ -390,9 +407,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     await answer(page, beat("s1.q1", "ask"));
     await expect(act(page, "s1.build")).toBeVisible(LONG);
     await page.reload();
-    // The Build card is live again, and pressing it runs the planned build
-    await expect(act(page, "s1.build")).toBeVisible(LONG);
-    await expect(act(page, "s1.build")).toBeEnabled();
+    await oneBuildButton(page, "s1.build");
     await act(page, "s1.build").click(LONG);
     await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
   });
@@ -404,23 +419,30 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     test.setTimeout(120_000);
     await start(page);
     await answer(page, beat("s1.q1", "ask"));
-    // Hold the build so the reload lands mid-run
-    const hold = () => new Promise<void>(() => {});
-    await page.route("**/build", hold);
+    // Hold the build so the reload lands mid-run; the held request proves
+    // the run started, which is what the store saves before the fetch
+    const BUILD = "**/build";
+    let held = 0;
+    const hold = () => {
+      held += 1;
+      return new Promise<void>(() => {});
+    };
+    await page.route(BUILD, hold);
     await act(page, "s1.build").click(LONG);
+    await expect.poll(() => held, LONG).toBe(1);
+    // The running card shows its stage, not a button
     await expect(
-      feed(page)
-        .getByText(/Starting|Building/)
-        .last()
-    ).toBeVisible(LONG);
+      feed(page).getByRole("button", { name: "Build", exact: true })
+    ).toHaveCount(0);
+    // The started run is written to the save after the dispatch that drew
+    // the stage; a short wait lets that write land before the reload
     await page.waitForTimeout(1500);
-    await page.unroute("**/build", hold);
+    await page.unroute(BUILD, hold);
     await page.reload();
     await expect(
       feed(page).getByText("Interrupted by a reload").last()
     ).toBeVisible(LONG);
-    await expect(act(page, "s1.build")).toBeVisible(LONG);
-    await expect(act(page, "s1.build")).toBeEnabled();
+    await oneBuildButton(page, "s1.build");
     await act(page, "s1.build").click(LONG);
     await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
   });
@@ -431,17 +453,10 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     test.skip(isLive, "steers the fakes");
     test.setTimeout(120_000);
     await start(page);
-    await answer(page, beat("s1.q1", "ask"));
-    await act(page, "s1.build").click(LONG);
-    await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
-    await feed(page)
-      .getByRole("button", { name: "I'll fix it myself" })
-      .click();
-    await answer(page, beat("f1.q2", "ask"));
+    await reachFixBuild(page);
     await expect(act(page, "f1.build")).toBeVisible(LONG);
     await page.reload();
-    await expect(act(page, "f1.build")).toBeVisible(LONG);
-    await expect(act(page, "f1.build")).toBeEnabled();
+    await oneBuildButton(page, "f1.build");
     await act(page, "f1.build").click(LONG);
     await won(page, "write-program");
   });
