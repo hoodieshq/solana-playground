@@ -186,12 +186,13 @@ for; tasks with "after nothing" start at once.
       full run on devnet (HOO-2363; Natalia; L 2.5; after 1.2 and
       Almaz's script, due Fri 30 Oct)
       Plan: [plans/6.4-zero-copy.md](plans/6.4-zero-copy.md)
-- [x] 6.5 e2e for the flow: Hello Anchor from intro to finish on desktop
+- [ ] 6.5 e2e for the flow: Hello Anchor from intro to finish on desktop
       and at 390 px, in CI on a fake build server and devnet, with the real
       ones as the manual case T-1 in `docs/testing.md`; the wrong pick,
       planned failure, faucet limit and Call panel paths (the Call panel spec
       is a fixme until HOO-2358 lands). Verify: the specs run green
-      in CI's e2e job (HOO-2364 desktop, fleet; HOO-2510 phone; M 1.5; after 3.5, 4.1, 4.2,
+      in CI's e2e job (HOO-2364 desktop, fleet; HOO-2510 phone, #470; the
+      Call panel path is still a fixme; M 1.5; after 3.5, 4.1, 4.2,
       4.4, 5.1, 6.2; plans: [plans/6.5-e2e-desktop.md](plans/6.5-e2e-desktop.md),
       [plans/6.5-e2e-phone.md](plans/6.5-e2e-phone.md))
 

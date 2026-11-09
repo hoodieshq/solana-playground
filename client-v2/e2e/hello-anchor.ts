@@ -20,6 +20,7 @@ import { expect, LONG } from "./fixtures";
 /** The lesson as the app reads it */
 export const lesson = hello as unknown as TutorialDefinition;
 
+/** The beat `id` of kind `kind`; throws when the lesson has none */
 export const beat = <K extends Beat["kind"]>(id: string, kind: K) => {
   const all = lesson.steps.flatMap((s) => s.beats.concat(s.onFail ?? []));
   const found = all.find((b) => b.id === id);
@@ -28,6 +29,7 @@ export const beat = <K extends Beat["kind"]>(id: string, kind: K) => {
   return found as Extract<Beat, { kind: K }>;
 };
 
+/** The step `id`; throws when the lesson has none */
 export const step = (id: string) => {
   const found = lesson.steps.find((s) => s.id === id);
   if (!found) throw new Error(`Hello Anchor has no step "${id}"`);
@@ -47,15 +49,15 @@ export const plain = (text: string) => text.replace(/`/g, "");
 /** The feed's cards, found in the feed `feed` draws */
 export const cardsFor = (feed: (page: Page) => Locator) => {
   /** The option `index` of a question, as its button */
-  const option = (ask: Ask, index: number) => (page: Page) =>
+  const optionFor = (ask: Ask, index: number) => (page: Page) =>
     feed(page).getByRole("button", {
       name: new RegExp(`^${escape(plain(ask.options[index]))}`),
     });
   return {
-    option,
+    optionFor,
     /** Picks the right answer of `ask` once it is in the feed */
     answer: async (page: Page, ask: Ask) => {
-      await option(ask, ask.answer)(page).click(LONG);
+      await optionFor(ask, ask.answer)(page).click(LONG);
     },
     /** The live act card of `id`, and its button */
     act: (page: Page, id: string) =>

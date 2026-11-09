@@ -34,7 +34,7 @@ const chat = (page: Page) =>
   page.getByRole("complementary", { name: "Tutorial chat" });
 const feed = (page: Page) => chat(page).getByRole("log");
 
-const { option, answer, act, won, spent, next } = cardsFor(feed);
+const { optionFor, answer, act, won, spent, next } = cardsFor(feed);
 
 const start = async (page: Page) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -129,14 +129,14 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     // still in the feed
     const q3 = beat("s3.q3", "ask");
     const wrong = q3.why.findIndex((why) => why !== null);
-    await option(q3, wrong)(page).click(LONG);
-    await expect(option(q3, wrong)(page)).toHaveAttribute(
+    await optionFor(q3, wrong)(page).click(LONG);
+    await expect(optionFor(q3, wrong)(page)).toHaveAttribute(
       "aria-disabled",
       "true"
     );
     await page.reload();
-    await expect(option(q3, q3.answer)(page)).toBeVisible(LONG);
-    await expect(option(q3, wrong)(page)).toHaveAttribute(
+    await expect(optionFor(q3, q3.answer)(page)).toBeVisible(LONG);
+    await expect(optionFor(q3, wrong)(page)).toHaveAttribute(
       "aria-disabled",
       "true"
     );
@@ -209,7 +209,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     const q1 = beat("s1.q1", "ask");
     const wrong = q1.why.findIndex((why) => why !== null);
     await start(page);
-    await option(q1, wrong)(page).click(LONG);
+    await optionFor(q1, wrong)(page).click(LONG);
     // The row is ruled out with the definition's reason under it, and the
     // build waits for the right pick
     await expect(
@@ -218,7 +218,7 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
         exact: true,
       })
     ).toHaveCount(0);
-    const ruled = option(q1, wrong)(page);
+    const ruled = optionFor(q1, wrong)(page);
     await expect(ruled).toHaveAttribute("aria-disabled", "true");
     await expect(ruled.getByText("Not quite.", { exact: true })).toBeVisible();
     await expect(ruled).toHaveAccessibleDescription(
