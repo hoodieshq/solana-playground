@@ -98,6 +98,7 @@ describe("export a project, then import its zip", () => {
       ["src/lib.rs", "// Import anchor"],
       ["client/client.ts", 'console.log("client");\n'],
       ["tests/a.test.ts", 'describe("a", () => {});\n'],
+      ["README.md", "# Notes\n"],
     ];
     await PgExplorer.createWorkspace("unmarked", {
       files: files.map(([path, content]) => [`/unmarked/${path}`, content]),

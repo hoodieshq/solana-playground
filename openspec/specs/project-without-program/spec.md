@@ -15,8 +15,9 @@ folder of one, in which no supported framework finds a program, which holds
 TypeScript or JavaScript files (`ts`, `tsx`, `js`, `jsx`) and no Rust or
 Python file. It SHALL be imported as a project with no program. A
 repository in which a framework finds a program SHALL be imported as before
-this change. Files no framework recognises, all under `src/`, `client/` or
-`tests/` with Rust or Python under `src/` (the layout Export writes), SHALL be
+this change. Files no framework recognises, with all Rust and Python
+under `src/` and no `Cargo.toml`, `Xargo.toml`, `pyproject.toml`, `setup.py`
+or `requirements.txt` at the root (the layout Export writes), SHALL be
 imported as they are, with their paths below the imported folder unchanged,
 whether they come from the zip Settings › Import reads, a dropped folder or a
 GitHub repository, so an exported project returns as it left. Any other repository that holds

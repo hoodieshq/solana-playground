@@ -220,9 +220,19 @@ const relativeToRoot = (root: string, fullPath: string) => {
     : relative;
 };
 
-/** Whether every path sits under `src/`, `client/` or `tests/`, as Export writes them */
-const isPlaygroundLayout = (paths: string[]) =>
-  paths.every((path) => /^(src|client|tests)\//.test(path));
+/** Crate and package manifests at the root, which only a foreign layout has */
+const ROOT_MANIFEST_REGEX =
+  /^(Cargo\.toml|Xargo\.toml|pyproject\.toml|setup\.py|requirements\.txt)$/;
+
+/**
+ * Whether all Rust and Python sit under `src/` and no crate or package manifest
+ * sits at the root, as in a project Export writes
+ */
+const isPlaygroundProgramLayout = (paths: string[]) =>
+  paths
+    .filter((path) => PROGRAM_SOURCE_REGEX.test(path))
+    .every((path) => PROGRAM_FILE_REGEX.test(path)) &&
+  !paths.some((path) => ROOT_MANIFEST_REGEX.test(path));
 
 /**
  * Lay out a repository with no program: tests under `tests/`, every other
@@ -344,9 +354,9 @@ export class PgFramework {
 
   /**
    * Convert files with the framework layout to the playground layout. Files
-   * no framework recognises, all under `src/`, `client/` or `tests/` with
-   * Rust or Python under `src/` (the playground's own layout, as Export
-   * writes it), are kept as they are.
+   * no framework recognises, with all Rust and Python under `src/` and no
+   * crate or package manifest at the root (the playground's own layout, as
+   * Export writes it), are kept as they are.
    * Other files no framework recognises are laid out as a project with no
    * program when they hold TypeScript or JavaScript and no Rust or Python: a program in a
    * layout no framework knows is refused, never imported without its source.
@@ -372,8 +382,9 @@ export class PgFramework {
    * the refusal, `undefined` when there is nothing to name), which returns a
    * function taking the framework files
    * @throws `NOT_A_PROGRAM` when no framework recognises the files, they hold
-   * Rust or Python, and they are not all under `src/`, `client/` or `tests/`
-   * with Rust or Python under `src/`;
+   * Rust or Python, and some of it sits outside `src/` or a crate or package
+   * manifest (`Cargo.toml`, `Xargo.toml`, `pyproject.toml`, `setup.py`,
+   * `requirements.txt`) sits at the root;
    * `noProgramCode` when there is no program and no script; "Could not
    * convert files" when a framework's conversion returns nothing
    */
@@ -390,7 +401,10 @@ export class PgFramework {
           content,
         ]);
         const ownPaths = ownFiles.map(([path]) => path);
-        if (isPlaygroundLayout(ownPaths) && PgFramework.hasProgram(ownPaths)) {
+        if (
+          isPlaygroundProgramLayout(ownPaths) &&
+          PgFramework.hasProgram(ownPaths)
+        ) {
           return ownFiles;
         }
 
@@ -811,12 +825,20 @@ if (import.meta.vitest) {
           ).rejects.toThrow(NOT_A_PROGRAM);
         });
 
-        it("refuses stray Python beside a client and a README", async () => {
+        it("keeps a root README beside an unmarked program", async () => {
+          const files: TupleFiles = [
+            ["src/lib.rs", "// Import anchor"],
+            ["client/client.ts", "a"],
+            ["README.md", "x"],
+          ];
+          expect(await imported(files)).toEqual(files);
+        });
+
+        it("refuses a Python package", async () => {
           await expect(
             imported([
-              ["src/gen_idl.py", "print(1)"],
-              ["client/client.ts", "a"],
-              ["README.md", "x"],
+              ["pyproject.toml", "[project]"],
+              ["src/pkg/app.py", "print(1)"],
             ])
           ).rejects.toThrow(NOT_A_PROGRAM);
         });
