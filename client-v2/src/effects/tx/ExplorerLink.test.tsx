@@ -23,7 +23,7 @@ it("links the signature to the transaction on the picked explorer", () => {
   render(<ExplorerLink txHash={SIGNATURE} />);
 
   const link = screen.getByRole("link", {
-    name: "Open transaction on Solana Explorer",
+    name: "Open 9hJqVk…WxCvBz on Solana Explorer",
   });
   expect(link.getAttribute("href")).toBe(
     `https://explorer.solana.com/tx/${SIGNATURE}`

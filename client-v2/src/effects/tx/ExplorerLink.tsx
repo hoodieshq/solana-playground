@@ -19,7 +19,7 @@ export const ExplorerLink: FC<React.PropsWithChildren<ExplorerLinkProps>> = ({
       <span className="text-muted-foreground">Transaction sent</span>
       <Link
         href={blockExplorer.getTxUrl(txHash)}
-        aria-label={`Open transaction on ${blockExplorer.name}`}
+        aria-label={`Open ${shortKey(txHash)} on ${blockExplorer.name}`}
       >
         {shortKey(txHash)}
       </Link>

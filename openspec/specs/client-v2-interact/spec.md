@@ -70,6 +70,19 @@ call and its outcome.
 - **WHEN** the IDL has `initialize` and `increment` and the person sends `increment`
 - **THEN** "Call result" sits after the `increment` card, not after `initialize`
 
+### Requirement: A sent transaction's toast
+
+When the app sends a transaction, the toast SHALL read "Transaction sent" and
+show the signature shortened in the middle (`9hJqVk…FxCvBz`), linked to the
+transaction on the explorer picked in Settings. It SHALL fire for every
+transaction the app sends, not only from Interact, except one a tutorial card
+already links.
+
+#### Scenario: The toast names the signature (manual)
+
+- **WHEN** the person sends `increment` and the transaction goes out
+- **THEN** a toast reads "Transaction sent" beside the shortened signature, which opens the transaction on the picked explorer
+
 ### Requirement: Calls join a history per program and network
 
 Every finished call SHALL be recorded with its program id, network,

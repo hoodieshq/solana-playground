@@ -50,6 +50,12 @@ vi.mock("./InstructionInput", () => ({ default: () => null }));
 vi.mock("../IdlProvider", () => ({ useIdl: () => ({ idl: {} }) }));
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { FC } from "react";
+import { createElement } from "react";
+
+import { requireFor } from "@/test-utils/require-for";
+import type { ToastChildProps } from "@/utils/view";
+import { PgView } from "@/utils/view";
 
 import Instruction from "./Instruction";
 
@@ -81,7 +87,7 @@ it("draws an instruction that takes nothing with no count, no groups and no Fill
   expect(screen.queryByRole("region")).toBeNull();
   expect(screen.queryByRole("button", { name: "Fill with Random" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
-  expect(testButton().disabled).toBe(false);
+  expect(sendButton().disabled).toBe(false);
 });
 
 it("starts folded, and opens through the card's own head when nobody holds it", () => {
@@ -146,7 +152,7 @@ it("holds Send for a wallet first, and says so", () => {
     />
   );
 
-  expect(testButton().disabled).toBe(true);
+  expect(sendButton().disabled).toBe(true);
   expect(screen.getByText("Connect a wallet to send")).toBeTruthy();
 });
 
@@ -161,7 +167,7 @@ it("holds Send for the fee before the fields, and names the network", () => {
     />
   );
 
-  expect(testButton().disabled).toBe(true);
+  expect(sendButton().disabled).toBe(true);
   expect(screen.getByText("Add devnet SOL to send")).toBeTruthy();
   expect(screen.queryByText("Fill every field to send")).toBeNull();
 });
@@ -170,14 +176,14 @@ it("holds Send for an empty field and says so", () => {
   stored.amount = { value: "", error: false };
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open />);
 
-  expect(testButton().disabled).toBe(true);
+  expect(sendButton().disabled).toBe(true);
   expect(screen.getByText("Fill every field to send")).toBeTruthy();
 });
 
 it("says nothing once Send can run", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open />);
 
-  expect(testButton().disabled).toBe(false);
+  expect(sendButton().disabled).toBe(false);
   expect(screen.queryByText(/to send$/)).toBeNull();
 });
 
@@ -217,8 +223,25 @@ it("reads Sending… and locks the form until the call settles", async () => {
   ).toBe(true);
 
   await act(async () => settle());
-  expect(testButton().disabled).toBe(false);
+  expect(sendButton().disabled).toBe(false);
   expect(container.querySelector("fieldset")?.disabled).toBe(false);
+});
+
+it("toasts Could not send increment. when the call rejects", async () => {
+  const setToast = vi.spyOn(PgView, "setToast").mockImplementation(() => {});
+  const onCall = vi.fn(() => Promise.reject(new Error("rpc down")));
+  render(<Instruction idlInstruction={IX} onCall={onCall} open />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+  await vi.waitFor(() => expect(setToast).toHaveBeenCalled());
+  const [elementable] = requireFor("a setToast call")(
+    setToast.mock.calls.at(-1)
+  );
+  const Toast = elementable as FC<ToastChildProps>;
+  const { container } = render(createElement(Toast, { id: "button-failed" }));
+  expect(container.textContent).toBe("Could not send increment.");
+  setToast.mockRestore();
 });
 
 const FORM_IX = {
@@ -227,7 +250,7 @@ const FORM_IX = {
   accounts: [{ name: "owner" }],
 } as unknown as Props["idlInstruction"];
 
-const testButton = () =>
+const sendButton = () =>
   screen.getByRole("button", { name: "Send" }) as HTMLButtonElement;
 
 afterEach(() => {
@@ -247,14 +270,14 @@ it("enables Send for a valid form restored after leaving and returning", () => {
 
   render(<Instruction idlInstruction={FORM_IX} onCall={vi.fn()} open />);
 
-  expect(testButton().disabled).toBe(false);
+  expect(sendButton().disabled).toBe(false);
 });
 
 it("keeps Send off for a restored form with a field in error", () => {
   stored.amount = { value: "x", error: true };
   render(<Instruction idlInstruction={FORM_IX} onCall={vi.fn()} open />);
 
-  expect(testButton().disabled).toBe(true);
+  expect(sendButton().disabled).toBe(true);
 });
 
 // Another call in flight holds every card's Send; the reason is the stage's
@@ -262,7 +285,7 @@ it("holds Send while the caller blocks it, without a reason of its own", () => {
   session.wallet = undefined;
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open callBlocked />);
 
-  expect(testButton().disabled).toBe(true);
+  expect(sendButton().disabled).toBe(true);
   expect(screen.queryByText("Connect a wallet to send")).toBeNull();
 });
 
@@ -271,7 +294,7 @@ it("holds Send while the network is down, and says why first", () => {
   stored.amount = { value: "", error: false };
   render(<Instruction idlInstruction={FORM_IX} onCall={vi.fn()} open />);
 
-  expect(testButton().disabled).toBe(true);
+  expect(sendButton().disabled).toBe(true);
   expect(screen.getByText("Devnet is not responding")).toBeTruthy();
   expect(screen.queryByText("Fill every field to send")).toBeNull();
 });

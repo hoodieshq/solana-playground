@@ -70,8 +70,8 @@ const Instruction: FC<InstructionProps> = ({
 
   // Enable when there is no args and no accounts.
   //
-  // This is intentionally done in a `useEffect` instead of changing the
-  // setting the default value of the `disabled`'s `useState` in order to:
+  // This is intentionally done in a `useEffect` instead of
+  // seeding `disabled`'s `useState` in order to:
   // - Enable the button when `idlInstruction` changes
   // - Avoid flickering of the Send button i.e. the button renders as enabled
   // and switches to disabled state after.
