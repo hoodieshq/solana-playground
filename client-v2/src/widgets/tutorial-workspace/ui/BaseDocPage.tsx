@@ -11,7 +11,7 @@ const log = createLogger("tutorial-workspace:doc-page");
 export interface DocSectionRequest {
   /** The heading's id on the page */
   id: string;
-  /** A nonce the workspace counts up per request; equality is never read */
+  /** Counted up by the workspace per request; the scroll effect keys on it */
   seq: number;
 }
 
@@ -47,11 +47,17 @@ const siteOf = (url: string) => {
   }
 };
 
+/** The headings inside the page's scroll area */
+const headingsIn = (scroller: HTMLElement) =>
+  Array.from(scroller.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6"));
+
 /** The heading with this id inside the page's scroll area, by the ids `headingIds` gave them */
 const headingIn = (scroller: HTMLElement, id: string) =>
-  Array.from(scroller.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6")).find(
-    (heading) => heading.id === id
-  );
+  headingsIn(scroller).find((heading) => heading.id === id);
+
+/** The ids the page's headings carry, for the log when a link names another */
+const headingIdsIn = (scroller: HTMLElement) =>
+  headingsIn(scroller).map((heading) => heading.id);
 
 /**
  * A doc page in the editor's place (spec "Docs open as read-only tabs"):
@@ -70,23 +76,33 @@ const BaseDocPage: FC<BaseDocPageProps> = ({
   phone = false,
 }) => {
   const scroller = useRef<HTMLDivElement>(null);
+  // The request's fields, so a stable or memoised object still scrolls again
+  // when its `seq` moves
+  const sectionId = section?.id;
+  const sectionSeq = section?.seq;
   useEffect(() => {
     const area = scroller.current;
-    if (!area || !section) return;
-    const heading = headingIn(area, section.id);
+    if (!area || sectionId === undefined) return;
+    const heading = headingIn(area, sectionId);
     if (!heading) {
       // The link named a section the page lacks: the page stays where it is,
       // at its top when it has just opened. Warned, since production drops
-      // debug and this is how an assistant that invents sections shows
+      // debug and this is how an assistant that invents sections shows; the
+      // page's own ids tell an invented id from a scan that disagreed
       log.warn("a doc link named a section the page lacks", {
-        context: { title, section: section.id },
+        context: {
+          title,
+          url,
+          section: sectionId,
+          headings: headingIdsIn(area),
+        },
       });
       return;
     }
     // The area is the headings' offset parent (`relative`), so this is the
     // heading's distance from the area's top
     area.scrollTop = heading.offsetTop;
-  }, [section, title]);
+  }, [sectionId, sectionSeq, title, url]);
 
   return (
     <article

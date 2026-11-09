@@ -71,10 +71,6 @@ describe("Markdown", () => {
     expect(block?.getAttribute("data-type")).toBe("string");
   });
 
-  // react-markdown 9 hands a lone text child to `h2` as a string, which the
-  // header used to index as an array and so took only its first letter
-  // react-markdown 9 hands a lone text child to `h2` as a string, which the
-  // header used to index as an array and so took only its first letter
   it("gives headings their site's ids with headingIds, and none without", async () => {
     const page =
       "# Program Structure\n\n## `#[derive(Accounts)]` macro\n\n## declare_id! macro";
@@ -117,6 +113,8 @@ describe("Markdown", () => {
     }
   });
 
+  // react-markdown 9 hands a lone text child to `h2` as a string, which the
+  // header used to index as an array and so took only its first letter
   it("derives a linkable header id from the whole title", async () => {
     await act(async () => {
       root.render(<Markdown linkable>{"## Getting"}</Markdown>);

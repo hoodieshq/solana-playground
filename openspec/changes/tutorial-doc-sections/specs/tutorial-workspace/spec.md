@@ -7,7 +7,8 @@
 Every heading of a doc page SHALL have an `id` equal to the slug the page's
 own site gives that heading: the GitHub scheme, lower case, spaces to `-`,
 punctuation other than `-` and `_` dropped, a repeated heading suffixed
-`-1`, `-2`. The id is the one in `tutorial-doc-page`, the page's test id.
+`-1`, `-2`. The ids are read inside the page's own element (test id
+`tutorial-doc-page`), never from the document.
 
 #### Scenario: A heading with code in it
 - **WHEN** Program Structure's `#[derive(Accounts)] macro` heading renders

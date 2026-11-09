@@ -56,6 +56,8 @@ export const sectionsOf = (markdown: string): readonly MarkdownSection[] => {
     const heading = HEADING.exec(line);
     if (!heading) continue;
     const title = headingText(heading[2]);
+    // `## ` alone renders an empty heading; it has no section to name
+    if (title === "") continue;
     const id = slugger.slug(title);
     if (heading[1].length > 1) sections.push({ title, id });
   }

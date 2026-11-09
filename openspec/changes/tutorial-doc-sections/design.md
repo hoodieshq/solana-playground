@@ -18,7 +18,8 @@ See proposal.md, Why. The pieces as they are on `scope/tutorial-flow-2`:
 - `widgets/tutorial-conversation/model/context.ts` writes the docs line from
   `definition.docs` (title, address); `mode.ts` builds the facts from the
   conversation store and the explorer. The pages' Markdown lives on
-  `TutorialData.docPages`, reached through `PgTutorial.current`, as the
+  `TutorialData.docPages`, reached through `PgTutorial.all` (the workspace
+  reads the route's `PgTutorial.current`), as the
   workspace already does.
 - The docs sites (anchor-lang.com, checked 9 Nov; solana.com runs the same
   toolchain) give headings GitHub's slugs: `#[account(has_one = target)]` is

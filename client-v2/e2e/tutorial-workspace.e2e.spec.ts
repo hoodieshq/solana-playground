@@ -281,6 +281,10 @@ test.describe("tutorial-workspace", () => {
   /** The doc page's scroll area starts under its strip, `h-9` on `BaseDocPage` */
   const STRIP_PX = 36;
 
+  /** The doc page's own scroll area, the one `BaseDocPage` scrolls */
+  const scrollArea = (page: Page) =>
+    page.getByTestId("tutorial-doc-page").locator(".overflow-y-auto");
+
   /** Expects the heading to sit at the top of the page's scroll area */
   const expectAtTop = async (page: Page, name: string) => {
     const doc = page.getByTestId("tutorial-doc-page");
@@ -332,6 +336,9 @@ test.describe("tutorial-workspace", () => {
         .getByRole("heading", { name: "Program Structure", level: 1 })
     ).toBeInViewport();
     await expect
+      .poll(() => scrollArea(page).evaluate((el) => el.scrollTop))
+      .toBe(0);
+    await expect
       .poll(() => lineOf(lines, "tutorial_workspace_doc_opened"))
       .toContain("section: no-such-section");
   });
@@ -365,6 +372,24 @@ test.describe("tutorial-workspace", () => {
     ).not.toBeInViewport();
     await chat.getByRole("link", { name: "validation" }).click();
     await expectAtTop(page, "Account Validation");
+
+    // A section the page lacks leaves the open page where it is, and no event
+    await chat.getByRole("link", { name: "a missing part" }).click();
+    await page.waitForTimeout(300);
+    await expectAtTop(page, "Account Validation");
+    expect(
+      lines.filter((l) => l.includes(" tutorial_workspace_doc_opened "))
+    ).toHaveLength(1);
+
+    // Opened again from its tab, the page starts at its top: no link asked
+    // for a section of it
+    await head(page).getByRole("tab", { name: "lib.rs" }).click();
+    await expect(doc).toHaveCount(0);
+    await head(page).getByRole("tab", { name: "Program Structure" }).click();
+    await expect(doc).toHaveCount(1);
+    await expect
+      .poll(() => scrollArea(page).evaluate((el) => el.scrollTop))
+      .toBe(0);
   });
 
   test("tutorial-workspace: A heading with code in it", async ({ page }) => {

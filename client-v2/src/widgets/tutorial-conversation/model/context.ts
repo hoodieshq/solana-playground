@@ -74,6 +74,16 @@ export const describeTutorial = (facts: TutorialFacts): string => {
     );
   }
   if (definition.docs?.length) {
+    if (facts.docPages === undefined) {
+      // Once per description, not per page: the assistant then links every
+      // page at its top, which reads like pages with no sections
+      log.warn("the facts carry no doc pages for a tutorial that lists some", {
+        context: {
+          tutorial: definition.name,
+          files: definition.docs.map((d) => d.file),
+        },
+      });
+    }
     lines.push(
       "This tutorial's doc pages, which open beside the code: " +
         definition.docs.map(describeDoc(facts.docPages)).join("; ") +
@@ -134,10 +144,10 @@ const describeDoc =
   (docPages: TutorialFacts["docPages"]) =>
   (doc: Doc): string => {
     const markdown = docPages?.[doc.file];
-    if (markdown === undefined) {
-      // The loader rejects a tutorial whose listed page is missing, so this
-      // is the facts arriving without the pages: the assistant then links
-      // the page at its top, which reads like a page with no sections
+    if (docPages !== undefined && markdown === undefined) {
+      // The check rejects a listed page with no Markdown when it is given
+      // the pages, as the app's loader is, so pages that lack one did not
+      // come through it; `describeTutorial` warns for pages absent as a whole
       log.warn("a listed doc page has no Markdown in the facts", {
         context: { file: doc.file },
       });

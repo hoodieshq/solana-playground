@@ -203,7 +203,7 @@ if (import.meta.vitest) {
       expect(sectionOf(`${IDL.url}#discriminators`)).toBe("discriminators");
       expect(sectionOf(`${IDL.url}#declare_id-macro`)).toBe("declare_id-macro");
       expect(sectionOf(`${IDL.url}#a%20b`)).toBe("a b");
-      expect(sectionOf(`${IDL.url}#100%`)).toBe("100%");
+      expect(sectionOf(`${IDL.url}#a%zz`)).toBe("a%zz");
       expect(sectionOf(IDL.url)).toBeUndefined();
       expect(sectionOf(`${IDL.url}#`)).toBeUndefined();
       expect(sectionOf("idl.md#discriminators")).toBeUndefined();

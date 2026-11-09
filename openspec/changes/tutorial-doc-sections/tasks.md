@@ -19,7 +19,8 @@
       through the memory provider in `TutorialWorkspace.test.tsx`.
       `describeTutorial` takes `docPages` and writes each page's sections
       with `page#id` addresses and the instruction to link the section that
-      covers the answer; `mode.ts` passes `PgTutorial.current?.docPages`; a
+      covers the answer; `mode.ts` passes the `docPages` of the tutorial in
+      `PgTutorial.all` whose name the context names; a
       page with no headings below its title, or no Markdown, is listed as
       before, covered by the in-source tests of `context.ts`. Verify: the
       three `tutorial-workspace` scenarios and the `tutorial-conversation`

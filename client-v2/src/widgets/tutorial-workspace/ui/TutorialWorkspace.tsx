@@ -498,7 +498,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
           </div>
           {active && frontDoc && (
             <div className="absolute inset-0 z-10 flex">
-              {/* One page per doc, so each opens at its top */}
+              {/* One page per doc: a remount starts at the top unless `section` asks for a heading */}
               <BaseDocPage
                 key={frontDoc.file}
                 title={frontDoc.title}

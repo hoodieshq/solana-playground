@@ -173,7 +173,7 @@ describe("TutorialWorkspace", () => {
       const opened = events.events.filter(
         (e) => e.name === "tutorial_workspace_doc_opened"
       );
-      expect(opened.map((e) => e.params)).toEqual([
+      expect(opened.map((e) => e.params)).toStrictEqual([
         { doc: "idl.md", via: "assistant", section: "discriminators" },
       ]);
 
