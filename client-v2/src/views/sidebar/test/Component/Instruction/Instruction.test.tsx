@@ -117,7 +117,7 @@ it("groups the inputs under plain Arguments and Accounts groups, not folds", () 
   expect(screen.queryByRole("button", { name: "Accounts" })).toBeNull();
 });
 
-it("ends in Test with quiet Fill with Random and Reset", () => {
+it("ends in Send with quiet Fill with Random and Reset", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open />);
 
   expect(screen.getByRole("button", { name: "Send" })).toBeTruthy();
@@ -125,7 +125,7 @@ it("ends in Test with quiet Fill with Random and Reset", () => {
   expect(screen.getByRole("button", { name: "Reset" })).toBeTruthy();
 });
 
-it("tests the instruction through onCall", () => {
+it("sends the instruction through onCall", () => {
   const onCall = vi.fn(() => Promise.resolve());
   render(<Instruction idlInstruction={IX} onCall={onCall} open />);
 
@@ -135,7 +135,7 @@ it("tests the instruction through onCall", () => {
   );
 });
 
-it("holds Test for a wallet first, and says so", () => {
+it("holds Send for a wallet first, and says so", () => {
   session.wallet = undefined;
   render(
     <Instruction
@@ -150,7 +150,7 @@ it("holds Test for a wallet first, and says so", () => {
   expect(screen.getByText("Connect a wallet to send")).toBeTruthy();
 });
 
-it("holds Test for the fee before the fields, and names the network", () => {
+it("holds Send for the fee before the fields, and names the network", () => {
   stored.amount = { value: "", error: false };
   render(
     <Instruction
@@ -166,7 +166,7 @@ it("holds Test for the fee before the fields, and names the network", () => {
   expect(screen.queryByText("Fill every field to send")).toBeNull();
 });
 
-it("holds Test for an empty field and says so", () => {
+it("holds Send for an empty field and says so", () => {
   stored.amount = { value: "", error: false };
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open />);
 
@@ -174,7 +174,7 @@ it("holds Test for an empty field and says so", () => {
   expect(screen.getByText("Fill every field to send")).toBeTruthy();
 });
 
-it("says nothing once Test can run", () => {
+it("says nothing once Send can run", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open />);
 
   expect(testButton().disabled).toBe(false);
@@ -239,7 +239,7 @@ afterEach(() => {
 // Every card mounts its form, and a remount (a rebuilt IDL) restores the
 // stored values; the inputs report nothing on mount, so the form has to read
 // its restored values itself
-it("enables Test for a valid form restored after leaving and returning", () => {
+it("enables Send for a valid form restored after leaving and returning", () => {
   const first = render(
     <Instruction idlInstruction={FORM_IX} onCall={vi.fn()} open />
   );
@@ -250,15 +250,15 @@ it("enables Test for a valid form restored after leaving and returning", () => {
   expect(testButton().disabled).toBe(false);
 });
 
-it("keeps Test off for a restored form with a field in error", () => {
+it("keeps Send off for a restored form with a field in error", () => {
   stored.amount = { value: "x", error: true };
   render(<Instruction idlInstruction={FORM_IX} onCall={vi.fn()} open />);
 
   expect(testButton().disabled).toBe(true);
 });
 
-// Another call in flight holds every card's Test; the reason is the stage's
-it("holds Test while the caller blocks it, without a reason of its own", () => {
+// Another call in flight holds every card's Send; the reason is the stage's
+it("holds Send while the caller blocks it, without a reason of its own", () => {
   session.wallet = undefined;
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open callBlocked />);
 
@@ -266,7 +266,7 @@ it("holds Test while the caller blocks it, without a reason of its own", () => {
   expect(screen.queryByText("Connect a wallet to send")).toBeNull();
 });
 
-it("holds Test while the network is down, and says why first", () => {
+it("holds Send while the network is down, and says why first", () => {
   network.hold = "Devnet is not responding";
   stored.amount = { value: "", error: false };
   render(<Instruction idlInstruction={FORM_IX} onCall={vi.fn()} open />);
