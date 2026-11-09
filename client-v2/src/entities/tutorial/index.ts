@@ -20,7 +20,9 @@ export {
   onDocShown,
   requestCode,
   requestDoc,
+  sectionOf,
 } from "./model/docs";
+export type { DocRequest } from "./model/docs";
 export type { LoadedDefinition } from "./model/definition/load";
 export type {
   Act,

@@ -4,6 +4,7 @@ import type { ToolInput } from "@/shared/lib/ai";
 import { uuid } from "@/shared/lib/ids";
 import { createLogger } from "@/shared/lib/logger";
 import { PgExplorer } from "@/utils/explorer";
+import { PgTutorial } from "@/utils/tutorial";
 import { READING_TOOLS } from "@/views/sidebar/assistant/model/reading-tools";
 import type { AssistantMode } from "@/views/sidebar/assistant/store";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
@@ -58,6 +59,7 @@ export const tutorialMode = ({
     if (!context) return "The learner is not in a tutorial right now.";
     return describeTutorial({
       definition: context.definition,
+      docPages: PgTutorial.current?.docPages,
       progress: engine.progress,
       live: PgConversation.view()?.live ?? null,
       openFiles: PgExplorer.tabs.map((tab) => PgExplorer.getRelativePath(tab)),

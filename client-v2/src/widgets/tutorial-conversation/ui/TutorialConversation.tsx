@@ -6,6 +6,7 @@ import {
   docForLink,
   requestCode,
   requestDoc,
+  sectionOf,
   slugOf,
 } from "@/entities/tutorial";
 import { isSignInFailure, PgSession, useSignedIn } from "@/features/auth";
@@ -775,7 +776,8 @@ export const TutorialConversation = ({
   // with no workspace to show it, the link opens as a link
   const handleLink = (href: string) => {
     const doc = docForLink(context.definition.docs, href);
-    return doc ? requestDoc(doc.file) : false;
+    if (!doc) return false;
+    return requestDoc({ file: doc.file, section: sectionOf(href) });
   };
   const running = view.turns.some(
     (t) => t.kind === "act" && t.state === "running"

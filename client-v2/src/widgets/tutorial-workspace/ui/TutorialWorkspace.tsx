@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 import { EditorTabsShown } from "@/components/EditorWithTabs";
-import type { Doc } from "@/entities/tutorial";
+import type { Doc, DocRequest } from "@/entities/tutorial";
 import { onCodeRequest, onDocRequest } from "@/entities/tutorial";
 import { PgCallPanel } from "@/features/tutorial-conversation";
 import { useRenderOnChange } from "@/hooks";
@@ -27,6 +27,7 @@ import { tutorialWorkspaceTelemetry } from "../model/telemetry";
 import { autoOpenReason, resetsDeploys } from "../model/terminal";
 import { createdIn, tabsOf, treeRows, tutorialFiles } from "../model/tree";
 import BaseDockedTree from "./BaseDockedTree";
+import type { DocSectionRequest } from "./BaseDocPage";
 import BaseDocPage from "./BaseDocPage";
 import BaseFilesSheet from "./BaseFilesSheet";
 import BasePhoneCodeHead from "./BasePhoneCodeHead";
@@ -159,6 +160,9 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   );
   const [openDocs, setOpenDocs] = useState<string[]>([]);
   const [doc, setDoc] = useState<string>();
+  // The section the last doc link named, for the page in front; a page
+  // opened from the tree or its tab names none and keeps its scroll
+  const [section, setSection] = useState<DocSectionRequest>();
   useEffect(() => {
     setOpenDocs(readOpenDocs()[name] ?? []);
     // The page that was in front comes back in front, as a reload restores
@@ -244,8 +248,14 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     tutorialWorkspaceTelemetry.track("tutorial_workspace_file_opened", { via });
   };
 
-  /** Brings a doc page to the front; false for a page this tutorial lacks */
-  const showDoc = (file: string, via: DocOpenVia): boolean => {
+  /**
+   * Brings a doc page to the front, at the section the request names;
+   * false for a page this tutorial lacks
+   */
+  const showDoc = (
+    { file, section: asked }: DocRequest,
+    via: DocOpenVia
+  ): boolean => {
     if (!docs.some((d) => d.file === file)) {
       // The link matched the definition's list, but the bundle has no page
       log.warn("asked for a doc page this tutorial does not carry", {
@@ -261,6 +271,8 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
     }
     // A page opened leaves the panel, as a file does
     PgCallPanel.close();
+    // Also for the page already in front: a second link scrolls it again
+    setSection(asked === undefined ? undefined : { id: asked, at: Date.now() });
     if (file === front) return true;
     setDoc(file);
     writeFrontDoc(name, file);
@@ -268,6 +280,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
       tutorialWorkspaceTelemetry.track("tutorial_workspace_doc_opened", {
         doc: file,
         via,
+        ...(asked === undefined ? {} : { section: asked }),
       });
     }
     return true;
@@ -287,7 +300,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
   showDocNow.current = showDoc;
   useEffect(() => {
     if (!active) return;
-    return onDocRequest((file) => showDocNow.current(file, "assistant"));
+    return onDocRequest((request) => showDocNow.current(request, "assistant"));
   }, [active]);
 
   // The code comes back in front of a page whenever the lesson shows it: a
@@ -425,7 +438,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
           docs={{
             tabs: docTabs,
             active: PgCallPanel.isOpen ? undefined : front,
-            onOpen: (file) => showDoc(file, "tab"),
+            onOpen: (file) => showDoc({ file }, "tab"),
             onClose: closeDoc,
           }}
           tree={{
@@ -436,7 +449,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
             onToggle: toggleTree,
             onClose: () => setTreeOpen(false),
             onPick: (path) => openFile(path, "tree"),
-            onPickDoc: (file) => showDoc(file, "tree"),
+            onPickDoc: (file) => showDoc({ file }, "tree"),
             onDock: () => dock(true),
           }}
           call={<CallButton />}
@@ -454,7 +467,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
             open={dockedShown}
             rows={rows}
             onPick={(path) => openFile(path, "tree")}
-            onPickDoc={(file) => showDoc(file, "tree")}
+            onPickDoc={(file) => showDoc({ file }, "tree")}
             onUndock={() => dock(false)}
           />
         )}
@@ -479,6 +492,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
                 title={frontDoc.title}
                 url={frontDoc.url}
                 markdown={frontDoc.markdown}
+                section={section}
                 phone={phone}
               />
             </div>
@@ -494,7 +508,7 @@ const TutorialWorkspace: FC<TutorialWorkspaceProps> = ({
             onOpenChange={setFilesOpen}
             rows={rows}
             onPick={(path) => openFile(path, "tree")}
-            onPickDoc={(file) => showDoc(file, "tree")}
+            onPickDoc={(file) => showDoc({ file }, "tree")}
           />
           <CallSheet />
         </>

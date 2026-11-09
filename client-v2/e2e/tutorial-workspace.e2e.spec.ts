@@ -224,6 +224,148 @@ test.describe("tutorial-workspace", () => {
     ).toHaveAttribute("aria-selected", "true");
   });
 
+  /** Program Structure, the page whose sections the section tests link */
+  const PAGE = "https://www.anchor-lang.com/docs/basics/program-structure";
+
+  /**
+   * Starts Hello Anchor with a hosted model whose every answer is `answer`,
+   * asks one question, and returns the chat with the answer in it, plus the
+   * agent requests the question sent, as JSON text
+   */
+  const askWithAnswer = async (page: Page, answer: string) => {
+    const requests: string[] = [];
+    await stubSession(page);
+    await stubAiStatus(page, "test-model");
+    await page.route("**/api/agent", (route) => {
+      requests.push(JSON.stringify(route.request().postDataJSON()));
+      return route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: streamed(answer),
+      });
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/tutorials/hello-anchor");
+    const chat = page.getByRole("complementary", { name: "Tutorial chat" });
+    await chat.getByRole("button", { name: /Start step 1/ }).click(LONG);
+    await expect(head(page)).toBeVisible(LONG);
+    await expectDocs(page);
+    await page.keyboard.press("Escape");
+
+    const composer = chat.getByRole("textbox");
+    await composer.fill("what are the account types in Program Structure?");
+    await composer.press("Enter");
+    // With no model picked yet, the question opens Connect a model first
+    const dialog = page.getByRole("dialog", { name: "Connect a model" });
+    const answered = chat.getByRole("link").first();
+    await expect(dialog.or(answered)).toBeVisible(LONG);
+    if (await dialog.isVisible()) {
+      await dialog.getByRole("button", { name: "Start", exact: true }).click();
+      await expect(dialog).toBeHidden(LONG);
+      await composer.press("Enter");
+    }
+    await expect(answered).toBeVisible(LONG);
+    return { chat, requests };
+  };
+
+  /**
+   * An answer linking two sections Program Structure has, with enough page
+   * under each to reach the top of the scroll area, and one it lacks
+   */
+  const SECTION_LINKS =
+    `See [the attribute](${PAGE}#program-attribute), ` +
+    `[validation](${PAGE}#account-validation) and ` +
+    `[a missing part](${PAGE}#no-such-section).`;
+
+  /** The doc page's scroll area starts under its 36 px strip */
+  const STRIP_PX = 36;
+
+  /** Expects the heading to sit at the top of the page's scroll area */
+  const expectAtTop = async (page: Page, name: string) => {
+    const doc = page.getByTestId("tutorial-doc-page");
+    const heading = doc.getByRole("heading", { name, exact: true });
+    await expect(heading).toBeInViewport();
+    await expect
+      .poll(async () => {
+        const [docBox, headingBox] = await Promise.all([
+          doc.boundingBox(),
+          heading.boundingBox(),
+        ]);
+        if (!docBox || !headingBox) return Number.NaN;
+        return Math.abs(headingBox.y - (docBox.y + STRIP_PX));
+      })
+      .toBeLessThanOrEqual(4);
+  };
+
+  test("tutorial-workspace: A section from the assistant's answer", async ({
+    page,
+  }) => {
+    const lines = linesOn(page);
+    const { chat } = await askWithAnswer(page, SECTION_LINKS);
+    await chat.getByRole("link", { name: "validation" }).click();
+    await expect(
+      head(page).getByRole("tab", { name: "Program Structure" })
+    ).toHaveAttribute("aria-selected", "true");
+    const doc = page.getByTestId("tutorial-doc-page");
+    await expect(doc.getByRole("textbox")).toHaveCount(0);
+    await expectAtTop(page, "Account Validation");
+    await expect
+      .poll(() => lineOf(lines, "tutorial_workspace_doc_opened"))
+      .toContain("via: assistant");
+    const line = lineOf(lines, "tutorial_workspace_doc_opened");
+    expect(line).toContain("doc: program-structure.md");
+    expect(line).toContain("section: account-validation");
+  });
+
+  test("tutorial-workspace: A section the page lacks", async ({ page }) => {
+    const lines = linesOn(page);
+    const { chat } = await askWithAnswer(page, SECTION_LINKS);
+    await chat.getByRole("link", { name: "a missing part" }).click();
+    await expect(
+      head(page).getByRole("tab", { name: "Program Structure" })
+    ).toHaveAttribute("aria-selected", "true");
+    // At its top: the title is the first thing on the page
+    await expect(
+      page
+        .getByTestId("tutorial-doc-page")
+        .getByRole("heading", { name: "Program Structure", level: 1 })
+    ).toBeInViewport();
+    await expect
+      .poll(() => lineOf(lines, "tutorial_workspace_doc_opened"))
+      .toContain("section: no-such-section");
+  });
+
+  test("tutorial-workspace: A second section of the open page", async ({
+    page,
+  }) => {
+    const lines = linesOn(page);
+    const { chat } = await askWithAnswer(page, SECTION_LINKS);
+    await chat.getByRole("link", { name: "the attribute" }).click();
+    await expectAtTop(page, "#[program] attribute");
+    await expect
+      .poll(() => lineOf(lines, "tutorial_workspace_doc_opened"))
+      .toContain("section: program-attribute");
+
+    await chat.getByRole("link", { name: "validation" }).click();
+    await expectAtTop(page, "Account Validation");
+    // The page was already in front: one event, the first
+    expect(
+      lines.filter((l) => l.includes(" tutorial_workspace_doc_opened "))
+    ).toHaveLength(1);
+  });
+
+  test("tutorial-conversation: A question about one section", async ({
+    page,
+  }) => {
+    const { requests } = await askWithAnswer(page, SECTION_LINKS);
+    const sent = requests.at(-1);
+    if (!sent) throw new Error("the question never reached the agent");
+    expect(sent).toContain(`#[account] attribute (${PAGE}#account-attribute)`);
+    expect(sent).toContain(
+      "the section that covers it when one does, the page otherwise"
+    );
+  });
+
   test("a doc opens from the tree's Docs folder and stays open across a reload", async ({
     page,
   }) => {
