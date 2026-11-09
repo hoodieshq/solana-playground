@@ -72,7 +72,7 @@ describe("convertFromPlayground", () => {
       "const program = anchor.workspace.HelloAnchor as anchor.Program<HelloAnchor>;"
     );
     expect(client).toContain(
-      '(async () => {\n  const txHash = await program.methods.hello("Anchor").rpc();\n  console.log(txHash);\n})();'
+      '(async () => {\nconst txHash = await program.methods.hello("Anchor").rpc();\nconsole.log(txHash);\n})();'
     );
     expect(client.indexOf("const program")).toBeLessThan(
       client.indexOf("(async")

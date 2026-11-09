@@ -319,12 +319,9 @@ const wrapTopLevelAwait = (content: string) => {
   const lastImport = PgCommon.matchAll(content, IMPORT_STATEMENT_REGEX).at(-1);
   const bodyStartIndex =
     (lastImport?.index ?? 0) + (lastImport?.[0].length ?? 0);
-  const body = content
-    .slice(bodyStartIndex)
-    .trim()
-    .split("\n")
-    .map((line) => (line ? "  " + line : line))
-    .join("\n");
+  // The body keeps its own indentation: a template literal spanning lines
+  // would change its text if the lines were indented
+  const body = content.slice(bodyStartIndex).trim();
 
   return (
     content.slice(0, bodyStartIndex) + `\n\n(async () => {\n${body}\n})();\n`
