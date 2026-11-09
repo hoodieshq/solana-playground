@@ -31,9 +31,10 @@ and a failed build SHALL say how many errors it has.
 Where the user picks one option out of a few shown at once, such as the
 network in settings, the options SHALL form one radio group: the group is
 one stop for the Tab key, and the arrow keys move the choice within it.
-The network's options are Devnet, Mainnet and each saved custom RPC; any
-other URL is added through "Add custom RPC" below the group, a button
-outside it that opens a dialog, and the RPC it saves joins the group.
+The network's options are the offered networks (Mainnet, Devnet, Testnet,
+Localnet and Surfpool) and each saved custom RPC; any other URL is added
+through "Add custom RPC" below the group, a button outside it that opens an
+inline form, and the RPC it saves joins the group.
 
 #### Scenario: Network by keyboard
 

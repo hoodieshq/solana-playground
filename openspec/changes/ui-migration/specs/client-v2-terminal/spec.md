@@ -31,4 +31,5 @@ refuses SHALL be reported, not swallowed.
 #### Scenario: Clear empties the copy
 
 - **WHEN** the user presses Clear
-- **THEN** no Copy log button is shown until a build or a deploy changes state
+- **THEN** no Copy log button is shown until the console is opened again or a
+  build or a deploy changes state

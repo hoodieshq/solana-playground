@@ -125,8 +125,8 @@ arrive, the stage's own panel SHALL show the failure while the tabs and the
 editor stay up, and SHALL say the user's code is unchanged. Online the title
 SHALL read "<Stage> couldn't load" with Try again and Reload page; offline it
 SHALL read "<Stage> needs a connection" with Try again alone, since a reload
-offline would lose the app. A Try again that fails too SHALL point the user to
-Reload page. A stage that failed offline SHALL load again by itself when the
+offline would lose the app. Online, a Try again that fails too SHALL point the
+user to Reload page. A stage that failed offline SHALL load again by itself when the
 network returns. A failure with a network SHALL be reported to production
 monitoring once per stage per page load; a failure offline, a retry the
 returning network started, and a repeat SHALL only be logged.
@@ -139,7 +139,7 @@ returning network started, and a repeat SHALL only be logged.
 
 #### Scenario: Try again fails too
 
-- **WHEN** the user presses Try again and the load fails again
+- **WHEN** the user, online, presses Try again and the load fails again
 - **THEN** the panel tells the user to reload the page, and nothing more is
   reported
 
