@@ -6,6 +6,11 @@ import { expect, it } from "vitest";
 const SRC = join(__dirname, "..");
 const LAYERS = ["features", "widgets"];
 /** Layers whose trackers the funnel table may name */
+/**
+ * Where the funnel check scans for `createTracker<...>()` maps. `entities` is
+ * here because `entities/tutorial` declares the tutorial events; `LAYERS`
+ * leaves it out because the slice checks cover only slices with browser code.
+ */
 const TRACKER_LAYERS = ["features", "widgets", "entities"];
 const REPO = join(SRC, "..", "..");
 
@@ -128,6 +133,7 @@ const declaredEvents = () =>
       .filter((file) => /\.tsx?$/.test(file) && !/\.test\./.test(file))
       .flatMap((file) => trackerEvents(join(SRC, file)))
       .map((event) => event.name)
+      .filter((name) => !name.startsWith("<"))
   );
 
 /** The funnel table: the main spec, or the `funnel-events` delta while the main spec does not exist */
@@ -146,26 +152,51 @@ const funnelSpec = () => {
       );
 };
 
-/** Each row of the funnel table: the backticked names of its Events column and its Source */
-const funnelRows = () => {
-  const rows = readFileSync(funnelSpec(), "utf8")
-    .split("\n")
-    .filter((line) => line.startsWith("|"))
-    .map((line) => line.split("|").map((cell) => cell.trim()));
-  const header = rows.find((cells) => cells.includes("Events"));
-  if (!header) return [];
-  const events = header.indexOf("Events");
-  const source = header.indexOf("Source");
-  return rows
-    .filter((cells) => cells !== header && !/^:?-+:?$/.test(cells[events]))
-    .map((cells) => ({
-      events: Array.from(cells[events].matchAll(/`([^`]+)`/g), (m) => m[1]),
-      source: cells[source],
-    }));
+/** The table that starts at the `Events` header: its header cells and each row's cells, ending at the first line that is not a table row */
+const funnelTable = () => {
+  const lines = readFileSync(funnelSpec(), "utf8").split("\n");
+  const start = lines.findIndex(
+    (line) => line.startsWith("|") && /\bEvents\b/.test(line)
+  );
+  if (start < 0) return { header: [], rows: [] };
+  const end = lines.findIndex(
+    (line, index) => index > start && !line.startsWith("|")
+  );
+  const cells = lines
+    .slice(start, end < 0 ? undefined : end)
+    .map((line) => line.split(/(?<!\\)\|/).map((cell) => cell.trim()));
+  return {
+    header: cells[0],
+    rows: cells.slice(1).filter((row) => !/^:?-+:?$/.test(row[1])),
+  };
 };
 
+/** Each row of the funnel table: the backticked names of its Events column and its Source */
+const funnelRows = () => {
+  const { header, rows } = funnelTable();
+  const events = header.indexOf("Events");
+  const source = header.indexOf("Source");
+  return rows.map((cells) => ({
+    events: Array.from(cells[events].matchAll(/`([^`]+)`/g), (m) => m[1]),
+    source: cells[source],
+  }));
+};
+
+/** Rows that are neither GA4 nor pending, so a tracker must declare their events */
+const checkedRows = () =>
+  funnelTable().rows.filter((cells) => {
+    const source = cells[funnelTable().header.indexOf("Source")];
+    return source !== "GA4" && !source.startsWith("pending (");
+  });
+
 it("should read the funnel table", () => {
-  expect(funnelRows().length).toBeGreaterThan(0);
+  const { header } = funnelTable();
+  expect(header, "the funnel table needs an Events column").toContain("Events");
+  expect(header, "the funnel table needs a Source column").toContain("Source");
+  expect(funnelRows()).toContainEqual({
+    events: ["auth_signed_in"],
+    source: "features/auth",
+  });
   expect(declaredEvents()).toContain("auth_signed_in");
 });
 
@@ -177,4 +208,13 @@ it("should have a tracker declare every funnel event that is not GA4 or pending"
     .filter((event) => !declared.has(event));
 
   expect(missing).toEqual([]);
+});
+
+it("should name every funnel event that is not GA4 or pending in backticks", () => {
+  const events = funnelTable().header.indexOf("Events");
+  const unnamed = checkedRows()
+    .filter((cells) => cells[events] !== "" && !/`[^`]+`/.test(cells[events]))
+    .map((cells) => cells[events]);
+
+  expect(unnamed).toEqual([]);
 });
