@@ -56,6 +56,7 @@ export const describeTutorial = (facts: TutorialFacts): string => {
         `${TOOLS.skip} skips it, as its buttons do.`
     );
   }
+  if (live?.kind === "act") lines.push(whereActIs(live));
   const last = lastRun(progress);
   if (last) lines.push(`The last result: ${describeRun(last)}.`);
   if (facts.openFiles.length) {
@@ -110,6 +111,26 @@ const whereOf = (
   return (
     `Step ${i + 1} of ${definition.steps.length}: ${step.title}. ` +
     `Objective: ${step.objective}. The step's file: ${step.file}.${passed}`
+  );
+};
+
+/**
+ * Where the one control that runs the step's act sits: its card in the
+ * tutorial feed, this chat, never the work area. Asked "how do I build?", the
+ * assistant sent learners to a Build action on the stage bar, which has none
+ * (HOO-2755); the card is the only way, and after a reload it is pressed again.
+ */
+const whereActIs = (live: Extract<Turn, { kind: "act" }>): string => {
+  let state = "";
+  if (live.state === "running") state = " It is running now.";
+  if (live.state === "interrupted") {
+    state = " A reload interrupted its last run; pressing it runs it again.";
+  }
+  return (
+    `The step waits for the "${live.act.button}" button on the ` +
+    `"${live.act.title}" card in the tutorial feed, in this chat. It ` +
+    "is the only control for this: the work area's stage bar has no Build, " +
+    `Deploy or Run action. Point the learner to that card.${state}`
   );
 };
 
@@ -200,6 +221,52 @@ if (import.meta.vitest) {
       expect(text).toContain("in front: programs/hello/src/lib.rs");
       expect(text).toContain("you cannot change files, build, deploy");
       expect(text).not.toContain(BEGIN_INVITATION);
+    });
+
+    it("points to the live act's card in the feed, and says a reload is pressed again", () => {
+      const build = hello.steps[0].beats.find(
+        (b): b is import("@/entities/tutorial").ActBeat => b.kind === "act"
+      );
+      if (!build) throw new Error("Hello Anchor has no act in step 1");
+      const progress = freshProgress();
+      progress.startedAt = 1000;
+      progress.cursor = {
+        kind: "step",
+        stepId: hello.steps[0].id,
+        beat: 4,
+        fail: false,
+      };
+      const card = (state: "live" | "interrupted"): Turn => ({
+        id: build.id,
+        kind: "act",
+        step: hello.steps[0].id,
+        at: 2000,
+        whole: true,
+        beatId: build.id,
+        act: build,
+        state,
+        presses: [],
+        note: null,
+        stage: null,
+        took: null,
+      });
+      const facts = (live: Turn) => ({
+        definition: hello,
+        progress,
+        live,
+        openFiles: [],
+        currentFile: null,
+      });
+      const text = describeTutorial(facts(card("live")));
+      expect(text).toContain(
+        `The step waits for the "${build.button}" button on the ` +
+          `"${build.title}" card in the tutorial feed, in this chat.`
+      );
+      expect(text).toContain("the work area's stage bar has no Build");
+      expect(text).not.toContain("A reload interrupted");
+      expect(describeTutorial(facts(card("interrupted")))).toContain(
+        "A reload interrupted its last run; pressing it runs it again."
+      );
     });
 
     it("guards an open question's answer and lists the tutorial's docs", () => {

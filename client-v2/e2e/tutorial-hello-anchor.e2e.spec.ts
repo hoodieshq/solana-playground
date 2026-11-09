@@ -382,6 +382,70 @@ test.describe("tutorial: Hello Anchor on a stubbed build server and devnet", () 
     expect(sends()).toBe(sent);
   });
 
+  // HOO-2755: a reload at or during a Build keeps a way forward
+  test("a reload at a Build card keeps the Build button", async ({ page }) => {
+    test.skip(isLive, "steers the fakes");
+    test.setTimeout(120_000);
+    await start(page);
+    await answer(page, beat("s1.q1", "ask"));
+    await expect(act(page, "s1.build")).toBeVisible(LONG);
+    await page.reload();
+    // The Build card is live again, and pressing it runs the planned build
+    await expect(act(page, "s1.build")).toBeVisible(LONG);
+    await expect(act(page, "s1.build")).toBeEnabled();
+    await act(page, "s1.build").click(LONG);
+    await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
+  });
+
+  test("a reload during a build leaves the card interrupted, and it builds again", async ({
+    page,
+  }) => {
+    test.skip(isLive, "steers the fakes");
+    test.setTimeout(120_000);
+    await start(page);
+    await answer(page, beat("s1.q1", "ask"));
+    // Hold the build so the reload lands mid-run
+    const hold = () => new Promise<void>(() => {});
+    await page.route("**/build", hold);
+    await act(page, "s1.build").click(LONG);
+    await expect(
+      feed(page)
+        .getByText(/Starting|Building/)
+        .last()
+    ).toBeVisible(LONG);
+    await page.waitForTimeout(1500);
+    await page.unroute("**/build", hold);
+    await page.reload();
+    await expect(
+      feed(page).getByText("Interrupted by a reload").last()
+    ).toBeVisible(LONG);
+    await expect(act(page, "s1.build")).toBeVisible(LONG);
+    await expect(act(page, "s1.build")).toBeEnabled();
+    await act(page, "s1.build").click(LONG);
+    await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
+  });
+
+  test("a reload at the fix's Build keeps the Build button", async ({
+    page,
+  }) => {
+    test.skip(isLive, "steers the fakes");
+    test.setTimeout(120_000);
+    await start(page);
+    await answer(page, beat("s1.q1", "ask"));
+    await act(page, "s1.build").click(LONG);
+    await expect(feed(page).getByText("Build failed").last()).toBeVisible(LONG);
+    await feed(page)
+      .getByRole("button", { name: "I'll fix it myself" })
+      .click();
+    await answer(page, beat("f1.q2", "ask"));
+    await expect(act(page, "f1.build")).toBeVisible(LONG);
+    await page.reload();
+    await expect(act(page, "f1.build")).toBeVisible(LONG);
+    await expect(act(page, "f1.build")).toBeEnabled();
+    await act(page, "f1.build").click(LONG);
+    await won(page, "write-program");
+  });
+
   // The Call panel is on the branch (HOO-2358, #357); the scenario below is
   // still to be written against it (HOO-2364)
   test.fixme(
