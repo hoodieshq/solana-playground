@@ -113,6 +113,38 @@ user input.
 - **WHEN** a parameter's type is an object or array
 - **THEN** `yarn test-types` fails
 
+### Requirement: Event parameters have one name, one type and a registered kind
+
+GA4 registers a custom dimension or metric by parameter name across all
+events, so a parameter name SHALL carry one meaning and one type (`string`,
+`number` or `boolean`) in every tracker, and SHALL be snake_case. A numeric
+parameter is registered as a custom metric; a string or boolean one as an
+event-scoped custom dimension. GA4 allows 50 event-scoped custom dimensions
+and 50 custom metrics per property, so every parameter SHALL be listed, with
+its type, its kind, the events that send it and whether a funnel breaks down
+by it, in the table of
+[`client-v2/docs/telemetry-parameters.md`](../../../client-v2/docs/telemetry-parameters.md).
+A name that still carries two types is recorded as a known conflict in
+`src/app/telemetry-parameters.test.ts` until it is renamed.
+
+All scenarios here are marked `(manual)`: `src/app/telemetry-parameters.test.ts`
+holds them, not a Playwright test.
+
+#### Scenario: One name has two types (manual)
+
+- **WHEN** two events declare the same parameter name with different types, and the name is not a known conflict
+- **THEN** the parameter test fails and names the parameter
+
+#### Scenario: A parameter is not snake_case (manual)
+
+- **WHEN** an event declares a parameter such as `signedIn`
+- **THEN** the parameter test fails and names the parameter
+
+#### Scenario: A parameter is added (manual)
+
+- **WHEN** an event declares a parameter name that the table does not list
+- **THEN** the parameter test fails until the table has its row
+
 ### Requirement: A widget attributes events without props
 
 An event tracked through `useTracker` SHALL carry the name of the nearest
