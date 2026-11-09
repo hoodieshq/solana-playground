@@ -15,8 +15,17 @@ folder of one, in which no supported framework finds a program, which holds
 TypeScript or JavaScript files (`ts`, `tsx`, `js`, `jsx`) and no Rust or
 Python file. It SHALL be imported as a project with no program. A
 repository in which a framework finds a program SHALL be imported as before
-this change, and one that holds Rust or Python no framework recognises SHALL
-be refused as before, never imported without its program.
+this change. Files in the Playground's own layout, a Rust or Python file under
+`src/`, SHALL be imported as they are even when no framework recognises the
+program, so an exported project returns as it left. One that holds Rust or
+Python elsewhere that no framework recognises SHALL be refused as before,
+never imported without its program.
+
+#### Scenario: A Playground project whose program has no framework marker yet
+
+- **WHEN** the user imports the zip Export wrote for a project holding
+  `src/lib.rs` with only `// Import anchor`, and `client/client.ts`
+- **THEN** a project is created holding the same files
 
 #### Scenario: A client and its tests
 
@@ -34,8 +43,8 @@ be refused as before, never imported without its program.
 
 #### Scenario: A program no framework recognises
 
-- **WHEN** the user imports a repository with `onchain/src/lib.rs`, which
-  no framework recognises, and `client.ts`
+- **WHEN** the user imports a repository with `onchain/src/lib.rs` (not
+  under a leading `src/`), which no framework recognises, and `client.ts`
 - **THEN** the import fails with "This doesn't look like a Solana
   program. Playground opens Anchor, native Rust and Seahorse programs.",
   and nothing is imported
