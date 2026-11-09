@@ -15,7 +15,8 @@ text is read when the drawer opens and when a build or a deploy changes state,
 so output a client Run or a typed command prints after that is not in the copy
 until the next such change (a known gap, tracked at the TODO in
 `ConsoleDrawer.tsx`). Clear empties what Copy log copies. A copy the browser
-refuses SHALL be reported, not swallowed.
+refuses SHALL tell the user "Could not copy the log." and be logged, not
+swallowed.
 
 #### Scenario: Copy the log after a build
 
