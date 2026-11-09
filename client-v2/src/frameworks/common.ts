@@ -127,6 +127,7 @@ export const getJSDependencies = async (files: TupleFiles) => {
     mocha: "^10.2.0",
     prettier: "^3.0.2",
     "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1",
     typescript: "^5.2.2",
   };
 

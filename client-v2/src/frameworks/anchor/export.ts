@@ -46,6 +46,34 @@ export const convertFromPlayground = async (files: TupleFiles) => {
     frameworkFiles.push([path, content]);
   }
 
+  // `anchor test` runs mocha on `tests/**/*.ts`, and mocha exits with an error
+  // when no file matches, which is the case for a project that has no tests
+  if (
+    !frameworkFiles.some(([path]) =>
+      path.startsWith(PgExplorer.PATHS.TESTS_DIRNAME)
+    )
+  ) {
+    frameworkFiles.push([
+      PgCommon.joinPaths(PgExplorer.PATHS.TESTS_DIRNAME, `${packageName}.ts`),
+      convertJS(
+        `import * as anchor from "@coral-xyz/anchor";
+import { assert } from "chai";
+
+describe("${programName}", () => {
+  it("is deployed", async () => {
+    const info = await program.provider.connection.getAccountInfo(
+      program.programId
+    );
+    assert.isTrue(info?.executable);
+  });
+});
+`,
+        programName,
+        { isTest: true }
+      ),
+    ]);
+  }
+
   // Add the files that don't exist in Playground
   frameworkFiles.push(
     // App
@@ -235,6 +263,10 @@ const convertJS = (
     content = `import * as anchor from "@coral-xyz/anchor";\n` + content;
   }
 
+  // Top-level `await` doesn't compile with the exported `tsconfig.json`
+  // (CommonJS) and Playground runs client code inside an async function anyway
+  if (!opts?.isTest) content = wrapTopLevelAwait(content);
+
   // Add program
   const pascalCaseProgramName = PgCommon.toPascalFromSnake(programName);
   content = addAfter(
@@ -271,4 +303,30 @@ const program = anchor.workspace.${pascalCaseProgramName} as anchor.Program<${pa
     .replaceAll("pg.wallet.keypair", "program.provider.wallet.payer");
 
   return content;
+};
+
+/**
+ * Wrap the code after the imports in an async function that is called right
+ * away if the code uses `await`, because top-level `await` is not available in
+ * a CommonJS module.
+ *
+ * @param content JS/TS code
+ * @returns the content with the wrapped code
+ */
+const wrapTopLevelAwait = (content: string) => {
+  if (!/\bawait\b/.test(content)) return content;
+
+  const lastImport = PgCommon.matchAll(content, IMPORT_STATEMENT_REGEX).at(-1);
+  const bodyStartIndex =
+    (lastImport?.index ?? 0) + (lastImport?.[0].length ?? 0);
+  const body = content
+    .slice(bodyStartIndex)
+    .trim()
+    .split("\n")
+    .map((line) => (line ? "  " + line : line))
+    .join("\n");
+
+  return (
+    content.slice(0, bodyStartIndex) + `\n\n(async () => {\n${body}\n})();\n`
+  );
 };
