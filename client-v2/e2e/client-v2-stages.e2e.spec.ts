@@ -198,7 +198,7 @@ test.describe("client-v2-stages: Interact", () => {
     const card = panel.getByRole("button", { name: /^initialize/ });
     await expect(card).toHaveAttribute("aria-expanded", "false");
     await card.click();
-    await expect(panel.getByRole("button", { name: "Test" })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "Send" })).toBeVisible();
     await expect(panel.locator('[data-slot="stage-empty"]')).toHaveCount(0);
   });
 

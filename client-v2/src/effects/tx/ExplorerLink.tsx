@@ -1,5 +1,7 @@
 import type { FC } from "react";
 
+import { shortKey } from "@/shared/lib/short-key";
+
 import Link from "../../components/Link";
 import { useBlockExplorer } from "../../hooks";
 
@@ -13,8 +15,14 @@ export const ExplorerLink: FC<React.PropsWithChildren<ExplorerLinkProps>> = ({
   const blockExplorer = useBlockExplorer();
 
   return (
-    <div className="flex justify-around">
-      <Link href={blockExplorer.getTxUrl(txHash)}>{blockExplorer.name}</Link>
+    <div className="flex items-center gap-2">
+      <span className="text-muted-foreground">Transaction sent</span>
+      <Link
+        href={blockExplorer.getTxUrl(txHash)}
+        aria-label={`Open transaction on ${blockExplorer.name}`}
+      >
+        {shortKey(txHash)}
+      </Link>
     </div>
   );
 };

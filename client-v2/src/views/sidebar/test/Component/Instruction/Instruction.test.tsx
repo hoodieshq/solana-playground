@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 // One instruction card: its head counts the inputs, its body groups them and
-// ends in Test, which says what it waits for.
+// ends in Send, which says what it waits for.
 
 const network = vi.hoisted(() => ({ hold: undefined as string | undefined }));
 vi.mock("@/widgets/status", () => ({ useNetworkHold: () => network.hold }));
@@ -86,10 +86,10 @@ it("draws an instruction that takes nothing with no count, no groups and no Fill
 
 it("starts folded, and opens through the card's own head when nobody holds it", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} />);
-  expect(screen.queryByRole("button", { name: "Test" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
 
   fireEvent.click(screen.getByRole("button", { name: /increment/ }));
-  expect(screen.getByRole("button", { name: "Test" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Send" })).toBeTruthy();
 });
 
 it("reports a toggle of its head to the holder", () => {
@@ -120,7 +120,7 @@ it("groups the inputs under plain Arguments and Accounts groups, not folds", () 
 it("ends in Test with quiet Fill with Random and Reset", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open />);
 
-  expect(screen.getByRole("button", { name: "Test" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Send" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Fill with Random" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Reset" })).toBeTruthy();
 });
@@ -129,7 +129,7 @@ it("tests the instruction through onCall", () => {
   const onCall = vi.fn(() => Promise.resolve());
   render(<Instruction idlInstruction={IX} onCall={onCall} open />);
 
-  fireEvent.click(screen.getByRole("button", { name: "Test" }));
+  fireEvent.click(screen.getByRole("button", { name: "Send" }));
   expect(onCall).toHaveBeenCalledWith(
     expect.objectContaining({ name: "increment" })
   );
@@ -147,7 +147,7 @@ it("holds Test for a wallet first, and says so", () => {
   );
 
   expect(testButton().disabled).toBe(true);
-  expect(screen.getByText("Connect a wallet to test")).toBeTruthy();
+  expect(screen.getByText("Connect a wallet to send")).toBeTruthy();
 });
 
 it("holds Test for the fee before the fields, and names the network", () => {
@@ -162,8 +162,8 @@ it("holds Test for the fee before the fields, and names the network", () => {
   );
 
   expect(testButton().disabled).toBe(true);
-  expect(screen.getByText("Add devnet SOL to test")).toBeTruthy();
-  expect(screen.queryByText("Fill every field to test")).toBeNull();
+  expect(screen.getByText("Add devnet SOL to send")).toBeTruthy();
+  expect(screen.queryByText("Fill every field to send")).toBeNull();
 });
 
 it("holds Test for an empty field and says so", () => {
@@ -171,14 +171,14 @@ it("holds Test for an empty field and says so", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open />);
 
   expect(testButton().disabled).toBe(true);
-  expect(screen.getByText("Fill every field to test")).toBeTruthy();
+  expect(screen.getByText("Fill every field to send")).toBeTruthy();
 });
 
 it("says nothing once Test can run", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open />);
 
   expect(testButton().disabled).toBe(false);
-  expect(screen.queryByText(/to test$/)).toBeNull();
+  expect(screen.queryByText(/to send$/)).toBeNull();
 });
 
 it("draws the fee payer slot above the actions", () => {
@@ -195,7 +195,7 @@ it("draws the fee payer slot above the actions", () => {
   ).toBeTruthy();
 });
 
-it("reads Testing… and locks the form until the test settles", async () => {
+it("reads Sending… and locks the form until the call settles", async () => {
   let settle: () => void = () => {};
   const onCall = vi.fn(
     () => new Promise<void>((resolve) => (settle = resolve))
@@ -204,8 +204,8 @@ it("reads Testing… and locks the form until the test settles", async () => {
     <Instruction idlInstruction={IX} onCall={onCall} open />
   );
 
-  fireEvent.click(screen.getByRole("button", { name: "Test" }));
-  const busy = await screen.findByRole("button", { name: /Testing…/ });
+  fireEvent.click(screen.getByRole("button", { name: "Send" }));
+  const busy = await screen.findByRole("button", { name: /Sending…/ });
   expect((busy as HTMLButtonElement).disabled).toBe(true);
   expect(container.querySelector("fieldset")?.disabled).toBe(true);
   expect(
@@ -228,7 +228,7 @@ const FORM_IX = {
 } as unknown as Props["idlInstruction"];
 
 const testButton = () =>
-  screen.getByRole("button", { name: "Test" }) as HTMLButtonElement;
+  screen.getByRole("button", { name: "Send" }) as HTMLButtonElement;
 
 afterEach(() => {
   stored.amount = { value: "5", error: false };
@@ -263,7 +263,7 @@ it("holds Test while the caller blocks it, without a reason of its own", () => {
   render(<Instruction idlInstruction={IX} onCall={vi.fn()} open callBlocked />);
 
   expect(testButton().disabled).toBe(true);
-  expect(screen.queryByText("Connect a wallet to test")).toBeNull();
+  expect(screen.queryByText("Connect a wallet to send")).toBeNull();
 });
 
 it("holds Test while the network is down, and says why first", () => {
@@ -273,5 +273,5 @@ it("holds Test while the network is down, and says why first", () => {
 
   expect(testButton().disabled).toBe(true);
   expect(screen.getByText("Devnet is not responding")).toBeTruthy();
-  expect(screen.queryByText("Fill every field to test")).toBeNull();
+  expect(screen.queryByText("Fill every field to send")).toBeNull();
 });
