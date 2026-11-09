@@ -24,11 +24,15 @@ anchor build
 anchor test
 ```
 
+A project with no tests gets `tests/<name>.ts`, which only checks that the program is deployed and is meant to be replaced.
+
 - Run client
 
 ```sh
 anchor run client
 ```
+
+`anchor test` tears its validator down when it finishes, so start `solana-test-validator` and run `anchor deploy` first (or point `[provider] cluster` in `Anchor.toml` at devnet).
 
 > **Note**
 > You might need to adjust the client and test code to fully work in local Node environment since there are playground exclusive features, e.g. if you are using `pg.wallets.myWallet`, you'll need to manually load each keypair.
