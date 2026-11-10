@@ -2,7 +2,7 @@
 
 - Install tools
 
-Instructions on how to install [Anchor](https://github.com/coral-xyz/anchor) can be found in the [Anchor installation guide](https://www.anchor-lang.com/docs/installation).
+Instructions on how to install [Anchor](https://github.com/solana-foundation/anchor) can be found in the [Anchor installation guide](https://www.anchor-lang.com/docs/installation).
 
 - Install dependencies
 
@@ -15,8 +15,11 @@ yarn
 - Build
 
 ```sh
+anchor keys sync
 anchor build
 ```
+
+`anchor keys sync` writes the program's id, the key in `target/deploy/<name>-keypair.json`, into `declare_id!`; without it a call to the program fails with `DeclaredProgramIdMismatch`.
 
 - Test
 
