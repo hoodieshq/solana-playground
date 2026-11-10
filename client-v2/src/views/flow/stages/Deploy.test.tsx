@@ -122,6 +122,7 @@ vi.mock("@/shared/lib/report-button-failure", () => ({
 }));
 
 import { PgStageDeploy } from "@/features/deploy";
+import { onDidRequestFundDialog } from "@/features/fund-wallet";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 
 import {
@@ -129,8 +130,6 @@ import {
   DeployFundingError,
   PgDeployRun,
 } from "../../../commands/deploy/run";
-import { onDidRequestFundDialog } from "@/features/fund-wallet";
-
 import Deploy from "./Deploy";
 
 /** The app gives every screen a tooltip provider; the copy button needs one */
