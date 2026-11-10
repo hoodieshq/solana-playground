@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import type { ExportProfile } from "@/features/project-files";
 import {
   initLogger,
   memoryProvider as logMemory,
@@ -35,7 +36,7 @@ vi.mock("../../../../../utils", () => utils);
 // here from the memory provider
 const slice = vi.hoisted(() => {
   class DownloadError extends Error {
-    constructor(readonly profile: string, message: string) {
+    constructor(readonly profile: ExportProfile, message: string) {
       super(message);
     }
   }

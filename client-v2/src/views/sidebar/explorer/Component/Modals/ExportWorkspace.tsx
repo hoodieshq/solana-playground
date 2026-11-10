@@ -78,8 +78,9 @@ const Default: FC<React.PropsWithChildren<DefaultProps>> = ({
     };
   }, [project]);
 
-  // The dialog counts its exports where they started (funnel-events 2.4):
-  // a converted zip here, the plain one in `exportWithoutChanges`, so a
+  // The dialog counts its exports where they started (spec
+  // `client-v2-project-files`, "An export is counted with where it started"):
+  // a converted zip's outcome here, the plain one in `exportWithoutChanges`, so a
   // conversion that falls back counts once
   const convertAndExport = async () => {
     let exported: ConvertedExport;
