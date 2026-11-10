@@ -91,6 +91,23 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     expect(screen.getByText("9xQe…VFin")).toBeTruthy();
   });
 
+  it("opens on the first Connect button, not the explorer link", () => {
+    renderDialog({ addressUrl: () => "https://explorer.test/address" });
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Connect Phantom" })
+    );
+  });
+
+  it("opens on the amount once a payer is connected", () => {
+    renderDialog({
+      payer: PAYER,
+      addressUrl: () => "https://explorer.test/address",
+    });
+
+    expect(document.activeElement).toBe(screen.getByLabelText("Amount (SOL)"));
+  });
+
   it("lists each detected wallet as a Connect button", () => {
     const onConnect = vi.fn().mockResolvedValue(undefined);
     renderDialog({ onConnect });
