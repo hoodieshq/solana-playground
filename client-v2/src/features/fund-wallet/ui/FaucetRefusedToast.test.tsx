@@ -35,6 +35,8 @@ describe("features/fund-wallet/ui/FaucetRefusedToast", () => {
     expect(
       screen.queryByRole("button", { name: "Send from your wallet" })
     ).toBeNull();
-    expect(screen.getByRole("link", { name: "Open the web faucet" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Open the web faucet" })
+    ).toBeTruthy();
   });
 });
