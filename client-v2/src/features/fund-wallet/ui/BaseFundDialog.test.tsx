@@ -12,6 +12,7 @@ const RECEIVER = {
 const PHANTOM = { name: "Phantom", icon: "data:image/svg+xml;base64,PHN2Zy8+" };
 const PAYER: FundPayer = {
   name: "Phantom",
+  icon: PHANTOM.icon,
   address: "7Hq5aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789Xk2P",
   balance: 2,
 };
@@ -31,6 +32,7 @@ const renderDialog = (props: Partial<BaseFundDialogProps>) =>
       onConnect={props.onConnect ?? vi.fn().mockResolvedValue(undefined)}
       onSend={props.onSend ?? vi.fn().mockResolvedValue(undefined)}
       failure={props.failure}
+      addressUrl={props.addressUrl}
     />
   );
 
@@ -44,6 +46,30 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
       screen.getByRole("heading", { name: "Fund your Playground wallet" })
     ).toBeTruthy();
     expect(screen.getByText("Wallet 1")).toBeTruthy();
+    expect(screen.getByText("9xQe…VFin")).toBeTruthy();
+  });
+
+  it("links both short addresses to the explorer, in a new tab", () => {
+    renderDialog({
+      payer: PAYER,
+      addressUrl: (address) => `https://explorer.test/address/${address}`,
+    });
+
+    const receiver = screen.getByRole("link", { name: "9xQe…VFin" });
+    expect(receiver.getAttribute("href")).toBe(
+      `https://explorer.test/address/${RECEIVER.address}`
+    );
+    expect(receiver.getAttribute("target")).toBe("_blank");
+    expect(receiver.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(
+      screen.getByRole("link", { name: "7Hq5…Xk2P" }).getAttribute("href")
+    ).toBe(`https://explorer.test/address/${PAYER.address}`);
+  });
+
+  it("shows the addresses as text where the explorer cannot open the cluster", () => {
+    renderDialog({ payer: PAYER, addressUrl: () => undefined });
+
+    expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByText("9xQe…VFin")).toBeTruthy();
   });
 
@@ -78,9 +104,13 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     expect(screen.queryByLabelText("Amount (SOL)")).toBeNull();
   });
 
-  it("shows the connected payer's short address and balance", () => {
+  it("shows the connected payer as a badge, then its short address and balance", () => {
     renderDialog({ payer: PAYER });
 
+    const badge = screen.getByText("Phantom", {
+      selector: '[data-slot="badge"]',
+    });
+    expect(badge.querySelector("img")?.getAttribute("src")).toBe(PHANTOM.icon);
     expect(screen.getByText("7Hq5…Xk2P")).toBeTruthy();
     expect(screen.getByText(/· 2 SOL$/)).toBeTruthy();
     expect(screen.getByLabelText("Amount (SOL)").id).toBe("fund-amount");
@@ -90,26 +120,75 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
 
   it("disables send above the balance and says what the wallet holds", () => {
     renderDialog({
-      payer: { name: "Phantom", address: PAYER.address, balance: 0.5 },
+      payer: { ...PAYER, balance: 0.5 },
     });
 
     expect(sendButton().hasAttribute("disabled")).toBe(true);
     expect(screen.getByText("Phantom holds 0.5 SOL.")).toBeTruthy();
   });
 
-  it.each(["abc", "0", "-1"])(
+  it.each(["abc", "-1"])(
     "disables send for %j and asks for an amount above 0",
     (amount) => {
       renderDialog({ payer: PAYER, amount });
 
       expect(sendButton().hasAttribute("disabled")).toBe(true);
       expect(screen.getByText("Enter an amount above 0.")).toBeTruthy();
+      expect(
+        screen.getByLabelText("Amount (SOL)").getAttribute("aria-invalid")
+      ).toBe("true");
     }
   );
 
+  it("asks for an amount above 0 at 0 as a hint, not an error", () => {
+    renderDialog({ payer: PAYER, amount: "0" });
+
+    expect(sendButton().hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText("Enter an amount above 0.")).toBeTruthy();
+    expect(
+      screen.getByLabelText("Amount (SOL)").hasAttribute("aria-invalid")
+    ).toBe(false);
+  });
+
+  it.each([
+    ["More by 0.1 SOL", "0.2", "0.3"],
+    ["Less by 0.1 SOL", "0.2", "0.1"],
+  ])("%s steps the amount", (name, amount, next) => {
+    const onAmountChange = vi.fn();
+    renderDialog({ payer: PAYER, amount, onAmountChange });
+
+    fireEvent.click(screen.getByRole("button", { name }));
+
+    expect(onAmountChange).toHaveBeenCalledWith(next);
+  });
+
+  it.each([
+    ["ArrowUp", "1.999", "2"],
+    ["ArrowDown", "1.999", "1.9"],
+  ])("%s steps the amount by 0.1", (key, amount, next) => {
+    const onAmountChange = vi.fn();
+    renderDialog({ payer: PAYER, amount, onAmountChange });
+
+    fireEvent.keyDown(screen.getByLabelText("Amount (SOL)"), { key });
+
+    expect(onAmountChange).toHaveBeenCalledWith(next);
+  });
+
+  it("disables Less at 0", () => {
+    renderDialog({ payer: PAYER, amount: "0" });
+
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Less by 0.1 SOL",
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+  });
+
   it("waits for the balance before allowing a send", () => {
     renderDialog({
-      payer: { name: "Phantom", address: PAYER.address, balance: "loading" },
+      payer: { ...PAYER, balance: "loading" },
     });
 
     expect(sendButton().hasAttribute("disabled")).toBe(true);
@@ -155,10 +234,20 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     expect(sendButton().hasAttribute("disabled")).toBe(false);
   });
 
-  it("names the cluster the SOL goes to", () => {
+  it("says where the SOL arrives", () => {
     renderDialog({ payer: PAYER, cluster: "mainnet-beta" });
 
-    expect(screen.getByText("Sent on mainnet.")).toBeTruthy();
+    expect(screen.getByText("Arrives in Wallet 1 on mainnet.")).toBeTruthy();
+  });
+
+  it("makes Send the brand call to action, with a spinner while it waits", () => {
+    renderDialog({ payer: PAYER, onSend: () => new Promise<void>(() => {}) });
+
+    expect(sendButton().getAttribute("data-slot")).toBe("brand-button");
+    fireEvent.click(sendButton());
+
+    expect(sendButton().hasAttribute("disabled")).toBe(true);
+    expect(sendButton().getAttribute("aria-busy")).toBe("true");
   });
 
   it("warns above Send on mainnet only", () => {
@@ -172,11 +261,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
 
   it("says when the balance cannot be read, and allows no send", () => {
     renderDialog({
-      payer: {
-        name: "Phantom",
-        address: PAYER.address,
-        balance: "unavailable",
-      },
+      payer: { ...PAYER, balance: "unavailable" },
     });
 
     expect(screen.getByText(/Couldn't read Phantom's balance/)).toBeTruthy();
@@ -218,7 +303,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     "disables Max while the balance is %j",
     (balance) => {
       renderDialog({
-        payer: { name: PAYER.name, address: PAYER.address, balance },
+        payer: { ...PAYER, balance },
       });
 
       expect(

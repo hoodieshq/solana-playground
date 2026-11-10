@@ -34,7 +34,10 @@ export const LAMPORTS_PER_SOL = 1_000_000_000;
 export const FEE_RESERVE_SOL = 0.001;
 
 /** The amount the dialog starts at, in SOL */
-export const DEFAULT_AMOUNT = "1";
+export const DEFAULT_AMOUNT = "0";
+
+/** What the arrow keys and the field's − and + move the amount by, in lamports */
+const STEP_LAMPORTS = LAMPORTS_PER_SOL / 10;
 
 /**
  * The account `deploy` pays from: the current wallet when it is a Playground
@@ -83,6 +86,30 @@ export const canSend = (
   return { ok: true, lamports: amount.lamports };
 };
 
+/** Lamports as the amount field writes them: no exponent, no trailing zeros */
+const writeLamports = (lamports: number) => {
+  const whole = Math.floor(lamports / LAMPORTS_PER_SOL);
+  const fraction = String(lamports % LAMPORTS_PER_SOL)
+    .padStart(9, "0")
+    .replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : String(whole);
+};
+
+/**
+ * The amount one step of 0.1 SOL up (`1`) or down (`-1`) from `text`: the
+ * next multiple of 0.1 that way, so `1.999` goes to `2` or `1.9`, never below
+ * 0. Text that is not an amount steps from 0.
+ */
+export const stepAmount = (text: string, direction: 1 | -1): string => {
+  const parsed = parseAmount(text);
+  const lamports = parsed.ok ? parsed.lamports : 0;
+  const steps =
+    direction === 1
+      ? Math.floor(lamports / STEP_LAMPORTS) + 1
+      : Math.ceil(lamports / STEP_LAMPORTS) - 1;
+  return writeLamports(Math.max(0, steps) * STEP_LAMPORTS);
+};
+
 /**
  * The most `canSend` accepts from `balance` SOL, as the amount field writes it;
  * `undefined` when nothing is left above the fee
@@ -91,11 +118,7 @@ export const maxAmount = (balance: number): string | undefined => {
   const lamports = spendableLamports(balance);
   // `!(… > 0)`, not `<= 0`: a NaN balance has nothing to send either
   if (!(lamports > 0)) return undefined;
-  const whole = Math.floor(lamports / LAMPORTS_PER_SOL);
-  const fraction = String(lamports % LAMPORTS_PER_SOL)
-    .padStart(9, "0")
-    .replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction}` : String(whole);
+  return writeLamports(lamports);
 };
 
 /** How wallets word a user's "no": Phantom, Solflare, Backpack, WalletConnect */
@@ -218,6 +241,25 @@ if (import.meta.vitest) {
         expect(maxAmount(balance)).toBeUndefined();
       }
     );
+
+    it.each([
+      ["0", 1, "0.1"],
+      ["0.1", 1, "0.2"],
+      ["1.999", 1, "2"],
+      ["1.999", -1, "1.9"],
+      ["2", -1, "1.9"],
+      ["0.05", -1, "0"],
+      ["0", -1, "0"],
+      ["0.2", -1, "0.1"],
+      ["abc", 1, "0.1"],
+      ["", 1, "0.1"],
+    ] as const)("stepAmount(%j, %j) is %j", (text, direction, next) => {
+      expect(stepAmount(text, direction)).toBe(next);
+    });
+
+    it("starts the amount at 0", () => {
+      expect(DEFAULT_AMOUNT).toBe("0");
+    });
 
     it("canSend reports the amount's own problem first", () => {
       expect(canSend("abc", undefined)).toEqual({

@@ -26,6 +26,9 @@ const utils = vi.hoisted(() => ({
     current: { getBalance: vi.fn() },
   },
   PgView: { setToast: vi.fn() },
+  PgBlockExplorer: {
+    current: { opens: () => false, getAddressUrl: () => "" },
+  },
   PgWeb3: {},
 }));
 vi.mock("@/utils", () => utils);

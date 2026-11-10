@@ -1,6 +1,12 @@
+import { Minus, Plus } from "lucide-react";
+import type { KeyboardEvent } from "react";
+import { useState } from "react";
+
 import { networkInSentence } from "@/constants";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { AsyncButton } from "@/shared/ui/async-button";
+import { Badge } from "@/shared/ui/badge";
+import { BrandButton } from "@/shared/ui/brand-button";
 import { Button } from "@/shared/ui/button";
 import { Callout, CalloutDescription, CalloutTitle } from "@/shared/ui/callout";
 import {
@@ -24,9 +30,16 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/shared/ui/input-group";
+import { Spinner } from "@/shared/ui/spinner";
 
 import type { Receiver, SendCheck } from "../model/fund";
-import { canSend, formatSol, maxAmount, parseAmount } from "../model/fund";
+import {
+  canSend,
+  formatSol,
+  maxAmount,
+  parseAmount,
+  stepAmount,
+} from "../model/fund";
 
 /** The amount field's id, which the spec and the tests find it by */
 export const AMOUNT_ID = "fund-amount";
@@ -41,6 +54,8 @@ export interface FundWalletOption {
 /** The connected wallet that pays */
 export interface FundPayer {
   name: string;
+  /** Data URI */
+  icon: string;
   /** Base58 */
   address: string;
   /** In SOL, or where reading it stands */
@@ -78,14 +93,37 @@ export interface BaseFundDialogProps {
   /** Sends the amount; the dialog's button waits on it */
   onSend: () => Promise<void>;
   failure: FundFailure | undefined;
+  /**
+   * The explorer page of an address on the Playground's cluster; `undefined`
+   * where the explorer cannot open that cluster, and the address stays text
+   */
+  addressUrl?: (address: string) => string | undefined;
 }
 
 const shortAddress = (address: string) =>
   `${address.slice(0, 4)}…${address.slice(-4)}`;
 
+/** A short address, linked to the explorer in a new tab where it can open it */
+const AddressLink = ({ address, url }: { address: string; url?: string }) =>
+  url ? (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-mono text-primary-ink underline-offset-4 hover:underline"
+    >
+      {shortAddress(address)}
+    </a>
+  ) : (
+    <span className="font-mono">{shortAddress(address)}</span>
+  );
+
+/** The footer's buttons, at the modal frame's height so the pair lines up */
+const FOOTER_BUTTON = "h-10 rounded-full px-4 font-heading text-[0.9375rem]";
+
 /** The line under the amount field: a problem, or where the SOL goes */
 const amountNoteFor =
-  (payer: FundPayer, cluster: string | undefined) =>
+  (payer: FundPayer, receiver: Receiver, cluster: string | undefined) =>
   (amount: string): { ok: boolean; error: boolean; text: string } => {
     if (payer.balance === "unavailable") {
       return {
@@ -102,7 +140,7 @@ const amountNoteFor =
       return {
         ok: true,
         error: false,
-        text: `Sent on ${
+        text: `Arrives in ${receiver.name} on ${
           networkInSentence(cluster) ?? "the Playground's cluster"
         }.`,
       };
@@ -118,7 +156,8 @@ const amountNoteFor =
     };
     return {
       ok: false,
-      error: check.problem !== "checking",
+      // 0 is where the field starts, not a mistake: a hint until it moves
+      error: check.problem !== "checking" && check.problem !== "not-positive",
       text: notes[check.problem],
     };
   };
@@ -172,13 +211,37 @@ const BaseFundDialog = ({
   onConnect,
   onSend,
   failure,
+  addressUrl,
 }: BaseFundDialogProps) => {
-  const note = payer ? amountNoteFor(payer, cluster)(amount) : undefined;
+  const [sending, setSending] = useState(false);
+  const note = payer
+    ? amountNoteFor(payer, receiver, cluster)(amount)
+    : undefined;
   const unconfirmed =
     failure?.kind === "send-unconfirmed" || failure?.kind === "send-pending";
   const shown = failure ? failureText(failure) : undefined;
   const max =
     typeof payer?.balance === "number" ? maxAmount(payer.balance) : undefined;
+  const atZero = !parseAmount(amount).ok && stepAmount(amount, -1) === "0";
+
+  const onAmountKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    const direction = { ArrowUp: 1, ArrowDown: -1 }[event.key] as
+      | 1
+      | -1
+      | undefined;
+    if (!direction) return;
+    event.preventDefault();
+    onAmountChange(stepAmount(amount, direction));
+  };
+
+  // BrandButton has no wait of its own, so Send keeps one: a second press
+  // while the wallet asks would start a second transfer
+  const send = () => {
+    setSending(true);
+    onSend()
+      .catch(reportButtonFailure("send the SOL"))
+      .finally(() => setSending(false));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -187,8 +250,11 @@ const BaseFundDialog = ({
           <DialogTitle>Fund your Playground wallet</DialogTitle>
           <DialogDescription>
             Sends SOL from your wallet to <strong>{receiver.name}</strong>{" "}
-            <span className="font-mono">{shortAddress(receiver.address)}</span>,
-            the account that deploys.
+            <AddressLink
+              address={receiver.address}
+              url={addressUrl?.(receiver.address)}
+            />
+            , the account that deploys.
           </DialogDescription>
         </DialogHeader>
 
@@ -224,9 +290,16 @@ const BaseFundDialog = ({
 
         {payer && note && (
           <>
-            <p className="text-sm">
-              From <strong>{payer.name}</strong>{" "}
-              <span className="font-mono">{shortAddress(payer.address)}</span>
+            <p className="flex flex-wrap items-center gap-x-1.5 text-sm">
+              From
+              <Badge variant="secondary">
+                <img src={payer.icon} alt="" className="size-3" />
+                {payer.name}
+              </Badge>
+              <AddressLink
+                address={payer.address}
+                url={addressUrl?.(payer.address)}
+              />
               {" · "}
               {typeof payer.balance === "number"
                 ? formatSol(payer.balance)
@@ -242,8 +315,24 @@ const BaseFundDialog = ({
                   value={amount}
                   aria-invalid={note.error || undefined}
                   onChange={(event) => onAmountChange(event.target.value)}
+                  onKeyDown={onAmountKey}
                 />
                 <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label="Less by 0.1 SOL"
+                    disabled={atZero}
+                    onClick={() => onAmountChange(stepAmount(amount, -1))}
+                  >
+                    <Minus />
+                  </InputGroupButton>
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label="More by 0.1 SOL"
+                    onClick={() => onAmountChange(stepAmount(amount, 1))}
+                  >
+                    <Plus />
+                  </InputGroupButton>
                   <InputGroupButton
                     disabled={max === undefined}
                     onClick={() => max && onAmountChange(max)}
@@ -282,16 +371,20 @@ const BaseFundDialog = ({
 
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="ghost" className={FOOTER_BUTTON}>
+              Cancel
+            </Button>
           </DialogClose>
           {payer && (
-            <AsyncButton
-              disabled={!note?.ok || unconfirmed}
-              onClick={onSend}
-              onError={reportButtonFailure("send the SOL")}
+            <BrandButton
+              className="px-5"
+              disabled={!note?.ok || unconfirmed || sending}
+              aria-busy={sending || undefined}
+              onClick={send}
             >
+              {sending && <Spinner aria-hidden="true" />}
               {sendLabel(amount)}
-            </AsyncButton>
+            </BrandButton>
           )}
         </DialogFooter>
       </DialogContent>
