@@ -295,7 +295,7 @@ export class PgGithub {
     const url =
       `https://api.github.com/repos/${owner}/${repo}/git/trees/` +
       `${encodeURIComponent(ref)}?recursive=1`;
-    const response = await fetch(url);
+    const response = await this._fetch(url, `${owner}/${repo}`);
     if (!response.ok) {
       throw this._getError(response, `${owner}/${repo}`);
     }
@@ -361,15 +361,40 @@ export class PgGithub {
     path: string
   ) {
     const encodedPath = path.split("/").map(encodeURIComponent).join("/");
-    const response = await fetch(
+    const response = await this._fetch(
       `https://raw.githubusercontent.com/${owner}/${repo}/` +
-        `${encodeURIComponent(ref)}/${encodedPath}`
+        `${encodeURIComponent(ref)}/${encodedPath}`,
+      path
     );
     if (!response.ok) {
       throw this._getError(response, path);
     }
 
     return await response.text();
+  }
+
+  /**
+   * Fetch a GitHub URL; a request that gets no answer (`fetch` rejects with a
+   * `TypeError`) becomes a `GithubImportError` with reason `network`, so a
+   * programming error's `TypeError` is never read as one.
+   *
+   * @param url what to fetch
+   * @param subject repository or file the request is about
+   * @returns the response, whatever its status
+   */
+  private static async _fetch(url: string, subject: string) {
+    try {
+      return await fetch(url);
+    } catch (e) {
+      if (e instanceof TypeError) {
+        throw new GithubImportError(
+          `GitHub did not answer the request for "${subject}". Check the ` +
+            "connection and try again.",
+          "network"
+        );
+      }
+      throw e;
+    }
   }
 
   /**

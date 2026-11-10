@@ -1,5 +1,9 @@
 import type { NoParams } from "@/shared/lib/telemetry";
 import { createTracker } from "@/shared/lib/telemetry";
+import type {
+  ConversionReason,
+  GithubImportReason,
+} from "@/utils/import-error";
 
 /**
  * Where an import started: the GitHub dialog (and its examples), dropped
@@ -12,19 +16,12 @@ export type ExportVia = "dialog" | "settings";
 
 /**
  * Why an import or a GitHub link view failed (spec `client-v2-project-files`,
- * "Import failures carry an enumerated reason"): GitHub answered 404, its
- * hourly limit is spent, it returned part of the file list, nothing was in a
- * supported language, the layout matched no framework or converted to
- * nothing, the request got no answer, or something else
+ * "Import failures carry an enumerated reason"), as the typed errors carry
+ * it: `not-found`, `rate-limited`, `too-large`, `no-source`, `network` or
+ * `other` from a `GithubImportError`; `unsupported` or `no-source` from a
+ * `ConversionError`
  */
-export type ImportReason =
-  | "not-found"
-  | "rate-limited"
-  | "too-large"
-  | "no-source"
-  | "unsupported"
-  | "network"
-  | "other";
+export type ImportReason = GithubImportReason | ConversionReason;
 
 type ProjectFilesEvents = {
   /** An import made a project; `via` is where it started */

@@ -1,26 +1,16 @@
 // Dependency-free, like `server-error.ts`: a slice reads these without
 // booting the `utils` barrel.
 
-/** What `exportWorkspace` throws when it cannot tell a project's framework */
-export const UNKNOWN_FRAMEWORK = "Could not identify framework";
-
 /**
- * Whether an export failed only because the project's framework could not be
- * told: an expected outcome for a project of no known framework, which still
- * exports as is.
- *
- * @param error what the export threw
- * @returns whether it is that failure
+ * Why a GitHub import could not read the repository or one of its files, as
+ * telemetry reports it; `network` is a request that got no answer
  */
-export const isUnknownFramework = (error: unknown) =>
-  error instanceof Error && error.message === UNKNOWN_FRAMEWORK;
-
-/** Why a GitHub import could not read the repository, as telemetry reports it */
 export type GithubImportReason =
   | "not-found"
   | "rate-limited"
   | "too-large"
   | "no-source"
+  | "network"
   | "other";
 
 /**

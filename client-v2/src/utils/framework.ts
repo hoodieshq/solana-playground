@@ -1,11 +1,7 @@
 import { PgCommon } from "./common";
 import { PgExplorer, TupleFiles } from "./explorer";
 import { PgWorkspace } from "./explorer/workspace";
-import {
-  ConversionError,
-  isUnknownFramework,
-  UNKNOWN_FRAMEWORK,
-} from "./import-error";
+import { ConversionError } from "./import-error";
 import type { RequiredKey, SyncOrAsync } from "./types";
 
 /** Framework creation parameter */
@@ -91,6 +87,9 @@ export type Framework<N extends string = string> = RequiredKey<
   FrameworkParam<N>,
   "icon" | "getIsCurrent" | "getDefaultFiles" | "import" | "export"
 >;
+
+/** What `exportWorkspace` throws when it cannot tell a project's framework */
+const UNKNOWN_FRAMEWORK = "Could not identify framework";
 
 /**
  * An import holding Rust or Python that no framework recognises (spec
@@ -274,7 +273,7 @@ export class PgFramework {
    * still exports as is.
    */
   static isUnknownFramework(error: unknown) {
-    return isUnknownFramework(error);
+    return error instanceof Error && error.message === UNKNOWN_FRAMEWORK;
   }
 
   /** All frameworks */
@@ -355,9 +354,10 @@ export class PgFramework {
    * @returns a function taking `source`, where the files came from (named in
    * the refusal, `undefined` when there is nothing to name), which returns a
    * function taking the framework files
-   * @throws `NOT_A_PROGRAM` when no framework recognises program source;
-   * `noProgramCode` when there is no program and no script; "Could not
-   * convert files" when a framework's conversion returns nothing
+   * @throws a `ConversionError`: `unsupported` (`NOT_A_PROGRAM`) when no
+   * framework recognises program source, `no-source` (`noProgramCode`) when
+   * there is no program and no script, `unsupported` ("Could not convert
+   * files") when a framework's conversion returns nothing
    */
   static convertToPlaygroundLayoutWith(root: string) {
     return (source: string | undefined) => async (files: TupleFiles) => {
@@ -720,7 +720,10 @@ if (import.meta.vitest) {
             ["prog/main.py", "x"],
             ["client.ts", "a"],
           ])
-        ).rejects.toThrow(NOT_A_PROGRAM);
+        ).rejects.toMatchObject({
+          message: NOT_A_PROGRAM,
+          reason: "unsupported",
+        });
       });
 
       it("drops the imported folder from every path", async () => {
@@ -783,7 +786,10 @@ if (import.meta.vitest) {
           PgFramework.convertToPlaygroundLayoutWith("")("alice/docs")([
             ["README.md", "x"],
           ])
-        ).rejects.toThrow("No program code found in alice/docs.");
+        ).rejects.toMatchObject({
+          message: "No program code found in alice/docs.",
+          reason: "no-source",
+        });
       });
 
       it("leaves an Anchor repository to Anchor", async () => {
