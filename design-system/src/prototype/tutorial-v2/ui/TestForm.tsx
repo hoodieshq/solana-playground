@@ -15,9 +15,11 @@ import { useStore, type Turn } from "../store"
 import { arriving } from "../tx"
 import { highlight } from "./CodeView"
 import { PlainDetails } from "./DeployDetails"
+import { RawCall } from "./RawCall"
 import { HelloSource } from "./HelloPeek"
 import { MemoryCard } from "./MemoryCard"
 import { LivePlayer } from "./PlayerCard"
+import { RecordsCard } from "./RecordsCard"
 import { Prose } from "./Prose"
 import { ACTION, ACTION_FILL, READ_CODE } from "./type"
 
@@ -87,7 +89,7 @@ function Head({ phone, children }: { phone: boolean; children: ReactNode }) {
  * transaction. Before the first call there is nothing here at all, so the button is the last thing on the
  * page and nothing waits under it. Older calls stay in the terminal's history, not stacked here. A call
  * the program refuses (no energy left, a grow too big, a paint past the map's end) comes back failed */
-function CallResponse({ result, sending, phone }: { result: ResultTurn | undefined; sending: boolean; phone: boolean }) {
+export function CallResponse({ result, sending, phone }: { result: ResultTurn | undefined; sending: boolean; phone: boolean }) {
   if (sending)
     return (
       <div className="flex items-center gap-2">
@@ -110,7 +112,14 @@ function Confirmed({ turn, phone }: { turn: ResultTurn; phone: boolean }) {
   const [print] = useState(() => arriving(turn.at) !== null)
   const row = (i: number) => ({ "data-print": "", style: { "--i": i } as CSSProperties })
   // The account shows on a refusal too: "not enough energy" reads best beside the empty meter
-  const account = LESSON.game ? <LivePlayer phone={phone} className="border-0" /> : LESSON.memory ? <PanelMemory ix={tx.instruction} /> : null
+  const account = LESSON.game ? (
+    <LivePlayer phone={phone} className="border-0" />
+  ) : LESSON.memory ? (
+    <PanelMemory ix={tx.instruction} />
+  ) : LESSON.records && turn.recs ? (
+    // A records lesson's accounts as this call left them, a refusal's line under them
+    <RecordsCard rows={turn.recs.after} before={turn.recs.before} at={turn.at} record refused={turn.recs.refused} phone={phone} className={UNDER_LOG} />
+  ) : null
   // A game's call can fail on purpose: the program's own error, by name, is the answer
   const words = tx.error
     ? tx.error.number
@@ -190,6 +199,9 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
       </div>
     )
 
+  // A program with no IDL has one raw form instead
+  if (LESSON.raw) return <RawCall phone={phone} />
+
   const idl = idlOf(s.deployedLib)
   const json = JSON.stringify(idl, null, 2)
   // A program with several instructions shows one form at a time, the latest one added by default
@@ -199,12 +211,12 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
   const busy = s.phase !== "idle"
   // Hello Anchor's name is typed into the store, for the chat's call too. A memory lesson starts each
   // argument at what its step sends, and the learner can change it: the program answers what was sent
-  const filled = LESSON.memory ? { ...LESSON.memory.args(s, ix.name), ...typed[ix.name] } : null
+  const filled = LESSON.memory ? { ...LESSON.memory.args(s, ix.name), ...typed[ix.name] } : LESSON.records ? { ...LESSON.records.args(s, ix.name), ...typed[ix.name] } : null
   const empty = !filled && args.length > 0 && !s.testName.trim()
   // A call that would fail on devnet before it did anything isn't sent: a second init, a paint before
   // the map is 40 KB. Nor is an argument the client couldn't encode. The panel says why instead
-  const invalid = filled && LESSON.memory ? LESSON.memory.check(filled) : null
-  const blocked = LESSON.memory && !invalid ? LESSON.memory.panel(s, ix.name, filled ?? undefined) : null
+  const invalid = filled && LESSON.memory ? LESSON.memory.check(filled) : filled && LESSON.records ? LESSON.records.check(ix.name, filled) : null
+  const blocked = LESSON.memory && !invalid ? LESSON.memory.panel(s, ix.name, filled ?? undefined) : LESSON.records && !invalid ? LESSON.records.send(s, ix.name, filled ?? undefined) : null
   const note =
     ix.name === "init_player" && s.player !== null
       ? "Your player already exists. `init` makes an account once, so a second call would fail."
@@ -221,7 +233,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
   // A call answered by the program before its latest deploy was another program's answer: it goes too
   const deployedAt = [...s.thread].reverse().find((t) => t.kind === "result" && t.ok && (t.act === "deploy" || t.act === "buildDeploy"))?.at ?? 0
   const fresh =
-    result?.tx && result.at > deployedAt && (LESSON.game || LESSON.memory ? result.tx.instruction === ix.name : args.length > 0 === (result.tx.instruction === "hello(name)"))
+    result?.tx && result.at > deployedAt && (LESSON.game || LESSON.memory || LESSON.records ? result.tx.instruction === ix.name : args.length > 0 === (result.tx.instruction === "hello(name)"))
       ? result
       : undefined
   // The fields moved on from what the last call sent: its answer stays, dimmed, under what it was sent with
@@ -322,7 +334,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
                     >
                       {i.name}
                       {/* A memory lesson's deploy brings whole instructions: NEW once, on the instruction */}
-                      {LESSON.memory && s.idlNew && i.name === ix.name && (
+                      {(LESSON.memory || LESSON.records) && s.idlNew && i.name === ix.name && (
                         <Tag variant="neutral" className="ml-1.5 h-4">
                           New
                         </Tag>
@@ -372,7 +384,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
                 <label key={a.name} className={cn("flex flex-col gap-2", s.idlNew && "animate-rise", sending && "pointer-events-none opacity-60")}>
                   <span className="flex items-center gap-2">
                     <span className="font-mono text-code text-foreground">{a.name}</span>
-                    {s.idlNew && !LESSON.memory && <Tag variant="neutral">New</Tag>}
+                    {s.idlNew && !LESSON.memory && !LESSON.records && <Tag variant="neutral">New</Tag>}
                   </span>
                   <Input
                     value={filled ? (filled[a.name] ?? "") : s.testName}
@@ -403,6 +415,29 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
                   />
                 </label>
               ))}
+              {/* The wallet that signs, for a call the lesson lets more than one wallet make (Tic-tac-toe's X and
+                  O): not an argument, so it isn't in the IDL, but Playground's form lets you pick it */}
+              {filled?.signer !== undefined && LESSON.records?.signers && (
+                <div className={cn("flex flex-col gap-2", sending && "pointer-events-none opacity-60")}>
+                  <span className="font-mono text-code text-foreground">signer</span>
+                  <div role="radiogroup" aria-label="Signer" className="flex flex-wrap gap-1.5">
+                    {LESSON.records.signers.map((w) => (
+                      <button
+                        key={w.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={filled.signer === w.value}
+                        onClick={() => setTyped((t) => ({ ...t, [ix.name]: { ...t[ix.name], signer: w.value } }))}
+                        className={`flex h-7 items-center rounded-[7px] border px-3 text-code transition-colors duration-100 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:h-10 ${
+                          filled.signer === w.value ? "border-border-strong bg-foreground/[0.08] text-foreground" : "border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {w.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* Why the call can't go, right over the button it keeps off: one unit, 24 under the fields. The
                   button on the same left edge as the call it sends, and nothing under it. On the phone it
                   stands at the sheet's foot instead, under the thumb (below) */}

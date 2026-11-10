@@ -32,6 +32,14 @@ const PHONE_SAY: Record<string, string> = {
 /** The file a quote or a card points into, by its name alone: "lib.rs" */
 export const baseName = (file: string) => file.split("/").pop() ?? file
 
+/** The quoted line and the ones around it, out-dented by the indent they share */
+function aroundLines(file: string, line: number, [before, after]: [number, number]) {
+  const all = file.split("\n")
+  const rows = all.slice(Math.max(0, line - 1 - before), line + after).map((text, i) => ({ text, here: i === Math.min(before, line - 1) }))
+  const cut = Math.min(...rows.filter((r) => r.text.trim()).map((r) => r.text.length - r.text.trimStart().length))
+  return rows.map((r) => ({ ...r, text: r.text.slice(cut).trimEnd() }))
+}
+
 /** A line of a file quoted in a message: its path and the way to it, the line lit, or red with the
  * token the compiler named under a wavy line. An error quote goes quiet once the step passes, or
  * once the line it quotes has changed */
@@ -44,6 +52,9 @@ export function QuoteBox({ quote, quiet = false, phone = false }: { quote: Quote
   const error = quote.tone === "error" && !quiet && code === live
   // The token to underline, inside the trimmed line
   const at = quote.mark ? shown.indexOf(`<${quote.mark}>`) + 1 : -1
+  // With lines around it: the file's lines from before to after, out-dented together so they keep
+  // their shape, the quoted one on a soft ground and the rest dimmed
+  const block = quote.around && !error ? aroundLines(s.files[quote.file] ?? "", quote.line, quote.around) : null
   return (
     <div className="overflow-hidden rounded-control border border-border bg-surface-well">
       {/* On a phone the head is a thumb's height, so Show in is a target and not a 28px strip */}
@@ -53,20 +64,32 @@ export function QuoteBox({ quote, quiet = false, phone = false }: { quote: Quote
         </span>
         <button
           type="button"
-          onClick={() => dispatch({ type: "reveal", file: quote.file, lines: [quote.line] })}
+          onClick={() => {
+            // A generated file isn't open until asked for: it opens as a tab of its own, read only
+            if (quote.generated) dispatch({ type: "openFile", file: quote.file })
+            dispatch({ type: "reveal", file: quote.file, lines: [quote.line] })
+          }}
           className={cn("ml-auto flex items-center gap-1 text-muted-foreground underline-offset-[3px] hover:text-foreground hover:underline", phone && "h-11 px-2")}
         >
           {/* Words alone, no corner arrow: the listings dropped theirs, and "Show in lib.rs" says it */}
-          Show in {baseName(quote.file)}
+          {quote.generated ? "Show generated Rust" : `Show in ${baseName(quote.file)}`}
         </button>
       </div>
       <div
         className={cn(
-          "border-l-2 px-3 py-1.5 font-mono text-[0.75rem] leading-5 break-words whitespace-pre-wrap text-syntax-plain",
-          error ? "border-error bg-error/10" : quote.tone === "error" ? "border-border-strong" : "border-border-strong bg-(--card-ground)"
+          "px-3 py-1.5 font-mono text-[0.75rem] leading-5 break-words whitespace-pre-wrap text-syntax-plain",
+          // A bar at the left only on a live error, beside its red ground: on a plain quote it read as a
+          // stray thick line (Almaz, 10 Nov)
+          error ? "border-l-2 border-error bg-error/10" : quote.tone !== "error" && !block && "bg-(--card-ground)"
         )}
       >
-        {error && at > 0 ? (
+        {block ? (
+          block.map((l, i) => (
+            <div key={i} className={cn("-mx-3 px-3", l.here ? "bg-foreground/[0.05]" : "opacity-55")}>
+              {l.text ? highlight(l.text) : "\u200b"}
+            </div>
+          ))
+        ) : error && at > 0 ? (
           <>
             {highlight(shown.slice(0, at))}
             <span className="underline decoration-error decoration-wavy decoration-1 underline-offset-[3px] [text-decoration-skip-ink:none]">{quote.mark}</span>

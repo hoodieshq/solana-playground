@@ -47,14 +47,24 @@ export function enterFor(s: State): Action | null {
   return null
 }
 
-/** Every shortcut, for the Keyboard shortcuts dialog (spec 9.4) */
-export const SHORTCUTS: { keys: string; what: string; group: "In the lesson" | "Panels" | "Steps" }[] = [
+/** ⌘K, Ctrl+K off a Mac: search */
+export const SEARCH_KEYS = mac ? "⌘K" : "Ctrl K"
+
+/** ⌘, (Ctrl+, off a Mac): opens and closes Settings */
+export const SETTINGS_KEYS = mac ? "⌘," : "Ctrl ,"
+
+/** Every shortcut, for the Keyboard shortcuts dialog (spec 9.4). Everywhere comes first: the keys that
+ * work on any screen */
+export const SHORTCUTS: { keys: string; what: string; group: "Everywhere" | "In the lesson" | "Panels" | "Steps" }[] = [
+  { keys: SEARCH_KEYS, what: "Search", group: "Everywhere" },
+  { keys: SETTINGS_KEYS, what: "Settings", group: "Everywhere" },
+  { keys: MENU_KEYS, what: "Menu", group: "Everywhere" },
+  { keys: "?", what: "Keyboard shortcuts", group: "Everywhere" },
   { keys: PRIMARY_KEYS, what: "Run the live action", group: "In the lesson" },
   { keys: "↵", what: "Start, or go to the next step", group: "In the lesson" },
   { keys: "1 2 3", what: "Pick an answer", group: "In the lesson" },
   { keys: "S", what: "Skip the question", group: "In the lesson" },
   { keys: "H", what: "Get a hint", group: "In the lesson" },
-  { keys: MENU_KEYS, what: "Menu", group: "Panels" },
   { keys: FILES_KEYS, what: "Files", group: "Panels" },
   { keys: TERMINAL_KEYS, what: "Terminal", group: "Panels" },
   { keys: STEP_KEYS, what: "Previous and next step", group: "Steps" },

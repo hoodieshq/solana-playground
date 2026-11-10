@@ -1,18 +1,16 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
-import { Check, ChevronDown, Ellipsis, Lock, Pin, Send, Terminal } from "lucide-react"
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
+import { Check, ChevronDown, Ellipsis, Folder, Lock, Send, Terminal } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { EditorTab, EditorTabLabel, EditorTabs, EditorTabTrigger } from "@/components/ui/editor-tabs"
+import { EditorTab, EditorTabClose, EditorTabLabel, EditorTabs, EditorTabTrigger } from "@/components/ui/editor-tabs"
 import { Kbd } from "@/components/ui/kbd"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-import { INITIAL_FILES } from "../data"
-import { useStore } from "../store"
+import { canCloseTabs, shownTabs, useStore } from "../store"
 import { FileTreeList } from "../ui/FileTreeList"
-import { NAV_ICONS } from "../ui/navIcons"
 import { FILES_KEYS, TERMINAL_KEYS } from "./keys"
 
 /** The open tab on the code's own ground, so tab and code read as one sheet, without the coloured bar */
@@ -71,6 +69,99 @@ function useEdges(strip: React.RefObject<HTMLDivElement | null>, count: number) 
   return edges
 }
 
+/** Chrome's tab drag: a press and 4px of travel pick a tab up, it follows the pointer along the strip,
+ * and each neighbour its middle passes slides over into the slot it left; let go, it settles into its
+ * own (Almaz, 10 Nov). Picked up, it's the open tab, as in Chrome */
+function useTabDrag(order: string[], open: (file: string) => void, move: (file: string, to: number) => void) {
+  const els = useRef(new Map<string, HTMLElement>())
+  const [drag, setDrag] = useState<{ file: string; dx: number } | null>(null)
+  // A drag ends in a click on the tab it let go of, which mustn't count as one
+  const dragged = useRef(false)
+  // Where each tab stood before a move, so the ones it moved slide there from their old place
+  const before = useRef<Map<string, number> | null>(null)
+  const list = useRef(order)
+  list.current = order
+  const key = order.join("\n")
+
+  useLayoutEffect(() => {
+    const was = before.current
+    before.current = null
+    if (!was || matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    for (const [file, el] of els.current) {
+      const by = (was.get(file) ?? 0) - el.getBoundingClientRect().left
+      if (file !== drag?.file && was.has(file) && by) el.animate([{ transform: `translateX(${by}px)` }, { transform: "none" }], { duration: 160, easing: "cubic-bezier(0.2, 0, 0, 1)" })
+    }
+  }, [key])
+
+  const start = (file: string) => (e: ReactPointerEvent) => {
+    if (e.button !== 0 || (e.target as Element).closest('[data-slot="editor-tab-close"], [data-files-toggle]')) return
+    let from = e.clientX
+    let dx = 0
+    // The offset last drawn, and the slot a move is waiting to be drawn in: one move at a time
+    let drawn = 0
+    let waiting = -1
+    let on = false
+    const onMove = (ev: PointerEvent) => {
+      dx = ev.clientX - from
+      if (!on) {
+        if (Math.abs(dx) < 4) return
+        on = true
+        dragged.current = true
+        open(file)
+      }
+      const me = els.current.get(file)
+      const at = list.current.indexOf(file)
+      if (waiting === at) waiting = -1
+      if (me && waiting === -1) {
+        const r = me.getBoundingClientRect()
+        const mid = r.left - drawn + dx + r.width / 2
+        const step = dx > 0 ? 1 : -1
+        const other = els.current.get(list.current[at + step])
+        const o = other?.getBoundingClientRect()
+        if (o && (step > 0 ? mid > o.left + o.width / 2 : mid < o.left + o.width / 2)) {
+          before.current = new Map([...els.current].map(([f, el]) => [f, el.getBoundingClientRect().left]))
+          move(file, at + step)
+          waiting = at + step
+          // Its slot moved by the neighbour's width, so the pointer's offset is from there now
+          from += step * o.width
+          dx = ev.clientX - from
+        }
+      }
+      drawn = dx
+      setDrag({ file, dx })
+    }
+    const onUp = () => {
+      removeEventListener("pointermove", onMove)
+      removeEventListener("pointerup", onUp)
+      removeEventListener("pointercancel", onUp)
+      if (!on) return
+      // It settles into its slot from where it was let go
+      const me = els.current.get(file)
+      if (me && dx && !matchMedia("(prefers-reduced-motion: reduce)").matches) me.animate([{ transform: `translateX(${dx}px)` }, { transform: "none" }], { duration: 160, easing: "cubic-bezier(0.2, 0, 0, 1)" })
+      setDrag(null)
+      setTimeout(() => (dragged.current = false))
+    }
+    addEventListener("pointermove", onMove)
+    addEventListener("pointerup", onUp)
+    addEventListener("pointercancel", onUp)
+  }
+
+  return {
+    drag,
+    props: (file: string) => ({
+      ref: (el: HTMLElement | null) => void (el ? els.current.set(file, el) : els.current.delete(file)),
+      onPointerDown: start(file),
+      onClickCapture: (e: React.MouseEvent) => {
+        if (dragged.current) {
+          e.stopPropagation()
+          e.preventDefault()
+        }
+      },
+      style: drag?.file === file ? ({ transform: `translateX(${drag.dx}px)`, zIndex: 10, cursor: "grabbing" } as CSSProperties) : undefined,
+    }),
+  }
+}
+
 /** A fade over the last 32px at each edge that hides tabs, so the strip says there are more */
 const fade = ({ left, right }: { left: boolean; right: boolean }): CSSProperties | undefined => {
   if (!left && !right) return undefined
@@ -78,25 +169,33 @@ const fade = ({ left, right }: { left: boolean; right: boolean }): CSSProperties
   return { maskImage: mask, WebkitMaskImage: mask }
 }
 
-/** The workspace head (spec 8.1): the file tabs, which never close, then at the right end the Call
+/** The workspace head (spec 8.1): the file tabs, which close while there are two or more, then at the right end the Call
  * panel, Files and Terminal. Call sits with the tools, apart from the files, since it isn't a file.
- * Files is the tree's one way in: it opens as a popover off the tabs, and its pin docks it beside the
- * editor. Before Start the head says the code is the finished program, read only, instead of a pill
+ * Files is the tree's one way in: it docks the tree beside the editor, or opens it as a popover off
+ * the tabs where the workspace is too narrow to dock. Before Start the head says the code is the finished program, read only, instead of a pill
  * over the code. No Build, Deploy or Run here: those live in the chat (D20) */
 export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; onTree: (open: boolean) => void; wide: boolean }) {
   const { s, dispatch } = useStore()
   const [arrived] = useState(() => new Set(s.tabs))
-  // Always in the project's order: lib.rs, then client.ts, then whatever else the project has
-  const order = Object.keys(INITIAL_FILES)
-  const tabs = s.tabs.filter((t) => order.includes(t)).sort((a, b) => order.indexOf(a) - order.indexOf(b))
+  // In the order they opened, or as dragged
+  const tabs = shownTabs(s.tabs)
+  const tabDrag = useTabDrag(
+    tabs,
+    (file) => dispatch({ type: "openFile", file }),
+    (file, to) => dispatch({ type: "moveTab", file, to })
+  )
+  // Two tabs or more, each closes and the arrow goes: Files at the right is the tree's way in then. The
+  // last tab doesn't close and keeps the arrow, the one way to the other files from beside its name
+  const closing = canCloseTabs(s.tabs)
   const strip = useRef<HTMLDivElement>(null)
   const edges = useEdges(strip, tabs.length)
   const callable = s.started && s.tabs.includes("test")
   const calling = callable && s.open === "test"
   const active = calling ? null : tabs.includes(s.open) ? s.open : tabs[0]
   const docked = s.tree === "docked"
-  // Files, its key and the arrow in the open tab all do the same: open the popover, or undock the tree
-  const toggleFiles = () => (docked ? dispatch({ type: "tree", state: "closed" }) : onTree(!treeOpen))
+  // Files, its key and the arrow in the open tab all do the same: the tree as a block beside the code,
+  // as the Programs workspace has it (Almaz, 6 Nov); a popover only where there's no room to dock
+  const toggleFiles = () => (wide ? dispatch({ type: "tree", state: docked ? "closed" : "docked" }) : onTree(!treeOpen))
   const filesShown = treeOpen || docked
 
   // The open tab is always in view: opened from the list, the tree or a link in the chat, the strip
@@ -130,28 +229,6 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
         if (e.target instanceof Element && e.target.closest(`[${FILES_TOGGLE}]`)) e.preventDefault()
       }}
     >
-      {/* No head: the Files button opened it. The pin sits over the first row's free end */}
-      <div className="absolute top-1.5 right-1.5 z-10">
-        {wide && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="rounded-md text-muted-foreground hover:text-foreground [&_svg]:size-4! [&_svg]:stroke-[1.5]"
-                aria-label="Dock beside the editor"
-                onClick={() => {
-                  dispatch({ type: "tree", state: "docked" })
-                  onTree(false)
-                }}
-              >
-                <Pin />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Dock beside the editor</TooltipContent>
-          </Tooltip>
-        )}
-      </div>
       <FileTreeList
         onPick={(file) => {
           dispatch({ type: "openFile", file })
@@ -163,20 +240,33 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
 
   return (
     <div className="@container flex h-11 shrink-0 items-stretch border-b border-border bg-surface-base">
-      <Popover open={treeOpen} onOpenChange={onTree}>
+      <Popover open={!wide && treeOpen} onOpenChange={onTree}>
         <PopoverAnchor asChild>
           {/* min-w-0 so the strip gives way to the tools. Each tab is as wide as its name, never wider,
               never cut: past the strip's width it scrolls, faded at the edge that hides more */}
           <EditorTabs ref={strip} style={fade(edges)} className="h-full min-w-0 flex-1 border-b-0!">
-            {tabs.map((tab) => (
-              <EditorTab key={tab} active={tab === active} className={cn(TAB, "shrink-0 px-0!", !arrived.has(tab) && "animate-rise")}>
-                <EditorTabTrigger className={cn("gap-1.5 px-3", tab === active && "pr-0.5")} onClick={() => dispatch({ type: "openFile", file: tab })}>
+            {tabs.map((tab) => {
+              const canClose = closing
+              const close = () => dispatch({ type: "closeFile", file: tab })
+              return (
+              <EditorTab
+                key={tab}
+                {...tabDrag.props(tab)}
+                active={tab === active}
+                // A middle click closes, as in a browser or VS Code. No ⌘W: the browser takes it and closes Oak
+                onMouseDown={(e) => canClose && e.button === 1 && e.preventDefault()}
+                onAuxClick={(e) => canClose && e.button === 1 && close()}
+                // The × or the arrow reads as the name's: 6 from it and 9 from the edge, against the 12 before
+                // the name. Three even 12s left it floating apart (Almaz, 10 Nov); its box stays 24
+                className={cn(TAB, "shrink-0 gap-0 px-0!", !arrived.has(tab) && "animate-rise")}
+              >
+                <EditorTabTrigger className={cn("gap-1.5 px-3", (canClose || tab === active) && "pr-0")} onClick={() => dispatch({ type: "openFile", file: tab })}>
                   <EditorTabLabel>{tab.split("/").pop()}</EditorTabLabel>
                 </EditorTabTrigger>
                 {/* The open tab's arrow, as Cat asked: the tree from beside the file's name, to step back
                     from client.ts to lib.rs. Quiet until pointed at, no frame of its own; it turns over
                     while the tree is out */}
-                {tab === active && (
+                {tab === active && !canClose && (
                   <Tooltip delayDuration={300}>
                     <TooltipTrigger asChild>
                       <button
@@ -186,7 +276,7 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
                         aria-expanded={filesShown}
                         onClick={toggleFiles}
                         {...{ [FILES_TOGGLE]: "" }}
-                        className="mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        className="mr-0.5 grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <ChevronDown
                           aria-hidden="true"
@@ -200,8 +290,14 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
                     </TooltipContent>
                   </Tooltip>
                 )}
+                {/* On every tab, as Chrome has it, the rest's dimmer: hidden till the pointer came, it left
+                    an empty end on every tab but the open one (Almaz, 10 Nov) */}
+                {canClose && (
+                  <EditorTabClose aria-label={`Close ${tab.split("/").pop()}`} onClick={close} className={cn("mr-0.5 size-6 opacity-100", tab !== active && "text-muted-foreground/60")} />
+                )}
               </EditorTab>
-            ))}
+              )
+            })}
           </EditorTabs>
         </PopoverAnchor>
         {tree}
@@ -227,7 +323,7 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
           </Tooltip>
           <DropdownMenuContent align="end" className="max-h-80 min-w-56">
             {/* The caption size spelled as a length: the menu's cn takes text-caption for a colour and drops it */}
-            <DropdownMenuLabel className="text-(length:--text-caption) leading-(--text-caption--line-height) text-muted-foreground">Open tabs · {tabs.length}</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-(length:--text-caption) leading-(--text-caption--line-height) text-muted-foreground">Open tabs</DropdownMenuLabel>
             {tabs.map((tab) => {
               const at = tab.lastIndexOf("/")
               return (
@@ -271,7 +367,7 @@ export function WorkspaceTabs({ treeOpen, onTree, wide }: { treeOpen: boolean; o
         <Tool
           label="Files"
           keys={FILES_KEYS}
-          icon={<span className="flex size-[18px] [&>svg]:size-full">{NAV_ICONS.folder}</span>}
+          icon={<span className="flex size-[18px] [&>svg]:size-full"><Folder aria-hidden="true" strokeWidth={1.5} className="size-full" /></span>}
           pressed={filesShown}
           onClick={toggleFiles}
           files

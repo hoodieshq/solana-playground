@@ -14,9 +14,9 @@ type WroteTurn = Extract<Turn, { kind: "wrote" }>
 export const range = (lines: number[]) => (lines.length === 0 ? "" : lines.length === 1 ? `line ${lines[0]}` : `lines ${lines[0]} to ${lines[lines.length - 1]}`)
 
 /** A file the assistant touched, and the way back to the lines: the whole card opens the tab, brings
- * the lines into view and lights them again. Its first three lines show
- * here, so the chat keeps a record of what was written even with another file open. On a phone the
- * created file's row is a thumb's height */
+ * the lines into view and lights them again. On a phone, where the editor is a swipe away, its first
+ * three lines show here; on desktop the editor beside the chat already shows them, so the card is one
+ * row: the file and the lines. On a phone the created file's row is a thumb's height */
 export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: boolean }) {
   const { s, dispatch } = useStore()
   const name = baseName(turn.file)
@@ -35,9 +35,9 @@ export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: bo
       >
         <FilePlus2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="shrink-0 text-caption text-muted-foreground">Created</span>
-        {/* The path gives way on a narrow row, never the tag: it was pushed past the card's edge on a phone */}
+        {/* The path gives way on a narrow row, never the tag. On a phone there's no tag: Created already says it */}
         <span className="min-w-0 truncate font-mono text-[0.75rem] text-foreground">{turn.file}</span>
-        <Tag className="ml-auto shrink-0">New file</Tag>
+        {!phone && <Tag className="ml-auto shrink-0">New file</Tag>}
       </button>
     )
 
@@ -62,35 +62,38 @@ export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: bo
             them, so the corner arrow went: it was a second sign for what the card already does */}
         <span className="flex h-8 items-center px-3">
           <span className="min-w-0 truncate font-mono text-[0.75rem] text-foreground">{turn.file}</span>
+          {!phone && <span className="ml-auto shrink-0 pl-3 text-[0.75rem] text-subtle">{range(turn.lines)}</span>}
         </span>
         {turn.appended && <span className="block border-t border-border px-3 py-1.5 text-[0.75rem] text-warning-ink">I put it at the end: your own lines are kept.</span>}
         {/* The code on the card's own ground, one shade for the whole card. Two columns: the numbers start
             12 in, under the file's name, and hold still; only the code beside them scrolls sideways, as
             Practicum's listings do, instead of breaking (declare_id!'s id wrapped under the line's start).
             Numbers kept still by sticking inside the scroller painted over the card's edge by a hair */}
-        <span className="flex pb-2 font-mono text-[0.75rem] leading-5">
-          <span aria-hidden="true" className="w-[1.625rem] shrink-0 pl-3 text-left text-subtle tabular-nums select-none">
-            {shown.map((n) => (
-              <span key={n} className="block">
-                {n}
-              </span>
-            ))}
-          </span>
-          <span className="block min-w-0 flex-1 overflow-x-auto pr-3 pl-2">
-            {shown.map((n) => {
-              const k = turn.lines.indexOf(n)
-              return (
-                <span key={n} className="block whitespace-pre text-syntax-plain">
-                  {k === -1 ? (rows[n - 1] ?? "") : highlight(text(n, k))}
+        {phone && (
+          <span className="flex pb-2 font-mono text-[0.75rem] leading-5">
+            <span aria-hidden="true" className="w-[1.625rem] shrink-0 pl-3 text-left text-subtle tabular-nums select-none">
+              {shown.map((n) => (
+                <span key={n} className="block">
+                  {n}
                 </span>
-              )
-            })}
+              ))}
+            </span>
+            <span className="block min-w-0 flex-1 overflow-x-auto pr-3 pl-2">
+              {shown.map((n) => {
+                const k = turn.lines.indexOf(n)
+                return (
+                  <span key={n} className="block whitespace-pre text-syntax-plain">
+                    {k === -1 ? (rows[n - 1] ?? "") : highlight(text(n, k))}
+                  </span>
+                )
+              })}
+            </span>
           </span>
-        </span>
+        )}
         {/* What's left of the run, as the listing's last row, 4 under the code: an ellipsis in the numbers'
             column holds the left edge, and the words sit on the code's in the interface face. In mono on the
             numbers' edge "8 more lines" read as line 8; indented alone to the code it floated off */}
-        {more > 0 && (
+        {phone && more > 0 && (
           <span className="-mt-1 flex pb-2 text-[0.75rem] leading-5 text-subtle">
             <span aria-hidden="true" className="w-[1.625rem] shrink-0 pl-3 font-mono select-none">
               ⋯

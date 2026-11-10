@@ -2,8 +2,9 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 
+// Rust and TypeScript, and the little Python a Seahorse lesson has: its # comments, decorators and keywords
 const TOKEN =
-  /(\/\/.*$)|("(?:[^"\\]|\\.)*"|`[^`]*`|'[^']*')|(\b[a-z_]+!)|(#\[[^\]]*\])|\b(use|mod|pub|fn|let|struct|const|await|mut|impl|return|super|self)\b|\b([A-Z][A-Za-z0-9]*)\b|\b(\d+)\b|(->|=>)/g
+  /(\/\/.*$|#(?![[!]).*$)|("(?:[^"\\]|\\.)*"|`[^`]*`|'[^']*')|(\b[a-z_]+!|@[a-z_]+\b)|(#\[[^\]]*\])|\b(use|mod|pub|fn|let|struct|const|await|mut|impl|return|super|self|from|import|def|class)\b|\b([A-Z][A-Za-z0-9]*)\b|\b(\d+)\b|(->|=>)/g
 
 const CLASS = [
   "",

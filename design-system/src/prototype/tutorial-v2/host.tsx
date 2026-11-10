@@ -61,7 +61,7 @@ export function LessonHost({ children }: { children: ReactNode }) {
   }, [])
   // The tab names the lesson that's open
   useEffect(() => {
-    document.title = `${LESSONS[open.slug]?.card.name ?? "Tutorials"} · Playground prototype v2`
+    document.title = `${LESSONS[open.slug]?.card.name ?? "Tutorials"} · Oak`
   }, [open.slug])
   return (
     <Ctx.Provider value={go}>

@@ -3,10 +3,10 @@ import { Check, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { STEPS } from "../../data"
+import { LESSON, STEPS } from "../../data"
 import { useStore, type Turn } from "../../store"
 import { Prose } from "../Prose"
-import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA, READ, READ_CODE, took } from "../type"
+import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA, PHONE_STACK, READ, READ_CODE } from "../type"
 
 type WinTurn = Extract<Turn, { kind: "win" }>
 
@@ -39,15 +39,16 @@ export function WinCard({ turn, phone = false }: { turn: WinTurn; phone?: boolea
   const step = STEPS[turn.step]
   const win = step.win
   const next = STEPS[turn.step + 1]
+  // `{n}` and the like are the lesson's numbers from its state, in the headline as in the line
+  const fill = (text: string) => text.replace(/\{(\w+)\}/g, (m, k: string) => LESSON.winVars?.(s)[k] ?? m)
 
   if (turn.done)
     return (
       <div className="flex h-9 items-center gap-2 rounded-control border border-border bg-(--card-ground) px-3 text-caption">
         <Check className="size-3.5 shrink-0 text-success" aria-hidden="true" />
         <span className="min-w-0 truncate text-muted-foreground">
-          <span className="text-foreground">Step {turn.step + 1} done</span> · {win.headline}
+          <span className="text-foreground">Step {turn.step + 1} done</span> · {fill(win.headline)}
         </span>
-        <span className="ml-auto shrink-0 text-subtle tabular-nums">{took(turn.took)}</span>
       </div>
     )
 
@@ -61,14 +62,15 @@ export function WinCard({ turn, phone = false }: { turn: WinTurn; phone?: boolea
           line read as one group top down. A heading carries no full stop, whatever the lesson wrote */}
       {/* 28/32 at the headings' 500: in the display size's own regular weight and 1.15 line (32.2) it was
           the one heading of another weight, on a part pixel line */}
-      <h3 className="mt-4 font-heading text-[1.75rem] leading-8 font-medium tracking-[-0.02em] text-foreground">{win.headline}</h3>
+      <h3 className="mt-4 font-heading text-[1.75rem] leading-8 font-medium tracking-[-0.02em] text-foreground">{fill(win.headline)}</h3>
       {/* 9 under the headline, as under any heading, so the line reads as its own; the actions 24 under
           it, the beat the intro card and the build failure keep before theirs */}
       <p className={`mt-[9px] ${READ}`}>
-        <Prose text={viaTest && step.testWin ? step.testWin : win.line} {...READ_CODE} />
+        {/* `{n}` and the like are the lesson's numbers from its state: Expense Tracker's count of expenses */}
+        <Prose text={(viaTest && step.testWin ? step.testWin : win.line).replace(/\{(\w+)\}/g, (m, k: string) => LESSON.winVars?.(s)[k] ?? m)} {...READ_CODE} />
       </p>
       {(next || openCall || (viaTest && openAsk)) && (
-        <div className={cn("mt-6 flex gap-2", phone ? "flex-col items-stretch" : "flex-wrap items-center")}>
+        <div className={cn("mt-6 flex gap-2", phone ? PHONE_STACK : "flex-wrap items-center")}>
           {next && (
             <Button className={cn(ACTION, ACTION_FILL, phone && PHONE_CTA)} onClick={() => dispatch({ type: "next" })}>
               Next: {next.title}

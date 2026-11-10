@@ -6,7 +6,8 @@ import type { OwnCheck, SpecialCheck } from "./lessons/types"
 
 export type { OwnCheck }
 
-const DECLARE = /(declare_id!\(\s*")[^"]*("\s*\))/g
+// Rust's `declare_id!("…")`, or Seahorse's `declare_id('…')`
+const DECLARE = /(declare_id!?\(\s*["'])[^"']*(["']\s*\))/g
 
 /** The file with its program id in `declare_id!`, as Playground writes it in once the program has an
  * address */
@@ -20,14 +21,19 @@ const squash = (code: string) => withId(code, "").replace(/\s+/g, "")
  * notice */
 export const sameCode = (a: string, b: string) => squash(a) === squash(b)
 
-// A string first, so a // inside one isn't taken for a comment, then either kind of comment
-const COMMENT = /("(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`)|\/\/[^\n]*|\/\*[\s\S]*?\*\//g
+// A string first, so a // inside one isn't taken for a comment, then either kind of comment, or a
+// Python one: a # that doesn't open a Rust attribute
+const COMMENT = /("(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`)|\/\/[^\n]*|\/\*[\s\S]*?\*\/|#(?![[!])[^\n]*/g
 
 /** The code without its comments. A comment that spans lines leaves its line breaks behind, so
  * every line keeps its number for the error that points at it */
 export function uncomment(code: string) {
   return code.replace(COMMENT, (m, str: string | undefined) => str ?? m.replace(/[^\n]/g, ""))
 }
+
+// A Python `print` of a string, an f-string or not: `print('Hello, World!')`, `print(f'Hello, {name}!')`
+const PRINT_ALL = /\bprint\(\s*(f?)(['"])((?:(?!\2)[^\\]|\\.)*)\2/g
+const holesIn = (text: string) => text.match(/\{[^{}]*\}/g)?.length ?? 0
 
 /** One line as the check compares it. Whitespace goes; `pub mod` is the same program as `mod`;
  * what `msg!` says is up to whoever writes it, as long as it fills as many `{}` as the step's does */
@@ -36,7 +42,18 @@ function norm(line: string) {
     line
       .replace(/\bpub\s+mod\b/g, "mod")
       .replace(/msg!\(\s*"((?:[^"\\]|\\.)*)"/g, (_, text: string) => `msg!("${"{}".repeat(text.split("{}").length - 1)}"`)
+      // Python's `print` the same way: any text, as many `{…}` as the step's f-string fills
+      .replace(PRINT_ALL, (_, f: string, _q: string, text: string) => `print(${f}'${"{}".repeat(holesIn(text))}'`)
   )
+}
+
+/** What a line logs, with each value it fills in as `{}`: a Rust `msg!`, or a Python `print` whose
+ * f-string `{name}` reads as `{}`. Undefined for a line that logs nothing */
+function logText(row: string): string | undefined {
+  const m = row.match(/msg!\(\s*"((?:[^"\\]|\\.)*)"|\bprint\(\s*(f?)(['"])((?:(?!\3)[^\\]|\\.)*)\3/)
+  if (!m) return undefined
+  if (m[1] !== undefined) return m[1]
+  return m[2] ? m[4].replace(/\{[^{}]*\}/g, "{}") : m[4]
 }
 
 const lines = (code: string) => uncomment(code).split("\n").map(norm)
@@ -86,15 +103,24 @@ export function typedKey(file: string, key: string): number | null {
 export function withOwnText(block: string, typed: string) {
   const MSG = /msg!\(\s*"((?:[^"\\]|\\.)*)"/
   const own = straightQuotes(typed).match(MSG)?.[1]
-  if (own === undefined) return block
+  if (own === undefined) return withOwnPrint(block, typed)
   return block.replace(MSG, (m, text: string) => (text.split("{}").length === own.split("{}").length ? `msg!("${own}"` : m))
+}
+
+/** The same for a Python `print`: the learner's string, quotes and all, when it fills as many `{…}` */
+function withOwnPrint(block: string, typed: string) {
+  const PRINT = new RegExp(PRINT_ALL.source)
+  const own = straightQuotes(typed).match(PRINT)
+  if (!own) return block
+  return block.replace(PRINT, (m, _f: string, _q: string, text: string) => (holesIn(text) === holesIn(own[3]) ? own[0] : m))
 }
 
 /** What a program's `msg!` logs, with each `{}` filled by `name` as Anchor would. Without a name
  * it's the step 3 line, Hello, World!, whatever the file says now. Read from the first `msg!`
  * that isn't commented out, so code written by hand speaks for itself */
 export function helloSays(lib: string, name: string | null): string {
-  const text = uncomment(straightQuotes(lib)).match(/msg!\(\s*"((?:[^"\\]|\\.)*)"/)?.[1]
+  // A Python program speaks through `print`, its f-string's `{name}` filled the same way
+  const text = logText(uncomment(straightQuotes(lib)))
   if (!text || (name === null && text.includes("{}"))) return "Hello, World!"
   // A function, so a name with $& in it stays as typed
   return name === null ? text : text.replaceAll("{}", () => name)
@@ -106,30 +132,38 @@ export function msgLine(lib: string, said?: string) {
   if (said) {
     const rows = uncomment(straightQuotes(lib)).split("\n")
     const i = rows.findIndex((row) => {
-      const text = row.match(/msg!\(\s*"((?:[^"\\]|\\.)*)"/)?.[1]
+      const text = logText(row)
       if (text === undefined) return false
-      const shape = new RegExp(`^${text.split("{}").map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`)
+      // The text as the log prints it: `\\o/` in the source is `\o/` in the log
+      const shape = new RegExp(`^${text.replace(/\\(.)/g, "$1").split("{}").map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`)
       return shape.test(said)
     })
     if (i !== -1) return i + 1
   }
-  return lineOf(lib, "msg!")
+  return lineOf(lib, !lib.includes("msg!") && /\bprint\(/.test(lib) ? "print(" : "msg!")
 }
 
 /** `start` is the file as the step found it, so a build before any change can say just that */
-export function checkOwn(written: string, target: string, file: string, start?: string, lesson?: { program: string; checks: SpecialCheck[] }): OwnCheck {
+export function checkOwn(written: string, target: string, file: string, start?: string, lesson?: { program: string; checks: SpecialCheck[]; card?: { framework: string } }): OwnCheck {
   const code = straightQuotes(written)
   const mine = lines(code)
   const want = lines(target)
   if (mine.join("") === want.join("")) return { ok: true }
 
   const rust = file.endsWith(".rs")
-  const head = rust ? ["$ anchor build", `Compiling ${lesson?.program ?? "program"} v0.1.0`] : [`$ run ${file}`, "Running client..."]
+  // A Seahorse program's Python is built too: compiled to Anchor first, by Seahorse
+  const py = file.endsWith(".py")
+  const build = rust || py
+  const head = py
+    ? ["$ seahorse build", `Compiling ${file.split("/").pop()} with Seahorse`]
+    : rust
+      ? [lesson?.card?.framework === "Native" ? "$ cargo build-sbf" : "$ anchor build", `Compiling ${lesson?.program ?? "program"} v0.1.0`]
+      : [`$ run ${file}`, "Running client..."]
   // Every reason starts the same way, so the status line reads alike whatever went wrong
-  const failed = rust ? "Build failed" : "Run failed"
+  const failed = build ? "Build failed" : "Run failed"
   const bare = uncomment(code)
 
-  for (const check of rust ? (lesson?.checks ?? []) : []) {
+  for (const check of build ? (lesson?.checks ?? []) : []) {
     const found = check({ code, bare, target, file, head, failed })
     if (found) return found
   }
@@ -179,7 +213,7 @@ export function checkOwn(written: string, target: string, file: string, start?: 
     line,
     column,
     span,
-    log: [...head, `${rust ? "error" : "Error"}: ${error}`, ` --> ${file}:${line}${column ? `:${column}` : ""}`, rust ? "Build failed" : "Run failed"],
+    log: [...head, `${rust ? "error" : "Error"}: ${error}`, ` --> ${file}:${line}${column ? `:${column}` : ""}`, failed],
     reason,
     explain,
   })
@@ -188,7 +222,7 @@ export function checkOwn(written: string, target: string, file: string, start?: 
     return fail(
       1,
       "the file has no code in it",
-      `${failed}: the file is empty, so there is nothing to ${rust ? "build" : "run"}.`,
+      `${failed}: the file is empty, so there is nothing to ${build ? "build" : "run"}.`,
       "There is no code in the file yet. Follow the lesson, or review the fix to see the lines this step needs."
     )
 
@@ -217,7 +251,8 @@ export function checkOwn(written: string, target: string, file: string, start?: 
       .trim()
       .match(/^[A-Za-z_]\w*;?$/)?.[0]
       .replace(/;$/, "")
-    if (word && !["pub", "fn", "mod", "use", "struct", "let", "const"].includes(word)) {
+    // Python names its errors its own way, so a stray word there is left to the lesson's check below
+    if (word && !py && !["pub", "fn", "mod", "use", "struct", "let", "const"].includes(word)) {
       const column = row.indexOf(word) + 1
       const depth = bare
         .split("\n")
@@ -249,9 +284,9 @@ export function checkOwn(written: string, target: string, file: string, start?: 
     // more, so it says it's the lesson speaking, not rustc
     return fail(
       line,
-      `lesson check: line ${line} isn't in the code this step ${rust ? "builds" : "runs"}`,
-      `${failed}: line ${line} isn't in the code this step ${rust ? "builds" : "runs"}${quote(code.split("\n")[extra])}.`,
-      `This one comes from the lesson's check, not the compiler: line ${line} isn't in the code this step ${rust ? "builds" : "runs"}. Compare it with the lesson, or review the fix to see the exact lines.`,
+      `lesson check: line ${line} isn't in the code this step ${build ? "builds" : "runs"}`,
+      `${failed}: line ${line} isn't in the code this step ${build ? "builds" : "runs"}${quote(code.split("\n")[extra])}.`,
+      `This one comes from the lesson's check, not the compiler: line ${line} isn't in the code this step ${build ? "builds" : "runs"}. Compare it with the lesson, or review the fix to see the exact lines.`,
       row.search(/\S/) + 1,
       row.trim().length
     )

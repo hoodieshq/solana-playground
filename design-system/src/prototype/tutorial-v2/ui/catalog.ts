@@ -1,4 +1,5 @@
 import { TUTORIALS, type TutorialCard } from "../data"
+import { LADDER } from "../host"
 import { playable } from "../lessons"
 
 /** What the gallery says about a tutorial. The description is the tutorial's own, from the
@@ -51,12 +52,6 @@ export const CATALOG: Entry[] = TUTORIALS.map((t) => ({ ...t, ...ABOUT[t.slug] }
 export const LEVELS = ["Beginner", "Intermediate", "Advanced"] as const
 export type Framework = TutorialCard["framework"]
 export type FrameworkFilter = "all" | Framework
-export const FRAMEWORKS: { value: FrameworkFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "Anchor", label: "Anchor" },
-  { value: "Seahorse", label: "Seahorse" },
-  { value: "Native", label: "Native" },
-]
 
 /** A tutorial's name as the product shows it: the data keeps upstream's name, which is also its key */
 const SHOWN: Record<string, string> = { "tictactoe-seahorse": "Tic-tac-toe Seahorse" }
@@ -67,7 +62,8 @@ export const shownName = (t: Entry) => SHOWN[t.slug] ?? t.name
 const UPSTREAM: Record<string, string> = { "spl-token-vault": "Spl Token Vault" }
 export const upstreamName = (t: Entry) => UPSTREAM[t.slug] ?? t.name
 
-/** Search reads the name, the description and the framework. The filter narrows by framework */
+/** Search reads the name, the description and the framework. The filter narrows by framework. New
+ * project's search uses it; the tutorials page has neither now */
 export function filterCatalog(query: string, framework: FrameworkFilter) {
   const q = query.trim().toLowerCase()
   return CATALOG.filter(
@@ -77,21 +73,11 @@ export function filterCatalog(query: string, framework: FrameworkFilter) {
   )
 }
 
-/** The cards by level, without the levels nothing is left in. The tutorials the prototype runs lead
- * their level, so a section folded to its first cards still shows them */
+/** The cards by level, without the levels nothing is left in. The ladder's lesson leads its level, then
+ * the tutorials the prototype runs, so a section folded to its first cards still shows them: Lumberjack,
+ * the banner's next step, sat fifth of six behind Show all (Almaz, 10 Nov) */
 export function byLevel(list: Entry[]) {
-  const runs = (t: Entry) => (playable(t.slug) ? 0 : 1)
+  const runs = (t: Entry) => (LADDER.includes(t.slug) ? -1 : playable(t.slug) ? 0 : 1)
   return LEVELS.map((level) => ({ level, items: list.filter((t) => t.level === level).sort((a, b) => runs(a) - runs(b)) })).filter((g) => g.items.length > 0)
 }
 
-/** What the results line says: "3 results", or "No Seahorse tutorials match “vault”" */
-export function resultsLine(count: number, query: string, framework: FrameworkFilter) {
-  const kind = framework === "all" ? "tutorials" : `${framework} tutorials`
-  const q = query.trim()
-  if (count === 0) return q ? `No ${kind} match “${q}”` : `No ${kind} yet`
-  return `${count} ${count === 1 ? "result" : "results"}`
-}
-
-/** The search field's hint names the filter when one is on, the one place it shows while searching */
-export const searchHint = (framework: FrameworkFilter) =>
-  framework === "all" ? `Search ${CATALOG.length} tutorials` : `Search ${framework} tutorials`

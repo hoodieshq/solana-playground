@@ -28,3 +28,9 @@ export const NAME_MAX = 32
 
 /** The id `declare_id!` holds before the first deploy: Playground writes the real one in */
 export const NO_ID = "11111111111111111111111111111111"
+
+/** Text as the bytes it travels as, UTF-8 in hex with their count: `41 6c 65 78 · 4 bytes` */
+export function bytesOf(text: string) {
+  const bytes = [...new TextEncoder().encode(text)]
+  return `${bytes.length ? bytes.map((b) => b.toString(16).padStart(2, "0")).join(" ") : "empty"} · ${bytes.length} byte${bytes.length === 1 ? "" : "s"}`
+}

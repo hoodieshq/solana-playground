@@ -376,53 +376,41 @@ a[href] {
   --code-ground: var(--surface-panel);
 }
 
-/* Calm, after Claude Code's dark app: no brand colour in the interface. The main action is a light
-   button, focus and the small markers are grey, and colour is left to code, errors and a done check */
+/* The tutorial's one palette, chosen 3 Nov: the styleguide's own neutral greys and purple, changed
+   only where the contrast checks failed, with and without Night Shift (36 of 36 pass). Panels a step
+   lighter so they part from the page, text a touch under #f2f2f3, the tertiary grey lifted to 3:1 at
+   full warmth, focus a lighter purple, warning a yellow that stays apart from the green. The main
+   button keeps the brand fill and white label, with no edge: its label names it, and a lighter purple
+   edge read as a focus ring */
 html.dark {
-  /* Text and glyphs in Claude's warm greys, a little under the old cool ones: the main text near
-     #cbc9c0, labels and icons near #9a988f. On the lighter ground below that's about 9.5:1 and 5:1,
-     softer than 12:1 on near black, and still past AA for both */
-  --foreground: #cbc9c0;
-  --card-foreground: #cbc9c0;
-  --popover-foreground: #cbc9c0;
-  --text-primary: #cbc9c0;
-  --accent-foreground: #cbc9c0;
-  --muted-foreground: #9a988f;
-  --text-secondary: #9a988f;
-  /* The main action as Claude Code draws it: an off-white fill with near-black text, the one bright
-     thing in a card, so the next move is never in doubt. Its neighbour is a grey fill (ACTION_SOFT) */
-  --primary: #f5f4ee;
-  /* Grounds from Claude's own dark scale, read from the app (--bg-300 #141413, --bg-200 #1f1e1d,
-     --bg-100 #262624): near black with a breath of warmth, as Claude Code's window. Borders are the
-     app's warm grey at low alpha, so a hairline reads as an edge, not a drawn line */
-  --background: #141413;
-  --surface-base: #141413;
-  /* The left nav a tone over the window, as Claude Code's sidebar: set apart by its ground, not only
-     by the hairline. Hover (#1f1e1d) still reads a step above it */
-  --sidebar: #1a1918;
-  --surface-panel: #1f1e1d;
-  --card: #1f1e1d;
-  --popover: #1f1e1d;
-  --surface: #232220;
-  --surface-raised: #262624;
-  --secondary: #262624;
-  --muted: #262624;
-  --sidebar-accent: #262624;
-  /* Hover a tone over the ground, as Claude's rows: --bg-200, about ten levels up */
-  --surface-hover: #1f1e1d;
-  --accent: #1f1e1d;
-  --surface-well: #0d0d0c;
-  --border: rgb(222 220 209 / 0.1);
-  --sidebar-border: rgb(222 220 209 / 0.1);
-  --border-strong: rgb(222 220 209 / 0.15);
-  --input: rgb(222 220 209 / 0.15);
-  --text-tertiary: #75736c;
-  /* Cards in the chat sit a shade under the column, as Claude's do: set in, not raised */
-  --card-ground: #0f0f0e;
-  --primary-foreground: #141413;
-  --accent-fill-hover: #e2e0d8;
-  --ring: #85837b;
-  --brand-purple: #9a988f;
+  --foreground: #e4e4e7;
+  --card-foreground: #e4e4e7;
+  --popover-foreground: #e4e4e7;
+  --secondary-foreground: #e4e4e7;
+  --accent-foreground: #e4e4e7;
+  --sidebar-foreground: #e4e4e7;
+  --text-primary: #e4e4e7;
+  --muted-foreground: #a1a1aa;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #8b8b94;
+  --card: #1d1d21;
+  --popover: #1d1d21;
+  --surface-panel: #1d1d21;
+  --code-ground: #1d1d21;
+  --surface: #212125;
+  --surface-raised: #27272b;
+  --secondary: #27272b;
+  --muted: #27272b;
+  --sidebar-accent: #27272b;
+  --surface-hover: #2c2c31;
+  --accent: #2c2c31;
+  --border: #2e2e33;
+  --sidebar-border: #2e2e33;
+  --border-strong: #3a3a40;
+  --input: #3a3a40;
+  --ring: #b08cff;
+  --sidebar-ring: #b08cff;
+  --warning: #facc15;
 }
 
 /* The feed fades at an edge only while there's more under it, so text never ends on a hard cut */
@@ -436,24 +424,6 @@ html.dark {
 }
 [data-feed-scroller][data-more-below] {
   --fade-bottom: 32px;
-}
-
-/* Tooltips dark, as Claude Code draws them: a raised grey with a hairline, no arrow. The kit's tip is
-   inverted (light on dark), which shouted over everything around it */
-[data-slot="tooltip-content"] {
-  background-color: var(--surface-raised);
-  color: var(--foreground);
-  box-shadow:
-    0 0 0 1px var(--border-strong),
-    0 6px 20px rgb(0 0 0 / 0.35);
-}
-/* Radix sets the arrow's display inline, so only !important takes it away */
-[data-radix-popper-content-wrapper] svg[class*="rotate-45"] {
-  display: none !important;
-}
-[data-slot="tooltip-content"] kbd {
-  background-color: var(--surface-hover);
-  color: var(--muted-foreground);
 }
 
 /* The phone's type floor. The chat's cards are shared with the desktop, where 12px meta and the
@@ -475,4 +445,32 @@ html.phone .text-caption .text-\[0\.875em\] {
 }
 html.phone .text-subtle {
   color: var(--muted-foreground);
+}
+
+/* A tablet held upright (768 to 1023) runs the phone's screens at its own width. The chat keeps the
+   desktop feed's reading measure in the middle, its scroller still the full width so a drag anywhere
+   scrolls it; the code page and the head use the whole screen. Only the framed upright tablet sets
+   html.portrait (main.tsx) */
+html.portrait section[aria-label="Chat"] > * {
+  /* 42rem less the turns' own 16px each side: the text runs 40rem, as a program's Guide does */
+  padding-inline: max(1rem, calc((100% - 42rem) / 2));
+}
+html.portrait [data-slot="drawer-content"] {
+  max-width: 40rem;
+}
+
+/* The desktop screens under a finger (html.touch, main.tsx): a 28 or 32 control keeps its look, and a
+   layer round it takes the finger at 44, as iPad's own bars do. A control that draws with ::before
+   already is left as it is */
+html.touch:not(.phone) :is(button, a[href], [role="tab"]):not([class*="before:"], .absolute, .fixed, .sticky) {
+  position: relative;
+}
+html.touch:not(.phone) :is(button, a[href], [role="tab"]):not([class*="before:"])::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
 }

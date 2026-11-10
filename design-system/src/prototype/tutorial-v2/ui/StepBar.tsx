@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react"
 import { useEffect, useRef, type CSSProperties } from "react"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -5,7 +6,6 @@ import { cn } from "@/lib/utils"
 
 import { STEPS } from "../data"
 import { useStore } from "../store"
-import { NAV_ICONS } from "./navIcons"
 import { StepGlyph } from "./StepGlyph"
 import { FOCUS } from "./type"
 
@@ -70,7 +70,7 @@ export function StepBar({ viewing, onPick }: BarProps) {
   const finished = s.passed.every(Boolean)
   const lit = litCount(s.started, s.step, finished)
   const delayFor = useSweep(lit)
-  const where = !s.started ? `${STEPS.length} steps` : finished ? `Done · ${STEPS.length} of ${STEPS.length}` : `Step ${s.step + 1} of ${STEPS.length}`
+  const where = !s.started ? `${STEPS.length} steps` : finished ? "Done" : `Step ${s.step + 1} of ${STEPS.length}`
   const name = s.started && !finished ? STEPS[s.step].short : null
 
   return (
@@ -97,7 +97,7 @@ export function StepBar({ viewing, onPick }: BarProps) {
               aria-hidden="true"
               className="flex size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180 motion-reduce:transition-none [&>svg]:size-full"
             >
-              {NAV_ICONS.caret}
+              <ChevronDown aria-hidden="true" strokeWidth={1.5} className="size-full" />
             </span>
           )}
         </DropdownMenuTrigger>
@@ -156,7 +156,7 @@ export function StepTrack({ done }: { done: boolean }) {
   const delayFor = useSweep(lit)
   if (!s.started) return <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-border" />
   return (
-    <span aria-hidden="true" className="absolute inset-x-4 bottom-2 grid gap-1" style={columns()}>
+    <span aria-hidden="true" className="absolute inset-x-4 bottom-2 grid gap-1 [html.portrait_&]:inset-x-8" style={columns()}>
       {STEPS.map((step, i) => (
         <Segment key={step.id} i={i} lit={i < lit} delay={delayFor(i)} />
       ))}

@@ -26,8 +26,12 @@ export const ACTION_FILL = "hover:bg-(--accent-fill-hover)"
 export const ACTION_SOFT = "border-0 bg-foreground/[0.1] text-foreground/90 shadow-none hover:bg-foreground/[0.15] hover:text-foreground"
 
 /** A card's action on a phone: the full width, 48px under the thumb. The coarse pointer height is
- * named again because ACTION's 44px for a finger would otherwise win over it */
-export const PHONE_CTA = "h-12 w-full pointer-coarse:h-12"
+ * named again because ACTION's 44px for a finger would otherwise win over it. On an upright tablet
+ * the column is 640 wide and a full width pill there is a phone's button stretched, so it takes its
+ * label's width, at least 240, from the column's left edge */
+export const PHONE_CTA = "h-12 w-full pointer-coarse:h-12 [html.portrait_&]:w-auto [html.portrait_&]:min-w-60 [html.portrait_&]:self-start [html.portrait_&]:px-6"
+/** The row those actions stand in: stacked on a phone, side by side on an upright tablet */
+export const PHONE_STACK = "flex-col items-stretch [html.portrait_&]:flex-row [html.portrait_&]:flex-wrap [html.portrait_&]:items-center"
 
 /** The one focus ring, as the nav draws it */
 export const FOCUS = "outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple"

@@ -1,0 +1,74 @@
+/* Settings' CSS: the light theme's native bits, the switch without a fade, word wrap on the code
+   view, and a finger's 44 on the phone's Settings controls */
+
+/* Native controls and the browser's own scrollbars follow the theme (prototype.css sets dark) */
+html:not(.dark) {
+  color-scheme: light;
+}
+
+/* The overlay scroll indicator is light on dark; on paper it goes dark, as iOS draws it there */
+html:not(.dark) .pg-scroll-indicator {
+  background-color: rgb(0 0 0 / 0.35);
+}
+
+/* The DS ring button draws its label white for the dark ground; on paper the label takes the text's
+   colour until the ring fills with Solana's colours (hover, or a press on the beam variant) */
+html:not(.dark) [data-slot="brand-button"][data-variant="ring"] {
+  color: var(--foreground);
+}
+html:not(.dark) [data-slot="brand-button"][data-variant="ring"]:not([data-hover="beam"]):hover:not(:disabled),
+html:not(.dark) [data-slot="brand-button"][data-variant="ring"]:active {
+  color: #fff;
+}
+
+/* For the frame the theme switches in: no colour fades between the two themes */
+.no-transition,
+.no-transition * {
+  transition: none !important;
+}
+
+/* Word wrap, on the lesson's read only code (ui/CodeView.tsx). On, a long line wraps with its rest
+   hanging in; off, lines run on and the code scrolls sideways inside its own box */
+html.oak-wrap pre[aria-label="Code, read only"] code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+html:not(.oak-wrap) pre[aria-label="Code, read only"] {
+  overflow-x: auto;
+}
+html:not(.oak-wrap) pre[aria-label="Code, read only"] > div {
+  width: max-content;
+  min-width: 100%;
+}
+html:not(.oak-wrap) pre[aria-label="Code, read only"] code {
+  flex: none;
+  white-space: pre;
+  overflow-wrap: normal;
+  padding-left: 0 !important;
+  text-indent: 0 !important;
+}
+
+/* The phone frame isn't html.touch (prototype.css gives that a 44 hit), so Settings gives its own small
+   controls the same layer round them on the phone's screens */
+html.phone [data-oak-settings] :is(button, a[href]):not([class*="before:"], .absolute, .fixed, .sticky) {
+  position: relative;
+}
+html.phone [data-oak-settings] :is(button, a[href]):not([class*="before:"])::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
+/* Settings fills the screen's pane beside the nav (index.tsx): the place under it stops reading as the
+   one you're on, and takes the hover any other place has */
+html.oak-settings-open nav[aria-label="Main"] [data-here] {
+  background-color: transparent;
+  font-weight: inherit;
+}
+html.oak-settings-open nav[aria-label="Main"] [data-here]:hover {
+  background-color: var(--nav-hover);
+}

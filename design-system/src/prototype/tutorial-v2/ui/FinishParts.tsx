@@ -1,8 +1,5 @@
 import { useState } from "react";
 import {
-  Anchor,
-  Axe,
-  Expand,
   Check,
   ChevronRight,
   Copy,
@@ -20,9 +17,13 @@ import { useStore } from "../store";
 import { lastTx } from "../tx";
 import { openExplorer } from "./explorer";
 import { PrintedReceipt, copyReceipt } from "./Receipt";
+import { CATALOG, upstreamName } from "./catalog";
+import { tutorialIcon } from "./TutorialCover";
 
 /** The flow's peak: the badge pops in once, on the design system's pop curve, and simply appears with reduced motion */
 export function FinishBadge({ className }: { className?: string }) {
+  const entry = CATALOG.find((t) => t.slug === LESSON.card.slug);
+  const Icon = tutorialIcon(entry ? upstreamName(entry) : LESSON.card.name);
   return (
     <Achievement
       className={cn("mx-auto w-auto", className)}
@@ -30,8 +31,9 @@ export function FinishBadge({ className }: { className?: string }) {
       aria-label={`Badge earned: ${LESSON.badge}`}
     >
       <AchievementMedia className="size-16 shadow-glow duration-[440ms] ease-pop animate-in fade-in zoom-in-50 motion-reduce:animate-none">
-        {/* The badge draws what the lesson built: an Anchor program, or a game's axe */}
-        {LESSON.game ? <Axe /> : LESSON.memory ? <Expand /> : <Anchor />}
+        {/* The lesson's own icon, the one its cover in the list and its banner draw, so the badge is
+            the tutorial you picked: a rule of its own gave Hello Seahorse a fish under waves (Almaz, 10 Nov) */}
+        <Icon />
       </AchievementMedia>
     </Achievement>
   );

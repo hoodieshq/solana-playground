@@ -17,7 +17,7 @@ export function stepTx(s: State, i = s.step): Tx | null {
 export const lastTx = (s: State): Tx => {
   const sent = [
     ...txResults(s).map((t) => ({ at: t.at, tx: t.tx })),
-    ...s.thread.flatMap((t) => (t.kind === "act" ? (t.chops ?? []).map((c) => ({ at: c.at, tx: c.tx })) : [])),
+    ...s.thread.flatMap((t) => (t.kind === "act" ? [...(t.chops ?? []), ...(t.sends ?? [])].map((c) => ({ at: c.at, tx: c.tx })) : [])),
   ].filter((x) => !x.tx.error)
   sent.sort((a, b) => a.at - b.at)
   return sent[sent.length - 1]?.tx ?? LESSON.runTx(s)

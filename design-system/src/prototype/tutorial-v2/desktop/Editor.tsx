@@ -182,7 +182,9 @@ export function Editor({
                       // The tint runs under the line, the text stays where the textarea's is (margin = border + padding)
                       "-ml-2.5 border-l-2 border-transparent pr-8 pl-2 transition-colors duration-150 ease-standard motion-reduce:transition-none",
                       lands && "border-dashed border-border-strong",
-                      k !== -1 && "border-foreground/25",
+                      // The lines a link went to keep a soft ground, no bar: a bar beside one line read as a
+                      // stray thick line (Almaz, 10 Nov)
+                      k !== -1 && "bg-foreground/[0.05]",
                       k !== -1 && arrive > 0 && "pg-arrive",
                       error?.line === n && "border-error bg-error/10",
                       error?.line === n && lit && "bg-error/20"

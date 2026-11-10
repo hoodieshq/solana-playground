@@ -12,12 +12,11 @@ import { ACTION_SOFT, HEADING, LISTING, READ_CODE } from "../type"
 
 type AskTurn = Extract<Turn, { kind: "ask" }>
 
-const TRY = ["first try", "2nd try", "3rd try"]
-
-/** How the question went, as its record says it. A phone's record is narrower, so a call from the
- * panel says only skipped there: the long form cut the answer itself down to two letters */
+/** How the question went, as its record says it, only when it's news: a right pick says nothing, the
+ * tick does. A phone's record is narrower, so a call from the panel says only skipped there: the long
+ * form cut the answer itself down to two letters */
 export function qualifier(t: AskTurn, phone = false) {
-  if (t.done === "right") return TRY[Math.min(t.picks.length, 2)]
+  if (t.done === "right") return null
   if (t.done === "typed") return "typed by you"
   if (t.done === "test" && !phone) return "skipped, called from the Call panel"
   return "skipped"
@@ -149,6 +148,7 @@ function Settled({ ask, t }: { ask: Ask; t: AskTurn }) {
 /** A resolved question: one line, the answer it ended on and how, which opens to the three rows */
 function AskRecord({ ask, t, phone }: { ask: Ask; t: AskTurn; phone: boolean }) {
   const [open, setOpen] = useState(false)
+  const how = qualifier(t, phone)
   return (
     <div>
       <button
@@ -172,10 +172,11 @@ function AskRecord({ ask, t, phone }: { ask: Ask; t: AskTurn; phone: boolean }) 
 
         {/* At the far end by the chevron: a clipped answer keeps the width it was squeezed to, so a
             qualifier right after it stood a ragged distance off the last word shown */}
-        <span className="ml-auto shrink-0 text-subtle">· {qualifier(t, phone)}</span>
+        {how && <span className="ml-auto shrink-0 text-subtle">· {how}</span>}
         <ChevronRight
           className={cn(
             "size-3.5 shrink-0 text-subtle transition-transform duration-150 group-hover/rec:text-foreground motion-reduce:transition-none",
+            !how && "ml-auto",
             open && "rotate-90"
           )}
           aria-hidden="true"
@@ -279,7 +280,7 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
       // As Practicum's quiz, the card steps out past the text column to 8px from the panel's edges
       // (the feed is inset 16px on a phone, 20px on a desktop), so the task reads apart from the reading,
       // and stands 40 under the text over it (15 of the reply's gap and 25 of its own)
-      className={cn("rounded-panel gradient-stroke shadow-[0_8px_24px_rgb(0_0_0/0.3)] outline-none [--stroke-fill:var(--card-ground)]", "mt-[25px]", phone ? "-mx-2 p-4 pb-[19px]" : "-mx-3 p-5 pb-[19px]")}
+      className={cn("rounded-panel gradient-stroke shadow-[0_8px_24px_rgb(0_0_0/0.3)] outline-none [--stroke-fill:var(--card-ground)]", "mt-[25px]", phone ? "p-4 pb-[19px]" : "p-5 pb-[19px]")}
     >
       {/* Practicum's quiz question, 18/26, a step over the 16px text before it: the question is what you
           answer, so it reads as the card's own title, not one more line of the explanation */}
@@ -373,7 +374,7 @@ export function AskCard({ turn, keys, busy, arriving, phone = false }: { turn: A
           build, and gone again after each build until the next edit */}
       {fixEdited && (
         <div className="mt-3 flex items-center gap-3 rounded-control bg-foreground/[0.04] py-2 pr-2 pl-3">
-          <p className="min-w-0 flex-1 text-caption text-muted-foreground">You changed lib.rs. Build it and the compiler checks your fix.</p>
+          <p className="min-w-0 flex-1 text-caption text-muted-foreground">You changed {LIB.split("/").pop()}. Build it and the compiler checks your fix.</p>
           <Button size="sm" variant="ghost" disabled={s.phase !== "idle"} className={cn("shrink-0", ACTION_SOFT)} onClick={() => dispatch({ type: "checkFix" })}>
             {s.phase === "building" ? "Building" : "Build"}
           </Button>

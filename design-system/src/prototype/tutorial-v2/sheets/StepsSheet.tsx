@@ -20,8 +20,8 @@ export function StepsSheet({ open, onClose, onPick, onStartOver }: { open: boole
       <DrawerContent className={SHEET}>
         <DrawerHeader className={SHEET_HEAD}>
           <DrawerTitle className={SHEET_TITLE}>{LESSON.card.name}</DrawerTitle>
-          {/* The caption size spelled as a length: the drawer's cn takes text-caption for a colour and drops it */}
-          <DrawerDescription className="text-(length:--text-caption) leading-(--text-caption--line-height) text-muted-foreground">
+          {/* For screen readers only: the glyphs already show what's done, and the header under the sheet says where you are */}
+          <DrawerDescription className="sr-only">
             {s.passed.filter(Boolean).length} of {STEPS.length} steps done. Tap one to read it again.
           </DrawerDescription>
         </DrawerHeader>
@@ -40,14 +40,12 @@ export function StepsSheet({ open, onClose, onPick, onStartOver }: { open: boole
                   onPick(i)
                   onClose()
                 }}
-                className={cn(row, "min-h-14 py-2 disabled:opacity-60", current && "bg-foreground/[0.06]")}
+                className={cn(row, "h-12 disabled:opacity-60", current && "bg-foreground/[0.06]")}
               >
                 {/* The kit's disc grey is the panel's own: lifted a step here so it shows */}
                 <StepGlyph i={i} done={done} current={current} className={current ? undefined : "bg-foreground/10"} />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-[0.9375rem] leading-[1.35] text-foreground">{step.title}</span>
-                  <span className="text-caption text-muted-foreground">{step.objective}</span>
-                </span>
+                {/* The title alone, as the desktop's steps menu lists it: the objective is the step's own heading in the chat */}
+                <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-foreground">{step.title}</span>
                 {(done || current) && <span className="shrink-0 text-caption text-muted-foreground">{done ? "Done" : "Now"}</span>}
               </button>
             )

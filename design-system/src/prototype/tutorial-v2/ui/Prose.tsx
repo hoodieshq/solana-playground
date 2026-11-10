@@ -5,8 +5,9 @@ import type { ReactNode } from "react"
 // brackets and address never flash on screen
 const LINK = /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s`]*[^\s`.,;:!?)])|(?<!#)\[([^\]]*)\]?\(?[^)\s]*$/
 
-/** The code chip's ground: darker than the surface under it, with a 1px ring inside */
-export const CHIP = "bg-black/35 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.18)]"
+/** The code chip's ground: darker than the surface under it, with a 1px ring inside. On paper a faint
+ * tint of the text with the border's ring, since black at 35% made the code unreadable there */
+export const CHIP = "bg-foreground/[0.06] shadow-[inset_0_0_0_1px_var(--border)] dark:bg-black/35 dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.18)]"
 
 const linkClass =
   "text-foreground underline decoration-foreground/40 underline-offset-[3px] transition-colors hover:decoration-foreground"

@@ -1,11 +1,30 @@
+import {
+  Anchor,
+  Axe,
+  Coins,
+  Compass,
+  Droplet,
+  GraduationCap,
+  Grid3x3,
+  Hand,
+  Hash,
+  Landmark,
+  ListChecks,
+  MapIcon,
+  MemoryStick,
+  Receipt,
+  Swords,
+  Vault,
+  Waves,
+  type LucideIcon,
+} from "lucide-react"
+
 import { cn } from "@/lib/utils"
 
-import { MARK_PATH } from "./brandGlyphs"
-
-/* A tutorial's cover in the brand, as client-v2 draws it (views/flow/gallery/TutorialCover.tsx): one
-   of the Styleguide's grounds and the mark in white on it, so a wall of them reads as one family and
-   each still differs. The ground says the framework; where the mark sits comes from the name. The
-   grounds' fields are the deck's (views/deck/Atmosphere.tsx), held still */
+/* A tutorial's cover in the brand, as client-v2 draws it: one of the Styleguide's grounds and the
+   lesson's icon in white on it, so a wall of them reads as one family and each still differs. The
+   ground says the framework, the icon the lesson. The grounds' fields are the deck's
+   (views/deck/Atmosphere.tsx), held still */
 
 type Ground = "haze" | "deep" | "explore" | "violet"
 type Field = { c: string; x: number; y: number; s: number; o?: number }
@@ -53,30 +72,69 @@ const FIELDS: Record<Ground, Field[]> = {
 
 const GROUND_BY_FRAMEWORK: Record<string, Ground> = { Anchor: "deep", Native: "explore", Seahorse: "violet" }
 
-/* Where the mark sits: the play triangle alone, or the whole mark. Each is a viewBox into the mark's
-   own 970 by 574 box, in a thumbnail's 4:3 */
-const PLACES = [
-  { box: "-428 -191 1275 956", play: true },
-  { box: "-152 -191 1275 956", play: false },
-]
+/* By level, for the gallery's sections (Almaz, 6 Nov, after the Programs covers): three clear steps
+   inside the tutorials' violets, a green lean for Beginner, blue for Intermediate, deep purple for
+   Advanced. The framework grounds above share one base and read as one colour side by side */
+const LEVEL_BEDS: Record<string, string> = { Beginner: "#7A5FE0", Intermediate: "#4C5FD6", Advanced: "#6A2FC4" }
+const LEVEL_FIELDS: Record<string, Field[]> = {
+  Beginner: FIELDS.explore,
+  Intermediate: [
+    { c: "#3FA9F5", x: 104, y: -6, s: 0.62 },
+    { c: "#2E3A9E", x: -4, y: 106, s: 0.66 },
+    { c: "#5A6CF0", x: 46, y: 54, s: 1.0 },
+    { c: "#7FB2F2", x: -6, y: -4, s: 0.58 },
+    { c: "#4A8BE0", x: 104, y: 70, s: 0.6 },
+    { c: "#2A2F86", x: 36, y: 108, s: 0.64 },
+  ],
+  Advanced: [
+    { c: "#C04BF0", x: 104, y: -6, s: 0.66 },
+    { c: "#2A1270", x: -4, y: 106, s: 0.72 },
+    { c: "#8A3BEA", x: 46, y: 52, s: 0.95 },
+    { c: "#B07CFB", x: -6, y: -6, s: 0.58 },
+    { c: "#9945FF", x: 104, y: 62, s: 0.62 },
+    { c: "#3A1A93", x: 36, y: 108, s: 0.66 },
+  ],
+}
 
-/** Where the triangle ends and the O begins, in the mark's box */
-const PLAY_WIDTH = 418
+/* What each lesson is about, drawn in the middle of its cover, as client-v2 draws it on
+   scope/interface-2 (entities/tutorial/ui/art/TutorialCover.tsx). A tutorial with no icon here, a new
+   one, gets the cap */
+const ICONS: Record<string, LucideIcon> = {
+  "Hello Anchor": Anchor,
+  "Hello Seahorse": Waves,
+  "Hello Solana": Hand,
+  "Bank Simulator": Landmark,
+  "Battle Coins": Coins,
+  "Boss Battle": Swords,
+  "Counter PDA Tutorial": Hash,
+  "Expense Tracker": Receipt,
+  "Faucet Seahorse": Droplet,
+  Lumberjack: Axe,
+  "Spl Token Vault": Vault,
+  "Tic-tac-toe Seahorse": Grid3x3,
+  "Tiny Adventure": MapIcon,
+  "Tiny Adventure Two": Compass,
+  "Todo App Seahorse": ListChecks,
+  "Zero Copy": MemoryStick,
+}
 
-/** A small stable number from the name, so a cover never changes on reload */
-const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
+/** A lesson's icon by the product's (upstream's) name; the banner draws the same one in voxels */
+export const tutorialIcon = (name: string) => ICONS[name] ?? GraduationCap
 
 const FIELD_FILL =
   "radial-gradient(closest-side, currentColor 0%, color-mix(in srgb, currentColor 72%, transparent) 30%, color-mix(in srgb, currentColor 34%, transparent) 60%, color-mix(in srgb, currentColor 10%, transparent) 82%, transparent 100%)"
 
 /** Decorative: the card's own text names the tutorial. `name` is the product's (upstream's) name,
- * which the mark's place is hashed from, so a cover matches the product's */
-export function TutorialCover({ name, framework, className }: { name: string; framework?: string; className?: string }) {
+ * which picks the icon, so a cover matches the product's */
+export function TutorialCover({ name, framework, level, className }: { name: string; framework?: string; level?: string; className?: string }) {
   const ground = GROUND_BY_FRAMEWORK[framework ?? ""] ?? "haze"
-  const place = PLACES[hash(name) % PLACES.length]
+  // A level, where the caller passes one, picks the ground instead of the framework
+  const bed = (level && LEVEL_BEDS[level]) || BEDS[ground]
+  const fields = (level && LEVEL_FIELDS[level]) || FIELDS[ground]
+  const Icon = tutorialIcon(name)
   return (
-    <span aria-hidden="true" style={{ backgroundColor: BEDS[ground] }} className={cn("relative block shrink-0 overflow-hidden text-white", className)}>
-      {FIELDS[ground].map((f, i) => (
+    <span aria-hidden="true" style={{ backgroundColor: bed }} className={cn("relative block shrink-0 overflow-hidden text-white", className)}>
+      {fields.map((f, i) => (
         <span
           key={i}
           className="absolute aspect-square w-full rounded-full"
@@ -90,15 +148,8 @@ export function TutorialCover({ name, framework, className }: { name: string; fr
           }}
         />
       ))}
-      <svg viewBox={place.box} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 size-full">
-        {place.play ? (
-          <svg x="0" y="-20" width={PLAY_WIDTH} height="620" overflow="hidden">
-            <path d={MARK_PATH} fill="currentColor" transform="translate(0 20)" />
-          </svg>
-        ) : (
-          <path d={MARK_PATH} fill="currentColor" />
-        )}
-      </svg>
+      {/* Half the tile, a touch lighter than lucide's stroke of 2 */}
+      <Icon strokeWidth={1.75} className="absolute inset-1/4 size-1/2" />
     </span>
   )
 }

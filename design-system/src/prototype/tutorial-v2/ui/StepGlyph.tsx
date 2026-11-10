@@ -1,6 +1,6 @@
+import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-import { NAV_ICONS } from "./navIcons"
 
 /** A step's mark in the phone's steps drawer, all in greys: its number on a grey disc, a lighter disc
  * while current, a check once done. `className` lets the drawer lift a disc off its grey panel */
@@ -15,7 +15,7 @@ export function StepGlyph({ i, done, current, className }: { i: number; done: bo
       )}
     >
       {/* Held at the box's size: a menu item sizes every bare icon to 16px, which pushed the check off centre */}
-      {done ? <span className="flex size-3 [&>svg]:size-full!">{NAV_ICONS.check}</span> : i + 1}
+      {done ? <span className="flex size-3 [&>svg]:size-full!"><Check aria-hidden="true" strokeWidth={3.25} className="size-full" /></span> : i + 1}
     </span>
   )
 }

@@ -6,11 +6,13 @@ import { PrototypeBar } from "./PrototypeBar"
 
 // An iPad Air held landscape, and its bezel: the screen inside is 1152 by 792
 const TABLET = { width: 1180, height: 820, bezel: 14 }
+// The same iPad held upright, sized so the screen inside is its real 820 by 1180
+const PORTRAIT = { width: 848, height: 1208, bezel: 14 }
 
 /** How much the tablet has to shrink to fit the window, never past its real size. The bar above
  * takes 40px and the frame keeps 24 clear all round */
-function useTabletScale() {
-  const fit = () => Math.min(1, (window.innerWidth - 48) / TABLET.width, (window.innerHeight - 88) / TABLET.height)
+function useTabletScale(size: typeof TABLET) {
+  const fit = () => Math.min(1, (window.innerWidth - 48) / size.width, (window.innerHeight - 88) / size.height)
   const [scale, setScale] = useState(fit)
   useEffect(() => {
     const onResize = () => setScale(fit())
@@ -25,14 +27,15 @@ function useTabletScale() {
  * an iPad Air held landscape (1180 by 820), shows the desktop screens, as the product gives a
  * tablet the full editor. The tablet always lays out at its real size and the whole device scales
  * down to fit, so a short window shows it smaller rather than as a narrower screen */
-export function DeviceFrame({ device }: { device: "phone" | "tablet" }) {
+export function DeviceFrame({ device }: { device: "phone" | "portrait" | "tablet" }) {
   const ref = useRef<HTMLIFrameElement>(null)
-  const scale = useTabletScale()
+  const size = device === "portrait" ? PORTRAIT : TABLET
+  const scale = useTabletScale(size)
   const reset = () => {
     resetStorage()
     ref.current?.contentWindow?.location.reload()
   }
-  const src = `${location.pathname}?embed${device === "tablet" ? "&view=tablet" : ""}${KEEP ? "&keep=1" : ""}`
+  const src = `${location.pathname}?embed${device === "phone" ? "" : `&view=${device}`}${KEEP ? "&keep=1" : ""}`
   return (
     <div className="flex h-dvh flex-col bg-surface-well text-foreground">
       <PrototypeBar onReset={reset} />
@@ -45,7 +48,7 @@ export function DeviceFrame({ device }: { device: "phone" | "tablet" }) {
               <span className="absolute top-2.5 left-1/2 h-[30px] w-[100px] -translate-x-1/2 rounded-full bg-black" />
             </div>
             <div className="relative min-h-0 flex-1">
-              <iframe ref={ref} title="Tutorial flow prototype" src={src} allow="clipboard-write" className="size-full border-0 bg-surface-base" />
+              <iframe ref={ref} title="Oak prototype" src={src} allow="clipboard-write" className="size-full border-0 bg-surface-base" />
               {/* The home indicator. The page keeps 34px clear for it, as on a real phone */}
               <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-[5px] w-[134px] -translate-x-1/2 rounded-full bg-foreground/80" />
             </div>
@@ -54,13 +57,16 @@ export function DeviceFrame({ device }: { device: "phone" | "tablet" }) {
           // The box takes the scaled size in the layout, the device inside is drawn at full size and
           // scaled into it. The bezel is even all round, with the camera on the long top edge, as an
           // iPad has it held landscape
-          <div style={{ width: TABLET.width * scale, height: TABLET.height * scale }} className="relative shrink-0">
+          <div style={{ width: size.width * scale, height: size.height * scale }} className="relative shrink-0">
             <div
-              style={{ width: TABLET.width, height: TABLET.height, transform: `scale(${scale})`, borderWidth: TABLET.bezel }}
-              className="absolute top-0 left-0 origin-top-left overflow-hidden rounded-[36px] border-surface-raised bg-surface-base shadow-modal"
+              style={{ width: size.width, height: size.height, transform: `scale(${scale})`, borderWidth: size.bezel }}
+              className="absolute top-0 left-0 flex origin-top-left flex-col overflow-hidden rounded-[36px] border-surface-raised bg-surface-base shadow-modal"
             >
               <span aria-hidden="true" className="absolute -top-[9px] left-1/2 z-10 size-[5px] -translate-x-1/2 rounded-full bg-black" />
-              <iframe ref={ref} title="Tutorial flow prototype" src={src} allow="clipboard-write" className="size-full border-0 bg-surface-base" />
+              {/* What an iPad keeps above the page for its status bar, 24pt, as the phone keeps its 50.
+                  Left empty: no clock or icons to draw the eye */}
+              <div aria-hidden="true" className="h-6 shrink-0" />
+              <iframe ref={ref} title="Oak prototype" src={src} allow="clipboard-write" className="min-h-0 w-full flex-1 border-0 bg-surface-base" />
               {/* The home indicator, over the 20px the screens keep clear for it */}
               <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-[5px] w-[160px] -translate-x-1/2 rounded-full bg-foreground/60" />
             </div>

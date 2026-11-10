@@ -3,8 +3,11 @@ import { ArrowDown, ArrowUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+import { BEATS } from "../data"
+import type { Ask } from "../lessons/types"
 import { liveCard, useStore, type Turn } from "../store"
 import { on } from "./events"
+import { Journal } from "./Journal"
 import { LOADED_AT, reducedMotion } from "./type"
 import { ActCard } from "./turns/ActCard"
 import { ApplyCard } from "./turns/ApplyCard"
@@ -30,17 +33,42 @@ type Group = { kind: "assistant"; turns: Turn[] } | { kind: "you"; turn: Turn } 
 /** Consecutive assistant turns share one head, as a chat groups them; a divider or your pill ends a group */
 function groups(thread: Turn[]): Group[] {
   const out: Group[] = []
-  for (const t of thread) {
+  // The last question answered right and the option it took: that pick already shows in the folded
+  // question, so its pill isn't repeated, even with a hint asked for in between
+  let picked: string | null = null
+  thread.forEach((t) => {
     // Once started the header names the tutorial, so the folded intro isn't shown
-    if (t.kind === "intro" && t.done) continue
+    if (t.kind === "intro" && t.done) return
+    if (t.kind === "ask") {
+      const ask = BEATS[t.beat] as Ask | undefined
+      picked = t.done === "right" && ask ? ask.options[ask.answer] : null
+    }
+    if (t.kind === "you" && picked !== null && t.text === picked) {
+      picked = null
+      return
+    }
     if (t.kind === "you" || t.kind === "anchor") {
       out.push({ kind: t.kind, turn: t })
-      continue
+      return
     }
     const last = out[out.length - 1]
     if (last?.kind === "assistant") last.turns.push(t)
     else out.push({ kind: "assistant", turns: [t] })
-  }
+  })
+  return out
+}
+
+/** A result that went through: these share the journal's box. A failure stands as its own card */
+const journaled = (t: Turn) => t.kind === "result" && t.ok
+
+/** A reply's turns with the results that follow each other gathered, each with where it starts */
+function runs(turns: Turn[]) {
+  const out: { ts: Turn[]; i: number }[] = []
+  turns.forEach((t, i) => {
+    const last = out[out.length - 1]
+    if (last && journaled(t) && journaled(last.ts[0])) last.ts.push(t)
+    else out.push({ ts: [t], i })
+  })
   return out
 }
 
@@ -274,10 +302,10 @@ export function Conversation({
   const feed = chat.filter(
     (t, i) => !(t.kind === "act" && t.state === "done" && !t.grows?.length && !t.chops?.length && chat[i + 1]?.kind === "result")
   )
-  // The latest run that came back: a transaction, or a client that read its account back. Older ones
-  // fold to their head. Builds and deploys don't count
-  const lastTx = [...feed].reverse().find((t) => t.kind === "result" && t.ok && (!!t.tx || t.act === "run"))?.id
-  const latestOfKind = (t: Turn) => t.kind === "result" && t.id === lastTx
+  // What a run printed stays out while nothing has come back after it. The finish counts, since it
+  // says the answer again; a win doesn't, so the answer stays over it
+  const tail = [...feed].reverse().find((t) => t.kind === "result" || t.kind === "finish")?.id
+  const latestOfKind = (t: Turn) => t.kind === "result" && t.id === tail
 
   const render = (t: Turn, fresh: boolean): ReactNode => {
     const keys = (k: typeof live) => live === k
@@ -344,11 +372,33 @@ export function Conversation({
                     what comes after it, as Practicum sets its code blocks. A quote or a card closes its text
                     the same way: at 15 a card under a quote read as stacked on it, and text after a card as
                     a caption to it */}
-                {g.turns.map((t, i) => (
-                  <Rise key={t.id} turn={t} className={cn(t.kind === "wrote" && i > 0 && "-mt-1.5", afterBlock(g.turns[i - 1], t) && "mt-[9px]")}>
-                    {(fresh) => render(t, fresh)}
-                  </Rise>
-                ))}
+                {runs(g.turns).map(({ ts, i }) => {
+                  const t = ts[0]
+                  const at = cn(t.kind === "wrote" && i > 0 && "-mt-1.5", afterBlock(g.turns[i - 1], t) && "mt-[9px]")
+                  // Results in a row share the journal's box: it rises with its first, a row added later
+                  // rises on its own
+                  return journaled(t) ? (
+                    <Rise key={t.id} turn={t} className={at}>
+                      {() => (
+                        <Journal>
+                          {ts.map((r, j) =>
+                            j === 0 ? (
+                              <div key={r.id}>{render(r, false)}</div>
+                            ) : (
+                              <Rise key={r.id} turn={r}>
+                                {(fresh) => render(r, fresh)}
+                              </Rise>
+                            )
+                          )}
+                        </Journal>
+                      )}
+                    </Rise>
+                  ) : (
+                    <Rise key={t.id} turn={t} className={at}>
+                      {(fresh) => render(t, fresh)}
+                    </Rise>
+                  )
+                })}
               </div>
             )
           )}

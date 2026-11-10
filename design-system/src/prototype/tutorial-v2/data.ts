@@ -1,4 +1,4 @@
-import { AIRDROP, CLIENT, DEPLOY_COST, LIB, NO_ID, UPGRADE_COST, WALLET, shortKey } from "./lessons/common"
+import { AIRDROP, CLIENT, DEPLOY_COST, LIB as RUST_LIB, NO_ID, UPGRADE_COST, WALLET, bytesOf, shortKey } from "./lessons/common"
 import { LESSONS } from "./lessons"
 import type { Act, ActBeat, Beat, Lesson, Step, TutorialCard, Tx } from "./lessons/types"
 
@@ -7,7 +7,7 @@ import type { Act, ActBeat, Beat, Lesson, Step, TutorialCard, Tx } from "./lesso
 // sets them before the store mounts, and every module that imported them reads the new lesson
 
 export * from "./lessons/types"
-export { AIRDROP, CLIENT, DEPLOY_COST, FAUCET_URL, LIB, NAME_MAX, NO_ID, TX_CONFIRMED, TX_FEE, UPGRADE_COST, WALLET, shortKey } from "./lessons/common"
+export { AIRDROP, CLIENT, DEPLOY_COST, FAUCET_URL, NAME_MAX, NO_ID, TX_CONFIRMED, TX_FEE, UPGRADE_COST, WALLET, bytesOf, shortKey } from "./lessons/common"
 
 export const thumb = (slug: string, ext: string) =>
   `${import.meta.env.BASE_URL}prototype/thumbs/${slug}.${ext}`
@@ -20,7 +20,7 @@ export const TUTORIALS: TutorialCard[] = [
   { slug: "tiny-adventure", name: "Tiny Adventure", level: "Beginner", framework: "Anchor", ext: "jpg" },
   { slug: "tiny-adventure-two", name: "Tiny Adventure Two", level: "Beginner", framework: "Anchor", ext: "jpg" },
   { slug: "expense-tracker", name: "Expense Tracker", level: "Beginner", framework: "Anchor", ext: "png" },
-  { slug: "tictactoe-seahorse", name: "Tictactoe Seahorse", level: "Beginner", framework: "Seahorse", ext: "jpg" },
+  { slug: "tictactoe-seahorse", name: "Tic-tac-toe Seahorse", level: "Beginner", framework: "Seahorse", ext: "jpg" },
   { slug: "todo-app-seahorse", name: "Todo App Seahorse", level: "Beginner", framework: "Seahorse", ext: "jpg" },
   { slug: "bank-simulator", name: "Bank Simulator", level: "Intermediate", framework: "Anchor", ext: "png" },
   { slug: "battle-coins", name: "Battle Coins", level: "Intermediate", framework: "Anchor", ext: "jpg" },
@@ -75,6 +75,8 @@ export let PROGRAM_ID = LESSON.programId
  * and any client find the interface from the program alone */
 export let IDL_ACCOUNT = LESSON.idlAccount
 export let TX_SIGNATURE = LESSON.txSignature
+/** The program's own file: `src/lib.rs`, or the lesson's `main` (a Seahorse lesson's Python) */
+export let LIB = LESSON.main ?? RUST_LIB
 /** The tutorial the finish points to: the next one of the lesson's level, if there is one */
 export let NEXT_TUTORIAL: TutorialCard | null = LESSON.next ? cardOf(LESSON.next) : null
 
@@ -100,6 +102,7 @@ export function openLesson(slug: string) {
   IDL_ACCOUNT = l.idlAccount
   TX_SIGNATURE = l.txSignature
   NEXT_TUTORIAL = l.next ? cardOf(l.next) : null
+  LIB = l.main ?? RUST_LIB
 }
 
 /** The step a beat belongs to */
@@ -108,7 +111,13 @@ export const stepOfBeat = (id: string) => STEPS.findIndex((s) => [...s.beats, ..
 /** The first act of a kind in the script: the card a nudge puts up again */
 export const firstAct = (...acts: Act[]) => STEPS.flatMap((s) => s.beats).find((b): b is ActBeat => b.kind === "act" && acts.includes(b.act))
 
-export const buildOk = () => ["$ anchor build", `Compiling ${LESSON.program} v0.1.0`, "Finished release [optimized] target(s) in 2.41s"]
+// A Seahorse build compiles the Python to Anchor first; a native one builds with cargo, no Anchor
+export const buildOk = () => [
+  ...(LESSON.card.framework === "Seahorse" ? ["$ seahorse build", `Compiling ${LIB.split("/").pop()} with Seahorse`, "Wrote the Anchor program in Rust"] : []),
+  LESSON.card.framework === "Native" ? "$ cargo build-sbf" : "$ anchor build",
+  `Compiling ${LESSON.program} v0.1.0`,
+  "Finished release [optimized] target(s) in 2.41s",
+]
 
 const units = (n: number) => n.toLocaleString("en-US")
 
@@ -117,9 +126,10 @@ const pascal = (name: string) => name.replace(/\(.*$/, "").replace(/(^|_)(\w)/g,
 
 /** The program's lines in a transaction's logs, as `solana confirm -v` prints them. A custom error
  * ends them the way Anchor does: the error's code, number and message, then the failure */
-export const programLog = (tx: Tx) => [
+export const programLog = (tx: Tx) => tx.log ?? [
   `Program ${shortKey(PROGRAM_ID)} invoke [1]`,
-  `Program log: Instruction: ${pascal(tx.instruction)}`,
+  // Anchor logs the instruction it dispatches to; a native program has no dispatcher to say it
+  ...(LESSON.card.framework === "Native" ? [] : [`Program log: Instruction: ${pascal(tx.instruction)}`]),
   ...(tx.inner ?? []),
   ...(tx.said ? [`Program log: ${tx.said}`] : []),
   ...(tx.error
@@ -145,10 +155,13 @@ export const clientLog = (tx: Tx, out: string[] = []) => [
 
 /** Calling hello with a name from the chat, written the way step 3's client calls it */
 export const callLog = (tx: Tx, name: string) => [
-  `$ pg.program.methods.hello(${JSON.stringify(name)}).rpc()`,
+  LESSON.raw ? rawCommand(name) : `$ pg.program.methods.hello(${JSON.stringify(name)}).rpc()`,
   "Sending transaction...",
   ...programLog(tx),
 ]
+
+/** An instruction sent by hand to a program with no IDL: its address and the data's bytes */
+export const rawCommand = (data: string) => `$ send ${shortKey(PROGRAM_ID)} --data ${bytesOf(data).replace(" · ", " (")})`
 
 /** A call from the Call panel, printed like any other call: the command, then the logs. Nothing is
  * tested here, so the terminal doesn't say so */
@@ -170,8 +183,7 @@ export const deployLog = (funded = false) => [
   "Writing buffer... 100%",
   `Deploying from ${shortKey(WALLET)} · ${DEPLOY_COST}`,
   `Program Id: ${PROGRAM_ID}`,
-  "Uploading IDL... 100%",
-  `IDL account: ${IDL_ACCOUNT}`,
+  ...(LESSON.raw ? [] : ["Uploading IDL... 100%", `IDL account: ${IDL_ACCOUNT}`]),
   "Deploy successful",
 ]
 
@@ -180,8 +192,7 @@ export const upgradeLog = () => [
   "Writing buffer... 100%",
   `Upgrading ${shortKey(PROGRAM_ID)} from ${shortKey(WALLET)} · ${UPGRADE_COST}`,
   `Program Id: ${PROGRAM_ID}`,
-  "Upgrading IDL... 100%",
-  `IDL account: ${IDL_ACCOUNT}`,
+  ...(LESSON.raw ? [] : ["Upgrading IDL... 100%", `IDL account: ${IDL_ACCOUNT}`]),
   "Upgrade successful",
 ]
 

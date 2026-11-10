@@ -1,0 +1,158 @@
+/* First Light's own tokens (research/new-project-redesign/CONSENSUS.md, 3.1). They live beside the
+   flow until they move into the design system. Plain CSS, not run through Tailwind: classes read them
+   as bg-(--np-peek), text-(color:--np-tag-ink) */
+:root {
+  --np-width: 55rem;
+  --np-rail: 13rem;
+  /* 372 as CONSENSUS 3.1 set it (Almaz, 10 Nov). With no Basics heading Example's fifth row sits half in
+     the fade at this height, so the list reads as one to scroll; a taller body showed it whole */
+  --np-body: 23.25rem;
+  --np-hover: color-mix(in srgb, var(--foreground) 4%, transparent);
+  --np-current: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --np-peek: var(--surface-raised);
+  --np-stroke: linear-gradient(120deg, #8a3ff5, #00a36c);
+  --np-track: linear-gradient(to bottom, #8a3ff5, #00a36c);
+  --np-tag-ink: #8a3ff5;
+  --np-shadow: 0 8px 28px rgb(0 0 0 / 0.12);
+  --np-warn-edge: color-mix(in srgb, var(--warning) 60%, transparent);
+  --np-check-glow: 0 2px 8px rgb(138 63 245 / 0.35);
+}
+.dark {
+  --np-peek: var(--card-ground);
+  --np-stroke: var(--gradient-product);
+  --np-track: linear-gradient(to bottom, #9945ff, #14f195);
+  --np-tag-ink: #c9a6ff;
+  --np-shadow: var(--shadow-modal-value);
+  --np-check-glow: 0 0 0 3px rgb(153 69 255 / 0.18), 0 0 14px rgb(153 69 255 / 0.55);
+}
+html.touch {
+  --np-body: 26.25rem;
+}
+
+.np-fade-right {
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+
+/* A card or row that can be picked: hover, pressed, focus. The lit ring is its own layer
+   (.np-ring) so it can fade in and out */
+.np-pickable {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background-color: var(--surface-panel);
+  transition:
+    border-color 160ms var(--ease-standard-value),
+    background-color 160ms var(--ease-standard-value);
+}
+html:not(.touch) .np-pickable:not([data-picked]):hover {
+  border-color: var(--border-strong);
+  background-color: color-mix(in srgb, var(--surface-panel), var(--foreground) 4%);
+  transition-duration: 100ms;
+}
+.np-pickable:active {
+  background-color: color-mix(in srgb, var(--surface-panel), var(--foreground) 8%);
+  transition: none;
+}
+.np-pickable[data-picked] {
+  border-color: transparent;
+}
+.np-pickable:focus-visible,
+.np-pickable:has(> [role="radio"]:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+.np-card:focus-visible {
+  outline-offset: 2px;
+}
+/* In the radio group focus follows the pick, so the lit ring already marks it: no second ring */
+.np-card[data-picked]:focus-visible {
+  outline: none;
+}
+
+/* A list row that can be picked: no box until hovered or picked, so a list reads as a list */
+.np-pickable.np-row:not([data-picked]) {
+  border-color: transparent;
+  background-color: transparent;
+}
+html:not(.touch) .np-pickable.np-row:not([data-picked]):hover {
+  border-color: transparent;
+  background-color: var(--np-hover);
+}
+
+/* The lit pick: the ring */
+.np-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--np-stroke);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms var(--ease-standard-value);
+}
+[data-picked] > .np-ring {
+  opacity: 1;
+}
+/* Create pressed: one sweep of light over the picked card's ring */
+.np-sweep {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.np-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--foreground) 10%, transparent), transparent);
+  animation: var(--animate-sweep);
+}
+
+/* The name and link fields in a problem: amber edge, no halo, over the DS's red aria-invalid */
+.np-field:has([aria-invalid="true"]) {
+  border-color: var(--np-warn-edge) !important;
+  box-shadow: none !important;
+}
+
+/* The busy primary: the beam keeps turning */
+.np-busy::after {
+  animation: brand-beam 1200ms var(--ease-move-value) infinite !important;
+}
+
+/* The checklist's connector fills from the top as its step finishes */
+.np-track {
+  transform: scaleY(0);
+  transform-origin: top;
+  background: var(--np-track);
+  transition: transform 220ms var(--ease-standard-value);
+}
+.np-track[data-done] {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-pickable,
+  .np-ring,
+  .np-track {
+    transition: none;
+  }
+  .np-sweep,
+  .np-busy::after {
+    display: none;
+  }
+}
+
+/* Tablet 1152: the dialog's close takes a finger */
+html.touch .np-dialog [data-slot="modal-header"] > button {
+  width: 44px;
+  height: 44px;
+}

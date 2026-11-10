@@ -25,6 +25,12 @@ const TYPES: Record<string, string> = { String: "string", bool: "bool", u8: "u8"
  * reads what was deployed, never the file being typed */
 export function idlOf(lib: string): Idl {
   const code = uncomment(straightQuotes(lib))
+  const meta = { name: LESSON.program, version: "0.1.0", spec: "0.1.0", description: "Created with Anchor" }
+  // A native program writes no IDL: the one function every call lands in stands for it, with nothing to fill
+  if (LESSON.raw) return { address: PROGRAM_ID, metadata: meta, instructions: [{ name: LESSON.raw.ix, discriminator: [], accounts: [], args: [] }] }
+  // Seahorse writes the IDL of the Anchor program it makes: one instruction per `@instruction` function
+  const py = pythonInstructions(code)
+  if (py.length) return { address: PROGRAM_ID, metadata: meta, instructions: py }
   // The module runs from `#[program]` to the first item after it that sits at the left edge
   const from = code.indexOf("#[program]")
   const body = from === -1 ? code : code.slice(from, from + Math.max(0, code.slice(from).search(/\n\}/)) + 2)
@@ -49,6 +55,28 @@ export function idlOf(lib: string): Idl {
   }
 }
 
+// The account types a Seahorse parameter can have, besides the program's own `Account` classes. A
+// parameter of one of them is an account the call passes, not an argument in its data
+const PY_ACCOUNTS = ["Signer", "Empty", "UncheckedAccount", "TokenAccount", "TokenMint", "AssociatedTokenAccount", "Program", "PriceAccount", "Clock"]
+// Python's names for the types a Seahorse argument can take, as the IDL spells them
+const PY_TYPES: Record<string, string> = { str: "string", bool: "bool", f64: "f64", Pubkey: "pubkey" }
+
+/** A Seahorse program's instructions, read off the Python: each `@instruction` function, and of its
+ * typed parameters the ones that aren't accounts */
+function pythonInstructions(code: string): IdlIx[] {
+  const accounts = new Set([...PY_ACCOUNTS, ...[...code.matchAll(/class\s+(\w+)\s*\(\s*Account\s*\)/g)].map((m) => m[1])])
+  return [...code.matchAll(/@instruction\s*\n\s*def\s+(\w+)\s*\(([^)]*)\)/g)].map(([, name, sig]) => ({
+    name,
+    discriminator: DISCRIMINATORS[name] ?? [0, 0, 0, 0, 0, 0, 0, 0],
+    accounts: [] as never[],
+    args: sig
+      .split(",")
+      .map((p) => p.split(":").map((x) => x.trim()))
+      .filter(([name, type]) => name && type && !accounts.has(type.replace(/\[.*$/, "")))
+      .map(([name, type]) => ({ name, type: PY_TYPES[type] ?? type.toLowerCase() })),
+  }))
+}
+
 /** The first instruction's arguments in the program as deployed, or none before any deploy */
 export const deployedArgs = (deployed: string | null): IdlArg[] => (deployed === null ? [] : idlOf(deployed).instructions[0].args)
 
@@ -60,6 +88,7 @@ const named = (ix: IdlIx) => `${ix.name}${ix.args.length ? signature(ix.args) : 
 
 /** What a build says about the IDL it wrote: `IDL: 2 instructions · init_player, chop_tree` */
 export function idlLine(lib: string) {
+  if (LESSON.raw) return LESSON.raw.line(lib)
   const ixs = idlOf(lib).instructions
   return `IDL: ${ixs.length} instruction${ixs.length === 1 ? "" : "s"} · ${ixs.map(named).join(", ")}`
 }

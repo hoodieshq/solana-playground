@@ -6,7 +6,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 import { sameCode } from "../../check"
-import { BEATS, LIB, shortKey, type Act, type ActBeat, type Chop, type Grow } from "../../data"
+import { BEATS, LESSON, LIB, bytesOf, shortKey, type Act, type ActBeat, type Chop, type Grow } from "../../data"
 import { flashKeys } from "../../desktop/flash"
 import { PRIMARY_KEYS } from "../../desktop/keys"
 import { stageMs, useStore, type State, type Turn } from "../../store"
@@ -14,7 +14,8 @@ import { NameField } from "../NameField"
 import { LiveMemory, MemoryCard } from "../MemoryCard"
 import { clock, LivePlayer } from "../PlayerCard"
 import { Prose } from "../Prose"
-import { ACTION, ACTION_SOFT, PHONE_CTA, READ_CODE, secs } from "../type"
+import { ACTION, ACTION_SOFT, PHONE_CTA, PHONE_STACK, READ_CODE, secs } from "../type"
+import { MoveCard } from "./MoveCard"
 
 type ActTurn = Extract<Turn, { kind: "act" }>
 
@@ -27,6 +28,7 @@ const ICON: Record<Act, LucideIcon> = {
   chop: Axe,
   grow: Expand,
   send: SquarePlus,
+  move: SquarePlus,
 }
 
 /** A send's icon by what it does: one that writes into the account paints, the rest create one */
@@ -82,6 +84,12 @@ export function actRecord(turn: ActTurn) {
     }
     case "send":
       return (BEATS[turn.beat] as ActBeat).record ?? `Sent ${(BEATS[turn.beat] as ActBeat).ix} in ${t}`
+    case "move": {
+      const sends = turn.sends ?? []
+      const ok = sends.filter((x) => x.ok).length
+      const no = sends.length - ok
+      return [(BEATS[turn.beat] as ActBeat).record ?? (BEATS[turn.beat] as ActBeat).title, `${ok} sent`, no > 0 && `${no} refused`].filter(Boolean).join(" · ")
+    }
   }
 }
 
@@ -121,7 +129,7 @@ function ChopRow({ c }: { c: Chop }) {
 
 /** The run's progress along the card's foot: a stage at a time, each filling its share over the
  * time it takes, so a deploy reads 1 of 3, 2 of 3, 3 of 3. Determinate: the stages are known */
-function RunBar({ stage, stages }: { stage: number; stages: string[] }) {
+export function RunBar({ stage, stages }: { stage: number; stages: string[] }) {
   const n = stages.length
   const [to, setTo] = useState(stage / n)
   useEffect(() => {
@@ -147,6 +155,12 @@ function RunBar({ stage, stages }: { stage: number; stages: string[] }) {
  * line, with no button, ever. The call carries the name field on a second row. On a phone the button
  * goes full width under the text, 48px, and the card takes the question card's inset and title size */
 export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
+  // A records lesson's move card, and its send card that takes fields, have a shape of their own
+  if (turn.act === "move" || (turn.act === "send" && !!(BEATS[turn.beat] as ActBeat).fields)) return <MoveCard turn={turn} phone={phone} />
+  return <OneAct turn={turn} phone={phone} />
+}
+
+function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
   const { s, dispatch } = useStore()
 
   // Chop until out of energy, Grow until out of memory: once you've made the move by hand, the rest go
@@ -194,7 +208,6 @@ export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolea
   }
 
   const words = actWords(s, turn)
-  const Icon = iconOf(turn)
   // The zero copy map grows to a size, not to the heap's end: its card ends at 40 KB
   const big = turn.act === "grow" && (BEATS[turn.beat] as ActBeat).ix === "grow_big"
   const running = turn.state === "running"
@@ -227,8 +240,6 @@ export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolea
     </span>
   ) : turn.state === "interrupted" ? (
     <span className="text-warning-ink">Interrupted by a reload. Run it again.</span>
-  ) : call && empty ? (
-    "Type any name"
   ) : (
     <Prose text={words.context} {...READ_CODE} small />
   )
@@ -259,21 +270,12 @@ export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolea
       className={cn(
         "relative mt-[25px] flex gap-3 overflow-hidden rounded-panel border border-border bg-(--card-ground) p-4",
         call || chop || phone ? "flex-col items-stretch" : "flex-wrap items-center",
-        phone ? "-mx-2 gap-4" : "-mx-3"
+        // As wide as every other card in the feed: it stood 12px out each side (Almaz, 6 Nov)
+        phone && "gap-4"
       )}
     >
-      {/* The icon's top on the title's: centred on the block, it slid down between title and words as soon
-          as the words took a second line, and held on to neither */}
+      {/* No icon tile: the title and the button already name the act */}
       <div className={cn("flex min-w-0 items-start gap-3", call || chop || phone ? "flex-1" : "grow-[999] basis-60")}>
-        <span
-          aria-hidden="true"
-          className={cn(
-            "grid size-8 shrink-0 place-items-center rounded-lg transition-colors duration-150 [&>svg]:size-4",
-            running ? "bg-surface-hover text-foreground" : "bg-surface-raised text-muted-foreground"
-          )}
-        >
-          <Icon />
-        </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{words.title}</span>
           <span role={run ? "status" : undefined} className="text-[0.875rem] leading-5 text-muted-foreground">
@@ -301,7 +303,7 @@ export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolea
       )}
       {!call && !untilOut && button}
       {untilOut && (
-        <div className={cn("flex gap-2", phone ? "flex-col items-stretch" : "flex-wrap items-center")}>
+        <div className={cn("flex gap-2", phone ? PHONE_STACK : "flex-wrap items-center")}>
           {button}
           <Button
             size="lg"
@@ -314,11 +316,17 @@ export function ActCard({ turn, phone = false }: { turn: ActTurn; phone?: boolea
         </div>
       )}
       {call && (
-        <div className={cn("flex gap-2", phone ? "flex-col items-stretch" : "items-center")}>
+        <div className={cn("flex gap-2", phone ? PHONE_STACK : "items-center")}>
           {/* flex-1 in the phone's column took the field down to its text's height, so there it's sized outright */}
-          <NameField className={phone ? "h-12" : "h-9 flex-1"} onEnter={go} phone={phone} />
+          <NameField className={phone ? "h-12 [html.portrait_&]:flex-1" : "h-9 flex-1"} onEnter={go} phone={phone} />
           {button}
         </div>
+      )}
+      {/* A program with no IDL gets the name as bytes: the card shows them as they'll travel */}
+      {call && LESSON.raw && (
+        <p aria-live="polite" className="-mt-1 font-mono text-[0.75rem] leading-5 text-muted-foreground">
+          data: {bytesOf(s.draft.trim())}
+        </p>
       )}
       {run && <RunBar key={run.at} stage={run.stage} stages={run.stages} />}
     </div>

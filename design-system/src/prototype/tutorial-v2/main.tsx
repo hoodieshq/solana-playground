@@ -14,7 +14,9 @@ import { resetStorage } from "./store"
 import { DECK, view } from "./view"
 import { PrototypeBar } from "./PrototypeBar"
 
-const embedded = window.self !== window.top || new URLSearchParams(location.search).has("embed")
+// A review board's pane (?board) is a frame that shows the page as a window of its own
+const board = new URLSearchParams(location.search).has("board")
+const embedded = (window.self !== window.top && !board) || new URLSearchParams(location.search).has("embed")
 const wide = window.matchMedia("(min-width: 600px)").matches
 
 // iOS zooms the page in on any field set under 16px. Capping the scale stops that, and iOS still
@@ -40,7 +42,7 @@ if (desktop) {
 }
 
 // The device frame's page has no lesson of its own: its tab names the one the frame opens
-document.title = `${LESSONS[firstLesson()].card.name} · Playground prototype v2`
+document.title = `${LESSONS[firstLesson()].card.name} · Oak`
 
 const resetDesktop = () => {
   resetStorage()
@@ -51,6 +53,15 @@ const resetDesktop = () => {
 // desktop screen when the address asks for it. Inside the tablet's frame the page draws the desktop
 // screens, filling the frame
 const inTablet = embedded && view === "tablet"
+
+// A tablet held upright, 768 to 1023 wide: too narrow for the chat beside the code, so it gets the
+// phone's screens at its own width (html.portrait in prototype.css keeps the chat to a reading measure)
+if (embedded && view === "portrait") document.documentElement.classList.add("portrait")
+
+// A tablet gets the desktop screens from 1024 (an iPad Pro upright, any iPad held landscape), but under a
+// finger. html.touch gives their small controls a finger's 44 (prototype.css); the framed tablet is one
+// too, though it's drawn on a Mac
+if (inTablet || window.matchMedia("(pointer: coarse)").matches) document.documentElement.classList.add("touch")
 
 // The phone app: its type floor and its taller head hang off this class (prototype.css), so the
 // desktop screens never see them
@@ -87,7 +98,7 @@ createRoot(document.getElementById("root")!).render(
           </div>
         </div>
       ) : (
-        <DeviceFrame device={view === "tablet" ? "tablet" : "phone"} />
+        <DeviceFrame device={view === "tablet" || view === "portrait" ? view : "phone"} />
       )
     ) : (
       <LessonHost>

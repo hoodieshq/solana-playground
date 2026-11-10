@@ -1,4 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from "react";
+import { Axe, Coins, Compass, Swords, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -190,22 +191,108 @@ interface Mark {
   minB: number;
   maxB: number;
   maxDist: number;
+  /** How much larger than the banner's own fit it is drawn */
+  scale: number;
+  top?: number;
 }
 
-const buildMark = (): Mark | null => {
+/** What gets sampled into cells: its grid, how to paint it, where the ripple leaves from (shares of
+ * the grid) and how much larger than the banner's fit it is drawn */
+interface Source {
+  cols: number;
+  rows: number;
+  paint: (g: CanvasRenderingContext2D, w: number, h: number) => void;
+  origin: [number, number];
+  scale: number;
+  /** Laid with its top away to the back left instead of the back right */
+  turn?: boolean;
+  /** Share of the banner's height its middle sits at, where it starts right of the words instead of
+   * being pushed against the right edge */
+  top?: number;
+}
+
+const MARK_SOURCE: Source = {
+  cols: COLS,
+  rows: ROWS,
+  paint: (g, w, h) => {
+    g.scale(w / 970, h / 574);
+    g.fill(new Path2D(MARK_PATH));
+  },
+  origin: [0.2, 0.5],
+  scale: MARK_SCALE,
+};
+
+/* A lesson's icon in place of the mark: one cell per unit of lucide's 24 box, so its 2 wide strokes
+   come out two tiles wide. Drawn smaller than the mark, a bit of it still runs off the banner */
+export const ICON_CELLS = 24;
+const ICON_STROKE = 2;
+export const ICON_SCALE = 2;
+const ICON_TURN = true;
+/** Share of the banner's width the icon's leftmost tile starts at, right of the words: it is whole
+   there and runs off the right, top and bottom edges only */
+export const ICON_LEFT = 0.44;
+/** Share of the banner's height the icon's middle sits at */
+const ICON_TOP = 0.42;
+
+/** Per icon, for both banners: degrees it's turned, so its long axis leans to the top left as the
+ * anchor's does, and the share of its box it's drawn at. At twice the fit an icon runs off the top, the
+ * bottom and the right; one whose telling part sits there is drawn smaller, so the part shows (Almaz,
+ * 10 Nov). Off the square a diagonal is longer than the box, so a turned one is smaller too; the compass
+ * is a circle and keeps its size */
+const ICON_TUNE = new Map<LucideIcon, [number, number]>([
+  [Axe, [-45, 0.72]],
+  [Coins, [-45, 0.85]],
+  [Compass, [45, 1]],
+  [Swords, [45, 0.9]],
+]);
+
+/** Paints a banner's icon into the sampling box, turned and sized as ICON_TUNE says */
+export const paintIcon = (g: CanvasRenderingContext2D, img: HTMLImageElement, w: number, h: number, Icon?: LucideIcon) => {
+  const [turnBy, fit] = (Icon && ICON_TUNE.get(Icon)) || [0, 1];
+  g.translate(w / 2, h / 2);
+  g.rotate((turnBy * Math.PI) / 180);
+  g.drawImage(img, (-w * fit) / 2, (-h * fit) / 2, w * fit, h * fit);
+};
+
+const iconSource = (img: HTMLImageElement, Icon?: LucideIcon): Source => ({
+  cols: ICON_CELLS,
+  rows: ICON_CELLS,
+  paint: (g, w, h) => paintIcon(g, img, w, h, Icon),
+  origin: [0.5, 0.5],
+  scale: ICON_SCALE,
+  turn: ICON_TURN,
+  top: ICON_TOP,
+});
+
+/** The rendered icon's svg as a picture, drawn in black at the sampling size */
+export const loadIcon = (svg: SVGSVGElement, size: number) => {
+  const copy = svg.cloneNode(true) as SVGSVGElement;
+  copy.removeAttribute("class");
+  copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  copy.setAttribute("width", String(size));
+  copy.setAttribute("height", String(size));
+  copy.setAttribute("stroke", "#000");
+  copy.setAttribute("stroke-width", String(ICON_STROKE));
+  const img = new Image();
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(copy.outerHTML)}`;
+  return img.decode().then(() => img);
+};
+
+const buildMark = (src: Source): Mark | null => {
   const SS = 4;
+  const COLS = src.cols;
+  const ROWS = src.rows;
   const c = document.createElement("canvas");
   c.width = COLS * SS;
   c.height = ROWS * SS;
   const g = c.getContext("2d");
   if (!g) return null;
-  g.scale(c.width / 970, c.height / 574);
-  g.fill(new Path2D(MARK_PATH));
+  src.paint(g, c.width, c.height);
   const data = g.getImageData(0, 0, c.width, c.height).data;
 
   // The mark lies on the floor with its top edge away from the viewer, so it
   // reads from the triangle at the top left down to the ring at the bottom right
-  const world = (u: number, v: number) => ({ x: u, z: v });
+  const world = (u: number, v: number) => (src.turn ? { x: v, z: COLS - 1 - u } : { x: u, z: v });
 
   const cells: { x: number; z: number }[] = [];
   for (let v = 0; v < ROWS; v++) {
@@ -238,6 +325,8 @@ const buildMark = (): Mark | null => {
     minB: Infinity,
     maxB: -Infinity,
     maxDist: 0,
+    scale: src.scale,
+    top: src.top,
   };
   cells.forEach(({ x, z }, i) => {
     const a = x - z;
@@ -252,8 +341,8 @@ const buildMark = (): Mark | null => {
     mark.maxB = Math.max(mark.maxB, b);
   });
 
-  // The ripple leaves from the middle of the play triangle
-  const origin = world(COLS * 0.2, ROWS * 0.5);
+  // The ripple leaves from the middle of the play triangle, or of the icon
+  const origin = world(COLS * src.origin[0], ROWS * src.origin[1]);
   const spanA = mark.maxA - mark.minA || 1;
   const spanB = mark.maxB - mark.minB || 1;
   for (let i = 0; i < count; i++) {
@@ -553,7 +642,7 @@ const buildScene = (
       break;
     }
   }
-  cell = corner ? CORNER_CELL : cell * MARK_SCALE;
+  cell = corner ? CORNER_CELL : cell * mark.scale;
   const step = 2 * Math.round((cell * dpr) / 2);
   const gap = Math.max(2, 2 * Math.round(step * TILE_GAP));
   const w = step - gap;
@@ -566,12 +655,16 @@ const buildScene = (
   const artH = (spanB * step) / 2 + h0 + w;
   const left = corner
     ? width * 0.4
+    : mark.top !== undefined
+    ? width * ICON_LEFT
     : Math.max(width * ART_LEFT, width + artW * 0.03 - artW);
   // Larger than the banner, it is centred on it and runs off both edges; in
   // the corner it hangs from the top, a third of it above the frame
   const top = corner
     ? -artH * 0.32
-    : MARK_SCALE > 1
+    : mark.top !== undefined
+    ? height * mark.top - artH / 2
+    : mark.scale > 1
     ? (height - artH) / 2 + height * 0.05
     : Math.max(14 * dpr, (height - artH) / 2 + height * 0.05);
   const ox = Math.round(left + w - mark.minA * step);
@@ -604,20 +697,39 @@ const buildScene = (
 export function IsoVoxels({
   className,
   corner = false,
+  icon: Icon,
 }: {
   className?: string;
   /** Hung from the top right corner, for a banner the words fill across */
   corner?: boolean;
+  /** A lesson's icon to lay down in place of the mark */
+  icon?: LucideIcon;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const iconRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     const root = rootRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    const mark = buildMark();
-    if (!root || !canvas || !ctx || !mark || mark.count === 0) return;
+    if (!root || !canvas || !ctx) return;
+    let stop: (() => void) | undefined;
+    let gone = false;
+    const begin = (mark: Mark | null) => {
+      if (!gone && mark && mark.count > 0) stop = run(root, canvas, ctx, mark);
+    };
+    // The icon is a picture to load first; the mark is a path, drawn at once
+    const svg = iconRef.current;
+    if (svg) loadIcon(svg, ICON_CELLS * 4).then((img) => begin(buildMark(iconSource(img, Icon))), () => {});
+    else begin(buildMark(MARK_SOURCE));
+    return () => {
+      gone = true;
+      stop?.();
+    };
+  }, [corner, Icon]);
+
+  function run(root: HTMLDivElement, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, mark: Mark) {
     const host = root.parentElement;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -809,16 +921,19 @@ export function IsoVoxels({
       raf = 0;
       scene = null;
     };
-  }, [corner]);
+  }
 
   return (
     <div
       ref={rootRef}
       aria-hidden="true"
-      style={corner ? CORNER_MASK : SIDE_MASK}
+      // The icon keeps clear of the words on its own, so it isn't faded out towards them
+      style={corner ? CORNER_MASK : Icon ? undefined : SIDE_MASK}
       className={cn("pointer-events-none absolute inset-0", className)}
     >
       <canvas ref={canvasRef} className="block size-full" />
+      {/* Never shown: the effect reads its svg to sample it */}
+      {Icon && <Icon ref={iconRef} className="hidden" />}
     </div>
   );
 }

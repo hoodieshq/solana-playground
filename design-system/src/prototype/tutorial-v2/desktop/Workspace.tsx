@@ -4,6 +4,7 @@ import { ConsoleDrawer, ConsoleDrawerBar, ConsoleDrawerContent, ConsoleDrawerSta
 
 import { CLIENT, LESSON, LIB } from "../data"
 import { landingFor } from "../landing"
+import { useWalletDesign } from "../navStates"
 import { useStore } from "../store"
 import { Editor } from "./Editor"
 import { DockedTree } from "./FileTree"
@@ -11,6 +12,7 @@ import { flashKeys } from "./flash"
 import { TERMINAL_KEYS } from "./keys"
 import { TerminalBody, TerminalStatus } from "./Terminal"
 import { TestPane } from "./TestPane"
+import { WalletChip } from "./WalletChip"
 import { WorkspaceTabs } from "./WorkspaceTabs"
 
 /** The terminal's height: dragged by its top edge between 120 and 60% of the workspace */
@@ -42,14 +44,16 @@ function useDrawerHeight(box: React.RefObject<HTMLElement | null>) {
  * screen. Before Start it shows the finished program, read only (D3): the head says so */
 export function Workspace({ treeOpen, onTree }: { treeOpen: boolean; onTree: (open: boolean) => void }) {
   const { s, dispatch } = useStore()
+  const wallet = useWalletDesign()
   const box = useRef<HTMLElement>(null)
   const drawer = useDrawerHeight(box)
-  // Wide enough to dock the tree beside the editor
+  // Wide enough to dock the tree beside the editor: 900, as the Programs workspace, so beside the chat
+  // at 1440 the arrow opens the tree as a block, not a popover (Almaz, 6 Nov)
   const [wide, setWide] = useState(true)
   useEffect(() => {
     const el = box.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => setWide(e.contentRect.width >= 1100 && !(window.self !== window.top)))
+    const ro = new ResizeObserver(([e]) => setWide(e.contentRect.width >= 900 && !(window.self !== window.top)))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
@@ -98,7 +102,8 @@ export function Workspace({ treeOpen, onTree }: { treeOpen: boolean; onTree: (op
             key={file}
             code={code}
             onChange={(next) => dispatch({ type: "edit", file, code: next })}
-            readOnly={preview}
+            // The file a build writes, the Rust Seahorse made, is only read
+            readOnly={preview || file === LESSON.generated?.file}
             busy={busy}
             error={error ? { line: error.line, column: error.column, span: error.span } : null}
             lit={!!error && linked?.from === "log" && linked.line === error.line}
@@ -107,7 +112,7 @@ export function Workspace({ treeOpen, onTree }: { treeOpen: boolean; onTree: (op
             arrive={lit?.at ?? 0}
             landing={preview ? null : landingFor(s, file)}
             placeholder={file === CLIENT && !code ? "The assistant writes the call here, or type it yourself" : undefined}
-            label={`${file}, ${preview ? "read only" : "editable"}`}
+            label={`${file}, ${preview || file === LESSON.generated?.file ? "read only" : "editable"}`}
             jump={preview ? null : (jumpFrom ?? null)}
           />
         )}
@@ -118,6 +123,8 @@ export function Workspace({ treeOpen, onTree }: { treeOpen: boolean; onTree: (op
           <ConsoleDrawerStatus className="flex-1">
             <TerminalStatus />
           </ConsoleDrawerStatus>
+          {/* A new wallet holds 0 SOL; the first deploy airdrops 5 and spends about 1.27 of it */}
+          {wallet === "after" && <WalletChip sol={!s.funded ? 0 : s.deployedLib === null ? 5 : 3.73} />}
         </ConsoleDrawerBar>
         <ConsoleDrawerContent style={{ height: s.terminal ? drawer.h : 0 }} className="relative overscroll-contain">
           {/* The top edge drags: 9px to grab, the hairline lights while held */}

@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils"
 
 import { cardOf, useFeatured, useOpenTutorial, useProgress } from "../host"
 import { LESSONS } from "../lessons"
+import { CATALOG, upstreamName } from "./catalog"
 import { IsoVoxels } from "./IsoVoxels"
+import { tutorialIcon } from "./TutorialCover"
 
 /** What the banner says in each state, the same on every size */
 function useBanner() {
@@ -36,7 +38,11 @@ function useBanner() {
   // The one after it on the ladder; one the prototype doesn't run says so, as the gallery's cards do
   const nextCard = lesson.next ? cardOf(lesson.next) : null
   const next = () => lesson.next && openTutorial(lesson.next)
-  return { lesson, steps: STEPS.length, nextCard, finished, started, fresh, done, label, line, open, go, next }
+  // The art is the icon of the tutorial the banner is about, finished too: under "Completed · Hello
+  // Anchor" the next one's mark read as the wrong picture (Almaz, 10 Nov)
+  const shown = CATALOG.find((t) => t.slug === slug)
+  const icon = tutorialIcon(shown ? upstreamName(shown) : lesson.card.name)
+  return { lesson, steps: STEPS.length, nextCard, finished, started, fresh, done, label, line, open, go, next, icon }
 }
 
 /** The second action beside the main button: words and an arrow, no box. Its box is a button's
@@ -110,7 +116,7 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
       className="relative isolate mb-4 overflow-hidden rounded-card border border-border"
     >
       <style>{BEAM_CSS}</style>
-      <IsoVoxels corner={!wide} />
+      <IsoVoxels corner={!wide} icon={b.icon} />
       <div className={cn("relative", phone ? "p-5" : "p-7")}>
         {/* The words keep to where the sculpture has faded out, about the left 42% of a wide banner */}
         <div className="max-w-[19rem] min-w-0">
@@ -134,23 +140,18 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
                   style={{ width: `${(b.done / b.steps) * 100}%` }}
                 />
               </span>
-              <span className="text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">
-                {b.done} of {b.steps}
-              </span>
             </div>
           ) : (
             !b.finished && (
               <p className="mt-3 text-[0.75rem] leading-4 font-[380] text-muted-foreground/80 tabular-nums">
-                {/* The phone's column takes the facts that decide a start; the framework and the author are on the card below */}
-                {phone
-                  ? `${b.lesson.card.level} · ${b.steps} steps · ${b.lesson.minutes} min`
-                  : `${b.lesson.minutes} min · ${b.steps} steps · ${b.lesson.card.level} · ${b.lesson.card.framework} · by ${b.lesson.by}`}
+                {/* Only the facts that decide a start; the framework is on the card below */}
+                {`${b.lesson.card.level} · ${b.steps} steps · ${b.lesson.minutes} min`}
               </p>
             )
           )}
           {/* On the phone the main button takes the card's width, a thumb's 48, as every phone call to action
               does. Only the main one: Open again stretched to a 48 row left a blank band under its words */}
-          <div className={cn("mt-6 flex flex-wrap items-center gap-x-4 gap-y-2", phone && "[&>button:first-child]:h-12 [&>button:first-child]:w-full")}>
+          <div className={cn("mt-6 flex flex-wrap items-center gap-x-4 gap-y-2", phone && "[&>button:first-child]:h-12 [&>button:first-child]:w-full [html.portrait_&>button:first-child]:w-auto [html.portrait_&>button:first-child]:min-w-60")}>
             {b.finished ? (
               <>
                 {b.nextCard && (

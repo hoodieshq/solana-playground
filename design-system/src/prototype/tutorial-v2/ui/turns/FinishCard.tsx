@@ -1,35 +1,23 @@
 import { useRef, useState } from "react"
-import { ChevronRight, Play } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { LESSON, NEXT_TUTORIAL, STEPS, shortKey } from "../../data"
+import { LESSON, NEXT_TUTORIAL } from "../../data"
 import { useOpenTutorial } from "../../host"
 import { LiveBigMemory } from "../MemoryCard"
 import { LivePlayer } from "../PlayerCard"
+import { LiveRecords } from "../RecordsCard"
 import { useStore } from "../../store"
 import { lastTx } from "../../tx"
 import { FinishBadge, LearnedList } from "../FinishParts"
 import { Prose } from "../Prose"
 import { PrintedReceipt } from "../Receipt"
-import { ACTION, ACTION_FILL, ACTION_SOFT, HEADING, PHONE_CTA, READ_CODE, reducedMotion } from "../type"
-
-/** "6 min 40 s" from start to finish */
-function span(from: number | null, to: number | null) {
-  if (from === null || to === null) return null
-  const t = Math.max(1, Math.round((to - from) / 1000))
-  const m = Math.floor(t / 60)
-  return m ? `${m} min ${t % 60} s` : `${t} s`
-}
-
-/* The intro card's scale, so the tutorial opens and closes in one voice: the display headline, headings
-   at 20, the reading text at 16 and one grey note at 13. NOTE is joined as a plain string, never
-   through cn, which would drop text-caption next to a colour */
-const NOTE = "text-caption text-muted-foreground tabular-nums"
+import { ACTION, ACTION_FILL, ACTION_SOFT, HEADING, PHONE_CTA, PHONE_STACK, READ_CODE, reducedMotion } from "../type"
 
 /** The tutorial's end, as the last turn of the conversation: the badge, what came back from devnet
- * with the name in it and how long it took, what was learned and two ways on, the next tutorial or
+ * with the name in it, what was learned and two ways on, the next tutorial or
  * the list. Nothing sits in a card: the chat's column is the only frame. The receipt waits under one
  * quiet row: the headline already says what it proves, the full record is for whoever wants it, and
  * it prints in as it opens. It stays live: the composer and the Call panel keep working under it.
@@ -39,7 +27,6 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
   const { s, dispatch } = useStore()
   const openTutorial = useOpenTutorial()
   const tx = lastTx(s)
-  const time = span(s.startedAt, s.finishedAt)
   const [receipt, setReceipt] = useState(false)
   const record = useRef<HTMLDivElement>(null)
   const toggle = () => {
@@ -57,21 +44,18 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
         <div>
           {/* 28/32 at the headings' 500, as the step wins: the display size's regular and 32.2 line set it apart */}
           <h3 className="font-heading text-[1.75rem] leading-8 font-medium tracking-[-0.02em] text-foreground">{LESSON.headline}</h3>
-          {/* Three tiers, each a step quieter and further off: the headline, what came back, then the facts
-              about the run. At 8 apart in nearly one grey the last two read as one paragraph, so what came
-              back takes the full text colour and the facts sit 16 under it */}
+          {/* The headline, then what came back, in the full text colour. No line of run facts under it: the
+              steps are in the bar above and devnet is in the line itself */}
           {/* The reading text's size and face in the full text colour: at READ's 80% it was the note's grey */}
           {/* 9 under the headline, as under any heading */}
           <p className="mt-[9px] font-read text-[1rem] leading-[1.5rem] text-foreground">
             <Prose text={LESSON.proofLine(tx, s)} {...READ_CODE} />
           </p>
-          <p className={`mt-4 ${NOTE}`}>
-            {STEPS.length} steps{time ? ` · ${time}` : ""} · devnet only, nothing real spent
-          </p>
         </div>
         {/* A game's proof is its player, live: the energy ticking back with no transaction */}
         {LESSON.game && <LivePlayer phone={phone} />}
         {LESSON.memory && <LiveBigMemory phone={phone} />}
+        {LESSON.records && <LiveRecords phone={phone} />}
         {/* A heading has 30 over it: the column's 24 and 6 of its own. 9 under it, to the list it heads */}
         <section aria-labelledby="learned-title" className="mt-1.5">
           <h4 id="learned-title" className={HEADING}>
@@ -82,11 +66,10 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
           <LearnedList className="mt-[9px] gap-1.5 [&>li]:text-[1rem] [&>li]:leading-[1.5rem] [&>li]:text-foreground/80 [&>li>svg]:mt-1" />
         </section>
         {/* One way on, filled, and one way back beside it, as Claude Code pairs them */}
-        <div className={cn("flex gap-2", phone ? "flex-col items-stretch" : "flex-wrap")}>
+        <div className={cn("flex gap-2", phone ? PHONE_STACK : "flex-wrap")}>
           {/* The last tutorial of its level has no next one: the way back to the list is the only way on */}
           {NEXT_TUTORIAL && LESSON.next && (
             <Button className={cn(ACTION, ACTION_FILL, phone && PHONE_CTA)} onClick={() => openTutorial(LESSON.next!)}>
-              <Play className="fill-current" />
               Next: {NEXT_TUTORIAL.name}
             </Button>
           )}
@@ -103,11 +86,8 @@ export function FinishCard({ phone = false }: { phone?: boolean }) {
           onClick={toggle}
           className="group/rec flex min-h-11 w-full items-center gap-2 rounded-control border border-border px-3 text-left text-caption hover:border-border-strong"
         >
+          {/* The name alone: the signature and who paid are in the receipt it opens */}
           <span className="shrink-0 text-foreground">Transaction details</span>
-          <span className="min-w-0 truncate text-subtle">
-            {/* Who paid: your wallet, in test SOL, as step 3's receipt says */}
-            · <span className="font-mono">{shortKey(tx.signature, 4)}</span> · from your wallet
-          </span>
           <ChevronRight
             aria-hidden="true"
             className={cn(

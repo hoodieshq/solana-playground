@@ -4,11 +4,10 @@ import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/compon
 import { cn } from "@/lib/utils"
 
 import { msgLine } from "../check"
+import { LIB } from "../data"
 import { useStore } from "../store"
 import { hang, highlight } from "./CodeView"
 import { Prose } from "./Prose"
-
-const FILE = "src/lib.rs"
 
 /** Where the program's line came from, as a caption: "from msg! · src/lib.rs:10". It opens a peek
  * of lib.rs around that line, read only, so the log reads as the code's own words even on step 3,
@@ -17,6 +16,9 @@ const FILE = "src/lib.rs"
  * the terminal: the peek opens off both, so it never covers the line it explains */
 export function HelloSource({ before, className, inline = false, said }: { before?: ReactNode; className?: string; inline?: boolean; said?: string }) {
   const { s } = useStore()
+  // The program's own file: lib.rs, or a Seahorse lesson's Python, where `print` is what logs
+  const FILE = LIB
+  const word = FILE.endsWith(".py") ? "print" : "msg!"
   const lib = s.files[FILE] ?? ""
   // The msg! that wrote this line, when the program has more than one
   const line = msgLine(lib, said)
@@ -83,7 +85,7 @@ export function HelloSource({ before, className, inline = false, said }: { befor
                   ↳
                 </span>
               )}
-              {inline ? "msg!" : "from msg!"} · {FILE}:{line}
+              {inline ? word : `from ${word}`} · {FILE}:{line}
             </button>
           </PopoverTrigger>
         </div>
@@ -116,7 +118,7 @@ export function HelloSource({ before, className, inline = false, said }: { befor
           })}
         </pre>
         <p className="border-t border-border px-3 py-2 text-caption text-muted-foreground">
-          <Prose text="`msg!` wrote this line to the program log, and the transaction brought it back." />
+          <Prose text={`\`${word}\` wrote this line to the program log, and the transaction brought it back.`} />
         </p>
       </PopoverContent>
     </Popover>

@@ -58,7 +58,7 @@ export function PlainDetails({ text, copy, log, phone, quiet = false }: { text: 
   return (
     // The Shell keeps 12 under its details; a phone's last row is already a thumb's height
     <div className={cn(phone && "-mb-2")}>
-      {/* `quiet` is the Call panel's: a tool, not the lesson, where the account above is the answer and
+      {/* `quiet` is for a card whose accounts above are the answer, the Call panel's and a records call's:
           the cost is a footnote, set like the controls under it */}
       <p className={quiet ? "text-[0.875rem] leading-5 text-pretty text-muted-foreground" : cn(READ, "text-pretty")}>
         <Prose text={text} />

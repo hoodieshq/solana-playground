@@ -6,8 +6,26 @@ import { HelloLine } from "./HelloPeek"
 const POINTER = /-->\s*\S+?:(\d+)/
 
 /** A line the program itself logged, other than Anchor's own "Instruction:" line: what msg! said */
-// A program's own error is the runtime's line, not a msg!, so it isn't lit as one
-const said = (line: string) => line.startsWith("Program log: ") && !line.startsWith("Program log: Instruction:") && !line.startsWith("Program log: AnchorError")
+// A program's own error is the runtime's line, not a msg!, so it isn't lit as one: an Anchor error, or
+// the panic a Seahorse `assert` compiles to, which no `print` wrote
+const said = (line: string) =>
+  line.startsWith("Program log: ") && !line.startsWith("Program log: Instruction:") && !line.startsWith("Program log: AnchorError") && !line.startsWith("Program log: panicked at")
+
+/** The log lines no msg! of the program wrote: another program's, inside its `invoke [2]` (the Token
+ * program's, Token Metadata's), and Anchor's own after its error (a seeds check's Left and Right) */
+function othersLines(log: string[]) {
+  const out = new Set<number>()
+  let depth = 0
+  let erred = false
+  log.forEach((line, i) => {
+    const invoke = line.match(/^Program \S+ invoke \[(\d+)\]/)
+    if (invoke) depth = Number(invoke[1])
+    else if (/^Program \S+ (success|failed)/.test(line)) depth = Math.max(0, depth - 1)
+    else if (line.startsWith("Program log: ") && (depth > 1 || erred)) out.add(i)
+    if (line.startsWith("Program log: AnchorError")) erred = true
+  })
+  return out
+}
 
 /** With `onJump`, a line that points into the file is a link: it takes the editor to that line, as an IDE does.
  * `onPoint` says which line of the file the pointer is over that link, and `lit` lights the link for
@@ -41,6 +59,7 @@ export function BuildLog({
   className?: string
 }) {
   if (log.length === 0) return <p className="flex-1 px-4 py-6 text-caption text-muted-foreground">{empty}</p>
+  const theirs = othersLines(log)
   return (
     // A log line doesn't wrap: it scrolls and fades at the edge, like code in the lesson, so a key never
     // leaves its last character alone on the next line
@@ -66,7 +85,7 @@ export function BuildLog({
           // keep their columns
           wrapErrors && line.startsWith("error") && "pr-6 break-words whitespace-pre-wrap"
         )
-        if (said(line))
+        if (said(line) && !theirs.has(i))
           return bare ? (
             <div key={i} className="text-foreground">
               {line}

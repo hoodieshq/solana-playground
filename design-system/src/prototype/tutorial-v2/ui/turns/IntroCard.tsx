@@ -3,11 +3,13 @@ import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { LESSON, STEPS, thumb } from "../../data"
+import { LESSON } from "../../data"
 import { useStore } from "../../store"
+import { view } from "../../view"
 import { PixelCover, hasPixelCover } from "../PixelCover"
-import { Thumb } from "../Thumb"
-import { ACTION, ACTION_FILL, HEADING, READ, TITLE } from "../type"
+import { CATALOG, upstreamName } from "../catalog"
+import { TutorialCover } from "../TutorialCover"
+import { ACTION, ACTION_FILL, HEADING, PHONE_CTA, READ, TITLE } from "../type"
 
 /** The tutorial's start, as the assistant's first message. In the order other guided lessons use
  * (GitHub Skills, Codelabs, Speedrun Ethereum): what you end with, made concrete by the log line it
@@ -18,7 +20,7 @@ import { ACTION, ACTION_FILL, HEADING, READ, TITLE } from "../type"
 const LOOP = ["I explain a piece", "You pick an answer", "I write the code", "You build and run it"]
 
 // Deploys go from the learner's own Playground wallet on devnet, topped up from the faucet: no real money
-const COST = "A devnet wallet is set up for you with free test SOL. Your progress stays in this browser"
+const COST = "A devnet wallet is set up for you with free test SOL"
 
 /* The chat's scale (../type): the title at 24, How it goes at 20, the reading text at 16 (the promise,
    the loop) and one grey note at 13 for everything said on the side. The log line is code, so it's
@@ -28,6 +30,9 @@ const NOTE = "text-caption text-muted-foreground"
 
 export function IntroCard({ phone = false }: { phone?: boolean }) {
   const { dispatch } = useStore()
+  // An upright tablet runs the phone's screens, but nobody swipes for a thing they can see: Code is in
+  // the header. And it's held in two hands or stood up, so Start follows the text rather than the foot
+  const portrait = phone && view === "portrait"
 
   return (
     // On the phone it's the feed's own text, as the win and the finish are: a frame there cost 32px of a
@@ -43,14 +48,15 @@ export function IntroCard({ phone = false }: { phone?: boolean }) {
         {hasPixelCover(LESSON.card.slug) ? (
           <PixelCover slug={LESSON.card.slug} square className="rounded-lg" />
         ) : (
-          <Thumb src={thumb(LESSON.card.slug, LESSON.card.ext)} className="size-10 shrink-0 after:ring-foreground/[0.1]" />
+          // The catalog's cover, Lucide on the lesson's ground: the product's old picture was the last one left (Almaz, 10 Nov)
+          <TutorialCover name={upstreamName(CATALOG.find((t) => t.slug === LESSON.card.slug)!)} framework={LESSON.card.framework} level={LESSON.card.level} className="size-10 shrink-0 rounded-[9px]" />
         )}
         <div className="min-w-0">
           <h2 id={phone ? undefined : "intro-title"} className={cn(TITLE, "truncate")}>
             {LESSON.card.name}
           </h2>
           <p className={`${NOTE} truncate`}>
-            {LESSON.card.level} · {STEPS.length} steps · {LESSON.minutes} min
+            {LESSON.card.level} · {LESSON.minutes} min
           </p>
         </div>
       </div>
@@ -82,14 +88,15 @@ export function IntroCard({ phone = false }: { phone?: boolean }) {
           listing: the note is said on the side, so it stands off the list rather than continuing it */}
       <p className={`${NOTE} mt-6`}>
         {/* Kept as three text nodes: one joined string moves the desktop's glyphs by a subpixel */}
-        {phone ? "Swipe left for the code as we write it. You read, I type." : "On the right is the finished program. After Start the editor clears and we write it together."}{" "}
+        {portrait ? "Tap Code at the top right to watch it being written. You read, I type." : phone ? "Swipe left for the code as we write it. You read, I type." : "After Start the editor clears and we write it together."}{" "}
         {COST}.
       </p>
 
       {/* On the phone Start sits at the foot of the screen, under the thumb (screens/StepScreen). On
-          the desktop it keeps the same 24 above, so the card's last three blocks share one beat */}
-      {!phone && (
-        <Button className={cn(ACTION, ACTION_FILL, "mt-6", "px-5")} onClick={() => dispatch({ type: "start" })}>
+          the desktop and an upright tablet it keeps the same 24 above, so the card's last three blocks
+          share one beat; on the tablet 600px of empty screen stood between the text and the foot */}
+      {(!phone || portrait) && (
+        <Button className={cn(ACTION, ACTION_FILL, "mt-6", portrait ? PHONE_CTA : "px-5")} onClick={() => dispatch({ type: "start" })}>
           Start step 1
           <ArrowRight className="size-4" aria-hidden="true" />
         </Button>

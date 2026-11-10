@@ -1,0 +1,79 @@
+/* Lit Path's own tokens (research/nav-redesign/CONSENSUS.md, 3.1). They live here, beside the nav,
+   until they move into the design system; the design system's files aren't edited for a concept.
+   Plain CSS, not run through Tailwind: classes read them as bg-(--nav-ground), text-(color:--text-quiet) */
+:root {
+  --nav-ground: #fafafa;
+  --nav-hover: #f2f2f3;
+  --nav-current: #ececee;
+  --text-quiet: #6b6b72;
+}
+.dark {
+  /* One step under the page, so the nav reads as furniture and the page as the object */
+  --nav-ground: #0b0b0c;
+  --nav-hover: #161617;
+  --nav-current: #1c1c1e;
+  /* --text-tertiary fails as text on this ground; this passes 4.5:1 on the ground and on current */
+  --text-quiet: #85858c;
+}
+
+/* --nav-bg is the ground the nav sits on now, so a notch's ring cuts in on either ground */
+.lit-nav {
+  --nav-bg: var(--nav-ground);
+}
+.lit-nav[data-floating] {
+  --nav-bg: var(--popover);
+}
+/* On the floating ground (--popover, #161617) the docked hover would vanish, so both step up */
+.dark .lit-nav[data-floating] {
+  --nav-hover: #1c1c1e;
+  --nav-current: #242426;
+}
+
+/* Floating in: a short move from the left with the fade, as a menu opens */
+@keyframes lit-nav-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+.lit-nav[data-floating] {
+  animation: lit-nav-in 200ms var(--ease-menu-value) both;
+}
+
+/* Labels come in after the column has started to open, and don't slide */
+@keyframes lit-labels-in {
+  from {
+    opacity: 0;
+  }
+}
+.lit-labels-in {
+  animation: lit-labels-in 120ms var(--ease-out-value) 60ms both;
+}
+
+/* Skeleton rows breathe while the list loads */
+@keyframes lit-skeleton {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.lit-skeleton {
+  animation: lit-skeleton 1.2s ease-in-out infinite alternate;
+}
+
+/* The tiles are squircles where the browser draws them */
+@supports (corner-shape: squircle) {
+  .lit-tile {
+    corner-shape: squircle;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lit-nav[data-floating],
+  .lit-labels-in,
+  .lit-skeleton {
+    animation: none;
+  }
+}

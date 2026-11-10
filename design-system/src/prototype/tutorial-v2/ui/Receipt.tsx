@@ -36,6 +36,8 @@ function groups(tx: Tx): Row[][] {
         value: <span className="font-mono">{tx.instruction}</span>,
         text: tx.instruction,
       },
+      // Raw bytes, for a program that reads its data by hand
+      ...(tx.data ? [{ label: "Data", value: <span className="font-mono">{tx.data}</span>, text: tx.data }] : []),
     ],
     [
       {

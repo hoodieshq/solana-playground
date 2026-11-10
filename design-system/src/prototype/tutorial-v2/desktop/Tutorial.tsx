@@ -39,7 +39,10 @@ export function Tutorial() {
       }
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "e") {
         e.preventDefault()
+        // The same as the open tab's arrow and Files, which know whether the tree can dock here
+        const toggle = document.querySelector<HTMLElement>("[data-files-toggle]")
         if (s.tree === "docked") dispatch({ type: "tree", state: "closed" })
+        else if (toggle) toggle.click()
         else setTreeOpen((o) => !o)
         return
       }

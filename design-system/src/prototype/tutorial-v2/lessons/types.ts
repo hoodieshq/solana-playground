@@ -48,16 +48,33 @@ export type Tx = {
   /** An error the program returned: the transaction failed, and this is why. `log` replaces Anchor's
    * line for an error the runtime raises (out of memory), and `failed` the reason on the last line */
   error?: { name: string; number: number; message: string; line: number; log?: string[]; failed?: string }
+  /** The instruction data as it travels, in hex with its length, for a lesson that sends raw bytes:
+   * `41 6c 65 78 · 4 bytes` */
+  data?: string
+  /** The whole log of a transaction that never reaches the lesson's program: a System Program transfer
+   * from your wallet to another (Tic-tac-toe's Add Player O) */
+  log?: string[]
 }
 
 /** `chop` and `grow` are moves: they call the program again and again from the same card. `send` sends
  * one instruction of a memory lesson from the chat, the one its beat names */
-export type Act = "build" | "deploy" | "buildDeploy" | "run" | "call" | "chop" | "grow" | "send"
+export type Act = "build" | "deploy" | "buildDeploy" | "run" | "call" | "chop" | "grow" | "send" | "move"
 /** `ref` is the code the block is placed by, when it isn't the step's target: a block the planned
  * failure leaves a line out of, say */
 export type Write = { file: string; block: string; ref?: string; start?: string }
-/** `code` is the quoted line as it was when quoted, kept for an error so the history shows what was wrong */
-export type Quote = { file: string; line: number; mark?: string; tone: "lit" | "error"; code?: string }
+/** `code` is the quoted line as it was when quoted, kept for an error so the history shows what was wrong.
+ * `generated` quotes the lesson's generated file, which opens read only rather than shows in the editor */
+export type Quote = {
+  file: string
+  line: number
+  mark?: string
+  tone: "lit" | "error"
+  code?: string
+  generated?: boolean
+  /** Lines shown dimmed before and after the quoted one, so a line that is part of a call or a block
+   * shows what it belongs to */
+  around?: [number, number]
+}
 
 /** A question with three options. A right pick writes `writes` into the file, if it has one; a
  * wrong one gets its own reason and the question stays open. The right one sits at a different
@@ -92,7 +109,45 @@ export type Ask = {
 
 /** `ix` is the instruction a `send` or a `grow` sends, `init_map` or `grow_big`; `record` what the card
  * says once it's done, before the time it took: "Created your map" */
-export type ActBeat = { kind: "act"; id: string; act: Act; say?: string; title: string; context: string; button: string; ix?: string; record?: string }
+export type ActBeat = {
+  kind: "act"
+  id: string
+  act: Act
+  say?: string
+  title: string
+  context: string
+  button: string
+  ix?: string
+  record?: string
+  /** What a `move` card offers: its buttons, each sending an instruction from the same card again and
+   * again (Increment, Add expense, Deposit and Withdraw), and the row buttons (Edit, Delete) */
+  moves?: Move[]
+  /** "Until" beside the card's first move, offered once it was made by hand */
+  until?: Until
+  /** Values typed on a `send` card before it sends (the holder's name) */
+  fields?: MoveField[]
+  /** A `send` card's stages instead of "Sending ix to devnet", for a wallet act that isn't the program's
+   * (Create your token): "Funding your wallet" goes first while the wallet is empty */
+  stages?: string[]
+  /** A `send` card signed by a key that isn't the learner's: its refusal is the answer, so the script goes on */
+  signer?: "stranger"
+}
+
+/** One button of a `move` card. `row` names the kind of record it sits on, as a row button, and the
+ * record is its target (Edit, Delete, Mark done); without it, it's the card's own (Add expense).
+ * `fields` are typed beside it, or in the row once its button opens them; `signer` sends it signed by
+ * a key that isn't the learner's. `{name}` in the button is the argument's default: "Add #{id}" */
+export type Move = { ix: string; button: string; fields?: MoveField[]; row?: string; signer?: "stranger" }
+
+/** A value typed on a card. `dollars` shows dollars and sends cents; `tokens` shows whole tokens and
+ * sends base units, with the mint's `decimals`; `max` is in bytes, for text; `required` keeps the button
+ * off while it's empty, otherwise an empty field sends the lesson's default */
+export type MoveField = { name: string; label: string; kind: "text" | "number" | "dollars" | "tokens"; decimals?: number; placeholder?: string; max?: number; required?: boolean }
+
+/** The card's first move made again and again: `times` more sends, or until one is refused (`stop`),
+ * or until the step passes (`"passed"`: the boss falls, the game is won). Lumberjack's "Chop until out
+ * of energy" and Zero Copy's "Grow until out of memory" are the same idea, kept in their own cards */
+export type Until = { label: string; times?: number; stop?: "refused" | "passed" }
 
 export type Beat =
   | { kind: "say"; id: string; text: string; quote?: Quote }
@@ -111,7 +166,7 @@ export type Win = {
   extra?: "openTest"
 }
 
-export type StatIcon = "hammer" | "braces" | "clock" | "rocket" | "coins" | "cpu" | "timer" | "zap" | "trees" | "alert"
+export type StatIcon = "hammer" | "braces" | "clock" | "rocket" | "coins" | "cpu" | "timer" | "zap" | "trees" | "alert" | "heart" | "flame"
 
 export type Step = {
   id: string
@@ -158,6 +213,34 @@ export type Memory = { map: number; big: number | null; painted?: number; text?:
 /** One press of Grow, as its card lists it: the size after it, and the heap it took */
 export type Grow = { ok: boolean; at: number; size: number; heap: number; tx: Tx }
 
+/** The game card's screens: Tiny Adventure's tiles, Two's tiles with the chest, the boss, the board */
+export type GameView = "world" | "chest" | "boss" | "board"
+
+/** One account a records lesson keeps on devnet, as the client last read it: its type (`kind`), its
+ * address, its fields as the program stores them (cents, ids, flags) and its rent, in SOL */
+export type Rec = { id: string; kind: string; pda: string; values: Record<string, string | number | boolean>; rent: number }
+
+/** The accounts around one send, for a card that draws them: before and after it, what a refusal
+ * means in words, and `read` for a client that only read them back */
+export type RecSnap = { before: Rec[]; after: Rec[]; refused?: string; read?: boolean }
+
+/** One send of a `move` card, as the card lists it: what came back, and the accounts after it */
+export type Sent = { ok: boolean; at: number; ix: string; tx: Tx; snap: RecSnap; via?: "test" }
+
+/** What a send of a records lesson does: the transaction, the accounts after it (as they were, on a
+ * refusal), `refused` in words for the card, and `out` what the chat's card prints after the logs */
+export type RecSend = { tx: Tx; records: Rec[]; refused?: string; out?: string[]; log?: string[] }
+
+/** A token lesson's accounts as the token card draws them (the Tokens family): the mint, the token
+ * accounts that hold it, and a strip above them for the lesson's own account (Battle Coins' player,
+ * Faucet Seahorse's price and limit). Amounts are base units; `authority` reads "the program", "your
+ * wallet" or "the faucet"; `metadata` is whether Token Metadata names the mint */
+export type TokenView = {
+  mint: { name: string; symbol?: string; key: string; supply: number; decimals: number; authority: string; metadata: boolean } | null
+  holders: { id: string; label: string; key: string; owner: string; amount: number }[]
+  strip?: { label: string; key: string; meter?: { value: number; max: number }; lines: string[] }
+}
+
 /** One chop, as its card lists it: what came back, and the account after it */
 export type Chop = { ok: boolean; at: number; wood: number; energy: number; refilled: number; tx: Tx; wait?: number }
 
@@ -194,11 +277,21 @@ export type Lesson = {
   checks: SpecialCheck[]
   /** Whether "Change what hello says" is offered: Hello Anchor's story */
   story: boolean
+  /** The program's own file, when it isn't `src/lib.rs`: a Seahorse lesson's `src/hello.py` */
+  main?: string
+  /** A file the build writes and the learner only reads: the Rust a Seahorse build makes of the Python.
+   * `of` works it out from the main file as built; it opens beside it, read only */
+  generated?: { file: string; of: (main: string) => string }
+  /** A program whose build writes no IDL (Native). The build says `line` instead of the IDL's, and the
+   * Call panel has one raw form: the program id, no accounts, data as text. `ix` is the function every
+   * call lands in, as receipts name it; `reads` whether the program as deployed reads the data, so a
+   * send with data passes the step that teaches it */
+  raw?: { ix: string; line: (lib: string) => string; reads: (lib: string) => boolean }
   /** What running client.ts sends */
   runTx: (s: State) => Tx
   /** A run worked out by the lesson: what it sends (nothing, when it only reads), what the client
    * prints and the accounts after it */
-  run?: (s: State) => { tx: Tx | null; out: string[]; memory: Memory }
+  run?: (s: State) => { tx: Tx | null; out: string[]; memory?: Memory; records?: Rec[] }
   /** What the chat's Call sends, with the name typed in its field. Only lessons with a `call` act */
   callTx?: (s: State, name: string) => Tx
   /** A lesson that's a game keeps a player account on devnet, which `chop` acts on: what one chop
@@ -229,4 +322,43 @@ export type Lesson = {
     pda: string
     bigPda: string
   }
+  /** A lesson that keeps records (the Data family): accounts at PDAs, drawn as the records card and
+   * changed by `send` and `move` cards and the Call panel. See lessons/README.md, "Records" */
+  records?: {
+    /** The card's head: the program's word for its accounts, "Counter", "Expenses" */
+    title: string
+    /** One of them, for "Read 3 expenses": "expense" */
+    one: string
+    /** What the card says before there is any: "No accounts yet. Create sends `create_counter`." */
+    empty: string
+    /** How a row reads: its label, its seeds in words, its fields as name and value in order. `line`
+     * sets it on one line with its values only, its seeds shown when it's opened (a list's rows) */
+    show: (r: Rec) => { label: string; seeds: string; fields: [string, string][]; line?: boolean }
+    /** What one send of `ix` does, from a card or the Call panel: `args` as typed (else `args` below),
+     * `row` the record a row button acts on, `signer` a key that isn't the learner's. Or a note why it
+     * isn't sent, which the panel and the row button show instead */
+    send: (s: State, ix: string, args?: Record<string, string>, row?: string, signer?: "stranger") => RecSend | { note: string }
+    /** Whether a send that came back passes step `i`. `s` is the state after it */
+    passes: (s: State, i: number, ix: string, tx: Tx) => boolean
+    /** The values a card and the Call panel start `ix`'s arguments at */
+    args: (s: State, ix: string, row?: string) => Record<string, string>
+    /** Why what was typed can't be encoded, or null: an amount that isn't a whole number */
+    check: (ix: string, given: Record<string, string>) => string | null
+    /** A value the client works out between transactions, as a muted line under the row (Bank
+     * Simulator's interest), or null. The card ticks once a second while one shows */
+    live?: (s: State, r: Rec, now: number) => string | null
+    /** A token lesson draws its records as the token card instead (the Tokens family). `now` is the
+     * time on a live card, which ticks once a second, and null on a record */
+    tokens?: (rows: Rec[], now: number | null) => TokenView
+    /** A game draws its records as the game card in this view instead (the Games family): see
+     * `games.ts` for the ids it reads */
+    view?: GameView
+    /** The wallets a call can be signed with, by the value of its `signer` argument: the Call panel
+     * shows them as a Signer field, and the game card as its switch (Tic-tac-toe's X and O) */
+    signers?: { value: string; label: string }[]
+    /** How a send reads on its move card, when the program's log line isn't enough: "→ tile 2" */
+    sentLine?: (s: State, x: Sent) => string | null
+  }
+  /** Values for `{name}` in a win's line, from the lesson's state: Expense Tracker's `{n}` */
+  winVars?: (s: State) => Record<string, string>
 }

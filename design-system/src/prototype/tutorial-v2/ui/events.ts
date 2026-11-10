@@ -1,7 +1,7 @@
 // Requests between parts that don't share state: an answer's Show me opens the nav, Ask me anything
 // first focuses the composer, a chip's question flies into the feed. Nothing here is progress, so
 // none of it belongs in the store
-type Name = "nav:open" | "composer:focus" | "feed:live"
+type Name = "nav:open" | "composer:focus" | "feed:live" | "new-project:open"
 
 const bus = new EventTarget()
 

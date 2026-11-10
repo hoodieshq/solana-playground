@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
  * below already starts the page, and a line there cut the heading off from the bar */
 export function TopBar({ left, title, right }: { left?: ReactNode; title?: string; right?: ReactNode }) {
   return (
-    <header className={cn("flex h-phone-head shrink-0 items-center gap-1 pr-1.5", left ? "pl-1.5" : "pl-4")}>
+    <header className={cn("flex h-phone-head shrink-0 items-center gap-1 pr-1.5 [html.portrait_&]:pr-[22px]", left ? "pl-1.5 [html.portrait_&]:pl-[22px]" : "pl-4 [html.portrait_&]:pl-8")}>
       {left && <div className="flex size-11 shrink-0 items-center justify-center">{left}</div>}
       {title ? <h1 className="min-w-0 flex-1 truncate font-heading text-title">{title}</h1> : <span className="flex-1" />}
       <div className="flex size-11 shrink-0 items-center justify-center">{right}</div>

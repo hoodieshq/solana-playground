@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type TouchEvent } from "react"
-import { ArrowRight, ChevronLeft, ChevronUp, Code, MessageSquare, Send } from "lucide-react"
+import { ArrowRight, ChevronDown, ChevronLeft, ChevronUp, Code, MessageSquare, Send } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -14,10 +14,10 @@ import { useStore, type State, type Turn } from "../store"
 import { ChatComposer } from "../ui/ChatComposer"
 import { CodeView } from "../ui/CodeView"
 import { Conversation, type Jump } from "../ui/Conversation"
-import { NAV_ICONS } from "../ui/navIcons"
 import { StartOverDialog } from "../ui/StartOverDialog"
 import { StepTrack } from "../ui/StepBar"
 import { ACTION, ACTION_FILL, ACTION_SOFT, PHONE_CTA } from "../ui/type"
+import { view } from "../view"
 
 type Space = "chat" | "code"
 
@@ -25,11 +25,11 @@ type Space = "chat" | "code"
 const lastOf = (s: State, kind: Turn["kind"]) => [...s.thread].reverse().find((t) => t.kind === kind)?.id ?? 0
 
 /** How far a finger has to travel sideways, and how much straighter than down, before it changes space */
-const SWIPE_PX = 56
+export const SWIPE_PX = 56
 
 /** Whether a touch began on something that scrolls sideways itself (the chips, a long log line): that
  * drag belongs to it, not to the change of space */
-function scrollsSideways(from: EventTarget | null, root: HTMLElement) {
+export function scrollsSideways(from: EventTarget | null, root: HTMLElement) {
   for (let el = from instanceof HTMLElement ? from : null; el && el !== root; el = el.parentElement) {
     const x = getComputedStyle(el).overflowX
     if ((x === "auto" || x === "scroll") && el.scrollWidth > el.clientWidth + 1) return true
@@ -144,7 +144,9 @@ export function StepScreen() {
       {/* 76, not the app's 56: two lines of title and a 36 button, then the progress under them as
           Practicum sets it, 15px under the "Step 1 of 3" line and 8px off the bottom. With the feed's
           26 that puts the first heading 34 under the segments, as on the desktop */}
-      <header className="relative flex h-[4.75rem] shrink-0 items-center gap-1 pr-4 pb-4 pl-1">
+      {/* On an upright tablet the sides are 32, the gallery's: the back arrow's glyph and the progress
+          start there, and Code ends there */}
+      <header className="relative flex h-[4.75rem] shrink-0 items-center gap-1 pr-4 pb-4 pl-1 [html.portrait_&]:pr-8 [html.portrait_&]:pl-[22px]">
         <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Back to tutorials" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
           <ChevronLeft className="size-6" />
         </Button>
@@ -194,7 +196,7 @@ export function StepScreen() {
                 field beside it was a second way in, and the button mid screen sat out of reach */}
             {s.started ? (
               <ChatComposer phone />
-            ) : (
+            ) : view === "portrait" ? null : (
               <div className="shrink-0 px-4 pt-3 pb-[calc(var(--safe-bottom)+12px)]">
                 <Button className={cn(ACTION, ACTION_FILL, PHONE_CTA)} onClick={() => dispatch({ type: "start" })}>
                   Start step 1
@@ -205,7 +207,7 @@ export function StepScreen() {
           </section>
 
           <section aria-label="Code" inert={!onCode} className="flex w-1/2 min-w-0 flex-col bg-(--code-ground)">
-            <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-surface-base pr-4 pl-2">
+            <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-surface-base pr-4 pl-2 [html.portrait_&]:pr-8 [html.portrait_&]:pl-6">
               {/* The file's name opens the tree: the way back from client.ts to lib.rs */}
               <button
                 type="button"
@@ -216,7 +218,7 @@ export function StepScreen() {
               >
                 <span className="truncate font-mono text-code text-foreground">{file.split("/").pop()}</span>
                 <span aria-hidden="true" className="grid size-[1.375rem] shrink-0 place-items-center rounded-md bg-surface-hover text-muted-foreground">
-                  <span className="flex size-3.5 [&>svg]:size-full">{NAV_ICONS.caret}</span>
+                  <span className="flex size-3.5 [&>svg]:size-full"><ChevronDown aria-hidden="true" strokeWidth={1.5} className="size-full" /></span>
                 </span>
               </button>
               {/* No "Read only" on the phone: nothing here can be typed into anyway, and the grey label beside
@@ -254,7 +256,7 @@ export function StepScreen() {
                 aria-expanded={log}
                 aria-controls="phone-terminal"
                 onClick={() => setLog(!log)}
-                className="flex h-11 w-full items-center gap-2 px-4 text-left text-caption text-muted-foreground outline-none active:bg-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple"
+                className="flex h-11 w-full items-center gap-2 px-4 [html.portrait_&]:px-8 text-left text-caption text-muted-foreground outline-none active:bg-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-purple"
               >
                 <span className="flex min-w-0 flex-1 items-center gap-2">
                   <TerminalStatus />

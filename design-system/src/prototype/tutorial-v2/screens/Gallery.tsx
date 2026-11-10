@@ -7,9 +7,10 @@ import { TopBar } from "../ui/TopBar"
 export function Gallery() {
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* No Close: there is nothing for the tutorials page to close back to, and it only said so in a toast */}
+      {/* An upright tablet keeps 32 at the sides, as iPad sets its margins, where the phone's 16 left the
+          cards pressed to the bezel. No Close: there is nothing for the tutorials page to close back to, and it only said so in a toast */}
       <TopBar left={<PhoneMenu />} />
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pt-1 pb-[calc(var(--safe-bottom)+24px)]">
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 [html.portrait_&]:px-8 pt-1 pb-[calc(var(--safe-bottom)+24px)]">
         <TutorialsBody phone />
       </div>
       {/* The list runs to the bottom edge, so it fades out under the home indicator */}

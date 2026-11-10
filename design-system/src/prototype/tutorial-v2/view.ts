@@ -1,4 +1,4 @@
-export type View = "phone" | "tablet" | "desktop"
+export type View = "phone" | "portrait" | "tablet" | "desktop"
 
 const params = new URLSearchParams(location.search)
 
@@ -18,7 +18,7 @@ if (KEEP) {
 export const DECK = params.get("deck")
 
 const asked = params.get("view")
-export const view: View = asked === "desktop" || asked === "tablet" ? asked : "phone"
+export const view: View = asked === "desktop" || asked === "tablet" || asked === "portrait" ? asked : "phone"
 
 export function switchView(to: View) {
   const next = new URLSearchParams(location.search)

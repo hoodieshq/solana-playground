@@ -4,7 +4,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 import { sameCode } from "../check"
-import { CLIENT, DEPLOY_COST, LIB } from "../data"
+import { CLIENT, DEPLOY_COST, LESSON, LIB, buildOk, rawCommand } from "../data"
 import { idlLine } from "../idl"
 import { camel, useStore, type State, type Turn } from "../store"
 import { BuildLog } from "../ui/BuildLog"
@@ -22,7 +22,7 @@ const refused = (tx: NonNullable<ResultTurn["tx"]>) =>
 /** A game's last chop from its card, which leaves no result turn of its own */
 const lastChop = (s: State) =>
   s.thread
-    .flatMap((t) => (t.kind === "act" ? [...(t.chops ?? []), ...(t.grows ?? [])] : []))
+    .flatMap((t) => (t.kind === "act" ? [...(t.chops ?? []), ...(t.grows ?? []), ...(t.sends ?? [])] : []))
     .sort((a, b) => a.at - b.at)
     .pop() ?? null
 
@@ -31,12 +31,14 @@ function command(s: State) {
   const run = s.run
   if (!run) return ""
   if (run.act === "run") return `$ run ${CLIENT}`
-  if (run.act === "call") return `$ pg.program.methods.hello(${JSON.stringify(s.name ?? "")}).rpc()`
+  if (run.act === "call") return LESSON.raw ? rawCommand(s.name ?? "") : `$ pg.program.methods.hello(${JSON.stringify(s.name ?? "")}).rpc()`
   if (run.act === "chop") return "$ pg.program.methods.chopTree().rpc()"
   if (run.act === "grow") return `$ pg.program.methods.${camel(run.ix ?? "grow")}(len).rpc()`
   if (run.act === "send") return `$ pg.program.methods.${camel(run.ix ?? "")}().rpc()`
+  if (run.act === "move") return `$ pg.program.methods.${camel(run.ix ?? "")}(…).rpc()`
+  if (run.act === "test" && LESSON.raw) return rawCommand(s.testName)
   if (run.act === "test") return s.testName.trim() && !run.ix ? `$ call hello --name ${JSON.stringify(s.testName.trim())}` : `$ call ${run.ix ?? "hello"}`
-  return "$ anchor build"
+  return buildOk()[0]
 }
 
 /** How the last run went, in one line beside a dot: ready, running a stage, passed or failed. Once
@@ -57,9 +59,9 @@ export function TerminalStatus() {
         : `Confirmed · ${chop.tx.instruction}`
       : chop.tx.error?.number === 0
         ? `Failed · ${chop.tx.error.message}`
-        : "Failed · NotEnoughEnergy · error 6000"
+        : refused(chop.tx)
     : edited
-    ? `${file === CLIENT ? "client.ts" : "lib.rs"} changed since the last ${!r.ok ? (r.act === "run" ? "failed run" : "failed build") : r.act === "run" ? "run" : r.act === "build" ? "build" : "deploy"}`
+    ? `${file === CLIENT ? "client.ts" : LIB.split("/").pop()} changed since the last ${!r.ok ? (r.act === "run" ? "failed run" : "failed build") : r.act === "run" ? "run" : r.act === "build" ? "build" : "deploy"}`
     : busy
       ? s.run && s.run.stages.length > 1
         ? ["Building", "Deploying"].includes(s.run.stages[s.run.stage])
@@ -84,7 +86,9 @@ export function TerminalStatus() {
                 ? `Confirmed · Program log: ${r.tx.said}`
                 : r.tx
                   ? `Confirmed · ${r.tx.instruction}`
-                  : "Read your player · no transaction"
+                  : LESSON.records
+                    ? `Read your ${LESSON.records.title.toLowerCase()} · no transaction`
+                    : "Read your player · no transaction"
   return (
     <>
       <span

@@ -18,11 +18,13 @@ import {
   DEMO_FAUCET,
   deployLog,
   faucetLog,
+  fundLog,
   firstAct,
   libOf,
   libTargetOf,
   panelLog,
   programLog,
+  rawCommand,
   upgradeLog,
   type Act,
   type ActBeat,
@@ -34,13 +36,17 @@ import {
   type Memory,
   type Player,
   type Quote,
+  type Rec,
+  type RecSnap,
+  type Sent,
   type Tx,
 } from "./data"
 import { diffLines } from "./diff"
 import { deployedArgs, idlLine, idlOf, idlShape, signature } from "./idl"
 import { Runner } from "./runner"
+import { resetSettings } from "./settings/bar"
 
-export type Screen = "gallery" | "step" | "finish"
+export type Screen = "home" | "gallery" | "programs" | "step" | "finish"
 /** Only whether something runs. What is offered comes from the live card (spec 9.1) */
 export type Phase = "idle" | "building" | "deploying" | "running" | "calling" | "testing"
 
@@ -70,6 +76,8 @@ export type Turn = TurnBase &
         chops?: Chop[]
         /** A grow card's presses so far, the same way */
         grows?: Grow[]
+        /** A move card's sends so far, the same way: a records lesson's Increment, Add, Deposit */
+        sends?: Sent[]
         /** A deploy put up again after the faucet said no: its button reads Try again */
         retry?: boolean
         /** A deploy the faucet stopped: its record says so */
@@ -98,6 +106,8 @@ export type Turn = TurnBase &
         /** A build of a fix typed by hand, from the open "Fix it" question: it opens on the compiler's
          * words, and the question stays the way on, so it carries no Explain of its own */
         checked?: boolean
+        /** A records lesson's accounts around this send or read, for the records card it shows */
+        recs?: RecSnap
       }
     | { kind: "win"; beat: string; done: boolean; took: number; via?: "test" }
     // `fix` is Show me the fix's proposal, with `source` the answer that offered it
@@ -121,7 +131,8 @@ type Pending =
 
 /** A run going: which act, its stages and the one running, and the card it belongs to */
 /** `args` are what the Call panel sent with `ix`, when it was given any */
-export type Run = { act: Act | "test"; stages: string[]; stage: number; turn: number | null; at: number; ix?: string; args?: Record<string, string> }
+/** `row` and `signer` are a move's: the record a row button acts on, and a key that isn't the learner's */
+export type Run = { act: Act | "test"; stages: string[]; stage: number; turn: number | null; at: number; ix?: string; args?: Record<string, string>; row?: string; signer?: "stranger" }
 
 export type State = {
   v: 2
@@ -182,6 +193,8 @@ export type State = {
   player: Player | null
   /** A memory lesson's accounts on devnet, once the client created them */
   memory: Memory | null
+  /** A records lesson's accounts on devnet, as the last send or read left them */
+  records: Rec[] | null
 }
 
 export type Action =
@@ -193,7 +206,8 @@ export type Action =
   | { type: "skip"; turn: number }
   | { type: "hint"; turn: number }
   | { type: "typeIt"; turn: number }
-  | { type: "act"; act?: Act }
+  // `turn` presses that card's button, not the live one's; `ix`, `args`, `row` and `signer` are the move it sends
+  | { type: "act"; act?: Act; turn?: number; ix?: string; args?: Record<string, string>; row?: string; signer?: "stranger" }
   | { type: "stage" }
   | { type: "test"; ix?: string; args?: Record<string, string> }
   | { type: "checkFix" }
@@ -206,6 +220,8 @@ export type Action =
   | { type: "keep"; turn: number }
   | { type: "edit"; file: string; code: string }
   | { type: "openFile"; file: string }
+  | { type: "closeFile"; file: string }
+  | { type: "moveTab"; file: string; to: number }
   | { type: "openTest" }
   | { type: "reveal"; file: string; lines: number[]; caret?: boolean }
   | { type: "tree"; state: "closed" | "docked" }
@@ -223,7 +239,9 @@ const key = () => storageKey(LESSON.card.slug)
 /** Timings of D29. The prototype has no build server: these are what a run would take. A chop is a
  * game move, quicker so five in a row don't drag */
 export const STAGE_MS: Record<string, number> = { Building: 1600, "Sending chop_tree to devnet": 900, "Sending grow to devnet": 900, "Sending grow_big to devnet": 900 }
-export const stageMs = (stage: string) => STAGE_MS[stage] ?? (stage.startsWith("Compiling") || stage.startsWith("Sending") ? 1600 : 1100)
+export const stageMs = (stage: string) => STAGE_MS[stage] ?? (MOVE_STAGES.has(stage) ? 900 : stage.startsWith("Compiling") || stage.startsWith("Sending") ? 1600 : 1100)
+/** A move's stage, which goes as quickly as a chop: "Increment 10 times" shouldn't drag */
+const MOVE_STAGES = new Set<string>()
 
 /** An instruction as the TypeScript client calls it: `init_big_map` is `initBigMap` */
 export const camel = (ix: string) => ix.replace(/_(\w)/g, (_, c: string) => c.toUpperCase())
@@ -232,7 +250,15 @@ export const camel = (ix: string) => ix.replace(/_(\w)/g, (_, c: string) => c.to
 // An upgrade rewrites the one already there
 const FUNDING = "Funding your wallet"
 // A new Playground wallet holds 0 SOL: the first deploy tops it up from the faucet first
-const deployStages = (s: State) => [...(s.funded ? [] : [FUNDING]), "Writing buffer", "Deploying", s.deployedLib === null ? "Uploading IDL" : "Upgrading IDL", "Confirming"]
+// A native program has no IDL to upload
+const deployStages = (s: State) => [...(s.funded ? [] : [FUNDING]), "Writing buffer", "Deploying", ...(LESSON.raw ? [] : [s.deployedLib === null ? "Uploading IDL" : "Upgrading IDL"]), "Confirming"]
+
+/** The program's file as built, and the file the build writes from it: a Seahorse lesson's Rust */
+const built = (s: State): State => ({
+  ...s,
+  builtLib: s.files[LIB],
+  files: LESSON.generated ? { ...s.files, [LESSON.generated.file]: LESSON.generated.of(s.files[LIB]) } : s.files,
+})
 
 export const initial = (): State => ({
   v: 2,
@@ -275,6 +301,7 @@ export const initial = (): State => ({
   awaiting: null,
   player: null,
   memory: null,
+  records: null,
 })
 
 const setAt = <T,>(xs: T[], i: number, v: T) => xs.map((x, k) => (k === i ? v : x))
@@ -467,6 +494,9 @@ function tick(s: State): State {
       if (next.tabs.includes(step.file)) next = { ...next, open: step.file }
     }
     if (turn.kind === "finish") next = { ...next, finishedAt: next.finishedAt ?? Date.now() }
+    // A move card stays up while the script goes on under it, until the next card of the script: one
+    // action at a time
+    if (turn.kind === "act" && !turn.nudge) next = { ...next, thread: next.thread.map((t) => (t.kind === "act" && t.act === "move" && t.state === "live" && t.id < next.nextId - 1 ? { ...t, state: "done" } : t)) }
     return next
   }
   if (head.kind === "create") {
@@ -530,21 +560,39 @@ function stagesFor(s: State, act: Act | "test", ix?: string): string[] {
   if (act === "deploy") return s.builtLib !== null && sameCode(s.builtLib, s.files[LIB]) ? deployStages(s) : ["Building", ...deployStages(s)]
   if (act === "chop") return ["Sending chop_tree to devnet"]
   if (act === "grow" || act === "send") return [`Sending ${ix ?? "grow"} to devnet`]
+  if (act === "move") {
+    const stage = `Sending ${ix ?? ""} to devnet`
+    MOVE_STAGES.add(stage)
+    return [stage]
+  }
   // A client that only reads an account it already made sends nothing
   if (act === "run" && LESSON.game && s.player) return ["Reading your player"]
+  if (act === "run" && LESSON.records && LESSON.run) return [`Reading your ${LESSON.records.title.toLowerCase()}`]
   return [`Sending ${bare(LESSON.runTx(s))} to devnet`]
 }
 
-const PHASE: Record<Act | "test", Phase> = { build: "building", deploy: "deploying", buildDeploy: "deploying", run: "running", call: "calling", chop: "calling", grow: "calling", send: "calling", test: "testing" }
+const PHASE: Record<Act | "test", Phase> = { build: "building", deploy: "deploying", buildDeploy: "deploying", run: "running", call: "calling", chop: "calling", grow: "calling", send: "calling", move: "calling", test: "testing" }
 
 /** Starts the live act, the one a word or a key asked for. Only a card that is up runs: a build
  * started while step 1's question was open failed on half a program, cost the first try and left a
  * second Build card behind once the question was answered */
-function startAct(s: State, want?: Act): State {
+function startAct(s: State, want?: Act, pick?: { turn?: number; ix?: string; args?: Record<string, string>; row?: string; signer?: "stranger" }): State {
   if (s.phase !== "idle") return s
-  const turn = liveAct(s)?.turn ?? null
+  // A move card's own button names its card: one that stays up while the script goes on under it
+  const picked = pick?.turn !== undefined ? s.thread.find((t) => t.id === pick.turn && t.kind === "act" && t.state !== "done") : undefined
+  const turn = picked && picked.kind === "act" ? picked : (liveAct(s)?.turn ?? null)
   let next = s
   if (!turn) return s
+  if (turn.act === "move" || (turn.act === "send" && LESSON.records)) {
+    if (want && want !== turn.act) return s
+    const beat = BEATS[turn.beat] as ActBeat
+    const ix = pick?.ix ?? beat.ix ?? beat.moves?.[0]?.ix ?? ""
+    const signer = pick?.signer ?? beat.moves?.find((m) => m.ix === ix)?.signer ?? beat.signer
+    // A wallet act names its own stages, and funds the wallet first while it's empty
+    const stages = beat.stages ? [...(s.funded ? [] : [FUNDING]), ...beat.stages] : stagesFor(s, turn.act, ix)
+    next = patch(s, turn.id, { state: "running" } as Partial<Turn>)
+    return { ...next, phase: "calling", run: { act: turn.act, stages, stage: 0, turn: turn.id, at: Date.now(), ix, args: pick?.args, row: pick?.row, signer }, wrote: null, log: [] }
+  }
   if (want && turn.act !== want && !(want === "build" && turn.act === "buildDeploy") && !(want === "deploy" && turn.act === "buildDeploy")) return s
   const act = turn.act
   let name: string | undefined
@@ -655,7 +703,7 @@ function stage(s: State): State {
   if (done === "Building") {
     const c = checkBuild(s)
     if (!c.ok) return fail(s, run.act as Act, c, LIB, took)
-    s = { ...s, builtLib: s.files[LIB] }
+    s = built(s)
   }
   if (run.stage + 1 < run.stages.length) return { ...s, run: { ...run, stage: run.stage + 1 } }
 
@@ -666,7 +714,7 @@ function stage(s: State): State {
     const c = checkBuild(s)
     if (!c.ok) return fail(s, "build", c, LIB, took)
     const log = buildLog(s.files[LIB])
-    let next = idle(closeAct({ ...s, builtLib: s.files[LIB], log, error: null }))
+    let next = idle(closeAct({ ...built(s), log, error: null }))
     next = now(next, { kind: "result", step: s.step, act: "build", ok: true, log, took, args: signature(deployedArgs(s.files[LIB])), src: s.files[LIB] })
     // A build that passes on its own resolves every open question of the step, typed by hand
     if (s.step === 0 && !s.passed[0]) {
@@ -710,8 +758,10 @@ function stage(s: State): State {
     if (LESSON.run) {
       const r = LESSON.run(s)
       const log = r.tx ? clientLog(r.tx, r.out) : [`$ run ${CLIENT}`, "Running client...", ...r.out, "Client finished"]
-      let next = idle(closeAct({ ...s, log, memory: r.memory, txAt: r.tx ? Date.now() : s.txAt }))
-      next = now(next, { kind: "result", step: s.step, act: "run", ok: true, log, tx: r.tx ?? undefined, from: "client", took, src: s.files[CLIENT] })
+      let next = idle(closeAct({ ...s, log, memory: r.memory ?? s.memory, records: r.records ?? s.records, txAt: r.tx ? Date.now() : s.txAt }))
+      // A records lesson's client read its accounts back: the card draws them as they came
+      const recs: RecSnap | undefined = r.records ? { before: s.records ?? [], after: r.records, read: !r.tx } : undefined
+      next = now(next, { kind: "result", step: s.step, act: "run", ok: true, log, tx: r.tx ?? undefined, from: "client", took, src: s.files[CLIENT], recs })
       return afterAct(next, "run", nudge)
     }
     const game = LESSON.game
@@ -750,6 +800,9 @@ function stage(s: State): State {
     return grown(next, r.row)
   }
 
+  if (run.act === "send" && LESSON.records) return sentRecord(s, run, took, nudge)
+  if (run.act === "move") return moved(s, run, took)
+
   if (run.act === "send") {
     const ix = run.ix ?? ""
     const r = LESSON.memory!.panel(s, ix)
@@ -777,6 +830,8 @@ function stage(s: State): State {
   // move like any other: it can create the player or chop
   if (LESSON.game) return panelGame(idle(s), run.ix ?? "", took)
   if (LESSON.memory) return panelMemory(idle(s), run.ix ?? "", took, run.args)
+  if (LESSON.records) return panelRecords(idle(s), run.ix ?? "", took, run.args)
+  if (LESSON.raw) return panelRaw(idle(s), took)
   // In Hello Anchor it passes steps 3 and 4
   const args = deployedArgs(s.deployedLib)
   const named = args.length > 0
@@ -790,6 +845,22 @@ function stage(s: State): State {
   if (!passes) return next
   if (i === 3 && name) next = nameClient(next, name)
   return passedByPanel(next, i)
+}
+
+/** A send from a native lesson's raw Call panel: the instruction with the data typed in, as the chat's
+ * Call sends it. It passes the client's step once the program is on devnet, and with data the step
+ * that teaches it, once the program there reads it */
+function panelRaw(s: State, took: number): State {
+  const data = s.testName
+  const tx = LESSON.callTx!(s, data)
+  const log = [rawCommand(data), "Sending transaction...", ...programLog(tx)]
+  let next: State = { ...s, log, txAt: Date.now(), name: data.trim() ? data : s.name }
+  next = now(next, { kind: "result", step: s.step, act: "test", ok: true, log, tx, from: "test", took, sent: { data } })
+  const i = next.step
+  const deployed = next.deployedLib
+  const goal = STEPS[i].goal
+  const passes = !next.passed[i] && deployed !== null && (goal === "run" || (goal === "call" && !!data.trim() && LESSON.raw!.reads(deployed)))
+  return passes ? passedByPanel(next, i) : next
 }
 
 /** The act the panel's call stood in for is done, without its button ever pressed, and a question still
@@ -877,6 +948,102 @@ function panelGame(s: State, ix: string, took: number): State {
 }
 
 
+// ---- Records: the Data family's accounts, changed by `send` and `move` cards and the Call panel
+
+type ActTurn = Extract<Turn, { kind: "act" }>
+
+/** A records lesson's call, printed the way the client would make it: the call with its arguments,
+ * numbers as they are and text in quotes, then its logs */
+function recordLog(s: State, tx: Tx, ix: string, args?: Record<string, string>, row?: string, out: string[] = []) {
+  // `signer` picks the wallet that signs, it isn't sent as data
+  const { signer: _, ...given } = { ...LESSON.records!.args(s, ix, row), ...args }
+  const list = Object.values(given)
+    .map((v) => (/^\d+$/.test(v) ? v : JSON.stringify(v)))
+    .join(", ")
+  return [`$ pg.program.methods.${camel(ix)}(${list}).rpc()`, "Sending transaction...", ...programLog(tx), ...out]
+}
+
+/** Whether the next card the step's script puts up is another move: a move card gives way to it, as
+ * `flow` posts no second card of a kind while one is up */
+function nextIsMove(s: State) {
+  const step = STEPS[s.step]
+  const c = s.cursor[s.step]
+  const b = (c.fail ? (step.onFail ?? []) : step.beats).slice(c.at).find((b) => b.kind === "ask" || b.kind === "act")
+  return b?.kind === "act" && b.act === "move"
+}
+
+/** A `send` card of a records lesson came back: its result card draws the accounts around it, a
+ * refusal included (Counter PDA's second Create passes its step that way). A refusal that passes
+ * nothing puts the card back up, so it can be sent again */
+function sentRecord(s: State, run: Run, took: number, nudge: boolean): State {
+  const ix = run.ix ?? ""
+  const close = (x: State, extra: Partial<Turn> = {}) => (run.turn !== null ? patch(x, run.turn, { state: "done", took, ...extra } as Partial<Turn>) : x)
+  const r = LESSON.records!.send(s, ix, run.args, run.row, run.signer)
+  // Already done from the Call panel: nothing to send, and the script goes on
+  if ("note" in r) return nudge ? { ...close(s), phase: "idle", run: null } : flow({ ...close(s, { via: "test" }), phase: "idle", run: null })
+  // A wallet act prints its own lines (`log`), after the airdrop when it funded the wallet first
+  const log = [...(run.stages.includes(FUNDING) ? fundLog() : []), ...(r.log ?? recordLog(s, r.tx, ix, run.args, run.row, r.out))]
+  const recs: RecSnap = { before: s.records ?? [], after: r.records, refused: r.refused }
+  let next: State = { ...close({ ...s, records: r.records, log, txAt: Date.now(), terminal: s.terminal || !!r.tx.error }), phase: "idle", run: null }
+  next = now(next, { kind: "result", step: s.step, act: "send", ok: !r.tx.error, log, tx: r.tx, from: "chat", took, recs })
+  if (nudge) return next
+  const i = next.step
+  if (!next.passed[i] && STEPS[i].goal === "send" && LESSON.records!.passes(next, i, ix, r.tx)) return pass(next, i)
+  // A stranger's send is there to be refused: the script goes on under it
+  if (r.tx.error && run.turn !== null && !run.signer) {
+    const card = next.thread.find((t) => t.id === run.turn)
+    return card && card.kind === "act" ? now(next, { kind: "act", step: card.step, beat: card.beat, act: card.act, state: "live" }) : next
+  }
+  return flow(next)
+}
+
+/** A move came back: the card keeps its buttons for the next one, with this send listed on it, and
+ * its records card moves. A send the lesson won't make says why in the chat instead */
+function moved(s: State, run: Run, took: number): State {
+  const ix = run.ix ?? ""
+  const card = run.turn !== null ? s.thread.find((t) => t.id === run.turn) : undefined
+  const live = card && card.kind === "act" ? card : null
+  const r = LESSON.records!.send(s, ix, run.args, run.row, run.signer)
+  if ("note" in r) {
+    const next: State = { ...s, phase: "idle", run: null }
+    return post(live ? patch(next, live.id, { state: "live" } as Partial<Turn>) : next, { kind: "say", step: s.step, text: r.note })
+  }
+  const log = recordLog(s, r.tx, ix, run.args, run.row, r.out)
+  const sent: Sent = { ok: !r.tx.error, at: Date.now(), ix, tx: r.tx, snap: { before: s.records ?? [], after: r.records, refused: r.refused } }
+  let next: State = { ...s, records: r.records, log, txAt: Date.now(), terminal: s.terminal || !!r.tx.error, phase: "idle", run: null }
+  if (live) next = patch(next, live.id, { state: "live", took, sends: [...(live.sends ?? []), sent] } as Partial<Turn>)
+  return movedOn(next, ix, r.tx, live)
+}
+
+/** After a send from a move card or the Call panel: the step passes when the lesson says this send is
+ * what it's about. A move that passes its step keeps its card up, for more ("Increment 10 times"),
+ * until Next. Before that, the card's first send that goes through lets the script go on under it; a
+ * `send` card the panel stood in for is done */
+function movedOn(s: State, ix: string, tx: Tx, card: ActTurn | null, via?: "test"): State {
+  const i = s.step
+  if (!s.passed[i] && (STEPS[i].goal === "move" || via) && LESSON.records!.passes(s, i, ix, tx)) return via ? passedByPanel(s, i) : pass(s, i)
+  if (tx.error || !card || card.step !== i || s.passed[i]) return s
+  if (card.act === "send") return flow(patch(s, card.id, { state: "done", via: "test" } as Partial<Turn>))
+  if ((card.sends ?? []).some((x) => x.ok)) return s
+  return flow(nextIsMove(s) ? patch(s, card.id, { state: "done" } as Partial<Turn>) : s)
+}
+
+/** A call from a records lesson's Call panel: what a card would send, with what the panel was given.
+ * Its result stays in the panel; a card up in the chat for the same call lists it, or is done */
+function panelRecords(s: State, ix: string, took: number, args?: Record<string, string>): State {
+  const r = LESSON.records!.send(s, ix, args)
+  if ("note" in r) return s
+  const log = panelLog(r.tx, null)
+  const recs: RecSnap = { before: s.records ?? [], after: r.records, refused: r.refused }
+  let next: State = { ...s, records: r.records, log, txAt: Date.now() }
+  next = now(next, { kind: "result", step: s.step, act: "test", ok: !r.tx.error, log, tx: r.tx, from: "test", took, sent: args, recs })
+  const up = liveAct(next)?.turn
+  const beat = up ? (BEATS[up.beat] as ActBeat) : undefined
+  const card = up && ((up.act === "send" && beat?.ix === ix) || (up.act === "move" && beat?.moves?.some((m) => m.ix === ix))) ? up : null
+  if (card?.act === "move") next = patch(next, card.id, { sends: [...(card.sends ?? []), { ok: !r.tx.error, at: Date.now(), ix, tx: r.tx, snap: recs, via: "test" }] } as Partial<Turn>)
+  return movedOn(next, ix, r.tx, card, "test")
+}
+
 /** Step 4 called hello with a name: client.ts still calls it without one, which the new hello
  * refuses, so its call takes the same name. Only the call's own parentheses change; the rest of the
  * file stays as the learner left it */
@@ -920,7 +1087,7 @@ function nudge(s: State): State {
   const step = STEPS[s.step]
   const ahead = (s.cursor[s.step].fail ? step.onFail ?? [] : step.beats).slice(s.cursor[s.step].at)
   if (!s.passed[s.step] && ahead.some((b) => b.kind === "act" && (b.act === "deploy" || b.act === "buildDeploy"))) return s
-  let next = post(s, { kind: "say", step: s.step, text: "You changed lib.rs after deploying. Devnet still runs the old version.", nudge: true })
+  let next = post(s, { kind: "say", step: s.step, text: `You changed ${LIB.split("/").pop()} after deploying. Devnet still runs the old version.`, nudge: true })
   next = post(next, { kind: "act", step: s.step, beat: (firstAct("buildDeploy") ?? firstAct("deploy"))!.id, act: "buildDeploy", state: "live", nudge: true })
   return next
 }
@@ -1001,12 +1168,17 @@ function reducer(s: State, a: Action): State {
       if (line > rows.length || (rows[line - 1] ?? "").trim() === "") {
         while (rows.length < line) rows.push("")
         rows[line - 1] = placed[line - 1]?.match(/^\s*/)?.[0] ?? ""
+      } else if (placed.some((l) => l.trim() === rows[line - 1].trim())) {
+        // The answer lands between two lines of code that both stay: it gets a line of its own, or the
+        // key typed at the start of the next line took that line with it when the block was filled in.
+        // A line the answer replaces (an unboxed account, an untyped parameter) is typed over, as before
+        rows.splice(line - 1, 0, placed[line - 1]?.match(/^\s*/)?.[0] ?? "")
       }
       const files = { ...s.files, [file]: rows.join("\n") }
       return { ...s, files, open: file, tabs: s.tabs.includes(file) ? s.tabs : [...s.tabs, file], reveal: { file, lines: [line], at: Date.now(), caret: true } }
     }
     case "act":
-      return startAct(s, a.act)
+      return startAct(s, a.act, a)
     case "checkFix": {
       // The open "Fix it" question's Build: the learner's own edit, built as it stands, with no act card.
       // A failure opens on the compiler's words; a pass resolves the question as typed and the step
@@ -1020,7 +1192,7 @@ function reducer(s: State, a: Action): State {
       if (s.phase !== "idle" || s.deployedLib === null) return s
       const ix = a.ix ?? idlOf(s.deployedLib).instructions[0].name
       const named = deployedArgs(s.deployedLib).length > 0
-      if (!LESSON.game && named && !s.testName.trim()) return s
+      if (!LESSON.game && !LESSON.records && named && !s.testName.trim()) return s
       // The player is made once: the panel says so instead of sending a call that would fail
       if (ix === "init_player" && s.player) return s
       return { ...s, phase: "testing", run: { act: "test", stages: [`Sending ${ix} to devnet`], stage: 0, turn: null, at: Date.now(), ix, args: a.args }, log: [] }
@@ -1061,7 +1233,7 @@ function reducer(s: State, a: Action): State {
       const before = s.files[file] ?? ""
       const fixed = fixOf(before, file === LIB && s.deployedLib !== null ? withId(target, PROGRAM_ID) : target)
       const next = patch(s, t.id, { followDone: true } as Partial<Turn>)
-      if (fixed === before) return post(next, { kind: "say", step: s.step, text: `${file === CLIENT ? "client.ts" : "lib.rs"} already has the lines this step needs. Run it again.` })
+      if (fixed === before) return post(next, { kind: "say", step: s.step, text: `${file === CLIENT ? "client.ts" : LIB.split("/").pop()} already has the lines this step needs. Run it again.` })
       const line = before.split("\n").findIndex((l, i) => l !== fixed.split("\n")[i]) + 1 || 1
       return post(next, { kind: "apply", step: s.step, file, before, after: fixed, line, done: null, fix: true, source: t.id })
     }
@@ -1163,11 +1335,26 @@ function reducer(s: State, a: Action): State {
       const recent = a.file === "test" ? s.recent : [a.file, ...s.recent.filter((f) => f !== a.file)].slice(0, 5)
       return { ...s, tabs, recent, open: a.file, fresh, idlNew: s.open === "test" && a.file !== "test" ? false : s.idlNew, testDot: a.file === "test" ? false : s.testDot }
     }
+    case "closeFile": {
+      const shown = shownTabs(s.tabs)
+      if (shown.length < 2 || !shown.includes(a.file)) return s
+      // Closing the open tab opens the one left of it, as the strip shows them, or right of it if none
+      const at = shown.indexOf(a.file)
+      const open = s.open === a.file ? (shown[at - 1] ?? shown[at + 1] ?? LIB) : s.open
+      return { ...s, tabs: s.tabs.filter((t) => t !== a.file), open }
+    }
+    case "moveTab": {
+      const shown = shownTabs(s.tabs).filter((t) => t !== a.file)
+      if (shown.length === shownTabs(s.tabs).length) return s
+      shown.splice(Math.max(0, Math.min(a.to, shown.length)), 0, a.file)
+      return { ...s, tabs: [...shown, ...s.tabs.filter((t) => !shown.includes(t))] }
+    }
     case "openTest":
       if (!s.tabs.includes("test")) return s
       return { ...s, open: "test", testDot: false }
     case "reveal":
-      return { ...s, open: a.file, reveal: { file: a.file, lines: a.lines, at: Date.now(), caret: a.caret }, fresh: { ...s.fresh, [a.file]: 0 } }
+      // A closed tab opens again: Show in goes to its file whatever the strip holds
+      return { ...s, tabs: a.file === "test" ? s.tabs : withTab(s.tabs, a.file), open: a.file, reveal: { file: a.file, lines: a.lines, at: Date.now(), caret: a.caret }, fresh: { ...s.fresh, [a.file]: 0 } }
     case "tree":
       return { ...s, tree: a.state }
     case "terminal":
@@ -1180,6 +1367,8 @@ function reducer(s: State, a: Action): State {
       const win = liveWin(s)
       if (!win) return s
       let next = patch(s, win.id, { done: true } as Partial<Turn>)
+      // A move card kept up past its step's win for more ("Increment 10 times") is done with the step
+      next = { ...next, thread: next.thread.map((t) => (t.kind === "act" && t.act === "move" && t.step === win.step && t.state !== "done" ? { ...t, state: "done" } : t)) }
       // An open question passed by through the Call panel stays a record of how it went
       next = { ...next, thread: next.thread.map((t) => (t.kind === "ask" && t.step === win.step && t.done === null ? { ...t, done: "test" } : t)) }
       if (win.step >= STEPS.length - 1) return next
@@ -1190,8 +1379,8 @@ function reducer(s: State, a: Action): State {
     case "goto": {
       // The step bar's jump: the step's main file, from its top. The feed's scroll is the view's
       const file = STEPS[a.step].file
-      if (!s.tabs.includes(file)) return s
-      return { ...s, open: file, reveal: { file, lines: [1], at: Date.now(), top: true }, fresh: { ...s.fresh, [file]: 0 } }
+      if (!(file in s.files)) return s
+      return { ...s, tabs: withTab(s.tabs, file), open: file, reveal: { file, lines: [1], at: Date.now(), top: true }, fresh: { ...s.fresh, [file]: 0 } }
     }
     case "resetFile": {
       const step = STEPS[s.step]
@@ -1260,9 +1449,13 @@ function loadSaved(): State {
 export function resetStorage() {
   try {
     localStorage.removeItem(key())
+    // First Light's own keys (the Build hint's "done") go with it
+    Object.keys(localStorage).filter((k) => k.startsWith("oak.np.")).forEach((k) => localStorage.removeItem(k))
   } catch {
     // Nothing stored, nothing to clear
   }
+  // Settings too: Dark, Devnet, the built in model, no RPCs, closed
+  resetSettings()
 }
 
 const Ctx = createContext<{ s: State; dispatch: Dispatch<Action> } | null>(null)
@@ -1280,6 +1473,16 @@ export function savedProgress(slug: string, steps: number): Progress {
   }
   return { started: false, finished: false, passed: Array.from({ length: steps }, () => false) }
 }
+
+/** The file tabs as the strip shows them, without the Call panel: in the order they opened, or as you
+ * dragged them (Almaz, 10 Nov), a new one at the end */
+export const shownTabs = (tabs: string[]) => tabs.filter((t) => t in INITIAL_FILES)
+
+/** Any tab closes but the last one, so the editor is never empty (Almaz, 10 Nov). Closing hides a
+ * file, never removes it: Show in, the step bar and the assistant's edits open it again */
+export const canCloseTabs = (tabs: string[]) => shownTabs(tabs).length > 1
+
+const withTab = (tabs: string[], file: string) => (tabs.includes(file) ? tabs : [...tabs, file])
 
 export const progressOf = (s: State): Progress => ({ started: s.startedAt !== null, finished: s.finishedAt !== null, passed: s.passed })
 

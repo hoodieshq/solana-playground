@@ -1,11 +1,10 @@
 import type { KeyboardEvent } from "react"
-import { FileCode } from "lucide-react"
+import { ChevronDown, FileCode } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-import { CLIENT, INITIAL_FILES, STEPS } from "../data"
+import { CLIENT, INITIAL_FILES, LESSON, STEPS } from "../data"
 import { useStore } from "../store"
-import { NAV_ICONS } from "./navIcons"
 
 /** One row shape for the tree, the nav's: 28px, 13px, the glyph in a 16px box */
 export const ROW =
@@ -61,14 +60,16 @@ export function FileTreeList({ onPick, tall = false }: { onPick: (file: string) 
             // drift apart, and the names at the reading size so 44px rows don't hold little words
             <div key={i} style={indent} className={cn(ROW, "cursor-default text-muted-foreground hover:bg-transparent", tall && "h-9 text-[0.9375rem]")}>
               <span aria-hidden="true" className="flex size-3 text-muted-foreground [&>svg]:size-full">
-                {NAV_ICONS.caret}
+                <ChevronDown aria-hidden="true" strokeWidth={1.5} className="size-full" />
               </span>
               {e.name}
             </div>
           )
         const name = e.path.split("/").pop()
         const open = s.open === e.path
-        const waiting = e.path === CLIENT && !s.tabs.includes(CLIENT)
+        // The Rust a Seahorse build writes is there once the first build is
+        const generated = e.path === LESSON.generated?.file
+        const waiting = generated ? !s.files[e.path] : e.path === CLIENT && !s.tabs.includes(CLIENT)
         return (
           <button
             key={i}
@@ -93,7 +94,7 @@ export function FileTreeList({ onPick, tall = false }: { onPick: (file: string) 
             <FileCode className={cn("shrink-0 text-subtle", tall ? "size-4" : "size-[15px]")} aria-hidden="true" />
             <span className="truncate">{name}</span>
             {/* Not there yet, so said once in words: no fade, no lock */}
-            {waiting && <span className="ml-auto pl-3 text-caption text-muted-foreground">Created in step {clientStep()}</span>}
+            {waiting && <span className="ml-auto pl-3 text-caption text-muted-foreground">{generated ? "Made by the build" : `Created in step ${clientStep()}`}</span>}
             {!waiting && live === e.path && <span aria-label="This step's file" className="ml-auto size-1.5 shrink-0 rounded-full bg-brand-purple" />}
           </button>
         )
