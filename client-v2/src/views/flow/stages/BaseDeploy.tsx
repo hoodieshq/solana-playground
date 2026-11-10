@@ -62,6 +62,8 @@ export interface DeployPayer {
   balance: number | undefined;
   /** The Playground wallet, not a connected one such as Phantom */
   playground: boolean;
+  /** A connected wallet's own name, as "Phantom"; absent for the Playground wallet */
+  name?: string;
 }
 
 export interface BaseDeployProps {
@@ -172,6 +174,12 @@ const payerLine = (p: BaseDeployProps) => {
   }
   const balance =
     payer.balance === undefined ? "" : ` · ${payer.balance.toFixed(2)} SOL`;
+  if (!payer.playground && payer.name) {
+    // A deploy from a connected wallet asks it twice (`commands/deploy`)
+    return `From ${payer.name} · ${shortKey(payer.address)}${balance}. ${
+      payer.name
+    } asks twice: to send SOL for the deploy, then to deploy.`;
+  }
   const which = payer.playground ? "your Playground wallet" : "your wallet";
   return `From ${which} · ${shortKey(payer.address)}${balance}`;
 };
