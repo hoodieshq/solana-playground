@@ -7,6 +7,7 @@ export {
   trackExportFailed,
 } from "./model/export";
 export type { Exported } from "./model/export";
+export { trackImport, trackImportFailure } from "./model/import";
 export { importReasonOf } from "./model/reason";
 export { projectFilesTelemetry } from "./model/telemetry";
 export type {
