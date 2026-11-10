@@ -62,6 +62,8 @@ vi.mock("@/utils", () => ({
   },
 }));
 
+import { PgDeployRun } from "@/commands/deploy/run";
+
 import { onDidRequestFundDialog } from "../model/open";
 import WalletChip from "./WalletChip";
 
@@ -99,6 +101,12 @@ const getSol = async () => {
     fireEvent.click(screen.getByRole("button", { name: /^Get / }));
   });
 };
+
+/** The connect events the chip sent, as [name, params] */
+const chipEvents = () =>
+  sent.events
+    .filter((event) => /^fund_wallet_/.test(event.name))
+    .map((event) => [event.name, event.params]);
 
 const refusals = () =>
   sent.events
@@ -187,6 +195,33 @@ describe("features/fund-wallet/ui/WalletChip", () => {
       );
     });
     expect(connectStandard.drop).toHaveBeenCalledWith("Phantom");
+    expect(chipEvents()).toEqual([
+      ["fund_wallet_disconnected", { wallet: "Phantom" }],
+    ]);
+  });
+
+  it("holds Disconnect while a deploy from the extension runs", () => {
+    current.wallet = {
+      name: "Phantom",
+      icon: "data:,",
+      publicKey: { toBase58: () => ADDRESS },
+    };
+    renderChip(() => false);
+    act(() => PgDeployRun.update({ step: "write" }));
+    try {
+      fireEvent.click(
+        screen.getByRole("button", { name: /^Wallet 7xKX…gAsU/ })
+      );
+      const disconnect = screen.getByRole("button", {
+        name: "Disconnect Phantom",
+      });
+      expect((disconnect as HTMLButtonElement).disabled).toBe(true);
+      expect(
+        screen.getByText("Disconnect after the deploy finishes")
+      ).toBeTruthy();
+    } finally {
+      act(() => PgDeployRun.reset());
+    }
   });
 
   describe("connecting a wallet", () => {
@@ -204,6 +239,10 @@ describe("features/fund-wallet/ui/WalletChip", () => {
         fireEvent.click(screen.getByRole("button", { name: "Phantom" }));
       });
       expect(connectStandard.make).toHaveBeenCalledWith("Phantom");
+      expect(chipEvents()).toEqual([
+        ["fund_wallet_connect_started", { wallet: "Phantom" }],
+        ["fund_wallet_connected", { wallet: "Phantom", as: "current" }],
+      ]);
     });
 
     it("keeps waiting across a close and a reopen, until the extension answers", async () => {
@@ -242,6 +281,10 @@ describe("features/fund-wallet/ui/WalletChip", () => {
           "Phantom didn't connect. The Playground wallet is in use."
         )
       ).toBeTruthy();
+      expect(chipEvents().at(-1)).toEqual([
+        "fund_wallet_connect_failed",
+        { wallet: "Phantom", reason: "rejected" },
+      ]);
     });
   });
 });

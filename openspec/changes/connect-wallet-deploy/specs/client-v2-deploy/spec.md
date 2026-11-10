@@ -8,7 +8,8 @@ When an extension wallet is current, the Deploy stage's who-pays line SHALL name
 {short address} · {balance} SOL") and, before a run, SHALL add "{wallet} asks twice: to send SOL for the
 deploy, then to deploy." While the run waits on the extension's signature, the running step SHALL add
 "Approve in {wallet} (1 of 2)" for the transfer and "Approve in {wallet} (2 of 2)" for the final deploy or
-upgrade. The extension SHALL be the program's upgrade authority afterwards.
+upgrade, and "Approve in {wallet} to close the buffer" when a failed or stopped deploy closes a buffer whose
+authority already went to the wallet. The extension SHALL be the program's upgrade authority afterwards.
 
 #### Scenario: Deploy from Phantom on devnet (manual)
 

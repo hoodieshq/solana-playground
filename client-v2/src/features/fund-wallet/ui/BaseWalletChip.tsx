@@ -75,6 +75,8 @@ export interface BaseWalletChipProps {
   onConnectOpen?: () => void;
   onConnect?: (name: string) => void;
   onDisconnect?: () => void;
+  /** A deploy from the connected wallet runs: it cannot be disconnected yet */
+  disconnectHeld?: boolean;
 }
 
 const fmt = (sol: number) => `${Number(sol.toFixed(4))} SOL`;
@@ -114,6 +116,7 @@ const BaseWalletChip = ({
   onConnectOpen,
   onConnect,
   onDisconnect,
+  disconnectHeld = false,
 }: BaseWalletChipProps) => {
   const short = shortAddress(address);
   const shown = balance === undefined ? "…" : fmt(balance);
@@ -181,14 +184,22 @@ const BaseWalletChip = ({
             />
           </div>
           {owner && onDisconnect && (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-3 w-full"
-              onClick={onDisconnect}
-            >
-              Disconnect {owner.name}
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-3 w-full"
+                disabled={disconnectHeld}
+                onClick={onDisconnect}
+              >
+                Disconnect {owner.name}
+              </Button>
+              {disconnectHeld && (
+                <p className="mt-1.5 text-center text-[0.75rem] text-muted-foreground">
+                  Disconnect after the deploy finishes
+                </p>
+              )}
+            </>
           )}
           {!owner && onConnect && onConnectOpen && (
             <ConnectBlock

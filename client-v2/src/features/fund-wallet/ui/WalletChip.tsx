@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { isAirdropRefused, refusalOf } from "@/commands/airdrop/report";
 import { isAirdropSignInGated } from "@/commands/airdrop/sign-in-gate";
+import { PgDeployRun } from "@/commands/deploy/run";
 import {
   disconnectStandard,
   makeStandardCurrent,
@@ -52,6 +53,16 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
   const from = useRef<number | undefined>(undefined);
   const [connect, setConnect] = useState<ConnectState>({ kind: "idle" });
   const attempts = useRef(0);
+  // A deploy from the extension still needs it to sign: no disconnect then
+  const [deploying, setDeploying] = useState(
+    () => PgDeployRun.state.step !== null
+  );
+  useEffect(() => {
+    const sub = PgDeployRun.onDidChange((run) =>
+      setDeploying(run.step !== null)
+    );
+    return () => sub.dispose();
+  }, []);
 
   useEffect(() => {
     if (state !== "away" && state !== "received") return;
@@ -95,12 +106,22 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
     // otherwise overwrite the wait for the wallet picked after it
     const attempt = ++attempts.current;
     setConnect({ kind: "waiting", wallet: name });
+    fundTelemetry.track("fund_wallet_connect_started", { wallet: name });
     try {
       await makeStandardCurrent(name);
+      fundTelemetry.track("fund_wallet_connected", {
+        wallet: name,
+        as: "current",
+      });
       if (attempt === attempts.current) setConnect({ kind: "idle" });
     } catch (error) {
+      const reason = classify(error);
+      fundTelemetry.track("fund_wallet_connect_failed", {
+        wallet: name,
+        reason,
+      });
       if (attempt !== attempts.current) return;
-      if (classify(error) === "rejected") {
+      if (reason === "rejected") {
         // Declining is the user's answer; it is logged, never reported
         log.warn("the wallet declined to connect", {
           context: { wallet: name, error: String(error) },
@@ -194,8 +215,12 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
         connect={connect}
         onConnectOpen={() => setConnect({ kind: "listing" })}
         onConnect={(name) => void handleConnect(name)}
+        disconnectHeld={deploying}
         onDisconnect={() => {
           if (!owner) return;
+          fundTelemetry.track("fund_wallet_disconnected", {
+            wallet: owner.name,
+          });
           disconnectStandard(owner.name).catch(
             reportButtonFailure(`disconnect from ${owner.name}`)
           );
