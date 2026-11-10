@@ -1,5 +1,6 @@
 import type { FaucetLinkFill } from "@/shared/lib/faucet";
 import { faucetLink, offeredAmount, webFaucetSteps } from "@/shared/lib/faucet";
+import type { AirdropRefusal } from "@/shared/lib/faucet-limit";
 
 const LAMPORTS_PER_SOL = 1_000_000_000;
 
@@ -55,9 +56,6 @@ export class AirdropRefusedError extends Error {
 export const isAirdropRefused = (
   error: unknown
 ): error is AirdropRefusedError => error instanceof AirdropRefusedError;
-
-/** What a refusal names as its cause: the faucet's limit, or anything else */
-export type AirdropRefusal = "limit" | "other";
 
 /** The cause of a refusal, as the wallet chip and the wallet menu name it */
 export const refusalOf = (error: unknown): AirdropRefusal =>

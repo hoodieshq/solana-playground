@@ -112,7 +112,11 @@ describe("refusedNote", () => {
   });
 
   it("asks the faucet for an amount its form offers, and says that one", () => {
-    const note = refusedNote(new Error("fetch failed"), { ...fill, amount: 3 });
+    const note = refusedNote(new Error("fetch failed"), {
+      walletAddress: WALLET,
+      amount: 3,
+      cluster: "devnet",
+    });
     expect(note).toContain(LINK);
     expect(note).toContain("Your address and 5 SOL are filled in");
   });
