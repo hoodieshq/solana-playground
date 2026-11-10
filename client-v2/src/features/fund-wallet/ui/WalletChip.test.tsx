@@ -56,7 +56,7 @@ afterEach(() => {
   airdrop.mockReset();
 });
 
-const renderChip = (isSignInFailure: (e: unknown) => boolean = () => false) =>
+const renderChip = (isSignInFailure: (e: unknown) => boolean) =>
   render(
     <TooltipProvider>
       <WalletChip signedOut={false} isSignInFailure={isSignInFailure} />
@@ -95,27 +95,27 @@ describe("features/fund-wallet/ui/WalletChip", () => {
   });
 
   it.each([
-    [
-      "the limit",
-      "429 Too Many Requests",
-      "The faucet is at its limit",
-      "rate-limited",
-      0,
-    ],
-    [
-      "anything else",
-      "fetch failed",
-      "The faucet did not send SOL",
-      "failed",
-      1,
-    ],
+    {
+      cause: "the limit",
+      message: "429 Too Many Requests",
+      headline: "The faucet is at its limit",
+      reason: "rate-limited",
+      errorsLogged: 0,
+    },
+    {
+      cause: "anything else",
+      message: "fetch failed",
+      headline: "The faucet did not send SOL",
+      reason: "failed",
+      errorsLogged: 1,
+    },
   ])(
-    "spells out the web faucet for a refusal for %s",
-    async (_case, message, headline, reason, errorsLogged) => {
+    "spells out the web faucet for a refusal for $cause",
+    async ({ message, headline, reason, errorsLogged }) => {
       airdrop.mockRejectedValueOnce(
         new AirdropRefusedError(new Error(message))
       );
-      renderChip();
+      renderChip(() => false);
       await getSol();
 
       expect(screen.getByText(headline)).toBeTruthy();

@@ -207,11 +207,11 @@ describe("wallet Settings menu", () => {
   });
 
   it.each([
-    ["429 Too Many Requests", "limit", []],
-    ["fetch failed", "other", ["airdrop"]],
+    { message: "429 Too Many Requests", refusal: "limit", logged: [] },
+    { message: "fetch failed", refusal: "other", logged: ["airdrop"] },
   ])(
-    "shows the web faucet's way round for a refusal (%s)",
-    async (message, refusal, logged) => {
+    "shows the web faucet's way round for a refusal ($message)",
+    async ({ message, refusal, logged }) => {
       const failure = new AirdropRefusedError(new Error(message));
       airdropHook.faucet = "available";
       airdropHook.airdrop.mockRejectedValueOnce(failure);
