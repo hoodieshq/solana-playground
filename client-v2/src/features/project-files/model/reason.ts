@@ -37,7 +37,7 @@ if (import.meta.vitest) {
       expect(importReasonOf(error)).toBe(reason);
     });
 
-    it("never reads the message", () => {
+    it("ignores the message", () => {
       expect(importReasonOf(new Error("rate limit reached (404)"))).toBe(
         "other"
       );
