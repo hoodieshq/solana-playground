@@ -364,7 +364,7 @@ const FundsCard = ({
               </span>
             </WalletAddress>
           </div>
-          <div className="flex gap-2 max-sm:flex-col max-sm:items-stretch">
+          <div className="flex flex-wrap gap-2 max-sm:flex-col max-sm:items-stretch">
             <Button variant="outline" asChild>
               <a
                 href={faucetUrlWith(DEVNET_FAUCET_SOL)("devnet")(address)}
