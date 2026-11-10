@@ -86,8 +86,8 @@ export const canSend = (
   return { ok: true, lamports: amount.lamports };
 };
 
-/** Lamports as the amount field writes them: no exponent, no trailing zeros */
-const writeLamports = (lamports: number) => {
+/** Lamports as the amount field shows them: no exponent, no trailing zeros */
+const formatLamports = (lamports: number) => {
   const whole = Math.floor(lamports / LAMPORTS_PER_SOL);
   const fraction = String(lamports % LAMPORTS_PER_SOL)
     .padStart(9, "0")
@@ -95,20 +95,31 @@ const writeLamports = (lamports: number) => {
   return fraction ? `${whole}.${fraction}` : String(whole);
 };
 
+/** Digits past the ninth decimal, which no lamport holds */
+const PAST_LAMPORTS = /^(\d+\.\d{9})\d+$/;
+
 /**
  * The amount one step of 0.1 SOL up (`1`) or down (`-1`) from `text`: the
  * next multiple of 0.1 that way, so `1.999` goes to `2` or `1.9`, never below
- * 0. Text that is not an amount steps from 0.
+ * 0. Decimals past the ninth are dropped first, so `1.0000000001` steps as
+ * `1`; other text that is not an amount steps from 0.
  */
-export const stepAmount = (text: string, direction: 1 | -1): string => {
-  const parsed = parseAmount(text);
-  const lamports = parsed.ok ? parsed.lamports : 0;
-  const steps =
-    direction === 1
-      ? Math.floor(lamports / STEP_LAMPORTS) + 1
-      : Math.ceil(lamports / STEP_LAMPORTS) - 1;
-  return writeLamports(Math.max(0, steps) * STEP_LAMPORTS);
-};
+export const stepAmount =
+  (direction: 1 | -1) =>
+  (text: string): string => {
+    const trimmed = text.trim();
+    const cut = trimmed.replace(PAST_LAMPORTS, "$1");
+    const parsed = parseAmount(cut);
+    // Cut digits put the amount between two lamports, so `1.0000000001`
+    // steps down to `1`, not `0.9`
+    const between = cut !== trimmed && /[1-9]/.test(trimmed.slice(cut.length));
+    const lamports = (parsed.ok ? parsed.lamports : 0) + (between ? 0.5 : 0);
+    const steps =
+      direction === 1
+        ? Math.floor(lamports / STEP_LAMPORTS) + 1
+        : Math.ceil(lamports / STEP_LAMPORTS) - 1;
+    return formatLamports(Math.max(0, steps) * STEP_LAMPORTS);
+  };
 
 /**
  * The most `canSend` accepts from `balance` SOL, as the amount field writes it;
@@ -118,7 +129,7 @@ export const maxAmount = (balance: number): string | undefined => {
   const lamports = spendableLamports(balance);
   // `!(… > 0)`, not `<= 0`: a NaN balance has nothing to send either
   if (!(lamports > 0)) return undefined;
-  return writeLamports(lamports);
+  return formatLamports(lamports);
 };
 
 /** How wallets word a user's "no": Phantom, Solflare, Backpack, WalletConnect */
@@ -253,10 +264,12 @@ if (import.meta.vitest) {
       { text: "0.2", direction: -1, next: "0.1" },
       { text: "abc", direction: 1, next: "0.1" },
       { text: "", direction: 1, next: "0.1" },
+      { text: "1.0000000001", direction: 1, next: "1.1" },
+      { text: "1.0000000001", direction: -1, next: "1" },
     ])(
-      "stepAmount($text, $direction) is $next",
+      "stepAmount($direction)($text) is $next",
       ({ text, direction, next }) => {
-        expect(stepAmount(text, direction)).toBe(next);
+        expect(stepAmount(direction)(text)).toBe(next);
       }
     );
 

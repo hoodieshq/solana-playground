@@ -1,9 +1,10 @@
-import { Minus, Plus } from "lucide-react";
+import { ExternalLink, Minus, Plus } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useState } from "react";
 
 import { networkInSentence } from "@/constants";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
+import { cn } from "@/shared/lib/utils";
 import { AsyncButton } from "@/shared/ui/async-button";
 import { Badge } from "@/shared/ui/badge";
 import { BrandButton } from "@/shared/ui/brand-button";
@@ -98,6 +99,8 @@ export interface BaseFundDialogProps {
    * where the explorer cannot open that cluster, and the address stays text
    */
   addressUrl?: (address: string) => string | undefined;
+  /** A phone draws the modal frame's foot: no Cancel, Send across it */
+  phone?: boolean;
 }
 
 const shortAddress = (address: string) =>
@@ -110,28 +113,30 @@ const AddressLink = ({ address, url }: { address: string; url?: string }) =>
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="font-mono text-primary-ink underline-offset-4 hover:underline"
+      className="inline-flex items-center gap-0.5 font-mono text-primary-ink underline-offset-4 hover:underline"
     >
       {shortAddress(address)}
+      <ExternalLink aria-hidden="true" className="size-3" />
     </a>
   ) : (
     <span className="font-mono">{shortAddress(address)}</span>
   );
 
-/** The footer's buttons, at the modal frame's height so the pair lines up */
-const FOOTER_BUTTON = "h-10 rounded-full px-4 font-heading text-[0.9375rem]";
+/**
+ * Cancel and Send as `BaseModalFrame` draws a brand submit: a ghost Cancel at
+ * the brand button's 40 px on a desk; on a phone no Cancel (the sheet closes
+ * itself) and Send across the foot in the flat accent. Copied rather than
+ * built on that frame, which is a widget this feature cannot import.
+ */
+const DESK_CANCEL =
+  "h-10 rounded-full px-4 font-heading text-[0.9375rem] font-act";
+const DESK_SEND = "px-5";
+const PHONE_SEND = "h-12 w-full rounded-xl text-control";
 
 /** The line under the amount field: a problem, or where the SOL goes */
 const amountNoteFor =
-  ({
-    payer,
-    receiver,
-    cluster,
-  }: {
-    payer: FundPayer;
-    receiver: Receiver;
-    cluster: string | undefined;
-  }) =>
+  (receiverName: string) =>
+  (payer: FundPayer, cluster: string | undefined) =>
   (amount: string): { ok: boolean; error: boolean; text: string } => {
     if (payer.balance === "unavailable") {
       return {
@@ -148,7 +153,7 @@ const amountNoteFor =
       return {
         ok: true,
         error: false,
-        text: `Arrives in ${receiver.name} on ${
+        text: `Arrives in ${receiverName} on ${
           networkInSentence(cluster) ?? "the Playground's cluster"
         }.`,
       };
@@ -164,7 +169,8 @@ const amountNoteFor =
     };
     return {
       ok: false,
-      // 0 is where the field starts, not a mistake: a hint until it moves
+      // Any zero is a hint, not a mistake: the field starts there, and
+      // stepping down lands there
       error: check.problem !== "checking" && check.problem !== "not-positive",
       text: notes[check.problem],
     };
@@ -220,33 +226,36 @@ const BaseFundDialog = ({
   onSend,
   failure,
   addressUrl,
+  phone = false,
 }: BaseFundDialogProps) => {
   const [sending, setSending] = useState(false);
   const note = payer
-    ? amountNoteFor({ payer, receiver, cluster })(amount)
+    ? amountNoteFor(receiver.name)(payer, cluster)(amount)
     : undefined;
   const unconfirmed =
     failure?.kind === "send-unconfirmed" || failure?.kind === "send-pending";
   const shown = failure ? failureText(failure) : undefined;
   const max =
     typeof payer?.balance === "number" ? maxAmount(payer.balance) : undefined;
-  const atZero = !parseAmount(amount).ok && stepAmount(amount, -1) === "0";
+  const lower = stepAmount(-1)(amount);
+  // Less changes nothing at 0
+  const canLower = lower !== amount;
 
-  const onAmountKey = (event: KeyboardEvent<HTMLInputElement>) => {
-    const direction = { ArrowUp: 1, ArrowDown: -1 }[event.key] as
-      | 1
-      | -1
-      | undefined;
-    if (!direction) return;
+  const handleAmountKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    const modified =
+      event.shiftKey || event.altKey || event.metaKey || event.ctrlKey;
+    if (modified) return;
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     event.preventDefault();
-    onAmountChange(stepAmount(amount, direction));
+    onAmountChange(stepAmount(event.key === "ArrowUp" ? 1 : -1)(amount));
   };
 
   // BrandButton has no wait of its own, so Send keeps one: a second press
   // while the wallet asks would start a second transfer
-  const send = () => {
+  const handleSend = () => {
     setSending(true);
-    onSend()
+    Promise.resolve()
+      .then(onSend)
       .catch(reportButtonFailure("send the SOL"))
       .finally(() => setSending(false));
   };
@@ -323,21 +332,21 @@ const BaseFundDialog = ({
                   value={amount}
                   aria-invalid={note.error || undefined}
                   onChange={(event) => onAmountChange(event.target.value)}
-                  onKeyDown={onAmountKey}
+                  onKeyDown={handleAmountKey}
                 />
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton
                     size="icon-xs"
                     aria-label="Less by 0.1 SOL"
-                    disabled={atZero}
-                    onClick={() => onAmountChange(stepAmount(amount, -1))}
+                    disabled={!canLower}
+                    onClick={() => onAmountChange(lower)}
                   >
                     <Minus />
                   </InputGroupButton>
                   <InputGroupButton
                     size="icon-xs"
                     aria-label="More by 0.1 SOL"
-                    onClick={() => onAmountChange(stepAmount(amount, 1))}
+                    onClick={() => onAmountChange(stepAmount(1)(amount))}
                   >
                     <Plus />
                   </InputGroupButton>
@@ -378,17 +387,24 @@ const BaseFundDialog = ({
         )}
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="ghost" className={FOOTER_BUTTON}>
-              Cancel
-            </Button>
-          </DialogClose>
+          {!phone && (
+            <DialogClose asChild>
+              <Button variant="ghost" className={DESK_CANCEL}>
+                Cancel
+              </Button>
+            </DialogClose>
+          )}
           {payer && (
             <BrandButton
-              className="px-5"
+              variant={phone ? "accent" : "ring"}
+              // Busy is not unavailable: it keeps its colour, as AsyncButton does
+              className={cn(
+                phone ? PHONE_SEND : DESK_SEND,
+                sending && "disabled:opacity-100"
+              )}
               disabled={!note?.ok || unconfirmed || sending}
               aria-busy={sending || undefined}
-              onClick={send}
+              onClick={handleSend}
             >
               {sending && <Spinner aria-hidden="true" />}
               {sendLabel(amount)}

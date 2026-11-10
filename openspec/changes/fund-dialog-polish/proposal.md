@@ -13,7 +13,7 @@ the choices below are ours and go to the designers' gap batch.
 ## What Changes
 
 - **Explorer links.** The receiving account's short address, and the paying
-  wallet's, open that address in the user's block explorer on the
+  wallet's, marked ↗, open that address in the user's block explorer on the
   Playground's cluster, in a new tab. A cluster the explorer cannot open
   (a local validator) keeps the plain address.
 - **Wallet badge.** The paying wallet's name shows as a badge with its icon,
@@ -26,9 +26,11 @@ the choices below are ours and go to the designers' gap batch.
   already gone.
 - **Send is the call to action.** Send takes the brand button, as a dialog's
   one call to action does in `BaseModalFrame`; Cancel becomes the ghost
-  button beside it.
+  button beside it. On a phone, as in that frame, Cancel goes and Send spans
+  the foot in the flat accent.
 
-No event, model rule or transfer path changes.
+The model gains the 0.1 step and the new start; no event, send check or
+transfer path changes.
 
 ## Capabilities
 

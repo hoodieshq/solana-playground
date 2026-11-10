@@ -71,6 +71,9 @@ const utils = vi.hoisted(() => ({
 }));
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => undefined }));
+vi.mock("@/shared/lib/hooks/use-viewport", () => ({
+  useViewport: () => "wide",
+}));
 
 const transfer = vi.hoisted(() => ({ sendFunds: vi.fn() }));
 vi.mock("../model/transfer", async () => {

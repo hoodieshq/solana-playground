@@ -8,8 +8,8 @@ The dialog, titled "Fund your Playground wallet", SHALL name the receiving
 account (its name and short address): the current wallet when it is a
 Playground wallet, otherwise the first Playground account, which is the one
 `deploy` pays from. Sending SHALL NOT change the current wallet. The short
-address SHALL link to that address in the user's block explorer on the
-Playground's cluster, opening in a new tab; when the explorer cannot open
+address SHALL link, with a trailing external-link mark, to that address in
+the user's block explorer on the Playground's cluster, opening in a new tab; when the explorer cannot open
 that cluster, the address SHALL show without a link.
 
 #### Scenario: Playground wallet is current (manual)
@@ -78,7 +78,7 @@ again when that cluster changes.
 
 #### Scenario: Stepping by 0.1
 
-- **WHEN** the amount reads `0` and the user presses + twice, or the up arrow twice
+- **WHEN** the amount reads `0` and the user presses + and then the up arrow
 - **THEN** the amount reads `0.2`, and from `1.999` the up arrow gives `2` and the down arrow `1.9`
 
 #### Scenario: Amount above the balance
@@ -104,7 +104,8 @@ again when that cluster changes.
 ### Requirement: Sending is one transfer approved in the wallet
 
 The send button SHALL be the dialog's call to action, drawn as the brand
-button, with Cancel as a ghost button before it. Pressing send SHALL build
+button, with Cancel as a ghost button before it; on a phone Cancel SHALL be
+left out and the send button SHALL span the foot in the flat accent. Pressing send SHALL build
 one System Program transfer of the amount from the paying wallet to the
 receiving account on the cluster the Playground is connected to, ask the
 paying wallet to sign it, send it, and wait for confirmation, the button

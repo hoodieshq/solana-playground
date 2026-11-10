@@ -1,6 +1,15 @@
 // What the Fund dialog draws for each state its spec names, from props alone.
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+const reportButtonFailure = vi.hoisted(() => vi.fn(() => () => undefined));
+vi.mock("@/shared/lib/report-button-failure", () => ({ reportButtonFailure }));
 
 import type { BaseFundDialogProps, FundPayer } from "./BaseFundDialog";
 import BaseFundDialog from "./BaseFundDialog";
@@ -41,6 +50,7 @@ const renderDialog = (props: Partial<BaseFundDialogProps>) =>
       onSend={props.onSend ?? vi.fn().mockResolvedValue(undefined)}
       failure={props.failure}
       addressUrl={props.addressUrl}
+      phone={props.phone}
     />
   );
 
@@ -182,6 +192,18 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     expect(onAmountChange).toHaveBeenCalledWith(next);
   });
 
+  it("leaves an arrow key with a modifier alone", () => {
+    const onAmountChange = vi.fn();
+    renderDialog({ payer: PAYER, amount: "1", onAmountChange });
+
+    fireEvent.keyDown(screen.getByLabelText("Amount (SOL)"), {
+      key: "ArrowUp",
+      shiftKey: true,
+    });
+
+    expect(onAmountChange).not.toHaveBeenCalled();
+  });
+
   it("disables Less at 0", () => {
     renderDialog({ payer: PAYER, amount: "0" });
 
@@ -240,6 +262,27 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
       "Blockhash not found"
     );
     expect(sendButton().hasAttribute("disabled")).toBe(false);
+  });
+
+  it("allows Send again after a send that failed, and reports the failure", async () => {
+    const onSend = vi.fn().mockRejectedValue(new Error("boom"));
+    renderDialog({ payer: PAYER, onSend });
+
+    await act(async () => {
+      fireEvent.click(sendButton());
+    });
+
+    expect(onSend).toHaveBeenCalledTimes(1);
+    expect(sendButton().hasAttribute("disabled")).toBe(false);
+    expect(sendButton().hasAttribute("aria-busy")).toBe(false);
+    expect(reportButtonFailure).toHaveBeenCalledWith("send the SOL");
+  });
+
+  it("draws the phone's foot: no Cancel, Send across it", () => {
+    renderDialog({ payer: PAYER, phone: true });
+
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    expect(sendButton().getAttribute("data-variant")).toBe("accent");
   });
 
   it("says where the SOL arrives", () => {
