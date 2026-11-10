@@ -91,9 +91,12 @@ site, and the project's rules send agents to them.
     keep them firing.
   - `client-v2/CLAUDE.md`: a paragraph after the slice telemetry rule points
     at the funnel table and extends the rule to the legacy roots.
-- Users see no change. The events reach GA4 only where
-  `REACT_APP_GA_MEASUREMENT_ID` is set; the deploy, run and import paths
-  behave as before, pause and resume included.
+- Users see one change: a GitHub import whose request gets no answer says
+  "GitHub did not answer the request for …. Check the connection and try
+  again." instead of the browser's "Failed to fetch" (HOO-2751, task 2.1).
+  The events reach GA4 only where `REACT_APP_GA_MEASUREMENT_ID` is set; the
+  deploy, run and import paths otherwise behave as before, pause and resume
+  included.
 - Page views come from GA4's Enhanced Measurement ("page changes based on
   browser history events"), switched on in GA4 admin (HOO-2409), with no
   code.
