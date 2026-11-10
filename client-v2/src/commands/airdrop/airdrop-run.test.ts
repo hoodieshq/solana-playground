@@ -142,4 +142,24 @@ describe("airdrop, once the faucet answers", () => {
     );
     expect(printed.at(-1)).toContain("1. Open the web faucet");
   });
+
+  it("adds no web faucet to a local validator's failure, and leaves it unwrapped", async () => {
+    const utils = await import("../../utils");
+    const conn = utils.PgConnection as { cluster: string };
+    conn.cluster = "localnet";
+    try {
+      connection.getBalance.mockResolvedValue(0);
+      connection.requestAirdrop.mockRejectedValueOnce(
+        new Error("fetch failed")
+      );
+
+      const failure = await run().catch((e: unknown) => e);
+
+      expect(isAirdropRefused(failure)).toBe(false);
+      expect((failure as Error).message).toBe("fetch failed");
+      expect(printed).toEqual(["Airdropping 5 SOL..."]);
+    } finally {
+      conn.cluster = "devnet";
+    }
+  });
 });

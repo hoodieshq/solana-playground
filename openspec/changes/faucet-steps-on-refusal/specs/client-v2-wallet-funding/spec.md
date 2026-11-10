@@ -4,10 +4,12 @@
 
 ### Requirement: Every refused airdrop shows the way to the web faucet
 
-An airdrop the faucet was asked for and that brought no SOL (the request
-threw, its transaction failed, or the balance never moved) SHALL be a refusal,
-whatever the cause; a failure before the faucet is asked (no wallet, a
-sign-in, a cluster with no faucet, a network not read yet) SHALL NOT. Every
+On a cluster the web faucet serves (devnet, testnet), an airdrop that started
+and brought no SOL (a balance read or the request threw, its transaction
+failed, or the balance never moved) SHALL be a refusal, whatever the cause; a
+failure before the airdrop starts (no wallet, a sign-in, a cluster with no
+faucet, a network not read yet) SHALL NOT, and neither SHALL a local
+validator's failure, which keeps its own error. Every
 refusal SHALL name its cause in one line, "the faucet is at its limit" for a
 429 or the faucet's limit words and "the faucet did not send SOL" for any
 other, then give the web faucet's three steps (`webFaucetSteps`) and a link
@@ -20,7 +22,8 @@ faucet's form offers:
 - the wallet menu's Airdrop shows `FaucetRefusedToast` with the cause as its
   headline;
 - the tutorial's run/call and deploy "Not enough devnet SOL" cards say the
-  cause from the airdrop's message;
+  cause from the airdrop's message: "The devnet faucet is at its limit." or
+  "The faucet did not send SOL.";
 - the deploy's "Not enough SOL" card shows the steps for `airdrop_failed`.
 
 #### Scenario: A rate-limited airdrop in the terminal
@@ -32,6 +35,10 @@ faucet's form offers:
 
 - **WHEN** `airdrop` runs on devnet and the request fails with "fetch failed"
 - **THEN** the terminal prints "Airdrop refused: the devnet faucet did not send SOL.", the same steps and link, then the error
+
+#### Scenario: A local validator's failure keeps its own error
+- **WHEN** `airdrop` runs on localnet and the request fails with "fetch failed"
+- **THEN** the terminal prints no faucet note and the error is not a refusal
 
 #### Scenario: A sign-in failure is not a refusal
 

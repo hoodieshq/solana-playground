@@ -207,11 +207,11 @@ describe("wallet Settings menu", () => {
   });
 
   it.each([
-    ["429 Too Many Requests", true, []],
-    ["fetch failed", false, ["airdrop"]],
+    ["429 Too Many Requests", "limit", []],
+    ["fetch failed", "other", ["airdrop"]],
   ])(
     "shows the web faucet's way round for a refusal (%s)",
-    async (message, limited, logged) => {
+    async (message, refusal, logged) => {
       const failure = new AirdropRefusedError(new Error(message));
       airdropHook.faucet = "available";
       airdropHook.airdrop.mockRejectedValueOnce(failure);
@@ -222,14 +222,16 @@ describe("wallet Settings menu", () => {
 
       await waitFor(() => expect(PgView.setToast).toHaveBeenCalled());
       const [toast, props] = vi.mocked(PgView.setToast).mock.calls[0];
+      expect(PgView.setToast).toHaveBeenCalledTimes(1);
       expect(toast).toBe(FaucetRefusedToast);
       expect(props?.componentProps).toMatchObject({
-        limited,
+        refusal,
         address: "address",
+        href: "https://faucet.solana.com/?walletAddress=address&amount=5&cluster=devnet",
       });
       // Logged without a second toast; the limit is expected and not logged
       expect(told.map((t) => t.action)).toEqual(logged);
-      expect(told.every((t) => t.shown)).toBe(true);
+      for (const t of told) expect(t.shown).toBe(true);
     }
   );
 

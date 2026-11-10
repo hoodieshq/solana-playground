@@ -5,6 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AirdropRefusedError } from "@/commands/airdrop/report";
 import {
+  initLogger,
+  memoryProvider as logMemory,
+  resetLogger,
+} from "@/shared/lib/logger";
+import {
   initTelemetry,
   memoryProvider,
   resetTelemetry,
@@ -37,14 +42,18 @@ import WalletChip from "./WalletChip";
 
 let stop: (() => void) | undefined;
 let sent: ReturnType<typeof memoryProvider>;
+let logs: ReturnType<typeof logMemory>;
 beforeEach(() => {
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
+  logs = logMemory();
+  initLogger({ providers: [logs] });
 });
 afterEach(() => {
   stop?.();
   stop = undefined;
   resetTelemetry();
+  resetLogger();
   airdrop.mockReset();
 });
 
@@ -92,11 +101,18 @@ describe("features/fund-wallet/ui/WalletChip", () => {
       "429 Too Many Requests",
       "The faucet is at its limit",
       "rate-limited",
+      0,
     ],
-    ["anything else", "fetch failed", "The faucet did not send SOL", "failed"],
+    [
+      "anything else",
+      "fetch failed",
+      "The faucet did not send SOL",
+      "failed",
+      1,
+    ],
   ])(
     "spells out the web faucet for a refusal for %s",
-    async (_case, message, headline, reason) => {
+    async (_case, message, headline, reason, errorsLogged) => {
       airdrop.mockRejectedValueOnce(
         new AirdropRefusedError(new Error(message))
       );
@@ -108,6 +124,12 @@ describe("features/fund-wallet/ui/WalletChip", () => {
         screen.getByRole("list", { name: "Get SOL from the web faucet" })
       ).toBeTruthy();
       expect(refusals()).toEqual([{ reason }]);
+      // Only a refusal other than the limit is logged as an error, and the
+      // popover is its only notice: no "Could not airdrop" toast on top
+      expect(logs.entries.filter((e) => e.level === "error")).toHaveLength(
+        errorsLogged
+      );
+      expect(screen.queryByText(/Could not airdrop/)).toBeNull();
     }
   );
 

@@ -1,5 +1,6 @@
 import { ArrowUpRight, Wallet } from "lucide-react";
 
+import type { AirdropRefusal } from "@/commands/airdrop/report";
 import { reportButtonFailure } from "@/shared/lib/report-button-failure";
 import { shortAddress } from "@/shared/lib/short-address";
 import { shortKey } from "@/shared/lib/short-key";
@@ -33,8 +34,8 @@ export interface BaseWalletChipProps {
   /** Steps through the web faucet, shown once the faucet refused */
   faucetSteps: string[];
   state: AirdropState;
-  /** What the `refused` state names: the faucet's limit (default), or any other refusal */
-  refusedFor?: "limit" | "other";
+  /** What the `refused` state names as its cause */
+  refusedFor: AirdropRefusal;
   /** What `received` adds, in SOL; omitted when the rise is unknown */
   received?: number;
   /** A public faucet asks for a GitHub sign-in first, and nobody is in */
@@ -69,7 +70,7 @@ const BaseWalletChip = ({
   faucetHref,
   faucetSteps,
   state,
-  refusedFor = "limit",
+  refusedFor,
   received,
   signInFirst,
   onOpenChange,

@@ -18,7 +18,7 @@ import { Icon } from "@/shared/ui/icon";
 import { MenuItemText } from "@/shared/ui/menu-extras";
 
 import { NO_FAUCET } from "../../commands/airdrop/no-faucet";
-import { isAirdropRefused, isRateLimited } from "../../commands/airdrop/report";
+import { isAirdropRefused, refusalOf } from "../../commands/airdrop/report";
 import { toggleWallet } from "../../commands/connect/connect-wallet";
 import { isSignInFailure } from "../../features/auth";
 import { FaucetRefusedToast } from "../../features/fund-wallet";
@@ -140,13 +140,15 @@ const Settings: FC<React.PropsWithChildren<SettingsProps>> = ({
                   (error: unknown) => {
                     // Any refusal gets the way round, not "Could not airdrop"
                     if (isAirdropRefused(error)) {
-                      const limited = isRateLimited(error);
+                      const refusal = refusalOf(error);
                       markFailureShown(error);
                       // Logged, not toasted twice; the limit is expected
-                      if (!limited) reportButtonFailure("airdrop")(error);
+                      if (refusal === "other") {
+                        reportButtonFailure("airdrop")(error);
+                      }
                       PgView.setToast(FaucetRefusedToast, {
                         componentProps: {
-                          limited,
+                          refusal,
                           address: wallet.publicKey.toBase58(),
                           href: faucetLink({
                             walletAddress: wallet.publicKey.toBase58(),

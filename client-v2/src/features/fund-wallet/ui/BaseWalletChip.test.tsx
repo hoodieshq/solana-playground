@@ -23,7 +23,7 @@ const renderChip = (props: Partial<BaseWalletChipProps>) =>
         faucetHref="https://faucet.solana.com/?cluster=devnet"
         faucetSteps={STEPS}
         state={props.state ?? "idle"}
-        refusedFor={props.refusedFor}
+        refusedFor={props.refusedFor ?? "limit"}
         received={props.received}
         signInFirst={props.signInFirst ?? false}
         onAirdrop={props.onAirdrop ?? vi.fn()}

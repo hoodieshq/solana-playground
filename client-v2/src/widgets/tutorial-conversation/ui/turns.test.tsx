@@ -619,7 +619,7 @@ describe("BaseResultCard", () => {
     // The cause is the airdrop's own: this one was not the faucet's limit
     expect(
       screen.getByText(
-        "Your wallet has 0 SOL, and this run needs about 0.5 SOL. The airdrop didn't go through."
+        "Your wallet has 0 SOL, and this run needs about 0.5 SOL. The faucet did not send SOL."
       )
     ).toBeTruthy();
     // The whole address, with Copy right after it rather than at the row's end

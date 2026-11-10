@@ -26,12 +26,22 @@ that airdrops.
   messages. Alternative: treat every error but a sign-in failure as a refusal
   in each caller; it would show faucet steps for "This network has no
   faucet." and "still loading".
+- **Only where the web faucet serves the cluster.** A local validator's
+  failure is rethrown unwrapped: the web faucet funds devnet or testnet, never
+  the user's own validator.
+- **One type for the cause.** `AirdropRefusal` (`"limit" | "other"`) and
+  `refusalOf` in `report.ts`; the chip's `refusedFor` and the toast's
+  `refusal` take it and are required, so no caller shows "at its limit" by
+  default.
 - **The cause stays the message's.** `isRateLimited` still decides limit vs
   other, so the existing tests and telemetry reasons hold.
 - **The amount in the link is one the faucet offers.** `faucetLink` drops an
   amount the form lacks, and step 2 says the amount is filled in; so the
   terminal note asks for the requested amount when the form offers it and
   for `DEVNET_FAUCET_SOL` otherwise, and step 2 names that amount.
+- **The tutorial cards share the chip's words.** "The faucet did not send
+  SOL." replaces "The airdrop didn't go through." (Design alignment, 11 Nov),
+  so a card and the chip never disagree about one refusal.
 - **Fund-wallet files are touched by one prop each.** The ticket names the
   wallet chip; HOO-2787 polishes the Fund dialog (`BaseFundDialog`), a
   different file, so the overlap is nil.

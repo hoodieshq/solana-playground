@@ -14,17 +14,17 @@ three web-faucet steps with a prefilled link on every surface.
    `refusedNote(error, fill)` replacing `rateLimitNote`.
 3. `airdrop.ts`: the request-phase catch prints `refusedNote` for any error
    and throws `AirdropRefusedError` with the same message.
-4. `airdrop-run.test.ts` / `airdrop.test.ts`: a non-limit refusal prints the
-   note; failures before the request (no faucet) print none.
+4. `airdrop-run.test.ts`: a non-limit refusal prints the
+   note; a local validator gets none; `airdrop.test.ts`: no faucet is not a refusal.
 
 ## 1.2 Wallet chip and wallet menu
 
-1. `BaseWalletChip`: `refusal?: "limit" | "other"` picks the headline;
-   default "limit" keeps #490's stories.
+1. `BaseWalletChip`: `refusedFor: AirdropRefusal` (required) picks the headline;
+   the type and `refusalOf` live in `commands/airdrop/report.ts`.
 2. `WalletChip`: `isAirdropRefused` opens the refused state; telemetry reason
    from `isRateLimited`; a non-limit refusal is still logged through
    `reportButtonFailure` after `markFailureShown`.
-3. `FaucetRefusedToast`: `limited` prop picks its headline; `Settings.tsx`
+3. `FaucetRefusedToast`: `refusal: AirdropRefusal` picks its headline; `Settings.tsx`
    shows it for any refusal.
 4. Tests: chip test for a non-limit refusal (popover, no toast, event
    `failed`).
@@ -32,7 +32,7 @@ three web-faucet steps with a prefilled link on every surface.
 ## 1.3 Tutorial run/call card
 
 `BaseTxResultCard` FundsCard: cause line from `result.message` through a
-shared `airdropCauseLine` (moved from `BaseDeployResultCard`). Story/test for
+shared `airdropCause` in `shared/lib/faucet-limit.ts` (moved from `BaseDeployResultCard`). Test for
 a non-limit message.
 
 ## 1.4 Assistant context

@@ -1,4 +1,5 @@
 import { checkSignedIn } from "../../features/auth";
+import { isFaucetCluster } from "../../shared/lib/faucet";
 import {
   PgCommon,
   PgConnection,
@@ -79,8 +80,9 @@ export const airdrop = createCmd({
 
     // No answer here is the end of the road: the web faucet keeps a limit of
     // its own and asks nothing of this RPC. Point to it on any refusal, then
-    // fail as before, with the same message, marked as a refusal so a button
-    // that asked can show the same way round
+    // fail as before, with the same message, marked as a refusal so the wallet
+    // chip and the wallet menu show the same steps
+    let received: number;
     try {
       // Airdrop tx is sometimes successful even when the balance hasn't changed.
       // Check the balance before and after instead of only confirming the tx
@@ -124,11 +126,11 @@ export const airdrop = createCmd({
         await PgCommon.sleep(confirmations * PgWeb3.DEFAULT_MS_PER_SLOT);
       }
 
-      // What arrived, not what was asked: the RPC may grant less
-      PgTerminal.println(
-        PgTerminal.success(receivedLine(amount, afterBalance - beforeBalance))
-      );
+      received = afterBalance - beforeBalance;
     } catch (error) {
+      // A local validator has no web faucet to point to; its own error says
+      // what went wrong
+      if (!isFaucetCluster(cluster)) throw error;
       PgTerminal.println(
         PgTerminal.info(
           refusedNote(error, {
@@ -140,6 +142,9 @@ export const airdrop = createCmd({
       );
       throw new AirdropRefusedError(error);
     }
+
+    // What arrived, not what was asked: the RPC may grant less
+    PgTerminal.println(PgTerminal.success(receivedLine(amount, received)));
   },
 });
 

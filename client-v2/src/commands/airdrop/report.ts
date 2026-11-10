@@ -34,22 +34,34 @@ export const isRateLimited = (error: unknown): boolean =>
   );
 
 /**
- * An airdrop the faucet was asked for that brought no SOL: the request threw,
- * its transaction failed, or the balance never moved. It keeps the request's
- * message, so the terminal's error line reads as before, and is told apart
- * from a failure before the faucet was asked (no wallet, a sign-in, no faucet
- * on the cluster), which no faucet steps would help.
+ * An airdrop that brought no SOL once it started: a balance read, the
+ * request, its confirmation, or a balance that never moved failed. It keeps
+ * the failure's message, so the terminal's error line reads as before, and is
+ * told apart from a failure before the airdrop started (no wallet, a sign-in,
+ * no faucet on the cluster), which no faucet steps would help. Thrown only
+ * where the web faucet serves the cluster.
  */
 export class AirdropRefusedError extends Error {
+  override readonly name = "AirdropRefusedError";
+
   constructor(cause: unknown) {
-    super(cause instanceof Error ? cause.message : String(cause), { cause });
-    this.name = "AirdropRefusedError";
+    super(cause instanceof Error ? cause.message : "The airdrop failed", {
+      cause,
+    });
   }
 }
 
 /** Whether the `airdrop` command threw for a refusal ({@link AirdropRefusedError}) */
-export const isAirdropRefused = (error: unknown): boolean =>
-  error instanceof Error && error.name === "AirdropRefusedError";
+export const isAirdropRefused = (
+  error: unknown
+): error is AirdropRefusedError => error instanceof AirdropRefusedError;
+
+/** What a refusal names as its cause: the faucet's limit, or anything else */
+export type AirdropRefusal = "limit" | "other";
+
+/** The cause of a refusal, as the wallet chip and the wallet menu name it */
+export const refusalOf = (error: unknown): AirdropRefusal =>
+  isRateLimited(error) ? "limit" : "other";
 
 /**
  * What the terminal says after any refusal: the cause, the web faucet filled
