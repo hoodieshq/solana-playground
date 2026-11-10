@@ -1,6 +1,13 @@
+export {
+  hasFundDialogHost,
+  onDidRequestFundDialog,
+  openFundDialog,
+} from "./model/open";
 export { fundTelemetry } from "./model/telemetry";
+export type { FundFrom } from "./model/telemetry";
 export { default as FundDialog } from "./ui/FundDialog";
 export type { FundDialogProps } from "./ui/FundDialog";
+export { default as FundDialogHost } from "./ui/FundDialogHost";
 export { default as BaseFundDialog } from "./ui/BaseFundDialog";
 export { default as FaucetRefusedToast } from "./ui/FaucetRefusedToast";
 export { default as WalletChip } from "./ui/WalletChip";

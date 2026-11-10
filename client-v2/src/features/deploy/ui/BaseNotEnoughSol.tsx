@@ -37,6 +37,12 @@ export interface BaseNotEnoughSolProps {
    */
   onAirdrop: () => void;
   onSignIn: () => void;
+  /**
+   * Open the Fund dialog, to pay the wallet from one the user has: offered
+   * for every reason, and the only way in on a network with no faucet. The
+   * card draws it only when given
+   */
+  onFund?: () => void;
 }
 
 const reasonLine = (reason: FundingFailure, network: string | undefined) => {
@@ -131,6 +137,9 @@ const BaseNotEnoughSol = (p: BaseNotEnoughSolProps) => {
               <ExternalLink data-icon="inline-end" />
             </a>
           </CalloutAction>
+        )}
+        {p.onFund && (
+          <CalloutAction onClick={p.onFund}>Send from your wallet</CalloutAction>
         )}
       </CalloutActions>
     </Callout>

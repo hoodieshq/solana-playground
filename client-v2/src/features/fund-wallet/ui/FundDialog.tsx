@@ -13,7 +13,7 @@ import {
   parseAmount,
   receiverOf,
 } from "../model/fund";
-import type { FundCluster } from "../model/telemetry";
+import type { FundCluster, FundFrom } from "../model/telemetry";
 import { fundTelemetry } from "../model/telemetry";
 import { sendFunds, TransferNotConfirmedError } from "../model/transfer";
 import type { FundFailure, FundPayer } from "./BaseFundDialog";
@@ -25,7 +25,7 @@ export interface FundDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** The control that opened it, for `fund_dialog_opened` */
-  from?: "account-menu" | "wallet-chip";
+  from?: FundFrom;
 }
 
 /** The receiver `deploy` pays from, read from `PgWallet` */

@@ -94,6 +94,8 @@ export interface BaseDeployProps {
   /** Deploy again, requesting an airdrop for the short wallet */
   onAirdrop: () => void;
   onSignIn: () => void;
+  /** Open the Fund dialog from the "Not enough SOL" card */
+  onFund?: () => void;
   onSaveKeypair: () => void;
   onDismissBackup: () => void;
   onStaleBuildAnswer: (deploy: boolean) => void;
@@ -593,6 +595,7 @@ const BaseDeploy = (p: BaseDeployProps) => {
             onRetry={p.onDeploy}
             onAirdrop={p.onAirdrop}
             onSignIn={p.onSignIn}
+            onFund={p.onFund}
           />
         )}
         {view.kind === "failed" && (
