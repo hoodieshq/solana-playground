@@ -16,10 +16,11 @@ export type RunErrorReason = "busy" | "other";
 
 type RunEvents = {
   /**
-   * `run` or `test` ran every file it was given, typed in the terminal or
-   * started from the explorer. `outcome` is `failed` when any file failed: a
-   * test file when mocha reported a failure, a client script when it threw an
-   * error it did not catch.
+   * A `run` or `test` ended, typed in the terminal or started from the
+   * explorer: `test` ran every file it was given, `run` ran its scripts until
+   * one failed. `outcome` is `failed` when any file failed: a test file when
+   * mocha reported a failure, a client script when it threw an error it did
+   * not catch.
    */
   run_finished: { kind: RunKind; outcome: RunOutcome };
   /**

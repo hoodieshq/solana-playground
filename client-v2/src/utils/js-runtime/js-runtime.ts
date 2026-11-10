@@ -59,7 +59,7 @@ const BDD_GLOBALS = [
 export type RunResult = { ok: true } | { ok: false; error: string };
 
 /** Records a run's first failure and returns its message */
-type Fail = NonNullable<IframeGlobals["__fail"]>;
+type Fail = (reason: unknown) => string;
 
 export class PgJsRuntime {
   /**
@@ -329,7 +329,10 @@ export class PgJsRuntime {
         timeout: "30000",
         // Mocha disposes itself after the `run` function without this option
         cleanReferencesAfterRun: false,
-        // Logs the test output to the browser console
+        // Logs the test output to the browser console. A reporter with an
+        // async `done` would let `execute`'s `_state` poll resolve before
+        // `_run`'s callback records the failures: mocha's `done` sets `_state`
+        // and calls the callback in one tick only when the reporter has none
         reporter: "spec",
       });
 
@@ -642,7 +645,7 @@ export class PgJsRuntime {
 }
 
 /** What a running script's iframe holds besides the window's own */
-type IframeGlobals = Window & { __fail?: (reason: unknown) => string };
+type IframeGlobals = Window & { __fail?: Fail };
 
 /** Keywords that are not allowed to be in the user code */
 const BLACKLISTED_GLOBALS = [

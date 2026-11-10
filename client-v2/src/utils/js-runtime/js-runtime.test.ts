@@ -1,6 +1,7 @@
 import * as mocha from "mocha/browser-entry";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { isRunBusy, RunBusyError } from "./busy";
 import { PgJsRuntime } from "./js-runtime";
 
 // The BDD functions mocha 10's `mocha.setup({ ui: "bdd" })` puts on the global
@@ -171,4 +172,44 @@ describe("PgJsRuntime test globals", () => {
       "mocha.setup did not define `xspecify`"
     );
   });
+});
+
+describe("PgJsRuntime busy refusal", () => {
+  const runtime = PgJsRuntime as unknown as { _isClientRunning: boolean };
+  const state = mocha as unknown as { _state: string };
+  const run = (isTest: boolean) =>
+    PgJsRuntime.execute({ fileName: "a.ts", code: "", isTest });
+
+  afterEach(() => {
+    runtime._isClientRunning = false;
+    state._state = "init";
+  });
+
+  it.each([
+    ["a client script", false, "Client is already running!"],
+    ["tests", true, "Please wait for client to finish."],
+  ])(
+    "refuses %s with a RunBusyError while a client script runs",
+    async (_, isTest, message) => {
+      runtime._isClientRunning = true;
+      const refused = run(isTest);
+      await expect(refused).rejects.toBeInstanceOf(RunBusyError);
+      await expect(refused).rejects.toThrow(message);
+      await expect(refused).rejects.toSatisfy(isRunBusy);
+    }
+  );
+
+  it.each([
+    ["a client script", false, "Please wait for tests to finish."],
+    ["tests", true, "Tests are already running!"],
+  ])(
+    "refuses %s with a RunBusyError while tests run",
+    async (_, isTest, message) => {
+      state._state = "running";
+      const refused = run(isTest);
+      await expect(refused).rejects.toBeInstanceOf(RunBusyError);
+      await expect(refused).rejects.toThrow(message);
+      await expect(refused).rejects.toSatisfy(isRunBusy);
+    }
+  );
 });

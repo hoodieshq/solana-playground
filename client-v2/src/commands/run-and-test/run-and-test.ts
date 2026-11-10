@@ -78,8 +78,9 @@ interface ProcessParams {
 
 /**
  * Process `run` or `test` command, and count the run: `run_finished` with its
- * outcome once every file has run, or `run_errored` when it throws before or
- * instead of finishing (the funnel's "Use" step, `client-v2-run`).
+ * outcome when `runFiles` returns (`test` runs every file, `run` stops at the
+ * first failing script), or `run_errored` when it throws before or instead of
+ * finishing (the funnel's "Use" step, `client-v2-run`).
  *
  * @param params the paths and whether to execute as test
  * @throws what `runFiles` throws, after the run is counted
