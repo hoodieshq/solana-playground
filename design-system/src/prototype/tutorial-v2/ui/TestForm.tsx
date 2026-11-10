@@ -455,8 +455,10 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
             </section>
 
             {/* Space, not a rule, between request and response: the pane has lines enough around it */}
-            {/* Narrower than the request's column: what you read stays together, the log beside its source */}
-            <section aria-label="Response" aria-live="polite" className="flex w-full max-w-[560px] flex-col gap-2">
+            {/* Narrower than the request's column: what you read stays together, the log beside its source. In
+                the sheet the field above runs edge to edge, so the response does too: capped at 560 on the
+                upright tablet it stopped short of the field's right edge (Almaz, 10 Nov) */}
+            <section aria-label="Response" aria-live="polite" className={cn("flex w-full flex-col gap-2", !phone && "max-w-[560px]")}>
               {stale && !sending && fresh?.sent && (
                 <p className={NOTE}>
                   Last call, with {Object.entries(fresh.sent).map(([k, v]) => `${k} ${/^\d+$/.test(v) ? v : JSON.stringify(v)}`).join(", ")}
