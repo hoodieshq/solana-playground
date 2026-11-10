@@ -1,34 +1,37 @@
 import type { AirdropVia } from "../../features/fund-wallet";
 
 /**
- * The caller of the `airdrop` run in flight, for `fund_airdropped`. The
+ * The callers of the `airdrop` runs in flight, for `fund_airdropped`. The
  * command cannot tell who ran it, so a caller names itself around `execute`
  * through `withAirdropVia`; the terminal names nobody and is the default.
  *
- * One value for the whole module: two airdrops started at once from
- * different callers could read each other's `via`. The Flow state counts
- * airdrops in flight (`views/flow/state/stage.ts`, `airdrops`), and two at
- * once are rare, so the event takes that chance over a parameter the
- * terminal cannot pass.
+ * The runs share this module, and nothing queues them: a deploy's top-up can
+ * start the automatic airdrop, and the Flow state counts airdrops in flight
+ * because they overlap (`views/flow/state/stage.ts`, `airdrops`). A run reads
+ * the latest caller when its `handle` starts, so two overlapping runs can
+ * both carry the later one's `via`; the event takes that chance over a
+ * parameter the terminal cannot pass. Each run removes its own entry when it
+ * settles, whatever the order, so no caller outlives its run.
  */
-let pending: AirdropVia | undefined;
+const pending: { via: AirdropVia }[] = [];
 
-/** The caller of the airdrop in flight; `terminal` when none named itself */
-export const getAirdropVia = (): AirdropVia => pending ?? "terminal";
+/** The caller of the latest airdrop in flight; `terminal` when none named itself */
+export const getAirdropVia = (): AirdropVia =>
+  pending.at(-1)?.via ?? "terminal";
 
 /**
- * Runs `run` as the airdrop caller `via`, restores the previous caller when
- * it settles, and resolves with what `run` resolves with
+ * Runs `run` as the airdrop caller `via`, drops that caller when it settles,
+ * and resolves with what `run` resolves with
  */
 export const withAirdropVia = async <T>(
   run: () => Promise<T>,
   via: AirdropVia
 ): Promise<T> => {
-  const previous = pending;
-  pending = via;
+  const entry = { via };
+  pending.push(entry);
   try {
     return await run();
   } finally {
-    pending = previous;
+    pending.splice(pending.indexOf(entry), 1);
   }
 };

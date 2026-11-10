@@ -45,7 +45,8 @@ export const airdrop = createCmd({
   ]),
   preChecks: [checkWallet, checkSignedInWhereGated],
   handle: async (input) => {
-    // Read first: the caller names itself only around `execute`
+    // Read before the first await: another caller's `withAirdropVia` can
+    // name a newer caller while this run waits on the faucet
     const via = getAirdropVia();
     let cluster = PgConnection.cluster;
     let isStale = PgConnection.clusterIsStale;

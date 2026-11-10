@@ -6,7 +6,7 @@ import {
   resetTelemetry,
 } from "@/shared/lib/telemetry";
 
-import { PgConnection } from "../../utils";
+import { PgConnection, PgTx } from "../../utils";
 import { airdrop } from "./airdrop";
 import { withAirdropVia } from "./via";
 
@@ -136,6 +136,7 @@ describe("airdrop, once the faucet answers", () => {
 
     // The start line alone: no faucet note follows it
     expect(printed).toEqual(["Airdropping 5 SOL..."]);
+    expect(sent.events).toEqual([]);
   });
 
   it("adds no faucet note to any other failure", async () => {
@@ -184,6 +185,17 @@ describe("airdrop, once the faucet answers", () => {
       );
 
       await expect(run()).rejects.toThrow("429");
+
+      expect(sent.events).toEqual([]);
+    });
+
+    it("counts nothing when the airdrop transaction fails", async () => {
+      connection.getBalance.mockResolvedValue(0);
+      vi.mocked(PgTx.confirm).mockResolvedValueOnce({
+        err: "InstructionError",
+      } as never);
+
+      await expect(run()).rejects.toThrow("Airdrop transaction failed");
 
       expect(sent.events).toEqual([]);
     });

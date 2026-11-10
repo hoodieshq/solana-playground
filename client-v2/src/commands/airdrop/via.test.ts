@@ -1,4 +1,3 @@
-// `@types/mocha` also declares a global `it`, without `each`
 import { describe, expect, it } from "vitest";
 
 import { getAirdropVia, withAirdropVia } from "./via";
@@ -36,6 +35,28 @@ describe("commands/airdrop/via", () => {
         throw new Error("rate limited");
       }, "stage")
     ).rejects.toThrow("rate limited");
+    expect(getAirdropVia()).toBe("terminal");
+  });
+
+  it("names no stale caller when overlapping runs settle first in, first out", async () => {
+    let settleFirst = () => {};
+    let settleSecond = () => {};
+    const first = withAirdropVia(
+      () => new Promise<void>((resolve) => (settleFirst = resolve)),
+      "deploy"
+    );
+    const second = withAirdropVia(
+      () => new Promise<void>((resolve) => (settleSecond = resolve)),
+      "automatic"
+    );
+    expect(getAirdropVia()).toBe("automatic");
+
+    settleFirst();
+    await first;
+    expect(getAirdropVia()).toBe("automatic");
+
+    settleSecond();
+    await second;
     expect(getAirdropVia()).toBe("terminal");
   });
 });
