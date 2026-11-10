@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19, vitest + Testing Library, the telemetry memory provider.
 
-**Spec:** `openspec/changes/fund-where-sol-runs-short/specs/client-v2-wallet-funding/spec.md`, `design.md`.
+**Spec:** `openspec/changes/archive/2026-11-11-fund-where-sol-runs-short/specs/client-v2-wallet-funding/spec.md`, `design.md`; tasks: [tasks.md at its last commit](https://github.com/hoodieshq/solana-playground/blob/1d40f36fe7bee7e5509db3d350f1d0d02eeec349/openspec/changes/fund-where-sol-runs-short/tasks.md).
 
 ## Global Constraints
 
@@ -68,4 +68,4 @@
 
 ### Close
 
-- [ ] `yarn run check` in `client-v2/`; tick 1.1–1.4 in `tasks.md`.
+- [ ] `yarn run check` in `client-v2/`; tick 1.1–1.4 in tasks.md (linked above).

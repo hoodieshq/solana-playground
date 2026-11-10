@@ -41,6 +41,7 @@ beforeEach(() => {
     name: "Wallet 1",
     publicKey: { toBase58: () => RECEIVER_ADDRESS },
   };
+  utils.PgView.setToast.mockReset();
   sent = memoryProvider();
   initTelemetry({ providers: [sent] });
 });
@@ -86,6 +87,23 @@ describe("features/fund-wallet/ui/FundDialogHost", () => {
     await act(async () => openFundDialog("faucet-toast"));
 
     expect(opened()).toEqual([{ from: "deploy-card" }]);
+  });
+
+  it("says why and stays closed with no Playground wallet, then opens once there is one", async () => {
+    utils.PgWallet.current = undefined;
+    const accounts = utils.PgWallet.accounts;
+    utils.PgWallet.accounts = [];
+    render(<FundDialogHost />);
+
+    await act(async () => openFundDialog("wallet-chip"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(utils.PgView.setToast).toHaveBeenCalledOnce();
+    expect(opened()).toEqual([]);
+
+    utils.PgWallet.accounts = accounts;
+    await act(async () => openFundDialog("wallet-chip"));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(opened()).toEqual([{ from: "wallet-chip" }]);
   });
 
   it("does nothing when asked with no host", () => {
