@@ -10,7 +10,9 @@ import { ACTION, ACTION_FILL, ACTION_SOFT, FOCUS, READ, READ_CODE, secs } from "
 import { shortfall, WEB_FAUCET_LINE, webFaucet } from "../../../airdrop"
 import { WALLET } from "../../../lessons/common"
 import { ask, openFile, refCall, retryDeploy, setPane, type Project, type Turn } from "../../store"
-import { Details, Quote, shortKeys, STATUS_META, STATUS_PAIR, STATUS_TITLE, Well } from "./parts"
+import { PlainDetails } from "../../../ui/DeployDetails"
+import { view } from "../../../view"
+import { Quote, shortKeys, STATUS_META, STATUS_PAIR, STATUS_TITLE } from "./parts"
 import { failLive, isLast, reveal, saidLines, shortKey } from "./util"
 
 type T<K extends Turn["k"]> = Extract<Turn, { k: K }>
@@ -157,16 +159,56 @@ const latest = (p: Project, t: Turn) => {
 
 const OK = <Check className="text-success" />
 
+// Touch screens get the details' 44 rows
+const touch = view === "phone" || view === "portrait"
+
+/** An opened record's inside, as the tutorial's results set it: what came back, then one sentence and the
+ * grey foot with Copy, Explorer and the log, which opens down inside the foot. Log opened the terminal
+ * from here, with the terminal's icon beside the word; the tutorial's cards keep the lines in the card
+ * (Almaz, 10 Nov) */
+function Opened({ children }: { children: ReactNode }) {
+  return <div className="flex flex-col gap-3 px-4 pt-1 pb-3">{children}</div>
+}
+
+/** What a program or a client printed, as the answer above the sentence: plain lines in the code face,
+ * "Program log:" quiet. In a black well inside the card it made a third layer (Almaz, 10 Nov) */
+function Printed({ lines }: { lines: string[] }) {
+  return (
+    <div className="flex flex-col font-mono text-code break-words">
+      {lines.map((l, i) => (
+        <p key={i} className="text-foreground">
+          {l.startsWith("Program log: ") ? (
+            <>
+              <span className="text-muted-foreground">Program log: </span>
+              {shortKeys(l.slice("Program log: ".length))}
+            </>
+          ) : (
+            shortKeys(l)
+          )}
+        </p>
+      ))}
+    </div>
+  )
+}
+
 /** Shut by default: the workspace chip and the milestone hold the id, Copy id waits in here. The time
  * is the row's, so the sentence doesn't say it again */
-function DeployOk({ p, t }: { p: Project; t: T<"deploy-ok"> }) {
+function DeployOk({ t }: { t: T<"deploy-ok"> }) {
   const id = `\`${shortKey(t.programId)}\``
   const text = t.upgrade
     ? `Your program at ${id} now runs the new code. The upgrade took ${t.cost} test SOL from your wallet.`
     : `Your program now lives on devnet at ${id}. The deploy took ${t.cost} test SOL from your wallet.`
   return (
-    <JournalRow icon={OK} label={t.upgrade ? `Upgraded ${shortKey(t.programId)}` : "Deployed to devnet"} took={secs(t.took)}>
-      <Details id={p.id} text={text} copy={{ label: "Copy id", value: t.programId }} />
+    // "Upgraded" ran straight into the id in the head and read as one word: the id is in the sentence
+    <JournalRow icon={OK} label={t.upgrade ? "Upgraded on devnet" : "Deployed to devnet"} took={secs(t.took)}>
+      <Opened>
+        <PlainDetails
+          text={text}
+          copy={{ label: "Copy id", value: t.programId }}
+          log={[`Program Id: ${t.programId}`, t.upgrade ? "Upgrade successful" : "Deploy successful"]}
+          phone={touch}
+        />
+      </Opened>
     </JournalRow>
   )
 }
@@ -184,8 +226,17 @@ function CallOk({ p, t }: { p: Project; t: T<"call-ok"> }) {
       }
       open={latest(p, t)}
     >
-      <Well lines={saidLines(t.log)} className="mx-4 mt-1" />
-      <Details id={p.id} text={`${from}The call used ${t.cu.toLocaleString("en-US")} compute units, and the fee was ${t.fee} test SOL from your wallet.`} copy={{ label: "Copy signature", value: t.sig }} />
+      <Opened>
+        <Printed lines={saidLines(t.log)} />
+        {/* The program's line above is the answer; the cost is a footnote */}
+        <PlainDetails
+          text={`${from}The call used ${t.cu.toLocaleString("en-US")} compute units, and the fee was ${t.fee} test SOL from your wallet.`}
+          copy={{ label: "Copy signature", value: t.sig }}
+          log={t.log}
+          phone={touch}
+          quiet
+        />
+      </Opened>
     </JournalRow>
   )
 }
@@ -240,8 +291,15 @@ function CallFail({ p, t }: { p: Project; t: T<"call-fail"> }) {
 function RunOk({ p, t }: { p: Project; t: T<"run-ok"> }) {
   return (
     <JournalRow icon={OK} label="Ran client.ts" took={secs(t.took)} open={latest(p, t)}>
-      <Well lines={t.log} className="mx-4 mt-1" />
-      <Details id={p.id} text={p.framework === "ts-client" ? "client.ts sent one transaction to the Memo program on devnet." : `client.ts sent one transaction to ${p.name} on devnet.`} />
+      <Opened>
+        <Printed lines={t.log} />
+        <PlainDetails
+          text={p.framework === "ts-client" ? "client.ts sent one transaction to the Memo program on devnet." : `client.ts sent one transaction to ${p.name} on devnet.`}
+          log={t.log}
+          phone={touch}
+          quiet
+        />
+      </Opened>
     </JournalRow>
   )
 }
@@ -255,7 +313,7 @@ export function Result({ p, t }: { p: Project; t: Turn }) {
     case "build-fail":
       return <BuildFail p={p} t={t} />
     case "deploy-ok":
-      return <DeployOk p={p} t={t} />
+      return <DeployOk t={t} />
     case "deploy-fail":
       return <DeployFail p={p} t={t} />
     case "call-ok":

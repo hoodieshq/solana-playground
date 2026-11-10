@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { BookOpen, CircleCheck, Compass, Database, ExternalLink, ListTree, Send, type LucideIcon } from "lucide-react"
+import { BookOpen, CircleCheck, ExternalLink, Send } from "lucide-react"
 
 import { CodeQuote, CodeQuoteAction, CodeQuoteHeader, CodeQuoteLine, CodeQuoteTitle } from "@/components/ui/code-quote"
 import { CopyButton } from "@/components/ui/copy-button"
@@ -20,7 +20,7 @@ import { view } from "../../../view"
 import { CATALOG, ixSignature, type ProgramMeta } from "../../data"
 import { STOP_CONTEXT, STOP_LABEL, WHY, accountLine, chipsFor, instructionsLead, isSigner, ixRef, overview, type Part, type Ref } from "../../read"
 import { ask, metaOf, openFile, openProgram, refCall, runLive, setNotice, setValue, STAGE_MS, valuesFor, type Project, type Turn } from "../../store"
-import { CHIP_BUTTON, NextRow, QUIET, Well } from "./parts"
+import { CHIP_BUTTON, FOOT, NextRow, QUIET, Well } from "./parts"
 import { baseName, copyText, flash, flashReadOnly, onFlashReadOnly, onReveal, reveal, saidLines, shortKey } from "./util"
 
 /* Read mode's pieces (CONSENSUS-delta 2.3 to 2.6): the stop cards and their answers, line links and the
@@ -121,26 +121,24 @@ export const landingOpen = (p: Project) => lastSpoken(p)?.k === "intro"
 
 // ----- Stop cards ---------------------------------------------------------------------------------------
 
-const STOP_ICON: Record<keyof typeof STOP_CONTEXT, LucideIcon> = { overview: Compass, instructions: ListTree, accounts: Database }
-
 /** A stop's live card, in the Build card's shape: Start on the first, Next after */
 export function StopCard({ p, stop }: { p: Project; stop: keyof typeof STOP_CONTEXT }) {
-  const Icon = STOP_ICON[stop]
   const first = !p.feed.some((t) => t.k === "stop")
   return (
-    <RunCard data-live-card className="mt-2">
+    // The words, then Start or Next on the card's grey foot, as the act cards set theirs. No icon tile:
+    // the title names the stop
+    <RunCard data-live-card orientation="vertical" className="mt-2">
       <RunCardHeader>
-        <RunCardIcon>
-          <Icon />
-        </RunCardIcon>
         <RunCardContent>
           <RunCardTitle>{STOP_LABEL[stop]}</RunCardTitle>
           <RunCardDescription className="text-pretty">{STOP_CONTEXT[stop](p.name)}</RunCardDescription>
         </RunCardContent>
       </RunCardHeader>
-      <RunCardAction className={ACTION_FILL} onClick={() => runLive(p.id)}>
-        {first ? "Start" : "Next"}
-      </RunCardAction>
+      <div className={FOOT}>
+        <RunCardAction className={ACTION_FILL} onClick={() => runLive(p.id)}>
+          {first ? "Start" : "Next"}
+        </RunCardAction>
+      </div>
     </RunCard>
   )
 }
@@ -260,9 +258,9 @@ export function RefCallCard({ p }: { p: Project }) {
           </RunCardDescription>
         </RunCardContent>
       </RunCardHeader>
-      <div className="flex flex-col gap-3 pl-11 max-sm:pl-0">
+      <div className={FOOT}>
         {takesText && (
-          <label className="flex flex-col gap-1.5">
+          <label className="flex w-full flex-col gap-1.5">
             <Input
               value={text}
               onChange={(e) => setValue(p.id, ix.name, "text", e.target.value)}
@@ -283,11 +281,9 @@ export function RefCallCard({ p }: { p: Project }) {
             </span>
           </label>
         )}
-        <div className="flex">
-          <RunCardAction className={cn(ACTION_FILL, touch && "max-sm:w-full [html.portrait_&]:min-w-60")} onClick={go}>
-            Call {ix.name}
-          </RunCardAction>
-        </div>
+        <RunCardAction className={cn(ACTION_FILL, touch && "[html.portrait_&]:min-w-60")} onClick={go}>
+          Call {ix.name}
+        </RunCardAction>
       </div>
       {running && <RunCardProgress key={p.calling?.stage} stage={0} stages={1} duration={STAGE_MS} />}
     </RunCard>

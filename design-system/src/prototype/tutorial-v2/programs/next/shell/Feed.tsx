@@ -133,14 +133,16 @@ export function Feed({ p, scroller }: { p: Project; scroller: RefObject<HTMLDivE
           {runs(p, live).map((ts) => {
             const rise = (t: Turn) => t.id > mountedAt && "animate-rise motion-reduce:animate-none"
             const turn = (t: Turn, rises = true) => (
-              <div key={t.id} data-turn={t.id} data-step={stepOf(t) ?? undefined} className={cn("scroll-mt-4", rises && rise(t))}>
+              // Keyed by kind and id: the framed tablet and phone post into the same store from two windows,
+              // and two turns could come back with one id between them
+              <div key={`${t.k}-${t.id}`} data-turn={t.id} data-step={stepOf(t) ?? undefined} className={cn("scroll-mt-4", rises && rise(t))}>
                 <TurnView p={p} t={t} live={t === live} />
               </div>
             )
             // Records in a row share the journal's box, each still its own turn inside it: the box rises
             // with its first, a row added later rises on its own
             return JOURNAL.includes(ts[0].k) ? (
-              <div key={ts[0].id} className={cn(rise(ts[0]))}>
+              <div key={`run-${ts[0].k}-${ts[0].id}`} className={cn(rise(ts[0]))}>
                 <Journal>{ts.map((t, i) => turn(t, i > 0))}</Journal>
               </div>
             ) : (

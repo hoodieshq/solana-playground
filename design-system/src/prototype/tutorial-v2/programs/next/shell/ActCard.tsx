@@ -34,7 +34,7 @@ import {
   type Project,
 } from "../../store"
 import { IdlGuide } from "./IdlGuide"
-import { QUIET } from "./parts"
+import { FOOT, QUIET } from "./parts"
 import { QuotaCard, QuotaLine } from "./Quota"
 import { RefCallCard, StopCard } from "./Read"
 import { baseName, firstChanged } from "./util"
@@ -153,12 +153,16 @@ export function ActCard({ p, act, retry = false }: { p: Project; act: Act; retry
   )
   const deployish = act === "deploy" || act === "upgrade"
 
+  // One shape for every act, as the tutorial's: the words, then the foot with what you do. A call keeps
+  // its send icon, as the tutorial's send cards do; Build, Deploy and Run are named by their buttons
   return (
-    <RunCard data-live-card orientation={isCall || deployish ? "vertical" : "horizontal"} state={running ? "running" : "idle"} className="mt-2">
+    <RunCard data-live-card orientation="vertical" state={running ? "running" : "idle"} className="mt-2">
       <RunCardHeader>
-        <RunCardIcon>
-          <Icon />
-        </RunCardIcon>
+        {isCall && (
+          <RunCardIcon>
+            <Icon />
+          </RunCardIcon>
+        )}
         <RunCardContent>
           <RunCardTitle>
             {/* The name in the code face without a chip: the chip in a heading read as noise (Almaz, 6 Nov) */}
@@ -175,10 +179,10 @@ export function ActCard({ p, act, retry = false }: { p: Project; act: Act; retry
       </RunCardHeader>
       {deployish && p.deploy.s === "running" && <Stages stages={p.deploy.stages} stage={p.deploy.stage} />}
       {act === "deploy" && p.deploy.s !== "running" && <QuotaLine p={p} />}
-      {isCall ? (
-        <div className="flex flex-col gap-3 pl-11">
-          {ixDef?.args.map((a) => (
-            <label key={a.name} className="flex flex-col gap-1.5">
+      <div className={FOOT}>
+        {isCall &&
+          ixDef?.args.map((a) => (
+            <label key={a.name} className="flex w-full flex-col gap-1.5">
               <span className="flex items-baseline gap-2 text-[0.8125rem] leading-5">
                 <span className="font-mono text-foreground">{a.name}</span>
                 <span className="text-muted-foreground">{a.type}</span>
@@ -200,21 +204,20 @@ export function ActCard({ p, act, retry = false }: { p: Project; act: Act; retry
               />
             </label>
           ))}
-          {/* The panel as a quiet action, like Copy id and Log on the cards above, not an underlined sentence */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {isCall ? (
+          // The panel as a quiet action, like Copy id and Log on the cards above, not an underlined sentence
+          <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-stretch">
             {button}
-            <button type="button" onClick={() => setPane(id, "call", ix)} className={cn(QUIET, "ml-auto")}>
+            <button type="button" onClick={() => setPane(id, "call", ix)} className={cn(QUIET, "ml-auto max-sm:mx-auto")}>
               <SlidersHorizontal aria-hidden="true" strokeWidth={1.75} className="size-3.5" />
               Call panel
             </button>
           </div>
-          {!!ixDef?.accounts.length && <p className="text-[0.8125rem] leading-5 text-muted-foreground">Accounts are filled in: your wallet signs.</p>}
-        </div>
-      ) : deployish ? (
-        <div className="pl-11">{button}</div>
-      ) : (
-        button
-      )}
+        ) : (
+          button
+        )}
+        {isCall && !!ixDef?.accounts.length && <p className="text-[0.8125rem] leading-5 text-muted-foreground">Accounts are filled in: your wallet signs.</p>}
+      </div>
       {progress}
     </RunCard>
   )
@@ -226,15 +229,11 @@ export function ActCard({ p, act, retry = false }: { p: Project; act: Act; retry
 function NoIdlCard({ p, running }: { p: Project; running: boolean }) {
   const [guide, setGuide] = useState(false)
   const id = p.id
-  const Icon = ICON["no-idl"]
   const client = p.framework === "native" && "client/client.ts" in p.files
   const anchor = p.framework !== "native"
   return (
     <RunCard data-live-card orientation="vertical" state={running ? "running" : "idle"} className="mt-2">
       <RunCardHeader>
-        <RunCardIcon>
-          <Icon />
-        </RunCardIcon>
         <RunCardContent>
           <RunCardTitle>{anchor ? "No IDL yet" : client ? "No IDL for this program" : "No call form for this program"}</RunCardTitle>
           <RunCardDescription>
@@ -248,7 +247,7 @@ function NoIdlCard({ p, running }: { p: Project; running: boolean }) {
           </RunCardDescription>
         </RunCardContent>
       </RunCardHeader>
-      <div className="flex flex-wrap gap-2 pl-11">
+      <div className={cn(FOOT, "flex-row flex-wrap gap-2 max-sm:flex-col")}>
         {anchor ? (
           <>
             <RunCardAction className={ACTION_FILL} onClick={() => setGuide(true)}>

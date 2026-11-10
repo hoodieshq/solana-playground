@@ -1,12 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react"
-import { Check, ChevronRight, Copy, ExternalLink, SquareTerminal, type LucideIcon } from "lucide-react"
+import { Check, ChevronRight, Copy, ExternalLink, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
 import { openExplorer } from "../../../ui/explorer"
-import { Prose } from "../../../ui/Prose"
-import { FOCUS, READ } from "../../../ui/type"
-import { setTerminal } from "../../store"
+import { FOCUS } from "../../../ui/type"
 
 /* Small pieces the shell's cards share, after the tutorial's PlainDetails and result rows, wired to
    the programs store instead of the lesson's */
@@ -47,35 +45,17 @@ export function CopyQuiet({ value, label }: { value: string; label: string }) {
   )
 }
 
-/** A result's details: one sentence of what happened, then Copy, Explorer and Log in one row. Log
- * opens the terminal, where the whole output is */
-export function Details({ id, text, copy }: { id: string; text: string; copy?: { label: string; value: string } }) {
-  // The actions sit in a bar of their own across the card, under a hairline, so they don't run into
-  // the sentence (Almaz, 6 Nov)
-  return (
-    <div className="flex flex-col">
-      <p className={cn(READ, "px-4 pt-3 pb-4 text-pretty")}>
-        <Prose text={text} />
-      </p>
-      <Actions id={id} copy={copy} className="border-t border-border bg-surface-panel px-4" />
-    </div>
-  )
-}
-
-/** Copy, Explorer and Log in one row: a card's bar, or the Call panel's response foot */
-export function Actions({ id, copy, className }: { id: string; copy?: { label: string; value: string }; className?: string }) {
+/** Copy and Explorer in one row: the Call panel's response foot. No Log beside them: the panel shows the
+ * log right above, and the workspace head has the terminal's button. As the terminal's icon beside the
+ * word it read as a third way to the same lines (Almaz, 10 Nov) */
+export function Actions({ copy, className }: { copy?: { label: string; value: string }; className?: string }) {
+  if (!copy) return null
   return (
     <div className={cn("flex h-10 items-center gap-4", className)}>
-      {copy && <CopyQuiet {...copy} />}
-      {copy && (
-        <button type="button" onClick={openExplorer} className={QUIET}>
-          <ExternalLink aria-hidden="true" strokeWidth={1.75} className="size-3.5" />
-          Explorer
-        </button>
-      )}
-      <button type="button" title="Terminal ⌘J" onClick={() => setTerminal(id, true)} className={cn(QUIET, "ml-auto")}>
-        <SquareTerminal aria-hidden="true" strokeWidth={1.75} className="size-3.5" />
-        Log
+      <CopyQuiet {...copy} />
+      <button type="button" onClick={openExplorer} className={QUIET}>
+        <ExternalLink aria-hidden="true" strokeWidth={1.75} className="size-3.5" />
+        Explorer
       </button>
     </div>
   )
@@ -108,6 +88,12 @@ export function Well({ lines, className }: { lines: string[]; className?: string
 export function Quote({ children }: { children: ReactNode }) {
   return <div className="border-l-2 border-error/40 pl-3 font-mono text-[0.8125rem] leading-[1.6] break-words text-foreground/90">{children}</div>
 }
+
+/** A live card's foot: its button, and the fields it sends, on the panel's grey under a hairline, out to
+ * the card's edges, as the tutorial's cards set theirs. Beside the words, the button centred on a block
+ * that kept room for a two line description and stood off the title (Almaz, 10 Nov). Left aligned on a
+ * desktop, full width under a thumb */
+export const FOOT = "-mx-4 -mb-4 mt-1 flex flex-col items-start gap-3 border-t border-border bg-surface-panel px-4 py-3 max-sm:items-stretch"
 
 /** A chip under an assistant's answer */
 export const CHIP_BUTTON =

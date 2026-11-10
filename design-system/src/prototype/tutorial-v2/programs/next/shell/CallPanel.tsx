@@ -475,7 +475,7 @@ function Response({ p, ix }: { p: Project; ix: Ix }) {
                 : []),
             ]}
           />
-          <Actions id={id} copy={{ label: "Copy signature", value: result.sig }} className="border-t border-border bg-surface-panel px-4" />
+          <Actions copy={{ label: "Copy signature", value: result.sig }} className="border-t border-border bg-surface-panel px-4" />
         </>
       ) : result.kind === "network" ? (
         <>
@@ -484,7 +484,6 @@ function Response({ p, ix }: { p: Project; ix: Ix }) {
             <Button variant="ghost" disabled={busy(p)} onClick={() => call(id, ix.name, "panel")} className={cn(ACTION, ACTION_SOFT)}>
               Try again
             </Button>
-            <Actions id={id} className="ml-auto" />
           </div>
         </>
       ) : (
@@ -500,7 +499,6 @@ function Response({ p, ix }: { p: Project; ix: Ix }) {
             <button type="button" onClick={() => ask(id, "Explain the error")} className={QUIET}>
               Ask why it failed
             </button>
-            <Actions id={id} className="ml-auto" />
           </div>
         </>
       )}
