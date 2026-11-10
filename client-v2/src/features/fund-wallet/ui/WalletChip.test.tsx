@@ -27,8 +27,19 @@ const airdrop = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("@/components/Wallet/hooks", () => ({
   useAirdrop: () => ({ airdrop, faucet: "available" }),
 }));
+const connectStandard = vi.hoisted(() => ({
+  make: vi.fn(async (_name: string) => {}),
+  drop: vi.fn(async (_name: string) => {}),
+}));
+vi.mock("@/commands/connect/connect", () => ({
+  makeStandardCurrent: connectStandard.make,
+  disconnectStandard: connectStandard.drop,
+}));
 vi.mock("@/utils", () => ({
-  PgWallet: { current: { publicKey: { toBase58: () => ADDRESS } } },
+  PgWallet: {
+    current: { isPg: true, publicKey: { toBase58: () => ADDRESS } },
+    standardWallets: [{ name: "Phantom", icon: "data:," }],
+  },
   PgConnection: {
     cluster: "devnet",
     onDidChangeCluster: () => ({ dispose: () => undefined }),
@@ -54,6 +65,8 @@ afterEach(() => {
   resetTelemetry();
   resetLogger();
   airdrop.mockReset();
+  connectStandard.make.mockReset();
+  connectStandard.drop.mockReset();
 });
 
 const renderChip = (isSignInFailure: (e: unknown) => boolean) =>
@@ -141,5 +154,61 @@ describe("features/fund-wallet/ui/WalletChip", () => {
     expect(
       screen.queryByRole("list", { name: "Get SOL from the web faucet" })
     ).toBeNull();
+  });
+
+  describe("connecting a wallet", () => {
+    const openList = () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: /^Wallet 7xKX…gAsU/ })
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Connect a wallet" }));
+    };
+
+    it("lists the installed wallets and connects the one picked", async () => {
+      renderChip(() => false);
+      openList();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Phantom" }));
+      });
+      expect(connectStandard.make).toHaveBeenCalledWith("Phantom");
+    });
+
+    it("keeps waiting across a close and a reopen, until the extension answers", async () => {
+      let approve = () => {};
+      connectStandard.make.mockImplementation(
+        () => new Promise<void>((resolve) => (approve = resolve))
+      );
+      renderChip(() => false);
+      openList();
+      fireEvent.click(screen.getByRole("button", { name: "Phantom" }));
+      expect(screen.getByText("Waiting for Phantom…")).toBeTruthy();
+
+      fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: "Escape",
+      });
+      fireEvent.click(
+        screen.getByRole("button", { name: /^Wallet 7xKX…gAsU/ })
+      );
+      expect(screen.getByText("Waiting for Phantom…")).toBeTruthy();
+
+      await act(async () => approve());
+      expect(screen.queryByText("Waiting for Phantom…")).toBeNull();
+    });
+
+    it("says a decline kept the Playground wallet", async () => {
+      connectStandard.make.mockRejectedValue(
+        new Error("User rejected the request.")
+      );
+      renderChip(() => false);
+      openList();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Phantom" }));
+      });
+      expect(
+        screen.getByText(
+          "Phantom didn't connect. The Playground wallet is in use."
+        )
+      ).toBeTruthy();
+    });
   });
 });
