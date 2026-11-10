@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 
 import { isAirdropRefused, refusalOf } from "@/commands/airdrop/report";
 import { isAirdropSignInGated } from "@/commands/airdrop/sign-in-gate";
-import { PgDeployRun } from "@/commands/deploy/run";
 import {
   disconnectStandard,
   makeStandardCurrent,
 } from "@/commands/connect/connect";
+import { PgDeployRun } from "@/commands/deploy/run";
 import { useAirdrop } from "@/components/Wallet/hooks";
 import { useBalance, useRenderOnChange, useWallet } from "@/hooks";
 import { faucetLink, webFaucetSteps } from "@/shared/lib/faucet";
@@ -218,12 +218,13 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
         disconnectHeld={deploying}
         onDisconnect={() => {
           if (!owner) return;
-          fundTelemetry.track("fund_wallet_disconnected", {
-            wallet: owner.name,
-          });
-          disconnectStandard(owner.name).catch(
-            reportButtonFailure(`disconnect from ${owner.name}`)
-          );
+          disconnectStandard(owner.name)
+            .then(() =>
+              fundTelemetry.track("fund_wallet_disconnected", {
+                wallet: owner.name,
+              })
+            )
+            .catch(reportButtonFailure(`disconnect from ${owner.name}`));
         }}
       />
     </>

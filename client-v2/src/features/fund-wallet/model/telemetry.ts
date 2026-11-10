@@ -44,7 +44,11 @@ type FundEvents = {
    * `current` from the wallet chip, where it becomes the current wallet.
    */
   fund_wallet_connected: { wallet: string; as: "payer" | "current" };
-  /** The wallet chip asked a wallet to connect (designers' `wallet_connect_started`). */
+  /**
+   * The wallet chip asked a wallet to connect (designers'
+   * `wallet_connect_started`). Every request answers with `fund_wallet_connected`
+   * or `fund_wallet_connect_failed`, also one a later pick superseded on screen.
+   */
   fund_wallet_connect_started: { wallet: string };
   /**
    * The chip's connect did not happen; `reason` is `rejected` when the user
