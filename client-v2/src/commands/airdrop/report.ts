@@ -63,7 +63,7 @@ export const refusalOf = (error: unknown): AirdropRefusal =>
 
 /**
  * What the terminal says after any refusal: the cause, the web faucet filled
- * in, and its steps (#490's, worded for a newcomer). The first line is worded
+ * in, and its steps (`webFaucetSteps`, worded for a newcomer). The first line is worded
  * like the tutorial's airdrop card (HOO-2677): the user meets both. The link
  * asks for an amount the faucet's form offers, so step 2 names that one.
  */
