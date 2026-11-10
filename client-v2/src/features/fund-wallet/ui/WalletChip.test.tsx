@@ -35,9 +35,24 @@ vi.mock("@/commands/connect/connect", () => ({
   makeStandardCurrent: connectStandard.make,
   disconnectStandard: connectStandard.drop,
 }));
+const current = vi.hoisted(() => ({
+  wallet: {
+    isPg: true,
+    publicKey: {
+      toBase58: () => "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    },
+  } as {
+    isPg?: boolean;
+    name?: string;
+    icon?: string;
+    publicKey: { toBase58: () => string };
+  },
+}));
 vi.mock("@/utils", () => ({
   PgWallet: {
-    current: { isPg: true, publicKey: { toBase58: () => ADDRESS } },
+    get current() {
+      return current.wallet;
+    },
     standardWallets: [{ name: "Phantom", icon: "data:," }],
   },
   PgConnection: {
@@ -67,6 +82,7 @@ afterEach(() => {
   airdrop.mockReset();
   connectStandard.make.mockReset();
   connectStandard.drop.mockReset();
+  current.wallet = { isPg: true, publicKey: { toBase58: () => ADDRESS } };
 });
 
 const renderChip = (isSignInFailure: (e: unknown) => boolean) =>
@@ -154,6 +170,23 @@ describe("features/fund-wallet/ui/WalletChip", () => {
     expect(
       screen.queryByRole("list", { name: "Get SOL from the web faucet" })
     ).toBeNull();
+  });
+
+  it("names a connected extension, which leaves `isPg` unset, and disconnects it", async () => {
+    current.wallet = {
+      name: "Phantom",
+      icon: "data:,",
+      publicKey: { toBase58: () => ADDRESS },
+    };
+    renderChip(() => false);
+    fireEvent.click(screen.getByRole("button", { name: /^Wallet 7xKX…gAsU/ }));
+    expect(screen.queryByText("Playground wallet")).toBeNull();
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Disconnect Phantom" })
+      );
+    });
+    expect(connectStandard.drop).toHaveBeenCalledWith("Phantom");
   });
 
   describe("connecting a wallet", () => {

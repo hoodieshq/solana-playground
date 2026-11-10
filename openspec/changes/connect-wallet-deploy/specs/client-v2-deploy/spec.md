@@ -24,14 +24,14 @@ less the transfer's fee, when that is more than the fee. SOL the Playground wall
 SHALL stay. A return that fails SHALL print how much stayed in the Playground wallet and SHALL NOT change
 the deploy's result.
 
-#### Scenario: Leftover after a deploy
+#### Scenario: Leftover after a deploy (manual)
 
 - **WHEN** a deploy from Phantom succeeds and the Playground wallet holds 0.09 SOL over its balance
   before the run
 - **THEN** the Playground wallet sends Phantom that amount less the fee, and its balance is back to what
   it was
 
-#### Scenario: A failed deploy closes the buffer
+#### Scenario: A failed deploy closes the buffer (manual)
 
 - **WHEN** a deploy from Phantom fails after the buffer was written, before its authority went to Phantom,
   and the buffer is closed

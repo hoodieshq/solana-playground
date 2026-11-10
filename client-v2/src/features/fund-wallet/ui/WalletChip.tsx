@@ -68,7 +68,9 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
   // A wallet made current by another way (the terminal, the Fund dialog)
   // ends whatever the connect list was saying
   const ownerName =
-    PgWallet.current?.isPg === false ? PgWallet.current.name : undefined;
+    PgWallet.current && !PgWallet.current.isPg
+      ? PgWallet.current.name
+      : undefined;
   useEffect(() => {
     if (ownerName) setConnect({ kind: "idle" });
   }, [ownerName]);
@@ -81,14 +83,14 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
   const amount = PgConnection.getAirdropAmount();
   const airdropSol = typeof amount === "number" ? amount : 0;
 
-  const owner =
-    wallet.isPg === false
-      ? { name: wallet.name, icon: wallet.icon }
-      : undefined;
+  // A bridged extension leaves `isPg` unset, so only `true` means Playground
+  const owner = wallet.isPg
+    ? undefined
+    : { name: wallet.name, icon: wallet.icon };
 
   // The extension answers whenever it does, the popover open or not; a late
   // approval makes it current, a late decline says so on the next opening
-  const connectTo = async (name: string) => {
+  const handleConnect = async (name: string) => {
     // Only the latest request speaks: an older one's late answer would
     // otherwise overwrite the wait for the wallet picked after it
     const attempt = ++attempts.current;
@@ -191,7 +193,7 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
         }))}
         connect={connect}
         onConnectOpen={() => setConnect({ kind: "listing" })}
-        onConnect={(name) => void connectTo(name)}
+        onConnect={(name) => void handleConnect(name)}
         onDisconnect={() => {
           if (!owner) return;
           disconnectStandard(owner.name).catch(
