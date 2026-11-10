@@ -1,4 +1,5 @@
-import { trackView } from "../../features/project-files";
+import { trackView } from "@/features/project-files";
+
 import { GITHUB_ROUTE, PgGithub, PgRouter } from "../../utils";
 import { handleRoute } from "../common";
 
