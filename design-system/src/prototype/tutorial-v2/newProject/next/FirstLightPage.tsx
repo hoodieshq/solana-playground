@@ -150,7 +150,7 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                   <div className={cn(COLUMN, "px-4 pt-4 pb-6")}>
                     {hasStorageLine(env) && (
                       <p id="np-page-storage" className="text-[0.8125rem] leading-[1.125rem] font-read text-muted-foreground">
-                        <StorageLine env={env} />
+                        <StorageLine />
                       </p>
                     )}
                     <h2 className={LABEL}>Framework</h2>
@@ -168,7 +168,8 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
                     </RadioGroup.Root>
                     <h2 className={LABEL}>Or start from</h2>
                     <SourceRows env={env} into={!!s.into} busy={busy} onOpen={(v) => push(v as Sub)} />
-                    <div className="mt-6">
+                    {/* A step off the sources, not a section's gap: at 24 it hung apart from them (Almaz, 10 Nov) */}
+                    <div className="mt-2">
                       {/* No name here: New project names it for you, and the project's head renames it */}
                       {s.into && (
                         <p className="flex min-h-(--phone-row) flex-wrap items-center gap-x-3 px-2 text-[0.9375rem] text-muted-foreground">
@@ -211,7 +212,9 @@ export function FirstLightPage({ open, onClose, forced, preset }: { open: boolea
               </section>
             </div>
 
-            <footer className="shrink-0 border-t border-border bg-surface-panel px-4 pt-3 pb-[calc(12px+var(--safe-bottom))]">
+            {/* The upright tablet's sheet floats clear of the home bar, so its foot is even: the phone's safe
+                area under the button left a deep band there (Almaz, 10 Nov) */}
+            <footer className={cn("shrink-0 border-t border-border bg-surface-panel px-4 pt-3", SHEET ? "pb-3" : "pb-[calc(12px+var(--safe-bottom))]")}>
               <div className="mx-auto flex w-full max-w-[28rem] flex-col gap-3 [html.portrait_&]:max-w-[40rem]">
                 {failed && (
                   <ProblemCallout

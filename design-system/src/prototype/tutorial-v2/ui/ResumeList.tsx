@@ -84,17 +84,19 @@ export function ResumeList({ id, title, count, items, className }: { id: string;
                 aria-label={`${it.done ? "Open" : "Continue"} ${it.name}, ${it.where}`}
                 className={cn(
                   "h-8 shrink-0 rounded-lg px-2.5 text-[0.8125rem] font-label text-muted-foreground transition-colors duration-100 after:absolute after:inset-0 after:content-[''] group-hover/row:text-foreground motion-reduce:transition-none",
+                  it.menu && "max-sm:px-0",
                   FOCUS
                 )}
               >
-                {/* On a phone the word took the step's room and cut it short; a chevron says the same */}
+                {/* On a phone the word took the step's room and cut it short; a chevron says the same. A row
+                    with its own ⋯ ends on that instead: both pushed the chevron in off the others' edge (Almaz, 10 Nov) */}
                 <span className="max-sm:hidden">{it.done ? "Open" : "Continue"}</span>
-                <ChevronRight aria-hidden="true" className="hidden size-4 max-sm:block" />
+                {!it.menu && <ChevronRight aria-hidden="true" className="hidden size-4 max-sm:block" />}
               </button>
               {/* Over the stretched button, so it opens its own menu; shown under the pointer or the focus,
-                always under a finger */}
+                always under a finger and in the phone's and the tablet's frames */}
               {it.menu && (
-                <div className="relative z-10 -mr-1.5 opacity-0 transition-opacity duration-100 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100">
+                <div className="relative z-10 -mr-1.5 opacity-0 transition-opacity duration-100 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100 [html.phone_&]:opacity-100 [html.touch_&]:opacity-100">
                   {it.menu}
                 </div>
               )}

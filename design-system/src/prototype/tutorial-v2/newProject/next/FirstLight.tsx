@@ -24,20 +24,18 @@ import { SourceRail } from "./SourceRail"
 import type { Focus } from "./states"
 import { useFirstLight } from "./useFirstLight"
 
-/** A signed-in account online needs no storage line */
-export const hasStorageLine = (env: Env) => !env.online || env.account !== "in"
+/** A line under the title only while offline: "Free, no account needed…" said nothing the user acts
+ * on, and it went (Almaz, 10 Nov) */
+export const hasStorageLine = (env: Env) => !env.online
 
-/** The storage line under the title, as the account stands */
-export function StorageLine({ env }: { env: Env }) {
-  if (!env.online)
-    return (
-      <>
-        <StatusDot variant="warning" className="mr-2 align-middle" />
-        You're offline. Your project saves in this browser and syncs when you're back.
-      </>
-    )
-  if (env.account === "ended") return <>Free. Your project saves in this browser until you sign in again.</>
-  return <>Free, no account needed. Your project saves in this browser.</>
+/** The offline line under the title */
+export function StorageLine() {
+  return (
+    <>
+      <StatusDot variant="warning" className="mr-2 align-middle" />
+      You're offline. Your project saves in this browser and syncs when you're back.
+    </>
+  )
 }
 
 /** First Light (research/new-project-redesign/CONSENSUS.md, section 3): one dialog for every way to
@@ -118,7 +116,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
           <ModalTitle className="leading-[1.625rem] font-normal">New project</ModalTitle>
           {hasStorageLine(env) && (
             <ModalDescription className="truncate text-[0.8125rem] leading-[1.125rem]">
-              <StorageLine env={env} />
+              <StorageLine />
             </ModalDescription>
           )}
         </ModalHeader>
