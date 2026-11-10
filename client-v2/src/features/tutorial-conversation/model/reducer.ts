@@ -232,8 +232,8 @@ export type Effect =
   | {
       kind: "event";
       name: "tutorial_step_reset";
-      /** `step` is 1-based */
-      params: { tutorial: string; step: number };
+      /** `step_index` is 1-based */
+      params: { tutorial: string; step_index: number };
     }
   | {
       kind: "event";
@@ -257,7 +257,7 @@ export type Effect =
       params: {
         tutorial: string;
         /** 1-based */
-        step: number;
+        step_index: number;
         via: PassedVia;
         seconds: number;
         /** Only when the account the goal creates already existed */
@@ -272,15 +272,15 @@ export type Effect =
   | {
       kind: "event";
       name: "tutorial_question_asked";
-      /** `step` as `stepNumber` gives it: 1-based, 0 before Start, the last after the finish */
-      params: { tutorial: string; step: number; source: "typed" | "chip" };
+      /** `step_index` as `stepNumber` gives it: 1-based, 0 before Start, the last after the finish */
+      params: { tutorial: string; step_index: number; via: "typed" | "chip" };
     }
   | {
       kind: "event";
       name: "tutorial_word_sent";
       params: {
         tutorial: string;
-        step: number;
+        step_index: number;
         word: Word;
         refused: boolean;
       };
@@ -378,7 +378,7 @@ const actionRunOf = (
   name: "tutorial_action_run",
   params: {
     tutorial: run.slug,
-    step: run.step,
+    step_index: run.step,
     action,
     outcome,
     // Two devices' clocks can disagree; a run never takes negative time
@@ -830,7 +830,7 @@ const passStep = (
       name: "tutorial_step_passed",
       params: {
         tutorial: ctx.slug,
-        step: ctx.definition.steps.indexOf(step) + 1,
+        step_index: ctx.definition.steps.indexOf(step) + 1,
         via,
         // Two devices' clocks can disagree; a pass never takes negative time
         seconds: Math.max(0, Math.round((at - from) / 1000)),
@@ -886,7 +886,7 @@ const wordSent = (
   name: "tutorial_word_sent",
   params: {
     tutorial: ctx.slug,
-    step: stepNumber(ctx.definition, cursor),
+    step_index: stepNumber(ctx.definition, cursor),
     word: action.word,
     refused: action.type === "refuseWord",
   },
@@ -1649,7 +1649,7 @@ const reduceAction = (
           name: "tutorial_step_reset",
           params: {
             tutorial: ctx.slug,
-            step: definition.steps.findIndex((s) => s.id === step.id) + 1,
+            step_index: definition.steps.findIndex((s) => s.id === step.id) + 1,
           },
         },
         ...flowed.effects,
@@ -1708,8 +1708,8 @@ const reduceAction = (
             name: "tutorial_question_asked",
             params: {
               tutorial: ctx.slug,
-              step: stepNumber(definition, p.cursor),
-              source: "chip",
+              step_index: stepNumber(definition, p.cursor),
+              via: "chip",
             },
           },
         ]
@@ -1778,8 +1778,8 @@ const reduceAction = (
             name: "tutorial_question_asked",
             params: {
               tutorial: ctx.slug,
-              step: stepNumber(definition, action.cursor),
-              source: "typed",
+              step_index: stepNumber(definition, action.cursor),
+              via: "typed",
             },
           },
         ],
@@ -2604,7 +2604,7 @@ if (import.meta.vitest) {
           name: "tutorial_action_run",
           params: {
             tutorial: expect.any(String),
-            step: 1,
+            step_index: 1,
             action: "call_panel",
             outcome: "failed",
             seconds: 2,
@@ -3176,7 +3176,7 @@ if (import.meta.vitest) {
             name: "tutorial_action_run",
             params: {
               tutorial: "hello-anchor",
-              step: 1,
+              step_index: 1,
               action: "build",
               outcome: "failed",
               seconds: 1,
@@ -3187,7 +3187,7 @@ if (import.meta.vitest) {
             name: "tutorial_action_run",
             params: {
               tutorial: "hello-anchor",
-              step: 1,
+              step_index: 1,
               action: "build",
               outcome: "ok",
               seconds: 2,
@@ -3262,7 +3262,7 @@ if (import.meta.vitest) {
           name: "tutorial_action_run",
           params: {
             tutorial: "hello-anchor",
-            step: 2,
+            step_index: 2,
             action: "airdrop",
             outcome: "ok",
             seconds: 0,
@@ -3326,7 +3326,7 @@ if (import.meta.vitest) {
             name: "tutorial_action_run",
             params: {
               tutorial: "hello-anchor",
-              step: 2,
+              step_index: 2,
               action: "deploy",
               outcome: "interrupted",
               seconds: 0,
@@ -3366,7 +3366,7 @@ if (import.meta.vitest) {
             name: "tutorial_step_passed",
             params: {
               tutorial: "hello-anchor",
-              step: 1,
+              step_index: 1,
               via: "chat",
               seconds: 8,
             },
@@ -3376,7 +3376,7 @@ if (import.meta.vitest) {
             name: "tutorial_step_passed",
             params: {
               tutorial: "hello-anchor",
-              step: 2,
+              step_index: 2,
               via: "call_panel",
               seconds: 3,
             },
@@ -3386,7 +3386,7 @@ if (import.meta.vitest) {
             name: "tutorial_step_passed",
             params: {
               tutorial: "hello-anchor",
-              step: 3,
+              step_index: 3,
               via: "client",
               seconds: 7,
             },
@@ -3537,7 +3537,7 @@ if (import.meta.vitest) {
               params: expect.objectContaining({
                 action: "deploy",
                 outcome: "ok",
-                step: 2,
+                step_index: 2,
               }),
             })
           );
@@ -3892,7 +3892,7 @@ if (import.meta.vitest) {
             name: "tutorial_step_passed",
             params: {
               tutorial: "hello-anchor",
-              step: 4,
+              step_index: 4,
               via: "chat",
               seconds: 7,
             },
@@ -4539,7 +4539,7 @@ if (import.meta.vitest) {
           {
             kind: "event",
             name: "tutorial_question_asked",
-            params: { tutorial: "hello-anchor", step: 4, source: "chip" },
+            params: { tutorial: "hello-anchor", step_index: 4, via: "chip" },
           },
         ]);
         expect(
@@ -4582,7 +4582,7 @@ if (import.meta.vitest) {
         expect(r.effects[1]).toEqual({
           kind: "event",
           name: "tutorial_step_reset",
-          params: { tutorial: "hello-anchor", step: 1 },
+          params: { tutorial: "hello-anchor", step_index: 1 },
         });
         // Its first beat, the boilerplate's write, comes round again
         expect(r.effects).toContainEqual(
@@ -4665,7 +4665,7 @@ if (import.meta.vitest) {
           name: "tutorial_word_sent",
           params: {
             tutorial: "hello-anchor",
-            step: 0,
+            step_index: 0,
             word: "start",
             refused: false,
           },
@@ -4708,7 +4708,7 @@ if (import.meta.vitest) {
             name: "tutorial_word_sent",
             params: {
               tutorial: "hello-anchor",
-              step: 1,
+              step_index: 1,
               word: "build",
               refused: true,
             },
@@ -4728,7 +4728,7 @@ if (import.meta.vitest) {
           {
             kind: "event",
             name: "tutorial_question_asked",
-            params: { tutorial: "hello-anchor", step: 1, source: "typed" },
+            params: { tutorial: "hello-anchor", step_index: 1, via: "typed" },
           },
         ]);
       });
@@ -4744,7 +4744,7 @@ if (import.meta.vitest) {
           {
             kind: "event",
             name: "tutorial_question_asked",
-            params: { tutorial: "hello-anchor", step: 0, source: "typed" },
+            params: { tutorial: "hello-anchor", step_index: 0, via: "typed" },
           },
         ]);
       });
@@ -5051,7 +5051,7 @@ if (import.meta.vitest) {
         expect(effects).toContainEqual({
           kind: "event",
           name: "tutorial_step_passed",
-          params: { tutorial: "refusals", step: 1, via: "chat", seconds: 2 },
+          params: { tutorial: "refusals", step_index: 1, via: "chat", seconds: 2 },
         });
       });
 
@@ -5114,7 +5114,7 @@ if (import.meta.vitest) {
             name: "tutorial_step_passed",
             params: {
               tutorial: "refusals",
-              step: 5,
+              step_index: 5,
               via: "chat",
               seconds: 2,
               reason: "exists",
