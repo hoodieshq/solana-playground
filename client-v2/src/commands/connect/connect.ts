@@ -137,9 +137,14 @@ export const makeStandardCurrent = async (name: string) => {
 
 /** Disconnect the standard wallet `name`; the Playground wallet is current again */
 export const disconnectStandard = async (name: string) => {
-  await standardNamed(name).disconnect();
-  // eslint-disable-next-line unicorn/no-null -- `standardName` is `null` with no standard wallet current
-  PgWallet.update({ state: "pg", standardName: null });
+  try {
+    await standardNamed(name).disconnect();
+  } finally {
+    // An extension that throws after dropping the site still leaves it: the
+    // Playground wallet is current either way, never a wallet that is gone
+    // eslint-disable-next-line unicorn/no-null -- `standardName` is `null` with no standard wallet current
+    PgWallet.update({ state: "pg", standardName: null });
+  }
 };
 
 /**

@@ -32,7 +32,7 @@ const renderChip = (props: Partial<BaseWalletChipProps>) =>
         owner={props.owner}
         wallets={props.wallets}
         connect={props.connect}
-        onConnectOpen={props.onConnectOpen}
+        onConnectOpen={props.onConnectOpen ?? vi.fn()}
         onConnect={props.onConnect}
         onDisconnect={props.onDisconnect}
       />
@@ -213,6 +213,24 @@ describe("features/fund-wallet/ui/BaseWalletChip", () => {
       ).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Try again" }));
       expect(onConnect).toHaveBeenCalledWith("Phantom");
+    });
+
+    it("names why a connect failed when it was not the user's no", () => {
+      renderChip({
+        wallets: [PHANTOM],
+        connect: {
+          kind: "failed",
+          wallet: "Phantom",
+          reason: "Phantom is not installed in this browser.",
+        },
+        onConnect: vi.fn(),
+      });
+      open();
+      expect(
+        screen.getByText(
+          "Phantom didn't connect: Phantom is not installed in this browser. The Playground wallet is in use."
+        )
+      ).toBeTruthy();
     });
 
     it("names a connected wallet, offers to disconnect it, and drops Send from your wallet", () => {

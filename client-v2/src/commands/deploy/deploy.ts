@@ -820,7 +820,9 @@ const processDeploy = async (
         context: { action: "settle the buffer after a failed deploy" },
       });
     }
-    // The buffer is settled: a closed one's rent is in the Playground wallet
+    // The buffer is settled. Closed before its authority went to the standard
+    // wallet, its rent is in the Playground wallet and goes back now; closed
+    // after, the standard wallet signed the close and took the rent itself
     await returnLeftover();
     throw e;
   }
@@ -1024,7 +1026,12 @@ const loadBufferWithControl = (
   });
 };
 
-/** A one-signature transfer's fee, which the Playground wallet pays to return */
+/**
+ * A one-signature transfer's fee, which the Playground wallet pays to return.
+ * Exact because the return names a compute unit price of 0: `PgTx` adds the
+ * priority fee setting only to a transaction that names none, and with one the
+ * return would leave too little for its own fee and fail every attempt.
+ */
 const TRANSFER_FEE = 5000;
 
 /**
@@ -1061,12 +1068,17 @@ const leftoverReturnFor =
             before -
             TRANSFER_FEE;
           if (owed <= 0) return "";
-          const ix = PgWeb3.SystemProgram.transfer({
-            fromPubkey: from.publicKey,
-            toPubkey: to.publicKey,
-            lamports: owed,
-          });
-          const sig = await PgTx.send(ix, { wallet: from, connection });
+          const ixs = [
+            PgWeb3.ComputeBudgetProgram.setComputeUnitPrice({
+              microLamports: 0,
+            }),
+            PgWeb3.SystemProgram.transfer({
+              fromPubkey: from.publicKey,
+              toPubkey: to.publicKey,
+              lamports: owed,
+            }),
+          ];
+          const sig = await PgTx.send(ixs, { wallet: from, connection });
           returned = owed;
           return sig;
         },
@@ -1086,11 +1098,7 @@ const leftoverReturnFor =
       PgTerminal.println(
         PgTerminal.warning(
           owed > 0
-            ? `${formatLamports(
-                owed
-              )} SOL stayed in your Playground wallet. Send it to ${
-                to.name
-              } from the wallet menu.`
+            ? `${formatLamports(owed)} SOL stayed in your Playground wallet.`
             : "The leftover SOL stayed in your Playground wallet."
         )
       );

@@ -23,10 +23,10 @@ Goal: tasks 1.1–1.3 of `connect-wallet-deploy`. Inline execution, TDD per step
 
 ## 1.3 Connect from the wallet chip
 
-1. `connectStandard(name)` / `disconnectStandard()` in `commands/connect`, the same state change as
+1. `makeStandardCurrent(name)` / `disconnectStandard(name)` in `commands/connect`, the same state change as
    `toggleStandardIfNeeded`; tests.
-2. `BaseWalletChip`: `walletName`, `walletIcon`, `wallets` (installed), `connect` state
-   (`idle | listing | waiting | declined`), `onConnect`, `onDisconnect`; the list, empty state, waiting and
+2. `BaseWalletChip`: `owner` (the connected extension), `wallets` (installed), `connect` state
+   (`idle | listing | waiting | declined | failed`), `onConnectOpen`, `onConnect`, `onDisconnect`; the list, empty state, waiting and
    declined lines; extension header and "Disconnect {wallet}"; no "Send from your wallet" with an extension.
    Tests in `BaseWalletChip.test.tsx`.
 3. `WalletChip` wires them to `PgWallet`; test.

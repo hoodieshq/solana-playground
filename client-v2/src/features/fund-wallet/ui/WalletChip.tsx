@@ -17,6 +17,7 @@ import {
 } from "@/shared/lib/report-button-failure";
 import { PgConnection, PgWallet } from "@/utils";
 
+import { classify } from "../model/fund";
 import { openFundDialog } from "../model/open";
 import { fundTelemetry } from "../model/telemetry";
 import type { AirdropState, ConnectState } from "./BaseWalletChip";
@@ -50,6 +51,7 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
   // The balance an ask or the web faucet started from, to tell when SOL came
   const from = useRef<number | undefined>(undefined);
   const [connect, setConnect] = useState<ConnectState>({ kind: "idle" });
+  const attempts = useRef(0);
 
   useEffect(() => {
     if (state !== "away" && state !== "received") return;
@@ -62,6 +64,14 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
       }
     }
   }, [balance, state]);
+
+  // A wallet made current by another way (the terminal, the Fund dialog)
+  // ends whatever the connect list was saying
+  const ownerName =
+    PgWallet.current?.isPg === false ? PgWallet.current.name : undefined;
+  useEffect(() => {
+    if (ownerName) setConnect({ kind: "idle" });
+  }, [ownerName]);
 
   const wallet = PgWallet.current;
   // eslint-disable-next-line unicorn/no-null -- a component that draws nothing returns `null`; React's types refuse `undefined`
@@ -79,16 +89,32 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
   // The extension answers whenever it does, the popover open or not; a late
   // approval makes it current, a late decline says so on the next opening
   const connectTo = async (name: string) => {
+    // Only the latest request speaks: an older one's late answer would
+    // otherwise overwrite the wait for the wallet picked after it
+    const attempt = ++attempts.current;
     setConnect({ kind: "waiting", wallet: name });
     try {
       await makeStandardCurrent(name);
-      setConnect({ kind: "idle" });
+      if (attempt === attempts.current) setConnect({ kind: "idle" });
     } catch (error) {
-      // Declining is the user's answer; it is logged, never reported
-      log.warn("the wallet did not connect", {
-        context: { wallet: name, error: String(error) },
+      if (attempt !== attempts.current) return;
+      if (classify(error) === "rejected") {
+        // Declining is the user's answer; it is logged, never reported
+        log.warn("the wallet declined to connect", {
+          context: { wallet: name, error: String(error) },
+        });
+        setConnect({ kind: "declined", wallet: name });
+        return;
+      }
+      log.error(error, {
+        report: true,
+        context: { action: "connect a wallet from the chip", wallet: name },
       });
-      setConnect({ kind: "declined", wallet: name });
+      setConnect({
+        kind: "failed",
+        wallet: name,
+        reason: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 

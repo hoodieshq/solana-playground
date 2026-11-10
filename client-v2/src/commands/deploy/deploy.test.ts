@@ -170,6 +170,11 @@ vi.mock("../../utils", () => ({
       generate: () => ({ publicKey: { toBase58: () => "Buf1111" } }),
     },
     SystemProgram: { transfer },
+    ComputeBudgetProgram: {
+      setComputeUnitPrice: (args: { microLamports: number }) => ({
+        computeUnitPrice: args.microLamports,
+      }),
+    },
   },
 }));
 
@@ -872,10 +877,11 @@ describe("commands/deploy", () => {
     };
     /** A transfer moves the Playground wallet's lamports once it is sent */
     const landTransfer = async (...args: unknown[]) => {
-      const ix = args[0] as {
+      type Ix = {
         transfer?: { fromPubkey: unknown; toPubkey: unknown; lamports: number };
       };
-      const t = ix?.transfer;
+      const ixs = (Array.isArray(args[0]) ? args[0] : [args[0]]) as Ix[];
+      const t = ixs.find((ix) => ix?.transfer)?.transfer;
       if (t && env.pgLamports !== undefined) {
         if (t.toPubkey === pgWallet.publicKey) env.pgLamports += t.lamports;
         if (t.fromPubkey === pgWallet.publicKey) env.pgLamports -= t.lamports;
@@ -904,8 +910,12 @@ describe("commands/deploy", () => {
 
       expect(result).not.toBeInstanceOf(Error);
       expect(returns()).toEqual([90_000_000 - FEE]);
+      // A compute unit price of 0 keeps the priority fee off, so the fee is exact
       expect(send).toHaveBeenCalledWith(
-        { transfer: expect.objectContaining({ lamports: 90_000_000 - FEE }) },
+        [
+          { computeUnitPrice: 0 },
+          { transfer: expect.objectContaining({ lamports: 90_000_000 - FEE }) },
+        ],
         expect.objectContaining({ wallet: pgWallet })
       );
       expect(vi.mocked(PgTerminal.println).mock.calls.join("\n")).toContain(
@@ -943,6 +953,58 @@ describe("commands/deploy", () => {
       await runDeploy();
 
       expect(returns()).toEqual([2_100_000_000 - FEE]);
+    });
+
+    it("returns after a stop during the write, once its buffer is closed", async () => {
+      fromStandard();
+      loadBuffer.mockImplementation(async () => env.controller.abort());
+      closeBuffer.mockImplementation(async () => {
+        movePg(2_000_000_000);
+        // eslint-disable-next-line unicorn/no-null -- a closed account reads `null`
+        env.bufferAccount = null;
+        return "sig";
+      });
+
+      const failure = await runDeploy();
+
+      expect(isStopped(failure)).toBe(true);
+      expect(returns()).toEqual([2_090_000_000 - FEE]);
+    });
+
+    it("sends once when a return lands but its send reports a failure", async () => {
+      fromStandard();
+      let failedOnce = false;
+      send.mockImplementation(async (...args: unknown[]) => {
+        const sig = await landTransfer(...args);
+        const opts = args[1] as { wallet?: unknown } | undefined;
+        if (opts?.wallet === pgWallet && !failedOnce) {
+          failedOnce = true;
+          throw new Error("confirmation timed out");
+        }
+        return sig;
+      });
+
+      const result = await runDeploy();
+
+      expect(result).not.toBeInstanceOf(Error);
+      expect(returns()).toEqual([90_000_000 - FEE]);
+      expect(env.pgLamports).toBe(1_000_000_000 + FEE);
+    });
+
+    it("sends nothing back and asks nothing more when the first approval is declined", async () => {
+      fromStandard();
+      send.mockImplementation(async (...args: unknown[]) => {
+        const opts = args[1] as { wallet?: unknown } | undefined;
+        if (!opts?.wallet) throw new Error("User rejected the request.");
+        return landTransfer(...args);
+      });
+
+      const failure = await runDeploy();
+
+      expect(failure).toBeInstanceOf(Error);
+      expect(returns()).toEqual([]);
+      expect(createBuffer).not.toHaveBeenCalled();
+      expect(PgDeployRun.state.approval).toBeNull();
     });
 
     it("sends nothing when nothing is left over", async () => {

@@ -363,8 +363,8 @@ never say you did.
   current wallet. A deploy from it asks it twice: once to send the SOL for the
   deploy to the Playground wallet, which writes the program, and once to sign
   the deploy itself, so the extension owns the program. Afterwards, whether
-  the deploy succeeded or not, the Playground wallet sends back whatever SOL it
-  did not spend. Tutorials always deploy from the Playground wallet.
+  the deploy succeeded or not, the Playground wallet sends back the SOL it did
+  not spend; if that transfer fails, the terminal says how much stayed there. Tutorials always deploy from the Playground wallet.
 
 Mainnet has no faucet: there the wallet needs real SOL.
 

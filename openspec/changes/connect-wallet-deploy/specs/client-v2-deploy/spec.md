@@ -33,5 +33,6 @@ the deploy's result.
 
 #### Scenario: A failed deploy closes the buffer
 
-- **WHEN** a deploy from Phantom fails after the buffer was written, and the buffer is closed
+- **WHEN** a deploy from Phantom fails after the buffer was written, before its authority went to Phantom,
+  and the buffer is closed
 - **THEN** the buffer's rent and the fee headroom go back to Phantom

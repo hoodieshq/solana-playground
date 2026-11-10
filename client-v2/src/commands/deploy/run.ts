@@ -14,7 +14,9 @@ export interface DeployRunState {
   upgrade: boolean;
   /**
    * The run waits on a connected wallet's approval: `n` of the two a deploy
-   * from it asks for (the SOL it sends, then the deploy). `null` otherwise.
+   * from it asks for on its way (the SOL it sends, then the deploy). `null`
+   * otherwise, including while a failed deploy closes a buffer the wallet
+   * already holds, which asks it once more.
    */
   approval: DeployApproval | null;
 }

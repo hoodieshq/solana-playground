@@ -36,7 +36,9 @@ export type ConnectState =
   | { kind: "idle" }
   | { kind: "listing" }
   | { kind: "waiting"; wallet: string }
-  | { kind: "declined"; wallet: string };
+  | { kind: "declined"; wallet: string }
+  /** The connect failed for a reason other than the user's "no" */
+  | { kind: "failed"; wallet: string; reason: string };
 
 export interface BaseWalletChipProps {
   /** The deploying wallet's address */
@@ -188,7 +190,7 @@ const BaseWalletChip = ({
               Disconnect {owner.name}
             </Button>
           )}
-          {!owner && onConnect && (
+          {!owner && onConnect && onConnectOpen && (
             <ConnectBlock
               wallets={wallets}
               connect={connect}
@@ -321,7 +323,7 @@ const ConnectBlock = ({
 }: {
   wallets: ChipWallet[];
   connect: ConnectState;
-  onConnectOpen?: () => void;
+  onConnectOpen: () => void;
   onConnect: (name: string) => void;
 }) => {
   if (connect.kind === "idle") {
@@ -350,11 +352,15 @@ const ConnectBlock = ({
           Waiting for {connect.wallet}…
         </p>
       )}
-      {connect.kind === "declined" && (
+      {(connect.kind === "declined" || connect.kind === "failed") && (
         <>
           <p role="status" className="text-[0.8125rem] text-foreground">
-            {connect.wallet} didn&apos;t connect. The Playground wallet is in
-            use.
+            {connect.kind === "failed"
+              ? `${connect.wallet} didn't connect: ${connect.reason.replace(
+                  /\.$/,
+                  ""
+                )}. The Playground wallet is in use.`
+              : `${connect.wallet} didn't connect. The Playground wallet is in use.`}
           </p>
           <Button
             variant="secondary"
