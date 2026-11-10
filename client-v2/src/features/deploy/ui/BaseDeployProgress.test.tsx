@@ -66,4 +66,16 @@ describe("BaseDeployProgress", () => {
       "Deploying · Approve in Phantom (2 of 2) running",
     ]);
   });
+
+  it("names the close of a buffer the connected wallet holds", () => {
+    expect(
+      at({
+        step: "deploy",
+        percent: 100,
+        funds: false,
+        upgrade: false,
+        approval: { wallet: "Phantom", n: "close" },
+      })
+    ).toContain("Deploying · Approve in Phantom to close the buffer running");
+  });
 });

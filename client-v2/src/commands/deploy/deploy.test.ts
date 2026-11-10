@@ -1052,6 +1052,33 @@ describe("commands/deploy", () => {
       expect(PgDeployRun.state.approval).toBeNull();
     });
 
+    it("names the approval when the standard wallet closes the buffer it holds", async () => {
+      fromStandard();
+      deployProgram.mockRejectedValue(new Error("custom program error: 0x1"));
+      env.bufferAccount = {
+        data: Buffer.concat([
+          Buffer.alloc(5),
+          standardWallet.publicKey.toBuffer(),
+        ]),
+      };
+      const approvals: unknown[] = [];
+      const sub = PgDeployRun.onDidChange((state) =>
+        approvals.push(state.approval)
+      );
+      try {
+        await runDeploy();
+      } finally {
+        sub.dispose();
+      }
+
+      expect(closeBuffer).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ wallet: standardWallet })
+      );
+      expect(approvals).toContainEqual({ wallet: "Phantom", n: "close" });
+      expect(PgDeployRun.state.approval).toBeNull();
+    });
+
     it("never returns anything for a Playground deploy", async () => {
       env.balance = 10_000_000_000;
       loadBuffer.mockResolvedValue(undefined);

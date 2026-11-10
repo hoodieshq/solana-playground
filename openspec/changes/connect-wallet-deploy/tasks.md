@@ -12,5 +12,5 @@
   `fund_wallet_connect_failed`, `fund_wallet_disconnected`; verify with `yarn test-unit src/features/fund-wallet`
   (Lead, from Planner's triage of the sx suggestions, 11 Nov)
 - [x] 1.5 Hold "Disconnect {wallet}" while a deploy runs; verify with `yarn test-unit src/features/fund-wallet`
-- [ ] 1.6 Name the close of a buffer the wallet holds: "Approve in {wallet} to close the buffer"; verify with
+- [x] 1.6 Name the close of a buffer the wallet holds: "Approve in {wallet} to close the buffer"; verify with
   `yarn test-unit src/commands/deploy src/features/deploy`

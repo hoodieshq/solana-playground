@@ -525,14 +525,27 @@ const processDeploy = async (
     let left: StoppedBuffer;
     try {
       const signer = await closeSigner();
-      await sendAndConfirmTxWithRetries(
-        () =>
-          BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
-            wallet: signer,
-            connection,
-          }),
-        async () => !(await bufferConnection.getAccountInfo(bufferKp.publicKey))
-      );
+      // The standard wallet holds the buffer once it was handed over, so the
+      // close asks it once more, named like its two deploy approvals
+      if (signer === standardWallet) {
+        PgDeployRun.update({
+          approval: { wallet: standardWallet.name, n: "close" },
+        });
+      }
+      try {
+        await sendAndConfirmTxWithRetries(
+          () =>
+            BpfLoaderUpgradeable.closeBuffer(bufferKp.publicKey, {
+              wallet: signer,
+              connection,
+            }),
+          async () =>
+            !(await bufferConnection.getAccountInfo(bufferKp.publicKey))
+        );
+      } finally {
+        // eslint-disable-next-line unicorn/no-null -- no approval is asked any more
+        PgDeployRun.update({ approval: null });
+      }
       left = { state: "closed" };
     } catch (e) {
       // The line names the buffer, the SOL it holds and how to reclaim it

@@ -56,7 +56,9 @@ const BaseDeployProgress = ({ state }: BaseDeployProgressProps) => {
             {label(step, state)}
             {status === "running" && state.approval && (
               <span className="text-muted-foreground">
-                {` · Approve in ${state.approval.wallet} (${state.approval.n} of 2)`}
+                {state.approval.n === "close"
+                  ? ` · Approve in ${state.approval.wallet} to close the buffer`
+                  : ` · Approve in ${state.approval.wallet} (${state.approval.n} of 2)`}
               </span>
             )}
           </li>

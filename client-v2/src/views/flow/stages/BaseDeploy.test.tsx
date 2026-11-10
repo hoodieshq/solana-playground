@@ -640,8 +640,14 @@ describe("BaseDeploy", () => {
       />
     );
     expect(screen.getByLabelText("Who pays").textContent).toBe(
-      "From Phantom · 7xKX…gAsU · 4.20 SOL. Phantom asks twice: to send SOL for the deploy, then to deploy."
+      "From Phantom · 7xKX…gAsU · 4.20 SOLPhantom asks twice: to send SOL for the deploy, then to deploy."
     );
+    // The note is a line of its own, so the payer stays one line
+    expect(
+      screen.getByText(
+        "Phantom asks twice: to send SOL for the deploy, then to deploy."
+      ).tagName
+    ).toBe("SPAN");
   });
 
   it("names the wallet that pays, or the Playground wallet before the first deploy", () => {
