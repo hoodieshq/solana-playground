@@ -71,7 +71,12 @@ function useEdges(strip: React.RefObject<HTMLDivElement | null>, count: number) 
 
 /** Chrome's tab drag: a press and 4px of travel pick a tab up, it follows the pointer along the strip,
  * and each neighbour its middle passes slides over into the slot it left; let go, it settles into its
- * own (Almaz, 10 Nov). Picked up, it's the open tab, as in Chrome */
+ * own (Almaz, 10 Nov). Picked up, it's the open tab, as in Chrome. Under a finger a swipe scrolls the
+ * strip, so a tab is picked up by holding it still for a moment, as iPad's Safari picks up its tabs;
+ * from then on the strip doesn't scroll until it's let go (Almaz, 10 Nov) */
+/** How long a finger holds a tab still to pick it up */
+const HOLD_MS = 350
+
 function useTabDrag(order: string[], open: (file: string) => void, move: (file: string, to: number) => void) {
   const els = useRef(new Map<string, HTMLElement>())
   const [drag, setDrag] = useState<{ file: string; dx: number } | null>(null)
@@ -101,8 +106,26 @@ function useTabDrag(order: string[], open: (file: string) => void, move: (file: 
     let drawn = 0
     let waiting = -1
     let on = false
+    const touch = e.pointerType === "touch"
+    const y0 = e.clientY
+    // Held, the finger's moves drag the tab, not the strip
+    const noScroll = (ev: TouchEvent) => ev.preventDefault()
+    const hold = touch
+      ? window.setTimeout(() => {
+          on = true
+          dragged.current = true
+          open(file)
+          setDrag({ file, dx: 0 })
+          addEventListener("touchmove", noScroll, { passive: false })
+        }, HOLD_MS)
+      : 0
     const onMove = (ev: PointerEvent) => {
       dx = ev.clientX - from
+      if (touch && !on) {
+        // Moved before the hold: it's a scroll, and the strip has it
+        if (Math.abs(dx) > 8 || Math.abs(ev.clientY - y0) > 8) onUp()
+        return
+      }
       if (!on) {
         if (Math.abs(dx) < 4) return
         on = true
@@ -130,7 +153,9 @@ function useTabDrag(order: string[], open: (file: string) => void, move: (file: 
       drawn = dx
       setDrag({ file, dx })
     }
-    const onUp = () => {
+    function onUp() {
+      window.clearTimeout(hold)
+      removeEventListener("touchmove", noScroll)
       removeEventListener("pointermove", onMove)
       removeEventListener("pointerup", onUp)
       removeEventListener("pointercancel", onUp)
@@ -157,7 +182,8 @@ function useTabDrag(order: string[], open: (file: string) => void, move: (file: 
           e.preventDefault()
         }
       },
-      style: drag?.file === file ? ({ transform: `translateX(${drag.dx}px)`, zIndex: 10, cursor: "grabbing" } as CSSProperties) : undefined,
+      // No callout or selection on a held tab: the hold is the pick up
+      style: (drag?.file === file ? { transform: `translateX(${drag.dx}px)`, zIndex: 10, cursor: "grabbing", WebkitTouchCallout: "none" } : { WebkitTouchCallout: "none" }) as CSSProperties,
     }),
   }
 }
