@@ -4,6 +4,7 @@ import type { Idl } from "@coral-xyz/anchor";
 import type {
   Act,
   ActBeat,
+  ActionWord,
   Ask,
   Beat,
   Block,
@@ -46,7 +47,6 @@ import {
   isUnconfirmed,
   isUnreachable,
 } from "./progress";
-import type { Word } from "./route";
 import { shippedIdl, shippedIdlAt } from "./shipped-idl";
 
 /**
@@ -181,9 +181,15 @@ export type Action =
    * A typed action word (task 3.6): the action it names, and its pill when
    * that action changed something; a word the engine refuses is dropped
    */
-  | { type: "word"; word: Word; text: string; then: WordAction; at: number }
+  | {
+      type: "word";
+      word: ActionWord;
+      text: string;
+      then: WordAction;
+      at: number;
+    }
   /** An action word typed while a question is open: refused, not run */
-  | { type: "refuseWord"; word: Word; text: string; at: number }
+  | { type: "refuseWord"; word: ActionWord; text: string; at: number }
   /** A finish chip pressed, by its index in the definition's `finish.chips` */
   | { type: "chip"; index: number; at: number }
   /** The assistant proposed one line's change; it waits for Apply or Keep */
@@ -281,7 +287,7 @@ export type Effect =
       params: {
         tutorial: string;
         step_index: number;
-        word: Word;
+        word: ActionWord;
         refused: boolean;
       };
     }

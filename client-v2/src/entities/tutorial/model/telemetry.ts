@@ -15,7 +15,7 @@ export type QuestionResult =
 
 /**
  * The live actions a composer message can name on its own; `word` in
- * `tutorial_word_sent`, and the engine's `Word`
+ * `tutorial_word_sent`, and the conversation engine's words
  */
 export type ActionWord =
   | "start"
@@ -186,12 +186,6 @@ export type TutorialEvents = {
 };
 
 /**
- * Also the tracker of the conversation engine
- * (`features/tutorial-conversation`) and of its feed
- * (`widgets/tutorial-conversation`): the spec names their events
- * `tutorial_*`, and the prefix is this slice's.
- */
-/**
  * Free text, opted in: no type lists the values, so the owner decides
  * whether to keep each (HOO-2752). Slugs and beat ids come from each
  * `tutorial.json`, which the loader reads as data, as `string`.
@@ -203,6 +197,12 @@ type TutorialFreeText = {
   file: "a workspace path the assistant's apply card wrote";
 };
 
+/**
+ * Also the tracker of the conversation engine
+ * (`features/tutorial-conversation`) and of its feed
+ * (`widgets/tutorial-conversation`): the spec names their events
+ * `tutorial_*`, and the prefix is this slice's.
+ */
 export const tutorialTelemetry = createTracker<
   TutorialEvents,
   TutorialFreeText
