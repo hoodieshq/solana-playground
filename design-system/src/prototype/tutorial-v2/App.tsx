@@ -8,6 +8,7 @@ import { PhonePrograms } from "./programs/next/phone/PhonePrograms"
 import { SettingsLayer } from "./settings"
 import { useTheme } from "./settings/theme"
 import { Gallery } from "./screens/Gallery"
+import { Home } from "./screens/Home"
 import { StepScreen } from "./screens/StepScreen"
 import { useStore } from "./store"
 
@@ -23,7 +24,8 @@ export function App() {
     <TooltipProvider delayDuration={400}>
       <div className="h-dvh bg-surface-well">
         <div className="mx-auto flex h-full w-full max-w-[30rem] flex-col [html.portrait_&]:max-w-none overflow-hidden bg-surface-base pt-[env(safe-area-inset-top)] text-foreground">
-          {(s.screen === "gallery" || s.screen === "home") && <Gallery />}
+          {s.screen === "home" && <Home />}
+          {s.screen === "gallery" && <Gallery />}
           {s.screen === "programs" && <PhonePrograms />}
           {/* A finish is the last turn of the step screen's chat; the old screen of its own is gone */}
           {(s.screen === "step" || s.screen === "finish") && <StepScreen />}
