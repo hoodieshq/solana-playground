@@ -799,7 +799,10 @@ const processDeploy = async (
     // Deploy
     PgDeployRun.update({
       step: "deploy",
-      approval: standardWallet ? { wallet: standardWallet.name, n: 2 } : null,
+      approval: standardWallet
+        ? { wallet: standardWallet.name, n: 2 }
+        : // eslint-disable-next-line unicorn/no-null -- a Playground deploy asks no approval
+          null,
     });
     try {
       signature = await (programExists ? upgrade() : deployNew());

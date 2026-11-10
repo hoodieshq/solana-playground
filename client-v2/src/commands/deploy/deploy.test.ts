@@ -866,6 +866,10 @@ describe("commands/deploy", () => {
             args.toPubkey === standardWallet.publicKey
         )
         .map((args) => args.lamports);
+    /** Move the Playground wallet's lamports by `delta` */
+    const movePg = (delta: number) => {
+      env.pgLamports = (env.pgLamports ?? 0) + delta;
+    };
     /** A transfer moves the Playground wallet's lamports once it is sent */
     const landTransfer = async (...args: unknown[]) => {
       const ix = args[0] as {
@@ -888,7 +892,7 @@ describe("commands/deploy", () => {
       send.mockImplementation(landTransfer);
       // The buffer and the fees spend all but 0.09 SOL of what came in
       createBuffer.mockImplementation(async () => {
-        env.pgLamports! -= 2_010_000_000;
+        movePg(-2_010_000_000);
         return "sig";
       });
     };
@@ -914,7 +918,7 @@ describe("commands/deploy", () => {
       deployProgram.mockRejectedValue(new Error("custom program error: 0x1"));
       // The close gives the buffer's rent back to the Playground wallet
       closeBuffer.mockImplementation(async () => {
-        env.pgLamports! += 2_000_000_000;
+        movePg(2_000_000_000);
         // eslint-disable-next-line unicorn/no-null -- a closed account reads `null`
         env.bufferAccount = null;
         return "sig";
@@ -944,7 +948,7 @@ describe("commands/deploy", () => {
     it("sends nothing when nothing is left over", async () => {
       fromStandard();
       createBuffer.mockImplementation(async () => {
-        env.pgLamports! -= 2_100_000_000;
+        movePg(-2_100_000_000);
         return "sig";
       });
 

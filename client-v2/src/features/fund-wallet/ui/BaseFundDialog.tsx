@@ -27,7 +27,6 @@ import {
 
 import type { Receiver, SendCheck } from "../model/fund";
 import { canSend, formatSol, maxAmount, parseAmount } from "../model/fund";
-
 import { NO_EXTENSION } from "../model/no-extension";
 
 /** The amount field's id, which the spec and the tests find it by */

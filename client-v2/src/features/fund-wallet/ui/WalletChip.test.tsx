@@ -28,8 +28,8 @@ vi.mock("@/components/Wallet/hooks", () => ({
   useAirdrop: () => ({ airdrop, faucet: "available" }),
 }));
 const connectStandard = vi.hoisted(() => ({
-  make: vi.fn(async (_name: string) => {}),
-  drop: vi.fn(async (_name: string) => {}),
+  make: vi.fn<(name: string) => Promise<void>>(async () => {}),
+  drop: vi.fn<(name: string) => Promise<void>>(async () => {}),
 }));
 vi.mock("@/commands/connect/connect", () => ({
   makeStandardCurrent: connectStandard.make,

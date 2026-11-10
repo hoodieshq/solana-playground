@@ -25,7 +25,7 @@ describe("BaseDeployProgress", () => {
         percent: 62,
         funds: false,
         upgrade: false,
-        approval: null,
+        approval: NO_APPROVAL,
       })
     ).toEqual([
       "Preparing buffer done",
@@ -41,7 +41,7 @@ describe("BaseDeployProgress", () => {
         percent: 0,
         funds: true,
         upgrade: true,
-        approval: null,
+        approval: NO_APPROVAL,
       })
     ).toEqual([
       "Funding wallet running",

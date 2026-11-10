@@ -9,8 +9,8 @@ import {
 import { useAirdrop } from "@/components/Wallet/hooks";
 import { useBalance, useRenderOnChange, useWallet } from "@/hooks";
 import { faucetLink, webFaucetSteps } from "@/shared/lib/faucet";
-import { createLogger } from "@/shared/lib/logger";
 import type { AirdropRefusal } from "@/shared/lib/faucet-limit";
+import { createLogger } from "@/shared/lib/logger";
 import {
   markFailureShown,
   reportButtonFailure,

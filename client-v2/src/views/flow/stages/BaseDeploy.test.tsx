@@ -712,7 +712,13 @@ describe("BaseDeploy", () => {
           built: true,
           view: RUNNING,
           history: [],
-          run: { ...IDLE_RUN, step: "write", percent: 40, funds: true },
+          run: {
+            step: "write",
+            percent: 40,
+            funds: true,
+            upgrade: false,
+            approval: IDLE_RUN.approval,
+          },
         })}
       />
     );
