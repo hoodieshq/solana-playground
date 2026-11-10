@@ -1,3 +1,4 @@
+import { trackView } from "../../features/project-files";
 import { GITHUB_ROUTE, PgGithub, PgRouter } from "../../utils";
 import { handleRoute } from "../common";
 
@@ -12,7 +13,7 @@ export const github = PgRouter.create({
   handle: ({ path }) => {
     return handleRoute({
       getExplorerInitArg: async () => ({
-        files: await PgGithub.getFiles(`github.com/${path}`),
+        files: await trackView(() => PgGithub.getFiles(`github.com/${path}`)),
       }),
     });
   },
