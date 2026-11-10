@@ -114,6 +114,9 @@ const PROGRAM_FILE_REGEX = /^src\/.+\.(rs|py)$/;
 /** Program source in any layout: a no-program import never drops one */
 const PROGRAM_SOURCE_REGEX = /\.(rs|py)$/;
 
+/** A Rust program file where Build compiles it: the as-is import keeps only these */
+const RUST_PROGRAM_FILE_REGEX = /^src\/.+\.rs$/;
+
 /** TypeScript and JavaScript, the only files a project with no program runs */
 const SCRIPT_FILE_REGEX = /\.[jt]sx?$/;
 
@@ -220,18 +223,18 @@ const relativeToRoot = (root: string, fullPath: string) => {
     : relative;
 };
 
-/** Crate and package manifests at the root, which only a foreign layout has */
-const ROOT_MANIFEST_REGEX =
-  /^(Cargo\.toml|Xargo\.toml|pyproject\.toml|setup\.py|requirements\.txt)$/;
+/** A crate manifest at the root, which only a foreign layout has */
+const ROOT_MANIFEST_REGEX = /^(Cargo\.toml|Xargo\.toml)$/;
 
 /**
- * Whether all Rust and Python sit under `src/` and no crate or package manifest
- * sits at the root, as in a project Export writes
+ * Whether every program source file is Rust under `src/` and no crate manifest
+ * sits at the root, as in a Rust project Export writes. Python is left to
+ * Seahorse: a `.py` no framework claims is refused.
  */
 const isPlaygroundProgramLayout = (paths: string[]) =>
   paths
     .filter((path) => PROGRAM_SOURCE_REGEX.test(path))
-    .every((path) => PROGRAM_FILE_REGEX.test(path)) &&
+    .every((path) => RUST_PROGRAM_FILE_REGEX.test(path)) &&
   !paths.some((path) => ROOT_MANIFEST_REGEX.test(path));
 
 /**
@@ -354,9 +357,9 @@ export class PgFramework {
 
   /**
    * Convert files with the framework layout to the playground layout. Files
-   * no framework recognises, with all Rust and Python under `src/` and no
-   * crate or package manifest at the root (the playground's own layout, as
-   * Export writes it), are kept as they are.
+   * no framework recognises, with all program source Rust under `src/` and no
+   * crate manifest at the root (the playground's own layout, as Export writes
+   * a Rust project), are kept as they are.
    * Other files no framework recognises are laid out as a project with no
    * program when they hold TypeScript or JavaScript and no Rust or Python: a program in a
    * layout no framework knows is refused, never imported without its source.
@@ -382,9 +385,8 @@ export class PgFramework {
    * the refusal, `undefined` when there is nothing to name), which returns a
    * function taking the framework files
    * @throws `NOT_A_PROGRAM` when no framework recognises the files, they hold
-   * Rust or Python, and some of it sits outside `src/` or a crate or package
-   * manifest (`Cargo.toml`, `Xargo.toml`, `pyproject.toml`, `setup.py`,
-   * `requirements.txt`) sits at the root;
+   * Rust or Python, and any of it is Python, sits outside `src/`, or a crate
+   * manifest (`Cargo.toml`, `Xargo.toml`) sits at the root;
    * `noProgramCode` when there is no program and no script; "Could not
    * convert files" when a framework's conversion returns nothing
    */
@@ -832,6 +834,15 @@ if (import.meta.vitest) {
             ["README.md", "x"],
           ];
           expect(await imported(files)).toEqual(files);
+        });
+
+        it("refuses an unmarked Python program, which only Seahorse may claim", async () => {
+          await expect(
+            imported([
+              ["src/main.py", "x"],
+              ["client/client.ts", "a"],
+            ])
+          ).rejects.toThrow(NOT_A_PROGRAM);
         });
 
         it("refuses a Python package", async () => {
