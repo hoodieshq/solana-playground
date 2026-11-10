@@ -17,6 +17,14 @@ const PAYER: FundPayer = {
   balance: 2,
 };
 
+/** The payer holding `balance`, every field named */
+const payerHolding = (balance: FundPayer["balance"]): FundPayer => ({
+  name: PAYER.name,
+  icon: PAYER.icon,
+  address: PAYER.address,
+  balance,
+});
+
 /** The dialog with every prop named, each test overriding what it is about */
 const renderDialog = (props: Partial<BaseFundDialogProps>) =>
   render(
@@ -120,7 +128,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
 
   it("disables send above the balance and says what the wallet holds", () => {
     renderDialog({
-      payer: { ...PAYER, balance: 0.5 },
+      payer: payerHolding(0.5),
     });
 
     expect(sendButton().hasAttribute("disabled")).toBe(true);
@@ -151,9 +159,9 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
   });
 
   it.each([
-    ["More by 0.1 SOL", "0.2", "0.3"],
-    ["Less by 0.1 SOL", "0.2", "0.1"],
-  ])("%s steps the amount", (name, amount, next) => {
+    { name: "More by 0.1 SOL", amount: "0.2", next: "0.3" },
+    { name: "Less by 0.1 SOL", amount: "0.2", next: "0.1" },
+  ])("$name steps the amount", ({ name, amount, next }) => {
     const onAmountChange = vi.fn();
     renderDialog({ payer: PAYER, amount, onAmountChange });
 
@@ -163,9 +171,9 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
   });
 
   it.each([
-    ["ArrowUp", "1.999", "2"],
-    ["ArrowDown", "1.999", "1.9"],
-  ])("%s steps the amount by 0.1", (key, amount, next) => {
+    { key: "ArrowUp", amount: "1.999", next: "2" },
+    { key: "ArrowDown", amount: "1.999", next: "1.9" },
+  ])("$key steps the amount by 0.1", ({ key, amount, next }) => {
     const onAmountChange = vi.fn();
     renderDialog({ payer: PAYER, amount, onAmountChange });
 
@@ -188,7 +196,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
 
   it("waits for the balance before allowing a send", () => {
     renderDialog({
-      payer: { ...PAYER, balance: "loading" },
+      payer: payerHolding("loading"),
     });
 
     expect(sendButton().hasAttribute("disabled")).toBe(true);
@@ -261,7 +269,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
 
   it("says when the balance cannot be read, and allows no send", () => {
     renderDialog({
-      payer: { ...PAYER, balance: "unavailable" },
+      payer: payerHolding("unavailable"),
     });
 
     expect(screen.getByText(/Couldn't read Phantom's balance/)).toBeTruthy();
@@ -303,7 +311,7 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     "disables Max while the balance is %j",
     (balance) => {
       renderDialog({
-        payer: { ...PAYER, balance },
+        payer: payerHolding(balance),
       });
 
       expect(

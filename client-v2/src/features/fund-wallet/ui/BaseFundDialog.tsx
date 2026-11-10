@@ -123,7 +123,15 @@ const FOOTER_BUTTON = "h-10 rounded-full px-4 font-heading text-[0.9375rem]";
 
 /** The line under the amount field: a problem, or where the SOL goes */
 const amountNoteFor =
-  (payer: FundPayer, receiver: Receiver, cluster: string | undefined) =>
+  ({
+    payer,
+    receiver,
+    cluster,
+  }: {
+    payer: FundPayer;
+    receiver: Receiver;
+    cluster: string | undefined;
+  }) =>
   (amount: string): { ok: boolean; error: boolean; text: string } => {
     if (payer.balance === "unavailable") {
       return {
@@ -215,7 +223,7 @@ const BaseFundDialog = ({
 }: BaseFundDialogProps) => {
   const [sending, setSending] = useState(false);
   const note = payer
-    ? amountNoteFor(payer, receiver, cluster)(amount)
+    ? amountNoteFor({ payer, receiver, cluster })(amount)
     : undefined;
   const unconfirmed =
     failure?.kind === "send-unconfirmed" || failure?.kind === "send-pending";

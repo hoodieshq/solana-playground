@@ -242,20 +242,23 @@ if (import.meta.vitest) {
       }
     );
 
-    it.each([
-      ["0", 1, "0.1"],
-      ["0.1", 1, "0.2"],
-      ["1.999", 1, "2"],
-      ["1.999", -1, "1.9"],
-      ["2", -1, "1.9"],
-      ["0.05", -1, "0"],
-      ["0", -1, "0"],
-      ["0.2", -1, "0.1"],
-      ["abc", 1, "0.1"],
-      ["", 1, "0.1"],
-    ] as const)("stepAmount(%j, %j) is %j", (text, direction, next) => {
-      expect(stepAmount(text, direction)).toBe(next);
-    });
+    it.each<{ text: string; direction: 1 | -1; next: string }>([
+      { text: "0", direction: 1, next: "0.1" },
+      { text: "0.1", direction: 1, next: "0.2" },
+      { text: "1.999", direction: 1, next: "2" },
+      { text: "1.999", direction: -1, next: "1.9" },
+      { text: "2", direction: -1, next: "1.9" },
+      { text: "0.05", direction: -1, next: "0" },
+      { text: "0", direction: -1, next: "0" },
+      { text: "0.2", direction: -1, next: "0.1" },
+      { text: "abc", direction: 1, next: "0.1" },
+      { text: "", direction: 1, next: "0.1" },
+    ])(
+      "stepAmount($text, $direction) is $next",
+      ({ text, direction, next }) => {
+        expect(stepAmount(text, direction)).toBe(next);
+      }
+    );
 
     it("starts the amount at 0", () => {
       expect(DEFAULT_AMOUNT).toBe("0");
