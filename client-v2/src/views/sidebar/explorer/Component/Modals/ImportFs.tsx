@@ -68,8 +68,9 @@ export const ImportFs: FC<React.PropsWithChildren<ImportFsProps>> = (props) => {
       buttonProps={{
         text: "Import",
         onSubmit: guard(async () => {
-          await trackImport("files", () =>
-            PgExplorer.createWorkspace(name, { files })
+          await trackImport(
+            () => PgExplorer.createWorkspace(name, { files }),
+            "files"
           );
           return IMPORTED;
         }),
