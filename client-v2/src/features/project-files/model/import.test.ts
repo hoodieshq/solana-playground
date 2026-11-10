@@ -38,7 +38,7 @@ describe("trackImport", () => {
   it.each([
     ["not-found", new GithubImportError("missing", "not-found")],
     ["unsupported", new ConversionError("no framework", "unsupported")],
-    ["network", new TypeError("Failed to fetch")],
+    ["network", new GithubImportError("no answer", "network")],
     ["other", new Error("Invalid program url")],
   ] as const)(
     "counts a failure with reason %s and rethrows",
