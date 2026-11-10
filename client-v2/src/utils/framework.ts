@@ -775,6 +775,24 @@ if (import.meta.vitest) {
         });
       });
 
+      it("refuses files a framework claims but converts to nothing", async () => {
+        const getFromFiles = vi
+          .spyOn(PgFramework, "getFromFiles")
+          .mockResolvedValue({
+            import: async () => ({ convertToPlayground: async () => [] }),
+          } as unknown as Awaited<ReturnType<typeof PgFramework.getFromFiles>>);
+        try {
+          await expect(
+            pathsOf([["programs/a/src/lib.rs", "#[program]"]])
+          ).rejects.toMatchObject({
+            message: "Could not convert files",
+            reason: "unsupported",
+          });
+        } finally {
+          getFromFiles.mockRestore();
+        }
+      });
+
       /** What Settings › Export writes is what Import reads back */
       describe("the playground's own layout", () => {
         const imported = async (files: TupleFiles) =>
