@@ -3,8 +3,18 @@ import { dirname, join, relative } from "path";
 import ts from "typescript";
 import { beforeAll, describe, expect, it } from "vitest";
 
+/*
+ * The one cross-slice telemetry check. Each tracker's own parameters are
+ * checked where it is declared, by the guards `createTracker` applies
+ * (`shared/lib/telemetry/types.ts`): snake_case names, and values that are
+ * numbers, booleans or string literals unless the slice opts into free text.
+ * What no slice can see alone is a name two slices type differently: GA4
+ * registers a custom dimension or metric by parameter name across all
+ * events, so one name needs one type everywhere. This test reads every
+ * tracker under `src` with the TypeScript compiler to find such names.
+ */
+
 const SRC = join(__dirname, "..");
-const DOC = join(SRC, "..", "docs", "telemetry-parameters.md");
 
 type Kind = "string" | "number" | "boolean";
 
@@ -126,53 +136,9 @@ const collectUsages = (files: string[]): Map<string, Usage[]> => {
   return found;
 };
 
-/** The kinds a name is declared with across its usages, sorted; callers join them with `/` */
+/** The kinds a name is declared with across its usages, sorted */
 const kindsOfName = (usages: Usage[]) =>
   Array.from(new Set(usages.flatMap(({ type }) => type.split("|")))).sort();
-
-/**
- * Numeric parameters that are categories, not quantities: they register as
- * dimensions, because GA4 sums or averages a metric. The tutorial step index
- * joins when `step` is renamed (HOO-2752).
- */
-const NUMERIC_CATEGORIES = ["status"];
-
-/** What GA4 registers a name as, from its usages */
-const kindOfName = (name: string, usages: Usage[]) => {
-  const kinds = kindsOfName(usages);
-  if (kinds.length > 1) return "conflict";
-  if (kinds[0] === "number" && !NUMERIC_CATEGORIES.includes(name)) {
-    return "metric";
-  }
-  return "dimension";
-};
-
-type Row = { type: string; kind: string; events: string[] };
-
-/**
- * The rows of the document's `| Parameter |` table: name -> its type, kind and
- * events (sorted). A name listed twice fails.
- */
-const documentedRows = (): Map<string, Row> => {
-  const lines = readFileSync(DOC, "utf8").split("\n");
-  const start = lines.findIndex((line) => line.startsWith("| Parameter |"));
-  if (start === -1) throw new Error("the table has no `| Parameter |` header");
-  const rows = new Map<string, Row>();
-  for (const line of lines.slice(start + 2)) {
-    if (!line.startsWith("|")) break;
-    const cells = line.split("|").slice(1, -1);
-    const name = cells[0].trim().replace(/`/g, "");
-    if (rows.has(name)) throw new Error(`${name} is listed twice`);
-    rows.set(name, {
-      type: cells[1].trim(),
-      kind: cells[2].trim().replace(/ \(.*\)$/, ""),
-      events: Array.from(cells[4].matchAll(/`([^`]+)`/g))
-        .map((event) => event[1])
-        .sort(),
-    });
-  }
-  return rows;
-};
 
 /**
  * Names that carry two types today, each with why it stays. GA4 registers a
@@ -225,50 +191,5 @@ describe("telemetry parameters", () => {
         (name) => !conflicts.some((line) => line.startsWith(`${name}:`))
       )
     ).toEqual([]);
-  });
-
-  it("writes every parameter name in snake_case", () => {
-    const misspelled = Array.from(parameters.keys()).filter(
-      (name) => !/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/.test(name)
-    );
-    expect(misspelled).toEqual([]);
-  });
-
-  it("lists every parameter name in docs/telemetry-parameters.md and no other", () => {
-    expect(Array.from(documentedRows().keys()).sort()).toEqual(
-      Array.from(parameters.keys()).sort()
-    );
-  });
-
-  it("states each parameter's type and kind in docs/telemetry-parameters.md", () => {
-    const documented = documentedRows();
-    const wrong = Array.from(parameters)
-      .map(([name, usages]) => ({
-        name,
-        type: kindsOfName(usages).join("/"),
-        kind: kindOfName(name, usages),
-      }))
-      .filter(
-        ({ name, type, kind }) =>
-          documented.get(name)?.type !== type ||
-          documented.get(name)?.kind !== kind
-      )
-      .map(({ name, type, kind }) => `${name}: ${type}, ${kind}`);
-    expect(wrong).toEqual([]);
-  });
-
-  it("lists in docs/telemetry-parameters.md the events that send each parameter", () => {
-    const documented = documentedRows();
-    const wrong = Array.from(parameters)
-      .filter(
-        ([name, usages]) =>
-          documented.get(name)?.events.join(",") !==
-          usages
-            .map(({ event }) => event)
-            .sort()
-            .join(",")
-      )
-      .map(([name]) => name);
-    expect(wrong).toEqual([]);
   });
 });

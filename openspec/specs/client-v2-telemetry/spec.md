@@ -113,49 +113,48 @@ user input.
 - **WHEN** a parameter's type is an object or array
 - **THEN** `yarn test-types` fails
 
-### Requirement: Event parameters have one name, one type and a registered kind
+### Requirement: Event parameters have one name, one type and a bounded value
 
 GA4 registers a custom dimension or metric by parameter name across all
 events, so a parameter name SHALL carry one meaning and one type (`string`,
-`number` or `boolean`) in every tracker, and SHALL be snake_case. A numeric
-parameter is registered as a custom metric unless it is a category (`status`,
-the tutorial step index), which stays a dimension; a string or boolean one as an
-event-scoped custom dimension. GA4 allows 50 event-scoped custom dimensions
-and 50 custom metrics per property, so every parameter SHALL be listed, with
-its type, its kind, the events that send it and whether a funnel breaks down
-by it, in the table of
-[`client-v2/docs/telemetry-parameters.md`](../../../client-v2/docs/telemetry-parameters.md).
-A name that still carries two types is recorded as a known conflict in
-`src/app/telemetry-parameters.test.ts` until it is renamed.
+`number` or `boolean`) in every tracker, and SHALL be snake_case. A string
+parameter SHALL be a union of string literals unless its slice opts into it
+as free text at `createTracker`, naming the parameter and why its values
+cannot be listed. Each slice's parameters are checked where its tracker is
+declared, by the type guard `createTracker` applies, so `yarn test-types`
+fails a bad map. One cross-slice check, `src/app/telemetry-parameters.test.ts`,
+reads every tracker and fails a name that two events type differently, since
+no slice alone sees the other's events; a name that still carries two types
+is recorded there as a known conflict until it is renamed.
 
-The five scenarios of this requirement are marked `(manual)`: the unit test
-`src/app/telemetry-parameters.test.ts` holds them, not a Playwright test (the
-repository marks such scenarios inconsistently).
+The scenarios on the cross-slice check are marked `(manual)`: the unit test
+holds them, not a Playwright test (the repository marks such scenarios
+inconsistently).
+
+#### Scenario: A parameter is not snake_case
+
+- **WHEN** an event declares a parameter such as `signedIn`
+- **THEN** `yarn test-types` fails at the slice's `createTracker` call and names the parameter
+
+#### Scenario: A parameter is free text the slice did not opt into
+
+- **WHEN** an event declares a parameter typed as a wide `string`, and its slice's tracker does not opt into that name with a reason
+- **THEN** `yarn test-types` fails at the slice's `createTracker` call and names the parameter
+
+#### Scenario: An opt-in names no free-text parameter
+
+- **WHEN** a slice opts into free text for a name none of its events types as a wide `string`
+- **THEN** `yarn test-types` fails at the slice's `createTracker` call
 
 #### Scenario: One name has two types (manual)
 
 - **WHEN** two events declare the same parameter name with different types, and the name is not a known conflict
-- **THEN** the parameter test fails and names the parameter
-
-#### Scenario: A parameter is not snake_case (manual)
-
-- **WHEN** an event declares a parameter such as `signedIn`
-- **THEN** the parameter test fails and names the parameter
-
-#### Scenario: A documented type disagrees with the trackers (manual)
-
-- **WHEN** the table gives a parameter a type, or a list of events, that the trackers do not
-- **THEN** the parameter test fails and names the parameter
+- **THEN** the cross-slice parameter test fails and names the parameter
 
 #### Scenario: A known conflict is fixed (manual)
 
 - **WHEN** a name listed as a known conflict no longer has two types
-- **THEN** the parameter test fails until its entry is removed
-
-#### Scenario: A parameter is added (manual)
-
-- **WHEN** an event declares a parameter name that the table does not list
-- **THEN** the parameter test fails until the table has its row
+- **THEN** the cross-slice parameter test fails until its entry is removed
 
 ### Requirement: A widget attributes events without props
 

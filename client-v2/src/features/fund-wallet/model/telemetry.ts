@@ -27,4 +27,12 @@ type FundEvents = {
   fund_failed: { stage: "connect" | "send"; reason: FailureReason };
 };
 
-export const fundTelemetry = createTracker<FundEvents>();
+/**
+ * Free text, opted in: no type lists the values, so the owner decides
+ * whether to keep it (HOO-2752)
+ */
+type FundFreeText = {
+  wallet: "a Wallet Standard name, which any installed wallet sets for itself";
+};
+
+export const fundTelemetry = createTracker<FundEvents, FundFreeText>();
