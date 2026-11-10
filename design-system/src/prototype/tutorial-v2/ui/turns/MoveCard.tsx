@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Check, ListPlus, X } from "lucide-react"
+import { Check, Circle, CircleCheck, Send, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
@@ -149,7 +149,7 @@ export function MoveCard({ turn, phone = false }: { turn: ActTurn; phone?: boole
     return (
       <div className="rounded-control border border-border bg-(--card-ground)">
         <div className="flex h-9 items-center gap-2 px-3 text-caption text-muted-foreground">
-          {turn.via === "test" || !refused ? <Check className="size-3.5 text-success" aria-hidden="true" /> : <ListPlus className="size-3.5 text-subtle" aria-hidden="true" />}
+          {turn.via === "test" || !refused ? <Check className="size-3.5 text-success" aria-hidden="true" /> : <Send className="size-3.5 text-subtle" aria-hidden="true" />}
           <span className="truncate">{actRecord(turn)}</span>
         </div>
         {last && <RecordsCard rows={last.snap.after} record closed={sends.flatMap(closedBy)} phone={phone} flat className="border-t border-border p-3" />}
@@ -186,7 +186,7 @@ export function MoveCard({ turn, phone = false }: { turn: ActTurn; phone?: boole
           aria-hidden="true"
           className={cn("grid size-8 shrink-0 place-items-center rounded-lg transition-colors duration-150 [&>svg]:size-4", run ? "bg-surface-hover text-foreground" : "bg-surface-raised text-muted-foreground")}
         >
-          <ListPlus />
+          <Send />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{beat.title}</span>
@@ -205,6 +205,22 @@ export function MoveCard({ turn, phone = false }: { turn: ActTurn; phone?: boole
           </span>
         </span>
       </div>
+      {/* What the card asks for, each ticked once a send of it landed, so what's left is on the card */}
+      {beat.todo && (
+        <ul aria-label="To do" className="-mt-1 flex flex-wrap gap-x-4 gap-y-1 pl-11 text-caption">
+          {beat.todo.map((t) => {
+            // `refused` is a send the program should turn down: Bank Simulator's withdraw past the balance
+            const done = sends.some((x) => x.ix === t.ix && (t.refused ? !x.ok : x.ok))
+            return (
+              <li key={t.text} className={cn("flex items-center gap-1.5", done ? "text-muted-foreground" : "text-foreground")}>
+                {done ? <CircleCheck aria-hidden="true" className="size-3.5 text-success" /> : <Circle aria-hidden="true" className="size-3.5 text-subtle" />}
+                {t.text}
+                <span className="sr-only">{done ? ", done" : ", to do"}</span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
       {/* The accounts it changes, flat under a hairline: the card is the one block, the accounts a part of it */}
       {!once && <LiveRecords moves={rowMoves} phone={phone} flat className="border-t border-border pt-3" />}
       {sends.length > 0 && (
@@ -214,13 +230,20 @@ export function MoveCard({ turn, phone = false }: { turn: ActTurn; phone?: boole
           ))}
         </ol>
       )}
-      {/* Moves with nothing to type sit in one row, as a game's buttons do (Move right, Move left) */}
-      <div className={cn(!phone && own.length > 1 && own.every((m) => !m.fields?.length) ? "flex flex-wrap items-end gap-2" : "contents")}>
-        {own.map((m, i) => (
-          <CardMove key={m.ix} turn={turn} move={m} first={i === 0} phone={phone} extra={i === 0 ? untilButton : undefined} />
-        ))}
-      </div>
-      {own.length === 0 && untilButton && <div className="flex">{untilButton}</div>}
+      {/* The card's moves on its grey foot, under a hairline, as every chat card's actions sit: on the
+          card's ground the button read as one more line of the accounts (Almaz, 10 Nov). A board whose
+          moves are its cells has no foot */}
+      {(own.length > 0 || untilButton) && (
+        <div className={cn("-mx-4 -mb-4 mt-1 flex flex-col gap-3 border-t border-border bg-surface-panel px-4 py-3", phone && "gap-4")}>
+          {/* Moves with nothing to type sit in one row, as a game's buttons do (Move right, Move left) */}
+          <div className={cn(!phone && own.length > 1 && own.every((m) => !m.fields?.length) ? "flex flex-wrap items-end gap-2" : "contents")}>
+            {own.map((m, i) => (
+              <CardMove key={m.ix} turn={turn} move={m} first={i === 0} phone={phone} extra={i === 0 ? untilButton : undefined} />
+            ))}
+          </div>
+          {own.length === 0 && untilButton && <div className="flex">{untilButton}</div>}
+        </div>
+      )}
       {run && <RunBar key={run.at} stage={run.stage} stages={run.stages} />}
     </div>
   )

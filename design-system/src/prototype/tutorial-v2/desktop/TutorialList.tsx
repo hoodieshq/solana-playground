@@ -121,6 +121,9 @@ export function TutorialLevels({ list }: { list: Entry[] }) {
               <h2 id={id} className="font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground">
                 {g.level}
               </h2>
+              {/* The count on a grey chip, as the first Oak had it: as plain grey text beside the heading it
+                  went unnoticed, and Almaz looked for it (10 Nov) */}
+              <span className="rounded-full bg-surface-hover px-2 text-[0.875rem] leading-6 text-muted-foreground tabular-nums">{g.items.length}</span>
               {/* Opens in place, so it points down, not on to another page */}
               {more && (
                 <button

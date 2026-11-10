@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react"
-import { Flag, Package, PackageOpen, Swords } from "lucide-react"
+import { Flag, PersonStanding, Swords } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -56,28 +56,64 @@ function Delta({ by, text }: { by: number; text: string }) {
   )
 }
 
-/** The row of four tiles, the character on its tile: `o`, and `\o/` on the last. The last tile carries
- * the flag, or the chest when the game has one: closed while it holds SOL, open once it paid */
-function Tiles({ position, chest, phone }: { position: number; chest?: "none" | "closed" | "open"; phone: boolean }) {
-  const size = phone ? 48 : 40
-  const step = size + 4
-  const Chest = chest === "closed" ? Package : PackageOpen
+/** A treasure chest in lucide's hand (24 grid, stroke 2, round joins): lucide has none, and its Package
+ * read as a parcel. Shut, a domed lid over the body with the lock on the seam; open, the lid tipped back
+ * and three short rays over it, the paid out chest on the last tile */
+function ChestIcon({ open, className }: { open: boolean; className?: string }) {
   return (
-    <div className="relative shrink-0" style={{ width: step * 3 + size, height: size }}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      {open ? (
+        <>
+          <rect x="3" y="12" width="18" height="8" rx="1.5" />
+          <path d="M5 12 3.7 8.2a1 1 0 0 1 .95-1.3h14.7a1 1 0 0 1 .95 1.3L19 12" />
+          <path d="M10 15h4" />
+          <path d="M12 1.5v2M7.5 2.5l.8 1.4M16.5 2.5l-.8 1.4" />
+        </>
+      ) : (
+        <>
+          <rect x="3" y="11" width="18" height="9" rx="1.5" />
+          <path d="M3 11V9.5C3 6.5 5.5 4 8.5 4h7C18.5 4 21 6.5 21 9.5V11" />
+          <rect x="10" y="9" width="4" height="5" rx="1" />
+        </>
+      )}
+    </svg>
+  )
+}
+
+/** The row of four tiles, the character on its tile. The last tile carries the flag, or the chest when
+ * the game has one: closed while it holds SOL, open once it paid. Flat cells, not raised: with a border
+ * and a lift they read as buttons. The character is an icon in the tile's middle, where the `o` from the
+ * program's log stood low beside a flag in the corner and read as a typo (Almaz, 10 Nov). The goal sits
+ * in its tile's middle too. Once the character gets there it fades and the goal alone fills the tile, green:
+ * the open chest or the flag says the level is done. Beside the character, or in the corner on its raised
+ * hand, it read as something it held. Tiles of 48 and icons of 20 to 24, as at 40 and 14 the chest
+ * couldn't be made out (Almaz, 10 Nov) */
+function Tiles({ position, chest, phone }: { position: number; chest?: "none" | "closed" | "open"; phone: boolean }) {
+  const size = phone ? 56 : 48
+  // One track cut in four by hairlines: four rounded cells apart read as four empty fields (Almaz, 10 Nov)
+  const step = size + 1
+  const there = position === 3
+  const goal = cn("absolute inset-0 m-auto transition-all duration-200 ease-out motion-reduce:transition-none", there ? "size-7 text-success" : "size-5")
+  return (
+    <div className="relative shrink-0 overflow-hidden rounded-lg bg-foreground/[0.05]" style={{ width: step * 3 + size, height: size }}>
       {[0, 1, 2, 3].map((i) => (
-        <span key={i} aria-hidden="true" className="absolute top-0 rounded-md border border-border bg-surface-raised" style={{ left: i * step, width: size, height: size }}>
-          {i === 3 && chest === undefined && <Flag className="absolute top-1 right-1 size-3 text-muted-foreground" />}
-          {i === 3 && chest !== undefined && chest !== "none" && <Chest className={cn("absolute top-1 right-1 size-3.5", chest === "closed" ? "text-warning-ink" : "text-muted-foreground")} />}
+        <span
+          key={i}
+          aria-hidden="true"
+          className={cn("absolute top-0 transition-colors duration-200 motion-reduce:transition-none", i > 0 && "border-l border-border", i === 3 && there && "bg-success/10")}
+          style={{ left: i * step, width: size, height: size }}
+        >
+          {i === 3 && chest === undefined && <Flag className={cn(goal, !there && "text-muted-foreground")} />}
+          {i === 3 && chest !== undefined && chest !== "none" && <ChestIcon open={chest === "open"} className={cn(goal, !there && (chest === "closed" ? "text-warning-ink" : "text-muted-foreground"))} />}
         </span>
       ))}
-      {/* One glyph that slides from tile to tile, so a move reads as a step. It stands low on the tile, clear
-          of the flag or the chest in the last one's corner */}
+      {/* One icon that slides from tile to tile, so a move reads as a step */}
       <span
         aria-hidden="true"
-        className="absolute top-0 flex items-end justify-center pb-1.5 font-mono text-[0.8125rem] text-foreground transition-[left] duration-200 ease-out motion-reduce:transition-none"
+        className={cn("absolute top-0 grid place-items-center transition-[left,opacity] duration-200 ease-out motion-reduce:transition-none", there && "opacity-0 delay-150")}
         style={{ left: position * step, width: size, height: size }}
       >
-        {position === 3 ? "\\o/" : "o"}
+        <PersonStanding strokeWidth={2} className="size-6 text-foreground" />
       </span>
     </div>
   )
@@ -291,7 +327,10 @@ export function GameCard({
       <div className="flex flex-col gap-2">
         <Tiles position={position} chest={view === "chest" ? chest : undefined} phone={phone} />
         <p className={MONO}>
-          <span className="text-muted-foreground">Tile</span> <span className="text-foreground">{position}</span> <span className="text-muted-foreground">of 3</span>
+          {/* The program's own field and where the goal stands, as the counter's card names `count`: "Tile 0
+              of 3" over four tiles read as a miscount */}
+          <span className="text-muted-foreground">position</span> <span className="text-foreground">{position}</span>{" "}
+          <span className="text-muted-foreground">· {view === "chest" ? "chest" : "flag"} at 3</span>
         </p>
         {view === "chest" && (
           <p className={cn(NOTE, "flex flex-wrap items-center gap-x-2 gap-y-1 tabular-nums")}>

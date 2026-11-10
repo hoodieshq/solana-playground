@@ -25,22 +25,17 @@ export function GitHubMark({ className }: { className?: string }) {
   )
 }
 
-type Row = { value: Source; label: string; line?: string; glyph: ReactNode; notch?: boolean }
+type Row = { value: Source; label: string; glyph: ReactNode; notch?: boolean }
 
-/** A second line only when the source can't be used as usual (CONSENSUS.md, section 8) */
+/** The sources by name alone: no second line, even when one can't be used as usual (offline, the
+ * assistant off or at its limit). The notch on the glyph and the pane say so (Almaz, 10 Nov) */
 function rows(env: Env, into: boolean): Row[] {
   const off = !env.online
   const all: Row[] = [
     { value: "starter", label: "Framework starter", glyph: <Plus /> },
-    { value: "example", label: "Example program", line: off ? "Basics only while offline" : undefined, glyph: <Blocks />, notch: off },
-    { value: "import", label: "Import from GitHub", line: off ? "Needs a connection" : undefined, glyph: <GitHubMark />, notch: off },
-    {
-      value: "describe",
-      label: "Describe it",
-      line: off ? "Needs a connection" : env.assistant === "off" ? "Assistant is off" : env.assistant === "limit" ? "Assistant limit reached" : undefined,
-      glyph: <Sparkle />,
-      notch: off,
-    },
+    { value: "example", label: "Example program", glyph: <Blocks />, notch: off },
+    { value: "import", label: "Import from GitHub", glyph: <GitHubMark />, notch: off },
+    { value: "describe", label: "Describe it", glyph: <Sparkle />, notch: off },
   ]
   // Filling an empty project has nothing to ask the assistant to start
   return into ? all.slice(0, 3) : all
@@ -67,7 +62,6 @@ export function SourceRows({ env, into, busy, onOpen }: { env: Env; into: boolea
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="text-base leading-5 font-act text-foreground">{r.label}</span>
-              {r.line && <span className="truncate text-[0.8125rem] leading-[1.125rem] text-(color:--text-quiet)">{r.line}</span>}
             </span>
             <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-(color:--text-quiet)" />
           </button>
@@ -121,7 +115,6 @@ export function SourceRail({
               </span>
               <span className="flex min-w-0 flex-col">
                 <span className={cn("text-sm leading-5 font-act whitespace-nowrap", current ? "text-foreground" : "text-muted-foreground group-hover/row:text-foreground")}>{r.label}</span>
-                {r.line && <span className={cn("truncate text-xs leading-4 font-[380]", current ? "text-muted-foreground" : "text-(color:--text-quiet)")}>{r.line}</span>}
               </span>
             </Tabs.Trigger>
           )

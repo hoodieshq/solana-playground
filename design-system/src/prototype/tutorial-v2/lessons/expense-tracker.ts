@@ -438,6 +438,10 @@ const STEPS: Step[] = [
           },
           { ix: "delete_expense", button: "Delete", row: "Expense" },
         ],
+        todo: [
+          { ix: "modify_expense", text: "Change an expense" },
+          { ix: "delete_expense", text: "Delete one" },
+        ],
         record: "Edited and deleted",
       },
     ],

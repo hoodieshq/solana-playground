@@ -146,7 +146,9 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
   if (turn.recs && LESSON.records) {
     const recs = turn.recs
     const time = turn.took ? secs(turn.took) : ""
-    const body = <RecordsCard rows={recs.after} before={recs.before} at={turn.at} record refused={recs.refused} read={recs.read} phone={phone} flat />
+    // No refusal line under the accounts: the head already names the error, and the red line repeated it
+    // a gap away from the sentence that explains it (Almaz, 10 Nov). The sentence says nothing moved
+    const body = <RecordsCard rows={recs.after} before={recs.before} at={turn.at} record read={recs.read} phone={phone} flat />
     const n = recs.after.length
     if (!turn.tx)
       return (
@@ -185,7 +187,7 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
             <PlainDetails
               // The head already says what was called. Under the accounts, which are the answer, the cost
               // is a footnote, set as the Call panel sets it (Almaz, 10 Nov)
-              text={`The call used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} test SOL from your wallet.${tx.error ? " A failed transaction still pays its fee." : ""}`}
+              text={`${tx.error ? "Nothing moved: the accounts are as they were. " : ""}The call used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} test SOL from your wallet.${tx.error ? " A failed transaction still pays its fee." : ""}`}
               copy={{ label: "Copy signature", value: tx.signature }}
               log={programLog(tx)}
               phone={phone}
@@ -365,6 +367,9 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
             copy={{ label: "Copy signature", value: tx.signature }}
             log={programLog(tx)}
             phone={phone}
+            // The program's own line above is the answer; what the call cost is a footnote, set as the
+            // records cards set theirs. At the reading size it outweighed the log (Almaz, 10 Nov)
+            quiet
           />
         }
       />

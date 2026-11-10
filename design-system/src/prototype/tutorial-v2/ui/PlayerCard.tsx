@@ -81,7 +81,6 @@ export function PlayerCard({
       {next !== null && (
         <p className="mt-2 text-caption text-muted-foreground tabular-nums" aria-live="off">
           Next energy in <span className="font-mono text-foreground">{clock(next)}</span>
-          <span className="text-subtle"> · worked out by the client, no transaction</span>
         </p>
       )}
     </div>

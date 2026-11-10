@@ -70,10 +70,36 @@ export function PlainDetails({
       .then(() => setCopied(true))
       .catch(() => {})
 
+  // The output in a well of its own. Lines keep to one row and scroll, so a program id isn't broken
+  // under a hanging indent; the fade at the right edge is 48 wide, as 24 fell inside the well's padding
+  // and a cut key read as a broken layout (Almaz, 10 Nov)
+  const lines = (
+    <BuildLog
+      log={log}
+      inset
+      className={cn(
+        "flex-none px-3 pb-3 text-[0.75rem] leading-5 [mask-image:linear-gradient(to_right,#000_calc(100%-3rem),transparent)]",
+        phone || bar ? "pt-3" : "pt-1",
+        bar && "bg-transparent px-4"
+      )}
+    />
+  )
+
+  // The terminal is a desktop panel: its way in sits in the well's own bar in the Call panel. Not in the
+  // chat's foot: as an icon beside Log it read as Log's own icon set too far off (Almaz, 10 Nov), and the
+  // workspace head has the terminal's button anyway
+  const terminal = !phone && !bar && (
+    <button type="button" title="Terminal ⌘J" onClick={() => dispatch({ type: "terminal", open: true })} className={cn(QUIET, "text-[0.75rem] leading-4")}>
+      Open terminal
+    </button>
+  )
+
+  const content = "overflow-hidden duration-200 ease-standard data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none"
+
   return (
-    // The Shell keeps 12 under its details; a phone's last row is already a thumb's height. Out of the
-    // quiet variant the actions are the card's foot, so they reach its bottom edge
-    <div className={bar ? "-mb-3" : cn(phone && "-mb-2")}>
+    // The Shell keeps 12 under its details. In the chat the actions are the card's foot, so they reach
+    // its bottom edge
+    <div className={bar ? "-mb-3" : undefined}>
       {/* `quiet` is for a card whose accounts above are the answer, the Call panel's and a records call's:
           the cost is a footnote, set like the controls under it */}
       <p className={quiet ? "text-[0.875rem] leading-5 text-pretty text-muted-foreground" : cn(READ, "text-pretty")}>
@@ -85,13 +111,17 @@ export function PlainDetails({
           the eye zigzag and didn't say which went with what. In the chat the row is a bar of its own
           across the card, 16 under the sentence and under a hairline, as the Programs cards set it: 8 under
           it in the same grey, it read as the paragraph's last line (Almaz, 10 Nov). The Opened wrapper's 16
-          at the sides is pulled back out so the bar meets the card's edges */}
-      <Collapsible open={logOpen} onOpenChange={setLogOpen}>
+          at the sides is pulled back out so the bar meets the card's edges. The log opens down inside the
+          bar, under the row it was opened from: the bar grows and stays the card's foot. Opened above the
+          row, the toggle moved away from the pointer; opened under the bar, the bar hung halfway down */}
+      <Collapsible open={logOpen} onOpenChange={setLogOpen} className={cn(bar && "-mx-4 mt-4 border-t border-border bg-surface-panel")}>
+        {/* Out of the chat (the Call panel) the row is a plate of its own, 12 under the sentence: set as a
+            plain row 8 under it, it read as the sentence's last line (Almaz, 10 Nov) */}
         <div
           className={
             bar
-              ? cn("-mx-4 mt-4 flex items-center gap-4 border-t border-border bg-surface-panel px-4", phone ? "h-11" : "h-10")
-              : cn("mt-2 flex items-center gap-4", phone && "mt-0")
+              ? cn("flex items-center gap-3 px-4", phone ? "h-11" : "h-10")
+              : cn("mt-3 flex items-center gap-3 rounded-control border border-border bg-surface-panel px-3", phone ? "h-11" : "h-10")
           }
         >
           {copy && (
@@ -108,32 +138,20 @@ export function PlainDetails({
               </button>
             </>
           )}
-          {/* The raw output, for the curious: shut by default, so the sentence stays the answer */}
-          <CollapsibleTrigger className={cn(QUIET, "group ml-auto", phone && THUMB)}>
-            Log
-            <ChevronDown aria-hidden="true" className={cn(CHEVRON, logOpen && "rotate-180")} />
-          </CollapsibleTrigger>
+          <span className="ml-auto flex items-center">
+            {/* The raw output, for the curious: shut by default, so the sentence stays the answer */}
+            <CollapsibleTrigger className={cn(QUIET, "group", phone && THUMB)}>
+              Log
+              <ChevronDown aria-hidden="true" className={cn(CHEVRON, logOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+          </span>
         </div>
-        <CollapsibleContent className="overflow-hidden duration-200 ease-standard data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none">
-          {/* The output in a well of its own, 12 under the controls, a step more than the 8 between the
-              sentence and them: on the card's ground it read as more of the card's text. Lines keep to one
-              row and scroll, fading at the edge, so a program id isn't broken under a hanging indent. The
-              way to the whole output sits in the well's own bar, as a listing's Copy does in Practicum,
-              rather than hanging under the card on its own; the terminal is a desktop panel */}
-          <div ref={well} className={cn("scroll-mb-4 overflow-hidden rounded-[6px] bg-surface-well", bar ? "my-3" : phone ? "mt-1" : "mt-3")}>
-            {!phone && (
-              <div className="flex justify-end px-3 pt-2">
-                <button
-                  type="button"
-                  title="Terminal ⌘J"
-                  onClick={() => dispatch({ type: "terminal", open: true })}
-                  className={cn(QUIET, "text-[0.75rem] leading-4")}
-                >
-                  Open terminal
-                </button>
-              </div>
-            )}
-            <BuildLog log={log} inset className={cn("flex-none px-3 pb-3 text-[0.75rem] leading-5", phone ? "pt-3" : "pt-1")} />
+        <CollapsibleContent className={content}>
+          {/* In the bar the lines sit on its grey under a hairline, at the row's 16: a black well inside the
+              grey bar made a third layer and read as a hole heavier than the message (Almaz, 10 Nov) */}
+          <div ref={well} className={cn("scroll-mb-4 overflow-hidden", bar ? "border-t border-border" : cn("rounded-[6px] bg-surface-well", phone ? "mt-1" : "mt-3"))}>
+            {!bar && terminal && <div className="flex justify-end px-3 pt-2">{terminal}</div>}
+            {lines}
           </div>
         </CollapsibleContent>
       </Collapsible>

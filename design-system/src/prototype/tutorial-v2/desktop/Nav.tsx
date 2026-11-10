@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Check, ChevronRight, GraduationCap, Pin, PinOff, Plus } from "lucide-react"
+import { Check, ChevronRight, GraduationCap, Pin, Plus } from "lucide-react"
 import { toast } from "sonner"
 
 import { Kbd } from "@/components/ui/kbd"
@@ -277,9 +277,10 @@ function ProductFoot({ state }: { state: NavState }) {
 
 /** The product's own navigation, as client-v2's NavSidebar. Outside a tutorial it follows the window,
  * open from 1280 up. Entering a tutorial folds it to a rail of icons, always: the chat and the code
- * need the room (D4). The mark or ⌘B opens it as an overlay over the chat with a scrim, which closes
- * on a pick, the scrim, Esc or ⌘B and gives the focus back. The pin docks it open, pushing the chat
- * and the code, until you leave the tutorial */
+ * need the room (D4). On a desktop the mark or ⌘B opens it as a column again, pushing the chat and the
+ * code, until it's folded or you leave the tutorial: opened over the chat it read as a sheet dropped
+ * on the work (Almaz, 10 Nov). On a tablet it opens as an overlay over the chat with a scrim, which
+ * closes on a pick, the scrim, Esc or ⌘B and gives the focus back. No pin */
 export function Nav() {
   const openTutorial = useOpenTutorial()
   const started = useStartedLessons()
@@ -307,6 +308,13 @@ export function Nav() {
   }, [learning])
 
   const floats = learning && !pinned
+  // Closing the float, the column lands in the row at the rail's width at once: with the width easing
+  // it stood in the row at full width for a moment and shrank, jerking the chat and the code (Almaz, 10 Nov)
+  const wasFloating = useRef(false)
+  const landing = wasFloating.current && !(floats && over)
+  useEffect(() => {
+    wasFloating.current = (floats && over)
+  })
   const mine = learning ? pinned || over : tablet ? (tabletOpen ?? true) : open
   const shape: Shape = learning ? (mine ? "open" : "rail") : mine === null ? "auto" : mine ? "open" : "rail"
 
@@ -323,6 +331,7 @@ export function Nav() {
         return
       }
       if (over) return close()
+      if (!tablet) return setPinned(true)
       opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       setOver(true)
       return
@@ -336,6 +345,7 @@ export function Nav() {
   useEffect(() =>
     on("nav:open", () => {
       if (learning && !pinned) {
+        if (!tablet) return setPinned(true)
         opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
         setOver(true)
       }
@@ -410,7 +420,8 @@ export function Nav() {
         className={cn(
           "flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar text-foreground transition-[width] duration-200 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none",
           WIDTH[shape],
-          floats && over && "absolute inset-y-0 left-0 z-40 shadow-modal"
+          floats && over && "absolute inset-y-0 left-0 z-40 shadow-modal",
+          landing && "transition-none"
         )}
       >
         {/* Open: the lockup left, the pin and the fold right, a hairline under both. 44px, the height
@@ -419,27 +430,6 @@ export function Nav() {
           <button type="button" onClick={go(() => dispatch({ type: "open", screen: "home" }))} aria-label="Solana Playground, home" className={cn("group/brand mr-auto flex h-9 shrink-0 items-center rounded-lg px-1 text-foreground", FOCUS)}>
             <ProductLogo className="block h-7 w-auto shrink-0 transition-opacity duration-100 group-hover/brand:opacity-82 motion-reduce:transition-none" />
           </button>
-          {learning && !IN_TABLET_FRAME && (
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPinned(!pinned)
-                    setOver(false)
-                  }}
-                  aria-pressed={pinned}
-                  aria-label={pinned ? "Fold while I learn" : "Keep open"}
-                  className={cn("flex size-[1.875rem] shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-hover hover:text-foreground [&>svg]:size-4", FOCUS)}
-                >
-                  {pinned ? <PinOff /> : <Pin />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>
-                {pinned ? "Fold while I learn" : "Keep open"}
-              </TooltipContent>
-            </Tooltip>
-          )}
           {tip(
             "Collapse sidebar",
             "bottom",

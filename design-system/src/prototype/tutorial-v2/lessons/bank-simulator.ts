@@ -331,6 +331,11 @@ const STEPS: Step[] = [
         context: "Amounts in dollars, sent as cents: $10 is `1000`",
         button: "Deposit",
         moves: MONEY_MOVES,
+        todo: [
+          { ix: "deposit", text: "Deposit" },
+          { ix: "withdraw", text: "Withdraw" },
+          { ix: "withdraw", text: "Take out more than you have", refused: true },
+        ],
         record: "Moved money",
       },
     ],
@@ -587,7 +592,7 @@ export const BANK_SIMULATOR: Lesson = {
     live: (s, r, now) => {
       if (!pays(s)) return null
       if (Number(r.values.balance) === 0) return "Nothing to earn on $0.00: deposit first"
-      return `Interest so far +${dollars(interestOf(r, now).cents)} · worked out by the client, no transaction`
+      return `Interest so far +${dollars(interestOf(r, now).cents)}`
     },
   },
   winVars: (s) => {

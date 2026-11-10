@@ -315,22 +315,3 @@ export function useNavState(): [NavStateId, NavState] {
 /** The picked design */
 export const useNavDesign = (): NavDesign => usePicked(readDesign)
 
-/** The wallet chip in the console bar (10 Nov, Sergey and Natalia): before is the bar without it */
-export type WalletDesign = "before" | "after"
-const WALLET_KEY = "pg-proto-wallet-chip"
-const readWallet = (): WalletDesign => {
-  try {
-    return localStorage.getItem(WALLET_KEY) === "before" ? "before" : "after"
-  } catch {
-    return "after"
-  }
-}
-export function setWalletDesign(design: WalletDesign) {
-  try {
-    localStorage.setItem(WALLET_KEY, design)
-  } catch {
-    // Storage off: the pick lasts in this window only
-  }
-  window.dispatchEvent(new Event(EVENT))
-}
-export const useWalletDesign = (): WalletDesign => usePicked(readWallet)

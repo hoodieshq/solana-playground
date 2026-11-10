@@ -1,4 +1,3 @@
-import { Pin, PinOff } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -11,7 +10,7 @@ import { useNavState } from "../../navStates"
 import { savedProgress, useStore } from "../../store"
 import { ProductLogo, ProductMark } from "../../ui/brandGlyphs"
 import { on } from "../../ui/events"
-import { LIT_STROKE, LitIcon, type LitIconName } from "./icons"
+import { LitIcon, type LitIconName } from "./icons"
 import { soon } from "../Catalog"
 import { flashKeys, useFlash } from "../flash"
 import { MENU_KEYS } from "../keys"
@@ -67,8 +66,10 @@ const HEAD_BUTTON = "flex shrink-0 items-center justify-center rounded-lg text-m
 /** Lit Path (research/nav-redesign/CONSENSUS.md): four places to go, your work (Learning, then
  * Projects), and you. The only colour at rest is your progress. It keeps the current nav's behaviour:
  * open from 1280 beside Home, Tutorials and Programs; folded to a 52px rail while a tutorial is open;
- * the mark or ⌘B floats it over the tutorial with a scrim, closing on a pick, the scrim, Esc or ⌘B;
- * the pin docks it until you leave the tutorial. On the tablet it's 264 wide with 44px rows. As a
+ * on a desktop the mark or ⌘B opens it as a column again, pushing the chat and the code, until it's
+ * folded or you leave the tutorial (Almaz, 10 Nov: opened over the chat it read as a sheet dropped on
+ * the work); on a tablet it floats over the tutorial with a scrim, closing on a pick, the scrim, Esc
+ * or ⌘B. No pin: docking is what the desktop does anyway. On the tablet it's 264 wide with 44px rows. As a
  * `sheet` it's the phone's and the upright tablet's menu: the open column at full width with 44px rows,
  * under the menu's own X, and any pick closes the menu */
 export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (open: boolean) => void } } = {}) {
@@ -111,6 +112,13 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
 
   const floats = learning && !pinned
   const floating = floats && over
+  // Closing the float, the column lands in the row at the rail's width at once: with the width easing
+  // it stood in the row at full width for a moment and shrank, jerking the chat and the code (Almaz, 10 Nov)
+  const wasFloating = useRef(false)
+  const landing = wasFloating.current && !floating
+  useEffect(() => {
+    wasFloating.current = floating
+  })
   const mine = learning ? pinned || over : tablet ? (tabletOpen ?? true) : open
   const shape: Shape = sheet ? "open" : learning ? (mine ? "open" : "rail") : mine === null ? "auto" : mine ? "open" : "rail"
 
@@ -128,7 +136,7 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
     if (learning) {
       if (pinned) return setPinned(false)
       if (over) return close()
-      return float()
+      return tablet ? float() : setPinned(true)
     }
     if (tablet) setTabletOpen(!shownNow)
     else setOpen(!shownNow)
@@ -138,7 +146,10 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
   // An answer's Show me opens the overlay too
   useEffect(() =>
     on("nav:open", () => {
-      if (learning && !pinned) float()
+      if (learning && !pinned) {
+        if (tablet) float()
+        else setPinned(true)
+      }
     })
   )
 
@@ -364,7 +375,8 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
         className={cn(
           "lit-nav relative flex shrink-0 overflow-hidden text-foreground transition-[width,background-color,box-shadow] duration-200 ease-standard motion-reduce:transition-none",
           width,
-          sheet ? "" : floating ? "absolute inset-y-0 left-0 z-40 bg-popover shadow-modal" : "border-r border-border bg-(--nav-ground)"
+          sheet ? "" : floating ? "absolute inset-y-0 left-0 z-40 bg-popover shadow-modal" : "border-r border-border bg-(--nav-ground)",
+          landing && "transition-none"
         )}
       >
 
@@ -376,22 +388,6 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
             <button type="button" onClick={go(() => dispatch({ type: "open", screen: "home" }))} aria-label="Solana Playground, home" className={cn("group/brand mr-auto flex h-9 shrink-0 items-center rounded-lg px-1 text-foreground", FOCUS)}>
               <ProductLogo className="block h-7 w-auto shrink-0 transition-opacity duration-100 group-hover/brand:opacity-82 motion-reduce:transition-none" />
             </button>
-            {learning && !IN_TABLET_FRAME && (
-              <Tip label={pinned ? "Fold while I learn" : "Keep open while I learn"} side="bottom">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPinned(!pinned)
-                    setOver(false)
-                  }}
-                  aria-pressed={pinned}
-                  aria-label={pinned ? "Fold while I learn" : "Keep open while I learn"}
-                  className={headBtn}
-                >
-                  {pinned ? <PinOff strokeWidth={LIT_STROKE} /> : <Pin strokeWidth={LIT_STROKE} />}
-                </button>
-              </Tip>
-            )}
             <Tip label="Collapse sidebar" keys={MENU_KEYS} side="bottom">
               <button type="button" onClick={toggle} aria-expanded={true} aria-label="Collapse the sidebar" data-flash={flash} className={headBtn}>
                 <LitIcon name="sidebar" />

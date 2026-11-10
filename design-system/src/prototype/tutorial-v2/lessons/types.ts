@@ -124,6 +124,9 @@ export type ActBeat = {
   moves?: Move[]
   /** "Until" beside the card's first move, offered once it was made by hand */
   until?: Until
+  /** What the card asks for, ticked off as its sends land: "Change one expense, then delete one" said in
+   * the chat and nothing on the card said which was done and what was left (Almaz, 10 Nov) */
+  todo?: { ix: string; text: string; refused?: boolean }[]
   /** Values typed on a `send` card before it sends (the holder's name) */
   fields?: MoveField[]
   /** A `send` card's stages instead of "Sending ix to devnet", for a wallet act that isn't the program's

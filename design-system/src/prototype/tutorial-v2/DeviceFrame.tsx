@@ -63,9 +63,8 @@ export function DeviceFrame({ device }: { device: "phone" | "portrait" | "tablet
               className="absolute top-0 left-0 flex origin-top-left flex-col overflow-hidden rounded-[36px] border-surface-raised bg-surface-base shadow-modal"
             >
               <span aria-hidden="true" className="absolute -top-[9px] left-1/2 z-10 size-[5px] -translate-x-1/2 rounded-full bg-black" />
-              {/* What an iPad keeps above the page for its status bar, 24pt, as the phone keeps its 50.
-                  Left empty: no clock or icons to draw the eye */}
-              <div aria-hidden="true" className="h-6 shrink-0" />
+              {/* No status bar strip over the page: left empty, it read as the columns and the menu stopping
+                  short of the screen's top (Almaz, 10 Nov), and in Safari the browser's own bar sits there */}
               <iframe ref={ref} title="Oak prototype" src={src} allow="clipboard-write" className="min-h-0 w-full flex-1 border-0 bg-surface-base" />
               {/* The home indicator, over the 20px the screens keep clear for it */}
               <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-[5px] w-[160px] -translate-x-1/2 rounded-full bg-foreground/60" />

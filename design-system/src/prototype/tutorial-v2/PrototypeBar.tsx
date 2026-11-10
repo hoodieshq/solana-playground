@@ -17,7 +17,7 @@ import { NewProjectControls } from "./newProject/BarControls"
 import { TutorialsControls } from "./desktop/TutorialsBar"
 import { ProgramsControls } from "./programs/BarControls"
 import { SettingsControls } from "./settings/BarControls"
-import { NAV_STATES, setNavDesign, setNavState, setWalletDesign, useNavDesign, useNavState, useWalletDesign, type NavDesign, type NavStateId, type WalletDesign } from "./navStates"
+import { NAV_STATES, setNavDesign, setNavState, useNavDesign, useNavState, type NavDesign, type NavStateId } from "./navStates"
 import { switchView, view, type View } from "./view"
 
 const NAV_IDS = Object.keys(NAV_STATES) as NavStateId[]
@@ -76,21 +76,6 @@ const V1 = import.meta.env.VITE_V1_URL ?? "/prototype/tutorial/"
 /** The prototype's own controls, in one place for both views: a thin strip across the top, over
  * the phone and tablet frames and over the desktop screen alike, so switching never moves them. A lighter
  * ground and small type keep it apart from the product, so it doesn't read as the app's header */
-/** The wallet chip at the console bar's end, before and after, to compare live */
-function WalletSwitch() {
-  const design = useWalletDesign()
-  return (
-    <Segmented value={design} onValueChange={(v) => v && setWalletDesign(v as WalletDesign)} aria-label="Wallet chip" className="pill h-7! rounded-full! border-0! p-0!">
-      <SegmentedItem value="before" className="rounded-full! px-3!">
-        Wallet: Before
-      </SegmentedItem>
-      <SegmentedItem value="after" className="rounded-full! px-3!">
-        After
-      </SegmentedItem>
-    </Segmented>
-  )
-}
-
 /** What devnet's airdrop does on a first deploy or a read mode call: goes through, refuses at its limit
  * (429), or sends 1 SOL of 5. Either failure happens once; the next airdrop goes through */
 function AirdropPicker() {
@@ -151,7 +136,6 @@ export function PrototypeBar({ onReset }: { onReset: () => void }) {
       </Segmented>
       <div className="min-w-0 overflow-x-auto [scrollbar-width:none]">
       <div className="ml-auto flex w-max items-center gap-1">
-        <WalletSwitch />
         <NavDesignSwitch />
         <NavStatePicker />
         <NewProjectControls />

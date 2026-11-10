@@ -100,7 +100,9 @@ export function ChatComposer({ phone = false }: { phone?: boolean }) {
   const hidden = phone ? [] : chips.slice(fits)
 
   return (
-    <div className={cn("shrink-0 pt-3", phone ? "px-4 pb-[calc(var(--safe-bottom)+12px)]" : "px-5 pb-5")}>
+    // In the tablet frame the screen already keeps 20 clear for the home bar, so nothing more: the field
+    // ends where the desktop's does, 20 from the edge. 20 more left 40 under it (Almaz, 10 Nov)
+    <div className={cn("shrink-0 pt-3", phone ? "px-4 pb-[calc(var(--safe-bottom)+12px)]" : "px-5 pb-5 [html.framed_&]:pb-0")}>
       {!phone && <LimitNotice className="mb-3" />}
       {/* On a phone the chips scroll sideways under a fade at the right edge, and go while the
           keyboard is up: the field needs the room */}

@@ -249,7 +249,7 @@ function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
       disabled={disabled || !!run}
       onClick={go}
       aria-busy={!!run || undefined}
-      className={cn("relative shrink-0", ACTION, phone ? cn(PHONE_CTA, "text-[0.9375rem]") : chop ? "self-start" : !call && "grow")}
+      className={cn("relative shrink-0", ACTION, phone ? cn(PHONE_CTA, "text-[0.9375rem]") : !call && "self-start")}
     >
       {/* Running, the label holds the width and a spinner sits over it */}
       <span className={cn(run && "invisible")}>{words.button}</span>
@@ -258,40 +258,39 @@ function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
   )
 
   return (
-    // The button sits beside the text while the text keeps 15rem, and wraps under it, full width, once
-    // it wouldn't: a long label (Build and deploy) in the desktop chat squeezed the title and the program
-    // id into a word a line. The text grows first, so the button only fills a line of its own. Like the
-    // quiz, a card that waits on you steps out past the text column to 8px from the panel's edges (the feed
-    // is inset 16 on a phone, 20 on a desktop), stands 40 under the text over it (the reply's 15 and 25 of
-    // its own) and sets its words as a result's status row does, 16 at 500 over 14 in grey, with the
-    // cards' 40 button; listings, quotes and results stay in the column
+    // Like the quiz, a card that waits on you steps out past the text column to 8px from the panel's edges
+    // (the feed is inset 16 on a phone, 20 on a desktop), stands 40 under the text over it (the reply's 15
+    // and 25 of its own) and sets its words as a result's status row does, 16 at 500 over 14 in grey, with
+    // the cards' 40 button; listings, quotes and results stay in the column. The button sits on the card's
+    // grey foot, as every chat card's actions do: beside the text it centred on a block that kept room for
+    // a two line subtitle and stood lower than the words (Almaz, 10 Nov)
     <div
       data-live-card
       className={cn(
-        "relative mt-[25px] flex gap-3 overflow-hidden rounded-panel border border-border bg-(--card-ground) p-4",
-        call || chop || phone ? "flex-col items-stretch" : "flex-wrap items-center",
+        "relative mt-[25px] flex flex-col items-stretch gap-3 overflow-hidden rounded-panel border border-border bg-(--card-ground) p-4",
         // As wide as every other card in the feed: it stood 12px out each side (Almaz, 6 Nov)
         phone && "gap-4"
       )}
     >
-      {/* No icon tile: the title and the button already name the act */}
-      <div className={cn("flex min-w-0 items-start gap-3", call || chop || phone ? "flex-1" : "grow-[999] basis-60")}>
-        <span className="flex min-w-0 flex-1 flex-col">
+      {/* No icon tile: the title and the button already name the act. While it runs, the title and the
+          stage stand over an invisible copy of the title and the subtitle, as the move card does, so a two
+          line subtitle doesn't shrink to the stage's one line and back (Almaz, 10 Nov) */}
+      <span className="grid min-w-0">
+        <span className="flex flex-col [grid-area:1/1]">
           <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{words.title}</span>
-          {/* The stage over the subtitle's room, as the move card does, so a two line subtitle doesn't
-              shrink to the stage's one line and back (Almaz, 10 Nov) */}
-          <span className="grid text-[0.875rem] leading-5 text-muted-foreground">
-            <span role={run ? "status" : undefined} className="[grid-area:1/1]">
-              {context}
-            </span>
-            {run && (
-              <span aria-hidden="true" className="invisible [grid-area:1/1]">
-                <Prose text={words.context} {...READ_CODE} small />
-              </span>
-            )}
+          <span role={run ? "status" : undefined} className="text-[0.875rem] leading-5 text-muted-foreground">
+            {context}
           </span>
         </span>
-      </div>
+        {run && (
+          <span aria-hidden="true" className="invisible flex flex-col [grid-area:1/1]">
+            <span className="font-heading text-[1rem] leading-6 font-medium">{words.title}</span>
+            <span className="text-[0.875rem] leading-5">
+              <Prose text={words.context} {...READ_CODE} small />
+            </span>
+          </span>
+        )}
+      </span>
       {/* A chop shows the account it acts on, and what the chops so far brought back, the last three */}
       {/* Flat, under a hairline: the card is the one block, the account a part of it */}
       {turn.act === "chop" && <LivePlayer phone={phone} flat className="border-t border-border pt-3" />}
@@ -310,6 +309,7 @@ function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
           ))}
         </ol>
       )}
+      <div className="-mx-4 -mb-4 mt-1 flex flex-col gap-2 border-t border-border bg-surface-panel px-4 py-3">
       {!call && !untilOut && button}
       {untilOut && (
         <div className={cn("flex gap-2", phone ? PHONE_STACK : "flex-wrap items-center")}>
@@ -333,10 +333,11 @@ function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
       )}
       {/* A program with no IDL gets the name as bytes: the card shows them as they'll travel */}
       {call && LESSON.raw && (
-        <p aria-live="polite" className="-mt-1 font-mono text-[0.75rem] leading-5 text-muted-foreground">
+        <p aria-live="polite" className="font-mono text-[0.75rem] leading-5 text-muted-foreground">
           data: {bytesOf(s.draft.trim())}
         </p>
       )}
+      </div>
       {run && <RunBar key={run.at} stage={run.stage} stages={run.stages} />}
     </div>
   )

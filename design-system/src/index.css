@@ -7,6 +7,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Hover only where a pointer hovers: Tailwind's own media check, and not under html.touch, the tablet
+   the Oak prototype draws on a Mac (prototype/tutorial-v2/main.tsx), where a mouse would otherwise light
+   what a finger never could (Almaz, 10 Nov) */
+@custom-variant hover {
+  @media (hover: hover) {
+    &:hover:where(html:not(.touch) *) {
+      @slot;
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

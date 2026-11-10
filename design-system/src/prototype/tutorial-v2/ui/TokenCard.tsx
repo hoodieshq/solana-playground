@@ -1,4 +1,4 @@
-import { Copy, ExternalLink, Heart } from "lucide-react"
+import { Heart } from "lucide-react"
 import type { ReactNode } from "react"
 import { toast } from "sonner"
 
@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils"
 
 import { shortKey, type TokenView } from "../data"
 import { whole } from "../lessons/tokens"
-import { openExplorer } from "./explorer"
 
 // The token card: a token lesson's mint, the accounts that hold it, and a strip for the lesson's own
 // account (the Tokens family's state card: Battle Coins, SPL Token Vault, Faucet Seahorse). The records
@@ -32,32 +31,32 @@ function Delta({ by, decimals }: { by: number; decimals: number }) {
   )
 }
 
-/** Copy and Explorer for the mint's address, as icons after it */
-function MintTools({ value, phone }: { value: string; phone: boolean }) {
+/** The mint's address that copies itself on a click: two icons after it, beside the result's own Copy
+ * and Explorer in the foot, were a second set of the same tools (Almaz, 10 Nov) */
+function MintAddress({ value, phone }: { value: string; phone: boolean }) {
   const copy = () =>
     navigator.clipboard
       ?.writeText(value)
       .then(() => toast("Mint address copied"))
       .catch(() => toast("Couldn't copy the mint address"))
-  const icon = cn("grid shrink-0 place-items-center rounded-md text-subtle hover:text-foreground", phone ? "-mx-1.5 -my-2.5 size-9" : "-my-1 size-6")
   return (
-    <>
-      <button type="button" onClick={copy} aria-label="Copy the mint address" className={icon}>
-        <Copy strokeWidth={1.75} className="size-3.5" />
-      </button>
-      <button type="button" onClick={openExplorer} aria-label="Open the mint in Explorer" className={icon}>
-        <ExternalLink strokeWidth={1.75} className="size-3.5" />
-      </button>
-    </>
+    <button
+      type="button"
+      onClick={copy}
+      title="Copy the mint address"
+      className={`min-w-0 truncate rounded-sm ${MONO} text-muted-foreground decoration-dotted underline-offset-4 hover:text-foreground hover:underline`}
+    >
+      {shortKey(value, phone ? 4 : 6)}
+    </button>
   )
 }
 
-/** One account: name (and a tag) over its address on the left, the number over a note on the right */
+/** One account: name over its address on the left, the number over a note on the right */
 function Row({
   name,
-  tag,
   aside,
   address,
+  addressAs,
   after,
   value,
   delta,
@@ -66,11 +65,12 @@ function Row({
   className,
 }: {
   name: string
-  tag?: string
-  /** Quiet words after the name: who may mint the token */
+  /** Quiet words after the address: who may mint the token */
   aside?: string
   address: string
-  /** Beside the address: the mint's tools, who owns an account that isn't yours */
+  /** In the address's place: the mint's, which copies itself */
+  addressAs?: ReactNode
+  /** Beside the address: who owns an account that isn't yours */
   after?: ReactNode
   value: ReactNode
   /** What the last move changed, on the note's line so the number keeps its width */
@@ -82,17 +82,16 @@ function Row({
   return (
     <div className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4", className)}>
       <div className="flex min-w-0 flex-col gap-1">
-        <span className="flex min-w-0 items-center gap-1.5">
-          {/* The name keeps its room; the quiet words after it give way first */}
-          <span className="max-w-full shrink-0 truncate font-act text-[0.8125rem] leading-5 text-foreground">{name}</span>
-          {tag && <span className={`shrink-0 rounded bg-foreground/[0.06] px-1 ${MONO} leading-4 text-muted-foreground`}>{tag}</span>}
-          {aside && <span className="min-w-0 truncate text-caption text-subtle">{aside}</span>}
-        </span>
-        <span className="flex min-w-0 items-center gap-1 leading-4">
-          <span className={`min-w-0 truncate ${MONO} text-muted-foreground`} title={address}>
-            {shortKey(address, phone ? 4 : 6)}
-          </span>
+        <span className="truncate font-act text-[0.8125rem] leading-5 text-foreground">{name}</span>
+        {/* The address keeps its room; the quiet words after it give way first */}
+        <span className="flex min-w-0 items-baseline gap-1.5 leading-4">
+          {addressAs ?? (
+            <span className={`min-w-0 shrink-0 truncate ${MONO} text-muted-foreground`} title={address}>
+              {shortKey(address, phone ? 4 : 6)}
+            </span>
+          )}
           {after}
+          {aside && <span className="min-w-0 truncate text-caption leading-4 text-subtle">· {aside}</span>}
         </span>
       </div>
       <div className="flex flex-col items-end gap-1 text-right">
@@ -181,14 +180,19 @@ export function TokenCard({
       )}
     >
       {view.strip && <Strip strip={view.strip} phone={phone} />}
-      {/* The mint: its supply is the number; who may mint it, the lesson's point, sits quiet by the name */}
+      {/* The mint: its supply is the number, in the token's own unit as the holders' amounts are; who may
+          mint it, the lesson's point, sits quiet after the address. The symbol in a chip by the name, the
+          minter beside it and two icons under it made five faces in two lines (Almaz, 10 Nov) */}
       <Row
         name={m.name}
-        tag={m.symbol}
         aside={`minted by ${m.authority}`}
         address={m.key}
-        after={<MintTools value={m.key} phone={phone} />}
-        value={<Num moved={!!supplyBy}>{whole(m.supply, m.decimals)}</Num>}
+        addressAs={<MintAddress value={m.key} phone={phone} />}
+        value={
+          <Num moved={!!supplyBy}>
+            {whole(m.supply, m.decimals)} {unit}
+          </Num>
+        }
         delta={<Delta by={supplyBy} decimals={m.decimals} />}
         note="supply"
         phone={phone}

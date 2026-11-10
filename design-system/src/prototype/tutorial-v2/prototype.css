@@ -461,8 +461,9 @@ html.portrait [data-slot="drawer-content"] {
 
 /* The desktop screens under a finger (html.touch, main.tsx): a 28 or 32 control keeps its look, and a
    layer round it takes the finger at 44, as iPad's own bars do. A control that draws with ::before
-   already is left as it is */
-html.touch:not(.phone) :is(button, a[href], [role="tab"]):not([class*="before:"], .absolute, .fixed, .sticky) {
+   already is left as it is. So is one stretched over its card with ::after (a tutorial card's corner
+   button): made relative, its stretch shrank to the corner and a tap on the card did nothing (10 Nov) */
+html.touch:not(.phone) :is(button, a[href], [role="tab"]):not([class*="before:"], [class*="after:absolute"], .absolute, .fixed, .sticky) {
   position: relative;
 }
 html.touch:not(.phone) :is(button, a[href], [role="tab"]):not([class*="before:"])::before {

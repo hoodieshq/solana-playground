@@ -38,7 +38,9 @@ export function IntroCard({ phone = false }: { phone?: boolean }) {
     // On the phone it's the feed's own text, as the win and the finish are: a frame there cost 32px of a
     // 358px column and broke the log line in two, and its head repeated the screen's header right above.
     // No padding of its own there: the text starts at the feed's 26, where a step's heading starts too
-    <section data-live-card aria-labelledby="intro-title" className={phone ? undefined : "rounded-panel border border-border bg-(--card-ground) p-5"}>
+    // In the chat as the assistant's own words, on a desktop and a tablet as on a phone: in a framed card
+    // under the step bar, over the chat's own lines, it was one box too many (Almaz, 10 Nov)
+    <section data-live-card aria-labelledby="intro-title">
       {phone && (
         <h2 id="intro-title" className="sr-only">
           {LESSON.card.name}
@@ -52,7 +54,7 @@ export function IntroCard({ phone = false }: { phone?: boolean }) {
           <TutorialCover name={upstreamName(CATALOG.find((t) => t.slug === LESSON.card.slug)!)} framework={LESSON.card.framework} level={LESSON.card.level} className="size-10 shrink-0 rounded-[9px]" />
         )}
         <div className="min-w-0">
-          <h2 id={phone ? undefined : "intro-title"} className={cn(TITLE, "truncate")}>
+          <h2 id={phone ? undefined : "intro-title"} className={TITLE}>
             {LESSON.card.name}
           </h2>
           <p className={`${NOTE} truncate`}>

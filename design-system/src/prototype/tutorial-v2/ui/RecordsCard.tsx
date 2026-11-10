@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react"
-import { Circle, CircleCheck } from "lucide-react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import { Check, Circle, CircleCheck, Pencil, Trash2, type LucideIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -63,11 +63,11 @@ function Marked({ value }: { value: string }) {
   )
 }
 
-function Value({ value, was, fresh }: { value: string; was?: string; fresh: boolean }) {
+function Value({ value, was, fresh, struck = true }: { value: string; was?: string; fresh: boolean; struck?: boolean }) {
   const changed = fresh && was !== undefined && was !== value
   return (
     <span className="inline-flex items-baseline gap-1.5">
-      {changed && (
+      {changed && struck && (
         <span className="text-subtle line-through">
           <Marked value={was} />
         </span>
@@ -75,6 +75,21 @@ function Value({ value, was, fresh }: { value: string; was?: string; fresh: bool
       <span key={changed ? `${value}-new` : value} className={cn("text-foreground", changed && "pg-arrive")}>
         <Marked value={value} />
       </span>
+    </span>
+  )
+}
+
+/** What a send moved a whole number by, beside its name as the token card has it: `+1` in green, `−1`
+ * muted. A value that isn't a whole number (dollars, a word) shows its old one struck instead */
+function Delta({ value, was }: { value: string; was?: string }) {
+  const whole = (v: string) => /^-?\d+$/.test(v)
+  if (was === undefined || !whole(value) || !whole(was)) return null
+  const by = Number(value) - Number(was)
+  if (!by) return null
+  return (
+    <span className={cn("pg-arrive rounded-full px-1.5 font-mono text-[0.6875rem] leading-4 tabular-nums", by > 0 ? "bg-success/10 text-success" : "bg-foreground/[0.06] text-muted-foreground")}>
+      {by > 0 ? "+" : "−"}
+      {Math.abs(by)}
     </span>
   )
 }
@@ -168,9 +183,15 @@ export function MoveInputs({
   )
 }
 
-/** A row's buttons, from a move card that's up: a move without fields sends at once, one with fields
- * opens them under the row first (Edit). A move the lesson won't send for this row is off, with why */
-function RowMoves({ row, moves, phone }: { row: Rec; moves: Move[]; phone: boolean }) {
+/** The icon a row move takes on a phone, by its word. A list's rows carry quiet tools, not a pair of
+ * framed buttons each: six of those under three expenses made the card flicker. On a wider screen they
+ * keep their words, unframed, so "then delete one" in the chat finds its Delete (Almaz, 10 Nov) */
+const ROW_ICONS: Partial<Record<string, LucideIcon>> = { Edit: Pencil, Delete: Trash2, "Mark done": Check }
+
+/** A row's tools, from a move card that's up, at the end of the row's line (`head`): a move without
+ * fields sends at once, one with fields opens them under the row first (Edit). A move the lesson won't
+ * send for this row is off, with why */
+function RowMoves({ row, moves, phone, head }: { row: Rec; moves: Move[]; phone: boolean; head?: ReactNode }) {
   const { s, dispatch } = useStore()
   const [open, setOpen] = useState<Move | null>(null)
   const [typed, setTyped] = useState<Typed>({})
@@ -186,25 +207,35 @@ function RowMoves({ row, moves, phone }: { row: Rec; moves: Move[]; phone: boole
   const sent = open ? argsOf(open.fields ?? [], typed, defaults) : null
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-1.5">
-        {moves.map((m) => {
-          const r = LESSON.records!.send(s, m.ix, LESSON.records!.args(s, m.ix, row.id), row.id, m.signer)
-          const note = "note" in r ? r.note : null
-          return (
-            <Button
-              key={m.ix + (m.signer ?? "")}
-              size="sm"
-              variant="ghost"
-              disabled={busy || !!note}
-              title={note ?? undefined}
-              aria-expanded={m.fields ? open === m : undefined}
-              onClick={() => (m.fields ? setOpen(open === m ? null : m) : go(m))}
-              className={cn("h-7 px-2.5 text-[0.8125rem] font-act ring-1 ring-border", phone && "h-9", open === m && "bg-foreground/[0.06]")}
-            >
-              {m.button}
-            </Button>
-          )
-        })}
+      <div className="flex min-w-0 items-center gap-2">
+        {head}
+        <span className={cn("flex shrink-0 items-center", !head && "-ml-1.5", phone ? "-my-2 gap-0" : "-my-1 gap-0.5")}>
+          {moves.map((m) => {
+            const r = LESSON.records!.send(s, m.ix, LESSON.records!.args(s, m.ix, row.id), row.id, m.signer)
+            const note = "note" in r ? r.note : null
+            const Icon = phone ? ROW_ICONS[m.button] : undefined
+            const on = open === m
+            return (
+              <button
+                key={m.ix + (m.signer ?? "")}
+                type="button"
+                disabled={busy || !!note}
+                title={note ?? m.button}
+                aria-label={Icon ? `${m.button} ${LESSON.records!.show(row).label}` : undefined}
+                aria-expanded={m.fields ? on : undefined}
+                onClick={() => (m.fields ? setOpen(on ? null : m) : go(m))}
+                className={cn(
+                  "grid place-items-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-foreground/[0.06] hover:text-foreground disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none",
+                  Icon ? (phone ? "size-9" : "size-7") : cn("px-2 font-act text-[0.8125rem]", phone ? "h-9" : "h-7"),
+                  m.button === "Delete" && "hover:text-error",
+                  on && "bg-foreground/[0.06] text-foreground"
+                )}
+              >
+                {Icon ? <Icon aria-hidden="true" strokeWidth={1.75} className="size-3.5" /> : m.button}
+              </button>
+            )
+          })}
+        </span>
       </div>
       {open && sent && (
         <div className="flex flex-wrap items-end gap-2">
@@ -251,59 +282,109 @@ function Row({
       {shortKey(row.pda, phone ? 4 : 6)}
     </span>
   )
-  const rent = (
-    <span className={`ml-auto shrink-0 ${MONO} text-muted-foreground`}>
-      {created && fresh ? <span className="text-success">+{sol(row.rent)} rent</span> : sol(row.rent)}
-    </span>
-  )
+  const rent = created && fresh ? <span className="text-success">+{sol(row.rent)} rent</span> : <span>{sol(row.rent)} rent</span>
   // Named, as the fields are: on its own the line didn't say what it was
   const seeds = (
-    <p className={`${MONO} text-subtle`}>
+    <span>
       <span className="text-muted-foreground">seeds</span> {look.seeds}
-    </p>
+    </span>
+  )
+  // A figure (an amount, a count) keeps the mono column; a word (done or not) is set as text
+  const figure = (v: string) => /^[-$\d]/.test(v)
+  const lineHead = (
+    <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex min-w-0 flex-1 items-baseline gap-2 text-left">
+      <span className={`shrink-0 ${MONO} text-subtle`}>{look.label}</span>
+      {look.fields.map(([name, v], i) => (
+        <span
+          key={name}
+          title={name}
+          className={cn(
+            "leading-5",
+            i === 0 ? "min-w-0 flex-1 truncate text-[0.8125rem] text-foreground" : cn("shrink-0 whitespace-nowrap", figure(v) ? "font-mono text-[0.8125rem] tabular-nums" : "text-caption text-muted-foreground")
+          )}
+        >
+          {value(i)}
+        </span>
+      ))}
+    </button>
   )
   return (
-    <li className={cn("-mx-1.5 flex flex-col gap-1 rounded-md px-1.5 py-1 transition-colors duration-500 motion-reduce:transition-none", created && fresh ? "animate-rise bg-success/[0.08]" : "bg-transparent")}>
+    // Each account under a hairline, 8 above and below, as the token card's: tinted while it's new, a
+    // little out past the column; otherwise square, so its hairline runs full width
+    <li
+      className={cn(
+        "flex flex-col gap-1 py-2 transition-colors duration-500 first:pt-0 last:pb-0 motion-reduce:transition-none",
+        created && fresh ? "-mx-1.5 animate-rise rounded-md bg-success/[0.08] px-1.5 first:pt-1 last:pb-1" : "bg-transparent"
+      )}
+    >
       {look.line ? (
-        <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={cn("flex min-w-0 items-baseline gap-3 text-left", phone && "flex-wrap gap-x-3 gap-y-0.5")}>
-          <span className="shrink-0 font-act text-caption text-foreground">{look.label}</span>
-          {look.fields.map(([name], i) => (
-            <span key={name} title={name} className={cn(MONO, i === 0 ? "min-w-0 flex-1 truncate" : "shrink-0 whitespace-nowrap")}>
-              {value(i)}
-            </span>
-          ))}
-          {!phone && <span className="flex min-w-0 shrink-[2]">{pda}</span>}
-          {rent}
-        </button>
+        // A list's row on one line: its number quiet, its first field in the text's face, the rest (an
+        // amount, done or not) at the end. The address, seeds and rent wait behind the row (Almaz, 10 Nov)
+        moves && moves.length > 0 ? (
+          <RowMoves row={row} moves={moves} phone={phone} head={lineHead} />
+        ) : (
+          lineHead
+        )
       ) : (
+        // One account on its own takes the token card's shape: name over address on the left, its first
+        // field on the right as the number, with the field's name under it and what the last send changed.
+        // The rent stood there before and the count sat last in small mono, so the one number the lesson
+        // moves read as a footnote (Almaz, 10 Nov). The rent and the seeds go quiet under the row
         <>
-          <div className="flex min-w-0 items-baseline gap-2">
-            <span className="shrink-0 font-act text-caption text-foreground">{look.label}</span>
-            {pda}
-            {rent}
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4">
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="truncate font-act text-[0.8125rem] leading-5 text-foreground">{look.label}</span>
+              <span className="flex min-w-0 leading-4">{pda}</span>
+            </div>
+            {look.fields[0] && (
+              <div className="flex flex-col items-end gap-1 text-right">
+                <span className="font-mono text-[1rem] leading-5 tabular-nums">
+                  {/* A whole number's change is the delta under it; a dollar amount's, its old one struck */}
+                  <Value value={look.fields[0][1]} was={before?.fields[0]?.[1]} fresh={fresh} struck={!/^-?\d+$/.test(look.fields[0][1])} />
+                </span>
+                <span className={`flex items-center gap-1.5 ${NOTE} leading-4`}>
+                  <Delta value={look.fields[0][1]} was={fresh ? before?.fields[0]?.[1] : undefined} />
+                  {look.fields[0][0]}
+                </span>
+              </div>
+            )}
           </div>
-          {seeds}
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {look.fields.map(([name], i) => (
-              <span key={name} className={MONO}>
-                <span className="text-muted-foreground">{name}</span> {value(i)}
-              </span>
-            ))}
-          </div>
+          {/* The other fields under it, a line each: the name on the left as the number's is, the value in
+              the number's column. Run together in one mono line with the seeds under them, four lines in
+              three faces read as a mess with nothing first (Almaz, 10 Nov) */}
+          {look.fields.length > 1 && (
+            <dl className="mt-2 flex flex-col gap-1">
+              {look.fields.slice(1).map(([name], i) => (
+                <div key={name} className="flex items-baseline justify-between gap-4">
+                  <dt className={`${NOTE} leading-5`}>{name}</dt>
+                  <dd className="font-mono text-[0.8125rem] leading-5 tabular-nums">{value(i + 1)}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </>
       )}
       {look.line && open && (
-        <div className="flex flex-col gap-0.5">
-          {phone && pda}
+        <p className={`flex min-w-0 flex-wrap gap-x-1.5 ${MONO} text-subtle`}>
+          {pda}
+          <span>·</span>
           {seeds}
-        </div>
+          <span>·</span>
+          {rent}
+        </p>
       )}
       {worked && (
         <p className={`${NOTE} tabular-nums`} aria-live="off">
           {worked}
         </p>
       )}
-      {moves && moves.length > 0 && <RowMoves row={row} moves={moves} phone={phone} />}
+      {/* Where the account lives and what it holds back, last and quietest */}
+      {!look.line && (
+        <p className={`mt-1 ${MONO} text-subtle`}>
+          {seeds} · {rent}
+        </p>
+      )}
+      {!look.line && moves && moves.length > 0 && <RowMoves row={row} moves={moves} phone={phone} />}
     </li>
   )
 }
@@ -353,32 +434,37 @@ export function RecordsCard({
   const folded = record ? gone : fresh ? gone : []
   const held = rows.reduce((n, x) => n + x.rent, 0)
   const count = `${rows.length} ${rows.length === 1 ? "account" : "accounts"}`
+  const lone = rows.length === 1 && !read && folded.length === 0 && !r.show(rows[0]).line
   return (
     <div className={cn("flex flex-col gap-2", !flat && "rounded-control border border-border bg-surface-well px-3 py-2.5", className)}>
-      <div className="flex items-baseline gap-2 text-caption text-muted-foreground">
-        <span className="min-w-0 truncate">
-          {read ? (
-            <>
-              <span className="font-act text-foreground">Read {count}</span>
-              {!phone && " · no transaction"}
-            </>
-          ) : (
-            <>
-              <span className="font-act text-foreground">{r.title}</span> · {count}
-            </>
-          )}
-        </span>
-        {/* With one account its row says the same rent */}
-        {rows.length !== 1 && (
-          <span className="ml-auto shrink-0 tabular-nums">
-            Rent held <span className={`${MONO} text-foreground`}>{sol(held)}</span>
+      {/* One account on its own needs no heading: "Counter · 1 account" over the row named Counter said
+          the same word twice, and the row carries its rent */}
+      {!lone && (
+        <div className="flex items-baseline gap-2 text-caption text-muted-foreground">
+          <span className="min-w-0 truncate">
+            {read ? (
+              <>
+                <span className="font-act text-foreground">Read {count}</span>
+                {!phone && " · no transaction"}
+              </>
+            ) : (
+              <>
+                <span className="font-act text-foreground">{r.title}</span> · {count}
+              </>
+            )}
           </span>
-        )}
-      </div>
+          {/* With one account its row says the same rent */}
+          {rows.length !== 1 && (
+            <span className="ml-auto shrink-0 tabular-nums">
+              Rent held <span className={`${MONO} text-foreground`}>{sol(held)}</span>
+            </span>
+          )}
+        </div>
+      )}
       {rows.length === 0 && folded.length === 0 ? (
         <p className={NOTE}>{r.empty.split("`").map((p, i) => (i % 2 ? <code key={i} className={`${MONO} text-foreground`}>{p}</code> : p))}</p>
       ) : (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col divide-y divide-border">
           {rows.map((row) => (
             <Row
               key={row.id}
@@ -393,7 +479,7 @@ export function RecordsCard({
             />
           ))}
           {folded.map((row) => (
-            <li key={`closed-${row.id}`} className={cn(NOTE, "flex min-w-0 items-baseline gap-2 py-0.5")}>
+            <li key={`closed-${row.id}`} className={cn(NOTE, "flex min-w-0 items-baseline gap-2 py-2 last:pb-0")}>
               <span className={cn("min-w-0 truncate", fresh && !record && "line-through")}>
                 Closed {r.show(row).label} · {sol(row.rent)} back to your wallet
               </span>

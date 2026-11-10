@@ -113,7 +113,15 @@ function DesktopBanner({ phone = false }: { phone?: boolean }) {
       // The cards' own line: purple is for what is current, and a banner is not that. A soft light of
       // it from the corner the sculpture sits in
       style={{ background: "radial-gradient(120% 140% at 100% 0%, #9945ff24, transparent 62%), var(--surface-panel)" }}
-      className="relative isolate mb-4 overflow-hidden rounded-card border border-border"
+      // A press anywhere on it opens the tutorial it's about, as a card under it does: only its buttons
+      // did, and a tap on the picture or the words did nothing (Almaz, 10 Nov). Its buttons keep their own
+      // action (Start the next one); a keyboard reaches the same through them
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("button, a")) return
+        if (b.finished) b.open()
+        else b.go()
+      }}
+      className="relative isolate mb-4 cursor-pointer overflow-hidden rounded-card border border-border"
     >
       <style>{BEAM_CSS}</style>
       <IsoVoxels corner={!wide} icon={b.icon} />

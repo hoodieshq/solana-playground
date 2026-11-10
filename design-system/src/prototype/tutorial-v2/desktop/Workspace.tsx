@@ -4,7 +4,6 @@ import { ConsoleDrawer, ConsoleDrawerBar, ConsoleDrawerContent, ConsoleDrawerSta
 
 import { CLIENT, LESSON, LIB } from "../data"
 import { landingFor } from "../landing"
-import { useWalletDesign } from "../navStates"
 import { useStore } from "../store"
 import { Editor } from "./Editor"
 import { DockedTree } from "./FileTree"
@@ -44,7 +43,6 @@ function useDrawerHeight(box: React.RefObject<HTMLElement | null>) {
  * screen. Before Start it shows the finished program, read only (D3): the head says so */
 export function Workspace({ treeOpen, onTree }: { treeOpen: boolean; onTree: (open: boolean) => void }) {
   const { s, dispatch } = useStore()
-  const wallet = useWalletDesign()
   const box = useRef<HTMLElement>(null)
   const drawer = useDrawerHeight(box)
   // Wide enough to dock the tree beside the editor: 900, as the Programs workspace, so beside the chat
@@ -124,7 +122,7 @@ export function Workspace({ treeOpen, onTree }: { treeOpen: boolean; onTree: (op
             <TerminalStatus />
           </ConsoleDrawerStatus>
           {/* A new wallet holds 0 SOL; the first deploy airdrops 5 and spends about 1.27 of it */}
-          {wallet === "after" && <WalletChip sol={!s.funded ? 0 : s.deployedLib === null ? 5 : 3.73} />}
+          <WalletChip sol={!s.funded ? 0 : s.deployedLib === null ? 5 : 3.73} />
         </ConsoleDrawerBar>
         <ConsoleDrawerContent style={{ height: s.terminal ? drawer.h : 0 }} className="relative overscroll-contain">
           {/* The top edge drags: 9px to grab, the hairline lights while held */}

@@ -20,7 +20,6 @@ import { ROW } from "../../../ui/FileTreeList"
 import { view } from "../../../view"
 import { behind, build, busy, deploy, edit, metaOf, onChain, openFile, runClient, setPane, setTerminal, stale, usePrograms, type Project, type Turn } from "../../store"
 import { WalletChip } from "../../../desktop/WalletChip"
-import { useWalletDesign } from "../../../navStates"
 import { CallPanel } from "./CallPanel"
 import { FullNotice } from "./Quota"
 import { DevnetChip, LIT_CSS, ReadNotice, ReadOnlyChip, onReadOnlyKey, useLit } from "./Read"
@@ -235,7 +234,6 @@ export function Workspace({ p }: { p: Project }) {
   const file = p.open
   const status = statusOf(p)
   const funded = usePrograms((x) => x.funded)
-  const wallet = useWalletDesign()
   const err = errorIn(p, file)
   const lit = useLit(file)
   const meta = metaOf(p)
@@ -382,7 +380,7 @@ export function Workspace({ p }: { p: Project }) {
             <StatusDot variant={status.dot} />
             <span className="truncate">{status.text}</span>
           </ConsoleDrawerStatus>
-          {wallet === "after" && <WalletChip sol={funded ? 3.73 : 0} />}
+          <WalletChip sol={funded ? 3.73 : 0} />
         </ConsoleDrawerBar>
         <ConsoleDrawerContent style={{ height: p.terminal ? 240 : 0 }} className="relative overscroll-contain">
           <div className="flex min-h-full flex-col">
