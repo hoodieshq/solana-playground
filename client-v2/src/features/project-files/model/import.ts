@@ -26,11 +26,11 @@ export const trackImportFailure = (via: ImportVia, error: unknown) => {
  * resolves, else `trackImportFailure`. The error is rethrown either way, so
  * the dialog still shows it.
  *
- * @param run the import, which resolves once the project exists
  * @param via where the import started
+ * @param run the import, which resolves once the project exists
  * @returns what `run` resolves with
  */
-export const trackImport = async <T>(run: () => Promise<T>, via: ImportVia) => {
+export const trackImport = async <T>(via: ImportVia, run: () => Promise<T>) => {
   try {
     const result = await run();
     projectFilesTelemetry.track("project_imported", { via });
@@ -63,7 +63,7 @@ if (import.meta.vitest) {
     });
 
     it("counts an import once it resolves", async () => {
-      await expect(trackImport(async () => "done", "github")).resolves.toBe(
+      await expect(trackImport("github", async () => "done")).resolves.toBe(
         "done"
       );
       expect(sent.events).toEqual([
@@ -94,9 +94,9 @@ if (import.meta.vitest) {
       async (reason, make) => {
         const error = make(errors);
         await expect(
-          trackImport(async () => {
+          trackImport("files", async () => {
             throw error;
-          }, "files")
+          })
         ).rejects.toBe(error);
         expect(sent.events).toEqual([
           expect.objectContaining({
@@ -110,9 +110,9 @@ if (import.meta.vitest) {
     it("sends nothing for a closed program choice", async () => {
       const cancelled = new ImportCancelledError();
       await expect(
-        trackImport(async () => {
+        trackImport("github", async () => {
           throw cancelled;
-        }, "github")
+        })
       ).rejects.toBe(cancelled);
       expect(sent.events).toEqual([]);
     });

@@ -14,9 +14,8 @@ export const ImportTemporary = () => {
   const { limitError, guard } = useLimitRefusal();
 
   const importTemporary = async () => {
-    await trackImport(
-      () => PgExplorer.createWorkspace(name, { fromTemporary: true }),
-      "temporary"
+    await trackImport("temporary", () =>
+      PgExplorer.createWorkspace(name, { fromTemporary: true })
     );
   };
 

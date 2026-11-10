@@ -45,7 +45,7 @@ export const ImportGithub = () => {
             await PgCommon.transition(
               isGistUrl(url)
                 ? importGist(url, "dialog")
-                : trackImport(() => PgGithub.import(url), "github")
+                : trackImport("github", () => PgGithub.import(url))
             );
             return IMPORTED;
           } catch (e) {
@@ -173,7 +173,7 @@ const Example: FC<ExampleProps> = ({ name, icon, circleImage, example }) => {
           variant="outline"
           onClick={async () => {
             try {
-              await trackImport(() => PgGithub.import(example.url), "github");
+              await trackImport("github", () => PgGithub.import(example.url));
             } catch (e) {
               // Closing the program selection is a choice, not a failure
               if (e instanceof ImportCancelledError) return;
