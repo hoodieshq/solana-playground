@@ -5,7 +5,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/utils"
 
 import { DEPLOY_COST, PROGRAM_ID, UPGRADE_COST, shortKey } from "../data"
-import { useStore } from "../store"
 import { BuildLog } from "./BuildLog"
 import { openExplorer } from "./explorer"
 import { Prose } from "./Prose"
@@ -42,7 +41,6 @@ export function PlainDetails({
   quiet?: boolean
   bar?: boolean
 }) {
-  const { dispatch } = useStore()
   const [logOpen, setLogOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const well = useRef<HTMLDivElement>(null)
@@ -77,22 +75,12 @@ export function PlainDetails({
     <BuildLog
       log={log}
       inset
-      className={cn(
-        "flex-none px-3 pb-3 text-[0.75rem] leading-5 [mask-image:linear-gradient(to_right,#000_calc(100%-3rem),transparent)]",
-        phone || bar ? "pt-3" : "pt-1",
-        bar && "bg-transparent px-4"
-      )}
+      className={cn("flex-none bg-transparent pt-3 pb-3 text-[0.75rem] leading-5 [mask-image:linear-gradient(to_right,#000_calc(100%-3rem),transparent)]", bar ? "px-4" : "px-3")}
     />
   )
 
-  // The terminal is a desktop panel: its way in sits in the well's own bar in the Call panel. Not in the
-  // chat's foot: as an icon beside Log it read as Log's own icon set too far off (Almaz, 10 Nov), and the
-  // workspace head has the terminal's button anyway
-  const terminal = !phone && !bar && (
-    <button type="button" title="Terminal ⌘J" onClick={() => dispatch({ type: "terminal", open: true })} className={cn(QUIET, "text-[0.75rem] leading-4")}>
-      Open terminal
-    </button>
-  )
+  // No terminal link by the log: the workspace head has the terminal's button. As an icon beside Log it
+  // read as Log's own icon set too far off (Almaz, 10 Nov)
 
   const content = "overflow-hidden duration-200 ease-standard data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none"
 
@@ -114,16 +102,15 @@ export function PlainDetails({
           at the sides is pulled back out so the bar meets the card's edges. The log opens down inside the
           bar, under the row it was opened from: the bar grows and stays the card's foot. Opened above the
           row, the toggle moved away from the pointer; opened under the bar, the bar hung halfway down */}
-      <Collapsible open={logOpen} onOpenChange={setLogOpen} className={cn(bar && "-mx-4 mt-4 border-t border-border bg-surface-panel")}>
-        {/* Out of the chat (the Call panel) the row is a plate of its own, 12 under the sentence: set as a
-            plain row 8 under it, it read as the sentence's last line (Almaz, 10 Nov) */}
-        <div
-          className={
-            bar
-              ? cn("flex items-center gap-3 px-4", phone ? "h-11" : "h-10")
-              : cn("mt-3 flex items-center gap-3 rounded-control border border-border bg-surface-panel px-3", phone ? "h-11" : "h-10")
-          }
-        >
+      {/* Out of the chat (the Call panel) the same grey is a plate of its own, 12 under the sentence: set as
+          a plain row 8 under it, it read as the sentence's last line, and the log opens inside the plate as
+          it does inside the chat's foot (Almaz, 10 Nov) */}
+      <Collapsible
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        className={bar ? "-mx-4 mt-4 border-t border-border bg-surface-panel" : "mt-3 overflow-hidden rounded-control border border-border bg-surface-panel"}
+      >
+        <div className={cn("flex items-center gap-3", bar ? "px-4" : "px-3", phone ? "h-11" : "h-10")}>
           {copy && (
             <>
               <button type="button" onClick={onCopy} className={cn(QUIET, phone && THUMB)}>
@@ -147,10 +134,9 @@ export function PlainDetails({
           </span>
         </div>
         <CollapsibleContent className={content}>
-          {/* In the bar the lines sit on its grey under a hairline, at the row's 16: a black well inside the
-              grey bar made a third layer and read as a hole heavier than the message (Almaz, 10 Nov) */}
-          <div ref={well} className={cn("scroll-mb-4 overflow-hidden", bar ? "border-t border-border" : cn("rounded-[6px] bg-surface-well", phone ? "mt-1" : "mt-3"))}>
-            {!bar && terminal && <div className="flex justify-end px-3 pt-2">{terminal}</div>}
+          {/* The lines sit on the grey under a hairline, at the row's inset: a black well inside the grey made
+              a third layer and read as a hole heavier than the message (Almaz, 10 Nov) */}
+          <div ref={well} className="scroll-mb-4 overflow-hidden border-t border-border">
             {lines}
           </div>
         </CollapsibleContent>

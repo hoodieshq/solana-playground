@@ -378,11 +378,19 @@ function Row({
           {worked}
         </p>
       )}
-      {/* Where the account lives and what it holds back, last and quietest */}
+      {/* Where the account lives and what it holds back, last and quietest, a line each as the fields
+          above: run on in one line, the rent broke between its number and its unit (Almaz, 10 Nov) */}
       {!look.line && (
-        <p className={`mt-1 ${MONO} text-subtle`}>
-          {seeds} · {rent}
-        </p>
+        <dl className="mt-1 flex flex-col gap-0.5">
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className={`${NOTE} leading-5`}>seeds</dt>
+            <dd className={`min-w-0 truncate text-right ${MONO} text-muted-foreground`}>{look.seeds}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className={`${NOTE} leading-5`}>rent</dt>
+            <dd className={`${MONO} text-muted-foreground`}>{created && fresh ? <span className="text-success">+{sol(row.rent)}</span> : sol(row.rent)}</dd>
+          </div>
+        </dl>
       )}
       {!look.line && moves && moves.length > 0 && <RowMoves row={row} moves={moves} phone={phone} />}
     </li>
