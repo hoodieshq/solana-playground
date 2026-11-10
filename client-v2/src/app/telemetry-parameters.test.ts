@@ -153,7 +153,10 @@ const KNOWN_CONFLICTS: Record<string, string> = {};
  * The one name for what the user pressed, or where an action started. `from`
  * and `source` said the same thing until HOO-2752; a new parameter that says it
  * is `via`. A name only the cross-slice scan can hold to, since each slice
- * would accept a synonym of its own.
+ * would accept a synonym of its own. The open changes `funnel-events` and
+ * `wbdi-flow` still spell `from` or `source` for events nobody sends yet, and
+ * bring them to `via` in their own PRs; this test refuses them the moment a
+ * tracker declares them.
  */
 const TRIGGER = "via";
 const TRIGGER_SYNONYMS = ["from", "source"];

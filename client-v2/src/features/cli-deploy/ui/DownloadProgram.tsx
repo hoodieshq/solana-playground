@@ -52,7 +52,10 @@ const DownloadProgram = ({
   }, []);
 
   const failed = (reason: DownloadFailure) =>
-    cliDeployTelemetry.track("cli_binary_download_failed", { via: from, reason });
+    cliDeployTelemetry.track("cli_binary_download_failed", {
+      via: from,
+      reason,
+    });
 
   /**
    * Tells the user, in a note rather than a toast, that a build would fix it.

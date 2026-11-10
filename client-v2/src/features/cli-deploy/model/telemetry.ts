@@ -20,7 +20,7 @@ type CliDeployEvents = {
   cli_binary_download_failed: { via: DownloadFrom; reason: DownloadFailure };
   /** The guide's "Download IDL" handed the IDL to the browser to save. */
   cli_idl_downloaded: NoParams;
-  /** The "Deploy from your machine" guide opened from `via`. */
+  /** The "Deploy from your machine" guide opened; `via` is the control that opened it. */
   cli_guide_opened: { via: GuideFrom };
   /**
    * The copy button of a command in the guide was pressed, `step` naming

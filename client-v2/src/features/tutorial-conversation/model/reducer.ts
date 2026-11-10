@@ -5051,7 +5051,12 @@ if (import.meta.vitest) {
         expect(effects).toContainEqual({
           kind: "event",
           name: "tutorial_step_passed",
-          params: { tutorial: "refusals", step_index: 1, via: "chat", seconds: 2 },
+          params: {
+            tutorial: "refusals",
+            step_index: 1,
+            via: "chat",
+            seconds: 2,
+          },
         });
       });
 

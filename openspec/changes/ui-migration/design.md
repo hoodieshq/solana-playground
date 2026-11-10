@@ -1460,7 +1460,7 @@ Decided with Slava on 2026-10-16 (HOO-2070), from the prototype's sidebar
   here, which is why it is a widget. `BaseAppNav` keeps its `footer` and
   `railFooter` slots, so the project list (5.14) and this step touch
   different lines.
-- **Telemetry**, prefix `session`: `session_account_menu_opened {via:
+- **Telemetry**, prefix `session`: `session_account_menu_opened {from:
   footer | rail}` and `session_account_item_picked {item}`. Under
   `session-footer:account`, a wallet connect or disconnect that throws is
   logged with `report: true` and the user gets a toast (a setup the user
@@ -1760,7 +1760,7 @@ they are answered. One PR.
     goes to the first control that opens the settings still on screen, else
     to the one that opens the navigation. The failure notice closes on
     Escape too, its own listener in place of the page's.
-- **Telemetry**, prefix `settings`: `settings_opened {via: cluster | rail |
+- **Telemetry**, prefix `settings`: `settings_opened {from: cluster | rail |
   menu | key}`, `settings_closed {via: back | escape | key | import}` and
   `settings_section_picked {section}`. Export and import failures keep going
   through `reportButtonFailure`; the widget logs under `settings-page:*`.

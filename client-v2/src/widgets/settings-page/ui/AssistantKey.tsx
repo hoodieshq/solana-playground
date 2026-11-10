@@ -64,7 +64,9 @@ const AssistantKey = ({
         // A key an older build kept and could not drop is not deleted: the
         // row says that instead
         setIsDeleted(isForgotten);
-        assistantKeyTelemetry.track("assistant_key_deleted", { via: "settings" });
+        assistantKeyTelemetry.track("assistant_key_deleted", {
+          via: "settings",
+        });
       }}
     />
   );
