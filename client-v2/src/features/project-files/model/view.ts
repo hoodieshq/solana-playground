@@ -56,7 +56,7 @@ if (import.meta.vitest) {
 
     it.each([
       ["not-found", () => new errors.GithubImportError("missing", "not-found")],
-      ["network", () => new TypeError("Failed to fetch")],
+      ["network", () => new errors.GithubImportError("no answer", "network")],
     ] as const)(
       "counts a link that fails with %s and rethrows",
       async (reason, make) => {
