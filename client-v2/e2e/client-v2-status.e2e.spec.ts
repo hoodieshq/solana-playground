@@ -40,7 +40,10 @@ const OFFLINE_LINE =
 
 /**
  * Devnet answers `getSlot` with one slot that never moves: down by
- * `PgConnection.getIsClusterDown`, which reads the slot twice a second apart
+ * `PgConnection.getIsClusterDown`, which reads the slot twice a second apart.
+ * `getAccountInfo` answers "no account" at once: the Deploy stage restores a
+ * reload's build only after `PgProgramInfo.onChain` reads the program
+ * account, and the real devnet can take longer than the test waits
  */
 const stallDevnet = (page: Page) =>
   page.route("https://api.devnet.solana.com/**", async (route) => {
@@ -48,8 +51,18 @@ const stallDevnet = (page: Page) =>
       id?: unknown;
       method?: string;
     } | null;
-    if (body?.method !== "getSlot") return route.continue();
-    return json(route, { jsonrpc: "2.0", result: 123, id: body.id });
+    if (body?.method === "getSlot") {
+      return json(route, { jsonrpc: "2.0", result: 123, id: body.id });
+    }
+    if (body?.method === "getAccountInfo") {
+      return json(route, {
+        jsonrpc: "2.0",
+        // eslint-disable-next-line unicorn/no-null -- the RPC's own "no account"
+        result: { context: { slot: 123 }, value: null },
+        id: body.id,
+      });
+    }
+    return route.continue();
   });
 
 test.describe("on a 1440 px window", () => {
