@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import { shortfall, WEB_FAUCET_LINE, webFaucet } from "../../airdrop"
-import { CLIENT, DEPLOY_COST, LESSON, LIB, PROGRAM_ID, STEPS, TX_FEE, WALLET, programLog, shortKey, type Tx } from "../../data"
+import { CLIENT, DEPLOY_COST, LESSON, LIB, STEPS, TX_FEE, WALLET, programLog, type Tx } from "../../data"
 import { useStore, type Turn } from "../../store"
 import { BuildLog } from "../BuildLog"
 import { DeployDetails, PlainDetails } from "../DeployDetails"
@@ -314,7 +314,7 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
     return (
       // Shut, as the build's: where the program lives, what it took and the log wait under the row, said
       // in one sentence
-      <JournalRow {...row} icon={ok} label={turn.upgrade ? `Upgraded ${shortKey(PROGRAM_ID)}` : "Deployed to devnet"}>
+      <JournalRow {...row} icon={ok} label={turn.upgrade ? "Upgraded on devnet" : "Deployed to devnet"}>
         <Opened details={<DeployDetails log={turn.log} took="" upgrade={turn.upgrade} built={turn.act === "buildDeploy"} phone={phone} />} />
       </JournalRow>
     )

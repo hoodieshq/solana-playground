@@ -59,7 +59,9 @@ function words(text: string, key: string): ReactNode[] {
  *
  * A stop right after the chip is glued to it in one unbreakable run: an inline block lets the line break
  * after it, and ". It used" started the next line with its period. The chip keeps 2px clear of the stop,
- * which pulled in stuck to the ring */
+ * which pulled in stuck to the ring. A chip of several words (an error's message) may break between
+ * them, its ring and ground drawn again on each line: kept whole it ran out of a narrow card (Almaz,
+ * 10 Nov) */
 export function Prose({ text, chip = CHIP, ink = "text-foreground", small = false, large = false }: { text: string; chip?: string; ink?: string; small?: boolean; large?: boolean }) {
   const all = text.split("`")
   const parts: ReactNode[] = []
@@ -69,10 +71,11 @@ export function Prose({ text, chip = CHIP, ink = "text-foreground", small = fals
       continue
     }
     const stop = (all[i + 1] ?? "").match(/^[.,;:!?)\]]+/)?.[0] ?? ""
+    const flow = /\s/.test(all[i].trim()) ? "inline box-decoration-clone whitespace-normal" : "inline-block whitespace-nowrap"
     const code = (
       <code
         key={i}
-        className={`inline-block rounded-[4px] ${chip} ${small ? "px-[3px] pt-px pb-[2px] font-mono text-[12px] leading-4" : large ? "px-1 pt-[5px] pb-[2px] font-mono text-[14px] leading-4" : "px-1 pt-[3px] pb-[3px] font-mono text-[14px] leading-4"} font-[350] whitespace-nowrap ${ink} ${stop ? "mr-[2px]" : ""}`}
+        className={`${flow} rounded-[4px] ${chip} ${small ? "px-[3px] pt-px pb-[2px] font-mono text-[12px] leading-4" : large ? "px-1 pt-[5px] pb-[2px] font-mono text-[14px] leading-4" : "px-1 pt-[3px] pb-[3px] font-mono text-[14px] leading-4"} font-[350] ${ink} ${stop ? "mr-[2px]" : ""}`}
       >
         {all[i]}
       </code>
