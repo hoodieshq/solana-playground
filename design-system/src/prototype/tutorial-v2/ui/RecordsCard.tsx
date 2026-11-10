@@ -349,19 +349,6 @@ function Row({
               </div>
             )}
           </div>
-          {/* The other fields under it, a line each: the name on the left as the number's is, the value in
-              the number's column. Run together in one mono line with the seeds under them, four lines in
-              three faces read as a mess with nothing first (Almaz, 10 Nov) */}
-          {look.fields.length > 1 && (
-            <dl className="mt-2 flex flex-col gap-1">
-              {look.fields.slice(1).map(([name], i) => (
-                <div key={name} className="flex items-baseline justify-between gap-4">
-                  <dt className={`${NOTE} leading-5`}>{name}</dt>
-                  <dd className="font-mono text-[0.8125rem] leading-5 tabular-nums">{value(i + 1)}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
         </>
       )}
       {look.line && open && (
@@ -378,18 +365,22 @@ function Row({
           {worked}
         </p>
       )}
-      {/* Where the account lives and what it holds back, last and quietest, a line each as the fields
-          above: run on in one line, the rent broke between its number and its unit (Almaz, 10 Nov) */}
+      {/* Under the number, one list: the other fields, then where the account lives and what it holds
+          back. Every line is the same: the name in quiet text on the left, the value in one small mono
+          on the right, at one 24 step; the program's own values in the text's colour, seeds and rent
+          muted. Two lists of three sizes at two steps read as a mess (Almaz, 10 Nov) */}
       {!look.line && (
-        <dl className="mt-1 flex flex-col gap-0.5">
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className={`${NOTE} leading-5`}>seeds</dt>
-            <dd className={`min-w-0 truncate text-right ${MONO} text-muted-foreground`}>{look.seeds}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className={`${NOTE} leading-5`}>rent</dt>
-            <dd className={`${MONO} text-muted-foreground`}>{created && fresh ? <span className="text-success">+{sol(row.rent)}</span> : sol(row.rent)}</dd>
-          </div>
+        <dl className="mt-2 flex flex-col">
+          {[
+            ...look.fields.slice(1).map(([name], i) => ({ name, value: value(i + 1), quiet: false })),
+            { name: "seeds", value: look.seeds, quiet: true },
+            { name: "rent", value: created && fresh ? <span className="text-success">+{sol(row.rent)}</span> : sol(row.rent), quiet: true },
+          ].map((line) => (
+            <div key={line.name} className="flex h-6 items-center justify-between gap-4">
+              <dt className={`shrink-0 ${NOTE} leading-5`}>{line.name}</dt>
+              <dd className={cn("min-w-0 truncate text-right font-mono text-[0.75rem] leading-5 tabular-nums", line.quiet ? "text-muted-foreground" : "text-foreground")}>{line.value}</dd>
+            </div>
+          ))}
         </dl>
       )}
       {!look.line && moves && moves.length > 0 && <RowMoves row={row} moves={moves} phone={phone} />}

@@ -148,7 +148,8 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
     const time = turn.took ? secs(turn.took) : ""
     // No refusal line under the accounts: the head already names the error, and the red line repeated it
     // a gap away from the sentence that explains it (Almaz, 10 Nov). The sentence says nothing moved
-    const body = <RecordsCard rows={recs.after} before={recs.before} at={turn.at} record read={recs.read} phone={phone} flat />
+    // 16 under the accounts, not the card's 12: the cost under them is a footnote, not one more line of them
+    const body = <RecordsCard rows={recs.after} before={recs.before} at={turn.at} record read={recs.read} phone={phone} flat className="pb-1" />
     const n = recs.after.length
     if (!turn.tx)
       return (
