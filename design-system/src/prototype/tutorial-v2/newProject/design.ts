@@ -1,31 +1,10 @@
 import { useEffect, useState } from "react"
-import { toast } from "sonner"
 
 import { setNavState, type NavStateId } from "../navStates"
 
-/* Which New project flow draws, and which of its states, picked from the prototype bar. "current" is
-   the product's flow as client-v2 has it (scope/interface-2); "next" is the redesign, still to come.
-   Both live in localStorage, so the phone's and the tablet's iframes follow the bar. On load the
-   address wins: ?np=current|next and ?npState=<state> put a link on one design and one state */
-
-export type NewProjectDesign = "current" | "next"
-
-/** The states the bar can force. "live" is the flow as it runs; every other one opens the dialog
- * in that state */
-export const NP_STATES = {
-  live: "Live",
-  invalid: "Invalid name",
-  taken: "Name taken",
-  creating: "Creating",
-  failed: "Create failed",
-  "lists-loading": "Lists loading",
-  "lists-failed": "Lists failed",
-  "no-match": "No match",
-  downloading: "Program downloading",
-  "open-failed": "Program open failed",
-} as const
-
-export type NewProjectState = keyof typeof NP_STATES
+/* Which state of New project (First Light) draws, picked from the prototype bar. It lives in
+   localStorage, so the phone's and the tablet's iframes follow the bar. On load the address wins:
+   ?npState=<state> puts a link on one state */
 
 type NextState = { label: string; group?: string; nav?: NavStateId }
 
@@ -77,10 +56,6 @@ export const NP_NEXT_STATES = {
 
 export type NextStateId = keyof typeof NP_NEXT_STATES
 
-/** A forced state of either design */
-export type AnyState = NewProjectState | NextStateId
-
-const DESIGN_KEY = "oak.newProjectDesign"
 const STATE_KEY = "oak.newProjectState"
 const EVENT = "oak.newProject"
 
@@ -102,30 +77,19 @@ const load = (key: string) => {
 
 // The address wins on load. Only the top window has it: the frames read what it stored
 const params = new URLSearchParams(location.search)
-const askedDesign = params.get("np")
-if (askedDesign === "current" || askedDesign === "next") store(DESIGN_KEY, askedDesign)
 const askedState = params.get("npState")
-if (askedState && (askedState in NP_STATES || askedState in NP_NEXT_STATES)) store(STATE_KEY, askedState)
+if (askedState && askedState in NP_NEXT_STATES) store(STATE_KEY, askedState)
 // A linked state brings its nav along, as picking it in the bar does
 const linkedNav = askedState && askedState in NP_NEXT_STATES ? (NP_NEXT_STATES[askedState as NextStateId] as { nav?: NavStateId }).nav : undefined
 if (linkedNav) setNavState(linkedNav)
 
-const readDesign = (): NewProjectDesign => (load(DESIGN_KEY) === "current" ? "current" : "next")
-
-/** A state of the design in force, else "live" */
-const readState = (): AnyState => {
+/** The forced state, else "live" */
+const readState = (): NextStateId => {
   const v = load(STATE_KEY)
-  return v && v in (readDesign() === "next" ? NP_NEXT_STATES : NP_STATES) ? (v as AnyState) : "live"
+  return v && v in NP_NEXT_STATES ? (v as NextStateId) : "live"
 }
 
-/** Switching design starts its flow live */
-export function setNewProjectDesign(design: NewProjectDesign) {
-  store(DESIGN_KEY, design)
-  store(STATE_KEY, "live")
-  window.dispatchEvent(new Event(EVENT))
-}
-
-export function setNewProjectState(state: AnyState) {
+export function setNewProjectState(state: NextStateId) {
   store(STATE_KEY, state)
   window.dispatchEvent(new Event(EVENT))
 }
@@ -145,13 +109,4 @@ function usePicked<T>(get: () => T): T {
   return v
 }
 
-export const useNewProjectDesign = () => usePicked(readDesign)
 export const useNewProjectState = () => usePicked(readState)
-
-export type Project = { name: string; framework: string }
-
-/** Runs once Start has made a project. The prototype has no editor yet, so it only says so; the
- * project's landing replaces this toast later */
-export function onProjectCreated(project: Project) {
-  toast.success(`Created ${project.name}`, { description: `A new ${project.framework} project, saved in this browser` })
-}

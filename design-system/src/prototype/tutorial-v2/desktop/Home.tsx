@@ -1,5 +1,3 @@
-import { useState } from "react"
-
 import {
   ActionCard,
   ActionCardContent,
@@ -14,8 +12,6 @@ import { Composer, ComposerSend, ComposerToolbar } from "@/components/ui/compose
 
 import { useStore } from "../store"
 import { CATALOG } from "../ui/catalog"
-import { StartFromScratch } from "../newProject"
-import { useNewProjectDesign } from "../newProject/design"
 import { expressCreate, openFirstLight } from "../newProject/next/open"
 import { Page, soon, TutorialRow } from "./Catalog"
 import { LIT_STROKE, LitIcon, type LitIconName } from "./navLit/icons"
@@ -29,7 +25,7 @@ const HOME_TUTORIALS = ["hello-anchor", "hello-seahorse", "hello-solana", "bank-
 
 /** One of the three ways in, as the product's tiles: the nav's own glyph alone above the title. No line
  * under it: the title says where it goes */
-function Tile({ icon, title, onClick, expanded }: { icon: LitIconName; title: string; onClick: () => void; expanded?: boolean }) {
+function Tile({ icon, title, onClick }: { icon: LitIconName; title: string; onClick: () => void }) {
   return (
     <ActionCard orientation="vertical">
       <span aria-hidden="true" className="mb-1 flex size-[1.125rem] text-muted-foreground [&>svg]:size-full">
@@ -38,7 +34,7 @@ function Tile({ icon, title, onClick, expanded }: { icon: LitIconName; title: st
       <ActionCardContent>
         <ActionCardTitle>
           <ActionCardLink asChild>
-            <button type="button" aria-expanded={expanded} onClick={onClick}>
+            <button type="button" onClick={onClick}>
               {title}
             </button>
           </ActionCardLink>
@@ -53,9 +49,6 @@ function Tile({ icon, title, onClick, expanded }: { icon: LitIconName; title: st
  * it, the composer and Start aren't in this prototype; the tiles and the tutorials are */
 export function Home() {
   const { dispatch } = useStore()
-  const [unfolded, setUnfolded] = useState(false)
-  // First Light: the tile opens the dialog, Run it makes and builds the Anchor starter
-  const firstLight = useNewProjectDesign() === "next"
 
   return (
     <Page>
@@ -69,7 +62,7 @@ export function Home() {
               <ActionCardDescription>This program saves a number in an account and writes it to the logs.</ActionCardDescription>
             </ActionCardContent>
             <div className="relative z-10 ml-auto shrink-0 self-center">
-              <BrandButton onClick={firstLight ? expressCreate : soon} aria-label={firstLight ? "Run the Anchor starter" : undefined}>
+              <BrandButton onClick={expressCreate} aria-label="Run the Anchor starter">
                 Run it
                 <CirclePlay strokeWidth={LIT_STROKE} />
               </BrandButton>
@@ -96,16 +89,10 @@ export function Home() {
         </Composer>
 
         <div className="grid grid-cols-3 gap-3">
-          {firstLight ? (
-            <Tile icon="new" title="New project" onClick={() => openFirstLight({ entry: "home-tile" })} />
-          ) : (
-            <Tile icon="new" title="New project" expanded={unfolded} onClick={() => setUnfolded(!unfolded)} />
-          )}
+          <Tile icon="new" title="New project" onClick={() => openFirstLight({ entry: "home-tile" })} />
           <Tile icon="tutorials" title="Follow a tutorial" onClick={() => dispatch({ type: "open", screen: "gallery" })} />
           <Tile icon="programs" title="Open a program" onClick={() => dispatch({ type: "open", screen: "programs" })} />
         </div>
-
-        {unfolded && <StartFromScratch />}
 
         {/* No All 16 here: Follow a tutorial just above opens the whole list. Setup lives in the nav's row */}
         <p className="mt-3 text-caption text-muted-foreground">Or learn from one of these</p>

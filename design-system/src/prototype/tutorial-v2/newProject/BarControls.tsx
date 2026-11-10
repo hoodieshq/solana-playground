@@ -8,26 +8,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { StatusDot } from "@/components/ui/status-dot"
 
 import { setNavState } from "../navStates"
-import {
-  NP_NEXT_STATES,
-  NP_STATES,
-  setNewProjectDesign,
-  setNewProjectState,
-  useNewProjectDesign,
-  useNewProjectState,
-  type AnyState,
-  type NewProjectDesign,
-  type NewProjectState,
-  type NextStateId,
-} from "./design"
+import { NP_NEXT_STATES, setNewProjectState, useNewProjectState, type NextStateId } from "./design"
 
-const CURRENT_IDS = Object.keys(NP_STATES) as NewProjectState[]
 const NEXT_IDS = Object.keys(NP_NEXT_STATES) as NextStateId[]
 
 /** First Light's states under their groups, in the spec's order */
@@ -39,23 +26,16 @@ const NEXT_GROUPS = NEXT_IDS.reduce<{ group?: string; ids: NextStateId[] }[]>((a
   return all
 }, [])
 
-const labelOf = (design: NewProjectDesign, state: AnyState) =>
-  design === "next" ? NP_NEXT_STATES[state as NextStateId].label : NP_STATES[state as NewProjectState]
-
-/** The prototype bar's New project control: one menu with the design and the states of the design
- * picked. A First Light state that needs a nav environment sets the nav state with it */
+/** The prototype bar's New project control: one menu with First Light's states. A state that needs
+ * a nav environment sets the nav state with it */
 export function NewProjectControls() {
-  const design = useNewProjectDesign()
   const state = useNewProjectState()
-  const name = design === "next" ? "First Light" : "Current"
-  const text = `NP: ${name}${state === "live" ? "" : ` · ${labelOf(design, state)}`}`
+  const text = `NP: ${NP_NEXT_STATES[state].label}`
 
   const pick = (id: string) => {
-    if (design === "next") {
-      const nav = (NP_NEXT_STATES[id as NextStateId] as { nav?: Parameters<typeof setNavState>[0] }).nav
-      if (nav) setNavState(nav)
-    }
-    setNewProjectState(id as AnyState)
+    const nav = (NP_NEXT_STATES[id as NextStateId] as { nav?: Parameters<typeof setNavState>[0] }).nav
+    if (nav) setNavState(nav)
+    setNewProjectState(id as NextStateId)
   }
 
   return (
@@ -68,34 +48,17 @@ export function NewProjectControls() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-[70vh] w-72 overflow-y-auto">
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Design</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={design} onValueChange={(v) => setNewProjectDesign(v as NewProjectDesign)}>
-          <DropdownMenuRadioItem value="current">Current</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="next">First Light</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
         <DropdownMenuRadioGroup value={state} onValueChange={pick}>
-          {design === "current" ? (
-            <>
-              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">State</DropdownMenuLabel>
-              {CURRENT_IDS.map((id) => (
+          {NEXT_GROUPS.map((g) => (
+            <Fragment key={g.group ?? "live"}>
+              {g.group && <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{g.group}</DropdownMenuLabel>}
+              {g.ids.map((id) => (
                 <DropdownMenuRadioItem key={id} value={id}>
-                  {NP_STATES[id]}
+                  {NP_NEXT_STATES[id].label}
                 </DropdownMenuRadioItem>
               ))}
-            </>
-          ) : (
-            NEXT_GROUPS.map((g) => (
-              <Fragment key={g.group ?? "live"}>
-                {g.group && <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{g.group}</DropdownMenuLabel>}
-                {g.ids.map((id) => (
-                  <DropdownMenuRadioItem key={id} value={id}>
-                    {NP_NEXT_STATES[id].label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </Fragment>
-            ))
-          )}
+            </Fragment>
+          ))}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

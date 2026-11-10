@@ -1,5 +1,5 @@
 import { ChevronRight, Search } from "lucide-react"
-import { useState, type ReactNode } from "react"
+import { type ReactNode } from "react"
 import { toast } from "sonner"
 
 import {
@@ -8,16 +8,12 @@ import {
   ActionCardContent,
   ActionCardDescription,
   ActionCardEyebrow,
-  ActionCardIndicator,
   ActionCardLink,
   ActionCardMedia,
   ActionCardTitle,
 } from "@/components/ui/action-card"
-import { BrandButton } from "@/components/ui/brand-button"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import { Segmented, SegmentedItem } from "@/components/ui/segmented"
 import { cn } from "@/lib/utils"
 
 import { useOpenTutorial } from "../host"
@@ -125,81 +121,5 @@ export function TutorialRow({ t, onOpened }: { t: Entry; onOpened?: () => void }
         <ActionCardDescription>{t.description}</ActionCardDescription>
       </ActionCardContent>
     </ActionCard>
-  )
-}
-
-/** A tutorial as New project's Tutorials tab draws it: the cover, the name, the description, level ·
- * framework under them, and the arrow in the corner */
-export function TutorialTile({ t, onOpened }: { t: Entry; onOpened: () => void }) {
-  const openTutorial = useOpenTutorial()
-  return (
-    <ActionCard>
-      <ActionCardMedia variant="image" className="size-14 bg-transparent">
-        <TutorialCover name={upstreamName(t)} framework={t.framework} className="size-14 rounded-lg" />
-      </ActionCardMedia>
-      <ActionCardContent>
-        <ActionCardTitle>{upstreamName(t)}</ActionCardTitle>
-        <ActionCardDescription>{t.description}</ActionCardDescription>
-        <ActionCardEyebrow className="mt-1.5">{`${t.level} · ${t.framework}`}</ActionCardEyebrow>
-      </ActionCardContent>
-      <ActionCardIndicator
-        aria-label={`Open ${upstreamName(t)}`}
-        onClick={() => {
-          onOpened()
-          openTutorial(t.slug)
-        }}
-      />
-    </ActionCard>
-  )
-}
-
-const FRAMEWORKS = [
-  { name: "Anchor", icon: "anchor.png" },
-  { name: "Native", icon: "native.png" },
-  { name: "Seahorse", icon: "seahorse.png", circle: true },
-] as const
-
-/** Start from scratch, as the product's: a framework, a name, Start. Making a project isn't in this
- * prototype, so Start says so; the choice and the name still answer */
-export function StartFromScratch() {
-  const [framework, setFramework] = useState<string>("Anchor")
-  const [name, setName] = useState("")
-  return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-panel p-5">
-      <div className="min-w-0">
-        <div className="text-control font-act text-foreground">Start from scratch</div>
-        <div className="text-caption font-read text-muted-foreground">A working starter you shape with the assistant.</div>
-      </div>
-      <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-3">
-        <span aria-hidden="true" className="text-caption leading-8 text-muted-foreground">
-          Framework
-        </span>
-        <Segmented variant="gradient" aria-label="Framework" className="justify-self-start" value={framework} onValueChange={(f) => f && setFramework(f)}>
-          {FRAMEWORKS.map((f) => (
-            <SegmentedItem key={f.name} value={f.name}>
-              <img src={`${import.meta.env.BASE_URL}prototype/frameworks/${f.icon}`} alt="" className={"circle" in f ? "size-4 rounded-full" : "size-4 rounded-[4px]"} />
-              {f.name}
-            </SegmentedItem>
-          ))}
-        </Segmented>
-        <label htmlFor="scratch-name" className="text-caption leading-8 text-muted-foreground">
-          Name
-        </label>
-        <div className="flex gap-2">
-          <Input
-            id="scratch-name"
-            aria-label="Project name"
-            className="max-w-80 min-w-0 flex-1"
-            value={name}
-            placeholder={`${framework.toLowerCase()}-project`}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && soon()}
-          />
-          <BrandButton type="button" variant="accent" className="h-8" onClick={soon}>
-            Start &rarr;
-          </BrandButton>
-        </div>
-      </div>
-    </div>
   )
 }
