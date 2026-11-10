@@ -930,7 +930,7 @@ describe("commands/deploy", () => {
       expect(closeBuffer).toHaveBeenCalled();
       expect(returns()).toEqual([2_090_000_000 - FEE]);
       expect(closeBuffer.mock.invocationCallOrder[0]).toBeLessThan(
-        send.mock.invocationCallOrder.at(-1)!
+        send.mock.invocationCallOrder.at(-1) ?? 0
       );
     });
 
