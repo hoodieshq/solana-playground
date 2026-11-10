@@ -44,6 +44,56 @@ export const addAfter = (
 };
 
 /**
+ * Wrap everything after the leading imports in an async function that is
+ * called right away whenever the word `await` appears, because top-level
+ * `await` is not available in a CommonJS module.
+ *
+ * An `await` inside a comment or a string also triggers the wrap, which is
+ * harmless. A client with a top-level `export` is not supported: the `export`
+ * would end up inside the function.
+ *
+ * @param content JS/TS code
+ * @returns the content with the wrapped code
+ */
+export const wrapTopLevelAwait = (content: string) => {
+  if (!/\bawait\b/.test(content)) return content;
+
+  const bodyStartIndex = getLeadingImportsEnd(content);
+
+  // The body is not re-indented: indenting lines inside a multi-line template
+  // literal would change its text
+  const body = content.slice(bodyStartIndex).trim();
+
+  return (
+    content.slice(0, bodyStartIndex) +
+    `\n\n(async () => {\n${body}\n})().catch((err) => {\n  console.error(err);\n  process.exitCode = 1;\n});\n`
+  );
+};
+
+/**
+ * Get the index where the run of import statements at the top of the file
+ * ends, where comments and blank lines may sit between the statements.
+ * Searching the whole file would find the word "import" in a comment of the
+ * code below the imports.
+ *
+ * @param content JS/TS code
+ * @returns the index after the last leading import, `0` if there is none
+ */
+export const getLeadingImportsEnd = (content: string) => {
+  const skipped = /(?:\s|\/\/[^\n]*|\/\*[\s\S]*?\*\/)*/y;
+  const importStatement = /import\s[\s\S]*?["'][^"'\n]*["'];?/y;
+  let end = 0;
+  let index = 0;
+  while (true) {
+    skipped.lastIndex = index;
+    index += skipped.exec(content)?.[0].length ?? 0;
+    importStatement.lastIndex = index;
+    if (!importStatement.exec(content)) return end;
+    index = end = importStatement.lastIndex;
+  }
+};
+
+/**
  * Get `Cargo.toml` dependencies from the given files.
  *
  * @param files all files
@@ -123,6 +173,7 @@ export const getJSDependencies = async (files: TupleFiles) => {
     "@types/bn.js": "^5.1.1",
     "@types/chai": "^4.3.5",
     "@types/mocha": "^10.0.1",
+    "@types/node": "^20.0.0",
     chai: "^4.3.8",
     mocha: "^10.2.0",
     prettier: "^3.0.2",
