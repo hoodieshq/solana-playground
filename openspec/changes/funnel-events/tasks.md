@@ -9,7 +9,7 @@ its rows' `pending (funnel-events)` mark in the funnel table with the slice.
 
 ## 1. The funnel check
 
-- [ ] 1.1 Extend `src/app/slice-structure.test.ts` with the funnel check of
+- [x] 1.1 Extend `src/app/slice-structure.test.ts` with the funnel check of
       [design.md](design.md): collect every name declared through
       `createTracker<...>()` under `features/`, `widgets/` and `entities/`,
       read the Events column of the table in
@@ -79,6 +79,14 @@ its rows' `pending (funnel-events)` mark in the funnel table with the slice.
       failure. Satisfies "A stage deploy whose wallet does not connect is
       counted": declare, describe and emit, with memory-provider tests
       that a stage deploy sends each event once (depends on 4.1)
+
+## 5. Fund
+
+- [x] 5.1 Send `fund_airdropped {via, cluster}` from the `airdrop` command
+      (`commands/airdrop/airdrop.ts`) once the balance rises, with `via` set
+      by each caller through `withAirdropVia` (`commands/airdrop/via.ts`).
+      Satisfies `client-v2-wallet-funding`, "A faucet airdrop is counted"
+      (HOO-2751; depends on 1.1)
 
 ## Workflow follow-up
 
