@@ -24,24 +24,26 @@ the faucet-refused toast is rendered by `PgView.setToast` and unmounts after
   user's picks or count a second opening.
 - **Base components take `onFund`.** `BaseNotEnoughSol`,
   `BaseDeployResultCard` and `BaseTxResultCard` get an optional `onFund`
-  prop and draw the button only when it is given; the connected layer
-  (`views/flow/stages/Deploy.tsx`, `TurnView`) passes
-  `() => openFundDialog(...)`. Keeps the `Base*` components free of the
-  fund-wallet slice and `features/deploy` free of another feature.
-- **The Deploy card's entry is a `CalloutAction`**, like its other actions; the tutorial cards' is an outline `Button`, like their faucet link (Design alignment, 10 Nov).
-- **The menu and the chip keep their own dialogs.** Moving them to the host
-  is a refactor with no visible change; left out to keep the diff on #490
-  small.
+  prop and draw the button only when it is given. The connected layer
+  (`views/flow/stages/Deploy.tsx`, `TutorialConversation` through
+  `TurnView`) passes `fundFor(from)(address)` for the short wallet, which is
+  `undefined` when the dialog would fund another wallet. Keeps the `Base*`
+  components free of the fund-wallet slice and `features/deploy` free of
+  another feature.
+- **The Deploy card's entry is a `CalloutAction`**, like its other actions;
+  the tutorial cards' is an outline `Button`, like their faucet link (Design
+  alignment, 10 Nov).
+- **The account menu and the wallet chip open the host's dialog too**
+  (review, 11 Nov). Each `FundDialog` keeps its own guard against a send in
+  flight or unconfirmed, so a dialog per entry could offer Send again after
+  another entry's unconfirmed send. One dialog for all of them shares it.
 
 ## Risks / Trade-offs
 
-- [Two dialogs could be open at once: the chip's and the host's] → each
-  is modal; opening one from a card closes the chip's popover first. Not
-  reachable in one click path.
 - [The dialog funds one wallet, the card may name another] → the dialog pays
   the current Playground wallet, or the first account when an extension is
   current; a deploy can be short on another. `fundFor(from)(address)` returns
-  the entry's action only when the short address is that receiver and a host
-  is mounted; otherwise the entry draws no button.
-- [The host mounts in Flow] → Flow wraps Home too, so every entry finds it;
-  `hasFundDialogHost()` only guards a render with no host, as in a unit test.
+  the entry's action only when the short address is that receiver;
+  otherwise the entry draws no button.
+- [The host mounts in Flow] → Flow wraps Home too, so every entry finds it.
+  An entry rendered with no host (a unit test) opens nothing.

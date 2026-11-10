@@ -1,23 +1,29 @@
 import { PgWallet } from "@/utils";
 
 import { receiverOf } from "./fund";
-import { hasFundDialogHost, openFundDialog } from "./open";
+import { openFundDialog } from "./open";
 import type { FundFrom } from "./telemetry";
 
 /** The receiver `deploy` pays from, read from `PgWallet` */
 export const currentReceiver = () => {
   const current = PgWallet.current;
+  // Only a Playground wallet can receive; an extension's key is absent while
+  // it disconnects, before `PgWallet` hands back to the Playground wallet
+  if (current?.isPg) {
+    return receiverOf({
+      current: {
+        isPg: true,
+        name: current.name,
+        address: current.publicKey.toBase58(),
+      },
+      firstAccount: undefined,
+    });
+  }
+  // Deriving the first account's key is the costly part: only when needed,
+  // since the short-wallet entries read this on every render
   const first = PgWallet.accounts[0];
   return receiverOf({
-    // Only a Playground wallet can receive; an extension's key is absent while
-    // it disconnects, before `PgWallet` hands back to the Playground wallet
-    current: current?.isPg
-      ? {
-          isPg: true,
-          name: current.name,
-          address: current.publicKey.toBase58(),
-        }
-      : undefined,
+    current: undefined,
     firstAccount: first
       ? {
           name: first.name,
@@ -30,12 +36,13 @@ export const currentReceiver = () => {
 /**
  * What a short-wallet entry's "Send from your wallet" does for the wallet at
  * `address`: open the Fund dialog, or `undefined` when the dialog would fund
- * another wallet (an extension is current, or another account pays) or no
- * dialog is mounted. The entry draws its button only for a function.
+ * another wallet (an extension is current, or another account pays). The
+ * entry draws its button only for a function. Read at render: an entry
+ * re-renders on a wallet switch, and the dialog names who it funds.
  */
 export const fundFor =
   (from: FundFrom) =>
   (address: string): (() => void) | undefined =>
-    hasFundDialogHost() && currentReceiver()?.address === address
+    currentReceiver()?.address === address
       ? () => openFundDialog(from)
       : undefined;

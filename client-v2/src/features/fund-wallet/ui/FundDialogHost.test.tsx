@@ -31,7 +31,7 @@ const utils = vi.hoisted(() => ({
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => undefined }));
 
-import { hasFundDialogHost, openFundDialog } from "../model/open";
+import { openFundDialog } from "../model/open";
 import FundDialogHost from "./FundDialogHost";
 
 let sent: ReturnType<typeof memoryProvider>;
@@ -86,14 +86,6 @@ describe("features/fund-wallet/ui/FundDialogHost", () => {
     await act(async () => openFundDialog("faucet-toast"));
 
     expect(opened()).toEqual([{ from: "deploy-card" }]);
-  });
-
-  it("says whether a host is there to ask", () => {
-    expect(hasFundDialogHost()).toBe(false);
-    const { unmount } = render(<FundDialogHost />);
-    expect(hasFundDialogHost()).toBe(true);
-    unmount();
-    expect(hasFundDialogHost()).toBe(false);
   });
 
   it("does nothing when asked with no host", () => {

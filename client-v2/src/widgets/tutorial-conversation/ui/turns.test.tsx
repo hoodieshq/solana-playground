@@ -1160,6 +1160,50 @@ describe("TurnView", () => {
     ).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    [
+      "offers",
+      (address: string) => (address === "Wa11et" ? vi.fn() : undefined),
+      1,
+    ],
+    ["leaves out", () => undefined, 0],
+  ] as const)(
+    "%s Send from your wallet on a run the faucet left short",
+    (_, fundFor, buttons) => {
+      const handlers = on();
+      vi.mocked(handlers.fundFor).mockImplementation(fundFor);
+      draw(
+        {
+          id: "result:s3.run:0",
+          kind: "result",
+          step: "run",
+          at: 3,
+          whole: true,
+          beatId: "s3.run",
+          act: "run",
+          result: {
+            act: "run",
+            ok: false,
+            seconds: 1,
+            reason: "no_funds",
+            message: "The airdrop failed",
+            log: "",
+            funding: { balance: 0, cost: 500_000_000, address: "Wa11et" },
+          },
+          took: 0,
+          planned: null,
+          open: true,
+        },
+        false,
+        handlers
+      );
+      expect(handlers.fundFor).toHaveBeenCalledWith("Wa11et");
+      expect(
+        screen.queryAllByRole("button", { name: "Send from your wallet" })
+      ).toHaveLength(buttons);
+    }
+  );
+
   it("leaves Send from your wallet out when the dialog would fund another wallet", () => {
     const handlers = on();
     vi.mocked(handlers.fundFor).mockReturnValue(undefined);

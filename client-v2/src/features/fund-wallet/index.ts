@@ -1,8 +1,4 @@
-export {
-  hasFundDialogHost,
-  onDidRequestFundDialog,
-  openFundDialog,
-} from "./model/open";
+export { onDidRequestFundDialog, openFundDialog } from "./model/open";
 export { fundFor } from "./model/receiver";
 export { fundTelemetry } from "./model/telemetry";
 export type { FundFrom } from "./model/telemetry";

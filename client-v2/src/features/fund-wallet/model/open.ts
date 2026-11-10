@@ -20,6 +20,3 @@ export const onDidRequestFundDialog = (listener: Listener): (() => void) => {
     listeners.delete(listener);
   };
 };
-
-/** Whether a host listens, so an entry with none draws no button */
-export const hasFundDialogHost = (): boolean => listeners.size > 0;

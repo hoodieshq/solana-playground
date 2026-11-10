@@ -54,10 +54,4 @@ describe("features/fund-wallet/model/receiver fundFor", () => {
     expect(fundFor("tutorial-card")(EXTENSION)).toBeUndefined();
     expect(fundFor("tutorial-card")(FIRST)).toBeTypeOf("function");
   });
-
-  it("offers nothing with no dialog mounted", () => {
-    utils.PgWallet.current = wallet(true, PG);
-
-    expect(fundFor("faucet-toast")(PG)).toBeUndefined();
-  });
 });

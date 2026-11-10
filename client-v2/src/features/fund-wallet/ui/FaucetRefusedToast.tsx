@@ -17,7 +17,7 @@ export interface FaucetRefusedToastProps {
  * seemed to do nothing (Natalia, 10 Nov). The link is the web faucet with
  * the wallet and amount filled in; under it, Send from your wallet opens the
  * Fund dialog, which outlives the toast. It is left out when the dialog
- * would fund another wallet, or no dialog is mounted.
+ * would fund another wallet.
  */
 const FaucetRefusedToast = ({ href, address }: FaucetRefusedToastProps) => {
   const fund = fundFor("faucet-toast")(address);

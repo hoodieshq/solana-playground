@@ -55,13 +55,4 @@ describe("features/fund-wallet/ui/FaucetRefusedToast", () => {
 
     expect(fundButton()).toBeNull();
   });
-
-  it("leaves it out when no dialog can open", () => {
-    render(<FaucetRefusedToast href={HREF} address={WALLET} />);
-
-    expect(fundButton()).toBeNull();
-    expect(
-      screen.getByRole("link", { name: "Open the web faucet" })
-    ).toBeTruthy();
-  });
 });
