@@ -68,6 +68,8 @@ export interface TurnHandlers {
   showLog: () => void;
   /** Make the Playground wallet a deploy found missing, then run it again */
   createWallet: (beatId: string) => Promise<unknown> | void;
+  /** Open the Fund dialog from a "Not enough devnet SOL" card */
+  fund: () => void;
   /** Sign in with GitHub, for a build the server refused for sign-in */
   signIn: () => Promise<unknown>;
 }
@@ -327,6 +329,7 @@ const TurnView = ({
             open={turn.open}
             onShowLog={on.showLog}
             onCreateWallet={() => on.createWallet(turn.beatId)}
+            onFund={on.fund}
           />
         );
       }
@@ -344,6 +347,7 @@ const TurnView = ({
           onRecheck={() => on.recheck(turn.beatId)}
           signedIn={signedIn}
           onSignIn={on.signIn}
+          onFund={on.fund}
         />
       );
     case "win": {

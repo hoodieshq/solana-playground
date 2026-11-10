@@ -133,6 +133,7 @@ const handlers = (): TurnHandlers => ({
   revealError: vi.fn(),
   showLog: vi.fn(),
   createWallet: vi.fn(),
+  fund: vi.fn(),
   signIn: vi.fn(),
 });
 

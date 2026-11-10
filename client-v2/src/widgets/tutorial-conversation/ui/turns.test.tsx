@@ -400,7 +400,13 @@ describe("BaseResultCard", () => {
       open = false,
       onRecheck = vi.fn(),
       exists,
-    }: { open?: boolean; onRecheck?: () => void; exists?: string } = {}
+      onFund,
+    }: {
+      open?: boolean;
+      onRecheck?: () => void;
+      exists?: string;
+      onFund?: () => void;
+    } = {}
   ) =>
     render(
       // The app's root provides the tooltip Copy signature carries
@@ -417,9 +423,36 @@ describe("BaseResultCard", () => {
           onRecheck={onRecheck}
           signedIn={false}
           onSignIn={vi.fn()}
+          onFund={onFund}
         />
       </TooltipProvider>
     );
+
+  it("offers Send from your wallet on a run the faucet left short", () => {
+    const onFund = vi.fn();
+    const { container } = txCard(
+      {
+        act: "run",
+        ok: false,
+        seconds: 1,
+        reason: "no_funds",
+        message: "The airdrop failed",
+        log: "",
+        funding: { balance: 0, cost: 500_000_000, address: "Wa11et" },
+      },
+      { onFund }
+    );
+    const labels = Array.from(container.querySelectorAll("a, button")).map(
+      (el) => el.textContent
+    );
+    expect(labels.indexOf("Send from your wallet")).toBe(
+      labels.indexOf("Open the web faucet") + 1
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Send from your wallet" })
+    );
+    expect(onFund).toHaveBeenCalledOnce();
+  });
 
   it("reads as a pass for a call refused because the player already exists", () => {
     const { container } = txCard(
@@ -999,6 +1032,7 @@ describe("TurnView", () => {
     revealError: vi.fn(),
     showLog: vi.fn(),
     createWallet: vi.fn(),
+    fund: vi.fn(),
     signIn: vi.fn(),
   });
   const draw = (turn: Turn, live: boolean, handlers = on()) =>
@@ -1087,6 +1121,40 @@ describe("TurnView", () => {
       screen.getByRole("button", { name: /Create wallet/ })
     );
     expect(handlers.createWallet).toHaveBeenCalledWith("s2.deploy");
+  });
+
+  it("asks for the Fund dialog from a deploy the wallet was short for", async () => {
+    const handlers = on();
+    draw(
+      {
+        id: "result:s2.deploy:0",
+        kind: "result",
+        step: "deploy",
+        at: 2,
+        whole: true,
+        beatId: "s2.deploy",
+        act: "deploy",
+        result: {
+          act: "deploy",
+          ok: false,
+          seconds: 2,
+          reason: "no_funds",
+          message: "airdrop refused",
+          balance: 0,
+          cost: 1_820_000_000,
+          address: "Wa11et",
+        },
+        took: 0,
+        planned: null,
+        open: true,
+      },
+      false,
+      handlers
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Send from your wallet" })
+    );
+    expect(handlers.fund).toHaveBeenCalledOnce();
   });
 
   it("opens the terminal from a landed deploy's Log", async () => {
@@ -1618,6 +1686,7 @@ describe("TurnView's last win", () => {
           revealError: vi.fn(),
           showLog: vi.fn(),
           createWallet: vi.fn(),
+          fund: vi.fn(),
           signIn: vi.fn(),
         }}
       />
@@ -1734,6 +1803,7 @@ describe("TurnView's chip answer", () => {
     revealError: vi.fn(),
     showLog: vi.fn(),
     createWallet: vi.fn(),
+    fund: vi.fn(),
     signIn: vi.fn(),
   });
   const reply = (follow: Follow | null): Turn => ({
