@@ -10,6 +10,18 @@ export type FundCluster =
   | "localnet"
   | "playnet";
 
+/**
+ * What asked the faucet for an airdrop: the `airdrop` command typed in the
+ * terminal, the wallet menu's Airdrop item, the Interact stage's "needs SOL"
+ * callout, a deploy's top-up, or the automatic airdrop on a low balance
+ */
+export type AirdropVia =
+  | "terminal"
+  | "wallet"
+  | "stage"
+  | "deploy"
+  | "automatic";
+
 type FundEvents = {
   /** The Fund dialog opened; `via` is the control that opened it. */
   fund_dialog_opened: { via: "account-menu" };
@@ -20,6 +32,11 @@ type FundEvents = {
   fund_wallet_connected: { wallet: string };
   /** A transfer to the Playground wallet was confirmed on `cluster`. */
   fund_sent: { cluster: FundCluster };
+  /**
+   * A faucet airdrop arrived in the Playground wallet on `cluster`; `via` is
+   * what asked for it. No amount or address is sent.
+   */
+  fund_airdropped: { via: AirdropVia; cluster: FundCluster };
   /**
    * Connecting the paying wallet or sending failed; `reason` is `rejected`
    * when the user said no in the wallet. No amount or address is sent.
