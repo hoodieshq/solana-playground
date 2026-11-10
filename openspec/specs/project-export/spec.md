@@ -156,31 +156,33 @@ secret key. The README SHALL name both variables and their defaults.
 
 ### Requirement: The export reports what it did
 
-The `project-export` slice SHALL send these events:
+The `project-export` slice SHALL send `export_convert_failed`, when
+"Convert and export" could not convert and the dialog falls back to the
+plain zip, with `profile` (`anchor`, `native`, `seahorse`, `typescript`;
+`unknown` when no framework recognised the program) and `reason`
+(`unknown-framework`, or `error` for any other failure, which is also
+reported).
 
-- `export_downloaded`, when a zip download starts, with `profile`
-  (`anchor`, `native`, `seahorse`, `typescript`, or `as-is` for an export
-  without changes or a fallback) and `files` (the number of files in the
-  zip).
-- `export_convert_failed`, when "Convert and export" could not convert and
-  the dialog falls back to the plain zip, with `profile` (as above, without
-  `as-is`; `unknown` when no framework recognised the program) and
-  `reason` (`unknown-framework`, or `error` for any other failure, which is
-  also reported).
-- `export_failed`, when the zip did not download, with `profile` (as in
-  `export_downloaded`: the conversion that made it, or `as-is`). A converted
-  zip that did not download SHALL NOT be retried as is.
+The zip's outcome is counted where the export started, not in this slice:
+`exportAsIs` SHALL resolve with the number of files in the zip, and
+`exportConverted` with the README, the conversion's `profile` and that
+count, and the caller sends `project_exported` and `project_export_failed`
+through `features/project-files` (spec `client-v2-project-files`, "An
+export is counted with where it started" and "The settings page's export is
+counted"). A zip that did not download SHALL fail with `isDownloadFailure`,
+naming the `profile` of the zip, and a converted zip that did not download
+SHALL NOT be retried as is.
 
 #### Scenario: A TypeScript export is counted (manual)
 
 - **WHEN** the user converts and exports a project with no program holding
   two files
-- **THEN** `export_downloaded` is sent with `profile` `typescript` and
-  `files` 7 (the two files and the five the profile adds)
+- **THEN** `project_exported` is sent with `via` `dialog`, `profile`
+  `typescript` and `files` 7 (the two files and the five the profile adds)
 
 #### Scenario: An unknown framework falls back (manual)
 
 - **WHEN** "Convert and export" meets a program no framework recognises
 - **THEN** `export_convert_failed` is sent with `profile` `unknown` and
-  `reason` `unknown-framework`, then `export_downloaded` with `profile`
-  `as-is`
+  `reason` `unknown-framework`, then `project_exported` once with `profile`
+  `as-is` and `converted` `false`

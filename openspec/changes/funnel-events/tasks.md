@@ -43,7 +43,7 @@ its rows' `pending (funnel-events)` mark in the funnel table with the slice.
       opened from a GitHub link is counted": declare, describe and emit,
       with memory-provider tests; clear the GitHub link row's mark (depends
       on 2.1)
-- [ ] 2.4 Send the export events from `convertAndExport` and
+- [x] 2.4 Send the export events from `convertAndExport` and
       `exportWithoutChanges` (`ExportWorkspace.tsx`) and from `Project`
       (`widgets/settings-page/ui/SettingsPage.tsx`). Satisfies "An export is
       counted with where it started" and "The settings page's export is
