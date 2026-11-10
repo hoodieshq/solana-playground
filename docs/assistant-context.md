@@ -27,7 +27,7 @@ code, propose a patch you apply with one click, then build and deploy.
 
 The distinction that matters: the expensive parts already exist here.
 Server-side compilation, deploy to devnet, a test panel generated from the
-program's IDL. An assistant in this environment can *act*, not merely advise.
+program's IDL. An assistant in this environment can _act_, not merely advise.
 
 ## Why it exists
 
@@ -44,7 +44,7 @@ guidance, no connection to the ecosystem's own documentation tooling.
 Three focus areas, in priority order:
 
 1. **AI assistant inside the environment** — a chat module beside the editor that
-   shares project context and can act on it. *Shipped.*
+   shares project context and can act on it. _Shipped._
 2. **Real wallet support** — standard wallet adapters (Phantom, Solflare,
    Backpack) alongside the existing in-browser keypair.
 3. **Modern, responsive interface** — current visual language, works on tablet.
@@ -249,7 +249,7 @@ needs an Anthropic key: the Solana Developer MCP is reached through a gateway
 we deploy with the client, and its tools can be called from a console with no
 model connected at all. The `tools/list` and `tools/call` round trips are
 verified against the live server; what has not been exercised is a full turn
-where a *model* chooses to call one, since that needs a key.
+where a _model_ chooses to call one, since that needs a key.
 
 Not started: real wallet adapters.
 
@@ -327,6 +327,39 @@ Honesty rule for the demo — never present a mocked step as working.
   provider as a header on every request, never through our server, and is
   never logged or synced. Project code runs in the same origin and could read
   it while the tab is open.
+
+## Getting SOL
+
+Deploys, runs and calls on devnet cost SOL, paid by the user's Playground
+wallet. When someone has none, or shows you an airdrop error, tell them the
+ways below. You explain them; you have no tool that airdrops or sends SOL, so
+never say you did.
+
+- **Airdrop.** The `airdrop` terminal command, or Get SOL on the wallet chip
+  in the console bar, asks the network's faucet (devnet gives up to 5 SOL at
+  once). Automatic airdrop is off by default. On devnet and testnet it needs a
+  GitHub sign-in first.
+- **The web faucet, when the airdrop is refused.** Every refusal, a 429, the
+  faucet's daily limit or any other failure, says so and gives these steps
+  with a link filled in:
+
+  1. Open the web faucet and sign in with GitHub. It asks for a GitHub
+     account with a public repo: with none, fork solana-playground there.
+  2. Confirm the airdrop. The address and the amount are filled in.
+  3. Come back to Playground: the SOL shows in the wallet's balance, or press
+     Try again on the card that asked.
+
+  The link is
+  `https://faucet.solana.com/?walletAddress=<address>&amount=<0.5|1|2.5|5>&cluster=devnet`;
+  the faucet ignores any other amount. The web faucet keeps its own limit,
+  apart from the RPC's, so it often works when the airdrop did not.
+
+- **Fund from a wallet.** "Send from your wallet" (the wallet chip, the
+  account menu's Fund, the "Not enough SOL" cards) opens the Fund dialog,
+  which sends SOL from a browser wallet such as Phantom or Solflare to the
+  Playground wallet in one approved transfer.
+
+Mainnet has no faucet: there the wallet needs real SOL.
 
 ## Answering questions about this project
 

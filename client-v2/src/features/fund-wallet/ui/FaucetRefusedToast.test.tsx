@@ -55,4 +55,14 @@ describe("features/fund-wallet/ui/FaucetRefusedToast", () => {
 
     expect(fundButton()).toBeNull();
   });
+
+  it("says the faucet is at its limit, or that it did not send SOL", () => {
+    const { unmount } = render(
+      <FaucetRefusedToast href={HREF} address={WALLET} limited />
+    );
+    expect(screen.getByText("The faucet is at its limit.")).toBeTruthy();
+    unmount();
+    render(<FaucetRefusedToast href={HREF} address={WALLET} limited={false} />);
+    expect(screen.getByText("The faucet did not send SOL.")).toBeTruthy();
+  });
 });

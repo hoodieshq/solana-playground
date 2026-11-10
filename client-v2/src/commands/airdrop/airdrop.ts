@@ -11,7 +11,7 @@ import { askAgain } from "../../utils/ask-again";
 import { checkWallet } from "../checks";
 import { createArgs, createCmd } from "../create";
 import { COULD_NOT_READ_NETWORK, NO_FAUCET } from "./no-faucet";
-import { isRateLimited, rateLimitNote, receivedLine } from "./report";
+import { AirdropRefusedError, receivedLine, refusedNote } from "./report";
 import { isAirdropSignInGated } from "./sign-in-gate";
 
 /**
@@ -77,8 +77,10 @@ export const airdrop = createCmd({
     const connection = PgConnection.current;
     const walletPk = PgWallet.current!.publicKey;
 
-    // A rate limit on any of the RPC's answers is not the end of the road:
-    // the web faucet keeps a limit of its own. Point to it, then fail as before
+    // No answer here is the end of the road: the web faucet keeps a limit of
+    // its own and asks nothing of this RPC. Point to it on any refusal, then
+    // fail as before, with the same message, marked as a refusal so a button
+    // that asked can show the same way round
     try {
       // Airdrop tx is sometimes successful even when the balance hasn't changed.
       // Check the balance before and after instead of only confirming the tx
@@ -127,18 +129,16 @@ export const airdrop = createCmd({
         PgTerminal.success(receivedLine(amount, afterBalance - beforeBalance))
       );
     } catch (error) {
-      if (isRateLimited(error)) {
-        PgTerminal.println(
-          PgTerminal.info(
-            rateLimitNote({
-              walletAddress: walletPk.toBase58(),
-              amount,
-              cluster,
-            })
-          )
-        );
-      }
-      throw error;
+      PgTerminal.println(
+        PgTerminal.info(
+          refusedNote(error, {
+            walletAddress: walletPk.toBase58(),
+            amount,
+            cluster,
+          })
+        )
+      );
+      throw new AirdropRefusedError(error);
     }
   },
 });

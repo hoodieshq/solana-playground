@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { isRateLimited } from "@/commands/airdrop/report";
+import { isAirdropRefused, isRateLimited } from "@/commands/airdrop/report";
 import { isAirdropSignInGated } from "@/commands/airdrop/sign-in-gate";
 import { useAirdrop } from "@/components/Wallet/hooks";
 import { useBalance, useRenderOnChange, useWallet } from "@/hooks";
@@ -38,6 +38,7 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
   const { airdrop, faucet } = useAirdrop();
   const [state, setState] = useState<AirdropState>("idle");
   const [received, setReceived] = useState<number | undefined>();
+  const [refusedFor, setRefusedFor] = useState<"limit" | "other">("limit");
   // The balance an ask or the web faucet started from, to tell when SOL came
   const from = useRef<number | undefined>(undefined);
 
@@ -71,10 +72,16 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
       fundTelemetry.track("fund_airdrop_received", { via: "faucet" });
       setState("received");
     } catch (error) {
-      if (isRateLimited(error)) {
-        // The popover says it, with the way round; no toast on top
+      if (isAirdropRefused(error)) {
+        // The popover says it, with the way round; no toast on top. A
+        // refusal other than the limit is still logged, by the reporter
+        const limited = isRateLimited(error);
         markFailureShown(error);
-        fundTelemetry.track("fund_airdrop_refused", { reason: "rate-limited" });
+        fundTelemetry.track("fund_airdrop_refused", {
+          reason: limited ? "rate-limited" : "failed",
+        });
+        if (!limited) reportButtonFailure("airdrop")(error);
+        setRefusedFor(limited ? "limit" : "other");
         setState("refused");
         return;
       }
@@ -103,6 +110,7 @@ const WalletChip = ({ signedOut, isSignInFailure }: WalletChipProps) => {
           "Come back here. The balance updates by itself"
         )}
         state={state}
+        refusedFor={refusedFor}
         received={received}
         signInFirst={signedOut && isAirdropSignInGated(cluster)}
         onOpenChange={(open) => {

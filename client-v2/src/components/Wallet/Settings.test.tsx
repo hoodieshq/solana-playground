@@ -8,7 +8,9 @@ import {
   resetLogger,
 } from "@/shared/lib/logger";
 
+import { AirdropRefusedError } from "../../commands/airdrop/report";
 import { toggleWallet } from "../../commands/connect/connect-wallet";
+import { FaucetRefusedToast } from "../../features/fund-wallet";
 import { PgView, PgWallet } from "../../utils";
 import { KeypairFileError } from "../../utils/wallet/keypair-file";
 import type { Faucet } from "./hooks";
@@ -35,6 +37,7 @@ vi.mock("../../utils", () => ({
     import: vi.fn(),
     export: vi.fn(),
   },
+  PgConnection: { cluster: "devnet", getAirdropAmount: () => 5 },
 }));
 
 vi.mock("../../hooks", () => ({ useCopy: () => [false, vi.fn()] }));
@@ -202,6 +205,33 @@ describe("wallet Settings menu", () => {
       ])
     );
   });
+
+  it.each([
+    ["429 Too Many Requests", true, []],
+    ["fetch failed", false, ["airdrop"]],
+  ])(
+    "shows the web faucet's way round for a refusal (%s)",
+    async (message, limited, logged) => {
+      const failure = new AirdropRefusedError(new Error(message));
+      airdropHook.faucet = "available";
+      airdropHook.airdrop.mockRejectedValueOnce(failure);
+      render(<Host />);
+      await openMenu();
+
+      fireEvent.click(screen.getByRole("menuitem", { name: /Airdrop/ }));
+
+      await waitFor(() => expect(PgView.setToast).toHaveBeenCalled());
+      const [toast, props] = vi.mocked(PgView.setToast).mock.calls[0];
+      expect(toast).toBe(FaucetRefusedToast);
+      expect(props?.componentProps).toMatchObject({
+        limited,
+        address: "address",
+      });
+      // Logged without a second toast; the limit is expected and not logged
+      expect(told.map((t) => t.action)).toEqual(logged);
+      expect(told.every((t) => t.shown)).toBe(true);
+    }
+  );
 
   it.each([
     [false, "connect Phantom"],

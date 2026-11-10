@@ -7,6 +7,17 @@ const FAUCET_LIMIT = /\b429\b|too many requests|rate limit|airdrop limit/i;
  */
 export const isFaucetLimit = (message: string) => FAUCET_LIMIT.test(message);
 
+/**
+ * Why a tutorial's airdrop brought no SOL, in words true to the cause (Design
+ * alignment, 7 Nov). No "try again in a minute": the faucet's limit rarely
+ * lifts that soon, so the steps under it send the learner to the web faucet
+ * instead (10 Nov)
+ */
+export const airdropCause = (message: string) =>
+  isFaucetLimit(message)
+    ? "The devnet faucet is at its limit."
+    : "The airdrop didn't go through.";
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 

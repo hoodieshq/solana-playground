@@ -33,6 +33,8 @@ export interface BaseWalletChipProps {
   /** Steps through the web faucet, shown once the faucet refused */
   faucetSteps: string[];
   state: AirdropState;
+  /** What the `refused` state names: the faucet's limit (default), or any other refusal */
+  refusedFor?: "limit" | "other";
   /** What `received` adds, in SOL; omitted when the rise is unknown */
   received?: number;
   /** A public faucet asks for a GitHub sign-in first, and nobody is in */
@@ -67,6 +69,7 @@ const BaseWalletChip = ({
   faucetHref,
   faucetSteps,
   state,
+  refusedFor = "limit",
   received,
   signInFirst,
   onOpenChange,
@@ -139,7 +142,9 @@ const BaseWalletChip = ({
           {state === "refused" && (
             <>
               <p className="text-[0.8125rem] font-act text-foreground">
-                The faucet is at its limit
+                {refusedFor === "limit"
+                  ? "The faucet is at its limit"
+                  : "The faucet did not send SOL"}
               </p>
               <ol
                 aria-label="Get SOL from the web faucet"
