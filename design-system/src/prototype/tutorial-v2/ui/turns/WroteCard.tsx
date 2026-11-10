@@ -78,7 +78,10 @@ export function WroteCard({ turn, phone = false }: { turn: WroteTurn; phone?: bo
                 </span>
               ))}
             </span>
-            <span className="block min-w-0 flex-1 overflow-x-auto pr-3 pl-2">
+            {/* A line too long for the column fades out over its last 32 instead of being cut at the card's
+                edge: cut, a comma stood flush against the border and read as broken (Almaz, 10 Nov). The 32
+                of room at the end lets the line's last character come clear when it's scrolled to */}
+            <span className="block min-w-0 flex-1 overflow-x-auto pr-8 pl-2 [mask-image:linear-gradient(to_right,#000_calc(100%-2rem),transparent)]">
               {shown.map((n) => {
                 const k = turn.lines.indexOf(n)
                 return (
