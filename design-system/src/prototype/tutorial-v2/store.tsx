@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from "react"
 
+import { assistantFaucetNote, readAirdrop, SHORT_SOL } from "./airdrop"
 import { CHANGE_CHIP, CHANGE_TEXT, STUCK, actionWord, answerFor, stuckAnswer, wordFits, type Context } from "./answers"
 import { checkOwn, fixOf, holds, insertBlock, msgLine, sameCode, straightQuotes, typedKey, uncomment, withId, withOwnText, type OwnCheck } from "./check"
 import {
@@ -15,7 +16,6 @@ import {
   callLog,
   clientLog,
   clientOf,
-  DEMO_FAUCET,
   deployLog,
   faucetLog,
   fundLog,
@@ -101,6 +101,8 @@ export type Turn = TurnBase &
         src?: string
         /** A deploy that stopped before it began: the wallet was short and the faucet said no */
         funding?: boolean
+        /** What that faucet sent: 0 at its limit, or a short airdrop's SOL */
+        got?: number
         /** The arguments a Call panel call went with, so the panel can tell when its fields moved on */
         sent?: Record<string, string>
         /** A build of a fix typed by hand, from the open "Fix it" question: it opens on the compiler's
@@ -159,7 +161,7 @@ export type State = {
   tabs: string[]
   /** The Playground wallet has had its airdrop: only the first deploy funds it first */
   funded: boolean
-  /** The faucet's limit was met once (`?demo=faucet`): the next airdrop goes through */
+  /** The faucet refused or sent too little once (the bar's Airdrop): the next airdrop goes through */
   faucetTried: boolean
   /** Files the learner opened, the latest first: the phone's file sheet lists them as Recent */
   recent: string[]
@@ -655,14 +657,16 @@ function fail(s: State, act: Act, c: Extract<OwnCheck, { ok: false }>, file: str
   }
 }
 
-/** The faucet met its limit before a first deploy: the card says so, with the wallet's address and the
- * faucet, and the deploy comes up again under it as Try again. The next airdrop goes through */
-function faucetLimit(s: State, took: number): State {
+/** The faucet met its limit before a first deploy, or sent less than asked (the bar's Airdrop): the card
+ * says so and links the web faucet, the assistant says the same, and the deploy comes up again under it
+ * as Try again. The next airdrop goes through */
+function faucetLimit(s: State, took: number, got: number): State {
   const run = s.run!
   const turn = run.turn !== null ? s.thread.find((t) => t.id === run.turn) : undefined
   let next: State = run.turn !== null ? patch(s, run.turn, { state: "done", took, failed: true, faucet: true } as Partial<Turn>) : s
-  const log = faucetLog()
-  next = now(next, { kind: "result", step: s.step, act: run.act as Act, ok: false, log, funding: true, took })
+  const log = faucetLog(got)
+  next = now(next, { kind: "result", step: s.step, act: run.act as Act, ok: false, log, funding: true, got, took })
+  next = now(next, { kind: "say", step: s.step, text: assistantFaucetNote(got) })
   if (turn && turn.kind === "act") next = now(next, { kind: "act", step: s.step, beat: turn.beat, act: turn.act, state: "live", retry: true })
   return { ...next, phase: "idle", run: null, log, terminal: true, faucetTried: true }
 }
@@ -696,7 +700,8 @@ function stage(s: State): State {
   const done = run.stages[run.stage]
   // The airdrop before a first deploy: the faucet can say no, and then nothing is deployed
   if (done === FUNDING) {
-    if (DEMO_FAUCET && !s.faucetTried) return faucetLimit(s, took)
+    const airdrop = readAirdrop()
+    if (airdrop !== "works" && !s.faucetTried) return faucetLimit(s, took, airdrop === "partial" ? SHORT_SOL : 0)
     s = { ...s, funded: true }
   }
   // The build half of a deploy: checked before anything is written to devnet

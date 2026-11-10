@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Check, Compass, Database, FileQuestion, Hammer, ListTree, Play, Rocket, Send, SlidersHorizontal, type LucideIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -32,6 +33,7 @@ import {
   type Act,
   type Project,
 } from "../../store"
+import { IdlGuide } from "./IdlGuide"
 import { QUIET } from "./parts"
 import { QuotaCard, QuotaLine } from "./Quota"
 import { RefCallCard, StopCard } from "./Read"
@@ -74,50 +76,7 @@ export function ActCard({ p, act, retry = false }: { p: Project; act: Act; retry
   const cost = metaOf(p)?.cost ?? 0.48
   const Icon = ICON[act]
 
-  if (act === "no-idl") {
-    const client = p.framework === "native" && "client/client.ts" in p.files
-    return (
-      <RunCard data-live-card orientation="vertical" state={running ? "running" : "idle"} className="mt-2">
-        <RunCardHeader>
-          <RunCardIcon>
-            <Icon />
-          </RunCardIcon>
-          <RunCardContent>
-            <RunCardTitle>{client ? "No IDL for this program" : "No call form for this program"}</RunCardTitle>
-            <RunCardDescription>
-              {running
-                ? "Running client.ts"
-                : client
-                  ? "The call form is built from an IDL, the list of a program's instructions. Native programs don't make one when they build."
-                  : "The call form is built from an IDL, a list of a program's instructions. Native programs don't make one when they build. Upload one made with Shank or Codama."}
-            </RunCardDescription>
-          </RunCardContent>
-        </RunCardHeader>
-        <div className="flex flex-wrap gap-2 pl-11">
-          {client ? (
-            <>
-              <RunCardAction className={ACTION_FILL} onClick={() => runClient(id)}>
-                Run client.ts
-              </RunCardAction>
-              <Button variant="ghost" disabled={running} className={cn(ACTION, ACTION_SOFT)} onClick={() => uploadIdl(id)}>
-                Upload IDL
-              </Button>
-            </>
-          ) : (
-            <>
-              <RunCardAction className={ACTION_FILL} onClick={() => uploadIdl(id)}>
-                Upload IDL
-              </RunCardAction>
-              <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => ask(id, "What is an IDL?")}>
-                Ask the assistant
-              </Button>
-            </>
-          )}
-        </div>
-        {running && <RunCardProgress stage={0} stages={1} duration={CALL_MS} />}
-      </RunCard>
-    )
-  }
+  if (act === "no-idl") return <NoIdlCard p={p} running={running} />
 
   const ix = firstIx(p) ?? ""
   const ixDef = ixsOf(p).find((i) => i.name === ix)
@@ -257,6 +216,70 @@ export function ActCard({ p, act, retry = false }: { p: Project; act: Act; retry
         button
       )}
       {progress}
+    </RunCard>
+  )
+}
+
+/** No IDL: a native program makes none, so it calls through client.ts or an uploaded one; an Anchor
+ * program on the new build server makes none either, so the card's primary is the guide to build it
+ * locally (the product's "Build the IDL locally"), and Upload IDL beside it */
+function NoIdlCard({ p, running }: { p: Project; running: boolean }) {
+  const [guide, setGuide] = useState(false)
+  const id = p.id
+  const Icon = ICON["no-idl"]
+  const client = p.framework === "native" && "client/client.ts" in p.files
+  const anchor = p.framework !== "native"
+  return (
+    <RunCard data-live-card orientation="vertical" state={running ? "running" : "idle"} className="mt-2">
+      <RunCardHeader>
+        <RunCardIcon>
+          <Icon />
+        </RunCardIcon>
+        <RunCardContent>
+          <RunCardTitle>{anchor ? "No IDL yet" : client ? "No IDL for this program" : "No call form for this program"}</RunCardTitle>
+          <RunCardDescription>
+            {running
+              ? "Running client.ts"
+              : anchor
+                ? "The call form is built from an IDL, the list of a program's instructions. Playground's build server doesn't make one yet: build it on your machine, then upload it."
+                : client
+                  ? "The call form is built from an IDL, the list of a program's instructions. Native programs don't make one when they build."
+                  : "The call form is built from an IDL, a list of a program's instructions. Native programs don't make one when they build. Upload one made with Shank or Codama."}
+          </RunCardDescription>
+        </RunCardContent>
+      </RunCardHeader>
+      <div className="flex flex-wrap gap-2 pl-11">
+        {anchor ? (
+          <>
+            <RunCardAction className={ACTION_FILL} onClick={() => setGuide(true)}>
+              Build the IDL locally
+            </RunCardAction>
+            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => uploadIdl(id)}>
+              Upload IDL
+            </Button>
+          </>
+        ) : client ? (
+          <>
+            <RunCardAction className={ACTION_FILL} onClick={() => runClient(id)}>
+              Run client.ts
+            </RunCardAction>
+            <Button variant="ghost" disabled={running} className={cn(ACTION, ACTION_SOFT)} onClick={() => uploadIdl(id)}>
+              Upload IDL
+            </Button>
+          </>
+        ) : (
+          <>
+            <RunCardAction className={ACTION_FILL} onClick={() => uploadIdl(id)}>
+              Upload IDL
+            </RunCardAction>
+            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => ask(id, "What is an IDL?")}>
+              Ask the assistant
+            </Button>
+          </>
+        )}
+      </div>
+      {running && <RunCardProgress stage={0} stages={1} duration={CALL_MS} />}
+      {anchor && <IdlGuide p={p} open={guide} onOpenChange={setGuide} />}
     </RunCard>
   )
 }

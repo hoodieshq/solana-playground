@@ -72,7 +72,9 @@ export function TerminalStatus() {
         ? "Ready"
         : !r.ok
           ? r.funding
-            ? "Not enough devnet SOL · the faucet is at its limit"
+            ? r.got
+              ? `Not enough devnet SOL · the faucet sent ${r.got} SOL`
+              : "Not enough devnet SOL · the faucet is at its limit"
             : r.tx
               ? refused(r.tx)
               : `${r.act === "run" ? "Run" : "Build"} failed · line ${r.fail?.line ?? 1}`

@@ -190,8 +190,18 @@ export function MoveCard({ turn, phone = false }: { turn: ActTurn; phone?: boole
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{beat.title}</span>
-          <span role={run ? "status" : undefined} className="text-[0.875rem] leading-5 text-muted-foreground">
-            {context}
+          {/* The running stage and the card's line share one cell, the hidden one keeping its room, so
+              the head is as tall as the longer of the two: a one line stage over a two line context made
+              the whole card jump on every move (Almaz, 10 Nov) */}
+          <span className="grid text-[0.875rem] leading-5 text-muted-foreground">
+            <span role={run ? "status" : undefined} className="[grid-area:1/1]">
+              {context}
+            </span>
+            {run && (
+              <span aria-hidden="true" className="invisible [grid-area:1/1]">
+                <Prose text={beat.context} {...READ_CODE} small />
+              </span>
+            )}
           </span>
         </span>
       </div>

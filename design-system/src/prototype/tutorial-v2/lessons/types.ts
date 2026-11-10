@@ -238,7 +238,9 @@ export type RecSend = { tx: Tx; records: Rec[]; refused?: string; out?: string[]
 export type TokenView = {
   mint: { name: string; symbol?: string; key: string; supply: number; decimals: number; authority: string; metadata: boolean } | null
   holders: { id: string; label: string; key: string; owner: string; amount: number }[]
-  strip?: { label: string; key: string; meter?: { value: number; max: number }; lines: string[] }
+  /** The strip's own number: `value` on the right as the card's other numbers stand, `note` under it,
+   * `lines` under the whole row */
+  strip?: { label: string; key: string; value?: string; note?: string; meter?: { value: number; max: number }; lines: string[] }
 }
 
 /** One chop, as its card lists it: what came back, and the account after it */

@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from "react"
-import { Check, ChevronDown, CircleX, Copy, ExternalLink, Eye } from "lucide-react"
-import { toast } from "sonner"
+import { Check, ChevronDown, CircleX, ExternalLink, Eye } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-import { CLIENT, DEPLOY_COST, FAUCET_URL, LESSON, LIB, PROGRAM_ID, STEPS, TX_FEE, WALLET, programLog, shortKey, type Tx } from "../../data"
+import { shortfall, WEB_FAUCET_LINE, webFaucet } from "../../airdrop"
+import { CLIENT, DEPLOY_COST, LESSON, LIB, PROGRAM_ID, STEPS, TX_FEE, WALLET, programLog, shortKey, type Tx } from "../../data"
 import { useStore, type Turn } from "../../store"
 import { BuildLog } from "../BuildLog"
 import { DeployDetails, PlainDetails } from "../DeployDetails"
@@ -40,12 +40,6 @@ function errorMeta(t: ResultTurn) {
   const code = t.log.find((l) => /^error\[/.test(l))?.match(/\[(E\d+)\]/)?.[1]
   return [code, t.fail ? `line ${t.fail.line}` : null].filter(Boolean).join(" · ")
 }
-
-const copy = (text: string, what: string) =>
-  navigator.clipboard
-    ?.writeText(text)
-    .then(() => toast(`${what} copied`))
-    .catch(() => toast(`Couldn't copy the ${what.toLowerCase()}`))
 
 /** A status row's words: the title 16/24 at 500, the meta 14/18 in grey, on one baseline. At 20 against
  * 13, centred, the two read nearly one size and their baselines missed each other. The row centres the
@@ -205,8 +199,9 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
     return tx.error ? <Journal>{row}</Journal> : row
   }
 
-  // A first deploy the faucet stopped: what's short, the wallet to top up, and the faucet. The deploy
-  // itself comes back under it as Try again, the one primary
+  // A first deploy the faucet stopped, at its limit or with a short airdrop: what happened, and the web
+  // faucet with the wallet and the amount filled in, so nothing is typed or copied (the team call, 10 Nov).
+  // The deploy itself comes back under it as Try again, the one primary
   if (turn.funding)
     return (
       <div role="status" className="overflow-hidden rounded-panel border border-error/40 bg-(--card-ground)">
@@ -214,32 +209,18 @@ export function ResultCard({ turn, latest, phone = false }: { turn: ResultTurn; 
           <CircleX className="size-4 shrink-0 text-error" />
           <span className={STATUS_TITLE}>Not enough devnet SOL</span>
         </div>
-        <div className="flex flex-col gap-4 border-t border-error/20 px-4 py-4">
-          <p className={READ}>
-            Your wallet has 0 SOL, and this deploy needs about {DEPLOY_COST}. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself.
-          </p>
-          <div className="flex items-center gap-3 text-caption">
-            <span className="shrink-0 text-muted-foreground">Your wallet</span>
-            <code title={WALLET} className="min-w-0 flex-1 truncate font-mono text-code text-foreground">
-              {shortKey(WALLET)}
-            </code>
-            <button
-              type="button"
-              onClick={() => copy(WALLET, "Address")}
-              className={cn("-my-3 flex shrink-0 items-center gap-1 rounded-sm py-3 text-muted-foreground hover:text-foreground", FOCUS, phone && "min-h-11 min-w-11 justify-center")}
-            >
-              <Copy className="size-3.5" aria-hidden="true" />
-              Copy
-            </button>
-          </div>
-          <div className={cn("flex", phone && PHONE_STACK)}>
-            <Button asChild variant="ghost" className={cn(ACTION, ACTION_SOFT, phone && PHONE_CTA)}>
-              <a href={FAUCET_URL} target="_blank" rel="noreferrer">
-                Open faucet
-                <ExternalLink className="size-4" aria-hidden="true" />
-              </a>
-            </Button>
-          </div>
+        <div className="flex flex-col gap-2 border-t border-error/20 px-4 py-4">
+          <p className={READ}>{shortfall(turn.got ?? 0, DEPLOY_COST)}</p>
+          <p className={cn(READ, "text-muted-foreground")}>{WEB_FAUCET_LINE}</p>
+        </div>
+        {/* The card's action on a grey foot, as every card in the chat has them (Almaz, 10 Nov) */}
+        <div className={cn("flex border-t border-error/20 bg-surface-panel px-4 py-2", phone && PHONE_STACK)}>
+          <Button asChild variant="ghost" className={cn(ACTION, ACTION_SOFT, phone && PHONE_CTA)}>
+            <a href={webFaucet(WALLET)} target="_blank" rel="noreferrer">
+              Open the web faucet
+              <ExternalLink className="size-4" aria-hidden="true" />
+            </a>
+          </Button>
         </div>
       </div>
     )

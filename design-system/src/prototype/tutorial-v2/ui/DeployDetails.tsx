@@ -25,8 +25,23 @@ const CHEVRON = "size-3.5 shrink-0 text-muted-foreground transition-transform du
  * with the one key it names in a code chip, then one row of quiet controls (copy that key and open it in
  * Explorer on the left, the log's toggle on the right), and the raw log shut behind it in a well of its
  * own. The deploy card and a sent transaction's card share it, so every result reads the same way.
- * `copy` is the key the row copies; without one the row holds only the log's toggle */
-export function PlainDetails({ text, copy, log, phone, quiet = false }: { text: string; copy?: { label: string; value: string }; log: string[]; phone: boolean; quiet?: boolean }) {
+ * `copy` is the key the row copies; without one the row holds only the log's toggle. In the chat the row
+ * is the card's grey foot (`bar`); the Call panel, which isn't a card in the chat, keeps it inline */
+export function PlainDetails({
+  text,
+  copy,
+  log,
+  phone,
+  quiet = false,
+  bar = true,
+}: {
+  text: string
+  copy?: { label: string; value: string }
+  log: string[]
+  phone: boolean
+  quiet?: boolean
+  bar?: boolean
+}) {
   const { dispatch } = useStore()
   const [logOpen, setLogOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -56,19 +71,29 @@ export function PlainDetails({ text, copy, log, phone, quiet = false }: { text: 
       .catch(() => {})
 
   return (
-    // The Shell keeps 12 under its details; a phone's last row is already a thumb's height
-    <div className={cn(phone && "-mb-2")}>
+    // The Shell keeps 12 under its details; a phone's last row is already a thumb's height. Out of the
+    // quiet variant the actions are the card's foot, so they reach its bottom edge
+    <div className={bar ? "-mb-3" : cn(phone && "-mb-2")}>
       {/* `quiet` is for a card whose accounts above are the answer, the Call panel's and a records call's:
           the cost is a footnote, set like the controls under it */}
       <p className={quiet ? "text-[0.875rem] leading-5 text-pretty text-muted-foreground" : cn(READ, "text-pretty")}>
         <Prose text={text} />
       </p>
 
-      {/* One row of quiet controls under the sentence, 8 below it: what you can do with the key on the
-          left, the log's toggle on the right. Two rows of four alike controls, the terminal's alone at the
-          far right, made the eye zigzag and didn't say which went with what */}
+      {/* One row of quiet controls under the sentence: what you can do with the key on the left, the log's
+          toggle on the right. Two rows of four alike controls, the terminal's alone at the far right, made
+          the eye zigzag and didn't say which went with what. In the chat the row is a bar of its own
+          across the card, 16 under the sentence and under a hairline, as the Programs cards set it: 8 under
+          it in the same grey, it read as the paragraph's last line (Almaz, 10 Nov). The Opened wrapper's 16
+          at the sides is pulled back out so the bar meets the card's edges */}
       <Collapsible open={logOpen} onOpenChange={setLogOpen}>
-        <div className={cn("mt-2 flex items-center gap-4", phone && "mt-0")}>
+        <div
+          className={
+            bar
+              ? cn("-mx-4 mt-4 flex items-center gap-4 border-t border-border bg-surface-panel px-4", phone ? "h-11" : "h-10")
+              : cn("mt-2 flex items-center gap-4", phone && "mt-0")
+          }
+        >
           {copy && (
             <>
               <button type="button" onClick={onCopy} className={cn(QUIET, phone && THUMB)}>
@@ -95,7 +120,7 @@ export function PlainDetails({ text, copy, log, phone, quiet = false }: { text: 
               row and scroll, fading at the edge, so a program id isn't broken under a hanging indent. The
               way to the whole output sits in the well's own bar, as a listing's Copy does in Practicum,
               rather than hanging under the card on its own; the terminal is a desktop panel */}
-          <div ref={well} className={cn("scroll-mb-4 overflow-hidden rounded-[6px] bg-surface-well", phone ? "mt-1" : "mt-3")}>
+          <div ref={well} className={cn("scroll-mb-4 overflow-hidden rounded-[6px] bg-surface-well", bar ? "my-3" : phone ? "mt-1" : "mt-3")}>
             {!phone && (
               <div className="flex justify-end px-3 pt-2">
                 <button

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react"
 
+import { assistantFaucetNote, readAirdrop, SHORT_SOL } from "../airdrop"
 import { MAIN_FILE, WALLET_KEY, fakeKey, filesOf, programBySlug, type Ix, type ProgramMeta } from "./data"
 import { STOP_LABEL, readAnswer, readPath, type Stop } from "./read"
 import { STARTERS } from "./starters"
@@ -21,9 +22,9 @@ export type Turn =
   | { k: "build-ok"; id: number; took: number; ixs: number }
   | { k: "build-fail"; id: number; kind: "compile" | "noAnswer"; file?: string; line?: number; col?: number; code?: string; message?: string; quote?: string }
   | { k: "deploy-ok"; id: number; programId: string; took: number; cost: number; upgrade: boolean }
-  | { k: "deploy-fail"; id: number; kind: "faucet" | "network"; stage: string; cost: number }
+  | { k: "deploy-fail"; id: number; kind: "faucet" | "network"; stage: string; cost: number; got?: number }
   | { k: "call-ok"; id: number; ix: string; args: Record<string, string>; sig: string; cu: number; fee: number; log: string[]; from: "guide" | "panel" }
-  | { k: "call-fail"; id: number; ix: string; kind: "program" | "network" | "faucet"; error: string; log: string[] }
+  | { k: "call-fail"; id: number; ix: string; kind: "program" | "network" | "faucet"; error: string; log: string[]; got?: number }
   | { k: "run-ok"; id: number; log: string[]; took: number }
   | { k: "user"; id: number; text: string }
   | { k: "assistant"; id: number; text: string; chips?: string[] }
@@ -441,7 +442,12 @@ function compileError(files: Record<string, string>) {
 function buildLog(p: Project, ok: boolean) {
   const crate = (p.slug ?? p.name).replace(/-/g, "_")
   return ok
-    ? [`$ build`, `   Compiling ${crate} v1.0.0 (/src)`, `    Finished release [optimized] target(s)`, `Build successful. IDL: ${ixsOf(p).length} instruction(s)`]
+    ? [
+        `$ build`,
+        `   Compiling ${crate} v1.0.0 (/src)`,
+        `    Finished release [optimized] target(s)`,
+        p.framework === "native" ? `Build successful. IDL: ${ixsOf(p).length} instruction(s)` : "Build successful. No IDL: the build server doesn't make one yet",
+      ]
     : [`$ build`, `   Compiling ${crate} v1.0.0 (/src)`]
 }
 
@@ -501,15 +507,19 @@ export function deploy(id: string, opts: { instant?: boolean } = {}) {
   const force = p0.force.deploy
   const cost = upgrade ? 0.0021 : (metaOf(p0)?.cost ?? 0.48)
   update(id, (p) => ({ ...p, deploy: { s: "running", stages, stage: 0, upgrade, prev: p.deploy }, deployFailed: null, force: { ...p.force, deploy: undefined }, log: [...p.log, `$ deploy`, `Deploying to devnet...`] }))
-  const fail = (kind: "faucet" | "network", stage: string) =>
+  const fail = (kind: "faucet" | "network", stage: string, got = 0) =>
     update(id, (p) => {
       const prev = p.deploy.s === "running" ? p.deploy.prev : p.deploy
-      const line = kind === "faucet" ? "error: airdrop request failed: the faucet has run dry or hit its limit" : `error: devnet stopped answering during "${stage}"`
-      return post({ ...p, deploy: prev, deployFailed: kind, chain: null, terminal: true, log: [...p.log, line] }, { k: "deploy-fail", kind, stage, cost })
+      const line = kind === "faucet" ? faucetLine(got) : `error: devnet stopped answering during "${stage}"`
+      const failed = post({ ...p, deploy: prev, deployFailed: kind, chain: null, terminal: true, log: [...p.log, line] }, { k: "deploy-fail", kind, stage, cost, got })
+      return kind === "faucet" ? post(failed, { k: "assistant", text: assistantFaucetNote(got) }) : failed
     })
   const step = (i: number): void => {
     const p = state.projects[id]
     if (!p || p.deploy.s !== "running") return
+    // A short airdrop stops only a deploy that costs more than it brought
+    const short = readAirdrop() === "partial" && cost > SHORT_SOL
+    if (stages[i] === "Funding your wallet" && (readAirdrop() === "limit" || short) && refuses()) return fail("faucet", stages[i], short ? SHORT_SOL : 0)
     if (force === "faucet" && stages[i] === "Funding your wallet") return fail("faucet", stages[i])
     if (force === "faucet" && i === 0 && upgrade) return fail("faucet", stages[i])
     if (force === "network" && i === stages.length - 1) return fail("network", stages[i])
@@ -583,6 +593,19 @@ export function call(id: string, ix: string, from: "guide" | "panel" = "guide", 
   else later(CALL_MS, finish)
 }
 
+/** The bar's Airdrop: a refusal or a short airdrop happens once, then the next airdrop goes through, as a
+ * retry would in practice. Reset with the page */
+let airdropMet = false
+function refuses() {
+  if (airdropMet || readAirdrop() === "works") return false
+  airdropMet = true
+  return true
+}
+
+/** The console's line for a refused or short airdrop */
+const faucetLine = (got: number) =>
+  got > 0 ? `error: the airdrop sent ${got} SOL of 5, not enough for the deploy` : "error: 429 Too Many Requests: airdrop request failed: the faucet hit its rate limit"
+
 /** Read mode's call: Solana's own copy on devnet, no build or deploy. The wallet is funded first if it's
  * empty; the bar can make the faucet refuse or devnet not answer */
 export function refCall(id: string, opts: { instant?: boolean } = {}) {
@@ -595,15 +618,18 @@ export function refCall(id: string, opts: { instant?: boolean } = {}) {
   const force = p0.force.call
   const stages = [...(state.funded ? [] : ["Funding your wallet"]), `Sending ${ix} to devnet`]
   update(id, (p) => ({ ...p, calling: { ix, from: "guide", stage: stages[0] }, force: { ...p.force, call: undefined }, log: [...p.log, `$ call ${ix} on devnet`] }))
-  const fail = (kind: "network" | "faucet") =>
+  const fail = (kind: "network" | "faucet", got = 0) =>
     update(id, (q) => {
-      const line = kind === "faucet" ? "error: airdrop request failed: the faucet has run dry or hit its limit" : "error: devnet didn't answer, the call wasn't sent"
-      return post({ ...q, calling: null, log: [...q.log, line] }, { k: "call-fail", ix, kind, error: line, log: [line] })
+      const line = kind === "faucet" ? faucetLine(got) : "error: devnet didn't answer, the call wasn't sent"
+      const failed = post({ ...q, calling: null, log: [...q.log, line] }, { k: "call-fail", ix, kind, error: line, log: [line], got })
+      return kind === "faucet" ? post(failed, { k: "assistant", text: assistantFaucetNote(got) }) : failed
     })
   const step = (i: number): void => {
     const p = state.projects[id]
     if (!p?.calling) return
     if (stages[i] === "Funding your wallet") {
+      // A short airdrop still pays a call's fee: only the limit stops it
+      if (readAirdrop() === "limit" && refuses()) return fail("faucet")
       if (force === "faucet") return fail("faucet")
       state = { ...state, funded: true }
     }
@@ -764,6 +790,9 @@ function nextStep(p: Project): string {
     case "call":
       return `Next is Call \`${ix ?? "the program"}\`: it sends that instruction to your program on devnet. Press Call in the card above.`
     case "no-idl":
+      if (p.framework !== "native")
+        return "Next is the IDL: the call form is built from it, and Playground's build server doesn't make one yet. Build the IDL locally in the card above, then upload it."
+      return "Next is Run client.ts: it calls your program on devnet and prints what comes back. Press Run in the card above."
     case "run":
       return "Next is Run client.ts: it calls your program on devnet and prints what comes back. Press Run in the card above."
     default:
@@ -862,7 +891,9 @@ export function openProject(o: OpenProject) {
   else if (meta) p = ensureLive(post(makeFromProgram(meta, o.name), { k: "intro" }))
   else {
     const starter = STARTERS[o.framework]
-    p = ensureLive(post({ ...blank(o.name, o.framework, o.source, starter.files), open: starter.main, idl: o.framework !== "native" }, { k: "intro" }))
+    // No IDL from the build: the stable build server compiles Anchor 1.1.2 without one (Sergo's
+    // feat/stable-anchor-1.1.2), so a new project has none until it's built locally and uploaded
+    p = ensureLive(post({ ...blank(o.name, o.framework, o.source, starter.files), open: starter.main, idl: false }, { k: "intro" }))
   }
   if (o.openFile && o.openFile in p.files) p = { ...p, open: o.openFile }
   set({ ...state, projects: { ...state.projects, [p.id]: p }, route: { at: "project", id: p.id } })

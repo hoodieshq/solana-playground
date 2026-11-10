@@ -506,7 +506,7 @@ step. It uses Hello Seahorse's support (`main`, `generated`, `SEAHORSE_CHECKS`) 
 | 3 Limit | `clock: Clock` and `now`; you pick what stops a drip too soon; `drip` with the `assert` and `last_drip`. Upgrade, Drip twice | What should `drip` do when the last drip was less than 30 seconds ago? | the second drip is refused |
 
 The token card's strip is the oracle: BTC/USD with its price, and from step 3 "Next drip in 0:28",
-worked out by the client from `last_drip`. The mint is "Bitcorn" with "no metadata".
+worked out by the client from `last_drip`. The mint is "Bitcorn", minted by the faucet.
 
 Decisions against the original are in the script. Made while building it:
 

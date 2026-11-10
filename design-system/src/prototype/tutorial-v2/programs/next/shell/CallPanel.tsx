@@ -16,6 +16,7 @@ import { ACTION, ACTION_FILL, ACTION_SOFT, FOCUS, secs } from "../../../ui/type"
 import { WALLET_KEY, fakeKey, type Ix } from "../../data"
 import { CALL_MS, ask, behind, busy, call, deploy, firstIx, ixsOf, onChain, runClient, setPane, setValue, uploadIdl, valuesFor, type Project, type Turn } from "../../store"
 import { accountRoles, idlJson } from "./GuideColumn"
+import { IdlGuide } from "./IdlGuide"
 import { Actions, QUIET, shortKeys } from "./parts"
 import { shortKey } from "./util"
 
@@ -620,25 +621,46 @@ function IxTitle({ p, ix }: { p: Project; ix: Ix }) {
 // ----- No IDL -------------------------------------------------------------------------------------
 
 function NoIdl({ p }: { p: Project }) {
+  const [guide, setGuide] = useState(false)
   const client = p.framework === "native" && "client/client.ts" in p.files
+  // An Anchor program on the new build server: no IDL from the build, so the guide to build it locally
+  const anchor = p.framework !== "native"
   return (
     <Empty className="flex-1">
       <EmptyHeader>
         <EmptyMedia className="grid size-12 place-items-center rounded-panel bg-surface-raised text-muted-foreground">
           <FileQuestion className="size-6" />
         </EmptyMedia>
-        <EmptyTitle>No IDL for this program</EmptyTitle>
-        <EmptyDescription>The call form is built from an IDL, the list of a program's instructions. Native programs don't make one when they build.</EmptyDescription>
+        <EmptyTitle>{anchor ? "No IDL yet" : "No IDL for this program"}</EmptyTitle>
+        <EmptyDescription>
+          {anchor
+            ? "The call form is built from an IDL, the list of a program's instructions. Playground's build server doesn't make one yet: build it on your machine, then upload it."
+            : "The call form is built from an IDL, the list of a program's instructions. Native programs don't make one when they build."}
+        </EmptyDescription>
       </EmptyHeader>
       <div className="flex flex-wrap justify-center gap-2">
         {/* Soft here: the Guide's card beside it holds the one primary for the same step */}
-        <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => (client ? runClient(p.id) : uploadIdl(p.id))}>
-          {client ? "Run client.ts" : "Upload IDL"}
-        </Button>
-        <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => (client ? uploadIdl(p.id) : ask(p.id, "What is an IDL?"))}>
-          {client ? "Upload IDL" : "Ask the assistant"}
-        </Button>
+        {anchor ? (
+          <>
+            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => setGuide(true)}>
+              Build the IDL locally
+            </Button>
+            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => uploadIdl(p.id)}>
+              Upload IDL
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => (client ? runClient(p.id) : uploadIdl(p.id))}>
+              {client ? "Run client.ts" : "Upload IDL"}
+            </Button>
+            <Button variant="ghost" className={cn(ACTION, ACTION_SOFT)} onClick={() => (client ? uploadIdl(p.id) : ask(p.id, "What is an IDL?"))}>
+              {client ? "Upload IDL" : "Ask the assistant"}
+            </Button>
+          </>
+        )}
       </div>
+      {anchor && <IdlGuide p={p} open={guide} onOpenChange={setGuide} />}
     </Empty>
   )
 }

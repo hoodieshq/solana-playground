@@ -278,8 +278,17 @@ function OneAct({ turn, phone = false }: { turn: ActTurn; phone?: boolean }) {
       <div className={cn("flex min-w-0 items-start gap-3", call || chop || phone ? "flex-1" : "grow-[999] basis-60")}>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="font-heading text-[1rem] leading-6 font-medium text-foreground">{words.title}</span>
-          <span role={run ? "status" : undefined} className="text-[0.875rem] leading-5 text-muted-foreground">
-            {context}
+          {/* The stage over the subtitle's room, as the move card does, so a two line subtitle doesn't
+              shrink to the stage's one line and back (Almaz, 10 Nov) */}
+          <span className="grid text-[0.875rem] leading-5 text-muted-foreground">
+            <span role={run ? "status" : undefined} className="[grid-area:1/1]">
+              {context}
+            </span>
+            {run && (
+              <span aria-hidden="true" className="invisible [grid-area:1/1]">
+                <Prose text={words.context} {...READ_CODE} small />
+              </span>
+            )}
           </span>
         </span>
       </div>

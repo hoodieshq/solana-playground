@@ -371,7 +371,7 @@ const STEPS: Step[] = [
         act: "move",
         say: "Now drip.",
         title: "Drip",
-        context: "Sends `drip` with Pyth's BTC/USD account · fee from your wallet",
+        context: "Sends `drip`: one Bitcorn for every dollar Bitcoin costs",
         button: "Drip",
         moves: [{ ix: "drip", button: "Drip" }],
         record: "Dripped",
@@ -651,10 +651,9 @@ export const FAUCET_SEAHORSE: Lesson = {
           ? {
               label: "BTC/USD",
               key: PYTH_BTC,
-              lines: [
-                `${dollars(price)} ± $31.20 · Pyth · published 2 s ago`,
-                ...(left === null ? [] : [left > 0 ? `Next drip in ${clock(left)} · worked out by the client, no transaction` : "The next drip can go now · worked out by the client"]),
-              ],
+              value: dollars(price),
+              note: "Pyth · 2 s ago",
+              lines: left === null ? [] : [left > 0 ? `Next drip in ${clock(left)}` : "The next drip can go now"],
             }
           : undefined,
       }

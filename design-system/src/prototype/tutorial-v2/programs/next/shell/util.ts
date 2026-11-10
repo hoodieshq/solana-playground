@@ -9,8 +9,6 @@ export { shortKey }
 
 /* What the shell's parts work out from a project, kept apart from the drawing */
 
-export const FAUCET_URL = "https://faucet.solana.com"
-
 export const baseName = (file: string) => file.split("/").pop() ?? file
 
 /** The file a project lands on: a catalog program's processor, a starter's own */
@@ -117,7 +115,7 @@ export function statusOf(p: Project): { dot: "idle" | "running" | "success" | "w
     case "deploy-ok":
       return r.upgrade ? { dot: "success", text: `Upgraded · ${shortKey(r.programId)}` } : { dot: "success", text: `Deployed · ${r.cost} devnet SOL from your wallet` }
     case "deploy-fail":
-      return r.kind === "faucet" ? { dot: "error", text: "Not enough devnet SOL · the faucet is at its limit" } : { dot: "error", text: `Deploy failed · devnet stopped answering at ${r.stage.toLowerCase()}` }
+      return r.kind === "faucet" ? { dot: "error", text: r.got ? `Not enough devnet SOL · the faucet sent ${r.got} SOL` : "Not enough devnet SOL · the faucet is at its limit" } : { dot: "error", text: `Deploy failed · devnet stopped answering at ${r.stage.toLowerCase()}` }
     case "call-ok":
       return { dot: "success", text: `Confirmed · ${r.ix}` }
     case "call-fail":

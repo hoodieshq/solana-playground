@@ -64,7 +64,8 @@ export function ApplyCard({ turn }: { turn: ApplyTurn }) {
         {turn.file}:{turn.line}
       </div>
       <div className="bg-surface-well py-1.5 font-mono text-[0.75rem] leading-5">{shown.map(row)}</div>
-      <div className="flex items-center gap-2 border-t border-border px-3 py-2">
+      {/* The card's actions on a grey foot, as every card in the chat has them (Almaz, 10 Nov) */}
+      <div className="flex items-center gap-2 border-t border-border bg-surface-panel px-3 py-2">
         <Button variant="outline" size="sm" onClick={() => dispatch({ type: "apply", turn: turn.id })}>
           Apply to {name}
         </Button>

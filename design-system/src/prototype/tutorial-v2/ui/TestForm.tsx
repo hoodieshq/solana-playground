@@ -158,6 +158,7 @@ function Confirmed({ turn, phone }: { turn: ResultTurn; phone: boolean }) {
             the loudest text on the sheet for the least of what it says */}
         <PlainDetails
           quiet
+          bar={false}
           text={`The call used ${tx.compute.toLocaleString("en-US")} compute units, and the fee was ${TX_FEE.replace(" SOL", "")} test SOL from your wallet.`}
           copy={{ label: "Copy signature", value: tx.signature }}
           log={programLog(tx)}

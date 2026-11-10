@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react"
-import { Check, ChevronDown, CircleX, Copy, ExternalLink } from "lucide-react"
+import { Check, ChevronDown, CircleX, ExternalLink } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils"
 import { JournalRow } from "../../../ui/Journal"
 import { Prose } from "../../../ui/Prose"
 import { ACTION, ACTION_FILL, ACTION_SOFT, FOCUS, READ, READ_CODE, secs } from "../../../ui/type"
-import { WALLET_KEY } from "../../data"
+import { shortfall, WEB_FAUCET_LINE, webFaucet } from "../../../airdrop"
+import { WALLET } from "../../../lessons/common"
 import { ask, openFile, refCall, retryDeploy, setPane, type Project, type Turn } from "../../store"
 import { Details, Quote, shortKeys, STATUS_META, STATUS_PAIR, STATUS_TITLE, Well } from "./parts"
-import { copyText, FAUCET_URL, failLive, isLast, reveal, saidLines, shortKey } from "./util"
+import { failLive, isLast, reveal, saidLines, shortKey } from "./util"
 
 type T<K extends Turn["k"]> = Extract<Turn, { k: K }>
 
@@ -108,31 +109,26 @@ function DeployFail({ p, t }: { p: Project; t: T<"deploy-fail"> }) {
         {retry && <div className="flex">{retry}</div>}
       </FailBox>
     )
+  return <FaucetFail live={live} got={t.got ?? 0} need={`${t.cost} SOL`} retry={retry} />
+}
+
+/** The faucet refused the wallet's funding, or sent less than it asked (the bar's Airdrop): what happened,
+ * and the web faucet with the wallet and the amount filled in, so nothing is typed or copied (the team
+ * call, 10 Nov). Try again asks the devnet faucet again */
+function FaucetFail({ live, got, need, retry }: { live: boolean; got: number; need: string; retry: ReactNode }) {
   return (
     <FailBox live={live} title="Not enough devnet SOL">
-      <p className={READ}>
-        Your wallet has 0 SOL, and this deploy needs about {t.cost} SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself.
-      </p>
-      <div className="flex items-center gap-3 text-[0.8125rem]">
-        <span className="shrink-0 text-muted-foreground">Your wallet</span>
-        <code title={WALLET_KEY} className="min-w-0 flex-1 truncate font-mono text-code text-foreground">
-          {shortKey(WALLET_KEY)}
-        </code>
-        <button
-          type="button"
-          onClick={() => copyText(WALLET_KEY, "Address")}
-          className={cn("-my-3 flex shrink-0 items-center gap-1 rounded-sm py-3 text-muted-foreground hover:text-foreground", FOCUS)}
-        >
-          <Copy className="size-3.5" aria-hidden="true" />
-          Copy
-        </button>
+      <div className="flex flex-col gap-2">
+        <p className={READ}>{shortfall(got, need)}</p>
+        <p className={cn(READ, "text-muted-foreground")}>{WEB_FAUCET_LINE}</p>
       </div>
       {live && (
         <div className="flex flex-wrap gap-2">
           {retry}
           <Button asChild variant="ghost" className={cn(ACTION, ACTION_SOFT)}>
-            <a href={FAUCET_URL} target="_blank" rel="noreferrer">
-              Open faucet
+            {/* The wallet the shell's status bar shows, the one the visitor sees */}
+            <a href={webFaucet(WALLET)} target="_blank" rel="noreferrer">
+              Open the web faucet
               <ExternalLink className="size-4" aria-hidden="true" />
             </a>
           </Button>
@@ -209,32 +205,7 @@ function RefCallFail({ p, t, live }: { p: Project; t: T<"call-fail">; live: bool
         {retry && <div className="flex">{retry}</div>}
       </FailBox>
     )
-  return (
-    <FailBox live={live} title="Not enough devnet SOL">
-      <p className={READ}>Your wallet has 0 SOL, and the call's fee is about 0.000005 SOL. The devnet faucet is at its limit for now: try again in a minute, or top the wallet up yourself.</p>
-      <div className="flex items-center gap-3 text-[0.8125rem]">
-        <span className="shrink-0 text-muted-foreground">Your wallet</span>
-        <code title={WALLET_KEY} className="min-w-0 flex-1 truncate font-mono text-code text-foreground">
-          {shortKey(WALLET_KEY)}
-        </code>
-        <button type="button" onClick={() => copyText(WALLET_KEY, "Address")} className={cn("-my-3 flex shrink-0 items-center gap-1 rounded-sm py-3 text-muted-foreground hover:text-foreground", FOCUS)}>
-          <Copy className="size-3.5" aria-hidden="true" />
-          Copy
-        </button>
-      </div>
-      {live && (
-        <div className="flex flex-wrap gap-2">
-          {retry}
-          <Button asChild variant="ghost" className={cn(ACTION, ACTION_SOFT)}>
-            <a href={FAUCET_URL} target="_blank" rel="noreferrer">
-              Open faucet
-              <ExternalLink className="size-4" aria-hidden="true" />
-            </a>
-          </Button>
-        </div>
-      )}
-    </FailBox>
-  )
+  return <FaucetFail live={live} got={t.got ?? 0} need="0.000005 SOL" retry={retry} />
 }
 
 function CallFail({ p, t }: { p: Project; t: T<"call-fail"> }) {

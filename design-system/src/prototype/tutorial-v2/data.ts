@@ -35,8 +35,8 @@ const cardOf = (slug: string) => TUTORIALS.find((t) => t.slug === slug) ?? TUTOR
 
 /** Prototype switches for a review, each lasting for the browser tab: `?demo=files` opens a lesson
  * with the files a full Anchor workspace has besides the lesson's two (the tab overflow on a desktop,
- * Recent in the phone's file sheet); `?demo=faucet` makes the first deploy meet the devnet faucet's
- * limit (Not enough devnet SOL). `?demo=off` ends both */
+ * Recent in the phone's file sheet). `?demo=off` ends it. The faucet's limit moved to the bar's Airdrop
+ * (airdrop.ts), which still takes `?demo=faucet` */
 function demoSwitch(name: string) {
   try {
     const q = new URLSearchParams(window.location.search).getAll("demo")
@@ -49,7 +49,6 @@ function demoSwitch(name: string) {
   }
 }
 export const DEMO_FILES = demoSwitch("files")
-export const DEMO_FAUCET = demoSwitch("faucet")
 
 const EXTRA_FILES: Record<string, string> = {
   "tests/game.test.ts": `describe("game", () => {\n  it("creates a player", async () => {\n    // Filled in by the lesson's later steps\n  });\n});`,
@@ -174,8 +173,14 @@ export const panelLog = (tx: Tx, name: string | null) => [
 /** A wallet short of SOL is topped up from the faucet before the deploy, as Playground does */
 export const fundLog = () => [`$ solana airdrop ${AIRDROP.replace(" SOL", "")} ${shortKey(WALLET)}`, "Requesting airdrop...", `Airdrop confirmed · balance ${AIRDROP}`]
 
-/** The faucet said no: its limit for this address, for now */
-export const faucetLog = () => [`$ solana airdrop ${AIRDROP.replace(" SOL", "")} ${shortKey(WALLET)}`, "Requesting airdrop...", "Error: airdrop request failed. This can happen when the rate limit is reached.", "Balance: 0 SOL"]
+/** The faucet said no (its limit for this address, for now), or sent `got` SOL of the 5 asked */
+export const faucetLog = (got = 0) => [
+  `$ solana airdrop ${AIRDROP.replace(" SOL", "")} ${shortKey(WALLET)}`,
+  "Requesting airdrop...",
+  ...(got > 0
+    ? [`Airdrop confirmed · balance ${got} SOL`, `Error: insufficient funds: the deploy needs about ${DEPLOY_COST}`]
+    : ["Error: 429 Too Many Requests: airdrop request failed. This can happen when the rate limit is reached.", "Balance: 0 SOL"]),
+]
 
 export const deployLog = (funded = false) => [
   ...(funded ? fundLog() : []),
