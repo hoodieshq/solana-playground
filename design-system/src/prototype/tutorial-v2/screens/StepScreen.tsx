@@ -161,7 +161,15 @@ export function StepScreen() {
           26 that puts the first heading 34 under the segments, as on the desktop */}
       {/* On an upright tablet the sides are 32, the gallery's: the back arrow's glyph and the progress
           start there, and Code ends there */}
-      <header className="relative flex h-[4.75rem] shrink-0 items-center gap-1 pr-4 pb-4 pl-1 [html.portrait_&]:pr-8 [html.portrait_&]:pl-[22px]">
+      {/* Before Start there are no segments, only the hairline, so the header drops the 16 it keeps for
+          them and its row sits in the middle: kept, the name and Code hung at the top over an empty band
+          (Almaz, 10 Nov) */}
+      <header
+        className={cn(
+          "relative flex shrink-0 items-center gap-1 pr-4 pl-1 [html.portrait_&]:pr-8 [html.portrait_&]:pl-[22px]",
+          s.started ? "h-[4.75rem] pb-4" : "h-16"
+        )}
+      >
         <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Back to tutorials" onClick={() => dispatch({ type: "open", screen: "gallery" })}>
           <ChevronLeft className="size-6" />
         </Button>
