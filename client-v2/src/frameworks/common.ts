@@ -12,9 +12,6 @@ import { SelectProgram } from "./SelectProgram";
 /** Map of dependency name -> version */
 type Dependencies = { [dependencyName: string]: string };
 
-/** Import statement regular expression with multi-line support */
-export const IMPORT_STATEMENT_REGEX = /import(.|\n)*?["|'].*["|'](;?)/;
-
 /**
  * Add the given content after the regular expression.
  *
@@ -91,6 +88,22 @@ export const getLeadingImportsEnd = (content: string) => {
     if (!importStatement.exec(content)) return end;
     index = end = importStatement.lastIndex;
   }
+};
+
+/**
+ * Add the given code on the lines after the leading imports.
+ *
+ * @param content JS/TS code
+ * @param newContent code to add
+ * @returns the content with the code added
+ */
+export const addAfterImports = (content: string, newContent: string) => {
+  const end = getLeadingImportsEnd(content);
+  if (!end) return newContent + "\n" + content;
+
+  return (
+    content.slice(0, end) + "\n" + newContent + "\n" + content.slice(end + 1)
+  );
 };
 
 /**

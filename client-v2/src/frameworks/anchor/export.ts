@@ -1,9 +1,9 @@
 import { PgCommon, PgExplorer, PgProgramInfo, TupleFiles } from "../../utils";
 import {
   addAfter,
+  addAfterImports,
   addImports,
   getJSDependencies,
-  getLeadingImportsEnd,
   getRustDependencies,
   wrapTopLevelAwait,
 } from "../common";
@@ -308,20 +308,4 @@ const program = anchor.workspace.${pascalCaseProgramName} as anchor.Program<${pa
     .replaceAll("pg.wallet.keypair", "program.provider.wallet.payer");
 
   return content;
-};
-
-/**
- * Add the given code on the lines after the leading imports.
- *
- * @param content JS/TS code
- * @param newContent code to add
- * @returns the content with the code added
- */
-const addAfterImports = (content: string, newContent: string) => {
-  const end = getLeadingImportsEnd(content);
-  if (!end) return newContent + "\n" + content;
-
-  return (
-    content.slice(0, end) + "\n" + newContent + "\n" + content.slice(end + 1)
-  );
 };

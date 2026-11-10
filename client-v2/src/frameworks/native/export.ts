@@ -1,10 +1,9 @@
 import { PgCommon, PgExplorer, PgProgramInfo, TupleFiles } from "../../utils";
 import {
-  addAfter,
+  addAfterImports,
   addImports,
   getJSDependencies,
   getRustDependencies,
-  IMPORT_STATEMENT_REGEX,
   wrapTopLevelAwait,
 } from "../common";
 
@@ -120,8 +119,9 @@ ${await getJSDependencies(frameworkFiles)}
     ]
   );
 
-  // The program keypair Playground deployed with, so that the program keeps
-  // its id
+  // Playground's program keypair, if it has one, so that the local program
+  // gets its id. A custom program id is not carried over: a first deploy to
+  // the local validator needs that id's keypair.
   if (PgProgramInfo.kp) {
     frameworkFiles.push([
       keypairPath,
@@ -159,9 +159,8 @@ const convertJSWith =
     // Define Playground globals for the local validator the guide starts, with
     // the program `cargo build-sbf` builds and the Solana CLI's wallet, which
     // the validator funds
-    content = addAfter(
+    content = addAfterImports(
       content,
-      IMPORT_STATEMENT_REGEX,
       `// Manually initialize variables that are automatically defined in Playground
 const readKeypair = (keypairPath: string) =>
   web3.Keypair.fromSecretKey(

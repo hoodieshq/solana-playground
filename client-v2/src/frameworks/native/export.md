@@ -18,6 +18,12 @@ yarn
 cargo build-sbf --manifest-path program/Cargo.toml
 ```
 
+- Create a wallet, if the Solana CLI has none
+
+```sh
+solana-keygen new
+```
+
 - Start a local test validator
 
 In a second terminal, from the same directory:
@@ -44,7 +50,7 @@ yarn test
 yarn client
 ```
 
-The test and the client send their transactions to the local validator, from the Solana CLI's wallet (`~/.config/solana/id.json`, which `solana-keygen new` creates), to the program in `program/target/deploy`.
+The test and the client send their transactions to the local validator, from the Solana CLI's default wallet (`~/.config/solana/id.json`), to the program deployed from `program/target/deploy`.
 
 > **Note**
 > You might need to adjust the client and test code to fully work in local Node environment since there are playground exclusive features, e.g. if you are using `pg.wallets.myWallet`, you'll need to manually load each keypair.

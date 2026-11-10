@@ -4,9 +4,24 @@
 // The exported project's guide is `export.md`: `yarn test` and `yarn client`
 // must run against the local validator it starts, with the program it deploys
 // (HOO-2748).
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 
-import { PgCommon, PgLanguage, TupleFiles } from "../../utils";
+import {
+  PgCommon,
+  PgExplorer,
+  PgLanguage,
+  PgProgramInfo,
+  PgWeb3,
+  TupleFiles,
+} from "../../utils";
 import { convertFromPlayground } from "./export";
 
 vi.hoisted(() => {
@@ -95,6 +110,61 @@ describe("convertFromPlayground", () => {
     const client = files.get("client/client.ts") ?? "";
     expect(client).toContain('import * as web3 from "@solana/web3.js";');
     expect(client).not.toContain("(async");
+  });
+
+  it("adds the web3 namespace to a client that imports web3 by name", async () => {
+    const files = await exported(LIB, [
+      "client/client.ts",
+      'import { PublicKey } from "@solana/web3.js";\n\nconsole.log(PublicKey.default);\n',
+    ]);
+
+    const client = files.get("client/client.ts") ?? "";
+    expect(client).toContain('import * as web3 from "@solana/web3.js";');
+  });
+
+  it("defines the globals after the imports when the code below says import", async () => {
+    const files = await exported(LIB, [
+      "client/client.ts",
+      'const balance = await pg.connection.getBalance(pg.wallet.publicKey);\n// then import the token program: "spl-token"\nconsole.log(balance);\n',
+    ]);
+
+    const client = files.get("client/client.ts") ?? "";
+    expect(client).toContain(`${GLOBALS}\n\n(async () => {\n`);
+  });
+
+  it("ships Playground's program keypair where the client reads it, in snake case", async () => {
+    const kp = PgWeb3.Keypair.generate();
+    // `kp` gets its getter when `PgProgramInfo` initializes, which this test
+    // does not do
+    Object.defineProperty(PgProgramInfo, "kp", {
+      get: () => kp,
+      configurable: true,
+    });
+    onTestFinished(() => {
+      Reflect.deleteProperty(PgProgramInfo, "kp");
+    });
+    vi.spyOn(PgExplorer, "currentWorkspaceName", "get").mockReturnValue(
+      "Hello World"
+    );
+    const files = await exported(LIB, CLIENT);
+
+    expect(files.get("program/Cargo.toml")).toContain('name = "hello-world"');
+    const keypairPath = "program/target/deploy/hello_world-keypair.json";
+    expect(files.get("client/client.ts")).toContain(
+      `const PROGRAM_ID = readKeypair("${keypairPath}").publicKey;`
+    );
+    const secretKey = JSON.parse(files.get(keypairPath) ?? "[]");
+    expect(
+      PgWeb3.Keypair.fromSecretKey(Uint8Array.from(secretKey)).publicKey
+    ).toEqual(kp.publicKey);
+  });
+
+  it("ships no program keypair when Playground has none", async () => {
+    const files = await exported(LIB, CLIENT);
+
+    expect(
+      Array.from(files.keys()).filter((path) => path.endsWith("-keypair.json"))
+    ).toEqual([]);
   });
 
   it("defines the globals in a test and leaves its await alone", async () => {
