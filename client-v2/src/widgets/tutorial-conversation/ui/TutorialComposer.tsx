@@ -44,9 +44,9 @@ const HELD =
  * The composer under the feed. A live action's word runs that action and a
  * word the open question refuses gets the lesson's refusal
  * (`PgConversation.say`); anything else goes to the live assistant, counted
- * as asked. A finish chip posts its answer with no model call. The box holds
- * the turn's own input, so a message the assistant could not send yet (no
- * model connected) comes back here.
+ * as asked. A finish chip posts its answer with no model call. The box shows
+ * the turn's draft, so a message the assistant could not send yet (no model
+ * connected) comes back here.
  */
 export const TutorialComposer = ({ turn }: TutorialComposerProps) => {
   const state = useConversationState();
