@@ -1155,12 +1155,14 @@ describe("TurnView", () => {
       screen.getByRole("button", { name: "Send from your wallet" })
     );
     expect(handlers.fundFor).toHaveBeenCalledWith("Wa11et");
-    expect(handlers.fundFor.mock.results[0]?.value).toHaveBeenCalledOnce();
+    expect(
+      vi.mocked(handlers.fundFor).mock.results[0]?.value
+    ).toHaveBeenCalledOnce();
   });
 
   it("leaves Send from your wallet out when the dialog would fund another wallet", () => {
     const handlers = on();
-    handlers.fundFor.mockReturnValue(undefined);
+    vi.mocked(handlers.fundFor).mockReturnValue(undefined);
     draw(
       {
         id: "result:s2.deploy:0",
