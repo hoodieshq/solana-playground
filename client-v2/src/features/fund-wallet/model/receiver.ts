@@ -37,8 +37,9 @@ export const currentReceiver = () => {
  * What a short-wallet entry's "Send from your wallet" does for the wallet at
  * `address`: open the Fund dialog, or `undefined` when the dialog would fund
  * another wallet (an extension is current, or another account pays). The
- * entry draws its button only for a function. Read at render: an entry
- * re-renders on a wallet switch, and the dialog names who it funds.
+ * entry draws its button only for a function. Read at render: the Deploy
+ * stage and the tutorial feed re-render on a wallet switch; the toast keeps
+ * its first answer while it shows, and the dialog names who it funds.
  */
 export const fundFor =
   (from: FundFrom) =>

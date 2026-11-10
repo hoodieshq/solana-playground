@@ -19,7 +19,8 @@ leaves them only an address to copy. Follow-up 1 of the ConnectorKit spike
   call offer "Send from your wallet" after "Open the web faucet".
 - **Wallet menu.** The "The faucet is at its limit." toast offers "Send from
   your wallet" under its web-faucet link.
-- **One dialog.** These entries open one Fund dialog mounted once beside the
+- **One dialog.** These entries, and the account menu and the wallet chip
+  (whose own dialogs move to it), open one Fund dialog mounted once beside the
   toasts, so a toast that closes does not take its dialog with it and a send
   still pending holds Send off wherever the dialog is opened from.
 - **Telemetry.** `fund_dialog_opened.from` gains `deploy-card`,
@@ -48,5 +49,4 @@ None.
 - Out of scope:
   - funding states inside the Deploy button (HOO-2783, after Breakpoint);
   - signing the deploy with the external wallet (a product decision);
-  - the chip and the account menu, which open the dialog already;
   - a phone, where no wallet extension exists: the dialog says so.

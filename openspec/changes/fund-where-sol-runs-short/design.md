@@ -3,7 +3,8 @@
 ## Context
 
 `FundDialog` (`features/fund-wallet`) is a controlled dialog: whoever renders
-it holds `open`. The account menu and the wallet chip each render their own.
+it holds `open`. Before this change the account menu and the wallet chip
+each rendered their own.
 The new entries differ: the Deploy card lives in `features/deploy`, which may
 not import another feature; the tutorial cards are pure `Base*` widgets; and
 the faucet-refused toast is rendered by `PgView.setToast` and unmounts after
@@ -18,7 +19,7 @@ the faucet-refused toast is rendered by `PgView.setToast` and unmounts after
   or a card asks; the host owns the dialog, so it outlives the toast, and a
   send pending from one entry holds Send off for the next, since it is the
   same instance. Alternative: a `FundDialog` per entry, as the menu and the
-  chip have. Rejected for the toast (unmounts) and because each instance
+  chip had. Rejected for the toast (unmounts) and because each instance
   keeps its own pending send.
 - **A request while open is ignored**, so a second entry cannot reset the
   user's picks or count a second opening.
