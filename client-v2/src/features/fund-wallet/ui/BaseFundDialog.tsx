@@ -262,20 +262,7 @@ const BaseFundDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-md"
-        // The receiver's explorer link comes first in the dialog; opening on
-        // it would send Enter to the explorer, so the first action takes the
-        // focus: a Connect button, or the amount once a payer is connected
-        onOpenAutoFocus={(event) => {
-          const first = (
-            event.currentTarget as HTMLElement
-          ).querySelector<HTMLElement>(`#${AMOUNT_ID}, [data-fund-connect]`);
-          if (!first) return;
-          event.preventDefault();
-          first.focus();
-        }}
-      >
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Fund your Playground wallet</DialogTitle>
           <DialogDescription>
@@ -305,7 +292,6 @@ const BaseFundDialog = ({
             {wallets.map((wallet) => (
               <AsyncButton
                 key={wallet.name}
-                data-fund-connect=""
                 variant="outline"
                 className="justify-start"
                 loadingText={`Waiting for ${wallet.name}…`}
