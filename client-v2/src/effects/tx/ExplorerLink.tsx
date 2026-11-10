@@ -22,7 +22,7 @@ export const ExplorerLink: FC<React.PropsWithChildren<ExplorerLinkProps>> = ({
       <Link
         href={blockExplorer.getTxUrl(txHash)}
         aria-label={`Open ${shortKey(txHash)} on ${blockExplorer.name}`}
-        className="inline-flex shrink-0 items-center whitespace-nowrap"
+        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap [&_svg]:ml-0"
       >
         {shortKey(txHash)}
       </Link>
