@@ -124,8 +124,8 @@ const AddressLink = ({ address, url }: { address: string; url?: string }) =>
 
 /**
  * Cancel and Send as `BaseModalFrame` draws a brand submit: a ghost Cancel at
- * the brand button's 40 px on a desk; on a phone no Cancel (the sheet closes
- * itself) and Send across the foot in the flat accent. Copied rather than
+ * the brand button's 40 px on a desk; on a phone no Cancel (the dialog's close
+ * button is enough) and Send across the foot in the flat accent. Copied rather than
  * built on that frame, which is a widget this feature cannot import.
  */
 const DESK_CANCEL =
@@ -386,31 +386,34 @@ const BaseFundDialog = ({
           </Callout>
         )}
 
-        <DialogFooter>
-          {!phone && (
-            <DialogClose asChild>
-              <Button variant="ghost" className={DESK_CANCEL}>
-                Cancel
-              </Button>
-            </DialogClose>
-          )}
-          {payer && (
-            <BrandButton
-              variant={phone ? "accent" : "ring"}
-              // Busy is not unavailable: it keeps its colour, as AsyncButton does
-              className={cn(
-                phone ? PHONE_SEND : DESK_SEND,
-                sending && "disabled:opacity-100"
-              )}
-              disabled={!note?.ok || unconfirmed || sending}
-              aria-busy={sending || undefined}
-              onClick={handleSend}
-            >
-              {sending && <Spinner aria-hidden="true" />}
-              {sendLabel(amount)}
-            </BrandButton>
-          )}
-        </DialogFooter>
+        {/* A phone with no payer yet has nothing for the foot to hold */}
+        {(!phone || payer) && (
+          <DialogFooter>
+            {!phone && (
+              <DialogClose asChild>
+                <Button variant="ghost" className={DESK_CANCEL}>
+                  Cancel
+                </Button>
+              </DialogClose>
+            )}
+            {payer && (
+              <BrandButton
+                variant={phone ? "accent" : "ring"}
+                // Busy is not unavailable: it keeps its colour, as AsyncButton does
+                className={cn(
+                  phone ? PHONE_SEND : DESK_SEND,
+                  sending && "disabled:opacity-100"
+                )}
+                disabled={!note?.ok || unconfirmed || sending}
+                aria-busy={sending || undefined}
+                onClick={handleSend}
+              >
+                {sending && <Spinner aria-hidden="true" />}
+                {sendLabel(amount)}
+              </BrandButton>
+            )}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

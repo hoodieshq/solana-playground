@@ -15,7 +15,7 @@ the choices below are ours and go to the designers' gap batch.
 - **Explorer links.** The receiving account's short address, and the paying
   wallet's, marked ↗, open that address in the user's block explorer on the
   Playground's cluster, in a new tab. A cluster the explorer cannot open
-  (a local validator) keeps the plain address.
+  (Solscan on a local validator) keeps the plain address.
 - **Wallet badge.** The paying wallet's name shows as a badge with its icon,
   so the wallet the SOL comes from reads at a glance.
 - **Amount.** The field starts at 0 and steps by 0.1 SOL with the arrow keys

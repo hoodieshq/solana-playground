@@ -3,7 +3,7 @@
 Inline, test first. Scope: `client-v2/src/features/fund-wallet` and its tests
 only (HOO-2788 edits the faucet steps on the same base).
 
-1. `model/fund.ts`: `DEFAULT_AMOUNT = "0"`; `stepAmount(text, ±1)` on
+1. `model/fund.ts`: `DEFAULT_AMOUNT = "0"`; `stepAmount(±1)(text)` on
    lamports, to the next multiple of 0.1 SOL in that direction, floor 0;
    unparsable text steps from 0. In-source tests.
 2. `ui/BaseFundDialog.tsx`, tests first in `BaseFundDialog.test.tsx`:

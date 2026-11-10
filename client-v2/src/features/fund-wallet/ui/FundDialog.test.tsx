@@ -71,8 +71,9 @@ const utils = vi.hoisted(() => ({
 }));
 vi.mock("@/utils", () => utils);
 vi.mock("@/hooks", () => ({ useRenderOnChange: () => undefined }));
+const viewport = vi.hoisted(() => ({ current: "wide" }));
 vi.mock("@/shared/lib/hooks/use-viewport", () => ({
-  useViewport: () => "wide",
+  useViewport: () => viewport.current,
 }));
 
 const transfer = vi.hoisted(() => ({ sendFunds: vi.fn() }));
@@ -100,6 +101,7 @@ beforeEach(() => {
   };
   utils.PgWallet.state = "pg";
   utils.PgConnection.cluster = "devnet";
+  viewport.current = "wide";
   utils.PgConnection.current.getBalance.mockReset().mockResolvedValue(2e9);
   utils.PgView.setToast.mockReset();
   transfer.sendFunds.mockReset().mockResolvedValue("sig");
@@ -151,6 +153,23 @@ describe("features/fund-wallet/ui/FundDialog", () => {
     expect(
       screen.getByRole("link", { name: "9xQe…VFin" }).getAttribute("href")
     ).toBe(`https://explorer.test/address/${RECEIVER_ADDRESS}?cluster=devnet`);
+  });
+
+  it("draws the desk's foot: Cancel, then the ring Send", async () => {
+    await renderOpen();
+    await connectPhantom();
+
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+    expect(sendButton().getAttribute("data-variant")).toBe("ring");
+  });
+
+  it("draws the phone's foot: no Cancel, the accent Send", async () => {
+    viewport.current = "phone";
+    await renderOpen();
+
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    await connectPhantom();
+    expect(sendButton().getAttribute("data-variant")).toBe("accent");
   });
 
   it("links nothing on a cluster the explorer cannot open", async () => {

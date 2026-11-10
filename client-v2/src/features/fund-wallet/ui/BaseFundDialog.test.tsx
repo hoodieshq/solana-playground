@@ -285,6 +285,12 @@ describe("features/fund-wallet/ui/BaseFundDialog", () => {
     expect(sendButton().getAttribute("data-variant")).toBe("accent");
   });
 
+  it("draws no foot on a phone before a payer connects", () => {
+    renderDialog({ phone: true });
+
+    expect(document.querySelector('[data-slot="dialog-footer"]')).toBeNull();
+  });
+
   it("says where the SOL arrives", () => {
     renderDialog({ payer: PAYER, cluster: "mainnet-beta" });
 

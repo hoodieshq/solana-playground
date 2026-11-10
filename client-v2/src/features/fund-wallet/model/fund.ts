@@ -101,8 +101,9 @@ const PAST_LAMPORTS = /^(\d+\.\d{9})\d+$/;
 /**
  * The amount one step of 0.1 SOL up (`1`) or down (`-1`) from `text`: the
  * next multiple of 0.1 that way, so `1.999` goes to `2` or `1.9`, never below
- * 0. Decimals past the ninth are dropped first, so `1.0000000001` steps as
- * `1`; other text that is not an amount steps from 0.
+ * 0. Decimals past the ninth count as a part of a lamport, so `1.0000000001`
+ * steps up to `1.1` and down to `1`; other text that is not an amount steps
+ * from 0.
  */
 export const stepAmount =
   (direction: 1 | -1) =>

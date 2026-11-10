@@ -255,8 +255,8 @@ const FundDialog = ({
       }
     : undefined;
 
-  // An explorer with no page for this cluster (a local validator) would open
-  // mainnet's, so the address then stays text
+  // An explorer with no page for this cluster (Solscan on a local validator,
+  // say) would open mainnet's, so the address then stays text
   const explorer = PgBlockExplorer.current;
   const linkCluster = PgConnection.cluster;
   const addressUrl = (address: string) =>

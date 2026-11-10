@@ -29,7 +29,7 @@ that cluster, the address SHALL show without a link.
 
 #### Scenario: A cluster the explorer cannot open (manual)
 
-- **WHEN** the Playground is on a local validator
+- **WHEN** the Playground is on a local validator and the chosen block explorer is Solscan, which has no page for it
 - **THEN** the receiver's short address shows as plain text
 
 ### Requirement: The user picks and connects the paying wallet in the dialog
