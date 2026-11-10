@@ -17,16 +17,14 @@ import { NewProjectControls } from "./newProject/BarControls"
 import { TutorialsControls } from "./desktop/TutorialsBar"
 import { ProgramsControls } from "./programs/BarControls"
 import { SettingsControls } from "./settings/BarControls"
-import { NAV_STATES, setNavDesign, setNavState, useNavDesign, useNavState, type NavDesign, type NavStateId } from "./navStates"
+import { NAV_STATES, setNavState, useNavState, type NavStateId } from "./navStates"
 import { switchView, view, type View } from "./view"
 
 const NAV_IDS = Object.keys(NAV_STATES) as NavStateId[]
 
-/** Which state the nav draws, to compare them. The current nav has the prototype's own nav first; Lit
- * Path has no such thing */
+/** Which state the nav draws, to compare them */
 function NavStatePicker() {
   const [id, state] = useNavState()
-  const design = useNavDesign()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -37,14 +35,8 @@ function NavStatePicker() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuRadioGroup value={id} onValueChange={(v) => setNavState(v as NavStateId)}>
-          {design === "current" && (
-            <>
-              <DropdownMenuRadioItem value={NAV_IDS[0]}>{NAV_STATES[NAV_IDS[0]].label}</DropdownMenuRadioItem>
-              <DropdownMenuSeparator />
-            </>
-          )}
           <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">As the product draws it</DropdownMenuLabel>
-          {NAV_IDS.slice(1).map((k) => (
+          {NAV_IDS.map((k) => (
             <DropdownMenuRadioItem key={k} value={k}>
               {NAV_STATES[k].label}
             </DropdownMenuRadioItem>
@@ -52,21 +44,6 @@ function NavStatePicker() {
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-}
-
-/** Which nav draws: Lit Path, the redesign, or the product's current one. In the bar, one click away */
-function NavDesignSwitch() {
-  const design = useNavDesign()
-  return (
-    <Segmented value={design} onValueChange={(v) => v && setNavDesign(v as NavDesign)} aria-label="Nav design" className="pill h-7! rounded-full! border-0! p-0!">
-      <SegmentedItem value="current" className="rounded-full! px-3!">
-        Current nav
-      </SegmentedItem>
-      <SegmentedItem value="lit" className="rounded-full! px-3!">
-        Lit Path
-      </SegmentedItem>
-    </Segmented>
   )
 }
 
@@ -136,7 +113,6 @@ export function PrototypeBar({ onReset }: { onReset: () => void }) {
       </Segmented>
       <div className="min-w-0 overflow-x-auto [scrollbar-width:none]">
       <div className="ml-auto flex w-max items-center gap-1">
-        <NavDesignSwitch />
         <NavStatePicker />
         <NewProjectControls />
         <TutorialsControls />

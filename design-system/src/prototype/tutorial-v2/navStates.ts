@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 
 /* The left nav's states, as client-v2 draws them on scope/interface-2 (widgets/app-nav,
    setup-list, status, session-footer), picked from the prototype bar to compare them side by side.
-   "prototype" is the nav as this prototype had it before: its own projects, Devnet, Sign in.
    The choice lives in localStorage, so the tablet's iframe follows the bar too */
 
 export type Dot = "success" | "warning" | "error" | "idle" | "running"
@@ -44,12 +43,12 @@ export type StatusRow = { name: string; hint: string; dot: Dot; value: string; a
 
 export type NavState = {
   label: string
-  /** null: the prototype's own list. "loading": three skeleton rows. []: the No projects card */
-  projects: ProjectRow[] | "loading" | null
+  /** "loading": three skeleton rows. []: the No projects card */
+  projects: ProjectRow[] | "loading"
   setup?: { steps: SetupStep[]; folded?: boolean }
   status?: { dot: Dot; words: string }[]
   account?: Account
-  /* Lit Path only (research/nav-redesign/CONSENSUS.md, section 7). The current nav reads status */
+  /* Lit Path (research/nav-redesign/CONSENSUS.md, section 7) */
   health?: Health
   statusRows?: StatusRow[]
   /** Said under the Status popover's rows */
@@ -100,7 +99,6 @@ const MANY: ProjectRow[] = [
 ]
 
 export const NAV_STATES = {
-  prototype: { label: "Prototype nav (as before)", projects: null },
   "first-visit": {
     label: "First visit · no projects",
     projects: [],
@@ -246,44 +244,20 @@ export type NavStateId = keyof typeof NAV_STATES
 const KEY = "pg-proto-nav-state"
 const EVENT = "pg-proto-nav-state"
 
-/** Which nav draws the states: Lit Path, the redesign (research/nav-redesign/CONSENSUS.md), or the
- * product's current nav. Stored beside the state, so the tablet's iframe follows this one too */
-export type NavDesign = "lit" | "current"
-const DESIGN_KEY = "pg-proto-nav-design"
-
-const readDesign = (): NavDesign => {
-  try {
-    return localStorage.getItem(DESIGN_KEY) === "current" ? "current" : "lit"
-  } catch {
-    return "lit"
-  }
-}
-
-/** The picked state. Lit Path has no "prototype" nav of its own, so that pick reads as a first visit
- * there; the pick itself stays, and switching back to the current nav finds it */
+/** The picked state; a first visit until one is picked */
 const read = (): NavStateId => {
-  let id: NavStateId = "prototype"
   try {
     const v = localStorage.getItem(KEY)
-    if (v && v in NAV_STATES) id = v as NavStateId
+    if (v && v in NAV_STATES) return v as NavStateId
   } catch {
     // Storage off: the default stands
   }
-  return id === "prototype" && readDesign() === "lit" ? "first-visit" : id
+  return "first-visit"
 }
 
 export function setNavState(id: NavStateId) {
   try {
     localStorage.setItem(KEY, id)
-  } catch {
-    // Storage off: the pick lasts in this window only
-  }
-  window.dispatchEvent(new Event(EVENT))
-}
-
-export function setNavDesign(design: NavDesign) {
-  try {
-    localStorage.setItem(DESIGN_KEY, design)
   } catch {
     // Storage off: the pick lasts in this window only
   }
@@ -311,7 +285,4 @@ export function useNavState(): [NavStateId, NavState] {
   const id = usePicked(read)
   return [id, NAV_STATES[id]]
 }
-
-/** The picked design */
-export const useNavDesign = (): NavDesign => usePicked(readDesign)
 
