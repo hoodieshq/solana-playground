@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { LESSON, LIB, STEPS } from "../data"
 import { TerminalBody, TerminalStatus } from "../desktop/Terminal"
 import { landingFor } from "../landing"
-import { FilesSheet } from "../sheets/FilesSheet"
+import { FilesPopover, FilesSheet } from "../sheets/FilesSheet"
 import { StepsSheet } from "../sheets/StepsSheet"
 import { TestSheet } from "../sheets/TestSheet"
 import { useStore, type State, type Turn } from "../store"
@@ -116,6 +116,21 @@ export function StepScreen() {
   const file = s.open === "test" ? before.current : preview && !(s.open in s.files) ? LIB : s.open
   // Before Start lib.rs shows the finished program; another file shows itself, read only
   const code = preview && file === LIB ? LESSON.preview : (s.files[file] ?? "")
+  // The file's name, which opens the tree
+  const chip = (
+    <button
+      type="button"
+      onClick={() => setFiles(true)}
+      aria-label={`${file}. Show the files`}
+      aria-expanded={files}
+      className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg px-2 outline-none active:bg-surface-hover focus-visible:outline-2 focus-visible:outline-brand-purple"
+    >
+      <span className="truncate font-mono text-code text-foreground">{file.split("/").pop()}</span>
+      <span aria-hidden="true" className="grid size-[1.375rem] shrink-0 place-items-center rounded-md bg-surface-hover text-muted-foreground">
+        <span className="flex size-3.5 [&>svg]:size-full"><ChevronDown aria-hidden="true" strokeWidth={1.5} className="size-full" /></span>
+      </span>
+    </button>
+  )
   const wrote = s.wrote?.file === file ? s.wrote : null
   const reveal = s.reveal?.file === file && !s.reveal.top ? s.reveal : null
   // Lines shown again stay lit until the next run lands, as written ones do until the next action
@@ -208,19 +223,15 @@ export function StepScreen() {
 
           <section aria-label="Code" inert={!onCode} className="flex w-1/2 min-w-0 flex-col bg-(--code-ground)">
             <div className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-surface-base pr-4 pl-2 [html.portrait_&]:pr-8 [html.portrait_&]:pl-6">
-              {/* The file's name opens the tree: the way back from client.ts to lib.rs */}
-              <button
-                type="button"
-                onClick={() => setFiles(true)}
-                aria-label={`${file}. Show the files`}
-                aria-expanded={files}
-                className="flex h-11 min-w-0 items-center gap-1.5 rounded-lg px-2 outline-none active:bg-surface-hover focus-visible:outline-2 focus-visible:outline-brand-purple"
-              >
-                <span className="truncate font-mono text-code text-foreground">{file.split("/").pop()}</span>
-                <span aria-hidden="true" className="grid size-[1.375rem] shrink-0 place-items-center rounded-md bg-surface-hover text-muted-foreground">
-                  <span className="flex size-3.5 [&>svg]:size-full"><ChevronDown aria-hidden="true" strokeWidth={1.5} className="size-full" /></span>
-                </span>
-              </button>
+              {/* The file's name opens the tree: the way back from client.ts to lib.rs. On the upright tablet
+                  as a popover under the name, on the phone as a sheet */}
+              {view === "portrait" ? (
+                <FilesPopover open={files} onOpenChange={setFiles}>
+                  {chip}
+                </FilesPopover>
+              ) : (
+                chip
+              )}
               {/* No "Read only" on the phone: nothing here can be typed into anyway, and the grey label beside
                   Call read as a second button. Before Start it still says what you're looking at */}
               {preview && <span className="min-w-0 truncate px-1 text-caption text-muted-foreground">Finished program</span>}
@@ -283,7 +294,7 @@ export function StepScreen() {
           if (!o) setSpace("chat")
         }}
       />
-      <FilesSheet open={files} onClose={() => setFiles(false)} />
+      {view !== "portrait" && <FilesSheet open={files} onClose={() => setFiles(false)} />}
       <TestSheet open={test} onClose={closeTest} />
     </div>
   )
