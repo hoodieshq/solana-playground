@@ -12,6 +12,18 @@ export interface DeployRunState {
   funds: boolean;
   /** The program exists on the cluster, so the last step upgrades it */
   upgrade: boolean;
+  /**
+   * The run waits on a connected wallet's approval: `n` of the two a deploy
+   * from it asks for (the SOL it sends, then the deploy). `null` otherwise.
+   */
+  approval: DeployApproval | null;
+}
+
+/** An approval a connected wallet is asked for, `n` of two */
+export interface DeployApproval {
+  /** The wallet's own name, as "Phantom" */
+  wallet: string;
+  n: 1 | 2;
 }
 
 /** What a finished deploy reports to whoever started it */
@@ -92,6 +104,8 @@ const IDLE: DeployRunState = {
   percent: 0,
   funds: false,
   upgrade: false,
+  // eslint-disable-next-line unicorn/no-null -- `DeployRunState.approval` is `null` while no approval is asked
+  approval: null,
 };
 
 /**
