@@ -33,12 +33,16 @@ export const convertFromPlayground = async (files: TupleFiles) => {
 
     // client -> client
     else if (path.startsWith(PgExplorer.PATHS.CLIENT_DIRNAME)) {
-      content = convertJSWith({ keypairPath })(content);
+      // Top-level `await` doesn't compile with the exported `tsconfig.json`
+      // (CommonJS) and Playground runs client code inside an async function
+      // anyway
+      content = convertJSWith(keypairPath)(wrapTopLevelAwait)(content);
     }
 
     // tests/**/*.test.ts -> tests/**/*.test.ts
     else if (path.startsWith(PgExplorer.PATHS.TESTS_DIRNAME)) {
-      content = convertJSWith({ keypairPath, isTest: true })(content);
+      // Mocha runs each test's own async function, so its body stays as is
+      content = convertJSWith(keypairPath)(keepBody)(content);
     }
 
     // Don't include other files
@@ -132,17 +136,21 @@ ${await getJSDependencies(frameworkFiles)}
   return frameworkFiles;
 };
 
+/** Leave the code as it is */
+const keepBody = (content: string) => content;
+
 /**
  * Try to make the JS/TS file work in a local `node` environment by making the
  * necessary conversions.
  *
- * @param opts options
- * - `keypairPath`: path of the program keypair, from the project root
- * - `isTest`: whether the given file is a test file
- * @returns a function from JS/TS code to the converted content
+ * @param keypairPath path of the program keypair, from the project root
+ * @returns a function from a transform of the code once its imports are in,
+ * then from JS/TS code, to the converted content
  */
 const convertJSWith =
-  (opts: { keypairPath: string; isTest?: boolean }) => (content: string) => {
+  (keypairPath: string) =>
+  (transformBody: (content: string) => string) =>
+  (content: string) => {
     // Handle imports
     content = addImports(content);
     if (!content.includes("@solana/web3.js")) {
@@ -152,9 +160,7 @@ const convertJSWith =
       `import * as fs from "fs";\nimport * as os from "os";\nimport * as path from "path";\n` +
       content;
 
-    // Top-level `await` doesn't compile with the exported `tsconfig.json`
-    // (CommonJS) and Playground runs client code inside an async function anyway
-    if (!opts.isTest) content = wrapTopLevelAwait(content);
+    content = transformBody(content);
 
     // Define Playground globals for the local validator the guide starts, with
     // the program `cargo build-sbf` builds and the Solana CLI's wallet, which
@@ -166,7 +172,7 @@ const readKeypair = (keypairPath: string) =>
   web3.Keypair.fromSecretKey(
     Uint8Array.from(JSON.parse(fs.readFileSync(keypairPath, "utf8")))
   );
-const PROGRAM_ID = readKeypair("${opts.keypairPath}").publicKey;
+const PROGRAM_ID = readKeypair("${keypairPath}").publicKey;
 const connection = new web3.Connection("http://127.0.0.1:8899", "confirmed");
 const wallet = {
   keypair: readKeypair(path.join(os.homedir(), ".config", "solana", "id.json")),

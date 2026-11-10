@@ -76,7 +76,7 @@ export const wrapTopLevelAwait = (content: string) => {
  * @param content JS/TS code
  * @returns the index after the last leading import, `0` if there is none
  */
-export const getLeadingImportsEnd = (content: string) => {
+const getLeadingImportsEnd = (content: string) => {
   const skipped = /(?:\s|\/\/[^\n]*|\/\*[\s\S]*?\*\/)*/y;
   const importStatement = /import\s[\s\S]*?["'][^"'\n]*["'];?/y;
   let end = 0;
