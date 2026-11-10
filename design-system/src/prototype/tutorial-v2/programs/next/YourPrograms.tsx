@@ -1,4 +1,4 @@
-import { Ellipsis, FolderClosed } from "lucide-react"
+import { Ellipsis, FolderClosed, Plus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -16,9 +16,10 @@ import { progressOf, savedProgress, useStore } from "../../store"
 import { CATALOG as CATALOG_TUTORIALS, shownName } from "../../ui/catalog"
 import { FrameworkLogo } from "../../newProject/next/FrameworkCard"
 import { frameworkOf } from "../../newProject/next/data"
+import { openFirstLight } from "../../newProject/next/open"
 import { ResumeList, type ResumeItem } from "../../ui/ResumeList"
 import { CATALOG } from "../data"
-import { LIMIT, deleteProject, go, steps, usePrograms, usedSlots, type Project } from "../store"
+import { deleteProject, go, steps, usePrograms, type Project } from "../store"
 import { ProgramIcon } from "./catalog-parts"
 import { deletable, deleteQuestion, startRename } from "./shell/GuideColumn"
 
@@ -76,12 +77,10 @@ function RowMenu({ p, onDelete }: { p: Project; onDelete: () => void }) {
   )
 }
 
-/** Your programs, over Solana's examples: every project you made or kept, last worked on first, with the
- * account's limit beside the heading once it's near. A catalog program you only read isn't a project and stays on its
+/** Your programs, over Solana's examples: every project you made or kept, last worked on first. A catalog program you only read isn't a project and stays on its
  * card (CONSENSUS-delta 2.7) */
-export function YourPrograms() {
+export function YourPrograms({ empty = false }: { empty?: boolean }) {
   const projects = usePrograms((s) => s.projects)
-  const used = usePrograms((s) => usedSlots(s))
   const [asking, setAsking] = useState<string | null>(null)
   const items: ResumeItem[] = Object.values(projects)
     .filter(deletable)
@@ -163,7 +162,41 @@ export function YourPrograms() {
       onOpen: soon,
     })
   }
-  // The limit only from 8, as the Deploy card's line: "1 of 10" read as one shown of ten (Almaz, 10 Nov).
-  // Projects, the nav's word for the same list
-  return <ResumeList id="programs-yours" title="Your projects" count={used >= 8 ? `${used} of ${LIMIT} used` : undefined} items={items} />
+  // A review switch: `?yours=25` pads the list to that many with account projects, to see a long one
+  const pad = Number(new URLSearchParams(location.search).get("yours")) || 0
+  const PAD_NAMES = ["escrow", "nft-mint", "dao-votes", "airdrop-claim", "amm-pool", "lottery", "multisig", "staking", "crowdfund", "oracle-feed"]
+  for (let i = 0; items.length < pad; i++) {
+    const name = `${PAD_NAMES[i % PAD_NAMES.length]}${i >= PAD_NAMES.length ? `-${Math.floor(i / PAD_NAMES.length) + 1}` : ""}`
+    items.push({
+      key: `pad-${name}`,
+      cover: (
+        <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-muted-foreground">
+          <FolderClosed className="size-5" strokeWidth={1.75} />
+        </span>
+      ),
+      name,
+      where: "Saved to your account",
+      onOpen: soon,
+    })
+  }
+  // No "9 of 10 used" beside the heading: next to the list's own number it confused (Almaz, 11 Nov); the
+  // Deploy card says the limit where it bites. Projects, the nav's word for the same list
+  return (
+    <ResumeList
+      id="programs-yours"
+      title="Your projects"
+      items={items}
+      empty={
+        empty ? (
+          <>
+            <p className="min-w-0 flex-1 basis-64 text-[0.875rem] leading-5 text-muted-foreground">Nothing here yet. Open a program below and it's kept here, or start one of your own.</p>
+            <Button variant="outline" size="sm" onClick={() => openFirstLight({ entry: "empty-list" })} className="pointer-coarse:h-11">
+              <Plus />
+              New project
+            </Button>
+          </>
+        ) : undefined
+      }
+    />
+  )
 }

@@ -11,7 +11,8 @@ import { CATALOG, TOPICS, type ProgramMeta } from "../data"
 import { useProgState } from "../design"
 import { go, openProgram, usePrograms } from "../store"
 import { ProgramBanner } from "./catalog-banner"
-import { FOCUS, Problem, ProgramIcon, StandingWord, resumeLabel, standing } from "./catalog-parts"
+import { FOCUS, Problem, StandingWord, resumeLabel, standing } from "./catalog-parts"
+import { ProgramCover } from "./ProgramCover"
 import { YourPrograms } from "./YourPrograms"
 
 /* The redesigned catalog (ui-design.md 2, CONSENSUS.md row 5): the Tutorials gallery's head and card,
@@ -60,7 +61,7 @@ export function Catalog({ phone = false }: { phone?: boolean }) {
           <>
             <ProgramBanner phone={phone} />
             <div className="flex flex-col gap-8">
-              <YourPrograms />
+              <YourPrograms empty />
               <Sections list={CATALOG} />
             </div>
           </>
@@ -101,8 +102,9 @@ function Sections({ list }: { list: ProgramMeta[] }) {
   )
 }
 
-/** One program, as the gallery card. A stretched button opens its project; on a returning card
- * Continue sits over it */
+/** One program (Almaz, 10 Nov): its cover of tiles, the name and what it does, and at the foot what it
+ * is made of, in the code's own face: its instructions by name, and how long a read takes. A stretched
+ * button opens its project; on a returning card Continue sits over it */
 function ProgramCard({ p }: { p: ProgramMeta }) {
   const project = usePrograms((s) => Object.values(s.projects).find((x) => x.slug === p.slug))
   const native = usePrograms((s) => s.native)
@@ -111,7 +113,7 @@ function ProgramCard({ p }: { p: ProgramMeta }) {
   const callable = !native && !st && p.callable && !!p.devnetId
 
   return (
-    <div className="relative grid grid-cols-[auto_minmax(0,1fr)_auto] content-start items-start gap-x-3.5 rounded-panel border border-border bg-surface-panel p-4 transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] has-[[data-open]:active]:bg-[color-mix(in_srgb,var(--foreground)_6%,var(--surface-panel))] motion-reduce:transition-none">
+    <div className="group/card relative flex flex-col overflow-hidden rounded-panel border border-border bg-surface-panel transition-colors duration-100 hover:border-border-strong hover:bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface-panel))] has-[[data-open]:active]:bg-[color-mix(in_srgb,var(--foreground)_6%,var(--surface-panel))] motion-reduce:transition-none">
       <button
         type="button"
         data-open
@@ -119,25 +121,41 @@ function ProgramCard({ p }: { p: ProgramMeta }) {
         aria-label={st ? `${p.name}, ${st.word.toLowerCase()}. Open` : `Open ${p.name}`}
         className={cn("absolute inset-0 cursor-pointer rounded-panel", FOCUS)}
       />
-      <ProgramIcon p={p} className="pointer-events-none row-span-2" />
-      {/* No eyebrow (it said "SPL", as the name does) and no arrow square: the whole card is the button */}
-      <h3 title={p.name} className="pointer-events-none line-clamp-1 min-w-0 font-heading text-[1.125rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
-        {p.name}
-      </h3>
-      {project && (
-        <Button variant="outline" size="sm" onClick={() => go({ at: "project", id: project.id })} className="relative z-10 -my-1 cursor-pointer pointer-coarse:after:absolute pointer-coarse:after:-inset-2 pointer-coarse:after:content-['']">
-          {resumeLabel(project)}
-        </Button>
-      )}
-      <p className="pointer-events-none col-span-2 col-start-2 mt-1 line-clamp-2 text-[0.8125rem] leading-[1.4] text-foreground/78">{p.description}</p>
-      {/* The state leads; a card's column is too narrow for it and the facts on one row, so it takes its own */}
-      {st && <StandingWord s={st} className="pointer-events-none col-span-2 col-start-2 mt-2 text-[0.8125rem] leading-[1.125rem]" />}
-      {callable && (
-        <span className="pointer-events-none col-span-2 col-start-2 mt-2 inline-flex items-center gap-1.5 text-[0.8125rem] leading-[1.125rem] text-muted-foreground">
-          <Send aria-hidden="true" className="size-3.5" />
-          Call on devnet
+      <div className="grid flex-1 grid-cols-[auto_minmax(0,1fr)_auto] content-start items-start gap-x-3.5 p-4">
+        <ProgramCover p={p} className="pointer-events-none row-span-3 size-[4.5rem] rounded-[14px]" />
+        {/* No eyebrow (it said "SPL", as the name does) and no arrow square: the whole card is the button */}
+        <h3 title={p.name} className="pointer-events-none line-clamp-1 min-w-0 font-heading text-[1.125rem] leading-[1.25] font-normal tracking-[-0.015em] text-foreground">
+          {p.name}
+        </h3>
+        {project && (
+          <Button variant="outline" size="sm" onClick={() => go({ at: "project", id: project.id })} className="relative z-10 -my-1 cursor-pointer pointer-coarse:after:absolute pointer-coarse:after:-inset-2 pointer-coarse:after:content-['']">
+            {resumeLabel(project)}
+          </Button>
+        )}
+        <p className="pointer-events-none col-span-2 col-start-2 mt-1 line-clamp-2 text-[0.8125rem] leading-[1.4] text-foreground/78">{p.description}</p>
+        {/* The state leads; a card's column is too narrow for it and the facts on one row, so it takes its own */}
+        {st && <StandingWord s={st} className="pointer-events-none col-span-2 col-start-2 mt-2 text-[0.8125rem] leading-[1.125rem]" />}
+        {callable && (
+          <span className="pointer-events-none col-span-2 col-start-2 mt-2 inline-flex items-center gap-1.5 text-[0.8125rem] leading-[1.125rem] text-muted-foreground">
+            <Send aria-hidden="true" className="size-3.5" />
+            Call on devnet
+          </span>
+        )}
+      </div>
+      {/* The card's foot, on the grey every Oak card sets its foot on: the program's instructions as its code
+          names them, fading out where they run past the edge, and the minutes at the end */}
+      <div className="pointer-events-none flex h-9 shrink-0 items-center gap-3 border-t border-border bg-foreground/[0.025] px-4 font-mono text-[0.75rem] leading-4 text-muted-foreground">
+        <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap [mask-image:linear-gradient(to_right,#000_calc(100%-2rem),transparent)]">
+          <span className="text-subtle">fn </span>
+          {p.ixs.map((ix, i) => (
+            <span key={ix.name}>
+              {i > 0 && <span className="text-subtle"> · </span>}
+              {ix.name}
+            </span>
+          ))}
         </span>
-      )}
+        <span className="shrink-0 tabular-nums">{`${p.minutes} min`}</span>
+      </div>
     </div>
   )
 }
@@ -145,8 +163,8 @@ function ProgramCard({ p }: { p: ProgramMeta }) {
 /** The card's shape in grey: same grid, padding and height */
 function CardSkeleton() {
   return (
-    <div aria-hidden="true" className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3.5 rounded-panel border border-border bg-surface-panel p-4">
-      <Skeleton className="row-span-2 size-11 rounded-[9px] motion-reduce:animate-none" />
+    <div aria-hidden="true" className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3.5 rounded-panel border border-border bg-surface-panel p-4 pb-13">
+      <Skeleton className="row-span-2 size-[4.5rem] rounded-[14px] motion-reduce:animate-none" />
       <Skeleton className="h-[18px] w-40 motion-reduce:animate-none" />
       <div className="col-span-2 col-start-2 mt-2 flex flex-col gap-1.5">
         <Skeleton className="h-3 w-full motion-reduce:animate-none" />

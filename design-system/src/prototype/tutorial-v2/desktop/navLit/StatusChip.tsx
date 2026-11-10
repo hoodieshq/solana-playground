@@ -1,4 +1,4 @@
-import { Check, ChevronLeft } from "lucide-react"
+import { Braces, Check, ChevronLeft, Globe } from "lucide-react"
 import { useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 
 import type { Health, StatusRow } from "../../navStates"
 import { openSettings } from "../../settings/open"
+import { AssistantMark } from "../../ui/AssistantMark"
 import { view as shownView } from "../../view"
 import { soon } from "../Catalog"
 import { healthWith, MODELS, networksFor, setChoices, useChoices, withChoices } from "./choices"
@@ -27,6 +28,14 @@ export function HealthMark({ health }: { health: Health }) {
 
 type View = "status" | "Network" | "Assistant"
 
+/** A status row's glyph, the ones setup's steps use for the same things */
+function RowGlyph({ name }: { name: string }) {
+  // The assistant's own mark, the one its messages carry in a lesson: a four point star said AI in
+  // general, not ours (Almaz, 10 Nov)
+  const Glyph = name === "Network" ? Globe : name === "Assistant" ? AssistantMark : Braces
+  return <Glyph strokeWidth={1.75} className="size-4" />
+}
+
 /** The phone views draw the popover in the menu sheet, full width with no room beside it: there a
  * row's choices swap in place of the rows, with a back row */
 const BESIDE = shownView === "desktop" || shownView === "tablet"
@@ -45,8 +54,13 @@ function StatusRows({ rows, note, view, onChange, onClose }: { rows: StatusRow[]
         <Popover key={r.name} open={BESIDE && view === r.name} onOpenChange={(v) => onChange(v ? (r.name as View) : "status")}>
         <PopoverAnchor asChild>
         <div className={cn("flex min-h-12 items-center gap-2.5 rounded-lg px-2 py-1.5", view === r.name && "bg-surface-raised")}>
-          <span className="flex h-[1.125rem] items-center self-start pt-px">
-            <StatusDot variant={r.dot} />
+          {/* What the row is about as a picture, its state as a dot cut into the tile's corner: set as the
+              setup steps are, so the two popovers of this corner read as one family (Almaz, 10 Nov) */}
+          <span aria-hidden="true" className="relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.07] text-foreground">
+            <RowGlyph name={r.name} />
+            <span className="absolute -right-0.5 -bottom-0.5 flex rounded-full shadow-[0_0_0_2px_var(--popover)]">
+              <StatusDot variant={r.dot} />
+            </span>
           </span>
           <Tip label={r.hint} side="top">
             <div className="flex min-w-0 flex-1 cursor-default flex-col">
@@ -175,7 +189,17 @@ export function StatusPopover({ rows, note, side, trigger }: { rows: StatusRow[]
       }}
     >
       {trigger}
-      <PopoverContent side={side} align="end" sideOffset={6} className="w-80 gap-0 rounded-(--radius-panel) p-1.5 shadow-panel">
+      {/* The popover itself takes the focus as it opens: on the first Change it drew a ring nobody asked for */}
+      <PopoverContent
+        side={side}
+        align="end"
+        sideOffset={6}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          ;(e.currentTarget as HTMLElement).focus()
+        }}
+        className="w-[21.5rem] gap-0 rounded-(--radius-panel) p-1.5 shadow-panel outline-none"
+      >
         {BESIDE || view === "status" ? (
           <StatusRows rows={withChoices(rows, c)} note={note} view={view} onChange={setView} onClose={() => setOpen(false)} />
         ) : (

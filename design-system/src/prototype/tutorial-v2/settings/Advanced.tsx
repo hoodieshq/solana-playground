@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { maskUrl } from "../desktop/navLit/choices"
 import { useNavState } from "../navStates"
 import { view } from "../view"
-import { GROUP_TITLE, Row, usePhone } from "./Row"
+import { GROUP_PANEL, GROUP_TITLE, Row, usePhone } from "./Row"
 import { setSetting, useSettings } from "./store"
 import { UrlField } from "./UrlField"
 
@@ -61,15 +61,15 @@ export function Advanced({ open: initial }: { open: boolean }) {
           type="button"
           className={cn(
             GROUP_TITLE,
-            "group/adv -mx-1 flex items-center gap-1 rounded-md px-1 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
-            phone ? "h-11" : "h-8 [html.touch_&]:h-11"
+            "group/adv -mx-1 flex items-center gap-1.5 rounded-md px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            phone ? "h-11" : "h-9 [html.touch_&]:h-11"
           )}
         >
           Advanced
-          <ChevronRight aria-hidden="true" className="size-3.5 transition-transform duration-140 ease-standard group-data-[state=open]/adv:rotate-90 motion-reduce:transition-none" />
+          <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground transition-transform duration-140 ease-standard group-data-[state=open]/adv:rotate-90 motion-reduce:transition-none" />
         </button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="flex flex-col pt-1">
+      <CollapsibleContent className={cn(GROUP_PANEL, "mt-2.5 flex flex-col")}>
         <Row label="Commitment" htmlFor="oak-commitment" help="How settled a transaction must be before it counts as done" stack>
           <Choice id="oak-commitment" value={s.commitment} options={["Processed", "Confirmed", "Finalized"]} onChange={(v) => setSetting("commitment", v)} />
         </Row>

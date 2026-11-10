@@ -8,11 +8,15 @@ import { cn } from "@/lib/utils"
 export const PhoneCtx = createContext(false)
 export const usePhone = () => useContext(PhoneCtx)
 
-/** A group's small title: Assistant, Network, Advanced. The first group has none */
-export const GROUP_TITLE = "text-caption font-act text-(color:--text-quiet)"
+/** A group's title: Editor, Assistant, Network, Advanced, Account. The page's second tier, as Home's
+ * and Tutorials' section heads are: the small grey caption left the page with no shape (Almaz, 10 Nov) */
+export const GROUP_TITLE = "font-heading text-[1.25rem] leading-[1.5rem] font-medium text-foreground"
 
-/** One row, as Clear Desk lays it: the label left, the control right, centred on each other, no box,
- * no rule, no hover fill. `help` is the line under the label (three rows have one, all in Advanced);
+/** A group's rows sit on one panel, as Your projects' rows do: the page's grey card on the lit ground */
+export const GROUP_PANEL = "rounded-panel border border-border bg-surface-panel px-4 py-1.5"
+
+/** One row, as Clear Desk lays it: the label left, the control right, centred on each other, no box
+ * of its own, no rule, no hover fill. `help` is the line under the label (three rows have one, all in Advanced);
  * `line` is a state under it, with its own dot. On the phone the line runs the row's whole width under
  * it, so the value and its action don't squeeze it onto two lines. `stack` drops the control under its label on the
  * phone's screens, for a select and the fields that open under it */

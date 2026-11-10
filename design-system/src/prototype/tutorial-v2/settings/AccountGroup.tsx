@@ -19,7 +19,7 @@ export function AccountGroup({ account, confirm: seeded }: { account: Account; c
   return (
     <>
       <Row label="Delete account and data">
-        <Button variant="ghost" size="sm" onClick={() => setConfirm(true)} className={cn("text-muted-foreground hover:text-foreground", phone && "h-9")}>
+        <Button variant="ghost" size="sm" onClick={() => setConfirm(true)} className={cn("-mr-2.5 text-muted-foreground hover:text-foreground", phone && "h-9")}>
           Delete
         </Button>
       </Row>

@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react"
+import { ArrowUpRight, CircleHelp } from "lucide-react"
 import { useState } from "react"
 
 import { DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu"
@@ -6,13 +6,13 @@ import { Kbd } from "@/components/ui/kbd"
 import { MenuFold, MenuFoldChevron, MenuFoldContent, MenuFoldTrigger } from "@/components/ui/menu-extras"
 import { cn } from "@/lib/utils"
 
-import { TRAIL_ICON } from "../desktop/navLit/AccountMenu"
+import { MENU_ITEM, MENU_STROKE, TRAIL_ICON } from "../desktop/navLit/AccountMenu"
 import { view } from "../view"
 import { HELP_LINKS } from "./links"
 import { openShortcuts } from "./open"
 
-/** The account menu's row: 30 high and 13px, 44 under a finger */
-const ITEM = "h-[1.875rem] text-[0.8125rem] font-label [html.touch_&]:h-11 [html.phone_&]:h-11"
+/** The submenu's row, the account menu's own without a glyph: 32 high and 13px, 44 under a finger */
+const ITEM = "h-8 px-2 text-[0.8125rem] font-label [html.touch_&]:h-11 [html.phone_&]:h-11"
 
 /** Help, in place of the account menu's Docs (CONSENSUS 4.1). Two docs, the shortcuts (where there's a
  * keyboard), Report a bug. On Desktop and Tablet 1152 a submenu beside the menu, as Claude's Learn more
@@ -50,7 +50,10 @@ export function HelpItems() {
   if (keyboard)
     return (
       <DropdownMenuSub>
-        <DropdownMenuSubTrigger className={cn(ITEM, "[&>svg:last-child]:mr-1 [&>svg:last-child]:size-3.5 [&>svg:last-child]:text-muted-foreground")}>Help</DropdownMenuSubTrigger>
+        <DropdownMenuSubTrigger className={cn(MENU_ITEM, "[&>svg:last-child]:mr-1 [&>svg:last-child]:size-3.5 [&>svg:last-child]:text-muted-foreground")}>
+          <CircleHelp strokeWidth={MENU_STROKE} />
+          Help
+        </DropdownMenuSubTrigger>
         <DropdownMenuSubContent sideOffset={6} alignOffset={-4} className="w-52 rounded-(--radius-panel) p-1 shadow-panel">
           {items}
         </DropdownMenuSubContent>
@@ -65,8 +68,9 @@ export function HelpItems() {
             if (e.key === "ArrowRight") setOpen(true)
             if (e.key === "ArrowLeft") setOpen(false)
           }}
-          className={ITEM}
+          className={MENU_ITEM}
         >
+          <CircleHelp strokeWidth={MENU_STROKE} />
           Help
           <MenuFoldChevron />
         </DropdownMenuItem>

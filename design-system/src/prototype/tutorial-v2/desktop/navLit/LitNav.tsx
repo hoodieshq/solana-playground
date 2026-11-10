@@ -16,6 +16,8 @@ import { flashKeys, useFlash } from "../flash"
 import { MENU_KEYS } from "../keys"
 import { openNewProject } from "../NewProject"
 import { useCoarse } from "../pointer"
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
+
 import { AccountMenu } from "./AccountMenu"
 import { AccountRow, AvatarDisc, lineOf } from "./AccountRow"
 import { Mine, type LessonItem, type ProjectEntry } from "./Mine"
@@ -25,8 +27,8 @@ import { healthWith, useChoices } from "./choices"
 import { setPinned as setPin, usePins } from "./pins"
 import { FOCUS, HOVER, IN_TABLET_FRAME, RoomyCtx, TabletCtx, Tip } from "./parts"
 import { HealthDot, RailButton } from "./Rail"
-import { setSetupHidden, setupOf, useSetupHidden } from "./setup"
-import { SetupRow } from "./SetupRow"
+import { setupOf } from "./setup"
+import { SetupSteps } from "./SetupRow"
 import { StatusChip } from "./StatusChip"
 import "./navLit.css"
 import { toCatalog, useInProject } from "../../programs"
@@ -89,7 +91,6 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
   const [pinned, setPinned] = useState(false)
   const opener = useRef<HTMLElement | null>(null)
   const navRef = useRef<HTMLElement>(null)
-  const setupHidden = useSetupHidden(stateId)
   const [setupOpen, setSetupOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   // The upright tablet's drawer steps aside while search is open, so search isn't a second layer over it
@@ -303,10 +304,11 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
   const wallet = state.account?.session === "in" && (!state.setup || state.setup.steps[3]?.state === "done")
 
   const showSetup = () => {
-    setSetupHidden(stateId, false)
-    // From the rail the row isn't there: the overlay opens with it
-    if (shape === "rail") float()
-    else setupNext.current = true
+    // From the rail the account row isn't there: the overlay opens with it, then the steps over the row
+    if (shape === "rail") {
+      float()
+      window.setTimeout(() => setSetupOpen(true), 260)
+    } else setupNext.current = true
   }
 
   const destinations: { id: string; label: string; icon: LitIconName; current: boolean; section?: boolean; onClick: () => void }[] = [
@@ -414,25 +416,31 @@ export function LitNav({ sheet }: { sheet?: { onClose: () => void; onSearch?: (o
 
           <Mine lessons={learningNow} projects={projects} upNext={upNext} onStartFirst={go(openByName("Hello Anchor"))} onPick={go} />
 
-          {/* The foot never scrolls and never changes height between states, setup aside. A rule over it
+          {/* The foot never scrolls and never changes height between states. A rule over it
               answers the one under the head, so you sits apart from your work */}
           {/* 8 above and below on the desktop: with the 44 row, 14 from the rule to the avatar (Almaz, 9 Nov) */}
           <div className={cn("flex shrink-0 flex-col gap-2 border-t border-border px-2", roomy ? "py-3" : "py-2")}>
-            {setup && !setupHidden && (
-              <SetupRow
-                setup={setup}
-                open={setupOpen}
-                onOpenChange={setSetupOpen}
-                onHide={() => setSetupHidden(stateId, true)}
-              />
-            )}
+            {/* Setup has no row of its own (Almaz, 10 Nov): its ring is round the avatar, its count on the
+                account's second line, and its steps open over the row from the account menu */}
             {account && (
-              <AccountRow
-                account={account}
-                chipWord={health && healthWith(health, choices).word}
-                chip={health && state.statusRows && <StatusChip health={health} rows={state.statusRows} note={state.statusNote} />}
-                menu={accountMenu("top")}
-              />
+              <Popover open={!!setup && setupOpen} onOpenChange={setSetupOpen}>
+                <PopoverAnchor asChild>
+                  <div>
+                    <AccountRow
+                      account={account}
+                      setup={setup}
+                      chipWord={health && healthWith(health, choices).word}
+                      chip={health && state.statusRows && <StatusChip health={health} rows={state.statusRows} note={state.statusNote} />}
+                      menu={accountMenu("top")}
+                    />
+                  </div>
+                </PopoverAnchor>
+                {setup && (
+                  <PopoverContent side="top" align="start" sideOffset={6} className="w-80 gap-0 rounded-(--radius-panel) p-1.5 shadow-panel">
+                    <SetupSteps setup={setup} />
+                  </PopoverContent>
+                )}
+              </Popover>
             )}
           </div>
         </div>

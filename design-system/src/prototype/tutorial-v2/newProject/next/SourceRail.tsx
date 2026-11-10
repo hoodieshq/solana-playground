@@ -1,9 +1,10 @@
-import { Blocks, ChevronRight, GraduationCap, Plus, Sparkle } from "lucide-react"
+import { Blocks, ChevronRight, Plus } from "lucide-react"
 import { Tabs } from "radix-ui"
 import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 
+import { AssistantMark } from "../../ui/AssistantMark"
 import type { Env, Source } from "./model"
 
 /** GitHub's mark in Lucide's outline style (lucide 1.x dropped brand icons) */
@@ -25,17 +26,18 @@ export function GitHubMark({ className }: { className?: string }) {
   )
 }
 
-type Row = { value: Source; label: string; glyph: ReactNode; notch?: boolean }
+/** `short` is the word a tab has room for; `label` is the full name, on the phone's rows and read aloud */
+type Row = { value: Source; label: string; short: string; glyph: ReactNode; notch?: boolean }
 
 /** The sources by name alone: no second line, even when one can't be used as usual (offline, the
  * assistant off or at its limit). The notch on the glyph and the pane say so (Almaz, 10 Nov) */
 function rows(env: Env, into: boolean): Row[] {
   const off = !env.online
   const all: Row[] = [
-    { value: "starter", label: "Framework starter", glyph: <Plus /> },
-    { value: "example", label: "Example program", glyph: <Blocks />, notch: off },
-    { value: "import", label: "Import from GitHub", glyph: <GitHubMark />, notch: off },
-    { value: "describe", label: "Describe it", glyph: <Sparkle />, notch: off },
+    { value: "starter", label: "Framework starter", short: "Starter", glyph: <Plus /> },
+    { value: "example", label: "Example program", short: "Example", glyph: <Blocks />, notch: off },
+    { value: "import", label: "Import from GitHub", short: "GitHub", glyph: <GitHubMark />, notch: off },
+    { value: "describe", label: "Describe it", short: "Describe", glyph: <AssistantMark />, notch: off },
   ]
   // Filling an empty project has nothing to ask the assistant to start
   return into ? all.slice(0, 3) : all
@@ -70,68 +72,33 @@ export function SourceRows({ env, into, busy, onOpen }: { env: Env; into: boolea
   )
 }
 
-/** The four ways to start (CONSENSUS.md, 3.4): vertical tabs, arrows move and pick. A busy dialog
- * holds every row but the current one */
-export function SourceRail({
-  value,
-  env,
-  into,
-  busy,
-  onPointerPick,
-  onTutorial,
-}: {
-  value: Source
-  env: Env
-  into: boolean
-  busy: boolean
-  onPointerPick: (s: Source) => void
-  onTutorial: () => void
-}) {
+/** The four ways to start (CONSENSUS.md, 3.4), as one row of tabs across the dialog's top: arrows move
+ * and pick. A busy dialog holds every tab but the current one */
+export function SourceTabs({ value, env, into, busy, onPointerPick }: { value: Source; env: Env; into: boolean; busy: boolean; onPointerPick: (s: Source) => void }) {
   return (
-    <div className="flex min-h-0 flex-col border-r border-border px-2 pt-3 pb-3">
-      <Tabs.List aria-label="Start from" className="flex flex-col gap-0.5">
-        {rows(env, into).map((r) => {
-          const current = r.value === value
-          return (
-            <Tabs.Trigger
-              key={r.value}
-              value={r.value}
-              disabled={busy && !current}
-              onPointerUp={() => onPointerPick(r.value)}
-              className={cn(
-                "group/row flex min-h-9 items-start gap-2.5 rounded-lg p-2 text-left outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) disabled:pointer-events-none disabled:opacity-50 [html.touch_&]:min-h-11 [html.touch_&]:py-3",
-                current && "bg-(--np-current)"
-              )}
-            >
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "relative grid size-5 shrink-0 place-items-center [&>svg]:size-4",
-                  current ? "text-foreground" : "text-muted-foreground group-hover/row:text-foreground"
-                )}
-              >
-                {r.glyph}
-                {r.notch && <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-warning shadow-[0_0_0_2px_var(--surface-panel)]" />}
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className={cn("text-sm leading-5 font-act whitespace-nowrap", current ? "text-foreground" : "text-muted-foreground group-hover/row:text-foreground")}>{r.label}</span>
-              </span>
-            </Tabs.Trigger>
-          )
-        })}
-      </Tabs.List>
-      <button
-        type="button"
-        onClick={onTutorial}
-        className="group/tut mt-auto flex min-h-9 items-center gap-2.5 rounded-lg p-2 text-left outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) [html.touch_&]:min-h-11"
-      >
-        {/* A row like the sources above, in their type and icon column, so it reads as one more way out of
-            the dialog, set apart by standing at the foot; one line, as Home's tile names it */}
-        <span aria-hidden="true" className="grid size-5 shrink-0 place-items-center text-muted-foreground group-hover/tut:text-foreground [&>svg]:size-4">
-          <GraduationCap />
-        </span>
-        <span className="text-sm leading-5 font-act whitespace-nowrap text-muted-foreground group-hover/tut:text-foreground">Follow a tutorial</span>
-      </button>
-    </div>
+    <Tabs.List aria-label="Start from" className="mx-6 flex shrink-0 gap-1 rounded-xl bg-foreground/[0.05] p-1">
+      {rows(env, into).map((r) => {
+        const current = r.value === value
+        return (
+          <Tabs.Trigger
+            key={r.value}
+            value={r.value}
+            aria-label={r.label}
+            disabled={busy && !current}
+            onPointerUp={() => onPointerPick(r.value)}
+            className={cn(
+              "group/row flex h-8 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm leading-5 font-act outline-none transition-colors duration-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none [html.touch_&]:h-10",
+              current ? "bg-foreground/[0.11] text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <span aria-hidden="true" className="relative grid size-4 shrink-0 place-items-center [&>svg]:size-4">
+              {r.glyph}
+              {r.notch && <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-warning shadow-[0_0_0_2px_var(--surface-panel)]" />}
+            </span>
+            <span className="truncate">{r.short}</span>
+          </Tabs.Trigger>
+        )
+      })}
+    </Tabs.List>
   )
 }

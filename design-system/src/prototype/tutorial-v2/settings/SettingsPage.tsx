@@ -6,6 +6,7 @@ import { PhoneBar, PhoneBarEnd, PhoneBarStart, PhoneBarTitle } from "@/component
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
+import { LitGround } from "../desktop/Gallery"
 import { useScrollEdges } from "../desktop/navLit/useScrollEdges"
 import { view } from "../view"
 import { useNavState } from "../navStates"
@@ -15,21 +16,29 @@ import { AssistantGroup } from "./AssistantGroup"
 import type { Scene } from "./bar"
 import { NetworkGroup } from "./NetworkGroup"
 import type { Section } from "./open"
-import { GROUP_TITLE, PhoneCtx, Row } from "./Row"
+import { GROUP_PANEL, GROUP_TITLE, PhoneCtx, Row } from "./Row"
 import { setSetting, useSettings } from "./store"
 
-/** A titled group: space above it parts it from the last one, never a rule or a box */
-function Group({ id, title, children }: { id: Section; title?: ReactNode; children: ReactNode }) {
+/** A titled group: its head, then its rows on one panel. Advanced brings its own head, which folds it,
+ * and its own panel under it */
+function Group({ id, title, children }: { id: Section; title?: string; children: ReactNode }) {
   return (
-    <section data-section={id} aria-label={typeof title === "string" ? title : undefined} className="mt-10 scroll-mt-4 [html.phone_&]:mt-6">
-      {typeof title === "string" ? <h2 className={cn(GROUP_TITLE, "mb-2 [html.phone_&]:mb-1")}>{title}</h2> : title}
-      {children}
+    <section data-section={id} aria-label={title} className="mt-8 scroll-mt-4 first:mt-0 [html.phone_&]:mt-6">
+      {title ? (
+        <>
+          <h2 className={cn(GROUP_TITLE, "mb-2.5 flex min-h-9 items-center")}>{title}</h2>
+          <div className={GROUP_PANEL}>{children}</div>
+        </>
+      ) : (
+        children
+      )}
     </section>
   )
 }
 
-/** Settings as Clear Desk lays it (CONSENSUS 3 and 5): one centred column, the same on every view.
- * Word wrap untitled at the top, then Assistant, Network and the folded Advanced. Every value
+/** Settings as Clear Desk lays it (CONSENSUS 3 and 5): one column, the same on every view, in the
+ * frame Home, Tutorials and Programs share (Almaz, 10 Nov): the lit ground, their column and heading,
+ * each group a head and one panel of rows. Editor, Assistant, Network and the folded Advanced. Every value
  * applies on change, so there's no save and nothing says it saved */
 export function SettingsPage({ scene, section, rpcForm, onClose }: { scene: Scene; section?: Section; rpcForm: boolean; onClose: () => void }) {
   const phone = view === "phone" || view === "portrait"
@@ -53,7 +62,8 @@ export function SettingsPage({ scene, section, rpcForm, onClose }: { scene: Scen
 
   return (
     <PhoneCtx.Provider value={phone}>
-      <div data-oak-settings className="flex h-full flex-col">
+      <div data-oak-settings className="relative isolate flex h-full flex-col overflow-hidden">
+        {!phone && <LitGround />}
         {/* A sheet on the upright tablet: the title first and ✕ at the end, as New project's sheet has it */}
         {view === "portrait" ? (
           <PhoneBar>
@@ -77,17 +87,17 @@ export function SettingsPage({ scene, section, rpcForm, onClose }: { scene: Scen
         {/* A fade under the bar instead of a rule, only while the page is scrolled */}
         <div ref={box} data-more-top={edges.top || undefined} data-more-bottom={edges.bottom || undefined} className="fade-edges min-h-0 flex-1 overflow-y-auto overscroll-contain [--fade-size:24px]">
           <div
-            className={cn("mx-auto w-full max-w-[35rem]", view === "phone" ? "px-4 pt-2 pb-[calc(var(--safe-bottom)+24px)]" : phone ? "px-6 pt-2 pb-[calc(var(--safe-bottom)+24px)]" : "px-6 pb-24")}
+            className={cn("mx-auto w-full", view === "phone" ? "max-w-[35rem] px-4 pt-2 pb-[calc(var(--safe-bottom)+24px)]" : phone ? "px-4 pt-2 pb-[calc(var(--safe-bottom)+24px)]" : "max-w-[50rem] px-8 pt-8 pb-24")}
           >
             {/* Beside the nav there's no Back to app: the nav, Escape and ⌘, close it */}
-            {!phone && <h1 className="mt-16 mb-8 font-heading text-display font-normal text-foreground">Settings</h1>}
+            {!phone && <h1 className="mt-6 mb-8 flex min-h-8 items-center font-heading text-[1.75rem] font-normal tracking-[-0.015em] text-foreground">Settings</h1>}
 
-            <section data-section="top" aria-label="Appearance">
+            <Group id="top" title="Editor">
               {/* The name alone didn't say what it does (Almaz, 10 Nov) */}
               <Row label="Word wrap" htmlFor="oak-wrap" help="Break long lines of code to fit the editor instead of scrolling sideways">
                 <Switch id="oak-wrap" checked={settings.wordWrap} onCheckedChange={(v) => setSetting("wordWrap", v)} />
               </Row>
-            </section>
+            </Group>
 
             <Group id="assistant" title="Assistant">
               <AssistantGroup scene={scene} />

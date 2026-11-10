@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils"
 import { useOpenTutorial, useProgress } from "../host"
 import { LESSONS } from "../lessons"
 import { byLevel, shownName, upstreamName, type Entry } from "../ui/catalog"
-import { PixelCover, hasPixelCover } from "../ui/PixelCover"
 import { TutorialCover } from "../ui/TutorialCover"
 
 /* The desktop tutorials list, as client-v2's tutorials page draws it (views/flow/gallery/TutorialsTab.tsx
@@ -17,14 +16,10 @@ const FOCUS = "outline-none focus-visible:outline-2 focus-visible:outline-offset
 /** Cards a level shows before Show all: two rows of the list's two columns */
 const LEVEL_FIRST = 4
 
-/** A tutorial's 44 cover, on its card and on its In progress row */
+/** A tutorial's 44 cover, on its In progress row and where a list names it; its card draws it larger.
+ * Every lesson wears the tile cover now (Almaz, 10 Nov): the three with a pixel scene of their own
+ * stood apart from the rest of the wall */
 export function TutorialThumb({ t, className }: { t: Entry; className?: string }) {
-  if (hasPixelCover(t.slug))
-    return (
-      <span aria-hidden="true" className={cn("relative size-11 shrink-0 overflow-hidden rounded-[9px] bg-[linear-gradient(#b8a6f5_50%,#101011_50%)]", className)}>
-        <PixelCover slug={t.slug} className="absolute top-px -left-1.5" />
-      </span>
-    )
   return <TutorialCover name={upstreamName(t)} framework={t.framework} level={t.level} className={cn("size-11 rounded-[9px]", className)} />
 }
 
@@ -53,7 +48,7 @@ function Card({ t }: { t: Entry }) {
           the text's edge instead of running under it. A pixel cover is drawn to whole pixels at 56 by
           42 and has no 44 square in it, so the picture sits whole in a 44 frame, its sides cropped, with the
           1px left over above filled in its sky and below in its ground, the colours of its own edge rows */}
-      <TutorialThumb t={t} className="row-span-2" />
+      <TutorialThumb t={t} className="row-span-2 size-14 rounded-xl" />
       {/* Set as the Continue banner over the list is: a word in regular grey, the name in the headline face
           at regular weight and tight tracking, then what it teaches in the text's 78%. All of it about seven
           eighths of the banner's (12, 18 and 13 against 13, 24 and 15), so a card reads as a list item, not

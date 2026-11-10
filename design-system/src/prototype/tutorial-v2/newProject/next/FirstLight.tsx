@@ -1,3 +1,4 @@
+import { GraduationCap } from "lucide-react"
 import { RadioGroup, Tabs } from "radix-ui"
 import { useEffect, useRef } from "react"
 
@@ -20,7 +21,7 @@ import type { Env, Source } from "./model"
 import type { Preset } from "./open"
 import { ProblemCallout } from "./ProblemCallout"
 import { SourcePanel } from "./SourcePanel"
-import { SourceRail } from "./SourceRail"
+import { SourceTabs } from "./SourceRail"
 import type { Focus } from "./states"
 import { useFirstLight } from "./useFirstLight"
 
@@ -39,9 +40,9 @@ export function StorageLine() {
 }
 
 /** First Light (research/new-project-redesign/CONSENSUS.md, section 3): one dialog for every way to
- * make a project, opened with Anchor picked, a free name and a button that says what it makes. The
- * four sources on the left, the choice on the right, the name and the one button at the foot. The
- * body never changes size. Mounted afresh for each opening; `forced` seeds a bar state */
+ * make a project, opened with Anchor picked, a free name and a button that says what it makes. One
+ * small column (Almaz, 10 Nov): the four sources as tabs across the top, the choice under them, the way
+ * to the tutorials and the one button at the foot. The body never changes size. Mounted afresh for each opening; `forced` seeds a bar state */
 export function FirstLight({ open, onClose, forced, preset }: { open: boolean; onClose: () => void; forced?: NextStateId; preset?: Preset }) {
   const flow = useFirstLight(forced, preset, onClose)
   const { s, dispatch, env, seed, closing, held, primaryRef, creating, fetching, busy, main, failed, create, cancel, retry, enterCreates } = flow
@@ -112,7 +113,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
           }
         }}
       >
-        <ModalHeader className="pb-4">
+        <ModalHeader className="pb-3.5">
           <ModalTitle className="leading-[1.625rem] font-normal">New project</ModalTitle>
           {hasStorageLine(env) && (
             <ModalDescription className="truncate text-[0.8125rem] leading-[1.125rem]">
@@ -121,25 +122,9 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
           )}
         </ModalHeader>
 
-        <Tabs.Root
-          value={s.source}
-          onValueChange={(v) => dispatch({ type: "source", source: v as Source })}
-          orientation="vertical"
-          activationMode="automatic"
-          className="grid h-[calc(var(--np-body)+1px)] shrink-0 grid-cols-[var(--np-rail)_1fr] border-t border-border"
-        >
-          <SourceRail
-            value={s.source}
-            env={env}
-            into={!!s.into}
-            busy={busy}
-            onPointerPick={focusField}
-            onTutorial={() => {
-              onClose()
-              go({ type: "open", screen: "gallery" })
-            }}
-          />
-          <div className="flex min-h-0 min-w-0 flex-col p-6">
+        <Tabs.Root value={s.source} onValueChange={(v) => dispatch({ type: "source", source: v as Source })} activationMode="automatic" className="flex shrink-0 flex-col">
+          <SourceTabs value={s.source} env={env} into={!!s.into} busy={busy} onPointerPick={focusField} />
+          <div className="flex h-(--np-body) min-h-0 min-w-0 shrink-0 flex-col px-6 pt-4 pb-5">
             {/* 12 to the sides, so a list row's hover can reach past the column's edge without being clipped */}
             <div ref={scrollRef} className="fade-edges -mx-3 -my-1 min-h-0 flex-1 overflow-y-auto px-3 py-1 [--fade-size:24px] [scrollbar-width:none]">
               <Tabs.Content value={s.source} className={cn("animate-menu-in outline-none", (s.source === "starter" || s.source === "describe") && "h-full")}>
@@ -151,7 +136,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
                     onValueChange={(v) => dispatch({ type: "framework", framework: v as FrameworkId })}
                     onKeyDown={enterCreates}
                     disabled={busy}
-                    className="grid h-full grid-cols-2 grid-rows-2 gap-3"
+                    className="grid h-full grid-cols-2 grid-rows-2 gap-2.5"
                   >
                     {FRAMEWORKS.map((x) => (
                       <FrameworkCard key={x.id} f={x} picked={x.id === s.framework} dim={creating && x.id !== s.framework} />
@@ -176,7 +161,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
           </div>
         </Tabs.Root>
 
-        <footer className="flex shrink-0 items-start justify-between gap-4 border-t border-border px-6 py-4">
+        <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-border bg-foreground/[0.03] px-6 py-3">
           {s.into ? (
             <p className="flex h-10 items-center gap-3 text-[0.8125rem] text-muted-foreground">
               {`Adds files to ${s.into}.`}
@@ -184,7 +169,21 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
                 Make a new project instead
               </button>
             </p>
-          ) : null}
+          ) : (
+            // The other way to begin, quiet at the foot's start: it leaves the dialog, so it isn't a tab
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                onClose()
+                go({ type: "open", screen: "gallery" })
+              }}
+              className="group/tut -ml-2 flex h-10 items-center gap-2 rounded-lg px-2 text-[0.8125rem] leading-5 text-muted-foreground outline-none transition-colors duration-100 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ring) disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none [html.touch_&]:h-11"
+            >
+              <GraduationCap aria-hidden="true" strokeWidth={1.75} className="size-4 shrink-0" />
+              Follow a tutorial
+            </button>
+          )}
           <div className="ml-auto flex items-center gap-2">
             {/* In Describe Enter is a new line, so the way to send is said where it's needed. Not under a finger */}
             {s.source === "describe" && main.enabled && (
@@ -206,7 +205,7 @@ export function FirstLight({ open, onClose, forced, preset }: { open: boolean; o
               aria-busy={busy || undefined}
               onClick={create}
               style={busy && held ? { width: held } : undefined}
-              className={cn("min-w-[200px] [html.touch_&]:h-11", busy && "np-busy opacity-100!")}
+              className={cn("min-w-[168px] [html.touch_&]:h-11", busy && "np-busy opacity-100!")}
             >
               {busy && (
                 <>

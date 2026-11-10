@@ -1,3 +1,4 @@
+import { useChoices, withChoices } from "../../desktop/navLit/choices"
 import { useNavState } from "../../navStates"
 import type { Source } from "../../programs/project"
 import { usePrograms } from "../../programs/store"
@@ -101,7 +102,10 @@ export const remember = (name: string) => made.add(name.toLowerCase())
 export function useEnv(): Env {
   const [id, nav] = useNavState()
   const session = nav.account?.session
-  const assistantDot = nav.statusRows?.find((r) => r.name === "Assistant")?.dot
+  // With the picks laid over the state's rows, as the Status popover reads them: a model connected there,
+  // or from Describe it, counts here too
+  const choices = useChoices()
+  const assistantDot = (nav.statusRows && withChoices(nav.statusRows, choices))?.find((r) => r.name === "Assistant")?.dot
   const projects = Array.isArray(nav.projects) ? nav.projects.map((p) => p.name) : []
   const shell = usePrograms((s) => s.projects)
   return {

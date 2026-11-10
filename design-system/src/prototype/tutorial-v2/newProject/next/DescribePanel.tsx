@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 import { cn } from "@/lib/utils"
 
 import { soon } from "../../desktop/Catalog"
+import { MODELS, setChoices } from "../../desktop/navLit/choices"
 import { DESCRIBE_CHIPS, FRAMEWORKS, frameworkOf, type FrameworkId } from "./data"
 import { FrameworkLogo } from "./FrameworkCard"
 import type { Env, FirstLightState } from "./model"
@@ -31,10 +32,13 @@ export function DescribePanel({
 }) {
   const sending = s.run.state === "creating"
   const starter: CalloutAction = { label: "Use a starter", onClick: onUseStarter }
+  // The built in model, as picking it in the Status popover does: the box wakes up in place. The product
+  // opens its Connect a model dialog here
+  const connect = () => setChoices({ model: MODELS[0].name, connected: true })
   const problem = !env.online
     ? { title: "You're offline", cause: "Describe it needs a connection. Starters work offline.", primary: starter }
     : env.assistant === "off"
-      ? { title: "The assistant has no model", cause: "Connect a model to use Describe it. A starter works without it.", primary: { label: "Connect a model", onClick: soon }, secondary: starter }
+      ? { title: "The assistant has no model", cause: "Connect a model to use Describe it. A starter works without it.", primary: { label: "Connect a model", onClick: connect }, secondary: starter }
       : env.assistant === "limit"
         ? {
             title: "Daily limit reached",
@@ -96,14 +100,15 @@ export function DescribePanel({
 
       {/* Under the box, where the worry comes up, and at the size of a field's hint: at 12 in the quiet grey
           under the examples the one line that answers "will it break my code" was the easiest to miss */}
-      <p className="mt-2 text-[0.8125rem] leading-[1.125rem] font-read text-muted-foreground">The assistant builds on a starter. You review every change.</p>
+      {!off && <p className="mt-2 text-[0.8125rem] leading-[1.125rem] font-read text-muted-foreground">The assistant builds on a starter. You review every change.</p>}
 
       {/* "Try" says a chip fills the box: bare, they read as filters. On the phone they run in one row that
           scrolls sideways */}
-      <div
+      {/* With no assistant to take it, the line and the examples go: greyed out between the box and the
+          reason they pushed the box's own toolbar out of it (Almaz, 10 Nov) */}
+      {!off && <div
         className={cn(
-          "mt-4 flex flex-wrap items-center gap-2 [html.phone_&]:-mx-4 [html.phone_&]:flex-nowrap [html.phone_&]:overflow-x-auto [html.phone_&]:px-4 [html.phone_&]:[scrollbar-width:none]",
-          off && "opacity-50"
+          "mt-3 flex flex-wrap items-center gap-2 [html.phone_&]:-mx-4 [html.phone_&]:flex-nowrap [html.phone_&]:overflow-x-auto [html.phone_&]:px-4 [html.phone_&]:[scrollbar-width:none]",
         )}
       >
         <span className="mr-1 shrink-0 text-[0.8125rem] leading-[1.125rem] text-(color:--text-quiet)">Try</span>
@@ -125,7 +130,7 @@ export function DescribePanel({
             {c.label}
           </button>
         ))}
-      </div>
+      </div>}
 
       {problem && <ProblemCallout tone="warning" title={problem.title} cause={problem.cause} primary={problem.primary} secondary={problem.secondary} focus={false} className="mt-3" />}
     </div>

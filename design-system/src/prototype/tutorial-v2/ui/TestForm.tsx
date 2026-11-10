@@ -35,20 +35,24 @@ const CAP = "w-full max-w-[720px]"
 /** The IDL as JSON, read only, with Copy: what the form is drawn from. It takes the form's place in
  * the panel instead of opening a dialog over it, so the two are one switch apart. It fills the panel's
  * height and scrolls inside it; in the phone's sheet, which has no fixed height, the sheet scrolls */
-function IdlView({ json, phone }: { json: string; phone: boolean }) {
+function IdlView({ json, name, count, phone }: { json: string; name: string; count: number; phone: boolean }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      {/* On the phone Copy stands at the end of this line: inside the well it sat on the program's address */}
-      <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1 text-caption text-muted-foreground">The form is built from this IDL, so a new deploy changes both.</p>
-        {phone && <CopyButton value={json} label="Copy IDL" className="-my-3 -mr-3 size-11 shrink-0" />}
-      </div>
-      {/* Copy sits outside the scroller, so it stays put while long lines scroll sideways */}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <p className="text-caption text-muted-foreground">The form is built from this IDL, so a new deploy changes both.</p>
+      {/* A file's panel: its name and Copy in a grey head that stays put, the JSON scrolling under it. Copy
+          floated over the first lines on a desktop and stood by the caption on a phone (Almaz, 11 Nov) */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel border border-border">
+        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border bg-surface-panel pr-1.5 pl-3 pointer-coarse:h-11">
+          <span className="truncate font-mono text-code text-foreground">{name}.json</span>
+          <span className="shrink-0 text-caption text-muted-foreground">
+            {count} {count === 1 ? "instruction" : "instructions"}
+          </span>
+          <CopyButton value={json} label="Copy IDL" className="ml-auto shrink-0 pointer-coarse:size-11" />
+        </div>
         <div
           tabIndex={0}
           aria-label="IDL JSON, read only"
-          className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-control border border-border bg-surface-well py-2 font-mono text-[0.75rem] leading-[1.6] outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="min-h-0 flex-1 overflow-auto overscroll-contain bg-surface-well py-2.5 font-mono text-[0.75rem] leading-[1.6] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
         >
           {json.split("\n").map((line, i) => (
             // On a phone a line wraps instead of scrolling sideways: the program's address was cut at the edge
@@ -57,11 +61,15 @@ function IdlView({ json, phone }: { json: string; phone: boolean }) {
             </div>
           ))}
         </div>
-        {!phone && <CopyButton value={json} label="Copy IDL" className="absolute top-1.5 right-1.5 bg-surface-well" />}
       </div>
     </div>
   )
 }
+
+/** The IDL as it reads best: a list of plain values (a discriminator's eight bytes) on one line. One
+ * number a line, six instructions' bytes ran to sixty lines of zeros (Almaz, 11 Nov) */
+const compactJson = (v: unknown) =>
+  JSON.stringify(v, null, 2).replace(/\[\n((?:\s*(?:-?\d+(?:\.\d+)?|"[^"\n]*"|true|false|null),?\n)+)\s*\]/g, (_, body: string) => `[${body.trim().split(/\s*\n\s*/).join(" ")}]`)
 
 /** The account under the program's words, Lumberjack's player or Zero Copy's map: the log's well
  * exactly, with no border at all, 4 under it (the answer's own gap). One answer, not two components; a
@@ -204,7 +212,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
   if (LESSON.raw) return <RawCall phone={phone} />
 
   const idl = idlOf(s.deployedLib)
-  const json = JSON.stringify(idl, null, 2)
+  const json = compactJson(idl)
   // A program with several instructions shows one form at a time, the latest one added by default
   const ix = idl.instructions.find((i) => i.name === picked) ?? idl.instructions[idl.instructions.length - 1]
   const args = ix.args
@@ -258,6 +266,83 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
     </Button>
   )
 
+  // A field's row: its name and type beside it on a desktop, as one even list down the card; over it in
+  // the sheet, where a row has no room for both
+  const FIELD = phone ? "flex flex-col gap-2" : "flex items-center gap-4"
+  const FIELD_NAME = phone ? "flex items-baseline gap-2" : "flex w-36 min-w-0 shrink-0 items-baseline gap-2"
+  const heading = (
+    <h3 className={cn("font-mono font-medium break-words", phone ? "text-[0.875rem] leading-5" : "text-[0.9375rem] leading-[1.35]")}>
+      <span className="font-normal text-muted-foreground">{LESSON.program}.</span>
+      {/* No syntax colour on the phone: a green name at the top competed with the result's green check */}
+      <span className={phone ? "text-foreground" : "text-syntax-function"}>{ix.name}</span>
+      <span className="text-foreground">{signature(args)}</span>
+    </h3>
+  )
+  const hasSigner = filled?.signer !== undefined && !!LESSON.records?.signers
+  const fields = (
+    <>
+      {args.map((a) => (
+        <label key={a.name} className={cn(FIELD, s.idlNew && "animate-rise", sending && "pointer-events-none opacity-60")}>
+          <span className={FIELD_NAME}>
+            <span className="truncate font-mono text-code text-foreground">{a.name}</span>
+            <span className="font-mono text-[0.75rem] text-subtle">{a.type}</span>
+            {s.idlNew && !LESSON.memory && !LESSON.records && <Tag variant="neutral">New</Tag>}
+          </span>
+          <Input
+            value={filled ? (filled[a.name] ?? "") : s.testName}
+            onChange={(e) =>
+              filled
+                ? setTyped((t) => ({ ...t, [ix.name]: { ...t[ix.name], [a.name]: e.target.value } }))
+                : dispatch({ type: "testName", text: e.target.value })
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                send()
+              }
+            }}
+            readOnly={sending}
+            maxLength={filled ? undefined : NAME_MAX}
+            inputMode={a.type === "string" ? undefined : "numeric"}
+            placeholder={filled ? a.type : "Your name"}
+            autoComplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
+            data-form-type="other"
+            aria-label={`${a.name}, ${a.type}`}
+            // A value that goes into the call, so in the code face, at its label's 13px; 16px on a phone, or
+            // iOS zooms the field. A bracket size, since cn drops text-code next to the field's md:text-sm
+            className={cn("min-w-0 font-mono", phone ? "h-12 w-full text-base" : "h-10 flex-1 text-[0.8125rem] md:text-[0.8125rem]")}
+          />
+        </label>
+      ))}
+      {/* The wallet that signs, for a call the lesson lets more than one wallet make (Tic-tac-toe's X and
+          O): not an argument, so it isn't in the IDL, but Playground's form lets you pick it */}
+      {filled?.signer !== undefined && LESSON.records?.signers && (
+        <div className={cn(FIELD, sending && "pointer-events-none opacity-60")}>
+          <span className={`${FIELD_NAME} font-mono text-code text-foreground`}>signer</span>
+          <div role="radiogroup" aria-label="Signer" className="flex flex-wrap gap-1.5">
+            {LESSON.records.signers.map((w) => (
+              <button
+                key={w.value}
+                type="button"
+                role="radio"
+                aria-checked={filled.signer === w.value}
+                onClick={() => setTyped((t) => ({ ...t, [ix.name]: { ...t[ix.name], signer: w.value } }))}
+                className={`flex h-7 items-center rounded-[7px] border px-3 text-code transition-colors duration-100 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:h-10 ${
+                  filled.signer === w.value ? "border-border-strong bg-foreground/[0.08] text-foreground" : "border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  )
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <Head phone={phone}>
@@ -308,7 +393,7 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
         {view === "idl" ? (
           <div className={cn("flex min-h-0 flex-1 flex-col gap-2.5 py-4", pad)}>
             <div className={`flex min-h-0 flex-1 flex-col ${CAP}`}>
-              <IdlView json={json} phone={phone} />
+              <IdlView json={json} name={LESSON.program} count={idl.instructions.length} phone={phone} />
             </div>
           </div>
         ) : (
@@ -350,106 +435,49 @@ export function TestForm({ phone = false }: { phone?: boolean }) {
               {/* On the phone the request is one object in a quiet well, so it reads as what you send and the
                   answer under it, on the bare sheet, as what came back. Loose on the sheet, the signature, its
                   label and the line ran into the result in one column of mono */}
-              <div className={cn("flex flex-col", phone ? "gap-2 rounded-[12px] bg-foreground/[0.04] p-3" : "mb-2 gap-1")}>
-                <h3 className={cn("font-mono font-medium break-words", phone ? "text-[0.875rem] leading-5" : "text-[0.9375rem] leading-[1.35]")}>
-                  <span className="font-normal text-muted-foreground">{LESSON.program}.</span>
-                  {/* No syntax colour on the phone: a green name at the top competed with the result's green check */}
-                  <span className={phone ? "text-foreground" : "text-syntax-function"}>{ix.name}</span>
-                  <span className="text-foreground">{signature(args)}</span>
-                </h3>
-                {phone ? (
-                  // Two lines on purpose on a narrow sheet: a label, then the line itself in the code face, under a
-                  // hairline that keeps them apart from the signature they explain
-                  <div className="flex flex-col gap-0.5 border-t border-border pt-2">
-                    <p className="text-[0.75rem] leading-4 text-muted-foreground">In code</p>
-                    {/* It breaks after a dot, never inside a name: anywhere left ".rpc(" on one line and ")" alone on the next */}
-                    <code className="font-mono text-[0.8125rem] leading-5 break-words text-foreground/60">
-                      {line.split(".").map((part, i) => (
-                        <span key={i}>
-                          {i > 0 && "."}
-                          {i > 0 && <wbr />}
-                          {part}
-                        </span>
-                      ))}
-                    </code>
+              {phone ? (
+                <>
+                  <div className="flex flex-col gap-2 rounded-[12px] bg-foreground/[0.04] p-3">
+                    {heading}
+                      <div className="flex flex-col gap-0.5 border-t border-border pt-2">
+                        <p className="text-[0.75rem] leading-4 text-muted-foreground">In code</p>
+                        {/* It breaks after a dot, never inside a name: anywhere left ".rpc(" on one line and ")" alone on the next */}
+                        <code className="font-mono text-[0.8125rem] leading-5 break-words text-foreground/60">
+                          {line.split(".").map((part, i) => (
+                            <span key={i}>
+                              {i > 0 && "."}
+                              {i > 0 && <wbr />}
+                              {part}
+                            </span>
+                          ))}
+                        </code>
+                      </div>
                   </div>
-                ) : (
-                  // The line itself in the code face, no chip: a chip read as a field, brighter than the real ones
-                  <p className={NOTE}>
-                    In code <code className="ml-1 font-mono text-code break-words text-foreground/80">{line}</code>
-                  </p>
-                )}
-              </div>
-              {args.map((a) => (
-                // Label over the field, so the request keeps one left edge
-                <label key={a.name} className={cn("flex flex-col gap-2", s.idlNew && "animate-rise", sending && "pointer-events-none opacity-60")}>
-                  <span className="flex items-center gap-2">
-                    <span className="font-mono text-code text-foreground">{a.name}</span>
-                    {s.idlNew && !LESSON.memory && !LESSON.records && <Tag variant="neutral">New</Tag>}
-                  </span>
-                  <Input
-                    value={filled ? (filled[a.name] ?? "") : s.testName}
-                    onChange={(e) =>
-                      filled
-                        ? setTyped((t) => ({ ...t, [ix.name]: { ...t[ix.name], [a.name]: e.target.value } }))
-                        : dispatch({ type: "testName", text: e.target.value })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        send()
-                      }
-                    }}
-                    readOnly={sending}
-                    maxLength={filled ? undefined : NAME_MAX}
-                    inputMode={a.type === "string" ? undefined : "numeric"}
-                    placeholder={filled ? a.type : "Your name"}
-                    autoComplete="off"
-                    data-1p-ignore
-                    data-lpignore="true"
-                    data-bwignore
-                    data-form-type="other"
-                    aria-label={`${a.name}, ${a.type}`}
-                    // A value that goes into the call, so in the code face, at its label's 13px; 16px on a phone, or
-                    // iOS zooms the field. A bracket size, since cn drops text-code next to the field's md:text-sm
-                    className={cn("min-w-0 font-mono", phone ? "h-12 w-full text-base" : "h-10 w-full max-w-[360px] text-[0.8125rem] md:text-[0.8125rem]")}
-                  />
-                </label>
-              ))}
-              {/* The wallet that signs, for a call the lesson lets more than one wallet make (Tic-tac-toe's X and
-                  O): not an argument, so it isn't in the IDL, but Playground's form lets you pick it */}
-              {filled?.signer !== undefined && LESSON.records?.signers && (
-                <div className={cn("flex flex-col gap-2", sending && "pointer-events-none opacity-60")}>
-                  <span className="font-mono text-code text-foreground">signer</span>
-                  <div role="radiogroup" aria-label="Signer" className="flex flex-wrap gap-1.5">
-                    {LESSON.records.signers.map((w) => (
-                      <button
-                        key={w.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={filled.signer === w.value}
-                        onClick={() => setTyped((t) => ({ ...t, [ix.name]: { ...t[ix.name], signer: w.value } }))}
-                        className={`flex h-7 items-center rounded-[7px] border px-3 text-code transition-colors duration-100 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:h-10 ${
-                          filled.signer === w.value ? "border-border-strong bg-foreground/[0.08] text-foreground" : "border-border text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {w.label}
-                      </button>
-                    ))}
+                  {fields}
+                </>
+              ) : (
+                // One card on a desktop (Almaz, 11 Nov): the call's name at its head, what it takes as rows, and
+                // the button in the grey foot beside the line the client writes, as the lesson's cards set
+                // theirs. Loose on the pane, the signature, two fields and a button read as four things
+                <div className="flex flex-col overflow-hidden rounded-panel border border-border">
+                  <div className={cn("px-4 py-3", (args.length > 0 || hasSigner) && "border-b border-border")}>{heading}</div>
+                  {(args.length > 0 || hasSigner) && <div className="flex flex-col gap-3 p-4">{fields}</div>}
+                  <div className="flex flex-col gap-2.5 border-t border-border bg-surface-panel px-4 py-3">
+                    {/* Why the call can't go, right over the button it keeps off */}
+                    {made && (
+                      <p id="call-note" className={`${NOTE} max-w-[64ch]`}>
+                        <Prose text={note ?? ""} {...READ_CODE} />
+                      </p>
+                    )}
+                    <div className="flex min-w-0 items-center gap-4">
+                      {callButton}
+                      {/* The same call as the client writes it, fading at the card's edge when it's long */}
+                      <p className={`${NOTE} min-w-0 flex-1 overflow-hidden whitespace-nowrap [mask-image:linear-gradient(to_right,#000_calc(100%-24px),transparent)]`}>
+                        In code <code className="ml-1 font-mono text-code text-foreground/80">{line}</code>
+                      </p>
+                      <CopyButton value={line} label="Copy the call" className="-mr-1.5 shrink-0" />
+                    </div>
                   </div>
-                </div>
-              )}
-              {/* Why the call can't go, right over the button it keeps off: one unit, 24 under the fields. The
-                  button on the same left edge as the call it sends, and nothing under it. On the phone it
-                  stands at the sheet's foot instead, under the thumb (below) */}
-              {!phone && (
-                <div className="mt-2 flex flex-col items-start gap-2">
-                  {made && (
-                    <p id="call-note" className={`${NOTE} max-w-[64ch]`}>
-                      <Prose text={note ?? ""} {...READ_CODE} />
-                    </p>
-                  )}
-                  {!phone && callButton}
                 </div>
               )}
             </section>

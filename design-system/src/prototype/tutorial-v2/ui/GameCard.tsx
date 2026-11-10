@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react"
-import { Flag, PersonStanding, Swords } from "lucide-react"
+import { Flag, PersonStanding } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -135,40 +135,56 @@ function Boss({ boss, was, news, live, at, phone }: { boss: Rec; was?: Rec; news
   const from = hit && (news || !live) ? hit[0] - 1 : slotAt(s, live ? now : (at ?? now))
   const down = health === 0
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2" aria-label={`${health} of 1000 health`}>
-        <Swords aria-hidden="true" className={cn("size-3.5", down ? "text-error" : "text-muted-foreground")} />
-        <span aria-hidden="true" className={cn("h-1 overflow-hidden rounded-full bg-foreground/10", phone ? "w-24" : "w-32")}>
+    <div className="flex flex-col gap-3">
+      {/* Health as the card's one big number over a bar the card's width: a 14 icon, a short hairline and
+          a small fraction read as a footnote, not as the boss (Almaz, 10 Nov) */}
+      <div className="flex flex-col gap-2" aria-label={`${health} of 1000 health`}>
+        <div className="flex items-baseline gap-1.5">
+          <span className={cn("font-heading text-[1.5rem] leading-7 font-medium tabular-nums", down ? "text-error" : "text-foreground")}>{health}</span>
+          <span className={NOTE}>of 1000 health</span>
+          {down && <span className="ml-auto text-caption text-error">Defeated</span>}
+        </div>
+        <span aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
           <span className="block h-full rounded-full bg-error/70 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${health / 10}%` }} />
         </span>
-        <span className={cn("font-mono text-[0.8125rem] tabular-nums", down ? "text-error" : "text-foreground")}>{health}/1000</span>
-        {down && <span className="text-caption text-error">Defeated</span>}
       </div>
+      {/* The rolls as one even list, the slot on the left and what it rolled on the right: as chips they
+          wrapped into a cloud with no column to read down */}
       {rolls.length > 0 && (
-        <ul aria-label="Last rolls" className="flex flex-wrap gap-1.5">
-          {[...rolls].reverse().map(([slot, damage], i) => (
-            <li key={slot} className={cn("rounded-md px-1.5 py-0.5", MONO, i === 0 && hit && news ? "bg-error/10 text-error" : "bg-foreground/[0.05] text-muted-foreground")}>
-              −{damage} · slot {slotText(slot)}
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col">
+          <span className={NOTE}>Last hits</span>
+          <ul aria-label="Last hits">
+            {[...rolls].reverse().map(([slot, damage], i) => (
+              <li key={slot} className={cn("flex h-6 items-center justify-between gap-3", MONO, i > 0 && "border-t border-border/60")}>
+                <span className="text-muted-foreground">slot {slotText(slot)}</span>
+                <span className={i === 0 && hit && news ? "text-error" : "text-foreground"}>−{damage}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
+      {/* One track cut in five by hairlines, as the tiles are: five bordered boxes read as five buttons */}
       {predicting && (
-        <div className="flex flex-col gap-1">
-          <span className={NOTE}>Next hits</span>
-          <ol aria-label="Next hits" className="grid grid-cols-5 gap-1">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className={NOTE}>Next hits</span>
+            <span className="min-w-0 truncate text-caption text-subtle">From the slot, no transaction</span>
+          </div>
+          <ol aria-label="Next hits" className="grid grid-cols-5 overflow-hidden rounded-lg bg-foreground/[0.05]">
             {[1, 2, 3, 4, 5].map((k) => {
               const slot = from + k
               const landed = hit && hit[0] === slot
               return (
-                <li key={slot} className={cn("flex min-w-0 flex-col items-center rounded-md border px-1 py-1", landed ? "border-foreground/60 bg-foreground/[0.06]" : "border-border")}>
-                  <span className="font-mono text-[0.8125rem] text-foreground tabular-nums">{rollOf(slot)}</span>
-                  <span className="truncate font-mono text-[0.6875rem] text-subtle tabular-nums">…{String(slot).slice(-3)}</span>
+                <li
+                  key={slot}
+                  className={cn("flex min-w-0 flex-col items-center px-1", phone ? "py-2" : "py-1.5", k > 1 && "border-l border-border", landed && "bg-success/10")}
+                >
+                  <span className={cn("font-mono text-[0.875rem] leading-5 tabular-nums", landed ? "text-success" : "text-foreground")}>{rollOf(slot)}</span>
+                  <span className="truncate font-mono text-[0.6875rem] leading-4 text-subtle tabular-nums">…{String(slot).slice(-3)}</span>
                 </li>
               )
             })}
           </ol>
-          <span className={`${NOTE} text-subtle`}>Worked out by the client from the slot, no transaction</span>
         </div>
       )}
     </div>

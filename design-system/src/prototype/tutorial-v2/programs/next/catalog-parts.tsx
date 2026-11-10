@@ -37,7 +37,7 @@ export function standing(p: Project): Standing {
   return chain ? { word: "Deployed to devnet", deployed: true, id: chain.programId, at: chain.at } : { word: "Opened", deployed: false, at: p.createdAt }
 }
 
-/** The 44 tile with the program's avatar, as the gallery card's cover */
+/** The 44 tile with the program's cover, on a row of Your projects; the catalog's card draws it at 56 */
 export function ProgramIcon({ p, className }: { p: ProgramMeta; className?: string }) {
   return <ProgramCover p={p} className={cn("size-11 rounded-[9px]", className)} />
 }

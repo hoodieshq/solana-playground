@@ -2,11 +2,11 @@
    flow until they move into the design system. Plain CSS, not run through Tailwind: classes read them
    as bg-(--np-peek), text-(color:--np-tag-ink) */
 :root {
-  --np-width: 55rem;
-  --np-rail: 13rem;
-  /* 372 as CONSENSUS 3.1 set it (Almaz, 10 Nov). With no Basics heading Example's fifth row sits half in
-     the fade at this height, so the list reads as one to scroll; a taller body showed it whole */
-  --np-body: 23.25rem;
+  /* A small dialog in one column (Almaz, 10 Nov): the sources across its top, where the rail down its
+     left made it 880 wide for four short words. Example's fourth row sits half in the fade at this height,
+     so the list reads as one to scroll */
+  --np-width: 40rem;
+  --np-body: 21rem;
   --np-hover: color-mix(in srgb, var(--foreground) 4%, transparent);
   --np-current: color-mix(in srgb, var(--foreground) 8%, transparent);
   --np-peek: var(--surface-raised);
@@ -26,7 +26,7 @@
   --np-check-glow: 0 0 0 3px rgb(153 69 255 / 0.18), 0 0 14px rgb(153 69 255 / 0.55);
 }
 html.touch {
-  --np-body: 26.25rem;
+  --np-body: 23.5rem;
 }
 
 .np-fade-right {

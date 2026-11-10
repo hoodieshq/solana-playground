@@ -1,0 +1,19 @@
+/* The tile cover's wave (TileCover.tsx): under the pointer, or the focus, of the card or row it
+   sits in, each lit tile flares once, a tile later than the one up and left of it */
+@keyframes tile-cover-wave {
+  0%,
+  100% {
+    filter: none;
+  }
+  35% {
+    filter: brightness(1.7) saturate(1.2);
+  }
+}
+:is(.group\/card, .group\/row):is(:hover, :focus-within) .tile-cover-lit {
+  animation: tile-cover-wave 620ms var(--ease-standard-value, ease-out) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-cover-lit {
+    animation: none !important;
+  }
+}

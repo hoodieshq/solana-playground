@@ -44,24 +44,20 @@ export function FrameworkCard({ f, picked, dim, compact }: { f: FrameworkInfo; p
       className={cn("np-pickable np-card flex flex-col items-start rounded-xl p-4 text-left transition-opacity", dim && "opacity-50")}
     >
       <LitPick />
-      {/* Two blocks, as a choice card sits (Almaz, 10 Nov): the mark and the pick on one line at the top,
-          the words at the foot. Four tiers stacked read as a column of captions; this way the card's room
-          opens between the blocks. Here the logo is the card's picture, so it stands bare and large, not on
-          the small tile the lists use (Almaz, 10 Nov) */}
-      <span className="flex w-full items-center justify-between">
-        <FrameworkLogo f={f} size={40} />
+      {/* Two blocks that take the card's whole height (Almaz, 10 Nov): the mark and the pick on one line at
+          its top, the words at its foot, 16 from every edge. Set as one group in the card's middle, they
+          left a band of nothing over and under them */}
+      <span className="flex w-full items-start justify-between">
+        <FrameworkLogo f={f} size={32} />
         {picked && <CheckBadge />}
       </span>
-      <span className="mt-auto flex items-center gap-2 pt-4">
-        <span className="text-[1.0625rem] leading-6 font-act text-foreground">{f.name}</span>
+      <span className="mt-auto flex w-full min-w-0 items-center gap-2 pt-3">
+        <span className="truncate text-base leading-6 font-act text-foreground">{f.name}</span>
         {/* A tag, as the project head's Example: quiet text beside the name read as the start of the line
             under it (Almaz, 10 Nov). "TypeScript client" already says its language */}
-        {!f.name.includes(f.language) && <span className="rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-[0.75rem] leading-4 text-muted-foreground">{f.language}</span>}
+        {!f.name.includes(f.language) && <span className="shrink-0 rounded-md bg-foreground/[0.08] px-1.5 py-0.5 text-[0.75rem] leading-4 text-muted-foreground">{f.language}</span>}
       </span>
-      <span
-        id={`np-who-${f.id}`}
-        className="mt-1 line-clamp-2 text-[0.8125rem] leading-[1.1875rem] font-read text-muted-foreground [html.portrait_&]:text-[0.875rem] [html.portrait_&]:leading-5 [html.touch_&]:text-[0.875rem] [html.touch_&]:leading-5"
-      >
+      <span id={`np-who-${f.id}`} className="mt-1 line-clamp-2 text-[0.8125rem] leading-[1.1875rem] font-read text-muted-foreground">
         {f.who}
       </span>
     </RadioGroup.Item>
