@@ -77,7 +77,9 @@ function CardMove({
   return (
     <div className={cn("flex gap-2", phone ? "flex-col items-stretch" : "flex-wrap items-end")}>
       {fields.length > 0 && (
-        <div className={cn("flex min-w-0 gap-2", phone ? "flex-col" : "flex-[1_1_16rem] flex-wrap")}>
+        // Stacked, the fields drop the widths they take in a row: in a column a basis of 8rem became each
+        // field's height, and two inputs stood 80 apart (Almaz, 10 Nov)
+        <div className={cn("flex min-w-0 gap-2", phone ? "flex-col [&>label]:flex-none" : "flex-[1_1_16rem] flex-wrap")}>
           <MoveInputs fields={fields} typed={typed} defaults={defaults} onChange={(n, v) => setTyped((t) => ({ ...t, [n]: v }))} onEnter={go} phone={phone} disabled={s.phase !== "idle"} />
         </div>
       )}
