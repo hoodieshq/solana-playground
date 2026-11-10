@@ -139,7 +139,9 @@ const BaseNotEnoughSol = (p: BaseNotEnoughSolProps) => {
           </CalloutAction>
         )}
         {p.onFund && (
-          <CalloutAction onClick={p.onFund}>Send from your wallet</CalloutAction>
+          <CalloutAction onClick={p.onFund}>
+            Send from your wallet
+          </CalloutAction>
         )}
       </CalloutActions>
     </Callout>
