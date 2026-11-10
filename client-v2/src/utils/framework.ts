@@ -1,6 +1,11 @@
 import { PgCommon } from "./common";
 import { PgExplorer, TupleFiles } from "./explorer";
 import { PgWorkspace } from "./explorer/workspace";
+import {
+  ConversionError,
+  isUnknownFramework,
+  UNKNOWN_FRAMEWORK,
+} from "./import-error";
 import type { RequiredKey, SyncOrAsync } from "./types";
 
 /** Framework creation parameter */
@@ -86,9 +91,6 @@ export type Framework<N extends string = string> = RequiredKey<
   FrameworkParam<N>,
   "icon" | "getIsCurrent" | "getDefaultFiles" | "import" | "export"
 >;
-
-/** What `exportWorkspace` throws when it cannot tell a project's framework */
-const UNKNOWN_FRAMEWORK = "Could not identify framework";
 
 /**
  * An import holding Rust or Python that no framework recognises (spec
@@ -272,7 +274,7 @@ export class PgFramework {
    * still exports as is.
    */
   static isUnknownFramework(error: unknown) {
-    return error instanceof Error && error.message === UNKNOWN_FRAMEWORK;
+    return isUnknownFramework(error);
   }
 
   /** All frameworks */
@@ -362,18 +364,20 @@ export class PgFramework {
       const framework = await PgFramework.getFromFiles(files);
       if (!framework) {
         if (files.some(([path]) => PROGRAM_SOURCE_REGEX.test(path))) {
-          throw new Error(NOT_A_PROGRAM);
+          throw new ConversionError(NOT_A_PROGRAM, "unsupported");
         }
         const noProgramFiles = toNoProgramLayoutWith(root)(files);
         if (!noProgramFiles.some(([path]) => SCRIPT_FILE_REGEX.test(path))) {
-          throw new Error(noProgramCode(source));
+          throw new ConversionError(noProgramCode(source), "no-source");
         }
         return noProgramFiles;
       }
 
       const { convertToPlayground } = await framework.import();
       const convertedFiles = await convertToPlayground(files);
-      if (!convertedFiles.length) throw new Error("Could not convert files");
+      if (!convertedFiles.length) {
+        throw new ConversionError("Could not convert files", "unsupported");
+      }
 
       return convertedFiles;
     };

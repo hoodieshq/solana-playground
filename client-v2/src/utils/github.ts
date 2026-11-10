@@ -1,5 +1,6 @@
 import { PgExplorer, TupleFiles } from "./explorer";
 import { noProgramCode, PgFramework } from "./framework";
+import { GithubImportError } from "./import-error";
 import { PgLanguage } from "./language";
 
 /** Single entry of a Git tree */
@@ -207,15 +208,20 @@ export class PgGithub {
     onProgress?.({ loaded: 0, total: null });
     const tree = await this._getTree(owner, repo, treeRef);
     if (tree.truncated) {
-      throw new Error(
+      throw new GithubImportError(
         `Repository "${owner}/${repo}" is too large to import because GitHub ` +
-          "only returns part of its file list."
+          "only returns part of its file list.",
+        "too-large"
       );
     }
 
     const items = filterRepoFiles(tree.tree, path);
-    if (!items.length)
-      throw new Error(noProgramCode(sourceOf(`${owner}/${repo}`, path)));
+    if (!items.length) {
+      throw new GithubImportError(
+        noProgramCode(sourceOf(`${owner}/${repo}`, path)),
+        "no-source"
+      );
+    }
 
     const files = await this._getFileContents(
       owner,
@@ -291,7 +297,7 @@ export class PgGithub {
       `${encodeURIComponent(ref)}?recursive=1`;
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(this._getErrorMessage(response, `${owner}/${repo}`));
+      throw this._getError(response, `${owner}/${repo}`);
     }
 
     return (await response.json()) as GithubTree;
@@ -360,41 +366,48 @@ export class PgGithub {
         `${encodeURIComponent(ref)}/${encodedPath}`
     );
     if (!response.ok) {
-      throw new Error(this._getErrorMessage(response, path));
+      throw this._getError(response, path);
     }
 
     return await response.text();
   }
 
   /**
-   * Turn a failed response into a message that explains what to do next.
+   * Turn a failed response into an error whose message explains what to do
+   * next and whose reason telemetry reports.
    *
    * @param response failed response
    * @param subject repository or file the request was about
-   * @returns the error message
+   * @returns the error
    */
-  private static _getErrorMessage(response: Response, subject: string) {
+  private static _getError(response: Response, subject: string) {
     switch (response.status) {
       case 403:
       case 429:
         if (response.headers.get("x-ratelimit-remaining") === "0") {
-          return (
+          return new GithubImportError(
             "GitHub's hourly request limit for this browser has been " +
-            "reached. Please try again later."
+              "reached. Please try again later.",
+            "rate-limited"
           );
         }
-        return `GitHub refused the request for "${subject}".`;
+        return new GithubImportError(
+          `GitHub refused the request for "${subject}".`,
+          "other"
+        );
 
       case 404:
-        return (
+        return new GithubImportError(
           `"${subject}" was not found on GitHub. It may be private or the ` +
-          "link may be out of date."
+            "link may be out of date.",
+          "not-found"
         );
 
       default:
-        return (
+        return new GithubImportError(
           `GitHub request for "${subject}" failed with status ` +
-          `${response.status}.`
+            `${response.status}.`,
+          "other"
         );
     }
   }

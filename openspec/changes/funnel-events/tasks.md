@@ -1,6 +1,6 @@
 # Tasks
 
-The team implements these on `scope/users-work-2`. Every task is HOO-2411
+The team implements these on `scope/interface-3` (`scope/users-work-2` and `scope/interface-2` have landed in `master`). Every task is HOO-2411
 unless it says "ticket to file", and each is one PR. Task 1.1 goes first;
 the others depend on it and may run at the same time, except 4.2, which
 depends on 4.1. Each task declares, describes and emits its events, with
@@ -23,7 +23,7 @@ its rows' `pending (funnel-events)` mark in the funnel table with the slice.
 
 ## 2. Project files
 
-- [ ] 2.1 Add `features/project-files` with prefix `project` and the
+- [x] 2.1 Add `features/project-files` with prefix `project` and the
       error-to-reason mapping, `GithubImportError` in `utils/github.ts` and
       a named empty-conversion error in `utils/framework.ts`. Satisfies
       `client-v2-project-files`, "The slice declares the project events" and
