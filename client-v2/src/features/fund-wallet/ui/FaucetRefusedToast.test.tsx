@@ -1,11 +1,28 @@
 // The wallet menu's "faucet is at its limit" toast, and its way to the Fund dialog
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const WALLET = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";
+const OTHER = "4Zr8aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789Mn3Q";
+const HREF = `https://faucet.solana.com/?walletAddress=${WALLET}`;
+
+const utils = vi.hoisted(() => ({
+  PgWallet: {
+    current: undefined as unknown,
+    accounts: [] as unknown[],
+    create: vi.fn(),
+  },
+}));
+vi.mock("@/utils", () => utils);
 
 import { onDidRequestFundDialog } from "../model/open";
 import FaucetRefusedToast from "./FaucetRefusedToast";
 
-const HREF = "https://faucet.solana.com/?walletAddress=Wa11et";
+utils.PgWallet.current = {
+  isPg: true,
+  name: "Wallet 1",
+  publicKey: { toBase58: () => WALLET },
+};
 
 let stop: (() => void) | undefined;
 afterEach(() => {
@@ -13,28 +30,36 @@ afterEach(() => {
   stop = undefined;
 });
 
+const fundButton = () =>
+  screen.queryByRole("button", { name: "Send from your wallet" });
+
 describe("features/fund-wallet/ui/FaucetRefusedToast", () => {
   it("offers Send from your wallet under the web faucet's link", () => {
     const asked: string[] = [];
     stop = onDidRequestFundDialog((from) => asked.push(from));
-    const { container } = render(<FaucetRefusedToast href={HREF} />);
+    const { container } = render(
+      <FaucetRefusedToast href={HREF} address={WALLET} />
+    );
 
     const labels = Array.from(container.querySelectorAll("a, button")).map(
       (el) => el.textContent
     );
     expect(labels).toEqual(["Open the web faucet", "Send from your wallet"]);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Send from your wallet" })
-    );
+    fireEvent.click(fundButton() as HTMLElement);
     expect(asked).toEqual(["faucet-toast"]);
   });
 
-  it("draws no Send from your wallet when no dialog can open", () => {
-    render(<FaucetRefusedToast href={HREF} />);
+  it("leaves it out when the dialog would fund another wallet", () => {
+    stop = onDidRequestFundDialog(() => undefined);
+    render(<FaucetRefusedToast href={HREF} address={OTHER} />);
 
-    expect(
-      screen.queryByRole("button", { name: "Send from your wallet" })
-    ).toBeNull();
+    expect(fundButton()).toBeNull();
+  });
+
+  it("leaves it out when no dialog can open", () => {
+    render(<FaucetRefusedToast href={HREF} address={WALLET} />);
+
+    expect(fundButton()).toBeNull();
     expect(
       screen.getByRole("link", { name: "Open the web faucet" })
     ).toBeTruthy();

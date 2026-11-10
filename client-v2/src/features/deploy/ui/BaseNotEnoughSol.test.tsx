@@ -9,10 +9,7 @@ import BaseNotEnoughSol from "./BaseNotEnoughSol";
 
 const ADDRESS = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
 
-const renderCard = (
-  props: Partial<BaseNotEnoughSolProps>,
-  onFund?: () => void
-) => {
+const renderCard = (props: Partial<BaseNotEnoughSolProps>) => {
   const onRetry = vi.fn();
   const onAirdrop = vi.fn();
   const onSignIn = vi.fn();
@@ -29,7 +26,7 @@ const renderCard = (
         onRetry={onRetry}
         onAirdrop={onAirdrop}
         onSignIn={onSignIn}
-        onFund={onFund}
+        onFund={props.onFund}
       />
     </TooltipProvider>
   );
@@ -142,7 +139,7 @@ describe("BaseNotEnoughSol", () => {
       "airdrop_failed",
     ] as const)("is offered when the card shows for %s", (reason) => {
       const onFund = vi.fn();
-      renderCard({ reason }, onFund);
+      renderCard({ reason, onFund });
 
       fireEvent.click(
         screen.getByRole("button", { name: "Send from your wallet" })
@@ -152,7 +149,7 @@ describe("BaseNotEnoughSol", () => {
     });
 
     it("comes after the web faucet", () => {
-      const { card } = renderCard({ reason: "airdrop_off" }, vi.fn());
+      const { card } = renderCard({ reason: "airdrop_off", onFund: vi.fn() });
 
       const labels = Array.from(card.querySelectorAll("a, button")).map(
         (el) => el.textContent
@@ -163,7 +160,7 @@ describe("BaseNotEnoughSol", () => {
     });
 
     it("is offered on a network with no faucet", () => {
-      renderCard({ reason: "no_faucet", cluster: "localnet" }, vi.fn());
+      renderCard({ reason: "no_faucet", cluster: "localnet", onFund: vi.fn() });
 
       expect(screen.queryByRole("link", { name: /web faucet/ })).toBeNull();
       expect(

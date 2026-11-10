@@ -1032,7 +1032,7 @@ describe("TurnView", () => {
     revealError: vi.fn(),
     showLog: vi.fn(),
     createWallet: vi.fn(),
-    fund: vi.fn(),
+    fundFor: vi.fn(() => vi.fn()),
     signIn: vi.fn(),
   });
   const draw = (turn: Turn, live: boolean, handlers = on()) =>
@@ -1154,7 +1154,42 @@ describe("TurnView", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Send from your wallet" })
     );
-    expect(handlers.fund).toHaveBeenCalledOnce();
+    expect(handlers.fundFor).toHaveBeenCalledWith("Wa11et");
+    expect(handlers.fundFor.mock.results[0]?.value).toHaveBeenCalledOnce();
+  });
+
+  it("leaves Send from your wallet out when the dialog would fund another wallet", () => {
+    const handlers = on();
+    handlers.fundFor.mockReturnValue(undefined);
+    draw(
+      {
+        id: "result:s2.deploy:0",
+        kind: "result",
+        step: "deploy",
+        at: 2,
+        whole: true,
+        beatId: "s2.deploy",
+        act: "deploy",
+        result: {
+          act: "deploy",
+          ok: false,
+          seconds: 2,
+          reason: "no_funds",
+          message: "airdrop refused",
+          balance: 0,
+          cost: 1_820_000_000,
+          address: "Wa11et",
+        },
+        took: 0,
+        planned: null,
+        open: true,
+      },
+      false,
+      handlers
+    );
+    expect(
+      screen.queryByRole("button", { name: "Send from your wallet" })
+    ).toBeNull();
   });
 
   it("opens the terminal from a landed deploy's Log", async () => {
@@ -1686,7 +1721,7 @@ describe("TurnView's last win", () => {
           revealError: vi.fn(),
           showLog: vi.fn(),
           createWallet: vi.fn(),
-          fund: vi.fn(),
+          fundFor: vi.fn(() => vi.fn()),
           signIn: vi.fn(),
         }}
       />
@@ -1803,7 +1838,7 @@ describe("TurnView's chip answer", () => {
     revealError: vi.fn(),
     showLog: vi.fn(),
     createWallet: vi.fn(),
-    fund: vi.fn(),
+    fundFor: vi.fn(() => vi.fn()),
     signIn: vi.fn(),
   });
   const reply = (follow: Follow | null): Turn => ({

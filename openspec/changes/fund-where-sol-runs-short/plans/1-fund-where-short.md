@@ -20,7 +20,7 @@
 ## Review Focus
 
 1. The toast closes (15 s) while the dialog is open → the dialog stays open. Host owns it; test in Task 1 (host renders without the opener mounted).
-2. No host mounted (Home) → the toast draws no button. `hasFundDialogHost()`; test in Task 4.
+2. No host mounted (a render outside Flow) → no button. `hasFundDialogHost()`; test in Task 4. The short wallet is not the dialog's receiver → no button (`fundFor`, review 11 Nov).
 3. Deploy card on a no-faucet cluster → button still there. Test in Task 2.
 4. A tutorial card with the step moved on (folded, `open=false`) → nothing breaks; button lives in the body only.
 5. Two `openFundDialog` calls in a row with different `from` → one `fund_dialog_opened` per opening, with the latest `from`. Test in Task 1.

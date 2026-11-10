@@ -79,6 +79,15 @@ describe("features/fund-wallet/ui/FundDialogHost", () => {
     ]);
   });
 
+  it("ignores a request while the dialog is open", async () => {
+    render(<FundDialogHost />);
+
+    await act(async () => openFundDialog("deploy-card"));
+    await act(async () => openFundDialog("faucet-toast"));
+
+    expect(opened()).toEqual([{ from: "deploy-card" }]);
+  });
+
   it("says whether a host is there to ask", () => {
     expect(hasFundDialogHost()).toBe(false);
     const { unmount } = render(<FundDialogHost />);

@@ -10,7 +10,7 @@ import {
   slugOf,
 } from "@/entities/tutorial";
 import { isSignInFailure, PgSession, useSignedIn } from "@/features/auth";
-import { openFundDialog } from "@/features/fund-wallet";
+import { fundFor } from "@/features/fund-wallet";
 import type {
   ConversationState,
   RunResult,
@@ -567,7 +567,7 @@ const handlers: Omit<
   showLog: () => PgConversation.showLog(),
   createWallet,
   signIn,
-  fund: () => openFundDialog("tutorial-card"),
+  fundFor: fundFor("tutorial-card"),
 };
 
 /**

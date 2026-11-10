@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { onDidRequestFundDialog } from "../model/open";
 import type { FundFrom } from "../model/telemetry";
@@ -14,9 +14,14 @@ const FundDialogHost = () => {
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState<FundFrom>("deploy-card");
 
+  // A request while the dialog is open changes nothing: a new `from` would
+  // count a second opening and reset what the user picked
+  const isOpen = useRef(open);
+  isOpen.current = open;
   useEffect(
     () =>
       onDidRequestFundDialog((next) => {
+        if (isOpen.current) return;
         setFrom(next);
         setOpen(true);
       }),

@@ -11,8 +11,8 @@ import {
   DEFAULT_AMOUNT,
   formatSol,
   parseAmount,
-  receiverOf,
 } from "../model/fund";
+import { currentReceiver } from "../model/receiver";
 import type { FundCluster, FundFrom } from "../model/telemetry";
 import { fundTelemetry } from "../model/telemetry";
 import { sendFunds, TransferNotConfirmedError } from "../model/transfer";
@@ -27,29 +27,6 @@ export interface FundDialogProps {
   /** The control that opened it, for `fund_dialog_opened` */
   from?: FundFrom;
 }
-
-/** The receiver `deploy` pays from, read from `PgWallet` */
-const currentReceiver = () => {
-  const current = PgWallet.current;
-  const first = PgWallet.accounts[0];
-  return receiverOf({
-    // Only a Playground wallet can receive; an extension's key is absent while
-    // it disconnects, before `PgWallet` hands back to the Playground wallet
-    current: current?.isPg
-      ? {
-          isPg: true,
-          name: current.name,
-          address: current.publicKey.toBase58(),
-        }
-      : undefined,
-    firstAccount: first
-      ? {
-          name: first.name,
-          address: PgWallet.create(first).publicKey.toBase58(),
-        }
-      : undefined,
-  });
-};
 
 /**
  * The wallet the user picked in this dialog, once connected. Never one picked

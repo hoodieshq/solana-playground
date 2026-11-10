@@ -20,6 +20,8 @@ the faucet-refused toast is rendered by `PgView.setToast` and unmounts after
   same instance. Alternative: a `FundDialog` per entry, as the menu and the
   chip have. Rejected for the toast (unmounts) and because each instance
   keeps its own pending send.
+- **A request while open is ignored**, so a second entry cannot reset the
+  user's picks or count a second opening.
 - **Base components take `onFund`.** `BaseNotEnoughSol`,
   `BaseDeployResultCard` and `BaseTxResultCard` get an optional `onFund`
   prop and draw the button only when it is given; the connected layer
@@ -36,7 +38,10 @@ the faucet-refused toast is rendered by `PgView.setToast` and unmounts after
 - [Two dialogs could be open at once: the chip's and the host's] → each
   is modal; opening one from a card closes the chip's popover first. Not
   reachable in one click path.
-- [The host mounts only under Flow] → every entry above renders under Flow;
-  Home has no deploy card, no tutorial card, and its wallet menu toast would
-  find no host. `openFundDialog` with no listener does nothing, so the toast
-  draws its button only while a host is mounted (`hasFundDialogHost()`).
+- [The dialog funds one wallet, the card may name another] → the dialog pays
+  the current Playground wallet, or the first account when an extension is
+  current; a deploy can be short on another. `fundFor(from)(address)` returns
+  the entry's action only when the short address is that receiver and a host
+  is mounted; otherwise the entry draws no button.
+- [The host mounts in Flow] → Flow wraps Home too, so every entry finds it;
+  `hasFundDialogHost()` only guards a render with no host, as in a unit test.
