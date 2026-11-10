@@ -26,6 +26,7 @@ import {
 } from "@/shared/lib/telemetry";
 import { Modal } from "@/shared/ui/modal";
 import { requireFor } from "@/test-utils/require-for";
+import { GithubImportError } from "@/utils/import-error";
 import { PgView as PgViewDirect } from "@/utils/view";
 import { ModalIdContext } from "@/widgets/overlays";
 import { ModalLayerContext } from "@/widgets/overlays/ui/modal-layer";
@@ -224,6 +225,35 @@ it("closes the dialog as imported once the URL's project is imported", async () 
     { name: "project_imported", params: { via: "github" } },
   ]);
   close.mockRestore();
+});
+
+it("counts a URL whose repository was not found, with its reason", async () => {
+  utils.PgGithub.import.mockRejectedValue(
+    new GithubImportError("Repository not found.", "not-found")
+  );
+  draw();
+
+  submitUrl("https://github.com/c/missing");
+
+  expect(await screen.findByText(/Repository not found/)).toBeTruthy();
+  expect(projectEvents()).toEqual([
+    {
+      name: "project_import_failed",
+      params: { via: "github", reason: "not-found" },
+    },
+  ]);
+});
+
+it("sends no project event when the URL's program selection is closed", async () => {
+  utils.PgGithub.import.mockRejectedValue(new utils.ImportCancelledError());
+  draw();
+
+  submitUrl("https://github.com/c/d");
+
+  await waitFor(() => expect(utils.PgGithub.import).toHaveBeenCalled());
+  // Let the submit settle: a failure would be counted on the next ticks
+  await new Promise((r) => setTimeout(r, 0));
+  expect(projectEvents()).toEqual([]);
 });
 
 it("asks for a GitHub or gist URL", () => {
