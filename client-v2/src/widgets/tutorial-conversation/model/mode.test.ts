@@ -104,6 +104,13 @@ describe("the tutorial's assistant mode", () => {
     expect(openMenu).toHaveBeenCalledTimes(1);
   });
 
+  it("says the learner is not in a tutorial, now as in the context, when no lesson is open", () => {
+    conversation.view.mockReturnValue(null);
+    const mode = tutorialMode({ openMenu: vi.fn() });
+    expect(mode.now?.()).toBe("The learner is not in a tutorial right now.");
+    expect(mode.context()).toBe("The learner is not in a tutorial right now.");
+  });
+
   it("answers the menu with no state, which the history would keep after it changed", async () => {
     liveIs(false);
     expect(await toolOf("open_menu").run({})).toBe("The menu is open.");

@@ -113,9 +113,9 @@ export const describeTutorial = (facts: TutorialFacts): string => {
 /**
  * The tutorial now, sent after the thread's history with the newest message
  * (`AssistantMode.now`): where the learner is and the card the step waits
- * on. Asked the same "what now?" again, the model repeated its earlier
- * answers from the history over the context before it ("press Start step 1"
- * at a live Build card, HOO-2823).
+ * on. When the learner asked "what now?" again, the model repeated its
+ * earlier answers from the history over the context before it ("press Start
+ * step 1" at a live Build card, HOO-2823).
  */
 export const describeNow = ({
   definition,
@@ -145,20 +145,19 @@ const nowOf = (
   return `step ${i + 1} of ${definition.steps.length}, ${step.title}.`;
 };
 
-/** The card the step waits on, in one sentence, or "" when none acts */
+/**
+ * What the live card waits for (an open question, an act's button, a done
+ * step's Next, a failed result), or "" when no card waits. A win on a step
+ * the definition no longer has reads as the last, as in `whereNextIs`
+ */
 const waitsOn = (definition: TutorialDefinition, live: Turn | null): string => {
   if (live?.kind === "ask" && live.open) {
     return `It waits on the open question: "${textOf(live.ask.question)}".`;
   }
   if (live?.kind === "act") {
-    let state = "";
-    if (live.state === "running") state = " It is running now.";
-    if (live.state === "interrupted") {
-      state = " A reload interrupted its last run; pressing it runs it again.";
-    }
     return (
       `It waits for the "${live.act.button}" button on the ` +
-      `"${live.act.title}" card.${state}`
+      `"${live.act.title}" card.${actStateOf(live)}`
     );
   }
   if (live?.kind === "win") {
@@ -299,17 +298,19 @@ const BESIDES_THE_CARD: Record<ActBeat["act"], string> = {
  * card stands: live, running, or interrupted by a reload, after which the
  * learner presses it again; nothing resumes on its own.
  */
-const whereActIs = (live: Extract<Turn, { kind: "act" }>): string => {
-  let state = "";
-  if (live.state === "running") state = " It is running now.";
+const whereActIs = (live: Extract<Turn, { kind: "act" }>): string =>
+  `The step waits for the "${live.act.button}" button on the ` +
+  `"${live.act.title}" card in the tutorial feed, in this chat. ` +
+  `${BESIDES_THE_CARD[live.act.act]} Point the learner to that card.` +
+  actStateOf(live);
+
+/** How an act card stands, after a space, or "" when it is live */
+const actStateOf = (live: Extract<Turn, { kind: "act" }>): string => {
+  if (live.state === "running") return " It is running now.";
   if (live.state === "interrupted") {
-    state = " A reload interrupted its last run; pressing it runs it again.";
+    return " A reload interrupted its last run; pressing it runs it again.";
   }
-  return (
-    `The step waits for the "${live.act.button}" button on the ` +
-    `"${live.act.title}" card in the tutorial feed, in this chat. ` +
-    `${BESIDES_THE_CARD[live.act.act]} Point the learner to that card.${state}`
-  );
+  return "";
 };
 
 /**
@@ -867,6 +868,22 @@ if (import.meta.vitest) {
         "It waits on the failed result's card."
       );
       expect(now(inStep, null)).toBe(`${where} ${older}`);
+      // A closed question or result waits on nothing
+      expect(now(inStep, turn({ kind: "ask", open: false, ask }))).toBe(
+        `${where} ${older}`
+      );
+      expect(now(inStep, turn({ kind: "result", open: false }))).toBe(
+        `${where} ${older}`
+      );
+      // A save that outlived an edit of the tutorial
+      expect(
+        now(inStep, turn({ kind: "win", stepId: "gone", last: false }))
+      ).toContain("The last step is done.");
+      const gone = freshProgress();
+      gone.cursor = { kind: "step", stepId: "gone", beat: 0, fail: false };
+      expect(now(gone, null)).toBe(
+        `The tutorial now: they are in a step this tutorial no longer has. ${older}`
+      );
       const done = freshProgress();
       done.cursor = { kind: "finished" };
       expect(now(done, null)).toBe(

@@ -35,8 +35,8 @@ const openQuestion = (): string | null => {
 
 /**
  * The tutorial's mode for the live assistant (`PgAssistant.setMode`): the
- * lesson's context (`describeTutorial`) and, after the history, where it
- * stands now (`describeNow`), the read-only tools, and four
+ * lesson's context (`describeTutorial`), where the lesson stands now, sent
+ * after the history (`describeNow`), the read-only tools, and four
  * tools of its own: the menu; the question's Hint, and its Skip, which
  * resolves it and has the lesson write its block, as the buttons do; and a
  * one-line change the learner applies or keeps. The assistant itself writes

@@ -336,9 +336,10 @@ in this order:
    tutorial's current state, where the learner is and the card the step
    waits on, SHALL also reach the model after the thread's history, with
    the newest message, saying that earlier turns describe the tutorial as it
-   was then; no earlier turn SHALL carry the state of its moment, so a tool's
-   result says what the tool did, not where the learner was. Its answer
-   SHALL post in the feed as the assistant's turn. With no model connected, the message SHALL route to
+   was then. The stored thread SHALL keep that message as typed, without
+   the state, and the menu tool's result SHALL say only that the menu
+   opened. The assistant's answer SHALL post in the feed as the assistant's
+   turn. With no model connected, the message SHALL route to
    connecting a model. While the assistant answers, a question SHALL wait in
    the composer, unsent, until the answer ends, under the note "The assistant
    is still answering. Press Enter again once it's done."; a live action's

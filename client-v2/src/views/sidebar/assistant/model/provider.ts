@@ -67,22 +67,25 @@ const modeContext = () => {
 };
 
 /**
- * The newest message as the request sends it: with the mode's current state
- * after the user's words, as a second text part, so the model reads it after
- * the history, whose turns describe the surface as it was then (HOO-2823). A
- * system message after the history would need a beta on Anthropic's API and
- * not every OpenAI-compatible backend takes one; every backend takes a text
- * part
+ * The newest message as the request sends it: the user's words, then the
+ * mode's current state as a second text part, so the model reads the state
+ * after the history, whose turns describe the surface as it was then
+ * (HOO-2823). A user message's text parts are what every backend takes; a
+ * system message after the history is not (Anthropic's API takes one only
+ * under a beta).
  */
 const withModeNow = (said: UserModelMessage & { content: string }) => {
   const mode = PgAssistant.mode;
   if (!mode?.now) return said;
   try {
+    const text = mode.now();
+    // Anthropic refuses an empty text part
+    if (!text.trim()) return said;
     const now: UserModelMessage = {
       role: "user",
       content: [
         { type: "text", text: said.content },
-        { type: "text", text: mode.now() },
+        { type: "text", text },
       ],
     };
     return now;
@@ -95,7 +98,8 @@ const withModeNow = (said: UserModelMessage & { content: string }) => {
 
 /**
  * One conversation with any model provider, on `runTurn`. The history keeps the SDK's messages, so
- * tool calls and Gemini's thought signatures go back as sent; a failed turn leaves it unchanged.
+ * tool calls and Gemini's thought signatures go back as sent, but the user's message as typed,
+ * without the mode's state now (`withModeNow`); a failed turn leaves it unchanged.
  * The thread still stores each call that turn finished (`PgAssistant.addToolResult`), so a provider
  * rebuilt later replays them: they ran, and the model must not run them again.
  */

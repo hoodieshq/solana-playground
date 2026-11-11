@@ -13,6 +13,7 @@ import { createProvider } from "@/views/sidebar/assistant/model/provider";
 import { PgAssistant } from "@/views/sidebar/assistant/store";
 
 import hello from "../../../tutorials/hello-anchor/tutorial.json";
+import { nextStepLabel } from "./card-labels";
 import { BEGIN_INVITATION } from "./context";
 import { tutorialMode } from "./mode";
 
@@ -124,6 +125,10 @@ describe("the tutorial assistant asked again at a later card (HOO-2823)", () => 
       // Before Start, the learner asks for the menu
       at(progressAt({ kind: "intro" }), { kind: "intro", id: "intro" });
       await provider.send("show me the steps");
+      const before = messagesOf(sent[0].body);
+      expect(textOf(before[before.length - 1])).toContain(
+        "The tutorial now: they have not pressed Start yet."
+      );
 
       const cases: Array<{ live: unknown; now: string }> = [
         {
@@ -136,7 +141,7 @@ describe("the tutorial assistant asked again at a later card (HOO-2823)", () => 
         },
         {
           live: { kind: "win", stepId: first.id, last: false },
-          now: `"Next: ${second.title}" button`,
+          now: `"${nextStepLabel(second.title)}" button`,
         },
       ];
       for (const { live, now } of cases) {
@@ -148,7 +153,7 @@ describe("the tutorial assistant asked again at a later card (HOO-2823)", () => 
         expect(newest.role).toBe("user");
         expect(textOf(newest)).toContain("what do I do now?");
         expect(textOf(newest)).toContain(
-          `The tutorial now: step 1 of 4, ${first.title}.`
+          `The tutorial now: step 1 of ${definition.steps.length}, ${first.title}.`
         );
         expect(textOf(newest)).toContain(now);
         expect(textOf(newest)).toContain(

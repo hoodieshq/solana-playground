@@ -320,6 +320,28 @@ describe("the assistant's provider", () => {
     ]);
   });
 
+  it("sends the turn as typed when a mode's state now is empty", async () => {
+    const sent = respond(openAiText("Hi."));
+    const mode = PgAssistant.setMode({
+      name: "tutorial",
+      context: () => "Tutorial",
+      now: () => " ",
+      tools: [],
+      allows: () => true,
+      refusal: "",
+    });
+    try {
+      await createProvider({ id: "default", apiKey: "" }).send("hi");
+    } finally {
+      mode.dispose();
+    }
+
+    expect(messagesOf(sent[0].body).at(-1)).toEqual({
+      role: "user",
+      content: "hi",
+    });
+  });
+
   it("sends the turn as typed when a mode's state now throws, and reports it", async () => {
     const memory = memoryLog();
     initLogger({ providers: [memory] });
