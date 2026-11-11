@@ -273,7 +273,9 @@ export const realDeployPort = (): DeployPort => {
     build: async () => {
       const built = await runBuild("build", { beatId: "deploy" }, () => {});
       if (built.ok || built.act !== "build") return { ok: true };
-      return { ok: false, message: buildFailureOf(built) };
+      return built.reason === "stopped"
+        ? { ok: false, message: built.log, stopped: true }
+        : { ok: false, message: buildFailureOf(built) };
     },
     bytes: async () =>
       PgServer.deploy(needed(PgProgramInfo.uuid, "the build's uuid")),
@@ -447,6 +449,7 @@ const buildFailureOf = (r: Extract<RunResult, { act: "build"; ok: false }>) => {
   // so an in-source block cannot reach it. The line is the one the
   // tutorial-runs spec names for a build-and-deploy refused for sign-in
   if (r.reason === "signed_out") return "Sign in with GitHub to build.";
+  if (r.reason === "stopped") return r.log;
   const e = r.error;
   if (!e) return "The build failed. See the terminal.";
   const where = e.line !== null ? ` (line ${e.line})` : "";
@@ -476,7 +479,10 @@ export const runDeployOnDevnet: ActRun = async (act, _input, onStage) => {
   );
   // The reason and the chain's message only: never a key or the wallet.
   // `runDeploy` answers only deploy results, so every failure has a reason
-  if (!result.ok && result.act !== "build" && "reason" in result) {
+  if (!result.ok && result.act !== "build" && result.reason === "stopped") {
+    // The learner's Stop: no failure (HOO-2822)
+    log.info(`The learner stopped a tutorial ${act}`);
+  } else if (!result.ok && result.act !== "build" && "reason" in result) {
     log.warn(`A tutorial ${act} stopped: ${result.reason}`, {
       context: { message: result.message },
     });

@@ -1,6 +1,8 @@
 /* eslint-disable layers/curry-order, max-params, unicorn/no-null -- tutorial flow v2 predates these rules; cleanup tracked from SF#94 */
 import type { Idl } from "@coral-xyz/anchor";
 
+import { isStopped } from "@/utils/stopped";
+
 import type { RunInput, RunStage } from "../ports";
 import type { Exists, RunResult, UnreadTx } from "../progress";
 import type { AccountData } from "./account-read";
@@ -99,6 +101,20 @@ export interface RunPort {
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** A run or call the learner stopped (HOO-2822): no failure, never reported */
+const stoppedOf = (
+  act: "run" | "call",
+  seconds: () => number,
+  e: unknown
+): TxResult => ({
+  act,
+  ok: false,
+  seconds: seconds(),
+  reason: "stopped",
+  message: messageOf(e),
+  log: "",
+});
+
 /**
  * A failed call's line when the learner's program no longer matches what the
  * step expects. The conversation adds the offer to show the lines (`view.ts`);
@@ -160,6 +176,7 @@ export const runOrCall = async (
   try {
     return await attempt(port, act, input, onStage, seconds, fail);
   } catch (e) {
+    if (isStopped(e)) return stoppedOf(act, seconds, e);
     port.report(e, `The tutorial ${act}`);
     return fail(messageOf(e));
   }
@@ -278,6 +295,7 @@ const fromSends = async ({
   const { error } = sends;
 
   if (!captured.length) {
+    if (isStopped(error)) return stoppedOf(act, seconds, error);
     if (error instanceof NoSuchInstructionError) {
       return mismatched(fail(messageOf(error)));
     }
@@ -755,6 +773,37 @@ if (import.meta.vitest) {
       });
       expect(result).not.toHaveProperty("reason");
     });
+
+    it.each(["run", "call"] as const)(
+      "a %s the learner stopped is stopped, not failed, and nothing is reported",
+      async (act) => {
+        const { StoppedError } = await import("@/utils/stopped");
+        const before = portWith({
+          send: async () => ({
+            captured: [],
+            error: new StoppedError("Stopped."),
+          }),
+        });
+        expect((await stagesOf(before, act)).result).toMatchObject({
+          act,
+          ok: false,
+          reason: "stopped",
+          message: "Stopped.",
+        });
+        expect(before.report).not.toHaveBeenCalled();
+        const thrown = portWith({
+          send: async () => {
+            throw new StoppedError("Stopped.");
+          },
+        });
+        expect((await stagesOf(thrown, act)).result).toMatchObject({
+          act,
+          ok: false,
+          reason: "stopped",
+        });
+        expect(thrown.report).not.toHaveBeenCalled();
+      }
+    );
 
     describe("runOrCall", () => {
       const CREATES = { instruction: "init_player", account: "player" };
